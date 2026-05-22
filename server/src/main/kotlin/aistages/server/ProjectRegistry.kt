@@ -22,18 +22,35 @@ class ProjectRegistry {
     private val configFile = File(configDir, "config.json")
     private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
 
-    fun load(): ProjectConfig {
-        if (!configFile.exists()) return ProjectConfig()
-        return try {
+    @Volatile
+    private var cached: ProjectConfig? = null
+
+    private fun load(): ProjectConfig {
+        cached?.let { return it }
+        val config = if (!configFile.exists()) ProjectConfig()
+        else try {
             json.decodeFromString(configFile.readText())
         } catch (_: Exception) {
             ProjectConfig()
         }
+        cached = config
+        return config
     }
 
-    fun save(config: ProjectConfig) {
+    private fun save(config: ProjectConfig) {
         configDir.mkdirs()
         configFile.writeText(json.encodeToString(ProjectConfig.serializer(), config))
+        cached = config
+    }
+
+    fun resolveStartSlug(): String? {
+        val config = load()
+        val lastSlug = config.lastUsedSlug
+        return when {
+            lastSlug != null && config.projects.any { it.slug == lastSlug } -> lastSlug
+            config.projects.isNotEmpty() -> config.projects.first().slug
+            else -> null
+        }
     }
 
     fun listProjects(): List<ProjectInfo> {
@@ -42,7 +59,7 @@ class ProjectRegistry {
             ProjectInfo(
                 path = entry.path,
                 slug = entry.slug,
-                available = dir.exists() && File(dir, ".git").exists(),
+                available = dir.isGitRepo(),
             )
         }
     }
@@ -86,11 +103,10 @@ class ProjectRegistry {
         val newLastUsed = if (config.lastUsedSlug == slug) updatedSlug else config.lastUsedSlug
         save(config.copy(projects = newProjects, lastUsedSlug = newLastUsed))
 
-        val dir = File(updatedPath)
         return ProjectInfo(
             path = updatedPath,
             slug = updatedSlug,
-            available = dir.exists() && File(dir, ".git").exists(),
+            available = File(updatedPath).isGitRepo(),
         )
     }
 
@@ -109,19 +125,19 @@ class ProjectRegistry {
     }
 
     companion object {
-        fun generateSlug(path: String, existingSlugs: Set<String>): String {
-            val file = File(path)
-            var slug = file.name.lowercase()
+        private fun String.toSlugSegment(): String =
+            lowercase()
                 .replace(Regex("[^a-z0-9-]"), "-")
                 .replace(Regex("-+"), "-")
                 .trim('-')
+
+        fun generateSlug(path: String, existingSlugs: Set<String>): String {
+            val file = File(path)
+            var slug = file.name.toSlugSegment()
             if (slug.isEmpty()) slug = "project"
             if (slug !in existingSlugs) return slug
 
-            val parent = file.parentFile?.name?.lowercase()
-                ?.replace(Regex("[^a-z0-9-]"), "-")
-                ?.replace(Regex("-+"), "-")
-                ?.trim('-')
+            val parent = file.parentFile?.name?.toSlugSegment()
             if (!parent.isNullOrEmpty()) {
                 slug = "$parent-$slug"
                 if (slug !in existingSlugs) return slug
@@ -135,5 +151,7 @@ class ProjectRegistry {
             }
             return slug
         }
+
+        private fun File.isGitRepo() = exists() && resolve(".git").exists()
     }
 }

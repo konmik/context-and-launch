@@ -10,6 +10,8 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeViewport
 import kotlinx.browser.document
 import kotlinx.browser.window
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
@@ -27,8 +29,12 @@ fun App() {
 
         LaunchedEffect(Unit) {
             try {
-                projects = Api.getProjects()
-                browseCapable = Api.getBrowseCapabilities().folderPicker
+                coroutineScope {
+                    val projectsDeferred = async { Api.getProjects() }
+                    val capabilitiesDeferred = async { Api.getBrowseCapabilities() }
+                    projects = projectsDeferred.await()
+                    browseCapable = capabilitiesDeferred.await().folderPicker
+                }
             } catch (e: Exception) {
                 error = e.message
             }

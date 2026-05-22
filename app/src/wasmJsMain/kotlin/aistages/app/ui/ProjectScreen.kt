@@ -134,34 +134,13 @@ private fun AddProjectDialog(
         title = { Text("Add Project") },
         text = {
             Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
-                        value = path,
-                        onValueChange = { path = it; error = null },
-                        label = { Text("Repository path") },
-                        isError = error != null,
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (browseCapable) {
-                        Spacer(Modifier.width(8.dp))
-                        OutlinedButton(onClick = {
-                            scope.launch {
-                                val result = Api.browseFolder(path.ifBlank { null })
-                                if (result != null) {
-                                    path = result
-                                    error = null
-                                }
-                            }
-                        }) {
-                            Text("Browse")
-                        }
-                    }
-                }
-                if (error != null) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(error!!, color = MaterialTheme.colorScheme.error)
-                }
+                AddProjectFields(
+                    browseCapable = browseCapable,
+                    path = path,
+                    onPathChange = { path = it; error = null },
+                    error = error,
+                    fillWidth = true,
+                )
             }
         },
         confirmButton = {
