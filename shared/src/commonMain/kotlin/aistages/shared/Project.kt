@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 data class ProjectInfo(
     val path: String,
     val slug: String,
-    val available: Boolean = true,
+    val available: Boolean,
 )
 
 @Serializable

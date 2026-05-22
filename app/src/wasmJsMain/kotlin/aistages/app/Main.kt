@@ -24,7 +24,7 @@ fun main() {
 fun App() {
     MaterialTheme {
         var projects by remember { mutableStateOf<List<ProjectInfo>?>(null) }
-        var browseCapable by remember { mutableStateOf(false) }
+        var canBrowseFolders by remember { mutableStateOf(false) }
         var error by remember { mutableStateOf<String?>(null) }
 
         LaunchedEffect(Unit) {
@@ -33,7 +33,7 @@ fun App() {
                     val projectsDeferred = async { Api.getProjects() }
                     val capabilitiesDeferred = async { Api.getBrowseCapabilities() }
                     projects = projectsDeferred.await()
-                    browseCapable = capabilitiesDeferred.await().folderPicker
+                    canBrowseFolders = capabilitiesDeferred.await().folderPicker
                 }
             } catch (e: Exception) {
                 error = e.message
@@ -46,12 +46,12 @@ fun App() {
             error != null -> ErrorScreen(error!!)
             projects == null -> LoadingScreen()
             projects!!.isEmpty() || path == "/add-project" ->
-                AddProjectScreen(browseCapable)
+                AddProjectScreen(canBrowseFolders)
             path.startsWith("/project/") -> {
                 val slug = path.removePrefix("/project/")
-                ProjectScreen(slug, projects!!, browseCapable)
+                ProjectScreen(slug, projects!!, canBrowseFolders)
             }
-            else -> AddProjectScreen(browseCapable)
+            else -> AddProjectScreen(canBrowseFolders)
         }
     }
 }

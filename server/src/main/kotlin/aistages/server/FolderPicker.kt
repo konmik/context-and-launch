@@ -5,7 +5,7 @@ import javax.swing.*
 
 private var parentFrame: JFrame? = null
 
-private fun getParentFrame(): JFrame {
+private fun ensureParentFrame(): JFrame {
     if (parentFrame == null) {
         UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
         parentFrame = JFrame().apply { isAlwaysOnTop = true }
@@ -21,7 +21,7 @@ fun openFolderPicker(initialPath: String?): String? {
             dialogTitle = "Select Repository"
             if (initialPath != null) currentDirectory = File(initialPath)
         }
-        if (chooser.showOpenDialog(getParentFrame()) == JFileChooser.APPROVE_OPTION) {
+        if (chooser.showOpenDialog(ensureParentFrame()) == JFileChooser.APPROVE_OPTION) {
             result = chooser.selectedFile.absolutePath
         }
     }

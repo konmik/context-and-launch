@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 fun ProjectScreen(
     currentSlug: String,
     projects: List<ProjectInfo>,
-    browseCapable: Boolean,
+    canBrowseFolders: Boolean,
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
 
@@ -55,7 +55,7 @@ fun ProjectScreen(
 
     if (showAddDialog) {
         AddProjectDialog(
-            browseCapable = browseCapable,
+            canBrowseFolders = canBrowseFolders,
             onDismiss = { showAddDialog = false },
         )
     }
@@ -99,7 +99,7 @@ private fun Header(
                             },
                             onClick = {
                                 expanded = false
-                                if (project.available) onProjectSelected(project.slug)
+                                onProjectSelected(project.slug)
                             },
                             enabled = project.available,
                         )
@@ -121,7 +121,7 @@ private fun Header(
 
 @Composable
 private fun AddProjectDialog(
-    browseCapable: Boolean,
+    canBrowseFolders: Boolean,
     onDismiss: () -> Unit,
 ) {
     var path by remember { mutableStateOf("") }
@@ -135,7 +135,7 @@ private fun AddProjectDialog(
         text = {
             Column {
                 AddProjectFields(
-                    browseCapable = browseCapable,
+                    canBrowseFolders = canBrowseFolders,
                     path = path,
                     onPathChange = { path = it; error = null },
                     error = error,
