@@ -49,6 +49,22 @@ describe('BoardConfigManager', () => {
 		expect(config.columns).toEqual(DEFAULT_COLUMNS);
 	});
 
+	it('empty columns array falls back to defaults', () => {
+		const configDir = tmpDir('board-config-test-');
+		dirs.push(configDir);
+
+		const boardConfigDir = path.join(configDir, 'board-config');
+		fs.mkdirSync(boardConfigDir, { recursive: true });
+		fs.writeFileSync(
+			path.join(boardConfigDir, 'kanban.json'),
+			JSON.stringify({ columns: [] })
+		);
+
+		const manager = new BoardConfigManager(configDir);
+		const config = manager.getConfig();
+		expect(config.columns).toEqual(DEFAULT_COLUMNS);
+	});
+
 	it('malformed JSON falls back to defaults', () => {
 		const configDir = tmpDir('board-config-test-');
 		dirs.push(configDir);

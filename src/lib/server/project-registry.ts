@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import type { ProjectConfig, ProjectEntry, ProjectInfo } from '$lib/types.js';
+import type { ProjectConfig, ProjectEntry, ProjectInfo } from '../types.js';
 
 function isGitRepo(dirPath: string): boolean {
 	try {

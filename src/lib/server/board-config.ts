@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import type { BoardConfig } from '$lib/types.js';
+import type { BoardConfig } from '../types.js';
 
 export const DEFAULT_COLUMNS = ['todo', 'prd', 'in-progress', 'review', 'done'];
 
@@ -25,7 +25,7 @@ export class BoardConfigManager {
 		try {
 			const text = fs.readFileSync(this.configFile, 'utf-8');
 			const config = JSON.parse(text) as BoardConfig;
-			if (!Array.isArray(config.columns)) {
+			if (!Array.isArray(config.columns) || config.columns.length === 0) {
 				return { columns: [...DEFAULT_COLUMNS] };
 			}
 			return config;
