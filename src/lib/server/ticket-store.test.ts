@@ -1,0 +1,595 @@
+import { describe, it, expect, afterEach } from 'vitest';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { TicketStore, toKebabCase } from './ticket-store.js';
+import { git } from './git.js';
+
+function tmpDir(prefix: string): string {
+	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+}
+
+function cleanup(...dirs: string[]) {
+	for (const d of dirs) {
+		try {
+			fs.rmSync(d, { recursive: true, force: true });
+		} catch {
+			// ignore
+		}
+	}
+}
+
+async function createGitWorktree(): Promise<string> {
+	const dir = tmpDir('ticket-store-test-');
+	await git(dir, 'init');
+	await git(dir, 'commit', '--allow-empty', '-m', 'init');
+	return dir;
+}
+
+describe('TicketStore', () => {
+	const dirs: string[] = [];
+
+	afterEach(() => {
+		cleanup(...dirs);
+		dirs.length = 0;
+	});
+
+	it('toKebabCase produces correct folder names', () => {
+		expect(toKebabCase('ABC-1 Fix Login')).toBe('abc-1-fix-login');
+		expect(toKebabCase('DEF-2  Hello  World')).toBe('def-2-hello-world');
+		expect(toKebabCase('  X-1 Test  ')).toBe('x-1-test');
+		expect(toKebabCase('a/b/c')).toBe('a-b-c');
+	});
+
+	it('createTicket creates folder and status json', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		const ticket = store.createTicket('ABC-1', 'Fix Login');
+
+		expect(ticket.number).toBe('ABC-1');
+		expect(ticket.title).toBe('Fix Login');
+		expect(ticket.status).toBe('todo');
+		expect(ticket.folderName).toBe('abc-1-fix-login');
+		expect(fs.existsSync(path.join(worktreeDir, 'abc-1-fix-login', 'status.json'))).toBe(true);
+	});
+
+	it('listTickets returns sorted results', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('C-3', 'Third');
+		store.createTicket('A-1', 'First');
+		store.createTicket('B-2', 'Second');
+
+		const tickets = store.listTickets();
+		expect(tickets.length).toBe(3);
+		expect(tickets[0].number).toBe('A-1');
+		expect(tickets[1].number).toBe('B-2');
+		expect(tickets[2].number).toBe('C-3');
+	});
+
+	it('listTickets skips malformed entries', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('OK-1', 'Good Ticket');
+
+		const badDir = path.join(worktreeDir, 'bad-ticket');
+		fs.mkdirSync(badDir);
+		fs.writeFileSync(path.join(badDir, 'status.json'), 'not valid json');
+
+		const tickets = store.listTickets();
+		expect(tickets.length).toBe(1);
+		expect(tickets[0].number).toBe('OK-1');
+	});
+
+	it('updateTicket renames folder when title changes', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('ABC-1', 'Old Title');
+
+		const updated = store.updateTicket('abc-1-old-title', null, 'New Title', null);
+		expect(updated.title).toBe('New Title');
+		expect(updated.folderName).toBe('abc-1-new-title');
+		expect(fs.existsSync(path.join(worktreeDir, 'abc-1-old-title'))).toBe(false);
+		expect(fs.existsSync(path.join(worktreeDir, 'abc-1-new-title'))).toBe(true);
+	});
+
+	it('deleteTicket removes folder', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('DEL-1', 'To Delete');
+		expect(fs.existsSync(path.join(worktreeDir, 'del-1-to-delete'))).toBe(true);
+
+		store.deleteTicket('del-1-to-delete');
+		expect(fs.existsSync(path.join(worktreeDir, 'del-1-to-delete'))).toBe(false);
+	});
+
+	it('stage markdown read write roundtrip', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('MD-1', 'With Markdown');
+
+		expect(store.getStageMarkdown('md-1-with-markdown', 'todo')).toBeNull();
+
+		store.saveStageMarkdown('md-1-with-markdown', 'todo', '# My Notes\nSome content');
+		const content = store.getStageMarkdown('md-1-with-markdown', 'todo');
+		expect(content).toBe('# My Notes\nSome content');
+
+		const ticket = store.listTickets()[0];
+		expect(ticket.stageNames).toContain('todo');
+	});
+
+	it('createTicket rejects blank number or title', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		expect(() => store.createTicket('', 'Title')).toThrow();
+		expect(() => store.createTicket('NUM', '')).toThrow();
+	});
+
+	it('createTicket appends suffix on folder name collision', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		const first = store.createTicket('X-1', 'Same Name');
+		const second = store.createTicket('X-1', 'Same Name');
+
+		expect(first.folderName).toBe('x-1-same-name');
+		expect(second.folderName).toBe('x-1-same-name-2');
+		expect(fs.existsSync(path.join(worktreeDir, 'x-1-same-name'))).toBe(true);
+		expect(fs.existsSync(path.join(worktreeDir, 'x-1-same-name-2'))).toBe(true);
+	});
+
+	it('updateTicket renames folder when number changes', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('OLD-1', 'My Title');
+
+		const updated = store.updateTicket('old-1-my-title', 'NEW-1', null, null);
+		expect(updated.number).toBe('NEW-1');
+		expect(updated.folderName).toBe('new-1-my-title');
+		expect(fs.existsSync(path.join(worktreeDir, 'old-1-my-title'))).toBe(false);
+		expect(fs.existsSync(path.join(worktreeDir, 'new-1-my-title'))).toBe(true);
+	});
+
+	it('updateTicket on nonexistent folder throws', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		expect(() => store.updateTicket('no-such-folder', null, null, 'done')).toThrow();
+	});
+
+	it('deleteTicket on nonexistent folder throws', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		expect(() => store.deleteTicket('no-such-folder')).toThrow();
+	});
+
+	it('updateTicket rejects rename collision', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('A-1', 'First');
+		store.createTicket('A-1', 'Second');
+
+		expect(() => store.updateTicket('a-1-second', 'A-1', 'First', null)).toThrow();
+	});
+
+	it('saveStageMarkdown rejects path traversal in stage name', async () => {
+		const parentDir = tmpDir('save-traversal-test-');
+		dirs.push(parentDir);
+
+		const worktreeDir = path.join(parentDir, 'worktree');
+		fs.mkdirSync(worktreeDir);
+		await git(worktreeDir, 'init');
+		await git(worktreeDir, 'commit', '--allow-empty', '-m', 'init');
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('T-1', 'Test');
+
+		expect(() => store.saveStageMarkdown('t-1-test', '../sibling/evil', 'pwned')).toThrow();
+
+		const escaped = path.join(parentDir, 'sibling');
+		expect(fs.existsSync(escaped)).toBe(false);
+	});
+
+	it('getStageMarkdown rejects path traversal in folderName', async () => {
+		const parentDir = tmpDir('folder-traversal-test-');
+		dirs.push(parentDir);
+
+		const secretFile = path.join(parentDir, 'todo.md');
+		fs.writeFileSync(secretFile, 'TOP SECRET DATA');
+
+		const worktreeDir = path.join(parentDir, 'worktree');
+		fs.mkdirSync(worktreeDir);
+		await git(worktreeDir, 'init');
+		await git(worktreeDir, 'commit', '--allow-empty', '-m', 'init');
+
+		const store = new TicketStore(worktreeDir);
+		expect(() => store.getStageMarkdown('..', 'todo')).toThrow();
+	});
+
+	it('getStageMarkdown rejects path traversal in stage name', async () => {
+		const parentDir = tmpDir('traversal-test-');
+		dirs.push(parentDir);
+
+		const secretFile = path.join(parentDir, 'secret.md');
+		fs.writeFileSync(secretFile, 'TOP SECRET DATA');
+
+		const worktreeDir = path.join(parentDir, 'worktree');
+		fs.mkdirSync(worktreeDir);
+		await git(worktreeDir, 'init');
+		await git(worktreeDir, 'commit', '--allow-empty', '-m', 'init');
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('T-1', 'Test');
+
+		expect(() => store.getStageMarkdown('t-1-test', '../../secret')).toThrow();
+	});
+
+	it('updateTicket rejects path traversal in folderName', async () => {
+		const parentDir = tmpDir('update-traversal-test-');
+		dirs.push(parentDir);
+
+		const worktreeDir = path.join(parentDir, 'worktree');
+		fs.mkdirSync(worktreeDir);
+		await git(worktreeDir, 'init');
+		await git(worktreeDir, 'commit', '--allow-empty', '-m', 'init');
+
+		const outsideDir = path.join(parentDir, 'target');
+		fs.mkdirSync(outsideDir);
+
+		const store = new TicketStore(worktreeDir);
+		expect(() => store.updateTicket('../../target', null, null, 'done')).toThrow();
+
+		expect(fs.existsSync(path.join(outsideDir, 'status.json'))).toBe(false);
+	});
+
+	it('saveStageMarkdown rejects stage name containing path separators', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('S-1', 'Slashes');
+
+		expect(() => store.saveStageMarkdown('s-1-slashes', 'sub/dir', 'content')).toThrow();
+
+		const subDir = path.join(worktreeDir, 's-1-slashes', 'sub');
+		expect(fs.existsSync(subDir)).toBe(false);
+	});
+
+	it('deleteTicket rejects path traversal in folderName', async () => {
+		const parentDir = tmpDir('delete-traversal-test-');
+		dirs.push(parentDir);
+
+		const worktreeDir = path.join(parentDir, 'worktree');
+		fs.mkdirSync(worktreeDir);
+		await git(worktreeDir, 'init');
+		await git(worktreeDir, 'commit', '--allow-empty', '-m', 'init');
+
+		const outsideDir = path.join(parentDir, 'target');
+		fs.mkdirSync(outsideDir);
+		fs.writeFileSync(path.join(outsideDir, 'precious.txt'), 'important data');
+
+		const store = new TicketStore(worktreeDir);
+		expect(() => store.deleteTicket('../../target')).toThrow();
+
+		expect(fs.existsSync(outsideDir)).toBe(true);
+		expect(fs.existsSync(path.join(outsideDir, 'precious.txt'))).toBe(true);
+	});
+
+	it('autoCommit silently swallows index lock failure', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('LOCK-1', 'Lock Test');
+
+		const statusBefore = await git(worktreeDir, 'status', '--porcelain');
+		expect(statusBefore.trim()).toBe('');
+
+		// Create index.lock to simulate concurrent git operation
+		const dotGitPath = path.join(worktreeDir, '.git');
+		const indexLock = path.join(dotGitPath, 'index.lock');
+		fs.writeFileSync(indexLock, 'simulated lock');
+
+		// This should not throw despite index.lock
+		store.saveStageMarkdown('lock-1-lock-test', 'todo', '# Notes\nThis change will be lost');
+
+		const stageFile = path.join(worktreeDir, 'lock-1-lock-test', 'todo.md');
+		expect(fs.existsSync(stageFile)).toBe(true);
+		expect(fs.readFileSync(stageFile, 'utf-8')).toBe('# Notes\nThis change will be lost');
+
+		// Remove lock and check -- changes should be uncommitted
+		fs.unlinkSync(indexLock);
+		const statusAfter = await git(worktreeDir, 'status', '--porcelain');
+		expect(statusAfter.trim()).not.toBe('');
+
+		const log = await git(worktreeDir, 'log', '--oneline');
+		expect(log).not.toContain('update todo');
+	});
+
+	it('two rapid autoCommit operations both produce commits with correct messages', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+
+		// First operation: createTicket calls autoCommit with "create ticket RAP-1"
+		const ticket = store.createTicket('RAP-1', 'Rapid Ops');
+
+		// Second operation: saveStageMarkdown calls autoCommit with "update todo for RAP-1"
+		store.saveStageMarkdown(ticket.folderName, 'todo', '# Todo\nDo the thing');
+
+		// Verify both commits exist via git log
+		const log = await git(worktreeDir, 'log', '--oneline');
+		expect(log).toContain('create ticket RAP-1');
+		expect(log).toContain('update todo for RAP-1');
+
+		// Verify final state has both files
+		const statusPath = path.join(worktreeDir, ticket.folderName, 'status.json');
+		const stagePath = path.join(worktreeDir, ticket.folderName, 'todo.md');
+		expect(fs.existsSync(statusPath)).toBe(true);
+		expect(fs.existsSync(stagePath)).toBe(true);
+		expect(fs.readFileSync(stagePath, 'utf-8')).toBe('# Todo\nDo the thing');
+
+		// Verify working tree is clean -- no uncommitted changes
+		const status = await git(worktreeDir, 'status', '--porcelain');
+		expect(status.trim()).toBe('');
+	});
+
+	it('combined rename + status change writes correct status.json on disk', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('TK-1', 'Old Title');
+
+		// Change title (triggers rename) and status in one call
+		const updated = store.updateTicket('tk-1-old-title', null, 'New Title', 'in-progress');
+
+		// Verify returned values
+		expect(updated.number).toBe('TK-1');
+		expect(updated.title).toBe('New Title');
+		expect(updated.status).toBe('in-progress');
+		expect(updated.folderName).toBe('tk-1-new-title');
+
+		// Verify folder was renamed
+		expect(fs.existsSync(path.join(worktreeDir, 'tk-1-old-title'))).toBe(false);
+		expect(fs.existsSync(path.join(worktreeDir, 'tk-1-new-title'))).toBe(true);
+
+		// Verify status.json on disk contains all updated fields
+		const statusJsonPath = path.join(worktreeDir, 'tk-1-new-title', 'status.json');
+		const raw = fs.readFileSync(statusJsonPath, 'utf-8');
+		const onDisk = JSON.parse(raw);
+		expect(onDisk.number).toBe('TK-1');
+		expect(onDisk.title).toBe('New Title');
+		expect(onDisk.status).toBe('in-progress');
+	});
+
+	it('status-only change writes updated status.json without renaming folder', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('ST-1', 'Keep Name');
+
+		const updated = store.updateTicket('st-1-keep-name', null, null, 'in-progress');
+
+		// Verify returned values
+		expect(updated.number).toBe('ST-1');
+		expect(updated.title).toBe('Keep Name');
+		expect(updated.status).toBe('in-progress');
+		expect(updated.folderName).toBe('st-1-keep-name');
+
+		// Verify folder was NOT renamed
+		expect(fs.existsSync(path.join(worktreeDir, 'st-1-keep-name'))).toBe(true);
+
+		// Verify status.json on disk reflects the new status
+		const statusJsonPath = path.join(worktreeDir, 'st-1-keep-name', 'status.json');
+		const raw = fs.readFileSync(statusJsonPath, 'utf-8');
+		const onDisk = JSON.parse(raw);
+		expect(onDisk.number).toBe('ST-1');
+		expect(onDisk.title).toBe('Keep Name');
+		expect(onDisk.status).toBe('in-progress');
+	});
+
+	it('number + title change writes both new values to status.json and renames folder', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('OLD-1', 'Original Title');
+
+		const updated = store.updateTicket('old-1-original-title', 'NEW-99', 'Changed Title', null);
+
+		// Verify returned values
+		expect(updated.number).toBe('NEW-99');
+		expect(updated.title).toBe('Changed Title');
+		expect(updated.status).toBe('todo');
+		expect(updated.folderName).toBe('new-99-changed-title');
+
+		// Verify old folder is gone and new folder exists
+		expect(fs.existsSync(path.join(worktreeDir, 'old-1-original-title'))).toBe(false);
+		expect(fs.existsSync(path.join(worktreeDir, 'new-99-changed-title'))).toBe(true);
+
+		// Verify status.json on disk contains both new values
+		const statusJsonPath = path.join(worktreeDir, 'new-99-changed-title', 'status.json');
+		const raw = fs.readFileSync(statusJsonPath, 'utf-8');
+		const onDisk = JSON.parse(raw);
+		expect(onDisk.number).toBe('NEW-99');
+		expect(onDisk.title).toBe('Changed Title');
+		expect(onDisk.status).toBe('todo');
+	});
+
+	it('updateTicket rejects ../sibling folderName traversal and leaves sibling untouched', async () => {
+		const parentDir = tmpDir('update-sibling-traversal-');
+		dirs.push(parentDir);
+
+		const worktreeDir = path.join(parentDir, 'worktree');
+		fs.mkdirSync(worktreeDir);
+		await git(worktreeDir, 'init');
+		await git(worktreeDir, 'commit', '--allow-empty', '-m', 'init');
+
+		// Create a sibling directory outside worktreeDir that the traversal would target
+		const siblingDir = path.join(parentDir, 'sibling');
+		fs.mkdirSync(siblingDir);
+		fs.writeFileSync(path.join(siblingDir, 'status.json'), JSON.stringify({
+			number: 'LEGIT-1', title: 'Legit', status: 'todo'
+		}));
+
+		const store = new TicketStore(worktreeDir);
+
+		// ../sibling resolves to the sibling directory outside worktreeDir
+		expect(() => store.updateTicket('../sibling', null, null, 'done')).toThrow(
+			/escapes allowed directory/
+		);
+
+		// Verify sibling directory was not modified
+		const onDisk = JSON.parse(fs.readFileSync(path.join(siblingDir, 'status.json'), 'utf-8'));
+		expect(onDisk.status).toBe('todo');
+	});
+
+	it('deleteTicket rejects ../../outside folderName and preserves outside directory', async () => {
+		const parentDir = tmpDir('delete-outside-traversal-');
+		dirs.push(parentDir);
+
+		const worktreeDir = path.join(parentDir, 'worktree');
+		fs.mkdirSync(worktreeDir);
+		await git(worktreeDir, 'init');
+		await git(worktreeDir, 'commit', '--allow-empty', '-m', 'init');
+
+		// Create a directory two levels up that the traversal would target
+		const outsideDir = path.join(parentDir, 'outside');
+		fs.mkdirSync(outsideDir);
+		fs.writeFileSync(path.join(outsideDir, 'status.json'), JSON.stringify({
+			number: 'SECRET-1', title: 'Secret', status: 'todo'
+		}));
+		fs.writeFileSync(path.join(outsideDir, 'data.txt'), 'must survive');
+
+		const store = new TicketStore(worktreeDir);
+
+		// requireContained should reject ../../outside
+		expect(() => store.deleteTicket('../../outside')).toThrow(
+			/escapes allowed directory/
+		);
+
+		// Outside directory must be completely untouched
+		expect(fs.existsSync(outsideDir)).toBe(true);
+		expect(fs.readFileSync(path.join(outsideDir, 'data.txt'), 'utf-8')).toBe('must survive');
+		const onDisk = JSON.parse(fs.readFileSync(path.join(outsideDir, 'status.json'), 'utf-8'));
+		expect(onDisk.number).toBe('SECRET-1');
+	});
+
+	it('saveStageMarkdown with a folderName renamed away by updateTicket throws Ticket not found', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		const ticket = store.createTicket('STALE-1', 'Original Name');
+		const oldFolder = ticket.folderName; // 'stale-1-original-name'
+
+		// Rename the ticket by changing its title, which changes the folder name
+		store.updateTicket(oldFolder, null, 'Renamed', null);
+
+		// Old folder no longer exists; saving to it should throw
+		expect(() => store.saveStageMarkdown(oldFolder, 'todo', '# stale write')).toThrow(
+			/Ticket not found/
+		);
+
+		// Verify no stage file was written at the old path
+		expect(fs.existsSync(path.join(worktreeDir, oldFolder, 'todo.md'))).toBe(false);
+	});
+
+	it('saveStageMarkdown to a recycled folderName writes to the wrong ticket (data corruption)', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+
+		// Create ticket A with a known folderName
+		const ticketA = store.createTicket('REC-1', 'Reusable Name');
+		const originalFolder = ticketA.folderName; // 'rec-1-reusable-name'
+
+		// Rename ticket A by changing its number, which changes the folder
+		store.updateTicket(originalFolder, 'REC-99', null, null);
+
+		// Old folder 'rec-1-reusable-name' no longer exists.
+		// Now create ticket B whose kebab name collides with the old folder name.
+		const ticketB = store.createTicket('REC-1', 'Reusable Name');
+		expect(ticketB.folderName).toBe(originalFolder); // same kebab name recycled
+
+		// A stale reference saves stage markdown using the original folderName.
+		// This silently writes into ticket B's folder -- data corruption.
+		store.saveStageMarkdown(originalFolder, 'todo', '# This was meant for ticket A');
+
+		// The stage file lands in ticket B's directory, not ticket A's
+		const stageInB = path.join(worktreeDir, ticketB.folderName, 'todo.md');
+		expect(fs.existsSync(stageInB)).toBe(true);
+		expect(fs.readFileSync(stageInB, 'utf-8')).toBe('# This was meant for ticket A');
+
+		// Ticket A (now at rec-99-reusable-name) has no stage file -- the write went to the wrong ticket
+		const renamedFolder = 'rec-99-reusable-name';
+		const stageInA = path.join(worktreeDir, renamedFolder, 'todo.md');
+		expect(fs.existsSync(stageInA)).toBe(false);
+	});
+
+	it('getStageMarkdown with a folderName that no longer exists returns null silently', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		const ticket = store.createTicket('GONE-1', 'Will Vanish');
+		const oldFolder = ticket.folderName; // 'gone-1-will-vanish'
+
+		// Write stage content while the ticket exists
+		store.saveStageMarkdown(oldFolder, 'todo', '# Important notes');
+		expect(store.getStageMarkdown(oldFolder, 'todo')).toBe('# Important notes');
+
+		// Rename the ticket so the old folder disappears
+		store.updateTicket(oldFolder, null, 'Vanished', null);
+		expect(fs.existsSync(path.join(worktreeDir, oldFolder))).toBe(false);
+
+		// getStageMarkdown with the stale folderName returns null instead of
+		// throwing an error -- the caller has no way to distinguish "stage was
+		// never written" from "ticket was renamed and content lives elsewhere"
+		const result = store.getStageMarkdown(oldFolder, 'todo');
+		expect(result).toBeNull();
+
+		// Meanwhile the content still exists at the new path
+		const newFolder = 'gone-1-vanished';
+		expect(store.getStageMarkdown(newFolder, 'todo')).toBe('# Important notes');
+	});
+
+	it('updateTicket case-only title change on case-insensitive filesystem', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('ABC-1', 'My Title');
+
+		const updated = store.updateTicket('abc-1-my-title', null, 'my title', null);
+		expect(updated.title).toBe('my title');
+		expect(updated.folderName).toBe('abc-1-my-title');
+		expect(fs.existsSync(path.join(worktreeDir, 'abc-1-my-title'))).toBe(true);
+	});
+});
