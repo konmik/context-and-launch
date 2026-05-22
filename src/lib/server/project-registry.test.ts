@@ -192,6 +192,70 @@ describe('ProjectRegistry', () => {
 		expect(slugsOnDisk).toHaveLength(2);
 	});
 
+	it('H7.16 - addProject with a tilde path throws "Path does not exist" (no tilde expansion)', () => {
+		const configDir = tmpDir('registry-config-');
+		dirs.push(configDir);
+
+		const registry = new ProjectRegistry(configDir);
+		// fs.existsSync does not expand ~ -- the literal path "~/nonexistent" does not exist
+		expect(() => registry.addProject('~/nonexistent')).toThrow('Path does not exist');
+	});
+
+	it('H7.16 - addProject with trailing whitespace in path throws "Path does not exist"', () => {
+		const configDir = tmpDir('registry-config-');
+		const projectDir = tmpDir('registry-project-');
+		dirs.push(configDir, projectDir);
+
+		fs.mkdirSync(path.join(projectDir, '.git'));
+		const registry = new ProjectRegistry(configDir);
+		// The path with trailing space does not exist as a filesystem entry (at least on Windows/Linux)
+		// existsSync returns false for the padded path, so we get a clear "Path does not exist" error
+		expect(() => registry.addProject(projectDir + ' ')).toThrow('Path does not exist');
+	});
+
+	it('H7.25 - generateSlug falls back to "project" when base name is entirely non-alphanumeric', () => {
+		// Path whose base is all special characters -- toSlugSegment strips everything, leaving ""
+		// generateSlug should fall back to "project"
+		expect(generateSlug('/@@@/!!!', new Set())).toBe('project');
+		// If "project" is already taken, it tries parent-slug combination.
+		// Parent segment is "@@@" -> toSlugSegment -> "" (empty), so base stays "project" (no prefix).
+		// The deduplication then appends a numeric suffix.
+		expect(generateSlug('/@@@/!!!', new Set(['project']))).toBe('project-2');
+		expect(generateSlug('/@@@/!!!', new Set(['project', 'project-2']))).toBe('project-3');
+	});
+
+	it('H7.25 - generateSlug with a very long path produces an unbounded slug (no truncation)', () => {
+		const longSegment = 'a'.repeat(200);
+		const parentSegment = 'b'.repeat(200);
+
+		// No collision: slug equals the full lowercased base name, no truncation
+		const slug = generateSlug(`/${parentSegment}/${longSegment}`, new Set());
+		expect(slug).toBe(longSegment);
+		expect(slug.length).toBe(200);
+
+		// When base collides, slug becomes parent-base (200 + 1 + 200 = 401 chars)
+		const slugWithParent = generateSlug(
+			`/${parentSegment}/${longSegment}`,
+			new Set([longSegment])
+		);
+		expect(slugWithParent).toBe(`${parentSegment}-${longSegment}`);
+		expect(slugWithParent.length).toBe(401);
+
+		// Confirm addProject with a long directory name produces the expected long slug
+		const configDir = tmpDir('registry-config-');
+		const parentDir = tmpDir('registry-parent-');
+		const longDirName = 'z'.repeat(100); // keep OS-safe (most filesystems cap filename at 255 bytes)
+		const longProjectDir = path.join(parentDir, longDirName);
+		dirs.push(configDir, parentDir);
+		fs.mkdirSync(longProjectDir);
+		fs.mkdirSync(path.join(longProjectDir, '.git'));
+
+		const registry = new ProjectRegistry(configDir);
+		const info = registry.addProject(longProjectDir);
+		expect(info.slug).toBe(longDirName);
+		expect(info.slug.length).toBe(100);
+	});
+
 	it('removeProject on a nonexistent slug does not throw but silently rewrites config.json', () => {
 		const configDir = tmpDir('registry-config-');
 		const projectDir = tmpDir('registry-project-');

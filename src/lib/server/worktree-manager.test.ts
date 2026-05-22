@@ -284,6 +284,24 @@ describe('WorktreeManager', () => {
 		).rejects.toThrow('Project path does not exist');
 	});
 
+	it('getWorktreeDir returns a path for an unregistered slug without error (pure path computation)', () => {
+		const configDir = tmpDir('wt-config-');
+		dirs.push(configDir);
+
+		const manager = new WorktreeManager(configDir);
+		const slug = 'nonexistent-project';
+
+		let result: string | undefined;
+		expect(() => {
+			result = manager.getWorktreeDir(slug);
+		}).not.toThrow();
+
+		expect(result).toBeDefined();
+		expect(result).toContain(slug);
+		// The directory is not guaranteed to exist -- this is by design
+		expect(fs.existsSync(result!)).toBe(false);
+	});
+
 	it('getWorktreeDir rejects slugs containing path traversal', () => {
 		const configDir = tmpDir('wt-config-');
 		dirs.push(configDir);

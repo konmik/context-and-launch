@@ -1,6 +1,7 @@
 .idea/
 node_modules/
-.svelte-kit/
+.vinxi/
+.output/
 build/
 dist/
 .env

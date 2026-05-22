@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { gitSync } from './git.js';
-import type { TicketInfo } from '$lib/types.js';
+import type { TicketInfo } from '../types.js';
 
 interface StatusJson {
 	number: string;
@@ -42,6 +42,9 @@ export class TicketStore {
 			} else {
 				canonical = path.resolve(filePath);
 			}
+		}
+		if (!fs.existsSync(parent)) {
+			throw new Error(`Worktree directory does not exist: ${parent}`);
 		}
 		const root = fs.realpathSync(parent) + path.sep;
 		if (!canonical.startsWith(root)) {
@@ -175,6 +178,9 @@ export class TicketStore {
 	}
 
 	saveStageMarkdown(folderName: string, stage: string, content: string): void {
+		if (typeof content !== 'string') {
+			throw new TypeError('content must be a string');
+		}
 		this.requireSimpleName(stage, 'stage');
 		const dir = path.join(this.worktreeDir, folderName);
 		this.requireContained(dir, 'folderName');

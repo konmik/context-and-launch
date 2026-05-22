@@ -153,6 +153,26 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(path.join(worktreeDir, 'x-1-same-name-2'))).toBe(true);
 	});
 
+	it('H7.29 - two sequential createTicket calls with same number and title produce distinct folders via resolveUniqueFolderPath', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		const first = store.createTicket('DUP-1', 'Same Title');
+		const second = store.createTicket('DUP-1', 'Same Title');
+
+		expect(first.folderName).toBe('dup-1-same-title');
+		expect(second.folderName).toBe('dup-1-same-title-2');
+		expect(fs.existsSync(path.join(worktreeDir, 'dup-1-same-title'))).toBe(true);
+		expect(fs.existsSync(path.join(worktreeDir, 'dup-1-same-title-2'))).toBe(true);
+
+		// Both tickets are independently readable with their own data
+		const tickets = store.listTickets();
+		expect(tickets.length).toBe(2);
+		const folderNames = tickets.map((t) => t.folderName).sort();
+		expect(folderNames).toEqual(['dup-1-same-title', 'dup-1-same-title-2']);
+	});
+
 	it('updateTicket renames folder when number changes', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
@@ -578,6 +598,139 @@ describe('TicketStore', () => {
 		// Meanwhile the content still exists at the new path
 		const newFolder = 'gone-1-vanished';
 		expect(store.getStageMarkdown(newFolder, 'todo')).toBe('# Important notes');
+	});
+
+	it('saveStageMarkdown with undefined content throws TypeError from fs.writeFileSync', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('UNDEF-1', 'Undefined Test');
+
+		// Bypass TypeScript to simulate a runtime caller passing undefined.
+		// Node's fs.writeFileSync rejects undefined with a TypeError, so the
+		// call does throw -- but with a low-level Node error rather than a
+		// clear application-level message like "content must be a string".
+		expect(() =>
+			store.saveStageMarkdown('undef-1-undefined-test', 'notes', undefined as any)
+		).toThrow(TypeError);
+	});
+
+	it('saveStageMarkdown with null content throws TypeError from fs.writeFileSync', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('NULL-1', 'Null Test');
+
+		// Bypass TypeScript to simulate a runtime caller passing null.
+		// Node's fs.writeFileSync rejects null with a TypeError, so the
+		// call does throw -- but with a low-level Node error rather than a
+		// clear application-level message like "content must be a string".
+		expect(() =>
+			store.saveStageMarkdown('null-1-null-test', 'notes', null as any)
+		).toThrow(TypeError);
+	});
+
+	it('saveStageMarkdown with numeric content rejects non-string input', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('NUM-1', 'Numeric Test');
+
+		// Bypass TypeScript to simulate a runtime caller passing a number.
+		// Without an explicit guard, fs.writeFileSync silently coerces numbers
+		// to strings, writing "123" to the file -- data corruption.
+		expect(() =>
+			store.saveStageMarkdown('num-1-numeric-test', 'notes', 123 as any)
+		).toThrow(TypeError);
+	});
+
+	it('createTicket with undefined initialStatus defaults to todo', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		// Bypass TypeScript to simulate a runtime caller passing undefined
+		const ticket = (store as any).createTicket('UNDEF-S1', 'Status Test', undefined);
+
+		// Check the returned ticket object
+		expect(ticket.status).toBe('todo');
+
+		// Check what was actually written to disk
+		const statusJsonPath = path.join(worktreeDir, ticket.folderName, 'status.json');
+		const raw = fs.readFileSync(statusJsonPath, 'utf-8');
+		const onDisk = JSON.parse(raw);
+
+		// Verify the "status" key exists and has the default value
+		expect('status' in onDisk).toBe(true);
+		expect(onDisk.status).toBe('todo');
+
+		// Also verify via listTickets
+		const tickets = store.listTickets();
+		expect(tickets.length).toBe(1);
+		expect(tickets[0].status).toBe('todo');
+	});
+
+	it('listTickets on a nonexistent worktreeDir returns empty array', () => {
+		// Use a path inside a temp dir that was never created
+		const base = tmpDir('nonexistent-parent-');
+		dirs.push(base);
+		const missing = path.join(base, 'does-not-exist');
+
+		const store = new TicketStore(missing);
+		const result = store.listTickets();
+
+		// The implementation silently returns [] when the directory is missing.
+		// This means a misconfigured worktreeDir produces the same result as
+		// "no tickets yet" -- the caller cannot distinguish the two cases.
+		expect(result).toEqual([]);
+	});
+
+	it('saveStageMarkdown on a nonexistent worktreeDir throws about the missing directory', () => {
+		const base = tmpDir('nonexistent-save-');
+		dirs.push(base);
+		const missing = path.join(base, 'does-not-exist');
+
+		const store = new TicketStore(missing);
+
+		// When worktreeDir itself does not exist, requireContained calls
+		// realpathSync on the missing parent, which throws a raw ENOENT.
+		// The error should mention the worktree directory, not "Ticket not found".
+		expect(() => store.saveStageMarkdown('some-folder', 'todo', 'content')).toThrow(
+			/Worktree directory does not exist/
+		);
+	});
+
+	it('getStageMarkdown on a nonexistent worktreeDir throws about the missing directory', () => {
+		const base = tmpDir('nonexistent-get-');
+		dirs.push(base);
+		const missing = path.join(base, 'does-not-exist');
+
+		const store = new TicketStore(missing);
+
+		// When worktreeDir does not exist, requireContainedIn detects the
+		// missing parent and throws a clear error. This is consistent with
+		// saveStageMarkdown but inconsistent with listTickets (which returns []).
+		expect(() => store.getStageMarkdown('some-folder', 'todo')).toThrow(
+			/Worktree directory does not exist/
+		);
+	});
+
+	it('deleteTicket on a nonexistent worktreeDir throws about the missing directory', () => {
+		const base = tmpDir('nonexistent-delete-');
+		dirs.push(base);
+		const missing = path.join(base, 'does-not-exist');
+
+		const store = new TicketStore(missing);
+
+		// When worktreeDir itself does not exist, requireContained calls
+		// requireContainedIn which detects the missing parent and throws
+		// "Worktree directory does not exist" -- not "Ticket not found".
+		expect(() => store.deleteTicket('some-folder')).toThrow(
+			/Worktree directory does not exist/
+		);
 	});
 
 	it('updateTicket case-only title change on case-insensitive filesystem', async () => {
