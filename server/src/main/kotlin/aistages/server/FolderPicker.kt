@@ -1,25 +1,22 @@
 package aistages.server
 
-fun isWindows(): Boolean = System.getProperty("os.name").lowercase().contains("win")
+import java.io.File
+import javax.swing.*
 
 fun openFolderPicker(initialPath: String?): String? {
-    if (!isWindows()) return null
-
-    val script = buildString {
-        appendLine("Add-Type -AssemblyName System.Windows.Forms")
-        appendLine("\$dialog = New-Object System.Windows.Forms.FolderBrowserDialog")
-        if (initialPath != null) {
-            appendLine("\$dialog.SelectedPath = '${initialPath.replace("'", "''")}'")
+    var result: String? = null
+    SwingUtilities.invokeAndWait {
+        UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
+        val frame = JFrame().apply { isAlwaysOnTop = true }
+        val chooser = JFileChooser().apply {
+            fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
+            dialogTitle = "Select Repository"
+            if (initialPath != null) currentDirectory = File(initialPath)
         }
-        appendLine("\$result = \$dialog.ShowDialog()")
-        appendLine("if (\$result -eq 'OK') { \$dialog.SelectedPath }")
+        if (chooser.showOpenDialog(frame) == JFileChooser.APPROVE_OPTION) {
+            result = chooser.selectedFile.absolutePath
+        }
+        frame.dispose()
     }
-
-    val process = ProcessBuilder("powershell", "-NoProfile", "-Command", script)
-        .redirectErrorStream(true)
-        .start()
-    val output = process.inputStream.bufferedReader().readText().trim()
-    process.waitFor()
-
-    return output.ifEmpty { null }
+    return result
 }

@@ -65,14 +65,10 @@ fun main() {
                 }
 
                 get("/browse/capabilities") {
-                    call.respond(BrowseCapabilities(folderPicker = isWindows()))
+                    call.respond(BrowseCapabilities(folderPicker = true))
                 }
 
                 post("/browse/folder") {
-                    if (!isWindows()) {
-                        call.respond(HttpStatusCode.NotImplemented)
-                        return@post
-                    }
                     val request = call.receive<BrowseFolderRequest>()
                     val path = openFolderPicker(request.initialPath)
                     if (path != null) {
