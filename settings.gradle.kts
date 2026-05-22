@@ -17,7 +17,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "ai-stages"
 
-include(":utils")
+include(":util")
 include(":shared")
 include(":server")
 include(":app")

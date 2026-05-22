@@ -21,7 +21,7 @@ kotlin {
     @Suppress("DEPRECATION")
     sourceSets {
         wasmJsMain.dependencies {
-            implementation(project(":utils"))
+            implementation(project(":util"))
             implementation(project(":shared"))
             implementation(compose.runtime)
             implementation(compose.foundation)
