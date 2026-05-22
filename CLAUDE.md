@@ -3,3 +3,4 @@ Never push to remote.
 Be brief.
 Never use the memory system.
 Do not use underscore or bold markdown formatting in md files.
+Never use Java threads, ExecutorService, or Thread.sleep. Use Kotlin coroutines instead.
