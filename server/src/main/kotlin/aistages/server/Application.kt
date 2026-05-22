@@ -80,12 +80,9 @@ fun main() {
             }
 
             get("/") {
-                val config = registry.load()
-                val lastSlug = config.lastUsedSlug
-                if (lastSlug != null && config.projects.any { it.slug == lastSlug }) {
-                    call.respondRedirect("/project/$lastSlug")
-                } else if (config.projects.isNotEmpty()) {
-                    call.respondRedirect("/project/${config.projects.first().slug}")
+                val slug = registry.resolveStartSlug()
+                if (slug != null) {
+                    call.respondRedirect("/project/$slug")
                 } else {
                     call.respondRedirect("/add-project")
                 }

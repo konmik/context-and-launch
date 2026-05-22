@@ -43,34 +43,12 @@ fun AddProjectForm(browseCapable: Boolean) {
     val scope = rememberCoroutineScope()
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
-                value = path,
-                onValueChange = { path = it; error = null },
-                label = { Text("Repository path") },
-                isError = error != null,
-                singleLine = true,
-                modifier = Modifier.width(500.dp),
-            )
-            if (browseCapable) {
-                Spacer(Modifier.width(8.dp))
-                OutlinedButton(onClick = {
-                    scope.launch {
-                        val result = Api.browseFolder(path.ifBlank { null })
-                        if (result != null) {
-                            path = result
-                            error = null
-                        }
-                    }
-                }) {
-                    Text("Browse")
-                }
-            }
-        }
-        if (error != null) {
-            Spacer(Modifier.height(8.dp))
-            Text(error!!, color = MaterialTheme.colorScheme.error)
-        }
+        AddProjectFields(
+            browseCapable = browseCapable,
+            path = path,
+            onPathChange = { path = it; error = null },
+            error = error,
+        )
         Spacer(Modifier.height(16.dp))
         Button(
             onClick = {
@@ -91,5 +69,41 @@ fun AddProjectForm(browseCapable: Boolean) {
         ) {
             Text(if (loading) "Adding..." else "Add Project")
         }
+    }
+}
+
+@Composable
+fun AddProjectFields(
+    browseCapable: Boolean,
+    path: String,
+    onPathChange: (String) -> Unit,
+    error: String?,
+    fillWidth: Boolean = false,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        OutlinedTextField(
+            value = path,
+            onValueChange = onPathChange,
+            label = { Text("Repository path") },
+            isError = error != null,
+            singleLine = true,
+            modifier = if (fillWidth) Modifier.weight(1f) else Modifier.width(500.dp),
+        )
+        if (browseCapable) {
+            Spacer(Modifier.width(8.dp))
+            val scope = rememberCoroutineScope()
+            OutlinedButton(onClick = {
+                scope.launch {
+                    val result = Api.browseFolder(path.ifBlank { null })
+                    if (result != null) onPathChange(result)
+                }
+            }) {
+                Text("Browse")
+            }
+        }
+    }
+    if (error != null) {
+        Spacer(Modifier.height(8.dp))
+        Text(error, color = MaterialTheme.colorScheme.error)
     }
 }
