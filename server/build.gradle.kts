@@ -8,6 +8,14 @@ application {
     mainClass.set("aistages.server.ApplicationKt")
 }
 
+val appDistDir = project(":app").layout.buildDirectory.dir("dist/wasmJs/productionExecutable")
+
+tasks.named<JavaExec>("run") {
+    dependsOn(":app:wasmJsBrowserDistribution")
+    systemProperty("app.static.dir", appDistDir.get().asFile.absolutePath)
+    systemProperty("app.port", findProperty("port") ?: "8080")
+}
+
 dependencies {
     implementation(project(":util"))
     implementation(project(":shared"))
