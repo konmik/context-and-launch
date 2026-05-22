@@ -12,7 +12,7 @@ import kotlinx.browser.window
 import kotlinx.coroutines.launch
 
 @Composable
-fun AddProjectScreen(browseCapable: Boolean) {
+fun AddProjectScreen(canBrowseFolders: Boolean) {
     Column(
         modifier = Modifier.fillMaxSize().padding(48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -31,12 +31,12 @@ fun AddProjectScreen(browseCapable: Boolean) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(40.dp))
-        AddProjectForm(browseCapable)
+        AddProjectForm(canBrowseFolders)
     }
 }
 
 @Composable
-fun AddProjectForm(browseCapable: Boolean) {
+fun AddProjectForm(canBrowseFolders: Boolean) {
     var path by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
@@ -44,7 +44,7 @@ fun AddProjectForm(browseCapable: Boolean) {
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         AddProjectFields(
-            browseCapable = browseCapable,
+            canBrowseFolders = canBrowseFolders,
             path = path,
             onPathChange = { path = it; error = null },
             error = error,
@@ -74,7 +74,7 @@ fun AddProjectForm(browseCapable: Boolean) {
 
 @Composable
 fun AddProjectFields(
-    browseCapable: Boolean,
+    canBrowseFolders: Boolean,
     path: String,
     onPathChange: (String) -> Unit,
     error: String?,
@@ -89,7 +89,7 @@ fun AddProjectFields(
             singleLine = true,
             modifier = if (fillWidth) Modifier.weight(1f) else Modifier.width(500.dp),
         )
-        if (browseCapable) {
+        if (canBrowseFolders) {
             Spacer(Modifier.width(8.dp))
             val scope = rememberCoroutineScope()
             OutlinedButton(onClick = {

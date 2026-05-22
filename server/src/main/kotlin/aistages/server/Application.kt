@@ -80,7 +80,7 @@ fun main() {
             }
 
             get("/") {
-                val slug = registry.resolveStartSlug()
+                val slug = registry.findStartSlug()
                 if (slug != null) {
                     call.respondRedirect("/project/$slug")
                 } else {

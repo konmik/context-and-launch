@@ -43,7 +43,7 @@ class ProjectRegistry {
         cached = config
     }
 
-    fun resolveStartSlug(): String? {
+    fun findStartSlug(): String? {
         val config = load()
         val lastSlug = config.lastUsedSlug
         return when {
@@ -99,7 +99,7 @@ class ProjectRegistry {
         }
 
         val updated = entry.copy(path = updatedPath, slug = updatedSlug)
-        val newProjects = config.projects.toMutableList().apply { set(index, updated) }
+        val newProjects = config.projects.mapIndexed { i, e -> if (i == index) updated else e }
         val newLastUsed = if (config.lastUsedSlug == slug) updatedSlug else config.lastUsedSlug
         save(config.copy(projects = newProjects, lastUsedSlug = newLastUsed))
 
@@ -133,23 +133,16 @@ class ProjectRegistry {
 
         fun generateSlug(path: String, existingSlugs: Set<String>): String {
             val file = File(path)
-            var slug = file.name.toSlugSegment()
-            if (slug.isEmpty()) slug = "project"
-            if (slug !in existingSlugs) return slug
+            val name = file.name.toSlugSegment().ifEmpty { "project" }
+            if (name !in existingSlugs) return name
 
             val parent = file.parentFile?.name?.toSlugSegment()
-            if (!parent.isNullOrEmpty()) {
-                slug = "$parent-$slug"
-                if (slug !in existingSlugs) return slug
-            }
+            val base = if (!parent.isNullOrEmpty()) "$parent-$name" else name
+            if (base !in existingSlugs) return base
 
-            val base = slug
             var i = 2
-            while (slug in existingSlugs) {
-                slug = "$base-$i"
-                i++
-            }
-            return slug
+            while ("$base-$i" in existingSlugs) i++
+            return "$base-$i"
         }
 
         private fun File.isGitRepo() = exists() && resolve(".git").exists()
