@@ -19,8 +19,10 @@
 
 	let activeTab = $state('');
 	let content = $state('');
+	let savedContent = $state('');
 	let loading = $state(false);
 	let saving = $state(false);
+	let confirmingClose = $state(false);
 
 	$effect(() => {
 		if (open && ticket && columns.length > 0) {
@@ -48,8 +50,10 @@
 			} else if (res.status === 404) {
 				content = '';
 			}
+			savedContent = content;
 		} catch {
 			content = '';
+			savedContent = '';
 		} finally {
 			loading = false;
 		}
@@ -67,6 +71,7 @@
 					body: JSON.stringify({ content })
 				}
 			);
+			savedContent = content;
 		} catch {
 			// swallow
 		} finally {
@@ -75,11 +80,26 @@
 	}
 
 	function close() {
+		if (content !== savedContent) {
+			confirmingClose = true;
+			return;
+		}
+		open = false;
+	}
+
+	function forceClose() {
+		confirmingClose = false;
 		open = false;
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape') close();
+		if (e.key === 'Escape') {
+			if (confirmingClose) {
+				confirmingClose = false;
+			} else {
+				close();
+			}
+		}
 	}
 </script>
 
@@ -139,10 +159,37 @@
 				<button
 					type="button"
 					onclick={saveStage}
-					disabled={saving || loading}
+					disabled={saving || loading || content === savedContent}
 					class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
 				>
 					{saving ? 'Saving...' : 'Save'}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+{#if confirmingClose}
+	<div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+		<div class="relative z-10 w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
+			<h2 class="mb-4 text-lg font-semibold">Unsaved Changes</h2>
+			<p class="mb-4 text-sm text-muted-foreground">
+				You have unsaved changes. Discard them?
+			</p>
+			<div class="flex justify-end gap-2">
+				<button
+					type="button"
+					onclick={() => (confirmingClose = false)}
+					class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+				>
+					Cancel
+				</button>
+				<button
+					type="button"
+					onclick={forceClose}
+					class="inline-flex h-10 items-center justify-center rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90"
+				>
+					Discard
 				</button>
 			</div>
 		</div>
