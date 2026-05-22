@@ -1,2 +1,2 @@
 @echo off
-call gradlew.bat :server:run -Pport=8730
+call gradlew.bat clean :server:run -Pport=8730

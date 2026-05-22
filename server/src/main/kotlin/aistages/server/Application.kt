@@ -13,11 +13,23 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import java.io.File
 
-fun Application.configureApp(registry: ProjectRegistry, staticDir: File?) {
+fun Application.configureApp(
+    registry: ProjectRegistry,
+    staticDir: File?,
+    worktreeManager: WorktreeManager = WorktreeManager(),
+    boardConfigManager: BoardConfigManager = BoardConfigManager(),
+    fileWatcher: FileWatcher = FileWatcher(),
+) {
     install(ContentNegotiation) { json() }
     install(CORS) {
         anyHost()
         allowHeader(HttpHeaders.ContentType)
+    }
+
+    fun resolveWorktree(slug: String): File {
+        val project = registry.listProjects().find { it.slug == slug }
+            ?: throw IllegalArgumentException("Project not found: $slug")
+        return worktreeManager.ensureWorktree(project.path, slug)
     }
 
     routing {
@@ -72,6 +84,92 @@ fun Application.configureApp(registry: ProjectRegistry, staticDir: File?) {
                     call.respond(HttpStatusCode.NoContent)
                 }
             }
+
+            route("/projects/{slug}/board") {
+                get {
+                    try {
+                        val slug = call.parameters["slug"]!!
+                        val worktreeDir = resolveWorktree(slug)
+                        fileWatcher.watch(worktreeDir)
+                        val config = boardConfigManager.getConfig()
+                        val tickets = TicketStore(worktreeDir).listTickets()
+                        call.respond(BoardState(columns = config.columns, tickets = tickets))
+                    } catch (e: IllegalArgumentException) {
+                        call.respondText(e.message ?: "Bad request", status = HttpStatusCode.BadRequest)
+                    }
+                }
+
+                post("/tickets") {
+                    try {
+                        val slug = call.parameters["slug"]!!
+                        val worktreeDir = resolveWorktree(slug)
+                        val request = call.receive<CreateTicketRequest>()
+                        val firstColumn = boardConfigManager.getConfig().columns.first()
+                        val ticket = TicketStore(worktreeDir).createTicket(request.number, request.title, firstColumn)
+                        call.respond(HttpStatusCode.Created, ticket)
+                    } catch (e: IllegalArgumentException) {
+                        call.respondText(e.message ?: "Bad request", status = HttpStatusCode.BadRequest)
+                    }
+                }
+
+                put("/tickets/{folderName}") {
+                    try {
+                        val slug = call.parameters["slug"]!!
+                        val folderName = call.parameters["folderName"]!!
+                        val worktreeDir = resolveWorktree(slug)
+                        val request = call.receive<UpdateTicketRequest>()
+                        val ticket = TicketStore(worktreeDir).updateTicket(
+                            folderName, request.number, request.title, request.status,
+                        )
+                        call.respond(ticket)
+                    } catch (e: IllegalArgumentException) {
+                        call.respondText(e.message ?: "Bad request", status = HttpStatusCode.BadRequest)
+                    }
+                }
+
+                delete("/tickets/{folderName}") {
+                    try {
+                        val slug = call.parameters["slug"]!!
+                        val folderName = call.parameters["folderName"]!!
+                        val worktreeDir = resolveWorktree(slug)
+                        TicketStore(worktreeDir).deleteTicket(folderName)
+                        call.respond(HttpStatusCode.NoContent)
+                    } catch (e: IllegalArgumentException) {
+                        call.respondText(e.message ?: "Bad request", status = HttpStatusCode.BadRequest)
+                    }
+                }
+
+                get("/tickets/{folderName}/stages/{stage}") {
+                    try {
+                        val slug = call.parameters["slug"]!!
+                        val folderName = call.parameters["folderName"]!!
+                        val stage = call.parameters["stage"]!!
+                        val worktreeDir = resolveWorktree(slug)
+                        val content = TicketStore(worktreeDir).getStageMarkdown(folderName, stage)
+                        if (content != null) {
+                            call.respond(StageMarkdownContent(content))
+                        } else {
+                            call.respond(HttpStatusCode.NotFound)
+                        }
+                    } catch (e: IllegalArgumentException) {
+                        call.respondText(e.message ?: "Bad request", status = HttpStatusCode.BadRequest)
+                    }
+                }
+
+                put("/tickets/{folderName}/stages/{stage}") {
+                    try {
+                        val slug = call.parameters["slug"]!!
+                        val folderName = call.parameters["folderName"]!!
+                        val stage = call.parameters["stage"]!!
+                        val worktreeDir = resolveWorktree(slug)
+                        val body = call.receive<StageMarkdownContent>()
+                        TicketStore(worktreeDir).saveStageMarkdown(folderName, stage, body.content)
+                        call.respond(HttpStatusCode.NoContent)
+                    } catch (e: IllegalArgumentException) {
+                        call.respondText(e.message ?: "Bad request", status = HttpStatusCode.BadRequest)
+                    }
+                }
+            }
         }
 
         get("/") {
@@ -107,9 +205,12 @@ fun main() {
     val port = System.getProperty("app.port")?.toIntOrNull() ?: 8080
     val staticDir = System.getProperty("app.static.dir")?.let { File(it).canonicalFile }
     val registry = ProjectRegistry()
+    val worktreeManager = WorktreeManager()
+    val boardConfigManager = BoardConfigManager()
+    val fileWatcher = FileWatcher()
 
     embeddedServer(Netty, port = port) {
-        configureApp(registry, staticDir)
+        configureApp(registry, staticDir, worktreeManager, boardConfigManager, fileWatcher)
     }.start(wait = false)
 
     println()

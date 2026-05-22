@@ -26,6 +26,7 @@ dependencies {
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.logback)
     testImplementation(kotlin("test"))
+    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation("io.ktor:ktor-server-test-host:3.4.3")
     testImplementation("io.ktor:ktor-client-content-negotiation:3.4.3")
 }

@@ -28,29 +28,9 @@ fun ProjectScreen(
             onAddProject = { showAddDialog = true },
         )
 
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center,
-        ) {
-            val project = projects.find { it.slug == currentSlug }
-            if (project == null) {
-                Text("Project not found: $currentSlug")
-            } else if (!project.available) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Project unavailable", style = MaterialTheme.typography.headlineSmall)
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "Path not found: ${project.path}",
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            } else {
-                Text(
-                    "Kanban board for ${project.slug}",
-                    style = MaterialTheme.typography.headlineMedium,
-                )
-            }
-        }
+        BoardContent(
+            project = projects.find { it.slug == currentSlug },
+        )
     }
 
     if (showAddDialog) {
@@ -58,6 +38,28 @@ fun ProjectScreen(
             canBrowseFolders = canBrowseFolders,
             onDismiss = { showAddDialog = false },
         )
+    }
+}
+
+@Composable
+private fun BoardContent(project: ProjectInfo?) {
+    if (project == null) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("Project not found")
+        }
+    } else if (!project.available) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Project unavailable", style = MaterialTheme.typography.headlineSmall)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Path not found: ${project.path}",
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+    } else {
+        KanbanBoard(slug = project.slug)
     }
 }
 
