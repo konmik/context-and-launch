@@ -86,7 +86,7 @@ fun TicketDetailDialog(
                 },
                 enabled = !saving && !loading,
             ) {
-                Text(if (saving) "Saving..." else "Save")
+                Text("Save")
             }
         },
         dismissButton = {
