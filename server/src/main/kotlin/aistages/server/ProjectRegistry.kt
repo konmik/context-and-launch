@@ -17,8 +17,7 @@ data class ProjectEntry(
     val slug: String,
 )
 
-class ProjectRegistry {
-    private val configDir = File(System.getProperty("user.home"), ".ai-stages")
+class ProjectRegistry(private val configDir: File = File(System.getProperty("user.home"), ".ai-stages")) {
     private val configFile = File(configDir, "config.json")
     private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
 

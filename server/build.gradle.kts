@@ -25,4 +25,7 @@ dependencies {
     implementation(libs.ktor.server.cors)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.logback)
+    testImplementation(kotlin("test"))
+    testImplementation("io.ktor:ktor-server-test-host:3.4.3")
+    testImplementation("io.ktor:ktor-client-content-negotiation:3.4.3")
 }
