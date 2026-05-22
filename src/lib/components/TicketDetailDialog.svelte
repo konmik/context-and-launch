@@ -160,7 +160,7 @@
 	.carta-wrapper :global(.carta-container) {
 		height: 100%;
 	}
-	.carta-wrapper :global(textarea) {
+	.carta-wrapper :global(.carta-font-code) {
 		font-family: monospace;
 		font-size: 0.875rem;
 	}
