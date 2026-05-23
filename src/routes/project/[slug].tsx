@@ -244,7 +244,6 @@ export default function ProjectPage() {
             onOpenChange={setDetailTicketOpen}
             slug={d().slug}
             ticket={selectedTicket()}
-            columns={d().board?.columns ?? []}
           />
 
           <Show when={addProjectDialogOpen()}>

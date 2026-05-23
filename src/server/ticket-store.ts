@@ -177,6 +177,23 @@ export class TicketStore {
 		return fs.existsSync(file) ? fs.readFileSync(file, 'utf-8') : null;
 	}
 
+	deleteStageMarkdown(folderName: string, stage: string): void {
+		this.requireSimpleName(stage, 'stage');
+		const dir = path.join(this.worktreeDir, folderName);
+		this.requireContained(dir, 'folderName');
+		if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
+			throw new Error(`Ticket not found: ${folderName}`);
+		}
+		const file = path.join(dir, `${stage}.md`);
+		this.requireContained(file, 'stage');
+		this.requireContainedIn(file, dir, 'stage');
+		if (!fs.existsSync(file)) return;
+		fs.unlinkSync(file);
+		const status = this.readStatusJson(dir);
+		const number = status?.number ?? folderName;
+		this.autoCommit(`delete ${stage} for ${number}`);
+	}
+
 	saveStageMarkdown(folderName: string, stage: string, content: string): void {
 		if (typeof content !== 'string') {
 			throw new TypeError('content must be a string');

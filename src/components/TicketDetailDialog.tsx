@@ -1,4 +1,5 @@
 import { createSignal, createEffect, Show, For, on, onCleanup } from "solid-js";
+import { revalidate } from "@solidjs/router";
 import type { TicketInfo } from "~/types.js";
 import AiConsoleTab from "./AiConsoleTab";
 import ResizableWindow from "./ResizableWindow";
@@ -11,7 +12,7 @@ function DiscardConfirmation(props: {
 }) {
   return (
     <Show when={props.open}>
-      <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+      <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onMouseDown={(e) => e.preventDefault()}>
         <div class="relative z-10 w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
           <h2 class="mb-4 text-lg font-semibold">Unsaved Changes</h2>
           <p class="mb-4 text-sm text-muted-foreground">{props.message}</p>
@@ -42,20 +43,42 @@ interface TicketDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   slug: string;
   ticket: TicketInfo | null;
-  columns: string[];
 }
 
 export default function TicketDetailDialog(props: TicketDetailDialogProps) {
-  const [activeTab, setActiveTab] = createSignal("");
+  const [activeFile, setActiveFile] = createSignal("");
   const [content, setContent] = createSignal("");
   const [savedContent, setSavedContent] = createSignal("");
-  const [loading, setLoading] = createSignal(false);
   const [saving, setSaving] = createSignal(false);
   const [confirmingClose, setConfirmingClose] = createSignal(false);
-  const [pendingTab, setPendingTab] = createSignal<string | null>(null);
-  const [confirmingTabSwitch, setConfirmingTabSwitch] = createSignal(false);
+  const [pendingFile, setPendingFile] = createSignal<string | null>(null);
+  const [confirmingFileSwitch, setConfirmingFileSwitch] = createSignal(false);
+  const [showAiConsole, setShowAiConsole] = createSignal(false);
+  const [extraFiles, setExtraFiles] = createSignal<string[]>([]);
+  const [newFileDialogOpen, setNewFileDialogOpen] = createSignal(false);
+  const [newFileName, setNewFileName] = createSignal("");
+  const [confirmingDelete, setConfirmingDelete] = createSignal(false);
+  const [error, setError] = createSignal("");
+  const [dropdownOpen, setDropdownOpen] = createSignal(false);
+  let textareaRef: HTMLTextAreaElement | undefined;
 
-  const hasUnsavedChanges = () => activeTab() !== "ai-console" && content() !== savedContent();
+  const hasOverlay = () =>
+    showAiConsole() || newFileDialogOpen() || confirmingClose() || confirmingFileSwitch() || confirmingDelete();
+
+  const fileOptions = () => {
+    const defaults = ["to-do", "product-requirement-document"];
+    const existing = props.ticket?.stageNames ?? [];
+    const extra = extraFiles();
+    const all = [...defaults];
+    for (const name of [...existing, ...extra]) {
+      if (!all.includes(name)) {
+        all.push(name);
+      }
+    }
+    return all;
+  };
+
+  const hasUnsavedChanges = () => !showAiConsole() && content() !== savedContent();
 
   function handleBeforeUnload(e: BeforeUnloadEvent) {
     if (hasUnsavedChanges()) {
@@ -79,10 +102,12 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
 
   createEffect(
     on(
-      () => [props.open, props.ticket, props.columns] as const,
-      ([open, ticket, columns]) => {
-        if (open && ticket && columns.length > 0) {
-          setActiveTab(columns[0]);
+      () => [props.open, props.ticket] as const,
+      ([open, ticket]) => {
+        if (open && ticket) {
+          setShowAiConsole(false);
+          setExtraFiles([]);
+          setActiveFile("to-do");
         }
       }
     )
@@ -90,14 +115,13 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
 
   createEffect(
     on(
-      () => [props.open, props.ticket, activeTab()] as const,
-      async ([open, ticket, tab]) => {
-        if (!open || !ticket || !tab || tab === "ai-console") return;
-        setLoading(true);
-        setContent("");
+      () => [props.open, props.ticket, activeFile()] as const,
+      async ([open, ticket, file]) => {
+        if (!open || !ticket || !file || showAiConsole()) return;
+        setError("");
         try {
           const res = await fetch(
-            `/api/projects/${props.slug}/board/tickets/${ticket.folderName}/stages/${tab}`
+            `/api/projects/${props.slug}/board/tickets/${ticket.folderName}/stages/${file}`
           );
           if (res.ok) {
             const data = await res.json();
@@ -107,24 +131,23 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
             setContent("");
             setSavedContent("");
           }
-        } catch {
+        } catch (e) {
           setContent("");
           setSavedContent("");
-        } finally {
-          setLoading(false);
+          setError(e instanceof Error ? e.message : "Failed to load file");
         }
       }
     )
   );
 
-  async function saveStage() {
+  async function saveFile() {
     const ticket = props.ticket;
-    const tab = activeTab();
-    if (!ticket || !tab) return;
+    const file = activeFile();
+    if (!ticket || !file) return;
     setSaving(true);
     try {
       await fetch(
-        `/api/projects/${props.slug}/board/tickets/${ticket.folderName}/stages/${tab}`,
+        `/api/projects/${props.slug}/board/tickets/${ticket.folderName}/stages/${file}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -132,35 +155,99 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
         }
       );
       setSavedContent(content());
-    } catch {
-      // swallow
+      revalidate("board-data");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save file");
     } finally {
       setSaving(false);
     }
   }
 
-  function requestTabSwitch(tab: string) {
-    if (tab === activeTab()) return;
+  function requestFileSwitch(file: string) {
+    if (file === activeFile() && !showAiConsole()) return;
     if (hasUnsavedChanges()) {
-      setPendingTab(tab);
-      setConfirmingTabSwitch(true);
+      setPendingFile(file);
+      setConfirmingFileSwitch(true);
       return;
     }
-    setActiveTab(tab);
-  }
-
-  function confirmTabSwitch() {
-    const tab = pendingTab();
-    setConfirmingTabSwitch(false);
-    setPendingTab(null);
-    if (tab) {
-      setActiveTab(tab);
+    setShowAiConsole(false);
+    if (file !== activeFile()) {
+      setActiveFile(file);
     }
   }
 
-  function cancelTabSwitch() {
-    setConfirmingTabSwitch(false);
-    setPendingTab(null);
+  function toggleAiConsole() {
+    if (showAiConsole()) {
+      setShowAiConsole(false);
+      return;
+    }
+    if (hasUnsavedChanges()) {
+      setPendingFile("__ai__");
+      setConfirmingFileSwitch(true);
+      return;
+    }
+    setShowAiConsole(true);
+  }
+
+  function confirmFileSwitch() {
+    const file = pendingFile();
+    setConfirmingFileSwitch(false);
+    setPendingFile(null);
+    if (file === "__ai__") {
+      setShowAiConsole(true);
+    } else if (file) {
+      setShowAiConsole(false);
+      setActiveFile(file);
+    }
+  }
+
+  function cancelFileSwitch() {
+    setConfirmingFileSwitch(false);
+    setPendingFile(null);
+  }
+
+  function selectFile(name: string) {
+    setDropdownOpen(false);
+    requestFileSwitch(name);
+  }
+
+  function openNewFileDialog() {
+    setDropdownOpen(false);
+    setNewFileName("");
+    setNewFileDialogOpen(true);
+  }
+
+  function submitNewFile() {
+    const raw = newFileName().trim();
+    if (!raw) return;
+    const slug = raw
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+    if (!slug) return;
+    setNewFileDialogOpen(false);
+    if (!fileOptions().includes(slug)) {
+      setExtraFiles((prev) => [...prev, slug]);
+    }
+    requestFileSwitch(slug);
+  }
+
+  async function deleteFile() {
+    const ticket = props.ticket;
+    const file = activeFile();
+    if (!ticket || !file) return;
+    setConfirmingDelete(false);
+    try {
+      await fetch(
+        `/api/projects/${props.slug}/board/tickets/${ticket.folderName}/stages/${file}`,
+        { method: "DELETE" }
+      );
+      revalidate("board-data");
+      const remaining = fileOptions().filter((f) => f !== file);
+      setActiveFile(remaining[0] ?? "to-do");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete file");
+    }
   }
 
   function close() {
@@ -178,8 +265,11 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
 
   function handleKeyDown(e: KeyboardEvent) {
     if (e.key === "Escape") {
-      if (confirmingTabSwitch()) {
-        cancelTabSwitch();
+      if (dropdownOpen()) {
+        setDropdownOpen(false);
+        e.preventDefault();
+      } else if (confirmingFileSwitch()) {
+        cancelFileSwitch();
         e.preventDefault();
       } else if (confirmingClose()) {
         setConfirmingClose(false);
@@ -206,72 +296,105 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
               <button
                 type="button"
                 onClick={close}
+
                 class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
               >
                 Close
               </button>
-              <Show when={activeTab() !== "ai-console"}>
+              <Show when={!showAiConsole()}>
                 <button
                   type="button"
-                  onClick={saveStage}
-                  disabled={saving() || loading() || !hasUnsavedChanges()}
+                  onClick={saveFile}
+  
+                  disabled={saving() || !hasUnsavedChanges()}
                   class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
                 >
-                  {saving() ? "Saving..." : "Save"}
+                  Save
                 </button>
               </Show>
             </div>
           }
         >
           <div class="flex h-full flex-col">
-            <div class="flex border-b border-border">
-              <For each={props.columns}>
-                {(col) => (
-                  <button
-                    class={`px-4 py-2 text-sm font-medium transition-colors ${
-                      activeTab() === col
-                        ? "border-b-2 border-primary text-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                    onClick={() => requestTabSwitch(col)}
-                  >
-                    {col}
-                  </button>
-                )}
-              </For>
+            <div class="flex items-center gap-2 border-b border-border px-4 py-2">
+              <div class="relative min-w-0 flex-1">
+                <button
+                  type="button"
+                  onClick={() => setDropdownOpen(!dropdownOpen())}
+  
+                  class="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <span class="truncate">{activeFile()}.md</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ml-2 shrink-0"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <Show when={dropdownOpen()}>
+                  <div class="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
+                  <div class="absolute left-0 z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover py-1 shadow-md">
+                    <For each={fileOptions()}>
+                      {(name) => (
+                        <button
+                          type="button"
+          
+                          onClick={() => selectFile(name)}
+                          class={`w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground ${
+                            name === activeFile() ? "font-semibold" : ""
+                          }`}
+                        >
+                          {name}.md
+                        </button>
+                      )}
+                    </For>
+                    <div class="my-1 border-t border-border" />
+                    <button
+                      type="button"
+      
+                      onClick={openNewFileDialog}
+                      class="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                    >
+                      New markdown file...
+                    </button>
+                  </div>
+                </Show>
+              </div>
               <button
-                class={`px-4 py-2 text-sm font-medium transition-colors ${
-                  activeTab() === "ai-console"
-                    ? "border-b-2 border-primary text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
+                type="button"
+                onClick={() => setConfirmingDelete(true)}
+
+                class="inline-flex h-9 shrink-0 items-center justify-center rounded-md border border-input bg-background px-2 text-sm text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground"
+                title="Delete file"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+              </button>
+              <button
+                type="button"
+                onClick={toggleAiConsole}
+
+                class={`inline-flex h-9 shrink-0 items-center justify-center rounded-md px-3 text-sm font-medium transition-colors ${
+                  showAiConsole()
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
                 }`}
-                onClick={() => requestTabSwitch("ai-console")}
               >
                 AI Console
               </button>
             </div>
 
+            <Show when={error()}>
+              <div class="mx-4 mt-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {error()}
+              </div>
+            </Show>
+
             <div class="flex-1 overflow-hidden p-4">
-              <Show
-                when={activeTab() === "ai-console"}
-                fallback={
-                  <Show
-                    when={!loading()}
-                    fallback={
-                      <div class="flex h-full items-center justify-center">
-                        <div class="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
-                      </div>
-                    }
-                  >
-                    <textarea
-                      value={content()}
-                      onInput={(e) => setContent(e.currentTarget.value)}
-                      class="h-full w-full resize-none rounded-md border border-input bg-background p-3 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                      placeholder="Write markdown here..."
-                    />
-                  </Show>
-                }
-              >
+              <textarea
+                ref={(el) => (textareaRef = el)}
+                value={content()}
+                onInput={(e) => setContent(e.currentTarget.value)}
+                class="h-full w-full resize-none rounded-md border border-input bg-background p-3 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                classList={{ hidden: showAiConsole() }}
+                placeholder="Write markdown here..."
+              />
+              <Show when={showAiConsole()}>
                 <AiConsoleTab slug={props.slug} ticket={props.ticket!} />
               </Show>
             </div>
@@ -287,11 +410,78 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
       />
 
       <DiscardConfirmation
-        open={confirmingTabSwitch()}
-        message="You have unsaved changes. Discard them and switch tabs?"
-        onCancel={cancelTabSwitch}
-        onDiscard={confirmTabSwitch}
+        open={confirmingFileSwitch()}
+        message="You have unsaved changes. Discard them and switch files?"
+        onCancel={cancelFileSwitch}
+        onDiscard={confirmFileSwitch}
       />
+
+      <Show when={newFileDialogOpen()}>
+        <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onMouseDown={(e) => { if (!(e.target instanceof HTMLInputElement)) e.preventDefault(); }}>
+          <div class="relative z-10 w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
+            <h2 class="mb-4 text-lg font-semibold">New Markdown File</h2>
+            <label class="mb-1 block text-sm text-muted-foreground">
+              File name (without .md extension)
+            </label>
+            <input
+              type="text"
+              value={newFileName()}
+              onInput={(e) => setNewFileName(e.currentTarget.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submitNewFile();
+                if (e.key === "Escape") setNewFileDialogOpen(false);
+              }}
+              autofocus
+              class="mb-4 h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="e.g. design-notes"
+            />
+            <div class="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setNewFileDialogOpen(false)}
+                class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={submitNewFile}
+                disabled={!newFileName().trim()}
+                class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      </Show>
+
+      <Show when={confirmingDelete()}>
+        <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onMouseDown={(e) => e.preventDefault()}>
+          <div class="relative z-10 w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
+            <h2 class="mb-4 text-lg font-semibold">Delete File</h2>
+            <p class="mb-4 text-sm text-muted-foreground">
+              Delete {activeFile()}.md? This cannot be undone.
+            </p>
+            <div class="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(false)}
+                class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={deleteFile}
+                class="inline-flex h-10 items-center justify-center rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      </Show>
     </>
   );
 }
