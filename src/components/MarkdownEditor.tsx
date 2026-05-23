@@ -1,10 +1,10 @@
 import { onMount, onCleanup, createEffect } from "solid-js";
-import { EditorView, keymap, placeholder as cmPlaceholder } from "@codemirror/view";
-import { EditorState } from "@codemirror/state";
+import { EditorView, ViewPlugin, Decoration, type DecorationSet, keymap, placeholder as cmPlaceholder } from "@codemirror/view";
+import { EditorState, type Range } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { syntaxHighlighting, defaultHighlightStyle, HighlightStyle, bracketMatching } from "@codemirror/language";
+import { syntaxHighlighting, defaultHighlightStyle, HighlightStyle, bracketMatching, syntaxTree } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
@@ -20,7 +20,7 @@ const theme = EditorView.theme({
     outline: "none",
   },
   ".cm-scroller": {
-    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif",
     overflow: "auto",
   },
   ".cm-content": {
@@ -47,6 +47,10 @@ const theme = EditorView.theme({
   ".cm-placeholder": {
     color: "var(--muted-foreground)",
   },
+  ".cm-codeblock": {
+    backgroundColor: "var(--muted)",
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+  },
 });
 
 const markdownStyle = HighlightStyle.define([
@@ -64,6 +68,38 @@ const markdownStyle = HighlightStyle.define([
   { tag: tags.list, color: "var(--muted-foreground)" },
   { tag: tags.processingInstruction, fontWeight: "700", color: "var(--muted-foreground)" },
 ]);
+
+const codeBlockDeco = Decoration.line({ class: "cm-codeblock" });
+
+function buildCodeBlockDecos(view: EditorView) {
+  const decos: Range<Decoration>[] = [];
+  syntaxTree(view.state).iterate({
+    enter(node) {
+      if (node.name === "FencedCode") {
+        for (let pos = node.from; pos <= node.to;) {
+          const line = view.state.doc.lineAt(pos);
+          decos.push(codeBlockDeco.range(line.from));
+          pos = line.to + 1;
+        }
+      }
+    },
+  });
+  return Decoration.set(decos, true);
+}
+
+const codeBlockPlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+    constructor(view: EditorView) {
+      this.decorations = buildCodeBlockDecos(view);
+    }
+    update(update: { docChanged: boolean; viewportChanged: boolean; view: EditorView }) {
+      if (update.docChanged || update.viewportChanged)
+        this.decorations = buildCodeBlockDecos(update.view);
+    }
+  },
+  { decorations: (v) => v.decorations },
+);
 
 interface MarkdownEditorProps {
   value: string;
@@ -99,6 +135,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
         syntaxHighlighting(markdownStyle),
         markdown({ codeLanguages: languages }),
+        codeBlockPlugin,
         EditorView.lineWrapping,
         theme,
         cmPlaceholder(props.placeholder ?? ""),
@@ -134,7 +171,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
   return (
     <div
       ref={(el) => (containerRef = el)}
-      class="h-full w-full overflow-hidden rounded-md border border-input bg-background ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+      class="h-full w-full overflow-hidden rounded-md border border-input bg-background"
     />
   );
 }
