@@ -1,20 +1,24 @@
-import { redirect, query, createAsync } from "@solidjs/router";
-
-const redirectToDefaultProject = query(async () => {
-  "use server";
-  const { projectRegistry } = await import("~/server/instances.js");
-  const slug = projectRegistry.getDefaultSlug();
-  if (slug) {
-    throw redirect(`/project/${slug}`);
-  }
-  throw redirect("/add-project");
-}, "home-redirect");
+import { useNavigate, createAsync } from "@solidjs/router";
+import { createEffect } from "solid-js";
+import { getDefaultSlug } from "~/server/actions";
 
 export const route = {
-  load: () => redirectToDefaultProject()
+  load: () => getDefaultSlug(),
 };
 
 export default function Home() {
-  createAsync(() => redirectToDefaultProject());
+  const navigate = useNavigate();
+  const slug = createAsync(() => getDefaultSlug());
+
+  createEffect(() => {
+    const s = slug();
+    if (s === undefined) return;
+    if (s) {
+      navigate(`/project/${s}`, { replace: true });
+    } else {
+      navigate("/add-project", { replace: true });
+    }
+  });
+
   return <p>Loading...</p>;
 }

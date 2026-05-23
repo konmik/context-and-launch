@@ -11,6 +11,12 @@ interface BoardPageData {
   error?: string;
 }
 
+export const getDefaultSlug = query(async (): Promise<string | null> => {
+  "use server";
+  const { projectRegistry } = await import("~/server/instances.js");
+  return projectRegistry.getDefaultSlug();
+}, "default-slug");
+
 export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
   "use server";
   const { projectRegistry, boardConfigManager, worktreeManager, fileWatcher } =
