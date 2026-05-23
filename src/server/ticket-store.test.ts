@@ -673,6 +673,115 @@ describe('TicketStore', () => {
 		expect(tickets[0].status).toBe('todo');
 	});
 
+	it('updateSessionId writes sessionId to status.json', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('SID-1', 'Session Test');
+
+		store.updateSessionId('sid-1-session-test', 'abc-123-uuid');
+
+		const tickets = store.listTickets();
+		expect(tickets[0].sessionId).toBe('abc-123-uuid');
+
+		// Verify on disk
+		const statusPath = path.join(worktreeDir, 'sid-1-session-test', 'status.json');
+		const onDisk = JSON.parse(fs.readFileSync(statusPath, 'utf-8'));
+		expect(onDisk.sessionId).toBe('abc-123-uuid');
+	});
+
+	it('updateSessionId with null removes sessionId from status.json', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('SID-2', 'Remove Session');
+
+		// Set a sessionId first
+		store.updateSessionId('sid-2-remove-session', 'to-be-removed');
+		expect(store.listTickets()[0].sessionId).toBe('to-be-removed');
+
+		// Remove it
+		store.updateSessionId('sid-2-remove-session', null);
+
+		const tickets = store.listTickets();
+		expect(tickets[0].sessionId).toBeUndefined();
+
+		// Verify on disk: sessionId key should not exist
+		const statusPath = path.join(worktreeDir, 'sid-2-remove-session', 'status.json');
+		const onDisk = JSON.parse(fs.readFileSync(statusPath, 'utf-8'));
+		expect('sessionId' in onDisk).toBe(false);
+	});
+
+	it('readTicket returns sessionId when present', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('SID-3', 'Has Session');
+		store.updateSessionId('sid-3-has-session', 'present-uuid');
+
+		const tickets = store.listTickets();
+		const ticket = tickets.find(t => t.folderName === 'sid-3-has-session');
+		expect(ticket?.sessionId).toBe('present-uuid');
+	});
+
+	it('readTicket returns undefined sessionId when not present', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('SID-4', 'No Session');
+
+		const tickets = store.listTickets();
+		const ticket = tickets.find(t => t.folderName === 'sid-4-no-session');
+		expect(ticket?.sessionId).toBeUndefined();
+	});
+
+	it('updateSessionId on nonexistent folder throws', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		expect(() => store.updateSessionId('no-such-folder', 'uuid')).toThrow();
+	});
+
+	it('updateSessionId(null) clears sessionId but no API route exposes this', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('CLR-1', 'Clear Session');
+		const folderName = 'clr-1-clear-session';
+
+		// Set a sessionId (mimicking what the run route does on first run)
+		store.updateSessionId(folderName, 'session-to-clear');
+
+		// Verify sessionId is persisted in status.json
+		const statusPath = path.join(worktreeDir, folderName, 'status.json');
+		const beforeClear = JSON.parse(fs.readFileSync(statusPath, 'utf-8'));
+		expect(beforeClear.sessionId).toBe('session-to-clear');
+
+		// Clear sessionId via null (the store supports this)
+		store.updateSessionId(folderName, null);
+
+		// Verify sessionId is removed from status.json entirely (not set to null)
+		const afterClear = JSON.parse(fs.readFileSync(statusPath, 'utf-8'));
+		expect('sessionId' in afterClear).toBe(false);
+
+		// Verify the ticket object also reflects the removal
+		const ticket = store.listTickets().find(t => t.folderName === folderName);
+		expect(ticket?.sessionId).toBeUndefined();
+
+		// Design observation: the only caller of updateSessionId is
+		// run.ts line 29, and it only passes result.sessionId (never null).
+		// No route in the API exposes the null-clearing capability. This
+		// means once a ticket has a sessionId, it can never be cleared
+		// through the API, forcing every subsequent run to attempt --resume
+		// even if the external claude session no longer exists.
+	});
+
 	it('listTickets on a nonexistent worktreeDir returns empty array', () => {
 		// Use a path inside a temp dir that was never created
 		const base = tmpDir('nonexistent-parent-');

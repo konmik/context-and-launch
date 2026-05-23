@@ -7,6 +7,7 @@ interface StatusJson {
 	number: string;
 	title: string;
 	status: string;
+	sessionId?: string;
 }
 
 export function toKebabCase(input: string): string {
@@ -196,6 +197,19 @@ export class TicketStore {
 		this.autoCommit(`update ${stage} for ${number}`);
 	}
 
+	updateSessionId(folderName: string, sessionId: string | null): void {
+		const dir = path.join(this.worktreeDir, folderName);
+		this.requireContained(dir, 'folderName');
+		if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
+			throw new Error(`Ticket not found: ${folderName}`);
+		}
+		const current = this.readStatusJson(dir);
+		if (!current) throw new Error(`Malformed ticket: ${folderName}`);
+		const updated = { ...current, sessionId: sessionId ?? undefined };
+		if (!sessionId) delete updated.sessionId;
+		this.writeStatusJson(dir, updated);
+	}
+
 	private readTicket(dir: string): TicketInfo | null {
 		const status = this.readStatusJson(dir);
 		if (!status) return null;
@@ -209,7 +223,8 @@ export class TicketStore {
 			title: status.title,
 			status: status.status,
 			folderName: path.basename(dir),
-			stageNames
+			stageNames,
+			sessionId: status.sessionId
 		};
 	}
 

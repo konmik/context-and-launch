@@ -1,5 +1,5 @@
 import { useParams, useNavigate, createAsync, revalidate } from "@solidjs/router";
-import { createSignal, Show, For } from "solid-js";
+import { createSignal, Show, For, onMount, onCleanup } from "solid-js";
 import type { TicketInfo } from "~/types.js";
 import KanbanBoard from "~/components/KanbanBoard";
 import CreateTicketDialog from "~/components/CreateTicketDialog";
@@ -24,6 +24,27 @@ export default function ProjectPage() {
   const params = useParams();
   const navigate = useNavigate();
   const data = createAsync(() => loadBoard(params.slug));
+
+  const [runningFolderNames, setRunningFolderNames] = createSignal<string[]>([]);
+  let pollingInterval: ReturnType<typeof setInterval>;
+
+  onMount(() => {
+    async function pollRunning() {
+      try {
+        const res = await fetch(`/api/projects/${params.slug}/board/tickets/ai/running`);
+        if (res.ok) {
+          const body = await res.json();
+          setRunningFolderNames(body.folderNames);
+        }
+      } catch { /* swallow */ }
+    }
+    pollRunning();
+    pollingInterval = setInterval(pollRunning, 5000);
+  });
+
+  onCleanup(() => {
+    if (pollingInterval) clearInterval(pollingInterval);
+  });
 
   const [dropdownOpen, setDropdownOpen] = createSignal(false);
   const [addProjectDialogOpen, setAddProjectDialogOpen] = createSignal(false);
@@ -106,7 +127,6 @@ export default function ProjectPage() {
     <Show when={data()} fallback={<p>Loading...</p>}>
       {(d) => (
         <div class="flex min-h-screen flex-col">
-          {/* Header */}
           <header class="flex items-center justify-between border-b border-border px-4 py-3">
             <h1 class="text-xl font-semibold">AI Stages</h1>
 
@@ -186,7 +206,6 @@ export default function ProjectPage() {
             </div>
           </header>
 
-          {/* Content */}
           <main class="flex-1">
             <Show when={d().projectNotFound}>
               <div class="flex h-64 items-center justify-center">
@@ -215,6 +234,7 @@ export default function ProjectPage() {
                 <KanbanBoard
                   board={board()}
                   slug={d().slug}
+                  runningFolderNames={runningFolderNames()}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                   onViewDetail={handleViewDetail}
@@ -224,7 +244,6 @@ export default function ProjectPage() {
             </Show>
           </main>
 
-          {/* Dialogs */}
           <CreateTicketDialog
             open={createTicketOpen()}
             onOpenChange={setCreateTicketOpen}
@@ -250,7 +269,6 @@ export default function ProjectPage() {
             columns={d().board?.columns ?? []}
           />
 
-          {/* Add Project Dialog */}
           <Show when={addProjectDialogOpen()}>
             <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
               <div
