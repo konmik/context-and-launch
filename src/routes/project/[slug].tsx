@@ -1,13 +1,13 @@
 import { useParams, useNavigate, query, createAsync, revalidate } from "@solidjs/router";
 import { createSignal, Show, For } from "solid-js";
 import type { TicketInfo, BoardState, ProjectInfo } from "~/lib/types.js";
-import KanbanBoard from "~/lib/components/KanbanBoard";
-import CreateTicketDialog from "~/lib/components/CreateTicketDialog";
-import EditTicketDialog from "~/lib/components/EditTicketDialog";
-import DeleteTicketDialog from "~/lib/components/DeleteTicketDialog";
-import TicketDetailDialog from "~/lib/components/TicketDetailDialog";
-import AddProjectForm from "~/lib/components/AddProjectForm";
-import { addProjectAction } from "~/lib/server/actions";
+import KanbanBoard from "~/components/KanbanBoard";
+import CreateTicketDialog from "~/components/CreateTicketDialog";
+import EditTicketDialog from "~/components/EditTicketDialog";
+import DeleteTicketDialog from "~/components/DeleteTicketDialog";
+import TicketDetailDialog from "~/components/TicketDetailDialog";
+import AddProjectForm from "~/components/AddProjectForm";
+import { addProjectAction } from "~/server/actions";
 
 interface BoardPageData {
   projects: ProjectInfo[];
@@ -22,9 +22,9 @@ interface BoardPageData {
 const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
   "use server";
   const { projectRegistry, boardConfigManager, worktreeManager, fileWatcher } =
-    await import("~/lib/server/instances.js");
-  const { TicketStore } = await import("~/lib/server/ticket-store.js");
-  const { errorMessage } = await import("~/lib/server/errors.js");
+    await import("~/server/instances.js");
+  const { TicketStore } = await import("~/server/ticket-store.js");
+  const { errorMessage } = await import("~/server/errors.js");
 
   projectRegistry.setLastUsed(slug);
   const projects = projectRegistry.listProjects();
@@ -81,10 +81,10 @@ const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
 async function createTicketAction(slug: string, number: string, title: string) {
   "use server";
   const { worktreeManager, boardConfigManager } = await import(
-    "~/lib/server/instances.js"
+    "~/server/instances.js"
   );
-  const { TicketStore } = await import("~/lib/server/ticket-store.js");
-  const { errorMessage } = await import("~/lib/server/errors.js");
+  const { TicketStore } = await import("~/server/ticket-store.js");
+  const { errorMessage } = await import("~/server/errors.js");
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(slug);
     const firstColumn = boardConfigManager.getConfig().columns[0];
@@ -103,9 +103,9 @@ async function updateTicketAction(
   status: string | null
 ) {
   "use server";
-  const { worktreeManager } = await import("~/lib/server/instances.js");
-  const { TicketStore } = await import("~/lib/server/ticket-store.js");
-  const { errorMessage } = await import("~/lib/server/errors.js");
+  const { worktreeManager } = await import("~/server/instances.js");
+  const { TicketStore } = await import("~/server/ticket-store.js");
+  const { errorMessage } = await import("~/server/errors.js");
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(slug);
     new TicketStore(worktreeDir).updateTicket(
@@ -122,9 +122,9 @@ async function updateTicketAction(
 
 async function deleteTicketAction(slug: string, folderName: string) {
   "use server";
-  const { worktreeManager } = await import("~/lib/server/instances.js");
-  const { TicketStore } = await import("~/lib/server/ticket-store.js");
-  const { errorMessage } = await import("~/lib/server/errors.js");
+  const { worktreeManager } = await import("~/server/instances.js");
+  const { TicketStore } = await import("~/server/ticket-store.js");
+  const { errorMessage } = await import("~/server/errors.js");
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(slug);
     new TicketStore(worktreeDir).deleteTicket(folderName);

@@ -2,7 +2,7 @@ import { redirect, query, createAsync } from "@solidjs/router";
 
 const redirectToDefaultProject = query(async () => {
   "use server";
-  const { projectRegistry } = await import("~/lib/server/instances.js");
+  const { projectRegistry } = await import("~/server/instances.js");
   const slug = projectRegistry.getDefaultSlug();
   if (slug) {
     throw redirect(`/project/${slug}`);

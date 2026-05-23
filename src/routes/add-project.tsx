@@ -1,6 +1,6 @@
 import { useNavigate } from "@solidjs/router";
-import AddProjectForm from "~/lib/components/AddProjectForm";
-import { addProjectAction } from "~/lib/server/actions";
+import AddProjectForm from "~/components/AddProjectForm";
+import { addProjectAction } from "~/server/actions";
 
 export default function AddProjectPage() {
   const navigate = useNavigate();
