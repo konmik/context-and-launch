@@ -17,6 +17,17 @@ export async function GET({ params }: APIEvent) {
   }
 }
 
+export async function DELETE({ params }: APIEvent) {
+  try {
+    const { slug, folderName, stage } = params;
+    const worktreeDir = worktreeManager.getWorktreeDir(slug);
+    new TicketStore(worktreeDir).deleteStageMarkdown(folderName, stage);
+    return new Response(null, { status: 204 });
+  } catch (e) {
+    return new Response(errorMessage(e), { status: 400 });
+  }
+}
+
 export async function PUT({ params, request }: APIEvent) {
   try {
     const { slug, folderName, stage } = params;
