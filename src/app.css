@@ -29,9 +29,9 @@
 :root {
 	--background: oklch(1 0 0);
 	--foreground: oklch(0.141 0.005 285.823);
-	--card: oklch(1 0 0);
+	--card: oklch(0.965 0.001 286.375);
 	--card-foreground: oklch(0.141 0.005 285.823);
-	--popover: oklch(1 0 0);
+	--popover: oklch(0.965 0.001 286.375);
 	--popover-foreground: oklch(0.141 0.005 285.823);
 	--primary: oklch(0.141 0.005 285.823);
 	--primary-foreground: oklch(0.985 0.002 247.839);
@@ -54,7 +54,7 @@
 	--foreground: oklch(0.985 0.002 247.839);
 	--card: oklch(0.32 0.006 285.823);
 	--card-foreground: oklch(0.985 0.002 247.839);
-	--popover: oklch(0.32 0.006 285.823);
+	--popover: oklch(0.25 0.006 285.823);
 	--popover-foreground: oklch(0.985 0.002 247.839);
 	--primary: oklch(0.985 0.002 247.839);
 	--primary-foreground: oklch(0.205 0.006 285.823);

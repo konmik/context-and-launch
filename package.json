@@ -16,6 +16,8 @@
   "dependencies": {
     "@codemirror/lang-markdown": "^6.5.0",
     "@codemirror/language-data": "^6.5.2",
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/jetbrains-mono": "^5.2.8",
     "@solidjs/router": "^0.15",
     "@solidjs/start": "^1.1",
     "chokidar": "^5.0.0",
