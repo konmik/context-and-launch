@@ -1,5 +1,5 @@
 import { createSignal, createEffect, Show, For, on, onCleanup } from "solid-js";
-import type { TicketInfo } from "~/lib/types.js";
+import type { TicketInfo } from "~/types.js";
 
 function DiscardConfirmation(props: {
   open: boolean;

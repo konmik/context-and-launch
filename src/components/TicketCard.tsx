@@ -1,5 +1,5 @@
 import { For, Show, createSignal } from "solid-js";
-import type { TicketInfo } from "~/lib/types.js";
+import type { TicketInfo } from "~/types.js";
 
 const stageColors = [
   "bg-blue-100 text-blue-800",
