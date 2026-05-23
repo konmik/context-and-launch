@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import type { BoardConfig } from '../types.js';
+import type { BoardConfig } from '../lib/types.js';
 
 export const DEFAULT_COLUMNS = ['todo', 'prd', 'in-progress', 'review', 'done'];
 

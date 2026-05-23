@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { gitSync } from './git.js';
-import type { TicketInfo } from '../types.js';
+import type { TicketInfo } from '../lib/types.js';
 
 interface StatusJson {
 	number: string;
