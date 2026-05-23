@@ -1,5 +1,5 @@
 import { useParams, useNavigate, createAsync, revalidate } from "@solidjs/router";
-import { createSignal, Show, For, onMount, onCleanup } from "solid-js";
+import { createSignal, Show, For } from "solid-js";
 import type { TicketInfo } from "~/types.js";
 import KanbanBoard from "~/components/KanbanBoard";
 import CreateTicketDialog from "~/components/CreateTicketDialog";
@@ -24,27 +24,6 @@ export default function ProjectPage() {
   const params = useParams();
   const navigate = useNavigate();
   const data = createAsync(() => loadBoard(params.slug));
-
-  const [runningFolderNames, setRunningFolderNames] = createSignal<string[]>([]);
-  let pollingInterval: ReturnType<typeof setInterval>;
-
-  onMount(() => {
-    async function pollRunning() {
-      try {
-        const res = await fetch(`/api/projects/${params.slug}/board/tickets/ai/running`);
-        if (res.ok) {
-          const body = await res.json();
-          setRunningFolderNames(body.folderNames);
-        }
-      } catch { /* swallow */ }
-    }
-    pollRunning();
-    pollingInterval = setInterval(pollRunning, 5000);
-  });
-
-  onCleanup(() => {
-    if (pollingInterval) clearInterval(pollingInterval);
-  });
 
   const [dropdownOpen, setDropdownOpen] = createSignal(false);
   const [addProjectDialogOpen, setAddProjectDialogOpen] = createSignal(false);
@@ -234,7 +213,6 @@ export default function ProjectPage() {
                 <KanbanBoard
                   board={board()}
                   slug={d().slug}
-                  runningFolderNames={runningFolderNames()}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                   onViewDetail={handleViewDetail}

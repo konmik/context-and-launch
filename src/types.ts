@@ -20,7 +20,6 @@ export interface TicketInfo {
 	status: string;
 	folderName: string;
 	stageNames: string[];
-	sessionId?: string;
 }
 
 export interface BoardConfig {
@@ -45,21 +44,4 @@ export interface UpdateTicketRequest {
 
 export interface StageMarkdownContent {
 	content: string;
-}
-
-export interface AiStatusResponse {
-	running: boolean;
-	sessionId: string | null;
-}
-
-export interface AiSteerRequest {
-	text: string;
-}
-
-export interface AiEvent {
-	timestamp: number;
-	seq: number;
-	type: string;
-	data: unknown;
-	sessionId?: string;
 }

@@ -673,115 +673,6 @@ describe('TicketStore', () => {
 		expect(tickets[0].status).toBe('todo');
 	});
 
-	it('updateSessionId writes sessionId to status.json', async () => {
-		const worktreeDir = await createGitWorktree();
-		dirs.push(worktreeDir);
-
-		const store = new TicketStore(worktreeDir);
-		store.createTicket('SID-1', 'Session Test');
-
-		store.updateSessionId('sid-1-session-test', 'abc-123-uuid');
-
-		const tickets = store.listTickets();
-		expect(tickets[0].sessionId).toBe('abc-123-uuid');
-
-		// Verify on disk
-		const statusPath = path.join(worktreeDir, 'sid-1-session-test', 'status.json');
-		const onDisk = JSON.parse(fs.readFileSync(statusPath, 'utf-8'));
-		expect(onDisk.sessionId).toBe('abc-123-uuid');
-	});
-
-	it('updateSessionId with null removes sessionId from status.json', async () => {
-		const worktreeDir = await createGitWorktree();
-		dirs.push(worktreeDir);
-
-		const store = new TicketStore(worktreeDir);
-		store.createTicket('SID-2', 'Remove Session');
-
-		// Set a sessionId first
-		store.updateSessionId('sid-2-remove-session', 'to-be-removed');
-		expect(store.listTickets()[0].sessionId).toBe('to-be-removed');
-
-		// Remove it
-		store.updateSessionId('sid-2-remove-session', null);
-
-		const tickets = store.listTickets();
-		expect(tickets[0].sessionId).toBeUndefined();
-
-		// Verify on disk: sessionId key should not exist
-		const statusPath = path.join(worktreeDir, 'sid-2-remove-session', 'status.json');
-		const onDisk = JSON.parse(fs.readFileSync(statusPath, 'utf-8'));
-		expect('sessionId' in onDisk).toBe(false);
-	});
-
-	it('readTicket returns sessionId when present', async () => {
-		const worktreeDir = await createGitWorktree();
-		dirs.push(worktreeDir);
-
-		const store = new TicketStore(worktreeDir);
-		store.createTicket('SID-3', 'Has Session');
-		store.updateSessionId('sid-3-has-session', 'present-uuid');
-
-		const tickets = store.listTickets();
-		const ticket = tickets.find(t => t.folderName === 'sid-3-has-session');
-		expect(ticket?.sessionId).toBe('present-uuid');
-	});
-
-	it('readTicket returns undefined sessionId when not present', async () => {
-		const worktreeDir = await createGitWorktree();
-		dirs.push(worktreeDir);
-
-		const store = new TicketStore(worktreeDir);
-		store.createTicket('SID-4', 'No Session');
-
-		const tickets = store.listTickets();
-		const ticket = tickets.find(t => t.folderName === 'sid-4-no-session');
-		expect(ticket?.sessionId).toBeUndefined();
-	});
-
-	it('updateSessionId on nonexistent folder throws', async () => {
-		const worktreeDir = await createGitWorktree();
-		dirs.push(worktreeDir);
-
-		const store = new TicketStore(worktreeDir);
-		expect(() => store.updateSessionId('no-such-folder', 'uuid')).toThrow();
-	});
-
-	it('updateSessionId(null) clears sessionId but no API route exposes this', async () => {
-		const worktreeDir = await createGitWorktree();
-		dirs.push(worktreeDir);
-
-		const store = new TicketStore(worktreeDir);
-		store.createTicket('CLR-1', 'Clear Session');
-		const folderName = 'clr-1-clear-session';
-
-		// Set a sessionId (mimicking what the run route does on first run)
-		store.updateSessionId(folderName, 'session-to-clear');
-
-		// Verify sessionId is persisted in status.json
-		const statusPath = path.join(worktreeDir, folderName, 'status.json');
-		const beforeClear = JSON.parse(fs.readFileSync(statusPath, 'utf-8'));
-		expect(beforeClear.sessionId).toBe('session-to-clear');
-
-		// Clear sessionId via null (the store supports this)
-		store.updateSessionId(folderName, null);
-
-		// Verify sessionId is removed from status.json entirely (not set to null)
-		const afterClear = JSON.parse(fs.readFileSync(statusPath, 'utf-8'));
-		expect('sessionId' in afterClear).toBe(false);
-
-		// Verify the ticket object also reflects the removal
-		const ticket = store.listTickets().find(t => t.folderName === folderName);
-		expect(ticket?.sessionId).toBeUndefined();
-
-		// Design observation: the only caller of updateSessionId is
-		// run.ts line 29, and it only passes result.sessionId (never null).
-		// No route in the API exposes the null-clearing capability. This
-		// means once a ticket has a sessionId, it can never be cleared
-		// through the API, forcing every subsequent run to attempt --resume
-		// even if the external claude session no longer exists.
-	});
-
 	it('listTickets on a nonexistent worktreeDir returns empty array', () => {
 		// Use a path inside a temp dir that was never created
 		const base = tmpDir('nonexistent-parent-');
@@ -853,5 +744,134 @@ describe('TicketStore', () => {
 		expect(updated.title).toBe('my title');
 		expect(updated.folderName).toBe('abc-1-my-title');
 		expect(fs.existsSync(path.join(worktreeDir, 'abc-1-my-title'))).toBe(true);
+	});
+
+	it('readStatusJson with extra sessionId field: returned TicketInfo has only number/title/status', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+
+		// Manually create a ticket directory with old-format status.json containing sessionId
+		const folderName = 'old-1-has-session';
+		const ticketDir = path.join(worktreeDir, folderName);
+		fs.mkdirSync(ticketDir, { recursive: true });
+		fs.writeFileSync(
+			path.join(ticketDir, 'status.json'),
+			JSON.stringify({
+				number: 'OLD-1',
+				title: 'Has Session',
+				status: 'in-progress',
+				sessionId: 'sess_abc123xyz'
+			}, null, 2)
+		);
+
+		// listTickets uses readTicket which uses readStatusJson internally
+		const tickets = store.listTickets();
+		expect(tickets.length).toBe(1);
+		const ticket = tickets[0];
+
+		// The returned TicketInfo should have only the expected fields
+		expect(ticket.number).toBe('OLD-1');
+		expect(ticket.title).toBe('Has Session');
+		expect(ticket.status).toBe('in-progress');
+		expect(ticket.folderName).toBe(folderName);
+
+		// readTicket constructs TicketInfo from status.number/title/status only,
+		// so sessionId does not propagate to the returned object
+		expect('sessionId' in ticket).toBe(false);
+	});
+
+	it('updateTicket on ticket with stale sessionId cleans it from status.json on disk', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+
+		// Manually create a ticket with old-format status.json containing sessionId
+		const folderName = 'stale-1-session-cleanup';
+		const ticketDir = path.join(worktreeDir, folderName);
+		fs.mkdirSync(ticketDir, { recursive: true });
+		fs.writeFileSync(
+			path.join(ticketDir, 'status.json'),
+			JSON.stringify({
+				number: 'STALE-1',
+				title: 'Session Cleanup',
+				status: 'todo',
+				sessionId: 'sess_old_stale_value'
+			}, null, 2)
+		);
+
+		// Update only the status -- this triggers readStatusJson then writeStatusJson
+		const updated = store.updateTicket(folderName, null, null, 'done');
+		expect(updated.number).toBe('STALE-1');
+		expect(updated.title).toBe('Session Cleanup');
+		expect(updated.status).toBe('done');
+
+		// Read the raw file on disk -- writeStatusJson writes only number/title/status
+		const raw = fs.readFileSync(path.join(ticketDir, 'status.json'), 'utf-8');
+		const onDisk = JSON.parse(raw);
+		expect(onDisk.number).toBe('STALE-1');
+		expect(onDisk.title).toBe('Session Cleanup');
+		expect(onDisk.status).toBe('done');
+
+		// The stale sessionId field should be gone from the file
+		expect('sessionId' in onDisk).toBe(false);
+		expect(Object.keys(onDisk).sort()).toEqual(['number', 'status', 'title']);
+	});
+
+	it('listTickets with mixed old-format and new-format status.json files returns all correctly', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+
+		// Create an old-format ticket (with sessionId) manually
+		const oldDir = path.join(worktreeDir, 'mix-1-old-format');
+		fs.mkdirSync(oldDir, { recursive: true });
+		fs.writeFileSync(
+			path.join(oldDir, 'status.json'),
+			JSON.stringify({
+				number: 'MIX-1',
+				title: 'Old Format',
+				status: 'in-progress',
+				sessionId: 'sess_legacy_id_42'
+			}, null, 2)
+		);
+
+		// Create a new-format ticket (without sessionId) via the normal API
+		store.createTicket('MIX-2', 'New Format');
+
+		// Create another old-format ticket manually
+		const old2Dir = path.join(worktreeDir, 'mix-3-also-old');
+		fs.mkdirSync(old2Dir, { recursive: true });
+		fs.writeFileSync(
+			path.join(old2Dir, 'status.json'),
+			JSON.stringify({
+				number: 'MIX-3',
+				title: 'Also Old',
+				status: 'done',
+				sessionId: 'sess_another_legacy'
+			}, null, 2)
+		);
+
+		const tickets = store.listTickets();
+		expect(tickets.length).toBe(3);
+
+		// Sorted by number: MIX-1, MIX-2, MIX-3
+		expect(tickets[0].number).toBe('MIX-1');
+		expect(tickets[0].title).toBe('Old Format');
+		expect(tickets[0].status).toBe('in-progress');
+		expect('sessionId' in tickets[0]).toBe(false);
+
+		expect(tickets[1].number).toBe('MIX-2');
+		expect(tickets[1].title).toBe('New Format');
+		expect(tickets[1].status).toBe('todo');
+		expect('sessionId' in tickets[1]).toBe(false);
+
+		expect(tickets[2].number).toBe('MIX-3');
+		expect(tickets[2].title).toBe('Also Old');
+		expect(tickets[2].status).toBe('done');
+		expect('sessionId' in tickets[2]).toBe(false);
 	});
 });

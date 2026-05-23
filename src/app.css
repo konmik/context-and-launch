@@ -79,13 +79,3 @@
 		@apply bg-background text-foreground;
 	}
 }
-
-@keyframes ai-glow {
-	0%, 100% { box-shadow: 0 0 5px 0px oklch(0.65 0.15 145); }
-	50% { box-shadow: 0 0 15px 3px oklch(0.65 0.15 145); }
-}
-
-.ai-running-glow {
-	animation: ai-glow 2s ease-in-out infinite;
-	border-color: oklch(0.65 0.15 145);
-}
