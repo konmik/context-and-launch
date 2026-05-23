@@ -127,7 +127,7 @@ describe('TicketStore', () => {
 		expect(content).toBe('# My Notes\nSome content');
 
 		const ticket = store.listTickets()[0];
-		expect(ticket.stageNames).toContain('todo');
+		expect(ticket.stageNames).not.toContain('todo');
 	});
 
 	it('createTicket rejects blank number or title', async () => {
