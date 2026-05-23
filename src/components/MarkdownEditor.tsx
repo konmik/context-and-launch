@@ -1,3 +1,8 @@
+import "@fontsource/inter/400.css";
+import "@fontsource/inter/600.css";
+import "@fontsource/inter/700.css";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/700.css";
 import { onMount, onCleanup, createEffect } from "solid-js";
 import { EditorView, ViewPlugin, Decoration, type DecorationSet, keymap, placeholder as cmPlaceholder } from "@codemirror/view";
 import { EditorState, type Range } from "@codemirror/state";
@@ -20,7 +25,7 @@ const theme = EditorView.theme({
     outline: "none",
   },
   ".cm-scroller": {
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif",
+    fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
     overflow: "auto",
   },
   ".cm-content": {
@@ -49,7 +54,7 @@ const theme = EditorView.theme({
   },
   ".cm-codeblock": {
     backgroundColor: "var(--muted)",
-    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    fontFamily: "'JetBrains Mono', ui-monospace, monospace",
   },
 });
 
@@ -61,7 +66,7 @@ const markdownStyle = HighlightStyle.define([
   { tag: tags.emphasis, fontStyle: "italic" },
   { tag: tags.strong, fontWeight: "700" },
   { tag: tags.strikethrough, textDecoration: "line-through" },
-  { tag: tags.monospace, fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", backgroundColor: "var(--muted)", borderRadius: "3px", padding: "1px 3px" },
+  { tag: tags.monospace, fontFamily: "'JetBrains Mono', ui-monospace, monospace", backgroundColor: "var(--muted)", borderRadius: "3px", padding: "1px 3px" },
   { tag: tags.link, color: "oklch(0.55 0.15 250)", textDecoration: "underline" },
   { tag: tags.url, color: "oklch(0.55 0.15 250)" },
   { tag: tags.quote, color: "var(--muted-foreground)", fontStyle: "italic" },
