@@ -1,0 +1,140 @@
+import { onMount, onCleanup, createEffect } from "solid-js";
+import { EditorView, keymap, placeholder as cmPlaceholder } from "@codemirror/view";
+import { EditorState } from "@codemirror/state";
+import { markdown } from "@codemirror/lang-markdown";
+import { languages } from "@codemirror/language-data";
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { syntaxHighlighting, defaultHighlightStyle, HighlightStyle, bracketMatching } from "@codemirror/language";
+import { tags } from "@lezer/highlight";
+import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
+import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
+
+const theme = EditorView.theme({
+  "&": {
+    height: "100%",
+    fontSize: "0.875rem",
+    backgroundColor: "var(--background)",
+    color: "var(--foreground)",
+  },
+  "&.cm-focused": {
+    outline: "none",
+  },
+  ".cm-scroller": {
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    overflow: "auto",
+  },
+  ".cm-content": {
+    padding: "0.75rem",
+    caretColor: "var(--foreground)",
+  },
+  ".cm-cursor, .cm-dropCursor": {
+    borderLeftColor: "var(--foreground)",
+  },
+  ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": {
+    backgroundColor: "var(--accent)",
+  },
+  ".cm-activeLine": {
+    backgroundColor: "transparent",
+  },
+  ".cm-gutters": {
+    backgroundColor: "var(--background)",
+    color: "var(--muted-foreground)",
+    borderRight: "none",
+  },
+  ".cm-line": {
+    padding: "0 0",
+  },
+  ".cm-placeholder": {
+    color: "var(--muted-foreground)",
+  },
+});
+
+const markdownStyle = HighlightStyle.define([
+  { tag: tags.heading1, fontSize: "1.6em", fontWeight: "700" },
+  { tag: tags.heading2, fontSize: "1.4em", fontWeight: "700" },
+  { tag: tags.heading3, fontSize: "1.2em", fontWeight: "600" },
+  { tag: tags.heading4, fontSize: "1.1em", fontWeight: "600" },
+  { tag: tags.emphasis, fontStyle: "italic" },
+  { tag: tags.strong, fontWeight: "700" },
+  { tag: tags.strikethrough, textDecoration: "line-through" },
+  { tag: tags.monospace, fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", backgroundColor: "var(--muted)", borderRadius: "3px", padding: "1px 3px" },
+  { tag: tags.link, color: "oklch(0.55 0.15 250)", textDecoration: "underline" },
+  { tag: tags.url, color: "oklch(0.55 0.15 250)" },
+  { tag: tags.quote, color: "var(--muted-foreground)", fontStyle: "italic" },
+  { tag: tags.list, color: "var(--muted-foreground)" },
+  { tag: tags.processingInstruction, fontWeight: "700", color: "var(--muted-foreground)" },
+]);
+
+interface MarkdownEditorProps {
+  value: string;
+  onChange: (value: string) => void;
+  onSave?: () => void;
+  placeholder?: string;
+}
+
+export default function MarkdownEditor(props: MarkdownEditorProps) {
+  let containerRef: HTMLDivElement | undefined;
+  let view: EditorView | undefined;
+  let skipNextUpdate = false;
+
+  onMount(() => {
+    const saveKeymap = props.onSave
+      ? [{ key: "Mod-s", run: () => { props.onSave!(); return true; } }]
+      : [];
+
+    const state = EditorState.create({
+      doc: props.value,
+      extensions: [
+        keymap.of([
+          ...saveKeymap,
+          ...closeBracketsKeymap,
+          ...defaultKeymap,
+          ...searchKeymap,
+          ...historyKeymap,
+        ]),
+        history(),
+        closeBrackets(),
+        bracketMatching(),
+        highlightSelectionMatches(),
+        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+        syntaxHighlighting(markdownStyle),
+        markdown({ codeLanguages: languages }),
+        EditorView.lineWrapping,
+        theme,
+        cmPlaceholder(props.placeholder ?? ""),
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) {
+            skipNextUpdate = true;
+            props.onChange(update.state.doc.toString());
+          }
+        }),
+      ],
+    });
+
+    view = new EditorView({ state, parent: containerRef! });
+  });
+
+  createEffect(() => {
+    const val = props.value;
+    if (skipNextUpdate) {
+      skipNextUpdate = false;
+      return;
+    }
+    if (view && view.state.doc.toString() !== val) {
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: val },
+      });
+    }
+  });
+
+  onCleanup(() => {
+    view?.destroy();
+  });
+
+  return (
+    <div
+      ref={(el) => (containerRef = el)}
+      class="h-full w-full overflow-hidden rounded-md border border-input bg-background ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+    />
+  );
+}

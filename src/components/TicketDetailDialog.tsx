@@ -3,6 +3,7 @@ import { revalidate } from "@solidjs/router";
 import type { TicketInfo } from "~/types.js";
 import AiConsoleTab from "./AiConsoleTab";
 import ResizableWindow from "./ResizableWindow";
+import MarkdownEditor from "./MarkdownEditor";
 
 function DiscardConfirmation(props: {
   open: boolean;
@@ -60,7 +61,7 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
   const [confirmingDelete, setConfirmingDelete] = createSignal(false);
   const [error, setError] = createSignal("");
   const [dropdownOpen, setDropdownOpen] = createSignal(false);
-  let textareaRef: HTMLTextAreaElement | undefined;
+
 
   const hasOverlay = () =>
     showAiConsole() || newFileDialogOpen() || confirmingClose() || confirmingFileSwitch() || confirmingDelete();
@@ -386,16 +387,15 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
             </Show>
 
             <div class="flex-1 overflow-hidden p-4">
-              <textarea
-                ref={(el) => (textareaRef = el)}
-                value={content()}
-                onInput={(e) => setContent(e.currentTarget.value)}
-                class="h-full w-full resize-none rounded-md border border-input bg-background p-3 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                classList={{ hidden: showAiConsole() }}
-                placeholder="Write markdown here..."
-              />
-              <Show when={showAiConsole()}>
+              <Show when={!showAiConsole()} fallback={
                 <AiConsoleTab slug={props.slug} ticket={props.ticket!} />
+              }>
+                <MarkdownEditor
+                  value={content()}
+                  onChange={setContent}
+                  onSave={saveFile}
+                  placeholder="Write markdown here..."
+                />
               </Show>
             </div>
           </div>

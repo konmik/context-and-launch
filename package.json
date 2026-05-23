@@ -14,9 +14,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@codemirror/lang-markdown": "^6.5.0",
+    "@codemirror/language-data": "^6.5.2",
     "@solidjs/router": "^0.15",
     "@solidjs/start": "^1.1",
     "chokidar": "^5.0.0",
+    "codemirror": "^6.0.2",
     "solid-js": "^1.9",
     "vinxi": "^0.5"
   },
