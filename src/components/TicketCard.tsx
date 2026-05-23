@@ -1,14 +1,6 @@
 import { For, Show, createSignal } from "solid-js";
 import type { TicketInfo } from "~/types.js";
 
-const stageColors = [
-  "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
-  "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
-  "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
-  "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300",
-  "bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-300",
-];
-
 interface TicketCardProps {
   ticket: TicketInfo;
   columns: string[];
@@ -128,19 +120,6 @@ export default function TicketCard(props: TicketCardProps) {
         </div>
       </div>
       <p class="line-clamp-2 text-sm">{props.ticket.title}</p>
-      <Show when={props.ticket.stageNames.length > 0}>
-        <div class="mt-2 flex flex-wrap gap-1">
-          <For each={props.ticket.stageNames}>
-            {(stage, i) => (
-              <span
-                class={`rounded-full px-2 py-0.5 text-xs ${stageColors[i() % stageColors.length]}`}
-              >
-                {stage}
-              </span>
-            )}
-          </For>
-        </div>
-      </Show>
     </div>
   );
 }

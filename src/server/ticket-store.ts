@@ -203,7 +203,6 @@ export class TicketStore {
 		const stageNames = entries
 			.filter((e) => e.isFile() && e.name.endsWith('.md'))
 			.map((e) => e.name.replace(/\.md$/, ''))
-			.filter((name) => name !== 'todo')
 			.sort();
 		return {
 			number: status.number,
