@@ -1,6 +1,7 @@
 import { createSignal, createEffect, Show, For, on, onCleanup } from "solid-js";
 import type { TicketInfo } from "~/types.js";
 import AiConsoleTab from "./AiConsoleTab";
+import ResizableWindow from "./ResizableWindow";
 
 function DiscardConfirmation(props: {
   open: boolean;
@@ -175,33 +176,54 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
     props.onOpenChange(false);
   }
 
-  function handleKeydown(e: KeyboardEvent) {
+  function handleKeyDown(e: KeyboardEvent) {
     if (e.key === "Escape") {
       if (confirmingTabSwitch()) {
         cancelTabSwitch();
+        e.preventDefault();
       } else if (confirmingClose()) {
         setConfirmingClose(false);
-      } else {
-        close();
+        e.preventDefault();
       }
     }
   }
 
   return (
     <>
-      <Show when={props.open && props.ticket}>
-        <div
-          class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onKeyDown={handleKeydown}
-        >
-          <div class="fixed inset-0" onClick={close} />
-          <div class="relative z-10 flex h-[80vh] w-full max-w-3xl flex-col rounded-lg border border-border bg-card shadow-lg">
-            <div class="border-b border-border p-4">
-              <h2 class="text-lg font-semibold">
-                {props.ticket!.number} - {props.ticket!.title}
-              </h2>
+      <Show when={props.ticket}>
+        <ResizableWindow
+          open={props.open}
+          onClose={close}
+          onKeyDown={handleKeyDown}
+          storageKey="ticket-dialog-size"
+          title={
+            <h2 class="text-lg font-semibold">
+              {props.ticket!.number} - {props.ticket!.title}
+            </h2>
+          }
+          footer={
+            <div class="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={close}
+                class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+              >
+                Close
+              </button>
+              <Show when={activeTab() !== "ai-console"}>
+                <button
+                  type="button"
+                  onClick={saveStage}
+                  disabled={saving() || loading() || !hasUnsavedChanges()}
+                  class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  {saving() ? "Saving..." : "Save"}
+                </button>
+              </Show>
             </div>
-
+          }
+        >
+          <div class="flex h-full flex-col">
             <div class="flex border-b border-border">
               <For each={props.columns}>
                 {(col) => (
@@ -253,28 +275,8 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
                 <AiConsoleTab slug={props.slug} ticket={props.ticket!} />
               </Show>
             </div>
-
-            <div class="flex justify-end gap-2 border-t border-border p-4">
-              <button
-                type="button"
-                onClick={close}
-                class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-              >
-                Close
-              </button>
-              <Show when={activeTab() !== "ai-console"}>
-                <button
-                  type="button"
-                  onClick={saveStage}
-                  disabled={saving() || loading() || !hasUnsavedChanges()}
-                  class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
-                >
-                  {saving() ? "Saving..." : "Save"}
-                </button>
-              </Show>
-            </div>
           </div>
-        </div>
+        </ResizableWindow>
       </Show>
 
       <DiscardConfirmation
