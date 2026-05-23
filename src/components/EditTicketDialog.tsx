@@ -1,5 +1,5 @@
 import { createSignal, createEffect, Show } from "solid-js";
-import type { TicketInfo } from "~/lib/types.js";
+import type { TicketInfo } from "~/types.js";
 
 interface EditTicketDialogProps {
   open: boolean;

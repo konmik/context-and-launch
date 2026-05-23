@@ -1,5 +1,5 @@
 import { For, createSignal } from "solid-js";
-import type { TicketInfo, BoardState } from "~/lib/types.js";
+import type { TicketInfo, BoardState } from "~/types.js";
 import TicketCard from "./TicketCard";
 
 interface KanbanBoardProps {
