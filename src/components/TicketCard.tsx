@@ -4,7 +4,6 @@ import type { TicketInfo } from "~/types.js";
 interface TicketCardProps {
   ticket: TicketInfo;
   columns: string[];
-  aiRunning?: boolean;
   onEdit: (ticket: TicketInfo) => void;
   onDelete: (ticket: TicketInfo) => void;
   onViewDetail: (ticket: TicketInfo) => void;
@@ -29,9 +28,7 @@ export default function TicketCard(props: TicketCardProps) {
 
   return (
     <div
-      class={`cursor-pointer rounded-md border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-md ${
-        props.aiRunning ? "ai-running-glow" : ""
-      }`}
+      class="cursor-pointer rounded-md border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-md"
       onClick={handleCardClick}
     >
       <div class="mb-1 flex items-start justify-between">
