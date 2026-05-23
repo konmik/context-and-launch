@@ -5,6 +5,7 @@ import TicketCard from "./TicketCard";
 interface KanbanBoardProps {
   board: BoardState;
   slug: string;
+  runningFolderNames?: string[];
   onEdit: (ticket: TicketInfo) => void;
   onDelete: (ticket: TicketInfo) => void;
   onViewDetail: (ticket: TicketInfo) => void;
@@ -85,6 +86,7 @@ export default function KanbanBoard(props: KanbanBoardProps) {
                       <TicketCard
                         ticket={ticket}
                         columns={props.board.columns}
+                        aiRunning={props.runningFolderNames?.includes(ticket.folderName)}
                         onEdit={props.onEdit}
                         onDelete={props.onDelete}
                         onViewDetail={props.onViewDetail}

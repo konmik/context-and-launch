@@ -1,5 +1,6 @@
 import { createSignal, createEffect, Show, For, on, onCleanup } from "solid-js";
 import type { TicketInfo } from "~/types.js";
+import AiConsoleTab from "./AiConsoleTab";
 
 function DiscardConfirmation(props: {
   open: boolean;
@@ -53,9 +54,8 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
   const [pendingTab, setPendingTab] = createSignal<string | null>(null);
   const [confirmingTabSwitch, setConfirmingTabSwitch] = createSignal(false);
 
-  const hasUnsavedChanges = () => content() !== savedContent();
+  const hasUnsavedChanges = () => activeTab() !== "ai-console" && content() !== savedContent();
 
-  // beforeunload guard
   function handleBeforeUnload(e: BeforeUnloadEvent) {
     if (hasUnsavedChanges()) {
       e.preventDefault();
@@ -76,7 +76,6 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
     }
   });
 
-  // Initialize active tab when dialog opens
   createEffect(
     on(
       () => [props.open, props.ticket, props.columns] as const,
@@ -88,12 +87,11 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
     )
   );
 
-  // Load stage content when tab changes
   createEffect(
     on(
       () => [props.open, props.ticket, activeTab()] as const,
       async ([open, ticket, tab]) => {
-        if (!open || !ticket || !tab) return;
+        if (!open || !ticket || !tab || tab === "ai-console") return;
         setLoading(true);
         setContent("");
         try {
@@ -219,23 +217,40 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
                   </button>
                 )}
               </For>
+              <button
+                class={`px-4 py-2 text-sm font-medium transition-colors ${
+                  activeTab() === "ai-console"
+                    ? "border-b-2 border-primary text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => requestTabSwitch("ai-console")}
+              >
+                AI Console
+              </button>
             </div>
 
             <div class="flex-1 overflow-hidden p-4">
               <Show
-                when={!loading()}
+                when={activeTab() === "ai-console"}
                 fallback={
-                  <div class="flex h-full items-center justify-center">
-                    <div class="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
-                  </div>
+                  <Show
+                    when={!loading()}
+                    fallback={
+                      <div class="flex h-full items-center justify-center">
+                        <div class="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+                      </div>
+                    }
+                  >
+                    <textarea
+                      value={content()}
+                      onInput={(e) => setContent(e.currentTarget.value)}
+                      class="h-full w-full resize-none rounded-md border border-input bg-background p-3 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      placeholder="Write markdown here..."
+                    />
+                  </Show>
                 }
               >
-                <textarea
-                  value={content()}
-                  onInput={(e) => setContent(e.currentTarget.value)}
-                  class="h-full w-full resize-none rounded-md border border-input bg-background p-3 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  placeholder="Write markdown here..."
-                />
+                <AiConsoleTab slug={props.slug} ticket={props.ticket!} />
               </Show>
             </div>
 
@@ -247,20 +262,21 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
               >
                 Close
               </button>
-              <button
-                type="button"
-                onClick={saveStage}
-                disabled={saving() || loading() || !hasUnsavedChanges()}
-                class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
-              >
-                {saving() ? "Saving..." : "Save"}
-              </button>
+              <Show when={activeTab() !== "ai-console"}>
+                <button
+                  type="button"
+                  onClick={saveStage}
+                  disabled={saving() || loading() || !hasUnsavedChanges()}
+                  class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  {saving() ? "Saving..." : "Save"}
+                </button>
+              </Show>
             </div>
           </div>
         </div>
       </Show>
 
-      {/* Unsaved changes confirmation dialog (close) */}
       <DiscardConfirmation
         open={confirmingClose()}
         message="You have unsaved changes. Discard them?"
@@ -268,7 +284,6 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
         onDiscard={forceClose}
       />
 
-      {/* Unsaved changes confirmation dialog (tab switch) */}
       <DiscardConfirmation
         open={confirmingTabSwitch()}
         message="You have unsaved changes. Discard them and switch tabs?"
