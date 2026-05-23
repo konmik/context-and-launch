@@ -7,6 +7,7 @@ import EditTicketDialog from "~/components/EditTicketDialog";
 import DeleteTicketDialog from "~/components/DeleteTicketDialog";
 import TicketDetailDialog from "~/components/TicketDetailDialog";
 import AddProjectForm from "~/components/AddProjectForm";
+import ThemeToggle from "~/components/ThemeToggle";
 import {
   loadBoard,
   addProjectAction,
@@ -110,6 +111,7 @@ export default function ProjectPage() {
             <h1 class="text-xl font-semibold">AI Stages</h1>
 
             <div class="flex items-center gap-2">
+              <ThemeToggle />
               <div class="relative">
                 <button
                   class="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 py-1 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
