@@ -20,3 +20,14 @@ export function git(workDir: string, ...args: string[]): Promise<string> {
 export function gitSync(workDir: string, ...args: string[]): string {
 	return execSync(`git ${escapeArgs(args)}`, { cwd: workDir, timeout: 30000, encoding: 'utf-8' });
 }
+
+export function autoCommit(workDir: string, message: string): void {
+	try {
+		gitSync(workDir, 'add', '-A');
+		const status = gitSync(workDir, 'status', '--porcelain');
+		if (!status.trim()) return;
+		gitSync(workDir, 'commit', '-m', message);
+	} catch (err) {
+		console.warn(`autoCommit failed (${message}):`, err);
+	}
+}

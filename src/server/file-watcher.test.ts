@@ -149,11 +149,12 @@ describe('FileWatcher', () => {
 			const log = await git(dir, 'log', '--oneline');
 			const lines = log.trim().split('\n');
 
-			// Should be exactly 2 commits: "initial commit" + "create ticket RED-1"
-			// NOT 3 (no extra "auto: external changes" from FileWatcher)
-			expect(lines.length).toBe(2);
-			expect(lines[0]).toContain('create ticket RED-1');
-			expect(lines[1]).toContain('initial commit');
+			// Should be exactly 3 commits: "initial commit" + "create ticket RED-1" + "update ticket order"
+			// NOT 4 (no extra "auto: external changes" from FileWatcher)
+			expect(lines.length).toBe(3);
+			expect(lines[0]).toContain('update ticket order');
+			expect(lines[1]).toContain('create ticket RED-1');
+			expect(lines[2]).toContain('initial commit');
 		} finally {
 			watcher.stopAll();
 		}
@@ -468,11 +469,15 @@ describe('FileWatcher', () => {
 		const log = await git(dir, 'log', '--oneline');
 		const lines = log.trim().split('\n');
 
-		expect(lines.length).toBe(4);
-		expect(lines[0]).toContain('create ticket RAPID-3');
-		expect(lines[1]).toContain('create ticket RAPID-2');
-		expect(lines[2]).toContain('create ticket RAPID-1');
-		expect(lines[3]).toContain('initial commit');
+		// Each createTicket produces 2 commits: "create ticket ..." + "update ticket order"
+		expect(lines.length).toBe(7);
+		expect(lines[0]).toContain('update ticket order');
+		expect(lines[1]).toContain('create ticket RAPID-3');
+		expect(lines[2]).toContain('update ticket order');
+		expect(lines[3]).toContain('create ticket RAPID-2');
+		expect(lines[4]).toContain('update ticket order');
+		expect(lines[5]).toContain('create ticket RAPID-1');
+		expect(lines[6]).toContain('initial commit');
 	});
 
 	it('autoCommit partial failure: add -A succeeds but commit fails -- next autoCommit recovers', async () => {
@@ -520,8 +525,8 @@ describe('FileWatcher', () => {
 			const log = await git(dir, 'log', '--oneline');
 			const lines = log.trim().split('\n');
 
-			// Should have: initial + create ticket + update todo
-			expect(lines.length).toBe(3);
+			// Should have: initial + create ticket + update ticket order + update todo
+			expect(lines.length).toBe(4);
 			expect(lines[0]).toContain('update todo for PART-1');
 		} finally {
 			warnSpy.mockRestore();
@@ -623,12 +628,12 @@ describe('FileWatcher', () => {
 			const folderExists = fs.existsSync(path.join(dir, 'lock-1-locked-ticket'));
 			expect(folderExists).toBe(true);
 
-			// Verify autoCommit warned
+			// Verify autoCommit warned (both TicketStore and TicketOrderStore fail)
 			expect(warnSpy).toHaveBeenCalled();
 			const lockWarnings = warnSpy.mock.calls.filter(
 				(call) => typeof call[0] === 'string' && call[0].includes('autoCommit failed')
 			);
-			expect(lockWarnings.length).toBe(1);
+			expect(lockWarnings.length).toBe(2);
 
 			// Remove the lock
 			fs.unlinkSync(indexLock);
@@ -643,13 +648,14 @@ describe('FileWatcher', () => {
 			);
 			expect(secondWarnings.length).toBe(0);
 
-			// Verify repo integrity: only 2 commits (initial + LOCK-2)
+			// Verify repo integrity: 3 commits (initial + create LOCK-2 + update ticket order)
 			// LOCK-1 changes get bundled into LOCK-2's commit since add -A picks them up
 			const log = await git(dir, 'log', '--oneline');
 			const lines = log.trim().split('\n');
-			expect(lines.length).toBe(2);
-			expect(lines[0]).toContain('create ticket LOCK-2');
-			expect(lines[1]).toContain('initial commit');
+			expect(lines.length).toBe(3);
+			expect(lines[0]).toContain('update ticket order');
+			expect(lines[1]).toContain('create ticket LOCK-2');
+			expect(lines[2]).toContain('initial commit');
 
 			// Verify both tickets exist in the committed tree
 			const lsTree = await git(dir, 'ls-tree', '--name-only', 'HEAD');

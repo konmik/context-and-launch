@@ -1,19 +1,15 @@
-import { For, Show, createSignal } from "solid-js";
+import { Show, createSignal } from "solid-js";
 import type { TicketInfo } from "~/types.js";
 
 interface TicketCardProps {
   ticket: TicketInfo;
-  columns: string[];
   onEdit: (ticket: TicketInfo) => void;
   onDelete: (ticket: TicketInfo) => void;
-  onArchive: (ticket: TicketInfo) => void;
   onViewDetail: (ticket: TicketInfo) => void;
-  onMoveTo: (ticket: TicketInfo, status: string) => void;
 }
 
 export default function TicketCard(props: TicketCardProps) {
   const [menuOpen, setMenuOpen] = createSignal(false);
-  const [moveMenuOpen, setMoveMenuOpen] = createSignal(false);
   const [menuPos, setMenuPos] = createSignal({ top: 0, left: 0, side: "right" as "right" | "left" });
   let menuBtnRef: HTMLButtonElement | undefined;
 
@@ -36,7 +32,6 @@ export default function TicketCard(props: TicketCardProps) {
       });
     }
     setMenuOpen(!menuOpen());
-    setMoveMenuOpen(false);
   }
 
   return (
@@ -76,7 +71,6 @@ export default function TicketCard(props: TicketCardProps) {
               onClick={(e) => {
                 e.stopPropagation();
                 setMenuOpen(false);
-                setMoveMenuOpen(false);
               }}
             />
             <div
@@ -88,36 +82,6 @@ export default function TicketCard(props: TicketCardProps) {
                   : { right: `${window.innerWidth - menuPos().left}px` }),
               }}
             >
-              <div class="relative">
-                <button
-                  class="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setMoveMenuOpen(!moveMenuOpen());
-                  }}
-                >
-                  Move to...
-                </button>
-                <Show when={moveMenuOpen()}>
-                  <div class={`absolute top-0 min-w-[120px] rounded-md border border-border bg-popover py-1 shadow-md ${menuPos().side === "right" ? "left-full" : "right-full"}`}>
-                    <For each={props.columns.filter((c) => c !== props.ticket.status)}>
-                      {(col) => (
-                        <button
-                          class="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setMenuOpen(false);
-                            setMoveMenuOpen(false);
-                            props.onMoveTo(props.ticket, col);
-                          }}
-                        >
-                          {col}
-                        </button>
-                      )}
-                    </For>
-                  </div>
-                </Show>
-              </div>
               <button
                 class="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
                 onClick={(e) => {
@@ -127,16 +91,6 @@ export default function TicketCard(props: TicketCardProps) {
                 }}
               >
                 Edit
-              </button>
-              <button
-                class="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMenuOpen(false);
-                  props.onArchive(props.ticket);
-                }}
-              >
-                Archive
               </button>
               <button
                 class="w-full px-3 py-2 text-left text-sm text-destructive hover:bg-accent"
