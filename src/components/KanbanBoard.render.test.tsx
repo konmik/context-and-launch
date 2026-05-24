@@ -36,6 +36,7 @@ describe("KanbanBoard rendering", () => {
         onEdit={noop}
         onDelete={noop}
         onViewDetail={noop}
+        onArchive={noop}
         onReorder={noop}
       />
     ));
@@ -57,6 +58,7 @@ describe("KanbanBoard rendering", () => {
         onEdit={noop}
         onDelete={noop}
         onViewDetail={noop}
+        onArchive={noop}
         onReorder={noop}
       />
     ));
@@ -75,6 +77,7 @@ describe("KanbanBoard rendering", () => {
         onEdit={noop}
         onDelete={noop}
         onViewDetail={noop}
+        onArchive={noop}
         onReorder={noop}
       />
     ));
@@ -94,6 +97,7 @@ describe("KanbanBoard rendering", () => {
         onEdit={noop}
         onDelete={noop}
         onViewDetail={noop}
+        onArchive={noop}
         onReorder={noop}
       />
     ));
@@ -118,6 +122,7 @@ describe("KanbanBoard drop indicator", () => {
         onEdit={noop}
         onDelete={noop}
         onViewDetail={noop}
+        onArchive={noop}
         onReorder={noop}
       />
     ));
