@@ -113,7 +113,7 @@ interface MarkdownEditorProps {
 export default function MarkdownEditor(props: MarkdownEditorProps) {
   let containerRef: HTMLDivElement | undefined;
   let view: EditorView | undefined;
-  let skipNextUpdate = false;
+  let lastPushedValue: string | null = null;
 
   onMount(() => {
     const saveKeymap = props.onSave
@@ -143,8 +143,8 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
         cmPlaceholder(props.placeholder ?? ""),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
-            skipNextUpdate = true;
-            props.onChange(update.state.doc.toString());
+            lastPushedValue = update.state.doc.toString();
+            props.onChange(lastPushedValue);
           }
         }),
       ],
@@ -155,10 +155,11 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
 
   createEffect(() => {
     const val = props.value;
-    if (skipNextUpdate) {
-      skipNextUpdate = false;
+    if (val === lastPushedValue) {
+      lastPushedValue = null;
       return;
     }
+    lastPushedValue = null;
     if (view && view.state.doc.toString() !== val) {
       view.dispatch({
         changes: { from: 0, to: view.state.doc.length, insert: val },
