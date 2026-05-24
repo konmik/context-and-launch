@@ -355,7 +355,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 									placeholder="Template text with {{placeholders}}"
 								/>
 								<p class="mt-1 text-xs text-muted-foreground">
-									{"{{ticketDir}} {{ticketTitle}} {{ticketNumber}} {{ticketStatus}} {{projectPath}} {{projectSlug}}"}
+									{"{{ticketDir}} {{ticketSlug}} {{ticketTitle}} {{ticketNumber}} {{ticketStatus}} {{projectPath}} {{projectSlug}}"}
 								</p>
 							</div>
 							<Show when={f().mode === "add"}>

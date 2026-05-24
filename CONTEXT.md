@@ -67,7 +67,7 @@ A named template string that appends to the base Template when checked in the Ag
 Avoid: addon, plugin, extension
 
 Placeholder:
-A `{{variable}}` reference in a Template or Skill that gets replaced with a runtime value at launch time. Available: `{{ticketDir}}`, `{{ticketTitle}}`, `{{ticketNumber}}`, `{{ticketStatus}}`, `{{projectPath}}`, `{{projectSlug}}`.
+A `{{variable}}` reference in a Template or Skill that gets replaced with a runtime value at launch time. Available: `{{ticketDir}}`, `{{ticketSlug}}`, `{{ticketTitle}}`, `{{ticketNumber}}`, `{{ticketStatus}}`, `{{projectPath}}`, `{{projectSlug}}`.
 
 Launcher Config:
 A JSON file defining available Templates, Skills, and launcher settings. Exists at two scopes: app-level (`~/.ai-stages/launcher-config.json`) and project-level (`~/.ai-stages/tickets/{slug}/launcher-config.json`). Project-level merges additively with app-level; project wins on name collision.
