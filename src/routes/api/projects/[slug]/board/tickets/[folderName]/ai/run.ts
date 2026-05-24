@@ -6,6 +6,7 @@ import path from "path";
 import { worktreeManager, projectRegistry } from "~/server/instances.js";
 import { TicketStore } from "~/server/ticket-store.js";
 import { errorMessage } from "~/server/errors.js";
+import { escapeBatchTitle } from "~/server/batch-escape.js";
 
 function escapeSendKeys(text: string): string {
   return text.replace(/([+^%~(){}[\]])/g, "{$1}");
@@ -75,7 +76,7 @@ export async function POST({ params }: APIEvent) {
     const batPath = path.join(os.tmpdir(), `claude-run-${Date.now()}.bat`);
     fs.writeFileSync(batPath, [
       "@echo off",
-      `title ${windowTitle}`,
+      `title ${escapeBatchTitle(windowTitle)}`,
       "claude --dangerously-skip-permissions",
       `del "%~f0"`,
     ].join("\r\n") + "\r\n");

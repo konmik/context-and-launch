@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -873,5 +873,129 @@ describe('TicketStore', () => {
 		expect(tickets[2].title).toBe('Also Old');
 		expect(tickets[2].status).toBe('done');
 		expect('sessionId' in tickets[2]).toBe(false);
+	});
+
+	it('two concurrent updateTicket calls on same ticket with different titles: second fails clearly', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('RACE-1', 'Original');
+
+		const folderName = 'race-1-original';
+
+		// Both calls target the same folderName. Since updateTicket is synchronous,
+		// they execute sequentially: first renames the folder, second finds it gone.
+		const results = await Promise.allSettled([
+			Promise.resolve().then(() => store.updateTicket(folderName, null, 'Title A', null)),
+			Promise.resolve().then(() => store.updateTicket(folderName, null, 'Title B', null)),
+		]);
+
+		const fulfilled = results.filter((r) => r.status === 'fulfilled');
+		const rejected = results.filter((r) => r.status === 'rejected');
+
+		// Exactly one succeeds and one fails
+		expect(fulfilled.length).toBe(1);
+		expect(rejected.length).toBe(1);
+
+		// The failure has a clear error message (not a cryptic ENOENT)
+		const error = (rejected[0] as PromiseRejectedResult).reason;
+		expect(error).toBeInstanceOf(Error);
+		expect(error.message).toMatch(/Ticket not found/);
+
+		// The winner's folder exists at its new path
+		const winner = (fulfilled[0] as PromiseFulfilledResult<any>).value;
+		const winnerDir = path.join(worktreeDir, winner.folderName);
+		expect(fs.existsSync(winnerDir)).toBe(true);
+
+		// The original folder is gone
+		expect(fs.existsSync(path.join(worktreeDir, folderName))).toBe(false);
+
+		// Only one ticket folder exists in the worktree
+		const tickets = store.listTickets();
+		expect(tickets.length).toBe(1);
+		expect(tickets[0].folderName).toBe(winner.folderName);
+	});
+
+	it('rename where old dir contains stage markdown files: .md files survive at the new path', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		const ticket = store.createTicket('MD-5', 'Has Stages');
+		const oldFolder = ticket.folderName; // 'md-5-has-stages'
+
+		// Add multiple stage markdown files
+		store.saveStageMarkdown(oldFolder, 'to-do', '# To Do\n- item 1\n- item 2');
+		store.saveStageMarkdown(oldFolder, 'product-requirement-document', '# PRD\nRequirements here');
+		store.saveStageMarkdown(oldFolder, 'design', '# Design\nArchitecture notes');
+
+		// Rename the ticket by changing its title
+		const updated = store.updateTicket(oldFolder, null, 'Renamed Stages', null);
+		const newFolder = updated.folderName; // 'md-5-renamed-stages'
+
+		expect(newFolder).toBe('md-5-renamed-stages');
+		expect(fs.existsSync(path.join(worktreeDir, oldFolder))).toBe(false);
+		expect(fs.existsSync(path.join(worktreeDir, newFolder))).toBe(true);
+
+		// Verify all .md files exist at the new path with correct content
+		expect(store.getStageMarkdown(newFolder, 'to-do')).toBe('# To Do\n- item 1\n- item 2');
+		expect(store.getStageMarkdown(newFolder, 'product-requirement-document')).toBe('# PRD\nRequirements here');
+		expect(store.getStageMarkdown(newFolder, 'design')).toBe('# Design\nArchitecture notes');
+
+		// Verify readTicket (via listTickets) still returns the stage names
+		const tickets = store.listTickets();
+		expect(tickets.length).toBe(1);
+		expect(tickets[0].folderName).toBe(newFolder);
+		expect(tickets[0].stageNames).toContain('to-do');
+		expect(tickets[0].stageNames).toContain('product-requirement-document');
+		expect(tickets[0].stageNames).toContain('design');
+		expect(tickets[0].stageNames.length).toBe(3);
+	});
+
+	it('writeStatusJson throws after successful rename: error propagates, folder at new path with stale status.json', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('ERR-1', 'Before Rename');
+
+		// The original status.json content (written by createTicket)
+		const oldDir = path.join(worktreeDir, 'err-1-before-rename');
+		const originalContent = fs.readFileSync(path.join(oldDir, 'status.json'), 'utf-8');
+		const originalData = JSON.parse(originalContent);
+		expect(originalData.title).toBe('Before Rename');
+
+		// Spy on writeFileSync so it throws when writing status.json
+		// (createTicket already ran, so the spy only intercepts the updateTicket write)
+		const originalWriteFileSync = fs.writeFileSync;
+		const spy = vi.spyOn(fs, 'writeFileSync').mockImplementation((...args: any[]) => {
+			const filePath = String(args[0]);
+			if (filePath.endsWith('status.json')) {
+				throw new Error('Simulated disk full');
+			}
+			return originalWriteFileSync.apply(fs, args as any);
+		});
+
+		try {
+			// (a) Error propagates to caller
+			expect(() => store.updateTicket('err-1-before-rename', null, 'After Rename', null)).toThrow(
+				'Simulated disk full'
+			);
+
+			// (b) Folder exists at the new path (rename succeeded before the throw)
+			const newDir = path.join(worktreeDir, 'err-1-after-rename');
+			expect(fs.existsSync(newDir)).toBe(true);
+			expect(fs.existsSync(oldDir)).toBe(false);
+
+			// (c) status.json at new path has stale content (the write that would
+			// update it was the one that threw, so it still has the old data)
+			const staleContent = fs.readFileSync(path.join(newDir, 'status.json'), 'utf-8');
+			const staleData = JSON.parse(staleContent);
+			expect(staleData.title).toBe('Before Rename');
+			expect(staleData.status).toBe('todo');
+		} finally {
+			spy.mockRestore();
+		}
 	});
 });
