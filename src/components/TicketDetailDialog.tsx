@@ -336,7 +336,7 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
         >
           <div class="flex h-full flex-col">
             <Show when={!showAiConsole()}>
-              <div class="flex items-center gap-2 border-b border-border px-4 py-2">
+              <div class="flex items-center gap-2 px-4 py-2">
                 <div class="relative min-w-0 flex-1">
                   <button
                     type="button"
@@ -390,7 +390,7 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
               </div>
             </Show>
 
-            <div class="flex-1 overflow-hidden p-4">
+            <div class="flex-1 overflow-hidden px-4 pb-2">
               <Show when={!showAiConsole()} fallback={
                 <AgentLauncher slug={props.slug} ticket={props.ticket!} />
               }>

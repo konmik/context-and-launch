@@ -13,7 +13,7 @@ interface TicketCardProps {
 export default function TicketCard(props: TicketCardProps) {
   const [menuOpen, setMenuOpen] = createSignal(false);
   const [moveMenuOpen, setMoveMenuOpen] = createSignal(false);
-  const [menuSide, setMenuSide] = createSignal<"right" | "left">("right");
+  const [menuPos, setMenuPos] = createSignal({ top: 0, left: 0, side: "right" as "right" | "left" });
   let menuBtnRef: HTMLButtonElement | undefined;
 
   function handleCardClick(e: MouseEvent) {
@@ -27,7 +27,12 @@ export default function TicketCard(props: TicketCardProps) {
     if (!menuOpen() && menuBtnRef) {
       const rect = menuBtnRef.getBoundingClientRect();
       const spaceRight = window.innerWidth - rect.right;
-      setMenuSide(spaceRight >= 160 ? "right" : "left");
+      const side = spaceRight >= 160 ? "right" : "left";
+      setMenuPos({
+        top: rect.top,
+        left: side === "right" ? rect.right + 4 : rect.left - 4,
+        side,
+      });
     }
     setMenuOpen(!menuOpen());
     setMoveMenuOpen(false);
@@ -73,7 +78,15 @@ export default function TicketCard(props: TicketCardProps) {
                 setMoveMenuOpen(false);
               }}
             />
-            <div class={`absolute top-0 z-50 min-w-[150px] rounded-md border border-border bg-popover py-1 shadow-md ${menuSide() === "right" ? "left-full ml-1" : "right-full mr-1"}`}>
+            <div
+              class="fixed z-50 min-w-[150px] rounded-md border border-border bg-popover py-1 shadow-md"
+              style={{
+                top: `${menuPos().top}px`,
+                ...(menuPos().side === "right"
+                  ? { left: `${menuPos().left}px` }
+                  : { right: `${window.innerWidth - menuPos().left}px` }),
+              }}
+            >
               <div class="relative">
                 <button
                   class="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
@@ -85,7 +98,7 @@ export default function TicketCard(props: TicketCardProps) {
                   Move to...
                 </button>
                 <Show when={moveMenuOpen()}>
-                  <div class={`absolute top-0 min-w-[120px] rounded-md border border-border bg-popover py-1 shadow-md ${menuSide() === "right" ? "left-full" : "right-full"}`}>
+                  <div class={`absolute top-0 min-w-[120px] rounded-md border border-border bg-popover py-1 shadow-md ${menuPos().side === "right" ? "left-full" : "right-full"}`}>
                     <For each={props.columns.filter((c) => c !== props.ticket.status)}>
                       {(col) => (
                         <button
