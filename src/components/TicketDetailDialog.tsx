@@ -288,9 +288,23 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
           onKeyDown={handleKeyDown}
           storageKey="ticket-dialog-size"
           title={
-            <h2 class="text-lg font-semibold">
-              {props.ticket!.number} - {props.ticket!.title}
-            </h2>
+            <div class="flex items-end justify-between">
+              <h2 class="text-lg font-semibold">
+                {props.ticket!.number} - {props.ticket!.title}
+              </h2>
+              <button
+                type="button"
+                onClick={toggleAiConsole}
+                onMouseDown={(e) => e.stopPropagation()}
+                class={`inline-flex h-8 shrink-0 items-center justify-center rounded-md px-3 text-sm font-medium transition-colors ${
+                  showAiConsole()
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                }`}
+              >
+                Agent Launcher
+              </button>
+            </div>
           }
           footer={
             <div class="flex justify-end gap-2">
@@ -317,68 +331,54 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
           }
         >
           <div class="flex h-full flex-col">
-            <div class="flex items-center gap-2 border-b border-border px-4 py-2">
-              <div class="relative min-w-0 flex-1">
+            <Show when={!showAiConsole()}>
+              <div class="flex items-center gap-2 border-b border-border px-4 py-2">
+                <div class="relative min-w-0 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => setDropdownOpen(!dropdownOpen())}
+                    class="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    <span class="truncate">{activeFile()}.md</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ml-2 shrink-0"><path d="m6 9 6 6 6-6"/></svg>
+                  </button>
+                  <Show when={dropdownOpen()}>
+                    <div class="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
+                    <div class="absolute left-0 z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover py-1 shadow-md">
+                      <For each={fileOptions()}>
+                        {(name) => (
+                          <button
+                            type="button"
+                            onClick={() => selectFile(name)}
+                            class={`w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground ${
+                              name === activeFile() ? "font-semibold" : ""
+                            }`}
+                          >
+                            {name}.md
+                          </button>
+                        )}
+                      </For>
+                      <div class="my-1 border-t border-border" />
+                      <button
+                        type="button"
+                        onClick={openNewFileDialog}
+                        class="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                      >
+                        New markdown file...
+                      </button>
+                    </div>
+                  </Show>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setDropdownOpen(!dropdownOpen())}
-  
-                  class="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-sm"
+                  onClick={() => setConfirmingDelete(true)}
+                  class="inline-flex h-9 shrink-0 items-center justify-center rounded-md border border-input bg-background px-2 text-sm text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground"
+                  title="Delete file"
                 >
-                  <span class="truncate">{activeFile()}.md</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ml-2 shrink-0"><path d="m6 9 6 6 6-6"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                 </button>
-                <Show when={dropdownOpen()}>
-                  <div class="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
-                  <div class="absolute left-0 z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover py-1 shadow-md">
-                    <For each={fileOptions()}>
-                      {(name) => (
-                        <button
-                          type="button"
-          
-                          onClick={() => selectFile(name)}
-                          class={`w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground ${
-                            name === activeFile() ? "font-semibold" : ""
-                          }`}
-                        >
-                          {name}.md
-                        </button>
-                      )}
-                    </For>
-                    <div class="my-1 border-t border-border" />
-                    <button
-                      type="button"
-      
-                      onClick={openNewFileDialog}
-                      class="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
-                    >
-                      New markdown file...
-                    </button>
-                  </div>
-                </Show>
               </div>
-              <button
-                type="button"
-                onClick={() => setConfirmingDelete(true)}
-
-                class="inline-flex h-9 shrink-0 items-center justify-center rounded-md border border-input bg-background px-2 text-sm text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground"
-                title="Delete file"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-              </button>
-              <button
-                type="button"
-                onClick={toggleAiConsole}
-
-                class={`inline-flex h-9 shrink-0 items-center justify-center rounded-md px-3 text-sm font-medium transition-colors ${
-                  showAiConsole()
-                    ? "bg-primary text-primary-foreground"
-                    : "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
-                }`}
-              >
-                AI Console
-              </button>
-            </div>
+            </Show>
 
             <Show when={error()}>
               <div class="mx-4 mt-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
