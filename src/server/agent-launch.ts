@@ -143,8 +143,6 @@ export function launchAgent(
       templateName: launchRequest.templateName,
       checkedSkills: launchRequest.checkedSkills,
     });
-    const store = new TicketStore(worktreeDir);
-    store.setUseWorktree(ticket.folderName, launchRequest.useWorktree);
   } catch (saveErr) {
     console.warn("Failed to save launch defaults:", saveErr);
   }

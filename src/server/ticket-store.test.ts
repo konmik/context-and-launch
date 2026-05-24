@@ -953,6 +953,54 @@ describe('TicketStore', () => {
 		expect(tickets[0].stageNames.length).toBe(3);
 	});
 
+	it('setUseWorktree persists to status.json and survives a re-read via listTickets', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('WT-1', 'Worktree Toggle');
+
+		const folderName = 'wt-1-worktree-toggle';
+
+		// Initially useWorktree is false
+		let tickets = store.listTickets();
+		expect(tickets[0].useWorktree).toBe(false);
+
+		// Toggle it on
+		store.setUseWorktree(folderName, true);
+
+		// Re-reading from disk reflects the change
+		tickets = store.listTickets();
+		expect(tickets[0].useWorktree).toBe(true);
+
+		// Raw file on disk confirms it
+		const raw = JSON.parse(fs.readFileSync(path.join(worktreeDir, folderName, 'status.json'), 'utf-8'));
+		expect(raw.useWorktree).toBe(true);
+
+		// Toggle it back off
+		store.setUseWorktree(folderName, false);
+		tickets = store.listTickets();
+		expect(tickets[0].useWorktree).toBe(false);
+	});
+
+	it('setUseWorktree does not clobber other status.json fields', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('WT-2', 'No Clobber');
+
+		const folderName = 'wt-2-no-clobber';
+
+		store.setUseWorktree(folderName, true);
+
+		const raw = JSON.parse(fs.readFileSync(path.join(worktreeDir, folderName, 'status.json'), 'utf-8'));
+		expect(raw.number).toBe('WT-2');
+		expect(raw.title).toBe('No Clobber');
+		expect(raw.status).toBe('todo');
+		expect(raw.useWorktree).toBe(true);
+	});
+
 	it('writeStatusJson throws after successful rename: error propagates, folder at new path with stale status.json', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);

@@ -48,8 +48,10 @@ export default function ProjectPage() {
     setDeleteTicketOpen(true);
   }
 
-  function handleViewDetail(ticket: TicketInfo) {
-    setSelectedTicket(ticket);
+  async function handleViewDetail(ticket: TicketInfo) {
+    await revalidate("board-data");
+    const fresh = data()?.board?.tickets.find((t: TicketInfo) => t.folderName === ticket.folderName);
+    setSelectedTicket(fresh ?? ticket);
     setDetailTicketOpen(true);
   }
 
