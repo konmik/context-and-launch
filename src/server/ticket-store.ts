@@ -7,7 +7,7 @@ interface StatusJson {
 	number: string;
 	title: string;
 	status: string;
-	useWorktree?: boolean;
+	useWorktree: boolean;
 }
 
 export function toKebabCase(input: string): string {
@@ -91,7 +91,8 @@ export class TicketStore {
 		const status: StatusJson = {
 			number: number.trim(),
 			title: title.trim(),
-			status: initialStatus
+			status: initialStatus,
+			useWorktree: false,
 		};
 		this.writeStatusJson(dir, status);
 		this.autoCommit(`create ticket ${status.number}`);
@@ -121,7 +122,8 @@ export class TicketStore {
 		const updated: StatusJson = {
 			number: updatedNumber,
 			title: updatedTitle,
-			status: updatedStatus
+			status: updatedStatus,
+			useWorktree: current.useWorktree,
 		};
 
 		const needsRename =
@@ -245,7 +247,8 @@ export class TicketStore {
 		const file = path.join(dir, 'status.json');
 		if (!fs.existsSync(file)) return null;
 		try {
-			return JSON.parse(fs.readFileSync(file, 'utf-8')) as StatusJson;
+			const raw = JSON.parse(fs.readFileSync(file, 'utf-8'));
+			return { useWorktree: false, ...raw } as StatusJson;
 		} catch {
 			return null;
 		}
