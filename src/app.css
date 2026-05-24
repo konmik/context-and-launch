@@ -84,21 +84,9 @@
 	}
 }
 
-button, [role="button"] {
+button, [role="button"], .ripple {
 	position: relative;
 	overflow: hidden;
-}
-
-.ripple {
-	position: relative;
-}
-
-.ripple-container {
-	position: absolute;
-	inset: 0;
-	overflow: hidden;
-	pointer-events: none;
-	border-radius: inherit;
 }
 
 .ripple-effect {

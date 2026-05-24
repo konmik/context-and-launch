@@ -95,8 +95,8 @@ const codeBlockPlugin = ViewPlugin.fromClass(
     constructor(view: EditorView) {
       this.decorations = buildCodeBlockDecos(view);
     }
-    update(update: { docChanged: boolean; viewportChanged: boolean; view: EditorView }) {
-      if (update.docChanged || update.viewportChanged)
+    update(update: { docChanged: boolean; view: EditorView }) {
+      if (update.docChanged)
         this.decorations = buildCodeBlockDecos(update.view);
     }
   },

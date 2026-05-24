@@ -35,6 +35,7 @@ export default function TicketCard(props: TicketCardProps) {
 
   return (
     <div
+      data-drag-source
       class="ripple cursor-pointer rounded-md border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-md"
       onClick={handleCardClick}
     >
@@ -84,7 +85,7 @@ export default function TicketCard(props: TicketCardProps) {
                   Move to...
                 </button>
                 <Show when={moveMenuOpen()}>
-                  <div class="absolute left-full top-0 min-w-[120px] rounded-md border border-border bg-popover py-1 shadow-md">
+                  <div class={`absolute top-0 min-w-[120px] rounded-md border border-border bg-popover py-1 shadow-md ${menuSide() === "right" ? "left-full" : "right-full"}`}>
                     <For each={props.columns.filter((c) => c !== props.ticket.status)}>
                       {(col) => (
                         <button
