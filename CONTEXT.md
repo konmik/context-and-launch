@@ -52,11 +52,30 @@ Avoid: checkout, workspace
 Orphan Branch:
 A git branch named `ai-stages` with no common history with the project's main branch. Holds ticket data without polluting code history.
 
-### AI Console
+### Agent Launcher
 
-AI Console:
-A tab inside the Ticket Detail Dialog that launches Claude Code in a separate terminal window. Points Claude at the ticket folder for context. The user interacts with Claude directly in the terminal.
-Avoid: terminal, shell, CLI
+Agent Launcher:
+A tab inside the Ticket Detail Dialog that assembles a prompt from a Template and checked Skills, then launches Claude Code in a separate terminal window. The user interacts with Claude directly in the terminal.
+Avoid: AI console, terminal, shell, CLI
+
+Template:
+A named prompt string with placeholders (e.g. `{{ticketDir}}`, `{{ticketTitle}}`). One template is selected as the base prompt in the Agent Launcher. Interpolated after skill text is appended.
+Avoid: prompt, instruction
+
+Skill:
+A named template string that appends to the base Template when checked in the Agent Launcher. Uses the same placeholder syntax as Templates.
+Avoid: addon, plugin, extension
+
+Placeholder:
+A `{{variable}}` reference in a Template or Skill that gets replaced with a runtime value at launch time. Available: `{{ticketDir}}`, `{{ticketTitle}}`, `{{ticketNumber}}`, `{{ticketStatus}}`, `{{projectPath}}`, `{{projectSlug}}`.
+
+Launcher Config:
+A JSON file defining available Templates, Skills, and launcher settings. Exists at two scopes: app-level (`~/.ai-stages/launcher-config.json`) and project-level (`~/.ai-stages/worktrees/{slug}/launcher-config.json`). Project-level merges additively with app-level; project wins on name collision.
+Avoid: agent config, prompt config
+
+Agent Worktree:
+A git worktree created from the project's main branch for an agent to work in isolation. Located under a user-configured worktree root path. Branch named `ai/{folderName}`. Reused across runs.
+Avoid: sandbox, workspace
 
 ## Relationships
 
@@ -66,4 +85,7 @@ Avoid: terminal, shell, CLI
 - A Ticket Folder contains exactly one `status.json` and zero or more Stage Markdowns
 - A Board Config defines the set of Columns available to a Project
 - A Column name determines the filename of its Stage Markdown (e.g. column `review` → `review.md`)
-- The AI Console tab launches Claude Code in a separate terminal window pointed at the Ticket Folder
+- The Agent Launcher assembles a prompt from a Template and zero or more Skills
+- A Launcher Config exists at app scope and optionally at project scope; project merges into app
+- An Agent Worktree branches from the Project's main branch, named `ai/{folderName}`
+- The Agent Launcher remembers the last-used Template and checked Skills per Column
