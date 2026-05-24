@@ -1,27 +1,16 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { chromium, type Browser, type Page } from "playwright";
-import { type ChildProcess, spawn, execSync } from "child_process";
-import { createTestDataDir, seedTickets, cleanupTestDataDir } from "./setup-test-data.js";
+import type http from "node:http";
+import { startMockServer, stopMockServer, type MockServerState } from "./mock-server.js";
+import { SEEDED_BOARD } from "./setup-test-data.js";
 
 const PORT = 3901 + Math.floor(Math.random() * 100);
 const BASE_URL = `http://localhost:${PORT}`;
 
 let browser: Browser;
 let page: Page;
-let server: ChildProcess;
-let dataDir: string;
-
-async function waitForServer(url: string, timeoutMs = 30000) {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    try {
-      const res = await fetch(url);
-      if (res.ok) return;
-    } catch {}
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  throw new Error(`Server at ${url} did not start within ${timeoutMs}ms`);
-}
+let server: http.Server;
+let mockState: MockServerState;
 
 async function getSortablesByColumn(p: Page) {
   const sortables = p.locator("[data-sortable-id]");
@@ -59,40 +48,44 @@ async function dragTo(p: Page, sourceId: string, targetId: string) {
 
 describe("KanbanBoard drag-and-drop (e2e)", () => {
   beforeAll(async () => {
-    dataDir = createTestDataDir();
-    await seedTickets(dataDir);
+    const board = structuredClone(SEEDED_BOARD);
+    mockState = {
+      boardData: board,
+      onReorderTicket: (slug, folderName, fromColumn, toColumn, newIndex) => {
+        const ticket = board.board!.tickets.find((t) => t.folderName === folderName);
+        if (ticket) {
+          // Remove from old column order
+          const fromOrder = board.board!.ticketOrder[fromColumn];
+          const fromIdx = fromOrder.indexOf(folderName);
+          if (fromIdx >= 0) fromOrder.splice(fromIdx, 1);
 
-    server = spawn("npx", ["vinxi", "dev", "--port", String(PORT)], {
-      cwd: process.cwd(),
-      env: { ...process.env, AI_STAGES_DATA_DIR: dataDir, PORT: String(PORT) },
-      stdio: "ignore",
-      shell: true,
-    });
+          // Add to new column order
+          if (!board.board!.ticketOrder[toColumn]) {
+            board.board!.ticketOrder[toColumn] = [];
+          }
+          const toOrder = board.board!.ticketOrder[toColumn];
+          toOrder.splice(newIndex, 0, folderName);
 
-    await waitForServer(BASE_URL, 30000);
+          // Update ticket status
+          ticket.status = toColumn;
+        }
+        return { success: true };
+      },
+    };
 
+    server = await startMockServer(PORT, mockState);
     browser = await chromium.launch({ headless: true });
     page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
-  }, 60000);
+  }, 30000);
 
   afterAll(async () => {
     await browser?.close();
-    if (server?.pid) {
-      try {
-        if (process.platform === "win32") {
-          execSync(`taskkill /F /T /PID ${server.pid}`, { stdio: "ignore" });
-        } else {
-          process.kill(-server.pid, "SIGKILL");
-        }
-      } catch {}
-    }
-    await new Promise((r) => setTimeout(r, 2000));
-    cleanupTestDataDir(dataDir);
+    if (server) await stopMockServer(server);
   }, 15000);
 
   it("renders test tickets in correct columns", async () => {
     await page.goto(`${BASE_URL}/project/e2e-test`);
-    await page.waitForTimeout(2000);
+    await page.waitForSelector("[data-sortable-id]");
 
     const columns = await getSortablesByColumn(page);
     const todo = columns.get("todo") ?? [];
@@ -106,7 +99,7 @@ describe("KanbanBoard drag-and-drop (e2e)", () => {
 
   it("shows drag overlay and dims source during same-column drag", async () => {
     await page.reload();
-    await page.waitForTimeout(2000);
+    await page.waitForSelector("[data-sortable-id]");
 
     const columns = await getSortablesByColumn(page);
     const todo = columns.get("todo")!;
@@ -122,7 +115,7 @@ describe("KanbanBoard drag-and-drop (e2e)", () => {
 
   it("shows drop indicator when dragging cross-column into column with tickets", async () => {
     await page.reload();
-    await page.waitForTimeout(2000);
+    await page.waitForSelector("[data-sortable-id]");
 
     const columns = await getSortablesByColumn(page);
     const todo = columns.get("todo")!;
@@ -144,7 +137,7 @@ describe("KanbanBoard drag-and-drop (e2e)", () => {
 
   it("persists cross-column drop", async () => {
     await page.reload();
-    await page.waitForTimeout(2000);
+    await page.waitForSelector("[data-sortable-id]");
 
     const before = await getSortablesByColumn(page);
     const todo = before.get("todo")!;

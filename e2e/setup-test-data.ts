@@ -1,55 +1,69 @@
-import fs from "fs";
-import path from "path";
-import { execSync } from "child_process";
+// All test data is defined as plain JavaScript objects.
+// No fs, path, os, or memfs imports -- purely in-memory mock data.
 
-export function createTestDataDir(): string {
-  const tmpDir = fs.mkdtempSync(path.join(require("os").tmpdir(), "ai-stages-e2e-"));
+const SLUG = "e2e-test";
 
-  const projectPath = path.join(tmpDir, "test-project");
-  fs.mkdirSync(projectPath, { recursive: true });
-  execSync("git init", { cwd: projectPath, stdio: "ignore" });
-  execSync('git config user.email "test@test.com"', { cwd: projectPath, stdio: "ignore" });
-  execSync('git config user.name "Test"', { cwd: projectPath, stdio: "ignore" });
-  execSync("git commit --allow-empty -m init", { cwd: projectPath, stdio: "ignore" });
-
-  const slug = "e2e-test";
-
-  fs.writeFileSync(path.join(tmpDir, "config.json"), JSON.stringify({
-    projects: [{ path: projectPath, slug }],
-    lastUsedSlug: slug,
-  }));
-
-  const boardConfigDir = path.join(tmpDir, "board-config");
-  fs.mkdirSync(boardConfigDir, { recursive: true });
-  fs.writeFileSync(path.join(boardConfigDir, "kanban.json"), JSON.stringify({
-    columns: ["todo", "in-progress", "done"],
-  }));
-
-  return tmpDir;
+export interface TicketInfo {
+  number: string;
+  title: string;
+  status: string;
+  folderName: string;
+  stageNames: string[];
+  useWorktree: boolean;
 }
 
-export async function seedTickets(dataDir: string) {
-  const { TicketStore } = await import("../src/server/ticket-store.js");
-  const { WorktreeManager } = await import("../src/server/worktree-manager.js");
-
-  const slug = "e2e-test";
-  const projects = JSON.parse(fs.readFileSync(path.join(dataDir, "config.json"), "utf-8")).projects;
-  const projectPath = projects[0].path;
-
-  const wm = new WorktreeManager(dataDir);
-  const worktreeDir = await wm.ensureWorktree(projectPath, slug);
-
-  const store = new TicketStore(worktreeDir);
-  store.createTicket("T-1", "Alpha", "todo");
-  store.createTicket("T-2", "Bravo", "todo");
-  store.createTicket("T-3", "Charlie", "in-progress");
-  store.createTicket("T-4", "Delta", "in-progress");
+export interface BoardState {
+  columns: string[];
+  tickets: TicketInfo[];
+  ticketOrder: Record<string, string[]>;
 }
 
-export function cleanupTestDataDir(dir: string) {
-  try {
-    fs.rmSync(dir, { recursive: true, force: true });
-  } catch {
-    // best effort
+export interface BoardPageData {
+  projects: { path: string; slug: string; available: boolean }[];
+  slug: string;
+  board: BoardState | null;
+  projectUnavailable: boolean;
+  projectNotFound: boolean;
+  projectPath: string;
+  error?: string;
+}
+
+const DEFAULT_COLUMNS = ["todo", "in-progress", "done"];
+
+const DEFAULT_TICKETS: TicketInfo[] = [
+  { number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha", stageNames: [], useWorktree: false },
+  { number: "T-2", title: "Bravo", status: "todo", folderName: "t-2-bravo", stageNames: [], useWorktree: false },
+  { number: "T-3", title: "Charlie", status: "in-progress", folderName: "t-3-charlie", stageNames: [], useWorktree: false },
+  { number: "T-4", title: "Delta", status: "in-progress", folderName: "t-4-delta", stageNames: [], useWorktree: false },
+];
+
+function buildTicketOrder(tickets: TicketInfo[], columns: string[]): Record<string, string[]> {
+  const order: Record<string, string[]> = {};
+  for (const col of columns) {
+    order[col] = [];
   }
+  for (const t of tickets) {
+    if (!order[t.status]) order[t.status] = [];
+    order[t.status].push(t.folderName);
+  }
+  return order;
 }
+
+export function createBoardWithTickets(tickets: TicketInfo[], columns = DEFAULT_COLUMNS): BoardPageData {
+  return {
+    projects: [{ path: "/test-project", slug: SLUG, available: true }],
+    slug: SLUG,
+    board: {
+      columns,
+      tickets,
+      ticketOrder: buildTicketOrder(tickets, columns),
+    },
+    projectUnavailable: false,
+    projectNotFound: false,
+    projectPath: "/test-project",
+  };
+}
+
+export const EMPTY_BOARD: BoardPageData = createBoardWithTickets([]);
+
+export const SEEDED_BOARD: BoardPageData = createBoardWithTickets(DEFAULT_TICKETS);
