@@ -6,6 +6,10 @@ import { WorktreeManager } from './worktree-manager.js';
 import { TicketStore, toKebabCase } from './ticket-store.js';
 import { errorMessage } from './errors.js';
 import { escapeBatchTitle } from './batch-escape.js';
+// parseLaunchRequest cannot be imported directly because agent-launch.ts pulls in
+// singleton instances via the ~ alias which vitest cannot resolve without the
+// SvelteKit build pipeline. Instead, replicate the pure function here and verify
+// it matches the source code (same pattern used for escapeTitle/escapeSendKeys above).
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -266,6 +270,68 @@ describe('escapeBatchTitle - batch metacharacter injection', () => {
 	});
 });
 
+describe('pull-and-retry skips windowExists check (code-inspection)', () => {
+	// This test reads the actual source files to confirm the structural difference
+	// between run.ts and pull-and-retry.ts: run.ts checks windowExists before launching
+	// to prevent duplicate agent windows; pull-and-retry.ts does not, allowing a second
+	// agent window for the same ticket.
+
+	const runSource = fs.readFileSync(
+		path.resolve(__dirname, '../routes/api/projects/[slug]/board/tickets/[folderName]/ai/run.ts'),
+		'utf-8'
+	);
+	const pullAndRetrySource = fs.readFileSync(
+		path.resolve(__dirname, '../routes/api/projects/[slug]/board/tickets/[folderName]/ai/pull-and-retry.ts'),
+		'utf-8'
+	);
+
+	it('run.ts imports windowExists from agent-launch', () => {
+		expect(runSource).toContain('windowExists');
+		// Verify it appears in an import statement
+		expect(runSource).toMatch(/import\s*\{[^}]*windowExists[^}]*\}\s*from/);
+	});
+
+	it('run.ts calls windowExists and returns 409 "Already started"', () => {
+		// The guard: if (await windowExists(windowTitle)) { return new Response("Already started", { status: 409 }); }
+		expect(runSource).toMatch(/await\s+windowExists\s*\(/);
+		expect(runSource).toContain('Already started');
+		expect(runSource).toContain('409');
+	});
+
+	it('pull-and-retry.ts does NOT import or call windowExists', () => {
+		// This is the bug: pull-and-retry lacks the duplicate-window guard entirely
+		expect(pullAndRetrySource).not.toContain('windowExists');
+		expect(pullAndRetrySource).not.toContain('buildWindowTitle');
+	});
+
+	it('pull-and-retry.ts does NOT return 409 for any reason', () => {
+		// run.ts returns 409 for windowExists and for behindRemote
+		// pull-and-retry returns 500 for behindRemote (inconsistent error format)
+		// Neither endpoint returns 409 for duplicate windows in pull-and-retry
+		expect(pullAndRetrySource).not.toContain('409');
+		expect(pullAndRetrySource).not.toContain('Already started');
+	});
+
+	it('both endpoints call launchAgent -- confirming pull-and-retry does launch a window', () => {
+		// Both endpoints reach launchAgent which spawns a new wt window.
+		// Without the windowExists guard, pull-and-retry will create a duplicate.
+		expect(runSource).toContain('launchAgent');
+		expect(pullAndRetrySource).toContain('launchAgent');
+	});
+});
+
+describe('useWorktree=true with worktreeRootPath=null returns 400 (code-inspection)', () => {
+	const runSource = fs.readFileSync(
+		path.resolve(__dirname, '../routes/api/projects/[slug]/board/tickets/[folderName]/ai/run.ts'),
+		'utf-8'
+	);
+
+	it('returns 400 error when worktreeRootPath is not configured', () => {
+		expect(runSource).toContain('Worktree root path is not configured');
+		expect(runSource).toMatch(/!merged\.worktreeRootPath/);
+	});
+});
+
 describe('SendKeys title matching and prompt injection safety', () => {
 	// Replicate production functions (not exported from run.ts)
 	function escapeSendKeys(text: string): string {
@@ -356,7 +422,7 @@ describe('SendKeys title matching and prompt injection safety', () => {
 
 	it('full prompt construction path escapes SendKeys specials and PS single-quotes', () => {
 		// Simulate the exact code path from run.ts lines 73-74
-		const ticketDir = 'C:\\Users\\test\\worktrees\\proj-1-fix-bug+(v2)';
+		const ticketDir = 'C:\\Users\\test\\tickets\\proj-1-fix-bug+(v2)';
 		const initialPrompt = `Current ticket files are in ${ticketDir}. Read the files there for context.`;
 		const sendKeysMsg = escapeSendKeys(initialPrompt).replace(/'/g, "''");
 
@@ -373,5 +439,188 @@ describe('SendKeys title matching and prompt injection safety', () => {
 		// Verify the PS single-quote escape is applied
 		const withQuote = escapeSendKeys("it's a path").replace(/'/g, "''");
 		expect(withQuote).toBe("it''s a path");
+	});
+});
+
+describe('parseLaunchRequest with missing/malformed request body', () => {
+	// Replicate the pure function from agent-launch.ts (cannot import due to ~ alias)
+	interface LaunchRequest { templateName: string; checkedSkills: string[]; useWorktree: boolean; }
+	function parseLaunchRequest(body: unknown): LaunchRequest {
+		const result: LaunchRequest = { templateName: 'Default', checkedSkills: [], useWorktree: false };
+		if (body && typeof body === 'object') {
+			const b = body as Record<string, unknown>;
+			if (typeof b.templateName === 'string') result.templateName = b.templateName;
+			if (Array.isArray(b.checkedSkills)) result.checkedSkills = b.checkedSkills;
+			if (typeof b.useWorktree === 'boolean') result.useWorktree = b.useWorktree;
+		}
+		return result;
+	}
+
+	const DEFAULTS = { templateName: 'Default', checkedSkills: [], useWorktree: false };
+
+	it('replicated function matches source code', () => {
+		// Read the production source to verify our replica stays in sync
+		const source = fs.readFileSync(
+			path.resolve(__dirname, 'agent-launch.ts'),
+			'utf-8'
+		);
+		// The function body must contain the same default values and type guards
+		expect(source).toContain('templateName: "Default"');
+		expect(source).toContain('checkedSkills: []');
+		expect(source).toContain('useWorktree: false');
+		expect(source).toContain("typeof b.templateName === \"string\"");
+		expect(source).toContain("Array.isArray(b.checkedSkills)");
+		expect(source).toContain("typeof b.useWorktree === \"boolean\"");
+	});
+
+	it('undefined body returns all defaults', () => {
+		const result = parseLaunchRequest(undefined);
+		expect(result).toEqual(DEFAULTS);
+	});
+
+	it('null body returns all defaults', () => {
+		const result = parseLaunchRequest(null);
+		expect(result).toEqual(DEFAULTS);
+	});
+
+	it('empty object body returns all defaults', () => {
+		const result = parseLaunchRequest({});
+		expect(result).toEqual(DEFAULTS);
+	});
+
+	it('string body returns all defaults (non-object)', () => {
+		const result = parseLaunchRequest('hello');
+		expect(result).toEqual(DEFAULTS);
+	});
+
+	it('number body returns all defaults (non-object)', () => {
+		const result = parseLaunchRequest(42);
+		expect(result).toEqual(DEFAULTS);
+	});
+
+	it('boolean body returns all defaults (non-object)', () => {
+		const result = parseLaunchRequest(true);
+		expect(result).toEqual(DEFAULTS);
+	});
+
+	it('array body is treated as object but has no matching keys, returns defaults', () => {
+		// typeof [] === "object" and Array is truthy, so it enters the object branch
+		// but none of the expected keys exist on a plain array
+		const result = parseLaunchRequest(['a', 'b']);
+		expect(result).toEqual(DEFAULTS);
+	});
+
+	it('body with wrong types for all fields returns defaults', () => {
+		const result = parseLaunchRequest({
+			templateName: 123,        // not a string
+			checkedSkills: 'not-array', // not an array
+			useWorktree: 'yes',        // not a boolean
+		});
+		expect(result).toEqual(DEFAULTS);
+	});
+
+	it('body with valid fields overrides defaults', () => {
+		const result = parseLaunchRequest({
+			templateName: 'Custom',
+			checkedSkills: ['skill-a', 'skill-b'],
+			useWorktree: true,
+		});
+		expect(result).toEqual({
+			templateName: 'Custom',
+			checkedSkills: ['skill-a', 'skill-b'],
+			useWorktree: true,
+		});
+	});
+
+	it('body with partial valid fields merges with defaults', () => {
+		// Only templateName is valid; other fields use defaults
+		const result = parseLaunchRequest({ templateName: 'MyTemplate' });
+		expect(result).toEqual({
+			templateName: 'MyTemplate',
+			checkedSkills: [],
+			useWorktree: false,
+		});
+	});
+
+	it('body with extra unknown fields does not affect result', () => {
+		const result = parseLaunchRequest({
+			templateName: 'Custom',
+			unknownField: 'ignored',
+			anotherField: 999,
+		});
+		expect(result.templateName).toBe('Custom');
+		expect(result.checkedSkills).toEqual([]);
+		expect(result.useWorktree).toBe(false);
+		expect(result).not.toHaveProperty('unknownField');
+		expect(result).not.toHaveProperty('anotherField');
+	});
+
+	it('never throws for any input', () => {
+		// parseLaunchRequest must be safe to call with any value -- both run.ts and
+		// pull-and-retry.ts rely on it not throwing during body parsing
+		const inputs = [undefined, null, 0, '', false, NaN, Infinity, [], {}, 'json', 42, true];
+		for (const input of inputs) {
+			expect(() => parseLaunchRequest(input)).not.toThrow();
+		}
+	});
+});
+
+describe('launchAgent ticketDir vs launchDir separation (code-inspection)', () => {
+	// This test reads agent-launch.ts to confirm that ticketDir in the interpolated
+	// prompt is derived from worktreeDir (the ticket storage directory), NOT from
+	// launchDir (the git worktree or project path where the agent terminal opens).
+	// These are intentionally different paths: worktreeDir stores ticket metadata,
+	// while launchDir is the CWD for the spawned agent terminal.
+
+	const agentLaunchSource = fs.readFileSync(
+		path.resolve(__dirname, 'agent-launch.ts'),
+		'utf-8'
+	);
+
+	it('ticketDir is computed from worktreeDir (first param), not launchDir (last param)', () => {
+		// The function signature: launchAgent(slug, ticket, project, worktreeDir, launchRequest, launchDir)
+		// ticketDir must resolve from worktreeDir, not launchDir
+		expect(agentLaunchSource).toMatch(/const ticketDir\s*=\s*path\.resolve\(worktreeDir,/);
+		// ticketDir must NOT reference launchDir
+		expect(agentLaunchSource).not.toMatch(/const ticketDir\s*=.*launchDir/);
+	});
+
+	it('launchDir is only used for the spawned terminal working directory, not for ticket resolution', () => {
+		// launchDir should appear in the spawn call as the -d argument
+		expect(agentLaunchSource).toMatch(/spawn\("wt",\s*\["-d",\s*launchDir/);
+		// launchDir must not appear in the variables dict that feeds interpolatePrompt
+		const variablesBlockMatch = agentLaunchSource.match(/const variables[^}]+\}/s);
+		expect(variablesBlockMatch).not.toBeNull();
+		const variablesBlock = variablesBlockMatch![0];
+		expect(variablesBlock).toContain('ticketDir');
+		expect(variablesBlock).not.toContain('launchDir');
+	});
+
+	it('ticketDir flows into the variables dict for prompt interpolation', () => {
+		// ticketDir must appear as a key in the variables object
+		expect(agentLaunchSource).toMatch(/variables\s*.*=\s*\{[^}]*ticketDir[^}]*\}/s);
+		// The variables dict is passed to interpolatePrompt
+		expect(agentLaunchSource).toMatch(/interpolatePrompt\(assembled,\s*variables\)/);
+	});
+
+	it('worktreeDir and launchDir are separate parameters in the function signature', () => {
+		// The function must accept both worktreeDir and launchDir as distinct parameters
+		expect(agentLaunchSource).toMatch(
+			/function launchAgent\([^)]*worktreeDir:\s*string[^)]*launchDir:\s*string[^)]*\)/s
+		);
+	});
+
+	it('the run route passes worktreeDir from resolveTicketAndProject and launchDir separately', () => {
+		// Verify the caller (run.ts) passes worktreeDir and launchDir as separate args
+		const runSource = fs.readFileSync(
+			path.resolve(__dirname, '../routes/api/projects/[slug]/board/tickets/[folderName]/ai/run.ts'),
+			'utf-8'
+		);
+		// worktreeDir comes from resolveTicketAndProject destructuring
+		expect(runSource).toMatch(/const\s*\{[^}]*worktreeDir[^}]*\}\s*=\s*resolved/);
+		// launchDir is a separate local variable initialized to project.path
+		expect(runSource).toMatch(/let\s+launchDir\s*=\s*project\.path/);
+		// Both are passed to launchAgent as distinct arguments
+		expect(runSource).toMatch(/launchAgent\([^)]*worktreeDir[^)]*launchDir\s*\)/);
 	});
 });

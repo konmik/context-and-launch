@@ -214,15 +214,15 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
 		const manager = new WorktreeManager(configDir);
-		const worktreesDir = path.join(configDir, 'worktrees');
-		const worktreeDir = path.join(worktreesDir, 'partial-slug');
+		const ticketsDir = path.join(configDir, 'tickets');
+		const worktreeDir = path.join(ticketsDir, 'partial-slug');
 
 		// Simulate the orphan creation path partially completing: step 1
 		// (git worktree add --orphan) succeeds but step 2 (git commit) fails.
 		// The worktree directory is left behind with a valid .git file, but the
 		// ai-stages branch is in "born" state (no commits). The per-slug branch
 		// ai-stages--partial-slug was never created.
-		fs.mkdirSync(worktreesDir, { recursive: true });
+		fs.mkdirSync(ticketsDir, { recursive: true });
 		await git(projectDir, 'worktree', 'add', '--orphan', '-b', 'ai-stages', worktreeDir);
 		// Do NOT commit -- this simulates the failure after step 1.
 
@@ -338,15 +338,15 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
 		const manager = new WorktreeManager(configDir);
-		const worktreesDir = path.join(configDir, 'worktrees');
-		const worktreeDir = path.join(worktreesDir, 'broken-slug');
+		const ticketsDir = path.join(configDir, 'tickets');
+		const worktreeDir = path.join(ticketsDir, 'broken-slug');
 
 		// Simulate: orphan branch creation succeeded but commit failed.
 		// The worktree directory exists with a valid .git pointer, but the
 		// branch 'ai-stages' is in "born" state (no commits).
 		// This leaves the worktree on 'ai-stages' (wrong branch) instead of
 		// 'ai-stages--broken-slug' (the correct per-slug branch).
-		fs.mkdirSync(worktreesDir, { recursive: true });
+		fs.mkdirSync(ticketsDir, { recursive: true });
 		await git(projectDir, 'worktree', 'add', '--orphan', '-b', 'ai-stages', worktreeDir);
 		// Do NOT commit -- simulates the commit failure at line 62
 

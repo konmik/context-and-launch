@@ -5,12 +5,12 @@ import { git } from './git.js';
 
 export class WorktreeManager {
 	private configDir: string;
-	private worktreesDir: string;
+	private ticketsDir: string;
 	private locks = new Map<string, Promise<unknown>>();
 
 	constructor(configDir?: string) {
 		this.configDir = configDir ?? path.join(os.homedir(), '.ai-stages');
-		this.worktreesDir = path.join(this.configDir, 'worktrees');
+		this.ticketsDir = path.join(this.configDir, 'tickets');
 	}
 
 	async ensureWorktree(projectPath: string, slug: string): Promise<string> {
@@ -34,7 +34,7 @@ export class WorktreeManager {
 
 	private async doEnsureWorktree(projectPath: string, slug: string): Promise<string> {
 		this.requireSafeSlug(slug);
-		const worktreeDir = path.join(this.worktreesDir, slug);
+		const worktreeDir = path.join(this.ticketsDir, slug);
 
 		if (fs.existsSync(worktreeDir) && this.isValidWorktree(worktreeDir)) {
 			return worktreeDir;
@@ -45,7 +45,7 @@ export class WorktreeManager {
 			await git(projectPath, 'worktree', 'prune');
 		}
 
-		fs.mkdirSync(this.worktreesDir, { recursive: true });
+		fs.mkdirSync(this.ticketsDir, { recursive: true });
 
 		const worktreeBranch = `ai-stages--${slug}`;
 		const branchList = await git(projectPath, 'branch', '--list', worktreeBranch);
@@ -79,7 +79,7 @@ export class WorktreeManager {
 
 	getWorktreeDir(slug: string): string {
 		this.requireSafeSlug(slug);
-		return path.join(this.worktreesDir, slug);
+		return path.join(this.ticketsDir, slug);
 	}
 
 	private requireSafeSlug(slug: string): void {

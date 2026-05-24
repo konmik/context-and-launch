@@ -46,7 +46,7 @@ Avoid: lane, swimlane, stage
 ### Git Infrastructure
 
 Worktree:
-A git worktree checked out at `~/.ai-stages/worktrees/{slug}/` from the project repo's orphan branch. All ticket folders live here.
+A git worktree checked out at `~/.ai-stages/tickets/{slug}/` from the project repo's orphan branch. All ticket folders live here.
 Avoid: checkout, workspace
 
 Orphan Branch:
@@ -70,7 +70,7 @@ Placeholder:
 A `{{variable}}` reference in a Template or Skill that gets replaced with a runtime value at launch time. Available: `{{ticketDir}}`, `{{ticketTitle}}`, `{{ticketNumber}}`, `{{ticketStatus}}`, `{{projectPath}}`, `{{projectSlug}}`.
 
 Launcher Config:
-A JSON file defining available Templates, Skills, and launcher settings. Exists at two scopes: app-level (`~/.ai-stages/launcher-config.json`) and project-level (`~/.ai-stages/worktrees/{slug}/launcher-config.json`). Project-level merges additively with app-level; project wins on name collision.
+A JSON file defining available Templates, Skills, and launcher settings. Exists at two scopes: app-level (`~/.ai-stages/launcher-config.json`) and project-level (`~/.ai-stages/tickets/{slug}/launcher-config.json`). Project-level merges additively with app-level; project wins on name collision.
 Avoid: agent config, prompt config
 
 Agent Worktree:

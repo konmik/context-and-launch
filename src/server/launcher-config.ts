@@ -1,0 +1,199 @@
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import type {
+	LauncherConfig,
+	LauncherTemplate,
+	LauncherSkill,
+	LauncherColumnDefaults,
+	MergedLauncherConfig,
+} from '../types.js';
+
+const DEFAULT_APP_CONFIG: LauncherConfig = {
+	templates: [
+		{
+			name: 'Default',
+			text: 'Current ticket files are in {{ticketDir}}. Read the files there for context.',
+		},
+	],
+	skills: [],
+};
+
+function emptyConfig(): LauncherConfig {
+	return { templates: [], skills: [] };
+}
+
+function parseConfig(text: string): LauncherConfig {
+	const parsed = JSON.parse(text);
+	return {
+		templates: Array.isArray(parsed.templates) ? parsed.templates : [],
+		skills: Array.isArray(parsed.skills) ? parsed.skills : [],
+		columnDefaults: parsed.columnDefaults,
+		worktreeRootPath: parsed.worktreeRootPath,
+	};
+}
+
+export class LauncherConfigManager {
+	private configDir: string;
+
+	constructor(configDir?: string) {
+		this.configDir = configDir ?? path.join(os.homedir(), '.ai-stages');
+	}
+
+	private appConfigPath(): string {
+		return path.join(this.configDir, 'launcher-config.json');
+	}
+
+	private projectConfigPath(slug: string): string {
+		this.requireSafeSlug(slug);
+		return path.join(this.configDir, 'tickets', slug, 'launcher-config.json');
+	}
+
+	private requireSafeSlug(slug: string): void {
+		if (
+			slug === '.' ||
+			slug === '..' ||
+			slug.includes('/') ||
+			slug.includes('\\') ||
+			slug.includes('\0')
+		) {
+			throw new Error(`Invalid slug: ${slug}`);
+		}
+	}
+
+	private readConfigFile(filePath: string): LauncherConfig | null {
+		if (!fs.existsSync(filePath)) return null;
+		try {
+			const text = fs.readFileSync(filePath, 'utf-8');
+			return parseConfig(text);
+		} catch (e) {
+			console.warn(`Failed to parse ${filePath}: ${e instanceof Error ? e.message : e}`);
+			return null;
+		}
+	}
+
+	private writeConfigFile(filePath: string, config: LauncherConfig): void {
+		fs.mkdirSync(path.dirname(filePath), { recursive: true });
+		fs.writeFileSync(filePath, JSON.stringify(config, null, 2));
+	}
+
+	loadAppConfig(): LauncherConfig {
+		const config = this.readConfigFile(this.appConfigPath());
+		if (config === null) {
+			const defaults = structuredClone(DEFAULT_APP_CONFIG);
+			this.writeConfigFile(this.appConfigPath(), defaults);
+			return defaults;
+		}
+		return config;
+	}
+
+	loadProjectConfig(slug: string): LauncherConfig {
+		return this.readConfigFile(this.projectConfigPath(slug)) ?? emptyConfig();
+	}
+
+	saveAppConfig(config: LauncherConfig): void {
+		this.writeConfigFile(this.appConfigPath(), config);
+	}
+
+	saveProjectConfig(slug: string, config: LauncherConfig): void {
+		this.writeConfigFile(this.projectConfigPath(slug), config);
+	}
+
+	getMergedConfig(slug: string): MergedLauncherConfig {
+		const app = this.loadAppConfig();
+		const project = this.loadProjectConfig(slug);
+
+		const templateMap = new Map<string, LauncherTemplate & { scope: "app" | "project" }>();
+		for (const t of app.templates) {
+			templateMap.set(t.name, { ...t, scope: "app" });
+		}
+		for (const t of project.templates) {
+			templateMap.set(t.name, { ...t, scope: "project" });
+		}
+
+		const skillMap = new Map<string, LauncherSkill & { scope: "app" | "project" }>();
+		for (const s of app.skills) {
+			skillMap.set(s.name, { ...s, scope: "app" });
+		}
+		for (const s of project.skills) {
+			skillMap.set(s.name, { ...s, scope: "project" });
+		}
+
+		return {
+			templates: [...templateMap.values()],
+			skills: [...skillMap.values()],
+			columnDefaults: project.columnDefaults ?? {},
+			worktreeRootPath: project.worktreeRootPath ?? null,
+		};
+	}
+
+	saveColumnDefaults(slug: string, column: string, defaults: LauncherColumnDefaults): void {
+		const config = this.loadProjectConfig(slug);
+		const columnDefaults = config.columnDefaults ?? {};
+		// Object.defineProperty to safely handle __proto__ as a key
+		Object.defineProperty(columnDefaults, column, { value: defaults, writable: true, enumerable: true, configurable: true });
+		this.saveProjectConfig(slug, { ...config, columnDefaults });
+	}
+
+	private withConfig(scope: "app" | "project", slug: string, fn: (config: LauncherConfig) => void): void {
+		const config = scope === "app" ? this.loadAppConfig() : this.loadProjectConfig(slug);
+		fn(config);
+		if (scope === "app") {
+			this.saveAppConfig(config);
+		} else {
+			this.saveProjectConfig(slug, config);
+		}
+	}
+
+	addTemplate(scope: "app" | "project", slug: string, template: LauncherTemplate): void {
+		this.withConfig(scope, slug, (config) => {
+			if (config.templates.some(t => t.name === template.name)) {
+				throw new Error(`Template with name "${template.name}" already exists`);
+			}
+			config.templates.push(template);
+		});
+	}
+
+	addSkill(scope: "app" | "project", slug: string, skill: LauncherSkill): void {
+		this.withConfig(scope, slug, (config) => {
+			if (config.skills.some(s => s.name === skill.name)) {
+				throw new Error(`Skill with name "${skill.name}" already exists`);
+			}
+			config.skills.push(skill);
+		});
+	}
+
+	removeTemplate(scope: "app" | "project", slug: string, name: string): void {
+		this.withConfig(scope, slug, (config) => {
+			config.templates = config.templates.filter(t => t.name !== name);
+		});
+	}
+
+	removeSkill(scope: "app" | "project", slug: string, name: string): void {
+		this.withConfig(scope, slug, (config) => {
+			config.skills = config.skills.filter(s => s.name !== name);
+		});
+	}
+
+	updateTemplate(scope: "app" | "project", slug: string, oldName: string, template: LauncherTemplate): void {
+		this.withConfig(scope, slug, (config) => {
+			const index = config.templates.findIndex(t => t.name === oldName);
+			if (index < 0) throw new Error(`Template "${oldName}" not found`);
+			if (oldName !== template.name && config.templates.some(t => t.name === template.name)) {
+				throw new Error(`Template with name "${template.name}" already exists`);
+			}
+			config.templates[index] = { name: template.name, text: template.text };
+		});
+	}
+
+	updateSkill(scope: "app" | "project", slug: string, oldName: string, skill: LauncherSkill): void {
+		this.withConfig(scope, slug, (config) => {
+			const index = config.skills.findIndex(s => s.name === oldName);
+			if (index < 0) throw new Error(`Skill "${oldName}" not found`);
+			if (oldName !== skill.name && config.skills.some(s => s.name === skill.name)) {
+				throw new Error(`Skill with name "${skill.name}" already exists`);
+			}
+			config.skills[index] = { name: skill.name, text: skill.text };
+		});
+	}
+}

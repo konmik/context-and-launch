@@ -45,3 +45,32 @@ export interface UpdateTicketRequest {
 export interface StageMarkdownContent {
 	content: string;
 }
+
+export interface LauncherTemplate {
+	name: string;
+	text: string;
+}
+
+export interface LauncherSkill {
+	name: string;
+	text: string;
+}
+
+export interface LauncherColumnDefaults {
+	templateName: string | null;
+	checkedSkills: string[];
+}
+
+export interface LauncherConfig {
+	templates: LauncherTemplate[];
+	skills: LauncherSkill[];
+	columnDefaults?: Record<string, LauncherColumnDefaults>;
+	worktreeRootPath?: string;
+}
+
+export interface MergedLauncherConfig {
+	templates: (LauncherTemplate & { scope: "app" | "project" })[];
+	skills: (LauncherSkill & { scope: "app" | "project" })[];
+	columnDefaults: Record<string, LauncherColumnDefaults>;
+	worktreeRootPath: string | null;
+}
