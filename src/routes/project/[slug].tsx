@@ -24,7 +24,8 @@ export const route = {
 export default function ProjectPage() {
   const params = useParams();
   const navigate = useNavigate();
-  const data = createAsync(() => loadBoard(params.slug));
+  const slug = () => params.slug ?? "";
+  const data = createAsync(() => loadBoard(slug()));
 
   const [dropdownOpen, setDropdownOpen] = createSignal(false);
   const [addProjectDialogOpen, setAddProjectDialogOpen] = createSignal(false);
@@ -54,7 +55,7 @@ export default function ProjectPage() {
 
   async function handleMoveTo(ticket: TicketInfo, status: string) {
     const result = await updateTicketAction(
-      params.slug,
+      slug(),
       ticket.folderName,
       null,
       null,
@@ -66,7 +67,7 @@ export default function ProjectPage() {
   }
 
   async function handleCreateTicket(number: string, title: string) {
-    const result = await createTicketAction(params.slug, number, title);
+    const result = await createTicketAction(slug(), number, title);
     if (!result.error) {
       revalidate("board-data");
     }
@@ -79,7 +80,7 @@ export default function ProjectPage() {
     title: string
   ) {
     const result = await updateTicketAction(
-      params.slug,
+      slug(),
       folderName,
       number,
       title,
@@ -92,7 +93,7 @@ export default function ProjectPage() {
   }
 
   async function handleDeleteTicket(folderName: string) {
-    const result = await deleteTicketAction(params.slug, folderName);
+    const result = await deleteTicketAction(slug(), folderName);
     if (!result.error) {
       revalidate("board-data");
     }

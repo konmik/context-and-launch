@@ -337,10 +337,9 @@ describe('AgentWorktreeManager', () => {
 		// 6. pullMainBranch should fail with merge conflict details
 		const pullError = await awm.pullMainBranch(projectDir).catch((e: Error) => e);
 		expect(pullError).toBeInstanceOf(Error);
-		// The outer wrapper says "Failed to pull main branch:"
-		expect(pullError.message).toContain('Failed to pull main branch');
-		// The inner git error should contain conflict-related details, not a generic message
-		expect(pullError.message).toContain('CONFLICT');
+		const pullErr = pullError as Error;
+		expect(pullErr.message).toContain('Failed to pull main branch');
+		expect(pullErr.message).toContain('CONFLICT');
 
 		// 7. After a failed pull with conflicts, the working tree has uncommitted merge artifacts.
 		// ensureAgentWorktree should throw "uncommitted changes" -- documenting the confusing
@@ -555,8 +554,7 @@ describe('AgentWorktreeManager', () => {
 			.catch((e: Error) => e);
 
 		expect(error).toBeInstanceOf(Error);
-		// Git's error message should mention the branch is already checked out
-		expect(error.message).toMatch(/already checked out|is already used by worktree/i);
+		expect((error as Error).message).toMatch(/already checked out|is already used by worktree/i);
 	});
 
 	it('rev-list returns non-numeric output: parseInt produces NaN, NaN > 0 is false, silently skipping behind-remote check', async () => {
@@ -629,7 +627,7 @@ describe('AgentWorktreeManager', () => {
 			.catch((e: Error) => e);
 
 		expect(error).toBeInstanceOf(Error);
-		expect(error.message).toBe('worktreeRootPath is not configured in the project launcher config');
+		expect((error as Error).message).toBe('worktreeRootPath is not configured in the project launcher config');
 
 		// In the route, this error is caught at line 34 and returned as:
 		//   new Response(errorMessage(e), { status: 500 })

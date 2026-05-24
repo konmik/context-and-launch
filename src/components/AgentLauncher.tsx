@@ -10,7 +10,7 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 	const [config, setConfig] = createSignal<MergedLauncherConfig | null>(null);
 	const [selectedTemplate, setSelectedTemplate] = createSignal("");
 	const [checkedSkills, setCheckedSkills] = createSignal<Set<string>>(new Set());
-	const [useWorktree, setUseWorktree] = createSignal(false);
+	const [useWorktree, setUseWorktree] = createSignal(props.ticket.useWorktree);
 	const [loading, setLoading] = createSignal(true);
 	const [launching, setLaunching] = createSignal(false);
 	const [errorMsg, setErrorMsg] = createSignal("");
@@ -22,6 +22,7 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 			async ([slug, ticket]) => {
 				if (!slug || !ticket) return;
 				setLoading(true);
+				setUseWorktree(ticket.useWorktree);
 				try {
 					const res = await fetch(`/api/projects/${slug}/launcher-config`);
 					if (res.ok) {
@@ -34,7 +35,7 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 							setCheckedSkills(new Set(defaults.checkedSkills));
 						} else {
 							setSelectedTemplate(data.templates[0]?.name ?? "");
-							setCheckedSkills(new Set());
+							setCheckedSkills(new Set<string>());
 						}
 					}
 				} catch (e) {

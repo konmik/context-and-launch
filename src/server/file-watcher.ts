@@ -1,8 +1,8 @@
-import chokidar from 'chokidar';
+import chokidar, { type FSWatcher } from 'chokidar';
 import { gitSync } from './git.js';
 
 interface WatcherState {
-	watcher: chokidar.FSWatcher;
+	watcher: FSWatcher;
 	timer: ReturnType<typeof setTimeout> | null;
 }
 
@@ -12,7 +12,7 @@ export class FileWatcher {
 	watch(worktreeDir: string, debounceMs = 2000): void {
 		if (this.watchers.has(worktreeDir)) return;
 
-		let watcher: chokidar.FSWatcher;
+		let watcher: FSWatcher;
 		try {
 			watcher = chokidar.watch(worktreeDir, {
 				ignoreInitial: true,

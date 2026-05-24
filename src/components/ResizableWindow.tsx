@@ -191,15 +191,8 @@ export default function ResizableWindow(props: ResizableWindowProps) {
   return (
     <>
       {props.open && positioned() && (
-        <div
-          class="fixed inset-0 z-50 bg-black/50"
-          onMouseDown={(e) => {
-            if (!(e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement)) {
-              e.preventDefault();
-            }
-          }}
-        >
-          <div class="fixed inset-0" onClick={props.onClose} />
+        <div class="fixed inset-0 z-50 bg-black/50">
+          <div class="fixed inset-0" onMouseDown={(e) => e.preventDefault()} onClick={props.onClose} />
           <div
             class="absolute z-10 flex flex-col rounded-lg border border-border bg-card shadow-lg"
             style={{
