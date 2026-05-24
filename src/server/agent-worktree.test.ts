@@ -757,6 +757,49 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
+	it('isWorktreeClean returns true for clean worktree', async () => {
+		const { projectDir, awm } = setup();
+		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-clean-test');
+		expect('worktreePath' in result).toBe(true);
+		if ('worktreePath' in result) {
+			const clean = await awm.isWorktreeClean(result.worktreePath);
+			expect(clean).toBe(true);
+		}
+	});
+
+	it('isWorktreeClean returns false for dirty worktree', async () => {
+		const { projectDir, awm } = setup();
+		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-dirty-test');
+		expect('worktreePath' in result).toBe(true);
+		if ('worktreePath' in result) {
+			fs.writeFileSync(path.join(result.worktreePath, 'dirty.txt'), 'dirty');
+			const clean = await awm.isWorktreeClean(result.worktreePath);
+			expect(clean).toBe(false);
+		}
+	});
+
+	it('removeWorktree removes the worktree directory', async () => {
+		const { projectDir, worktreeRoot, awm } = setup();
+		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-remove-test');
+		expect('worktreePath' in result).toBe(true);
+		if ('worktreePath' in result) {
+			await awm.removeWorktree(projectDir, result.worktreePath);
+			expect(fs.existsSync(result.worktreePath)).toBe(false);
+		}
+	});
+
+	it('deleteLocalBranch removes the branch', async () => {
+		const { projectDir, awm } = setup();
+		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-delbranch');
+		expect('worktreePath' in result).toBe(true);
+		if ('worktreePath' in result) {
+			await awm.removeWorktree(projectDir, result.worktreePath);
+			await awm.deleteLocalBranch(projectDir, 'ai/st-delbranch');
+			const branchList = execSync('git branch --list ai/st-delbranch', { cwd: projectDir, timeout: 5000 }).toString();
+			expect(branchList.trim()).toBe('');
+		}
+	});
+
 	it('worktreeRootPath directory does not exist on disk: git worktree add creates it automatically', async () => {
 		const configDir = tmpDir('awm-config-nodir-');
 		const projectDir = tmpDir('awm-project-nodir-');

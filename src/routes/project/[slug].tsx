@@ -5,6 +5,8 @@ import KanbanBoard from "~/components/KanbanBoard";
 import CreateTicketDialog from "~/components/CreateTicketDialog";
 import EditTicketDialog from "~/components/EditTicketDialog";
 import DeleteTicketDialog from "~/components/DeleteTicketDialog";
+import ArchiveTicketDialog from "~/components/ArchiveTicketDialog";
+import WorktreeCleanupDialog from "~/components/WorktreeCleanupDialog";
 import TicketDetailDialog from "~/components/TicketDetailDialog";
 import AddProjectForm from "~/components/AddProjectForm";
 import ThemeToggle from "~/components/ThemeToggle";
@@ -16,6 +18,8 @@ import {
   createTicketAction,
   updateTicketAction,
   deleteTicketAction,
+  archiveTicketAction,
+  worktreeCleanupAction,
 } from "~/server/actions";
 
 export const route = {
@@ -35,6 +39,9 @@ export default function ProjectPage() {
   const [editTicketOpen, setEditTicketOpen] = createSignal(false);
   const [deleteTicketOpen, setDeleteTicketOpen] = createSignal(false);
   const [detailTicketOpen, setDetailTicketOpen] = createSignal(false);
+  const [archiveTicketOpen, setArchiveTicketOpen] = createSignal(false);
+  const [cleanupDialogOpen, setCleanupDialogOpen] = createSignal(false);
+  const [cleanupAction, setCleanupAction] = createSignal<"archive" | "delete">("archive");
   const [selectedTicket, setSelectedTicket] = createSignal<TicketInfo | null>(
     null
   );
@@ -46,7 +53,22 @@ export default function ProjectPage() {
 
   function handleDelete(ticket: TicketInfo) {
     setSelectedTicket(ticket);
-    setDeleteTicketOpen(true);
+    if (ticket.useWorktree) {
+      setCleanupAction("delete");
+      setCleanupDialogOpen(true);
+    } else {
+      setDeleteTicketOpen(true);
+    }
+  }
+
+  function handleArchive(ticket: TicketInfo) {
+    setSelectedTicket(ticket);
+    if (ticket.useWorktree) {
+      setCleanupAction("archive");
+      setCleanupDialogOpen(true);
+    } else {
+      setArchiveTicketOpen(true);
+    }
   }
 
   async function handleViewDetail(ticket: TicketInfo) {
@@ -95,12 +117,42 @@ export default function ProjectPage() {
     return result;
   }
 
+  async function handleArchiveTicket(folderName: string) {
+    const result = await archiveTicketAction(slug(), folderName);
+    if (!result.error) {
+      revalidate("board-data");
+    }
+    return result;
+  }
+
   async function handleDeleteTicket(folderName: string) {
     const result = await deleteTicketAction(slug(), folderName);
     if (!result.error) {
       revalidate("board-data");
     }
     return result;
+  }
+
+  async function handleCleanupSubmit(
+    folderName: string,
+    options: { deleteWorktree: boolean; deleteLocalBranch: boolean; deleteRemoteBranch: boolean }
+  ) {
+    const anyCleanup = options.deleteWorktree || options.deleteLocalBranch || options.deleteRemoteBranch;
+    if (anyCleanup) {
+      const cleanupResult = await worktreeCleanupAction(slug(), folderName, options);
+      if (cleanupResult.error) return cleanupResult;
+    }
+
+    const action = cleanupAction();
+    if (action === "archive") {
+      const result = await archiveTicketAction(slug(), folderName);
+      if (!result.error) revalidate("board-data");
+      return result;
+    } else {
+      const result = await deleteTicketAction(slug(), folderName);
+      if (!result.error) revalidate("board-data");
+      return result;
+    }
   }
 
   let addProjectDialogRef: HTMLDivElement | undefined;
@@ -239,6 +291,7 @@ export default function ProjectPage() {
                   slug={d().slug}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
+                  onArchive={handleArchive}
                   onViewDetail={handleViewDetail}
                   onMoveTo={handleMoveTo}
                 />
@@ -262,6 +315,19 @@ export default function ProjectPage() {
             onOpenChange={setDeleteTicketOpen}
             ticket={selectedTicket()}
             onSubmit={handleDeleteTicket}
+          />
+          <ArchiveTicketDialog
+            open={archiveTicketOpen()}
+            onOpenChange={setArchiveTicketOpen}
+            ticket={selectedTicket()}
+            onSubmit={handleArchiveTicket}
+          />
+          <WorktreeCleanupDialog
+            open={cleanupDialogOpen()}
+            onOpenChange={setCleanupDialogOpen}
+            ticket={selectedTicket()}
+            action={cleanupAction()}
+            onSubmit={handleCleanupSubmit}
           />
           <TicketDetailDialog
             open={detailTicketOpen()}

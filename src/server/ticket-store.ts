@@ -72,7 +72,7 @@ export class TicketStore {
 		const entries = fs.readdirSync(this.worktreeDir, { withFileTypes: true });
 		const tickets: TicketInfo[] = [];
 		for (const entry of entries) {
-			if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
+			if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'archive') continue;
 			const ticket = this.readTicket(path.join(this.worktreeDir, entry.name));
 			if (ticket) tickets.push(ticket);
 		}
@@ -106,6 +106,7 @@ export class TicketStore {
 		title?: string | null,
 		status?: string | null
 	): TicketInfo {
+		this.requireSimpleName(folderName, 'folderName');
 		const dir = path.join(this.worktreeDir, folderName);
 		this.requireContained(dir, 'folderName');
 		if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
@@ -157,6 +158,7 @@ export class TicketStore {
 	}
 
 	deleteTicket(folderName: string): void {
+		this.requireSimpleName(folderName, 'folderName');
 		const dir = path.join(this.worktreeDir, folderName);
 		this.requireContained(dir, 'folderName');
 		if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
@@ -168,7 +170,27 @@ export class TicketStore {
 		this.autoCommit(`delete ticket ${number}`);
 	}
 
+	archiveTicket(folderName: string): void {
+		this.requireSimpleName(folderName, 'folderName');
+		const dir = path.join(this.worktreeDir, folderName);
+		this.requireContained(dir, 'folderName');
+		if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
+			throw new Error(`Ticket not found: ${folderName}`);
+		}
+		const status = this.readStatusJson(dir);
+		const number = status?.number ?? folderName;
+		const archiveDir = path.join(this.worktreeDir, 'archive');
+		fs.mkdirSync(archiveDir, { recursive: true });
+		const dest = path.join(archiveDir, folderName);
+		if (fs.existsSync(dest)) {
+			throw new Error(`Archive destination already exists: ${folderName}`);
+		}
+		fs.renameSync(dir, dest);
+		this.autoCommit(`archive ticket ${number}`);
+	}
+
 	setUseWorktree(folderName: string, value: boolean): void {
+		this.requireSimpleName(folderName, 'folderName');
 		const dir = path.join(this.worktreeDir, folderName);
 		this.requireContained(dir, 'folderName');
 		const current = this.readStatusJson(dir);
@@ -178,6 +200,7 @@ export class TicketStore {
 	}
 
 	getStageMarkdown(folderName: string, stage: string): string | null {
+		this.requireSimpleName(folderName, 'folderName');
 		this.requireSimpleName(stage, 'stage');
 		const dir = path.join(this.worktreeDir, folderName);
 		this.requireContained(dir, 'folderName');
@@ -191,6 +214,7 @@ export class TicketStore {
 	}
 
 	deleteStageMarkdown(folderName: string, stage: string): void {
+		this.requireSimpleName(folderName, 'folderName');
 		this.requireSimpleName(stage, 'stage');
 		const dir = path.join(this.worktreeDir, folderName);
 		this.requireContained(dir, 'folderName');
@@ -211,6 +235,7 @@ export class TicketStore {
 		if (typeof content !== 'string') {
 			throw new TypeError('content must be a string');
 		}
+		this.requireSimpleName(folderName, 'folderName');
 		this.requireSimpleName(stage, 'stage');
 		const dir = path.join(this.worktreeDir, folderName);
 		this.requireContained(dir, 'folderName');

@@ -79,4 +79,30 @@ export class AgentWorktreeManager {
 			throw new Error(`Failed to pull main branch: ${e instanceof Error ? e.message : String(e)}`);
 		}
 	}
+
+	async isWorktreeClean(worktreePath: string): Promise<boolean> {
+		const status = await git(worktreePath, 'status', '--porcelain');
+		return !status.trim();
+	}
+
+	async hasRemoteBranch(projectPath: string, branchName: string): Promise<boolean> {
+		try {
+			const output = await git(projectPath, 'ls-remote', '--heads', 'origin', branchName);
+			return output.trim().length > 0;
+		} catch {
+			return false;
+		}
+	}
+
+	async removeWorktree(projectPath: string, worktreePath: string): Promise<void> {
+		await git(projectPath, 'worktree', 'remove', worktreePath);
+	}
+
+	async deleteLocalBranch(projectPath: string, branchName: string): Promise<void> {
+		await git(projectPath, 'branch', '-D', branchName);
+	}
+
+	async deleteRemoteBranch(projectPath: string, branchName: string): Promise<void> {
+		await git(projectPath, 'push', 'origin', '--delete', branchName);
+	}
 }
