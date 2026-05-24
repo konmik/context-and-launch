@@ -7,6 +7,7 @@ interface StatusJson {
 	number: string;
 	title: string;
 	status: string;
+	useWorktree?: boolean;
 }
 
 export function toKebabCase(input: string): string {
@@ -164,6 +165,15 @@ export class TicketStore {
 		this.autoCommit(`delete ticket ${number}`);
 	}
 
+	setUseWorktree(folderName: string, value: boolean): void {
+		const dir = path.join(this.worktreeDir, folderName);
+		this.requireContained(dir, 'folderName');
+		const current = this.readStatusJson(dir);
+		if (!current) throw new Error(`Ticket not found: ${folderName}`);
+		this.writeStatusJson(dir, { ...current, useWorktree: value });
+		this.autoCommit(`set useWorktree for ${current.number}`);
+	}
+
 	getStageMarkdown(folderName: string, stage: string): string | null {
 		this.requireSimpleName(stage, 'stage');
 		const dir = path.join(this.worktreeDir, folderName);
@@ -226,7 +236,8 @@ export class TicketStore {
 			title: status.title,
 			status: status.status,
 			folderName: path.basename(dir),
-			stageNames
+			stageNames,
+			useWorktree: status.useWorktree === true,
 		};
 	}
 

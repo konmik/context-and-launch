@@ -20,6 +20,7 @@ export interface TicketInfo {
 	status: string;
 	folderName: string;
 	stageNames: string[];
+	useWorktree: boolean;
 }
 
 export interface BoardConfig {
