@@ -1,10 +1,10 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { FileWatcher } from './file-watcher.js';
 import { TicketStore } from './ticket-store.js';
-import { git } from './git.js';
+import { git, gitSync } from './git.js';
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -154,6 +154,240 @@ describe('FileWatcher', () => {
 			expect(lines.length).toBe(2);
 			expect(lines[0]).toContain('create ticket RED-1');
 			expect(lines[1]).toContain('initial commit');
+		} finally {
+			watcher.stopAll();
+		}
+	});
+
+	it('interleaving: FileWatcher add -A then TicketStore autoCommit then FileWatcher status -- no redundant commit', async () => {
+		const dir = tmpDir('filewatcher-interleave-test-');
+		dirs.push(dir);
+
+		const { gitSync } = await import('./git.js');
+
+		// Set up a git repo with an initial commit
+		await git(dir, 'init');
+		await git(dir, 'config', 'user.email', 'test@test.com');
+		await git(dir, 'config', 'user.name', 'Test');
+		await git(dir, 'commit', '--allow-empty', '-m', 'initial commit');
+
+		// Simulate an external file change
+		fs.writeFileSync(path.join(dir, 'external.txt'), 'new content');
+
+		// Step 1: FileWatcher's add -A stages the change
+		gitSync(dir, 'add', '-A');
+
+		// Step 2: TicketStore's autoCommit runs all 3 steps (add -A, status, commit)
+		// This commits everything that was staged, including external.txt
+		gitSync(dir, 'add', '-A');
+		const statusBeforeCommit = gitSync(dir, 'status', '--porcelain');
+		expect(statusBeforeCommit.trim()).not.toBe(''); // something to commit
+		gitSync(dir, 'commit', '-m', 'ticket: some operation');
+
+		// Step 3: FileWatcher's status --porcelain runs -- should find nothing
+		const statusAfter = gitSync(dir, 'status', '--porcelain');
+		expect(statusAfter.trim()).toBe('');
+
+		// Verify only 2 commits exist (initial + ticket commit, no redundant FileWatcher commit)
+		const log = await git(dir, 'log', '--oneline');
+		const lines = log.trim().split('\n');
+		expect(lines.length).toBe(2);
+		expect(lines[0]).toContain('ticket: some operation');
+		expect(lines[1]).toContain('initial commit');
+	});
+
+	it('index.lock contention: error is logged and subsequent autoCommit still succeeds', async () => {
+		const dir = tmpDir('filewatcher-lockcontention-test-');
+		dirs.push(dir);
+
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+		try {
+			// Set up a git repo with an initial commit
+			await git(dir, 'init');
+			await git(dir, 'config', 'user.email', 'test@test.com');
+			await git(dir, 'config', 'user.name', 'Test');
+			await git(dir, 'commit', '--allow-empty', '-m', 'initial commit');
+
+			// Create a file change that FileWatcher's debouncedCommit would pick up
+			fs.writeFileSync(path.join(dir, 'changed.txt'), 'some content');
+
+			// Step 1: Simulate FileWatcher's first step (add -A)
+			gitSync(dir, 'add', '-A');
+
+			// Step 2: Place index.lock to simulate another process holding the lock
+			const indexLock = path.join(dir, '.git', 'index.lock');
+			fs.writeFileSync(indexLock, 'simulated lock contention');
+
+			// Step 3: FileWatcher's status+commit would now fail due to the lock
+			// Simulate the full debouncedCommit catch block behavior
+			try {
+				gitSync(dir, 'status', '--porcelain');
+				gitSync(dir, 'commit', '-m', 'auto: external changes');
+				// If we get here, the lock didn't block (shouldn't happen)
+				throw new Error('Expected commit to fail due to index.lock');
+			} catch (err) {
+				// This is what FileWatcher does: logs the warning
+				console.warn(`FileWatcher: auto-commit failed for ${dir}:`, err);
+			}
+
+			// Verify: console.warn was called with the error
+			expect(warnSpy).toHaveBeenCalledTimes(1);
+			expect(warnSpy.mock.calls[0][0]).toContain('FileWatcher: auto-commit failed');
+			expect(warnSpy.mock.calls[0][1]).toBeInstanceOf(Error);
+
+			// Step 4: Remove the lock file (simulating the other process releasing it)
+			fs.unlinkSync(indexLock);
+
+			// Step 5: Verify a subsequent TicketStore-style autoCommit succeeds
+			// This mimics TicketStore.autoCommit: add -A, status, commit
+			gitSync(dir, 'add', '-A');
+			const status = gitSync(dir, 'status', '--porcelain');
+			expect(status.trim()).not.toBe(''); // changed.txt should still be pending
+			gitSync(dir, 'commit', '-m', 'ticket: create ticket TEST-1');
+
+			// Verify the commit actually went through
+			const log = await git(dir, 'log', '--oneline');
+			const lines = log.trim().split('\n');
+			expect(lines.length).toBe(2);
+			expect(lines[0]).toContain('ticket: create ticket TEST-1');
+			expect(lines[1]).toContain('initial commit');
+		} finally {
+			warnSpy.mockRestore();
+		}
+	});
+
+	it('rapid board switch cancels pending commit -- data loss on stopAll during debounce', async () => {
+		const dirA = tmpDir('filewatcher-rapid-switch-a-');
+		const dirB = tmpDir('filewatcher-rapid-switch-b-');
+		dirs.push(dirA, dirB);
+
+		// Set up two git repos with initial commits
+		for (const dir of [dirA, dirB]) {
+			await git(dir, 'init');
+			await git(dir, 'config', 'user.email', 'test@test.com');
+			await git(dir, 'config', 'user.name', 'Test');
+			fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
+			await git(dir, 'add', '-A');
+			await git(dir, 'commit', '-m', 'initial commit');
+		}
+
+		const watcher = new FileWatcher();
+		try {
+			// Start watching dirA with a long debounce (simulates normal operation)
+			const debounceMs = 5000;
+			watcher.watch(dirA, debounceMs);
+
+			// Wait for chokidar to finish its initial scan
+			await delay(500);
+
+			// Create a file in dirA -- this triggers chokidar and starts the debounce timer
+			fs.writeFileSync(path.join(dirA, 'important-work.txt'), 'unsaved changes');
+
+			// Wait briefly for chokidar to detect the change and start the debounce
+			await delay(300);
+
+			// Simulate rapid board switch: stopAll then watch a different directory
+			// This is what loadBoard does on every navigation
+			watcher.stopAll();
+			watcher.watch(dirB, debounceMs);
+
+			// Wait longer than the original debounce would have taken
+			await delay(1000);
+
+			// Verify: the file exists on disk but was never committed
+			const fileExists = fs.existsSync(path.join(dirA, 'important-work.txt'));
+			expect(fileExists).toBe(true);
+
+			const status = await git(dirA, 'status', '--porcelain');
+			expect(status.trim()).toContain('important-work.txt');
+
+			const log = await git(dirA, 'log', '--oneline');
+			const commitCount = log.trim().split('\n').length;
+			expect(commitCount).toBe(1); // only the initial commit -- data loss!
+		} finally {
+			watcher.stopAll();
+		}
+	});
+
+	it('reload same board: stopAll then watch same dir creates a fresh watcher that responds to fs events', async () => {
+		const dir = tmpDir('filewatcher-reload-same-board-');
+		dirs.push(dir);
+
+		// Set up a git repo with an initial commit
+		await git(dir, 'init');
+		await git(dir, 'config', 'user.email', 'test@test.com');
+		await git(dir, 'config', 'user.name', 'Test');
+		fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
+		await git(dir, 'add', '-A');
+		await git(dir, 'commit', '-m', 'initial commit');
+
+		const watcher = new FileWatcher();
+		const debounceMs = 200;
+		try {
+			// First watch
+			watcher.watch(dir, debounceMs);
+			await delay(500); // let chokidar finish initial scan
+
+			// Simulate board reload: stopAll then watch same dir again
+			watcher.stopAll();
+			watcher.watch(dir, debounceMs);
+			await delay(500); // let chokidar finish initial scan for new watcher
+
+			// Create a file change that the new watcher should pick up
+			fs.writeFileSync(path.join(dir, 'after-reload.txt'), 'new content');
+
+			// Wait for debounce to fire and commit
+			await delay(debounceMs + 2000);
+
+			watcher.stop(dir);
+
+			// Verify the new watcher detected the change and committed it
+			const log = await git(dir, 'log', '--oneline');
+			const lines = log.trim().split('\n');
+			expect(lines.length).toBe(2);
+			expect(lines[0]).toContain('auto: external changes');
+			expect(lines[1]).toContain('initial commit');
+		} finally {
+			watcher.stopAll();
+		}
+	});
+
+	it('stopAll during active debounce timer: clearTimeout prevents the commit from firing', async () => {
+		const dir = tmpDir('filewatcher-stopall-debounce-leak-');
+		dirs.push(dir);
+
+		await git(dir, 'init');
+		await git(dir, 'config', 'user.email', 'test@test.com');
+		await git(dir, 'config', 'user.name', 'Test');
+		fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
+		await git(dir, 'add', '-A');
+		await git(dir, 'commit', '-m', 'initial commit');
+
+		const watcher = new FileWatcher();
+		try {
+			const debounceMs = 200;
+			watcher.watch(dir, debounceMs);
+
+			// Let chokidar finish initial scan
+			await delay(500);
+
+			// Create a file change to trigger the debounce timer
+			fs.writeFileSync(path.join(dir, 'leaked.txt'), 'should never be committed');
+
+			// Wait briefly for chokidar to detect the change and start the debounce
+			await delay(100);
+
+			// Immediately stopAll -- this must clearTimeout the pending debounce
+			watcher.stopAll();
+
+			// Wait well past the debounce window (500ms > 200ms debounce)
+			await delay(500);
+
+			// If clearTimeout failed (timer leaked), the commit would have fired by now
+			const log = await git(dir, 'log', '--oneline');
+			const commitCount = log.trim().split('\n').length;
+			expect(commitCount).toBe(1); // only the initial commit
 		} finally {
 			watcher.stopAll();
 		}

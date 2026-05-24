@@ -98,13 +98,49 @@ export class WorktreeManager {
 		const dotGit = path.join(dir, '.git');
 		if (!fs.existsSync(dotGit)) return false;
 		const stat = fs.statSync(dotGit);
-		if (stat.isFile()) {
-			const content = fs.readFileSync(dotGit, 'utf-8').trim();
-			const gitDir = content.replace(/^gitdir:\s*/, '');
-			// git may write forward slashes even on Windows; resolve properly
-			const resolved = path.resolve(dir, gitDir);
-			return fs.existsSync(resolved);
+		if (!stat.isFile()) return false;
+
+		const content = fs.readFileSync(dotGit, 'utf-8').trim();
+		const gitDir = content.replace(/^gitdir:\s*/, '');
+		// git may write forward slashes even on Windows; resolve properly
+		const resolved = path.resolve(dir, gitDir);
+		if (!fs.existsSync(resolved)) return false;
+
+		// Verify the branch has at least one commit (not in "born" state).
+		// A worktree left by a failed initial commit has HEAD pointing to a
+		// ref that doesn't exist yet.
+		return this.headResolves(resolved);
+	}
+
+	private headResolves(gitDir: string): boolean {
+		const headPath = path.join(gitDir, 'HEAD');
+		if (!fs.existsSync(headPath)) return false;
+
+		const head = fs.readFileSync(headPath, 'utf-8').trim();
+		if (!head.startsWith('ref: ')) {
+			// Detached HEAD with a direct commit hash -- valid
+			return true;
 		}
+
+		const ref = head.slice(5); // e.g. "refs/heads/ai-stages"
+		// Resolve ref via commondir (worktrees store shared refs in the main .git)
+		const commondirPath = path.join(gitDir, 'commondir');
+		const commondir = fs.existsSync(commondirPath)
+			? path.resolve(gitDir, fs.readFileSync(commondirPath, 'utf-8').trim())
+			: gitDir;
+
+		// Check loose ref
+		if (fs.existsSync(path.join(commondir, ref))) return true;
+
+		// Check packed-refs
+		const packedRefsPath = path.join(commondir, 'packed-refs');
+		if (fs.existsSync(packedRefsPath)) {
+			const packedRefs = fs.readFileSync(packedRefsPath, 'utf-8');
+			if (packedRefs.includes(` ${ref}\n`) || packedRefs.includes(`\t${ref}\n`)) {
+				return true;
+			}
+		}
+
 		return false;
 	}
 }
