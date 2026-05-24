@@ -196,4 +196,10 @@ export class LauncherConfigManager {
 			config.skills[index] = { name: skill.name, text: skill.text };
 		});
 	}
+
+	saveWorktreeRootPath(slug: string, worktreeRootPath: string | undefined): void {
+		const config = this.loadProjectConfig(slug);
+		config.worktreeRootPath = worktreeRootPath;
+		this.saveProjectConfig(slug, config);
+	}
 }

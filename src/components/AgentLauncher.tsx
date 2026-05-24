@@ -56,23 +56,28 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 		setCheckedSkills(current);
 	}
 
+	function launchBody() {
+		return JSON.stringify({
+			templateName: selectedTemplate(),
+			checkedSkills: [...checkedSkills()],
+			useWorktree: useWorktree(),
+		});
+	}
+
+	function ticketAiUrl(action: string) {
+		return `/api/projects/${props.slug}/board/tickets/${props.ticket.folderName}/ai/${action}`;
+	}
+
 	async function launchAgent() {
 		setLaunching(true);
 		setErrorMsg("");
 		setBehindRemoteMsg("");
 		try {
-			const res = await fetch(
-				`/api/projects/${props.slug}/board/tickets/${props.ticket.folderName}/ai/run`,
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						templateName: selectedTemplate(),
-						checkedSkills: [...checkedSkills()],
-						useWorktree: useWorktree(),
-					}),
-				}
-			);
+			const res = await fetch(ticketAiUrl("run"), {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: launchBody(),
+			});
 			if (res.status === 409) {
 				const responseText = await res.text();
 				try {
@@ -100,18 +105,11 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 		setBehindRemoteMsg("");
 		setErrorMsg("");
 		try {
-			const res = await fetch(
-				`/api/projects/${props.slug}/board/tickets/${props.ticket.folderName}/ai/pull-and-retry`,
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						templateName: selectedTemplate(),
-						checkedSkills: [...checkedSkills()],
-						useWorktree: useWorktree(),
-					}),
-				}
-			);
+			const res = await fetch(ticketAiUrl("pull-and-retry"), {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: launchBody(),
+			});
 			if (!res.ok) {
 				setErrorMsg(await res.text() || `Error ${res.status}`);
 			}

@@ -144,17 +144,10 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 	async function saveWorktreeRootPath() {
 		setError("");
 		try {
-			const rawRes = await fetch(`/api/projects/${props.slug}/launcher-config?raw=true`);
-			if (!rawRes.ok) {
-				setError(await rawRes.text() || "Failed to load project config");
-				return;
-			}
-			const projectConfig = await rawRes.json();
-			const value = worktreeRootPath().trim() || undefined;
-			const res = await fetch(`/api/projects/${props.slug}/launcher-config`, {
+			const res = await fetch(`/api/projects/${props.slug}/launcher-config/worktree-root-path`, {
 				method: "PUT",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ ...projectConfig, worktreeRootPath: value }),
+				body: JSON.stringify({ worktreeRootPath: worktreeRootPath() }),
 			});
 			if (!res.ok) {
 				setError(await res.text() || "Failed to save");
@@ -306,7 +299,9 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 															const { path } = await res.json();
 															setWorktreeRootPath(path);
 															await saveWorktreeRootPath();
-														} catch { /* user cancelled or server error */ }
+														} catch (e) {
+															setError(e instanceof Error ? e.message : "Failed to pick directory");
+														}
 													}}
 													class="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
 												>

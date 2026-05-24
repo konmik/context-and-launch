@@ -33,6 +33,7 @@ export class FileWatcher {
 			if (!current) return;
 			if (current.timer) clearTimeout(current.timer);
 			current.timer = setTimeout(() => {
+				if (!this.watchers.has(worktreeDir)) return;
 				try {
 					gitSync(worktreeDir, 'add', '-A');
 					const status = gitSync(worktreeDir, 'status', '--porcelain');
@@ -68,6 +69,8 @@ export class FileWatcher {
 
 	private tearDown(state: WatcherState): void {
 		if (state.timer) clearTimeout(state.timer);
-		state.watcher.close().catch(() => {});
+		state.watcher.close().catch((err) => {
+			console.warn('FileWatcher: failed to close watcher:', err);
+		});
 	}
 }
