@@ -20,14 +20,15 @@ export class FileWatcher {
 				persistent: true,
 				depth: 10
 			});
-		} catch {
+		} catch (err) {
+			console.warn(`FileWatcher: failed to watch ${worktreeDir}:`, err);
 			return;
 		}
 
 		const state: WatcherState = { watcher, timer: null };
 		this.watchers.set(worktreeDir, state);
 
-		const scheduleCommit = () => {
+		const debouncedCommit = () => {
 			const current = this.watchers.get(worktreeDir);
 			if (!current) return;
 			if (current.timer) clearTimeout(current.timer);
@@ -38,17 +39,17 @@ export class FileWatcher {
 					if (status.trim()) {
 						gitSync(worktreeDir, 'commit', '-m', 'auto: external changes');
 					}
-				} catch {
-					// swallow
+				} catch (err) {
+					console.warn(`FileWatcher: auto-commit failed for ${worktreeDir}:`, err);
 				}
 			}, debounceMs);
 		};
 
-		watcher.on('add', scheduleCommit);
-		watcher.on('change', scheduleCommit);
-		watcher.on('unlink', scheduleCommit);
-		watcher.on('addDir', scheduleCommit);
-		watcher.on('unlinkDir', scheduleCommit);
+		watcher.on('add', debouncedCommit);
+		watcher.on('change', debouncedCommit);
+		watcher.on('unlink', debouncedCommit);
+		watcher.on('addDir', debouncedCommit);
+		watcher.on('unlinkDir', debouncedCommit);
 	}
 
 	stop(worktreeDir: string): void {
