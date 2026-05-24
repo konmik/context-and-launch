@@ -26,6 +26,19 @@ export default function KanbanBoard(props: KanbanBoardProps) {
   function handleDragStart(e: DragEvent, ticket: TicketInfo) {
     e.dataTransfer!.effectAllowed = "move";
     e.dataTransfer!.setData("application/json", JSON.stringify(ticket));
+
+    const source = (e.currentTarget as HTMLElement).querySelector("[class*='bg-card']") as HTMLElement | null;
+    if (source) {
+      const clone = source.cloneNode(true) as HTMLElement;
+      clone.querySelectorAll("[data-menu], .ripple-effect").forEach((el) => el.remove());
+      clone.style.width = `${source.offsetWidth}px`;
+      clone.style.position = "absolute";
+      clone.style.top = "-9999px";
+      document.body.appendChild(clone);
+      e.dataTransfer!.setDragImage(clone, e.offsetX, e.offsetY);
+      requestAnimationFrame(() => clone.remove());
+    }
+
     requestAnimationFrame(() => setDragging(true));
   }
 

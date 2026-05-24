@@ -13,6 +13,8 @@ interface TicketCardProps {
 export default function TicketCard(props: TicketCardProps) {
   const [menuOpen, setMenuOpen] = createSignal(false);
   const [moveMenuOpen, setMoveMenuOpen] = createSignal(false);
+  const [menuSide, setMenuSide] = createSignal<"right" | "left">("right");
+  let menuBtnRef: HTMLButtonElement | undefined;
 
   function handleCardClick(e: MouseEvent) {
     const target = e.target as HTMLElement;
@@ -22,6 +24,11 @@ export default function TicketCard(props: TicketCardProps) {
 
   function handleMenuClick(e: MouseEvent) {
     e.stopPropagation();
+    if (!menuOpen() && menuBtnRef) {
+      const rect = menuBtnRef.getBoundingClientRect();
+      const spaceRight = window.innerWidth - rect.right;
+      setMenuSide(spaceRight >= 160 ? "right" : "left");
+    }
     setMenuOpen(!menuOpen());
     setMoveMenuOpen(false);
   }
@@ -35,6 +42,7 @@ export default function TicketCard(props: TicketCardProps) {
         <span class="text-sm font-medium text-primary">{props.ticket.number}</span>
         <div class="relative" data-menu>
           <button
+            ref={(el) => (menuBtnRef = el)}
             class="rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
             onClick={handleMenuClick}
             aria-label="Ticket actions"
@@ -64,7 +72,7 @@ export default function TicketCard(props: TicketCardProps) {
                 setMoveMenuOpen(false);
               }}
             />
-            <div class="absolute right-0 z-50 min-w-[150px] rounded-md border border-border bg-popover py-1 shadow-md">
+            <div class={`absolute top-0 z-50 min-w-[150px] rounded-md border border-border bg-popover py-1 shadow-md ${menuSide() === "right" ? "left-full ml-1" : "right-full mr-1"}`}>
               <div class="relative">
                 <button
                   class="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
