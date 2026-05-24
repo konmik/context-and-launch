@@ -135,6 +135,7 @@ export function launchAgent(
   const ticketDir = path.resolve(worktreeDir, ticket.folderName);
   const variables: Record<string, string> = {
     ticketDir,
+    ticketSlug: ticket.folderName,
     ticketTitle: ticket.title,
     ticketNumber: ticket.number,
     ticketStatus: ticket.status,
