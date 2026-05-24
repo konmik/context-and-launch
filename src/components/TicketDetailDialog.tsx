@@ -300,13 +300,13 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
                 type="button"
                 onClick={toggleAiConsole}
                 onMouseDown={(e) => e.stopPropagation()}
-                class={`inline-flex h-8 shrink-0 items-center justify-center rounded-md px-3 text-sm font-medium transition-colors ${
+                class={`inline-flex h-10 shrink-0 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors ${
                   showAiConsole()
                     ? "bg-primary text-primary-foreground"
                     : "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
                 }`}
               >
-                Agent Launcher
+                {showAiConsole() ? "File Editor ›" : "Agent Launcher ›"}
               </button>
             </div>
           }
