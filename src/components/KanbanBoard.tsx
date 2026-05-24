@@ -27,7 +27,7 @@ export default function KanbanBoard(props: KanbanBoardProps) {
     e.dataTransfer!.effectAllowed = "move";
     e.dataTransfer!.setData("application/json", JSON.stringify(ticket));
 
-    const source = (e.currentTarget as HTMLElement).querySelector("[class*='bg-card']") as HTMLElement | null;
+    const source = (e.currentTarget as HTMLElement).querySelector("[data-drag-source]") as HTMLElement | null;
     if (source) {
       const clone = source.cloneNode(true) as HTMLElement;
       clone.querySelectorAll("[data-menu], .ripple-effect").forEach((el) => el.remove());
@@ -57,8 +57,8 @@ export default function KanbanBoard(props: KanbanBoardProps) {
       if (ticket.status !== targetColumn) {
         props.onMoveTo(ticket, targetColumn);
       }
-    } catch {
-      // swallow
+    } catch (err) {
+      console.error("Failed to process drop data:", err);
     }
   }
 
