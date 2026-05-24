@@ -1,10 +1,12 @@
-import { Show, createSignal } from "solid-js";
+import { Show, createSignal, createEffect, onCleanup } from "solid-js";
+import { Portal } from "solid-js/web";
 import type { TicketInfo } from "~/types.js";
 
 interface TicketCardProps {
   ticket: TicketInfo;
   onEdit: (ticket: TicketInfo) => void;
   onDelete: (ticket: TicketInfo) => void;
+  onArchive: (ticket: TicketInfo) => void;
   onViewDetail: (ticket: TicketInfo) => void;
 }
 
@@ -12,6 +14,18 @@ export default function TicketCard(props: TicketCardProps) {
   const [menuOpen, setMenuOpen] = createSignal(false);
   const [menuPos, setMenuPos] = createSignal({ top: 0, left: 0, side: "right" as "right" | "left" });
   let menuBtnRef: HTMLButtonElement | undefined;
+  let menuPanelRef: HTMLDivElement | undefined;
+
+  createEffect(() => {
+    if (!menuOpen()) return;
+    function onMouseDown(e: MouseEvent) {
+      const target = e.target as Node;
+      if (menuBtnRef?.contains(target) || menuPanelRef?.contains(target)) return;
+      setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onMouseDown);
+    onCleanup(() => document.removeEventListener("mousedown", onMouseDown));
+  });
 
   function handleCardClick(e: MouseEvent) {
     const target = e.target as HTMLElement;
@@ -65,48 +79,54 @@ export default function TicketCard(props: TicketCardProps) {
               <circle cx="12" cy="19" r="1" />
             </svg>
           </button>
-          <Show when={menuOpen()}>
-            <div
-              class="fixed inset-0 z-40"
-              onClick={(e) => {
-                e.stopPropagation();
-                setMenuOpen(false);
-              }}
-            />
-            <div
-              class="fixed z-50 min-w-[150px] rounded-md border border-border bg-popover py-1 shadow-md"
-              style={{
-                top: `${menuPos().top}px`,
-                ...(menuPos().side === "right"
-                  ? { left: `${menuPos().left}px` }
-                  : { right: `${window.innerWidth - menuPos().left}px` }),
-              }}
-            >
-              <button
-                class="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMenuOpen(false);
-                  props.onEdit(props.ticket);
-                }}
-              >
-                Edit
-              </button>
-              <button
-                class="w-full px-3 py-2 text-left text-sm text-destructive hover:bg-accent"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMenuOpen(false);
-                  props.onDelete(props.ticket);
-                }}
-              >
-                Delete
-              </button>
-            </div>
-          </Show>
         </div>
       </div>
       <p class="line-clamp-2 text-sm">{props.ticket.title}</p>
+      <Show when={menuOpen()}>
+        <Portal>
+          <div
+            ref={(el) => (menuPanelRef = el)}
+            class="fixed z-50 min-w-[150px] rounded-md border border-border bg-popover py-1 shadow-md"
+            style={{
+              top: `${menuPos().top}px`,
+              ...(menuPos().side === "right"
+                ? { left: `${menuPos().left}px` }
+                : { right: `${window.innerWidth - menuPos().left}px` }),
+            }}
+          >
+            <button
+              class="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen(false);
+                props.onEdit(props.ticket);
+              }}
+            >
+              Edit
+            </button>
+            <button
+              class="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen(false);
+                props.onArchive(props.ticket);
+              }}
+            >
+              Archive
+            </button>
+            <button
+              class="w-full px-3 py-2 text-left text-sm text-destructive hover:bg-accent"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen(false);
+                props.onDelete(props.ticket);
+              }}
+            >
+              Delete
+            </button>
+          </div>
+        </Portal>
+      </Show>
     </div>
   );
 }

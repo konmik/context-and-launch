@@ -151,6 +151,20 @@ export async function reorderTicketAction(
   }
 }
 
+export async function archiveTicketAction(slug: string, folderName: string) {
+  "use server";
+  const { worktreeManager } = await import("~/server/instances.js");
+  const { TicketStore } = await import("~/server/ticket-store.js");
+  const { errorMessage } = await import("~/server/errors.js");
+  try {
+    const worktreeDir = worktreeManager.getWorktreeDir(slug);
+    new TicketStore(worktreeDir).archiveTicket(folderName);
+    return { success: true };
+  } catch (e) {
+    return { error: errorMessage(e) };
+  }
+}
+
 export async function deleteTicketAction(slug: string, folderName: string) {
   "use server";
   const { worktreeManager } = await import("~/server/instances.js");

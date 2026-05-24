@@ -5,6 +5,7 @@ import KanbanBoard from "~/components/KanbanBoard";
 import CreateTicketDialog from "~/components/CreateTicketDialog";
 import EditTicketDialog from "~/components/EditTicketDialog";
 import DeleteTicketDialog from "~/components/DeleteTicketDialog";
+import ArchiveTicketDialog from "~/components/ArchiveTicketDialog";
 import TicketDetailDialog from "~/components/TicketDetailDialog";
 import AddProjectForm from "~/components/AddProjectForm";
 import ThemeToggle from "~/components/ThemeToggle";
@@ -15,6 +16,7 @@ import {
   createTicketAction,
   updateTicketAction,
   deleteTicketAction,
+  archiveTicketAction,
 } from "~/server/actions";
 
 export const route = {
@@ -33,6 +35,7 @@ export default function ProjectPage() {
   const [createTicketOpen, setCreateTicketOpen] = createSignal(false);
   const [editTicketOpen, setEditTicketOpen] = createSignal(false);
   const [deleteTicketOpen, setDeleteTicketOpen] = createSignal(false);
+  const [archiveTicketOpen, setArchiveTicketOpen] = createSignal(false);
   const [detailTicketOpen, setDetailTicketOpen] = createSignal(false);
   const [selectedTicket, setSelectedTicket] = createSignal<TicketInfo | null>(
     null
@@ -46,6 +49,11 @@ export default function ProjectPage() {
   function handleDelete(ticket: TicketInfo) {
     setSelectedTicket(ticket);
     setDeleteTicketOpen(true);
+  }
+
+  function handleArchive(ticket: TicketInfo) {
+    setSelectedTicket(ticket);
+    setArchiveTicketOpen(true);
   }
 
   async function handleViewDetail(ticket: TicketInfo) {
@@ -86,6 +94,14 @@ export default function ProjectPage() {
       title,
       null
     );
+    if (!result.error) {
+      revalidate("board-data");
+    }
+    return result;
+  }
+
+  async function handleArchiveTicket(folderName: string) {
+    const result = await archiveTicketAction(slug(), folderName);
     if (!result.error) {
       revalidate("board-data");
     }
@@ -225,6 +241,7 @@ export default function ProjectPage() {
                   slug={d().slug}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
+                  onArchive={handleArchive}
                   onViewDetail={handleViewDetail}
                   onReorder={handleReorder}
                 />
@@ -248,6 +265,12 @@ export default function ProjectPage() {
             onOpenChange={setDeleteTicketOpen}
             ticket={selectedTicket()}
             onSubmit={handleDeleteTicket}
+          />
+          <ArchiveTicketDialog
+            open={archiveTicketOpen()}
+            onOpenChange={setArchiveTicketOpen}
+            ticket={selectedTicket()}
+            onSubmit={handleArchiveTicket}
           />
           <TicketDetailDialog
             open={detailTicketOpen()}

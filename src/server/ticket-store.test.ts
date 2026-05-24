@@ -1001,6 +1001,35 @@ describe('TicketStore', () => {
 		expect(raw.useWorktree).toBe(true);
 	});
 
+	it('archiveTicket moves folder into archive subdirectory', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('ARC-1', 'To Archive');
+
+		expect(fs.existsSync(path.join(worktreeDir, 'arc-1-to-archive'))).toBe(true);
+
+		store.archiveTicket('arc-1-to-archive');
+
+		expect(fs.existsSync(path.join(worktreeDir, 'arc-1-to-archive'))).toBe(false);
+		expect(fs.existsSync(path.join(worktreeDir, 'archive', 'arc-1-to-archive'))).toBe(true);
+	});
+
+	it('listTickets excludes tickets in the archive folder', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('KEEP-1', 'Visible');
+		store.createTicket('ARC-2', 'Will Archive');
+		store.archiveTicket('arc-2-will-archive');
+
+		const tickets = store.listTickets();
+		expect(tickets.length).toBe(1);
+		expect(tickets[0].number).toBe('KEEP-1');
+	});
+
 	it('writeStatusJson throws after successful rename: error propagates, folder at new path with stale status.json', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);

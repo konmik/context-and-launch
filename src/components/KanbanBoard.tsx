@@ -19,6 +19,7 @@ interface KanbanBoardProps {
   slug: string;
   onEdit: (ticket: TicketInfo) => void;
   onDelete: (ticket: TicketInfo) => void;
+  onArchive: (ticket: TicketInfo) => void;
   onViewDetail: (ticket: TicketInfo) => void;
   onReorder: (folderName: string, fromColumn: string, toColumn: string, newIndex: number) => void;
 }
@@ -42,6 +43,7 @@ function DropPreview(props: { ticket: TicketInfo }) {
         ticket={props.ticket}
         onEdit={() => {}}
         onDelete={() => {}}
+        onArchive={() => {}}
         onViewDetail={() => {}}
       />
     </div>
@@ -57,6 +59,7 @@ function SortableTicketCard(props: {
   hoverTarget: HoverTarget | null;
   onEdit: (ticket: TicketInfo) => void;
   onDelete: (ticket: TicketInfo) => void;
+  onArchive: (ticket: TicketInfo) => void;
   onViewDetail: (ticket: TicketInfo) => void;
 }) {
   const id = makeId(props.column, props.ticket.folderName);
@@ -92,6 +95,7 @@ function SortableTicketCard(props: {
         ticket={props.ticket}
         onEdit={props.onEdit}
         onDelete={props.onDelete}
+        onArchive={props.onArchive}
         onViewDetail={props.onViewDetail}
       />
     </div>
@@ -290,6 +294,7 @@ export default function KanbanBoard(props: KanbanBoardProps) {
                           hoverTarget={hoverTarget()}
                           onEdit={props.onEdit}
                           onDelete={props.onDelete}
+                          onArchive={props.onArchive}
                           onViewDetail={props.onViewDetail}
                         />
                       )}
@@ -321,6 +326,7 @@ export default function KanbanBoard(props: KanbanBoardProps) {
                     ticket={t()}
                     onEdit={() => {}}
                     onDelete={() => {}}
+                    onArchive={() => {}}
                     onViewDetail={() => {}}
                   />
                 </div>
