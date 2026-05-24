@@ -15,12 +15,23 @@ function initRipple() {
     const x = e.clientX - rect.left - size / 2;
     const y = e.clientY - rect.top - size / 2;
 
+    const hasOverflow = getComputedStyle(target).overflow === "hidden";
     const ripple = document.createElement("span");
     ripple.className = "ripple-effect";
     ripple.style.width = ripple.style.height = `${size}px`;
     ripple.style.left = `${x}px`;
     ripple.style.top = `${y}px`;
-    target.appendChild(ripple);
+
+    if (hasOverflow) {
+      target.appendChild(ripple);
+    } else {
+      const wrapper = document.createElement("span");
+      wrapper.className = "ripple-container";
+      wrapper.appendChild(ripple);
+      target.appendChild(wrapper);
+      ripple.addEventListener("animationend", () => wrapper.remove());
+      return;
+    }
     ripple.addEventListener("animationend", () => ripple.remove());
   });
 }
