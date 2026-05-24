@@ -80,6 +80,9 @@ export class TicketOrderStore {
 
 		if (order[fromColumn]) {
 			order[fromColumn] = order[fromColumn].filter(fn => fn !== folderName);
+			if (order[fromColumn].length === 0 && fromColumn !== toColumn) {
+				delete order[fromColumn];
+			}
 		}
 
 		if (!order[toColumn]) {
