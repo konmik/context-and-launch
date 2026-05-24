@@ -715,4 +715,131 @@ describe('LauncherConfigManager', () => {
 		expect(ondisk.templates).toEqual([{ name: 'T1', text: 't1' }]);
 		expect(ondisk.skills).toEqual([{ name: 'S1', text: 's1' }]);
 	});
+
+	it('saveWorktreeRootPath sets the path atomically without clobbering other fields', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(configDir);
+
+		mgr.saveProjectConfig('slug', {
+			templates: [{ name: 'T1', text: 'text' }],
+			skills: [{ name: 'S1', text: 'skill' }],
+			columnDefaults: { todo: { templateName: 'T1', checkedSkills: ['S1'] } },
+		});
+
+		mgr.saveWorktreeRootPath('slug', '/new/path');
+
+		const config = mgr.loadProjectConfig('slug');
+		expect(config.worktreeRootPath).toBe('/new/path');
+		expect(config.templates).toEqual([{ name: 'T1', text: 'text' }]);
+		expect(config.skills).toEqual([{ name: 'S1', text: 'skill' }]);
+		expect(config.columnDefaults?.['todo']).toEqual({ templateName: 'T1', checkedSkills: ['S1'] });
+	});
+
+	it('saveWorktreeRootPath with undefined removes the path', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(configDir);
+
+		mgr.saveProjectConfig('slug', {
+			templates: [],
+			skills: [],
+			worktreeRootPath: '/old/path',
+		});
+
+		mgr.saveWorktreeRootPath('slug', undefined);
+
+		const config = mgr.loadProjectConfig('slug');
+		expect(config.worktreeRootPath).toBeUndefined();
+	});
+
+	it('saveWorktreeRootPath does not lose concurrent addTemplate changes', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(configDir);
+
+		mgr.saveProjectConfig('slug', {
+			templates: [{ name: 'Original', text: 'original' }],
+			skills: [],
+		});
+
+		mgr.addTemplate('project', 'slug', { name: 'NewTemplate', text: 'new' });
+		mgr.saveWorktreeRootPath('slug', '/worktrees');
+
+		const config = mgr.loadProjectConfig('slug');
+		expect(config.templates).toHaveLength(2);
+		expect(config.templates.find(t => t.name === 'NewTemplate')).toBeDefined();
+		expect(config.worktreeRootPath).toBe('/worktrees');
+	});
+
+	it('saveWorktreeRootPath does not lose concurrent saveColumnDefaults changes', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(configDir);
+
+		mgr.saveProjectConfig('slug', {
+			templates: [],
+			skills: [],
+		});
+
+		mgr.saveColumnDefaults('slug', 'todo', { templateName: 'T1', checkedSkills: ['S1'] });
+		mgr.saveWorktreeRootPath('slug', '/worktrees');
+
+		const config = mgr.loadProjectConfig('slug');
+		expect(config.columnDefaults?.['todo']).toEqual({ templateName: 'T1', checkedSkills: ['S1'] });
+		expect(config.worktreeRootPath).toBe('/worktrees');
+	});
+
+	it('simulated old client-side race: GET-modify-PUT overwrites intervening template add', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(configDir);
+
+		mgr.saveProjectConfig('slug', {
+			templates: [{ name: 'T1', text: 'original' }],
+			skills: [],
+		});
+
+		const staleSnapshot = mgr.loadProjectConfig('slug');
+
+		mgr.addTemplate('project', 'slug', { name: 'T2', text: 'added between GET and PUT' });
+
+		mgr.saveProjectConfig('slug', { ...staleSnapshot, worktreeRootPath: '/new' });
+
+		const config = mgr.loadProjectConfig('slug');
+		expect(config.worktreeRootPath).toBe('/new');
+		// This demonstrates the race: T2 is lost because the stale snapshot didn't have it
+		expect(config.templates.find(t => t.name === 'T2')).toBeUndefined();
+	});
+
+	it('atomic saveWorktreeRootPath avoids the race demonstrated above', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(configDir);
+
+		mgr.saveProjectConfig('slug', {
+			templates: [{ name: 'T1', text: 'original' }],
+			skills: [],
+		});
+
+		mgr.addTemplate('project', 'slug', { name: 'T2', text: 'concurrent add' });
+		mgr.saveWorktreeRootPath('slug', '/new');
+
+		const config = mgr.loadProjectConfig('slug');
+		expect(config.worktreeRootPath).toBe('/new');
+		expect(config.templates.find(t => t.name === 'T2')).toBeDefined();
+	});
+
+	it('saveWorktreeRootPath on nonexistent project creates config with only worktreeRootPath', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(configDir);
+
+		mgr.saveWorktreeRootPath('new-project', '/some/path');
+
+		const config = mgr.loadProjectConfig('new-project');
+		expect(config.worktreeRootPath).toBe('/some/path');
+		expect(config.templates).toEqual([]);
+		expect(config.skills).toEqual([]);
+	});
 });

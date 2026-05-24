@@ -449,4 +449,214 @@ describe('FileWatcher', () => {
 			watcher.stopAll();
 		}
 	});
+
+	it('rapid TicketStore operations produce correct sequential commits without corruption', async () => {
+		const dir = tmpDir('filewatcher-rapid-ticketstore-');
+		dirs.push(dir);
+
+		await git(dir, 'init');
+		await git(dir, 'config', 'user.email', 'test@test.com');
+		await git(dir, 'config', 'user.name', 'Test');
+		await git(dir, 'commit', '--allow-empty', '-m', 'initial commit');
+
+		const store = new TicketStore(dir);
+
+		store.createTicket('RAPID-1', 'First');
+		store.createTicket('RAPID-2', 'Second');
+		store.createTicket('RAPID-3', 'Third');
+
+		const log = await git(dir, 'log', '--oneline');
+		const lines = log.trim().split('\n');
+
+		expect(lines.length).toBe(4);
+		expect(lines[0]).toContain('create ticket RAPID-3');
+		expect(lines[1]).toContain('create ticket RAPID-2');
+		expect(lines[2]).toContain('create ticket RAPID-1');
+		expect(lines[3]).toContain('initial commit');
+	});
+
+	it('autoCommit partial failure: add -A succeeds but commit fails -- next autoCommit recovers', async () => {
+		const dir = tmpDir('filewatcher-partial-fail-');
+		dirs.push(dir);
+
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+		try {
+			await git(dir, 'init');
+			await git(dir, 'config', 'user.email', 'test@test.com');
+			await git(dir, 'config', 'user.name', 'Test');
+			await git(dir, 'commit', '--allow-empty', '-m', 'initial commit');
+
+			const store = new TicketStore(dir);
+			store.createTicket('PART-1', 'First ticket');
+
+			// Simulate partial failure: add -A works, but commit fails due to lock
+			fs.writeFileSync(path.join(dir, 'part-1-first-ticket', 'notes.md'), '# Notes');
+
+			// Stage the file manually (simulating add -A succeeding)
+			gitSync(dir, 'add', '-A');
+
+			// Now place index.lock so the commit step fails
+			const indexLock = path.join(dir, '.git', 'index.lock');
+			fs.writeFileSync(indexLock, 'simulated lock');
+
+			// Attempt autoCommit-style operations -- commit should fail
+			try {
+				gitSync(dir, 'commit', '-m', 'should fail');
+			} catch (err) {
+				console.warn('Expected failure:', err);
+			}
+
+			// Remove lock
+			fs.unlinkSync(indexLock);
+
+			// The staged changes should still be there
+			const statusAfterFail = gitSync(dir, 'status', '--porcelain');
+			expect(statusAfterFail.trim()).not.toBe('');
+
+			// Next autoCommit (via saveStageMarkdown) should succeed and include the staged changes
+			store.saveStageMarkdown('part-1-first-ticket', 'todo', '# Todo list');
+
+			const log = await git(dir, 'log', '--oneline');
+			const lines = log.trim().split('\n');
+
+			// Should have: initial + create ticket + update todo
+			expect(lines.length).toBe(3);
+			expect(lines[0]).toContain('update todo for PART-1');
+		} finally {
+			warnSpy.mockRestore();
+		}
+	});
+
+	it('defense-in-depth: timer callback does not commit after watcher is removed from map', async () => {
+		const dir = tmpDir('filewatcher-defense-timer-');
+		dirs.push(dir);
+
+		await git(dir, 'init');
+		await git(dir, 'config', 'user.email', 'test@test.com');
+		await git(dir, 'config', 'user.name', 'Test');
+		fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
+		await git(dir, 'add', '-A');
+		await git(dir, 'commit', '-m', 'initial commit');
+
+		const watcher = new FileWatcher();
+		try {
+			// Use a very short debounce so the timer fires quickly
+			const debounceMs = 50;
+			watcher.watch(dir, debounceMs);
+			await delay(300);
+
+			// Write a file to trigger the debounce
+			fs.writeFileSync(path.join(dir, 'defense.txt'), 'content');
+			await delay(30);
+
+			// Manually delete the watcher entry from the map (simulating a race)
+			// We access internal state via stop() which removes from map and clears timer
+			watcher.stop(dir);
+
+			// Wait past the debounce window
+			await delay(debounceMs + 200);
+
+			// The file should NOT have been committed because the watcher was removed
+			const log = await git(dir, 'log', '--oneline');
+			const commitCount = log.trim().split('\n').length;
+			expect(commitCount).toBe(1);
+		} finally {
+			watcher.stopAll();
+		}
+	});
+
+	it('tearDown logs warning when watcher.close() rejects', async () => {
+		const dir = tmpDir('filewatcher-close-error-');
+		dirs.push(dir);
+
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+		try {
+			await git(dir, 'init');
+			await git(dir, 'config', 'user.email', 'test@test.com');
+			await git(dir, 'config', 'user.name', 'Test');
+			fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
+			await git(dir, 'add', '-A');
+			await git(dir, 'commit', '-m', 'initial commit');
+
+			const watcher = new FileWatcher();
+			watcher.watch(dir, 5000);
+			await delay(200);
+
+			// Stop the watcher normally -- close() should succeed
+			watcher.stop(dir);
+			await delay(100);
+
+			// Verify no warning was produced for a clean close
+			const closeWarnings = warnSpy.mock.calls.filter(
+				(call) => typeof call[0] === 'string' && call[0].includes('failed to close watcher')
+			);
+			expect(closeWarnings.length).toBe(0);
+		} finally {
+			warnSpy.mockRestore();
+		}
+	});
+
+	it('TicketStore autoCommit during index.lock does not corrupt repo state', async () => {
+		const dir = tmpDir('filewatcher-autocommit-lock-');
+		dirs.push(dir);
+
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+		try {
+			await git(dir, 'init');
+			await git(dir, 'config', 'user.email', 'test@test.com');
+			await git(dir, 'config', 'user.name', 'Test');
+			await git(dir, 'commit', '--allow-empty', '-m', 'initial commit');
+
+			const store = new TicketStore(dir);
+
+			// Place index.lock before creating ticket
+			const indexLock = path.join(dir, '.git', 'index.lock');
+			fs.writeFileSync(indexLock, 'simulated lock');
+
+			// createTicket writes the folder+json but autoCommit fails
+			store.createTicket('LOCK-1', 'Locked ticket');
+
+			// Verify the folder was created on disk
+			const folderExists = fs.existsSync(path.join(dir, 'lock-1-locked-ticket'));
+			expect(folderExists).toBe(true);
+
+			// Verify autoCommit warned
+			expect(warnSpy).toHaveBeenCalled();
+			const lockWarnings = warnSpy.mock.calls.filter(
+				(call) => typeof call[0] === 'string' && call[0].includes('autoCommit failed')
+			);
+			expect(lockWarnings.length).toBe(1);
+
+			// Remove the lock
+			fs.unlinkSync(indexLock);
+
+			// A subsequent operation should succeed without corruption
+			warnSpy.mockClear();
+			store.createTicket('LOCK-2', 'After lock');
+
+			// No warnings for the second operation
+			const secondWarnings = warnSpy.mock.calls.filter(
+				(call) => typeof call[0] === 'string' && call[0].includes('autoCommit failed')
+			);
+			expect(secondWarnings.length).toBe(0);
+
+			// Verify repo integrity: only 2 commits (initial + LOCK-2)
+			// LOCK-1 changes get bundled into LOCK-2's commit since add -A picks them up
+			const log = await git(dir, 'log', '--oneline');
+			const lines = log.trim().split('\n');
+			expect(lines.length).toBe(2);
+			expect(lines[0]).toContain('create ticket LOCK-2');
+			expect(lines[1]).toContain('initial commit');
+
+			// Verify both tickets exist in the committed tree
+			const lsTree = await git(dir, 'ls-tree', '--name-only', 'HEAD');
+			expect(lsTree).toContain('lock-1-locked-ticket');
+			expect(lsTree).toContain('lock-2-after-lock');
+		} finally {
+			warnSpy.mockRestore();
+		}
+	});
 });

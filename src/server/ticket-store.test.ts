@@ -817,7 +817,7 @@ describe('TicketStore', () => {
 
 		// The stale sessionId field should be gone from the file
 		expect('sessionId' in onDisk).toBe(false);
-		expect(Object.keys(onDisk).sort()).toEqual(['number', 'status', 'title']);
+		expect(Object.keys(onDisk).sort()).toEqual(['number', 'status', 'title', 'useWorktree']);
 	});
 
 	it('listTickets with mixed old-format and new-format status.json files returns all correctly', async () => {

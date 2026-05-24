@@ -12,6 +12,8 @@ export interface ProjectEntry {
 export interface ProjectConfig {
 	projects: ProjectEntry[];
 	lastUsedSlug: string | null;
+	port?: number;
+	browser?: string;
 }
 
 export interface TicketInfo {

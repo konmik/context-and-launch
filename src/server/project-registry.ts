@@ -37,6 +37,7 @@ export class ProjectRegistry {
 	private configDir: string;
 	private configFile: string;
 	private cached: ProjectConfig | null = null;
+	private extraFields: Record<string, unknown> = {};
 
 	constructor(configDir?: string) {
 		this.configDir = configDir ?? path.join(os.homedir(), '.ai-stages');
@@ -44,33 +45,44 @@ export class ProjectRegistry {
 	}
 
 	private static emptyConfig(): ProjectConfig {
-		return { projects: [], lastUsedSlug: null };
+		return { projects: [], lastUsedSlug: null, port: undefined, browser: undefined };
 	}
 
 	private load(): ProjectConfig {
 		if (this.cached) return this.cached;
 		if (!fs.existsSync(this.configFile)) {
 			this.cached = ProjectRegistry.emptyConfig();
+			this.extraFields = {};
 			return this.cached;
 		}
 		try {
 			const text = fs.readFileSync(this.configFile, 'utf-8');
-			const config = JSON.parse(text) as ProjectConfig;
-			if (!Array.isArray(config.projects)) {
+			const raw = JSON.parse(text);
+			if (!Array.isArray(raw.projects)) {
 				this.cached = ProjectRegistry.emptyConfig();
+				this.extraFields = {};
 				return this.cached;
 			}
+			const { projects, lastUsedSlug, port, browser, ...extra } = raw;
+			const config: ProjectConfig = {
+				projects,
+				lastUsedSlug: lastUsedSlug ?? null,
+				port,
+				browser,
+			};
 			this.cached = config;
+			this.extraFields = extra;
 			return config;
 		} catch {
 			this.cached = ProjectRegistry.emptyConfig();
+			this.extraFields = {};
 			return this.cached;
 		}
 	}
 
 	private save(config: ProjectConfig): void {
 		fs.mkdirSync(this.configDir, { recursive: true });
-		fs.writeFileSync(this.configFile, JSON.stringify(config, null, 2));
+		fs.writeFileSync(this.configFile, JSON.stringify({ ...this.extraFields, ...config }, null, 2));
 		this.cached = config;
 	}
 
@@ -123,6 +135,7 @@ export class ProjectRegistry {
 
 		const entry: ProjectEntry = { path: canonicalPath, slug: finalSlug };
 		this.save({
+			...config,
 			projects: [...config.projects, entry],
 			lastUsedSlug: finalSlug
 		});
@@ -151,7 +164,7 @@ export class ProjectRegistry {
 		const updated: ProjectEntry = { path: updatedPath, slug: updatedSlug };
 		const newProjects = config.projects.map((p, i) => (i === index ? updated : p));
 		const newLastUsed = config.lastUsedSlug === slug ? updatedSlug : config.lastUsedSlug;
-		this.save({ projects: newProjects, lastUsedSlug: newLastUsed });
+		this.save({ ...config, projects: newProjects, lastUsedSlug: newLastUsed });
 
 		return {
 			path: updatedPath,
@@ -165,7 +178,7 @@ export class ProjectRegistry {
 		const newProjects = config.projects.filter((p) => p.slug !== slug);
 		const newLastUsed =
 			config.lastUsedSlug === slug ? (newProjects[0]?.slug ?? null) : config.lastUsedSlug;
-		this.save({ projects: newProjects, lastUsedSlug: newLastUsed });
+		this.save({ ...config, projects: newProjects, lastUsedSlug: newLastUsed });
 	}
 
 	setLastUsed(slug: string): void {
@@ -173,5 +186,13 @@ export class ProjectRegistry {
 		if (config.projects.some((p) => p.slug === slug) && config.lastUsedSlug !== slug) {
 			this.save({ ...config, lastUsedSlug: slug });
 		}
+	}
+
+	getPort(): number {
+		return this.load().port ?? 14780;
+	}
+
+	getBrowser(): string {
+		return this.load().browser ?? 'chrome';
 	}
 }

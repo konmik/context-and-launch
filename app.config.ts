@@ -18,6 +18,15 @@ export default defineConfig({
     }
   },
   server: {
-    preset: "node-server"
+    preset: "node-server",
+    experimental: {
+      websocket: true
+    }
   }
+}).addRouter({
+  name: "ws",
+  type: "http",
+  handler: "./src/server/ws.ts",
+  target: "server",
+  base: "/api/heartbeat",
 });

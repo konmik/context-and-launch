@@ -19,7 +19,14 @@ function escapeTitle(title: string): string {
   return title.replace(/'/g, "''");
 }
 
-export function trySendKeys(windowTitle: string, keys: string, retriesLeft = 20) {
+export interface SendKeysHandle {
+  cancel: () => void;
+}
+
+export function trySendKeys(windowTitle: string, keys: string, retriesLeft = 20): SendKeysHandle {
+  let cancelled = false;
+  let timerId: ReturnType<typeof setTimeout> | null = null;
+
   const script = [
     `$ws = New-Object -ComObject WScript.Shell`,
     `if (-not $ws.AppActivate('${escapeTitle(windowTitle)}')) { exit 1 }`,
@@ -30,10 +37,26 @@ export function trySendKeys(windowTitle: string, keys: string, retriesLeft = 20)
   const encoded = Buffer.from(script, "utf16le").toString("base64");
 
   execFile("powershell", ["-NoProfile", "-EncodedCommand", encoded], { windowsHide: true }, (err) => {
+    if (cancelled) return;
     if (err && retriesLeft > 0) {
-      setTimeout(() => trySendKeys(windowTitle, keys, retriesLeft - 1), 500);
+      timerId = setTimeout(() => {
+        if (cancelled) return;
+        const inner = trySendKeys(windowTitle, keys, retriesLeft - 1);
+        const origCancel = handle.cancel;
+        handle.cancel = () => { origCancel(); inner.cancel(); };
+      }, 500);
+    } else if (err) {
+      console.warn(`trySendKeys: failed after all retries for window "${windowTitle}"`);
     }
   });
+
+  const handle: SendKeysHandle = {
+    cancel: () => {
+      cancelled = true;
+      if (timerId !== null) clearTimeout(timerId);
+    },
+  };
+  return handle;
 }
 
 export function windowExists(title: string): Promise<boolean> {
@@ -136,7 +159,8 @@ export function launchAgent(
     stdio: "ignore",
   }).unref();
 
-  trySendKeys(windowTitle, escapedPrompt);
+  const sendKeysHandle = trySendKeys(windowTitle, escapedPrompt);
+  void sendKeysHandle;
 
   try {
     launcherConfigManager.saveColumnDefaults(slug, ticket.status, {

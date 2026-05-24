@@ -284,4 +284,226 @@ describe('ProjectRegistry', () => {
 		// save() was called (wasteful no-op write) -- content is semantically identical
 		expect(JSON.parse(afterContent)).toEqual(JSON.parse(beforeContent));
 	});
+
+	it('port and browser fields round-trip without data loss', () => {
+		const configDir = tmpDir('registry-config-');
+		const projectDir = tmpDir('registry-project-');
+		dirs.push(configDir, projectDir);
+
+		fs.mkdirSync(path.join(projectDir, '.git'));
+
+		// Write config with port and browser
+		fs.mkdirSync(configDir, { recursive: true });
+		const configFile = path.join(configDir, 'config.json');
+		fs.writeFileSync(configFile, JSON.stringify({
+			projects: [],
+			lastUsedSlug: null,
+			port: 9999,
+			browser: "msedge"
+		}));
+
+		const registry = new ProjectRegistry(configDir);
+		expect(registry.getPort()).toBe(9999);
+		expect(registry.getBrowser()).toBe('msedge');
+
+		// Adding a project should preserve port and browser
+		registry.addProject(projectDir, 'test-project');
+
+		const afterAdd = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
+		expect(afterAdd.port).toBe(9999);
+		expect(afterAdd.browser).toBe('msedge');
+
+		// Removing a project should preserve port and browser
+		registry.removeProject('test-project');
+
+		const afterRemove = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
+		expect(afterRemove.port).toBe(9999);
+		expect(afterRemove.browser).toBe('msedge');
+	});
+
+	it('getPort returns default 14780 when not specified', () => {
+		const configDir = tmpDir('registry-config-');
+		dirs.push(configDir);
+
+		const registry = new ProjectRegistry(configDir);
+		expect(registry.getPort()).toBe(14780);
+	});
+
+	it('getBrowser returns default "chrome" when not specified', () => {
+		const configDir = tmpDir('registry-config-');
+		dirs.push(configDir);
+
+		const registry = new ProjectRegistry(configDir);
+		expect(registry.getBrowser()).toBe('chrome');
+	});
+
+	it('save preserves unknown fields added by external tools', () => {
+		const configDir = tmpDir('registry-config-');
+		const projectDir = tmpDir('registry-project-');
+		dirs.push(configDir, projectDir);
+
+		fs.mkdirSync(path.join(projectDir, '.git'));
+		fs.mkdirSync(configDir, { recursive: true });
+
+		const configFile = path.join(configDir, 'config.json');
+		fs.writeFileSync(configFile, JSON.stringify({
+			projects: [],
+			lastUsedSlug: null,
+			port: 8080,
+			browser: 'firefox',
+			theme: 'dark',
+			customField: { nested: true }
+		}));
+
+		const registry = new ProjectRegistry(configDir);
+		registry.addProject(projectDir, 'test');
+
+		const afterSave = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
+		// Unknown fields are preserved through round-trip
+		expect(afterSave.theme).toBe('dark');
+		expect(afterSave.customField).toEqual({ nested: true });
+		// Known fields are preserved
+		expect(afterSave.port).toBe(8080);
+		expect(afterSave.browser).toBe('firefox');
+	});
+
+	it('two registry instances: second overwrites first on save', () => {
+		const configDir = tmpDir('registry-config-');
+		const projectDir1 = tmpDir('registry-project1-');
+		const projectDir2 = tmpDir('registry-project2-');
+		dirs.push(configDir, projectDir1, projectDir2);
+
+		fs.mkdirSync(path.join(projectDir1, '.git'));
+		fs.mkdirSync(path.join(projectDir2, '.git'));
+
+		const registry1 = new ProjectRegistry(configDir);
+		registry1.addProject(projectDir1, 'from-instance-1');
+
+		// Second instance reads from disk (gets instance-1's project)
+		const registry2 = new ProjectRegistry(configDir);
+		registry2.addProject(projectDir2, 'from-instance-2');
+
+		// Both projects exist on disk because registry2 loaded from disk before caching
+		const configFile = path.join(configDir, 'config.json');
+		const onDisk = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
+		const slugs = onDisk.projects.map((p: { slug: string }) => p.slug);
+		expect(slugs).toContain('from-instance-1');
+		expect(slugs).toContain('from-instance-2');
+	});
+
+	it('two registry instances: first instance save after second clobbers second changes', () => {
+		const configDir = tmpDir('registry-config-');
+		const projectDir1 = tmpDir('registry-project1-');
+		const projectDir2 = tmpDir('registry-project2-');
+		const projectDir3 = tmpDir('registry-project3-');
+		dirs.push(configDir, projectDir1, projectDir2, projectDir3);
+
+		fs.mkdirSync(path.join(projectDir1, '.git'));
+		fs.mkdirSync(path.join(projectDir2, '.git'));
+		fs.mkdirSync(path.join(projectDir3, '.git'));
+
+		// Both instances start with the same initial state (one project)
+		const registry1 = new ProjectRegistry(configDir);
+		registry1.addProject(projectDir1, 'initial');
+
+		const registry2 = new ProjectRegistry(configDir);
+		// registry2 reads from disk, caches state with 'initial'
+
+		// registry2 adds its project (disk now has initial + from-2)
+		registry2.addProject(projectDir2, 'from-2');
+
+		// registry1 still has stale cache (only 'initial'), adding overwrites disk
+		registry1.addProject(projectDir3, 'from-1-late');
+
+		const configFile = path.join(configDir, 'config.json');
+		const onDisk = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
+		const slugs = onDisk.projects.map((p: { slug: string }) => p.slug);
+
+		// registry1's save used its stale cache: 'initial' + 'from-1-late'
+		// 'from-2' was silently dropped
+		expect(slugs).toContain('initial');
+		expect(slugs).toContain('from-1-late');
+		expect(slugs).not.toContain('from-2');
+	});
+
+	it('setLastUsed with stale cache ignores slug that exists on disk but not in cache', () => {
+		const configDir = tmpDir('registry-config-');
+		const projectDir = tmpDir('registry-project-');
+		dirs.push(configDir, projectDir);
+
+		fs.mkdirSync(path.join(projectDir, '.git'));
+
+		const registry = new ProjectRegistry(configDir);
+		// Cache is populated as empty (no projects)
+		expect(registry.listProjects()).toHaveLength(0);
+
+		// Externally add a project directly to disk
+		const configFile = path.join(configDir, 'config.json');
+		fs.mkdirSync(configDir, { recursive: true });
+		fs.writeFileSync(configFile, JSON.stringify({
+			projects: [{ path: projectDir, slug: 'disk-only' }],
+			lastUsedSlug: null
+		}));
+
+		// setLastUsed checks the cached project list, which is empty
+		registry.setLastUsed('disk-only');
+
+		// lastUsedSlug was NOT updated because cache doesn't know about 'disk-only'
+		const onDisk = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
+		expect(onDisk.lastUsedSlug).toBeNull();
+	});
+
+	it('updateProject preserves port and browser fields', () => {
+		const configDir = tmpDir('registry-config-');
+		const projectDir = tmpDir('registry-project-');
+		dirs.push(configDir, projectDir);
+
+		fs.mkdirSync(path.join(projectDir, '.git'));
+		fs.mkdirSync(configDir, { recursive: true });
+
+		const configFile = path.join(configDir, 'config.json');
+		fs.writeFileSync(configFile, JSON.stringify({
+			projects: [{ path: fs.realpathSync(projectDir), slug: 'my-proj' }],
+			lastUsedSlug: 'my-proj',
+			port: 3000,
+			browser: 'safari'
+		}));
+
+		const registry = new ProjectRegistry(configDir);
+		registry.updateProject('my-proj', undefined, 'renamed');
+
+		const afterUpdate = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
+		expect(afterUpdate.port).toBe(3000);
+		expect(afterUpdate.browser).toBe('safari');
+		expect(afterUpdate.projects[0].slug).toBe('renamed');
+		expect(afterUpdate.lastUsedSlug).toBe('renamed');
+	});
+
+	it('setLastUsed preserves port and browser fields', () => {
+		const configDir = tmpDir('registry-config-');
+		const projectDir = tmpDir('registry-project-');
+		dirs.push(configDir, projectDir);
+
+		fs.mkdirSync(path.join(projectDir, '.git'));
+		fs.mkdirSync(configDir, { recursive: true });
+
+		const configFile = path.join(configDir, 'config.json');
+		fs.writeFileSync(configFile, JSON.stringify({
+			projects: [
+				{ path: fs.realpathSync(projectDir), slug: 'alpha' },
+				{ path: '/fake/beta', slug: 'beta' }
+			],
+			lastUsedSlug: 'alpha',
+			port: 5555,
+			browser: 'edge'
+		}));
+
+		const registry = new ProjectRegistry(configDir);
+		registry.setLastUsed('beta');
+
+		const afterSet = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
+		expect(afterSet.port).toBe(5555);
+		expect(afterSet.browser).toBe('edge');
+		expect(afterSet.lastUsedSlug).toBe('beta');
+	});
 });
