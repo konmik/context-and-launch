@@ -6,6 +6,7 @@ interface TicketCardProps {
   columns: string[];
   onEdit: (ticket: TicketInfo) => void;
   onDelete: (ticket: TicketInfo) => void;
+  onArchive: (ticket: TicketInfo) => void;
   onViewDetail: (ticket: TicketInfo) => void;
   onMoveTo: (ticket: TicketInfo, status: string) => void;
 }
@@ -126,6 +127,16 @@ export default function TicketCard(props: TicketCardProps) {
                 }}
               >
                 Edit
+              </button>
+              <button
+                class="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  props.onArchive(props.ticket);
+                }}
+              >
+                Archive
               </button>
               <button
                 class="w-full px-3 py-2 text-left text-sm text-destructive hover:bg-accent"

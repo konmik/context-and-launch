@@ -143,3 +143,48 @@ export async function deleteTicketAction(slug: string, folderName: string) {
     return { error: errorMessage(e) };
   }
 }
+
+export async function archiveTicketAction(slug: string, folderName: string) {
+  "use server";
+  const { worktreeManager } = await import("~/server/instances.js");
+  const { TicketStore } = await import("~/server/ticket-store.js");
+  const { errorMessage } = await import("~/server/errors.js");
+  try {
+    const worktreeDir = worktreeManager.getWorktreeDir(slug);
+    new TicketStore(worktreeDir).archiveTicket(folderName);
+    return { success: true };
+  } catch (e) {
+    return { error: errorMessage(e) };
+  }
+}
+
+export async function worktreeCleanupAction(
+  slug: string,
+  folderName: string,
+  options: { deleteWorktree: boolean; deleteLocalBranch: boolean; deleteRemoteBranch: boolean }
+) {
+  "use server";
+  const { launcherConfigManager, agentWorktreeManager } = await import(
+    "~/server/instances.js"
+  );
+  const { WorktreeCleanupService } = await import("~/server/worktree-cleanup.js");
+  const { errorMessage } = await import("~/server/errors.js");
+  try {
+    const merged = launcherConfigManager.getMergedConfig(slug);
+    if (!merged.worktreeRootPath) {
+      return { error: "Worktree root path is not configured" };
+    }
+    const worktreePath = `${merged.worktreeRootPath}/${folderName}`;
+    const projectRegistry = (await import("~/server/instances.js")).projectRegistry;
+    const projects = projectRegistry.listProjects();
+    const project = projects.find((p) => p.slug === slug);
+    if (!project) {
+      return { error: "Project not found" };
+    }
+    const service = new WorktreeCleanupService(agentWorktreeManager);
+    await service.cleanup(project.path, folderName, worktreePath, options);
+    return { success: true };
+  } catch (e) {
+    return { error: errorMessage(e) };
+  }
+}

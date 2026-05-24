@@ -7,6 +7,7 @@ interface KanbanBoardProps {
   slug: string;
   onEdit: (ticket: TicketInfo) => void;
   onDelete: (ticket: TicketInfo) => void;
+  onArchive: (ticket: TicketInfo) => void;
   onViewDetail: (ticket: TicketInfo) => void;
   onMoveTo: (ticket: TicketInfo, status: string) => void;
 }
@@ -100,6 +101,7 @@ export default function KanbanBoard(props: KanbanBoardProps) {
                         columns={props.board.columns}
                         onEdit={props.onEdit}
                         onDelete={props.onDelete}
+                        onArchive={props.onArchive}
                         onViewDetail={props.onViewDetail}
                         onMoveTo={props.onMoveTo}
                       />
