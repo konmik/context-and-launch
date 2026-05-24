@@ -15,21 +15,20 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 	const [launching, setLaunching] = createSignal(false);
 	const [errorMsg, setErrorMsg] = createSignal("");
 	const [behindRemoteMsg, setBehindRemoteMsg] = createSignal("");
-
 	createEffect(
 		on(
-			() => [props.slug, props.ticket] as const,
-			async ([slug, ticket]) => {
-				if (!slug || !ticket) return;
+			() => [props.slug, props.ticket.folderName] as const,
+			async ([slug]) => {
+				if (!slug) return;
+				setUseWorktree(props.ticket.useWorktree);
 				setLoading(true);
-				setUseWorktree(ticket.useWorktree);
 				try {
 					const res = await fetch(`/api/projects/${slug}/launcher-config`);
 					if (res.ok) {
 						const data: MergedLauncherConfig = await res.json();
 						setConfig(data);
 
-						const defaults = data.columnDefaults[ticket.status];
+						const defaults = data.columnDefaults[props.ticket.status];
 						if (defaults) {
 							setSelectedTemplate(defaults.templateName ?? (data.templates[0]?.name ?? ""));
 							setCheckedSkills(new Set(defaults.checkedSkills));
@@ -129,59 +128,72 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 				<Show when={config()}>
 					{(cfg) => (
 						<div class="flex w-full max-w-sm flex-col gap-4">
-							<div>
-								<label class="mb-1 block text-sm text-muted-foreground">Template</label>
-								<select
-									value={selectedTemplate()}
-									onChange={(e) => setSelectedTemplate(e.currentTarget.value)}
-									class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-								>
-									<For each={cfg().templates}>
-										{(t) => <option value={t.name}>{t.name}</option>}
-									</For>
-								</select>
-							</div>
-
-							<Show when={cfg().skills.length > 0}>
-								<div>
-									<label class="mb-1 block text-sm text-muted-foreground">Skills</label>
-									<div class="flex flex-col gap-1">
-										<For each={cfg().skills}>
-											{(skill) => (
-												<label class="flex items-center gap-2 text-sm">
-													<input
-														type="checkbox"
-														checked={checkedSkills().has(skill.name)}
-														onChange={() => toggleSkill(skill.name)}
-														class="rounded border-input"
-													/>
-													{skill.name}
-												</label>
-											)}
-										</For>
-									</div>
-								</div>
-							</Show>
-
 							<Show when={cfg().worktreeRootPath !== null}>
-								<label class="flex items-center gap-2 text-sm">
+								<label class="flex items-center gap-2 text-sm text-muted-foreground">
 									<input
 										type="checkbox"
 										checked={useWorktree()}
-										onChange={(e) => setUseWorktree(e.currentTarget.checked)}
+										onChange={(e) => {
+										const value = e.currentTarget.checked;
+										setUseWorktree(value);
+										fetch(
+											`/api/projects/${props.slug}/board/tickets/${props.ticket.folderName}/use-worktree`,
+											{
+												method: "PUT",
+												headers: { "Content-Type": "application/json" },
+												body: JSON.stringify({ useWorktree: value }),
+											}
+										).catch(() => {});
+									}}
 										class="rounded border-input"
 									/>
 									Launch in worktree
 								</label>
 							</Show>
 
-							<button
-								onClick={launchAgent}
-								disabled={launching()}
-								class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
-							>
-								{launching() ? "Launching..." : "Run"}
-							</button>
+							<div class="flex flex-col gap-4 rounded-md border border-border p-4">
+								<div>
+									<label class="mb-1 block text-sm text-muted-foreground">Template</label>
+									<select
+										value={selectedTemplate()}
+										onChange={(e) => setSelectedTemplate(e.currentTarget.value)}
+										class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+									>
+										<For each={cfg().templates}>
+											{(t) => <option value={t.name}>{t.name}</option>}
+										</For>
+									</select>
+								</div>
+
+								<Show when={cfg().skills.length > 0}>
+									<div>
+										<label class="mb-1 block text-sm text-muted-foreground">Skills</label>
+										<div class="flex flex-col gap-1">
+											<For each={cfg().skills}>
+												{(skill) => (
+													<label class="flex items-center gap-2 text-sm">
+														<input
+															type="checkbox"
+															checked={checkedSkills().has(skill.name)}
+															onChange={() => toggleSkill(skill.name)}
+															class="rounded border-input"
+														/>
+														{skill.name}
+													</label>
+												)}
+											</For>
+										</div>
+									</div>
+								</Show>
+
+								<button
+									onClick={launchAgent}
+									disabled={launching()}
+									class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+								>
+									Run
+								</button>
+							</div>
 						</div>
 					)}
 				</Show>

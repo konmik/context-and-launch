@@ -359,6 +359,9 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 									class="min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
 									placeholder="Template text with {{placeholders}}"
 								/>
+								<p class="mt-1 text-xs text-muted-foreground">
+									{"{{ticketDir}} {{ticketTitle}} {{ticketNumber}} {{ticketStatus}} {{projectPath}} {{projectSlug}}"}
+								</p>
 							</div>
 							<Show when={f().mode === "add"}>
 								<div>
