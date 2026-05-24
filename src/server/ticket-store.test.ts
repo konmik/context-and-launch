@@ -782,13 +782,13 @@ describe('TicketStore', () => {
 		expect('sessionId' in ticket).toBe(false);
 	});
 
-	it('updateTicket on ticket with stale sessionId cleans it from status.json on disk', async () => {
+	it('updateTicket on ticket with extra fields preserves them in status.json on disk', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
 		const store = new TicketStore(worktreeDir);
 
-		// Manually create a ticket with old-format status.json containing sessionId
+		// Manually create a ticket with status.json containing an extra field
 		const folderName = 'stale-1-session-cleanup';
 		const ticketDir = path.join(worktreeDir, folderName);
 		fs.mkdirSync(ticketDir, { recursive: true });
@@ -808,16 +808,15 @@ describe('TicketStore', () => {
 		expect(updated.title).toBe('Session Cleanup');
 		expect(updated.status).toBe('done');
 
-		// Read the raw file on disk -- writeStatusJson writes only number/title/status
+		// Read the raw file on disk -- updateTicket spreads ...current to preserve fields
 		const raw = fs.readFileSync(path.join(ticketDir, 'status.json'), 'utf-8');
 		const onDisk = JSON.parse(raw);
 		expect(onDisk.number).toBe('STALE-1');
 		expect(onDisk.title).toBe('Session Cleanup');
 		expect(onDisk.status).toBe('done');
 
-		// The stale sessionId field should be gone from the file
-		expect('sessionId' in onDisk).toBe(false);
-		expect(Object.keys(onDisk).sort()).toEqual(['number', 'status', 'title', 'useWorktree']);
+		// Extra fields from the original status.json are preserved by the spread
+		expect(onDisk.sessionId).toBe('sess_old_stale_value');
 	});
 
 	it('listTickets with mixed old-format and new-format status.json files returns all correctly', async () => {
@@ -1045,5 +1044,72 @@ describe('TicketStore', () => {
 		} finally {
 			spy.mockRestore();
 		}
+	});
+
+	it('H1: setUseWorktree(true) then updateTicket with status-only change -- useWorktree survives', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('WT-10', 'Survive Status');
+		const folderName = 'wt-10-survive-status';
+
+		// Set useWorktree to true
+		store.setUseWorktree(folderName, true);
+
+		// Verify it was set
+		let raw = JSON.parse(fs.readFileSync(path.join(worktreeDir, folderName, 'status.json'), 'utf-8'));
+		expect(raw.useWorktree).toBe(true);
+
+		// Update only status (no rename)
+		const updated = store.updateTicket(folderName, null, null, 'in-progress');
+		expect(updated.status).toBe('in-progress');
+		expect(updated.folderName).toBe(folderName);
+
+		// useWorktree must survive in the returned TicketInfo
+		expect(updated.useWorktree).toBe(true);
+
+		// useWorktree must survive on disk
+		raw = JSON.parse(fs.readFileSync(path.join(worktreeDir, folderName, 'status.json'), 'utf-8'));
+		expect(raw.useWorktree).toBe(true);
+
+		// useWorktree must survive a re-read via listTickets
+		const tickets = store.listTickets();
+		expect(tickets[0].useWorktree).toBe(true);
+	});
+
+	it('H2: setUseWorktree(true) then updateTicket with title rename -- useWorktree survives after folder rename', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('WT-11', 'Old Name');
+		const folderName = 'wt-11-old-name';
+
+		// Set useWorktree to true
+		store.setUseWorktree(folderName, true);
+
+		// Verify it was set
+		let raw = JSON.parse(fs.readFileSync(path.join(worktreeDir, folderName, 'status.json'), 'utf-8'));
+		expect(raw.useWorktree).toBe(true);
+
+		// Update title (triggers folder rename)
+		const updated = store.updateTicket(folderName, null, 'New Name', null);
+		expect(updated.title).toBe('New Name');
+		expect(updated.folderName).toBe('wt-11-new-name');
+
+		// Old folder should be gone
+		expect(fs.existsSync(path.join(worktreeDir, folderName))).toBe(false);
+
+		// useWorktree must survive in the returned TicketInfo
+		expect(updated.useWorktree).toBe(true);
+
+		// useWorktree must survive on disk at the new path
+		raw = JSON.parse(fs.readFileSync(path.join(worktreeDir, 'wt-11-new-name', 'status.json'), 'utf-8'));
+		expect(raw.useWorktree).toBe(true);
+
+		// useWorktree must survive a re-read via listTickets
+		const tickets = store.listTickets();
+		expect(tickets[0].useWorktree).toBe(true);
 	});
 });

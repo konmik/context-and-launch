@@ -120,6 +120,7 @@ export class TicketStore {
 		const updatedStatus = status ?? current.status;
 
 		const updated: StatusJson = {
+			...current,
 			number: updatedNumber,
 			title: updatedTitle,
 			status: updatedStatus,

@@ -4,6 +4,7 @@ import type { TicketInfo } from "~/types.js";
 import AgentLauncher from "./AgentLauncher";
 import ResizableWindow from "./ResizableWindow";
 import MarkdownEditor from "./MarkdownEditor";
+import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 
 function DiscardConfirmation(props: {
   open: boolean;
@@ -11,6 +12,12 @@ function DiscardConfirmation(props: {
   onCancel: () => void;
   onDiscard: () => void;
 }) {
+  useModEnterSubmit({
+    onSubmit: () => props.onDiscard(),
+    disabled: () => false,
+    active: () => props.open,
+  });
+
   return (
     <Show when={props.open}>
       <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onMouseDown={(e) => e.preventDefault()}>
@@ -28,6 +35,7 @@ function DiscardConfirmation(props: {
             <button
               type="button"
               onClick={props.onDiscard}
+              title={modEnterHint()}
               class="inline-flex h-10 items-center justify-center rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90"
             >
               Discard
@@ -63,6 +71,18 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
   const [error, setError] = createSignal("");
   const [dropdownOpen, setDropdownOpen] = createSignal(false);
 
+
+  useModEnterSubmit({
+    onSubmit: submitNewFile,
+    disabled: () => !newFileName().trim(),
+    active: () => newFileDialogOpen(),
+  });
+
+  useModEnterSubmit({
+    onSubmit: deleteFile,
+    disabled: () => false,
+    active: () => confirmingDelete(),
+  });
 
   const hasOverlay = () =>
     showAiConsole() || newFileDialogOpen() || confirmingClose() || confirmingFileSwitch() || confirmingDelete();
@@ -451,6 +471,7 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
                 type="button"
                 onClick={submitNewFile}
                 disabled={!newFileName().trim()}
+                title={modEnterHint()}
                 class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
               >
                 Create
@@ -478,6 +499,7 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
               <button
                 type="button"
                 onClick={deleteFile}
+                title={modEnterHint()}
                 class="inline-flex h-10 items-center justify-center rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90"
               >
                 Delete
