@@ -29,9 +29,12 @@ export interface BoardConfig {
 	columns: string[];
 }
 
+export type TicketOrder = Record<string, string[]>;
+
 export interface BoardState {
 	columns: string[];
 	tickets: TicketInfo[];
+	ticketOrder: TicketOrder;
 }
 
 export interface CreateTicketRequest {

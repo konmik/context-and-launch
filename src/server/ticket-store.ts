@@ -1,7 +1,8 @@
 import fs from 'fs';
 import path from 'path';
-import { gitSync } from './git.js';
-import type { TicketInfo } from '../types.js';
+import { autoCommit as gitAutoCommit } from './git.js';
+import { TicketOrderStore } from './ticket-order.js';
+import type { TicketInfo, TicketOrder } from '../types.js';
 
 interface StatusJson {
 	number: string;
@@ -20,9 +21,11 @@ export function toKebabCase(input: string): string {
 
 export class TicketStore {
 	private worktreeDir: string;
+	private orderStore: TicketOrderStore;
 
 	constructor(worktreeDir: string) {
 		this.worktreeDir = worktreeDir;
+		this.orderStore = new TicketOrderStore(worktreeDir);
 	}
 
 	private requireContained(filePath: string, label: string): void {
@@ -67,12 +70,29 @@ export class TicketStore {
 		}
 	}
 
+	readOrderStore(): TicketOrderStore {
+		return this.orderStore;
+	}
+
+	moveTicket(folderName: string, fromColumn: string, toColumn: string, newIndex: number): void {
+		if (fromColumn !== toColumn) {
+			this.updateTicket(folderName, null, null, toColumn);
+		}
+		this.orderStore.moveTicket(folderName, fromColumn, toColumn, newIndex);
+	}
+
+	loadBoardState(columns: string[]): { tickets: TicketInfo[]; ticketOrder: TicketOrder } {
+		const tickets = this.listTickets();
+		const ticketOrder = this.orderStore.reconcile(tickets, columns);
+		return { tickets, ticketOrder };
+	}
+
 	listTickets(): TicketInfo[] {
 		if (!fs.existsSync(this.worktreeDir)) return [];
 		const entries = fs.readdirSync(this.worktreeDir, { withFileTypes: true });
 		const tickets: TicketInfo[] = [];
 		for (const entry of entries) {
-			if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'archive') continue;
+			if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
 			const ticket = this.readTicket(path.join(this.worktreeDir, entry.name));
 			if (ticket) tickets.push(ticket);
 		}
@@ -97,7 +117,9 @@ export class TicketStore {
 		this.writeStatusJson(dir, status);
 		this.autoCommit(`create ticket ${status.number}`);
 
-		return this.readTicket(dir)!;
+		const ticket = this.readTicket(dir)!;
+		this.orderStore.appendTicket(ticket.folderName, initialStatus);
+		return ticket;
 	}
 
 	updateTicket(
@@ -106,7 +128,6 @@ export class TicketStore {
 		title?: string | null,
 		status?: string | null
 	): TicketInfo {
-		this.requireSimpleName(folderName, 'folderName');
 		const dir = path.join(this.worktreeDir, folderName);
 		this.requireContained(dir, 'folderName');
 		if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
@@ -121,7 +142,6 @@ export class TicketStore {
 		const updatedStatus = status ?? current.status;
 
 		const updated: StatusJson = {
-			...current,
 			number: updatedNumber,
 			title: updatedTitle,
 			status: updatedStatus,
@@ -154,11 +174,14 @@ export class TicketStore {
 		this.writeStatusJson(finalDir, updated);
 		this.autoCommit(`update ticket ${updated.number}`);
 
+		if (needsRename && path.basename(finalDir) !== folderName) {
+			this.orderStore.renameTicket(folderName, path.basename(finalDir));
+		}
+
 		return this.readTicket(finalDir)!;
 	}
 
 	deleteTicket(folderName: string): void {
-		this.requireSimpleName(folderName, 'folderName');
 		const dir = path.join(this.worktreeDir, folderName);
 		this.requireContained(dir, 'folderName');
 		if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
@@ -168,29 +191,10 @@ export class TicketStore {
 		const number = status?.number ?? folderName;
 		fs.rmSync(dir, { recursive: true, force: true });
 		this.autoCommit(`delete ticket ${number}`);
-	}
-
-	archiveTicket(folderName: string): void {
-		this.requireSimpleName(folderName, 'folderName');
-		const dir = path.join(this.worktreeDir, folderName);
-		this.requireContained(dir, 'folderName');
-		if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
-			throw new Error(`Ticket not found: ${folderName}`);
-		}
-		const status = this.readStatusJson(dir);
-		const number = status?.number ?? folderName;
-		const archiveDir = path.join(this.worktreeDir, 'archive');
-		fs.mkdirSync(archiveDir, { recursive: true });
-		const dest = path.join(archiveDir, folderName);
-		if (fs.existsSync(dest)) {
-			throw new Error(`Archive destination already exists: ${folderName}`);
-		}
-		fs.renameSync(dir, dest);
-		this.autoCommit(`archive ticket ${number}`);
+		this.orderStore.removeTicket(folderName);
 	}
 
 	setUseWorktree(folderName: string, value: boolean): void {
-		this.requireSimpleName(folderName, 'folderName');
 		const dir = path.join(this.worktreeDir, folderName);
 		this.requireContained(dir, 'folderName');
 		const current = this.readStatusJson(dir);
@@ -200,7 +204,6 @@ export class TicketStore {
 	}
 
 	getStageMarkdown(folderName: string, stage: string): string | null {
-		this.requireSimpleName(folderName, 'folderName');
 		this.requireSimpleName(stage, 'stage');
 		const dir = path.join(this.worktreeDir, folderName);
 		this.requireContained(dir, 'folderName');
@@ -214,7 +217,6 @@ export class TicketStore {
 	}
 
 	deleteStageMarkdown(folderName: string, stage: string): void {
-		this.requireSimpleName(folderName, 'folderName');
 		this.requireSimpleName(stage, 'stage');
 		const dir = path.join(this.worktreeDir, folderName);
 		this.requireContained(dir, 'folderName');
@@ -235,7 +237,6 @@ export class TicketStore {
 		if (typeof content !== 'string') {
 			throw new TypeError('content must be a string');
 		}
-		this.requireSimpleName(folderName, 'folderName');
 		this.requireSimpleName(stage, 'stage');
 		const dir = path.join(this.worktreeDir, folderName);
 		this.requireContained(dir, 'folderName');
@@ -296,13 +297,6 @@ export class TicketStore {
 	}
 
 	private autoCommit(message: string): void {
-		try {
-			gitSync(this.worktreeDir, 'add', '-A');
-			const status = gitSync(this.worktreeDir, 'status', '--porcelain');
-			if (!status.trim()) return;
-			gitSync(this.worktreeDir, 'commit', '-m', message);
-		} catch (err) {
-			console.warn(`autoCommit failed (${message}):`, err);
-		}
+		gitAutoCommit(this.worktreeDir, message);
 	}
 }

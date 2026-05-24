@@ -1,6 +1,5 @@
 import { createSignal, Show } from "solid-js";
 import type { TicketInfo } from "~/types.js";
-import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 
 interface DeleteTicketDialogProps {
   open: boolean;
@@ -22,7 +21,8 @@ export default function DeleteTicketDialog(props: DeleteTicketDialogProps) {
     if (e.key === "Escape") close();
   }
 
-  async function doSubmit() {
+  async function handleSubmit(e: SubmitEvent) {
+    e.preventDefault();
     if (!props.ticket) return;
     setSubmitting(true);
     setErrorMsg("");
@@ -39,17 +39,6 @@ export default function DeleteTicketDialog(props: DeleteTicketDialogProps) {
       setSubmitting(false);
     }
   }
-
-  async function handleSubmit(e: SubmitEvent) {
-    e.preventDefault();
-    doSubmit();
-  }
-
-  useModEnterSubmit({
-    onSubmit: doSubmit,
-    disabled: () => submitting(),
-    active: () => props.open && !!props.ticket,
-  });
 
   return (
     <Show when={props.open && props.ticket}>
@@ -80,7 +69,6 @@ export default function DeleteTicketDialog(props: DeleteTicketDialogProps) {
               <button
                 type="submit"
                 disabled={submitting()}
-                title={modEnterHint()}
                 class="inline-flex h-10 items-center justify-center rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:pointer-events-none disabled:opacity-50"
               >
                 {submitting() ? "Deleting..." : "Delete"}

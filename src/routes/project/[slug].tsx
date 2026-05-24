@@ -5,21 +5,16 @@ import KanbanBoard from "~/components/KanbanBoard";
 import CreateTicketDialog from "~/components/CreateTicketDialog";
 import EditTicketDialog from "~/components/EditTicketDialog";
 import DeleteTicketDialog from "~/components/DeleteTicketDialog";
-import ArchiveTicketDialog from "~/components/ArchiveTicketDialog";
-import WorktreeCleanupDialog from "~/components/WorktreeCleanupDialog";
 import TicketDetailDialog from "~/components/TicketDetailDialog";
 import AddProjectForm from "~/components/AddProjectForm";
 import ThemeToggle from "~/components/ThemeToggle";
 import LauncherSettings from "~/components/LauncherSettings";
-import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 import {
   loadBoard,
   addProjectAction,
   createTicketAction,
   updateTicketAction,
   deleteTicketAction,
-  archiveTicketAction,
-  worktreeCleanupAction,
 } from "~/server/actions";
 
 export const route = {
@@ -39,9 +34,6 @@ export default function ProjectPage() {
   const [editTicketOpen, setEditTicketOpen] = createSignal(false);
   const [deleteTicketOpen, setDeleteTicketOpen] = createSignal(false);
   const [detailTicketOpen, setDetailTicketOpen] = createSignal(false);
-  const [archiveTicketOpen, setArchiveTicketOpen] = createSignal(false);
-  const [cleanupDialogOpen, setCleanupDialogOpen] = createSignal(false);
-  const [cleanupAction, setCleanupAction] = createSignal<"archive" | "delete">("archive");
   const [selectedTicket, setSelectedTicket] = createSignal<TicketInfo | null>(
     null
   );
@@ -53,22 +45,7 @@ export default function ProjectPage() {
 
   function handleDelete(ticket: TicketInfo) {
     setSelectedTicket(ticket);
-    if (ticket.useWorktree) {
-      setCleanupAction("delete");
-      setCleanupDialogOpen(true);
-    } else {
-      setDeleteTicketOpen(true);
-    }
-  }
-
-  function handleArchive(ticket: TicketInfo) {
-    setSelectedTicket(ticket);
-    if (ticket.useWorktree) {
-      setCleanupAction("archive");
-      setCleanupDialogOpen(true);
-    } else {
-      setArchiveTicketOpen(true);
-    }
+    setDeleteTicketOpen(true);
   }
 
   async function handleViewDetail(ticket: TicketInfo) {
@@ -78,16 +55,14 @@ export default function ProjectPage() {
     setDetailTicketOpen(true);
   }
 
-  async function handleMoveTo(ticket: TicketInfo, status: string) {
-    const result = await updateTicketAction(
-      slug(),
-      ticket.folderName,
-      null,
-      null,
-      status
-    );
-    if (!result.error) {
-      revalidate("board-data");
+  async function handleReorder(folderName: string, fromColumn: string, toColumn: string, newIndex: number) {
+    const res = await fetch(`/api/projects/${slug()}/board/reorder`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ folderName, fromColumn, toColumn, newIndex }),
+    });
+    if (res.ok) {
+      window.location.reload();
     }
   }
 
@@ -117,14 +92,6 @@ export default function ProjectPage() {
     return result;
   }
 
-  async function handleArchiveTicket(folderName: string) {
-    const result = await archiveTicketAction(slug(), folderName);
-    if (!result.error) {
-      revalidate("board-data");
-    }
-    return result;
-  }
-
   async function handleDeleteTicket(folderName: string) {
     const result = await deleteTicketAction(slug(), folderName);
     if (!result.error) {
@@ -132,39 +99,6 @@ export default function ProjectPage() {
     }
     return result;
   }
-
-  async function handleCleanupSubmit(
-    folderName: string,
-    options: { deleteWorktree: boolean; deleteLocalBranch: boolean; deleteRemoteBranch: boolean }
-  ) {
-    const anyCleanup = options.deleteWorktree || options.deleteLocalBranch || options.deleteRemoteBranch;
-    if (anyCleanup) {
-      const cleanupResult = await worktreeCleanupAction(slug(), folderName, options);
-      if (cleanupResult.error) return cleanupResult;
-    }
-
-    const action = cleanupAction();
-    if (action === "archive") {
-      const result = await archiveTicketAction(slug(), folderName);
-      if (!result.error) revalidate("board-data");
-      return result;
-    } else {
-      const result = await deleteTicketAction(slug(), folderName);
-      if (!result.error) revalidate("board-data");
-      return result;
-    }
-  }
-
-  let addProjectDialogRef: HTMLDivElement | undefined;
-
-  useModEnterSubmit({
-    onSubmit: () => {
-      const form = addProjectDialogRef?.querySelector("form");
-      if (form) form.requestSubmit();
-    },
-    disabled: () => false,
-    active: () => addProjectDialogOpen(),
-  });
 
   function handleAddProjectSuccess(slug: string) {
     setAddProjectDialogOpen(false);
@@ -291,9 +225,8 @@ export default function ProjectPage() {
                   slug={d().slug}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
-                  onArchive={handleArchive}
                   onViewDetail={handleViewDetail}
-                  onMoveTo={handleMoveTo}
+                  onReorder={handleReorder}
                 />
               )}
             </Show>
@@ -316,19 +249,6 @@ export default function ProjectPage() {
             ticket={selectedTicket()}
             onSubmit={handleDeleteTicket}
           />
-          <ArchiveTicketDialog
-            open={archiveTicketOpen()}
-            onOpenChange={setArchiveTicketOpen}
-            ticket={selectedTicket()}
-            onSubmit={handleArchiveTicket}
-          />
-          <WorktreeCleanupDialog
-            open={cleanupDialogOpen()}
-            onOpenChange={setCleanupDialogOpen}
-            ticket={selectedTicket()}
-            action={cleanupAction()}
-            onSubmit={handleCleanupSubmit}
-          />
           <TicketDetailDialog
             open={detailTicketOpen()}
             onOpenChange={setDetailTicketOpen}
@@ -342,12 +262,11 @@ export default function ProjectPage() {
                 class="fixed inset-0"
                 onClick={() => setAddProjectDialogOpen(false)}
               />
-              <div ref={addProjectDialogRef} class="relative z-10 w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
+              <div class="relative z-10 w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
                 <h2 class="mb-4 text-lg font-semibold">Add Project</h2>
                 <AddProjectForm
                   action={addProjectAction}
                   onSuccess={handleAddProjectSuccess}
-                  submitTitle={modEnterHint()}
                 />
               </div>
             </div>

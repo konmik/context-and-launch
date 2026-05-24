@@ -56,16 +56,16 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 		setCheckedSkills(current);
 	}
 
-	function ticketAiUrl(action: string) {
-		return `/api/projects/${props.slug}/board/tickets/${props.ticket.folderName}/ai/${action}`;
-	}
-
 	function launchBody() {
 		return JSON.stringify({
 			templateName: selectedTemplate(),
 			checkedSkills: [...checkedSkills()],
 			useWorktree: useWorktree(),
 		});
+	}
+
+	function ticketAiUrl(action: string) {
+		return `/api/projects/${props.slug}/board/tickets/${props.ticket.folderName}/ai/${action}`;
 	}
 
 	async function launchAgent() {
@@ -141,8 +141,8 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 												headers: { "Content-Type": "application/json" },
 												body: JSON.stringify({ useWorktree: value }),
 											}
-										).catch((e) => {
-											console.warn("Failed to persist useWorktree:", e);
+										).catch((err) => {
+											console.warn("Failed to persist useWorktree:", err);
 										});
 									}}
 										class="rounded border-input"

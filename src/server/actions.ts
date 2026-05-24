@@ -54,11 +54,12 @@ export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
     fileWatcher.stopAll();
     fileWatcher.watch(worktreeDir);
     const config = boardConfigManager.getConfig();
-    const tickets = new TicketStore(worktreeDir).listTickets();
+    const store = new TicketStore(worktreeDir);
+    const { tickets, ticketOrder } = store.loadBoardState(config.columns);
     return {
       projects,
       slug,
-      board: { columns: config.columns, tickets },
+      board: { columns: config.columns, tickets, ticketOrder },
       projectUnavailable: false,
       projectNotFound: false,
       projectPath: project.path,
@@ -130,6 +131,26 @@ export async function updateTicketAction(
   }
 }
 
+export async function reorderTicketAction(
+  slug: string,
+  folderName: string,
+  fromColumn: string,
+  toColumn: string,
+  newIndex: number
+) {
+  "use server";
+  const { worktreeManager } = await import("~/server/instances.js");
+  const { TicketStore } = await import("~/server/ticket-store.js");
+  const { errorMessage } = await import("~/server/errors.js");
+  try {
+    const worktreeDir = worktreeManager.getWorktreeDir(slug);
+    new TicketStore(worktreeDir).moveTicket(folderName, fromColumn, toColumn, newIndex);
+    return { success: true };
+  } catch (e) {
+    return { error: errorMessage(e) };
+  }
+}
+
 export async function deleteTicketAction(slug: string, folderName: string) {
   "use server";
   const { worktreeManager } = await import("~/server/instances.js");
@@ -138,51 +159,6 @@ export async function deleteTicketAction(slug: string, folderName: string) {
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(slug);
     new TicketStore(worktreeDir).deleteTicket(folderName);
-    return { success: true };
-  } catch (e) {
-    return { error: errorMessage(e) };
-  }
-}
-
-export async function archiveTicketAction(slug: string, folderName: string) {
-  "use server";
-  const { worktreeManager } = await import("~/server/instances.js");
-  const { TicketStore } = await import("~/server/ticket-store.js");
-  const { errorMessage } = await import("~/server/errors.js");
-  try {
-    const worktreeDir = worktreeManager.getWorktreeDir(slug);
-    new TicketStore(worktreeDir).archiveTicket(folderName);
-    return { success: true };
-  } catch (e) {
-    return { error: errorMessage(e) };
-  }
-}
-
-export async function worktreeCleanupAction(
-  slug: string,
-  folderName: string,
-  options: { deleteWorktree: boolean; deleteLocalBranch: boolean; deleteRemoteBranch: boolean }
-) {
-  "use server";
-  const { launcherConfigManager, agentWorktreeManager } = await import(
-    "~/server/instances.js"
-  );
-  const { WorktreeCleanupService } = await import("~/server/worktree-cleanup.js");
-  const { errorMessage } = await import("~/server/errors.js");
-  try {
-    const merged = launcherConfigManager.getMergedConfig(slug);
-    if (!merged.worktreeRootPath) {
-      return { error: "Worktree root path is not configured" };
-    }
-    const worktreePath = `${merged.worktreeRootPath}/${folderName}`;
-    const projectRegistry = (await import("~/server/instances.js")).projectRegistry;
-    const projects = projectRegistry.listProjects();
-    const project = projects.find((p) => p.slug === slug);
-    if (!project) {
-      return { error: "Project not found" };
-    }
-    const service = new WorktreeCleanupService(agentWorktreeManager);
-    await service.cleanup(project.path, folderName, worktreePath, options);
     return { success: true };
   } catch (e) {
     return { error: errorMessage(e) };
