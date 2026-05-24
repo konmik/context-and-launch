@@ -261,8 +261,8 @@ export class TicketStore {
 			const status = gitSync(this.worktreeDir, 'status', '--porcelain');
 			if (!status.trim()) return;
 			gitSync(this.worktreeDir, 'commit', '-m', message);
-		} catch {
-			// Auto-commit failure is non-fatal
+		} catch (err) {
+			console.warn(`autoCommit failed (${message}):`, err);
 		}
 	}
 }

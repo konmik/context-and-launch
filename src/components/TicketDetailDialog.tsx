@@ -1,7 +1,7 @@
 import { createSignal, createEffect, Show, For, on, onCleanup } from "solid-js";
 import { revalidate } from "@solidjs/router";
 import type { TicketInfo } from "~/types.js";
-import AiConsoleTab from "./AiConsoleTab";
+import AgentLauncher from "./AgentLauncher";
 import ResizableWindow from "./ResizableWindow";
 import MarkdownEditor from "./MarkdownEditor";
 
@@ -54,6 +54,7 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
   const [confirmingClose, setConfirmingClose] = createSignal(false);
   const [pendingFile, setPendingFile] = createSignal<string | null>(null);
   const [confirmingFileSwitch, setConfirmingFileSwitch] = createSignal(false);
+  const [pendingAiSwitch, setPendingAiSwitch] = createSignal(false);
   const [showAiConsole, setShowAiConsole] = createSignal(false);
   const [extraFiles, setExtraFiles] = createSignal<string[]>([]);
   const [newFileDialogOpen, setNewFileDialogOpen] = createSignal(false);
@@ -183,18 +184,21 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
       return;
     }
     if (hasUnsavedChanges()) {
-      setPendingFile("__ai__");
+      setPendingFile(null);
+      setPendingAiSwitch(true);
       setConfirmingFileSwitch(true);
       return;
     }
     setShowAiConsole(true);
   }
 
-  function confirmFileSwitch() {
+  function proceedFileSwitch() {
     const file = pendingFile();
+    const toAi = pendingAiSwitch();
     setConfirmingFileSwitch(false);
     setPendingFile(null);
-    if (file === "__ai__") {
+    setPendingAiSwitch(false);
+    if (toAi) {
       setShowAiConsole(true);
     } else if (file) {
       setShowAiConsole(false);
@@ -388,7 +392,7 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
 
             <div class="flex-1 overflow-hidden p-4">
               <Show when={!showAiConsole()} fallback={
-                <AiConsoleTab slug={props.slug} ticket={props.ticket!} />
+                <AgentLauncher slug={props.slug} ticket={props.ticket!} />
               }>
                 <MarkdownEditor
                   value={content()}
@@ -413,7 +417,7 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
         open={confirmingFileSwitch()}
         message="You have unsaved changes. Discard them and switch files?"
         onCancel={cancelFileSwitch}
-        onDiscard={confirmFileSwitch}
+        onDiscard={proceedFileSwitch}
       />
 
       <Show when={newFileDialogOpen()}>

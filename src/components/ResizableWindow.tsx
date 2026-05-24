@@ -26,7 +26,9 @@ function loadState(key: string) {
   try {
     const raw = localStorage.getItem(key);
     if (raw) return JSON.parse(raw) as { width: number; height: number; x?: number; y?: number };
-  } catch {}
+  } catch {
+    localStorage.removeItem(key);
+  }
   return null;
 }
 

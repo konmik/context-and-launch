@@ -1,16 +1,16 @@
 import { createSignal, Show } from "solid-js";
 import type { TicketInfo } from "~/types.js";
 
-interface AiConsoleTabProps {
+interface AgentLauncherProps {
 	slug: string;
 	ticket: TicketInfo;
 }
 
-export default function AiConsoleTab(props: AiConsoleTabProps) {
+export default function AgentLauncher(props: AgentLauncherProps) {
 	const [launching, setLaunching] = createSignal(false);
 	const [errorMsg, setErrorMsg] = createSignal("");
 
-	async function handleRun() {
+	async function launchAgent() {
 		setLaunching(true);
 		setErrorMsg("");
 		try {
@@ -31,7 +31,7 @@ export default function AiConsoleTab(props: AiConsoleTabProps) {
 	return (
 		<div class="flex h-full items-center justify-center">
 			<button
-				onClick={handleRun}
+				onClick={launchAgent}
 				disabled={launching()}
 				class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
 			>
