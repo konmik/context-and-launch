@@ -28,7 +28,7 @@ export default function TicketCard(props: TicketCardProps) {
 
   return (
     <div
-      class="cursor-pointer rounded-md border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-md"
+      class="ripple cursor-pointer rounded-md border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-md"
       onClick={handleCardClick}
     >
       <div class="mb-1 flex items-start justify-between">

@@ -1,3 +1,6 @@
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
 @import "tailwindcss";
 
 @theme inline {
@@ -77,5 +80,28 @@
 	}
 	body {
 		@apply bg-background text-foreground;
+		font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+	}
+}
+
+button, [role="button"], [cursor\=pointer], .ripple {
+	position: relative;
+	overflow: hidden;
+}
+
+.ripple-effect {
+	position: absolute;
+	border-radius: 50%;
+	background: currentColor;
+	opacity: 0.12;
+	pointer-events: none;
+	transform: scale(0);
+	animation: ripple-expand 0.5s ease-out forwards;
+}
+
+@keyframes ripple-expand {
+	to {
+		transform: scale(2.5);
+		opacity: 0;
 	}
 }
