@@ -35,11 +35,25 @@ function makeId(column: string, folderName: string): string {
 
 const COLUMN_PREFIX = "column:";
 
+function DropPreview(props: { ticket: TicketInfo }) {
+  return (
+    <div data-drop-indicator data-drop-preview class="pointer-events-none opacity-40">
+      <TicketCard
+        ticket={props.ticket}
+        onEdit={() => {}}
+        onDelete={() => {}}
+        onViewDetail={() => {}}
+      />
+    </div>
+  );
+}
+
 function SortableTicketCard(props: {
   ticket: TicketInfo;
   column: string;
   index: number;
   activeId: string | null;
+  activeTicket: TicketInfo | null;
   hoverTarget: HoverTarget | null;
   onEdit: (ticket: TicketInfo) => void;
   onDelete: (ticket: TicketInfo) => void;
@@ -48,7 +62,12 @@ function SortableTicketCard(props: {
   const id = makeId(props.column, props.ticket.folderName);
   const sortable = createSortable(id);
   const isActive = () => props.activeId === id;
+  const isCrossColumn = () => {
+    const aid = props.activeId;
+    return aid !== null && parseId(aid).column !== props.column;
+  };
   const showIndicator = () =>
+    isCrossColumn() &&
     !isActive() &&
     props.hoverTarget !== null &&
     props.hoverTarget.column === props.column &&
@@ -66,8 +85,8 @@ function SortableTicketCard(props: {
       }}
       {...sortable.dragActivators}
     >
-      <Show when={showIndicator()}>
-        <div data-drop-indicator class="h-1 rounded-full bg-ring" />
+      <Show when={showIndicator() && props.activeTicket}>
+        {(t) => <DropPreview ticket={t()} />}
       </Show>
       <TicketCard
         ticket={props.ticket}
@@ -79,36 +98,21 @@ function SortableTicketCard(props: {
   );
 }
 
-function EmptyColumnPlaceholder(props: { column: string }) {
+function EmptyColumnDropzone(props: { column: string }) {
   const droppable = createDroppable(COLUMN_PREFIX + props.column);
-  return (
-    <div
-      ref={droppable.ref}
-      class="flex flex-1 items-center justify-center rounded-md border-2 border-dashed border-muted-foreground/25 p-8 text-sm text-muted-foreground/50"
-      classList={{ "border-ring bg-accent/50": droppable.isActiveDroppable }}
-    >
-      Drop here
-    </div>
-  );
-}
-
-function ColumnDropIndicator(props: { show: boolean }) {
-  return (
-    <Show when={props.show}>
-      <div data-drop-indicator class="h-1 rounded-full bg-ring" />
-    </Show>
-  );
+  return <div ref={droppable.ref} class="flex-1" />;
 }
 
 export default function KanbanBoard(props: KanbanBoardProps) {
   const [activeId, setActiveId] = createSignal<string | null>(null);
   const [lastDragCenterY, setLastDragCenterY] = createSignal(0);
   const [hoverTarget, setHoverTarget] = createSignal<HoverTarget | null>(null);
+  const [orderOverride, setOrderOverride] = createSignal<Record<string, string[]> | null>(null);
 
   const columnRefs = new Map<string, HTMLDivElement>();
 
   if (typeof window !== "undefined") {
-    (window as any).__kanbanTestHooks = { setHoverTarget };
+    (window as any).__kanbanTestHooks = { setHoverTarget, setActiveId };
   }
 
   const ticketMap = createMemo(() => {
@@ -119,8 +123,12 @@ export default function KanbanBoard(props: KanbanBoardProps) {
     return map;
   });
 
+  function ticketOrder(): Record<string, string[]> {
+    return orderOverride() ?? props.board.ticketOrder;
+  }
+
   function ticketsForColumn(column: string): TicketInfo[] {
-    const order = props.board.ticketOrder[column] ?? [];
+    const order = ticketOrder()[column] ?? [];
     const map = ticketMap();
     const result: TicketInfo[] = [];
     for (const fn of order) {
@@ -168,7 +176,7 @@ export default function KanbanBoard(props: KanbanBoardProps) {
     for (const [col, el] of columnRefs) {
       const r = el.getBoundingClientRect();
       colRects.set(col, { left: r.left, right: r.right });
-      const cards = el.querySelectorAll<HTMLElement>("[data-drag-source]");
+      const cards = el.querySelectorAll<HTMLElement>("[data-drag-source]:not([data-drop-preview] *)");
       const rects: { top: number; height: number }[] = [];
       for (const card of cards) {
         const cr = card.getBoundingClientRect();
@@ -191,10 +199,12 @@ export default function KanbanBoard(props: KanbanBoardProps) {
 
   function handleDragEnd(event: DndDragEvent) {
     const draggableId = activeId();
-    setActiveId(null);
-    setHoverTarget(null);
 
-    if (!draggableId || !event.droppable) return;
+    if (!draggableId || !event.droppable) {
+      setActiveId(null);
+      setHoverTarget(null);
+      return;
+    }
 
     const { column: fromColumn, folderName } = parseId(draggableId);
     const droppableIdStr = String(event.droppable.id);
@@ -203,11 +213,9 @@ export default function KanbanBoard(props: KanbanBoardProps) {
     let newIndex: number;
 
     if (droppableIdStr.startsWith(COLUMN_PREFIX)) {
-      // Dropped on empty column placeholder
       toColumn = droppableIdStr.slice(COLUMN_PREFIX.length);
       newIndex = ticketsForColumn(toColumn).length;
     } else {
-      // Dropped on a sortable item
       const target = parseId(droppableIdStr);
       toColumn = target.column;
       const colTickets = ticketsForColumn(toColumn);
@@ -215,10 +223,12 @@ export default function KanbanBoard(props: KanbanBoardProps) {
 
       if (fromColumn === toColumn) {
         const fromIdx = colTickets.findIndex(t => t.folderName === folderName);
-        if (fromIdx === newIndex) return;
+        if (fromIdx === newIndex) {
+          setActiveId(null);
+          setHoverTarget(null);
+          return;
+        }
       } else if (event.droppable?.node) {
-        // For cross-column drops, check if the dragged item was below the
-        // target's center -- if so, insert after the target, not before.
         const droppableRect = event.droppable.node.getBoundingClientRect();
         const droppableCenterY = droppableRect.top + droppableRect.height / 2;
         if (lastDragCenterY() > droppableCenterY) {
@@ -227,6 +237,13 @@ export default function KanbanBoard(props: KanbanBoardProps) {
       }
     }
 
+    const updated = { ...ticketOrder() };
+    updated[fromColumn] = (updated[fromColumn] ?? []).filter(fn => fn !== folderName);
+    updated[toColumn] = [...(updated[toColumn] ?? [])];
+    updated[toColumn].splice(newIndex, 0, folderName);
+    setOrderOverride(updated);
+    setActiveId(null);
+    setHoverTarget(null);
     props.onReorder(folderName, fromColumn, toColumn, newIndex);
   }
 
@@ -246,9 +263,11 @@ export default function KanbanBoard(props: KanbanBoardProps) {
           {(column) => {
             const colTickets = () => ticketsForColumn(column);
             const colIds = () => idsForColumn(column);
-            const tailIndicator = () => {
+            const tailPreview = () => {
               const h = hoverTarget();
-              return h !== null && h.column === column && h.index === colTickets().length;
+              const aid = activeId();
+              if (!h || !aid || h.column !== column || h.index !== colTickets().length) return false;
+              return parseId(aid).column !== column;
             };
             return (
               <div class="flex min-w-[250px] flex-1 flex-col rounded-lg bg-muted/50 p-3">
@@ -267,6 +286,7 @@ export default function KanbanBoard(props: KanbanBoardProps) {
                           column={column}
                           index={i()}
                           activeId={activeId()}
+                          activeTicket={activeTicket()}
                           hoverTarget={hoverTarget()}
                           onEdit={props.onEdit}
                           onDelete={props.onDelete}
@@ -274,10 +294,12 @@ export default function KanbanBoard(props: KanbanBoardProps) {
                         />
                       )}
                     </For>
-                    <Show when={colTickets().length === 0}>
-                      <EmptyColumnPlaceholder column={column} />
+                    <Show when={tailPreview() && activeTicket()}>
+                      {(t) => <DropPreview ticket={t()} />}
                     </Show>
-                    <ColumnDropIndicator show={tailIndicator()} />
+                    <Show when={colTickets().length === 0}>
+                      <EmptyColumnDropzone column={column} />
+                    </Show>
                   </div>
                 </SortableProvider>
               </div>

@@ -48,22 +48,22 @@ async function dragTo(p: Page, sourceId: string, targetId: string) {
 
 describe("KanbanBoard drag-and-drop (e2e)", () => {
   beforeAll(async () => {
-    const board = structuredClone(SEEDED_BOARD);
     mockState = {
-      boardData: board,
+      boardData: structuredClone(SEEDED_BOARD),
       onReorderTicket: (slug, folderName, fromColumn, toColumn, newIndex) => {
-        const ticket = board.board!.tickets.find((t) => t.folderName === folderName);
+        const bd = mockState.boardData;
+        const ticket = bd.board!.tickets.find((t) => t.folderName === folderName);
         if (ticket) {
           // Remove from old column order
-          const fromOrder = board.board!.ticketOrder[fromColumn];
+          const fromOrder = bd.board!.ticketOrder[fromColumn];
           const fromIdx = fromOrder.indexOf(folderName);
           if (fromIdx >= 0) fromOrder.splice(fromIdx, 1);
 
           // Add to new column order
-          if (!board.board!.ticketOrder[toColumn]) {
-            board.board!.ticketOrder[toColumn] = [];
+          if (!bd.board!.ticketOrder[toColumn]) {
+            bd.board!.ticketOrder[toColumn] = [];
           }
-          const toOrder = board.board!.ticketOrder[toColumn];
+          const toOrder = bd.board!.ticketOrder[toColumn];
           toOrder.splice(newIndex, 0, folderName);
 
           // Update ticket status

@@ -66,9 +66,9 @@ describe("KanbanBoard rendering", () => {
     expect(screen.getByText("Bravo")).toBeTruthy();
   });
 
-  it("renders empty column placeholder when column has no tickets", () => {
+  it("hides drop preview in empty columns when not dragging", () => {
     const board = makeBoard([], ["todo", "done"]);
-    render(() => (
+    const { container } = render(() => (
       <KanbanBoard
         board={board}
         slug="test"
@@ -78,8 +78,7 @@ describe("KanbanBoard rendering", () => {
         onReorder={noop}
       />
     ));
-    const placeholders = screen.getAllByText("Drop here");
-    expect(placeholders.length).toBeGreaterThanOrEqual(2);
+    expect(container.querySelectorAll("[data-drop-indicator]").length).toBe(0);
   });
 
   it("each ticket card wrapper has a data-sortable-id for hover target matching", () => {
@@ -133,13 +132,12 @@ describe("KanbanBoard drop indicator", () => {
     //
     // Since jsdom can't simulate real pointer DnD, we test this through
     // the component's exported setHoverTargetForTest function.
-    const { setHoverTarget } = (window as any).__kanbanTestHooks ?? {};
-    if (!setHoverTarget) {
-      // The component doesn't expose test hooks yet -- this test should FAIL
-      // to catch the missing cross-column indicator implementation.
-      expect.fail("KanbanBoard must expose __kanbanTestHooks.setHoverTarget for testing the drop indicator");
+    const { setHoverTarget, setActiveId } = (window as any).__kanbanTestHooks ?? {};
+    if (!setHoverTarget || !setActiveId) {
+      expect.fail("KanbanBoard must expose __kanbanTestHooks.{setHoverTarget, setActiveId}");
     }
 
+    setActiveId("todo:t-1-alpha");
     setHoverTarget({ column: "done", index: 0 });
 
     const indicators = container.querySelectorAll("[data-drop-indicator]");
