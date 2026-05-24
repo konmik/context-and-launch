@@ -169,6 +169,8 @@ function buildHtmlTemplate(): string {
 
 export interface MockServerState {
   boardData: BoardPageData;
+  launcherConfig?: { templates: { name: string; text: string; scope: string }[]; skills: { name: string; text: string; scope: string }[]; columnDefaults: Record<string, any>; worktreeRootPath: string | null };
+  onLaunchAgent?: (slug: string, folderName: string, body: any) => { status: number; body: any } | Promise<{ status: number; body: any }>;
   onCreateTicket?: (slug: string, number: string, title: string) => { success: true } | { error: string };
   onUpdateTicket?: (slug: string, folderName: string, number: string | null, title: string | null, status: string | null) => { success: true } | { error: string };
   onDeleteTicket?: (slug: string, folderName: string) => { success: true } | { error: string };
@@ -203,6 +205,63 @@ export function startMockServer(port: number, state: MockServerState): Promise<h
 
     // Handle API routes
     if (pathname.startsWith("/api/")) {
+      // Launcher config endpoint
+      if (pathname.match(/\/api\/projects\/[^/]+\/launcher-config$/) && req.method === "GET") {
+        const config = state.launcherConfig ?? { templates: [], skills: [], columnDefaults: {}, worktreeRootPath: null };
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(config));
+        return;
+      }
+
+      // Agent launch endpoint
+      if (pathname.includes("/ai/run") && req.method === "POST") {
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk: Buffer) => chunks.push(chunk));
+        req.on("end", () => {
+          if (state.onLaunchAgent) {
+            const parts = pathname.split("/");
+            const ticketsIdx = parts.indexOf("tickets");
+            const slug = parts[parts.indexOf("projects") + 1];
+            const folderName = ticketsIdx >= 0 ? parts[ticketsIdx + 1] : "";
+            let body: any = {};
+            try { body = JSON.parse(Buffer.concat(chunks).toString("utf-8")); } catch {}
+            const sendResult = (result: { status: number; body: any }) => {
+              if (typeof result.body === "string") {
+                res.writeHead(result.status, { "Content-Type": "text/plain" });
+                res.end(result.body);
+              } else {
+                res.writeHead(result.status, { "Content-Type": "application/json" });
+                res.end(result.body != null ? JSON.stringify(result.body) : "");
+              }
+            };
+            const result = state.onLaunchAgent(slug, folderName, body);
+            if (result && typeof (result as any).then === "function") {
+              (result as Promise<{ status: number; body: any }>).then(sendResult);
+            } else {
+              sendResult(result as { status: number; body: any });
+            }
+          } else {
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ ok: true }));
+          }
+        });
+        return;
+      }
+
+      // Stage file content
+      if (pathname.includes("/stages/") && req.method === "GET") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ content: "" }));
+        return;
+      }
+
+      // Use-worktree toggle
+      if (pathname.includes("/use-worktree") && req.method === "PUT") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true }));
+        return;
+      }
+
       if (pathname.includes("/board/reorder") && req.method === "POST") {
         // The page uses fetch("/api/projects/:slug/board/reorder") for reorder
         const chunks: Buffer[] = [];

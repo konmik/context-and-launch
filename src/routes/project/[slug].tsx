@@ -62,7 +62,7 @@ export default function ProjectPage() {
       body: JSON.stringify({ folderName, fromColumn, toColumn, newIndex }),
     });
     if (res.ok) {
-      window.location.reload();
+      await revalidate("board-data");
     }
   }
 
