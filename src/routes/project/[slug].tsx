@@ -6,6 +6,7 @@ import CreateTicketDialog from "~/components/CreateTicketDialog";
 import EditTicketDialog from "~/components/EditTicketDialog";
 import DeleteTicketDialog from "~/components/DeleteTicketDialog";
 import ArchiveTicketDialog from "~/components/ArchiveTicketDialog";
+import WorktreeCleanupDialog from "~/components/WorktreeCleanupDialog";
 import TicketDetailDialog from "~/components/TicketDetailDialog";
 import AddProjectForm from "~/components/AddProjectForm";
 import ThemeToggle from "~/components/ThemeToggle";
@@ -17,6 +18,7 @@ import {
   updateTicketAction,
   deleteTicketAction,
   archiveTicketAction,
+  worktreeCleanupAction,
 } from "~/server/actions";
 
 export const route = {
@@ -36,6 +38,8 @@ export default function ProjectPage() {
   const [editTicketOpen, setEditTicketOpen] = createSignal(false);
   const [deleteTicketOpen, setDeleteTicketOpen] = createSignal(false);
   const [archiveTicketOpen, setArchiveTicketOpen] = createSignal(false);
+  const [cleanupDialogOpen, setCleanupDialogOpen] = createSignal(false);
+  const [cleanupAction, setCleanupAction] = createSignal<"archive" | "delete">("archive");
   const [detailTicketOpen, setDetailTicketOpen] = createSignal(false);
   const [selectedTicket, setSelectedTicket] = createSignal<TicketInfo | null>(
     null
@@ -48,12 +52,22 @@ export default function ProjectPage() {
 
   function handleDelete(ticket: TicketInfo) {
     setSelectedTicket(ticket);
-    setDeleteTicketOpen(true);
+    if (ticket.useWorktree) {
+      setCleanupAction("delete");
+      setCleanupDialogOpen(true);
+    } else {
+      setDeleteTicketOpen(true);
+    }
   }
 
   function handleArchive(ticket: TicketInfo) {
     setSelectedTicket(ticket);
-    setArchiveTicketOpen(true);
+    if (ticket.useWorktree) {
+      setCleanupAction("archive");
+      setCleanupDialogOpen(true);
+    } else {
+      setArchiveTicketOpen(true);
+    }
   }
 
   async function handleViewDetail(ticket: TicketInfo) {
@@ -106,6 +120,28 @@ export default function ProjectPage() {
       revalidate("board-data");
     }
     return result;
+  }
+
+  async function handleCleanupSubmit(
+    folderName: string,
+    options: { deleteWorktree: boolean; deleteLocalBranch: boolean; deleteRemoteBranch: boolean }
+  ) {
+    const anyCleanup = options.deleteWorktree || options.deleteLocalBranch || options.deleteRemoteBranch;
+    if (anyCleanup) {
+      const cleanupResult = await worktreeCleanupAction(slug(), folderName, options);
+      if (cleanupResult.error) return cleanupResult;
+    }
+
+    const action = cleanupAction();
+    if (action === "archive") {
+      const result = await archiveTicketAction(slug(), folderName);
+      if (!result.error) revalidate("board-data");
+      return result;
+    } else {
+      const result = await deleteTicketAction(slug(), folderName);
+      if (!result.error) revalidate("board-data");
+      return result;
+    }
   }
 
   async function handleDeleteTicket(folderName: string) {
@@ -271,6 +307,13 @@ export default function ProjectPage() {
             onOpenChange={setArchiveTicketOpen}
             ticket={selectedTicket()}
             onSubmit={handleArchiveTicket}
+          />
+          <WorktreeCleanupDialog
+            open={cleanupDialogOpen()}
+            onOpenChange={setCleanupDialogOpen}
+            ticket={selectedTicket()}
+            action={cleanupAction()}
+            onSubmit={handleCleanupSubmit}
           />
           <TicketDetailDialog
             open={detailTicketOpen()}
