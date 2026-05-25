@@ -9,52 +9,8 @@ import type { TicketInfo, ProjectInfo } from "~/types.js";
 const TITLE_SUFFIX = " -- AI";
 const FALLBACK_PROMPT = "Current ticket files are in {{ticketDir}}. Read the files there for context.";
 
-export function escapeSendKeys(text: string): string {
-  return text.replace(/([+^%~(){}[\]])/g, "{$1}");
-}
-
 function escapeTitle(title: string): string {
   return title.replace(/'/g, "''");
-}
-
-export interface SendKeysHandle {
-  cancel: () => void;
-}
-
-export function trySendKeys(windowTitle: string, keys: string, retriesLeft = 20): SendKeysHandle {
-  let cancelled = false;
-  let timerId: ReturnType<typeof setTimeout> | null = null;
-
-  const script = [
-    `$ws = New-Object -ComObject WScript.Shell`,
-    `if (-not $ws.AppActivate('${escapeTitle(windowTitle)}')) { exit 1 }`,
-    `Start-Sleep 1`,
-    `[void]$ws.AppActivate('${escapeTitle(windowTitle)}')`,
-    `$ws.SendKeys('${keys}~')`,
-  ].join("\n");
-  const encoded = Buffer.from(script, "utf16le").toString("base64");
-
-  execFile("powershell", ["-NoProfile", "-EncodedCommand", encoded], { windowsHide: true }, (err) => {
-    if (cancelled) return;
-    if (err && retriesLeft > 0) {
-      timerId = setTimeout(() => {
-        if (cancelled) return;
-        const inner = trySendKeys(windowTitle, keys, retriesLeft - 1);
-        const origCancel = handle.cancel;
-        handle.cancel = () => { origCancel(); inner.cancel(); };
-      }, 500);
-    } else if (err) {
-      console.warn(`trySendKeys: failed after all retries for window "${windowTitle}"`);
-    }
-  });
-
-  const handle: SendKeysHandle = {
-    cancel: () => {
-      cancelled = true;
-      if (timerId !== null) clearTimeout(timerId);
-    },
-  };
-  return handle;
 }
 
 export function windowExists(title: string): Promise<boolean> {

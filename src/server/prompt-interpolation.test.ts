@@ -1,12 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { interpolatePrompt, assemblePrompt } from './prompt-interpolation.js';
 
-// Inline copy of escapeSendKeys to avoid importing agent-launch.ts (heavy deps).
-// The real function lives in src/server/agent-launch.ts.
-function escapeSendKeys(text: string): string {
-	return text.replace(/([+^%~(){}[\]])/g, '{$1}');
-}
-
 describe('interpolatePrompt', () => {
 	it('replaces known placeholders', () => {
 		const result = interpolatePrompt('Hello {{name}}, welcome to {{place}}', {
@@ -167,91 +161,6 @@ describe('assemblePrompt', () => {
 		expect(interpMatch).not.toBeNull();
 		expect(interpMatch![1].length).toBe(6);
 
-		// Newlines survive escapeSendKeys (newlines are not special SendKeys chars)
-		const escaped = escapeSendKeys(interpolated);
-		const escMatch = escaped.match(/t-0001(\n+)Read/);
-		expect(escMatch).not.toBeNull();
-		expect(escMatch![1].length).toBe(6);
-
-		// Newlines survive PS single-quote escaping (replace ' with '')
-		const psEscaped = escaped.replace(/'/g, "''");
-		const psMatch = psEscaped.match(/t-0001(\n+)Read/);
-		expect(psMatch).not.toBeNull();
-		expect(psMatch![1].length).toBe(6);
-	});
-});
-
-describe('full pipeline with ticketDir containing parentheses', () => {
-	it('interpolates, escapes SendKeys parens, and survives PS single-quote escape', () => {
-		const template = 'Work in {{ticketDir}} on {{ticketTitle}}';
-		const skill = 'Read requirements from {{ticketDir}}/requirements.md';
-		const assembled = assemblePrompt(template, [skill]);
-
-		const ticketDir = 'C:\\Program Files (x86)\\MyApp\\tickets\\st-0042';
-		const interpolated = interpolatePrompt(assembled, {
-			ticketDir,
-			ticketTitle: 'Fix (critical) layout bug',
-		});
-
-		// interpolatePrompt should substitute both placeholders correctly
-		expect(interpolated).toBe(
-			'Work in C:\\Program Files (x86)\\MyApp\\tickets\\st-0042 on Fix (critical) layout bug\n\n' +
-			'Read requirements from C:\\Program Files (x86)\\MyApp\\tickets\\st-0042/requirements.md',
-		);
-
-		// escapeSendKeys wraps ( and ) in braces
-		const escaped = escapeSendKeys(interpolated);
-		expect(escaped).toContain('{(}x86{)}');
-		expect(escaped).toContain('{(}critical{)}');
-		// No raw unescaped parens should remain
-		expect(escaped).not.toMatch(/[^{]\([^}]/);
-
-		// PS single-quote escaping should not interfere (no single quotes in this path)
-		const psEscaped = escaped.replace(/'/g, "''");
-		expect(psEscaped).toBe(escaped);
-
-		// Also test a ticketDir that DOES contain a single quote alongside parens
-		const dirWithQuote = "C:\\Program Files (x86)\\O'Reilly\\tickets";
-		const interpolated2 = interpolatePrompt('Dir: {{ticketDir}}', {
-			ticketDir: dirWithQuote,
-		});
-		expect(interpolated2).toBe("Dir: C:\\Program Files (x86)\\O'Reilly\\tickets");
-
-		const escaped2 = escapeSendKeys(interpolated2);
-		expect(escaped2).toContain('{(}x86{)}');
-
-		const psEscaped2 = escaped2.replace(/'/g, "''");
-		// The single quote should be doubled for PS
-		expect(psEscaped2).toContain("O''Reilly");
-		// Parens should still be wrapped in braces after PS escaping
-		expect(psEscaped2).toContain('{(}x86{)}');
-	});
-});
-
-describe('escapeSendKeys with curly braces from interpolation leftovers', () => {
-	it('escapes curly braces in leftover {{unknown}} placeholders into valid SendKeys syntax', () => {
-		// When interpolatePrompt leaves an unknown placeholder intact,
-		// the resulting string contains literal {{ and }} which are
-		// SendKeys special characters and must be escaped.
-		const withLeftover = interpolatePrompt('Hello {{known}} and {{unknown}}', {
-			known: 'world',
-		});
-		expect(withLeftover).toBe('Hello world and {{unknown}}');
-
-		const escaped = escapeSendKeys(withLeftover);
-
-		// Each { becomes {{} and each } becomes {}} in SendKeys escaping.
-		// So {{unknown}} -> {{}{{}unknown{}}{}} (the replacements concatenate).
-		// In SendKeys, {{} = literal '{' and {}} = literal '}'.
-		expect(escaped).toBe('Hello world and {{}{{}unknown{}}{}}'	);
-
-		// Verify each brace was individually escaped:
-		// no raw unescaped { or } should remain outside of {X} wrappers.
-		// A simple structural check: the escaped string should contain
-		// exactly 4 brace-escape sequences for the 4 braces in {{unknown}}.
-		const braceEscapes = escaped.match(/\{[{}]\}/g);
-		expect(braceEscapes).not.toBeNull();
-		expect(braceEscapes!.length).toBe(4);
 	});
 });
 
@@ -297,12 +206,11 @@ describe('FALLBACK_PROMPT used when template name and Default both missing', () 
 		expect(result).not.toContain('{{');
 	});
 
-	it('FALLBACK_PROMPT interpolation through full pipeline (assemble, interpolate, escapeSendKeys)', () => {
+	it('FALLBACK_PROMPT interpolation through full pipeline (assemble, interpolate)', () => {
 		const templates: { name: string; text: string }[] = [];
 		const templateText = selectTemplate(templates, 'Gone Template');
 		expect(templateText).toBe(FALLBACK_PROMPT);
 
-		// Add a skill to exercise assemblePrompt with the fallback
 		const skillTexts = ['Also check {{projectPath}} for config files.'];
 		const assembled = assemblePrompt(templateText, skillTexts);
 		expect(assembled).toBe(
@@ -320,15 +228,10 @@ describe('FALLBACK_PROMPT used when template name and Default both missing', () 
 		};
 
 		const interpolated = interpolatePrompt(assembled, variables);
-		// ticketDir and projectPath both substituted
 		expect(interpolated).toContain(ticketDir);
 		expect(interpolated).toContain('C:\\Program Files (x86)\\projects');
 		expect(interpolated).not.toContain('{{ticketDir}}');
 		expect(interpolated).not.toContain('{{projectPath}}');
-
-		// escapeSendKeys handles parentheses in the path
-		const escaped = escapeSendKeys(interpolated);
-		expect(escaped).toContain('{(}x86{)}');
 	});
 
 	it('prefers Default template over FALLBACK_PROMPT when requested name is missing', () => {
@@ -343,36 +246,3 @@ describe('FALLBACK_PROMPT used when template name and Default both missing', () 
 	});
 });
 
-describe('escapeSendKeys edge cases: empty and all-special strings', () => {
-	it('returns empty string for empty input without crashing', () => {
-		const result = escapeSendKeys('');
-		expect(result).toBe('');
-	});
-
-	it('correctly escapes a string composed entirely of special characters', () => {
-		// Every SendKeys special character: + ^ % ~ ( ) { } [ ]
-		const allSpecials = '+^%~(){}[]';
-		const result = escapeSendKeys(allSpecials);
-
-		// Each character should be wrapped in braces: {+}{^}{%}{~}{(}{)}{{}{}}{[}{]}
-		expect(result).toBe('{+}{^}{%}{~}{(}{)}{{}{}}{[}{]}');
-
-		// No raw special characters should remain outside brace wrappers
-		// Check that every special char is enclosed
-		for (const ch of ['+', '^', '%', '~', '(', ')']) {
-			expect(result).toContain(`{${ch}}`);
-		}
-		expect(result).toContain('{[}');
-		expect(result).toContain('{]}');
-
-		// The result length should be 3 chars per special (brace-wrapped),
-		// except { and } which produce {{}  and {}} (3 chars each)
-		expect(result.length).toBe(10 * 3); // 10 specials, each wrapped = 30 chars
-	});
-
-	it('handles repeated special characters without crash', () => {
-		const repeated = '+++^^^%%%~~~';
-		const result = escapeSendKeys(repeated);
-		expect(result).toBe('{+}{+}{+}{^}{^}{^}{%}{%}{%}{~}{~}{~}');
-	});
-});
