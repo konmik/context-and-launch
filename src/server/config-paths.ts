@@ -33,8 +33,8 @@ export class ConfigPaths {
 		return path.join(this.baseDir, 'config', 'launcher-config.json');
 	}
 
-	boardConfigFile(): string {
-		return path.join(this.baseDir, 'config', 'board-config', 'kanban.json');
+	boardsFile(): string {
+		return path.join(this.baseDir, 'config', 'boards.json');
 	}
 
 	platformScriptPs1(): string {

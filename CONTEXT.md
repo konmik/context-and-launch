@@ -35,9 +35,9 @@ Stage Markdown:
 A markdown file inside a ticket folder, named after a board column (e.g. `todo.md`, `review.md`). Created on demand. Holds notes, context, or instructions for that stage. Read by AI agents working on the ticket.
 Avoid: stage file, phase file
 
-Board Config:
-A JSON file in `~/.ai-stages/config/board-config/` that defines the ordered list of columns for a kanban board (e.g. `kanban.json`). A project references one by name.
-Avoid: column config, workflow
+Board Definition:
+A named board layout with an id, name, and ordered list of columns. All board definitions live in a single `~/.ai-stages/config/boards.json` array. A project selects one by `boardId` in its Launcher Config (defaults to "kanban").
+Avoid: column config, workflow, board config
 
 Column:
 A named stage in a board config representing a ticket status (e.g. `todo`, `prd`, `in-progress`, `review`, `done`).
@@ -100,7 +100,7 @@ Avoid: sandbox, workspace
 
 ## Disk layout
 
-Config files live under `~/.ai-stages/config/`: the Project Registry, app-level Launcher Config, Board Configs, and platform scripts. This directory is designed to be shared across machines via symlink or sync tool.
+Config files live under `~/.ai-stages/config/`: the Project Registry, app-level Launcher Config, Board Definitions (`boards.json`), and platform scripts. This directory is designed to be shared across machines via symlink or sync tool.
 
 Per-project data lives under `~/.ai-stages/projects/{slug}/`. Each project gets:
 - A `config/` directory with its project-level Launcher Config (local-only, not versioned)
