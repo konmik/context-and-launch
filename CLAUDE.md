@@ -9,3 +9,5 @@ Do not change the text of buttons when running, use a disabled state instead.
 Run dev server: `npm run dev`.
 Write UI tests with playwright.
 When writing e2e, mock file system and process calls only, use playwright for UI.
+We are using only TypeScript, do not check for types randomly, do not write incorrect-type tests.
+Avoid non-ASCII unless explicitly asked.
