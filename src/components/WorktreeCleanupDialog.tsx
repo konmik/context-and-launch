@@ -1,4 +1,5 @@
 import { createSignal, Show, onMount } from "solid-js";
+import { Portal } from "solid-js/web";
 import type { TicketInfo, ErrorInfo } from "~/types.js";
 import ErrorDialog from "./ErrorDialog.js";
 
@@ -84,12 +85,13 @@ export default function WorktreeCleanupDialog(props: WorktreeCleanupDialogProps)
 
   return (
     <Show when={props.open && props.ticket}>
+      <Portal>
       <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        class="fixed inset-0 flex items-center justify-center bg-black/50"
         onKeyDown={handleKeydown}
       >
         <div class="fixed inset-0" onClick={close} />
-        <div class="relative z-10 w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
+        <div class="relative w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
           <h2 class="mb-4 text-lg font-semibold">{actionLabel()} Ticket</h2>
           <p class="mb-4 text-sm text-muted-foreground">
             {actionLabel()} ticket {props.ticket!.number} - {props.ticket!.title}?
@@ -161,6 +163,7 @@ export default function WorktreeCleanupDialog(props: WorktreeCleanupDialogProps)
           </form>
         </div>
       </div>
+      </Portal>
     </Show>
   );
 }

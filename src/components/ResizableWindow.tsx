@@ -1,4 +1,5 @@
 import { createSignal, createEffect, on, onCleanup, type JSX } from "solid-js";
+import { Portal } from "solid-js/web";
 
 const MIN_WIDTH = 400;
 const MIN_HEIGHT = 300;
@@ -191,10 +192,11 @@ export default function ResizableWindow(props: ResizableWindowProps) {
   return (
     <>
       {props.open && positioned() && (
-        <div class="fixed inset-0 z-50 bg-black/50">
+        <Portal>
+        <div class="fixed inset-0 bg-black/50">
           <div class="fixed inset-0" onMouseDown={(e) => e.preventDefault()} onClick={props.onClose} />
           <div
-            class="absolute z-10 flex flex-col rounded-lg border border-border bg-card shadow-lg"
+            class="absolute flex flex-col rounded-lg border border-border bg-card shadow-lg"
             style={{
               width: `${width()}px`,
               height: `${height()}px`,
@@ -227,6 +229,7 @@ export default function ResizableWindow(props: ResizableWindowProps) {
             <div onMouseDown={[startResize, "se"]} class="absolute bottom-0 right-0 h-3 w-3 cursor-se-resize" />
           </div>
         </div>
+        </Portal>
       )}
     </>
   );

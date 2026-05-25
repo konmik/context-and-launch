@@ -1,4 +1,5 @@
 import { createSignal, createEffect, Show, For, on, onCleanup } from "solid-js";
+import { Portal } from "solid-js/web";
 import { revalidate } from "@solidjs/router";
 import type { TicketInfo, MergedLauncherConfig, LauncherColumnDefaults } from "~/types.js";
 import AgentLauncher from "./AgentLauncher";
@@ -53,8 +54,9 @@ function DiscardConfirmation(props: {
 
   return (
     <Show when={props.open}>
-      <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onMouseDown={(e) => e.preventDefault()}>
-        <div class="relative z-10 w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
+      <Portal>
+      <div class="fixed inset-0 flex items-center justify-center bg-black/50" onMouseDown={(e) => e.preventDefault()}>
+        <div class="relative w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
           <h2 class="mb-4 text-lg font-semibold">Unsaved Changes</h2>
           <p class="mb-4 text-sm text-muted-foreground">{props.message}</p>
           <div class="flex justify-end gap-2">
@@ -76,6 +78,7 @@ function DiscardConfirmation(props: {
           </div>
         </div>
       </div>
+      </Portal>
     </Show>
   );
 }
@@ -821,8 +824,10 @@ function TicketDetailContent(props: {
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ml-2 shrink-0"><path d="m6 9 6 6 6-6"/></svg>
                 </button>
                 <Show when={dropdownOpen()}>
-                  <div class="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
-                  <div class="absolute left-0 z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover py-1 shadow-md">
+                  <Portal>
+                  <div class="fixed inset-0" onClick={() => setDropdownOpen(false)} />
+                  </Portal>
+                  <div class="absolute left-0 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover py-1 shadow-md">
                     <For each={allFileOptions()}>
                       {(option) => (
                         <button
@@ -985,8 +990,9 @@ function TicketDetailContent(props: {
       />
 
       <Show when={newFileDialogOpen()}>
-        <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onMouseDown={(e) => { if (!(e.target instanceof HTMLInputElement)) e.preventDefault(); }}>
-          <div class="relative z-10 w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
+        <Portal>
+        <div class="fixed inset-0 flex items-center justify-center bg-black/50" onMouseDown={(e) => { if (!(e.target instanceof HTMLInputElement)) e.preventDefault(); }}>
+          <div class="relative w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
             <h2 class="mb-4 text-lg font-semibold">New Markdown File</h2>
             <label class="mb-1 block text-sm text-muted-foreground">
               File name (without .md extension)
@@ -1023,11 +1029,13 @@ function TicketDetailContent(props: {
             </div>
           </div>
         </div>
+        </Portal>
       </Show>
 
       <Show when={confirmingDelete()}>
-        <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onMouseDown={(e) => e.preventDefault()}>
-          <div class="relative z-10 w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
+        <Portal>
+        <div class="fixed inset-0 flex items-center justify-center bg-black/50" onMouseDown={(e) => e.preventDefault()}>
+          <div class="relative w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
             <h2 class="mb-4 text-lg font-semibold">Delete File</h2>
             <p class="mb-4 text-sm text-muted-foreground">
               Delete {activeFileLabel(activeFile())}? This cannot be undone.
@@ -1051,12 +1059,14 @@ function TicketDetailContent(props: {
             </div>
           </div>
         </div>
+        </Portal>
       </Show>
 
       <Show when={confirmOverwrite()}>
         {(info) => (
-          <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onMouseDown={(e) => e.preventDefault()}>
-            <div class="relative z-10 w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
+          <Portal>
+          <div class="fixed inset-0 flex items-center justify-center bg-black/50" onMouseDown={(e) => e.preventDefault()}>
+            <div class="relative w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
               <h2 class="mb-4 text-lg font-semibold">Overwrite File</h2>
               <p class="mb-4 text-sm text-muted-foreground">
                 A file named "{info().fileName}" already exists. Overwrite it?
@@ -1079,13 +1089,15 @@ function TicketDetailContent(props: {
               </div>
             </div>
           </div>
+          </Portal>
         )}
       </Show>
 
       <Show when={confirmSize()}>
         {(info) => (
-          <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onMouseDown={(e) => e.preventDefault()}>
-            <div class="relative z-10 w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
+          <Portal>
+          <div class="fixed inset-0 flex items-center justify-center bg-black/50" onMouseDown={(e) => e.preventDefault()}>
+            <div class="relative w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
               <h2 class="mb-4 text-lg font-semibold">Large File</h2>
               <p class="mb-4 text-sm text-muted-foreground">
                 "{info().fileName}" is {(info().size / 1024).toFixed(1)} KB, which is larger than 10 KB. Copy it anyway?
@@ -1108,6 +1120,7 @@ function TicketDetailContent(props: {
               </div>
             </div>
           </div>
+          </Portal>
         )}
       </Show>
 

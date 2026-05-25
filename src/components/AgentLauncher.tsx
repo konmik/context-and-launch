@@ -189,15 +189,13 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 					)}
 			</Show>
 
-			<Portal>
-				<ErrorDialog error={errorInfo()} onClose={() => setErrorInfo(null)} />
-			</Portal>
+			<ErrorDialog error={errorInfo()} onClose={() => setErrorInfo(null)} />
 
-			<Portal>
-				<Show when={behindRemoteMsg()}>
-					<div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
-						<div class="fixed inset-0" onClick={() => setBehindRemoteMsg("")} />
-						<div class="relative z-10 w-full max-w-sm rounded-lg border border-border bg-card p-6 shadow-lg">
+			<Show when={behindRemoteMsg()}>
+				<Portal>
+				<div class="fixed inset-0 flex items-center justify-center bg-black/50">
+					<div class="fixed inset-0" onClick={() => setBehindRemoteMsg("")} />
+					<div class="relative w-full max-w-sm rounded-lg border border-border bg-card p-6 shadow-lg">
 							<p class="mb-4 text-sm">{behindRemoteMsg()}</p>
 							<div class="flex justify-end gap-2">
 								<button
@@ -216,8 +214,8 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 							</div>
 						</div>
 					</div>
-				</Show>
-			</Portal>
+				</Portal>
+			</Show>
 		</div>
 	);
 }

@@ -1,4 +1,5 @@
 import { createSignal, createEffect, Show } from "solid-js";
+import { Portal } from "solid-js/web";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 
 interface CreateTicketDialogProps {
@@ -62,12 +63,13 @@ export default function CreateTicketDialog(props: CreateTicketDialogProps) {
 
   return (
     <Show when={props.open}>
+      <Portal>
       <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        class="fixed inset-0 flex items-center justify-center bg-black/50"
         onKeyDown={handleKeydown}
       >
         <div class="fixed inset-0" onClick={close} />
-        <div class="relative z-10 w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
+        <div class="relative w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
           <h2 class="mb-4 text-lg font-semibold">New Ticket</h2>
           <form onSubmit={handleSubmit}>
             <div class="mb-4">
@@ -121,6 +123,7 @@ export default function CreateTicketDialog(props: CreateTicketDialogProps) {
           </form>
         </div>
       </div>
+      </Portal>
     </Show>
   );
 }

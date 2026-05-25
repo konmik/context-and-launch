@@ -1,4 +1,5 @@
 import { createSignal, createEffect, on, Show, For } from "solid-js";
+import { Portal } from "solid-js/web";
 import type { MergedLauncherConfig } from "~/types.js";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 
@@ -178,9 +179,10 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 
 	return (<>
 		<Show when={props.open}>
-			<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+			<Portal>
+			<div class="fixed inset-0 flex items-center justify-center bg-black/50">
 				<div class="fixed inset-0" onClick={() => props.onOpenChange(false)} />
-				<div class="relative z-10 flex h-[80vh] w-full max-w-2xl flex-col rounded-lg border border-border bg-card shadow-lg">
+				<div class="relative flex h-[80vh] w-full max-w-2xl flex-col rounded-lg border border-border bg-card shadow-lg">
 					<div class="flex items-center justify-between border-b border-border px-6 py-4">
 						<h2 class="text-lg font-semibold">Settings</h2>
 						<button
@@ -494,13 +496,15 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 
 				</div>
 			</div>
+			</Portal>
 		</Show>
 
 		<Show when={form()}>
 			{(f) => (
-				<div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+				<Portal>
+				<div class="fixed inset-0 flex items-center justify-center bg-black/50">
 					<div class="fixed inset-0" onClick={() => setForm(null)} />
-					<div class="relative z-10 w-full max-w-lg rounded-lg border border-border bg-card shadow-lg">
+					<div class="relative w-full max-w-lg rounded-lg border border-border bg-card shadow-lg">
 						<div class="flex items-center justify-between border-b border-border px-6 py-4">
 							<h2 class="text-lg font-semibold">
 								{f().mode === "add" ? "Add" : "Edit"} {f().itemType === "template" ? "Prompt" : f().itemType === "skill" ? "Skill" : f().itemType === "profile" ? "Launch" : "Shortcut"}
@@ -585,6 +589,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 						</div>
 					</div>
 				</div>
+				</Portal>
 			)}
 		</Show>
 	</>);

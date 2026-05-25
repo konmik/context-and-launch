@@ -1,4 +1,5 @@
 import { createSignal, Show } from "solid-js";
+import { Portal } from "solid-js/web";
 import type { TicketInfo } from "~/types.js";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 
@@ -53,12 +54,13 @@ export default function DeleteTicketDialog(props: DeleteTicketDialogProps) {
 
   return (
     <Show when={props.open && props.ticket}>
+      <Portal>
       <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        class="fixed inset-0 flex items-center justify-center bg-black/50"
         onKeyDown={handleKeydown}
       >
         <div class="fixed inset-0" onClick={close} />
-        <div class="relative z-10 w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
+        <div class="relative w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
           <h2 class="mb-4 text-lg font-semibold">Delete Ticket</h2>
           <p class="mb-4 text-sm text-muted-foreground">
             Delete ticket {props.ticket!.number} - {props.ticket!.title}?
@@ -89,6 +91,7 @@ export default function DeleteTicketDialog(props: DeleteTicketDialogProps) {
           </form>
         </div>
       </div>
+      </Portal>
     </Show>
   );
 }
