@@ -11,6 +11,7 @@ import TicketDetailDialog from "~/components/TicketDetailDialog";
 import AddProjectForm from "~/components/AddProjectForm";
 import ThemeToggle from "~/components/ThemeToggle";
 import LauncherSettings from "~/components/LauncherSettings";
+import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 import {
   loadBoard,
   addProjectAction,
@@ -122,6 +123,14 @@ export default function ProjectPage() {
     return result;
   }
 
+  async function handleDeleteTicket(folderName: string) {
+    const result = await deleteTicketAction(slug(), folderName);
+    if (!result.error) {
+      revalidate("board-data");
+    }
+    return result;
+  }
+
   async function handleCleanupSubmit(
     folderName: string,
     options: { deleteWorktree: boolean; deleteLocalBranch: boolean; deleteRemoteBranch: boolean }
@@ -144,13 +153,16 @@ export default function ProjectPage() {
     }
   }
 
-  async function handleDeleteTicket(folderName: string) {
-    const result = await deleteTicketAction(slug(), folderName);
-    if (!result.error) {
-      revalidate("board-data");
-    }
-    return result;
-  }
+  let addProjectDialogRef: HTMLDivElement | undefined;
+
+  useModEnterSubmit({
+    onSubmit: () => {
+      const form = addProjectDialogRef?.querySelector("form");
+      if (form) form.requestSubmit();
+    },
+    disabled: () => false,
+    active: () => addProjectDialogOpen(),
+  });
 
   function handleAddProjectSuccess(slug: string) {
     setAddProjectDialogOpen(false);
@@ -328,11 +340,12 @@ export default function ProjectPage() {
                 class="fixed inset-0"
                 onClick={() => setAddProjectDialogOpen(false)}
               />
-              <div class="relative z-10 w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
+              <div ref={addProjectDialogRef} class="relative z-10 w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
                 <h2 class="mb-4 text-lg font-semibold">Add Project</h2>
                 <AddProjectForm
                   action={addProjectAction}
                   onSuccess={handleAddProjectSuccess}
+                  submitTitle={modEnterHint()}
                 />
               </div>
             </div>

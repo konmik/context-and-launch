@@ -4,6 +4,7 @@ interface AddProjectFormProps {
   action: (path: string) => Promise<{ slug?: string; error?: string }>;
   errorMessage?: string;
   onSuccess?: (slug: string) => void;
+  submitTitle?: string;
 }
 
 export default function AddProjectForm(props: AddProjectFormProps) {
@@ -28,6 +29,7 @@ export default function AddProjectForm(props: AddProjectFormProps) {
 
   async function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
+    if (submitting()) return;
     const trimmed = pathValue().trim();
     if (!trimmed) return;
     setSubmitting(true);
@@ -80,6 +82,7 @@ export default function AddProjectForm(props: AddProjectFormProps) {
       <button
         type="submit"
         disabled={submitting() || !pathValue().trim()}
+        title={props.submitTitle}
         class="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
       >
         {submitting() ? "Adding..." : "Add Project"}

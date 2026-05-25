@@ -9,3 +9,5 @@ dist/
 !.env.example
 temp/
 .playwright-mcp/
+app.config.timestamp_*.js
+skills-lock.json

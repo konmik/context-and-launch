@@ -1075,4 +1075,147 @@ describe('TicketStore', () => {
 			spy.mockRestore();
 		}
 	});
+
+	it('archiveTicket on nonexistent folder throws', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		expect(() => store.archiveTicket('no-such-folder')).toThrow(/Ticket not found/);
+	});
+
+	it('archiveTicket throws when archive destination already exists', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('DUP-A', 'First Archive');
+
+		const archiveDir = path.join(worktreeDir, 'archive', 'dup-a-first-archive');
+		fs.mkdirSync(archiveDir, { recursive: true });
+
+		expect(() => store.archiveTicket('dup-a-first-archive')).toThrow(/Archive destination already exists/);
+		expect(fs.existsSync(path.join(worktreeDir, 'dup-a-first-archive'))).toBe(true);
+	});
+
+	it('archiveTicket auto-commits the move', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('CMT-1', 'Commit Test');
+
+		store.archiveTicket('cmt-1-commit-test');
+
+		const log = await git(worktreeDir, 'log', '--oneline');
+		expect(log).toContain('archive ticket CMT-1');
+
+		const status = await git(worktreeDir, 'status', '--porcelain');
+		expect(status.trim()).toBe('');
+	});
+
+	it('archiveTicket preserves stage markdown files', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('STG-1', 'With Stages');
+		store.saveStageMarkdown('stg-1-with-stages', 'todo', '# Todo items');
+		store.saveStageMarkdown('stg-1-with-stages', 'design', '# Design notes');
+
+		store.archiveTicket('stg-1-with-stages');
+
+		const archiveDir = path.join(worktreeDir, 'archive', 'stg-1-with-stages');
+		expect(fs.existsSync(path.join(archiveDir, 'status.json'))).toBe(true);
+		expect(fs.readFileSync(path.join(archiveDir, 'todo.md'), 'utf-8')).toBe('# Todo items');
+		expect(fs.readFileSync(path.join(archiveDir, 'design.md'), 'utf-8')).toBe('# Design notes');
+	});
+
+	it('archiveTicket called twice throws on second call', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('DUB-1', 'Double Archive');
+
+		store.archiveTicket('dub-1-double-archive');
+		expect(() => store.archiveTicket('dub-1-double-archive')).toThrow(/Ticket not found/);
+	});
+
+	it('deleteTicket on already-archived ticket throws', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('DEL-A', 'Archived Then Delete');
+
+		store.archiveTicket('del-a-archived-then-delete');
+		expect(() => store.deleteTicket('del-a-archived-then-delete')).toThrow(/Ticket not found/);
+	});
+
+	it('ticket with folderName exactly "archive" is hidden by listTickets', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const archiveAsTicket = path.join(worktreeDir, 'archive');
+		fs.mkdirSync(archiveAsTicket, { recursive: true });
+		fs.writeFileSync(path.join(archiveAsTicket, 'status.json'), JSON.stringify({
+			number: 'HIDE-1', title: 'Hidden', status: 'todo', useWorktree: false
+		}));
+
+		const store = new TicketStore(worktreeDir);
+		const tickets = store.listTickets();
+		expect(tickets.length).toBe(0);
+	});
+
+	it('setUseWorktree(true) then updateTicket with status-only change -- useWorktree survives', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('WT-10', 'Survive Status');
+		const folderName = 'wt-10-survive-status';
+
+		store.setUseWorktree(folderName, true);
+
+		let raw = JSON.parse(fs.readFileSync(path.join(worktreeDir, folderName, 'status.json'), 'utf-8'));
+		expect(raw.useWorktree).toBe(true);
+
+		const updated = store.updateTicket(folderName, null, null, 'in-progress');
+		expect(updated.status).toBe('in-progress');
+		expect(updated.folderName).toBe(folderName);
+		expect(updated.useWorktree).toBe(true);
+
+		raw = JSON.parse(fs.readFileSync(path.join(worktreeDir, folderName, 'status.json'), 'utf-8'));
+		expect(raw.useWorktree).toBe(true);
+
+		const tickets = store.listTickets();
+		expect(tickets[0].useWorktree).toBe(true);
+	});
+
+	it('setUseWorktree(true) then updateTicket with title rename -- useWorktree survives after folder rename', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('WT-11', 'Old Name');
+		const folderName = 'wt-11-old-name';
+
+		store.setUseWorktree(folderName, true);
+
+		let raw = JSON.parse(fs.readFileSync(path.join(worktreeDir, folderName, 'status.json'), 'utf-8'));
+		expect(raw.useWorktree).toBe(true);
+
+		const updated = store.updateTicket(folderName, null, 'New Name', null);
+		expect(updated.title).toBe('New Name');
+		expect(updated.folderName).toBe('wt-11-new-name');
+		expect(fs.existsSync(path.join(worktreeDir, folderName))).toBe(false);
+		expect(updated.useWorktree).toBe(true);
+
+		raw = JSON.parse(fs.readFileSync(path.join(worktreeDir, 'wt-11-new-name', 'status.json'), 'utf-8'));
+		expect(raw.useWorktree).toBe(true);
+
+		const tickets = store.listTickets();
+		expect(tickets[0].useWorktree).toBe(true);
+	});
 });
