@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { execSync } from 'child_process';
+import { execSync, spawn, type ChildProcess } from 'child_process';
 import { AgentWorktreeManager } from './agent-worktree.js';
 import { LauncherConfigManager } from './launcher-config.js';
 import { ConfigPaths } from './config-paths.js';
@@ -837,6 +837,43 @@ describe('AgentWorktreeManager', () => {
 			expect(fs.existsSync(result.worktreePath)).toBe(true);
 			// The parent directory (nonexistentRoot) was created by git
 			expect(fs.existsSync(nonexistentRoot)).toBe(true);
+		}
+	});
+
+	it('isWorktreeBusy returns false for an unoccupied directory', async () => {
+		const { projectDir, awm } = setup();
+		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-busy-free');
+		expect('worktreePath' in result).toBe(true);
+		if ('worktreePath' in result) {
+			const busy = await awm.isWorktreeBusy(result.worktreePath);
+			expect(busy).toBe(false);
+		}
+	});
+
+	it('isWorktreeBusy returns false for a nonexistent path', async () => {
+		const { awm } = setup();
+		const busy = await awm.isWorktreeBusy(path.join(os.tmpdir(), 'does-not-exist-' + Date.now()));
+		expect(busy).toBe(false);
+	});
+
+	it('isWorktreeBusy returns true when a process occupies the directory', async () => {
+		const { projectDir, awm } = setup();
+		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-busy-occupied');
+		expect('worktreePath' in result).toBe(true);
+		if (!('worktreePath' in result)) return;
+
+		const child: ChildProcess = spawn(
+			process.execPath,
+			['-e', 'setTimeout(() => {}, 60000)'],
+			{ cwd: result.worktreePath, stdio: 'pipe' }
+		);
+
+		try {
+			await new Promise(r => setTimeout(r, 200));
+			const busy = await awm.isWorktreeBusy(result.worktreePath);
+			expect(busy).toBe(true);
+		} finally {
+			child.kill();
 		}
 	});
 });
