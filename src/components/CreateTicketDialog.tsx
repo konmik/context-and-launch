@@ -1,10 +1,11 @@
-import { createSignal, Show } from "solid-js";
+import { createSignal, createEffect, Show } from "solid-js";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 
 interface CreateTicketDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (number: string, title: string) => Promise<{ error?: string }>;
+  suggestedNextNumber?: string | null;
 }
 
 export default function CreateTicketDialog(props: CreateTicketDialogProps) {
@@ -12,6 +13,12 @@ export default function CreateTicketDialog(props: CreateTicketDialogProps) {
   const [title, setTitle] = createSignal("");
   const [submitting, setSubmitting] = createSignal(false);
   const [errorMsg, setErrorMsg] = createSignal("");
+
+  createEffect(() => {
+    if (props.open && props.suggestedNextNumber) {
+      setNumber(props.suggestedNextNumber);
+    }
+  });
 
   function close() {
     props.onOpenChange(false);
@@ -42,7 +49,7 @@ export default function CreateTicketDialog(props: CreateTicketDialogProps) {
     }
   }
 
-  async function handleSubmit(e: SubmitEvent) {
+  function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
     doSubmit();
   }
@@ -108,7 +115,7 @@ export default function CreateTicketDialog(props: CreateTicketDialogProps) {
                 title={modEnterHint()}
                 class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
               >
-                {submitting() ? "Creating..." : "Create"}
+                Create
               </button>
             </div>
           </form>

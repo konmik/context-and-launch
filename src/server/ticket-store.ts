@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { autoCommit as gitAutoCommit } from './git.js';
 import { TicketOrderStore } from './ticket-order.js';
+import { suggestNextTicketNumber } from './ticket-number.js';
 import type { TicketInfo, TicketOrder } from '../types.js';
 
 interface StatusJson {
@@ -9,6 +10,7 @@ interface StatusJson {
 	title: string;
 	status: string;
 	useWorktree: boolean;
+	createdAt?: string;
 }
 
 export function toKebabCase(input: string): string {
@@ -87,6 +89,16 @@ export class TicketStore {
 		return { tickets, ticketOrder };
 	}
 
+	private resolveTicketDir(folderName: string): string {
+		this.requireSimpleName(folderName, 'folderName');
+		const dir = path.join(this.worktreeDir, folderName);
+		this.requireContained(dir, 'folderName');
+		if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
+			throw new Error(`Ticket not found: ${folderName}`);
+		}
+		return dir;
+	}
+
 	listTickets(): TicketInfo[] {
 		if (!fs.existsSync(this.worktreeDir)) return [];
 		const entries = fs.readdirSync(this.worktreeDir, { withFileTypes: true });
@@ -113,6 +125,7 @@ export class TicketStore {
 			title: title.trim(),
 			status: initialStatus,
 			useWorktree: false,
+			createdAt: new Date().toISOString(),
 		};
 		this.writeStatusJson(dir, status);
 		this.autoCommit(`create ticket ${status.number}`);
@@ -128,12 +141,7 @@ export class TicketStore {
 		title?: string | null,
 		status?: string | null
 	): TicketInfo {
-		const dir = path.join(this.worktreeDir, folderName);
-		this.requireContained(dir, 'folderName');
-		if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
-			throw new Error(`Ticket not found: ${folderName}`);
-		}
-
+		const dir = this.resolveTicketDir(folderName);
 		const current = this.readStatusJson(dir);
 		if (!current) throw new Error(`Malformed ticket: ${folderName}`);
 
@@ -146,6 +154,7 @@ export class TicketStore {
 			title: updatedTitle,
 			status: updatedStatus,
 			useWorktree: current.useWorktree,
+			createdAt: current.createdAt,
 		};
 
 		const needsRename =
@@ -162,9 +171,10 @@ export class TicketStore {
 				}
 				try {
 					fs.renameSync(dir, newDir);
-				} catch {
+				} catch (err) {
 					throw new Error(
-						`Failed to rename ticket folder from ${path.basename(dir)} to ${newFolderName}`
+						`Failed to rename ticket folder from ${path.basename(dir)} to ${newFolderName}`,
+						{ cause: err }
 					);
 				}
 				finalDir = newDir;
@@ -182,11 +192,7 @@ export class TicketStore {
 	}
 
 	deleteTicket(folderName: string): void {
-		const dir = path.join(this.worktreeDir, folderName);
-		this.requireContained(dir, 'folderName');
-		if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
-			throw new Error(`Ticket not found: ${folderName}`);
-		}
+		const dir = this.resolveTicketDir(folderName);
 		const status = this.readStatusJson(dir);
 		const number = status?.number ?? folderName;
 		fs.rmSync(dir, { recursive: true, force: true });
@@ -195,11 +201,7 @@ export class TicketStore {
 	}
 
 	archiveTicket(folderName: string): void {
-		const dir = path.join(this.worktreeDir, folderName);
-		this.requireContained(dir, 'folderName');
-		if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
-			throw new Error(`Ticket not found: ${folderName}`);
-		}
+		const dir = this.resolveTicketDir(folderName);
 		const status = this.readStatusJson(dir);
 		const number = status?.number ?? folderName;
 		const archiveDir = path.join(this.worktreeDir, 'archive');
@@ -214,8 +216,7 @@ export class TicketStore {
 	}
 
 	setUseWorktree(folderName: string, value: boolean): void {
-		const dir = path.join(this.worktreeDir, folderName);
-		this.requireContained(dir, 'folderName');
+		const dir = this.resolveTicketDir(folderName);
 		const current = this.readStatusJson(dir);
 		if (!current) throw new Error(`Ticket not found: ${folderName}`);
 		this.writeStatusJson(dir, { ...current, useWorktree: value });
@@ -237,11 +238,7 @@ export class TicketStore {
 
 	deleteStageMarkdown(folderName: string, stage: string): void {
 		this.requireSimpleName(stage, 'stage');
-		const dir = path.join(this.worktreeDir, folderName);
-		this.requireContained(dir, 'folderName');
-		if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
-			throw new Error(`Ticket not found: ${folderName}`);
-		}
+		const dir = this.resolveTicketDir(folderName);
 		const file = path.join(dir, `${stage}.md`);
 		this.requireContained(file, 'stage');
 		this.requireContainedIn(file, dir, 'stage');
@@ -257,11 +254,7 @@ export class TicketStore {
 			throw new TypeError('content must be a string');
 		}
 		this.requireSimpleName(stage, 'stage');
-		const dir = path.join(this.worktreeDir, folderName);
-		this.requireContained(dir, 'folderName');
-		if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
-			throw new Error(`Ticket not found: ${folderName}`);
-		}
+		const dir = this.resolveTicketDir(folderName);
 		const file = path.join(dir, `${stage}.md`);
 		this.requireContained(file, 'stage');
 		this.requireContainedIn(file, dir, 'stage');
@@ -269,6 +262,31 @@ export class TicketStore {
 		const status = this.readStatusJson(dir);
 		const number = status?.number ?? folderName;
 		this.autoCommit(`update ${stage} for ${number}`);
+	}
+
+	listAllTicketNumbers(): Array<{ number: string; createdAt?: string }> {
+		const results: Array<{ number: string; createdAt?: string }> = [];
+
+		const scanDir = (dir: string) => {
+			if (!fs.existsSync(dir)) return;
+			const entries = fs.readdirSync(dir, { withFileTypes: true });
+			for (const entry of entries) {
+				if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'archive') continue;
+				const status = this.readStatusJson(path.join(dir, entry.name));
+				if (status) {
+					results.push({ number: status.number, createdAt: status.createdAt });
+				}
+			}
+		};
+
+		scanDir(this.worktreeDir);
+		scanDir(path.join(this.worktreeDir, 'archive'));
+
+		return results;
+	}
+
+	suggestNextNumber(): string | null {
+		return suggestNextTicketNumber(this.listAllTicketNumbers());
 	}
 
 	private readTicket(dir: string): TicketInfo | null {
@@ -295,7 +313,8 @@ export class TicketStore {
 		try {
 			const raw = JSON.parse(fs.readFileSync(file, 'utf-8'));
 			return { useWorktree: false, ...raw } as StatusJson;
-		} catch {
+		} catch (err) {
+			console.warn(`Malformed status.json in ${dir}:`, err);
 			return null;
 		}
 	}

@@ -301,6 +301,7 @@ export default function ProjectPage() {
             open={createTicketOpen()}
             onOpenChange={setCreateTicketOpen}
             onSubmit={handleCreateTicket}
+            suggestedNextNumber={d().suggestedNextNumber}
           />
           <EditTicketDialog
             open={editTicketOpen()}

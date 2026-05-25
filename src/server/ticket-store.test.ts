@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { TicketStore, toKebabCase } from './ticket-store.js';
-import { git } from './git.js';
+import { git, gitSync } from './git.js';
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -14,7 +14,7 @@ function cleanup(...dirs: string[]) {
 		try {
 			fs.rmSync(d, { recursive: true, force: true });
 		} catch {
-			// ignore
+			// temp dirs may already be deleted by the OS or a prior cleanup
 		}
 	}
 }
@@ -479,9 +479,9 @@ describe('TicketStore', () => {
 
 		const store = new TicketStore(worktreeDir);
 
-		// ../sibling resolves to the sibling directory outside worktreeDir
+		// ../sibling is caught by requireSimpleName (path separator check)
 		expect(() => store.updateTicket('../sibling', null, null, 'done')).toThrow(
-			/escapes allowed directory/
+			/simple name without path separators/
 		);
 
 		// Verify sibling directory was not modified
@@ -508,9 +508,9 @@ describe('TicketStore', () => {
 
 		const store = new TicketStore(worktreeDir);
 
-		// requireContained should reject ../../outside
+		// requireSimpleName rejects ../../outside (path separator check)
 		expect(() => store.deleteTicket('../../outside')).toThrow(
-			/escapes allowed directory/
+			/simple name without path separators/
 		);
 
 		// Outside directory must be completely untouched
@@ -1193,7 +1193,209 @@ describe('TicketStore', () => {
 		expect(tickets[0].useWorktree).toBe(true);
 	});
 
-	it('setUseWorktree(true) then updateTicket with title rename -- useWorktree survives after folder rename', async () => {
+	it('createTicket writes createdAt to status.json', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const before = new Date().toISOString();
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('TS-1', 'Timestamp Test');
+		const after = new Date().toISOString();
+
+		const raw = JSON.parse(
+			fs.readFileSync(path.join(worktreeDir, 'ts-1-timestamp-test', 'status.json'), 'utf-8')
+		);
+		expect(raw.createdAt).toBeDefined();
+		expect(raw.createdAt >= before).toBe(true);
+		expect(raw.createdAt <= after).toBe(true);
+	});
+
+	it('updateTicket preserves createdAt', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('PR-1', 'Preserve CreatedAt');
+
+		const rawBefore = JSON.parse(
+			fs.readFileSync(path.join(worktreeDir, 'pr-1-preserve-createdat', 'status.json'), 'utf-8')
+		);
+		const originalCreatedAt = rawBefore.createdAt;
+
+		store.updateTicket('pr-1-preserve-createdat', null, null, 'in-progress');
+
+		const rawAfter = JSON.parse(
+			fs.readFileSync(path.join(worktreeDir, 'pr-1-preserve-createdat', 'status.json'), 'utf-8')
+		);
+		expect(rawAfter.createdAt).toBe(originalCreatedAt);
+	});
+
+	it('listAllTicketNumbers returns active tickets', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('LN-1', 'First');
+		store.createTicket('LN-2', 'Second');
+
+		const numbers = store.listAllTicketNumbers();
+		expect(numbers.length).toBe(2);
+		const nums = numbers.map((n) => n.number).sort();
+		expect(nums).toEqual(['LN-1', 'LN-2']);
+		expect(numbers[0].createdAt).toBeDefined();
+	});
+
+	it('listAllTicketNumbers includes archived tickets', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('AR-1', 'Active');
+		store.createTicket('AR-2', 'To Archive');
+		store.archiveTicket('ar-2-to-archive');
+
+		const numbers = store.listAllTicketNumbers();
+		expect(numbers.length).toBe(2);
+		const nums = numbers.map((n) => n.number).sort();
+		expect(nums).toEqual(['AR-1', 'AR-2']);
+	});
+
+	it('listAllTicketNumbers with empty archive', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('EA-1', 'Only Active');
+
+		// Create empty archive directory
+		fs.mkdirSync(path.join(worktreeDir, 'archive'), { recursive: true });
+
+		const numbers = store.listAllTicketNumbers();
+		expect(numbers.length).toBe(1);
+		expect(numbers[0].number).toBe('EA-1');
+	});
+
+	it('listAllTicketNumbers with no tickets', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		const numbers = store.listAllTicketNumbers();
+		expect(numbers.length).toBe(0);
+	});
+
+	it('suggestNextNumber returns null with no tickets', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		expect(store.suggestNextNumber()).toBeNull();
+	});
+
+	it('suggestNextNumber returns next number for one ticket', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('ST-0001', 'First');
+
+		expect(store.suggestNextNumber()).toBe('ST-0002');
+	});
+
+	it('suggestNextNumber considers archived tickets', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('ST-0001', 'First');
+		store.createTicket('ST-0005', 'Fifth');
+		store.archiveTicket('st-0005-fifth');
+
+		// Even though ST-0005 is archived, next should be ST-0006
+		expect(store.suggestNextNumber()).toBe('ST-0006');
+	});
+
+	it('suggestNextNumber uses highest across active and archived', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('ST-0003', 'Three');
+		store.createTicket('ST-0010', 'Ten');
+		store.archiveTicket('st-0010-ten');
+		store.createTicket('ST-0007', 'Seven');
+
+		// Highest is ST-0010 (archived), so next is ST-0011
+		expect(store.suggestNextNumber()).toBe('ST-0011');
+	});
+
+	it('suggestNextNumber handles pre-existing tickets without createdAt', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		// Simulate a pre-existing ticket that predates the createdAt field
+		const oldDir = path.join(worktreeDir, 'st-0003-old-ticket');
+		fs.mkdirSync(oldDir, { recursive: true });
+		fs.writeFileSync(
+			path.join(oldDir, 'status.json'),
+			JSON.stringify({ number: 'ST-0003', title: 'Old Ticket', status: 'todo', useWorktree: false })
+		);
+		gitSync(worktreeDir, 'add', '-A');
+		gitSync(worktreeDir, 'commit', '-m', 'old ticket');
+
+		// Create a new ticket with createdAt via the normal API
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('ST-0001', 'New Ticket');
+
+		// The old ticket (ST-0003) has no createdAt, treated as oldest.
+		// The new ticket (ST-0001) is most recent, so prefix is ST.
+		// Highest num with prefix ST is 3 (from old ticket).
+		expect(store.suggestNextNumber()).toBe('ST-0004');
+	});
+
+	it('listAllTicketNumbers returns entries without createdAt for old tickets', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		// Simulate a pre-existing ticket without createdAt
+		const oldDir = path.join(worktreeDir, 'old-1-legacy');
+		fs.mkdirSync(oldDir, { recursive: true });
+		fs.writeFileSync(
+			path.join(oldDir, 'status.json'),
+			JSON.stringify({ number: 'OLD-1', title: 'Legacy', status: 'todo', useWorktree: false })
+		);
+		gitSync(worktreeDir, 'add', '-A');
+		gitSync(worktreeDir, 'commit', '-m', 'legacy ticket');
+
+		const store = new TicketStore(worktreeDir);
+		const numbers = store.listAllTicketNumbers();
+		expect(numbers.length).toBe(1);
+		expect(numbers[0].number).toBe('OLD-1');
+		expect(numbers[0].createdAt).toBeUndefined();
+	});
+
+	it('T3: suggestNextNumber does not crash when status.json has numeric "number" field', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('ST-0001', 'Normal Ticket');
+
+		// Manually create a folder with a status.json where "number" is numeric (not a string)
+		const badDir = path.join(worktreeDir, 'bad-0002-numeric');
+		fs.mkdirSync(badDir, { recursive: true });
+		fs.writeFileSync(
+			path.join(badDir, 'status.json'),
+			JSON.stringify({ number: 42, title: 'bad', status: 'to-do', useWorktree: false })
+		);
+		gitSync(worktreeDir, 'add', '-A');
+		gitSync(worktreeDir, 'commit', '-m', 'add bad ticket');
+
+		// suggestNextNumber should not crash -- it should skip the bad entry and return ST-0002
+		expect(store.suggestNextNumber()).toBe('ST-0002');
+	});
+
+	it('H2: setUseWorktree(true) then updateTicket with title rename -- useWorktree survives after folder rename', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1218,4 +1420,5 @@ describe('TicketStore', () => {
 		const tickets = store.listTickets();
 		expect(tickets[0].useWorktree).toBe(true);
 	});
+
 });

@@ -25,7 +25,7 @@ A unit of work. Stored as a folder in the project's worktree. Contains a `status
 Avoid: task, issue, card
 
 Ticket Number:
-A free-text identifier for a ticket, entered by the user (e.g. `ABC-1`, `42`). Not auto-generated or enforced.
+An identifier for a ticket following the pattern PREFIX-ZEROPADDEDNUMBER (e.g. `ST-0006`, `BUG-0012`). Auto-suggested from the most recently created ticket's prefix and the highest number with that prefix + 1. Editable by the user. Falls back to manual entry when no parseable ticket exists.
 Avoid: ticket id
 
 Ticket Folder:
