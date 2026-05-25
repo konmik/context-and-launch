@@ -1,5 +1,6 @@
 import { git } from './git.js';
 import type { LauncherConfigManager } from './launcher-config.js';
+import type { ConfigPaths } from './config-paths.js';
 
 export interface WorktreeResult {
 	worktreePath: string;
@@ -10,7 +11,10 @@ export interface BehindRemoteResult {
 }
 
 export class AgentWorktreeManager {
-	constructor(private launcherConfig: LauncherConfigManager) {}
+	constructor(
+		private launcherConfig: LauncherConfigManager,
+		private paths: ConfigPaths,
+	) {}
 
 	async getMainBranch(projectPath: string): Promise<string> {
 		for (const name of ['main', 'master']) {
@@ -25,10 +29,8 @@ export class AgentWorktreeManager {
 		slug: string,
 		folderName: string
 	): Promise<WorktreeResult | BehindRemoteResult> {
-		const { worktreeRootPath } = this.launcherConfig.loadProjectConfig(slug);
-		if (!worktreeRootPath) {
-			throw new Error('worktreeRootPath is not configured in the project launcher config');
-		}
+		const config = this.launcherConfig.loadProjectConfig(slug);
+		const worktreeRootPath = config.worktreeRootPath || this.paths.agentWorktreeDir(slug);
 
 		const branchName = `ai/${folderName}`;
 		const worktreePath = `${worktreeRootPath}/${folderName}`;

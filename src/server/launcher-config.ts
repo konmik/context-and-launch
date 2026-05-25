@@ -1,6 +1,4 @@
 import fs from 'fs';
-import path from 'path';
-import os from 'os';
 import type {
 	LauncherConfig,
 	LauncherTemplate,
@@ -10,6 +8,7 @@ import type {
 	MergedLauncherConfig,
 } from '../types.js';
 import { RUN_AGENT_PS1, RUN_AGENT_SH } from './platform-scripts.js';
+import type { ConfigPaths } from './config-paths.js';
 
 const DEFAULT_APP_CONFIG: LauncherConfig = {
 	templates: [
@@ -41,47 +40,33 @@ function parseConfig(text: string): LauncherConfig {
 }
 
 export class LauncherConfigManager {
-	private configDir: string;
+	private paths: ConfigPaths;
 	private platformScriptsEnsured = false;
 
-	constructor(configDir?: string) {
-		this.configDir = configDir ?? path.join(os.homedir(), '.ai-stages');
+	constructor(paths: ConfigPaths) {
+		this.paths = paths;
 	}
 
 	getAppConfigDir(): string {
-		return this.configDir;
+		return this.paths.appConfigDir();
 	}
 
 	getProjectConfigDir(slug: string): string {
-		this.requireSafeSlug(slug);
-		return path.join(this.configDir, 'tickets', slug);
+		return this.paths.projectConfigDir(slug);
 	}
 
-	private appConfigPath(): string {
-		return path.join(this.configDir, 'launcher-config.json');
+	private appLauncherPath(): string {
+		return this.paths.appLauncherConfigFile();
 	}
 
-	private projectConfigPath(slug: string): string {
-		this.requireSafeSlug(slug);
-		return path.join(this.configDir, 'tickets', slug, 'launcher-config.json');
+	private projectLauncherPath(slug: string): string {
+		return this.paths.projectLauncherConfigFile(slug);
 	}
 
-	private requireSafeSlug(slug: string): void {
-		if (
-			slug === '.' ||
-			slug === '..' ||
-			slug.includes('/') ||
-			slug.includes('\\') ||
-			slug.includes('\0')
-		) {
-			throw new Error(`Invalid slug: ${slug}`);
-		}
-	}
-
-	private readConfigFile(filePath: string): LauncherConfig | null {
-		if (!fs.existsSync(filePath)) return null;
+	private readLauncherFile(filePath: string): LauncherConfig | null {
+		const text = this.paths.readConfigFile(filePath);
+		if (text === null) return null;
 		try {
-			const text = fs.readFileSync(filePath, 'utf-8');
 			return parseConfig(text);
 		} catch (e) {
 			console.warn(`Failed to parse ${filePath}: ${e instanceof Error ? e.message : e}`);
@@ -89,16 +74,15 @@ export class LauncherConfigManager {
 		}
 	}
 
-	private writeConfigFile(filePath: string, config: LauncherConfig): void {
-		fs.mkdirSync(path.dirname(filePath), { recursive: true });
-		fs.writeFileSync(filePath, JSON.stringify(config, null, 2));
+	private writeLauncherFile(filePath: string, config: LauncherConfig): void {
+		this.paths.writeConfigFile(filePath, JSON.stringify(config, null, 2));
 	}
 
 	loadAppConfig(): LauncherConfig {
-		const config = this.readConfigFile(this.appConfigPath());
+		const config = this.readLauncherFile(this.appLauncherPath());
 		if (config === null) {
 			const defaults = structuredClone(DEFAULT_APP_CONFIG);
-			this.writeConfigFile(this.appConfigPath(), defaults);
+			this.writeLauncherFile(this.appLauncherPath(), defaults);
 			this.ensurePlatformScripts();
 			return defaults;
 		}
@@ -107,15 +91,15 @@ export class LauncherConfigManager {
 	}
 
 	loadProjectConfig(slug: string): LauncherConfig {
-		return this.readConfigFile(this.projectConfigPath(slug)) ?? emptyConfig();
+		return this.readLauncherFile(this.projectLauncherPath(slug)) ?? emptyConfig();
 	}
 
 	saveAppConfig(config: LauncherConfig): void {
-		this.writeConfigFile(this.appConfigPath(), config);
+		this.writeLauncherFile(this.appLauncherPath(), config);
 	}
 
 	saveProjectConfig(slug: string, config: LauncherConfig): void {
-		this.writeConfigFile(this.projectConfigPath(slug), config);
+		this.writeLauncherFile(this.projectLauncherPath(slug), config);
 	}
 
 	getMergedConfig(slug: string): MergedLauncherConfig {
@@ -275,14 +259,13 @@ export class LauncherConfigManager {
 
 	ensurePlatformScripts(): void {
 		if (this.platformScriptsEnsured) return;
-		const ps1Path = path.join(this.configDir, 'run-agent.ps1');
-		const shPath = path.join(this.configDir, 'run-agent.sh');
-		fs.mkdirSync(this.configDir, { recursive: true });
+		const ps1Path = this.paths.platformScriptPs1();
+		const shPath = this.paths.platformScriptSh();
 		if (!fs.existsSync(ps1Path)) {
-			fs.writeFileSync(ps1Path, RUN_AGENT_PS1);
+			this.paths.writeConfigFile(ps1Path, RUN_AGENT_PS1);
 		}
 		if (!fs.existsSync(shPath)) {
-			fs.writeFileSync(shPath, RUN_AGENT_SH);
+			this.paths.writeConfigFile(shPath, RUN_AGENT_SH);
 		}
 		this.platformScriptsEnsured = true;
 	}

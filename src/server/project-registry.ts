@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import os from 'os';
 import type { ProjectConfig, ProjectEntry, ProjectInfo } from '../types.js';
+import type { ConfigPaths } from './config-paths.js';
 
 function isGitRepo(dirPath: string): boolean {
 	try {
@@ -34,14 +34,12 @@ export function generateSlug(filePath: string, existingSlugs: Set<string>): stri
 }
 
 export class ProjectRegistry {
-	private configDir: string;
-	private configFile: string;
+	private paths: ConfigPaths;
 	private cached: ProjectConfig | null = null;
 	private extraFields: Record<string, unknown> = {};
 
-	constructor(configDir?: string) {
-		this.configDir = configDir ?? path.join(os.homedir(), '.ai-stages');
-		this.configFile = path.join(this.configDir, 'config.json');
+	constructor(paths: ConfigPaths) {
+		this.paths = paths;
 	}
 
 	private static emptyConfig(): ProjectConfig {
@@ -50,13 +48,14 @@ export class ProjectRegistry {
 
 	private load(): ProjectConfig {
 		if (this.cached) return this.cached;
-		if (!fs.existsSync(this.configFile)) {
+		const configFile = this.paths.projectRegistryFile();
+		if (!fs.existsSync(configFile)) {
 			this.cached = ProjectRegistry.emptyConfig();
 			this.extraFields = {};
 			return this.cached;
 		}
 		try {
-			const text = fs.readFileSync(this.configFile, 'utf-8');
+			const text = fs.readFileSync(configFile, 'utf-8');
 			const raw = JSON.parse(text);
 			if (!Array.isArray(raw.projects)) {
 				this.cached = ProjectRegistry.emptyConfig();
@@ -81,8 +80,10 @@ export class ProjectRegistry {
 	}
 
 	private save(config: ProjectConfig): void {
-		fs.mkdirSync(this.configDir, { recursive: true });
-		fs.writeFileSync(this.configFile, JSON.stringify({ ...this.extraFields, ...config }, null, 2));
+		this.paths.writeConfigFile(
+			this.paths.projectRegistryFile(),
+			JSON.stringify({ ...this.extraFields, ...config }, null, 2)
+		);
 		this.cached = config;
 	}
 

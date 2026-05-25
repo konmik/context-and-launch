@@ -5,6 +5,7 @@ import os from 'os';
 import { execSync } from 'child_process';
 import { AgentWorktreeManager } from './agent-worktree.js';
 import { LauncherConfigManager } from './launcher-config.js';
+import { ConfigPaths } from './config-paths.js';
 import { WorktreeCleanupService } from './worktree-cleanup.js';
 
 function tmpDir(prefix: string): string {
@@ -47,14 +48,15 @@ describe('WorktreeCleanupService', () => {
 
 		initGitRepo(projectDir);
 
-		const lcm = new LauncherConfigManager(configDir);
+		const paths = new ConfigPaths(configDir);
+		const lcm = new LauncherConfigManager(paths);
 		lcm.saveProjectConfig('my-proj', {
 			templates: [],
 			skills: [],
 			worktreeRootPath: worktreeRoot,
 		});
 
-		const awm = new AgentWorktreeManager(lcm);
+		const awm = new AgentWorktreeManager(lcm, paths);
 		const service = new WorktreeCleanupService(awm);
 		return { configDir, projectDir, worktreeRoot, lcm, awm, service };
 	}
