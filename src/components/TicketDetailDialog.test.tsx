@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup } from "@solidjs/testing-library";
+import { render, screen, cleanup, fireEvent } from "@solidjs/testing-library";
 
 vi.mock("@solidjs/router", () => ({
   revalidate: vi.fn(),
@@ -45,10 +45,39 @@ function makeTicket(folder: string, number: string, title: string): TicketInfo {
     folderName: folder,
     stageNames: [],
     useWorktree: false,
+    fileNames: [],
+    references: [],
   };
 }
 
 const emptyConfig = { templates: [], skills: [], profiles: [], columnDefaults: {} };
+
+interface DeferredFetch {
+  resolve: (body: object, status?: number) => void;
+  reject: (error: Error) => void;
+}
+
+function createFetchController() {
+  const pending: DeferredFetch[] = [];
+
+  const mockFetch = vi.fn(
+    (_url: string, _opts?: RequestInit) =>
+      new Promise<Response>((resolve, reject) => {
+        pending.push({
+          resolve: (body: object, status = 200) =>
+            resolve(
+              new Response(JSON.stringify(body), {
+                status,
+                headers: { "Content-Type": "application/json" },
+              })
+            ),
+          reject: (error: Error) => reject(error),
+        });
+      })
+  );
+
+  return { mockFetch, pending };
+}
 
 function jsonResponse(body: object, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -111,5 +140,289 @@ describe("TicketDetailDialog content loading", () => {
     stageFetches[0].resolve({ content: "Content from Alpha" });
     await flush();
     expect(screen.getByTestId("editor-content").textContent).toBe("Content from Bravo");
+  });
+});
+
+describe("TicketDetailDialog multi-file upload confirmation", () => {
+  let originalFetch: typeof globalThis.fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    cleanup();
+  });
+
+  function makeLargeFile(name: string, sizeBytes: number): File {
+    const buffer = new ArrayBuffer(sizeBytes);
+    return new File([buffer], name, { type: "application/octet-stream" });
+  }
+
+  it("processes each large file's size confirmation sequentially without overwriting", async () => {
+    const { mockFetch, pending } = createFetchController();
+    globalThis.fetch = mockFetch as any;
+
+    const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
+
+    render(() => (
+      <TicketDetailDialog
+        onClose={() => {}}
+        slug="test-project"
+        ticket={ticket}
+      />
+    ));
+
+    // Wait for the initial content load
+    await flush();
+    pending[0].resolve({ content: "" });
+    await flush();
+
+    // Create two large files (> 10KB each)
+    const file1 = makeLargeFile("big1.dat", 20000);
+    const file2 = makeLargeFile("big2.dat", 30000);
+
+    // Find the drop button and simulate a drop
+    const dropButton = screen.getByText("Drop a file to copy");
+
+    const dataTransfer = {
+      files: [file1, file2],
+      length: 2,
+    };
+
+    fireEvent.drop(dropButton, { dataTransfer });
+    await flush();
+
+    // After dropping, only the FIRST file's size confirmation should be shown
+    // (not the second, because the loop should be blocked)
+    expect(screen.getByText(/big1\.dat/)).toBeTruthy();
+    expect(screen.queryByText(/big2\.dat/)).toBeNull();
+
+    // Confirm the first file
+    const copyAnywayButton = screen.getByText("Copy Anyway");
+    fireEvent.click(copyAnywayButton);
+    await flush();
+
+    // The upload for file1 should have started
+    const uploadCalls = mockFetch.mock.calls.filter(
+      ([url]: [string, RequestInit?]) => typeof url === "string" && url.includes("files/upload")
+    );
+    expect(uploadCalls.length).toBe(1);
+
+    // Resolve the upload for file1
+    const uploadPending = pending.find((_p, i) =>
+      mockFetch.mock.calls[i]?.[0]?.toString().includes("files/upload")
+    );
+    uploadPending!.resolve({ results: [{ ok: true, name: "big1.dat" }] });
+    await flush();
+
+    // Now the second file's size confirmation should appear
+    expect(screen.getByText(/big2\.dat/)).toBeTruthy();
+
+    // Confirm the second file
+    const copyAnywayButton2 = screen.getByText("Copy Anyway");
+    fireEvent.click(copyAnywayButton2);
+    await flush();
+
+    // The upload for file2 should have started
+    const uploadCalls2 = mockFetch.mock.calls.filter(
+      ([url]: [string, RequestInit?]) => typeof url === "string" && url.includes("files/upload")
+    );
+    expect(uploadCalls2.length).toBe(2);
+  });
+
+  it("cancelling first file lets second file show its confirmation", async () => {
+    const { mockFetch, pending } = createFetchController();
+    globalThis.fetch = mockFetch as any;
+
+    const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
+
+    render(() => (
+      <TicketDetailDialog
+        onClose={() => {}}
+        slug="test-project"
+        ticket={ticket}
+      />
+    ));
+
+    await flush();
+    pending[0].resolve({ content: "" });
+    await flush();
+
+    const file1 = makeLargeFile("large1.dat", 20000);
+    const file2 = makeLargeFile("large2.dat", 30000);
+
+    const dropButton = screen.getByText("Drop a file to copy");
+    fireEvent.drop(dropButton, {
+      dataTransfer: { files: [file1, file2], length: 2 },
+    });
+    await flush();
+
+    // First file's confirmation is shown
+    expect(screen.getByText(/large1\.dat/)).toBeTruthy();
+
+    // Cancel the first file
+    const cancelButton = screen.getByText("Cancel");
+    fireEvent.click(cancelButton);
+    await flush();
+
+    // Second file's confirmation should now appear
+    expect(screen.getByText(/large2\.dat/)).toBeTruthy();
+
+    // No uploads should have happened (first was cancelled)
+    const uploadCalls = mockFetch.mock.calls.filter(
+      ([url]: [string, RequestInit?]) => typeof url === "string" && url.includes("files/upload")
+    );
+    expect(uploadCalls.length).toBe(0);
+  });
+
+  it("processes overwrite confirmations sequentially for multiple existing files", async () => {
+    const { mockFetch, pending } = createFetchController();
+    globalThis.fetch = mockFetch as any;
+
+    // Create ticket with existing files so drops trigger overwrite
+    const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
+    ticket.fileNames = ["exist1.txt", "exist2.txt"];
+
+    render(() => (
+      <TicketDetailDialog
+        onClose={() => {}}
+        slug="test-project"
+        ticket={ticket}
+      />
+    ));
+
+    await flush();
+    pending[0].resolve({ content: "" });
+    await flush();
+
+    // Create small files (< 10KB) that already exist, triggering overwrite
+    const file1 = new File(["hello"], "exist1.txt", { type: "text/plain" });
+    const file2 = new File(["world"], "exist2.txt", { type: "text/plain" });
+
+    const dropButton = screen.getByText("Drop a file to copy");
+    fireEvent.drop(dropButton, {
+      dataTransfer: { files: [file1, file2], length: 2 },
+    });
+    await flush();
+
+    // First file's overwrite confirmation should be shown
+    expect(screen.getByText(/exist1\.txt/)).toBeTruthy();
+    expect(screen.getByText("Overwrite File")).toBeTruthy();
+
+    // Confirm overwrite for first file
+    const overwriteButton = screen.getByText("Overwrite");
+    fireEvent.click(overwriteButton);
+    await flush();
+
+    // Upload for file1 should have started
+    const uploadCalls = mockFetch.mock.calls.filter(
+      ([url]: [string, RequestInit?]) => typeof url === "string" && url.includes("files/upload")
+    );
+    expect(uploadCalls.length).toBe(1);
+
+    // Resolve the upload
+    const uploadIdx = mockFetch.mock.calls.findIndex(
+      ([url]: [string, RequestInit?]) => typeof url === "string" && url.includes("files/upload")
+    );
+    pending[uploadIdx].resolve({ results: [{ ok: true, name: "exist1.txt" }] });
+    await flush();
+
+    // Second file's overwrite confirmation should now appear
+    expect(screen.getByText(/exist2\.txt/)).toBeTruthy();
+    expect(screen.getByText("Overwrite File")).toBeTruthy();
+  });
+});
+
+describe("TicketDetailDialog stage deletion clears extraFiles", () => {
+  let originalFetch: typeof globalThis.fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    cleanup();
+  });
+
+  it("deleting a stage added via New markdown file removes it from the dropdown", async () => {
+    const { mockFetch, pending } = createFetchController();
+    globalThis.fetch = mockFetch as any;
+
+    const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
+
+    render(() => (
+      <TicketDetailDialog
+        onClose={() => {}}
+        slug="test-project"
+        ticket={ticket}
+      />
+    ));
+
+    // Wait for initial content load (to-do stage)
+    await flush();
+    pending[0].resolve({ content: "" });
+    await flush();
+
+    // Open the "New markdown file" dialog
+    const newFileButton = screen.getByText("New markdown file");
+    fireEvent.click(newFileButton);
+    await flush();
+
+    // Enter a file name and create it
+    const input = screen.getByPlaceholderText("e.g. design-notes");
+    fireEvent.input(input, { target: { value: "ghost-stage" } });
+    await flush();
+
+    const createButton = screen.getByText("Create");
+    fireEvent.click(createButton);
+    await flush();
+
+    // The effect fires to load the new stage content
+    const loadIdx = pending.length - 1;
+    pending[loadIdx].resolve({ content: "" });
+    await flush();
+
+    // Open the dropdown and verify the new stage appears
+    const dropdownButton = screen.getByText("ghost-stage.md");
+    fireEvent.click(dropdownButton);
+    await flush();
+
+    const dropdownOptions = screen.getAllByRole("button").map((b) => b.textContent);
+    expect(dropdownOptions.some((t) => t?.includes("ghost-stage.md"))).toBe(true);
+
+    // Close dropdown
+    fireEvent.click(dropdownButton);
+    await flush();
+
+    // Click the trash button to delete the active file (ghost-stage)
+    const trashButton = screen.getByTitle("Delete file");
+    fireEvent.click(trashButton);
+    await flush();
+
+    // Confirm deletion in the dialog
+    const deleteButton = screen.getByText("Delete");
+    fireEvent.click(deleteButton);
+    await flush();
+
+    // The DELETE fetch for the stage
+    const deleteIdx = pending.length - 1;
+    pending[deleteIdx].resolve({});
+    await flush();
+
+    // After deletion, selection falls back to "to-do" -- the effect fires to load it
+    const fallbackIdx = pending.length - 1;
+    pending[fallbackIdx].resolve({ content: "" });
+    await flush();
+
+    // Open dropdown and verify ghost-stage is gone
+    const currentLabel = screen.getByText("to-do.md");
+    fireEvent.click(currentLabel);
+    await flush();
+
+    const optionsAfterDelete = screen.getAllByRole("button").map((b) => b.textContent);
+    expect(optionsAfterDelete.some((t) => t?.includes("ghost-stage.md"))).toBe(false);
   });
 });

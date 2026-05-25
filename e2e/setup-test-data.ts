@@ -10,6 +10,8 @@ export interface TicketInfo {
   folderName: string;
   stageNames: string[];
   useWorktree: boolean;
+  fileNames: string[];
+  references: { path: string; exists: boolean }[];
 }
 
 export interface BoardState {
@@ -31,10 +33,10 @@ export interface BoardPageData {
 const DEFAULT_COLUMNS = ["todo", "in-progress", "done"];
 
 const DEFAULT_TICKETS: TicketInfo[] = [
-  { number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha", stageNames: [], useWorktree: false },
-  { number: "T-2", title: "Bravo", status: "todo", folderName: "t-2-bravo", stageNames: [], useWorktree: false },
-  { number: "T-3", title: "Charlie", status: "in-progress", folderName: "t-3-charlie", stageNames: [], useWorktree: false },
-  { number: "T-4", title: "Delta", status: "in-progress", folderName: "t-4-delta", stageNames: [], useWorktree: false },
+  { number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha", stageNames: [], useWorktree: false, fileNames: [], references: [] },
+  { number: "T-2", title: "Bravo", status: "todo", folderName: "t-2-bravo", stageNames: [], useWorktree: false, fileNames: [], references: [] },
+  { number: "T-3", title: "Charlie", status: "in-progress", folderName: "t-3-charlie", stageNames: [], useWorktree: false, fileNames: [], references: [] },
+  { number: "T-4", title: "Delta", status: "in-progress", folderName: "t-4-delta", stageNames: [], useWorktree: false, fileNames: [], references: [] },
 ];
 
 function buildTicketOrder(tickets: TicketInfo[], columns: string[]): Record<string, string[]> {

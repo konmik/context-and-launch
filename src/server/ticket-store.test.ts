@@ -13,8 +13,8 @@ function cleanup(...dirs: string[]) {
 	for (const d of dirs) {
 		try {
 			fs.rmSync(d, { recursive: true, force: true });
-		} catch {
-			// temp dirs may already be deleted by the OS or a prior cleanup
+		} catch (err) {
+			console.warn(`cleanup ${d}: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	}
 }
@@ -1393,6 +1393,112 @@ describe('TicketStore', () => {
 
 		// suggestNextNumber should not crash -- it should skip the bad entry and return ST-0002
 		expect(store.suggestNextNumber()).toBe('ST-0002');
+	});
+
+	it('copying a file writes it to the ticket folder and the file can be read back', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('FILE-1', 'File Test');
+
+		const content = Buffer.from('hello world');
+		store.copyFileToTicket('file-1-file-test', 'notes.txt', content);
+
+		const readBack = store.getFileContent('file-1-file-test', 'notes.txt');
+		expect(readBack.toString()).toBe('hello world');
+
+		const files = store.listTicketFiles('file-1-file-test');
+		expect(files).toContain('notes.txt');
+	});
+
+	it('adding a reference persists it in status.json and removing it clears it', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('REF-1', 'Reference Test');
+
+		const refPath = path.join(worktreeDir, 'some-external-file.txt');
+		fs.writeFileSync(refPath, 'external content');
+
+		store.addReference('ref-1-reference-test', refPath);
+
+		const statusRaw = JSON.parse(
+			fs.readFileSync(path.join(worktreeDir, 'ref-1-reference-test', 'status.json'), 'utf-8')
+		);
+		expect(statusRaw.references).toEqual([{ path: refPath }]);
+
+		store.removeReference('ref-1-reference-test', refPath);
+
+		const statusAfter = JSON.parse(
+			fs.readFileSync(path.join(worktreeDir, 'ref-1-reference-test', 'status.json'), 'utf-8')
+		);
+		expect(statusAfter.references).toEqual([]);
+	});
+
+	it('copyFileToTicket rejects status.json as filename', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('PROT-1', 'Protected Test');
+
+		expect(() => store.copyFileToTicket('prot-1-protected-test', 'status.json', Buffer.from('evil'))).toThrow(
+			/Cannot overwrite status\.json/
+		);
+	});
+
+	it('H1: getReferencedFileContent rejects paths not in the ticket references array', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const externalDir = tmpDir('ref-content-outside-');
+		dirs.push(externalDir);
+		const externalFile = path.join(externalDir, 'secret.txt');
+		fs.writeFileSync(externalFile, 'SENSITIVE DATA');
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('SEC-1', 'Security Test');
+
+		expect(() => store.getReferencedFileContent('sec-1-security-test', externalFile)).toThrow(
+			/not a registered reference/
+		);
+
+		store.addReference('sec-1-security-test', externalFile);
+
+		const content = store.getReferencedFileContent('sec-1-security-test', externalFile);
+		expect(content.toString()).toBe('SENSITIVE DATA');
+	});
+
+	it('H6.1: addReference with duplicate path does not produce a spurious write or commit', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('DUP-R1', 'Dup Ref Test');
+		const folderName = 'dup-r1-dup-ref-test';
+
+		const refPath = path.join(worktreeDir, 'external.txt');
+		fs.writeFileSync(refPath, 'content');
+
+		store.addReference(folderName, refPath);
+
+		const logBefore = await git(worktreeDir, 'log', '--oneline');
+		const commitCountBefore = logBefore.trim().split('\n').length;
+		const statusJsonPath = path.join(worktreeDir, folderName, 'status.json');
+		const mtimeBefore = fs.statSync(statusJsonPath).mtimeMs;
+
+		await new Promise((resolve) => setTimeout(resolve, 50));
+
+		store.addReference(folderName, refPath);
+
+		const logAfter = await git(worktreeDir, 'log', '--oneline');
+		const commitCountAfter = logAfter.trim().split('\n').length;
+		const mtimeAfter = fs.statSync(statusJsonPath).mtimeMs;
+
+		expect(commitCountAfter).toBe(commitCountBefore);
+		expect(mtimeAfter).toBe(mtimeBefore);
 	});
 
 	it('H2: setUseWorktree(true) then updateTicket with title rename -- useWorktree survives after folder rename', async () => {

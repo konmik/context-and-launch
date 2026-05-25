@@ -11,7 +11,7 @@
     "build": "vinxi build",
     "start": "vinxi start",
     "test": "tsc --noEmit && vitest run --exclude 'e2e/**'",
-    "test:e2e": "vinxi build && vitest run e2e/board-crud.test.ts && vitest run e2e/kanban-dnd.test.ts",
+    "test:e2e": "vinxi build && vitest run e2e/board-crud.test.ts && vitest run e2e/kanban-dnd.test.ts && vitest run e2e/file-attach.test.ts",
     "test:all": "tsc --noEmit && vitest run --exclude 'e2e/**' && vinxi build && vitest run e2e/",
     "test:watch": "vitest"
   },

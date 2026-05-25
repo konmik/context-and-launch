@@ -11,6 +11,7 @@ interface StatusJson {
 	status: string;
 	useWorktree: boolean;
 	createdAt?: string;
+	references?: { path: string }[];
 }
 
 export function toKebabCase(input: string): string {
@@ -155,6 +156,7 @@ export class TicketStore {
 			status: updatedStatus,
 			useWorktree: current.useWorktree,
 			createdAt: current.createdAt,
+			references: current.references,
 		};
 
 		const needsRename =
@@ -297,6 +299,14 @@ export class TicketStore {
 			.filter((e) => e.isFile() && e.name.endsWith('.md'))
 			.map((e) => e.name.replace(/\.md$/, ''))
 			.sort();
+		const fileNames = entries
+			.filter((e) => e.isFile() && e.name !== 'status.json')
+			.map((e) => e.name)
+			.sort();
+		const references = (status.references ?? []).map((ref) => ({
+			path: ref.path,
+			exists: fs.existsSync(ref.path),
+		}));
 		return {
 			number: status.number,
 			title: status.title,
@@ -304,7 +314,94 @@ export class TicketStore {
 			folderName: path.basename(dir),
 			stageNames,
 			useWorktree: status.useWorktree === true,
+			fileNames,
+			references,
 		};
+	}
+
+	listTicketFiles(folderName: string): string[] {
+		const dir = this.resolveTicketDir(folderName);
+		const entries = fs.readdirSync(dir, { withFileTypes: true });
+		return entries
+			.filter((e) => e.isFile() && e.name !== 'status.json')
+			.map((e) => e.name)
+			.sort();
+	}
+
+	copyFileToTicket(folderName: string, fileName: string, content: Buffer): void {
+		this.requireSimpleName(fileName, 'fileName');
+		if (fileName === 'status.json') {
+			throw new Error('Cannot overwrite status.json');
+		}
+		const dir = this.resolveTicketDir(folderName);
+		const filePath = path.join(dir, fileName);
+		this.requireContainedIn(filePath, dir, 'fileName');
+		fs.writeFileSync(filePath, content);
+		const status = this.readStatusJson(dir);
+		const number = status?.number ?? folderName;
+		this.autoCommit(`add file ${fileName} to ${number}`);
+	}
+
+	deleteTicketFile(folderName: string, fileName: string): void {
+		this.requireSimpleName(fileName, 'fileName');
+		if (fileName === 'status.json') {
+			throw new Error('Cannot delete status.json');
+		}
+		const dir = this.resolveTicketDir(folderName);
+		const filePath = path.join(dir, fileName);
+		this.requireContainedIn(filePath, dir, 'fileName');
+		if (!fs.existsSync(filePath)) {
+			throw new Error(`File not found: ${fileName}`);
+		}
+		fs.unlinkSync(filePath);
+		const status = this.readStatusJson(dir);
+		const number = status?.number ?? folderName;
+		this.autoCommit(`delete file ${fileName} from ${number}`);
+	}
+
+	getFileContent(folderName: string, fileName: string): Buffer {
+		this.requireSimpleName(fileName, 'fileName');
+		const dir = this.resolveTicketDir(folderName);
+		const filePath = path.join(dir, fileName);
+		this.requireContainedIn(filePath, dir, 'fileName');
+		if (!fs.existsSync(filePath)) {
+			throw new Error(`File not found: ${fileName}`);
+		}
+		return fs.readFileSync(filePath);
+	}
+
+	addReference(folderName: string, refPath: string): void {
+		const dir = this.resolveTicketDir(folderName);
+		const status = this.readStatusJson(dir);
+		if (!status) throw new Error(`Malformed ticket: ${folderName}`);
+		const refs = status.references ?? [];
+		if (refs.some((r) => r.path === refPath)) return;
+		refs.push({ path: refPath });
+		this.writeStatusJson(dir, { ...status, references: refs });
+		this.autoCommit(`add reference to ${status.number}`);
+	}
+
+	removeReference(folderName: string, refPath: string): void {
+		const dir = this.resolveTicketDir(folderName);
+		const status = this.readStatusJson(dir);
+		if (!status) throw new Error(`Malformed ticket: ${folderName}`);
+		const refs = (status.references ?? []).filter((r) => r.path !== refPath);
+		this.writeStatusJson(dir, { ...status, references: refs });
+		this.autoCommit(`remove reference from ${status.number}`);
+	}
+
+	getReferencedFileContent(folderName: string, refPath: string): Buffer {
+		const dir = this.resolveTicketDir(folderName);
+		const status = this.readStatusJson(dir);
+		if (!status) throw new Error(`Malformed ticket: ${folderName}`);
+		const refs = status.references ?? [];
+		if (!refs.some((r) => r.path === refPath)) {
+			throw new Error(`Path is not a registered reference of ticket ${status.number}: ${refPath}`);
+		}
+		if (!fs.existsSync(refPath)) {
+			throw new Error(`Referenced file not found: ${refPath}`);
+		}
+		return fs.readFileSync(refPath);
 	}
 
 	private readStatusJson(dir: string): StatusJson | null {
