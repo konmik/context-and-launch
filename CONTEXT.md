@@ -70,8 +70,12 @@ Skill:
 A named template string that appends to the base Template when checked in the Agent Launcher. Uses the same placeholder syntax as Templates.
 Avoid: addon, plugin, extension
 
+Shortcut:
+A named command that launches an external application against a ticket's context. Has a name and a command string with Placeholders. Unlike the Agent Launcher, no prompt assembly occurs -- the command runs directly. Configured in Launcher Config at app or project scope.
+Avoid: app, tool, quick launch
+
 Placeholder:
-A `{{variable}}` reference in a Template or Skill that gets replaced with a runtime value at launch time. Available: `{{ticketDir}}`, `{{ticketSlug}}`, `{{ticketTitle}}`, `{{ticketNumber}}`, `{{ticketStatus}}`, `{{projectPath}}`, `{{projectSlug}}`.
+A `{{variable}}` reference in a Template, Skill, or Shortcut that gets replaced with a runtime value at launch time. Available: `{{ticketDir}}`, `{{ticketSlug}}`, `{{ticketTitle}}`, `{{ticketNumber}}`, `{{ticketStatus}}`, `{{projectPath}}`, `{{projectSlug}}`, `{{launchDir}}`.
 
 Launcher Config:
 A JSON file defining available Templates, Skills, Coding Agent Profiles, and launcher settings. Exists at two scopes: app-level (`~/.ai-stages/config/launcher-config.json`) and project-level (`~/.ai-stages/projects/{slug}/config/launcher-config.json`). Project-level merges additively with app-level; project wins on name collision.
@@ -95,6 +99,7 @@ Avoid: sandbox, workspace
 - A Column name determines the filename of its Stage Markdown (e.g. column `review` → `review.md`)
 - The Agent Launcher assembles a prompt from a Template and zero or more Skills
 - A Launcher Config exists at app scope and optionally at project scope; project merges into app
+- A Launcher Config contains zero or more Shortcuts
 - An Agent Worktree branches from the Project's main branch, named `ai/{folderName}`
 - The Agent Launcher remembers the last-used Template, checked Skills, and Coding Agent Profile per Column
 

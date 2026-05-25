@@ -1,4 +1,5 @@
 import { createSignal, createEffect, on, Show, For } from "solid-js";
+import { Portal } from "solid-js/web";
 import type { TicketInfo, MergedLauncherConfig, ErrorInfo, LauncherColumnDefaults } from "~/types.js";
 import ErrorDialog from "./ErrorDialog.js";
 
@@ -7,13 +8,13 @@ interface AgentLauncherProps {
 	ticket: TicketInfo;
 	config: MergedLauncherConfig | null;
 	onDefaultsChange: (patch: Partial<LauncherColumnDefaults>) => void;
+	useWorktree: boolean;
 }
 
 export default function AgentLauncher(props: AgentLauncherProps) {
 	const [selectedTemplate, setSelectedTemplate] = createSignal("");
 	const [selectedProfile, setSelectedProfile] = createSignal("");
 	const [checkedSkills, setCheckedSkills] = createSignal<Set<string>>(new Set());
-	const [useWorktree, setUseWorktree] = createSignal(props.ticket.useWorktree);
 	const [launching, setLaunching] = createSignal(false);
 	const [errorInfo, setErrorInfo] = createSignal<ErrorInfo | null>(null);
 	const [behindRemoteMsg, setBehindRemoteMsg] = createSignal("");
@@ -23,7 +24,6 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 			() => [props.config, props.ticket.folderName] as const,
 			([cfg]) => {
 				if (!cfg) return;
-				setUseWorktree(props.ticket.useWorktree);
 				const defaults = cfg.columnDefaults[props.ticket.status];
 				if (defaults) {
 					setSelectedTemplate(defaults.templateName ?? (cfg.templates[0]?.name ?? ""));
@@ -53,7 +53,7 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 		return JSON.stringify({
 			templateName: selectedTemplate(),
 			checkedSkills: [...checkedSkills()],
-			useWorktree: useWorktree(),
+			useWorktree: props.useWorktree,
 			profileName: selectedProfile(),
 		});
 	}
@@ -129,31 +129,6 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 			<Show when={props.config} fallback={<p class="text-sm text-muted-foreground">Loading config...</p>}>
 				{(cfg) => (
 						<div class="flex w-full max-w-sm flex-col gap-4">
-							<Show when={cfg().worktreeRootPath !== null}>
-								<label class="flex items-center gap-2 text-sm text-muted-foreground">
-									<input
-										type="checkbox"
-										checked={useWorktree()}
-										onChange={(e) => {
-										const value = e.currentTarget.checked;
-										setUseWorktree(value);
-										fetch(
-											`/api/projects/${props.slug}/board/tickets/${props.ticket.folderName}/use-worktree`,
-											{
-												method: "PUT",
-												headers: { "Content-Type": "application/json" },
-												body: JSON.stringify({ useWorktree: value }),
-											}
-										).catch((err) => {
-											console.warn("Failed to persist useWorktree:", err);
-										});
-									}}
-										class="rounded border-input"
-									/>
-									Launch in worktree
-								</label>
-							</Show>
-
 							<div class="flex flex-col gap-4 rounded-md border border-border p-4">
 								<div>
 									<label class="mb-1 block text-sm text-muted-foreground">Launch</label>
@@ -214,31 +189,35 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 					)}
 			</Show>
 
-			<ErrorDialog error={errorInfo()} onClose={() => setErrorInfo(null)} />
+			<Portal>
+				<ErrorDialog error={errorInfo()} onClose={() => setErrorInfo(null)} />
+			</Portal>
 
-			<Show when={behindRemoteMsg()}>
-				<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-					<div class="fixed inset-0" onClick={() => setBehindRemoteMsg("")} />
-					<div class="relative z-10 w-full max-w-sm rounded-lg border border-border bg-card p-6 shadow-lg">
-						<p class="mb-4 text-sm">{behindRemoteMsg()}</p>
-						<div class="flex justify-end gap-2">
-							<button
-								onClick={() => setBehindRemoteMsg("")}
-								class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-							>
-								Cancel
-							</button>
-							<button
-								onClick={pullAndRetry}
-								disabled={launching()}
-								class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
-							>
-								Pull & Retry
-							</button>
+			<Portal>
+				<Show when={behindRemoteMsg()}>
+					<div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+						<div class="fixed inset-0" onClick={() => setBehindRemoteMsg("")} />
+						<div class="relative z-10 w-full max-w-sm rounded-lg border border-border bg-card p-6 shadow-lg">
+							<p class="mb-4 text-sm">{behindRemoteMsg()}</p>
+							<div class="flex justify-end gap-2">
+								<button
+									onClick={() => setBehindRemoteMsg("")}
+									class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+								>
+									Cancel
+								</button>
+								<button
+									onClick={pullAndRetry}
+									disabled={launching()}
+									class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+								>
+									Pull & Retry
+								</button>
+							</div>
 						</div>
 					</div>
-				</div>
-			</Show>
+				</Show>
+			</Portal>
 		</div>
 	);
 }

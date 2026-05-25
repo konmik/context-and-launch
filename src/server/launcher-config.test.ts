@@ -393,6 +393,7 @@ describe('LauncherConfigManager', () => {
 			templates: [{ name: 'Keep', text: 'keep text' }],
 			skills: [{ name: 'S1', text: 's1' }],
 			profiles: [],
+			shortcuts: [],
 		});
 		const before = fs.readFileSync(path.join(configDir, 'config', 'launcher-config.json'), 'utf-8');
 
@@ -1106,5 +1107,156 @@ describe('LauncherConfigManager', () => {
 		expect(fs.existsSync(shPath)).toBe(true);
 	});
 
+	it('addShortcut to app scope, verify file on disk', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		mgr.addShortcut('app', 'any-slug', { name: 'Open Editor', command: 'code {{projectPath}}' });
+		const raw = JSON.parse(fs.readFileSync(path.join(configDir, 'config', 'launcher-config.json'), 'utf-8'));
+		const found = raw.shortcuts.find((s: { name: string }) => s.name === 'Open Editor');
+		expect(found).toBeDefined();
+		expect(found.command).toBe('code {{projectPath}}');
+	});
+
+	it('addShortcut to project scope, verify file on disk', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		mgr.addShortcut('project', 'my-proj', { name: 'Open Folder', command: 'explorer {{ticketDir}}' });
+		const raw = JSON.parse(
+			fs.readFileSync(path.join(configDir, 'projects', 'my-proj', 'config', 'launcher-config.json'), 'utf-8')
+		);
+		const found = raw.shortcuts.find((s: { name: string }) => s.name === 'Open Folder');
+		expect(found).toBeDefined();
+		expect(found.command).toBe('explorer {{ticketDir}}');
+	});
+
+	it('addShortcut with duplicate name throws', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		mgr.addShortcut('app', 'slug', { name: 'Dup', command: 'first' });
+		expect(() => mgr.addShortcut('app', 'slug', { name: 'Dup', command: 'second' }))
+			.toThrow('already exists');
+	});
+
+	it('removeShortcut removes from correct scope', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		mgr.addShortcut('app', 'slug', { name: 'ToRemove', command: 'cmd' });
+		mgr.removeShortcut('app', 'slug', 'ToRemove');
+		const config = mgr.loadAppConfig();
+		expect((config.shortcuts ?? []).find(s => s.name === 'ToRemove')).toBeUndefined();
+	});
+
+	it('updateShortcut renames correctly', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		mgr.saveAppConfig({
+			templates: [],
+			skills: [],
+			profiles: [],
+			shortcuts: [{ name: 'Old', command: 'old cmd' }],
+		});
+		mgr.updateShortcut('app', 'slug', 'Old', { name: 'New', command: 'new cmd' });
+		const config = mgr.loadAppConfig();
+		expect((config.shortcuts ?? []).find(s => s.name === 'Old')).toBeUndefined();
+		expect((config.shortcuts ?? []).find(s => s.name === 'New')?.command).toBe('new cmd');
+	});
+
+	it('updateShortcut strips extra properties', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		mgr.saveAppConfig({
+			templates: [],
+			skills: [],
+			profiles: [],
+			shortcuts: [{ name: 'Original', command: 'orig cmd' }],
+		});
+		mgr.updateShortcut('app', 'slug', 'Original', { name: 'Original', command: 'updated', extra: 'junk' } as any);
+		const config = mgr.loadAppConfig();
+		const s = (config.shortcuts ?? []).find(s => s.name === 'Original');
+		expect(s).toEqual({ name: 'Original', command: 'updated' });
+		expect((s as any).extra).toBeUndefined();
+	});
+
+	it('updateShortcut with nonexistent name throws', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		mgr.saveAppConfig({
+			templates: [],
+			skills: [],
+			profiles: [],
+			shortcuts: [],
+		});
+		expect(() => mgr.updateShortcut('app', 'slug', 'Missing', { name: 'Missing', command: 'cmd' }))
+			.toThrow('not found');
+	});
+
+	it('merge: app shortcuts + project shortcuts, project wins on name collision', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		mgr.saveAppConfig({
+			templates: [],
+			skills: [],
+			profiles: [],
+			shortcuts: [
+				{ name: 'Shared', command: 'app version' },
+				{ name: 'AppOnly', command: 'app only' },
+			],
+		});
+		mgr.saveProjectConfig('slug', {
+			templates: [],
+			skills: [],
+			profiles: [],
+			shortcuts: [
+				{ name: 'Shared', command: 'project version' },
+				{ name: 'ProjOnly', command: 'proj only' },
+			],
+		});
+		const merged = mgr.getMergedConfig('slug');
+		expect(merged.shortcuts).toHaveLength(3);
+
+		const shared = merged.shortcuts.find(s => s.name === 'Shared');
+		expect(shared?.command).toBe('project version');
+		expect(shared?.scope).toBe('project');
+
+		expect(merged.shortcuts.find(s => s.name === 'AppOnly')?.scope).toBe('app');
+		expect(merged.shortcuts.find(s => s.name === 'ProjOnly')?.scope).toBe('project');
+	});
+
+	it('merge: scope annotations are correct for shortcuts', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		mgr.saveAppConfig({
+			templates: [],
+			skills: [],
+			profiles: [],
+			shortcuts: [{ name: 'AS', command: 'app' }],
+		});
+		mgr.saveProjectConfig('slug', {
+			templates: [],
+			skills: [],
+			profiles: [],
+			shortcuts: [{ name: 'PS', command: 'proj' }],
+		});
+		const merged = mgr.getMergedConfig('slug');
+		expect(merged.shortcuts.find(s => s.name === 'AS')?.scope).toBe('app');
+		expect(merged.shortcuts.find(s => s.name === 'PS')?.scope).toBe('project');
+	});
+
+	it('getMergedConfig returns empty shortcuts when neither scope has any', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		const merged = mgr.getMergedConfig('slug');
+		expect(merged.shortcuts).toEqual([]);
+	});
 
 });

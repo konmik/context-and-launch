@@ -8,7 +8,7 @@ interface LauncherSettingsProps {
 	slug: string;
 }
 
-type ItemType = "template" | "skill" | "profile";
+type ItemType = "template" | "skill" | "profile" | "shortcut";
 type Scope = "app" | "project";
 
 interface ItemFormState {
@@ -28,12 +28,13 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 	const [worktreeRootPath, setWorktreeRootPath] = createSignal("");
 	const [activeTab, setActiveTab] = createSignal<"general" | "templates" | "skills" | "profiles">("general");
 
+	const segments: Record<ItemType, string> = { template: "templates", skill: "skills", profile: "profiles", shortcut: "shortcuts" };
+
 	function itemEndpoint(itemType: ItemType, scope: Scope): string {
 		const base = scope === "app"
 			? "/api/launcher-config"
 			: `/api/projects/${props.slug}/launcher-config`;
-		const segment = itemType === "template" ? "templates" : itemType === "skill" ? "skills" : "profiles";
-		return `${base}/${segment}`;
+		return `${base}/${segments[itemType]}`;
 	}
 
 	createEffect(
@@ -94,11 +95,11 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 		setError("");
 
 		const endpoint = itemEndpoint(f.itemType, f.scope);
-		const isProfile = f.itemType === "profile";
+		const usesCommand = f.itemType === "profile" || f.itemType === "shortcut";
 
 		try {
 			if (f.mode === "add") {
-				const payload = isProfile
+				const payload = usesCommand
 					? { name: f.name, command: f.text }
 					: { name: f.name, text: f.text };
 				const res = await fetch(endpoint, {
@@ -111,7 +112,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 					return;
 				}
 			} else {
-				const payload = isProfile
+				const payload = usesCommand
 					? { oldName: f.oldName, name: f.name, command: f.text }
 					: { oldName: f.oldName, name: f.name, text: f.text };
 				const res = await fetch(endpoint, {
@@ -397,7 +398,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 									<div class="space-y-6">
 										<section>
 											<div class="mb-2 flex items-center justify-between">
-												<h3 class="text-sm font-semibold">Launch</h3>
+												<h3 class="text-sm font-semibold">Profiles</h3>
 												<button
 													onClick={() => startAdd("profile")}
 													class="inline-flex h-7 items-center justify-center rounded-md bg-primary px-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
@@ -439,6 +440,50 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 												</div>
 											</Show>
 										</section>
+										<section>
+											<div class="mb-2 flex items-center justify-between">
+												<h3 class="text-sm font-semibold">Shortcuts</h3>
+												<button
+													onClick={() => startAdd("shortcut")}
+													class="inline-flex h-7 items-center justify-center rounded-md bg-primary px-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+												>
+													Add
+												</button>
+											</div>
+											<Show when={cfg().shortcuts.length > 0} fallback={<p class="py-3 text-center text-sm text-muted-foreground">No shortcuts configured.</p>}>
+												<div class="space-y-2">
+													<For each={cfg().shortcuts}>
+														{(item) => (
+															<div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
+																<div class="min-w-0 flex-1">
+																	<div class="flex items-center gap-2">
+																		<span class="text-sm font-medium">{item.name}</span>
+																		<span class={`rounded px-1.5 py-0.5 text-xs ${item.scope === "app" ? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" : "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"}`}>
+																			{item.scope === "app" ? "User" : "Project"}
+																		</span>
+																	</div>
+																	<p class="mt-1 truncate text-xs text-muted-foreground">{item.command}</p>
+																</div>
+																<div class="ml-2 flex shrink-0 gap-1">
+																	<button
+																		onClick={() => startEdit("shortcut", item.scope, item.name, item.command)}
+																		class="inline-flex h-7 items-center justify-center rounded-md border border-input bg-background px-2 text-xs hover:bg-accent hover:text-accent-foreground"
+																	>
+																		Edit
+																	</button>
+																	<button
+																		onClick={() => deleteItem("shortcut", item.scope, item.name)}
+																		class="inline-flex h-7 items-center justify-center rounded-md border border-input bg-background px-2 text-xs text-destructive hover:bg-destructive hover:text-destructive-foreground"
+																	>
+																		Delete
+																	</button>
+																</div>
+															</div>
+														)}
+													</For>
+												</div>
+											</Show>
+										</section>
 									</div>
 									</Show>
 									</>
@@ -458,7 +503,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 					<div class="relative z-10 w-full max-w-lg rounded-lg border border-border bg-card shadow-lg">
 						<div class="flex items-center justify-between border-b border-border px-6 py-4">
 							<h2 class="text-lg font-semibold">
-								{f().mode === "add" ? "Add" : "Edit"} {f().itemType === "template" ? "Prompt" : f().itemType === "skill" ? "Skill" : "Launch"}
+								{f().mode === "add" ? "Add" : "Edit"} {f().itemType === "template" ? "Prompt" : f().itemType === "skill" ? "Skill" : f().itemType === "profile" ? "Launch" : "Shortcut"}
 							</h2>
 							<button
 								onClick={() => setForm(null)}
@@ -475,22 +520,24 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 									value={f().name}
 									onInput={(e) => setForm({ ...f(), name: e.currentTarget.value })}
 									class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-									placeholder={f().itemType === "profile" ? "Launch name" : f().itemType === "skill" ? "Skill name" : "Prompt name"}
+									placeholder={f().itemType === "profile" ? "Launch name" : f().itemType === "skill" ? "Skill name" : f().itemType === "shortcut" ? "Shortcut name" : "Prompt name"}
 								/>
 							</div>
 							<div>
 								<label class="mb-1 block text-sm text-muted-foreground">
-									Prompt
+									{f().itemType === "shortcut" || f().itemType === "profile" ? "Command" : "Prompt"}
 								</label>
 								<textarea
 									value={f().text}
 									onInput={(e) => setForm({ ...f(), text: e.currentTarget.value })}
 									class="min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-									placeholder={f().itemType === "profile" ? "e.g. powershell -File run-agent.ps1" : "Prompt text with {{placeholders}}"}
+									placeholder={f().itemType === "profile" ? "e.g. powershell -File run-agent.ps1" : f().itemType === "shortcut" ? "e.g. code {{projectPath}}" : "Prompt text with {{placeholders}}"}
 								/>
 								<p class="mt-1 text-xs text-muted-foreground">
 									{f().itemType === "profile"
 										? "{{initialPrompt}} {{windowTitle}} {{appConfigDir}}"
+										: f().itemType === "shortcut"
+										? "{{ticketDir}} {{ticketSlug}} {{ticketTitle}} {{ticketNumber}} {{ticketStatus}} {{projectPath}} {{projectSlug}} {{launchDir}}"
 										: "{{ticketDir}} {{ticketSlug}} {{ticketTitle}} {{ticketNumber}} {{ticketStatus}} {{projectPath}} {{projectSlug}}"}
 								</p>
 							</div>

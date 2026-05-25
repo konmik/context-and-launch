@@ -31,6 +31,7 @@ describe("LauncherSettings Show condition", () => {
 		templates: [{ name: "Default", text: "hello", scope: "app" }],
 		skills: [],
 		profiles: [],
+		shortcuts: [],
 		columnDefaults: {},
 		worktreeRootPath: null,
 		boardId: null,
