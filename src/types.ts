@@ -88,6 +88,12 @@ export interface LauncherConfig {
 	boardId?: string;
 }
 
+export interface ErrorInfo {
+	description: string;
+	command?: string;
+	output?: string;
+}
+
 export interface MergedLauncherConfig {
 	templates: (LauncherTemplate & { scope: "app" | "project" })[];
 	skills: (LauncherSkill & { scope: "app" | "project" })[];

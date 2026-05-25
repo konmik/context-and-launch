@@ -1,5 +1,6 @@
 import { createSignal, Show, onMount } from "solid-js";
-import type { TicketInfo } from "~/types.js";
+import type { TicketInfo, ErrorInfo } from "~/types.js";
+import ErrorDialog from "./ErrorDialog.js";
 
 const STORAGE_KEY = "worktree-cleanup-options";
 
@@ -17,7 +18,7 @@ interface WorktreeCleanupDialogProps {
   onSubmit: (
     folderName: string,
     cleanup: CleanupOptions
-  ) => Promise<{ error?: string }>;
+  ) => Promise<{ error?: string | ErrorInfo }>;
 }
 
 function loadOptions(): CleanupOptions {
@@ -34,7 +35,7 @@ function saveOptions(options: CleanupOptions) {
 
 export default function WorktreeCleanupDialog(props: WorktreeCleanupDialogProps) {
   const [submitting, setSubmitting] = createSignal(false);
-  const [errorMsg, setErrorMsg] = createSignal("");
+  const [errorInfo, setErrorInfo] = createSignal<ErrorInfo | null>(null);
   const [options, setOptions] = createSignal<CleanupOptions>(loadOptions());
 
   onMount(() => {
@@ -49,27 +50,31 @@ export default function WorktreeCleanupDialog(props: WorktreeCleanupDialogProps)
 
   function close() {
     props.onOpenChange(false);
-    setErrorMsg("");
+    setErrorInfo(null);
   }
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === "Escape") close();
   }
 
+  function toErrorInfo(value: string | ErrorInfo): ErrorInfo {
+    return typeof value === "string" ? { description: value } : value;
+  }
+
   async function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
     if (!props.ticket) return;
     setSubmitting(true);
-    setErrorMsg("");
+    setErrorInfo(null);
     try {
       const result = await props.onSubmit(props.ticket.folderName, options());
       if (result?.error) {
-        setErrorMsg(result.error);
+        setErrorInfo(toErrorInfo(result.error));
       } else {
         close();
       }
     } catch (err: any) {
-      setErrorMsg(err?.message ?? "Unknown error");
+      setErrorInfo({ description: err?.message ?? "Unknown error" });
     } finally {
       setSubmitting(false);
     }
@@ -118,8 +123,18 @@ export default function WorktreeCleanupDialog(props: WorktreeCleanupDialogProps)
             </label>
           </div>
 
-          <Show when={errorMsg()}>
-            <p class="mb-4 text-sm text-destructive">{errorMsg()}</p>
+          <Show when={errorInfo()}>
+            {(err) => (
+              <div class="mb-4 rounded-md bg-destructive/10 px-3 py-2">
+                <p class="text-sm text-destructive">{err().description}</p>
+                <Show when={err().command}>
+                  <p class="mt-1 text-xs text-muted-foreground">Command: <code>{err().command}</code></p>
+                </Show>
+                <Show when={err().output}>
+                  <pre class="mt-1 max-h-32 overflow-y-auto whitespace-pre-wrap text-xs">{err().output}</pre>
+                </Show>
+              </div>
+            )}
           </Show>
 
           <form onSubmit={handleSubmit}>

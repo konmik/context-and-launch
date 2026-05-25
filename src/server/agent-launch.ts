@@ -2,6 +2,7 @@ import { spawn, execFile } from "child_process";
 import path from "path";
 import { worktreeManager, projectRegistry, launcherConfigManager } from "~/server/instances.js";
 import { TicketStore } from "~/server/ticket-store.js";
+import { ProcessError } from "~/server/errors.js";
 import { assemblePrompt, interpolatePrompt } from "~/server/prompt-interpolation.js";
 import type { TicketInfo, ProjectInfo } from "~/types.js";
 
@@ -160,6 +161,7 @@ export async function launchAgent(
     arg.replace(/\{\{(\w+)\}\}/g, (match, key) => commandVars[key] ?? match)
   );
 
+  const fullCommand = `${executable} ${args.map(a => a.includes(" ") ? `"${a}"` : a).join(" ")}`;
   const label = `${executable} ${args.map(a => a.length > 60 ? a.slice(0, 60) + "..." : a).join(" ")}`;
   console.log(`spawn: ${label} (cwd: ${launchDir})`);
   const child = spawn(executable, args, {
@@ -169,17 +171,35 @@ export async function launchAgent(
   child.stdout?.resume();
   let stderr = "";
   child.stderr?.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
-  child.on("exit", (code) => {
-    console.log(`exit ${code}: ${label}`);
-    if (stderr.trim()) console.error(`stderr: ${stderr.trim()}`);
-  });
-  child.unref();
 
   await new Promise<void>((resolve, reject) => {
-    child.on("spawn", () => resolve());
+    let settled = false;
+
     child.on("error", (err) => {
-      console.error(`spawn error [${label}]:`, err);
+      if (settled) return;
+      settled = true;
       reject(err);
+    });
+
+    child.on("exit", (code) => {
+      console.log(`exit ${code}: ${label}`);
+      if (stderr.trim()) console.error(`stderr: ${stderr.trim()}`);
+      if (settled) return;
+      settled = true;
+      if (code !== 0 && code !== null) {
+        reject(new ProcessError(fullCommand, code, stderr.trim() || `Process exited with code ${code}`, `Failed to launch agent (exit ${code})`));
+      } else {
+        resolve();
+      }
+    });
+
+    child.on("spawn", () => {
+      setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        child.unref();
+        resolve();
+      }, 3000);
     });
   });
 

@@ -1,5 +1,6 @@
 import { createSignal, createEffect, on, Show, For } from "solid-js";
-import type { TicketInfo, MergedLauncherConfig } from "~/types.js";
+import type { TicketInfo, MergedLauncherConfig, ErrorInfo } from "~/types.js";
+import ErrorDialog from "./ErrorDialog.js";
 
 interface AgentLauncherProps {
 	slug: string;
@@ -14,7 +15,7 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 	const [useWorktree, setUseWorktree] = createSignal(props.ticket.useWorktree);
 	const [loading, setLoading] = createSignal(true);
 	const [launching, setLaunching] = createSignal(false);
-	const [errorMsg, setErrorMsg] = createSignal("");
+	const [errorInfo, setErrorInfo] = createSignal<ErrorInfo | null>(null);
 	const [behindRemoteMsg, setBehindRemoteMsg] = createSignal("");
 	createEffect(
 		on(
@@ -72,9 +73,19 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 		return `/api/projects/${props.slug}/board/tickets/${props.ticket.folderName}/ai/${action}`;
 	}
 
+	function textToErrorInfo(text: string, status: number): ErrorInfo {
+		try {
+			const data = JSON.parse(text);
+			if (data.description) return data as ErrorInfo;
+			return { description: JSON.stringify(data) };
+		} catch {
+			return { description: text || `Error ${status}` };
+		}
+	}
+
 	async function launchAgent() {
 		setLaunching(true);
-		setErrorMsg("");
+		setErrorInfo(null);
 		setBehindRemoteMsg("");
 		try {
 			const res = await fetch(ticketAiUrl("run"), {
@@ -91,14 +102,14 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 						return;
 					}
 				} catch {
-					// Not JSON -- fall through to show as plain error
+					// Not JSON -- fall through
 				}
-				setErrorMsg(responseText || `Error ${res.status}`);
+				setErrorInfo(textToErrorInfo(responseText, res.status));
 			} else if (!res.ok) {
-				setErrorMsg(await res.text() || `Error ${res.status}`);
+				setErrorInfo(textToErrorInfo(await res.text(), res.status));
 			}
 		} catch (e: any) {
-			setErrorMsg(e?.message ?? "Network error");
+			setErrorInfo({ description: e?.message ?? "Network error" });
 		} finally {
 			setLaunching(false);
 		}
@@ -107,7 +118,7 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 	async function pullAndRetry() {
 		setLaunching(true);
 		setBehindRemoteMsg("");
-		setErrorMsg("");
+		setErrorInfo(null);
 		try {
 			const res = await fetch(ticketAiUrl("pull-and-retry"), {
 				method: "POST",
@@ -115,10 +126,10 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 				body: launchBody(),
 			});
 			if (!res.ok) {
-				setErrorMsg(await res.text() || `Error ${res.status}`);
+				setErrorInfo(textToErrorInfo(await res.text(), res.status));
 			}
 		} catch (e: any) {
-			setErrorMsg(e?.message ?? "Network error");
+			setErrorInfo({ description: e?.message ?? "Network error" });
 		} finally {
 			setLaunching(false);
 		}
@@ -216,22 +227,7 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 				</Show>
 			</Show>
 
-			<Show when={errorMsg()}>
-				<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-					<div class="fixed inset-0" onClick={() => setErrorMsg("")} />
-					<div class="relative z-10 w-full max-w-sm rounded-lg border border-border bg-card p-6 shadow-lg">
-						<p class="mb-4 text-sm text-destructive">{errorMsg()}</p>
-						<div class="flex justify-end">
-							<button
-								onClick={() => setErrorMsg("")}
-								class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-							>
-								OK
-							</button>
-						</div>
-					</div>
-				</div>
-			</Show>
+			<ErrorDialog error={errorInfo()} onClose={() => setErrorInfo(null)} />
 
 			<Show when={behindRemoteMsg()}>
 				<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">

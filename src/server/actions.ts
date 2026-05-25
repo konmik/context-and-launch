@@ -197,22 +197,22 @@ export async function worktreeCleanupAction(
     "~/server/instances.js"
   );
   const { WorktreeCleanupService } = await import("~/server/worktree-cleanup.js");
-  const { errorMessage } = await import("~/server/errors.js");
+  const { errorPayload } = await import("~/server/errors.js");
   try {
     const merged = launcherConfigManager.getMergedConfig(slug);
     if (!merged.worktreeRootPath) {
-      return { error: "Worktree root path is not configured" };
+      return { error: { description: "Worktree root path is not configured" } };
     }
     const worktreePath = `${merged.worktreeRootPath}/${folderName}`;
     const projects = projectRegistry.listProjects();
     const project = projects.find((p) => p.slug === slug);
     if (!project) {
-      return { error: "Project not found" };
+      return { error: { description: "Project not found" } };
     }
     const service = new WorktreeCleanupService(agentWorktreeManager);
     await service.cleanup(project.path, folderName, worktreePath, options);
     return { success: true };
   } catch (e) {
-    return { error: errorMessage(e) };
+    return { error: errorPayload(e) };
   }
 }
