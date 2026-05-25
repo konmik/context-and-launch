@@ -44,6 +44,7 @@ export default function ProjectPage() {
   const [selectedTicket, setSelectedTicket] = createSignal<TicketInfo | null>(
     null
   );
+  const [detailTicket, setDetailTicket] = createSignal<TicketInfo | null>(null);
 
   function handleEdit(ticket: TicketInfo) {
     setSelectedTicket(ticket);
@@ -73,7 +74,7 @@ export default function ProjectPage() {
   async function handleViewDetail(ticket: TicketInfo) {
     await revalidate("board-data");
     const fresh = data()?.board?.tickets.find((t: TicketInfo) => t.folderName === ticket.folderName);
-    setSelectedTicket(fresh ?? ticket);
+    setDetailTicket(fresh ?? ticket);
   }
 
   async function handleReorder(folderName: string, fromColumn: string, toColumn: string, newIndex: number) {
@@ -327,9 +328,9 @@ export default function ProjectPage() {
             onSubmit={handleCleanupSubmit}
           />
           <TicketDetailDialog
-            onClose={() => setSelectedTicket(null)}
+            onClose={() => setDetailTicket(null)}
             slug={d().slug}
-            ticket={selectedTicket()}
+            ticket={detailTicket()}
           />
 
           <Show when={addProjectDialogOpen()}>

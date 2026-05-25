@@ -118,6 +118,21 @@ describe("Board CRUD (e2e)", () => {
     expect(text).toContain("Edited Ticket");
   }, 15000);
 
+  it("archive action opens archive dialog, not ticket detail", async () => {
+    mockState.boardData = structuredClone(SEEDED_BOARD);
+
+    await page.goto(`${BASE_URL}/project/e2e-test`);
+    await page.waitForSelector("[data-drag-source]", { timeout: 5000 });
+
+    await page.click('button[aria-label="Ticket actions"]');
+    await page.waitForSelector(".bg-popover");
+    await page.click('.bg-popover button:has-text("Archive")');
+
+    await page.waitForSelector('h2:has-text("Archive Ticket")');
+    expect(await page.locator('h2:has-text("Archive Ticket")').isVisible()).toBe(true);
+    expect(await page.locator('button:has-text("Agent Launcher")').count()).toBe(0);
+  }, 15000);
+
   it("deletes a ticket", async () => {
     const board = structuredClone(SEEDED_BOARD);
     mockState.boardData = board;
