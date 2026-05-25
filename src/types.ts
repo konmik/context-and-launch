@@ -77,6 +77,7 @@ export interface LauncherColumnDefaults {
 	templateName: string | null;
 	checkedSkills: string[];
 	profileName: string | null;
+	lastLayer?: "editor" | "launcher";
 }
 
 export interface LauncherConfig {

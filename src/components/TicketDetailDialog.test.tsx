@@ -48,31 +48,13 @@ function makeTicket(folder: string, number: string, title: string): TicketInfo {
   };
 }
 
-interface DeferredFetch {
-  resolve: (body: object, status?: number) => void;
-  reject: (error: Error) => void;
-}
+const emptyConfig = { templates: [], skills: [], profiles: [], columnDefaults: {} };
 
-function createFetchController() {
-  const pending: DeferredFetch[] = [];
-
-  const mockFetch = vi.fn(
-    (_url: string, _opts?: RequestInit) =>
-      new Promise<Response>((resolve, reject) => {
-        pending.push({
-          resolve: (body: object, status = 200) =>
-            resolve(
-              new Response(JSON.stringify(body), {
-                status,
-                headers: { "Content-Type": "application/json" },
-              })
-            ),
-          reject: (error: Error) => reject(error),
-        });
-      })
-  );
-
-  return { mockFetch, pending };
+function jsonResponse(body: object, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 function flush() {
@@ -92,12 +74,19 @@ describe("TicketDetailDialog content loading", () => {
   });
 
   it("does not show stale content when ticket changes before fetch completes", async () => {
-    const { mockFetch, pending } = createFetchController();
-    globalThis.fetch = mockFetch as any;
+    const stageFetches: Array<{ url: string; resolve: (body: object) => void }> = [];
+
+    globalThis.fetch = vi.fn((url: string) => {
+      if (url.includes("launcher-config")) {
+        return Promise.resolve(jsonResponse(emptyConfig));
+      }
+      return new Promise<Response>((resolve) => {
+        stageFetches.push({ url, resolve: (body) => resolve(jsonResponse(body)) });
+      });
+    }) as any;
 
     const ticketA = makeTicket("t-1-alpha", "T-1", "Alpha");
     const ticketB = makeTicket("t-2-bravo", "T-2", "Bravo");
-
     const [ticket, setTicket] = createSignal<TicketInfo | null>(ticketA);
 
     render(() => (
@@ -109,24 +98,18 @@ describe("TicketDetailDialog content loading", () => {
     ));
 
     await flush();
-    expect(pending.length).toBe(1);
+    expect(stageFetches.length).toBe(1);
 
     setTicket(ticketB);
     await flush();
-    expect(pending.length).toBe(2);
+    expect(stageFetches.length).toBe(2);
 
-    pending[1].resolve({ content: "Content from Bravo" });
+    stageFetches[1].resolve({ content: "Content from Bravo" });
     await flush();
+    expect(screen.getByTestId("editor-content").textContent).toBe("Content from Bravo");
 
-    expect(screen.getByTestId("editor-content").textContent).toBe(
-      "Content from Bravo"
-    );
-
-    pending[0].resolve({ content: "Content from Alpha" });
+    stageFetches[0].resolve({ content: "Content from Alpha" });
     await flush();
-
-    expect(screen.getByTestId("editor-content").textContent).toBe(
-      "Content from Bravo"
-    );
+    expect(screen.getByTestId("editor-content").textContent).toBe("Content from Bravo");
   });
 });
