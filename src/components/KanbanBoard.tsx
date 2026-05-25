@@ -115,8 +115,19 @@ export default function KanbanBoard(props: KanbanBoardProps) {
 
   const columnRefs = new Map<string, HTMLDivElement>();
 
+  function commitDrop(fromColumn: string, folderName: string, toColumn: string, newIndex: number) {
+    const updated = { ...ticketOrder() };
+    updated[fromColumn] = (updated[fromColumn] ?? []).filter(fn => fn !== folderName);
+    updated[toColumn] = [...(updated[toColumn] ?? [])];
+    updated[toColumn].splice(newIndex, 0, folderName);
+    setOrderOverride(updated);
+    setActiveId(null);
+    setHoverTarget(null);
+    props.onReorder(folderName, fromColumn, toColumn, newIndex);
+  }
+
   if (typeof window !== "undefined") {
-    (window as any).__kanbanTestHooks = { setHoverTarget, setActiveId, setOrderOverride };
+    (window as any).__kanbanTestHooks = { setHoverTarget, setActiveId, setOrderOverride, setLastDragCenterY, commitDrop };
   }
 
   createEffect(on(
@@ -206,54 +217,31 @@ export default function KanbanBoard(props: KanbanBoardProps) {
     setHoverTarget(computeHoverTarget(colRects, cardRectsByCol, { x: cursorX, y: cursorY }, dragSource));
   }
 
-  function handleDragEnd(event: DndDragEvent) {
+  function handleDragEnd(_event: DndDragEvent) {
     const draggableId = activeId();
+    const ht = hoverTarget();
 
-    if (!draggableId || !event.droppable) {
+    if (!draggableId || !ht) {
       setActiveId(null);
       setHoverTarget(null);
       return;
     }
 
     const { column: fromColumn, folderName } = parseId(draggableId);
-    const droppableIdStr = String(event.droppable.id);
+    const toColumn = ht.column;
+    const newIndex = ht.index;
 
-    let toColumn: string;
-    let newIndex: number;
-
-    if (droppableIdStr.startsWith(COLUMN_PREFIX)) {
-      toColumn = droppableIdStr.slice(COLUMN_PREFIX.length);
-      newIndex = ticketsForColumn(toColumn).length;
-    } else {
-      const target = parseId(droppableIdStr);
-      toColumn = target.column;
+    if (fromColumn === toColumn) {
       const colTickets = ticketsForColumn(toColumn);
-      newIndex = colTickets.findIndex(t => t.folderName === target.folderName);
-
-      if (fromColumn === toColumn) {
-        const fromIdx = colTickets.findIndex(t => t.folderName === folderName);
-        if (fromIdx === newIndex) {
-          setActiveId(null);
-          setHoverTarget(null);
-          return;
-        }
-      } else if (event.droppable?.node) {
-        const droppableRect = event.droppable.node.getBoundingClientRect();
-        const droppableCenterY = droppableRect.top + droppableRect.height / 2;
-        if (lastDragCenterY() > droppableCenterY) {
-          newIndex += 1;
-        }
+      const fromIdx = colTickets.findIndex(t => t.folderName === folderName);
+      if (fromIdx === newIndex) {
+        setActiveId(null);
+        setHoverTarget(null);
+        return;
       }
     }
 
-    const updated = { ...ticketOrder() };
-    updated[fromColumn] = (updated[fromColumn] ?? []).filter(fn => fn !== folderName);
-    updated[toColumn] = [...(updated[toColumn] ?? [])];
-    updated[toColumn].splice(newIndex, 0, folderName);
-    setOrderOverride(updated);
-    setActiveId(null);
-    setHoverTarget(null);
-    props.onReorder(folderName, fromColumn, toColumn, newIndex);
+    commitDrop(fromColumn, folderName, toColumn, newIndex);
   }
 
   return (

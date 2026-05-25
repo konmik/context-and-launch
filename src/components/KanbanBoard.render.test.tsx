@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@solidjs/testing-library";
 import { createSignal } from "solid-js";
 import KanbanBoard from "./KanbanBoard";
@@ -183,5 +183,97 @@ describe("KanbanBoard drop indicator", () => {
 
     const indicators = container.querySelectorAll("[data-drop-indicator]");
     expect(indicators.length).toBe(1);
+  });
+});
+
+describe("KanbanBoard drag-end resolves to hoverTarget", () => {
+  it("calls onReorder with hoverTarget column and index for cross-column drag", () => {
+    const tickets = [
+      makeTicket({ folderName: "t-1-alpha", number: "T-1", title: "Alpha", status: "todo" }),
+      makeTicket({ folderName: "t-2-bravo", number: "T-2", title: "Bravo", status: "done" }),
+      makeTicket({ folderName: "t-3-charlie", number: "T-3", title: "Charlie", status: "done" }),
+    ];
+    const board = makeBoard(tickets);
+
+    let reorderCall: { folderName: string; fromColumn: string; toColumn: string; newIndex: number } | null = null;
+    const onReorder = vi.fn((folderName: string, fromColumn: string, toColumn: string, newIndex: number) => {
+      reorderCall = { folderName, fromColumn, toColumn, newIndex };
+    });
+
+    render(() => (
+      <KanbanBoard
+        board={board}
+        slug="test"
+        onEdit={noop}
+        onDelete={noop}
+        onViewDetail={noop}
+        onArchive={noop}
+        onReorder={onReorder}
+      />
+    ));
+
+    const hooks = (window as any).__kanbanTestHooks;
+    if (!hooks?.setHoverTarget || !hooks?.setActiveId || !hooks?.commitDrop) {
+      expect.fail("KanbanBoard must expose __kanbanTestHooks.{setHoverTarget, setActiveId, commitDrop}");
+    }
+
+    // Simulate: dragging t-1-alpha from todo, hovering over done at index 1 (between Bravo and Charlie)
+    hooks.setActiveId("todo:t-1-alpha");
+    hooks.setHoverTarget({ column: "done", index: 1 });
+
+    hooks.commitDrop("todo", "t-1-alpha", "done", 1);
+
+    expect(onReorder).toHaveBeenCalledTimes(1);
+    expect(reorderCall).toEqual({
+      folderName: "t-1-alpha",
+      fromColumn: "todo",
+      toColumn: "done",
+      newIndex: 1,
+    });
+  });
+
+  it("resolves same-column drag to hoverTarget index", () => {
+    const tickets = [
+      makeTicket({ folderName: "t-1-alpha", number: "T-1", title: "Alpha", status: "todo" }),
+      makeTicket({ folderName: "t-2-bravo", number: "T-2", title: "Bravo", status: "todo" }),
+      makeTicket({ folderName: "t-3-charlie", number: "T-3", title: "Charlie", status: "todo" }),
+    ];
+    const board = makeBoard(tickets, ["todo", "done"]);
+
+    let reorderCall: { folderName: string; fromColumn: string; toColumn: string; newIndex: number } | null = null;
+    const onReorder = vi.fn((folderName: string, fromColumn: string, toColumn: string, newIndex: number) => {
+      reorderCall = { folderName, fromColumn, toColumn, newIndex };
+    });
+
+    render(() => (
+      <KanbanBoard
+        board={board}
+        slug="test"
+        onEdit={noop}
+        onDelete={noop}
+        onViewDetail={noop}
+        onArchive={noop}
+        onReorder={onReorder}
+      />
+    ));
+
+    const hooks = (window as any).__kanbanTestHooks;
+    if (!hooks?.setHoverTarget || !hooks?.setActiveId || !hooks?.commitDrop) {
+      expect.fail("KanbanBoard must expose __kanbanTestHooks.{setHoverTarget, setActiveId, commitDrop}");
+    }
+
+    // Simulate: dragging t-1-alpha from position 0 to position 2 (between Bravo and Charlie)
+    hooks.setActiveId("todo:t-1-alpha");
+    hooks.setHoverTarget({ column: "todo", index: 2 });
+
+    hooks.commitDrop("todo", "t-1-alpha", "todo", 2);
+
+    expect(onReorder).toHaveBeenCalledTimes(1);
+    expect(reorderCall).toEqual({
+      folderName: "t-1-alpha",
+      fromColumn: "todo",
+      toColumn: "todo",
+      newIndex: 2,
+    });
   });
 });
