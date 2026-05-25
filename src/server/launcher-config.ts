@@ -5,9 +5,11 @@ import type {
 	LauncherConfig,
 	LauncherTemplate,
 	LauncherSkill,
+	LauncherProfile,
 	LauncherColumnDefaults,
 	MergedLauncherConfig,
 } from '../types.js';
+import { RUN_AGENT_PS1, RUN_AGENT_SH } from './platform-scripts.js';
 
 const DEFAULT_APP_CONFIG: LauncherConfig = {
 	templates: [
@@ -17,10 +19,14 @@ const DEFAULT_APP_CONFIG: LauncherConfig = {
 		},
 	],
 	skills: [],
+	profiles: [
+		{ name: 'Claude Win', command: 'powershell -File {{appConfigDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}}' },
+		{ name: 'Claude macOS', command: 'bash {{appConfigDir}}/run-agent.sh {{initialPrompt}} {{windowTitle}}' },
+	],
 };
 
 function emptyConfig(): LauncherConfig {
-	return { templates: [], skills: [] };
+	return { templates: [], skills: [], profiles: [] };
 }
 
 function parseConfig(text: string): LauncherConfig {
@@ -28,6 +34,7 @@ function parseConfig(text: string): LauncherConfig {
 	return {
 		templates: Array.isArray(parsed.templates) ? parsed.templates : [],
 		skills: Array.isArray(parsed.skills) ? parsed.skills : [],
+		profiles: Array.isArray(parsed.profiles) ? parsed.profiles : [],
 		columnDefaults: parsed.columnDefaults,
 		worktreeRootPath: parsed.worktreeRootPath,
 	};
@@ -35,9 +42,19 @@ function parseConfig(text: string): LauncherConfig {
 
 export class LauncherConfigManager {
 	private configDir: string;
+	private platformScriptsEnsured = false;
 
 	constructor(configDir?: string) {
 		this.configDir = configDir ?? path.join(os.homedir(), '.ai-stages');
+	}
+
+	getAppConfigDir(): string {
+		return this.configDir;
+	}
+
+	getProjectConfigDir(slug: string): string {
+		this.requireSafeSlug(slug);
+		return path.join(this.configDir, 'tickets', slug);
 	}
 
 	private appConfigPath(): string {
@@ -82,8 +99,10 @@ export class LauncherConfigManager {
 		if (config === null) {
 			const defaults = structuredClone(DEFAULT_APP_CONFIG);
 			this.writeConfigFile(this.appConfigPath(), defaults);
+			this.ensurePlatformScripts();
 			return defaults;
 		}
+		this.ensurePlatformScripts();
 		return config;
 	}
 
@@ -119,9 +138,18 @@ export class LauncherConfigManager {
 			skillMap.set(s.name, { ...s, scope: "project" });
 		}
 
+		const profileMap = new Map<string, LauncherProfile & { scope: "app" | "project" }>();
+		for (const p of app.profiles ?? []) {
+			profileMap.set(p.name, { ...p, scope: "app" });
+		}
+		for (const p of project.profiles ?? []) {
+			profileMap.set(p.name, { ...p, scope: "project" });
+		}
+
 		return {
 			templates: [...templateMap.values()],
 			skills: [...skillMap.values()],
+			profiles: [...profileMap.values()],
 			columnDefaults: project.columnDefaults ?? {},
 			worktreeRootPath: project.worktreeRootPath ?? null,
 		};
@@ -166,6 +194,13 @@ export class LauncherConfigManager {
 	removeTemplate(scope: "app" | "project", slug: string, name: string): void {
 		this.withConfig(scope, slug, (config) => {
 			config.templates = config.templates.filter(t => t.name !== name);
+			if (config.columnDefaults) {
+				for (const col of Object.keys(config.columnDefaults)) {
+					if (config.columnDefaults[col]?.templateName === name) {
+						config.columnDefaults[col].templateName = null;
+					}
+				}
+			}
 		});
 	}
 
@@ -197,9 +232,58 @@ export class LauncherConfigManager {
 		});
 	}
 
+	addProfile(scope: "app" | "project", slug: string, profile: LauncherProfile): void {
+		this.withConfig(scope, slug, (config) => {
+			if (!config.profiles) config.profiles = [];
+			if (config.profiles.some(p => p.name === profile.name)) {
+				throw new Error(`Profile with name "${profile.name}" already exists`);
+			}
+			config.profiles.push(profile);
+		});
+	}
+
+	removeProfile(scope: "app" | "project", slug: string, name: string): void {
+		this.withConfig(scope, slug, (config) => {
+			config.profiles = (config.profiles ?? []).filter(p => p.name !== name);
+			if (config.columnDefaults) {
+				for (const col of Object.keys(config.columnDefaults)) {
+					if (config.columnDefaults[col]?.profileName === name) {
+						config.columnDefaults[col].profileName = null;
+					}
+				}
+			}
+		});
+	}
+
+	updateProfile(scope: "app" | "project", slug: string, oldName: string, profile: LauncherProfile): void {
+		this.withConfig(scope, slug, (config) => {
+			if (!config.profiles) config.profiles = [];
+			const index = config.profiles.findIndex(p => p.name === oldName);
+			if (index < 0) throw new Error(`Profile "${oldName}" not found`);
+			if (oldName !== profile.name && config.profiles.some(p => p.name === profile.name)) {
+				throw new Error(`Profile with name "${profile.name}" already exists`);
+			}
+			config.profiles[index] = { name: profile.name, command: profile.command };
+		});
+	}
+
 	saveWorktreeRootPath(slug: string, worktreeRootPath: string | undefined): void {
 		const config = this.loadProjectConfig(slug);
 		config.worktreeRootPath = worktreeRootPath;
 		this.saveProjectConfig(slug, config);
+	}
+
+	ensurePlatformScripts(): void {
+		if (this.platformScriptsEnsured) return;
+		const ps1Path = path.join(this.configDir, 'run-agent.ps1');
+		const shPath = path.join(this.configDir, 'run-agent.sh');
+		fs.mkdirSync(this.configDir, { recursive: true });
+		if (!fs.existsSync(ps1Path)) {
+			fs.writeFileSync(ps1Path, RUN_AGENT_PS1);
+		}
+		if (!fs.existsSync(shPath)) {
+			fs.writeFileSync(shPath, RUN_AGENT_SH);
+		}
+		this.platformScriptsEnsured = true;
 	}
 }

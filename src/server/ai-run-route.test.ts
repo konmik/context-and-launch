@@ -444,19 +444,20 @@ describe('SendKeys title matching and prompt injection safety', () => {
 
 describe('parseLaunchRequest with missing/malformed request body', () => {
 	// Replicate the pure function from agent-launch.ts (cannot import due to ~ alias)
-	interface LaunchRequest { templateName: string; checkedSkills: string[]; useWorktree: boolean; }
+	interface LaunchRequest { templateName: string; checkedSkills: string[]; useWorktree: boolean; profileName: string; }
 	function parseLaunchRequest(body: unknown): LaunchRequest {
-		const result: LaunchRequest = { templateName: 'Default', checkedSkills: [], useWorktree: false };
+		const result: LaunchRequest = { templateName: 'Default', checkedSkills: [], useWorktree: false, profileName: '' };
 		if (body && typeof body === 'object') {
 			const b = body as Record<string, unknown>;
 			if (typeof b.templateName === 'string') result.templateName = b.templateName;
 			if (Array.isArray(b.checkedSkills)) result.checkedSkills = b.checkedSkills;
 			if (typeof b.useWorktree === 'boolean') result.useWorktree = b.useWorktree;
+			if (typeof b.profileName === 'string') result.profileName = b.profileName;
 		}
 		return result;
 	}
 
-	const DEFAULTS = { templateName: 'Default', checkedSkills: [], useWorktree: false };
+	const DEFAULTS = { templateName: 'Default', checkedSkills: [], useWorktree: false, profileName: '' };
 
 	it('replicated function matches source code', () => {
 		// Read the production source to verify our replica stays in sync
@@ -468,9 +469,11 @@ describe('parseLaunchRequest with missing/malformed request body', () => {
 		expect(source).toContain('templateName: "Default"');
 		expect(source).toContain('checkedSkills: []');
 		expect(source).toContain('useWorktree: false');
+		expect(source).toContain('profileName: ""');
 		expect(source).toContain("typeof b.templateName === \"string\"");
 		expect(source).toContain("Array.isArray(b.checkedSkills)");
 		expect(source).toContain("typeof b.useWorktree === \"boolean\"");
+		expect(source).toContain("typeof b.profileName === \"string\"");
 	});
 
 	it('undefined body returns all defaults', () => {
@@ -529,6 +532,7 @@ describe('parseLaunchRequest with missing/malformed request body', () => {
 			templateName: 'Custom',
 			checkedSkills: ['skill-a', 'skill-b'],
 			useWorktree: true,
+			profileName: '',
 		});
 	});
 
@@ -539,6 +543,7 @@ describe('parseLaunchRequest with missing/malformed request body', () => {
 			templateName: 'MyTemplate',
 			checkedSkills: [],
 			useWorktree: false,
+			profileName: '',
 		});
 	});
 
@@ -586,8 +591,8 @@ describe('launchAgent ticketDir vs launchDir separation (code-inspection)', () =
 	});
 
 	it('launchDir is only used for the spawned terminal working directory, not for ticket resolution', () => {
-		// launchDir should appear in the spawn call as the -d argument
-		expect(agentLaunchSource).toMatch(/spawn\("wt",\s*\["-d",\s*launchDir/);
+		// launchDir should appear in the spawn options as cwd
+		expect(agentLaunchSource).toMatch(/cwd:\s*launchDir/);
 		// launchDir must not appear in the variables dict that feeds interpolatePrompt
 		const variablesBlockMatch = agentLaunchSource.match(/const variables[^}]+\}/s);
 		expect(variablesBlockMatch).not.toBeNull();
@@ -623,4 +628,5 @@ describe('launchAgent ticketDir vs launchDir separation (code-inspection)', () =
 		// Both are passed to launchAgent as distinct arguments
 		expect(runSource).toMatch(/launchAgent\([^)]*worktreeDir[^)]*launchDir\s*\)/);
 	});
+
 });

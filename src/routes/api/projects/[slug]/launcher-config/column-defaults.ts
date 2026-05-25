@@ -5,10 +5,11 @@ import { errorMessage } from "~/server/errors.js";
 export async function PUT({ params, request }: APIEvent) {
 	try {
 		const { slug } = params;
-		const { column, templateName, checkedSkills } = await request.json();
+		const { column, templateName, checkedSkills, profileName } = await request.json();
 		launcherConfigManager.saveColumnDefaults(slug, column, {
 			templateName,
 			checkedSkills,
+			profileName,
 		});
 		return new Response(null, { status: 204 });
 	} catch (e) {

@@ -171,19 +171,23 @@ describe('LauncherConfigManager', () => {
 		mgr.saveColumnDefaults('slug', 'todo', {
 			templateName: 'Default',
 			checkedSkills: ['S1'],
+			profileName: null,
 		});
 		mgr.saveColumnDefaults('slug', 'done', {
 			templateName: 'Custom',
 			checkedSkills: ['S2', 'S3'],
+			profileName: null,
 		});
 		const config = mgr.loadProjectConfig('slug');
 		expect(config.columnDefaults?.['todo']).toEqual({
 			templateName: 'Default',
 			checkedSkills: ['S1'],
+			profileName: null,
 		});
 		expect(config.columnDefaults?.['done']).toEqual({
 			templateName: 'Custom',
 			checkedSkills: ['S2', 'S3'],
+			profileName: null,
 		});
 	});
 
@@ -194,11 +198,13 @@ describe('LauncherConfigManager', () => {
 		mgr.saveColumnDefaults('slug', 'todo', {
 			templateName: 'Default',
 			checkedSkills: ['S1', 'S2'],
+			profileName: null,
 		});
 		const config = mgr.loadProjectConfig('slug');
 		expect(config.columnDefaults?.['todo']).toEqual({
 			templateName: 'Default',
 			checkedSkills: ['S1', 'S2'],
+			profileName: null,
 		});
 	});
 
@@ -362,8 +368,9 @@ describe('LauncherConfigManager', () => {
 		fs.writeFileSync(appPath, JSON.stringify({
 			templates: [{ name: 'Default', text: 'text' }],
 			skills: [],
+			profiles: [],
 			columnDefaults: {
-				todo: { templateName: 'Default', checkedSkills: ['S1'] },
+				todo: { templateName: 'Default', checkedSkills: ['S1'], profileName: null },
 			},
 		}, null, 2));
 
@@ -382,6 +389,7 @@ describe('LauncherConfigManager', () => {
 		mgr.saveAppConfig({
 			templates: [{ name: 'Keep', text: 'keep text' }],
 			skills: [{ name: 'S1', text: 's1' }],
+			profiles: [],
 		});
 		const before = fs.readFileSync(path.join(configDir, 'launcher-config.json'), 'utf-8');
 
@@ -482,7 +490,7 @@ describe('LauncherConfigManager', () => {
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(configDir);
 
-		const defaults = { templateName: 'T1', checkedSkills: ['S1'] };
+		const defaults = { templateName: 'T1', checkedSkills: ['S1'], profileName: null };
 		mgr.saveColumnDefaults('slug', '__proto__', defaults);
 
 		// Verify no prototype pollution on a fresh plain object
@@ -675,7 +683,7 @@ describe('LauncherConfigManager', () => {
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(configDir);
 
-		const defaults = { templateName: 'MyTemplate', checkedSkills: ['S1', 'S2'] };
+		const defaults = { templateName: 'MyTemplate', checkedSkills: ['S1', 'S2'], profileName: null };
 		mgr.saveColumnDefaults('slug', '', defaults);
 
 		// Verify it persists through JSON roundtrip at the project config level
@@ -724,7 +732,8 @@ describe('LauncherConfigManager', () => {
 		mgr.saveProjectConfig('slug', {
 			templates: [{ name: 'T1', text: 'text' }],
 			skills: [{ name: 'S1', text: 'skill' }],
-			columnDefaults: { todo: { templateName: 'T1', checkedSkills: ['S1'] } },
+			profiles: [],
+			columnDefaults: { todo: { templateName: 'T1', checkedSkills: ['S1'], profileName: null } },
 		});
 
 		mgr.saveWorktreeRootPath('slug', '/new/path');
@@ -733,7 +742,7 @@ describe('LauncherConfigManager', () => {
 		expect(config.worktreeRootPath).toBe('/new/path');
 		expect(config.templates).toEqual([{ name: 'T1', text: 'text' }]);
 		expect(config.skills).toEqual([{ name: 'S1', text: 'skill' }]);
-		expect(config.columnDefaults?.['todo']).toEqual({ templateName: 'T1', checkedSkills: ['S1'] });
+		expect(config.columnDefaults?.['todo']).toEqual({ templateName: 'T1', checkedSkills: ['S1'], profileName: null });
 	});
 
 	it('saveWorktreeRootPath with undefined removes the path', () => {
@@ -780,13 +789,14 @@ describe('LauncherConfigManager', () => {
 		mgr.saveProjectConfig('slug', {
 			templates: [],
 			skills: [],
+			profiles: [],
 		});
 
-		mgr.saveColumnDefaults('slug', 'todo', { templateName: 'T1', checkedSkills: ['S1'] });
+		mgr.saveColumnDefaults('slug', 'todo', { templateName: 'T1', checkedSkills: ['S1'], profileName: null });
 		mgr.saveWorktreeRootPath('slug', '/worktrees');
 
 		const config = mgr.loadProjectConfig('slug');
-		expect(config.columnDefaults?.['todo']).toEqual({ templateName: 'T1', checkedSkills: ['S1'] });
+		expect(config.columnDefaults?.['todo']).toEqual({ templateName: 'T1', checkedSkills: ['S1'], profileName: null });
 		expect(config.worktreeRootPath).toBe('/worktrees');
 	});
 
@@ -842,4 +852,262 @@ describe('LauncherConfigManager', () => {
 		expect(config.templates).toEqual([]);
 		expect(config.skills).toEqual([]);
 	});
+
+	it('loadAppConfig returns defaults with two profiles when file is missing', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(configDir);
+		const config = mgr.loadAppConfig();
+		expect(config.profiles).toHaveLength(2);
+		expect(config.profiles![0].name).toBe('Claude Win');
+		expect(config.profiles![0].command).toBe('powershell -File {{appConfigDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}}');
+		expect(config.profiles![1].name).toBe('Claude macOS');
+		expect(config.profiles![1].command).toBe('bash {{appConfigDir}}/run-agent.sh {{initialPrompt}} {{windowTitle}}');
+	});
+
+	it('addProfile to app scope, verify file on disk', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(configDir);
+		mgr.addProfile('app', 'any-slug', { name: 'Custom Profile', command: 'my-command --flag' });
+		const raw = JSON.parse(fs.readFileSync(path.join(configDir, 'launcher-config.json'), 'utf-8'));
+		const found = raw.profiles.find((p: { name: string }) => p.name === 'Custom Profile');
+		expect(found).toBeDefined();
+		expect(found.command).toBe('my-command --flag');
+	});
+
+	it('addProfile with duplicate name throws', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(configDir);
+		mgr.addProfile('app', 'slug', { name: 'Dup', command: 'first' });
+		expect(() => mgr.addProfile('app', 'slug', { name: 'Dup', command: 'second' }))
+			.toThrow('already exists');
+	});
+
+	it('removeProfile removes from correct scope', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(configDir);
+		mgr.addProfile('app', 'slug', { name: 'ToRemove', command: 'cmd' });
+		mgr.removeProfile('app', 'slug', 'ToRemove');
+		const config = mgr.loadAppConfig();
+		expect((config.profiles ?? []).find(p => p.name === 'ToRemove')).toBeUndefined();
+	});
+
+	it('updateProfile renames correctly', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(configDir);
+		mgr.saveAppConfig({
+			templates: [],
+			skills: [],
+			profiles: [{ name: 'Old', command: 'old cmd' }],
+		});
+		mgr.updateProfile('app', 'slug', 'Old', { name: 'New', command: 'new cmd' });
+		const config = mgr.loadAppConfig();
+		expect((config.profiles ?? []).find(p => p.name === 'Old')).toBeUndefined();
+		expect((config.profiles ?? []).find(p => p.name === 'New')?.command).toBe('new cmd');
+	});
+
+	it('updateProfile strips extra properties', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(configDir);
+		mgr.saveAppConfig({
+			templates: [],
+			skills: [],
+			profiles: [{ name: 'Original', command: 'orig cmd' }],
+		});
+		mgr.updateProfile('app', 'slug', 'Original', { name: 'Original', command: 'updated', extra: 'junk' } as any);
+		const config = mgr.loadAppConfig();
+		const p = (config.profiles ?? []).find(p => p.name === 'Original');
+		expect(p).toEqual({ name: 'Original', command: 'updated' });
+		expect((p as any).extra).toBeUndefined();
+	});
+
+	it('merge: app profiles + project profiles, project wins on name collision', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(configDir);
+		mgr.saveAppConfig({
+			templates: [],
+			skills: [],
+			profiles: [
+				{ name: 'Shared', command: 'app version' },
+				{ name: 'AppOnly', command: 'app only' },
+			],
+		});
+		mgr.saveProjectConfig('slug', {
+			templates: [],
+			skills: [],
+			profiles: [
+				{ name: 'Shared', command: 'project version' },
+				{ name: 'ProjOnly', command: 'proj only' },
+			],
+		});
+		const merged = mgr.getMergedConfig('slug');
+		expect(merged.profiles).toHaveLength(3);
+
+		const shared = merged.profiles.find(p => p.name === 'Shared');
+		expect(shared?.command).toBe('project version');
+		expect(shared?.scope).toBe('project');
+
+		expect(merged.profiles.find(p => p.name === 'AppOnly')?.scope).toBe('app');
+		expect(merged.profiles.find(p => p.name === 'ProjOnly')?.scope).toBe('project');
+	});
+
+	it('merge: scope annotations are correct for profiles', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(configDir);
+		mgr.saveAppConfig({
+			templates: [],
+			skills: [],
+			profiles: [{ name: 'AP', command: 'app' }],
+		});
+		mgr.saveProjectConfig('slug', {
+			templates: [],
+			skills: [],
+			profiles: [{ name: 'PP', command: 'proj' }],
+		});
+		const merged = mgr.getMergedConfig('slug');
+		expect(merged.profiles.find(p => p.name === 'AP')?.scope).toBe('app');
+		expect(merged.profiles.find(p => p.name === 'PP')?.scope).toBe('project');
+	});
+
+	it('saveColumnDefaults with profileName persists through roundtrip', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(configDir);
+		mgr.saveColumnDefaults('slug', 'todo', {
+			templateName: 'Default',
+			checkedSkills: ['S1'],
+			profileName: 'Claude Win',
+		});
+		const config = mgr.loadProjectConfig('slug');
+		expect(config.columnDefaults?.['todo']?.profileName).toBe('Claude Win');
+	});
+
+	it('getMergedConfig includes profileName in columnDefaults', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(configDir);
+		mgr.saveColumnDefaults('slug', 'done', {
+			templateName: 'T1',
+			checkedSkills: [],
+			profileName: 'Claude macOS',
+		});
+		const merged = mgr.getMergedConfig('slug');
+		expect(merged.columnDefaults['done']?.profileName).toBe('Claude macOS');
+	});
+
+	it('ensurePlatformScripts writes scripts only if missing', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(configDir);
+
+		mgr.ensurePlatformScripts();
+
+		const ps1Path = path.join(configDir, 'run-agent.ps1');
+		const shPath = path.join(configDir, 'run-agent.sh');
+		expect(fs.existsSync(ps1Path)).toBe(true);
+		expect(fs.existsSync(shPath)).toBe(true);
+
+		// Modify a file
+		fs.writeFileSync(ps1Path, 'custom content');
+
+		// Call again -- should not overwrite
+		mgr.ensurePlatformScripts();
+		expect(fs.readFileSync(ps1Path, 'utf-8')).toBe('custom content');
+	});
+
+	it('removeProfile cleans up columnDefaults referencing the deleted profile name', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(configDir);
+
+		// Add a profile to the project scope
+		mgr.addProfile('project', 'slug', { name: 'MyProfile', command: 'my-cmd' });
+
+		// Save column defaults that reference this profile
+		mgr.saveColumnDefaults('slug', 'todo', {
+			templateName: 'Default',
+			checkedSkills: ['S1'],
+			profileName: 'MyProfile',
+		});
+		mgr.saveColumnDefaults('slug', 'done', {
+			templateName: 'Custom',
+			checkedSkills: [],
+			profileName: 'MyProfile',
+		});
+		// A column that references a different profile -- should remain untouched
+		mgr.saveColumnDefaults('slug', 'in-progress', {
+			templateName: 'Other',
+			checkedSkills: ['S2'],
+			profileName: 'OtherProfile',
+		});
+
+		// Remove the profile
+		mgr.removeProfile('project', 'slug', 'MyProfile');
+
+		// Column defaults referencing the deleted profile should have profileName cleared
+		const merged = mgr.getMergedConfig('slug');
+		expect(merged.columnDefaults['todo']?.profileName).toBeNull();
+		expect(merged.columnDefaults['done']?.profileName).toBeNull();
+		// The unrelated column default should be untouched
+		expect(merged.columnDefaults['in-progress']?.profileName).toBe('OtherProfile');
+	});
+
+	it('removeTemplate cleans up columnDefaults referencing the deleted template name', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(configDir);
+
+		// Add a template to the project scope
+		mgr.addTemplate('project', 'slug', { name: 'MyTemplate', text: 'some text' });
+
+		// Save column defaults that reference this template
+		mgr.saveColumnDefaults('slug', 'todo', {
+			templateName: 'MyTemplate',
+			checkedSkills: ['S1'],
+			profileName: null,
+		});
+		mgr.saveColumnDefaults('slug', 'done', {
+			templateName: 'MyTemplate',
+			checkedSkills: [],
+			profileName: 'SomeProfile',
+		});
+		// A column that references a different template -- should remain untouched
+		mgr.saveColumnDefaults('slug', 'in-progress', {
+			templateName: 'OtherTemplate',
+			checkedSkills: ['S2'],
+			profileName: null,
+		});
+
+		// Remove the template
+		mgr.removeTemplate('project', 'slug', 'MyTemplate');
+
+		// Column defaults referencing the deleted template should have templateName cleared
+		const merged = mgr.getMergedConfig('slug');
+		expect(merged.columnDefaults['todo']?.templateName).toBeNull();
+		expect(merged.columnDefaults['done']?.templateName).toBeNull();
+		// The unrelated column default should be untouched
+		expect(merged.columnDefaults['in-progress']?.templateName).toBe('OtherTemplate');
+	});
+
+	it('ensurePlatformScripts creates scripts on first loadAppConfig', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(configDir);
+
+		mgr.loadAppConfig();
+
+		const ps1Path = path.join(configDir, 'run-agent.ps1');
+		const shPath = path.join(configDir, 'run-agent.sh');
+		expect(fs.existsSync(ps1Path)).toBe(true);
+		expect(fs.existsSync(shPath)).toBe(true);
+	});
+
+
 });

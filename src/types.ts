@@ -62,14 +62,21 @@ export interface LauncherSkill {
 	text: string;
 }
 
+export interface LauncherProfile {
+	name: string;
+	command: string;
+}
+
 export interface LauncherColumnDefaults {
 	templateName: string | null;
 	checkedSkills: string[];
+	profileName: string | null;
 }
 
 export interface LauncherConfig {
 	templates: LauncherTemplate[];
 	skills: LauncherSkill[];
+	profiles?: LauncherProfile[];
 	columnDefaults?: Record<string, LauncherColumnDefaults>;
 	worktreeRootPath?: string;
 }
@@ -77,6 +84,7 @@ export interface LauncherConfig {
 export interface MergedLauncherConfig {
 	templates: (LauncherTemplate & { scope: "app" | "project" })[];
 	skills: (LauncherSkill & { scope: "app" | "project" })[];
+	profiles: (LauncherProfile & { scope: "app" | "project" })[];
 	columnDefaults: Record<string, LauncherColumnDefaults>;
 	worktreeRootPath: string | null;
 }

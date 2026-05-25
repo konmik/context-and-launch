@@ -9,6 +9,7 @@ interface AgentLauncherProps {
 export default function AgentLauncher(props: AgentLauncherProps) {
 	const [config, setConfig] = createSignal<MergedLauncherConfig | null>(null);
 	const [selectedTemplate, setSelectedTemplate] = createSignal("");
+	const [selectedProfile, setSelectedProfile] = createSignal("");
 	const [checkedSkills, setCheckedSkills] = createSignal<Set<string>>(new Set());
 	const [useWorktree, setUseWorktree] = createSignal(props.ticket.useWorktree);
 	const [loading, setLoading] = createSignal(true);
@@ -31,9 +32,11 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 						const defaults = data.columnDefaults[props.ticket.status];
 						if (defaults) {
 							setSelectedTemplate(defaults.templateName ?? (data.templates[0]?.name ?? ""));
+							setSelectedProfile(defaults.profileName ?? (data.profiles[0]?.name ?? ""));
 							setCheckedSkills(new Set(defaults.checkedSkills));
 						} else {
 							setSelectedTemplate(data.templates[0]?.name ?? "");
+							setSelectedProfile(data.profiles[0]?.name ?? "");
 							setCheckedSkills(new Set<string>());
 						}
 					}
@@ -61,6 +64,7 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 			templateName: selectedTemplate(),
 			checkedSkills: [...checkedSkills()],
 			useWorktree: useWorktree(),
+			profileName: selectedProfile(),
 		});
 	}
 
@@ -152,6 +156,19 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 							</Show>
 
 							<div class="flex flex-col gap-4 rounded-md border border-border p-4">
+								<div>
+									<label class="mb-1 block text-sm text-muted-foreground">Profile</label>
+									<select
+										value={selectedProfile()}
+										onChange={(e) => setSelectedProfile(e.currentTarget.value)}
+										class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+									>
+										<For each={cfg().profiles}>
+											{(p) => <option value={p.name}>{p.name}</option>}
+										</For>
+									</select>
+								</div>
+
 								<div>
 									<label class="mb-1 block text-sm text-muted-foreground">Template</label>
 									<select

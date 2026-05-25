@@ -55,8 +55,12 @@ A git branch named `ai-stages` with no common history with the project's main br
 ### Agent Launcher
 
 Agent Launcher:
-A tab inside the Ticket Detail Dialog that assembles a prompt from a Template and checked Skills, then launches Claude Code in a separate terminal window. The user interacts with Claude directly in the terminal.
+A tab inside the Ticket Detail Dialog that assembles a prompt from a Template and checked Skills, then launches Claude Code in a separate terminal window using the selected Coding Agent Profile. The user interacts with Claude directly in the terminal.
 Avoid: AI console, terminal, shell, CLI
+
+Coding Agent Profile:
+A named command string that controls how Claude is launched from the Agent Launcher. Contains a name and a command. The server executes the command with parameters appended (initialPrompt, ticketTitle). The app ships default profiles for Windows and macOS backed by user-editable platform scripts in `~/.ai-stages/`.
+Avoid: claude config, claude instance, agent config
 
 Template:
 A named prompt string with placeholders (e.g. `{{ticketDir}}`, `{{ticketTitle}}`). One template is selected as the base prompt in the Agent Launcher. Interpolated after skill text is appended.
@@ -70,8 +74,12 @@ Placeholder:
 A `{{variable}}` reference in a Template or Skill that gets replaced with a runtime value at launch time. Available: `{{ticketDir}}`, `{{ticketSlug}}`, `{{ticketTitle}}`, `{{ticketNumber}}`, `{{ticketStatus}}`, `{{projectPath}}`, `{{projectSlug}}`.
 
 Launcher Config:
-A JSON file defining available Templates, Skills, and launcher settings. Exists at two scopes: app-level (`~/.ai-stages/launcher-config.json`) and project-level (`~/.ai-stages/tickets/{slug}/launcher-config.json`). Project-level merges additively with app-level; project wins on name collision.
+A JSON file defining available Templates, Skills, Coding Agent Profiles, and launcher settings. Exists at two scopes: app-level (`~/.ai-stages/launcher-config.json`) and project-level (`~/.ai-stages/tickets/{slug}/launcher-config.json`). Project-level merges additively with app-level; project wins on name collision.
 Avoid: agent config, prompt config
+
+Settings:
+The dialog for managing Launcher Config entries (Templates, Skills, Coding Agent Profiles) and launcher settings like the worktree root path. Accessible from the board UI.
+Avoid: launcher settings, preferences
 
 Agent Worktree:
 A git worktree created from the project's main branch for an agent to work in isolation. Located under a user-configured worktree root path. Branch named `ai/{folderName}`. Reused across runs.
@@ -88,4 +96,4 @@ Avoid: sandbox, workspace
 - The Agent Launcher assembles a prompt from a Template and zero or more Skills
 - A Launcher Config exists at app scope and optionally at project scope; project merges into app
 - An Agent Worktree branches from the Project's main branch, named `ai/{folderName}`
-- The Agent Launcher remembers the last-used Template and checked Skills per Column
+- The Agent Launcher remembers the last-used Template, checked Skills, and Coding Agent Profile per Column
