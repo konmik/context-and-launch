@@ -26,7 +26,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 	const [error, setError] = createSignal("");
 	const [form, setForm] = createSignal<ItemFormState | null>(null);
 	const [worktreeRootPath, setWorktreeRootPath] = createSignal("");
-	const [activeTab, setActiveTab] = createSignal<"general" | "profiles">("general");
+	const [activeTab, setActiveTab] = createSignal<"general" | "templates" | "skills" | "profiles">("general");
 
 	function itemEndpoint(itemType: ItemType, scope: Scope): string {
 		const base = scope === "app"
@@ -199,6 +199,18 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 								General
 							</button>
 							<button
+								onClick={() => setActiveTab("templates")}
+								class={`px-3 py-2 text-sm font-medium ${activeTab() === "templates" ? "border-b-2 border-primary text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+							>
+								Prompts
+							</button>
+							<button
+								onClick={() => setActiveTab("skills")}
+								class={`px-3 py-2 text-sm font-medium ${activeTab() === "skills" ? "border-b-2 border-primary text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+							>
+								Skills
+							</button>
+							<button
 								onClick={() => setActiveTab("profiles")}
 								class={`px-3 py-2 text-sm font-medium ${activeTab() === "profiles" ? "border-b-2 border-primary text-foreground" : "text-muted-foreground hover:text-foreground"}`}
 							>
@@ -247,8 +259,44 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 									<Show when={activeTab() === "general"}>
 									<div class="space-y-6">
 										<section>
+											<h3 class="mb-2 text-sm font-semibold">Agent worktree root path</h3>
+											<div class="flex gap-2">
+												<input
+													type="text"
+													value={worktreeRootPath()}
+													onInput={(e) => setWorktreeRootPath(e.currentTarget.value)}
+													onBlur={saveWorktreeRootPath}
+													onKeyDown={(e) => { if (e.key === "Enter") saveWorktreeRootPath(); }}
+													class="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+													placeholder="e.g. ~/.ai-stages/worktrees"
+												/>
+												<button
+													type="button"
+													onClick={async () => {
+														try {
+															const res = await fetch("/api/pick-directory");
+															if (!res.ok) return;
+															const { path } = await res.json();
+															setWorktreeRootPath(path);
+															await saveWorktreeRootPath();
+														} catch (e) {
+															setError(e instanceof Error ? e.message : "Failed to pick directory");
+														}
+													}}
+													class="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+												>
+													Browse
+												</button>
+											</div>
+										</section>
+									</div>
+									</Show>
+
+									<Show when={activeTab() === "templates"}>
+									<div class="space-y-6">
+										<section>
 											<div class="mb-2 flex items-center justify-between">
-												<h3 class="text-sm font-semibold">Templates</h3>
+												<h3 class="text-sm font-semibold">Prompts</h3>
 												<button
 													onClick={() => startAdd("template")}
 													class="inline-flex h-7 items-center justify-center rounded-md bg-primary px-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
@@ -256,7 +304,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 													Add
 												</button>
 											</div>
-											<Show when={cfg().templates.length > 0} fallback={<p class="py-3 text-center text-sm text-muted-foreground">No templates configured.</p>}>
+											<Show when={cfg().templates.length > 0} fallback={<p class="py-3 text-center text-sm text-muted-foreground">No prompts configured.</p>}>
 												<div class="space-y-2">
 													<For each={cfg().templates}>
 														{(item) => (
@@ -290,7 +338,11 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 												</div>
 											</Show>
 										</section>
+									</div>
+									</Show>
 
+									<Show when={activeTab() === "skills"}>
+									<div class="space-y-6">
 										<section>
 											<div class="mb-2 flex items-center justify-between">
 												<h3 class="text-sm font-semibold">Skills</h3>
@@ -334,38 +386,6 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 													</For>
 												</div>
 											</Show>
-										</section>
-
-										<section>
-											<h3 class="mb-2 text-sm font-semibold">Agent worktree root path</h3>
-											<div class="flex gap-2">
-												<input
-													type="text"
-													value={worktreeRootPath()}
-													onInput={(e) => setWorktreeRootPath(e.currentTarget.value)}
-													onBlur={saveWorktreeRootPath}
-													onKeyDown={(e) => { if (e.key === "Enter") saveWorktreeRootPath(); }}
-													class="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-													placeholder="e.g. ~/.ai-stages/worktrees"
-												/>
-												<button
-													type="button"
-													onClick={async () => {
-														try {
-															const res = await fetch("/api/pick-directory");
-															if (!res.ok) return;
-															const { path } = await res.json();
-															setWorktreeRootPath(path);
-															await saveWorktreeRootPath();
-														} catch (e) {
-															setError(e instanceof Error ? e.message : "Failed to pick directory");
-														}
-													}}
-													class="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-												>
-													Browse
-												</button>
-											</div>
 										</section>
 									</div>
 									</Show>
@@ -435,7 +455,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 					<div class="relative z-10 w-full max-w-lg rounded-lg border border-border bg-card shadow-lg">
 						<div class="flex items-center justify-between border-b border-border px-6 py-4">
 							<h2 class="text-lg font-semibold">
-								{f().mode === "add" ? "Add" : "Edit"} {f().itemType === "template" ? "Template" : f().itemType === "skill" ? "Skill" : "Profile"}
+								{f().mode === "add" ? "Add" : "Edit"} {f().itemType === "template" ? "Prompt" : f().itemType === "skill" ? "Skill" : "Profile"}
 							</h2>
 							<button
 								onClick={() => setForm(null)}
@@ -452,12 +472,12 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 									value={f().name}
 									onInput={(e) => setForm({ ...f(), name: e.currentTarget.value })}
 									class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-									placeholder={f().itemType === "profile" ? "Profile name" : f().itemType === "skill" ? "Skill name" : "Template name"}
+									placeholder={f().itemType === "profile" ? "Profile name" : f().itemType === "skill" ? "Skill name" : "Prompt name"}
 								/>
 							</div>
 							<div>
 								<label class="mb-1 block text-sm text-muted-foreground">
-									{f().itemType === "profile" ? "Command" : "Text"}
+									Template
 								</label>
 								<textarea
 									value={f().text}
