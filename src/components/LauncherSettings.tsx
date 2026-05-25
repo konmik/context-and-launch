@@ -1,5 +1,6 @@
 import { createSignal, createEffect, on, Show, For } from "solid-js";
 import type { MergedLauncherConfig } from "~/types.js";
+import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 
 interface LauncherSettingsProps {
 	open: boolean;
@@ -158,6 +159,12 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 			setError(e instanceof Error ? e.message : "Failed to save");
 		}
 	}
+
+	useModEnterSubmit({
+		onSubmit: submitForm,
+		disabled: () => !form()?.name.trim(),
+		active: () => !!form(),
+	});
 
 	return (<>
 		<Show when={props.open}>
@@ -394,6 +401,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 							<button
 								onClick={submitForm}
 								disabled={!f().name.trim()}
+								title={modEnterHint()}
 								class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
 							>
 								{f().mode === "add" ? "Add" : "Save"}
