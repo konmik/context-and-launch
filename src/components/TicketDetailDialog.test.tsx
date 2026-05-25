@@ -99,12 +99,10 @@ describe("TicketDetailDialog content loading", () => {
     const ticketB = makeTicket("t-2-bravo", "T-2", "Bravo");
 
     const [ticket, setTicket] = createSignal<TicketInfo | null>(ticketA);
-    const [open, setOpen] = createSignal(true);
 
     render(() => (
       <TicketDetailDialog
-        open={open()}
-        onOpenChange={setOpen}
+        onClose={() => setTicket(null)}
         slug="test-project"
         ticket={ticket()}
       />

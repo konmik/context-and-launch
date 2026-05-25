@@ -41,7 +41,6 @@ export default function ProjectPage() {
   const [archiveTicketOpen, setArchiveTicketOpen] = createSignal(false);
   const [cleanupDialogOpen, setCleanupDialogOpen] = createSignal(false);
   const [cleanupAction, setCleanupAction] = createSignal<"archive" | "delete">("archive");
-  const [detailTicketOpen, setDetailTicketOpen] = createSignal(false);
   const [selectedTicket, setSelectedTicket] = createSignal<TicketInfo | null>(
     null
   );
@@ -75,7 +74,6 @@ export default function ProjectPage() {
     await revalidate("board-data");
     const fresh = data()?.board?.tickets.find((t: TicketInfo) => t.folderName === ticket.folderName);
     setSelectedTicket(fresh ?? ticket);
-    setDetailTicketOpen(true);
   }
 
   async function handleReorder(folderName: string, fromColumn: string, toColumn: string, newIndex: number) {
@@ -329,8 +327,7 @@ export default function ProjectPage() {
             onSubmit={handleCleanupSubmit}
           />
           <TicketDetailDialog
-            open={detailTicketOpen()}
-            onOpenChange={setDetailTicketOpen}
+            onClose={() => setSelectedTicket(null)}
             slug={d().slug}
             ticket={selectedTicket()}
           />
