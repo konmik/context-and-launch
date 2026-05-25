@@ -48,8 +48,7 @@ function DiscardConfirmation(props: {
 }
 
 interface TicketDetailDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
   slug: string;
   ticket: TicketInfo | null;
 }
@@ -60,8 +59,7 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
       {(ticket) => (
         <TicketDetailContent
           ticket={ticket}
-          open={props.open}
-          onOpenChange={props.onOpenChange}
+          onClose={props.onClose}
           slug={props.slug}
         />
       )}
@@ -71,8 +69,7 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
 
 function TicketDetailContent(props: {
   ticket: TicketInfo;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
   slug: string;
 }) {
   const [activeFile, setActiveFile] = createSignal("to-do");
@@ -107,7 +104,6 @@ function TicketDetailContent(props: {
     onSubmit: saveFile,
     disabled: () => saving() || !hasUnsavedChanges(),
     active: () =>
-      props.open &&
       !showAiConsole() &&
       !newFileDialogOpen() &&
       !confirmingDelete() &&
@@ -136,46 +132,14 @@ function TicketDetailContent(props: {
     }
   }
 
-  createEffect(() => {
-    if (props.open && typeof window !== "undefined") {
-      window.addEventListener("beforeunload", handleBeforeUnload);
-    } else if (typeof window !== "undefined") {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    }
-  });
-
-  onCleanup(() => {
-    if (typeof window !== "undefined") {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    }
-  });
+  if (typeof window !== "undefined") {
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    onCleanup(() => window.removeEventListener("beforeunload", handleBeforeUnload));
+  }
 
   createEffect(
-    on(
-      () => [props.open, props.ticket] as const,
-      ([open, ticket]) => {
-        if (open && ticket) {
-          setConfirmingClose(false);
-          setConfirmingFileSwitch(false);
-          setPendingFile(null);
-          setPendingAiSwitch(false);
-          setConfirmingDelete(false);
-          setNewFileDialogOpen(false);
-          setDropdownOpen(false);
-          setShowAiConsole(false);
-          setExtraFiles([]);
-          setError("");
-          setActiveFile("to-do");
-        }
-      }
-    )
-  );
-
-  createEffect(
-    on(
-      () => [props.open, props.ticket, activeFile()] as const,
-      async ([open, ticket, file]) => {
-        if (!open || !ticket || !file || showAiConsole()) return;
+    on(activeFile, async (file) => {
+        if (showAiConsole()) return;
         setError("");
         try {
           const res = await fetch(
@@ -314,12 +278,12 @@ function TicketDetailContent(props: {
       setConfirmingClose(true);
       return;
     }
-    props.onOpenChange(false);
+    props.onClose();
   }
 
   function forceClose() {
     setConfirmingClose(false);
-    props.onOpenChange(false);
+    props.onClose();
   }
 
   function handleKeyDown(e: KeyboardEvent) {
@@ -340,7 +304,7 @@ function TicketDetailContent(props: {
   return (
     <>
       <ResizableWindow
-        open={props.open}
+        open={true}
         onClose={close}
         onKeyDown={handleKeyDown}
         storageKey="ticket-dialog-size"
