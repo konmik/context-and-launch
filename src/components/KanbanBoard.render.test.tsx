@@ -1,7 +1,10 @@
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@solidjs/testing-library";
+import { describe, it, expect, afterEach } from "vitest";
+import { render, screen, cleanup } from "@solidjs/testing-library";
+import { createSignal } from "solid-js";
 import KanbanBoard from "./KanbanBoard";
 import type { BoardState, TicketInfo } from "~/types.js";
+
+afterEach(() => cleanup());
 
 function makeTicket(overrides: Partial<TicketInfo> & { folderName: string }): TicketInfo {
   return {
@@ -105,6 +108,39 @@ describe("KanbanBoard rendering", () => {
     expect(sortables.length).toBe(2);
     expect(sortables[0].getAttribute("data-sortable-id")).toBe("todo:t-1-alpha");
     expect(sortables[1].getAttribute("data-sortable-id")).toBe("todo:t-2-bravo");
+  });
+});
+
+describe("KanbanBoard reactivity after reorder", () => {
+  it("shows newly added ticket after a reorder has set orderOverride", () => {
+    const ticketA = makeTicket({ folderName: "t-1-alpha", number: "T-1", title: "Alpha", status: "todo" });
+    const [board, setBoard] = createSignal(makeBoard([ticketA]));
+
+    render(() => (
+      <KanbanBoard
+        board={board()}
+        slug="test"
+        onEdit={noop}
+        onDelete={noop}
+        onViewDetail={noop}
+        onArchive={noop}
+        onReorder={noop}
+      />
+    ));
+
+    expect(screen.getByText("Alpha")).toBeTruthy();
+
+    const { setOrderOverride } = (window as any).__kanbanTestHooks ?? {};
+    if (!setOrderOverride) {
+      expect.fail("KanbanBoard must expose __kanbanTestHooks.setOrderOverride");
+    }
+
+    setOrderOverride({ todo: ["t-1-alpha"], done: [] });
+
+    const ticketB = makeTicket({ folderName: "t-2-bravo", number: "T-2", title: "Bravo", status: "todo" });
+    setBoard(makeBoard([ticketA, ticketB]));
+
+    expect(screen.getByText("Bravo")).toBeTruthy();
   });
 });
 

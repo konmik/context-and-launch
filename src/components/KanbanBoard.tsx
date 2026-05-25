@@ -1,4 +1,4 @@
-import { For, Show, createSignal, createMemo } from "solid-js";
+import { For, Show, createSignal, createMemo, createEffect, on } from "solid-js";
 import {
   DragDropProvider,
   DragDropSensors,
@@ -116,8 +116,13 @@ export default function KanbanBoard(props: KanbanBoardProps) {
   const columnRefs = new Map<string, HTMLDivElement>();
 
   if (typeof window !== "undefined") {
-    (window as any).__kanbanTestHooks = { setHoverTarget, setActiveId };
+    (window as any).__kanbanTestHooks = { setHoverTarget, setActiveId, setOrderOverride };
   }
+
+  createEffect(on(
+    () => props.board.ticketOrder,
+    () => setOrderOverride(null)
+  ));
 
   const ticketMap = createMemo(() => {
     const map = new Map<string, TicketInfo>();
