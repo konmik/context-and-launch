@@ -55,7 +55,27 @@ interface TicketDetailDialogProps {
 }
 
 export default function TicketDetailDialog(props: TicketDetailDialogProps) {
-  const [activeFile, setActiveFile] = createSignal("");
+  return (
+    <Show when={props.ticket} keyed>
+      {(ticket) => (
+        <TicketDetailContent
+          ticket={ticket}
+          open={props.open}
+          onOpenChange={props.onOpenChange}
+          slug={props.slug}
+        />
+      )}
+    </Show>
+  );
+}
+
+function TicketDetailContent(props: {
+  ticket: TicketInfo;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  slug: string;
+}) {
+  const [activeFile, setActiveFile] = createSignal("to-do");
   const [content, setContent] = createSignal("");
   const [savedContent, setSavedContent] = createSignal("");
   const [saving, setSaving] = createSignal(false);
@@ -83,12 +103,9 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
     active: () => confirmingDelete(),
   });
 
-  const hasOverlay = () =>
-    showAiConsole() || newFileDialogOpen() || confirmingClose() || confirmingFileSwitch() || confirmingDelete();
-
   const fileOptions = () => {
     const defaults = ["to-do", "product-requirement-document"];
-    const existing = props.ticket?.stageNames ?? [];
+    const existing = props.ticket.stageNames ?? [];
     const extra = extraFiles();
     const all = [...defaults];
     for (const name of [...existing, ...extra]) {
@@ -123,26 +140,13 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
 
   createEffect(
     on(
-      () => [props.open, props.ticket] as const,
-      ([open, ticket]) => {
-        if (open && ticket) {
-          setShowAiConsole(false);
-          setExtraFiles([]);
-          setActiveFile("to-do");
-        }
-      }
-    )
-  );
-
-  createEffect(
-    on(
-      () => [props.open, props.ticket, activeFile()] as const,
-      async ([open, ticket, file]) => {
-        if (!open || !ticket || !file || showAiConsole()) return;
+      () => [props.open, activeFile()] as const,
+      async ([open, file]) => {
+        if (!open || !file || showAiConsole()) return;
         setError("");
         try {
           const res = await fetch(
-            `/api/projects/${props.slug}/board/tickets/${ticket.folderName}/stages/${file}`
+            `/api/projects/${props.slug}/board/tickets/${props.ticket.folderName}/stages/${file}`
           );
           if (res.ok) {
             const data = await res.json();
@@ -162,13 +166,12 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
   );
 
   async function saveFile() {
-    const ticket = props.ticket;
     const file = activeFile();
-    if (!ticket || !file) return;
+    if (!file) return;
     setSaving(true);
     try {
       await fetch(
-        `/api/projects/${props.slug}/board/tickets/${ticket.folderName}/stages/${file}`,
+        `/api/projects/${props.slug}/board/tickets/${props.ticket.folderName}/stages/${file}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -257,13 +260,12 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
   }
 
   async function deleteFile() {
-    const ticket = props.ticket;
     const file = activeFile();
-    if (!ticket || !file) return;
+    if (!file) return;
     setConfirmingDelete(false);
     try {
       await fetch(
-        `/api/projects/${props.slug}/board/tickets/${ticket.folderName}/stages/${file}`,
+        `/api/projects/${props.slug}/board/tickets/${props.ticket.folderName}/stages/${file}`,
         { method: "DELETE" }
       );
       revalidate("board-data");
@@ -304,126 +306,122 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
 
   return (
     <>
-      <Show when={props.ticket}>
-        <ResizableWindow
-          open={props.open}
-          onClose={close}
-          onKeyDown={handleKeyDown}
-          storageKey="ticket-dialog-size"
-          title={
-            <div class="flex items-end justify-between">
-              <h2 class="text-lg font-semibold">
-                {props.ticket!.number} - {props.ticket!.title}
-              </h2>
-              <button
-                type="button"
-                onClick={toggleAiConsole}
-                onMouseDown={(e) => e.stopPropagation()}
-                class={`inline-flex h-10 shrink-0 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                  showAiConsole()
-                    ? "bg-primary text-primary-foreground"
-                    : "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
-                }`}
-              >
-                {showAiConsole() ? "File Editor ›" : "Agent Launcher ›"}
-              </button>
-            </div>
-          }
-          footer={
-            <div class="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={close}
-
-                class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-              >
-                Close
-              </button>
-              <Show when={!showAiConsole()}>
-                <button
-                  type="button"
-                  onClick={saveFile}
-  
-                  disabled={saving() || !hasUnsavedChanges()}
-                  class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
-                >
-                  Save
-                </button>
-              </Show>
-            </div>
-          }
-        >
-          <div class="flex h-full flex-col">
-            <Show when={!showAiConsole()}>
-              <div class="flex items-center gap-2 px-4 py-2">
-                <div class="relative min-w-0 flex-1">
-                  <button
-                    type="button"
-                    onClick={() => setDropdownOpen(!dropdownOpen())}
-                    class="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-sm"
-                  >
-                    <span class="truncate">{activeFile()}.md</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ml-2 shrink-0"><path d="m6 9 6 6 6-6"/></svg>
-                  </button>
-                  <Show when={dropdownOpen()}>
-                    <div class="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
-                    <div class="absolute left-0 z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover py-1 shadow-md">
-                      <For each={fileOptions()}>
-                        {(name) => (
-                          <button
-                            type="button"
-                            onClick={() => selectFile(name)}
-                            class={`w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground ${
-                              name === activeFile() ? "font-semibold" : ""
-                            }`}
-                          >
-                            {name}.md
-                          </button>
-                        )}
-                      </For>
-                      <div class="my-1 border-t border-border" />
-                      <button
-                        type="button"
-                        onClick={openNewFileDialog}
-                        class="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
-                      >
-                        New markdown file...
-                      </button>
-                    </div>
-                  </Show>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setConfirmingDelete(true)}
-                  class="inline-flex h-9 shrink-0 items-center justify-center rounded-md border border-input bg-background px-2 text-sm text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground"
-                  title="Delete file"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                </button>
-              </div>
-            </Show>
-
-            <Show when={error()}>
-              <div class="mx-4 mt-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {error()}
-              </div>
-            </Show>
-
-            <div class="flex-1 overflow-hidden px-4 pb-2">
-              <Show when={!showAiConsole()} fallback={
-                <AgentLauncher slug={props.slug} ticket={props.ticket!} />
-              }>
-                <MarkdownEditor
-                  value={content()}
-                  onChange={setContent}
-                  onSave={saveFile}
-                  placeholder="Write markdown here..."
-                />
-              </Show>
-            </div>
+      <ResizableWindow
+        open={props.open}
+        onClose={close}
+        onKeyDown={handleKeyDown}
+        storageKey="ticket-dialog-size"
+        title={
+          <div class="flex items-end justify-between">
+            <h2 class="text-lg font-semibold">
+              {props.ticket.number} - {props.ticket.title}
+            </h2>
+            <button
+              type="button"
+              onClick={toggleAiConsole}
+              onMouseDown={(e) => e.stopPropagation()}
+              class={`inline-flex h-10 shrink-0 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                showAiConsole()
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+              }`}
+            >
+              {showAiConsole() ? "File Editor ›" : "Agent Launcher ›"}
+            </button>
           </div>
-        </ResizableWindow>
-      </Show>
+        }
+        footer={
+          <div class="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={close}
+              class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+            >
+              Close
+            </button>
+            <Show when={!showAiConsole()}>
+              <button
+                type="button"
+                onClick={saveFile}
+                disabled={saving() || !hasUnsavedChanges()}
+                class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+              >
+                Save
+              </button>
+            </Show>
+          </div>
+        }
+      >
+        <div class="flex h-full flex-col">
+          <Show when={!showAiConsole()}>
+            <div class="flex items-center gap-2 px-4 py-2">
+              <div class="relative min-w-0 flex-1">
+                <button
+                  type="button"
+                  onClick={() => setDropdownOpen(!dropdownOpen())}
+                  class="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <span class="truncate">{activeFile()}.md</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ml-2 shrink-0"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <Show when={dropdownOpen()}>
+                  <div class="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
+                  <div class="absolute left-0 z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover py-1 shadow-md">
+                    <For each={fileOptions()}>
+                      {(name) => (
+                        <button
+                          type="button"
+                          onClick={() => selectFile(name)}
+                          class={`w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground ${
+                            name === activeFile() ? "font-semibold" : ""
+                          }`}
+                        >
+                          {name}.md
+                        </button>
+                      )}
+                    </For>
+                    <div class="my-1 border-t border-border" />
+                    <button
+                      type="button"
+                      onClick={openNewFileDialog}
+                      class="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                    >
+                      New markdown file...
+                    </button>
+                  </div>
+                </Show>
+              </div>
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(true)}
+                class="inline-flex h-9 shrink-0 items-center justify-center rounded-md border border-input bg-background px-2 text-sm text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground"
+                title="Delete file"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+              </button>
+            </div>
+          </Show>
+
+          <Show when={error()}>
+            <div class="mx-4 mt-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error()}
+            </div>
+          </Show>
+
+          <div class="flex-1 overflow-hidden px-4 pb-2">
+            <Show when={!showAiConsole()} fallback={
+              <AgentLauncher slug={props.slug} ticket={props.ticket} />
+            }>
+              <MarkdownEditor
+                value={content()}
+                onChange={setContent}
+                onSave={saveFile}
+                placeholder="Write markdown here..."
+              />
+            </Show>
+          </div>
+        </div>
+      </ResizableWindow>
 
       <DiscardConfirmation
         open={confirmingClose()}
