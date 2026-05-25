@@ -1,3 +1,5 @@
+import { rename } from 'fs/promises';
+import { exec } from 'child_process';
 import { git } from './git.js';
 import { ProcessError } from './errors.js';
 import type { LauncherConfigManager } from './launcher-config.js';
@@ -98,6 +100,25 @@ export class AgentWorktreeManager {
 		} catch {
 			return false;
 		}
+	}
+
+	async isWorktreeBusy(worktreePath: string): Promise<boolean> {
+		if (process.platform === 'win32') {
+			const probe = worktreePath + '.busy-probe';
+			try {
+				await rename(worktreePath, probe);
+				await rename(probe, worktreePath);
+				return false;
+			} catch (e: any) {
+				if (e.code === 'ENOENT') return false;
+				return true;
+			}
+		}
+		return new Promise((resolve) => {
+			exec(`lsof +D "${worktreePath}"`, { timeout: 5000 }, (error, stdout) => {
+				resolve(!error && stdout.trim().length > 0);
+			});
+		});
 	}
 
 	async removeWorktree(projectPath: string, worktreePath: string): Promise<void> {
