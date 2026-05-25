@@ -12,3 +12,4 @@ Write UI tests with playwright.
 When writing e2e, mock file system and process calls only, use playwright for UI.
 We are using only TypeScript, do not check for types randomly, do not write incorrect-type tests.
 Avoid non-ASCII unless explicitly asked.
+Do not use z-index (Tailwind z-* classes). Use Portal from solid-js/web for stacking.

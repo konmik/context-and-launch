@@ -86,7 +86,7 @@ export default function TicketCard(props: TicketCardProps) {
         <Portal>
           <div
             ref={(el) => (menuPanelRef = el)}
-            class="fixed z-50 min-w-[150px] rounded-md border border-border bg-popover py-1 shadow-md"
+            class="fixed min-w-[150px] rounded-md border border-border bg-popover py-1 shadow-md"
             style={{
               top: `${menuPos().top}px`,
               ...(menuPos().side === "right"

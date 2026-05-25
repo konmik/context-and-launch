@@ -1,4 +1,5 @@
 import { Show } from "solid-js";
+import { Portal } from "solid-js/web";
 import type { ErrorInfo } from "~/types.js";
 
 interface ErrorDialogProps {
@@ -10,9 +11,10 @@ export default function ErrorDialog(props: ErrorDialogProps) {
   return (
     <Show when={props.error}>
       {(err) => (
-        <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+        <Portal>
+        <div class="fixed inset-0 flex items-center justify-center bg-black/50">
           <div class="fixed inset-0" onClick={props.onClose} />
-          <div class="relative z-10 flex max-h-[80vh] w-full max-w-lg flex-col rounded-lg border border-border bg-card shadow-lg">
+          <div class="relative flex max-h-[80vh] w-full max-w-lg flex-col rounded-lg border border-border bg-card shadow-lg">
             <div class="flex-none px-6 pt-6 pb-2">
               <p class="text-sm font-medium">{err().description}</p>
             </div>
@@ -40,6 +42,7 @@ export default function ErrorDialog(props: ErrorDialogProps) {
             </div>
           </div>
         </div>
+        </Portal>
       )}
     </Show>
   );
