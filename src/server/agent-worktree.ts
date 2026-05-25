@@ -1,4 +1,5 @@
 import { git } from './git.js';
+import { ProcessError } from './errors.js';
 import type { LauncherConfigManager } from './launcher-config.js';
 import type { ConfigPaths } from './config-paths.js';
 
@@ -78,6 +79,9 @@ export class AgentWorktreeManager {
 		try {
 			await git(projectPath, 'pull');
 		} catch (e) {
+			if (e instanceof ProcessError) {
+				throw new ProcessError(e.command, e.exitCode, e.output, 'Failed to pull main branch');
+			}
 			throw new Error(`Failed to pull main branch: ${e instanceof Error ? e.message : String(e)}`);
 		}
 	}

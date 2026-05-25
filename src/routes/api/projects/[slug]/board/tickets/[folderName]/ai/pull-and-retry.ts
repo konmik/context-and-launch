@@ -1,6 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { agentWorktreeManager } from "~/server/instances.js";
-import { errorMessage } from "~/server/errors.js";
+import { errorPayload } from "~/server/errors.js";
 import {
   resolveTicketAndProject,
   readLaunchRequest,
@@ -26,6 +26,6 @@ export async function POST({ params, request }: APIEvent) {
     await launchAgent(slug, ticket, project, worktreeDir, launchRequest, worktreeResult.worktreePath);
     return new Response(null, { status: 200 });
   } catch (e) {
-    return new Response(errorMessage(e), { status: 500 });
+    return Response.json(errorPayload(e), { status: 500 });
   }
 }

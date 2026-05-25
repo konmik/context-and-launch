@@ -1,15 +1,17 @@
 import { exec, execSync } from 'child_process';
+import { ProcessError } from './errors.js';
 
 function escapeArgs(args: string[]): string {
 	return args.map((a) => `"${a.replace(/"/g, '\\"')}"`).join(' ');
 }
 
 export function git(workDir: string, ...args: string[]): Promise<string> {
+	const command = `git ${args.join(' ')}`;
 	return new Promise((resolve, reject) => {
 		exec(`git ${escapeArgs(args)}`, { cwd: workDir, timeout: 30000 }, (error, stdout, stderr) => {
 			if (error) {
 				const output = (stderr || stdout || '').trim();
-				reject(new Error(`git ${args.join(' ')} failed (exit ${error.code}): ${output}`));
+				reject(new ProcessError(command, error.code, output));
 				return;
 			}
 			resolve(stdout);
