@@ -36,6 +36,7 @@ function parseConfig(text: string): LauncherConfig {
 		profiles: Array.isArray(parsed.profiles) ? parsed.profiles : [],
 		columnDefaults: parsed.columnDefaults,
 		worktreeRootPath: parsed.worktreeRootPath,
+		boardId: parsed.boardId,
 	};
 }
 
@@ -136,6 +137,7 @@ export class LauncherConfigManager {
 			profiles: [...profileMap.values()],
 			columnDefaults: project.columnDefaults ?? {},
 			worktreeRootPath: project.worktreeRootPath ?? null,
+			boardId: project.boardId ?? null,
 		};
 	}
 

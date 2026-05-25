@@ -20,7 +20,7 @@ export const getDefaultSlug = query(async (): Promise<string | null> => {
 
 export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
   "use server";
-  const { projectRegistry, boardConfigManager, worktreeManager, fileWatcher } =
+  const { projectRegistry, boardConfigManager, worktreeManager, fileWatcher, launcherConfigManager } =
     await import("~/server/instances.js");
   const { TicketStore } = await import("~/server/ticket-store.js");
   const { errorMessage } = await import("~/server/errors.js");
@@ -56,7 +56,8 @@ export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
     const worktreeDir = await worktreeManager.ensureWorktree(project.path, slug);
     fileWatcher.stopAll();
     fileWatcher.watch(worktreeDir);
-    const config = boardConfigManager.getConfig();
+    const merged = launcherConfigManager.getMergedConfig(slug);
+    const config = boardConfigManager.getConfig(merged.boardId);
     const store = new TicketStore(worktreeDir);
     const { tickets, ticketOrder } = store.loadBoardState(config.columns);
     const suggestedNextNumber = store.suggestNextNumber();
@@ -97,14 +98,15 @@ export async function addProjectAction(pathValue: string) {
 
 export async function createTicketAction(slug: string, number: string, title: string) {
   "use server";
-  const { worktreeManager, boardConfigManager } = await import(
+  const { worktreeManager, boardConfigManager, launcherConfigManager } = await import(
     "~/server/instances.js"
   );
   const { TicketStore } = await import("~/server/ticket-store.js");
   const { errorMessage } = await import("~/server/errors.js");
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(slug);
-    const firstColumn = boardConfigManager.getConfig().columns[0];
+    const merged = launcherConfigManager.getMergedConfig(slug);
+    const firstColumn = boardConfigManager.getConfig(merged.boardId).columns[0];
     new TicketStore(worktreeDir).createTicket(number, title, firstColumn);
     return { success: true };
   } catch (e) {

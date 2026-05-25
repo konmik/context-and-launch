@@ -25,6 +25,12 @@ export interface TicketInfo {
 	useWorktree: boolean;
 }
 
+export interface BoardDefinition {
+	id: string;
+	name: string;
+	columns: string[];
+}
+
 export interface BoardConfig {
 	columns: string[];
 }
@@ -79,6 +85,7 @@ export interface LauncherConfig {
 	profiles?: LauncherProfile[];
 	columnDefaults?: Record<string, LauncherColumnDefaults>;
 	worktreeRootPath?: string;
+	boardId?: string;
 }
 
 export interface MergedLauncherConfig {
@@ -87,4 +94,5 @@ export interface MergedLauncherConfig {
 	profiles: (LauncherProfile & { scope: "app" | "project" })[];
 	columnDefaults: Record<string, LauncherColumnDefaults>;
 	worktreeRootPath: string | null;
+	boardId: string | null;
 }

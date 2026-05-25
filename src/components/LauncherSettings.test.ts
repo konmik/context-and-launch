@@ -33,6 +33,7 @@ describe("LauncherSettings Show condition", () => {
 		profiles: [],
 		columnDefaults: {},
 		worktreeRootPath: null,
+		boardId: null,
 	};
 
 	it("config && !loading returns boolean true, not the config (the bug)", () => {
