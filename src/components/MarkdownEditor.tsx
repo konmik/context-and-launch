@@ -108,6 +108,7 @@ interface MarkdownEditorProps {
   onChange: (value: string) => void;
   onSave?: () => void;
   placeholder?: string;
+  readOnly?: boolean;
 }
 
 export default function MarkdownEditor(props: MarkdownEditorProps) {
@@ -123,9 +124,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
         ]
       : [];
 
-    const state = EditorState.create({
-      doc: props.value,
-      extensions: [
+    const extensions = [
         keymap.of([
           ...saveKeymap,
           ...closeBracketsKeymap,
@@ -150,7 +149,16 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
             props.onChange(lastPushedValue);
           }
         }),
-      ],
+    ];
+
+    if (props.readOnly) {
+      extensions.push(EditorState.readOnly.of(true));
+      extensions.push(EditorView.editable.of(false));
+    }
+
+    const state = EditorState.create({
+      doc: props.value,
+      extensions,
     });
 
     view = new EditorView({ state, parent: containerRef! });

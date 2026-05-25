@@ -23,6 +23,8 @@ export interface TicketInfo {
 	folderName: string;
 	stageNames: string[];
 	useWorktree: boolean;
+	fileNames: string[];
+	references: { path: string; exists: boolean }[];
 }
 
 export interface BoardDefinition {

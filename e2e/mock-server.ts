@@ -175,6 +175,8 @@ export interface MockServerState {
   onUpdateTicket?: (slug: string, folderName: string, number: string | null, title: string | null, status: string | null) => { success: true } | { error: string };
   onDeleteTicket?: (slug: string, folderName: string) => { success: true } | { error: string };
   onReorderTicket?: (slug: string, folderName: string, fromColumn: string, toColumn: string, newIndex: number) => { success: true } | { error: string };
+  referenceFileContents?: Record<string, string>;
+  uploadedFiles?: Record<string, Buffer>;
 }
 
 export function startMockServer(port: number, state: MockServerState): Promise<http.Server> {
@@ -262,6 +264,149 @@ export function startMockServer(port: number, state: MockServerState): Promise<h
         return;
       }
 
+      // File upload endpoint
+      if (pathname.includes("/files/upload") && req.method === "POST") {
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk: Buffer) => chunks.push(chunk));
+        req.on("end", () => {
+          // Parse multipart to extract filenames (simplified)
+          const body = Buffer.concat(chunks);
+          const bodyStr = body.toString("utf-8");
+          const results: { name: string; ok: boolean }[] = [];
+
+          // Simple multipart parsing to extract filename from Content-Disposition
+          const boundary = (req.headers["content-type"] || "").split("boundary=")[1];
+          if (boundary) {
+            const parts = bodyStr.split(`--${boundary}`);
+            for (const part of parts) {
+              const filenameMatch = part.match(/filename="([^"]+)"/);
+              if (filenameMatch) {
+                const fileName = filenameMatch[1];
+                if (!state.uploadedFiles) state.uploadedFiles = {};
+                // Extract file content after the double newline
+                const headerEnd = part.indexOf("\r\n\r\n");
+                if (headerEnd >= 0) {
+                  const content = part.slice(headerEnd + 4).replace(/\r\n$/, "");
+                  state.uploadedFiles[fileName] = Buffer.from(content, "utf-8");
+                }
+
+                // Update ticket fileNames in board data
+                const ticketParts = pathname.split("/");
+                const ticketsIdx = ticketParts.indexOf("tickets");
+                const folderName = ticketsIdx >= 0 ? ticketParts[ticketsIdx + 1] : "";
+                const ticket = state.boardData.board?.tickets.find((t) => t.folderName === folderName);
+                if (ticket && !ticket.fileNames.includes(fileName)) {
+                  ticket.fileNames.push(fileName);
+                  ticket.fileNames.sort();
+                }
+                results.push({ name: fileName, ok: true });
+              }
+            }
+          }
+
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ results }));
+        });
+        return;
+      }
+
+      // File content serve (GET) / delete (DELETE) for ticket files
+      const fileMatch = pathname.match(/\/tickets\/([^/]+)\/files\/([^/]+)$/);
+      if (fileMatch && !pathname.includes("/upload")) {
+        if (req.method === "GET") {
+          const fileName = decodeURIComponent(fileMatch[2]);
+          const content = state.uploadedFiles?.[fileName];
+          if (content) {
+            const ext = path.extname(fileName).toLowerCase();
+            const mimeMap: Record<string, string> = { ".png": "image/png", ".jpg": "image/jpeg", ".gif": "image/gif", ".txt": "text/plain", ".md": "text/plain" };
+            res.writeHead(200, { "Content-Type": mimeMap[ext] || "application/octet-stream" });
+            res.end(content);
+          } else {
+            res.writeHead(404);
+            res.end("Not found");
+          }
+          return;
+        }
+        if (req.method === "DELETE") {
+          const fileName = decodeURIComponent(fileMatch[2]);
+          if (state.uploadedFiles) delete state.uploadedFiles[fileName];
+          res.writeHead(204);
+          res.end();
+          return;
+        }
+      }
+
+      if (pathname === "/api/browse" && req.method === "POST") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ paths: [] }));
+        return;
+      }
+
+      // References endpoint
+      if (pathname.includes("/references") && !pathname.includes("/references/content") && req.method === "POST") {
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk: Buffer) => chunks.push(chunk));
+        req.on("end", () => {
+          try {
+            const body = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+            const ticketParts = pathname.split("/");
+            const ticketsIdx = ticketParts.indexOf("tickets");
+            const folderName = ticketsIdx >= 0 ? ticketParts[ticketsIdx + 1] : "";
+            const ticket = state.boardData.board?.tickets.find((t) => t.folderName === folderName);
+            if (ticket && body.paths) {
+              for (const p of body.paths) {
+                if (!ticket.references.some((r) => r.path === p)) {
+                  ticket.references.push({ path: p, exists: true });
+                }
+              }
+            }
+          } catch (err) {
+            console.error("Error parsing references body:", err);
+          }
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ ok: true }));
+        });
+        return;
+      }
+
+      if (pathname.includes("/references") && !pathname.includes("/references/content") && req.method === "DELETE") {
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk: Buffer) => chunks.push(chunk));
+        req.on("end", () => {
+          try {
+            const body = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+            const ticketParts = pathname.split("/");
+            const ticketsIdx = ticketParts.indexOf("tickets");
+            const folderName = ticketsIdx >= 0 ? ticketParts[ticketsIdx + 1] : "";
+            const ticket = state.boardData.board?.tickets.find((t) => t.folderName === folderName);
+            if (ticket && body.path) {
+              ticket.references = ticket.references.filter((r) => r.path !== body.path);
+            }
+          } catch (err) {
+            console.error("Error parsing references delete body:", err);
+          }
+          res.writeHead(204);
+          res.end();
+        });
+        return;
+      }
+
+      // Referenced file content
+      if (pathname.includes("/references/content") && req.method === "GET") {
+        const refPath = url.searchParams.get("path") || "";
+        const content = state.referenceFileContents?.[refPath];
+        if (content != null) {
+          const ext = path.extname(refPath).toLowerCase();
+          const isImg = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"].includes(ext);
+          res.writeHead(200, { "Content-Type": isImg ? `image/${ext.slice(1)}` : "text/plain" });
+          res.end(content);
+        } else {
+          res.writeHead(400);
+          res.end("Referenced file not found");
+        }
+        return;
+      }
+
       if (pathname.includes("/board/reorder") && req.method === "POST") {
         // The page uses fetch("/api/projects/:slug/board/reorder") for reorder
         const chunks: Buffer[] = [];
@@ -312,8 +457,8 @@ export function startMockServer(port: number, state: MockServerState): Promise<h
       socket.on("data", () => {
         // ignore heartbeat pings from client
       });
-      socket.on("error", () => {
-        // socket error during e2e test, ignore
+      socket.on("error", (err) => {
+        console.warn(`WebSocket error during e2e test: ${err.message}`);
       });
     } else {
       socket.destroy();
@@ -472,7 +617,8 @@ function serveStaticFile(res: http.ServerResponse, pathname: string) {
       "Cache-Control": "public, max-age=31536000, immutable",
     });
     res.end(content);
-  } catch {
+  } catch (err) {
+    console.warn(`Static file ${pathname}: ${err instanceof Error ? err.message : String(err)}`);
     res.writeHead(404);
     res.end(`Not found: ${pathname}`);
   }

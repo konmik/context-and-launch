@@ -15,8 +15,8 @@ function cleanup(...dirs: string[]) {
 	for (const d of dirs) {
 		try {
 			fs.rmSync(d, { recursive: true, force: true });
-		} catch {
-			// ignore
+		} catch (err) {
+			console.warn(`cleanup ${d}: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	}
 }
@@ -31,7 +31,7 @@ async function createGitWorktree(): Promise<string> {
 }
 
 function ticket(folderName: string, status: string): TicketInfo {
-	return { number: '', title: '', status, folderName, stageNames: [], useWorktree: false };
+	return { number: '', title: '', status, folderName, stageNames: [], useWorktree: false, fileNames: [], references: [] };
 }
 
 describe('TicketOrderStore', () => {

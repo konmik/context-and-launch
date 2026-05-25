@@ -65,6 +65,8 @@ describe("Board CRUD (e2e)", () => {
         folderName: `${number.toLowerCase()}-${title.toLowerCase().replace(/\s+/g, "-")}`,
         stageNames: [],
         useWorktree: false,
+        fileNames: [],
+        references: [],
       };
       board.board!.tickets.push(newTicket);
       board.board!.ticketOrder["todo"].push(newTicket.folderName);

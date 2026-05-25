@@ -11,6 +11,8 @@ function makeTicket(overrides?: Partial<TicketInfo>): TicketInfo {
     folderName: "t-1-test-ticket",
     stageNames: [],
     useWorktree: false,
+    fileNames: [],
+    references: [],
     ...overrides,
   };
 }

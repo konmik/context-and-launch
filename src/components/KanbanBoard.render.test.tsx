@@ -13,6 +13,8 @@ function makeTicket(overrides: Partial<TicketInfo> & { folderName: string }): Ti
     status: overrides.status ?? "todo",
     stageNames: [],
     useWorktree: false,
+    fileNames: [],
+    references: [],
     ...overrides,
   };
 }
