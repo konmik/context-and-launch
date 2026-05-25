@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { WorktreeManager } from './worktree-manager.js';
+import { ConfigPaths } from './config-paths.js';
 import { git } from './git.js';
 
 function tmpDir(prefix: string): string {
@@ -48,7 +49,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'init');
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
-		const manager = new WorktreeManager(configDir);
+		const manager = new WorktreeManager(new ConfigPaths(configDir));
 		const worktreeDir = await manager.ensureWorktree(projectDir, 'test-slug');
 		worktreeCleanups.push([projectDir, worktreeDir]);
 
@@ -70,7 +71,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'init');
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
-		const manager = new WorktreeManager(configDir);
+		const manager = new WorktreeManager(new ConfigPaths(configDir));
 		const first = await manager.ensureWorktree(projectDir, 'test-slug');
 		worktreeCleanups.push([projectDir, first]);
 		const second = await manager.ensureWorktree(projectDir, 'test-slug');
@@ -90,7 +91,7 @@ describe('WorktreeManager', () => {
 
 		const branchBefore = (await git(projectDir, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
 
-		const manager = new WorktreeManager(configDir);
+		const manager = new WorktreeManager(new ConfigPaths(configDir));
 		const wt = await manager.ensureWorktree(projectDir, 'safe-slug');
 		worktreeCleanups.push([projectDir, wt]);
 
@@ -111,7 +112,7 @@ describe('WorktreeManager', () => {
 		const commitHash = (await git(projectDir, 'rev-parse', 'HEAD')).trim();
 		await git(projectDir, 'checkout', '--detach');
 
-		const manager = new WorktreeManager(configDir);
+		const manager = new WorktreeManager(new ConfigPaths(configDir));
 		const wt = await manager.ensureWorktree(projectDir, 'detach-slug');
 		worktreeCleanups.push([projectDir, wt]);
 
@@ -130,7 +131,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'init');
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
-		const manager = new WorktreeManager(configDir);
+		const manager = new WorktreeManager(new ConfigPaths(configDir));
 		const [wtA, wtB] = await Promise.all([
 			manager.ensureWorktree(projectDir, 'race-slug-a'),
 			manager.ensureWorktree(projectDir, 'race-slug-b')
@@ -154,7 +155,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'init');
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
-		const manager = new WorktreeManager(configDir);
+		const manager = new WorktreeManager(new ConfigPaths(configDir));
 		const worktreeDir = await manager.ensureWorktree(projectDir, 'stale-slug');
 		worktreeCleanups.push([projectDir, worktreeDir]);
 		expect(fs.existsSync(worktreeDir)).toBe(true);
@@ -193,7 +194,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'init');
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
-		const manager = new WorktreeManager(configDir);
+		const manager = new WorktreeManager(new ConfigPaths(configDir));
 		const [a, b] = await Promise.all([
 			manager.ensureWorktree(projectDir, 'concurrent-slug'),
 			manager.ensureWorktree(projectDir, 'concurrent-slug')
@@ -213,16 +214,16 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'init');
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
-		const manager = new WorktreeManager(configDir);
-		const ticketsDir = path.join(configDir, 'tickets');
-		const worktreeDir = path.join(ticketsDir, 'partial-slug');
+		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const projectsDir = path.join(configDir, 'projects', 'partial-slug');
+		const worktreeDir = path.join(projectsDir, 'tickets');
 
 		// Simulate the orphan creation path partially completing: step 1
 		// (git worktree add --orphan) succeeds but step 2 (git commit) fails.
 		// The worktree directory is left behind with a valid .git file, but the
 		// ai-stages branch is in "born" state (no commits). The per-slug branch
 		// ai-stages--partial-slug was never created.
-		fs.mkdirSync(ticketsDir, { recursive: true });
+		fs.mkdirSync(projectsDir, { recursive: true });
 		await git(projectDir, 'worktree', 'add', '--orphan', '-b', 'ai-stages', worktreeDir);
 		// Do NOT commit -- this simulates the failure after step 1.
 
@@ -255,7 +256,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'init');
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
-		const manager = new WorktreeManager(configDir);
+		const manager = new WorktreeManager(new ConfigPaths(configDir));
 		const worktreeDir = await manager.ensureWorktree(projectDir, 'dotgit-missing');
 		worktreeCleanups.push([projectDir, worktreeDir]);
 		expect(fs.existsSync(path.join(worktreeDir, '.git'))).toBe(true);
@@ -278,7 +279,7 @@ describe('WorktreeManager', () => {
 		const configDir = tmpDir('wt-config-');
 		dirs.push(configDir);
 
-		const manager = new WorktreeManager(configDir);
+		const manager = new WorktreeManager(new ConfigPaths(configDir));
 		await expect(
 			manager.ensureWorktree('/nonexistent/path/that/does/not/exist', 'bad-slug')
 		).rejects.toThrow('Project path does not exist');
@@ -288,7 +289,7 @@ describe('WorktreeManager', () => {
 		const configDir = tmpDir('wt-config-');
 		dirs.push(configDir);
 
-		const manager = new WorktreeManager(configDir);
+		const manager = new WorktreeManager(new ConfigPaths(configDir));
 		const slug = 'nonexistent-project';
 
 		let result: string | undefined;
@@ -306,7 +307,7 @@ describe('WorktreeManager', () => {
 		const configDir = tmpDir('wt-config-');
 		dirs.push(configDir);
 
-		const manager = new WorktreeManager(configDir);
+		const manager = new WorktreeManager(new ConfigPaths(configDir));
 
 		// All of these slugs contain path traversal or separators and must be rejected
 		const maliciousSlugs = [
@@ -337,16 +338,16 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'init');
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
-		const manager = new WorktreeManager(configDir);
-		const ticketsDir = path.join(configDir, 'tickets');
-		const worktreeDir = path.join(ticketsDir, 'broken-slug');
+		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const projectsDir = path.join(configDir, 'projects', 'broken-slug');
+		const worktreeDir = path.join(projectsDir, 'tickets');
 
 		// Simulate: orphan branch creation succeeded but commit failed.
 		// The worktree directory exists with a valid .git pointer, but the
 		// branch 'ai-stages' is in "born" state (no commits).
 		// This leaves the worktree on 'ai-stages' (wrong branch) instead of
 		// 'ai-stages--broken-slug' (the correct per-slug branch).
-		fs.mkdirSync(ticketsDir, { recursive: true });
+		fs.mkdirSync(projectsDir, { recursive: true });
 		await git(projectDir, 'worktree', 'add', '--orphan', '-b', 'ai-stages', worktreeDir);
 		// Do NOT commit -- simulates the commit failure at line 62
 
@@ -383,7 +384,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'init');
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
-		const manager = new WorktreeManager(configDir);
+		const manager = new WorktreeManager(new ConfigPaths(configDir));
 		const worktreeDir = await manager.ensureWorktree(projectDir, 'prune-fail');
 		worktreeCleanups.push([projectDir, worktreeDir]);
 
@@ -433,7 +434,7 @@ describe('WorktreeManager', () => {
 
 		// projectDir exists but is NOT a git repo, so doEnsureWorktree will fail
 		// when it tries to run `git branch --list`.
-		const manager = new WorktreeManager(configDir);
+		const manager = new WorktreeManager(new ConfigPaths(configDir));
 
 		const DEADLOCK_MS = 5000;
 
@@ -485,7 +486,7 @@ describe('WorktreeManager', () => {
 		await git(projectB, 'init');
 		await git(projectB, 'commit', '--allow-empty', '-m', 'init B');
 
-		const manager = new WorktreeManager(configDir);
+		const manager = new WorktreeManager(new ConfigPaths(configDir));
 		const slug = 'colliding-slug';
 
 		// Call ensureWorktree concurrently from two different projects with the same slug.

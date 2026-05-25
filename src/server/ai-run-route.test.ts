@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { WorktreeManager } from './worktree-manager.js';
+import { ConfigPaths } from './config-paths.js';
 import { TicketStore, toKebabCase } from './ticket-store.js';
 import { errorMessage } from './errors.js';
 import { escapeBatchTitle } from './batch-escape.js';
@@ -68,7 +69,7 @@ describe('ai/run.ts endpoint logic', () => {
 		const configDir = tmpDir('run-config-');
 		dirs.push(configDir);
 
-		const manager = new WorktreeManager(configDir);
+		const manager = new WorktreeManager(new ConfigPaths(configDir));
 		const slug = 'does-not-exist';
 
 		// This mirrors the POST handler logic: getWorktreeDir then TicketStore.listTickets
@@ -104,7 +105,7 @@ describe('ai/run.ts endpoint logic', () => {
 		const configDir = tmpDir('run-config-');
 		dirs.push(configDir);
 
-		const manager = new WorktreeManager(configDir);
+		const manager = new WorktreeManager(new ConfigPaths(configDir));
 
 		// Simulate the POST handler: getWorktreeDir is the first call inside the try block.
 		// A traversal slug like ".." should throw from requireSafeSlug.

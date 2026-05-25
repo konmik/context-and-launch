@@ -1,29 +1,24 @@
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
 import type { BoardConfig } from '../types.js';
+import type { ConfigPaths } from './config-paths.js';
 
 export const DEFAULT_COLUMNS = ['todo', 'prd', 'in-progress', 'review', 'done'];
 
 export class BoardConfigManager {
-	private boardConfigDir: string;
-	private configFile: string;
+	private paths: ConfigPaths;
 
-	constructor(configDir?: string) {
-		const base = configDir ?? path.join(os.homedir(), '.ai-stages');
-		this.boardConfigDir = path.join(base, 'board-config');
-		this.configFile = path.join(this.boardConfigDir, 'kanban.json');
+	constructor(paths: ConfigPaths) {
+		this.paths = paths;
 	}
 
 	getConfig(): BoardConfig {
-		if (!fs.existsSync(this.configFile)) {
-			fs.mkdirSync(this.boardConfigDir, { recursive: true });
+		const configFile = this.paths.boardConfigFile();
+		const text = this.paths.readConfigFile(configFile);
+		if (text === null) {
 			const defaultConfig: BoardConfig = { columns: [...DEFAULT_COLUMNS] };
-			fs.writeFileSync(this.configFile, JSON.stringify(defaultConfig, null, 2));
+			this.paths.writeConfigFile(configFile, JSON.stringify(defaultConfig, null, 2));
 			return defaultConfig;
 		}
 		try {
-			const text = fs.readFileSync(this.configFile, 'utf-8');
 			const config = JSON.parse(text) as BoardConfig;
 			if (!Array.isArray(config.columns) || config.columns.length === 0) {
 				return { columns: [...DEFAULT_COLUMNS] };

@@ -5,6 +5,7 @@ import os from 'os';
 import { execSync } from 'child_process';
 import { AgentWorktreeManager } from './agent-worktree.js';
 import { LauncherConfigManager } from './launcher-config.js';
+import { ConfigPaths } from './config-paths.js';
 import * as gitModule from './git.js';
 
 function tmpDir(prefix: string): string {
@@ -48,15 +49,16 @@ describe('AgentWorktreeManager', () => {
 
 		initGitRepo(projectDir, branch);
 
-		const lcm = new LauncherConfigManager(configDir);
+		const paths = new ConfigPaths(configDir);
+		const lcm = new LauncherConfigManager(paths);
 		lcm.saveProjectConfig('my-proj', {
 			templates: [],
 			skills: [],
 			worktreeRootPath: worktreeRoot,
 		});
 
-		const awm = new AgentWorktreeManager(lcm);
-		return { configDir, projectDir, worktreeRoot, lcm, awm };
+		const awm = new AgentWorktreeManager(lcm, paths);
+		return { configDir, projectDir, worktreeRoot, lcm, awm, paths };
 	}
 
 	it('creates worktree at the correct path with correct branch name', async () => {
@@ -111,25 +113,30 @@ describe('AgentWorktreeManager', () => {
 		execSync('git add .', { cwd: projectDir, timeout: 5000 });
 		execSync('git commit -m "init"', { cwd: projectDir, timeout: 5000 });
 
-		const lcm = new LauncherConfigManager(configDir);
-		const awm = new AgentWorktreeManager(lcm);
+		const paths = new ConfigPaths(configDir);
+		const lcm = new LauncherConfigManager(paths);
+		const awm = new AgentWorktreeManager(lcm, paths);
 
 		await expect(awm.getMainBranch(projectDir)).rejects.toThrow('Neither main nor master');
 	});
 
-	it('throws when worktreeRootPath is not configured', async () => {
+	it('uses default worktree path when worktreeRootPath is not configured', async () => {
 		const configDir = tmpDir('awm-config-');
 		const projectDir = tmpDir('awm-project-');
 		dirs.push(configDir, projectDir);
 
 		initGitRepo(projectDir);
 
-		const lcm = new LauncherConfigManager(configDir);
-		// No worktreeRootPath saved
-		const awm = new AgentWorktreeManager(lcm);
+		const paths = new ConfigPaths(configDir);
+		const lcm = new LauncherConfigManager(paths);
+		const awm = new AgentWorktreeManager(lcm, paths);
 
-		await expect(awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0001'))
-			.rejects.toThrow('worktreeRootPath is not configured');
+		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0001');
+		expect('worktreePath' in result).toBe(true);
+		if ('worktreePath' in result) {
+			const expected = path.join(configDir, 'projects', 'my-proj', 'worktrees', 'st-0001');
+			expect(path.resolve(result.worktreePath)).toBe(path.resolve(expected));
+		}
 	});
 
 	it('Windows backslash worktreeRootPath: worktree created, existence check matches on re-call, returned path uses mixed separators', async () => {
@@ -143,14 +150,15 @@ describe('AgentWorktreeManager', () => {
 		// Force backslash separators in the stored worktreeRootPath
 		const backslashRoot = worktreeRoot.replace(/\//g, '\\');
 
-		const lcm = new LauncherConfigManager(configDir);
+		const paths = new ConfigPaths(configDir);
+		const lcm = new LauncherConfigManager(paths);
 		lcm.saveProjectConfig('bs-proj', {
 			templates: [],
 			skills: [],
 			worktreeRootPath: backslashRoot,
 		});
 
-		const awm = new AgentWorktreeManager(lcm);
+		const awm = new AgentWorktreeManager(lcm, paths);
 		const folderName = 'st-0002-backslash';
 
 		// First call: creates the worktree
@@ -199,21 +207,25 @@ describe('AgentWorktreeManager', () => {
 		expect(fs.existsSync(worktreePath)).toBe(true);
 	});
 
-	it('TOCTOU: config deleted between getMergedConfig guard and ensureAgentWorktree (double config read race)', async () => {
-		const { projectDir, lcm, awm, configDir } = setup();
+	it('TOCTOU: config deleted between getMergedConfig guard and ensureAgentWorktree falls back to default path', async () => {
+		const { projectDir, lcm, awm, configDir, paths } = setup();
 
 		// Step 1: Route guard reads merged config -- worktreeRootPath is present, guard passes
 		const merged = lcm.getMergedConfig('my-proj');
 		expect(merged.worktreeRootPath).toBeTruthy();
 
 		// Step 2: Simulate race -- config file is deleted before ensureAgentWorktree runs
-		const projectConfigDir = path.join(configDir, 'tickets', 'my-proj');
+		const projectConfigDir = path.join(configDir, 'projects', 'my-proj', 'config');
 		fs.rmSync(projectConfigDir, { recursive: true, force: true });
 
 		// Step 3: ensureAgentWorktree does its own loadProjectConfig, which returns emptyConfig()
-		// because the file no longer exists -- worktreeRootPath is undefined, throws "not configured"
-		await expect(awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0001-feature'))
-			.rejects.toThrow('worktreeRootPath is not configured');
+		// because the file no longer exists -- worktreeRootPath is undefined, falls back to default
+		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0001-feature');
+		expect('worktreePath' in result).toBe(true);
+		if ('worktreePath' in result) {
+			const expected = paths.agentWorktreeDir('my-proj');
+			expect(result.worktreePath.replace(/\\/g, '/')).toContain(expected.replace(/\\/g, '/'));
+		}
 	});
 
 	it('behind-remote returns early when upstream is ahead without attempting worktree creation', async () => {
@@ -253,14 +265,15 @@ describe('AgentWorktreeManager', () => {
 		const worktreeRoot = tmpDir('awm-worktrees-');
 		dirs.push(configDir, worktreeRoot);
 
-		const lcm = new LauncherConfigManager(configDir);
+		const paths = new ConfigPaths(configDir);
+		const lcm = new LauncherConfigManager(paths);
 		lcm.saveProjectConfig('my-proj', {
 			templates: [],
 			skills: [],
 			worktreeRootPath: worktreeRoot,
 		});
 
-		const awm = new AgentWorktreeManager(lcm);
+		const awm = new AgentWorktreeManager(lcm, paths);
 
 		// Spy on git to verify no worktree add is attempted
 		const originalGit = gitModule.git;
@@ -325,14 +338,15 @@ describe('AgentWorktreeManager', () => {
 		const worktreeRoot = tmpDir('awm-wt-conflict-');
 		dirs.push(configDir, worktreeRoot);
 
-		const lcm = new LauncherConfigManager(configDir);
+		const paths = new ConfigPaths(configDir);
+		const lcm = new LauncherConfigManager(paths);
 		lcm.saveProjectConfig('conflict-proj', {
 			templates: [],
 			skills: [],
 			worktreeRootPath: worktreeRoot,
 		});
 
-		const awm = new AgentWorktreeManager(lcm);
+		const awm = new AgentWorktreeManager(lcm, paths);
 
 		// 6. pullMainBranch should fail with merge conflict details
 		const pullError = await awm.pullMainBranch(projectDir).catch((e: Error) => e);
@@ -361,8 +375,9 @@ describe('AgentWorktreeManager', () => {
 		execSync('git add .', { cwd: projectDir, timeout: 5000 });
 		execSync('git commit -m "init"', { cwd: projectDir, timeout: 5000 });
 
-		const lcm = new LauncherConfigManager(configDir);
-		const awm = new AgentWorktreeManager(lcm);
+		const paths = new ConfigPaths(configDir);
+		const lcm = new LauncherConfigManager(paths);
+		const awm = new AgentWorktreeManager(lcm, paths);
 
 		// git branch --list 'main' should NOT match 'main-v2'
 		// so getMainBranch should throw since neither 'main' nor 'master' exists
@@ -458,8 +473,9 @@ describe('AgentWorktreeManager', () => {
 		// 6. Call pullMainBranch -- despite the name, it just runs `git pull`
 		const configDir = tmpDir('awm-config-pullbranch-');
 		dirs.push(configDir);
-		const lcm = new LauncherConfigManager(configDir);
-		const awm = new AgentWorktreeManager(lcm);
+		const paths = new ConfigPaths(configDir);
+		const lcm = new LauncherConfigManager(paths);
+		const awm = new AgentWorktreeManager(lcm, paths);
 
 		await awm.pullMainBranch(projectDir);
 
@@ -519,14 +535,15 @@ describe('AgentWorktreeManager', () => {
 
 		initGitRepo(projectDir);
 
-		const lcm = new LauncherConfigManager(configDir);
+		const paths = new ConfigPaths(configDir);
+		const lcm = new LauncherConfigManager(paths);
 		lcm.saveProjectConfig('dup-proj', {
 			templates: [],
 			skills: [],
 			worktreeRootPath: worktreeRootA,
 		});
 
-		const awm = new AgentWorktreeManager(lcm);
+		const awm = new AgentWorktreeManager(lcm, paths);
 		const folderName = 'st-dup-branch';
 
 		// First call: creates worktree at path A with branch ai/st-dup-branch
@@ -594,45 +611,32 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it('pull-and-retry unconditionally calls ensureAgentWorktree: throws "not configured" for non-worktree projects', async () => {
-		// pull-and-retry.ts always calls ensureAgentWorktree without checking useWorktree
-		// or worktreeRootPath first (unlike run.ts which gates behind both checks).
-		// For a project with no worktreeRootPath configured, this means pull-and-retry
-		// always fails with 500, even though the original run may have launched without
-		// worktree mode.
-
+	it('defaults to projects/{slug}/worktrees/ when worktreeRootPath is not configured', async () => {
 		const configDir = tmpDir('awm-config-pullretry-');
 		const projectDir = tmpDir('awm-project-pullretry-');
 		dirs.push(configDir, projectDir);
 
 		initGitRepo(projectDir);
 
-		const lcm = new LauncherConfigManager(configDir);
-		// Save a project config WITHOUT worktreeRootPath -- simulating a non-worktree project
+		const paths = new ConfigPaths(configDir);
+		const lcm = new LauncherConfigManager(paths);
 		lcm.saveProjectConfig('no-wt-proj', {
 			templates: [{ name: 'Default', text: 'Do the thing' }],
 			skills: [],
 		});
 
-		const awm = new AgentWorktreeManager(lcm);
+		const awm = new AgentWorktreeManager(lcm, paths);
 
-		// Verify loadProjectConfig returns no worktreeRootPath
 		const config = lcm.loadProjectConfig('no-wt-proj');
 		expect(config.worktreeRootPath).toBeUndefined();
 
-		// This is exactly what pull-and-retry does on line 27:
-		//   await agentWorktreeManager.ensureAgentWorktree(project.path, slug, folderName)
-		// No useWorktree guard, no worktreeRootPath check -- unconditional call.
-		const error = await awm.ensureAgentWorktree(projectDir, 'no-wt-proj', 'st-0001-feature')
-			.catch((e: Error) => e);
-
-		expect(error).toBeInstanceOf(Error);
-		expect((error as Error).message).toBe('worktreeRootPath is not configured in the project launcher config');
-
-		// In the route, this error is caught at line 34 and returned as:
-		//   new Response(errorMessage(e), { status: 500 })
-		// So pull-and-retry returns 500 with the "not configured" message for any
-		// project that does not have worktreeRootPath set.
+		const result = await awm.ensureAgentWorktree(projectDir, 'no-wt-proj', 'st-0001-feature');
+		expect('worktreePath' in result).toBe(true);
+		if ('worktreePath' in result) {
+			const expected = path.join(configDir, 'projects', 'no-wt-proj', 'worktrees', 'st-0001-feature');
+			expect(path.resolve(result.worktreePath)).toBe(path.resolve(expected));
+			expect(fs.existsSync(result.worktreePath)).toBe(true);
+		}
 	});
 
 	it('pullMainBranch error short-circuits pull-and-retry flow: ensureAgentWorktree is never called and error contains pull failure details', async () => {
@@ -814,14 +818,15 @@ describe('AgentWorktreeManager', () => {
 
 		expect(fs.existsSync(nonexistentRoot)).toBe(false);
 
-		const lcm = new LauncherConfigManager(configDir);
+		const paths = new ConfigPaths(configDir);
+		const lcm = new LauncherConfigManager(paths);
 		lcm.saveProjectConfig('nodir-proj', {
 			templates: [],
 			skills: [],
 			worktreeRootPath: nonexistentRoot,
 		});
 
-		const awm = new AgentWorktreeManager(lcm);
+		const awm = new AgentWorktreeManager(lcm, paths);
 
 		// Discovery: git worktree add creates intermediate directories automatically.
 		// A nonexistent worktreeRootPath does NOT cause an error -- git silently

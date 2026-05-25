@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { BoardConfigManager, DEFAULT_COLUMNS } from './board-config.js';
+import { ConfigPaths } from './config-paths.js';
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -30,21 +31,21 @@ describe('BoardConfigManager', () => {
 		const configDir = tmpDir('board-config-test-');
 		dirs.push(configDir);
 
-		const manager = new BoardConfigManager(configDir);
+		const manager = new BoardConfigManager(new ConfigPaths(configDir));
 		const config = manager.getConfig();
 
 		expect(config.columns).toEqual(DEFAULT_COLUMNS);
-		expect(fs.existsSync(path.join(configDir, 'board-config', 'kanban.json'))).toBe(true);
+		expect(fs.existsSync(path.join(configDir, 'config', 'board-config', 'kanban.json'))).toBe(true);
 	});
 
 	it('reads back saved config', () => {
 		const configDir = tmpDir('board-config-test-');
 		dirs.push(configDir);
 
-		const manager = new BoardConfigManager(configDir);
+		const manager = new BoardConfigManager(new ConfigPaths(configDir));
 		manager.getConfig(); // creates default
 
-		const manager2 = new BoardConfigManager(configDir);
+		const manager2 = new BoardConfigManager(new ConfigPaths(configDir));
 		const config = manager2.getConfig();
 		expect(config.columns).toEqual(DEFAULT_COLUMNS);
 	});
@@ -53,14 +54,14 @@ describe('BoardConfigManager', () => {
 		const configDir = tmpDir('board-config-test-');
 		dirs.push(configDir);
 
-		const boardConfigDir = path.join(configDir, 'board-config');
+		const boardConfigDir = path.join(configDir, 'config', 'board-config');
 		fs.mkdirSync(boardConfigDir, { recursive: true });
 		fs.writeFileSync(
 			path.join(boardConfigDir, 'kanban.json'),
 			JSON.stringify({ columns: [] })
 		);
 
-		const manager = new BoardConfigManager(configDir);
+		const manager = new BoardConfigManager(new ConfigPaths(configDir));
 		const config = manager.getConfig();
 		expect(config.columns).toEqual(DEFAULT_COLUMNS);
 	});
@@ -69,11 +70,11 @@ describe('BoardConfigManager', () => {
 		const configDir = tmpDir('board-config-test-');
 		dirs.push(configDir);
 
-		const boardConfigDir = path.join(configDir, 'board-config');
+		const boardConfigDir = path.join(configDir, 'config', 'board-config');
 		fs.mkdirSync(boardConfigDir, { recursive: true });
 		fs.writeFileSync(path.join(boardConfigDir, 'kanban.json'), 'not valid json');
 
-		const manager = new BoardConfigManager(configDir);
+		const manager = new BoardConfigManager(new ConfigPaths(configDir));
 		const config = manager.getConfig();
 		expect(config.columns).toEqual(DEFAULT_COLUMNS);
 	});
