@@ -14,16 +14,8 @@ param(
 
 $windowTitle = $ticketTitle
 
-# Open a new Windows Terminal tab with the given title and run Claude
-$batPath = Join-Path $env:TEMP "claude-run-$(Get-Date -Format 'yyyyMMddHHmmssfff').bat"
-@"
-@echo off
-title $windowTitle
-claude --dangerously-skip-permissions --trust-project
-del "%~f0"
-"@ | Set-Content -Path $batPath -Encoding ASCII
-
-Start-Process wt -ArgumentList "-d", "`"$PWD`"", "--title", "`"$windowTitle`"", "--suppressApplicationTitle", "--", $batPath
+# Open a new Windows Terminal tab and run Claude directly
+Start-Process wt -ArgumentList "-d", "`"$PWD`"", "--title", "`"$windowTitle`"", "--suppressApplicationTitle", "--", "cmd", "/k", "claude --dangerously-skip-permissions"
 
 # Deliver the initial prompt via SendKeys
 $escaped = $initialPrompt -replace '([+^%~(){}\[\]])', '{$1}'
@@ -38,6 +30,10 @@ while ($retryCount -lt $maxRetries) {
     $ws = New-Object -ComObject WScript.Shell
     if ($ws.AppActivate($titleEscaped)) {
         Start-Sleep -Seconds 1
+        [void]$ws.AppActivate($titleEscaped)
+        # Press Enter to accept the trust-project warning
+        $ws.SendKeys("~")
+        Start-Sleep -Seconds 2
         [void]$ws.AppActivate($titleEscaped)
         $ws.SendKeys($escaped + "~")
         break

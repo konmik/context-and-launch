@@ -16,10 +16,22 @@ WINDOW_TITLE="${TICKET_TITLE}"
 printf '\033]0;%s\007' "$WINDOW_TITLE"
 
 # Launch Claude in the background
-claude --dangerously-skip-permissions --trust-project &
+claude --dangerously-skip-permissions &
 CLAUDE_PID=$!
 
 # Wait briefly for the terminal to become ready
+sleep 2
+
+# Send Enter to accept the trust-project warning
+osascript -e "
+tell application \"System Events\"
+    set frontProcess to first process whose frontmost is true
+    tell frontProcess
+        keystroke return
+    end tell
+end tell
+" 2>/dev/null
+
 sleep 2
 
 # Deliver the initial prompt via AppleScript with System Events

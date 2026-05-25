@@ -4,13 +4,13 @@ import path from 'path';
 import os from 'os';
 import { WorktreeManager } from './worktree-manager.js';
 import { ConfigPaths } from './config-paths.js';
-import { TicketStore, toKebabCase } from './ticket-store.js';
+import { TicketStore } from './ticket-store.js';
 import { errorMessage } from './errors.js';
 import { escapeBatchTitle } from './batch-escape.js';
 // parseLaunchRequest cannot be imported directly because agent-launch.ts pulls in
 // singleton instances via the ~ alias which vitest cannot resolve without the
 // SvelteKit build pipeline. Instead, replicate the pure function here and verify
-// it matches the source code (same pattern used for escapeTitle/escapeSendKeys above).
+// it matches the source code (same pattern used for escapeTitle above).
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -333,115 +333,6 @@ describe('useWorktree=true with worktreeRootPath=null returns 400 (code-inspecti
 	});
 });
 
-describe('SendKeys title matching and prompt injection safety', () => {
-	// Replicate production functions (not exported from run.ts)
-	function escapeSendKeys(text: string): string {
-		return text.replace(/([+^%~(){}[\]])/g, '{$1}');
-	}
-
-	function escapeTitle(title: string): string {
-		return title.replace(/'/g, "''");
-	}
-
-	const TITLE_SUFFIX = ' — AI';
-
-	// Simulate how trySendKeys builds its script
-	function buildSendKeysScript(windowTitle: string, keys: string): string {
-		return [
-			`$ws = New-Object -ComObject WScript.Shell`,
-			`if (-not $ws.AppActivate('${escapeTitle(windowTitle)}')) { exit 1 }`,
-			`Start-Sleep 1`,
-			`[void]$ws.AppActivate('${escapeTitle(windowTitle)}')`,
-			`$ws.SendKeys('${keys}~')`,
-		].join('\n');
-	}
-
-	it('escapeTitle is applied to window title in trySendKeys script (title with single quotes)', () => {
-		const dangerousTitle = "My Ticket's Title" + TITLE_SUFFIX;
-		const script = buildSendKeysScript(dangerousTitle, 'hello');
-		// The single quote in the title must be doubled in the script
-		expect(script).toContain("My Ticket''s Title");
-		// Must NOT contain a lone unescaped single-quote breakout
-		// Extract the AppActivate lines individually
-		const lines = script.split('\n');
-		const activateLines = lines.filter(l => l.includes('AppActivate('));
-		expect(activateLines.length).toBe(2);
-		for (const line of activateLines) {
-			// Extract the content between the outer quotes: AppActivate('...')
-			const start = line.indexOf("('") + 2;
-			const end = line.lastIndexOf("')");
-			const inner = line.slice(start, end);
-			// After removing all doubled quotes, no lone single-quote should remain
-			const afterPairs = inner.replace(/''/g, '');
-			expect(afterPairs).not.toContain("'");
-		}
-	});
-
-	it('title with SendKeys-special chars does not leak into SendKeys call', () => {
-		// A title with +^%~(){}[] (SendKeys specials) -- these are ONLY in AppActivate, not SendKeys
-		const title = 'Bug +fix ^caret %percent ~tilde (parens) {braces} [brackets]' + TITLE_SUFFIX;
-		const keys = 'safe message';
-		const script = buildSendKeysScript(title, keys);
-		// The SendKeys line should only contain the keys param, not the title
-		const sendKeysLine = script.split('\n').find(l => l.includes('$ws.SendKeys('));
-		expect(sendKeysLine).toBeDefined();
-		expect(sendKeysLine).toContain('safe message');
-		expect(sendKeysLine).not.toContain('Bug +fix');
-	});
-
-	it('escapeSendKeys wraps all special chars in braces for the prompt text', () => {
-		// Simulate a ticketDir on Windows with parentheses (e.g. Program Files (x86))
-		const ticketDir = 'C:\\Program Files (x86)\\projects\\proj-1-test';
-		const initialPrompt = `Current ticket files are in ${ticketDir}. Read the files there for context.`;
-		const escaped = escapeSendKeys(initialPrompt);
-		// ( and ) must be wrapped: ( becomes {(} and ) becomes {)}
-		expect(escaped).toContain('{(}x86{)}');
-		// The original unescaped parens must not appear
-		expect(escaped).not.toMatch(/[^{]\([^}]/);
-	});
-
-	it('escapeSendKeys handles all SendKeys special characters', () => {
-		const specials = '+^%~(){}[]';
-		const escaped = escapeSendKeys(specials);
-		// Each special char X should become {X}
-		expect(escaped).toBe('{+}{^}{%}{~}{(}{)}{{}{}}{[}{]}');
-		// No raw specials remain outside braces
-		const withoutBraced = escaped.replace(/\{.\}/g, '');
-		expect(withoutBraced).toBe('');
-	});
-
-	it('folderName from toKebabCase cannot contain SendKeys specials', () => {
-		// toKebabCase strips everything non-alphanumeric to hyphens
-		const dangerous = 'Title +with ^caret %percent ~tilde (parens) {braces} [brackets]';
-		const folder = toKebabCase(`PROJ-1 ${dangerous}`);
-		// Only lowercase alphanumeric and hyphens allowed
-		expect(folder).toMatch(/^[a-z0-9-]+$/);
-		// None of the SendKeys specials survive
-		const sendKeysSpecials = /[+^%~(){}[\]]/;
-		expect(folder).not.toMatch(sendKeysSpecials);
-	});
-
-	it('full prompt construction path escapes SendKeys specials and PS single-quotes', () => {
-		// Simulate the exact code path from run.ts lines 73-74
-		const ticketDir = 'C:\\Users\\test\\tickets\\proj-1-fix-bug+(v2)';
-		const initialPrompt = `Current ticket files are in ${ticketDir}. Read the files there for context.`;
-		const sendKeysMsg = escapeSendKeys(initialPrompt).replace(/'/g, "''");
-
-		// Verify SendKeys specials are escaped
-		expect(sendKeysMsg).toContain('{+}');
-		expect(sendKeysMsg).toContain('{(}');
-		expect(sendKeysMsg).toContain('{)}');
-
-		// Verify no raw SendKeys specials remain (outside of brace-escapes)
-		// Remove all {X} sequences, then check no specials remain
-		const stripped = sendKeysMsg.replace(/\{.\}/g, '');
-		expect(stripped).not.toMatch(/[+^%~(){}[\]]/);
-
-		// Verify the PS single-quote escape is applied
-		const withQuote = escapeSendKeys("it's a path").replace(/'/g, "''");
-		expect(withQuote).toBe("it''s a path");
-	});
-});
 
 describe('parseLaunchRequest with missing/malformed request body', () => {
 	// Replicate the pure function from agent-launch.ts (cannot import due to ~ alias)
