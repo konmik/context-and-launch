@@ -43,7 +43,7 @@ export async function POST({ params, request }: APIEvent) {
       }
     }
 
-    launchAgent(slug, ticket, project, worktreeDir, launchRequest, launchDir);
+    await launchAgent(slug, ticket, project, worktreeDir, launchRequest, launchDir);
     return new Response(null, { status: 200 });
   } catch (e) {
     return new Response(errorMessage(e), { status: 500 });

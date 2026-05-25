@@ -23,7 +23,7 @@ export async function POST({ params, request }: APIEvent) {
       return new Response("Still behind remote after pulling", { status: 500 });
     }
 
-    launchAgent(slug, ticket, project, worktreeDir, launchRequest, worktreeResult.worktreePath);
+    await launchAgent(slug, ticket, project, worktreeDir, launchRequest, worktreeResult.worktreePath);
     return new Response(null, { status: 200 });
   } catch (e) {
     return new Response(errorMessage(e), { status: 500 });

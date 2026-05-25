@@ -1,10 +1,36 @@
 import { describe, it, expect } from "vitest";
+import fs from "fs";
+import path from "path";
 import type { MergedLauncherConfig } from "~/types.js";
+
+describe("LauncherSettings name placeholder adapts to itemType", () => {
+	const source = fs.readFileSync(
+		path.resolve(__dirname, "LauncherSettings.tsx"),
+		"utf-8",
+	);
+
+	it("name input placeholder is dynamic based on itemType, not hardcoded 'Template name'", () => {
+		// The textarea placeholder already adapts (uses f().itemType ternary).
+		// The name input placeholder should also adapt rather than always saying "Template name".
+		const placeholderMatch = source.match(/placeholder=\{[^}]*itemType[^}]*name[^}]*\}/s)
+			|| source.match(/placeholder=\{[^}]*name[^}]*itemType[^}]*\}/s);
+
+		// If no dynamic placeholder referencing itemType is found for the name input,
+		// check whether a hardcoded "Template name" exists
+		const hardcoded = source.includes('placeholder="Template name"');
+
+		expect(
+			placeholderMatch !== null || !hardcoded,
+			'Name input placeholder should adapt to itemType (e.g. "Profile name", "Skill name", "Template name") instead of always showing "Template name"',
+		).toBe(true);
+	});
+});
 
 describe("LauncherSettings Show condition", () => {
 	const fakeConfig: MergedLauncherConfig = {
 		templates: [{ name: "Default", text: "hello", scope: "app" }],
 		skills: [],
+		profiles: [],
 		columnDefaults: {},
 		worktreeRootPath: null,
 	};

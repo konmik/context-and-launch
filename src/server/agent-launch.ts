@@ -1,14 +1,11 @@
 import { spawn, execFile } from "child_process";
-import fs from "fs";
-import os from "os";
 import path from "path";
 import { worktreeManager, projectRegistry, launcherConfigManager } from "~/server/instances.js";
 import { TicketStore } from "~/server/ticket-store.js";
-import { escapeBatchTitle } from "~/server/batch-escape.js";
 import { assemblePrompt, interpolatePrompt } from "~/server/prompt-interpolation.js";
 import type { TicketInfo, ProjectInfo } from "~/types.js";
 
-const TITLE_SUFFIX = " — AI";
+const TITLE_SUFFIX = " -- AI";
 const FALLBACK_PROMPT = "Current ticket files are in {{ticketDir}}. Read the files there for context.";
 
 export function escapeSendKeys(text: string): string {
@@ -85,15 +82,17 @@ export interface LaunchRequest {
   templateName: string;
   checkedSkills: string[];
   useWorktree: boolean;
+  profileName: string;
 }
 
 export function parseLaunchRequest(body: unknown): LaunchRequest {
-  const result: LaunchRequest = { templateName: "Default", checkedSkills: [], useWorktree: false };
+  const result: LaunchRequest = { templateName: "Default", checkedSkills: [], useWorktree: false, profileName: "" };
   if (body && typeof body === "object") {
     const b = body as Record<string, unknown>;
     if (typeof b.templateName === "string") result.templateName = b.templateName;
     if (Array.isArray(b.checkedSkills)) result.checkedSkills = b.checkedSkills;
     if (typeof b.useWorktree === "boolean") result.useWorktree = b.useWorktree;
+    if (typeof b.profileName === "string") result.profileName = b.profileName;
   }
   return result;
 }
@@ -112,14 +111,14 @@ export function buildWindowTitle(ticket: TicketInfo): string {
   return ticket.title + TITLE_SUFFIX;
 }
 
-export function launchAgent(
+export async function launchAgent(
   slug: string,
   ticket: TicketInfo,
   project: ProjectInfo,
   worktreeDir: string,
   launchRequest: LaunchRequest,
   launchDir: string,
-): void {
+): Promise<void> {
   const merged = launcherConfigManager.getMergedConfig(slug);
   const templateText =
     merged.templates.find(t => t.name === launchRequest.templateName)?.text
@@ -144,29 +143,51 @@ export function launchAgent(
   };
 
   const initialPrompt = interpolatePrompt(assembled, variables);
-  const escapedPrompt = escapeSendKeys(initialPrompt).replace(/'/g, "''");
   const windowTitle = buildWindowTitle(ticket);
 
-  const batPath = path.join(os.tmpdir(), `claude-run-${Date.now()}.bat`);
-  fs.writeFileSync(batPath, [
-    "@echo off",
-    `title ${escapeBatchTitle(windowTitle)}`,
-    "claude --dangerously-skip-permissions",
-    `del "%~f0"`,
-  ].join("\r\n") + "\r\n");
+  const profile =
+    merged.profiles.find(p => p.name === launchRequest.profileName)
+    ?? merged.profiles[0];
 
-  spawn("wt", ["-d", launchDir, "--title", windowTitle, "--suppressApplicationTitle", "--", batPath], {
-    detached: true,
-    stdio: "ignore",
-  }).unref();
+  if (!profile || !profile.command.trim()) {
+    throw new Error("No valid profile configured for launch");
+  }
 
-  const sendKeysHandle = trySendKeys(windowTitle, escapedPrompt);
-  void sendKeysHandle;
+  const commandVars: Record<string, string> = { initialPrompt, windowTitle, appConfigDir: launcherConfigManager.getAppConfigDir() };
+  const parts = profile.command.split(/\s+/);
+  const executable = parts[0];
+  const args = parts.slice(1).map(arg =>
+    arg.replace(/\{\{(\w+)\}\}/g, (match, key) => commandVars[key] ?? match)
+  );
+
+  const label = `${executable} ${args.map(a => a.length > 60 ? a.slice(0, 60) + "..." : a).join(" ")}`;
+  console.log(`spawn: ${label} (cwd: ${launchDir})`);
+  const child = spawn(executable, args, {
+    cwd: launchDir,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  child.stdout?.resume();
+  let stderr = "";
+  child.stderr?.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+  child.on("exit", (code) => {
+    console.log(`exit ${code}: ${label}`);
+    if (stderr.trim()) console.error(`stderr: ${stderr.trim()}`);
+  });
+  child.unref();
+
+  await new Promise<void>((resolve, reject) => {
+    child.on("spawn", () => resolve());
+    child.on("error", (err) => {
+      console.error(`spawn error [${label}]:`, err);
+      reject(err);
+    });
+  });
 
   try {
     launcherConfigManager.saveColumnDefaults(slug, ticket.status, {
       templateName: launchRequest.templateName,
       checkedSkills: launchRequest.checkedSkills,
+      profileName: launchRequest.profileName,
     });
   } catch (saveErr) {
     console.warn("Failed to save launch defaults:", saveErr);

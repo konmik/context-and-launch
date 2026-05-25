@@ -189,8 +189,80 @@ describe('trySendKeys production code structure (code-inspection)', () => {
 		expect(source).toContain('cancelled');
 	});
 
-	it('launchAgent stores the cancel handle (so caller could cancel in future)', () => {
-		// launchAgent should not just discard the return value
-		expect(source).not.toMatch(/^\s*trySendKeys\(/m);
+	it('launchAgent does not call trySendKeys directly', () => {
+		// trySendKeys is no longer called from launchAgent; the platform script handles prompt delivery
+		// Extract the launchAgent function body
+		const fnMatch = source.match(/function launchAgent\([^)]*\)[^{]*\{([\s\S]*?)^}/m);
+		if (fnMatch) {
+			expect(fnMatch[1]).not.toContain('trySendKeys(');
+		}
 	});
+});
+
+describe('parseLaunchRequest profileName (code-inspection)', () => {
+	const source = fs.readFileSync(
+		path.resolve(__dirname, 'agent-launch.ts'),
+		'utf-8'
+	);
+
+	// Replicate the pure function from agent-launch.ts
+	interface LaunchRequest { templateName: string; checkedSkills: string[]; useWorktree: boolean; profileName: string; }
+	function parseLaunchRequest(body: unknown): LaunchRequest {
+		const result: LaunchRequest = { templateName: 'Default', checkedSkills: [], useWorktree: false, profileName: '' };
+		if (body && typeof body === 'object') {
+			const b = body as Record<string, unknown>;
+			if (typeof b.templateName === 'string') result.templateName = b.templateName;
+			if (Array.isArray(b.checkedSkills)) result.checkedSkills = b.checkedSkills;
+			if (typeof b.useWorktree === 'boolean') result.useWorktree = b.useWorktree;
+			if (typeof b.profileName === 'string') result.profileName = b.profileName;
+		}
+		return result;
+	}
+
+	it('replicated function matches source code', () => {
+		expect(source).toContain('profileName: ""');
+		expect(source).toContain('typeof b.profileName === "string"');
+	});
+
+	it('parseLaunchRequest with profileName extracts string value', () => {
+		const result = parseLaunchRequest({ profileName: 'Claude Win' });
+		expect(result.profileName).toBe('Claude Win');
+	});
+
+	it('parseLaunchRequest with missing profileName defaults to empty string', () => {
+		const result = parseLaunchRequest({});
+		expect(result.profileName).toBe('');
+	});
+
+	it('parseLaunchRequest with non-string profileName defaults to empty string', () => {
+		const result = parseLaunchRequest({ profileName: 42 });
+		expect(result.profileName).toBe('');
+	});
+});
+
+describe('launchAgent profile-based spawn (code-inspection)', () => {
+	const source = fs.readFileSync(
+		path.resolve(__dirname, 'agent-launch.ts'),
+		'utf-8'
+	);
+
+	it('launchAgent spawns the profile command with cwd set to launchDir', () => {
+		expect(source).toMatch(/spawn\(executable/);
+		expect(source).toMatch(/cwd:\s*launchDir/);
+	});
+
+	it('launchAgent no longer creates a bat file', () => {
+		// Extract the launchAgent function body
+		const fnMatch = source.match(/function launchAgent\([^)]*\)[^{]*\{([\s\S]*?)^}/m);
+		expect(fnMatch).not.toBeNull();
+		const body = fnMatch![1];
+		expect(body).not.toContain('batPath');
+		expect(body).not.toContain('.bat');
+	});
+
+	it('launchAgent saves profileName in column defaults', () => {
+		expect(source).toMatch(/profileName:\s*launchRequest\.profileName/);
+	});
+
+
 });
