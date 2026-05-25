@@ -8,6 +8,7 @@ interface BoardPageData {
   projectUnavailable: boolean;
   projectNotFound: boolean;
   projectPath: string;
+  suggestedNextNumber: string | null;
   error?: string;
 }
 
@@ -36,6 +37,7 @@ export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
       projectUnavailable: false,
       projectNotFound: true,
       projectPath: "",
+      suggestedNextNumber: null,
     };
   }
   if (!project.available) {
@@ -46,6 +48,7 @@ export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
       projectUnavailable: true,
       projectNotFound: false,
       projectPath: project.path,
+      suggestedNextNumber: null,
     };
   }
 
@@ -56,6 +59,7 @@ export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
     const config = boardConfigManager.getConfig();
     const store = new TicketStore(worktreeDir);
     const { tickets, ticketOrder } = store.loadBoardState(config.columns);
+    const suggestedNextNumber = store.suggestNextNumber();
     return {
       projects,
       slug,
@@ -63,6 +67,7 @@ export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
       projectUnavailable: false,
       projectNotFound: false,
       projectPath: project.path,
+      suggestedNextNumber,
     };
   } catch (e) {
     return {
@@ -72,6 +77,7 @@ export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
       projectUnavailable: false,
       projectNotFound: false,
       projectPath: project.path,
+      suggestedNextNumber: null,
       error: errorMessage(e),
     };
   }
@@ -185,7 +191,7 @@ export async function worktreeCleanupAction(
   options: { deleteWorktree: boolean; deleteLocalBranch: boolean; deleteRemoteBranch: boolean }
 ) {
   "use server";
-  const { launcherConfigManager, agentWorktreeManager } = await import(
+  const { launcherConfigManager, agentWorktreeManager, projectRegistry } = await import(
     "~/server/instances.js"
   );
   const { WorktreeCleanupService } = await import("~/server/worktree-cleanup.js");
@@ -196,7 +202,6 @@ export async function worktreeCleanupAction(
       return { error: "Worktree root path is not configured" };
     }
     const worktreePath = `${merged.worktreeRootPath}/${folderName}`;
-    const projectRegistry = (await import("~/server/instances.js")).projectRegistry;
     const projects = projectRegistry.listProjects();
     const project = projects.find((p) => p.slug === slug);
     if (!project) {

@@ -15,7 +15,7 @@ function cleanup(...dirs: string[]) {
 		try {
 			fs.rmSync(d, { recursive: true, force: true });
 		} catch {
-			// ignore
+			// temp dirs may already be deleted by the OS or a prior cleanup
 		}
 	}
 }

@@ -152,9 +152,30 @@ function TicketDetailContent(props: {
 
   createEffect(
     on(
-      () => [props.open, activeFile()] as const,
-      async ([open, file]) => {
-        if (!open || !file || showAiConsole()) return;
+      () => [props.open, props.ticket] as const,
+      ([open, ticket]) => {
+        if (open && ticket) {
+          setConfirmingClose(false);
+          setConfirmingFileSwitch(false);
+          setPendingFile(null);
+          setPendingAiSwitch(false);
+          setConfirmingDelete(false);
+          setNewFileDialogOpen(false);
+          setDropdownOpen(false);
+          setShowAiConsole(false);
+          setExtraFiles([]);
+          setError("");
+          setActiveFile("to-do");
+        }
+      }
+    )
+  );
+
+  createEffect(
+    on(
+      () => [props.open, props.ticket, activeFile()] as const,
+      async ([open, ticket, file]) => {
+        if (!open || !ticket || !file || showAiConsole()) return;
         setError("");
         try {
           const res = await fetch(
