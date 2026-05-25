@@ -259,7 +259,10 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 									<Show when={activeTab() === "general"}>
 									<div class="space-y-6">
 										<section>
-											<h3 class="mb-2 text-sm font-semibold">Agent worktree root path</h3>
+											<h3 class="mb-2 text-sm font-semibold">
+									Agent worktree root path
+									<span class="ml-2 rounded px-1.5 py-0.5 text-xs bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">Project</span>
+								</h3>
 											<div class="flex gap-2">
 												<input
 													type="text"
