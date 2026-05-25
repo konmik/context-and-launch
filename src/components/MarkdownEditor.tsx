@@ -117,7 +117,10 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
 
   onMount(() => {
     const saveKeymap = props.onSave
-      ? [{ key: "Mod-s", run: () => { props.onSave!(); return true; } }]
+      ? [
+          { key: "Mod-s", run: () => { props.onSave!(); return true; } },
+          { key: "Mod-Enter", run: () => { props.onSave!(); return true; } },
+        ]
       : [];
 
     const state = EditorState.create({

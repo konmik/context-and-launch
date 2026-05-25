@@ -103,6 +103,18 @@ function TicketDetailContent(props: {
     active: () => confirmingDelete(),
   });
 
+  useModEnterSubmit({
+    onSubmit: saveFile,
+    disabled: () => saving() || !hasUnsavedChanges(),
+    active: () =>
+      props.open &&
+      !showAiConsole() &&
+      !newFileDialogOpen() &&
+      !confirmingDelete() &&
+      !confirmingFileSwitch() &&
+      !confirmingClose(),
+  });
+
   const fileOptions = () => {
     const defaults = ["to-do", "product-requirement-document"];
     const existing = props.ticket.stageNames ?? [];
@@ -344,6 +356,7 @@ function TicketDetailContent(props: {
                 type="button"
                 onClick={saveFile}
                 disabled={saving() || !hasUnsavedChanges()}
+                title={modEnterHint()}
                 class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
               >
                 Save
