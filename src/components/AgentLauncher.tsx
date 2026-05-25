@@ -1,50 +1,38 @@
 import { createSignal, createEffect, on, Show, For } from "solid-js";
-import type { TicketInfo, MergedLauncherConfig, ErrorInfo } from "~/types.js";
+import type { TicketInfo, MergedLauncherConfig, ErrorInfo, LauncherColumnDefaults } from "~/types.js";
 import ErrorDialog from "./ErrorDialog.js";
 
 interface AgentLauncherProps {
 	slug: string;
 	ticket: TicketInfo;
+	config: MergedLauncherConfig | null;
+	onDefaultsChange: (patch: Partial<LauncherColumnDefaults>) => void;
 }
 
 export default function AgentLauncher(props: AgentLauncherProps) {
-	const [config, setConfig] = createSignal<MergedLauncherConfig | null>(null);
 	const [selectedTemplate, setSelectedTemplate] = createSignal("");
 	const [selectedProfile, setSelectedProfile] = createSignal("");
 	const [checkedSkills, setCheckedSkills] = createSignal<Set<string>>(new Set());
 	const [useWorktree, setUseWorktree] = createSignal(props.ticket.useWorktree);
-	const [loading, setLoading] = createSignal(true);
 	const [launching, setLaunching] = createSignal(false);
 	const [errorInfo, setErrorInfo] = createSignal<ErrorInfo | null>(null);
 	const [behindRemoteMsg, setBehindRemoteMsg] = createSignal("");
+
 	createEffect(
 		on(
-			() => [props.slug, props.ticket.folderName] as const,
-			async ([slug]) => {
-				if (!slug) return;
+			() => [props.config, props.ticket.folderName] as const,
+			([cfg]) => {
+				if (!cfg) return;
 				setUseWorktree(props.ticket.useWorktree);
-				setLoading(true);
-				try {
-					const res = await fetch(`/api/projects/${slug}/launcher-config`);
-					if (res.ok) {
-						const data: MergedLauncherConfig = await res.json();
-						setConfig(data);
-
-						const defaults = data.columnDefaults[props.ticket.status];
-						if (defaults) {
-							setSelectedTemplate(defaults.templateName ?? (data.templates[0]?.name ?? ""));
-							setSelectedProfile(defaults.profileName ?? (data.profiles[0]?.name ?? ""));
-							setCheckedSkills(new Set(defaults.checkedSkills));
-						} else {
-							setSelectedTemplate(data.templates[0]?.name ?? "");
-							setSelectedProfile(data.profiles[0]?.name ?? "");
-							setCheckedSkills(new Set<string>());
-						}
-					}
-				} catch (e) {
-					console.warn("Failed to load launcher config:", e);
-				} finally {
-					setLoading(false);
+				const defaults = cfg.columnDefaults[props.ticket.status];
+				if (defaults) {
+					setSelectedTemplate(defaults.templateName ?? (cfg.templates[0]?.name ?? ""));
+					setSelectedProfile(defaults.profileName ?? (cfg.profiles[0]?.name ?? ""));
+					setCheckedSkills(new Set(defaults.checkedSkills));
+				} else {
+					setSelectedTemplate(cfg.templates[0]?.name ?? "");
+					setSelectedProfile(cfg.profiles[0]?.name ?? "");
+					setCheckedSkills(new Set<string>());
 				}
 			}
 		)
@@ -58,6 +46,7 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 			current.add(name);
 		}
 		setCheckedSkills(current);
+		props.onDefaultsChange({ checkedSkills: [...current] });
 	}
 
 	function launchBody() {
@@ -137,9 +126,8 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 
 	return (
 		<div class="flex h-full flex-col items-center justify-center gap-4 p-4">
-			<Show when={!loading()} fallback={<p class="text-sm text-muted-foreground">Loading config...</p>}>
-				<Show when={config()}>
-					{(cfg) => (
+			<Show when={props.config} fallback={<p class="text-sm text-muted-foreground">Loading config...</p>}>
+				{(cfg) => (
 						<div class="flex w-full max-w-sm flex-col gap-4">
 							<Show when={cfg().worktreeRootPath !== null}>
 								<label class="flex items-center gap-2 text-sm text-muted-foreground">
@@ -168,10 +156,10 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 
 							<div class="flex flex-col gap-4 rounded-md border border-border p-4">
 								<div>
-									<label class="mb-1 block text-sm text-muted-foreground">Profile</label>
+									<label class="mb-1 block text-sm text-muted-foreground">Launch</label>
 									<select
 										value={selectedProfile()}
-										onChange={(e) => setSelectedProfile(e.currentTarget.value)}
+										onChange={(e) => { setSelectedProfile(e.currentTarget.value); props.onDefaultsChange({ profileName: e.currentTarget.value }); }}
 										class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
 									>
 										<For each={cfg().profiles}>
@@ -181,10 +169,10 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 								</div>
 
 								<div>
-									<label class="mb-1 block text-sm text-muted-foreground">Template</label>
+									<label class="mb-1 block text-sm text-muted-foreground">Prompt</label>
 									<select
 										value={selectedTemplate()}
-										onChange={(e) => setSelectedTemplate(e.currentTarget.value)}
+										onChange={(e) => { setSelectedTemplate(e.currentTarget.value); props.onDefaultsChange({ templateName: e.currentTarget.value }); }}
 										class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
 									>
 										<For each={cfg().templates}>
@@ -224,7 +212,6 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 							</div>
 						</div>
 					)}
-				</Show>
 			</Show>
 
 			<ErrorDialog error={errorInfo()} onClose={() => setErrorInfo(null)} />

@@ -203,13 +203,4 @@ export async function launchAgent(
     });
   });
 
-  try {
-    launcherConfigManager.saveColumnDefaults(slug, ticket.status, {
-      templateName: launchRequest.templateName,
-      checkedSkills: launchRequest.checkedSkills,
-      profileName: launchRequest.profileName,
-    });
-  } catch (saveErr) {
-    console.warn("Failed to save launch defaults:", saveErr);
-  }
 }

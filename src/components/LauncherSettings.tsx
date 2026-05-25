@@ -458,7 +458,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 					<div class="relative z-10 w-full max-w-lg rounded-lg border border-border bg-card shadow-lg">
 						<div class="flex items-center justify-between border-b border-border px-6 py-4">
 							<h2 class="text-lg font-semibold">
-								{f().mode === "add" ? "Add" : "Edit"} {f().itemType === "template" ? "Prompt" : f().itemType === "skill" ? "Skill" : "Profile"}
+								{f().mode === "add" ? "Add" : "Edit"} {f().itemType === "template" ? "Prompt" : f().itemType === "skill" ? "Skill" : "Launch"}
 							</h2>
 							<button
 								onClick={() => setForm(null)}
@@ -475,18 +475,18 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 									value={f().name}
 									onInput={(e) => setForm({ ...f(), name: e.currentTarget.value })}
 									class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-									placeholder={f().itemType === "profile" ? "Profile name" : f().itemType === "skill" ? "Skill name" : "Prompt name"}
+									placeholder={f().itemType === "profile" ? "Launch name" : f().itemType === "skill" ? "Skill name" : "Prompt name"}
 								/>
 							</div>
 							<div>
 								<label class="mb-1 block text-sm text-muted-foreground">
-									Template
+									Prompt
 								</label>
 								<textarea
 									value={f().text}
 									onInput={(e) => setForm({ ...f(), text: e.currentTarget.value })}
 									class="min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-									placeholder={f().itemType === "profile" ? "e.g. powershell -File run-agent.ps1" : "Template text with {{placeholders}}"}
+									placeholder={f().itemType === "profile" ? "e.g. powershell -File run-agent.ps1" : "Prompt text with {{placeholders}}"}
 								/>
 								<p class="mt-1 text-xs text-muted-foreground">
 									{f().itemType === "profile"

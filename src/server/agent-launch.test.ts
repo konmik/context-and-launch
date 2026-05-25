@@ -260,8 +260,8 @@ describe('launchAgent profile-based spawn (code-inspection)', () => {
 		expect(body).not.toContain('.bat');
 	});
 
-	it('launchAgent saves profileName in column defaults', () => {
-		expect(source).toMatch(/profileName:\s*launchRequest\.profileName/);
+	it('launchAgent does not save column defaults (saved by UI on change)', () => {
+		expect(source).not.toMatch(/saveColumnDefaults|patchColumnDefaults/);
 	});
 
 

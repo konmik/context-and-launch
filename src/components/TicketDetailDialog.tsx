@@ -1,6 +1,6 @@
 import { createSignal, createEffect, Show, For, on, onCleanup } from "solid-js";
 import { revalidate } from "@solidjs/router";
-import type { TicketInfo } from "~/types.js";
+import type { TicketInfo, MergedLauncherConfig, LauncherColumnDefaults } from "~/types.js";
 import AgentLauncher from "./AgentLauncher";
 import ResizableWindow from "./ResizableWindow";
 import MarkdownEditor from "./MarkdownEditor";
@@ -81,6 +81,7 @@ function TicketDetailContent(props: {
   const [confirmingFileSwitch, setConfirmingFileSwitch] = createSignal(false);
   const [pendingAiSwitch, setPendingAiSwitch] = createSignal(false);
   const [showAiConsole, setShowAiConsole] = createSignal(false);
+  const [launcherConfig, setLauncherConfig] = createSignal<MergedLauncherConfig | null>(null);
   const [extraFiles, setExtraFiles] = createSignal<string[]>([]);
   const [newFileDialogOpen, setNewFileDialogOpen] = createSignal(false);
   const [newFileName, setNewFileName] = createSignal("");
@@ -135,6 +136,34 @@ function TicketDetailContent(props: {
   if (typeof window !== "undefined") {
     window.addEventListener("beforeunload", handleBeforeUnload);
     onCleanup(() => window.removeEventListener("beforeunload", handleBeforeUnload));
+  }
+
+  createEffect(
+    on(
+      () => [props.slug, props.ticket.folderName] as const,
+      async ([slug]) => {
+        if (!slug) return;
+        try {
+          const res = await fetch(`/api/projects/${slug}/launcher-config`);
+          if (res.ok) {
+            const data: MergedLauncherConfig = await res.json();
+            setLauncherConfig(data);
+            const defaults = data.columnDefaults[props.ticket.status];
+            if (defaults?.lastLayer === "launcher") {
+              setShowAiConsole(true);
+            }
+          }
+        } catch {}
+      }
+    )
+  );
+
+  function patchColumnDefaults(patch: Partial<LauncherColumnDefaults>) {
+    fetch(`/api/projects/${props.slug}/launcher-config/column-defaults`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ column: props.ticket.status, ...patch }),
+    }).catch(() => {});
   }
 
   createEffect(
@@ -200,6 +229,7 @@ function TicketDetailContent(props: {
   function toggleAiConsole() {
     if (showAiConsole()) {
       setShowAiConsole(false);
+      patchColumnDefaults({ lastLayer: "editor" });
       return;
     }
     if (hasUnsavedChanges()) {
@@ -209,6 +239,7 @@ function TicketDetailContent(props: {
       return;
     }
     setShowAiConsole(true);
+    patchColumnDefaults({ lastLayer: "launcher" });
   }
 
   function proceedFileSwitch() {
@@ -219,6 +250,7 @@ function TicketDetailContent(props: {
     setPendingAiSwitch(false);
     if (toAi) {
       setShowAiConsole(true);
+      patchColumnDefaults({ lastLayer: "launcher" });
     } else if (file) {
       setShowAiConsole(false);
       setActiveFile(file);
@@ -408,7 +440,7 @@ function TicketDetailContent(props: {
 
           <div class="flex-1 overflow-hidden px-4 pb-2">
             <Show when={!showAiConsole()} fallback={
-              <AgentLauncher slug={props.slug} ticket={props.ticket} />
+              <AgentLauncher slug={props.slug} ticket={props.ticket} config={launcherConfig()} onDefaultsChange={patchColumnDefaults} />
             }>
               <MarkdownEditor
                 value={content()}

@@ -141,11 +141,11 @@ export class LauncherConfigManager {
 		};
 	}
 
-	saveColumnDefaults(slug: string, column: string, defaults: LauncherColumnDefaults): void {
+	saveColumnDefaults(slug: string, column: string, patch: Partial<LauncherColumnDefaults>): void {
 		const config = this.loadProjectConfig(slug);
 		const columnDefaults = config.columnDefaults ?? {};
-		// Object.defineProperty to safely handle __proto__ as a key
-		Object.defineProperty(columnDefaults, column, { value: defaults, writable: true, enumerable: true, configurable: true });
+		const existing = Object.prototype.hasOwnProperty.call(columnDefaults, column) ? columnDefaults[column] : { templateName: null, checkedSkills: [], profileName: null };
+		Object.defineProperty(columnDefaults, column, { value: { ...existing, ...patch }, writable: true, enumerable: true, configurable: true });
 		this.saveProjectConfig(slug, { ...config, columnDefaults });
 	}
 
