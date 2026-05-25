@@ -112,8 +112,9 @@ function TicketDetailContent(props: {
   const [confirmingClose, setConfirmingClose] = createSignal(false);
   const [pendingFile, setPendingFile] = createSignal<ActiveFile | null>(null);
   const [confirmingFileSwitch, setConfirmingFileSwitch] = createSignal(false);
-  const [pendingAiSwitch, setPendingAiSwitch] = createSignal(false);
-  const [showAiConsole, setShowAiConsole] = createSignal(false);
+  type Tab = "editor" | "launcher" | "shortcuts";
+  const [pendingTab, setPendingTab] = createSignal<Tab | null>(null);
+  const [activeTab, setActiveTab] = createSignal<Tab>("editor");
   const [launcherConfig, setLauncherConfig] = createSignal<MergedLauncherConfig | null>(null);
   const [extraFiles, setExtraFiles] = createSignal<string[]>([]);
   const [newFileDialogOpen, setNewFileDialogOpen] = createSignal(false);
@@ -127,6 +128,53 @@ function TicketDetailContent(props: {
   const [fileViewMode, setFileViewMode] = createSignal<"editor" | "image" | "unsupported">("editor");
   const [uploading, setUploading] = createSignal(false);
   const [confirmOverwrite, setConfirmOverwrite] = createSignal<{ fileName: string; file: File } | null>(null);
+  const [runningShortcut, setRunningShortcut] = createSignal("");
+  const [useWorktree, setUseWorktree] = createSignal(props.ticket.useWorktree);
+
+  createEffect(
+    on(
+      () => props.ticket.folderName,
+      () => setUseWorktree(props.ticket.useWorktree)
+    )
+  );
+
+  function persistWorktree(value: boolean) {
+    setUseWorktree(value);
+    fetch(
+      `/api/projects/${props.slug}/board/tickets/${props.ticket.folderName}/use-worktree`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ useWorktree: value }),
+      }
+    ).catch((err) => {
+      console.warn("Failed to persist useWorktree:", err);
+    });
+  }
+
+  async function runShortcut(name: string) {
+    setRunningShortcut(name);
+    setError("");
+    try {
+      const res = await fetch(
+        `/api/projects/${props.slug}/board/tickets/${props.ticket.folderName}/shortcut/run`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name }),
+        }
+      );
+      if (!res.ok) {
+        const text = await res.text();
+        setError(text || `Error ${res.status}`);
+      }
+    } catch (e: any) {
+      setError(e?.message ?? "Network error");
+    } finally {
+      setRunningShortcut("");
+    }
+  }
+
   const [confirmSize, setConfirmSize] = createSignal<{ fileName: string; file: File; size: number } | null>(null);
   const [confirmResolver, setConfirmResolver] = createSignal<(() => void) | null>(null);
   const [ticketFileNames, setTicketFileNames] = createSignal<string[]>(props.ticket.fileNames ?? []);
@@ -148,7 +196,7 @@ function TicketDetailContent(props: {
     onSubmit: saveFile,
     disabled: () => saving() || !hasUnsavedChanges(),
     active: () =>
-      !showAiConsole() &&
+      activeTab() === "editor" &&
       !newFileDialogOpen() &&
       !confirmingDelete() &&
       !confirmingFileSwitch() &&
@@ -203,7 +251,7 @@ function TicketDetailContent(props: {
     return ref ? !ref.exists : false;
   }
 
-  const hasUnsavedChanges = () => !showAiConsole() && fileViewMode() === "editor" && !isCurrentReadOnly() && content() !== savedContent();
+  const hasUnsavedChanges = () => activeTab() === "editor" && fileViewMode() === "editor" && !isCurrentReadOnly() && content() !== savedContent();
 
   function handleBeforeUnload(e: BeforeUnloadEvent) {
     if (hasUnsavedChanges()) {
@@ -274,7 +322,7 @@ function TicketDetailContent(props: {
             setLauncherConfig(data);
             const defaults = data.columnDefaults[props.ticket.status];
             if (defaults?.lastLayer === "launcher") {
-              setShowAiConsole(true);
+              setActiveTab("launcher");
             }
           }
         } catch {}
@@ -292,7 +340,7 @@ function TicketDetailContent(props: {
 
   createEffect(
     on(activeFile, async (af) => {
-      if (showAiConsole()) return;
+      if (activeTab() !== "editor") return;
       setError("");
       setImageUrl("");
 
@@ -343,45 +391,46 @@ function TicketDetailContent(props: {
   }
 
   function requestFileSwitch(file: ActiveFile) {
-    if (isActiveFileMatch(file, activeFile()) && !showAiConsole()) return;
+    if (isActiveFileMatch(file, activeFile()) && activeTab() === "editor") return;
     if (hasUnsavedChanges()) {
       setPendingFile(file);
       setConfirmingFileSwitch(true);
       return;
     }
-    setShowAiConsole(false);
+    setActiveTab("editor");
     if (!isActiveFileMatch(file, activeFile())) {
       setActiveFile(file);
     }
   }
 
-  function toggleAiConsole() {
-    if (showAiConsole()) {
-      setShowAiConsole(false);
+  function switchTab(tab: Tab) {
+    if (tab === activeTab()) return;
+    if (tab !== "editor") {
+      if (hasUnsavedChanges()) {
+        setPendingFile(null);
+        setPendingTab(tab);
+        setConfirmingFileSwitch(true);
+        return;
+      }
+      setActiveTab(tab);
+      if (tab === "launcher") patchColumnDefaults({ lastLayer: "launcher" });
+    } else {
+      setActiveTab("editor");
       patchColumnDefaults({ lastLayer: "editor" });
-      return;
     }
-    if (hasUnsavedChanges()) {
-      setPendingFile(null);
-      setPendingAiSwitch(true);
-      setConfirmingFileSwitch(true);
-      return;
-    }
-    setShowAiConsole(true);
-    patchColumnDefaults({ lastLayer: "launcher" });
   }
 
   function proceedFileSwitch() {
     const file = pendingFile();
-    const toAi = pendingAiSwitch();
+    const toTab = pendingTab();
     setConfirmingFileSwitch(false);
     setPendingFile(null);
-    setPendingAiSwitch(false);
-    if (toAi) {
-      setShowAiConsole(true);
-      patchColumnDefaults({ lastLayer: "launcher" });
+    setPendingTab(null);
+    if (toTab) {
+      setActiveTab(toTab);
+      if (toTab === "launcher") patchColumnDefaults({ lastLayer: "launcher" });
     } else if (file) {
-      setShowAiConsole(false);
+      setActiveTab("editor");
       setActiveFile(file);
     }
   }
@@ -678,7 +727,7 @@ function TicketDetailContent(props: {
 
   let fileInputRef: HTMLInputElement | undefined;
 
-  const showSaveButton = () => !showAiConsole() && activeFile().type === "stage";
+  const showSaveButton = () => activeTab() === "editor" && activeFile().type === "stage";
 
   return (
     <>
@@ -688,22 +737,46 @@ function TicketDetailContent(props: {
         onKeyDown={handleKeyDown}
         storageKey="ticket-dialog-size"
         title={
-          <div class="flex items-end justify-between">
-            <h2 class="text-lg font-semibold">
-              {props.ticket.number} - {props.ticket.title}
-            </h2>
-            <button
-              type="button"
-              onClick={toggleAiConsole}
-              onMouseDown={(e) => e.stopPropagation()}
-              class={`inline-flex h-10 shrink-0 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                showAiConsole()
-                  ? "bg-primary text-primary-foreground"
-                  : "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
-              }`}
+          <div class="flex flex-col gap-3">
+            <div class="flex items-start justify-between">
+              <h2 class="text-lg font-semibold">
+                {props.ticket.number} - {props.ticket.title}
+              </h2>
+              <Show when={launcherConfig()?.worktreeRootPath != null}>
+                <label
+                  class="flex items-center gap-1.5 text-xs text-muted-foreground"
+                  onMouseDown={(e: MouseEvent) => e.stopPropagation()}
+                >
+                  <input
+                    type="checkbox"
+                    checked={useWorktree()}
+                    onChange={(e) => persistWorktree(e.currentTarget.checked)}
+                    class="rounded border-input"
+                  />
+                  Launch in worktree
+                </label>
+              </Show>
+            </div>
+            <div
+              class="-mb-4 flex gap-1"
+              onMouseDown={(e: MouseEvent) => e.stopPropagation()}
             >
-              {showAiConsole() ? "File Editor ›" : "Agent Launcher ›"}
-            </button>
+              {([["editor", "File Editor"], ["launcher", "Agent Launcher"], ["shortcuts", "Shortcuts"]] as const).map(
+                ([tab, label]) => (
+                  <button
+                    type="button"
+                    onClick={() => switchTab(tab)}
+                    class={`relative inline-flex h-8 items-center justify-center rounded-t-md px-3 text-sm transition-colors ${
+                      activeTab() === tab
+                        ? "border border-b-0 border-border bg-card font-medium text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                )
+              )}
+            </div>
           </div>
         }
         footer={
@@ -730,7 +803,7 @@ function TicketDetailContent(props: {
         }
       >
         <div class="flex h-full flex-col">
-          <Show when={!showAiConsole()}>
+          <Show when={activeTab() === "editor"}>
             {/* File selector row */}
             <div class="flex items-center gap-2 px-4 py-2">
               <div class="relative min-w-0 flex-1">
@@ -840,9 +913,7 @@ function TicketDetailContent(props: {
           </Show>
 
           <div class="flex-1 overflow-hidden px-4 pb-2">
-            <Show when={!showAiConsole()} fallback={
-              <AgentLauncher slug={props.slug} ticket={props.ticket} config={launcherConfig()} onDefaultsChange={patchColumnDefaults} />
-            }>
+            <Show when={activeTab() === "editor"}>
               <Show when={fileViewMode() === "editor"}>
                 <MarkdownEditor
                   value={content()}
@@ -864,6 +935,36 @@ function TicketDetailContent(props: {
                   <p class="text-sm text-muted-foreground">Unable to show this file type</p>
                 </div>
               </Show>
+            </Show>
+            <Show when={activeTab() === "launcher"}>
+              <AgentLauncher slug={props.slug} ticket={props.ticket} config={launcherConfig()} onDefaultsChange={patchColumnDefaults} useWorktree={useWorktree()} />
+            </Show>
+            <Show when={activeTab() === "shortcuts"}>
+              <div class="flex h-full flex-col gap-3 overflow-auto py-4">
+                <Show when={launcherConfig()} fallback={<p class="text-sm text-muted-foreground">Loading config...</p>}>
+                  {(cfg) => (
+                    <Show when={cfg().shortcuts.length > 0} fallback={<p class="text-sm text-muted-foreground">No shortcuts configured</p>}>
+                      <For each={cfg().shortcuts}>
+                        {(shortcut) => (
+                          <div class="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+                            <div class="min-w-0 flex-1">
+                              <div class="text-sm font-medium">{shortcut.name}</div>
+                              <div class="truncate font-mono text-xs text-muted-foreground">{shortcut.command}</div>
+                            </div>
+                            <button
+                              onClick={() => runShortcut(shortcut.name)}
+                              disabled={runningShortcut() !== ""}
+                              class="inline-flex h-8 shrink-0 items-center justify-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+                            >
+                              Run
+                            </button>
+                          </div>
+                        )}
+                      </For>
+                    </Show>
+                  )}
+                </Show>
+              </div>
             </Show>
           </div>
         </div>

@@ -50,8 +50,7 @@ describe('launchAgent profile-based spawn (code-inspection)', () => {
 	);
 
 	it('launchAgent spawns the profile command with cwd set to launchDir', () => {
-		expect(source).toMatch(/spawn\(executable/);
-		expect(source).toMatch(/cwd:\s*launchDir/);
+		expect(source).toMatch(/spawnDetached\(executable,\s*args,\s*launchDir\)/);
 	});
 
 	it('launchAgent no longer creates a bat file', () => {

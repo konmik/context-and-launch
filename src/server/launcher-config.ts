@@ -4,6 +4,7 @@ import type {
 	LauncherTemplate,
 	LauncherSkill,
 	LauncherProfile,
+	LauncherShortcut,
 	LauncherColumnDefaults,
 	MergedLauncherConfig,
 } from '../types.js';
@@ -25,7 +26,7 @@ const DEFAULT_APP_CONFIG: LauncherConfig = {
 };
 
 function emptyConfig(): LauncherConfig {
-	return { templates: [], skills: [], profiles: [] };
+	return { templates: [], skills: [], profiles: [], shortcuts: [] };
 }
 
 function parseConfig(text: string): LauncherConfig {
@@ -34,6 +35,7 @@ function parseConfig(text: string): LauncherConfig {
 		templates: Array.isArray(parsed.templates) ? parsed.templates : [],
 		skills: Array.isArray(parsed.skills) ? parsed.skills : [],
 		profiles: Array.isArray(parsed.profiles) ? parsed.profiles : [],
+		shortcuts: Array.isArray(parsed.shortcuts) ? parsed.shortcuts : [],
 		columnDefaults: parsed.columnDefaults,
 		worktreeRootPath: parsed.worktreeRootPath,
 		boardId: parsed.boardId,
@@ -131,10 +133,19 @@ export class LauncherConfigManager {
 			profileMap.set(p.name, { ...p, scope: "project" });
 		}
 
+		const shortcutMap = new Map<string, LauncherShortcut & { scope: "app" | "project" }>();
+		for (const s of app.shortcuts ?? []) {
+			shortcutMap.set(s.name, { ...s, scope: "app" });
+		}
+		for (const s of project.shortcuts ?? []) {
+			shortcutMap.set(s.name, { ...s, scope: "project" });
+		}
+
 		return {
 			templates: [...templateMap.values()],
 			skills: [...skillMap.values()],
 			profiles: [...profileMap.values()],
+			shortcuts: [...shortcutMap.values()],
 			columnDefaults: project.columnDefaults ?? {},
 			worktreeRootPath: project.worktreeRootPath ?? null,
 			boardId: project.boardId ?? null,
@@ -250,6 +261,34 @@ export class LauncherConfigManager {
 				throw new Error(`Profile with name "${profile.name}" already exists`);
 			}
 			config.profiles[index] = { name: profile.name, command: profile.command };
+		});
+	}
+
+	addShortcut(scope: "app" | "project", slug: string, shortcut: LauncherShortcut): void {
+		this.withConfig(scope, slug, (config) => {
+			if (!config.shortcuts) config.shortcuts = [];
+			if (config.shortcuts.some(s => s.name === shortcut.name)) {
+				throw new Error(`Shortcut with name "${shortcut.name}" already exists`);
+			}
+			config.shortcuts.push(shortcut);
+		});
+	}
+
+	removeShortcut(scope: "app" | "project", slug: string, name: string): void {
+		this.withConfig(scope, slug, (config) => {
+			config.shortcuts = (config.shortcuts ?? []).filter(s => s.name !== name);
+		});
+	}
+
+	updateShortcut(scope: "app" | "project", slug: string, oldName: string, shortcut: LauncherShortcut): void {
+		this.withConfig(scope, slug, (config) => {
+			if (!config.shortcuts) config.shortcuts = [];
+			const index = config.shortcuts.findIndex(s => s.name === oldName);
+			if (index < 0) throw new Error(`Shortcut "${oldName}" not found`);
+			if (oldName !== shortcut.name && config.shortcuts.some(s => s.name === shortcut.name)) {
+				throw new Error(`Shortcut with name "${shortcut.name}" already exists`);
+			}
+			config.shortcuts[index] = { name: shortcut.name, command: shortcut.command };
 		});
 	}
 

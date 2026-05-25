@@ -3,11 +3,59 @@ import path from "path";
 import { worktreeManager, projectRegistry, launcherConfigManager } from "~/server/instances.js";
 import { TicketStore } from "~/server/ticket-store.js";
 import { ProcessError } from "~/server/errors.js";
-import { assemblePrompt, interpolatePrompt } from "~/server/prompt-interpolation.js";
+import { assemblePrompt, interpolatePrompt, splitCommand } from "~/server/prompt-interpolation.js";
 import type { TicketInfo, ProjectInfo } from "~/types.js";
 
 const TITLE_SUFFIX = " -- AI";
 const FALLBACK_PROMPT = "Current ticket files are in {{ticketDir}}. Read the files there for context.";
+const SPAWN_DETACH_DELAY_MS = 10000;
+
+export async function spawnDetached(executable: string, args: string[], cwd: string): Promise<void> {
+  const fullCommand = `${executable} ${args.map(a => a.includes(" ") ? `"${a}"` : a).join(" ")}`;
+  const label = `${executable} ${args.map(a => a.length > 60 ? a.slice(0, 60) + "..." : a).join(" ")}`;
+  console.log(`spawn: ${label} (cwd: ${cwd})`);
+
+  const child = spawn(executable, args, {
+    cwd,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  child.stdout?.resume();
+  let stderr = "";
+  child.stderr?.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+
+    child.on("error", (err) => {
+      if (settled) return;
+      settled = true;
+      reject(new ProcessError(fullCommand, undefined, err.message, err.message));
+    });
+
+    child.on("exit", (code) => {
+      console.log(`exit ${code}: ${label}`);
+      if (stderr.trim()) console.error(`stderr: ${stderr.trim()}`);
+      if (settled) return;
+      settled = true;
+      if (code !== 0 && code !== null) {
+        reject(new ProcessError(fullCommand, code, stderr.trim() || `Process exited with code ${code}`, `Failed (exit ${code})`));
+      } else if (code === null) {
+        reject(new ProcessError(fullCommand, undefined, stderr.trim() || "Process terminated abnormally", "Process terminated abnormally"));
+      } else {
+        resolve();
+      }
+    });
+
+    child.on("spawn", () => {
+      child.unref();
+      setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      }, SPAWN_DETACH_DELAY_MS);
+    });
+  });
+}
 
 function escapeTitle(title: string): string {
   return title.replace(/'/g, "''");
@@ -111,52 +159,12 @@ export async function launchAgent(
   }
 
   const commandVars: Record<string, string> = { initialPrompt, windowTitle, appConfigDir: launcherConfigManager.getAppConfigDir() };
-  const parts = profile.command.split(/\s+/);
+  const parts = splitCommand(profile.command);
   const executable = parts[0];
   const args = parts.slice(1).map(arg =>
     arg.replace(/\{\{(\w+)\}\}/g, (match, key) => commandVars[key] ?? match)
   );
 
-  const fullCommand = `${executable} ${args.map(a => a.includes(" ") ? `"${a}"` : a).join(" ")}`;
-  const label = `${executable} ${args.map(a => a.length > 60 ? a.slice(0, 60) + "..." : a).join(" ")}`;
-  console.log(`spawn: ${label} (cwd: ${launchDir})`);
-  const child = spawn(executable, args, {
-    cwd: launchDir,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  child.stdout?.resume();
-  let stderr = "";
-  child.stderr?.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
-
-  await new Promise<void>((resolve, reject) => {
-    let settled = false;
-
-    child.on("error", (err) => {
-      if (settled) return;
-      settled = true;
-      reject(err);
-    });
-
-    child.on("exit", (code) => {
-      console.log(`exit ${code}: ${label}`);
-      if (stderr.trim()) console.error(`stderr: ${stderr.trim()}`);
-      if (settled) return;
-      settled = true;
-      if (code !== 0 && code !== null) {
-        reject(new ProcessError(fullCommand, code, stderr.trim() || `Process exited with code ${code}`, `Failed to launch agent (exit ${code})`));
-      } else {
-        resolve();
-      }
-    });
-
-    child.on("spawn", () => {
-      setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        child.unref();
-        resolve();
-      }, 3000);
-    });
-  });
+  await spawnDetached(executable, args, launchDir);
 
 }

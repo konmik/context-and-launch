@@ -75,6 +75,11 @@ export interface LauncherProfile {
 	command: string;
 }
 
+export interface LauncherShortcut {
+	name: string;
+	command: string;
+}
+
 export interface LauncherColumnDefaults {
 	templateName: string | null;
 	checkedSkills: string[];
@@ -86,6 +91,7 @@ export interface LauncherConfig {
 	templates: LauncherTemplate[];
 	skills: LauncherSkill[];
 	profiles?: LauncherProfile[];
+	shortcuts?: LauncherShortcut[];
 	columnDefaults?: Record<string, LauncherColumnDefaults>;
 	worktreeRootPath?: string;
 	boardId?: string;
@@ -101,6 +107,7 @@ export interface MergedLauncherConfig {
 	templates: (LauncherTemplate & { scope: "app" | "project" })[];
 	skills: (LauncherSkill & { scope: "app" | "project" })[];
 	profiles: (LauncherProfile & { scope: "app" | "project" })[];
+	shortcuts: (LauncherShortcut & { scope: "app" | "project" })[];
 	columnDefaults: Record<string, LauncherColumnDefaults>;
 	worktreeRootPath: string | null;
 	boardId: string | null;
