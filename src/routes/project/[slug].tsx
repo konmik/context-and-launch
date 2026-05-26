@@ -1,7 +1,7 @@
 import { useParams, useNavigate, createAsync, revalidate } from "@solidjs/router";
 import { createSignal, Show, For } from "solid-js";
-import { Dialog, Menu } from "@ark-ui/solid";
-import { Portal } from "solid-js/web";
+import { Dialog } from "~/components/ui/dialog";
+import { Menu } from "~/components/ui/menu";
 import type { TicketInfo } from "~/types.js";
 import KanbanBoard from "~/components/KanbanBoard";
 import CreateTicketDialog from "~/components/CreateTicketDialog";
@@ -134,32 +134,31 @@ export default function ProjectPage() {
               <button onClick={() => setSettingsOpen(true)} class="btn-icon" title="Settings">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
               </button>
-              <Menu.Root>
-                <Menu.Trigger class="btn-secondary">
-                  {d().slug}
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ml-2"><path d="m6 9 6 6 6-6" /></svg>
-                </Menu.Trigger>
-                <Portal>
-                  <Menu.Positioner>
-                    <Menu.Content class="min-w-[200px]">
-                      <For each={d().projects}>
-                        {(project) => (
-                          <Menu.Item
-                            value={`project-${project.slug}`}
-                            disabled={!project.available}
-                            class={project.slug === d().slug ? "font-semibold" : ""}
-                            onClick={() => navigate(`/project/${project.slug}`)}
-                          >
-                            {project.slug}
-                          </Menu.Item>
-                        )}
-                      </For>
-                      <Menu.Separator />
-                      <Menu.Item value="add-project" onClick={() => setAddProjectDialogOpen(true)}>Add project...</Menu.Item>
-                    </Menu.Content>
-                  </Menu.Positioner>
-                </Portal>
-              </Menu.Root>
+              <Menu
+                trigger={
+                  <Menu.Trigger class="btn-secondary">
+                    {d().slug}
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ml-2"><path d="m6 9 6 6 6-6" /></svg>
+                  </Menu.Trigger>
+                }
+              >
+                <Menu.Content class="min-w-[200px]">
+                  <For each={d().projects}>
+                    {(project) => (
+                      <Menu.Item
+                        value={`project-${project.slug}`}
+                        disabled={!project.available}
+                        class={project.slug === d().slug ? "font-semibold" : ""}
+                        onClick={() => navigate(`/project/${project.slug}`)}
+                      >
+                        {project.slug}
+                      </Menu.Item>
+                    )}
+                  </For>
+                  <Menu.Separator />
+                  <Menu.Item value="add-project" onClick={() => setAddProjectDialogOpen(true)}>Add project...</Menu.Item>
+                </Menu.Content>
+              </Menu>
               <button class="btn-primary" onClick={() => setCreateTicketOpen(true)}>+ New Ticket</button>
             </div>
           </header>
@@ -178,17 +177,10 @@ export default function ProjectPage() {
           <WorktreeCleanupDialog open={cleanupDialogOpen()} onOpenChange={setCleanupDialogOpen} ticket={selectedTicket()} action={cleanupAction()} onSubmit={handleCleanupSubmit} />
           <TicketDetailDialog onClose={() => setDetailTicket(null)} slug={d().slug} ticket={detailTicket()} />
 
-          <Dialog.Root open={addProjectDialogOpen()} onOpenChange={(det) => { if (!det.open) setAddProjectDialogOpen(false); }}>
-            <Portal>
-              <Dialog.Backdrop />
-              <Dialog.Positioner>
-                <Dialog.Content ref={addProjectDialogRef}>
-                  <Dialog.Title>Add Project</Dialog.Title>
-                  <AddProjectForm action={addProjectAction} onSuccess={(s) => { setAddProjectDialogOpen(false); navigate(`/project/${s}`); }} submitTitle={modEnterHint()} />
-                </Dialog.Content>
-              </Dialog.Positioner>
-            </Portal>
-          </Dialog.Root>
+          <Dialog open={addProjectDialogOpen()} onOpenChange={() => setAddProjectDialogOpen(false)} ref={addProjectDialogRef}>
+            <Dialog.Title>Add Project</Dialog.Title>
+            <AddProjectForm action={addProjectAction} onSuccess={(s) => { setAddProjectDialogOpen(false); navigate(`/project/${s}`); }} submitTitle={modEnterHint()} />
+          </Dialog>
 
           <ConflictDialog open={conflictDialogOpen()} onOpenChange={setConflictDialogOpen} onResolve={handleConflictResolve} onAbort={handleConflictAbort} slug={d().slug} />
           <ErrorDialog error={syncError()} onClose={() => setSyncError(null)} />

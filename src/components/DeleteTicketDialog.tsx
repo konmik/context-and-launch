@@ -1,6 +1,5 @@
 import { createSignal, Show } from "solid-js";
-import { Dialog } from "@ark-ui/solid";
-import { Portal } from "solid-js/web";
+import { Dialog } from "./ui/dialog";
 import type { TicketInfo } from "~/types.js";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 
@@ -35,23 +34,16 @@ export default function DeleteTicketDialog(props: DeleteTicketDialogProps) {
   useModEnterSubmit({ onSubmit: doSubmit, disabled: () => submitting(), active: () => props.open && !!props.ticket });
 
   return (
-    <Dialog.Root open={props.open && !!props.ticket} onOpenChange={(d) => { if (!d.open) close(); }}>
-      <Portal>
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content>
-            <Dialog.Title>Delete Ticket</Dialog.Title>
-            <Dialog.Description>Delete ticket {props.ticket?.number} - {props.ticket?.title}?</Dialog.Description>
-            <Show when={errorMsg()}><p class="mb-4 text-sm text-destructive">{errorMsg()}</p></Show>
-            <form onSubmit={(e) => { e.preventDefault(); doSubmit(); }}>
-              <div class="flex justify-end gap-2">
-                <button type="button" onClick={close} class="btn-secondary">Cancel</button>
-                <button type="submit" disabled={submitting()} title={modEnterHint()} class="btn-destructive">Delete</button>
-              </div>
-            </form>
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+    <Dialog open={props.open && !!props.ticket} onOpenChange={close}>
+      <Dialog.Title>Delete Ticket</Dialog.Title>
+      <Dialog.Description>Delete ticket {props.ticket?.number} - {props.ticket?.title}?</Dialog.Description>
+      <Show when={errorMsg()}><p class="mb-4 text-sm text-destructive">{errorMsg()}</p></Show>
+      <form onSubmit={(e) => { e.preventDefault(); doSubmit(); }}>
+        <div class="flex justify-end gap-2">
+          <button type="button" onClick={close} class="btn-secondary">Cancel</button>
+          <button type="submit" disabled={submitting()} title={modEnterHint()} class="btn-destructive">Delete</button>
+        </div>
+      </form>
+    </Dialog>
   );
 }

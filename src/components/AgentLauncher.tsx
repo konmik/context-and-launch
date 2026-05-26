@@ -1,6 +1,5 @@
 import { createSignal, createEffect, on, Show, For } from "solid-js";
-import { Dialog } from "@ark-ui/solid";
-import { Portal } from "solid-js/web";
+import { Dialog } from "./ui/dialog";
 import type { TicketInfo, MergedLauncherConfig, ErrorInfo, LauncherColumnDefaults } from "~/types.js";
 import ErrorDialog from "./ErrorDialog.js";
 
@@ -160,37 +159,23 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 
 			<ErrorDialog error={errorInfo()} onClose={() => setErrorInfo(null)} />
 
-			<Dialog.Root open={!!behindRemoteMsg()} onOpenChange={(d) => { if (!d.open) setBehindRemoteMsg(""); }}>
-				<Portal>
-					<Dialog.Backdrop />
-					<Dialog.Positioner>
-						<Dialog.Content class="max-w-sm">
-							<Dialog.Title class="sr-only">Behind Remote</Dialog.Title>
-							<p class="mb-4 text-sm">{behindRemoteMsg()}</p>
-							<div class="flex justify-end gap-2">
-								<button onClick={() => setBehindRemoteMsg("")} class="btn-secondary">Cancel</button>
-								<button onClick={pullAndRetry} disabled={launching()} class="btn-primary">Pull & Retry</button>
-							</div>
-						</Dialog.Content>
-					</Dialog.Positioner>
-				</Portal>
-			</Dialog.Root>
+			<Dialog open={!!behindRemoteMsg()} onOpenChange={() => setBehindRemoteMsg("")} class="max-w-sm">
+				<Dialog.Title class="sr-only">Behind Remote</Dialog.Title>
+				<p class="mb-4 text-sm">{behindRemoteMsg()}</p>
+				<div class="flex justify-end gap-2">
+					<button onClick={() => setBehindRemoteMsg("")} class="btn-secondary">Cancel</button>
+					<button onClick={pullAndRetry} disabled={launching()} class="btn-primary">Pull & Retry</button>
+				</div>
+			</Dialog>
 
-			<Dialog.Root open={!!dirtyWorktreeMsg()} onOpenChange={(d) => { if (!d.open) setDirtyWorktreeMsg(""); }}>
-				<Portal>
-					<Dialog.Backdrop />
-					<Dialog.Positioner>
-						<Dialog.Content class="max-w-sm">
-							<Dialog.Title class="sr-only">Uncommitted Changes</Dialog.Title>
-							<p class="mb-4 text-sm">{dirtyWorktreeMsg()}</p>
-							<div class="flex justify-end gap-2">
-								<button onClick={() => setDirtyWorktreeMsg("")} class="btn-secondary">Cancel</button>
-								<button onClick={() => { setDirtyWorktreeMsg(""); launchAgent({ force: true }); }} disabled={launching()} class="btn-primary">Launch Anyway</button>
-							</div>
-						</Dialog.Content>
-					</Dialog.Positioner>
-				</Portal>
-			</Dialog.Root>
+			<Dialog open={!!dirtyWorktreeMsg()} onOpenChange={() => setDirtyWorktreeMsg("")} class="max-w-sm">
+				<Dialog.Title class="sr-only">Uncommitted Changes</Dialog.Title>
+				<p class="mb-4 text-sm">{dirtyWorktreeMsg()}</p>
+				<div class="flex justify-end gap-2">
+					<button onClick={() => setDirtyWorktreeMsg("")} class="btn-secondary">Cancel</button>
+					<button onClick={() => { setDirtyWorktreeMsg(""); launchAgent({ force: true }); }} disabled={launching()} class="btn-primary">Launch Anyway</button>
+				</div>
+			</Dialog>
 		</div>
 	);
 }

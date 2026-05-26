@@ -1,6 +1,5 @@
 import { createSignal, createEffect, Show, For } from "solid-js";
-import { Dialog } from "@ark-ui/solid";
-import { Portal } from "solid-js/web";
+import { Dialog } from "./ui/dialog";
 
 interface ConflictDialogProps {
   open: boolean;
@@ -41,39 +40,32 @@ export default function ConflictDialog(props: ConflictDialogProps) {
   }
 
   return (
-    <Dialog.Root open={props.open} onOpenChange={(d) => { if (!d.open) close(); }}>
-      <Portal>
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content>
-            <Dialog.Title>Sync Conflicts Detected</Dialog.Title>
-            <Dialog.Description>The sync encountered conflicts during rebase. You can launch an AI agent to resolve them, or abort to keep your local changes and retry later.</Dialog.Description>
+    <Dialog open={props.open} onOpenChange={close}>
+      <Dialog.Title>Sync Conflicts Detected</Dialog.Title>
+      <Dialog.Description>The sync encountered conflicts during rebase. You can launch an AI agent to resolve them, or abort to keep your local changes and retry later.</Dialog.Description>
 
-            <div class="mb-4">
-              <label class="mb-1 block text-sm font-medium">Profile</label>
-              <select value={selectedProfile()} onChange={(e) => setSelectedProfile(e.currentTarget.value)} class="input input-sm" data-testid="conflict-profile-select">
-                <For each={profiles()}>{(p) => <option value={p.name}>{p.name}</option>}</For>
-              </select>
-            </div>
+      <div class="mb-4">
+        <label class="mb-1 block text-sm font-medium">Profile</label>
+        <select value={selectedProfile()} onChange={(e) => setSelectedProfile(e.currentTarget.value)} class="input input-sm" data-testid="conflict-profile-select">
+          <For each={profiles()}>{(p) => <option value={p.name}>{p.name}</option>}</For>
+        </select>
+      </div>
 
-            <Show when={errorMsg()}><p class="mb-4 text-sm text-destructive">{errorMsg()}</p></Show>
+      <Show when={errorMsg()}><p class="mb-4 text-sm text-destructive">{errorMsg()}</p></Show>
 
-            <div class="flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => fetch("/api/open-config-dir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: "tickets", slug: props.slug }) })}
-                class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
-                title="Open tickets directory"
-              >Tickets repo &#8599;</button>
-              <div class="flex gap-2">
-                <button type="button" onClick={close} disabled={submitting()} class="btn-secondary">Close</button>
-                <button type="button" onClick={() => submit(props.onAbort, "Failed to abort")} disabled={submitting()} class="btn-secondary">Abort</button>
-                <button type="button" onClick={() => submit(() => props.onResolve(selectedProfile()), "Failed to launch resolver")} disabled={submitting() || !selectedProfile()} class="btn-primary">Launch</button>
-              </div>
-            </div>
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+      <div class="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => fetch("/api/open-config-dir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: "tickets", slug: props.slug }) })}
+          class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+          title="Open tickets directory"
+        >Tickets repo &#8599;</button>
+        <div class="flex gap-2">
+          <button type="button" onClick={close} disabled={submitting()} class="btn-secondary">Close</button>
+          <button type="button" onClick={() => submit(props.onAbort, "Failed to abort")} disabled={submitting()} class="btn-secondary">Abort</button>
+          <button type="button" onClick={() => submit(() => props.onResolve(selectedProfile()), "Failed to launch resolver")} disabled={submitting() || !selectedProfile()} class="btn-primary">Launch</button>
+        </div>
+      </div>
+    </Dialog>
   );
 }

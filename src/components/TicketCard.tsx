@@ -1,5 +1,4 @@
-import { Menu } from "@ark-ui/solid";
-import { Portal } from "solid-js/web";
+import { Menu } from "./ui/menu";
 import type { TicketInfo } from "~/types.js";
 
 interface TicketCardProps {
@@ -25,24 +24,23 @@ export default function TicketCard(props: TicketCardProps) {
       <div class="mb-1 flex items-start justify-between">
         <span class="text-sm font-medium text-primary">{props.ticket.number}</span>
         <div data-menu>
-          <Menu.Root>
-            <Menu.Trigger
-              class="rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              aria-label="Ticket actions"
-              onClick={(e: MouseEvent) => e.stopPropagation()}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></svg>
-            </Menu.Trigger>
-            <Portal>
-              <Menu.Positioner>
-                <Menu.Content>
-                  <Menu.Item value="edit" onClick={(e: MouseEvent) => { e.stopPropagation(); props.onEdit(props.ticket); }}>Edit</Menu.Item>
-                  <Menu.Item value="archive" onClick={(e: MouseEvent) => { e.stopPropagation(); props.onArchive(props.ticket); }}>Archive</Menu.Item>
-                  <Menu.Item value="delete" class="text-destructive" onClick={(e: MouseEvent) => { e.stopPropagation(); props.onDelete(props.ticket); }}>Delete</Menu.Item>
-                </Menu.Content>
-              </Menu.Positioner>
-            </Portal>
-          </Menu.Root>
+          <Menu
+            trigger={
+              <Menu.Trigger
+                class="rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                aria-label="Ticket actions"
+                onClick={(e: MouseEvent) => e.stopPropagation()}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></svg>
+              </Menu.Trigger>
+            }
+          >
+            <Menu.Content>
+              <Menu.Item value="edit" onClick={(e: MouseEvent) => { e.stopPropagation(); props.onEdit(props.ticket); }}>Edit</Menu.Item>
+              <Menu.Item value="archive" onClick={(e: MouseEvent) => { e.stopPropagation(); props.onArchive(props.ticket); }}>Archive</Menu.Item>
+              <Menu.Item value="delete" class="text-destructive" onClick={(e: MouseEvent) => { e.stopPropagation(); props.onDelete(props.ticket); }}>Delete</Menu.Item>
+            </Menu.Content>
+          </Menu>
         </div>
       </div>
       <p class="line-clamp-2 text-sm">{props.ticket.title}</p>
