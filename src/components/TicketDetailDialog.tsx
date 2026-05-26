@@ -1,11 +1,11 @@
 import { createSignal, createEffect, Show, For, on, onCleanup } from "solid-js";
 import { DialogRoot, DialogTitle, DialogDescription } from "./ui/dialog";
+import { FloatingPanelRoot, FloatingPanelHeader, FloatingPanelBody, FloatingPanelDragTrigger, FloatingPanelResizeTrigger, FloatingPanelCloseTrigger, FloatingPanelTitle } from "./ui/floating-panel";
 import { TabsRoot, TabsList, TabsTrigger } from "./ui/tabs";
 import { Portal } from "solid-js/web";
 import { revalidate } from "@solidjs/router";
 import type { TicketInfo, MergedLauncherConfig, LauncherColumnDefaults } from "~/types.js";
 import AgentLauncher from "./AgentLauncher";
-import ResizableWindow from "./ResizableWindow";
 import MarkdownEditor from "./MarkdownEditor";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 
@@ -532,21 +532,6 @@ function TicketDetailContent(props: {
     props.onClose();
   }
 
-  function handleKeyDown(e: KeyboardEvent) {
-    if (e.key === "Escape") {
-      if (dropdownOpen()) {
-        setDropdownOpen(false);
-        e.preventDefault();
-      } else if (confirmingFileSwitch()) {
-        cancelFileSwitch();
-        e.preventDefault();
-      } else if (confirmingClose()) {
-        setConfirmingClose(false);
-        e.preventDefault();
-      }
-    }
-  }
-
   function handleDragOver(e: DragEvent) {
     e.preventDefault();
     e.stopPropagation();
@@ -729,58 +714,46 @@ function TicketDetailContent(props: {
 
   return (
     <>
-      <ResizableWindow
+      <Portal><div class="fixed inset-0 bg-black/50" onClick={close} /></Portal>
+      <FloatingPanelRoot
         open={true}
-        onClose={close}
-        onKeyDown={handleKeyDown}
-        storageKey="ticket-dialog-size"
-        title={
-          <div class="flex flex-col gap-3">
-            <div class="flex items-start justify-between">
-              <h2 class="text-lg font-semibold">
-                {props.ticket.number} - {props.ticket.title}
-              </h2>
-              <Show when={launcherConfig()?.worktreeRootPath != null}>
-                <label
-                  class="flex items-center gap-1.5 text-xs text-muted-foreground"
-                  onMouseDown={(e: MouseEvent) => e.stopPropagation()}
-                >
-                  <input
-                    type="checkbox"
-                    checked={useWorktree()}
-                    onChange={(e) => persistWorktree(e.currentTarget.checked)}
-                    class="rounded border-input"
-                  />
-                  Launch in worktree
-                </label>
-              </Show>
-            </div>
-            <TabsRoot
-              value={activeTab()}
-              onValueChange={(d) => switchTab(d.value as Tab)}
-              class="-mb-4"
-              onMouseDown={(e: MouseEvent) => e.stopPropagation()}
-            >
-              <TabsList>
-                {([["editor", "File Editor"], ["launcher", "Agent Launcher"], ["shortcuts", "Shortcuts"]] as const).map(
-                  ([tab, label]) => <TabsTrigger value={tab}>{label}</TabsTrigger>
-                )}
-              </TabsList>
-            </TabsRoot>
-          </div>
-        }
-        footer={
-          <div class="flex justify-end gap-2">
-            <button type="button" onClick={close} class="btn-secondary">Close</button>
-            <Show when={showSaveButton()}>
-              <button type="button" onClick={saveFile} disabled={saving() || !hasUnsavedChanges()} title={modEnterHint()} class="btn-primary">Save</button>
-            </Show>
-          </div>
-        }
+        onOpenChange={(d) => { if (!d.open) close(); }}
+        defaultSize={{ width: 768, height: Math.floor(window.innerHeight * 0.8) }}
+        minSize={{ width: 400, height: 300 }}
+        persistRect
       >
+        <FloatingPanelHeader>
+          <FloatingPanelDragTrigger class="flex flex-col gap-3">
+            <div class="flex items-start justify-between">
+              <FloatingPanelTitle>{props.ticket.number} - {props.ticket.title}</FloatingPanelTitle>
+              <div class="flex items-center gap-3">
+                <Show when={launcherConfig()?.worktreeRootPath != null}>
+                  <label class="flex items-center gap-1.5 text-xs text-muted-foreground" data-no-drag>
+                    <input type="checkbox" checked={useWorktree()} onChange={(e) => persistWorktree(e.currentTarget.checked)} class="rounded border-input" />
+                    Launch in worktree
+                  </label>
+                </Show>
+                <FloatingPanelCloseTrigger>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </FloatingPanelCloseTrigger>
+              </div>
+            </div>
+            <div data-no-drag class="-mb-4">
+              <TabsRoot value={activeTab()} onValueChange={(d) => switchTab(d.value as Tab)}>
+                <TabsList>
+                  <TabsTrigger value="editor">File Editor</TabsTrigger>
+                  <TabsTrigger value="launcher">Agent Launcher</TabsTrigger>
+                  <TabsTrigger value="shortcuts">Shortcuts</TabsTrigger>
+                </TabsList>
+              </TabsRoot>
+            </div>
+          </FloatingPanelDragTrigger>
+        </FloatingPanelHeader>
+
+        <FloatingPanelBody>
         <div class="flex h-full flex-col">
           <Show when={activeTab() === "editor"}>
-            <div class="flex items-center gap-2 px-4 py-2">
+            <div class="flex items-center gap-2 px-6 py-2">
               <div class="min-w-0 flex-1">
                 <button
                   ref={(el) => (dropdownBtnRef = el)}
@@ -837,23 +810,18 @@ function TicketDetailContent(props: {
               <button
                 type="button"
                 onClick={handleTrashClick}
-                class="inline-flex h-9 shrink-0 items-center justify-center rounded-md border border-input bg-background px-2 text-sm text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground"
+                class="btn-icon text-muted-foreground hover:bg-destructive hover:text-destructive-foreground"
                 title={activeFile().type === "reference" ? "Remove reference" : "Delete file"}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
               </button>
             </div>
 
-            <div class="flex flex-wrap items-center gap-2 px-4 pb-2">
-              <button
-                type="button"
-                onClick={openNewFileDialog}
-                class="inline-flex h-8 items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm hover:bg-accent hover:text-accent-foreground"
-              >
+            <div class="flex flex-wrap items-center gap-2 px-6 pb-2">
+              <button type="button" onClick={openNewFileDialog} class="btn-secondary btn-sm gap-1.5">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 New markdown file
               </button>
-
               <button
                 type="button"
                 onClick={() => fileInputRef?.click()}
@@ -861,29 +829,13 @@ function TicketDetailContent(props: {
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 disabled={uploading()}
-                class={`inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-sm transition-colors disabled:pointer-events-none disabled:opacity-50 ${
-                  dragging()
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-input bg-background hover:bg-accent hover:text-accent-foreground"
-                }`}
+                class={`btn-secondary btn-sm gap-1.5 ${dragging() ? "border-primary bg-primary/10 text-primary" : ""}`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 Drop a file to copy
               </button>
-              <input
-                ref={(el) => (fileInputRef = el)}
-                type="file"
-                multiple
-                class="hidden"
-                onChange={handleFileInputChange}
-              />
-
-              <button
-                type="button"
-                onClick={openNativeFileBrowser}
-                disabled={browsing()}
-                class="inline-flex h-8 items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
-              >
+              <input ref={(el) => (fileInputRef = el)} type="file" multiple class="hidden" onChange={handleFileInputChange} />
+              <button type="button" onClick={openNativeFileBrowser} disabled={browsing()} class="btn-secondary btn-sm gap-1.5">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
                 Add file reference
               </button>
@@ -891,21 +843,13 @@ function TicketDetailContent(props: {
           </Show>
 
           <Show when={error()}>
-            <div class="mx-4 mt-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {error()}
-            </div>
+            <div class="mx-6 mt-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error()}</div>
           </Show>
 
-          <div class="flex-1 overflow-hidden px-4 pb-2">
+          <div class="flex-1 overflow-hidden px-6 pb-4">
             <Show when={activeTab() === "editor"}>
               <Show when={fileViewMode() === "editor"}>
-                <MarkdownEditor
-                  value={content()}
-                  onChange={setContent}
-                  onSave={activeFile().type === "stage" ? saveFile : undefined}
-                  placeholder="Write markdown here..."
-                  readOnly={isCurrentReadOnly()}
-                />
+                <MarkdownEditor value={content()} onChange={setContent} onSave={activeFile().type === "stage" ? saveFile : undefined} placeholder="Write markdown here..." readOnly={isCurrentReadOnly()} />
               </Show>
               <Show when={fileViewMode() === "image"}>
                 <div class="flex h-full items-center justify-center overflow-auto rounded-md border border-input bg-background p-4">
@@ -935,13 +879,7 @@ function TicketDetailContent(props: {
                               <div class="text-sm font-medium">{shortcut.name}</div>
                               <div class="truncate font-mono text-xs text-muted-foreground">{shortcut.command}</div>
                             </div>
-                            <button
-                              onClick={() => runShortcut(shortcut.name)}
-                              disabled={runningShortcut() !== ""}
-                              class="inline-flex h-8 shrink-0 items-center justify-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
-                            >
-                              Run
-                            </button>
+                            <button onClick={() => runShortcut(shortcut.name)} disabled={runningShortcut() !== ""} class="btn-primary btn-sm">Run</button>
                           </div>
                         )}
                       </For>
@@ -951,8 +889,27 @@ function TicketDetailContent(props: {
               </div>
             </Show>
           </div>
+
+          <div class="flex justify-end gap-2 border-t border-border px-4 py-3">
+            <button type="button" onClick={close} class="btn-secondary">Close</button>
+            <Show when={showSaveButton()}>
+              <button type="button" onClick={saveFile} disabled={saving() || !hasUnsavedChanges()} title={modEnterHint()} class="btn-primary">Save</button>
+            </Show>
+          </div>
         </div>
-      </ResizableWindow>
+        </FloatingPanelBody>
+
+        <FloatingPanelResizeTrigger axis="s" />
+        <FloatingPanelResizeTrigger axis="w" />
+        <FloatingPanelResizeTrigger axis="e" />
+        <FloatingPanelResizeTrigger axis="n" />
+        <FloatingPanelResizeTrigger axis="ne" />
+        <FloatingPanelResizeTrigger axis="nw" />
+        <FloatingPanelResizeTrigger axis="sw" />
+        <FloatingPanelResizeTrigger axis="se">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><path d="M10 2v8H2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </FloatingPanelResizeTrigger>
+      </FloatingPanelRoot>
 
       <DiscardConfirmation
         open={confirmingClose()}
