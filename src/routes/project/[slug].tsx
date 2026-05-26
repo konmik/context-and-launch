@@ -1,5 +1,6 @@
 import { useParams, useNavigate, createAsync, revalidate } from "@solidjs/router";
 import { createSignal, Show, For } from "solid-js";
+import { Dialog, Menu } from "@ark-ui/solid";
 import { Portal } from "solid-js/web";
 import type { TicketInfo } from "~/types.js";
 import KanbanBoard from "~/components/KanbanBoard";
@@ -17,13 +18,8 @@ import ThemeToggle from "~/components/ThemeToggle";
 import LauncherSettings from "~/components/LauncherSettings";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 import {
-  loadBoard,
-  addProjectAction,
-  createTicketAction,
-  updateTicketAction,
-  deleteTicketAction,
-  archiveTicketAction,
-  worktreeCleanupAction,
+  loadBoard, addProjectAction, createTicketAction, updateTicketAction,
+  deleteTicketAction, archiveTicketAction, worktreeCleanupAction,
 } from "~/server/actions";
 
 export const route = {
@@ -36,7 +32,6 @@ export default function ProjectPage() {
   const slug = () => params.slug ?? "";
   const data = createAsync(() => loadBoard(slug()));
 
-  const [dropdownOpen, setDropdownOpen] = createSignal(false);
   const [addProjectDialogOpen, setAddProjectDialogOpen] = createSignal(false);
   const [settingsOpen, setSettingsOpen] = createSignal(false);
   const [createTicketOpen, setCreateTicketOpen] = createSignal(false);
@@ -45,9 +40,7 @@ export default function ProjectPage() {
   const [archiveTicketOpen, setArchiveTicketOpen] = createSignal(false);
   const [cleanupDialogOpen, setCleanupDialogOpen] = createSignal(false);
   const [cleanupAction, setCleanupAction] = createSignal<"archive" | "delete">("archive");
-  const [selectedTicket, setSelectedTicket] = createSignal<TicketInfo | null>(
-    null
-  );
+  const [selectedTicket, setSelectedTicket] = createSignal<TicketInfo | null>(null);
   const [detailTicket, setDetailTicket] = createSignal<TicketInfo | null>(null);
   const [syncing, setSyncing] = createSignal(false);
   const [syncSuccess, setSyncSuccess] = createSignal(false);
@@ -56,77 +49,33 @@ export default function ProjectPage() {
 
   async function handleSync() {
     if (syncing()) return;
-    if (!data()?.hasRemote) {
-      setSyncError({ description: "No remote tracking branch configured. Push the ticket branch to a remote first." });
-      return;
-    }
-    setSyncing(true);
-    setSyncError(null);
+    if (!data()?.hasRemote) { setSyncError({ description: "No remote tracking branch configured. Push the ticket branch to a remote first." }); return; }
+    setSyncing(true); setSyncError(null);
     try {
       const res = await fetch(`/api/projects/${slug()}/board/sync`, { method: "POST" });
       const result = await res.json();
-      if (result.status === "success") {
-        setSyncSuccess(true);
-        setTimeout(() => setSyncSuccess(false), 2000);
-        await revalidate("board-data");
-      } else if (result.status === "conflict") {
-        setConflictDialogOpen(true);
-      } else if (result.status === "error") {
-        setSyncError({ description: result.message || "Sync failed" });
-      }
-    } catch (err) {
-      setSyncError({ description: err instanceof Error ? err.message : "Sync failed" });
-    } finally {
-      setSyncing(false);
-    }
+      if (result.status === "success") { setSyncSuccess(true); setTimeout(() => setSyncSuccess(false), 2000); await revalidate("board-data"); }
+      else if (result.status === "conflict") setConflictDialogOpen(true);
+      else if (result.status === "error") setSyncError({ description: result.message || "Sync failed" });
+    } catch (err) { setSyncError({ description: err instanceof Error ? err.message : "Sync failed" }); }
+    finally { setSyncing(false); }
   }
 
   async function handleConflictResolve(profileName: string) {
-    const res = await fetch(`/api/projects/${slug()}/board/resolve-conflicts`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ profileName }),
-    });
-    if (!res.ok) {
-      const body = await res.json();
-      throw new Error(body.error || "Failed to launch resolver");
-    }
+    const res = await fetch(`/api/projects/${slug()}/board/resolve-conflicts`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileName }) });
+    if (!res.ok) { const body = await res.json(); throw new Error(body.error || "Failed to launch resolver"); }
     await revalidate("board-data");
   }
 
   async function handleConflictAbort() {
     const res = await fetch(`/api/projects/${slug()}/board/sync`, { method: "DELETE" });
-    if (!res.ok) {
-      const body = await res.json();
-      throw new Error(body.error || "Failed to abort rebase");
-    }
+    if (!res.ok) { const body = await res.json(); throw new Error(body.error || "Failed to abort rebase"); }
     await revalidate("board-data");
   }
 
-  function handleEdit(ticket: TicketInfo) {
-    setSelectedTicket(ticket);
-    setEditTicketOpen(true);
-  }
-
-  function handleDelete(ticket: TicketInfo) {
-    setSelectedTicket(ticket);
-    if (ticket.useWorktree) {
-      setCleanupAction("delete");
-      setCleanupDialogOpen(true);
-    } else {
-      setDeleteTicketOpen(true);
-    }
-  }
-
-  function handleArchive(ticket: TicketInfo) {
-    setSelectedTicket(ticket);
-    if (ticket.useWorktree) {
-      setCleanupAction("archive");
-      setCleanupDialogOpen(true);
-    } else {
-      setArchiveTicketOpen(true);
-    }
-  }
+  function handleEdit(ticket: TicketInfo) { setSelectedTicket(ticket); setEditTicketOpen(true); }
+  function handleDelete(ticket: TicketInfo) { setSelectedTicket(ticket); if (ticket.useWorktree) { setCleanupAction("delete"); setCleanupDialogOpen(true); } else setDeleteTicketOpen(true); }
+  function handleArchive(ticket: TicketInfo) { setSelectedTicket(ticket); if (ticket.useWorktree) { setCleanupAction("archive"); setCleanupDialogOpen(true); } else setArchiveTicketOpen(true); }
 
   async function handleViewDetail(ticket: TicketInfo) {
     await revalidate("board-data");
@@ -135,96 +84,28 @@ export default function ProjectPage() {
   }
 
   async function handleReorder(folderName: string, fromColumn: string, toColumn: string, newIndex: number) {
-    const res = await fetch(`/api/projects/${slug()}/board/reorder`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ folderName, fromColumn, toColumn, newIndex }),
-    });
-    if (res.ok) {
-      await revalidate("board-data");
-    }
+    const res = await fetch(`/api/projects/${slug()}/board/reorder`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folderName, fromColumn, toColumn, newIndex }) });
+    if (res.ok) await revalidate("board-data");
   }
 
-  async function handleCreateTicket(number: string, title: string) {
-    const result = await createTicketAction(slug(), number, title);
-    if (!result.error) {
-      revalidate("board-data");
-    }
-    return result;
-  }
+  async function handleCreateTicket(number: string, title: string) { const result = await createTicketAction(slug(), number, title); if (!result.error) revalidate("board-data"); return result; }
+  async function handleEditTicket(folderName: string, number: string, title: string) { const result = await updateTicketAction(slug(), folderName, number, title, null); if (!result.error) revalidate("board-data"); return result; }
+  async function handleArchiveTicket(folderName: string) { const result = await archiveTicketAction(slug(), folderName); if (!result.error) revalidate("board-data"); return result; }
+  async function handleDeleteTicket(folderName: string) { const result = await deleteTicketAction(slug(), folderName); if (!result.error) revalidate("board-data"); return result; }
 
-  async function handleEditTicket(
-    folderName: string,
-    number: string,
-    title: string
-  ) {
-    const result = await updateTicketAction(
-      slug(),
-      folderName,
-      number,
-      title,
-      null
-    );
-    if (!result.error) {
-      revalidate("board-data");
-    }
-    return result;
-  }
-
-  async function handleArchiveTicket(folderName: string) {
-    const result = await archiveTicketAction(slug(), folderName);
-    if (!result.error) {
-      revalidate("board-data");
-    }
-    return result;
-  }
-
-  async function handleDeleteTicket(folderName: string) {
-    const result = await deleteTicketAction(slug(), folderName);
-    if (!result.error) {
-      revalidate("board-data");
-    }
-    return result;
-  }
-
-  async function handleCleanupSubmit(
-    folderName: string,
-    options: { deleteWorktree: boolean; deleteLocalBranch: boolean; deleteRemoteBranch: boolean }
-  ) {
-    const anyCleanup = options.deleteWorktree || options.deleteLocalBranch || options.deleteRemoteBranch;
-    if (anyCleanup) {
+  async function handleCleanupSubmit(folderName: string, options: { deleteWorktree: boolean; deleteLocalBranch: boolean; deleteRemoteBranch: boolean }) {
+    if (options.deleteWorktree || options.deleteLocalBranch || options.deleteRemoteBranch) {
       const cleanupResult = await worktreeCleanupAction(slug(), folderName, options);
       if (cleanupResult.error) return cleanupResult;
     }
-
     const action = cleanupAction();
-    if (action === "archive") {
-      const result = await archiveTicketAction(slug(), folderName);
-      if (!result.error) revalidate("board-data");
-      return result;
-    } else {
-      const result = await deleteTicketAction(slug(), folderName);
-      if (!result.error) revalidate("board-data");
-      return result;
-    }
+    const result = action === "archive" ? await archiveTicketAction(slug(), folderName) : await deleteTicketAction(slug(), folderName);
+    if (!result.error) revalidate("board-data");
+    return result;
   }
 
   let addProjectDialogRef: HTMLDivElement | undefined;
-  let dropdownBtnRef: HTMLButtonElement | undefined;
-
-  useModEnterSubmit({
-    onSubmit: () => {
-      const form = addProjectDialogRef?.querySelector("form");
-      if (form) form.requestSubmit();
-    },
-    disabled: () => false,
-    active: () => addProjectDialogOpen(),
-  });
-
-  function handleAddProjectSuccess(slug: string) {
-    setAddProjectDialogOpen(false);
-    navigate(`/project/${slug}`);
-  }
+  useModEnterSubmit({ onSubmit: () => { addProjectDialogRef?.querySelector("form")?.requestSubmit(); }, disabled: () => false, active: () => addProjectDialogOpen() });
 
   return (
     <Show when={data()} fallback={<p>Loading...</p>}>
@@ -232,13 +113,12 @@ export default function ProjectPage() {
         <div class="flex min-h-screen flex-col">
           <header class="flex items-center justify-between border-b border-border px-4 py-3">
             <h1 class="text-xl font-semibold">AI Stages</h1>
-
             <div class="flex items-center gap-2">
               <ThemeToggle />
               <button
                 onClick={d().hasConflict ? () => setConflictDialogOpen(true) : handleSync}
                 disabled={syncing()}
-                class={`relative inline-flex h-9 w-9 items-center justify-center rounded-md border bg-background disabled:pointer-events-none disabled:opacity-50 ${d().hasConflict ? "border-destructive text-destructive hover:bg-destructive/10" : "border-input hover:bg-accent hover:text-accent-foreground"}`}
+                class={`btn-icon relative ${d().hasConflict ? "border-destructive text-destructive hover:bg-destructive/10" : ""}`}
                 title={d().hasConflict ? "Resolve conflicts" : "Sync tickets"}
                 data-testid="sync-button"
               >
@@ -251,205 +131,68 @@ export default function ProjectPage() {
                   <span class="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-destructive text-[8px] font-bold leading-none text-destructive-foreground" data-testid="sync-conflict-badge">!</span>
                 </Show>
               </button>
-              <button
-                onClick={() => setSettingsOpen(true)}
-                class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground"
-                title="Settings"
-              >
+              <button onClick={() => setSettingsOpen(true)} class="btn-icon" title="Settings">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
               </button>
-              <div>
-                <button
-                  ref={(el) => (dropdownBtnRef = el)}
-                  class="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 py-1 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-                  onClick={() => setDropdownOpen(!dropdownOpen())}
-                >
+              <Menu.Root>
+                <Menu.Trigger class="btn-secondary">
                   {d().slug}
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    class="ml-2"
-                  >
-                    <path d="m6 9 6 6 6-6" />
-                  </svg>
-                </button>
-                <Show when={dropdownOpen()}>
-                  <Portal>
-                  <div
-                    class="fixed inset-0"
-                    onClick={() => setDropdownOpen(false)}
-                  />
-                  <div
-                    class="fixed min-w-[200px] rounded-md border border-border bg-popover py-1 shadow-md"
-                    style={{
-                      top: `${(dropdownBtnRef?.getBoundingClientRect().bottom ?? 0) + 4}px`,
-                      right: `${window.innerWidth - (dropdownBtnRef?.getBoundingClientRect().right ?? 0)}px`,
-                    }}
-                  >
-                    <For each={d().projects}>
-                      {(project) => (
-                        <Show
-                          when={project.available}
-                          fallback={
-                            <span class="block w-full px-3 py-2 text-sm text-muted-foreground opacity-50">
-                              {project.slug}
-                            </span>
-                          }
-                        >
-                          <button
-                            class={`w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground ${
-                              project.slug === d().slug ? "font-semibold" : ""
-                            }`}
-                            onClick={() => {
-                              setDropdownOpen(false);
-                              navigate(`/project/${project.slug}`);
-                            }}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ml-2"><path d="m6 9 6 6 6-6" /></svg>
+                </Menu.Trigger>
+                <Portal>
+                  <Menu.Positioner>
+                    <Menu.Content class="min-w-[200px]">
+                      <For each={d().projects}>
+                        {(project) => (
+                          <Menu.Item
+                            value={`project-${project.slug}`}
+                            disabled={!project.available}
+                            class={project.slug === d().slug ? "font-semibold" : ""}
+                            onClick={() => navigate(`/project/${project.slug}`)}
                           >
                             {project.slug}
-                          </button>
-                        </Show>
-                      )}
-                    </For>
-                    <div class="my-1 border-t border-border" />
-                    <button
-                      class="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
-                      onClick={() => {
-                        setDropdownOpen(false);
-                        setAddProjectDialogOpen(true);
-                      }}
-                    >
-                      Add project...
-                    </button>
-                  </div>
-                  </Portal>
-                </Show>
-              </div>
-
-              <button
-                class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-3 py-1 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                onClick={() => setCreateTicketOpen(true)}
-              >
-                + New Ticket
-              </button>
+                          </Menu.Item>
+                        )}
+                      </For>
+                      <Menu.Separator />
+                      <Menu.Item value="add-project" onClick={() => setAddProjectDialogOpen(true)}>Add project...</Menu.Item>
+                    </Menu.Content>
+                  </Menu.Positioner>
+                </Portal>
+              </Menu.Root>
+              <button class="btn-primary" onClick={() => setCreateTicketOpen(true)}>+ New Ticket</button>
             </div>
           </header>
 
           <main class="flex-1">
-            <Show when={d().projectNotFound}>
-              <div class="flex h-64 items-center justify-center">
-                <p class="text-muted-foreground">Project not found</p>
-              </div>
-            </Show>
-            <Show when={d().projectUnavailable}>
-              <div class="flex h-64 flex-col items-center justify-center gap-2">
-                <p class="text-lg font-medium">Project unavailable</p>
-                <p class="text-sm text-muted-foreground">{d().projectPath}</p>
-              </div>
-            </Show>
-            <Show when={d().error}>
-              <div class="flex h-64 flex-col items-center justify-center gap-2">
-                <p class="text-destructive">{d().error}</p>
-                <button
-                  class="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 py-1 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-                  onClick={() => revalidate("board-data")}
-                >
-                  Retry
-                </button>
-              </div>
-            </Show>
-            <Show when={d().board}>
-              {(board) => (
-                <KanbanBoard
-                  board={board()}
-                  slug={d().slug}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  onArchive={handleArchive}
-                  onViewDetail={handleViewDetail}
-                  onReorder={handleReorder}
-                />
-              )}
-            </Show>
+            <Show when={d().projectNotFound}><div class="flex h-64 items-center justify-center"><p class="text-muted-foreground">Project not found</p></div></Show>
+            <Show when={d().projectUnavailable}><div class="flex h-64 flex-col items-center justify-center gap-2"><p class="text-lg font-medium">Project unavailable</p><p class="text-sm text-muted-foreground">{d().projectPath}</p></div></Show>
+            <Show when={d().error}><div class="flex h-64 flex-col items-center justify-center gap-2"><p class="text-destructive">{d().error}</p><button class="btn-secondary" onClick={() => revalidate("board-data")}>Retry</button></div></Show>
+            <Show when={d().board}>{(board) => (<KanbanBoard board={board()} slug={d().slug} onEdit={handleEdit} onDelete={handleDelete} onArchive={handleArchive} onViewDetail={handleViewDetail} onReorder={handleReorder} />)}</Show>
           </main>
 
-          <CreateTicketDialog
-            open={createTicketOpen()}
-            onOpenChange={setCreateTicketOpen}
-            onSubmit={handleCreateTicket}
-            suggestedNextNumber={d().suggestedNextNumber}
-          />
-          <EditTicketDialog
-            open={editTicketOpen()}
-            onOpenChange={setEditTicketOpen}
-            ticket={selectedTicket()}
-            onSubmit={handleEditTicket}
-          />
-          <DeleteTicketDialog
-            open={deleteTicketOpen()}
-            onOpenChange={setDeleteTicketOpen}
-            ticket={selectedTicket()}
-            onSubmit={handleDeleteTicket}
-          />
-          <ArchiveTicketDialog
-            open={archiveTicketOpen()}
-            onOpenChange={setArchiveTicketOpen}
-            ticket={selectedTicket()}
-            onSubmit={handleArchiveTicket}
-          />
-          <WorktreeCleanupDialog
-            open={cleanupDialogOpen()}
-            onOpenChange={setCleanupDialogOpen}
-            ticket={selectedTicket()}
-            action={cleanupAction()}
-            onSubmit={handleCleanupSubmit}
-          />
-          <TicketDetailDialog
-            onClose={() => setDetailTicket(null)}
-            slug={d().slug}
-            ticket={detailTicket()}
-          />
+          <CreateTicketDialog open={createTicketOpen()} onOpenChange={setCreateTicketOpen} onSubmit={handleCreateTicket} suggestedNextNumber={d().suggestedNextNumber} />
+          <EditTicketDialog open={editTicketOpen()} onOpenChange={setEditTicketOpen} ticket={selectedTicket()} onSubmit={handleEditTicket} />
+          <DeleteTicketDialog open={deleteTicketOpen()} onOpenChange={setDeleteTicketOpen} ticket={selectedTicket()} onSubmit={handleDeleteTicket} />
+          <ArchiveTicketDialog open={archiveTicketOpen()} onOpenChange={setArchiveTicketOpen} ticket={selectedTicket()} onSubmit={handleArchiveTicket} />
+          <WorktreeCleanupDialog open={cleanupDialogOpen()} onOpenChange={setCleanupDialogOpen} ticket={selectedTicket()} action={cleanupAction()} onSubmit={handleCleanupSubmit} />
+          <TicketDetailDialog onClose={() => setDetailTicket(null)} slug={d().slug} ticket={detailTicket()} />
 
-          <Show when={addProjectDialogOpen()}>
+          <Dialog.Root open={addProjectDialogOpen()} onOpenChange={(det) => { if (!det.open) setAddProjectDialogOpen(false); }}>
             <Portal>
-            <div class="fixed inset-0 flex items-center justify-center bg-black/50">
-              <div
-                class="fixed inset-0"
-                onClick={() => setAddProjectDialogOpen(false)}
-              />
-              <div ref={addProjectDialogRef} class="relative w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
-                <h2 class="mb-4 text-lg font-semibold">Add Project</h2>
-                <AddProjectForm
-                  action={addProjectAction}
-                  onSuccess={handleAddProjectSuccess}
-                  submitTitle={modEnterHint()}
-                />
-              </div>
-            </div>
+              <Dialog.Backdrop />
+              <Dialog.Positioner>
+                <Dialog.Content ref={addProjectDialogRef}>
+                  <Dialog.Title>Add Project</Dialog.Title>
+                  <AddProjectForm action={addProjectAction} onSuccess={(s) => { setAddProjectDialogOpen(false); navigate(`/project/${s}`); }} submitTitle={modEnterHint()} />
+                </Dialog.Content>
+              </Dialog.Positioner>
             </Portal>
-          </Show>
+          </Dialog.Root>
 
-          <ConflictDialog
-            open={conflictDialogOpen()}
-            onOpenChange={setConflictDialogOpen}
-            onResolve={handleConflictResolve}
-            onAbort={handleConflictAbort}
-            slug={d().slug}
-          />
-
+          <ConflictDialog open={conflictDialogOpen()} onOpenChange={setConflictDialogOpen} onResolve={handleConflictResolve} onAbort={handleConflictAbort} slug={d().slug} />
           <ErrorDialog error={syncError()} onClose={() => setSyncError(null)} />
-
-          <LauncherSettings
-            open={settingsOpen()}
-            onOpenChange={setSettingsOpen}
-            slug={d().slug}
-          />
+          <LauncherSettings open={settingsOpen()} onOpenChange={setSettingsOpen} slug={d().slug} />
         </div>
       )}
     </Show>

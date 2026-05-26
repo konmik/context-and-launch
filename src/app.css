@@ -105,3 +105,204 @@ button, [role="button"], .ripple {
 		opacity: 0;
 	}
 }
+
+/* shared button styles */
+.btn-primary {
+	display: inline-flex;
+	height: 2.5rem;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--radius-md);
+	background: var(--primary);
+	padding: 0.5rem 1rem;
+	font-size: 0.875rem;
+	font-weight: 500;
+	color: var(--primary-foreground);
+}
+.btn-primary:hover { opacity: 0.9; }
+.btn-primary:disabled { pointer-events: none; opacity: 0.5; }
+
+.btn-secondary {
+	display: inline-flex;
+	height: 2.5rem;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--radius-md);
+	border: 1px solid var(--input);
+	background: var(--background);
+	padding: 0.5rem 1rem;
+	font-size: 0.875rem;
+	font-weight: 500;
+}
+.btn-secondary:hover { background: var(--accent); color: var(--accent-foreground); }
+.btn-secondary:disabled { pointer-events: none; opacity: 0.5; }
+
+.btn-destructive {
+	display: inline-flex;
+	height: 2.5rem;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--radius-md);
+	background: var(--destructive);
+	padding: 0.5rem 1rem;
+	font-size: 0.875rem;
+	font-weight: 500;
+	color: var(--destructive-foreground);
+}
+.btn-destructive:hover { opacity: 0.9; }
+.btn-destructive:disabled { pointer-events: none; opacity: 0.5; }
+
+.btn-sm {
+	height: 1.75rem;
+	padding: 0 0.5rem;
+	font-size: 0.75rem;
+}
+
+.btn-icon {
+	display: inline-flex;
+	height: 2.25rem;
+	width: 2.25rem;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--radius-md);
+	border: 1px solid var(--input);
+	background: var(--background);
+}
+.btn-icon:hover { background: var(--accent); color: var(--accent-foreground); }
+.btn-icon:disabled { pointer-events: none; opacity: 0.5; }
+
+/* shared input styles */
+.input {
+	display: flex;
+	height: 2.5rem;
+	width: 100%;
+	border-radius: var(--radius-md);
+	border: 1px solid var(--input);
+	background: var(--background);
+	padding: 0.5rem 0.75rem;
+	font-size: 0.875rem;
+}
+.input::placeholder { color: var(--muted-foreground); }
+.input:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 2px var(--ring);
+}
+
+.input-sm { height: 2.25rem; }
+
+/* ark-ui dialog */
+[data-scope="dialog"][data-part="backdrop"] {
+	position: fixed;
+	inset: 0;
+	background: rgb(0 0 0 / 0.5);
+}
+
+[data-scope="dialog"][data-part="positioner"] {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+[data-scope="dialog"][data-part="content"] {
+	position: relative;
+	width: 100%;
+	max-width: 28rem;
+	border-radius: var(--radius-lg);
+	border: 1px solid var(--border);
+	background: var(--card);
+	padding: 1.5rem;
+	box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+[data-scope="dialog"][data-part="title"] {
+	margin-bottom: 1rem;
+	font-size: 1.125rem;
+	line-height: 1.75rem;
+	font-weight: 600;
+}
+
+[data-scope="dialog"][data-part="description"] {
+	margin-bottom: 1rem;
+	font-size: 0.875rem;
+	line-height: 1.25rem;
+	color: var(--muted-foreground);
+}
+
+[data-scope="dialog"][data-part="close-trigger"] {
+	display: inline-flex;
+	height: 2rem;
+	width: 2rem;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--radius-md);
+	color: var(--muted-foreground);
+}
+[data-scope="dialog"][data-part="close-trigger"]:hover {
+	background: var(--accent);
+	color: var(--accent-foreground);
+}
+
+/* ark-ui menu */
+[data-scope="menu"][data-part="content"] {
+	min-width: 150px;
+	border-radius: var(--radius-md);
+	border: 1px solid var(--border);
+	background: var(--popover);
+	padding: 0.25rem 0;
+	box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+[data-scope="menu"][data-part="item"] {
+	width: 100%;
+	padding: 0.5rem 0.75rem;
+	text-align: left;
+	font-size: 0.875rem;
+	line-height: 1.25rem;
+	cursor: pointer;
+}
+[data-scope="menu"][data-part="item"][data-highlighted] {
+	background: var(--accent);
+	color: var(--accent-foreground);
+}
+[data-scope="menu"][data-part="item"][data-disabled] {
+	opacity: 0.5;
+	pointer-events: none;
+	color: var(--muted-foreground);
+}
+
+[data-scope="menu"][data-part="separator"] {
+	margin: 0.25rem 0;
+	border-top: 1px solid var(--border);
+}
+
+/* ark-ui tabs */
+[data-scope="tabs"][data-part="list"] {
+	display: flex;
+	gap: 0.25rem;
+}
+
+[data-scope="tabs"][data-part="trigger"] {
+	position: relative;
+	display: inline-flex;
+	height: 2rem;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--radius-md) var(--radius-md) 0 0;
+	padding: 0 0.75rem;
+	font-size: 0.875rem;
+	line-height: 1.25rem;
+	transition: color 150ms;
+	color: var(--muted-foreground);
+}
+[data-scope="tabs"][data-part="trigger"]:hover {
+	color: var(--foreground);
+}
+[data-scope="tabs"][data-part="trigger"][data-selected] {
+	border: 1px solid var(--border);
+	border-bottom: none;
+	background: var(--card);
+	font-weight: 500;
+	color: var(--foreground);
+}
