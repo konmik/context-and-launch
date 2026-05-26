@@ -174,34 +174,41 @@
 	[data-scope="tabs"][data-part="list"] {
 		position: relative;
 		display: flex;
-		gap: 0.5rem;
+		gap: 0;
+		padding-left: 0.75rem;
 		border-bottom: 1px solid var(--border);
 	}
 
 	[data-scope="tabs"][data-part="trigger"] {
 		position: relative;
+		overflow: hidden;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		padding: 0.5rem 0.75rem;
+		padding: 0.5rem 1rem;
 		font-size: 0.875rem;
 		line-height: 1.25rem;
 		color: var(--muted-foreground);
-		transition: color 150ms;
+		border: 1px solid transparent;
+		border-bottom: none;
+		border-radius: var(--radius-md) var(--radius-md) 0 0;
+		margin-bottom: -1px;
+		transition: color 150ms, background 150ms;
 		white-space: nowrap;
 	}
 	[data-scope="tabs"][data-part="trigger"]:hover {
 		color: var(--foreground);
+		background: var(--accent);
 	}
 	[data-scope="tabs"][data-part="trigger"][data-selected] {
 		font-weight: 500;
 		color: var(--foreground);
+		background: var(--card);
+		border-color: var(--border);
 	}
 
 	[data-scope="tabs"][data-part="indicator"] {
-		height: 2px;
-		background: var(--primary);
-		bottom: 0;
+		display: none;
 	}
 
 	/* ark-ui floating panel */
@@ -222,7 +229,6 @@
 
 	[data-scope="floating-panel"][data-part="header"] {
 		flex-shrink: 0;
-		border-bottom: 1px solid var(--border);
 		padding: 1rem;
 	}
 

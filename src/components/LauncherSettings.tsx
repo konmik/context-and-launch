@@ -139,7 +139,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 		<FloatingPanelRoot
 			open={props.open}
 			onOpenChange={(d) => { if (!d.open) props.onOpenChange(false); }}
-			defaultSize={{ width: 672, height: Math.floor(window.innerHeight * 0.8) }}
+			defaultSize={{ width: 672, height: Math.floor((globalThis.window?.innerHeight ?? 800) * 0.8) }}
 			minSize={{ width: 400, height: 300 }}
 			persistRect
 		>
@@ -157,7 +157,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 							</FloatingPanelCloseTrigger>
 						</div>
 					</div>
-					<div data-no-drag class="-mb-4">
+					<div data-no-drag class="-mx-4 -mb-4">
 						<TabsList>
 							<TabsTrigger value="general">General</TabsTrigger>
 							<TabsTrigger value="templates">Prompts</TabsTrigger>
