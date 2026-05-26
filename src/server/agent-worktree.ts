@@ -13,6 +13,10 @@ export interface BehindRemoteResult {
 	behindRemote: true;
 }
 
+export interface DirtyWorktreeResult {
+	dirtyWorktree: true;
+}
+
 export class AgentWorktreeManager {
 	constructor(
 		private launcherConfig: LauncherConfigManager,
@@ -30,8 +34,9 @@ export class AgentWorktreeManager {
 	async ensureAgentWorktree(
 		projectPath: string,
 		slug: string,
-		folderName: string
-	): Promise<WorktreeResult | BehindRemoteResult> {
+		folderName: string,
+		options?: { skipDirtyCheck?: boolean }
+	): Promise<WorktreeResult | BehindRemoteResult | DirtyWorktreeResult> {
 		const config = this.launcherConfig.loadProjectConfig(slug);
 		const worktreeRootPath = config.worktreeRootPath || this.paths.agentWorktreeDir(slug);
 
@@ -39,9 +44,11 @@ export class AgentWorktreeManager {
 		const worktreePath = `${worktreeRootPath}/${folderName}`;
 		const mainBranch = await this.getMainBranch(projectPath);
 
-		const status = await git(projectPath, 'status', '--porcelain');
-		if (status.trim()) {
-			throw new Error('Main branch has uncommitted changes. Commit or stash before launching.');
+		if (!options?.skipDirtyCheck) {
+			const status = await git(projectPath, 'status', '--porcelain');
+			if (status.trim()) {
+				return { dirtyWorktree: true };
+			}
 		}
 
 		try {

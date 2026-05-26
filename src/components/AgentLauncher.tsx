@@ -18,6 +18,7 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 	const [launching, setLaunching] = createSignal(false);
 	const [errorInfo, setErrorInfo] = createSignal<ErrorInfo | null>(null);
 	const [behindRemoteMsg, setBehindRemoteMsg] = createSignal("");
+	const [dirtyWorktreeMsg, setDirtyWorktreeMsg] = createSignal("");
 
 	createEffect(
 		on(
@@ -49,12 +50,13 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 		props.onDefaultsChange({ checkedSkills: [...current] });
 	}
 
-	function launchBody() {
+	function launchBody(extra?: Record<string, unknown>) {
 		return JSON.stringify({
 			templateName: selectedTemplate(),
 			checkedSkills: [...checkedSkills()],
 			useWorktree: props.useWorktree,
 			profileName: selectedProfile(),
+			...extra,
 		});
 	}
 
@@ -72,15 +74,16 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 		}
 	}
 
-	async function launchAgent() {
+	async function launchAgent(extra?: Record<string, unknown>) {
 		setLaunching(true);
 		setErrorInfo(null);
 		setBehindRemoteMsg("");
+		setDirtyWorktreeMsg("");
 		try {
 			const res = await fetch(ticketAiUrl("run"), {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: launchBody(),
+				body: launchBody(extra),
 			});
 			if (res.status === 409) {
 				const responseText = await res.text();
@@ -88,6 +91,10 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 					const data = JSON.parse(responseText);
 					if (data.behindRemote) {
 						setBehindRemoteMsg(data.message);
+						return;
+					}
+					if (data.dirtyWorktree) {
+						setDirtyWorktreeMsg(data.message);
 						return;
 					}
 				} catch {
@@ -210,6 +217,32 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 									class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
 								>
 									Pull & Retry
+								</button>
+							</div>
+						</div>
+					</div>
+				</Portal>
+			</Show>
+
+			<Show when={dirtyWorktreeMsg()}>
+				<Portal>
+				<div class="fixed inset-0 flex items-center justify-center bg-black/50">
+					<div class="fixed inset-0" onClick={() => setDirtyWorktreeMsg("")} />
+					<div class="relative w-full max-w-sm rounded-lg border border-border bg-card p-6 shadow-lg">
+							<p class="mb-4 text-sm">{dirtyWorktreeMsg()}</p>
+							<div class="flex justify-end gap-2">
+								<button
+									onClick={() => setDirtyWorktreeMsg("")}
+									class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+								>
+									Cancel
+								</button>
+								<button
+									onClick={() => { setDirtyWorktreeMsg(""); launchAgent({ force: true }); }}
+									disabled={launching()}
+									class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+								>
+									Launch Anyway
 								</button>
 							</div>
 						</div>

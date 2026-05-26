@@ -12,14 +12,14 @@ export async function POST({ params, request }: APIEvent) {
 		if (resolved instanceof Response) return resolved;
 		const { ticket, project, worktreeDir } = resolved;
 
-		const { name, useWorktree } = await request.json();
+		const { name, useWorktree, force } = await request.json();
 		const merged = launcherConfigManager.getMergedConfig(slug);
 		const shortcut = merged.shortcuts.find(s => s.name === name);
 		if (!shortcut) {
 			return new Response(`Shortcut "${name}" not found`, { status: 404 });
 		}
 
-		const launchDirResult = await resolveLaunchDir(slug, folderName, useWorktree, project.path);
+		const launchDirResult = await resolveLaunchDir(slug, folderName, useWorktree, project.path, force);
 		if (launchDirResult instanceof Response) return launchDirResult;
 		const launchDir = launchDirResult;
 

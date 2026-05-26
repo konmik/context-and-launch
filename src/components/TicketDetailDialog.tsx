@@ -132,6 +132,7 @@ function TicketDetailContent(props: {
   const [uploading, setUploading] = createSignal(false);
   const [confirmOverwrite, setConfirmOverwrite] = createSignal<{ fileName: string; file: File } | null>(null);
   const [runningShortcut, setRunningShortcut] = createSignal("");
+  const [dirtyWorktreeShortcut, setDirtyWorktreeShortcut] = createSignal<{ name: string; message: string } | null>(null);
   const [useWorktree, setUseWorktree] = createSignal(props.ticket.useWorktree);
 
   createEffect(
@@ -155,7 +156,7 @@ function TicketDetailContent(props: {
     });
   }
 
-  async function runShortcut(name: string) {
+  async function runShortcut(name: string, force?: boolean) {
     setRunningShortcut(name);
     setError("");
     try {
@@ -164,11 +165,22 @@ function TicketDetailContent(props: {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, useWorktree: useWorktree() }),
+          body: JSON.stringify({ name, useWorktree: useWorktree(), force }),
         }
       );
       if (!res.ok) {
         const text = await res.text();
+        if (res.status === 409) {
+          try {
+            const data = JSON.parse(text);
+            if (data.dirtyWorktree) {
+              setDirtyWorktreeShortcut({ name, message: data.message });
+              return;
+            }
+          } catch {
+            // Not JSON -- fall through
+          }
+        }
         setError(text || `Error ${res.status}`);
       }
     } catch (e: any) {
@@ -991,6 +1003,34 @@ function TicketDetailContent(props: {
         onCancel={cancelFileSwitch}
         onDiscard={proceedFileSwitch}
       />
+
+      <Show when={dirtyWorktreeShortcut()}>
+        {(info) => (
+          <Portal>
+          <div class="fixed inset-0 flex items-center justify-center bg-black/50">
+            <div class="fixed inset-0" onClick={() => setDirtyWorktreeShortcut(null)} />
+            <div class="relative w-full max-w-sm rounded-lg border border-border bg-card p-6 shadow-lg">
+              <p class="mb-4 text-sm">{info().message}</p>
+              <div class="flex justify-end gap-2">
+                <button
+                  onClick={() => setDirtyWorktreeShortcut(null)}
+                  class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => { const n = info().name; setDirtyWorktreeShortcut(null); runShortcut(n, true); }}
+                  disabled={runningShortcut() !== ""}
+                  class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  Run Anyway
+                </button>
+              </div>
+            </div>
+          </div>
+          </Portal>
+        )}
+      </Show>
 
       <Show when={newFileDialogOpen()}>
         <Portal>

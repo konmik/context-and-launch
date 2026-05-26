@@ -19,6 +19,12 @@ export async function POST({ params, request }: APIEvent) {
     const launchRequest = await readLaunchRequest(request);
 
     const worktreeResult = await agentWorktreeManager.ensureAgentWorktree(project.path, slug, folderName);
+    if ('dirtyWorktree' in worktreeResult) {
+      return Response.json(
+        { dirtyWorktree: true, message: "Main branch has uncommitted changes. Launch anyway?" },
+        { status: 409 }
+      );
+    }
     if ('behindRemote' in worktreeResult) {
       return new Response("Still behind remote after pulling", { status: 500 });
     }
