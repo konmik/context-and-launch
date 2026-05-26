@@ -322,14 +322,14 @@ describe('pull-and-retry skips windowExists check (code-inspection)', () => {
 });
 
 describe('useWorktree=true with worktreeRootPath=null returns 400 (code-inspection)', () => {
-	const runSource = fs.readFileSync(
-		path.resolve(__dirname, '../routes/api/projects/[slug]/board/tickets/[folderName]/ai/run.ts'),
+	const agentLaunchSource = fs.readFileSync(
+		path.resolve(__dirname, 'agent-launch.ts'),
 		'utf-8'
 	);
 
 	it('returns 400 error when worktreeRootPath is not configured', () => {
-		expect(runSource).toContain('Worktree root path is not configured');
-		expect(runSource).toMatch(/!merged\.worktreeRootPath/);
+		expect(agentLaunchSource).toContain('Worktree root path is not configured');
+		expect(agentLaunchSource).toMatch(/!merged\.worktreeRootPath/);
 	});
 });
 
@@ -505,18 +505,17 @@ describe('launchAgent ticketDir vs launchDir separation (code-inspection)', () =
 		);
 	});
 
-	it('the run route passes worktreeDir from resolveTicketAndProject and launchDir separately', () => {
-		// Verify the caller (run.ts) passes worktreeDir and launchDir as separate args
+	it('the run route uses resolveLaunchDir and passes worktreeDir and launchDir separately to launchAgent', () => {
 		const runSource = fs.readFileSync(
 			path.resolve(__dirname, '../routes/api/projects/[slug]/board/tickets/[folderName]/ai/run.ts'),
 			'utf-8'
 		);
 		// worktreeDir comes from resolveTicketAndProject destructuring
 		expect(runSource).toMatch(/const\s*\{[^}]*worktreeDir[^}]*\}\s*=\s*resolved/);
-		// launchDir is a separate local variable initialized to project.path
-		expect(runSource).toMatch(/let\s+launchDir\s*=\s*project\.path/);
+		// launchDir is resolved via the shared resolveLaunchDir helper
+		expect(runSource).toContain('resolveLaunchDir');
 		// Both are passed to launchAgent as distinct arguments
-		expect(runSource).toMatch(/launchAgent\([^)]*worktreeDir[^)]*launchDir\s*\)/);
+		expect(runSource).toMatch(/launchAgent\([^)]*worktreeDir[^)]*launchDir/);
 	});
 
 });

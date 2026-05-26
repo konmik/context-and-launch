@@ -1,8 +1,8 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { launcherConfigManager, agentWorktreeManager } from "~/server/instances.js";
 import { errorPayload } from "~/server/errors.js";
 import {
   resolveTicketAndProject,
+  resolveLaunchDir,
   readLaunchRequest,
   buildWindowTitle,
   launchAgent,
@@ -23,25 +23,9 @@ export async function POST({ params, request }: APIEvent) {
 
     const launchRequest = await readLaunchRequest(request);
 
-    let launchDir = project.path;
-    if (launchRequest.useWorktree) {
-      const merged = launcherConfigManager.getMergedConfig(slug);
-      if (!merged.worktreeRootPath) {
-        return new Response("Worktree root path is not configured", { status: 400 });
-      }
-      try {
-        const result = await agentWorktreeManager.ensureAgentWorktree(project.path, slug, folderName);
-        if ('behindRemote' in result) {
-          return Response.json(
-            { behindRemote: true, message: "Main branch is behind remote. Pull latest changes before launching?" },
-            { status: 409 }
-          );
-        }
-        launchDir = result.worktreePath;
-      } catch (e) {
-        return Response.json(errorPayload(e), { status: 400 });
-      }
-    }
+    const launchDirResult = await resolveLaunchDir(slug, folderName, launchRequest.useWorktree, project.path);
+    if (launchDirResult instanceof Response) return launchDirResult;
+    const launchDir = launchDirResult;
 
     await launchAgent(slug, ticket, project, worktreeDir, launchRequest, launchDir);
     return new Response(null, { status: 200 });

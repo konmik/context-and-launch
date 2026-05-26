@@ -1,6 +1,6 @@
 import { spawn, execFile } from "child_process";
 import path from "path";
-import { worktreeManager, projectRegistry, launcherConfigManager } from "~/server/instances.js";
+import { worktreeManager, projectRegistry, launcherConfigManager, agentWorktreeManager } from "~/server/instances.js";
 import { TicketStore } from "~/server/ticket-store.js";
 import { ProcessError } from "~/server/errors.js";
 import { assemblePrompt, interpolatePrompt, splitCommand } from "~/server/prompt-interpolation.js";
@@ -69,6 +69,22 @@ export function windowExists(title: string): Promise<boolean> {
       resolve(!err);
     });
   });
+}
+
+export async function resolveLaunchDir(slug: string, folderName: string, useWorktree: boolean, projectPath: string): Promise<string | Response> {
+  if (!useWorktree) return projectPath;
+  const merged = launcherConfigManager.getMergedConfig(slug);
+  if (!merged.worktreeRootPath) {
+    return new Response("Worktree root path is not configured", { status: 400 });
+  }
+  const result = await agentWorktreeManager.ensureAgentWorktree(projectPath, slug, folderName);
+  if ('behindRemote' in result) {
+    return Response.json(
+      { behindRemote: true, message: "Main branch is behind remote. Pull latest changes before launching?" },
+      { status: 409 }
+    );
+  }
+  return result.worktreePath;
 }
 
 export function resolveTicketAndProject(slug: string, folderName: string): { ticket: TicketInfo; project: ProjectInfo; worktreeDir: string } | Response {
