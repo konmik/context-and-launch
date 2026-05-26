@@ -1,6 +1,5 @@
 import { createSignal, Show } from "solid-js";
-import { Dialog } from "@ark-ui/solid";
-import { Portal } from "solid-js/web";
+import { Dialog } from "./ui/dialog";
 import type { TicketInfo } from "~/types.js";
 
 interface ArchiveTicketDialogProps {
@@ -33,23 +32,16 @@ export default function ArchiveTicketDialog(props: ArchiveTicketDialogProps) {
   }
 
   return (
-    <Dialog.Root open={props.open && !!props.ticket} onOpenChange={(d) => { if (!d.open) close(); }}>
-      <Portal>
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content>
-            <Dialog.Title>Archive Ticket</Dialog.Title>
-            <Dialog.Description>Archive ticket {props.ticket?.number} - {props.ticket?.title}?</Dialog.Description>
-            <Show when={errorMsg()}><p class="mb-4 text-sm text-destructive">{errorMsg()}</p></Show>
-            <form onSubmit={handleSubmit}>
-              <div class="flex justify-end gap-2">
-                <button type="button" onClick={close} class="btn-secondary">Cancel</button>
-                <button type="submit" disabled={submitting()} class="btn-primary">Archive</button>
-              </div>
-            </form>
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+    <Dialog open={props.open && !!props.ticket} onOpenChange={close}>
+      <Dialog.Title>Archive Ticket</Dialog.Title>
+      <Dialog.Description>Archive ticket {props.ticket?.number} - {props.ticket?.title}?</Dialog.Description>
+      <Show when={errorMsg()}><p class="mb-4 text-sm text-destructive">{errorMsg()}</p></Show>
+      <form onSubmit={handleSubmit}>
+        <div class="flex justify-end gap-2">
+          <button type="button" onClick={close} class="btn-secondary">Cancel</button>
+          <button type="submit" disabled={submitting()} class="btn-primary">Archive</button>
+        </div>
+      </form>
+    </Dialog>
   );
 }

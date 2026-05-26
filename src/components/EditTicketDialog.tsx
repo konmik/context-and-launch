@@ -1,6 +1,5 @@
 import { createSignal, createEffect, Show } from "solid-js";
-import { Dialog } from "@ark-ui/solid";
-import { Portal } from "solid-js/web";
+import { Dialog } from "./ui/dialog";
 import type { TicketInfo } from "~/types.js";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 
@@ -25,10 +24,7 @@ export default function EditTicketDialog(props: EditTicketDialogProps) {
     }
   });
 
-  function close() {
-    props.onOpenChange(false);
-    setErrorMsg("");
-  }
+  function close() { props.onOpenChange(false); setErrorMsg(""); }
 
   async function doSubmit() {
     if (!props.ticket || !number().trim() || !title().trim()) return;
@@ -52,30 +48,23 @@ export default function EditTicketDialog(props: EditTicketDialogProps) {
   });
 
   return (
-    <Dialog.Root open={props.open && !!props.ticket} onOpenChange={(d) => { if (!d.open) close(); }}>
-      <Portal>
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content>
-            <Dialog.Title>Edit Ticket</Dialog.Title>
-            <form onSubmit={(e) => { e.preventDefault(); doSubmit(); }}>
-              <div class="mb-4">
-                <label for="edit-number" class="mb-2 block text-sm font-medium">Number</label>
-                <input id="edit-number" type="text" value={number()} onInput={(e) => setNumber(e.currentTarget.value)} class="input" />
-              </div>
-              <div class="mb-4">
-                <label for="edit-title" class="mb-2 block text-sm font-medium">Title</label>
-                <input id="edit-title" type="text" value={title()} onInput={(e) => setTitle(e.currentTarget.value)} class="input" />
-              </div>
-              <Show when={errorMsg()}><p class="mb-4 text-sm text-destructive">{errorMsg()}</p></Show>
-              <div class="flex justify-end gap-2">
-                <button type="button" onClick={close} class="btn-secondary">Cancel</button>
-                <button type="submit" disabled={submitting() || !number().trim() || !title().trim()} title={modEnterHint()} class="btn-primary">Save</button>
-              </div>
-            </form>
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+    <Dialog open={props.open && !!props.ticket} onOpenChange={close}>
+      <Dialog.Title>Edit Ticket</Dialog.Title>
+      <form onSubmit={(e) => { e.preventDefault(); doSubmit(); }}>
+        <div class="mb-4">
+          <label for="edit-number" class="mb-2 block text-sm font-medium">Number</label>
+          <input id="edit-number" type="text" value={number()} onInput={(e) => setNumber(e.currentTarget.value)} class="input" />
+        </div>
+        <div class="mb-4">
+          <label for="edit-title" class="mb-2 block text-sm font-medium">Title</label>
+          <input id="edit-title" type="text" value={title()} onInput={(e) => setTitle(e.currentTarget.value)} class="input" />
+        </div>
+        <Show when={errorMsg()}><p class="mb-4 text-sm text-destructive">{errorMsg()}</p></Show>
+        <div class="flex justify-end gap-2">
+          <button type="button" onClick={close} class="btn-secondary">Cancel</button>
+          <button type="submit" disabled={submitting() || !number().trim() || !title().trim()} title={modEnterHint()} class="btn-primary">Save</button>
+        </div>
+      </form>
+    </Dialog>
   );
 }

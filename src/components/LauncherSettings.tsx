@@ -1,6 +1,6 @@
 import { createSignal, createEffect, on, Show, For } from "solid-js";
-import { Dialog, Tabs } from "@ark-ui/solid";
-import { Portal } from "solid-js/web";
+import { Dialog } from "./ui/dialog";
+import { Tabs } from "./ui/tabs";
 import type { MergedLauncherConfig } from "~/types.js";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 
@@ -135,13 +135,9 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 	}
 
 	return (<>
-		<Dialog.Root open={props.open} onOpenChange={(d) => { if (!d.open) props.onOpenChange(false); }}>
-			<Portal>
-				<Dialog.Backdrop />
-				<Dialog.Positioner>
-					<Dialog.Content class="flex h-[80vh] max-w-2xl flex-col !p-0">
+		<Dialog open={props.open} onOpenChange={() => props.onOpenChange(false)} class="flex h-[80vh] max-w-2xl flex-col p-0">
 						<div class="flex items-center justify-between border-b border-border px-6 py-4">
-							<Dialog.Title class="!mb-0">Settings</Dialog.Title>
+							<Dialog.Title class="mb-0">Settings</Dialog.Title>
 							<Dialog.CloseTrigger>
 								<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
 							</Dialog.CloseTrigger>
@@ -246,20 +242,13 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 								</Show>
 							</div>
 						</Tabs.Root>
-					</Dialog.Content>
-				</Dialog.Positioner>
-			</Portal>
-		</Dialog.Root>
+		</Dialog>
 
-		<Dialog.Root open={!!form()} onOpenChange={(d) => { if (!d.open) setForm(null); }}>
-			<Portal>
-				<Dialog.Backdrop />
-				<Dialog.Positioner>
-					<Dialog.Content class="max-w-lg !p-0">
+		<Dialog open={!!form()} onOpenChange={() => setForm(null)} class="max-w-lg p-0">
 						<Show when={form()}>
 							{(f) => (<>
 								<div class="flex items-center justify-between border-b border-border px-6 py-4">
-									<Dialog.Title class="!mb-0">
+									<Dialog.Title class="mb-0">
 										{f().mode === "add" ? "Add" : "Edit"} {f().itemType === "template" ? "Prompt" : f().itemType === "skill" ? "Skill" : f().itemType === "profile" ? "Launch" : "Shortcut"}
 									</Dialog.Title>
 									<Dialog.CloseTrigger>
@@ -294,9 +283,6 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 								</div>
 							</>)}
 						</Show>
-					</Dialog.Content>
-				</Dialog.Positioner>
-			</Portal>
-		</Dialog.Root>
+		</Dialog>
 	</>);
 }

@@ -1,6 +1,5 @@
 import { createSignal, Show, onMount } from "solid-js";
-import { Dialog } from "@ark-ui/solid";
-import { Portal } from "solid-js/web";
+import { Dialog } from "./ui/dialog";
 import type { TicketInfo, ErrorInfo } from "~/types.js";
 
 const STORAGE_KEY = "worktree-cleanup-options";
@@ -69,49 +68,42 @@ export default function WorktreeCleanupDialog(props: WorktreeCleanupDialogProps)
   const actionLabel = () => props.action === "archive" ? "Archive" : "Delete";
 
   return (
-    <Dialog.Root open={props.open && !!props.ticket} onOpenChange={(d) => { if (!d.open) close(); }}>
-      <Portal>
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content>
-            <Dialog.Title>{actionLabel()} Ticket</Dialog.Title>
-            <Dialog.Description>{actionLabel()} ticket {props.ticket?.number} - {props.ticket?.title}?</Dialog.Description>
+    <Dialog open={props.open && !!props.ticket} onOpenChange={close}>
+      <Dialog.Title>{actionLabel()} Ticket</Dialog.Title>
+      <Dialog.Description>{actionLabel()} ticket {props.ticket?.number} - {props.ticket?.title}?</Dialog.Description>
 
-            <div class="mb-4 space-y-2">
-              <p class="text-sm font-medium">Worktree cleanup</p>
-              <label class="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={options().deleteWorktree} onChange={(e) => updateOption("deleteWorktree", e.currentTarget.checked)} />
-                Delete worktree
-              </label>
-              <label class="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={options().deleteLocalBranch} onChange={(e) => updateOption("deleteLocalBranch", e.currentTarget.checked)} />
-                Delete local branch
-              </label>
-              <label class="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={options().deleteRemoteBranch} onChange={(e) => updateOption("deleteRemoteBranch", e.currentTarget.checked)} />
-                Delete remote branch
-              </label>
-            </div>
+      <div class="mb-4 space-y-2">
+        <p class="text-sm font-medium">Worktree cleanup</p>
+        <label class="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={options().deleteWorktree} onChange={(e) => updateOption("deleteWorktree", e.currentTarget.checked)} />
+          Delete worktree
+        </label>
+        <label class="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={options().deleteLocalBranch} onChange={(e) => updateOption("deleteLocalBranch", e.currentTarget.checked)} />
+          Delete local branch
+        </label>
+        <label class="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={options().deleteRemoteBranch} onChange={(e) => updateOption("deleteRemoteBranch", e.currentTarget.checked)} />
+          Delete remote branch
+        </label>
+      </div>
 
-            <Show when={errorInfo()}>
-              {(err) => (
-                <div class="mb-4 rounded-md bg-destructive/10 px-3 py-2">
-                  <p class="text-sm text-destructive">{err().description}</p>
-                  <Show when={err().command}><p class="mt-1 text-xs text-muted-foreground">Command: <code>{err().command}</code></p></Show>
-                  <Show when={err().output}><pre class="mt-1 max-h-32 overflow-y-auto whitespace-pre-wrap text-xs">{err().output}</pre></Show>
-                </div>
-              )}
-            </Show>
+      <Show when={errorInfo()}>
+        {(err) => (
+          <div class="mb-4 rounded-md bg-destructive/10 px-3 py-2">
+            <p class="text-sm text-destructive">{err().description}</p>
+            <Show when={err().command}><p class="mt-1 text-xs text-muted-foreground">Command: <code>{err().command}</code></p></Show>
+            <Show when={err().output}><pre class="mt-1 max-h-32 overflow-y-auto whitespace-pre-wrap text-xs">{err().output}</pre></Show>
+          </div>
+        )}
+      </Show>
 
-            <form onSubmit={handleSubmit}>
-              <div class="flex justify-end gap-2">
-                <button type="button" onClick={close} class="btn-secondary">Cancel</button>
-                <button type="submit" disabled={submitting()} class={props.action === "delete" ? "btn-destructive" : "btn-primary"}>{actionLabel()}</button>
-              </div>
-            </form>
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+      <form onSubmit={handleSubmit}>
+        <div class="flex justify-end gap-2">
+          <button type="button" onClick={close} class="btn-secondary">Cancel</button>
+          <button type="submit" disabled={submitting()} class={props.action === "delete" ? "btn-destructive" : "btn-primary"}>{actionLabel()}</button>
+        </div>
+      </form>
+    </Dialog>
   );
 }
