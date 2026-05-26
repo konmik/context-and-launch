@@ -91,8 +91,16 @@ export class TicketSyncManager {
 			// Rebase on upstream
 			try {
 				await git(worktreeDir, 'rebase', upstream);
-			} catch {
-				return { status: 'conflict' };
+			} catch (rebaseErr) {
+				// A real merge conflict leaves a rebase in progress (rebase-merge/
+				// rebase-apply). Any other rebase failure (e.g. a refusing
+				// pre-rebase hook, untracked files that would be overwritten) leaves
+				// no in-progress rebase and must be surfaced rather than mislabeled
+				// as a conflict.
+				if (this.hasActiveRebase(worktreeDir)) {
+					return { status: 'conflict' };
+				}
+				return { status: 'error', message: rebaseErr instanceof Error ? rebaseErr.message : String(rebaseErr) };
 			}
 
 			// Push after successful rebase
