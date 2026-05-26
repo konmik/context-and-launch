@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { LauncherConfigManager } from './launcher-config.js';
+import { LauncherConfigManager, DEFAULT_CONFLICT_RESOLUTION_PROMPT } from './launcher-config.js';
 import { ConfigPaths } from './config-paths.js';
 
 function tmpDir(prefix: string): string {
@@ -1128,6 +1128,24 @@ describe('LauncherConfigManager', () => {
 		expect(config.templates).toHaveLength(1);
 		expect(config.worktreeRootPath).toBe('/some/path');
 		expect(config.conflictResolutionPrompt).toBe('My prompt');
+	});
+
+	it('non-string conflictResolutionPrompt on disk falls back to default in getMergedConfig', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		// Hand-edited / corrupt project file with a non-string prompt.
+		const projPath = path.join(configDir, 'projects', 'slug', 'config', 'launcher-config.json');
+		fs.mkdirSync(path.dirname(projPath), { recursive: true });
+		fs.writeFileSync(projPath, JSON.stringify({
+			templates: [], skills: [], profiles: [], shortcuts: [],
+			conflictResolutionPrompt: 12345,
+		}));
+		const merged = mgr.getMergedConfig('slug');
+		// MergedLauncherConfig.conflictResolutionPrompt is typed string; a truthy
+		// non-string value must not leak through. It falls back to the default.
+		expect(typeof merged.conflictResolutionPrompt).toBe('string');
+		expect(merged.conflictResolutionPrompt).toBe(DEFAULT_CONFLICT_RESOLUTION_PROMPT);
 	});
 
 	it('empty conflictResolutionPrompt falls back to default in getMergedConfig', () => {
