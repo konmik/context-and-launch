@@ -29,18 +29,16 @@ export function FloatingPanelRoot(props: {
       onSizeChangeEnd={props.onSizeChangeEnd}
       persistRect={props.persistRect}
       closeOnEscape
-      lazyMount
-      unmountOnExit
     >
       <Portal>
         <Show when={props.open}>
           <div class="fixed inset-0 bg-black/50" onClick={() => props.onOpenChange?.({ open: false })} />
+          <ArkPanel.Positioner>
+            <ArkPanel.Content>
+              {props.children}
+            </ArkPanel.Content>
+          </ArkPanel.Positioner>
         </Show>
-        <ArkPanel.Positioner>
-          <ArkPanel.Content>
-            {props.children}
-          </ArkPanel.Content>
-        </ArkPanel.Positioner>
       </Portal>
     </ArkPanel.Root>
   );

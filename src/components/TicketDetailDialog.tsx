@@ -737,7 +737,7 @@ function TicketDetailContent(props: {
                 </FloatingPanelCloseTrigger>
               </div>
             </div>
-            <div data-no-drag class="-mb-4">
+            <div data-no-drag class="-mx-4 -mb-4">
               <TabsRoot value={activeTab()} onValueChange={(d) => switchTab(d.value as Tab)}>
                 <TabsList>
                   <TabsTrigger value="editor">File Editor</TabsTrigger>
