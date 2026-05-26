@@ -1,0 +1,83 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("~/server/instances.js", () => ({
+	worktreeManager: { getWorktreeDir: vi.fn().mockReturnValue("/fake/worktree") },
+	launcherConfigManager: { getMergedConfig: vi.fn(), getAppConfigDir: vi.fn().mockReturnValue("/fake/config") },
+}));
+vi.mock("~/server/agent-launch.js", () => ({
+	spawnProfile: vi.fn().mockResolvedValue(undefined),
+}));
+
+import { POST } from "~/routes/api/projects/[slug]/board/resolve-conflicts.js";
+import { launcherConfigManager } from "~/server/instances.js";
+import { spawnProfile } from "~/server/agent-launch.js";
+import type { MergedLauncherConfig, LauncherProfile } from "~/types.js";
+
+function makeMerged(overrides: Partial<MergedLauncherConfig> & { profiles: (LauncherProfile & { scope: "app" | "project" })[] }): MergedLauncherConfig {
+	return {
+		templates: [],
+		skills: [],
+		columnDefaults: {},
+		worktreeRootPath: null,
+		boardId: null,
+		conflictResolutionPrompt: "resolve conflicts",
+		...overrides,
+	};
+}
+
+function fakeEvent(slug: string, body: Record<string, unknown> = {}) {
+	return {
+		params: { slug },
+		request: new Request("http://localhost/api/projects/" + slug + "/board/resolve-conflicts", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(body),
+		}),
+	} as unknown as Parameters<typeof POST>[0];
+}
+
+describe("resolve-conflicts profile lookup", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it("returns 400 when no profileName is provided", async () => {
+		const response = await POST(fakeEvent("test-slug", {}));
+		expect(response.status).toBe(400);
+		const body = await response.json();
+		expect(body.error).toMatch(/No profile selected/i);
+		expect(spawnProfile).not.toHaveBeenCalled();
+	});
+
+	it("returns 400 when profileName does not match any profile", async () => {
+		const profiles: (LauncherProfile & { scope: "app" | "project" })[] = [
+			{ name: "Claude Win", command: "cmd /c claude", scope: "app" },
+		];
+		vi.mocked(launcherConfigManager.getMergedConfig).mockReturnValue(
+			makeMerged({ profiles }),
+		);
+
+		const response = await POST(fakeEvent("test-slug", { profileName: "Deleted Profile" }));
+		expect(response.status).toBe(400);
+		const body = await response.json();
+		expect(body.error).toMatch(/Deleted Profile/i);
+		expect(spawnProfile).not.toHaveBeenCalled();
+	});
+
+	it("launches the selected profile", async () => {
+		const profiles: (LauncherProfile & { scope: "app" | "project" })[] = [
+			{ name: "Claude Win", command: "cmd /c claude", scope: "app" },
+		];
+		vi.mocked(launcherConfigManager.getMergedConfig).mockReturnValue(
+			makeMerged({ profiles }),
+		);
+
+		const response = await POST(fakeEvent("test-slug", { profileName: "Claude Win" }));
+		expect(response.status).toBe(200);
+		expect(spawnProfile).toHaveBeenCalledWith(
+			profiles[0],
+			expect.objectContaining({ initialPrompt: "resolve conflicts" }),
+			"/fake/worktree",
+		);
+	});
+});

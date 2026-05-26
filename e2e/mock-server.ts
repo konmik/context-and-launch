@@ -175,6 +175,9 @@ export interface MockServerState {
   onUpdateTicket?: (slug: string, folderName: string, number: string | null, title: string | null, status: string | null) => { success: true } | { error: string };
   onDeleteTicket?: (slug: string, folderName: string) => { success: true } | { error: string };
   onReorderTicket?: (slug: string, folderName: string, fromColumn: string, toColumn: string, newIndex: number) => { success: true } | { error: string };
+  onSync?: (slug: string) => { status: "success" } | { status: "conflict" } | { status: "error"; message: string };
+  onSyncAbort?: (slug: string) => { success: true } | { error: string };
+  onResolveConflicts?: (slug: string) => { success: true } | { error: string };
   referenceFileContents?: Record<string, string>;
   uploadedFiles?: Record<string, Buffer>;
 }
@@ -209,7 +212,7 @@ export function startMockServer(port: number, state: MockServerState): Promise<h
     if (pathname.startsWith("/api/")) {
       // Launcher config endpoint
       if (pathname.match(/\/api\/projects\/[^/]+\/launcher-config$/) && req.method === "GET") {
-        const config = state.launcherConfig ?? { templates: [], skills: [], columnDefaults: {}, worktreeRootPath: null };
+        const config = state.launcherConfig ?? { templates: [], skills: [], profiles: [], columnDefaults: {}, worktreeRootPath: null };
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(config));
         return;
@@ -404,6 +407,32 @@ export function startMockServer(port: number, state: MockServerState): Promise<h
           res.writeHead(400);
           res.end("Referenced file not found");
         }
+        return;
+      }
+
+      // Sync endpoint
+      if (pathname.includes("/board/sync") && req.method === "POST") {
+        const slug = pathname.split("/")[3];
+        const result = state.onSync ? state.onSync(slug) : { status: "success" };
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(result));
+        return;
+      }
+
+      if (pathname.includes("/board/sync") && req.method === "DELETE") {
+        const slug = pathname.split("/")[3];
+        const result = state.onSyncAbort ? state.onSyncAbort(slug) : { success: true };
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(result));
+        return;
+      }
+
+      // Resolve conflicts endpoint
+      if (pathname.includes("/board/resolve-conflicts") && req.method === "POST") {
+        const slug = pathname.split("/")[3];
+        const result = state.onResolveConflicts ? state.onResolveConflicts(slug) : { success: true };
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(result));
         return;
       }
 

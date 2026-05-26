@@ -43,13 +43,15 @@ describe('TicketOrderStore', () => {
 		expect(new TicketOrderStore(dir).read()).toEqual({});
 	});
 
-	it('write persists and commits', async () => {
+	it('write persists to disk without committing', async () => {
 		const dir = await createGitWorktree(); dirs.push(dir);
 		const store = new TicketOrderStore(dir);
 		store.write({ todo: ['a', 'b'], done: ['c'] });
 		expect(JSON.parse(fs.readFileSync(path.join(dir, 'ticket-order.json'), 'utf-8')))
 			.toEqual({ todo: ['a', 'b'], done: ['c'] });
-		expect(await git(dir, 'log', '--oneline')).toContain('update ticket order');
+		// No autoCommit: changes remain uncommitted
+		const status = await git(dir, 'status', '--porcelain');
+		expect(status.trim()).not.toBe('');
 	});
 
 	it('reconcile groups by status, preserves order, appends new, removes stale', async () => {
@@ -119,6 +121,13 @@ describe('TicketOrderStore', () => {
 		store.write({ todo: ['old', 'b'] });
 		store.renameTicket('old', 'new');
 		expect(store.read()['todo']).toEqual(['new', 'b']);
+	});
+
+	it('reconcile with empty columns and one ticket returns empty order without crashing', async () => {
+		const dir = await createGitWorktree(); dirs.push(dir);
+		const store = new TicketOrderStore(dir);
+		const result = store.reconcile([ticket('a', 'todo')], []);
+		expect(result).toEqual({});
 	});
 });
 

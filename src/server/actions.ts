@@ -9,6 +9,8 @@ interface BoardPageData {
   projectNotFound: boolean;
   projectPath: string;
   suggestedNextNumber: string | null;
+  hasRemote: boolean;
+  hasConflict: boolean;
   error?: string;
 }
 
@@ -20,7 +22,7 @@ export const getDefaultSlug = query(async (): Promise<string | null> => {
 
 export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
   "use server";
-  const { projectRegistry, boardConfigManager, worktreeManager, fileWatcher, launcherConfigManager } =
+  const { projectRegistry, boardConfigManager, worktreeManager, fileWatcher, launcherConfigManager, ticketSyncManager } =
     await import("~/server/instances.js");
   const { TicketStore } = await import("~/server/ticket-store.js");
   const { errorMessage } = await import("~/server/errors.js");
@@ -38,6 +40,8 @@ export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
       projectNotFound: true,
       projectPath: "",
       suggestedNextNumber: null,
+      hasRemote: false,
+      hasConflict: false,
     };
   }
   if (!project.available) {
@@ -49,6 +53,8 @@ export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
       projectNotFound: false,
       projectPath: project.path,
       suggestedNextNumber: null,
+      hasRemote: false,
+      hasConflict: false,
     };
   }
 
@@ -61,6 +67,8 @@ export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
     const store = new TicketStore(worktreeDir);
     const { tickets, ticketOrder } = store.loadBoardState(config.columns);
     const suggestedNextNumber = store.suggestNextNumber();
+    const hasRemote = await ticketSyncManager.hasRemote(worktreeDir);
+    const hasConflict = ticketSyncManager.hasActiveRebase(worktreeDir);
     return {
       projects,
       slug,
@@ -69,6 +77,8 @@ export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
       projectNotFound: false,
       projectPath: project.path,
       suggestedNextNumber,
+      hasRemote,
+      hasConflict,
     };
   } catch (e) {
     return {
@@ -79,6 +89,8 @@ export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
       projectNotFound: false,
       projectPath: project.path,
       suggestedNextNumber: null,
+      hasRemote: false,
+      hasConflict: false,
       error: errorMessage(e),
     };
   }

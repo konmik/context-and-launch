@@ -52,6 +52,16 @@ Avoid: checkout, workspace
 Orphan Branch:
 A git branch named `ai-stages` with no common history with the project's main branch. Holds ticket data without polluting code history.
 
+### Sync & Conflict Resolution
+
+Sync:
+A user-initiated operation that commits all local ticket changes, fetches the remote ticket branch, rebases local on remote, and pushes. Triggered via the Sync button on the board toolbar. Hidden when no remote tracking branch is configured.
+Avoid: push, pull, upload, download
+
+Conflict Resolution:
+The process of resolving git merge conflicts that arise during a Sync rebase. The app offers to launch Claude via a Coding Agent Profile with a user-configurable plain-text prompt. Claude resolves conflict markers, completes the rebase, and pushes.
+Avoid: merge, fix conflicts
+
 ### Agent Launcher
 
 Agent Launcher:

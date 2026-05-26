@@ -13,8 +13,8 @@ function cleanup(...dirs: string[]) {
 	for (const d of dirs) {
 		try {
 			fs.rmSync(d, { recursive: true, force: true });
-		} catch {
-			// cleanup best-effort
+		} catch (err) {
+			console.warn(`cleanup ${d}: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	}
 }
@@ -1092,6 +1092,51 @@ describe('LauncherConfigManager', () => {
 		expect(merged.columnDefaults['done']?.templateName).toBeNull();
 		// The unrelated column default should be untouched
 		expect(merged.columnDefaults['in-progress']?.templateName).toBe('OtherTemplate');
+	});
+
+	it('getMergedConfig returns default conflict resolution prompt when not configured', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		const merged = mgr.getMergedConfig('slug');
+		expect(merged.conflictResolutionPrompt).toContain('merge conflicts');
+	});
+
+	it('conflictResolutionPrompt round-trips through save/load', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		mgr.saveConflictResolutionSettings('slug', 'Custom prompt text');
+		const config = mgr.loadProjectConfig('slug');
+		expect(config.conflictResolutionPrompt).toBe('Custom prompt text');
+		const merged = mgr.getMergedConfig('slug');
+		expect(merged.conflictResolutionPrompt).toBe('Custom prompt text');
+	});
+
+	it('saveConflictResolutionSettings does not clobber other fields', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		mgr.saveProjectConfig('slug', {
+			templates: [{ name: 'T1', text: 'text' }],
+			skills: [],
+			profiles: [],
+			worktreeRootPath: '/some/path',
+		});
+		mgr.saveConflictResolutionSettings('slug', 'My prompt');
+		const config = mgr.loadProjectConfig('slug');
+		expect(config.templates).toHaveLength(1);
+		expect(config.worktreeRootPath).toBe('/some/path');
+		expect(config.conflictResolutionPrompt).toBe('My prompt');
+	});
+
+	it('empty conflictResolutionPrompt falls back to default in getMergedConfig', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		mgr.saveConflictResolutionSettings('slug', '');
+		const merged = mgr.getMergedConfig('slug');
+		expect(merged.conflictResolutionPrompt).toContain('merge conflicts');
 	});
 
 	it('ensurePlatformScripts creates scripts on first loadAppConfig', () => {

@@ -317,64 +317,53 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(path.join(outsideDir, 'precious.txt'))).toBe(true);
 	});
 
-	it('autoCommit silently swallows index lock failure', async () => {
+	it('ticket mutations leave changes uncommitted in worktree', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
 		const store = new TicketStore(worktreeDir);
 		store.createTicket('LOCK-1', 'Lock Test');
 
-		const statusBefore = await git(worktreeDir, 'status', '--porcelain');
-		expect(statusBefore.trim()).toBe('');
+		// With autoCommit removed, changes stay uncommitted
+		const statusAfterCreate = await git(worktreeDir, 'status', '--porcelain');
+		expect(statusAfterCreate.trim()).not.toBe('');
 
-		// Create index.lock to simulate concurrent git operation
-		const dotGitPath = path.join(worktreeDir, '.git');
-		const indexLock = path.join(dotGitPath, 'index.lock');
-		fs.writeFileSync(indexLock, 'simulated lock');
-
-		// This should not throw despite index.lock
-		store.saveStageMarkdown('lock-1-lock-test', 'todo', '# Notes\nThis change will be lost');
+		store.saveStageMarkdown('lock-1-lock-test', 'todo', '# Notes\nSome content');
 
 		const stageFile = path.join(worktreeDir, 'lock-1-lock-test', 'todo.md');
 		expect(fs.existsSync(stageFile)).toBe(true);
-		expect(fs.readFileSync(stageFile, 'utf-8')).toBe('# Notes\nThis change will be lost');
+		expect(fs.readFileSync(stageFile, 'utf-8')).toBe('# Notes\nSome content');
 
-		// Remove lock and check -- changes should be uncommitted
-		fs.unlinkSync(indexLock);
-		const statusAfter = await git(worktreeDir, 'status', '--porcelain');
-		expect(statusAfter.trim()).not.toBe('');
-
+		// Only the init commit should exist
 		const log = await git(worktreeDir, 'log', '--oneline');
-		expect(log).not.toContain('update todo');
+		const lines = log.trim().split('\n');
+		expect(lines.length).toBe(1);
+		expect(lines[0]).toContain('init');
 	});
 
-	it('two rapid autoCommit operations both produce commits with correct messages', async () => {
+	it('multiple ticket operations produce no git commits (changes remain uncommitted)', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
 		const store = new TicketStore(worktreeDir);
-
-		// First operation: createTicket calls autoCommit with "create ticket RAP-1"
 		const ticket = store.createTicket('RAP-1', 'Rapid Ops');
-
-		// Second operation: saveStageMarkdown calls autoCommit with "update todo for RAP-1"
 		store.saveStageMarkdown(ticket.folderName, 'todo', '# Todo\nDo the thing');
 
-		// Verify both commits exist via git log
-		const log = await git(worktreeDir, 'log', '--oneline');
-		expect(log).toContain('create ticket RAP-1');
-		expect(log).toContain('update todo for RAP-1');
-
-		// Verify final state has both files
+		// Verify final state has both files on disk
 		const statusPath = path.join(worktreeDir, ticket.folderName, 'status.json');
 		const stagePath = path.join(worktreeDir, ticket.folderName, 'todo.md');
 		expect(fs.existsSync(statusPath)).toBe(true);
 		expect(fs.existsSync(stagePath)).toBe(true);
 		expect(fs.readFileSync(stagePath, 'utf-8')).toBe('# Todo\nDo the thing');
 
-		// Verify working tree is clean -- no uncommitted changes
+		// No autoCommit: changes are uncommitted
 		const status = await git(worktreeDir, 'status', '--porcelain');
-		expect(status.trim()).toBe('');
+		expect(status.trim()).not.toBe('');
+
+		// Only the init commit should exist
+		const log = await git(worktreeDir, 'log', '--oneline');
+		const lines = log.trim().split('\n');
+		expect(lines.length).toBe(1);
 	});
 
 	it('combined rename + status change writes correct status.json on disk', async () => {
@@ -1098,7 +1087,7 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(path.join(worktreeDir, 'dup-a-first-archive'))).toBe(true);
 	});
 
-	it('archiveTicket auto-commits the move', async () => {
+	it('archiveTicket moves folder without committing', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1107,11 +1096,18 @@ describe('TicketStore', () => {
 
 		store.archiveTicket('cmt-1-commit-test');
 
-		const log = await git(worktreeDir, 'log', '--oneline');
-		expect(log).toContain('archive ticket CMT-1');
+		// Verify the archive happened on disk
+		expect(fs.existsSync(path.join(worktreeDir, 'archive', 'cmt-1-commit-test'))).toBe(true);
+		expect(fs.existsSync(path.join(worktreeDir, 'cmt-1-commit-test'))).toBe(false);
 
+		// No autoCommit: changes remain uncommitted
 		const status = await git(worktreeDir, 'status', '--porcelain');
-		expect(status.trim()).toBe('');
+		expect(status.trim()).not.toBe('');
+
+		// Only the init commit
+		const log = await git(worktreeDir, 'log', '--oneline');
+		const lines = log.trim().split('\n');
+		expect(lines.length).toBe(1);
 	});
 
 	it('archiveTicket preserves stage markdown files', async () => {

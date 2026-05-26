@@ -27,6 +27,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 	const [error, setError] = createSignal("");
 	const [form, setForm] = createSignal<ItemFormState | null>(null);
 	const [worktreeRootPath, setWorktreeRootPath] = createSignal("");
+	const [conflictPrompt, setConflictPrompt] = createSignal("");
 	const [activeTab, setActiveTab] = createSignal<"general" | "templates" | "skills" | "profiles">("general");
 
 	const segments: Record<ItemType, string> = { template: "templates", skill: "skills", profile: "profiles", shortcut: "shortcuts" };
@@ -59,6 +60,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 				const data = await res.json();
 				setConfig(data);
 				setWorktreeRootPath(data.worktreeRootPath ?? "");
+				setConflictPrompt(data.conflictResolutionPrompt ?? "");
 			} else {
 				setError(await res.text() || "Failed to load config");
 			}
@@ -160,6 +162,26 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 				method: "PUT",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ worktreeRootPath: worktreeRootPath() }),
+			});
+			if (!res.ok) {
+				setError(await res.text() || "Failed to save");
+				return;
+			}
+			await loadConfig();
+		} catch (e) {
+			setError(e instanceof Error ? e.message : "Failed to save");
+		}
+	}
+
+	async function saveConflictResolution() {
+		setError("");
+		try {
+			const res = await fetch(`/api/projects/${props.slug}/launcher-config/conflict-resolution`, {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					conflictResolutionPrompt: conflictPrompt(),
+				}),
 			});
 			if (!res.ok) {
 				setError(await res.text() || "Failed to save");
@@ -294,6 +316,20 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 													Browse
 												</button>
 											</div>
+										</section>
+										<section>
+											<h3 class="mb-2 text-sm font-semibold">
+												Conflict resolution prompt
+												<span class="ml-2 rounded px-1.5 py-0.5 text-xs bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">Project</span>
+											</h3>
+											<textarea
+												value={conflictPrompt()}
+												onInput={(e) => setConflictPrompt(e.currentTarget.value)}
+												onBlur={saveConflictResolution}
+												class="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+												placeholder="Prompt for resolving merge conflicts..."
+												data-testid="conflict-prompt"
+											/>
 										</section>
 									</div>
 									</Show>

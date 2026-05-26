@@ -1,6 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { spawn } from "child_process";
-import { launcherConfigManager } from "~/server/instances.js";
+import { launcherConfigManager, worktreeManager } from "~/server/instances.js";
 
 export async function POST({ request }: APIEvent) {
   let body: { scope: string; slug?: string };
@@ -11,7 +11,9 @@ export async function POST({ request }: APIEvent) {
   }
 
   let dir: string;
-  if (body.scope === "worktree" && body.slug) {
+  if (body.scope === "tickets" && body.slug) {
+    dir = worktreeManager.getWorktreeDir(body.slug);
+  } else if (body.scope === "worktree" && body.slug) {
     const config = launcherConfigManager.loadProjectConfig(body.slug);
     if (!config.worktreeRootPath) {
       return new Response("Worktree root path not configured", { status: 400 });

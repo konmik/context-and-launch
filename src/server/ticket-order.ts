@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import { autoCommit } from './git.js';
 import type { TicketInfo, TicketOrder } from '../types.js';
 
 export class TicketOrderStore {
@@ -30,10 +29,11 @@ export class TicketOrderStore {
 
 	write(order: TicketOrder): void {
 		fs.writeFileSync(this.filePath, JSON.stringify(order, null, 2));
-		this.commit('update ticket order');
 	}
 
 	reconcile(tickets: TicketInfo[], columns: string[]): TicketOrder {
+		if (columns.length === 0) return {};
+
 		const existing = this.read();
 		const ticketsByColumn = new Map<string, string[]>();
 		for (const col of columns) {
@@ -136,9 +136,5 @@ export class TicketOrderStore {
 		if (changed) {
 			this.write(order);
 		}
-	}
-
-	private commit(message: string): void {
-		autoCommit(this.worktreeDir, message);
 	}
 }
