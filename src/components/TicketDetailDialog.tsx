@@ -164,7 +164,7 @@ function TicketDetailContent(props: {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name }),
+          body: JSON.stringify({ name, useWorktree: useWorktree() }),
         }
       );
       if (!res.ok) {
