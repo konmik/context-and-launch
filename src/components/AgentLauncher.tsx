@@ -1,4 +1,5 @@
 import { createSignal, createEffect, on, Show, For } from "solid-js";
+import { Dialog } from "@ark-ui/solid";
 import { Portal } from "solid-js/web";
 import type { TicketInfo, MergedLauncherConfig, ErrorInfo, LauncherColumnDefaults } from "~/types.js";
 import ErrorDialog from "./ErrorDialog.js";
@@ -41,11 +42,8 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 
 	function toggleSkill(name: string) {
 		const current = new Set(checkedSkills());
-		if (current.has(name)) {
-			current.delete(name);
-		} else {
-			current.add(name);
-		}
+		if (current.has(name)) current.delete(name);
+		else current.add(name);
 		setCheckedSkills(current);
 		props.onDefaultsChange({ checkedSkills: [...current] });
 	}
@@ -89,17 +87,9 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 				const responseText = await res.text();
 				try {
 					const data = JSON.parse(responseText);
-					if (data.behindRemote) {
-						setBehindRemoteMsg(data.message);
-						return;
-					}
-					if (data.dirtyWorktree) {
-						setDirtyWorktreeMsg(data.message);
-						return;
-					}
-				} catch {
-					// Not JSON -- fall through
-				}
+					if (data.behindRemote) { setBehindRemoteMsg(data.message); return; }
+					if (data.dirtyWorktree) { setDirtyWorktreeMsg(data.message); return; }
+				} catch { /* Not JSON */ }
 				setErrorInfo(textToErrorInfo(responseText, res.status));
 			} else if (!res.ok) {
 				setErrorInfo(textToErrorInfo(await res.text(), res.status));
@@ -121,9 +111,7 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 				headers: { "Content-Type": "application/json" },
 				body: launchBody(),
 			});
-			if (!res.ok) {
-				setErrorInfo(textToErrorInfo(await res.text(), res.status));
-			}
+			if (!res.ok) setErrorInfo(textToErrorInfo(await res.text(), res.status));
 		} catch (e: any) {
 			setErrorInfo({ description: e?.message ?? "Network error" });
 		} finally {
@@ -135,120 +123,74 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 		<div class="flex h-full flex-col items-center justify-center gap-4 p-4">
 			<Show when={props.config} fallback={<p class="text-sm text-muted-foreground">Loading config...</p>}>
 				{(cfg) => (
-						<div class="flex w-full max-w-sm flex-col gap-4">
-							<div class="flex flex-col gap-4 rounded-md border border-border p-4">
-								<div>
-									<label class="mb-1 block text-sm text-muted-foreground">Launch</label>
-									<select
-										value={selectedProfile()}
-										onChange={(e) => { setSelectedProfile(e.currentTarget.value); props.onDefaultsChange({ profileName: e.currentTarget.value }); }}
-										class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-									>
-										<For each={cfg().profiles}>
-											{(p) => <option value={p.name}>{p.name}</option>}
-										</For>
-									</select>
-								</div>
-
-								<div>
-									<label class="mb-1 block text-sm text-muted-foreground">Prompt</label>
-									<select
-										value={selectedTemplate()}
-										onChange={(e) => { setSelectedTemplate(e.currentTarget.value); props.onDefaultsChange({ templateName: e.currentTarget.value }); }}
-										class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-									>
-										<For each={cfg().templates}>
-											{(t) => <option value={t.name}>{t.name}</option>}
-										</For>
-									</select>
-								</div>
-
-								<Show when={cfg().skills.length > 0}>
-									<div>
-										<label class="mb-1 block text-sm text-muted-foreground">Skills</label>
-										<div class="flex flex-col gap-1">
-											<For each={cfg().skills}>
-												{(skill) => (
-													<label class="flex items-center gap-2 text-sm">
-														<input
-															type="checkbox"
-															checked={checkedSkills().has(skill.name)}
-															onChange={() => toggleSkill(skill.name)}
-															class="rounded border-input"
-														/>
-														{skill.name}
-													</label>
-												)}
-											</For>
-										</div>
-									</div>
-								</Show>
-
-								<button
-									onClick={launchAgent}
-									disabled={launching()}
-									class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
-								>
-									Run
-								</button>
+					<div class="flex w-full max-w-sm flex-col gap-4">
+						<div class="flex flex-col gap-4 rounded-md border border-border p-4">
+							<div>
+								<label class="mb-1 block text-sm text-muted-foreground">Launch</label>
+								<select value={selectedProfile()} onChange={(e) => { setSelectedProfile(e.currentTarget.value); props.onDefaultsChange({ profileName: e.currentTarget.value }); }} class="input input-sm">
+									<For each={cfg().profiles}>{(p) => <option value={p.name}>{p.name}</option>}</For>
+								</select>
 							</div>
+							<div>
+								<label class="mb-1 block text-sm text-muted-foreground">Prompt</label>
+								<select value={selectedTemplate()} onChange={(e) => { setSelectedTemplate(e.currentTarget.value); props.onDefaultsChange({ templateName: e.currentTarget.value }); }} class="input input-sm">
+									<For each={cfg().templates}>{(t) => <option value={t.name}>{t.name}</option>}</For>
+								</select>
+							</div>
+							<Show when={cfg().skills.length > 0}>
+								<div>
+									<label class="mb-1 block text-sm text-muted-foreground">Skills</label>
+									<div class="flex flex-col gap-1">
+										<For each={cfg().skills}>
+											{(skill) => (
+												<label class="flex items-center gap-2 text-sm">
+													<input type="checkbox" checked={checkedSkills().has(skill.name)} onChange={() => toggleSkill(skill.name)} class="rounded border-input" />
+													{skill.name}
+												</label>
+											)}
+										</For>
+									</div>
+								</div>
+							</Show>
+							<button onClick={() => launchAgent()} disabled={launching()} class="btn-primary">Run</button>
 						</div>
-					)}
+					</div>
+				)}
 			</Show>
 
 			<ErrorDialog error={errorInfo()} onClose={() => setErrorInfo(null)} />
 
-			<Show when={behindRemoteMsg()}>
+			<Dialog.Root open={!!behindRemoteMsg()} onOpenChange={(d) => { if (!d.open) setBehindRemoteMsg(""); }}>
 				<Portal>
-				<div class="fixed inset-0 flex items-center justify-center bg-black/50">
-					<div class="fixed inset-0" onClick={() => setBehindRemoteMsg("")} />
-					<div class="relative w-full max-w-sm rounded-lg border border-border bg-card p-6 shadow-lg">
+					<Dialog.Backdrop />
+					<Dialog.Positioner>
+						<Dialog.Content class="max-w-sm">
+							<Dialog.Title class="sr-only">Behind Remote</Dialog.Title>
 							<p class="mb-4 text-sm">{behindRemoteMsg()}</p>
 							<div class="flex justify-end gap-2">
-								<button
-									onClick={() => setBehindRemoteMsg("")}
-									class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-								>
-									Cancel
-								</button>
-								<button
-									onClick={pullAndRetry}
-									disabled={launching()}
-									class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
-								>
-									Pull & Retry
-								</button>
+								<button onClick={() => setBehindRemoteMsg("")} class="btn-secondary">Cancel</button>
+								<button onClick={pullAndRetry} disabled={launching()} class="btn-primary">Pull & Retry</button>
 							</div>
-						</div>
-					</div>
+						</Dialog.Content>
+					</Dialog.Positioner>
 				</Portal>
-			</Show>
+			</Dialog.Root>
 
-			<Show when={dirtyWorktreeMsg()}>
+			<Dialog.Root open={!!dirtyWorktreeMsg()} onOpenChange={(d) => { if (!d.open) setDirtyWorktreeMsg(""); }}>
 				<Portal>
-				<div class="fixed inset-0 flex items-center justify-center bg-black/50">
-					<div class="fixed inset-0" onClick={() => setDirtyWorktreeMsg("")} />
-					<div class="relative w-full max-w-sm rounded-lg border border-border bg-card p-6 shadow-lg">
+					<Dialog.Backdrop />
+					<Dialog.Positioner>
+						<Dialog.Content class="max-w-sm">
+							<Dialog.Title class="sr-only">Uncommitted Changes</Dialog.Title>
 							<p class="mb-4 text-sm">{dirtyWorktreeMsg()}</p>
 							<div class="flex justify-end gap-2">
-								<button
-									onClick={() => setDirtyWorktreeMsg("")}
-									class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-								>
-									Cancel
-								</button>
-								<button
-									onClick={() => { setDirtyWorktreeMsg(""); launchAgent({ force: true }); }}
-									disabled={launching()}
-									class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
-								>
-									Launch Anyway
-								</button>
+								<button onClick={() => setDirtyWorktreeMsg("")} class="btn-secondary">Cancel</button>
+								<button onClick={() => { setDirtyWorktreeMsg(""); launchAgent({ force: true }); }} disabled={launching()} class="btn-primary">Launch Anyway</button>
 							</div>
-						</div>
-					</div>
+						</Dialog.Content>
+					</Dialog.Positioner>
 				</Portal>
-			</Show>
+			</Dialog.Root>
 		</div>
 	);
 }

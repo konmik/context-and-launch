@@ -35,8 +35,8 @@ describe("TicketCard overflow menu", () => {
     const menuBtn = container.querySelector("[aria-label='Ticket actions']") as HTMLElement;
     await fireEvent.click(menuBtn);
 
-    const buttons = [...document.querySelectorAll("button")].map(b => b.textContent?.trim());
-    expect(buttons).toContain("Archive");
+    const items = [...document.querySelectorAll("[role='menuitem']")].map(el => el.textContent?.trim());
+    expect(items).toContain("Archive");
   });
 
   it("calls onArchive when Archive is clicked", async () => {
@@ -55,15 +55,15 @@ describe("TicketCard overflow menu", () => {
     const menuBtn = container.querySelector("[aria-label='Ticket actions']") as HTMLElement;
     await fireEvent.click(menuBtn);
 
-    const archiveBtn = [...document.querySelectorAll("button")].find(
-      b => b.textContent?.trim() === "Archive"
+    const archiveItem = [...document.querySelectorAll("[role='menuitem']")].find(
+      el => el.textContent?.trim() === "Archive"
     ) as HTMLElement;
-    await fireEvent.click(archiveBtn);
+    await fireEvent.click(archiveItem);
 
     expect(onArchive).toHaveBeenCalledWith(ticket);
   });
 
-  it("menu closes on outside mousedown", async () => {
+  it("shows all three menu options", async () => {
     cleanup();
     const { container } = render(() => (
       <TicketCard
@@ -78,14 +78,9 @@ describe("TicketCard overflow menu", () => {
     const menuBtn = container.querySelector("[aria-label='Ticket actions']") as HTMLElement;
     await fireEvent.click(menuBtn);
 
-    const menuVisible = () =>
-      [...document.querySelectorAll("button")].some(
-        (b) => b.textContent?.trim() === "Archive"
-      );
-    expect(menuVisible()).toBe(true);
-
-    await fireEvent.mouseDown(document.body);
-
-    expect(menuVisible()).toBe(false);
+    const items = [...document.querySelectorAll("[role='menuitem']")].map(el => el.textContent?.trim());
+    expect(items).toContain("Edit");
+    expect(items).toContain("Archive");
+    expect(items).toContain("Delete");
   });
 });

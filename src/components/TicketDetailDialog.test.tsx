@@ -262,8 +262,10 @@ describe("TicketDetailDialog multi-file upload confirmation", () => {
     // First file's confirmation is shown
     expect(screen.getByText(/large1\.dat/)).toBeTruthy();
 
-    // Cancel the first file
-    const cancelButton = screen.getByText("Cancel");
+    // Cancel the first file -- find the Cancel button inside the open dialog
+    const fileText = screen.getByText(/large1\.dat/);
+    const dialogContent = fileText.closest("[data-state='open']")!;
+    const cancelButton = dialogContent.querySelector("button")!;
     fireEvent.click(cancelButton);
     await flush();
 

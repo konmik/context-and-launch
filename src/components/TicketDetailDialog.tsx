@@ -1,4 +1,5 @@
 import { createSignal, createEffect, Show, For, on, onCleanup } from "solid-js";
+import { Dialog, Tabs } from "@ark-ui/solid";
 import { Portal } from "solid-js/web";
 import { revalidate } from "@solidjs/router";
 import type { TicketInfo, MergedLauncherConfig, LauncherColumnDefaults } from "~/types.js";
@@ -53,33 +54,21 @@ function DiscardConfirmation(props: {
   });
 
   return (
-    <Show when={props.open}>
+    <Dialog.Root open={props.open} onOpenChange={(d) => { if (!d.open) props.onCancel(); }}>
       <Portal>
-      <div class="fixed inset-0 flex items-center justify-center bg-black/50" onMouseDown={(e) => e.preventDefault()}>
-        <div class="relative w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
-          <h2 class="mb-4 text-lg font-semibold">Unsaved Changes</h2>
-          <p class="mb-4 text-sm text-muted-foreground">{props.message}</p>
-          <div class="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={props.onCancel}
-              class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={props.onDiscard}
-              title={modEnterHint()}
-              class="inline-flex h-10 items-center justify-center rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90"
-            >
-              Discard
-            </button>
-          </div>
-        </div>
-      </div>
+        <Dialog.Backdrop />
+        <Dialog.Positioner>
+          <Dialog.Content onMouseDown={(e: MouseEvent) => e.preventDefault()}>
+            <Dialog.Title>Unsaved Changes</Dialog.Title>
+            <Dialog.Description>{props.message}</Dialog.Description>
+            <div class="flex justify-end gap-2">
+              <button type="button" onClick={props.onCancel} class="btn-secondary">Cancel</button>
+              <button type="button" onClick={props.onDiscard} title={modEnterHint()} class="btn-destructive">Discard</button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Positioner>
       </Portal>
-    </Show>
+    </Dialog.Root>
   );
 }
 
@@ -236,7 +225,6 @@ function TicketDetailContent(props: {
 
   const fileEntryOptions = (): ActiveFile[] => {
     const names = ticketFileNames();
-    // Exclude .md files (those are already stages) and status.json
     return names
       .filter((n) => !n.endsWith(".md") && n !== "status.json")
       .map((name) => ({ type: "file" as const, name }));
@@ -565,7 +553,6 @@ function TicketDetailContent(props: {
     }
   }
 
-  // File drop handling
   function handleDragOver(e: DragEvent) {
     e.preventDefault();
     e.stopPropagation();
@@ -614,7 +601,6 @@ function TicketDetailContent(props: {
       return;
     }
 
-    // Check size warning (10 KB)
     if (file.size > 10240) {
       setConfirmSize({ fileName: file.name, file, size: file.size });
       await new Promise<void>((resolve) => setConfirmResolver(() => resolve));
@@ -654,7 +640,6 @@ function TicketDetailContent(props: {
         }
       }
       revalidate("board-data");
-      // Select the uploaded file
       if (file.name.endsWith(".md")) {
         const stageName = file.name.replace(/\.md$/, "");
         requestFileSwitch({ type: "stage", name: stageName });
@@ -776,54 +761,31 @@ function TicketDetailContent(props: {
                 </label>
               </Show>
             </div>
-            <div
-              class="-mb-4 flex gap-1"
+            <Tabs.Root
+              value={activeTab()}
+              onValueChange={(d) => switchTab(d.value as Tab)}
+              class="-mb-4"
               onMouseDown={(e: MouseEvent) => e.stopPropagation()}
             >
-              {([["editor", "File Editor"], ["launcher", "Agent Launcher"], ["shortcuts", "Shortcuts"]] as const).map(
-                ([tab, label]) => (
-                  <button
-                    type="button"
-                    onClick={() => switchTab(tab)}
-                    class={`relative inline-flex h-8 items-center justify-center rounded-t-md px-3 text-sm transition-colors ${
-                      activeTab() === tab
-                        ? "border border-b-0 border-border bg-card font-medium text-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                )
-              )}
-            </div>
+              <Tabs.List>
+                {([["editor", "File Editor"], ["launcher", "Agent Launcher"], ["shortcuts", "Shortcuts"]] as const).map(
+                  ([tab, label]) => <Tabs.Trigger value={tab}>{label}</Tabs.Trigger>
+                )}
+              </Tabs.List>
+            </Tabs.Root>
           </div>
         }
         footer={
           <div class="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={close}
-              class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-            >
-              Close
-            </button>
+            <button type="button" onClick={close} class="btn-secondary">Close</button>
             <Show when={showSaveButton()}>
-              <button
-                type="button"
-                onClick={saveFile}
-                disabled={saving() || !hasUnsavedChanges()}
-                title={modEnterHint()}
-                class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
-              >
-                Save
-              </button>
+              <button type="button" onClick={saveFile} disabled={saving() || !hasUnsavedChanges()} title={modEnterHint()} class="btn-primary">Save</button>
             </Show>
           </div>
         }
       >
         <div class="flex h-full flex-col">
           <Show when={activeTab() === "editor"}>
-            {/* File selector row */}
             <div class="flex items-center gap-2 px-4 py-2">
               <div class="min-w-0 flex-1">
                 <button
@@ -888,7 +850,6 @@ function TicketDetailContent(props: {
               </button>
             </div>
 
-            {/* Action buttons row */}
             <div class="flex flex-wrap items-center gap-2 px-4 pb-2">
               <button
                 type="button"
@@ -1013,168 +974,86 @@ function TicketDetailContent(props: {
         onDiscard={proceedFileSwitch}
       />
 
-      <Show when={dirtyWorktreeShortcut()}>
-        {(info) => (
-          <Portal>
-          <div class="fixed inset-0 flex items-center justify-center bg-black/50">
-            <div class="fixed inset-0" onClick={() => setDirtyWorktreeShortcut(null)} />
-            <div class="relative w-full max-w-sm rounded-lg border border-border bg-card p-6 shadow-lg">
-              <p class="mb-4 text-sm">{info().message}</p>
-              <div class="flex justify-end gap-2">
-                <button
-                  onClick={() => setDirtyWorktreeShortcut(null)}
-                  class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => { const n = info().name; setDirtyWorktreeShortcut(null); runShortcut(n, true); }}
-                  disabled={runningShortcut() !== ""}
-                  class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
-                >
-                  Run Anyway
-                </button>
-              </div>
-            </div>
-          </div>
-          </Portal>
-        )}
-      </Show>
-
-      <Show when={newFileDialogOpen()}>
+      <Dialog.Root open={!!dirtyWorktreeShortcut()} onOpenChange={(d) => { if (!d.open) setDirtyWorktreeShortcut(null); }}>
         <Portal>
-        <div class="fixed inset-0 flex items-center justify-center bg-black/50" onMouseDown={(e) => { if (!(e.target instanceof HTMLInputElement)) e.preventDefault(); }}>
-          <div class="relative w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
-            <h2 class="mb-4 text-lg font-semibold">New Markdown File</h2>
-            <label class="mb-1 block text-sm text-muted-foreground">
-              File name (without .md extension)
-            </label>
-            <input
-              type="text"
-              value={newFileName()}
-              onInput={(e) => setNewFileName(e.currentTarget.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") submitNewFile();
-                if (e.key === "Escape") setNewFileDialogOpen(false);
-              }}
-              autofocus
-              class="mb-4 h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              placeholder="e.g. design-notes"
-            />
-            <div class="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setNewFileDialogOpen(false)}
-                class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={submitNewFile}
-                disabled={!newFileName().trim()}
-                title={modEnterHint()}
-                class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
-              >
-                Create
-              </button>
-            </div>
-          </div>
-        </div>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content class="max-w-sm">
+              <Dialog.Title class="sr-only">Uncommitted Changes</Dialog.Title>
+              <p class="mb-4 text-sm">{dirtyWorktreeShortcut()?.message}</p>
+              <div class="flex justify-end gap-2">
+                <button onClick={() => setDirtyWorktreeShortcut(null)} class="btn-secondary">Cancel</button>
+                <button onClick={() => { const n = dirtyWorktreeShortcut()!.name; setDirtyWorktreeShortcut(null); runShortcut(n, true); }} disabled={runningShortcut() !== ""} class="btn-primary">Run Anyway</button>
+              </div>
+            </Dialog.Content>
+          </Dialog.Positioner>
         </Portal>
-      </Show>
+      </Dialog.Root>
 
-      <Show when={confirmingDelete()}>
+      <Dialog.Root open={newFileDialogOpen()} onOpenChange={(d) => { if (!d.open) setNewFileDialogOpen(false); }}>
         <Portal>
-        <div class="fixed inset-0 flex items-center justify-center bg-black/50" onMouseDown={(e) => e.preventDefault()}>
-          <div class="relative w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
-            <h2 class="mb-4 text-lg font-semibold">Delete File</h2>
-            <p class="mb-4 text-sm text-muted-foreground">
-              Delete {activeFileLabel(activeFile())}? This cannot be undone.
-            </p>
-            <div class="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirmingDelete(false)}
-                class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={deleteOrRemoveFile}
-                title={modEnterHint()}
-                class="inline-flex h-10 items-center justify-center rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content onMouseDown={(e: MouseEvent) => { if (!(e.target instanceof HTMLInputElement)) e.preventDefault(); }}>
+              <Dialog.Title>New Markdown File</Dialog.Title>
+              <label class="mb-1 block text-sm text-muted-foreground">File name (without .md extension)</label>
+              <input type="text" value={newFileName()} onInput={(e) => setNewFileName(e.currentTarget.value)} onKeyDown={(e) => { if (e.key === "Enter") submitNewFile(); if (e.key === "Escape") setNewFileDialogOpen(false); }} autofocus class="input mb-4" placeholder="e.g. design-notes" />
+              <div class="flex justify-end gap-2">
+                <button type="button" onClick={() => setNewFileDialogOpen(false)} class="btn-secondary">Cancel</button>
+                <button type="button" onClick={submitNewFile} disabled={!newFileName().trim()} title={modEnterHint()} class="btn-primary">Create</button>
+              </div>
+            </Dialog.Content>
+          </Dialog.Positioner>
         </Portal>
-      </Show>
+      </Dialog.Root>
 
-      <Show when={confirmOverwrite()}>
-        {(info) => (
-          <Portal>
-          <div class="fixed inset-0 flex items-center justify-center bg-black/50" onMouseDown={(e) => e.preventDefault()}>
-            <div class="relative w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
-              <h2 class="mb-4 text-lg font-semibold">Overwrite File</h2>
-              <p class="mb-4 text-sm text-muted-foreground">
-                A file named "{info().fileName}" already exists. Overwrite it?
-              </p>
+      <Dialog.Root open={confirmingDelete()} onOpenChange={(d) => { if (!d.open) setConfirmingDelete(false); }}>
+        <Portal>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content onMouseDown={(e: MouseEvent) => e.preventDefault()}>
+              <Dialog.Title>Delete File</Dialog.Title>
+              <Dialog.Description>Delete {activeFileLabel(activeFile())}? This cannot be undone.</Dialog.Description>
               <div class="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => { const r = confirmResolver(); setConfirmOverwrite(null); setConfirmResolver(null); r?.(); }}
-                  class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmOverwriteAndUpload}
-                  class="inline-flex h-10 items-center justify-center rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Overwrite
-                </button>
+                <button type="button" onClick={() => setConfirmingDelete(false)} class="btn-secondary">Cancel</button>
+                <button type="button" onClick={deleteOrRemoveFile} title={modEnterHint()} class="btn-destructive">Delete</button>
               </div>
-            </div>
-          </div>
-          </Portal>
-        )}
-      </Show>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
 
-      <Show when={confirmSize()}>
-        {(info) => (
-          <Portal>
-          <div class="fixed inset-0 flex items-center justify-center bg-black/50" onMouseDown={(e) => e.preventDefault()}>
-            <div class="relative w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
-              <h2 class="mb-4 text-lg font-semibold">Large File</h2>
-              <p class="mb-4 text-sm text-muted-foreground">
-                "{info().fileName}" is {(info().size / 1024).toFixed(1)} KB, which is larger than 10 KB. Copy it anyway?
-              </p>
+      <Dialog.Root open={!!confirmOverwrite()} onOpenChange={(d) => { if (!d.open) { const r = confirmResolver(); setConfirmOverwrite(null); setConfirmResolver(null); r?.(); } }}>
+        <Portal>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content onMouseDown={(e: MouseEvent) => e.preventDefault()}>
+              <Dialog.Title>Overwrite File</Dialog.Title>
+              <Dialog.Description>A file named "{confirmOverwrite()?.fileName}" already exists. Overwrite it?</Dialog.Description>
               <div class="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => { const r = confirmResolver(); setConfirmSize(null); setConfirmResolver(null); r?.(); }}
-                  class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmSizeAndUpload}
-                  class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                >
-                  Copy Anyway
-                </button>
+                <button type="button" onClick={() => { const r = confirmResolver(); setConfirmOverwrite(null); setConfirmResolver(null); r?.(); }} class="btn-secondary">Cancel</button>
+                <button type="button" onClick={confirmOverwriteAndUpload} class="btn-destructive">Overwrite</button>
               </div>
-            </div>
-          </div>
-          </Portal>
-        )}
-      </Show>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
+
+      <Dialog.Root open={!!confirmSize()} onOpenChange={(d) => { if (!d.open) { const r = confirmResolver(); setConfirmSize(null); setConfirmResolver(null); r?.(); } }}>
+        <Portal>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content onMouseDown={(e: MouseEvent) => e.preventDefault()}>
+              <Dialog.Title>Large File</Dialog.Title>
+              <Dialog.Description>"{confirmSize()?.fileName}" is {((confirmSize()?.size ?? 0) / 1024).toFixed(1)} KB, which is larger than 10 KB. Copy it anyway?</Dialog.Description>
+              <div class="flex justify-end gap-2">
+                <button type="button" onClick={() => { const r = confirmResolver(); setConfirmSize(null); setConfirmResolver(null); r?.(); }} class="btn-secondary">Cancel</button>
+                <button type="button" onClick={confirmSizeAndUpload} class="btn-primary">Copy Anyway</button>
+              </div>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
 
     </>
   );

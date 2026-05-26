@@ -1,4 +1,5 @@
 import { createSignal, Show } from "solid-js";
+import { Dialog } from "@ark-ui/solid";
 import { Portal } from "solid-js/web";
 import type { TicketInfo } from "~/types.js";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
@@ -14,14 +15,7 @@ export default function DeleteTicketDialog(props: DeleteTicketDialogProps) {
   const [submitting, setSubmitting] = createSignal(false);
   const [errorMsg, setErrorMsg] = createSignal("");
 
-  function close() {
-    props.onOpenChange(false);
-    setErrorMsg("");
-  }
-
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") close();
-  }
+  function close() { props.onOpenChange(false); setErrorMsg(""); }
 
   async function doSubmit() {
     if (!props.ticket) return;
@@ -29,11 +23,8 @@ export default function DeleteTicketDialog(props: DeleteTicketDialogProps) {
     setErrorMsg("");
     try {
       const result = await props.onSubmit(props.ticket.folderName);
-      if (result?.error) {
-        setErrorMsg(result.error);
-      } else {
-        close();
-      }
+      if (result?.error) setErrorMsg(result.error);
+      else close();
     } catch (err: any) {
       setErrorMsg(err?.message ?? "Unknown error");
     } finally {
@@ -41,57 +32,26 @@ export default function DeleteTicketDialog(props: DeleteTicketDialogProps) {
     }
   }
 
-  async function handleSubmit(e: SubmitEvent) {
-    e.preventDefault();
-    doSubmit();
-  }
-
-  useModEnterSubmit({
-    onSubmit: doSubmit,
-    disabled: () => submitting(),
-    active: () => props.open && !!props.ticket,
-  });
+  useModEnterSubmit({ onSubmit: doSubmit, disabled: () => submitting(), active: () => props.open && !!props.ticket });
 
   return (
-    <Show when={props.open && props.ticket}>
+    <Dialog.Root open={props.open && !!props.ticket} onOpenChange={(d) => { if (!d.open) close(); }}>
       <Portal>
-      <div
-        class="fixed inset-0 flex items-center justify-center bg-black/50"
-        onKeyDown={handleKeydown}
-      >
-        <div class="fixed inset-0" onClick={close} />
-        <div class="relative w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
-          <h2 class="mb-4 text-lg font-semibold">Delete Ticket</h2>
-          <p class="mb-4 text-sm text-muted-foreground">
-            Delete ticket {props.ticket!.number} - {props.ticket!.title}?
-          </p>
-
-          <Show when={errorMsg()}>
-            <p class="mb-4 text-sm text-destructive">{errorMsg()}</p>
-          </Show>
-
-          <form onSubmit={handleSubmit}>
-            <div class="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={close}
-                class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={submitting()}
-                title={modEnterHint()}
-                class="inline-flex h-10 items-center justify-center rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:pointer-events-none disabled:opacity-50"
-              >
-                {submitting() ? "Deleting..." : "Delete"}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+        <Dialog.Backdrop />
+        <Dialog.Positioner>
+          <Dialog.Content>
+            <Dialog.Title>Delete Ticket</Dialog.Title>
+            <Dialog.Description>Delete ticket {props.ticket?.number} - {props.ticket?.title}?</Dialog.Description>
+            <Show when={errorMsg()}><p class="mb-4 text-sm text-destructive">{errorMsg()}</p></Show>
+            <form onSubmit={(e) => { e.preventDefault(); doSubmit(); }}>
+              <div class="flex justify-end gap-2">
+                <button type="button" onClick={close} class="btn-secondary">Cancel</button>
+                <button type="submit" disabled={submitting()} title={modEnterHint()} class="btn-destructive">Delete</button>
+              </div>
+            </form>
+          </Dialog.Content>
+        </Dialog.Positioner>
       </Portal>
-    </Show>
+    </Dialog.Root>
   );
 }
