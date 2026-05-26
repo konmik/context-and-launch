@@ -49,6 +49,25 @@ describe("File attach and references (e2e)", () => {
     if (server) await stopMockServer(server);
   }, 15000);
 
+  it("clicking the copy button opens a file chooser dialog", async () => {
+    const ticket = makeTicketWithFiles();
+    mockState.boardData = createBoardWithTickets([ticket]);
+
+    await page.goto(`${BASE_URL}/project/e2e-test`);
+    await page.waitForSelector("[data-drag-source]", { timeout: 10000 });
+    await page.click("[data-drag-source]");
+
+    const copyBtn = page.locator('button:has-text("Drop a file to copy")');
+    await copyBtn.waitFor({ timeout: 5000 });
+
+    const [fileChooser] = await Promise.all([
+      page.waitForEvent("filechooser", { timeout: 3000 }),
+      copyBtn.click(),
+    ]);
+
+    expect(fileChooser).toBeTruthy();
+  }, 20000);
+
   it("dropping a file onto the copy button adds it to the dropdown and it can be selected", async () => {
     const ticket = makeTicketWithFiles();
     mockState.boardData = createBoardWithTickets([ticket]);
