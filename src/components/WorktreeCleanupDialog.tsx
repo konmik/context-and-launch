@@ -1,7 +1,6 @@
 import { createSignal, Show, onMount } from "solid-js";
 import { Portal } from "solid-js/web";
 import type { TicketInfo, ErrorInfo } from "~/types.js";
-import ErrorDialog from "./ErrorDialog.js";
 
 const STORAGE_KEY = "worktree-cleanup-options";
 
