@@ -36,7 +36,6 @@ describe("LauncherSettings Show condition", () => {
 		worktreeRootPath: null,
 		boardId: null,
 		conflictResolutionPrompt: "",
-		conflictResolutionProfileName: null,
 	};
 
 	it("config && !loading returns boolean true, not the config (the bug)", () => {

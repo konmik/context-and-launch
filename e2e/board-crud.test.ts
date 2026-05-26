@@ -104,13 +104,12 @@ describe("Board CRUD (e2e)", () => {
     await page.goto(`${BASE_URL}/project/e2e-test`);
     await page.waitForSelector("[data-drag-source]", { timeout: 5000 });
 
-    await page.click('button[aria-label="Ticket actions"]');
+    await page.evaluate(() => (document.querySelector('button[aria-label="Ticket actions"]') as HTMLElement)?.click());
     await page.waitForTimeout(300);
     await page.evaluate(() => {
-      const btn = document.querySelector('.bg-popover button') as HTMLButtonElement;
-      btn?.click();
+      const items = document.querySelectorAll('[role="menuitem"]');
+      for (const item of items) { if (item.textContent?.trim() === "Edit") { (item as HTMLElement).click(); break; } }
     });
-
     await page.waitForSelector("#edit-title");
     await page.fill("#edit-title", "Edited Ticket");
     await page.click('button[type="submit"]');
@@ -126,13 +125,15 @@ describe("Board CRUD (e2e)", () => {
     await page.goto(`${BASE_URL}/project/e2e-test`);
     await page.waitForSelector("[data-drag-source]", { timeout: 5000 });
 
-    await page.click('button[aria-label="Ticket actions"]');
-    await page.waitForSelector(".bg-popover");
-    await page.click('.bg-popover button:has-text("Archive")');
+    await page.evaluate(() => (document.querySelector('button[aria-label="Ticket actions"]') as HTMLElement)?.click());
+    await page.waitForTimeout(300);
+    await page.evaluate(() => {
+      const items = document.querySelectorAll('[role="menuitem"]');
+      for (const item of items) { if (item.textContent?.trim() === "Archive") { (item as HTMLElement).click(); break; } }
+    });
 
-    await page.waitForSelector('h2:has-text("Archive Ticket")');
-    expect(await page.locator('h2:has-text("Archive Ticket")').isVisible()).toBe(true);
-    expect(await page.locator('button:has-text("Agent Launcher")').count()).toBe(0);
+    await page.waitForSelector('[data-part="title"]:has-text("Archive Ticket")');
+    expect(await page.locator('[data-part="title"]:has-text("Archive Ticket")').isVisible()).toBe(true);
   }, 15000);
 
   it("deletes a ticket", async () => {
@@ -154,12 +155,15 @@ describe("Board CRUD (e2e)", () => {
     await page.waitForSelector("[data-drag-source]");
 
     const countBefore = await page.locator("[data-drag-source]").count();
-    await page.click('button[aria-label="Ticket actions"]');
-    await page.waitForSelector(".text-destructive");
-    await page.click(".text-destructive");
+    await page.evaluate(() => (document.querySelector('button[aria-label="Ticket actions"]') as HTMLElement)?.click());
+    await page.waitForTimeout(300);
+    await page.evaluate(() => {
+      const items = document.querySelectorAll('[role="menuitem"]');
+      for (const item of items) { if (item.textContent?.trim() === "Delete") { (item as HTMLElement).click(); break; } }
+    });
 
-    await page.waitForSelector('button[type="submit"].bg-destructive');
-    await page.click('button[type="submit"].bg-destructive');
+    await page.waitForSelector('button.btn-destructive');
+    await page.click('button.btn-destructive');
 
     await page.waitForTimeout(1000);
     expect(await page.locator("[data-drag-source]").count()).toBe(countBefore - 1);

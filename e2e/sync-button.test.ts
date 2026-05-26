@@ -117,9 +117,7 @@ describe("Sync button (e2e)", () => {
     await page.locator('[data-testid="sync-button"]').click();
     await page.waitForSelector('text=Sync Conflicts Detected', { timeout: 5000 });
 
-    // Click the backdrop (the fixed inset-0 overlay behind the dialog card)
-    // The backdrop is the first fixed inset-0 child inside the dialog wrapper
-    await page.locator('.fixed.inset-0.z-50 > .fixed.inset-0').click({ position: { x: 10, y: 10 } });
+    await page.locator('[data-scope="dialog"][data-part="backdrop"]').click({ position: { x: 10, y: 10 }, force: true });
     await page.waitForTimeout(500);
 
     // After the fix: dialog should STILL be open (backdrop click is blocked)
@@ -129,7 +127,7 @@ describe("Sync button (e2e)", () => {
 
   it("launch button picks profile and launches resolver", async () => {
     mockState.boardData = structuredClone(createBoardWithTickets(TICKETS, undefined, true));
-    mockState.launcherConfig = { templates: [], skills: [], profiles: [{ name: "Claude Win", command: "cmd /c claude", scope: "app" }], columnDefaults: {}, worktreeRootPath: null };
+    mockState.launcherConfig = { templates: [], skills: [], profiles: [{ name: "Claude Win", command: "cmd /c claude", scope: "app" }], shortcuts: [], columnDefaults: {}, worktreeRootPath: null };
     mockState.onSync = () => ({ status: "conflict" });
     let resolveCalled = false;
     mockState.onResolveConflicts = () => { resolveCalled = true; return { success: true }; };

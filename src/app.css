@@ -269,7 +269,7 @@
 	}
 }
 
-button, [role="button"], .ripple {
+button:not([data-scope]), [role="button"]:not([data-scope]), .ripple {
 	position: relative;
 	overflow: hidden;
 }

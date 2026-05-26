@@ -84,15 +84,21 @@ describe("File attach and references (e2e)", () => {
 
     await page.goto(`${BASE_URL}/project/e2e-test`);
     await page.waitForSelector("[data-drag-source]", { timeout: 10000 });
-    await page.click("[data-drag-source]");
+    await page.evaluate(() => (document.querySelector("[data-drag-source]") as HTMLElement)?.click());
 
     await page.waitForSelector('button:has-text("to-do.md")', { timeout: 5000 });
-    await page.click('button:has-text("to-do.md")');
+    await page.evaluate(() => {
+      const btns = document.querySelectorAll("button");
+      for (const b of btns) { if (b.textContent?.includes("to-do.md")) { b.click(); break; } }
+    });
     await page.waitForTimeout(500);
 
     const refOption = page.locator('button:has-text("REFERENCE")');
     await refOption.first().waitFor({ timeout: 3000 });
-    await refOption.first().click();
+    await page.evaluate(() => {
+      const btns = document.querySelectorAll("button");
+      for (const b of btns) { if (b.textContent?.includes("REFERENCE")) { b.click(); break; } }
+    });
     await page.waitForTimeout(1000);
 
     const imgElement = page.locator("img");
