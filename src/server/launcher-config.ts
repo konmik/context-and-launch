@@ -153,7 +153,9 @@ export class LauncherConfigManager {
 			columnDefaults: project.columnDefaults ?? {},
 			worktreeRootPath: project.worktreeRootPath ?? null,
 			boardId: project.boardId ?? null,
-			conflictResolutionPrompt: project.conflictResolutionPrompt || DEFAULT_CONFLICT_RESOLUTION_PROMPT,
+			conflictResolutionPrompt: typeof project.conflictResolutionPrompt === 'string' && project.conflictResolutionPrompt
+				? project.conflictResolutionPrompt
+				: DEFAULT_CONFLICT_RESOLUTION_PROMPT,
 		};
 	}
 
