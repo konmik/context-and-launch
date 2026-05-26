@@ -1,5 +1,6 @@
 import { FloatingPanel as ArkPanel } from "@ark-ui/solid";
 import { Portal } from "solid-js/web";
+import { Show } from "solid-js";
 import type { JSX, ComponentProps } from "solid-js";
 
 type RootProps = ComponentProps<typeof ArkPanel.Root>;
@@ -28,9 +29,13 @@ export function FloatingPanelRoot(props: {
       onSizeChangeEnd={props.onSizeChangeEnd}
       persistRect={props.persistRect}
       closeOnEscape
+      lazyMount
+      unmountOnExit
     >
       <Portal>
-        <div class="fixed inset-0 bg-black/50" onClick={() => props.onOpenChange?.({ open: false })} />
+        <Show when={props.open}>
+          <div class="fixed inset-0 bg-black/50" onClick={() => props.onOpenChange?.({ open: false })} />
+        </Show>
         <ArkPanel.Positioner>
           <ArkPanel.Content>
             {props.children}

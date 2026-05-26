@@ -212,7 +212,7 @@ export function startMockServer(port: number, state: MockServerState): Promise<h
     if (pathname.startsWith("/api/")) {
       // Launcher config endpoint
       if (pathname.match(/\/api\/projects\/[^/]+\/launcher-config$/) && req.method === "GET") {
-        const config = state.launcherConfig ?? { templates: [], skills: [], profiles: [], columnDefaults: {}, worktreeRootPath: null };
+        const config = state.launcherConfig ?? { templates: [], skills: [], profiles: [], shortcuts: [], columnDefaults: {}, worktreeRootPath: null };
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(config));
         return;

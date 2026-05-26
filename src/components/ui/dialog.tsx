@@ -13,7 +13,7 @@ export function DialogRoot(props: {
   ref?: HTMLDivElement | ((el: HTMLDivElement) => void);
 }) {
   return (
-    <ArkDialog.Root open={props.open} onOpenChange={(d) => { if (!d.open) props.onOpenChange(false); }}>
+    <ArkDialog.Root open={props.open} onOpenChange={(d) => { if (!d.open) props.onOpenChange(false); }} lazyMount unmountOnExit>
       <Portal>
         <ArkDialog.Backdrop />
         <ArkDialog.Positioner>

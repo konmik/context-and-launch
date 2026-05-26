@@ -17,6 +17,7 @@ function makeMerged(overrides: Partial<MergedLauncherConfig> & { profiles: (Laun
 	return {
 		templates: [],
 		skills: [],
+		shortcuts: [],
 		columnDefaults: {},
 		worktreeRootPath: null,
 		boardId: null,
