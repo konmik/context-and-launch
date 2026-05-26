@@ -714,7 +714,6 @@ function TicketDetailContent(props: {
 
   return (
     <>
-      <Portal><div class="fixed inset-0 bg-black/50" onClick={close} /></Portal>
       <FloatingPanelRoot
         open={true}
         onOpenChange={(d) => { if (!d.open) close(); }}

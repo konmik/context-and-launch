@@ -1,5 +1,6 @@
 import { createSignal, createEffect, on, Show, For } from "solid-js";
 import { DialogRoot, DialogTitle, DialogCloseTrigger } from "./ui/dialog";
+import { FloatingPanelRoot, FloatingPanelHeader, FloatingPanelBody, FloatingPanelDragTrigger, FloatingPanelResizeTrigger, FloatingPanelCloseTrigger, FloatingPanelTitle } from "./ui/floating-panel";
 import { TabsRoot, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
 import type { MergedLauncherConfig } from "~/types.js";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
@@ -135,30 +136,40 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 	}
 
 	return (<>
-		<DialogRoot open={props.open} onOpenChange={() => props.onOpenChange(false)} class="flex h-[80vh] max-w-3xl flex-col p-0">
-						<div class="flex items-center justify-between px-6 py-4">
-							<DialogTitle class="mb-0">Settings</DialogTitle>
-							<div class="flex items-center gap-1">
-								<button onClick={() => fetch("/api/open-config-dir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: "app" }) })} class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground" title="Open user config directory">User&#8599;</button>
-								<button onClick={() => fetch("/api/open-config-dir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: "project", slug: props.slug }) })} class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground" title="Open project config directory">Project&#8599;</button>
-								<button onClick={() => fetch("/api/open-config-dir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: "worktree", slug: props.slug }) })} class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground" title="Open worktrees directory">Worktrees&#8599;</button>
-								<DialogCloseTrigger>
-									<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-								</DialogCloseTrigger>
-							</div>
+		<FloatingPanelRoot
+			open={props.open}
+			onOpenChange={(d) => { if (!d.open) props.onOpenChange(false); }}
+			defaultSize={{ width: 672, height: Math.floor(window.innerHeight * 0.8) }}
+			minSize={{ width: 400, height: 300 }}
+			persistRect
+		>
+		<TabsRoot value={activeTab()} onValueChange={(d) => setActiveTab(d.value)}>
+			<FloatingPanelHeader>
+				<FloatingPanelDragTrigger class="flex flex-col gap-3">
+					<div class="flex items-start justify-between">
+						<FloatingPanelTitle>Settings</FloatingPanelTitle>
+						<div class="flex items-center gap-1">
+							<button data-no-drag onClick={() => fetch("/api/open-config-dir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: "app" }) })} class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground" title="Open user config directory">User&#8599;</button>
+							<button data-no-drag onClick={() => fetch("/api/open-config-dir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: "project", slug: props.slug }) })} class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground" title="Open project config directory">Project&#8599;</button>
+							<button data-no-drag onClick={() => fetch("/api/open-config-dir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: "worktree", slug: props.slug }) })} class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground" title="Open worktrees directory">Worktrees&#8599;</button>
+							<FloatingPanelCloseTrigger>
+								<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+							</FloatingPanelCloseTrigger>
 						</div>
+					</div>
+					<div data-no-drag class="-mb-4">
+						<TabsList>
+							<TabsTrigger value="general">General</TabsTrigger>
+							<TabsTrigger value="templates">Prompts</TabsTrigger>
+							<TabsTrigger value="skills">Skills</TabsTrigger>
+							<TabsTrigger value="profiles">Launch</TabsTrigger>
+						</TabsList>
+					</div>
+				</FloatingPanelDragTrigger>
+			</FloatingPanelHeader>
 
-						<TabsRoot value={activeTab()} onValueChange={(d) => setActiveTab(d.value)}>
-							<div class="px-6">
-								<TabsList>
-									<TabsTrigger value="general">General</TabsTrigger>
-									<TabsTrigger value="templates">Prompts</TabsTrigger>
-									<TabsTrigger value="skills">Skills</TabsTrigger>
-									<TabsTrigger value="profiles">Launch</TabsTrigger>
-								</TabsList>
-							</div>
-
-							<div class="flex-1 overflow-auto px-6 py-4">
+			<FloatingPanelBody>
+				<div class="flex-1 overflow-auto px-6 py-4">
 								<Show when={error()}><div class="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error()}</div></Show>
 								<Show when={loading()}><p class="text-sm text-muted-foreground">Loading...</p></Show>
 
@@ -241,8 +252,20 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 									</>)}
 								</Show>
 							</div>
-						</TabsRoot>
-		</DialogRoot>
+			</FloatingPanelBody>
+		</TabsRoot>
+
+			<FloatingPanelResizeTrigger axis="s" />
+			<FloatingPanelResizeTrigger axis="w" />
+			<FloatingPanelResizeTrigger axis="e" />
+			<FloatingPanelResizeTrigger axis="n" />
+			<FloatingPanelResizeTrigger axis="ne" />
+			<FloatingPanelResizeTrigger axis="nw" />
+			<FloatingPanelResizeTrigger axis="sw" />
+			<FloatingPanelResizeTrigger axis="se">
+				<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><path d="M10 2v8H2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+			</FloatingPanelResizeTrigger>
+		</FloatingPanelRoot>
 
 		<DialogRoot open={!!form()} onOpenChange={() => setForm(null)} class="max-w-lg p-0">
 						<Show when={form()}>
