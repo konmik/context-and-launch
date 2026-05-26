@@ -9,11 +9,12 @@ export function DialogRoot(props: {
   onOpenChange: (open: boolean) => void;
   children: JSX.Element;
   class?: string;
+  closeOnInteractOutside?: RootProps["closeOnInteractOutside"];
   onMouseDown?: (e: MouseEvent) => void;
   ref?: HTMLDivElement | ((el: HTMLDivElement) => void);
 }) {
   return (
-    <ArkDialog.Root open={props.open} onOpenChange={(d) => { if (!d.open) props.onOpenChange(false); }} lazyMount unmountOnExit>
+    <ArkDialog.Root open={props.open} onOpenChange={(d) => { if (!d.open) props.onOpenChange(false); }} closeOnInteractOutside={props.closeOnInteractOutside} lazyMount unmountOnExit>
       <Portal>
         <ArkDialog.Backdrop />
         <ArkDialog.Positioner>

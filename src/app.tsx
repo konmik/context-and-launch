@@ -10,6 +10,11 @@ function initRipple() {
     ) as HTMLElement | null;
     if (!target) return;
 
+    // Ark UI buttons carry [data-scope] and are excluded from the ripple
+    // container styles in CSS, so ensure the host clips and anchors the ripple.
+    if (getComputedStyle(target).position === "static") target.style.position = "relative";
+    target.style.overflow = "hidden";
+
     const rect = target.getBoundingClientRect();
     const size = Math.max(rect.width, rect.height) * 2;
     const x = e.clientX - rect.left - size / 2;

@@ -40,7 +40,7 @@ export default function ConflictDialog(props: ConflictDialogProps) {
   }
 
   return (
-    <DialogRoot open={props.open} onOpenChange={close}>
+    <DialogRoot open={props.open} onOpenChange={close} closeOnInteractOutside={false}>
       <DialogTitle>Sync Conflicts Detected</DialogTitle>
       <DialogDescription>The sync encountered conflicts during rebase. You can launch an AI agent to resolve them, or abort to keep your local changes and retry later.</DialogDescription>
 
