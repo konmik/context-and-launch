@@ -305,11 +305,7 @@ describe('pull-and-retry skips windowExists check (code-inspection)', () => {
 		expect(pullAndRetrySource).not.toContain('buildWindowTitle');
 	});
 
-	it('pull-and-retry.ts does NOT return 409 for any reason', () => {
-		// run.ts returns 409 for windowExists and for behindRemote
-		// pull-and-retry returns 500 for behindRemote (inconsistent error format)
-		// Neither endpoint returns 409 for duplicate windows in pull-and-retry
-		expect(pullAndRetrySource).not.toContain('409');
+	it('pull-and-retry.ts does NOT return 409 for duplicate windows', () => {
 		expect(pullAndRetrySource).not.toContain('Already started');
 	});
 

@@ -23,7 +23,7 @@ export async function POST({ params, request }: APIEvent) {
 
     const launchRequest = await readLaunchRequest(request);
 
-    const launchDirResult = await resolveLaunchDir(slug, folderName, launchRequest.useWorktree, project.path);
+    const launchDirResult = await resolveLaunchDir(slug, folderName, launchRequest.useWorktree, project.path, launchRequest.force);
     if (launchDirResult instanceof Response) return launchDirResult;
     const launchDir = launchDirResult;
 

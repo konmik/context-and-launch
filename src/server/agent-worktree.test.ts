@@ -84,14 +84,14 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it('detects uncommitted changes and throws', async () => {
+	it('detects uncommitted changes and returns dirtyWorktree', async () => {
 		const { projectDir, awm } = setup();
 		// Create an uncommitted file
 		fs.writeFileSync(path.join(projectDir, 'dirty.txt'), 'uncommitted');
 		execSync('git add dirty.txt', { cwd: projectDir });
 
-		await expect(awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0001-feature'))
-			.rejects.toThrow('uncommitted changes');
+		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0001-feature');
+		expect(result).toEqual({ dirtyWorktree: true });
 	});
 
 	it('falls back from main to master', async () => {
@@ -296,7 +296,7 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it('pullMainBranch with merge conflict: error contains git failure details and subsequent ensureAgentWorktree throws uncommitted changes', async () => {
+	it('pullMainBranch with merge conflict: error contains git failure details and subsequent ensureAgentWorktree returns dirtyWorktree', async () => {
 		// 1. Create a bare repo as the "remote"
 		const bareDir = tmpDir('awm-bare-conflict-');
 		dirs.push(bareDir);
@@ -356,10 +356,10 @@ describe('AgentWorktreeManager', () => {
 		expect(pullErr.message).toContain('CONFLICT');
 
 		// 7. After a failed pull with conflicts, the working tree has uncommitted merge artifacts.
-		// ensureAgentWorktree should throw "uncommitted changes" -- documenting the confusing
-		// error chain where a pull failure manifests as "uncommitted changes" on the next call.
-		await expect(awm.ensureAgentWorktree(projectDir, 'conflict-proj', 'st-0006-conflict'))
-			.rejects.toThrow('uncommitted changes');
+		// ensureAgentWorktree should return dirtyWorktree -- documenting the confusing
+		// error chain where a pull failure manifests as dirty worktree on the next call.
+		const result = await awm.ensureAgentWorktree(projectDir, 'conflict-proj', 'st-0006-conflict');
+		expect(result).toEqual({ dirtyWorktree: true });
 	});
 
 	it('getMainBranch does not falsely match a branch named main-v2 for the main check', async () => {

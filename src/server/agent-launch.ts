@@ -71,13 +71,19 @@ export function windowExists(title: string): Promise<boolean> {
   });
 }
 
-export async function resolveLaunchDir(slug: string, folderName: string, useWorktree: boolean, projectPath: string): Promise<string | Response> {
+export async function resolveLaunchDir(slug: string, folderName: string, useWorktree: boolean, projectPath: string, force?: boolean): Promise<string | Response> {
   if (!useWorktree) return projectPath;
   const merged = launcherConfigManager.getMergedConfig(slug);
   if (!merged.worktreeRootPath) {
     return new Response("Worktree root path is not configured", { status: 400 });
   }
-  const result = await agentWorktreeManager.ensureAgentWorktree(projectPath, slug, folderName);
+  const result = await agentWorktreeManager.ensureAgentWorktree(projectPath, slug, folderName, { skipDirtyCheck: force });
+  if ('dirtyWorktree' in result) {
+    return Response.json(
+      { dirtyWorktree: true, message: "Main branch has uncommitted changes. Launch anyway?" },
+      { status: 409 }
+    );
+  }
   if ('behindRemote' in result) {
     return Response.json(
       { behindRemote: true, message: "Main branch is behind remote. Pull latest changes before launching?" },
@@ -104,16 +110,18 @@ export interface LaunchRequest {
   checkedSkills: string[];
   useWorktree: boolean;
   profileName: string;
+  force: boolean;
 }
 
 export function parseLaunchRequest(body: unknown): LaunchRequest {
-  const result: LaunchRequest = { templateName: "Default", checkedSkills: [], useWorktree: false, profileName: "" };
+  const result: LaunchRequest = { templateName: "Default", checkedSkills: [], useWorktree: false, profileName: "", force: false };
   if (body && typeof body === "object") {
     const b = body as Record<string, unknown>;
     if (typeof b.templateName === "string") result.templateName = b.templateName;
     if (Array.isArray(b.checkedSkills)) result.checkedSkills = b.checkedSkills;
     if (typeof b.useWorktree === "boolean") result.useWorktree = b.useWorktree;
     if (typeof b.profileName === "string") result.profileName = b.profileName;
+    if (typeof b.force === "boolean") result.force = b.force;
   }
   return result;
 }
