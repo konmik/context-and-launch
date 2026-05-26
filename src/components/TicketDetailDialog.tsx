@@ -324,8 +324,8 @@ function TicketDetailContent(props: {
             const data: MergedLauncherConfig = await res.json();
             setLauncherConfig(data);
             const defaults = data.columnDefaults[props.ticket.status];
-            if (defaults?.lastLayer === "launcher") {
-              setActiveTab("launcher");
+            if (defaults?.lastLayer === "launcher" || defaults?.lastLayer === "shortcuts") {
+              setActiveTab(defaults.lastLayer);
             }
           }
         } catch {}
@@ -416,7 +416,7 @@ function TicketDetailContent(props: {
         return;
       }
       setActiveTab(tab);
-      if (tab === "launcher") patchColumnDefaults({ lastLayer: "launcher" });
+      if (tab === "launcher" || tab === "shortcuts") patchColumnDefaults({ lastLayer: tab });
     } else {
       setActiveTab("editor");
       patchColumnDefaults({ lastLayer: "editor" });
@@ -431,7 +431,7 @@ function TicketDetailContent(props: {
     setPendingTab(null);
     if (toTab) {
       setActiveTab(toTab);
-      if (toTab === "launcher") patchColumnDefaults({ lastLayer: "launcher" });
+      if (toTab === "launcher" || toTab === "shortcuts") patchColumnDefaults({ lastLayer: toTab });
     } else if (file) {
       setActiveTab("editor");
       setActiveFile(file);

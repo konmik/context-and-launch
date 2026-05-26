@@ -84,7 +84,7 @@ export interface LauncherColumnDefaults {
 	templateName: string | null;
 	checkedSkills: string[];
 	profileName: string | null;
-	lastLayer?: "editor" | "launcher";
+	lastLayer?: "editor" | "launcher" | "shortcuts";
 }
 
 export interface LauncherConfig {
