@@ -15,23 +15,16 @@ vi.mock("./AgentLauncher", () => ({
   default: () => <div data-testid="agent-launcher" />,
 }));
 
-vi.mock("./ResizableWindow", () => ({
-  default: (props: {
-    open: boolean;
-    children: any;
-    title?: any;
-    footer?: any;
-    onClose?: () => void;
-    onKeyDown?: (e: KeyboardEvent) => void;
-    storageKey?: string;
-  }) => (
-    <div data-testid="resizable-window">
-      {typeof props.title === "function" ? props.title() : props.title}
-      {typeof props.children === "function" ? props.children() : props.children}
-      {typeof props.footer === "function" ? props.footer() : props.footer}
-    </div>
-  ),
+vi.mock("./ui/floating-panel", () => ({
+  FloatingPanelRoot: (props: any) => <div data-testid="floating-panel">{props.children}</div>,
+  FloatingPanelHeader: (props: any) => <div>{props.children}</div>,
+  FloatingPanelBody: (props: any) => <div>{props.children}</div>,
+  FloatingPanelDragTrigger: (props: any) => <div>{props.children}</div>,
+  FloatingPanelResizeTrigger: () => null,
+  FloatingPanelCloseTrigger: (props: any) => <button>{props.children}</button>,
+  FloatingPanelTitle: (props: any) => <h2>{props.children}</h2>,
 }));
+
 
 import { createSignal } from "solid-js";
 import TicketDetailDialog from "./TicketDetailDialog";
@@ -206,7 +199,7 @@ describe("TicketDetailDialog multi-file upload confirmation", () => {
 
     // The upload for file1 should have started
     const uploadCalls = mockFetch.mock.calls.filter(
-      ([url]: [string, RequestInit?]) => typeof url === "string" && url.includes("files/upload")
+      ([url]: [string, RequestInit?]) => url.includes("files/upload")
     );
     expect(uploadCalls.length).toBe(1);
 
@@ -227,7 +220,7 @@ describe("TicketDetailDialog multi-file upload confirmation", () => {
 
     // The upload for file2 should have started
     const uploadCalls2 = mockFetch.mock.calls.filter(
-      ([url]: [string, RequestInit?]) => typeof url === "string" && url.includes("files/upload")
+      ([url]: [string, RequestInit?]) => url.includes("files/upload")
     );
     expect(uploadCalls2.length).toBe(2);
   });
@@ -274,7 +267,7 @@ describe("TicketDetailDialog multi-file upload confirmation", () => {
 
     // No uploads should have happened (first was cancelled)
     const uploadCalls = mockFetch.mock.calls.filter(
-      ([url]: [string, RequestInit?]) => typeof url === "string" && url.includes("files/upload")
+      ([url]: [string, RequestInit?]) => url.includes("files/upload")
     );
     expect(uploadCalls.length).toBe(0);
   });
@@ -320,13 +313,13 @@ describe("TicketDetailDialog multi-file upload confirmation", () => {
 
     // Upload for file1 should have started
     const uploadCalls = mockFetch.mock.calls.filter(
-      ([url]: [string, RequestInit?]) => typeof url === "string" && url.includes("files/upload")
+      ([url]: [string, RequestInit?]) => url.includes("files/upload")
     );
     expect(uploadCalls.length).toBe(1);
 
     // Resolve the upload
     const uploadIdx = mockFetch.mock.calls.findIndex(
-      ([url]: [string, RequestInit?]) => typeof url === "string" && url.includes("files/upload")
+      ([url]: [string, RequestInit?]) => url.includes("files/upload")
     );
     pending[uploadIdx].resolve({ results: [{ ok: true, name: "exist1.txt" }] });
     await flush();
