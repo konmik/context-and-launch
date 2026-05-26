@@ -12,6 +12,7 @@ $d.Multiselect = $true
 $d.Title = 'Select files for reference'
 if ($d.ShowDialog() -eq 'OK') { $d.FileNames -join [char]10 }
 `;
+			console.log('[exec] powershell OpenFileDialog');
 			execFile('powershell', ['-STA', '-NoProfile', '-Command', script], (err, stdout) => {
 				if (err) return reject(err);
 				resolve(parseOutput(stdout));
@@ -25,6 +26,7 @@ if ($d.ShowDialog() -eq 'OK') { $d.FileNames -join [char]10 }
 				'end repeat',
 				'return output',
 			].join('\n');
+			console.log('[exec] osascript OpenFileDialog');
 			execFile('osascript', ['-e', script], (err, stdout) => {
 				if (err) {
 					if (err.code === 1) return resolve([]);
@@ -33,6 +35,7 @@ if ($d.ShowDialog() -eq 'OK') { $d.FileNames -join [char]10 }
 				resolve(parseOutput(stdout));
 			});
 		} else {
+			console.log('[exec] zenity OpenFileDialog');
 			execFile('zenity', ['--file-selection', '--multiple', '--separator=\n'], (err, stdout) => {
 				if (err) {
 					if (err.code === 1) return resolve([]);

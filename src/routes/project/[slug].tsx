@@ -9,6 +9,9 @@ import DeleteTicketDialog from "~/components/DeleteTicketDialog";
 import ArchiveTicketDialog from "~/components/ArchiveTicketDialog";
 import WorktreeCleanupDialog from "~/components/WorktreeCleanupDialog";
 import TicketDetailDialog from "~/components/TicketDetailDialog";
+import ConflictDialog from "~/components/ConflictDialog";
+import ErrorDialog from "~/components/ErrorDialog";
+import type { ErrorInfo } from "~/types.js";
 import AddProjectForm from "~/components/AddProjectForm";
 import ThemeToggle from "~/components/ThemeToggle";
 import LauncherSettings from "~/components/LauncherSettings";
@@ -46,6 +49,59 @@ export default function ProjectPage() {
     null
   );
   const [detailTicket, setDetailTicket] = createSignal<TicketInfo | null>(null);
+  const [syncing, setSyncing] = createSignal(false);
+  const [syncSuccess, setSyncSuccess] = createSignal(false);
+  const [syncError, setSyncError] = createSignal<ErrorInfo | null>(null);
+  const [conflictDialogOpen, setConflictDialogOpen] = createSignal(false);
+
+  async function handleSync() {
+    if (syncing()) return;
+    if (!data()?.hasRemote) {
+      setSyncError({ description: "No remote tracking branch configured. Push the ticket branch to a remote first." });
+      return;
+    }
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      const res = await fetch(`/api/projects/${slug()}/board/sync`, { method: "POST" });
+      const result = await res.json();
+      if (result.status === "success") {
+        setSyncSuccess(true);
+        setTimeout(() => setSyncSuccess(false), 2000);
+        await revalidate("board-data");
+      } else if (result.status === "conflict") {
+        setConflictDialogOpen(true);
+      } else if (result.status === "error") {
+        setSyncError({ description: result.message || "Sync failed" });
+      }
+    } catch (err) {
+      setSyncError({ description: err instanceof Error ? err.message : "Sync failed" });
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  async function handleConflictResolve(profileName: string) {
+    const res = await fetch(`/api/projects/${slug()}/board/resolve-conflicts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profileName }),
+    });
+    if (!res.ok) {
+      const body = await res.json();
+      throw new Error(body.error || "Failed to launch resolver");
+    }
+    await revalidate("board-data");
+  }
+
+  async function handleConflictAbort() {
+    const res = await fetch(`/api/projects/${slug()}/board/sync`, { method: "DELETE" });
+    if (!res.ok) {
+      const body = await res.json();
+      throw new Error(body.error || "Failed to abort rebase");
+    }
+    await revalidate("board-data");
+  }
 
   function handleEdit(ticket: TicketInfo) {
     setSelectedTicket(ticket);
@@ -179,6 +235,22 @@ export default function ProjectPage() {
 
             <div class="flex items-center gap-2">
               <ThemeToggle />
+              <button
+                onClick={d().hasConflict ? () => setConflictDialogOpen(true) : handleSync}
+                disabled={syncing()}
+                class={`relative inline-flex h-9 w-9 items-center justify-center rounded-md border bg-background disabled:pointer-events-none disabled:opacity-50 ${d().hasConflict ? "border-destructive text-destructive hover:bg-destructive/10" : "border-input hover:bg-accent hover:text-accent-foreground"}`}
+                title={d().hasConflict ? "Resolve conflicts" : "Sync tickets"}
+                data-testid="sync-button"
+              >
+                <Show when={syncSuccess()} fallback={
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                }>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-testid="sync-check"><path d="M20 6 9 17l-5-5"/></svg>
+                </Show>
+                <Show when={d().hasConflict}>
+                  <span class="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-destructive text-[8px] font-bold leading-none text-destructive-foreground" data-testid="sync-conflict-badge">!</span>
+                </Show>
+              </button>
               <button
                 onClick={() => setSettingsOpen(true)}
                 class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground"
@@ -362,6 +434,16 @@ export default function ProjectPage() {
             </div>
             </Portal>
           </Show>
+
+          <ConflictDialog
+            open={conflictDialogOpen()}
+            onOpenChange={setConflictDialogOpen}
+            onResolve={handleConflictResolve}
+            onAbort={handleConflictAbort}
+            slug={d().slug}
+          />
+
+          <ErrorDialog error={syncError()} onClose={() => setSyncError(null)} />
 
           <LauncherSettings
             open={settingsOpen()}

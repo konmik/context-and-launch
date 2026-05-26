@@ -11,6 +11,9 @@ import type {
 import { RUN_AGENT_PS1, RUN_AGENT_SH } from './platform-scripts.js';
 import type { ConfigPaths } from './config-paths.js';
 
+export const DEFAULT_CONFLICT_RESOLUTION_PROMPT =
+	'Resolve all merge conflicts, then run git rebase --continue. Repeat until the rebase completes. Then push to remote and verify with git status that everything is clean. CRITICAL: Do not leave untracked, uncommitted or unpushed files. The goal is to sync the local branch with remote.';
+
 const DEFAULT_APP_CONFIG: LauncherConfig = {
 	templates: [
 		{
@@ -39,6 +42,7 @@ function parseConfig(text: string): LauncherConfig {
 		columnDefaults: parsed.columnDefaults,
 		worktreeRootPath: parsed.worktreeRootPath,
 		boardId: parsed.boardId,
+		conflictResolutionPrompt: parsed.conflictResolutionPrompt,
 	};
 }
 
@@ -149,6 +153,7 @@ export class LauncherConfigManager {
 			columnDefaults: project.columnDefaults ?? {},
 			worktreeRootPath: project.worktreeRootPath ?? null,
 			boardId: project.boardId ?? null,
+			conflictResolutionPrompt: project.conflictResolutionPrompt || DEFAULT_CONFLICT_RESOLUTION_PROMPT,
 		};
 	}
 
@@ -295,6 +300,12 @@ export class LauncherConfigManager {
 	saveWorktreeRootPath(slug: string, worktreeRootPath: string | undefined): void {
 		const config = this.loadProjectConfig(slug);
 		config.worktreeRootPath = worktreeRootPath;
+		this.saveProjectConfig(slug, config);
+	}
+
+	saveConflictResolutionSettings(slug: string, prompt: string | undefined): void {
+		const config = this.loadProjectConfig(slug);
+		config.conflictResolutionPrompt = prompt;
 		this.saveProjectConfig(slug, config);
 	}
 

@@ -49,8 +49,17 @@ describe('launchAgent profile-based spawn (code-inspection)', () => {
 		'utf-8'
 	);
 
-	it('launchAgent spawns the profile command with cwd set to launchDir', () => {
-		expect(source).toMatch(/spawnDetached\(executable,\s*args,\s*launchDir\)/);
+	it('launchAgent delegates to spawnProfile with launchDir as cwd', () => {
+		expect(source).toMatch(/spawnProfile\(profile,\s*commandVars,\s*launchDir\)/);
+	});
+
+	it('spawnProfile delegates to spawnDetached', () => {
+		expect(source).toMatch(/spawnDetached\(executable,\s*args,\s*cwd\)/);
+	});
+
+	it('spawnProfile uses splitCommand for parsing', () => {
+		expect(source).toMatch(/splitCommand\(profile\.command\)/);
+
 	});
 
 	it('launchAgent no longer creates a bat file', () => {

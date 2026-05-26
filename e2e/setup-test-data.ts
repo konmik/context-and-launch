@@ -27,6 +27,9 @@ export interface BoardPageData {
   projectUnavailable: boolean;
   projectNotFound: boolean;
   projectPath: string;
+  suggestedNextNumber?: string | null;
+  hasRemote: boolean;
+  hasConflict: boolean;
   error?: string;
 }
 
@@ -51,7 +54,7 @@ function buildTicketOrder(tickets: TicketInfo[], columns: string[]): Record<stri
   return order;
 }
 
-export function createBoardWithTickets(tickets: TicketInfo[], columns = DEFAULT_COLUMNS): BoardPageData {
+export function createBoardWithTickets(tickets: TicketInfo[], columns = DEFAULT_COLUMNS, hasRemote = false, hasConflict = false): BoardPageData {
   return {
     projects: [{ path: "/test-project", slug: SLUG, available: true }],
     slug: SLUG,
@@ -63,6 +66,8 @@ export function createBoardWithTickets(tickets: TicketInfo[], columns = DEFAULT_
     projectUnavailable: false,
     projectNotFound: false,
     projectPath: "/test-project",
+    hasRemote,
+    hasConflict,
   };
 }
 

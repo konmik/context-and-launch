@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import { autoCommit as gitAutoCommit } from './git.js';
 import { TicketOrderStore } from './ticket-order.js';
 import { suggestNextTicketNumber } from './ticket-number.js';
 import type { TicketInfo, TicketOrder } from '../types.js';
@@ -129,7 +128,6 @@ export class TicketStore {
 			createdAt: new Date().toISOString(),
 		};
 		this.writeStatusJson(dir, status);
-		this.autoCommit(`create ticket ${status.number}`);
 
 		const ticket = this.readTicket(dir)!;
 		this.orderStore.appendTicket(ticket.folderName, initialStatus);
@@ -184,7 +182,6 @@ export class TicketStore {
 		}
 
 		this.writeStatusJson(finalDir, updated);
-		this.autoCommit(`update ticket ${updated.number}`);
 
 		if (needsRename && path.basename(finalDir) !== folderName) {
 			this.orderStore.renameTicket(folderName, path.basename(finalDir));
@@ -198,7 +195,6 @@ export class TicketStore {
 		const status = this.readStatusJson(dir);
 		const number = status?.number ?? folderName;
 		fs.rmSync(dir, { recursive: true, force: true });
-		this.autoCommit(`delete ticket ${number}`);
 		this.orderStore.removeTicket(folderName);
 	}
 
@@ -213,7 +209,6 @@ export class TicketStore {
 			throw new Error(`Archive destination already exists: ${folderName}`);
 		}
 		fs.renameSync(dir, dest);
-		this.autoCommit(`archive ticket ${number}`);
 		this.orderStore.removeTicket(folderName);
 	}
 
@@ -222,7 +217,6 @@ export class TicketStore {
 		const current = this.readStatusJson(dir);
 		if (!current) throw new Error(`Ticket not found: ${folderName}`);
 		this.writeStatusJson(dir, { ...current, useWorktree: value });
-		this.autoCommit(`set useWorktree for ${current.number}`);
 	}
 
 	getStageMarkdown(folderName: string, stage: string): string | null {
@@ -246,9 +240,6 @@ export class TicketStore {
 		this.requireContainedIn(file, dir, 'stage');
 		if (!fs.existsSync(file)) return;
 		fs.unlinkSync(file);
-		const status = this.readStatusJson(dir);
-		const number = status?.number ?? folderName;
-		this.autoCommit(`delete ${stage} for ${number}`);
 	}
 
 	saveStageMarkdown(folderName: string, stage: string, content: string): void {
@@ -261,9 +252,6 @@ export class TicketStore {
 		this.requireContained(file, 'stage');
 		this.requireContainedIn(file, dir, 'stage');
 		fs.writeFileSync(file, content);
-		const status = this.readStatusJson(dir);
-		const number = status?.number ?? folderName;
-		this.autoCommit(`update ${stage} for ${number}`);
 	}
 
 	listAllTicketNumbers(): Array<{ number: string; createdAt?: string }> {
@@ -337,9 +325,6 @@ export class TicketStore {
 		const filePath = path.join(dir, fileName);
 		this.requireContainedIn(filePath, dir, 'fileName');
 		fs.writeFileSync(filePath, content);
-		const status = this.readStatusJson(dir);
-		const number = status?.number ?? folderName;
-		this.autoCommit(`add file ${fileName} to ${number}`);
 	}
 
 	deleteTicketFile(folderName: string, fileName: string): void {
@@ -354,9 +339,6 @@ export class TicketStore {
 			throw new Error(`File not found: ${fileName}`);
 		}
 		fs.unlinkSync(filePath);
-		const status = this.readStatusJson(dir);
-		const number = status?.number ?? folderName;
-		this.autoCommit(`delete file ${fileName} from ${number}`);
 	}
 
 	getFileContent(folderName: string, fileName: string): Buffer {
@@ -378,7 +360,6 @@ export class TicketStore {
 		if (refs.some((r) => r.path === refPath)) return;
 		refs.push({ path: refPath });
 		this.writeStatusJson(dir, { ...status, references: refs });
-		this.autoCommit(`add reference to ${status.number}`);
 	}
 
 	removeReference(folderName: string, refPath: string): void {
@@ -387,7 +368,6 @@ export class TicketStore {
 		if (!status) throw new Error(`Malformed ticket: ${folderName}`);
 		const refs = (status.references ?? []).filter((r) => r.path !== refPath);
 		this.writeStatusJson(dir, { ...status, references: refs });
-		this.autoCommit(`remove reference from ${status.number}`);
 	}
 
 	getReferencedFileContent(folderName: string, refPath: string): Buffer {
@@ -429,9 +409,5 @@ export class TicketStore {
 			if (!fs.existsSync(dir)) return dir;
 			i++;
 		}
-	}
-
-	private autoCommit(message: string): void {
-		gitAutoCommit(this.worktreeDir, message);
 	}
 }

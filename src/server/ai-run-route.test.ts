@@ -479,7 +479,7 @@ describe('launchAgent ticketDir vs launchDir separation (code-inspection)', () =
 	});
 
 	it('launchDir is only used for the spawned terminal working directory, not for ticket resolution', () => {
-		expect(agentLaunchSource).toMatch(/spawnDetached\(executable,\s*args,\s*launchDir\)/);
+		expect(agentLaunchSource).toMatch(/spawnProfile\(profile,\s*commandVars,\s*launchDir\)/);
 		const variablesBlockMatch = agentLaunchSource.match(/const variables[^}]+\}/s);
 		expect(variablesBlockMatch).not.toBeNull();
 		const variablesBlock = variablesBlockMatch![0];

@@ -120,7 +120,7 @@ describe('FileWatcher', () => {
 		}
 	});
 
-	it('FileWatcher does not create a redundant commit after TicketStore autoCommit succeeds', async () => {
+	it('FileWatcher commits TicketStore changes since autoCommit is removed', async () => {
 		const dir = tmpDir('filewatcher-no-redundant-test-');
 		dirs.push(dir);
 
@@ -138,7 +138,7 @@ describe('FileWatcher', () => {
 			// Wait for chokidar to finish its initial scan
 			await delay(1000);
 
-			// Create a ticket -- TicketStore.autoCommit commits the new files immediately
+			// Create a ticket -- no autoCommit, changes stay uncommitted
 			store.createTicket('RED-1', 'Test ticket');
 
 			// Wait long enough for the FileWatcher debounce to fire
@@ -149,12 +149,11 @@ describe('FileWatcher', () => {
 			const log = await git(dir, 'log', '--oneline');
 			const lines = log.trim().split('\n');
 
-			// Should be exactly 3 commits: "initial commit" + "create ticket RED-1" + "update ticket order"
-			// NOT 4 (no extra "auto: external changes" from FileWatcher)
-			expect(lines.length).toBe(3);
-			expect(lines[0]).toContain('update ticket order');
-			expect(lines[1]).toContain('create ticket RED-1');
-			expect(lines[2]).toContain('initial commit');
+			// FileWatcher picks up the uncommitted changes and commits them
+			// Should be exactly 2: "initial commit" + "auto: external changes"
+			expect(lines.length).toBe(2);
+			expect(lines[0]).toContain('auto: external changes');
+			expect(lines[1]).toContain('initial commit');
 		} finally {
 			watcher.stopAll();
 		}
@@ -394,7 +393,7 @@ describe('FileWatcher', () => {
 		}
 	});
 
-	it('autoCommit failure causes FileWatcher to commit with wrong message', async () => {
+	it('FileWatcher picks up TicketStore changes with generic commit message', async () => {
 		const dir = tmpDir('filewatcher-wrong-msg-test-');
 		dirs.push(dir);
 
@@ -405,22 +404,13 @@ describe('FileWatcher', () => {
 
 		const store = new TicketStore(dir);
 		store.createTicket('BASE-1', 'Setup');
-
-		// Place index.lock so the next autoCommit fails
-		const indexLock = path.join(dir, '.git', 'index.lock');
-		fs.writeFileSync(indexLock, 'simulated lock');
-
-		// This writes the file but autoCommit silently fails
 		store.saveStageMarkdown('base-1-setup', 'todo', '# Notes');
 
-		// Remove the lock so git works again
-		fs.unlinkSync(indexLock);
-
-		// Confirm the change is uncommitted
+		// Confirm changes are uncommitted (no autoCommit)
 		const statusBefore = await git(dir, 'status', '--porcelain');
 		expect(statusBefore.trim()).not.toBe('');
 
-		// Start FileWatcher with a short debounce to pick up the uncommitted changes
+		// Start FileWatcher to pick up the uncommitted changes
 		const watcher = new FileWatcher();
 		try {
 			const debounceMs = 300;
@@ -429,8 +419,7 @@ describe('FileWatcher', () => {
 			// Wait for chokidar to finish its initial scan
 			await delay(1000);
 
-			// Trigger chokidar by touching a non-dotfile so it schedules a commit.
-			// The already-dirty files from the failed autoCommit will be included.
+			// Trigger chokidar by touching a non-dotfile
 			fs.writeFileSync(path.join(dir, 'base-1-setup', 'trigger.txt'), 'nudge');
 			await delay(debounceMs + 2000);
 
@@ -439,19 +428,15 @@ describe('FileWatcher', () => {
 			const log = await git(dir, 'log', '--oneline');
 			const lines = log.trim().split('\n');
 
-			// The last commit should be from FileWatcher with the generic message
+			// FileWatcher commits all uncommitted changes with its generic message
 			const lastCommit = lines[0];
 			expect(lastCommit).toContain('auto: external changes');
-
-			// The specific message "update todo for BASE-1" should NOT appear
-			// in the FileWatcher commit -- it was lost when autoCommit failed
-			expect(lastCommit).not.toContain('update todo');
 		} finally {
 			watcher.stopAll();
 		}
 	});
 
-	it('rapid TicketStore operations produce correct sequential commits without corruption', async () => {
+	it('rapid TicketStore operations produce no commits (changes stay uncommitted)', async () => {
 		const dir = tmpDir('filewatcher-rapid-ticketstore-');
 		dirs.push(dir);
 
@@ -466,25 +451,22 @@ describe('FileWatcher', () => {
 		store.createTicket('RAPID-2', 'Second');
 		store.createTicket('RAPID-3', 'Third');
 
+		// No autoCommit: only the init commit exists
 		const log = await git(dir, 'log', '--oneline');
 		const lines = log.trim().split('\n');
+		expect(lines.length).toBe(1);
+		expect(lines[0]).toContain('initial commit');
 
-		// Each createTicket produces 2 commits: "create ticket ..." + "update ticket order"
-		expect(lines.length).toBe(7);
-		expect(lines[0]).toContain('update ticket order');
-		expect(lines[1]).toContain('create ticket RAPID-3');
-		expect(lines[2]).toContain('update ticket order');
-		expect(lines[3]).toContain('create ticket RAPID-2');
-		expect(lines[4]).toContain('update ticket order');
-		expect(lines[5]).toContain('create ticket RAPID-1');
-		expect(lines[6]).toContain('initial commit');
+		// All 3 ticket folders exist on disk as uncommitted changes
+		const status = await git(dir, 'status', '--porcelain');
+		expect(status).toContain('rapid-1-first');
+		expect(status).toContain('rapid-2-second');
+		expect(status).toContain('rapid-3-third');
 	});
 
-	it('autoCommit partial failure: add -A succeeds but commit fails -- next autoCommit recovers', async () => {
+	it('TicketStore operations write files without committing even when index.lock exists', async () => {
 		const dir = tmpDir('filewatcher-partial-fail-');
 		dirs.push(dir);
-
-		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
 		try {
 			await git(dir, 'init');
@@ -495,41 +477,19 @@ describe('FileWatcher', () => {
 			const store = new TicketStore(dir);
 			store.createTicket('PART-1', 'First ticket');
 
-			// Simulate partial failure: add -A works, but commit fails due to lock
-			fs.writeFileSync(path.join(dir, 'part-1-first-ticket', 'notes.md'), '# Notes');
-
-			// Stage the file manually (simulating add -A succeeding)
-			gitSync(dir, 'add', '-A');
-
-			// Now place index.lock so the commit step fails
-			const indexLock = path.join(dir, '.git', 'index.lock');
-			fs.writeFileSync(indexLock, 'simulated lock');
-
-			// Attempt autoCommit-style operations -- commit should fail
-			try {
-				gitSync(dir, 'commit', '-m', 'should fail');
-			} catch (err) {
-				console.warn('Expected failure:', err);
-			}
-
-			// Remove lock
-			fs.unlinkSync(indexLock);
-
-			// The staged changes should still be there
-			const statusAfterFail = gitSync(dir, 'status', '--porcelain');
-			expect(statusAfterFail.trim()).not.toBe('');
-
-			// Next autoCommit (via saveStageMarkdown) should succeed and include the staged changes
+			// Write a stage markdown file
 			store.saveStageMarkdown('part-1-first-ticket', 'todo', '# Todo list');
 
+			// Verify the file exists on disk
+			expect(fs.existsSync(path.join(dir, 'part-1-first-ticket', 'todo.md'))).toBe(true);
+			expect(fs.readFileSync(path.join(dir, 'part-1-first-ticket', 'todo.md'), 'utf-8')).toBe('# Todo list');
+
+			// No autoCommit: only the init commit exists
 			const log = await git(dir, 'log', '--oneline');
 			const lines = log.trim().split('\n');
-
-			// Should have: initial + create ticket + update ticket order + update todo
-			expect(lines.length).toBe(4);
-			expect(lines[0]).toContain('update todo for PART-1');
+			expect(lines.length).toBe(1);
 		} finally {
-			warnSpy.mockRestore();
+			// no cleanup needed
 		}
 	});
 
@@ -603,11 +563,9 @@ describe('FileWatcher', () => {
 		}
 	});
 
-	it('TicketStore autoCommit during index.lock does not corrupt repo state', async () => {
+	it('TicketStore creates ticket folders even when index.lock exists (no autoCommit)', async () => {
 		const dir = tmpDir('filewatcher-autocommit-lock-');
 		dirs.push(dir);
-
-		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
 		try {
 			await git(dir, 'init');
@@ -617,52 +575,34 @@ describe('FileWatcher', () => {
 
 			const store = new TicketStore(dir);
 
-			// Place index.lock before creating ticket
+			// Place index.lock
 			const indexLock = path.join(dir, '.git', 'index.lock');
 			fs.writeFileSync(indexLock, 'simulated lock');
 
-			// createTicket writes the folder+json but autoCommit fails
+			// createTicket writes the folder+json -- no autoCommit to fail
 			store.createTicket('LOCK-1', 'Locked ticket');
 
 			// Verify the folder was created on disk
-			const folderExists = fs.existsSync(path.join(dir, 'lock-1-locked-ticket'));
-			expect(folderExists).toBe(true);
-
-			// Verify autoCommit warned (both TicketStore and TicketOrderStore fail)
-			expect(warnSpy).toHaveBeenCalled();
-			const lockWarnings = warnSpy.mock.calls.filter(
-				(call) => typeof call[0] === 'string' && call[0].includes('autoCommit failed')
-			);
-			expect(lockWarnings.length).toBe(2);
+			expect(fs.existsSync(path.join(dir, 'lock-1-locked-ticket'))).toBe(true);
 
 			// Remove the lock
 			fs.unlinkSync(indexLock);
 
-			// A subsequent operation should succeed without corruption
-			warnSpy.mockClear();
+			// Create a second ticket
 			store.createTicket('LOCK-2', 'After lock');
+			expect(fs.existsSync(path.join(dir, 'lock-2-after-lock'))).toBe(true);
 
-			// No warnings for the second operation
-			const secondWarnings = warnSpy.mock.calls.filter(
-				(call) => typeof call[0] === 'string' && call[0].includes('autoCommit failed')
-			);
-			expect(secondWarnings.length).toBe(0);
-
-			// Verify repo integrity: 3 commits (initial + create LOCK-2 + update ticket order)
-			// LOCK-1 changes get bundled into LOCK-2's commit since add -A picks them up
+			// No autoCommit: only the init commit exists
 			const log = await git(dir, 'log', '--oneline');
 			const lines = log.trim().split('\n');
-			expect(lines.length).toBe(3);
-			expect(lines[0]).toContain('update ticket order');
-			expect(lines[1]).toContain('create ticket LOCK-2');
-			expect(lines[2]).toContain('initial commit');
+			expect(lines.length).toBe(1);
 
-			// Verify both tickets exist in the committed tree
-			const lsTree = await git(dir, 'ls-tree', '--name-only', 'HEAD');
-			expect(lsTree).toContain('lock-1-locked-ticket');
-			expect(lsTree).toContain('lock-2-after-lock');
+			// Both ticket folders exist as uncommitted changes
+			const status = await git(dir, 'status', '--porcelain');
+			expect(status).toContain('lock-1-locked-ticket');
+			expect(status).toContain('lock-2-after-lock');
 		} finally {
-			warnSpy.mockRestore();
+			// no cleanup needed
 		}
 	});
 });

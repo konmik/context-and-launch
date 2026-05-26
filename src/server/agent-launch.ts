@@ -4,7 +4,7 @@ import { worktreeManager, projectRegistry, launcherConfigManager, agentWorktreeM
 import { TicketStore } from "~/server/ticket-store.js";
 import { ProcessError } from "~/server/errors.js";
 import { assemblePrompt, interpolatePrompt, splitCommand } from "~/server/prompt-interpolation.js";
-import type { TicketInfo, ProjectInfo } from "~/types.js";
+import type { TicketInfo, ProjectInfo, LauncherProfile } from "~/types.js";
 
 const TITLE_SUFFIX = " -- AI";
 const FALLBACK_PROMPT = "Current ticket files are in {{ticketDir}}. Read the files there for context.";
@@ -140,6 +140,24 @@ export function buildWindowTitle(ticket: TicketInfo): string {
   return ticket.title + TITLE_SUFFIX;
 }
 
+/**
+ * Parse a profile command, interpolate variables, spawn the process, and
+ * detach after a short delay. Rejects if the process fails to spawn or
+ * exits with a non-zero code before the detach timeout.
+ */
+export async function spawnProfile(
+  profile: LauncherProfile,
+  commandVars: Record<string, string>,
+  cwd: string,
+): Promise<void> {
+  const parts = splitCommand(profile.command);
+  const executable = parts[0];
+  const args = parts.slice(1).map(arg =>
+    arg.replace(/\{\{(\w+)\}\}/g, (match, key) => commandVars[key] ?? match)
+  );
+  await spawnDetached(executable, args, cwd);
+}
+
 export async function launchAgent(
   slug: string,
   ticket: TicketInfo,
@@ -183,12 +201,6 @@ export async function launchAgent(
   }
 
   const commandVars: Record<string, string> = { initialPrompt, windowTitle, appConfigDir: launcherConfigManager.getAppConfigDir() };
-  const parts = splitCommand(profile.command);
-  const executable = parts[0];
-  const args = parts.slice(1).map(arg =>
-    arg.replace(/\{\{(\w+)\}\}/g, (match, key) => commandVars[key] ?? match)
-  );
-
-  await spawnDetached(executable, args, launchDir);
+  await spawnProfile(profile, commandVars, launchDir);
 
 }

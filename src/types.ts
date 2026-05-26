@@ -95,6 +95,7 @@ export interface LauncherConfig {
 	columnDefaults?: Record<string, LauncherColumnDefaults>;
 	worktreeRootPath?: string;
 	boardId?: string;
+	conflictResolutionPrompt?: string;
 }
 
 export interface ErrorInfo {
@@ -111,4 +112,5 @@ export interface MergedLauncherConfig {
 	columnDefaults: Record<string, LauncherColumnDefaults>;
 	worktreeRootPath: string | null;
 	boardId: string | null;
+	conflictResolutionPrompt: string;
 }
