@@ -421,3 +421,51 @@ describe("TicketDetailDialog stage deletion clears extraFiles", () => {
     expect(optionsAfterDelete.some((t) => t?.includes("ghost-stage.md"))).toBe(false);
   });
 });
+
+describe("TicketDetailDialog initial tab", () => {
+  let originalFetch: typeof globalThis.fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    cleanup();
+  });
+
+  it("shows the configured tab at start without flashing the editor first", async () => {
+    const { mockFetch, pending } = createFetchController();
+    globalThis.fetch = mockFetch as any;
+
+    const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
+
+    render(() => (
+      <TicketDetailDialog
+        onClose={() => {}}
+        slug="test-project"
+        ticket={ticket}
+      />
+    ));
+
+    await flush();
+
+    // Before the launcher config resolves, no tab content (editor or launcher) is shown.
+    expect(screen.queryByText("Drop a file to copy")).toBeNull();
+    expect(screen.queryByTestId("agent-launcher")).toBeNull();
+
+    // Resolve the launcher-config fetch with a column default pointing at the launcher tab.
+    const configIdx = mockFetch.mock.calls.findIndex(
+      ([url]: [string, RequestInit?]) => url.toString().includes("launcher-config")
+    );
+    pending[configIdx].resolve({
+      ...emptyConfig,
+      columnDefaults: { todo: { lastLayer: "launcher" } },
+    });
+    await flush();
+
+    // The launcher tab is shown directly; the editor toolbar never appeared.
+    expect(screen.getByTestId("agent-launcher")).toBeTruthy();
+    expect(screen.queryByText("Drop a file to copy")).toBeNull();
+  });
+});

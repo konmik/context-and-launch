@@ -101,6 +101,7 @@ function TicketDetailContent(props: {
   type Tab = "editor" | "launcher" | "shortcuts";
   const [pendingTab, setPendingTab] = createSignal<Tab | null>(null);
   const [activeTab, setActiveTab] = createSignal<Tab>("editor");
+  const [initialTabResolved, setInitialTabResolved] = createSignal(false);
   const [launcherConfig, setLauncherConfig] = createSignal<MergedLauncherConfig | null>(null);
   const [extraFiles, setExtraFiles] = createSignal<string[]>([]);
   const [newFileDialogOpen, setNewFileDialogOpen] = createSignal(false);
@@ -322,8 +323,14 @@ function TicketDetailContent(props: {
             if (defaults?.lastLayer === "launcher" || defaults?.lastLayer === "shortcuts") {
               setActiveTab(defaults.lastLayer);
             }
+          } else {
+            setError((await res.text()) || `Failed to load launcher config (${res.status})`);
           }
-        } catch {}
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "Failed to load launcher config");
+        } finally {
+          setInitialTabResolved(true);
+        }
       }
     )
   );
@@ -714,6 +721,7 @@ function TicketDetailContent(props: {
 
   return (
     <>
+      <Show when={initialTabResolved()}>
       <FloatingPanelRoot
         open={true}
         onOpenChange={(d) => { if (!d.open) close(); }}
@@ -909,6 +917,7 @@ function TicketDetailContent(props: {
           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><path d="M10 2v8H2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         </FloatingPanelResizeTrigger>
       </FloatingPanelRoot>
+      </Show>
 
       <DiscardConfirmation
         open={confirmingClose()}
