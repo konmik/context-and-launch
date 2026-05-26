@@ -1,5 +1,5 @@
 import { createSignal, Show } from "solid-js";
-import { Dialog } from "./ui/dialog";
+import { DialogRoot, DialogTitle, DialogDescription } from "./ui/dialog";
 import type { TicketInfo } from "~/types.js";
 
 interface ArchiveTicketDialogProps {
@@ -32,9 +32,9 @@ export default function ArchiveTicketDialog(props: ArchiveTicketDialogProps) {
   }
 
   return (
-    <Dialog open={props.open && !!props.ticket} onOpenChange={close}>
-      <Dialog.Title>Archive Ticket</Dialog.Title>
-      <Dialog.Description>Archive ticket {props.ticket?.number} - {props.ticket?.title}?</Dialog.Description>
+    <DialogRoot open={props.open && !!props.ticket} onOpenChange={close}>
+      <DialogTitle>Archive Ticket</DialogTitle>
+      <DialogDescription>Archive ticket {props.ticket?.number} - {props.ticket?.title}?</DialogDescription>
       <Show when={errorMsg()}><p class="mb-4 text-sm text-destructive">{errorMsg()}</p></Show>
       <form onSubmit={handleSubmit}>
         <div class="flex justify-end gap-2">
@@ -42,6 +42,6 @@ export default function ArchiveTicketDialog(props: ArchiveTicketDialogProps) {
           <button type="submit" disabled={submitting()} class="btn-primary">Archive</button>
         </div>
       </form>
-    </Dialog>
+    </DialogRoot>
   );
 }

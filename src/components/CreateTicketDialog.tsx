@@ -1,5 +1,5 @@
 import { createSignal, createEffect, Show } from "solid-js";
-import { Dialog } from "./ui/dialog";
+import { DialogRoot, DialogTitle } from "./ui/dialog";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 
 interface CreateTicketDialogProps {
@@ -50,8 +50,8 @@ export default function CreateTicketDialog(props: CreateTicketDialogProps) {
   });
 
   return (
-    <Dialog open={props.open} onOpenChange={close}>
-      <Dialog.Title>New Ticket</Dialog.Title>
+    <DialogRoot open={props.open} onOpenChange={close}>
+      <DialogTitle>New Ticket</DialogTitle>
       <form onSubmit={(e) => { e.preventDefault(); doSubmit(); }}>
         <div class="mb-4">
           <label for="ticket-number" class="mb-2 block text-sm font-medium">Number</label>
@@ -67,6 +67,6 @@ export default function CreateTicketDialog(props: CreateTicketDialogProps) {
           <button type="submit" disabled={submitting() || !number().trim() || !title().trim()} title={modEnterHint()} class="btn-primary">Create</button>
         </div>
       </form>
-    </Dialog>
+    </DialogRoot>
   );
 }

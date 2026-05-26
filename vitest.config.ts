@@ -13,7 +13,7 @@ export default defineConfig({
   test: {
     projects: [
       { ...solidVite, test: { name: "unit-ts", include: ["src/**/*.test.ts"] } },
-      { ...solidVite, test: { name: "unit-tsx", include: ["src/**/*.test.tsx"], environment: "jsdom" } },
+      { ...solidVite, test: { name: "unit-tsx", include: ["src/**/*.test.tsx"], environment: "jsdom", setupFiles: ["src/test-setup.ts"] } },
       { resolve: { alias }, test: { name: "e2e", include: ["e2e/**/*.test.ts"] } },
     ],
   },

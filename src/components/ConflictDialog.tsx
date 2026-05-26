@@ -1,5 +1,5 @@
 import { createSignal, createEffect, Show, For } from "solid-js";
-import { Dialog } from "./ui/dialog";
+import { DialogRoot, DialogTitle, DialogDescription } from "./ui/dialog";
 
 interface ConflictDialogProps {
   open: boolean;
@@ -40,9 +40,9 @@ export default function ConflictDialog(props: ConflictDialogProps) {
   }
 
   return (
-    <Dialog open={props.open} onOpenChange={close}>
-      <Dialog.Title>Sync Conflicts Detected</Dialog.Title>
-      <Dialog.Description>The sync encountered conflicts during rebase. You can launch an AI agent to resolve them, or abort to keep your local changes and retry later.</Dialog.Description>
+    <DialogRoot open={props.open} onOpenChange={close}>
+      <DialogTitle>Sync Conflicts Detected</DialogTitle>
+      <DialogDescription>The sync encountered conflicts during rebase. You can launch an AI agent to resolve them, or abort to keep your local changes and retry later.</DialogDescription>
 
       <div class="mb-4">
         <label class="mb-1 block text-sm font-medium">Profile</label>
@@ -66,6 +66,6 @@ export default function ConflictDialog(props: ConflictDialogProps) {
           <button type="button" onClick={() => submit(() => props.onResolve(selectedProfile()), "Failed to launch resolver")} disabled={submitting() || !selectedProfile()} class="btn-primary">Launch</button>
         </div>
       </div>
-    </Dialog>
+    </DialogRoot>
   );
 }

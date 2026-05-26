@@ -1,6 +1,6 @@
 import { createSignal, createEffect, Show, For, on, onCleanup } from "solid-js";
-import { Dialog } from "./ui/dialog";
-import { Tabs } from "./ui/tabs";
+import { DialogRoot, DialogTitle, DialogDescription } from "./ui/dialog";
+import { TabsRoot, TabsList, TabsTrigger } from "./ui/tabs";
 import { Portal } from "solid-js/web";
 import { revalidate } from "@solidjs/router";
 import type { TicketInfo, MergedLauncherConfig, LauncherColumnDefaults } from "~/types.js";
@@ -55,14 +55,14 @@ function DiscardConfirmation(props: {
   });
 
   return (
-    <Dialog open={props.open} onOpenChange={props.onCancel} onMouseDown={(e: MouseEvent) => e.preventDefault()}>
-      <Dialog.Title>Unsaved Changes</Dialog.Title>
-      <Dialog.Description>{props.message}</Dialog.Description>
+    <DialogRoot open={props.open} onOpenChange={props.onCancel} onMouseDown={(e: MouseEvent) => e.preventDefault()}>
+      <DialogTitle>Unsaved Changes</DialogTitle>
+      <DialogDescription>{props.message}</DialogDescription>
       <div class="flex justify-end gap-2">
         <button type="button" onClick={props.onCancel} class="btn-secondary">Cancel</button>
         <button type="button" onClick={props.onDiscard} title={modEnterHint()} class="btn-destructive">Discard</button>
       </div>
-    </Dialog>
+    </DialogRoot>
   );
 }
 
@@ -755,18 +755,18 @@ function TicketDetailContent(props: {
                 </label>
               </Show>
             </div>
-            <Tabs.Root
+            <TabsRoot
               value={activeTab()}
               onValueChange={(d) => switchTab(d.value as Tab)}
               class="-mb-4"
               onMouseDown={(e: MouseEvent) => e.stopPropagation()}
             >
-              <Tabs.List>
+              <TabsList>
                 {([["editor", "File Editor"], ["launcher", "Agent Launcher"], ["shortcuts", "Shortcuts"]] as const).map(
-                  ([tab, label]) => <Tabs.Trigger value={tab}>{label}</Tabs.Trigger>
+                  ([tab, label]) => <TabsTrigger value={tab}>{label}</TabsTrigger>
                 )}
-              </Tabs.List>
-            </Tabs.Root>
+              </TabsList>
+            </TabsRoot>
           </div>
         }
         footer={
@@ -968,51 +968,51 @@ function TicketDetailContent(props: {
         onDiscard={proceedFileSwitch}
       />
 
-      <Dialog open={!!dirtyWorktreeShortcut()} onOpenChange={() => setDirtyWorktreeShortcut(null)} class="max-w-sm">
-        <Dialog.Title class="sr-only">Uncommitted Changes</Dialog.Title>
+      <DialogRoot open={!!dirtyWorktreeShortcut()} onOpenChange={() => setDirtyWorktreeShortcut(null)} class="max-w-sm">
+        <DialogTitle class="sr-only">Uncommitted Changes</DialogTitle>
         <p class="mb-4 text-sm">{dirtyWorktreeShortcut()?.message}</p>
         <div class="flex justify-end gap-2">
           <button onClick={() => setDirtyWorktreeShortcut(null)} class="btn-secondary">Cancel</button>
           <button onClick={() => { const n = dirtyWorktreeShortcut()!.name; setDirtyWorktreeShortcut(null); runShortcut(n, true); }} disabled={runningShortcut() !== ""} class="btn-primary">Run Anyway</button>
         </div>
-      </Dialog>
+      </DialogRoot>
 
-      <Dialog open={newFileDialogOpen()} onOpenChange={() => setNewFileDialogOpen(false)} onMouseDown={(e: MouseEvent) => { if (!(e.target instanceof HTMLInputElement)) e.preventDefault(); }}>
-        <Dialog.Title>New Markdown File</Dialog.Title>
+      <DialogRoot open={newFileDialogOpen()} onOpenChange={() => setNewFileDialogOpen(false)} onMouseDown={(e: MouseEvent) => { if (!(e.target instanceof HTMLInputElement)) e.preventDefault(); }}>
+        <DialogTitle>New Markdown File</DialogTitle>
         <label class="mb-1 block text-sm text-muted-foreground">File name (without .md extension)</label>
         <input type="text" value={newFileName()} onInput={(e) => setNewFileName(e.currentTarget.value)} onKeyDown={(e) => { if (e.key === "Enter") submitNewFile(); if (e.key === "Escape") setNewFileDialogOpen(false); }} autofocus class="input mb-4" placeholder="e.g. design-notes" />
         <div class="flex justify-end gap-2">
           <button type="button" onClick={() => setNewFileDialogOpen(false)} class="btn-secondary">Cancel</button>
           <button type="button" onClick={submitNewFile} disabled={!newFileName().trim()} title={modEnterHint()} class="btn-primary">Create</button>
         </div>
-      </Dialog>
+      </DialogRoot>
 
-      <Dialog open={confirmingDelete()} onOpenChange={() => setConfirmingDelete(false)} onMouseDown={(e: MouseEvent) => e.preventDefault()}>
-        <Dialog.Title>Delete File</Dialog.Title>
-        <Dialog.Description>Delete {activeFileLabel(activeFile())}? This cannot be undone.</Dialog.Description>
+      <DialogRoot open={confirmingDelete()} onOpenChange={() => setConfirmingDelete(false)} onMouseDown={(e: MouseEvent) => e.preventDefault()}>
+        <DialogTitle>Delete File</DialogTitle>
+        <DialogDescription>Delete {activeFileLabel(activeFile())}? This cannot be undone.</DialogDescription>
         <div class="flex justify-end gap-2">
           <button type="button" onClick={() => setConfirmingDelete(false)} class="btn-secondary">Cancel</button>
           <button type="button" onClick={deleteOrRemoveFile} title={modEnterHint()} class="btn-destructive">Delete</button>
         </div>
-      </Dialog>
+      </DialogRoot>
 
-      <Dialog open={!!confirmOverwrite()} onOpenChange={() => { const r = confirmResolver(); setConfirmOverwrite(null); setConfirmResolver(null); r?.(); }} onMouseDown={(e: MouseEvent) => e.preventDefault()}>
-        <Dialog.Title>Overwrite File</Dialog.Title>
-        <Dialog.Description>A file named "{confirmOverwrite()?.fileName}" already exists. Overwrite it?</Dialog.Description>
+      <DialogRoot open={!!confirmOverwrite()} onOpenChange={() => { const r = confirmResolver(); setConfirmOverwrite(null); setConfirmResolver(null); r?.(); }} onMouseDown={(e: MouseEvent) => e.preventDefault()}>
+        <DialogTitle>Overwrite File</DialogTitle>
+        <DialogDescription>A file named "{confirmOverwrite()?.fileName}" already exists. Overwrite it?</DialogDescription>
         <div class="flex justify-end gap-2">
           <button type="button" onClick={() => { const r = confirmResolver(); setConfirmOverwrite(null); setConfirmResolver(null); r?.(); }} class="btn-secondary">Cancel</button>
           <button type="button" onClick={confirmOverwriteAndUpload} class="btn-destructive">Overwrite</button>
         </div>
-      </Dialog>
+      </DialogRoot>
 
-      <Dialog open={!!confirmSize()} onOpenChange={() => { const r = confirmResolver(); setConfirmSize(null); setConfirmResolver(null); r?.(); }} onMouseDown={(e: MouseEvent) => e.preventDefault()}>
-        <Dialog.Title>Large File</Dialog.Title>
-        <Dialog.Description>"{confirmSize()?.fileName}" is {((confirmSize()?.size ?? 0) / 1024).toFixed(1)} KB, which is larger than 10 KB. Copy it anyway?</Dialog.Description>
+      <DialogRoot open={!!confirmSize()} onOpenChange={() => { const r = confirmResolver(); setConfirmSize(null); setConfirmResolver(null); r?.(); }} onMouseDown={(e: MouseEvent) => e.preventDefault()}>
+        <DialogTitle>Large File</DialogTitle>
+        <DialogDescription>"{confirmSize()?.fileName}" is {((confirmSize()?.size ?? 0) / 1024).toFixed(1)} KB, which is larger than 10 KB. Copy it anyway?</DialogDescription>
         <div class="flex justify-end gap-2">
           <button type="button" onClick={() => { const r = confirmResolver(); setConfirmSize(null); setConfirmResolver(null); r?.(); }} class="btn-secondary">Cancel</button>
           <button type="button" onClick={confirmSizeAndUpload} class="btn-primary">Copy Anyway</button>
         </div>
-      </Dialog>
+      </DialogRoot>
 
     </>
   );
