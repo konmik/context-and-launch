@@ -473,43 +473,46 @@ function TicketDetailContent(props: {
     const af = activeFile();
     setConfirmingDelete(false);
 
+    let url: string;
+    let errorLabel: string;
+    let fetchOpts: RequestInit;
+
     if (af.type === "reference") {
-      try {
-        const res = await fetch(ticketUrl("references"), {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ path: af.path }),
-        });
-        if (!res.ok) throw new Error(await res.text() || "Failed to remove reference");
-        setTicketReferences((prev) => prev.filter((r) => r.path !== af.path));
-        revalidate("board-data");
-        const remaining = allFileOptions().filter((f) => !isActiveFileMatch(f, af));
-        setActiveFile(remaining[0] ?? { type: "stage", name: "to-do" });
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to remove reference");
-      }
+      url = ticketUrl("references");
+      errorLabel = "Failed to remove reference";
+      fetchOpts = {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: af.path }),
+      };
     } else if (af.type === "file") {
-      try {
-        const res = await fetch(ticketUrl(`files/${encodeURIComponent(af.name)}`), { method: "DELETE" });
-        if (!res.ok) throw new Error(await res.text() || "Failed to delete file");
-        setTicketFileNames((prev) => prev.filter((n) => n !== af.name));
-        revalidate("board-data");
-        const remaining = allFileOptions().filter((f) => !isActiveFileMatch(f, af));
-        setActiveFile(remaining[0] ?? { type: "stage", name: "to-do" });
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to delete file");
-      }
+      url = ticketUrl(`files/${encodeURIComponent(af.name)}`);
+      errorLabel = "Failed to delete file";
+      fetchOpts = { method: "DELETE" };
     } else {
-      try {
-        const res = await fetch(ticketUrl(`stages/${af.name}`), { method: "DELETE" });
-        if (!res.ok) throw new Error(await res.text() || "Failed to delete file");
-        setExtraFiles((prev) => prev.filter((n) => n !== af.name));
-        revalidate("board-data");
-        const remaining = allFileOptions().filter((f) => !isActiveFileMatch(f, af));
-        setActiveFile(remaining[0] ?? { type: "stage", name: "to-do" });
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to delete file");
+      url = ticketUrl(`stages/${af.name}`);
+      errorLabel = "Failed to delete file";
+      fetchOpts = { method: "DELETE" };
+    }
+
+    try {
+      const res = await fetch(url, fetchOpts);
+      if (!res.ok) {
+        setError(await res.text() || errorLabel);
+        return;
       }
+      if (af.type === "reference") {
+        setTicketReferences((prev) => prev.filter((r) => r.path !== af.path));
+      } else if (af.type === "file") {
+        setTicketFileNames((prev) => prev.filter((n) => n !== af.name));
+      } else {
+        setExtraFiles((prev) => prev.filter((n) => n !== af.name));
+      }
+      revalidate("board-data");
+      const remaining = allFileOptions().filter((f) => !isActiveFileMatch(f, af));
+      setActiveFile(remaining[0] ?? { type: "stage", name: "to-do" });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : errorLabel);
     }
   }
 
