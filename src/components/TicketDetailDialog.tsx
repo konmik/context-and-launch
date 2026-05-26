@@ -125,6 +125,7 @@ function TicketDetailContent(props: {
   const [confirmingDelete, setConfirmingDelete] = createSignal(false);
   const [error, setError] = createSignal("");
   const [dropdownOpen, setDropdownOpen] = createSignal(false);
+  let dropdownBtnRef: HTMLButtonElement | undefined;
   const [browsing, setBrowsing] = createSignal(false);
   const [dragging, setDragging] = createSignal(false);
   const [imageUrl, setImageUrl] = createSignal("");
@@ -824,8 +825,9 @@ function TicketDetailContent(props: {
           <Show when={activeTab() === "editor"}>
             {/* File selector row */}
             <div class="flex items-center gap-2 px-4 py-2">
-              <div class="relative min-w-0 flex-1">
+              <div class="min-w-0 flex-1">
                 <button
+                  ref={(el) => (dropdownBtnRef = el)}
                   type="button"
                   onClick={() => setDropdownOpen(!dropdownOpen())}
                   class="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-sm"
@@ -840,33 +842,40 @@ function TicketDetailContent(props: {
                 </button>
                 <Show when={dropdownOpen()}>
                   <Portal>
-                  <div class="fixed inset-0" onClick={() => setDropdownOpen(false)} />
+                    <div class="fixed inset-0" onClick={() => setDropdownOpen(false)} />
+                    <div
+                      class="fixed max-h-60 overflow-auto rounded-md border border-border bg-popover py-1 shadow-md"
+                      style={{
+                        top: `${(dropdownBtnRef?.getBoundingClientRect().bottom ?? 0) + 4}px`,
+                        left: `${dropdownBtnRef?.getBoundingClientRect().left ?? 0}px`,
+                        width: `${dropdownBtnRef?.getBoundingClientRect().width ?? 0}px`,
+                      }}
+                    >
+                      <For each={allFileOptions()}>
+                        {(option) => (
+                          <button
+                            type="button"
+                            onClick={() => selectFile(option)}
+                            class={`flex w-full items-center gap-1 px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground ${
+                              isActiveFileMatch(option, activeFile()) ? "font-semibold" : ""
+                            }`}
+                          >
+                            <span class="truncate">{activeFileLabel(option)}</span>
+                            {option.type === "reference" && (
+                              <>
+                                <span class="shrink-0 text-xs text-muted-foreground">REFERENCE</span>
+                                {isReferenceStale(option.path) && (
+                                  <span class="shrink-0" title="File not found on disk">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-yellow-500"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </For>
+                    </div>
                   </Portal>
-                  <div class="absolute left-0 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover py-1 shadow-md">
-                    <For each={allFileOptions()}>
-                      {(option) => (
-                        <button
-                          type="button"
-                          onClick={() => selectFile(option)}
-                          class={`flex w-full items-center gap-1 px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground ${
-                            isActiveFileMatch(option, activeFile()) ? "font-semibold" : ""
-                          }`}
-                        >
-                          <span class="truncate">{activeFileLabel(option)}</span>
-                          {option.type === "reference" && (
-                            <>
-                              <span class="shrink-0 text-xs text-muted-foreground">REFERENCE</span>
-                              {isReferenceStale(option.path) && (
-                                <span class="shrink-0" title="File not found on disk">
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-yellow-500"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                                </span>
-                              )}
-                            </>
-                          )}
-                        </button>
-                      )}
-                    </For>
-                  </div>
                 </Show>
               </div>
               <button
