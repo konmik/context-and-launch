@@ -162,5 +162,35 @@ describe('TicketSyncManager', () => {
 		await manager.abort(worktreeDir);
 	});
 
+	it('sync surfaces a non-conflict rebase failure as error, not conflict', async () => {
+		const { worktreeDir, remoteDir } = await createRepoWithRemote();
+		dirs.push(worktreeDir, remoteDir);
+
+		// Push a remote change so the local side is behind and a rebase is required.
+		const clone2 = tmpDir('sync-clone2-');
+		dirs.push(clone2);
+		await git(clone2, 'clone', remoteDir, '.');
+		await git(clone2, 'config', 'user.email', 'test@test.com');
+		await git(clone2, 'config', 'user.name', 'Test');
+		fs.writeFileSync(path.join(clone2, 'remote.txt'), 'remote content');
+		await git(clone2, 'add', '-A');
+		await git(clone2, 'commit', '-m', 'remote change');
+		await git(clone2, 'push');
+
+		// Install a pre-rebase hook that refuses the rebase. This makes `git rebase`
+		// fail for a non-conflict reason and leaves no in-progress rebase.
+		const hooksDir = path.join(worktreeDir, '.git', 'hooks');
+		fs.writeFileSync(path.join(hooksDir, 'pre-rebase'), '#!/bin/sh\nexit 1\n');
+
+		// A local change so sync commits and then attempts to rebase.
+		fs.writeFileSync(path.join(worktreeDir, 'local.txt'), 'local content');
+
+		const manager = new TicketSyncManager();
+		const result = await manager.sync(worktreeDir);
+
+		expect(result.status).toBe('error');
+		// No phantom rebase should be left behind.
+		expect(manager.hasActiveRebase(worktreeDir)).toBe(false);
+	});
 
 });
