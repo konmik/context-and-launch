@@ -1,5 +1,5 @@
 import { Show } from "solid-js";
-import { Dialog } from "./ui/dialog";
+import { DialogRoot, DialogTitle } from "./ui/dialog";
 import type { ErrorInfo } from "~/types.js";
 
 interface ErrorDialogProps {
@@ -9,9 +9,9 @@ interface ErrorDialogProps {
 
 export default function ErrorDialog(props: ErrorDialogProps) {
   return (
-    <Dialog open={!!props.error} onOpenChange={props.onClose} class="flex max-h-[80vh] max-w-lg flex-col p-0">
+    <DialogRoot open={!!props.error} onOpenChange={props.onClose} class="flex max-h-[80vh] max-w-lg flex-col p-0">
       <div class="flex-none px-6 pt-6 pb-2">
-        <Dialog.Title class="mb-0 text-sm">{props.error?.description}</Dialog.Title>
+        <DialogTitle class="mb-0 text-sm">{props.error?.description}</DialogTitle>
       </div>
       <div class="flex-1 overflow-y-auto px-6">
         <Show when={props.error?.command}>
@@ -30,6 +30,6 @@ export default function ErrorDialog(props: ErrorDialogProps) {
       <div class="flex flex-none justify-end px-6 pt-4 pb-6">
         <button onClick={props.onClose} class="btn-primary">OK</button>
       </div>
-    </Dialog>
+    </DialogRoot>
   );
 }

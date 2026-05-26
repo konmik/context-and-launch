@@ -1,5 +1,5 @@
 import { createSignal, createEffect, on, Show, For } from "solid-js";
-import { Dialog } from "./ui/dialog";
+import { DialogRoot, DialogTitle } from "./ui/dialog";
 import type { TicketInfo, MergedLauncherConfig, ErrorInfo, LauncherColumnDefaults } from "~/types.js";
 import ErrorDialog from "./ErrorDialog.js";
 
@@ -159,23 +159,23 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 
 			<ErrorDialog error={errorInfo()} onClose={() => setErrorInfo(null)} />
 
-			<Dialog open={!!behindRemoteMsg()} onOpenChange={() => setBehindRemoteMsg("")} class="max-w-sm">
-				<Dialog.Title class="sr-only">Behind Remote</Dialog.Title>
+			<DialogRoot open={!!behindRemoteMsg()} onOpenChange={() => setBehindRemoteMsg("")} class="max-w-sm">
+				<DialogTitle class="sr-only">Behind Remote</DialogTitle>
 				<p class="mb-4 text-sm">{behindRemoteMsg()}</p>
 				<div class="flex justify-end gap-2">
 					<button onClick={() => setBehindRemoteMsg("")} class="btn-secondary">Cancel</button>
 					<button onClick={pullAndRetry} disabled={launching()} class="btn-primary">Pull & Retry</button>
 				</div>
-			</Dialog>
+			</DialogRoot>
 
-			<Dialog open={!!dirtyWorktreeMsg()} onOpenChange={() => setDirtyWorktreeMsg("")} class="max-w-sm">
-				<Dialog.Title class="sr-only">Uncommitted Changes</Dialog.Title>
+			<DialogRoot open={!!dirtyWorktreeMsg()} onOpenChange={() => setDirtyWorktreeMsg("")} class="max-w-sm">
+				<DialogTitle class="sr-only">Uncommitted Changes</DialogTitle>
 				<p class="mb-4 text-sm">{dirtyWorktreeMsg()}</p>
 				<div class="flex justify-end gap-2">
 					<button onClick={() => setDirtyWorktreeMsg("")} class="btn-secondary">Cancel</button>
 					<button onClick={() => { setDirtyWorktreeMsg(""); launchAgent({ force: true }); }} disabled={launching()} class="btn-primary">Launch Anyway</button>
 				</div>
-			</Dialog>
+			</DialogRoot>
 		</div>
 	);
 }

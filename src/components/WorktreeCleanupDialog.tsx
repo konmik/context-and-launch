@@ -1,5 +1,5 @@
 import { createSignal, Show, onMount } from "solid-js";
-import { Dialog } from "./ui/dialog";
+import { DialogRoot, DialogTitle, DialogDescription } from "./ui/dialog";
 import type { TicketInfo, ErrorInfo } from "~/types.js";
 
 const STORAGE_KEY = "worktree-cleanup-options";
@@ -68,9 +68,9 @@ export default function WorktreeCleanupDialog(props: WorktreeCleanupDialogProps)
   const actionLabel = () => props.action === "archive" ? "Archive" : "Delete";
 
   return (
-    <Dialog open={props.open && !!props.ticket} onOpenChange={close}>
-      <Dialog.Title>{actionLabel()} Ticket</Dialog.Title>
-      <Dialog.Description>{actionLabel()} ticket {props.ticket?.number} - {props.ticket?.title}?</Dialog.Description>
+    <DialogRoot open={props.open && !!props.ticket} onOpenChange={close}>
+      <DialogTitle>{actionLabel()} Ticket</DialogTitle>
+      <DialogDescription>{actionLabel()} ticket {props.ticket?.number} - {props.ticket?.title}?</DialogDescription>
 
       <div class="mb-4 space-y-2">
         <p class="text-sm font-medium">Worktree cleanup</p>
@@ -104,6 +104,6 @@ export default function WorktreeCleanupDialog(props: WorktreeCleanupDialogProps)
           <button type="submit" disabled={submitting()} class={props.action === "delete" ? "btn-destructive" : "btn-primary"}>{actionLabel()}</button>
         </div>
       </form>
-    </Dialog>
+    </DialogRoot>
   );
 }

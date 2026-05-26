@@ -1,15 +1,11 @@
 import { Menu as ArkMenu } from "@ark-ui/solid";
 import { Portal } from "solid-js/web";
-import type { JSX, ComponentProps } from "solid-js";
+import type { JSX } from "solid-js";
 
-type RootProps = ComponentProps<typeof ArkMenu.Root>;
-
-interface MenuProps {
+export function MenuRoot(props: {
   children: JSX.Element;
   trigger: JSX.Element;
-}
-
-function MenuRoot(props: MenuProps) {
+}) {
   return (
     <ArkMenu.Root>
       {props.trigger}
@@ -22,9 +18,7 @@ function MenuRoot(props: MenuProps) {
   );
 }
 
-export const Menu = Object.assign(MenuRoot, {
-  Trigger: ArkMenu.Trigger,
-  Content: ArkMenu.Content,
-  Item: ArkMenu.Item,
-  Separator: ArkMenu.Separator,
-});
+export const MenuTrigger = ArkMenu.Trigger;
+export const MenuContent = ArkMenu.Content;
+export const MenuItem = ArkMenu.Item;
+export const MenuSeparator = ArkMenu.Separator;

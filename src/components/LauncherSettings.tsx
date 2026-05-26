@@ -1,6 +1,6 @@
 import { createSignal, createEffect, on, Show, For } from "solid-js";
-import { Dialog } from "./ui/dialog";
-import { Tabs } from "./ui/tabs";
+import { DialogRoot, DialogTitle, DialogCloseTrigger } from "./ui/dialog";
+import { TabsRoot, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
 import type { MergedLauncherConfig } from "~/types.js";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 
@@ -135,27 +135,27 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 	}
 
 	return (<>
-		<Dialog open={props.open} onOpenChange={() => props.onOpenChange(false)} class="flex h-[80vh] max-w-2xl flex-col p-0">
-						<div class="flex items-center justify-between border-b border-border px-6 py-4">
-							<Dialog.Title class="mb-0">Settings</Dialog.Title>
-							<Dialog.CloseTrigger>
-								<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-							</Dialog.CloseTrigger>
+		<DialogRoot open={props.open} onOpenChange={() => props.onOpenChange(false)} class="flex h-[80vh] max-w-3xl flex-col p-0">
+						<div class="flex items-center justify-between px-6 py-4">
+							<DialogTitle class="mb-0">Settings</DialogTitle>
+							<div class="flex items-center gap-1">
+								<button onClick={() => fetch("/api/open-config-dir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: "app" }) })} class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground" title="Open user config directory">User&#8599;</button>
+								<button onClick={() => fetch("/api/open-config-dir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: "project", slug: props.slug }) })} class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground" title="Open project config directory">Project&#8599;</button>
+								<button onClick={() => fetch("/api/open-config-dir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: "worktree", slug: props.slug }) })} class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground" title="Open worktrees directory">Worktrees&#8599;</button>
+								<DialogCloseTrigger>
+									<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+								</DialogCloseTrigger>
+							</div>
 						</div>
 
-						<Tabs.Root value={activeTab()} onValueChange={(d) => setActiveTab(d.value)}>
-							<div class="flex items-center border-b border-border px-6">
-								<Tabs.List>
-									<Tabs.Trigger value="general">General</Tabs.Trigger>
-									<Tabs.Trigger value="templates">Prompts</Tabs.Trigger>
-									<Tabs.Trigger value="skills">Skills</Tabs.Trigger>
-									<Tabs.Trigger value="profiles">Launch</Tabs.Trigger>
-								</Tabs.List>
-								<div class="ml-auto flex gap-1">
-									<button onClick={() => fetch("/api/open-config-dir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: "app" }) })} class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground" title="Open user config directory">User&#8599;</button>
-									<button onClick={() => fetch("/api/open-config-dir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: "project", slug: props.slug }) })} class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground" title="Open project config directory">Project&#8599;</button>
-									<button onClick={() => fetch("/api/open-config-dir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: "worktree", slug: props.slug }) })} class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground" title="Open worktrees directory">Worktrees&#8599;</button>
-								</div>
+						<TabsRoot value={activeTab()} onValueChange={(d) => setActiveTab(d.value)}>
+							<div class="px-6">
+								<TabsList>
+									<TabsTrigger value="general">General</TabsTrigger>
+									<TabsTrigger value="templates">Prompts</TabsTrigger>
+									<TabsTrigger value="skills">Skills</TabsTrigger>
+									<TabsTrigger value="profiles">Launch</TabsTrigger>
+								</TabsList>
 							</div>
 
 							<div class="flex-1 overflow-auto px-6 py-4">
@@ -164,7 +164,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 
 								<Show when={!loading() && config()}>
 									{(cfg) => (<>
-										<Tabs.Content value="general">
+										<TabsContent value="general">
 											<div class="space-y-6">
 												<section>
 													<h3 class="mb-2 text-sm font-semibold">Agent worktree root path <ScopeBadge scope="project" /></h3>
@@ -178,9 +178,9 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 													<textarea value={conflictPrompt()} onInput={(e) => setConflictPrompt(e.currentTarget.value)} onBlur={saveConflictResolution} class="input min-h-[80px]" style={{ height: "auto" }} placeholder="Prompt for resolving merge conflicts..." data-testid="conflict-prompt" />
 												</section>
 											</div>
-										</Tabs.Content>
+										</TabsContent>
 
-										<Tabs.Content value="templates">
+										<TabsContent value="templates">
 											<div class="space-y-6">
 												<section>
 													<div class="mb-2 flex items-center justify-between">
@@ -194,9 +194,9 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 													</Show>
 												</section>
 											</div>
-										</Tabs.Content>
+										</TabsContent>
 
-										<Tabs.Content value="skills">
+										<TabsContent value="skills">
 											<div class="space-y-6">
 												<section>
 													<div class="mb-2 flex items-center justify-between">
@@ -210,9 +210,9 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 													</Show>
 												</section>
 											</div>
-										</Tabs.Content>
+										</TabsContent>
 
-										<Tabs.Content value="profiles">
+										<TabsContent value="profiles">
 											<div class="space-y-6">
 												<section>
 													<div class="mb-2 flex items-center justify-between">
@@ -237,23 +237,23 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 													</Show>
 												</section>
 											</div>
-										</Tabs.Content>
+										</TabsContent>
 									</>)}
 								</Show>
 							</div>
-						</Tabs.Root>
-		</Dialog>
+						</TabsRoot>
+		</DialogRoot>
 
-		<Dialog open={!!form()} onOpenChange={() => setForm(null)} class="max-w-lg p-0">
+		<DialogRoot open={!!form()} onOpenChange={() => setForm(null)} class="max-w-lg p-0">
 						<Show when={form()}>
 							{(f) => (<>
 								<div class="flex items-center justify-between border-b border-border px-6 py-4">
-									<Dialog.Title class="mb-0">
+									<DialogTitle class="mb-0">
 										{f().mode === "add" ? "Add" : "Edit"} {f().itemType === "template" ? "Prompt" : f().itemType === "skill" ? "Skill" : f().itemType === "profile" ? "Launch" : "Shortcut"}
-									</Dialog.Title>
-									<Dialog.CloseTrigger>
+									</DialogTitle>
+									<DialogCloseTrigger>
 										<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-									</Dialog.CloseTrigger>
+									</DialogCloseTrigger>
 								</div>
 								<div class="space-y-3 px-6 py-4">
 									<div>
@@ -283,6 +283,6 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 								</div>
 							</>)}
 						</Show>
-		</Dialog>
+		</DialogRoot>
 	</>);
 }

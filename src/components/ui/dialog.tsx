@@ -4,16 +4,14 @@ import type { JSX, ComponentProps } from "solid-js";
 
 type RootProps = ComponentProps<typeof ArkDialog.Root>;
 
-interface DialogProps {
+export function DialogRoot(props: {
   open: RootProps["open"];
   onOpenChange: (open: boolean) => void;
   children: JSX.Element;
   class?: string;
   onMouseDown?: (e: MouseEvent) => void;
   ref?: HTMLDivElement | ((el: HTMLDivElement) => void);
-}
-
-function DialogRoot(props: DialogProps) {
+}) {
   return (
     <ArkDialog.Root open={props.open} onOpenChange={(d) => { if (!d.open) props.onOpenChange(false); }}>
       <Portal>
@@ -28,8 +26,6 @@ function DialogRoot(props: DialogProps) {
   );
 }
 
-export const Dialog = Object.assign(DialogRoot, {
-  Title: ArkDialog.Title,
-  Description: ArkDialog.Description,
-  CloseTrigger: ArkDialog.CloseTrigger,
-});
+export const DialogTitle = ArkDialog.Title;
+export const DialogDescription = ArkDialog.Description;
+export const DialogCloseTrigger = ArkDialog.CloseTrigger;
