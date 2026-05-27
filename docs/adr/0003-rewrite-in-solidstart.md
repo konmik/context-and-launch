@@ -19,7 +19,7 @@ Rewrite the frontend as a SolidStart project with the following stack:
 - Server functions ("use server") as primary data layer, API routes only for client-side fetches (drag-and-drop status updates, markdown read/write)
 - Vitest for tests
 
-Server-side modules are copied unchanged. Same ~/.ai-stages/ directory layout, same config files, same git orphan branch storage. No data migration needed.
+Server-side modules are copied unchanged. Same ~/.context-launch/ directory layout, same config files, same git orphan branch storage. No data migration needed.
 
 ## Considered options
 

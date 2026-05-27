@@ -1,8 +1,8 @@
-# kill-server.ps1 -- Kill the ai-stages server process
+# kill-server.ps1 -- Kill the Context & Launch server process
 $ErrorActionPreference = "Stop"
 
 # Read config for port
-$configPath = Join-Path $env:USERPROFILE ".ai-stages" "config.json"
+$configPath = Join-Path $env:USERPROFILE ".context-launch" "config.json"
 $port = 14780
 
 if (Test-Path $configPath) {

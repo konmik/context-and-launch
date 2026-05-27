@@ -1,12 +1,12 @@
 #!/bin/bash
-# AI Stages - Agent Launch Script (macOS)
-# This script is called by AI Stages to launch a Claude coding agent.
+# Context & Launch - Agent Launch Script (macOS)
+# This script is called by Context & Launch to launch a Claude coding agent.
 # It receives two positional arguments:
 #   $1: the prompt text to send to the agent
 #   $2: the ticket title, used to set the terminal window title
 #
 # You can edit this script to customize how the agent is launched.
-# AI Stages will not overwrite your changes.
+# Context & Launch will not overwrite your changes.
 
 INITIAL_PROMPT="$1"
 TICKET_TITLE="$2"

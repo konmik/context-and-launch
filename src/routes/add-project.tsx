@@ -11,7 +11,7 @@ export default function AddProjectPage() {
         <ThemeToggle />
       </div>
       <div class="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-sm">
-        <h1 class="mb-6 text-2xl font-semibold">Welcome to AI Stages</h1>
+        <h1 class="mb-6 text-2xl font-semibold">Welcome to Context & Launch</h1>
         <AddProjectForm
           action={addProjectAction}
           onSuccess={(slug) => navigate(`/project/${slug}`)}
