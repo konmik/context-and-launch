@@ -1460,6 +1460,36 @@ describe('LauncherConfigManager', () => {
 		expect(config.columnDefaults?.['done']?.checkedSkills).toEqual(['other-skill']);
 	});
 
+	it('updateSkill rename updates columnDefaults.skillOrder', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+
+		// Add a skill and set columnDefaults referencing it in skillOrder
+		mgr.addSkill('project', 'slug', { name: 'old-skill', text: 'skill text' });
+		mgr.saveColumnDefaults('slug', 'todo', {
+			templateName: null,
+			checkedSkills: [],
+			profileName: null,
+			skillOrder: ['other-skill', 'old-skill'],
+		});
+		mgr.saveColumnDefaults('slug', 'done', {
+			templateName: null,
+			checkedSkills: [],
+			profileName: null,
+			skillOrder: ['other-skill'],
+		});
+
+		// Rename the skill
+		mgr.updateSkill('project', 'slug', 'old-skill', { name: 'new-skill', text: 'skill text' });
+
+		// columnDefaults referencing old-skill should now reference new-skill
+		const config = mgr.loadProjectConfig('slug');
+		expect(config.columnDefaults?.['todo']?.skillOrder).toEqual(['other-skill', 'new-skill']);
+		// Unrelated column default should be untouched
+		expect(config.columnDefaults?.['done']?.skillOrder).toEqual(['other-skill']);
+	});
+
 	it('updateProfile rename updates columnDefaults.profileName', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
@@ -1523,6 +1553,46 @@ describe('LauncherConfigManager', () => {
 		expect(config.columnDefaults?.['done']?.checkedSkills).toEqual([]);
 		// The unrelated column default should be untouched
 		expect(config.columnDefaults?.['in-progress']?.checkedSkills).toEqual(['OtherSkill']);
+	});
+
+	it('removeSkill cleans up columnDefaults.skillOrder referencing the deleted skill name', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+
+		// Add a skill to the project scope
+		mgr.addSkill('project', 'slug', { name: 'MySkill', text: 'skill text' });
+
+		// Save column defaults that reference this skill in skillOrder
+		mgr.saveColumnDefaults('slug', 'todo', {
+			templateName: 'Default',
+			checkedSkills: [],
+			profileName: null,
+			skillOrder: ['MySkill', 'OtherSkill'],
+		});
+		mgr.saveColumnDefaults('slug', 'done', {
+			templateName: 'Custom',
+			checkedSkills: [],
+			profileName: null,
+			skillOrder: ['MySkill'],
+		});
+		// A column that does not reference the skill -- should remain untouched
+		mgr.saveColumnDefaults('slug', 'in-progress', {
+			templateName: 'Other',
+			checkedSkills: [],
+			profileName: null,
+			skillOrder: ['OtherSkill'],
+		});
+
+		// Remove the skill
+		mgr.removeSkill('project', 'slug', 'MySkill');
+
+		// Column defaults referencing the deleted skill should have it removed from skillOrder
+		const config = mgr.loadProjectConfig('slug');
+		expect(config.columnDefaults?.['todo']?.skillOrder).toEqual(['OtherSkill']);
+		expect(config.columnDefaults?.['done']?.skillOrder).toEqual([]);
+		// The unrelated column default should be untouched
+		expect(config.columnDefaults?.['in-progress']?.skillOrder).toEqual(['OtherSkill']);
 	});
 
 });
