@@ -73,6 +73,11 @@ export interface LauncherTemplate {
 export interface LauncherSkill {
 	name: string;
 	text: string;
+	// Fractional sort key. Skills are shown sorted by `order` ascending across the
+	// merged user+project list; dragging sets the moved skill to the midpoint of
+	// its neighbours so only that one skill needs rewriting. Optional for legacy
+	// configs and freshly added skills (see getMergedConfig for the fallback).
+	order?: number;
 }
 
 export interface LauncherProfile {
@@ -111,7 +116,7 @@ export interface ErrorInfo {
 
 export interface MergedLauncherConfig {
 	templates: (LauncherTemplate & { scope: "app" | "project" })[];
-	skills: (LauncherSkill & { scope: "app" | "project" })[];
+	skills: (LauncherSkill & { scope: "app" | "project"; order: number })[];
 	profiles: (LauncherProfile & { scope: "app" | "project" })[];
 	shortcuts: (LauncherShortcut & { scope: "app" | "project" })[];
 	columnDefaults: Record<string, LauncherColumnDefaults>;
