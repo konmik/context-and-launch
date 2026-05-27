@@ -3,7 +3,6 @@ import {
 	DragDropProvider,
 	DragDropSensors,
 	SortableProvider,
-	createSortable,
 	closestCenter,
 } from "@thisbeyond/solid-dnd";
 import { DialogRoot, DialogTitle, DialogCloseTrigger } from "./ui/dialog";
@@ -12,8 +11,9 @@ import { TabsRoot, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
 import type { MergedLauncherConfig, BoardDefinition, ColumnDefinition } from "~/types.js";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 import { slugifyColumnName } from "~/lib/slugify.js";
-import { DragPreview, DragGrip, NameDragOverlay, DND_ACTIVE_CLASS } from "./dnd-shared.js";
+import { NameDragOverlay } from "./dnd-shared.js";
 import { createListReorder, midpointOrder } from "./list-reorder.js";
+import { ScopeBadge, ROW_CLASS, SortableColumnRow, ColumnDropPreview, ItemRowBody, SortableSkillRow, SkillDropPreview, type MergedSkill } from "./launcher-settings-rows.js";
 
 interface LauncherSettingsProps {
 	open: boolean;
@@ -23,7 +23,6 @@ interface LauncherSettingsProps {
 
 type ItemType = "template" | "skill" | "profile" | "shortcut";
 type Scope = "app" | "project";
-type MergedSkill = MergedLauncherConfig["skills"][number];
 
 interface ItemFormState {
 	mode: "add" | "edit";
@@ -45,126 +44,6 @@ interface RenameFormState {
 	oldName: string;
 	newName: string;
 	scope: "all" | "current" | "none";
-}
-
-function ScopeBadge(props: { scope: string }) {
-	return <span class={`rounded px-1.5 py-0.5 text-xs ${props.scope === "app" ? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" : "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"}`}>{props.scope === "app" ? "User" : "Project"}</span>;
-}
-
-// Shared layout for every settings row (columns, skills, prompts, ...): same
-// border, padding, and flex. Drag-reorderable rows add a grip via DragGrip.
-const ROW_CLASS = "flex items-center justify-between rounded-md border border-border px-3 py-2";
-
-function ColumnRowBody(props: {
-	column: ColumnDefinition;
-	gripProps?: Record<string, unknown>;
-	onEdit?: () => void;
-	onDelete?: () => void;
-}) {
-	return (
-		<>
-			<div class="flex min-w-0 flex-1 items-center gap-2">
-				<DragGrip gripProps={props.gripProps} testId="column-drag-handle" />
-				<div class="min-w-0 flex-1">
-					<span class="text-sm font-medium">{props.column.name}</span>
-					{props.column.description && (
-						<p class="mt-0.5 truncate text-xs text-muted-foreground">{props.column.description}</p>
-					)}
-				</div>
-			</div>
-			<div class="ml-2 flex shrink-0 gap-1">
-				<button onClick={props.onEdit} class="btn-secondary btn-sm">Edit</button>
-				<button onClick={props.onDelete} class="btn-secondary btn-sm text-destructive hover:bg-destructive hover:text-destructive-foreground">Delete</button>
-			</div>
-		</>
-	);
-}
-
-function SortableColumnRow(props: {
-	column: ColumnDefinition;
-	isActive: boolean;
-	onEdit: () => void;
-	onDelete: () => void;
-}) {
-	const sortable = createSortable(props.column.name);
-	return (
-		<div
-			ref={sortable.ref}
-			data-testid="column-row"
-			data-column-name={props.column.name}
-			classList={{ [DND_ACTIVE_CLASS]: props.isActive }}
-			class={ROW_CLASS}
-		>
-			<ColumnRowBody column={props.column} gripProps={sortable.dragActivators} onEdit={props.onEdit} onDelete={props.onDelete} />
-		</div>
-	);
-}
-
-function ColumnDropPreview(props: { column: ColumnDefinition }) {
-	return (
-		<DragPreview class={ROW_CLASS}>
-			<ColumnRowBody column={props.column} />
-		</DragPreview>
-	);
-}
-
-function ItemRowBody(props: {
-	scope: string;
-	name: string;
-	detail: string;
-	grip?: boolean;
-	gripProps?: Record<string, unknown>;
-	onEdit?: () => void;
-	onDelete?: () => void;
-}) {
-	return (
-		<>
-			<div class="flex min-w-0 flex-1 items-center gap-2">
-				<Show when={props.grip}>
-					<DragGrip gripProps={props.gripProps} testId="skill-drag-handle" />
-				</Show>
-				<div class="min-w-0 flex-1">
-					<div class="flex items-center gap-2">
-						<span class="text-sm font-medium">{props.name}</span>
-						<ScopeBadge scope={props.scope} />
-					</div>
-					<p class="mt-1 truncate text-xs text-muted-foreground">{props.detail}</p>
-				</div>
-			</div>
-			<div class="ml-2 flex shrink-0 gap-1">
-				<button onClick={props.onEdit} class="btn-secondary btn-sm">Edit</button>
-				<button onClick={props.onDelete} class="btn-secondary btn-sm text-destructive hover:bg-destructive hover:text-destructive-foreground">Delete</button>
-			</div>
-		</>
-	);
-}
-
-function SortableSkillRow(props: {
-	skill: MergedSkill;
-	isActive: boolean;
-	onEdit: () => void;
-	onDelete: () => void;
-}) {
-	const sortable = createSortable(props.skill.name);
-	return (
-		<div
-			ref={sortable.ref}
-			data-testid="skill-row"
-			data-skill-name={props.skill.name}
-			classList={{ [DND_ACTIVE_CLASS]: props.isActive }}
-			class={ROW_CLASS}
-		>
-			<ItemRowBody scope={props.skill.scope} name={props.skill.name} detail={props.skill.text} grip gripProps={sortable.dragActivators} onEdit={props.onEdit} onDelete={props.onDelete} />
-		</div>
-	);
-}
-
-function SkillDropPreview(props: { skill: MergedSkill }) {
-	return (
-		<DragPreview class={ROW_CLASS}>
-			<ItemRowBody scope={props.skill.scope} name={props.skill.name} detail={props.skill.text} grip />
-		</DragPreview>
-	);
 }
 
 export default function LauncherSettings(props: LauncherSettingsProps) {
