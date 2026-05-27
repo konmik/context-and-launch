@@ -4,7 +4,6 @@ import { TabsRoot, TabsList, TabsTrigger } from "./ui/tabs";
 import { revalidate } from "@solidjs/router";
 import type { TicketInfo } from "~/server/ticket-store.js";
 import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/server/launcher-config.js";
-import AgentLauncher from "./AgentLauncher";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 import {
   type ActiveFile,
@@ -13,14 +12,14 @@ import {
   isText,
   isActiveFileMatch,
   DiscardConfirmation,
-  FileToolbar,
-  EditorPane,
-  ShortcutsTab,
   NewFileDialog,
   DeleteFileDialog,
   ConfirmUploadDialog,
   DirtyWorktreeShortcutDialog,
 } from "./ticket-detail-parts.js";
+import { EditorTab } from "./ticket-detail-editor-tab.js";
+import { LauncherTab } from "./ticket-detail-launcher-tab.js";
+import { ShortcutsTabPane } from "./ticket-detail-shortcuts-tab.js";
 
 interface TicketDetailDialogProps {
   onClose: () => void;
@@ -706,8 +705,12 @@ function TicketDetailContent(props: {
 
         <FloatingPanelBody>
         <div class="flex h-full flex-col">
+          <Show when={error()}>
+            <div class="mx-6 mt-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error()}</div>
+          </Show>
+
           <Show when={activeTab() === "editor"}>
-            <FileToolbar
+            <EditorTab
               activeFile={activeFile()}
               options={allFileOptions()}
               isStale={isReferenceStale}
@@ -724,32 +727,19 @@ function TicketDetailContent(props: {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onFileInputChange={handleFileInputChange}
+              viewMode={fileViewMode()}
+              content={content()}
+              onChange={setContent}
+              onSave={saveFile}
+              imageUrl={imageUrl()}
             />
           </Show>
-
-          <Show when={error()}>
-            <div class="mx-6 mt-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error()}</div>
+          <Show when={activeTab() === "launcher"}>
+            <LauncherTab slug={props.slug} ticket={props.ticket} config={launcherConfig()} onDefaultsChange={patchColumnDefaults} useWorktree={useWorktree()} />
           </Show>
-
-          <div class="flex-1 overflow-hidden px-6 pb-4">
-            <Show when={activeTab() === "editor"}>
-              <EditorPane
-                viewMode={fileViewMode()}
-                content={content()}
-                onChange={setContent}
-                onSave={activeFile().type === "context" ? saveFile : undefined}
-                readOnly={isCurrentReadOnly()}
-                imageUrl={imageUrl()}
-                label={activeFileLabel(activeFile())}
-              />
-            </Show>
-            <Show when={activeTab() === "launcher"}>
-              <AgentLauncher slug={props.slug} ticket={props.ticket} config={launcherConfig()} onDefaultsChange={patchColumnDefaults} useWorktree={useWorktree()} />
-            </Show>
-            <Show when={activeTab() === "shortcuts"}>
-              <ShortcutsTab config={launcherConfig()} running={runningShortcut()} onRun={runShortcut} />
-            </Show>
-          </div>
+          <Show when={activeTab() === "shortcuts"}>
+            <ShortcutsTabPane config={launcherConfig()} running={runningShortcut()} onRun={runShortcut} />
+          </Show>
 
           <div class="flex justify-end gap-2 border-t border-border px-4 py-3">
             <button type="button" onClick={close} class="btn-secondary">Close</button>

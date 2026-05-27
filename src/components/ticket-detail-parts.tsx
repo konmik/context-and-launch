@@ -70,6 +70,8 @@ export function DiscardConfirmation(props: {
   );
 }
 
+export const TAB_PANE_CLASS = "flex-1 overflow-hidden px-6 pb-4";
+
 export function FileToolbar(props: {
   activeFile: ActiveFile;
   options: ActiveFile[];
