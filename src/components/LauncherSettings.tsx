@@ -611,7 +611,14 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 												<section>
 													<h3 class="mb-2 text-sm font-semibold">Board <ScopeBadge scope="project" /></h3>
 													<select
-														onChange={(e) => handleBoardIdChange(e.currentTarget.value)}
+														onChange={(e) => {
+															const newId = e.currentTarget.value;
+															const current = cfg().boardId ?? boards()[0]?.id ?? "";
+															e.currentTarget.value = current;
+															if (newId === current) return;
+															const b = boards().find(x => x.id === newId);
+															if (b) setProjectBoardConfirm({ id: b.id, name: b.name });
+														}}
 														class="input input-sm"
 														data-testid="board-id-select"
 													>

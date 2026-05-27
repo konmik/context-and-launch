@@ -255,8 +255,25 @@ describe("Columns tab (e2e)", () => {
     const options = await boardSelect!.$$("option");
     expect(options.length).toBeGreaterThanOrEqual(2);
     await page.selectOption('[data-testid="board-id-select"]', "simple");
+    await page.waitForSelector('[data-testid="set-project-board-confirm-btn"]', { timeout: 3000 });
+    await page.click('[data-testid="set-project-board-confirm-btn"]');
     await page.waitForTimeout(500);
     // Verify it was saved (boardId in launcherConfig should be "simple")
     expect(mockState.launcherConfig?.boardId).toBe("simple");
+  }, 15000);
+
+  it("cancelling the General tab board change does not save", async () => {
+    await page.goto(`${BASE_URL}/project/e2e-test`);
+    await page.waitForSelector("h3");
+    await page.click('button[title="Settings"]');
+    await page.waitForSelector('[data-scope="floating-panel"][data-part="content"]', { state: "visible", timeout: 3000 });
+    await page.waitForSelector('[data-testid="board-id-select"]', { timeout: 3000 });
+    const before = await page.inputValue('[data-testid="board-id-select"]');
+    await page.selectOption('[data-testid="board-id-select"]', "simple");
+    await page.waitForSelector('[data-testid="set-project-board-cancel-btn"]', { timeout: 3000 });
+    await page.click('[data-testid="set-project-board-cancel-btn"]');
+    await page.waitForTimeout(300);
+    expect(mockState.launcherConfig?.boardId).toBe(undefined);
+    expect(await page.inputValue('[data-testid="board-id-select"]')).toBe(before);
   }, 15000);
 });
