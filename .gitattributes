@@ -1,0 +1,5 @@
+# Normalize line endings: LF in the repository and in every working tree,
+# on all platforms. Overrides per-machine core.autocrlf so git behavior is
+# deterministic across developers and CI. text=auto lets git leave detected
+# binary files untouched.
+* text=auto eol=lf
