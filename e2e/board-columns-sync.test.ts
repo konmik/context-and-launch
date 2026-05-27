@@ -101,7 +101,9 @@ describe("Board/columns sync in settings (e2e)", () => {
   it("General board and Columns board agree after reopening", async () => {
     await openSettings();
     await page.selectOption('[data-testid="board-id-select"]', "kanban");
-    await page.waitForFunction(() => true);
+    await page.waitForSelector('[data-testid="set-project-board-confirm-btn"]', { timeout: 3000 });
+    await page.click('[data-testid="set-project-board-confirm-btn"]');
+    await page.waitForSelector('[data-testid="set-project-board-message"]', { state: "detached", timeout: 3000 });
     await closeSettings();
     await openSettings();
     const generalValue = await page.inputValue('[data-testid="board-id-select"]');
