@@ -1,7 +1,12 @@
-import { createSignal, createEffect, on, Show, For } from "solid-js";
+import { createSignal, createEffect, createMemo, on, Show, For } from "solid-js";
+import { DragDropProvider, DragDropSensors, SortableProvider, createSortable, closestCenter } from "@thisbeyond/solid-dnd";
 import { DialogRoot, DialogTitle } from "./ui/dialog";
 import type { TicketInfo, MergedLauncherConfig, ErrorInfo, LauncherColumnDefaults } from "~/types.js";
 import ErrorDialog from "./ErrorDialog.js";
+import { DragPreview, DragGrip, NameDragOverlay, DND_ACTIVE_CLASS } from "./dnd-shared.js";
+import { createListReorder, orderByNameList } from "./list-reorder.js";
+
+type MergedSkill = MergedLauncherConfig["skills"][number];
 
 interface AgentLauncherProps {
 	slug: string;
@@ -11,10 +16,44 @@ interface AgentLauncherProps {
 	useWorktree: boolean;
 }
 
+function SortableLauncherSkill(props: {
+	skill: MergedSkill;
+	checked: boolean;
+	isActive: boolean;
+	onToggle: () => void;
+}) {
+	const sortable = createSortable(props.skill.name);
+	return (
+		<div
+			ref={sortable.ref}
+			data-testid="launcher-skill-row"
+			data-skill-name={props.skill.name}
+			classList={{ [DND_ACTIVE_CLASS]: props.isActive }}
+			class="flex items-center gap-2"
+		>
+			<DragGrip gripProps={sortable.dragActivators} testId="launcher-skill-drag-handle" />
+			<label class="flex items-center gap-2 text-sm">
+				<input type="checkbox" checked={props.checked} onChange={props.onToggle} class="rounded border-input" />
+				{props.skill.name}
+			</label>
+		</div>
+	);
+}
+
+function LauncherSkillDropPreview(props: { skill: MergedSkill }) {
+	return (
+		<DragPreview class="flex items-center gap-2">
+			<DragGrip testId="launcher-skill-drag-handle" />
+			<span class="text-sm">{props.skill.name}</span>
+		</DragPreview>
+	);
+}
+
 export default function AgentLauncher(props: AgentLauncherProps) {
 	const [selectedTemplate, setSelectedTemplate] = createSignal("");
 	const [selectedProfile, setSelectedProfile] = createSignal("");
 	const [checkedSkills, setCheckedSkills] = createSignal<Set<string>>(new Set());
+	const [skillOrder, setSkillOrder] = createSignal<string[]>([]);
 	const [launching, setLaunching] = createSignal(false);
 	const [errorInfo, setErrorInfo] = createSignal<ErrorInfo | null>(null);
 	const [behindRemoteMsg, setBehindRemoteMsg] = createSignal("");
@@ -30,14 +69,18 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 					setSelectedTemplate(defaults.templateName ?? (cfg.templates[0]?.name ?? ""));
 					setSelectedProfile(defaults.profileName ?? (cfg.profiles[0]?.name ?? ""));
 					setCheckedSkills(new Set(defaults.checkedSkills));
+					setSkillOrder(defaults.skillOrder ?? []);
 				} else {
 					setSelectedTemplate(cfg.templates[0]?.name ?? "");
 					setSelectedProfile(cfg.profiles[0]?.name ?? "");
 					setCheckedSkills(new Set<string>());
+					setSkillOrder([]);
 				}
 			}
 		)
 	);
+
+	const orderedSkills = createMemo(() => orderByNameList(props.config?.skills ?? [], skillOrder()));
 
 	function toggleSkill(name: string) {
 		const current = new Set(checkedSkills());
@@ -46,6 +89,15 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 		setCheckedSkills(current);
 		props.onDefaultsChange({ checkedSkills: [...current] });
 	}
+
+	const skillReorder = createListReorder<MergedSkill>({
+		items: orderedSkills,
+		idOf: (s) => s.name,
+		onReorder: (orderedNames) => {
+			setSkillOrder(orderedNames);
+			props.onDefaultsChange({ skillOrder: orderedNames });
+		},
+	});
 
 	function launchBody(extra?: Record<string, unknown>) {
 		return JSON.stringify({
@@ -139,16 +191,37 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 							<Show when={cfg().skills.length > 0}>
 								<div>
 									<label class="mb-1 block text-sm text-muted-foreground">Skills</label>
-									<div class="flex flex-col gap-1">
-										<For each={cfg().skills}>
-											{(skill) => (
-												<label class="flex items-center gap-2 text-sm">
-													<input type="checkbox" checked={checkedSkills().has(skill.name)} onChange={() => toggleSkill(skill.name)} class="rounded border-input" />
-													{skill.name}
-												</label>
-											)}
-										</For>
-									</div>
+									<DragDropProvider
+										onDragStart={skillReorder.onDragStart}
+										onDragOver={skillReorder.onDragOver}
+										onDragEnd={skillReorder.onDragEnd}
+										collisionDetector={closestCenter}
+									>
+										<DragDropSensors />
+										<SortableProvider ids={orderedSkills().map(s => s.name)}>
+											<div class="flex flex-col gap-1">
+												<For each={orderedSkills()}>
+													{(skill, i) => (
+														<>
+															<Show when={skillReorder.dropPreview()?.insertBefore === i()}>
+																<LauncherSkillDropPreview skill={skillReorder.dropPreview()!.item} />
+															</Show>
+															<SortableLauncherSkill
+																skill={skill}
+																checked={checkedSkills().has(skill.name)}
+																isActive={skillReorder.activeId() === skill.name}
+																onToggle={() => toggleSkill(skill.name)}
+															/>
+														</>
+													)}
+												</For>
+												<Show when={skillReorder.dropPreview()?.insertBefore === orderedSkills().length}>
+													<LauncherSkillDropPreview skill={skillReorder.dropPreview()!.item} />
+												</Show>
+											</div>
+										</SortableProvider>
+										<NameDragOverlay nameOf={(id) => orderedSkills().find(s => s.name === id)?.name} />
+									</DragDropProvider>
 								</div>
 							</Show>
 							<button onClick={() => launchAgent()} disabled={launching()} class="btn-primary">Run</button>

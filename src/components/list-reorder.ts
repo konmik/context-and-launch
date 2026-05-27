@@ -11,6 +11,16 @@ export function midpointOrder(before: number | undefined, after: number | undefi
 	return (before + after) / 2;
 }
 
+export function orderByNameList<T extends { name: string }>(items: T[], preferredNames: string[]): T[] {
+	if (preferredNames.length === 0) return items;
+	const rank = new Map(preferredNames.map((name, i) => [name, i]));
+	return [...items].sort((a, b) => {
+		const ra = rank.get(a.name) ?? Infinity;
+		const rb = rank.get(b.name) ?? Infinity;
+		return ra === rb ? 0 : ra - rb;
+	});
+}
+
 export interface ListReorder<T> {
 	activeId: Accessor<string | null>;
 	dropPreview: Accessor<{ insertBefore: number; item: T } | null>;

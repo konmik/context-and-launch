@@ -2,7 +2,6 @@ import { createSignal, createEffect, createMemo, onCleanup, on, Show, For, Index
 import {
 	DragDropProvider,
 	DragDropSensors,
-	DragOverlay,
 	SortableProvider,
 	createSortable,
 	closestCenter,
@@ -13,7 +12,7 @@ import { TabsRoot, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
 import type { MergedLauncherConfig, BoardDefinition, ColumnDefinition } from "~/types.js";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 import { slugifyColumnName } from "~/lib/slugify.js";
-import { DragPreview, DragOverlayCard, DND_ACTIVE_CLASS } from "./dnd-shared.js";
+import { DragPreview, DragGrip, NameDragOverlay, DND_ACTIVE_CLASS } from "./dnd-shared.js";
 import { createListReorder, midpointOrder } from "./list-reorder.js";
 
 interface LauncherSettingsProps {
@@ -46,20 +45,6 @@ interface RenameFormState {
 	oldName: string;
 	newName: string;
 	scope: "all" | "current" | "none";
-}
-
-function GripIcon() {
-	return (
-		<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="5" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="19" r="1"/></svg>
-	);
-}
-
-function DragGrip(props: { gripProps?: Record<string, unknown>; testId: string }) {
-	return (
-		<span {...(props.gripProps ?? {})} class="cursor-grab text-muted-foreground" data-testid={props.testId}>
-			<GripIcon />
-		</span>
-	);
 }
 
 function ScopeBadge(props: { scope: string }) {
@@ -179,27 +164,6 @@ function SkillDropPreview(props: { skill: MergedSkill }) {
 		<DragPreview class={ROW_CLASS}>
 			<ItemRowBody scope={props.skill.scope} name={props.skill.name} detail={props.skill.text} grip />
 		</DragPreview>
-	);
-}
-
-// The card that floats under the cursor while dragging a row keyed by its name.
-// Renders nothing once the id no longer maps to a live item.
-function NameDragOverlay(props: { nameOf: (id: string) => string | undefined }) {
-	return (
-		<DragOverlay>
-			{(draggable) => {
-				const name = props.nameOf(String(draggable?.id));
-				return (
-					<Show when={name}>
-						{(n) => (
-							<DragOverlayCard class="rounded-md border border-border bg-card px-3 py-2">
-								<span class="text-sm font-medium">{n()}</span>
-							</DragOverlayCard>
-						)}
-					</Show>
-				);
-			}}
-		</DragOverlay>
 	);
 }
 
