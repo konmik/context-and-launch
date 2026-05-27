@@ -448,6 +448,26 @@ export function startMockServer(port: number, state: MockServerState): Promise<h
         return;
       }
 
+      if (pathname.match(/\/api\/projects\/[^/]+\/launcher-config\/column-defaults$/) && req.method === "PUT") {
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk: Buffer) => chunks.push(chunk));
+        req.on("end", () => {
+          try {
+            const { column, ...patch } = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+            if (state.launcherConfig) {
+              const existing = state.launcherConfig.columnDefaults[column] ?? { templateName: null, checkedSkills: [], profileName: null };
+              state.launcherConfig.columnDefaults[column] = { ...existing, ...patch };
+            }
+            res.writeHead(204);
+            res.end();
+          } catch (err) {
+            res.writeHead(400);
+            res.end(String(err));
+          }
+        });
+        return;
+      }
+
       // Board ID assignment endpoint
       if (pathname.match(/\/api\/projects\/[^/]+\/launcher-config\/board-id$/) && req.method === "PUT") {
         const chunks: Buffer[] = [];

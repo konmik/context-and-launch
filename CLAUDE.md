@@ -15,3 +15,4 @@ We are using only TypeScript, do not check for types randomly, do not write inco
 Avoid non-ASCII unless explicitly asked.
 Do not use z-index (Tailwind z-* classes). Use Portal from solid-js/web for stacking.
 Do not duplicate code. Extract shared logic into reusable helpers.
+Do not add comments unless explicitly asked.

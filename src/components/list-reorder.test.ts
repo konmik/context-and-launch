@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { midpointOrder } from "./list-reorder.js";
+import { midpointOrder, orderByNameList } from "./list-reorder.js";
 
 describe("midpointOrder", () => {
 	it("returns 0 for an empty list (no neighbours)", () => {
@@ -25,5 +25,25 @@ describe("midpointOrder", () => {
 	it("handles negative and zero-crossing neighbours", () => {
 		expect(midpointOrder(-1, 1)).toBe(0);
 		expect(midpointOrder(undefined, -2)).toBe(-3);
+	});
+});
+
+describe("orderByNameList", () => {
+	const items = [{ name: "a" }, { name: "b" }, { name: "c" }];
+
+	it("returns items unchanged when there is no preferred order", () => {
+		expect(orderByNameList(items, []).map(i => i.name)).toEqual(["a", "b", "c"]);
+	});
+
+	it("orders items by the preferred name list", () => {
+		expect(orderByNameList(items, ["c", "a", "b"]).map(i => i.name)).toEqual(["c", "a", "b"]);
+	});
+
+	it("appends items missing from the preferred list in their original order", () => {
+		expect(orderByNameList(items, ["c"]).map(i => i.name)).toEqual(["c", "a", "b"]);
+	});
+
+	it("ignores preferred names that no longer exist", () => {
+		expect(orderByNameList(items, ["gone", "b"]).map(i => i.name)).toEqual(["b", "a", "c"]);
 	});
 });

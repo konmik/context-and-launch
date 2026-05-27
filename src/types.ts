@@ -95,6 +95,7 @@ export interface LauncherColumnDefaults {
 	checkedSkills: string[];
 	profileName: string | null;
 	lastLayer?: "editor" | "launcher" | "shortcuts";
+	skillOrder?: string[];
 }
 
 export interface LauncherConfig {
