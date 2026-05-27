@@ -31,10 +31,10 @@ export const DEFAULT_BOARDS: BoardDefinition[] = [
 ];
 
 const DEFAULT_TICKETS: TicketInfo[] = [
-  { number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha", stageNames: [], useWorktree: false, fileNames: [], references: [] },
-  { number: "T-2", title: "Bravo", status: "todo", folderName: "t-2-bravo", stageNames: [], useWorktree: false, fileNames: [], references: [] },
-  { number: "T-3", title: "Charlie", status: "in-progress", folderName: "t-3-charlie", stageNames: [], useWorktree: false, fileNames: [], references: [] },
-  { number: "T-4", title: "Delta", status: "in-progress", folderName: "t-4-delta", stageNames: [], useWorktree: false, fileNames: [], references: [] },
+  { number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha", contextNames: [], useWorktree: false, fileNames: [], references: [] },
+  { number: "T-2", title: "Bravo", status: "todo", folderName: "t-2-bravo", contextNames: [], useWorktree: false, fileNames: [], references: [] },
+  { number: "T-3", title: "Charlie", status: "in-progress", folderName: "t-3-charlie", contextNames: [], useWorktree: false, fileNames: [], references: [] },
+  { number: "T-4", title: "Delta", status: "in-progress", folderName: "t-4-delta", contextNames: [], useWorktree: false, fileNames: [], references: [] },
 ];
 
 function buildTicketOrder(tickets: TicketInfo[], columns: ColumnDefinition[]): Record<string, string[]> {

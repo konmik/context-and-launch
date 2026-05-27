@@ -31,7 +31,7 @@ async function createGitWorktree(): Promise<string> {
 }
 
 function ticket(folderName: string, status: string): TicketInfo {
-	return { number: '', title: '', status, folderName, stageNames: [], useWorktree: false, fileNames: [], references: [] };
+	return { number: '', title: '', status, folderName, contextNames: [], useWorktree: false, fileNames: [], references: [] };
 }
 
 describe('TicketOrderStore', () => {

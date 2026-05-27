@@ -10,7 +10,7 @@ import MarkdownEditor from "./MarkdownEditor";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 
 type ActiveFile =
-  | { type: "stage"; name: string }
+  | { type: "context"; name: string }
   | { type: "file"; name: string }
   | { type: "reference"; path: string };
 
@@ -32,7 +32,7 @@ function isText(name: string): boolean {
 
 function activeFileLabel(af: ActiveFile): string {
   switch (af.type) {
-    case "stage": return `${af.name}.md`;
+    case "context": return `${af.name}.md`;
     case "file": return af.name;
     case "reference": {
       const sep = af.path.includes("\\") ? "\\" : "/";
@@ -91,7 +91,7 @@ function TicketDetailContent(props: {
   onClose: () => void;
   slug: string;
 }) {
-  const [activeFile, setActiveFile] = createSignal<ActiveFile>({ type: "stage", name: "to-do" });
+  const [activeFile, setActiveFile] = createSignal<ActiveFile>({ type: "context", name: "to-do" });
   const [content, setContent] = createSignal("");
   const [savedContent, setSavedContent] = createSignal("");
   const [saving, setSaving] = createSignal(false);
@@ -205,9 +205,9 @@ function TicketDetailContent(props: {
       !isCurrentReadOnly(),
   });
 
-  const stageOptions = (): ActiveFile[] => {
+  const contextOptions = (): ActiveFile[] => {
     const defaults = ["to-do", "product-requirement-document"];
-    const existing = props.ticket.stageNames ?? [];
+    const existing = props.ticket.contextNames ?? [];
     const extra = extraFiles();
     const all = [...defaults];
     for (const name of [...existing, ...extra]) {
@@ -215,7 +215,7 @@ function TicketDetailContent(props: {
         all.push(name);
       }
     }
-    return all.map((name) => ({ type: "stage" as const, name }));
+    return all.map((name) => ({ type: "context" as const, name }));
   };
 
   const fileEntryOptions = (): ActiveFile[] => {
@@ -229,12 +229,12 @@ function TicketDetailContent(props: {
     return ticketReferences().map((ref) => ({ type: "reference" as const, path: ref.path }));
   };
 
-  const allFileOptions = () => [...stageOptions(), ...fileEntryOptions(), ...referenceOptions()];
+  const allFileOptions = () => [...contextOptions(), ...fileEntryOptions(), ...referenceOptions()];
 
   function isActiveFileMatch(a: ActiveFile, b: ActiveFile): boolean {
     if (a.type !== b.type) return false;
     if (a.type === "reference" && b.type === "reference") return a.path === b.path;
-    if (a.type === "stage" && b.type === "stage") return a.name === b.name;
+    if (a.type === "context" && b.type === "context") return a.name === b.name;
     if (a.type === "file" && b.type === "file") return a.name === b.name;
     return false;
   }
@@ -351,10 +351,10 @@ function TicketDetailContent(props: {
       setError("");
       setImageUrl("");
 
-      if (af.type === "stage") {
+      if (af.type === "context") {
         setFileViewMode("editor");
         try {
-          const res = await fetch(ticketUrl(`stages/${af.name}`));
+          const res = await fetch(ticketUrl(`context/${af.name}`));
           if (res.ok) {
             const data = await res.json();
             setContent(data.content);
@@ -379,10 +379,10 @@ function TicketDetailContent(props: {
 
   async function saveFile() {
     const af = activeFile();
-    if (af.type !== "stage") return;
+    if (af.type !== "context") return;
     setSaving(true);
     try {
-      await fetch(ticketUrl(`stages/${af.name}`), {
+      await fetch(ticketUrl(`context/${af.name}`), {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ content: content() }),
@@ -467,10 +467,10 @@ function TicketDetailContent(props: {
       .replace(/^-|-$/g, "");
     if (!slug) return;
     setNewFileDialogOpen(false);
-    if (!stageOptions().some((o) => o.type === "stage" && o.name === slug)) {
+    if (!contextOptions().some((o) => o.type === "context" && o.name === slug)) {
       setExtraFiles((prev) => [...prev, slug]);
     }
-    requestFileSwitch({ type: "stage", name: slug });
+    requestFileSwitch({ type: "context", name: slug });
   }
 
   async function deleteOrRemoveFile() {
@@ -494,7 +494,7 @@ function TicketDetailContent(props: {
       errorLabel = "Failed to delete file";
       fetchOpts = { method: "DELETE" };
     } else {
-      url = ticketUrl(`stages/${af.name}`);
+      url = ticketUrl(`context/${af.name}`);
       errorLabel = "Failed to delete file";
       fetchOpts = { method: "DELETE" };
     }
@@ -514,7 +514,7 @@ function TicketDetailContent(props: {
       }
       revalidate("board-data");
       const remaining = allFileOptions().filter((f) => !isActiveFileMatch(f, af));
-      setActiveFile(remaining[0] ?? { type: "stage", name: "to-do" });
+      setActiveFile(remaining[0] ?? { type: "context", name: "to-do" });
     } catch (e) {
       setError(e instanceof Error ? e.message : errorLabel);
     }
@@ -578,8 +578,8 @@ function TicketDetailContent(props: {
 
   function wouldOverwrite(fileName: string): boolean {
     const existingFiles = ticketFileNames();
-    const stages = props.ticket.stageNames ?? [];
-    const allExisting = [...existingFiles, ...stages.map((s) => `${s}.md`)];
+    const contexts = props.ticket.contextNames ?? [];
+    const allExisting = [...existingFiles, ...contexts.map((s) => `${s}.md`)];
     return allExisting.includes(fileName);
   }
 
@@ -629,8 +629,8 @@ function TicketDetailContent(props: {
       }
       revalidate("board-data");
       if (file.name.endsWith(".md")) {
-        const stageName = file.name.replace(/\.md$/, "");
-        requestFileSwitch({ type: "stage", name: stageName });
+        const contextName = file.name.replace(/\.md$/, "");
+        requestFileSwitch({ type: "context", name: contextName });
       } else {
         requestFileSwitch({ type: "file", name: file.name });
       }
@@ -719,7 +719,7 @@ function TicketDetailContent(props: {
 
   let fileInputRef: HTMLInputElement | undefined;
 
-  const showSaveButton = () => activeTab() === "editor" && activeFile().type === "stage";
+  const showSaveButton = () => activeTab() === "editor" && activeFile().type === "context";
 
   return (
     <>
@@ -858,7 +858,7 @@ function TicketDetailContent(props: {
           <div class="flex-1 overflow-hidden px-6 pb-4">
             <Show when={activeTab() === "editor"}>
               <Show when={fileViewMode() === "editor"}>
-                <MarkdownEditor value={content()} onChange={setContent} onSave={activeFile().type === "stage" ? saveFile : undefined} placeholder="Write markdown here..." readOnly={isCurrentReadOnly()} />
+                <MarkdownEditor value={content()} onChange={setContent} onSave={activeFile().type === "context" ? saveFile : undefined} placeholder="Write markdown here..." readOnly={isCurrentReadOnly()} />
               </Show>
               <Show when={fileViewMode() === "image"}>
                 <div class="flex h-full items-center justify-center overflow-auto rounded-md border border-input bg-background p-4">

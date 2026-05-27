@@ -7,7 +7,7 @@ import { TicketStore } from './ticket-store.js';
 import { git } from './git.js';
 
 /**
- * Tests that non-JSON request bodies to the stage PUT endpoint produce
+ * Tests that non-JSON request bodies to the context PUT endpoint produce
  * safe 400 responses without leaking stack traces or file paths.
  *
  * The PUT handler does: await request.json()
@@ -17,7 +17,7 @@ import { git } from './git.js';
  * We test errorMessage with the actual SyntaxError that Request.json() throws
  * for various invalid bodies to confirm no internal info leaks.
  */
-describe('PUT /stages/:stage non-JSON body handling', () => {
+describe('PUT /context/:name non-JSON body handling', () => {
 	async function getJsonParseError(body: BodyInit): Promise<Error> {
 		const request = new Request('http://localhost/test', {
 			method: 'PUT',
@@ -103,7 +103,7 @@ describe('PUT /stages/:stage non-JSON body handling', () => {
 	});
 });
 
-describe('saveStageMarkdown rejects non-string content', () => {
+describe('saveTicketContext rejects non-string content', () => {
 	const dirs: string[] = [];
 
 	afterEach(() => {
@@ -130,7 +130,7 @@ describe('saveStageMarkdown rejects non-string content', () => {
 			store.createTicket('T-1', 'Test Ticket');
 
 			expect(() =>
-				store.saveStageMarkdown('t-1-test-ticket', 'notes', value as string)
+				store.saveTicketContext('t-1-test-ticket', 'notes', value as string)
 			).toThrow(TypeError);
 		});
 
@@ -142,7 +142,7 @@ describe('saveStageMarkdown rejects non-string content', () => {
 
 			let msg = '';
 			try {
-				store.saveStageMarkdown('t-1-test-ticket', 'notes', value as string);
+				store.saveTicketContext('t-1-test-ticket', 'notes', value as string);
 			} catch (e) {
 				msg = errorMessage(e);
 			}
@@ -157,13 +157,13 @@ function tmpDir(prefix: string): string {
 }
 
 async function createGitWorktree(): Promise<string> {
-	const dir = tmpDir('stage-traversal-test-');
+	const dir = tmpDir('context-traversal-test-');
 	await git(dir, 'init');
 	await git(dir, 'commit', '--allow-empty', '-m', 'init');
 	return dir;
 }
 
-describe('GET/DELETE with path-traversal stage param', () => {
+describe('GET/DELETE with path-traversal name param', () => {
 	const dirs: string[] = [];
 
 	afterEach(() => {
@@ -175,17 +175,17 @@ describe('GET/DELETE with path-traversal stage param', () => {
 
 	const traversalNames = ['../secret', '..\\secret', 'foo/../../bar', '..', '.'];
 
-	for (const badStage of traversalNames) {
-		it(`getStageMarkdown rejects stage="${badStage}"`, async () => {
+	for (const badName of traversalNames) {
+		it(`getTicketContext rejects name="${badName}"`, async () => {
 			const worktreeDir = await createGitWorktree();
 			dirs.push(worktreeDir);
 			const store = new TicketStore(worktreeDir);
 			store.createTicket('T-1', 'Test Ticket');
 
-			expect(() => store.getStageMarkdown('t-1-test-ticket', badStage)).toThrow();
+			expect(() => store.getTicketContext('t-1-test-ticket', badName)).toThrow();
 		});
 
-		it(`getStageMarkdown error for stage="${badStage}" is user-safe`, async () => {
+		it(`getTicketContext error for name="${badName}" is user-safe`, async () => {
 			const worktreeDir = await createGitWorktree();
 			dirs.push(worktreeDir);
 			const store = new TicketStore(worktreeDir);
@@ -193,7 +193,7 @@ describe('GET/DELETE with path-traversal stage param', () => {
 
 			let msg = '';
 			try {
-				store.getStageMarkdown('t-1-test-ticket', badStage);
+				store.getTicketContext('t-1-test-ticket', badName);
 			} catch (e) {
 				msg = errorMessage(e);
 			}
@@ -203,16 +203,16 @@ describe('GET/DELETE with path-traversal stage param', () => {
 			expect(msg).not.toContain('.ts:');
 		});
 
-		it(`deleteStageMarkdown rejects stage="${badStage}"`, async () => {
+		it(`deleteTicketContext rejects name="${badName}"`, async () => {
 			const worktreeDir = await createGitWorktree();
 			dirs.push(worktreeDir);
 			const store = new TicketStore(worktreeDir);
 			store.createTicket('T-1', 'Test Ticket');
 
-			expect(() => store.deleteStageMarkdown('t-1-test-ticket', badStage)).toThrow();
+			expect(() => store.deleteTicketContext('t-1-test-ticket', badName)).toThrow();
 		});
 
-		it(`deleteStageMarkdown error for stage="${badStage}" is user-safe`, async () => {
+		it(`deleteTicketContext error for name="${badName}" is user-safe`, async () => {
 			const worktreeDir = await createGitWorktree();
 			dirs.push(worktreeDir);
 			const store = new TicketStore(worktreeDir);
@@ -220,7 +220,7 @@ describe('GET/DELETE with path-traversal stage param', () => {
 
 			let msg = '';
 			try {
-				store.deleteStageMarkdown('t-1-test-ticket', badStage);
+				store.deleteTicketContext('t-1-test-ticket', badName);
 			} catch (e) {
 				msg = errorMessage(e);
 			}

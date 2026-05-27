@@ -523,8 +523,8 @@ export function startMockServer(port: number, state: MockServerState): Promise<h
         return;
       }
 
-      // Stage file content
-      if (pathname.includes("/stages/") && req.method === "GET") {
+      // Ticket context content
+      if (pathname.includes("/context/") && req.method === "GET") {
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ content: "" }));
         return;

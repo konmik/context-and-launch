@@ -21,7 +21,7 @@ export interface TicketInfo {
 	title: string;
 	status: string;
 	folderName: string;
-	stageNames: string[];
+	contextNames: string[];
 	useWorktree: boolean;
 	fileNames: string[];
 	references: { path: string; exists: boolean }[];
@@ -61,7 +61,7 @@ export interface UpdateTicketRequest {
 	status?: string;
 }
 
-export interface StageMarkdownContent {
+export interface DocContent {
 	content: string;
 }
 

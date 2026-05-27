@@ -36,7 +36,7 @@ function makeTicket(folder: string, number: string, title: string): TicketInfo {
     title,
     status: "todo",
     folderName: folder,
-    stageNames: [],
+    contextNames: [],
     useWorktree: false,
     fileNames: [],
     references: [],
@@ -96,14 +96,14 @@ describe("TicketDetailDialog content loading", () => {
   });
 
   it("does not show stale content when ticket changes before fetch completes", async () => {
-    const stageFetches: Array<{ url: string; resolve: (body: object) => void }> = [];
+    const docFetches: Array<{ url: string; resolve: (body: object) => void }> = [];
 
     globalThis.fetch = vi.fn((url: string) => {
       if (url.includes("launcher-config")) {
         return Promise.resolve(jsonResponse(emptyConfig));
       }
       return new Promise<Response>((resolve) => {
-        stageFetches.push({ url, resolve: (body) => resolve(jsonResponse(body)) });
+        docFetches.push({ url, resolve: (body) => resolve(jsonResponse(body)) });
       });
     }) as any;
 
@@ -120,17 +120,17 @@ describe("TicketDetailDialog content loading", () => {
     ));
 
     await flush();
-    expect(stageFetches.length).toBe(1);
+    expect(docFetches.length).toBe(1);
 
     setTicket(ticketB);
     await flush();
-    expect(stageFetches.length).toBe(2);
+    expect(docFetches.length).toBe(2);
 
-    stageFetches[1].resolve({ content: "Content from Bravo" });
+    docFetches[1].resolve({ content: "Content from Bravo" });
     await flush();
     expect(screen.getByTestId("editor-content").textContent).toBe("Content from Bravo");
 
-    stageFetches[0].resolve({ content: "Content from Alpha" });
+    docFetches[0].resolve({ content: "Content from Alpha" });
     await flush();
     expect(screen.getByTestId("editor-content").textContent).toBe("Content from Bravo");
   });
@@ -330,7 +330,7 @@ describe("TicketDetailDialog multi-file upload confirmation", () => {
   });
 });
 
-describe("TicketDetailDialog stage deletion clears extraFiles", () => {
+describe("TicketDetailDialog context deletion clears extraFiles", () => {
   let originalFetch: typeof globalThis.fetch;
 
   beforeEach(() => {
@@ -342,7 +342,7 @@ describe("TicketDetailDialog stage deletion clears extraFiles", () => {
     cleanup();
   });
 
-  it("deleting a stage added via New markdown file removes it from the dropdown", async () => {
+  it("deleting a context added via New markdown file removes it from the dropdown", async () => {
     const { mockFetch, pending } = createFetchController();
     globalThis.fetch = mockFetch as any;
 
@@ -356,7 +356,7 @@ describe("TicketDetailDialog stage deletion clears extraFiles", () => {
       />
     ));
 
-    // Wait for initial content load (to-do stage)
+    // Wait for initial content load (to-do context)
     await flush();
     pending[0].resolve({ content: "" });
     await flush();
@@ -368,31 +368,31 @@ describe("TicketDetailDialog stage deletion clears extraFiles", () => {
 
     // Enter a file name and create it
     const input = screen.getByPlaceholderText("e.g. design-notes");
-    fireEvent.input(input, { target: { value: "ghost-stage" } });
+    fireEvent.input(input, { target: { value: "ghost-doc" } });
     await flush();
 
     const createButton = screen.getByText("Create");
     fireEvent.click(createButton);
     await flush();
 
-    // The effect fires to load the new stage content
+    // The effect fires to load the new context content
     const loadIdx = pending.length - 1;
     pending[loadIdx].resolve({ content: "" });
     await flush();
 
-    // Open the dropdown and verify the new stage appears
-    const dropdownButton = screen.getByText("ghost-stage.md");
+    // Open the dropdown and verify the new context appears
+    const dropdownButton = screen.getByText("ghost-doc.md");
     fireEvent.click(dropdownButton);
     await flush();
 
     const dropdownOptions = screen.getAllByRole("button").map((b) => b.textContent);
-    expect(dropdownOptions.some((t) => t?.includes("ghost-stage.md"))).toBe(true);
+    expect(dropdownOptions.some((t) => t?.includes("ghost-doc.md"))).toBe(true);
 
     // Close dropdown
     fireEvent.click(dropdownButton);
     await flush();
 
-    // Click the trash button to delete the active file (ghost-stage)
+    // Click the trash button to delete the active file (ghost-doc)
     const trashButton = screen.getByTitle("Delete file");
     fireEvent.click(trashButton);
     await flush();
@@ -402,7 +402,7 @@ describe("TicketDetailDialog stage deletion clears extraFiles", () => {
     fireEvent.click(deleteButton);
     await flush();
 
-    // The DELETE fetch for the stage
+    // The DELETE fetch for the context
     const deleteIdx = pending.length - 1;
     pending[deleteIdx].resolve({});
     await flush();
@@ -412,13 +412,13 @@ describe("TicketDetailDialog stage deletion clears extraFiles", () => {
     pending[fallbackIdx].resolve({ content: "" });
     await flush();
 
-    // Open dropdown and verify ghost-stage is gone
+    // Open dropdown and verify ghost-doc is gone
     const currentLabel = screen.getByText("to-do.md");
     fireEvent.click(currentLabel);
     await flush();
 
     const optionsAfterDelete = screen.getAllByRole("button").map((b) => b.textContent);
-    expect(optionsAfterDelete.some((t) => t?.includes("ghost-stage.md"))).toBe(false);
+    expect(optionsAfterDelete.some((t) => t?.includes("ghost-doc.md"))).toBe(false);
   });
 });
 
