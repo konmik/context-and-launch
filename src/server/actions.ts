@@ -65,7 +65,7 @@ export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
     const merged = launcherConfigManager.getMergedConfig(slug);
     const config = boardConfigManager.getConfig(merged.boardId);
     const store = new TicketStore(worktreeDir);
-    const { tickets, ticketOrder } = store.loadBoardState(config.columns);
+    const { tickets, ticketOrder } = store.loadBoardState(config.columns.map(c => c.name));
     const suggestedNextNumber = store.suggestNextNumber();
     const hasRemote = await ticketSyncManager.hasRemote(worktreeDir);
     const hasConflict = ticketSyncManager.hasActiveRebase(worktreeDir);
@@ -118,7 +118,7 @@ export async function createTicketAction(slug: string, number: string, title: st
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(slug);
     const merged = launcherConfigManager.getMergedConfig(slug);
-    const firstColumn = boardConfigManager.getConfig(merged.boardId).columns[0];
+    const firstColumn = boardConfigManager.getConfig(merged.boardId).columns[0]?.name;
     new TicketStore(worktreeDir).createTicket(number, title, firstColumn);
     return { success: true };
   } catch (e) {
@@ -145,26 +145,6 @@ export async function updateTicketAction(
       title,
       status
     );
-    return { success: true };
-  } catch (e) {
-    return { error: errorMessage(e) };
-  }
-}
-
-export async function reorderTicketAction(
-  slug: string,
-  folderName: string,
-  fromColumn: string,
-  toColumn: string,
-  newIndex: number
-) {
-  "use server";
-  const { worktreeManager } = await import("~/server/instances.js");
-  const { TicketStore } = await import("~/server/ticket-store.js");
-  const { errorMessage } = await import("~/server/errors.js");
-  try {
-    const worktreeDir = worktreeManager.getWorktreeDir(slug);
-    new TicketStore(worktreeDir).moveTicket(folderName, fromColumn, toColumn, newIndex);
     return { success: true };
   } catch (e) {
     return { error: errorMessage(e) };

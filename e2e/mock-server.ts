@@ -1,7 +1,8 @@
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
-import type { BoardPageData, TicketInfo } from "./setup-test-data.js";
+import { DEFAULT_BOARDS, type BoardPageData, type TicketInfo, type BoardDefinition, type ColumnDefinition } from "./setup-test-data.js";
+import { slugifyColumnName } from "~/lib/slugify.js";
 
 // seroval is used to serialize mock data in the format the SolidJS Start client expects
 const seroval = await import("seroval");
@@ -15,7 +16,6 @@ const LOAD_BOARD_ID = "src_server_actions_ts--loadBoard_query";
 const CREATE_TICKET_ID = "src_server_actions_ts--createTicketAction_1";
 const UPDATE_TICKET_ID = "src_server_actions_ts--updateTicketAction_1";
 const DELETE_TICKET_ID = "src_server_actions_ts--deleteTicketAction_1";
-const REORDER_TICKET_ID = "src_server_actions_ts--reorderTicketAction_1";
 const GET_DEFAULT_SLUG_ID = "src_server_actions_ts--getDefaultSlug_query";
 
 const MIME_TYPES: Record<string, string> = {
@@ -169,7 +169,8 @@ function buildHtmlTemplate(): string {
 
 export interface MockServerState {
   boardData: BoardPageData;
-  launcherConfig?: { templates: { name: string; text: string; scope: string }[]; skills: { name: string; text: string; scope: string }[]; columnDefaults: Record<string, any>; worktreeRootPath: string | null };
+  boards?: BoardDefinition[];
+  launcherConfig?: { templates: { name: string; text: string; scope: string }[]; skills: { name: string; text: string; scope: string }[]; profiles?: { name: string; command: string; scope: string }[]; shortcuts?: { name: string; command: string; scope: string }[]; columnDefaults: Record<string, any>; worktreeRootPath: string | null; boardId?: string | null };
   onLaunchAgent?: (slug: string, folderName: string, body: any) => { status: number; body: any } | Promise<{ status: number; body: any }>;
   onCreateTicket?: (slug: string, number: string, title: string) => { success: true } | { error: string };
   onUpdateTicket?: (slug: string, folderName: string, number: string | null, title: string | null, status: string | null) => { success: true } | { error: string };
@@ -180,6 +181,209 @@ export interface MockServerState {
   onResolveConflicts?: (slug: string) => { success: true } | { error: string };
   referenceFileContents?: Record<string, string>;
   uploadedFiles?: Record<string, Buffer>;
+  failColumnPut?: boolean;
+}
+
+function getBoards(state: MockServerState): BoardDefinition[] {
+  if (!state.boards) {
+    state.boards = structuredClone(DEFAULT_BOARDS);
+  }
+  return state.boards!;
+}
+
+function handleBoardApi(req: http.IncomingMessage, res: http.ServerResponse, pathname: string, state: MockServerState): boolean {
+  // GET /api/boards
+  if (pathname === "/api/boards" && req.method === "GET") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(getBoards(state)));
+    return true;
+  }
+
+  // POST /api/boards
+  if (pathname === "/api/boards" && req.method === "POST") {
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    req.on("end", () => {
+      try {
+        const body = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+        const boards = getBoards(state);
+        const id = slugifyColumnName(body.name);
+        if (!id) { res.writeHead(400); res.end("Board name must not be empty"); return; }
+        if (boards.some((b: BoardDefinition) => b.id === id)) { res.writeHead(400); res.end(`Board with id "${id}" already exists`); return; }
+        const board: BoardDefinition = { id, name: body.name.trim(), columns: [] };
+        boards.push(board);
+        res.writeHead(201, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(board));
+      } catch (err) {
+        res.writeHead(400);
+        res.end(String(err));
+      }
+    });
+    return true;
+  }
+
+  // DELETE /api/boards/:boardId
+  const boardDeleteMatch = pathname.match(/^\/api\/boards\/([^/]+)$/);
+  if (boardDeleteMatch && req.method === "DELETE") {
+    const boardId = boardDeleteMatch[1];
+    const boards = getBoards(state);
+    if (boards.length <= 1) { res.writeHead(400); res.end("Cannot delete the last board"); return true; }
+    const idx = boards.findIndex((b: BoardDefinition) => b.id === boardId);
+    if (idx < 0) { res.writeHead(400); res.end("Board not found"); return true; }
+    boards.splice(idx, 1);
+    // Cascade: clear boardId from launcher config if it references deleted board
+    if (state.launcherConfig?.boardId === boardId) {
+      state.launcherConfig.boardId = undefined;
+    }
+    res.writeHead(204);
+    res.end();
+    return true;
+  }
+
+  // PUT /api/boards/:boardId
+  if (boardDeleteMatch && req.method === "PUT") {
+    const boardId = boardDeleteMatch[1];
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    req.on("end", () => {
+      const boards = getBoards(state);
+      const board = boards.find((b: BoardDefinition) => b.id === boardId);
+      if (!board) { res.writeHead(400); res.end("Board not found"); return; }
+      try {
+        const body = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+        board.name = body.name?.trim() ?? board.name;
+        res.writeHead(204);
+        res.end();
+      } catch (err) {
+        res.writeHead(400);
+        res.end(String(err));
+      }
+    });
+    return true;
+  }
+
+  // POST /api/boards/:boardId/columns/:columnName/rename
+  const renameMatch = pathname.match(/^\/api\/boards\/([^/]+)\/columns\/([^/]+)\/rename$/);
+  if (renameMatch && req.method === "POST") {
+    const boardId = renameMatch[1];
+    const columnName = decodeURIComponent(renameMatch[2]);
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    req.on("end", () => {
+      const boards = getBoards(state);
+      const board = boards.find((b: BoardDefinition) => b.id === boardId);
+      if (!board) { res.writeHead(400); res.end("Board not found"); return; }
+      try {
+        const body = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+        const newName = slugifyColumnName(body.newName);
+        const col = board.columns.find((c: ColumnDefinition) => c.name === columnName);
+        if (col) col.name = newName;
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ newName, ticketsUpdated: 0, projectsUpdated: 0 }));
+      } catch (err) {
+        res.writeHead(400);
+        res.end(String(err));
+      }
+    });
+    return true;
+  }
+
+  // PUT /api/boards/:boardId/columns/reorder
+  const reorderMatch = pathname.match(/^\/api\/boards\/([^/]+)\/columns\/reorder$/);
+  if (reorderMatch && req.method === "PUT") {
+    const boardId = reorderMatch[1];
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    req.on("end", () => {
+      const boards = getBoards(state);
+      const board = boards.find((b: BoardDefinition) => b.id === boardId);
+      if (!board) { res.writeHead(400); res.end("Board not found"); return; }
+      try {
+        const body = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+        const colMap = new Map(board.columns.map((c: ColumnDefinition) => [c.name, c]));
+        board.columns = body.columns.map((n: string) => colMap.get(n)!).filter(Boolean);
+        res.writeHead(204);
+        res.end();
+      } catch (err) {
+        res.writeHead(400);
+        res.end(String(err));
+      }
+    });
+    return true;
+  }
+
+  // POST /api/boards/:boardId/columns
+  const colAddMatch = pathname.match(/^\/api\/boards\/([^/]+)\/columns$/);
+  if (colAddMatch && req.method === "POST") {
+    const boardId = colAddMatch[1];
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    req.on("end", () => {
+      const boards = getBoards(state);
+      const board = boards.find((b: BoardDefinition) => b.id === boardId);
+      if (!board) { res.writeHead(400); res.end("Board not found"); return; }
+      try {
+        const body = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+        const name = slugifyColumnName(body.name);
+        if (!name) { res.writeHead(400); res.end("Column name must not be empty"); return; }
+        if (name === "undefined") { res.writeHead(400); res.end('Column name "undefined" is reserved'); return; }
+        if (board.columns.some((c: ColumnDefinition) => c.name === name)) { res.writeHead(400); res.end(`Column name "${name}" already exists`); return; }
+        const col: ColumnDefinition = { name };
+        if (body.description?.trim()) col.description = body.description.trim();
+        board.columns.push(col);
+        res.writeHead(201, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(col));
+      } catch (err) {
+        res.writeHead(400);
+        res.end(String(err));
+      }
+    });
+    return true;
+  }
+
+  // PUT or DELETE /api/boards/:boardId/columns/:columnName
+  const colMatch = pathname.match(/^\/api\/boards\/([^/]+)\/columns\/([^/]+)$/);
+  if (colMatch && (req.method === "PUT" || req.method === "DELETE")) {
+    const boardId = colMatch[1];
+    const columnName = decodeURIComponent(colMatch[2]);
+    if (req.method === "DELETE") {
+      const boards = getBoards(state);
+      const board = boards.find((b: BoardDefinition) => b.id === boardId);
+      if (!board) { res.writeHead(400); res.end("Board not found"); return true; }
+      board.columns = board.columns.filter((c: ColumnDefinition) => c.name !== columnName);
+      res.writeHead(204);
+      res.end();
+      return true;
+    }
+    // PUT - update column description
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    req.on("end", () => {
+      if (state.failColumnPut) {
+        res.writeHead(500);
+        res.end("Simulated description update failure");
+        return;
+      }
+      const boards = getBoards(state);
+      const board = boards.find((b: BoardDefinition) => b.id === boardId);
+      if (!board) { res.writeHead(400); res.end("Board not found"); return; }
+      try {
+        const body = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+        const col = board.columns.find((c: ColumnDefinition) => c.name === columnName);
+        if (col && body.description !== undefined) {
+          col.description = body.description?.trim() || undefined;
+        }
+        res.writeHead(204);
+        res.end();
+      } catch (err) {
+        res.writeHead(400);
+        res.end(String(err));
+      }
+    });
+    return true;
+  }
+
+  return false;
 }
 
 export function startMockServer(port: number, state: MockServerState): Promise<http.Server> {
@@ -210,11 +414,33 @@ export function startMockServer(port: number, state: MockServerState): Promise<h
 
     // Handle API routes
     if (pathname.startsWith("/api/")) {
+      // Board API routes
+      if (handleBoardApi(req, res, pathname, state)) return;
+
       // Launcher config endpoint
       if (pathname.match(/\/api\/projects\/[^/]+\/launcher-config$/) && req.method === "GET") {
         const config = state.launcherConfig ?? { templates: [], skills: [], profiles: [], shortcuts: [], columnDefaults: {}, worktreeRootPath: null };
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(config));
+        return;
+      }
+
+      // Board ID assignment endpoint
+      if (pathname.match(/\/api\/projects\/[^/]+\/launcher-config\/board-id$/) && req.method === "PUT") {
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk: Buffer) => chunks.push(chunk));
+        req.on("end", () => {
+          try {
+            const body = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+            if (state.launcherConfig) {
+              state.launcherConfig.boardId = body.boardId;
+            }
+          } catch (err) {
+            console.error("Error parsing board-id body:", err);
+          }
+          res.writeHead(204);
+          res.end();
+        });
         return;
       }
 
@@ -605,11 +831,6 @@ function handlePostMutation(
       if (state.onDeleteTicket) {
         const [slug, folderName] = args as [string, string];
         responseData = state.onDeleteTicket(slug, folderName);
-      }
-    } else if (fnId.includes(REORDER_TICKET_ID)) {
-      if (state.onReorderTicket) {
-        const [slug, folderName, fromColumn, toColumn, newIndex] = args as [string, string, string, string, number];
-        responseData = state.onReorderTicket(slug, folderName, fromColumn, toColumn, newIndex);
       }
     }
   } catch (err) {

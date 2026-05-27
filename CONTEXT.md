@@ -40,8 +40,12 @@ A named board layout with an id, name, and ordered list of columns. All board de
 Avoid: column config, workflow, board config
 
 Column:
-A named stage in a board config representing a ticket status (e.g. `todo`, `prd`, `in-progress`, `review`, `done`).
+A named stage in a Board Definition representing a ticket status (e.g. `todo`, `prd`, `in-progress`, `review`, `done`). Has a name (auto-slugified, filesystem-safe, unique within its board) and an optional plain-text description displayed below the column header on the board.
 Avoid: lane, swimlane, stage
+
+Undefined Column:
+A virtual column rendered at the far right of the board when any ticket's status does not match a column in the active Board Definition. Not part of the Board Definition. Styled with red frame and red title. Shows each ticket's orphaned status in red. Disappears when empty. Users can drag tickets out into real columns.
+Avoid: orphan column, missing column
 
 ### Git Infrastructure
 
@@ -105,8 +109,13 @@ Avoid: sandbox, workspace
 - A Worktree is checked out from the Project's Orphan Branch
 - A Worktree contains zero or more Ticket Folders
 - A Ticket Folder contains exactly one `status.json` and zero or more Stage Markdowns
-- A Board Config defines the set of Columns available to a Project
-- A Column name determines the filename of its Stage Markdown (e.g. column `review` → `review.md`)
+- A Board Definition defines the set of Columns available to a Project
+- A Column has a name and an optional description
+- A Column name determines the filename of its Stage Markdown (e.g. column `review` -> `review.md`)
+- A Column name is auto-slugified and must be unique within its Board Definition
+- The reserved name "undefined" cannot be used for a Column
+- When a Column is renamed, ticket statuses and column defaults may be migrated (scoped to all projects, current project, or none)
+- When a Column is deleted, affected tickets appear in the Undefined Column
 - The Agent Launcher assembles a prompt from a Template and zero or more Skills
 - A Launcher Config exists at app scope and optionally at project scope; project merges into app
 - A Launcher Config contains zero or more Shortcuts

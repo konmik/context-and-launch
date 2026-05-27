@@ -340,7 +340,9 @@ function TicketDetailContent(props: {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ column: props.ticket.status, ...patch }),
-    }).catch(() => {});
+    }).catch((e) => {
+      console.warn("Failed to save column defaults:", e);
+    });
   }
 
   createEffect(

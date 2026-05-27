@@ -18,8 +18,11 @@ export class TicketSyncManager {
 				const match = content.match(/^gitdir:\s*(.+)$/);
 				if (match) return path.resolve(worktreeDir, match[1]);
 			}
-		} catch {
-			// fall through
+		} catch (err: unknown) {
+			// .git may not exist (e.g. not a git repo) -- fall back to dotGit path
+			if (!(err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT')) {
+				console.warn(`resolveGitDir: unexpected error reading ${dotGit}:`, err);
+			}
 		}
 		return dotGit;
 	}
@@ -40,7 +43,13 @@ export class TicketSyncManager {
 				const branch = ref.replace(/^refs\/heads\//, '');
 				await git(worktreeDir, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', `${branch}@{u}`);
 				return true;
-			} catch {
+			} catch (innerErr) {
+				// head-name file missing (no active rebase) or branch has no upstream -- both mean no remote
+				const isFileNotFound = innerErr instanceof Error && 'code' in innerErr && (innerErr as NodeJS.ErrnoException).code === 'ENOENT';
+				const isGitNoUpstream = innerErr instanceof ProcessError && /no upstream configured/.test(innerErr.output);
+				if (!isFileNotFound && !isGitNoUpstream) {
+					console.warn('hasRemote: unexpected error during rebase-merge upstream check:', innerErr);
+				}
 				return false;
 			}
 		}
