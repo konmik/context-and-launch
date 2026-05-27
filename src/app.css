@@ -391,3 +391,9 @@ button:focus-visible,
 [data-scope="floating-panel"][data-part="content"]:focus-visible {
 	outline: none;
 }
+
+/* Menu trigger is an Ark part; suppress the control ring it inherits as a <button>. */
+[data-scope="menu"][data-part="trigger"]:focus-visible {
+	outline: none;
+	box-shadow: none;
+}
