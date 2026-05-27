@@ -5,46 +5,34 @@ import {
 	SortableProvider,
 	closestCenter,
 } from "@thisbeyond/solid-dnd";
-import { DialogRoot, DialogTitle, DialogCloseTrigger } from "./ui/dialog";
 import { FloatingPanelRoot, FloatingPanelHeader, FloatingPanelBody, FloatingPanelDragTrigger, FloatingPanelResizeTrigger, FloatingPanelCloseTrigger, FloatingPanelTitle } from "./ui/floating-panel";
 import { TabsRoot, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
 import type { MergedLauncherConfig } from "~/server/launcher-config.js";
 import type { BoardDefinition, ColumnDefinition } from "~/server/board-config.js";
-import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
+import { useModEnterSubmit } from "~/lib/use-mod-enter-submit";
 import { slugifyColumnName } from "~/lib/slugify.js";
 import { NameDragOverlay } from "./dnd-shared.js";
 import { createListReorder, midpointOrder } from "./list-reorder.js";
 import { ScopeBadge, ROW_CLASS, SortableColumnRow, ColumnDropPreview, ItemRowBody, SortableSkillRow, SkillDropPreview, type MergedSkill } from "./launcher-settings-rows.js";
+import {
+	ItemFormDialog,
+	ColumnFormDialog,
+	RenameColumnDialog,
+	BoardFormDialog,
+	DeleteConfirmDialog,
+	ProjectBoardConfirmDialog,
+	type ItemType,
+	type Scope,
+	type ItemFormState,
+	type ColumnFormState,
+	type RenameFormState,
+	type DeleteTarget,
+} from "./launcher-settings-dialogs.js";
 
 interface LauncherSettingsProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	slug: string;
-}
-
-type ItemType = "template" | "skill" | "profile" | "shortcut";
-type Scope = "app" | "project";
-
-interface ItemFormState {
-	mode: "add" | "edit";
-	itemType: ItemType;
-	scope: Scope;
-	name: string;
-	text: string;
-	oldName?: string;
-}
-
-interface ColumnFormState {
-	mode: "add" | "edit";
-	name: string;
-	description: string;
-	oldName?: string;
-}
-
-interface RenameFormState {
-	oldName: string;
-	newName: string;
-	scope: "all" | "current" | "none";
 }
 
 export default function LauncherSettings(props: LauncherSettingsProps) {
@@ -62,7 +50,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 	const [columnForm, setColumnForm] = createSignal<ColumnFormState | null>(null);
 	const [boardForm, setBoardForm] = createSignal<{ name: string } | null>(null);
 	const [renameForm, setRenameForm] = createSignal<RenameFormState | null>(null);
-	const [deleteConfirm, setDeleteConfirm] = createSignal<{ type: "board" | "column"; id: string; name: string } | null>(null);
+	const [deleteConfirm, setDeleteConfirm] = createSignal<DeleteTarget | null>(null);
 	const [projectBoardConfirm, setProjectBoardConfirm] = createSignal<{ id: string; name: string } | null>(null);
 	const [columnError, setColumnError] = createSignal("");
 
@@ -701,226 +689,42 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 			</FloatingPanelResizeTrigger>
 		</FloatingPanelRoot>
 
-		{/* Item add/edit dialog (templates, skills, profiles, shortcuts) */}
-		<DialogRoot open={!!form()} onOpenChange={() => setForm(null)} class="max-w-lg p-0">
-						<Show when={form()}>
-							{(f) => (<>
-								<div class="flex items-center justify-between border-b border-border px-6 py-4">
-									<DialogTitle class="mb-0">
-										{f().mode === "add" ? "Add" : "Edit"} {f().itemType === "template" ? "Prompt" : f().itemType === "skill" ? "Skill" : f().itemType === "profile" ? "Launch" : "Shortcut"}
-									</DialogTitle>
-									<DialogCloseTrigger>
-										<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-									</DialogCloseTrigger>
-								</div>
-								<div class="space-y-3 px-6 py-4">
-									<div>
-										<label class="mb-1 block text-sm text-muted-foreground">Name</label>
-										<input type="text" value={f().name} onInput={(e) => setForm({ ...f(), name: e.currentTarget.value })} class="input input-sm" placeholder={f().itemType === "profile" ? "Launch name" : f().itemType === "skill" ? "Skill name" : f().itemType === "shortcut" ? "Shortcut name" : "Prompt name"} />
-									</div>
-									<div>
-										<label class="mb-1 block text-sm text-muted-foreground">{f().itemType === "shortcut" || f().itemType === "profile" ? "Command" : "Prompt"}</label>
-										<textarea value={f().text} onInput={(e) => setForm({ ...f(), text: e.currentTarget.value })} class="input min-h-[120px]" style={{ height: "auto" }} placeholder={f().itemType === "profile" ? "e.g. powershell -File run-agent.ps1" : f().itemType === "shortcut" ? "e.g. code {{projectPath}}" : "Prompt text with {{placeholders}}"} />
-										<p class="mt-1 text-xs text-muted-foreground">
-											{f().itemType === "profile" ? "{{initialPrompt}} {{windowTitle}} {{appConfigDir}}" : f().itemType === "shortcut" ? "{{ticketDir}} {{ticketSlug}} {{ticketTitle}} {{ticketNumber}} {{ticketStatus}} {{projectPath}} {{projectSlug}} {{launchDir}}" : "{{ticketDir}} {{ticketSlug}} {{ticketTitle}} {{ticketNumber}} {{ticketStatus}} {{projectPath}} {{projectSlug}}"}
-										</p>
-									</div>
-									<Show when={f().mode === "add"}>
-										<div>
-											<label class="mb-1 block text-sm text-muted-foreground">Scope</label>
-											<div class="flex gap-4">
-												<label class="flex items-center gap-1.5 text-sm"><input type="radio" name="scope" checked={f().scope === "app"} onChange={() => setForm({ ...f(), scope: "app" })} /> User</label>
-												<label class="flex items-center gap-1.5 text-sm"><input type="radio" name="scope" checked={f().scope === "project"} onChange={() => setForm({ ...f(), scope: "project" })} /> Project</label>
-											</div>
-										</div>
-									</Show>
-								</div>
-								<div class="flex justify-end gap-2 border-t border-border px-6 py-3">
-									<button onClick={() => setForm(null)} class="btn-secondary">Cancel</button>
-									<button onClick={submitForm} disabled={!f().name.trim()} title={modEnterHint()} class="btn-primary">{f().mode === "add" ? "Add" : "Save"}</button>
-								</div>
-							</>)}
-						</Show>
-		</DialogRoot>
+		<ItemFormDialog form={form()} setForm={setForm} onSubmit={submitForm} />
 
-		{/* Column add/edit dialog */}
-		<DialogRoot open={!!columnForm() && !renameForm()} onOpenChange={() => setColumnForm(null)} class="max-w-lg p-0">
-			<Show when={columnForm()}>
-				{(cf) => (<>
-					<div class="flex items-center justify-between border-b border-border px-6 py-4">
-						<DialogTitle class="mb-0">{cf().mode === "add" ? "Add Column" : "Edit Column"}</DialogTitle>
-						<DialogCloseTrigger>
-							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-						</DialogCloseTrigger>
-					</div>
-					<div class="space-y-3 px-6 py-4">
-						<Show when={columnError()}><div class="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{columnError()}</div></Show>
-						<div>
-							<label class="mb-1 block text-sm text-muted-foreground">Name</label>
-							<input
-								type="text"
-								value={cf().name}
-								onInput={(e) => setColumnForm({ ...cf(), name: e.currentTarget.value })}
-								class="input input-sm"
-								data-testid="column-name-input"
-								placeholder="e.g. In Progress"
-							/>
-							<Show when={cf().name.trim()}>
-								<p class="mt-1 text-xs text-muted-foreground" data-testid="column-slug-preview">
-									Slug: {slugifyColumnName(cf().name)}
-								</p>
-							</Show>
-							<Show when={columnNameValidation()}>
-								<p class="mt-1 text-xs text-destructive" data-testid="column-name-error">{columnNameValidation()}</p>
-							</Show>
-						</div>
-						<div>
-							<label class="mb-1 block text-sm text-muted-foreground">Description (optional)</label>
-							<textarea
-								value={cf().description}
-								onInput={(e) => setColumnForm({ ...cf(), description: e.currentTarget.value })}
-								class="input min-h-[60px]"
-								style={{ height: "auto" }}
-								data-testid="column-desc-input"
-								placeholder="Brief description of this column"
-							/>
-						</div>
-					</div>
-					<div class="flex justify-end gap-2 border-t border-border px-6 py-3">
-						<button onClick={() => setColumnForm(null)} class="btn-secondary">Cancel</button>
-						<button
-							onClick={handleSaveColumn}
-							disabled={!cf().name.trim() || !!columnNameValidation()}
-							title={modEnterHint()}
-							class="btn-primary"
-							data-testid="column-form-submit"
-						>{cf().mode === "add" ? "Add" : "Save"}</button>
-					</div>
-				</>)}
-			</Show>
-		</DialogRoot>
+		<ColumnFormDialog
+			columnForm={columnForm()}
+			setColumnForm={setColumnForm}
+			renameActive={!!renameForm()}
+			columnError={columnError()}
+			validation={columnNameValidation()}
+			onSubmit={handleSaveColumn}
+		/>
 
-		{/* Rename migration scope dialog */}
-		<DialogRoot open={!!renameForm()} onOpenChange={() => setRenameForm(null)} class="max-w-lg p-0">
-			<Show when={renameForm()}>
-				{(rf) => (<>
-					<div class="flex items-center justify-between border-b border-border px-6 py-4">
-						<DialogTitle class="mb-0">Rename Column</DialogTitle>
-						<DialogCloseTrigger>
-							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-						</DialogCloseTrigger>
-					</div>
-					<div class="space-y-3 px-6 py-4">
-						<Show when={columnError()}><div class="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{columnError()}</div></Show>
-						<p class="text-sm">
-							Renaming "{rf().oldName}" to "{slugifyColumnName(rf().newName)}".
-						</p>
-						<p class="text-sm text-muted-foreground">
-							Update ticket statuses and column defaults?
-						</p>
-						<div class="space-y-2">
-							<label class="flex items-center gap-2 text-sm">
-								<input type="radio" name="rename-scope" checked={rf().scope === "all"} onChange={() => setRenameForm({ ...rf(), scope: "all" })} data-testid="rename-scope-all" />
-								All projects using this board
-							</label>
-							<label class="flex items-center gap-2 text-sm">
-								<input type="radio" name="rename-scope" checked={rf().scope === "current"} onChange={() => setRenameForm({ ...rf(), scope: "current" })} data-testid="rename-scope-current" />
-								Current project only
-							</label>
-							<label class="flex items-center gap-2 text-sm">
-								<input type="radio" name="rename-scope" checked={rf().scope === "none"} onChange={() => setRenameForm({ ...rf(), scope: "none" })} data-testid="rename-scope-none" />
-								None (rename column only)
-							</label>
-						</div>
-					</div>
-					<div class="flex justify-end gap-2 border-t border-border px-6 py-3">
-						<button onClick={() => { setRenameForm(null); }} class="btn-secondary">Cancel</button>
-						<button onClick={handleRenameColumn} title={modEnterHint()} class="btn-primary">Rename</button>
-					</div>
-				</>)}
-			</Show>
-		</DialogRoot>
+		<RenameColumnDialog
+			renameForm={renameForm()}
+			setRenameForm={setRenameForm}
+			columnError={columnError()}
+			onRename={handleRenameColumn}
+		/>
 
-		{/* Board add dialog */}
-		<DialogRoot open={!!boardForm()} onOpenChange={() => setBoardForm(null)} class="max-w-sm p-0">
-			<Show when={boardForm()}>
-				{(bf) => (<>
-					<div class="flex items-center justify-between border-b border-border px-6 py-4">
-						<DialogTitle class="mb-0">Add Board</DialogTitle>
-						<DialogCloseTrigger>
-							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-						</DialogCloseTrigger>
-					</div>
-					<div class="space-y-3 px-6 py-4">
-						<Show when={columnError()}><div class="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{columnError()}</div></Show>
-						<div>
-							<label class="mb-1 block text-sm text-muted-foreground">Board name</label>
-							<input
-								type="text"
-								value={bf().name}
-								onInput={(e) => setBoardForm({ name: e.currentTarget.value })}
-								class="input input-sm"
-								data-testid="board-name-input"
-								placeholder="e.g. Development"
-							/>
-						</div>
-					</div>
-					<div class="flex justify-end gap-2 border-t border-border px-6 py-3">
-						<button onClick={() => setBoardForm(null)} class="btn-secondary">Cancel</button>
-						<button onClick={handleCreateBoard} disabled={!bf().name.trim()} title={modEnterHint()} class="btn-primary" data-testid="board-form-submit">Add</button>
-					</div>
-				</>)}
-			</Show>
-		</DialogRoot>
+		<BoardFormDialog
+			boardForm={boardForm()}
+			setBoardForm={setBoardForm}
+			columnError={columnError()}
+			onCreate={handleCreateBoard}
+		/>
 
-		{/* Delete confirmation dialog */}
-		<DialogRoot open={!!deleteConfirm()} onOpenChange={() => setDeleteConfirm(null)} class="max-w-sm p-0">
-			<Show when={deleteConfirm()}>
-				{(dc) => (<>
-					<div class="flex items-center justify-between border-b border-border px-6 py-4">
-						<DialogTitle class="mb-0">Delete {dc().type === "board" ? "Board" : "Column"}</DialogTitle>
-						<DialogCloseTrigger>
-							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-						</DialogCloseTrigger>
-					</div>
-					<div class="px-6 py-4">
-						<p class="text-sm" data-testid="delete-confirm-message">
-							{dc().type === "board"
-								? `Delete board "${dc().name}"? This cannot be undone.`
-								: `Delete column "${dc().name}"? Tickets with this status will appear in the undefined column.`}
-						</p>
-					</div>
-					<div class="flex justify-end gap-2 border-t border-border px-6 py-3">
-						<button onClick={() => setDeleteConfirm(null)} class="btn-secondary">Cancel</button>
-						<button
-							onClick={dc().type === "board" ? handleDeleteBoard : handleDeleteColumn}
-							class="btn-primary bg-destructive text-destructive-foreground hover:bg-destructive/90"
-							data-testid="delete-confirm-btn"
-						>Delete</button>
-					</div>
-				</>)}
-			</Show>
-		</DialogRoot>
+		<DeleteConfirmDialog
+			deleteConfirm={deleteConfirm()}
+			setDeleteConfirm={setDeleteConfirm}
+			onDeleteBoard={handleDeleteBoard}
+			onDeleteColumn={handleDeleteColumn}
+		/>
 
-		{/* Set-as-project-board confirmation dialog */}
-		<DialogRoot open={!!projectBoardConfirm()} onOpenChange={() => setProjectBoardConfirm(null)} class="max-w-sm p-0">
-			<Show when={projectBoardConfirm()}>
-				{(pbc) => (<>
-					<div class="flex items-center justify-between border-b border-border px-6 py-4">
-						<DialogTitle class="mb-0">Set Project Board</DialogTitle>
-						<DialogCloseTrigger>
-							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-						</DialogCloseTrigger>
-					</div>
-					<div class="px-6 py-4">
-						<p class="text-sm" data-testid="set-project-board-message">Set "{pbc().name}" as the board for this project? Tickets whose status is not a column in this board will appear in the undefined column and must be updated manually.</p>
-					</div>
-					<div class="flex justify-end gap-2 border-t border-border px-6 py-3">
-						<button onClick={() => setProjectBoardConfirm(null)} class="btn-secondary" data-testid="set-project-board-cancel-btn">Cancel</button>
-						<button onClick={handleSetProjectBoard} class="btn-primary" data-testid="set-project-board-confirm-btn">Set board</button>
-					</div>
-				</>)}
-			</Show>
-		</DialogRoot>
+		<ProjectBoardConfirmDialog
+			projectBoardConfirm={projectBoardConfirm()}
+			setProjectBoardConfirm={setProjectBoardConfirm}
+			onConfirm={handleSetProjectBoard}
+		/>
 	</>);
 }

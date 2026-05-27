@@ -113,6 +113,98 @@ function EmptyColumnDropzone(props: { column: string }) {
   return <div ref={droppable.ref} class="flex-1" />;
 }
 
+interface TicketColumnProps {
+  activeId: string | null;
+  activeTicket: TicketInfo | null;
+  hoverTarget: HoverTarget | null;
+  onEdit: (ticket: TicketInfo) => void;
+  onDelete: (ticket: TicketInfo) => void;
+  onArchive: (ticket: TicketInfo) => void;
+  onViewDetail: (ticket: TicketInfo) => void;
+}
+
+function TicketColumn(props: TicketColumnProps & {
+  column: ColumnDefinition;
+  tickets: TicketInfo[];
+  registerRef: (el: HTMLDivElement) => void;
+}) {
+  const ids = () => props.tickets.map((t) => makeId(props.column.name, t.folderName));
+  const tailPreview = () => {
+    const h = props.hoverTarget;
+    const aid = props.activeId;
+    if (!h || !aid || h.column !== props.column.name || h.index !== props.tickets.length) return false;
+    return parseId(aid).column !== props.column.name;
+  };
+  return (
+    <div class="flex min-w-[250px] flex-1 flex-col rounded-lg bg-muted/50 p-3">
+      <h3 class="mb-3 text-sm font-semibold uppercase text-muted-foreground">
+        {props.column.name}
+      </h3>
+      <Show when={props.column.description}>
+        <p class="mb-2 text-xs text-muted-foreground" data-testid="column-description">{props.column.description}</p>
+      </Show>
+      <SortableProvider ids={ids()}>
+        <div ref={(el) => props.registerRef(el)} class="flex flex-1 flex-col gap-2">
+          <For each={props.tickets}>
+            {(ticket, i) => (
+              <SortableTicketCard
+                ticket={ticket}
+                column={props.column.name}
+                index={i()}
+                activeId={props.activeId}
+                activeTicket={props.activeTicket}
+                hoverTarget={props.hoverTarget}
+                onEdit={props.onEdit}
+                onDelete={props.onDelete}
+                onArchive={props.onArchive}
+                onViewDetail={props.onViewDetail}
+              />
+            )}
+          </For>
+          <Show when={tailPreview() && props.activeTicket}>
+            {(t) => <DropPreview ticket={t()} />}
+          </Show>
+          <Show when={props.tickets.length === 0}>
+            <EmptyColumnDropzone column={props.column.name} />
+          </Show>
+        </div>
+      </SortableProvider>
+    </div>
+  );
+}
+
+function OrphanColumn(props: TicketColumnProps & { tickets: TicketInfo[] }) {
+  return (
+    <div class="flex min-w-[250px] flex-1 flex-col rounded-lg border-2 border-destructive bg-muted/50 p-3" data-testid="undefined-column">
+      <h3 class="mb-1 text-sm font-semibold uppercase text-destructive">
+        undefined
+      </h3>
+      <p class="mb-2 text-xs text-destructive/80" data-testid="undefined-column-description">Update manually</p>
+      <SortableProvider ids={props.tickets.map((t) => makeId("undefined", t.folderName))}>
+        <div class="flex flex-1 flex-col gap-2">
+          <For each={props.tickets}>
+            {(ticket, i) => (
+              <SortableTicketCard
+                ticket={ticket}
+                column="undefined"
+                index={i()}
+                activeId={props.activeId}
+                activeTicket={props.activeTicket}
+                hoverTarget={props.hoverTarget}
+                onEdit={props.onEdit}
+                onDelete={props.onDelete}
+                onArchive={props.onArchive}
+                onViewDetail={props.onViewDetail}
+                orphanedStatus={ticket.status}
+              />
+            )}
+          </For>
+        </div>
+      </SortableProvider>
+    </div>
+  );
+}
+
 export default function KanbanBoard(props: KanbanBoardProps) {
   const [activeId, setActiveId] = createSignal<string | null>(null);
   const [lastDragCenterY, setLastDragCenterY] = createSignal(0);
@@ -169,10 +261,6 @@ export default function KanbanBoard(props: KanbanBoardProps) {
       if (t) result.push(t);
     }
     return result;
-  }
-
-  function idsForColumn(column: string): string[] {
-    return ticketsForColumn(column).map(t => makeId(column, t.folderName));
   }
 
   const orphanedTickets = createMemo(() => {
@@ -275,87 +363,32 @@ export default function KanbanBoard(props: KanbanBoardProps) {
         style={{ "min-height": "calc(100vh - 80px)" }}
       >
         <For each={props.board.columns}>
-          {(column) => {
-            const colName = column.name;
-            const colTickets = () => ticketsForColumn(colName);
-            const colIds = () => idsForColumn(colName);
-            const tailPreview = () => {
-              const h = hoverTarget();
-              const aid = activeId();
-              if (!h || !aid || h.column !== colName || h.index !== colTickets().length) return false;
-              return parseId(aid).column !== colName;
-            };
-            return (
-              <div class="flex min-w-[250px] flex-1 flex-col rounded-lg bg-muted/50 p-3">
-                <h3 class="mb-3 text-sm font-semibold uppercase text-muted-foreground">
-                  {colName}
-                </h3>
-                <Show when={column.description}>
-                  <p class="mb-2 text-xs text-muted-foreground" data-testid="column-description">{column.description}</p>
-                </Show>
-                <SortableProvider ids={colIds()}>
-                  <div
-                    ref={(el) => columnRefs.set(colName, el)}
-                    class="flex flex-1 flex-col gap-2"
-                  >
-                    <For each={colTickets()}>
-                      {(ticket, i) => (
-                        <SortableTicketCard
-                          ticket={ticket}
-                          column={colName}
-                          index={i()}
-                          activeId={activeId()}
-                          activeTicket={activeTicket()}
-                          hoverTarget={hoverTarget()}
-                          onEdit={props.onEdit}
-                          onDelete={props.onDelete}
-                          onArchive={props.onArchive}
-                          onViewDetail={props.onViewDetail}
-                        />
-                      )}
-                    </For>
-                    <Show when={tailPreview() && activeTicket()}>
-                      {(t) => <DropPreview ticket={t()} />}
-                    </Show>
-                    <Show when={colTickets().length === 0}>
-                      <EmptyColumnDropzone column={colName} />
-                    </Show>
-                  </div>
-                </SortableProvider>
-              </div>
-            );
-          }}
+          {(column) => (
+            <TicketColumn
+              column={column}
+              tickets={ticketsForColumn(column.name)}
+              registerRef={(el) => columnRefs.set(column.name, el)}
+              activeId={activeId()}
+              activeTicket={activeTicket()}
+              hoverTarget={hoverTarget()}
+              onEdit={props.onEdit}
+              onDelete={props.onDelete}
+              onArchive={props.onArchive}
+              onViewDetail={props.onViewDetail}
+            />
+          )}
         </For>
         <Show when={orphanedTickets().length > 0}>
-          <div class="flex min-w-[250px] flex-1 flex-col rounded-lg border-2 border-destructive bg-muted/50 p-3" data-testid="undefined-column">
-            <h3 class="mb-1 text-sm font-semibold uppercase text-destructive">
-              undefined
-            </h3>
-            <p class="mb-2 text-xs text-destructive/80" data-testid="undefined-column-description">Update manually</p>
-            <SortableProvider ids={orphanedTickets().map(t => makeId("undefined", t.folderName))}>
-              <div
-                class="flex flex-1 flex-col gap-2"
-              >
-                <For each={orphanedTickets()}>
-                  {(ticket, i) => (
-                    <SortableTicketCard
-                      ticket={ticket}
-                      column="undefined"
-                      index={i()}
-                      activeId={activeId()}
-                      activeTicket={activeTicket()}
-                      hoverTarget={hoverTarget()}
-                      onEdit={props.onEdit}
-                      onDelete={props.onDelete}
-                      onArchive={props.onArchive}
-                      onViewDetail={props.onViewDetail}
-                      orphanedStatus={ticket.status}
-                    />
-                  )}
-                </For>
-              </div>
-            </SortableProvider>
-          </div>
+          <OrphanColumn
+            tickets={orphanedTickets()}
+            activeId={activeId()}
+            activeTicket={activeTicket()}
+            hoverTarget={hoverTarget()}
+            onEdit={props.onEdit}
+            onDelete={props.onDelete}
+            onArchive={props.onArchive}
+            onViewDetail={props.onViewDetail}
+          />
         </Show>
       </div>
       <DragOverlay>
