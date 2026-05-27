@@ -175,6 +175,14 @@ export class LauncherConfigManager {
 		this.saveProjectConfig(slug, { ...config, columnDefaults });
 	}
 
+	private forEachColumnDefault(config: LauncherConfig, fn: (cd: LauncherColumnDefaults) => void): void {
+		if (!config.columnDefaults) return;
+		for (const col of Object.keys(config.columnDefaults)) {
+			const cd = config.columnDefaults[col];
+			if (cd) fn(cd);
+		}
+	}
+
 	private withConfig(scope: "app" | "project", slug: string, fn: (config: LauncherConfig) => void): void {
 		const config = scope === "app" ? this.loadAppConfig() : this.loadProjectConfig(slug);
 		fn(config);
@@ -206,27 +214,25 @@ export class LauncherConfigManager {
 	removeTemplate(scope: "app" | "project", slug: string, name: string): void {
 		this.withConfig(scope, slug, (config) => {
 			config.templates = config.templates.filter(t => t.name !== name);
-			if (config.columnDefaults) {
-				for (const col of Object.keys(config.columnDefaults)) {
-					if (config.columnDefaults[col]?.templateName === name) {
-						config.columnDefaults[col].templateName = null;
-					}
+			this.forEachColumnDefault(config, (cd) => {
+				if (cd.templateName === name) {
+					cd.templateName = null;
 				}
-			}
+			});
 		});
 	}
 
 	removeSkill(scope: "app" | "project", slug: string, name: string): void {
 		this.withConfig(scope, slug, (config) => {
 			config.skills = config.skills.filter(s => s.name !== name);
-			if (config.columnDefaults) {
-				for (const col of Object.keys(config.columnDefaults)) {
-					const cd = config.columnDefaults[col];
-					if (cd?.checkedSkills) {
-						cd.checkedSkills = cd.checkedSkills.filter(s => s !== name);
-					}
+			this.forEachColumnDefault(config, (cd) => {
+				if (cd.checkedSkills) {
+					cd.checkedSkills = cd.checkedSkills.filter(s => s !== name);
 				}
-			}
+				if (cd.skillOrder) {
+					cd.skillOrder = cd.skillOrder.filter(s => s !== name);
+				}
+			});
 		});
 	}
 
@@ -238,12 +244,12 @@ export class LauncherConfigManager {
 				throw new Error(`Template with name "${template.name}" already exists`);
 			}
 			config.templates[index] = { name: template.name, text: template.text };
-			if (oldName !== template.name && config.columnDefaults) {
-				for (const col of Object.keys(config.columnDefaults)) {
-					if (config.columnDefaults[col]?.templateName === oldName) {
-						config.columnDefaults[col].templateName = template.name;
+			if (oldName !== template.name) {
+				this.forEachColumnDefault(config, (cd) => {
+					if (cd.templateName === oldName) {
+						cd.templateName = template.name;
 					}
-				}
+				});
 			}
 		});
 	}
@@ -258,13 +264,15 @@ export class LauncherConfigManager {
 			// Preserve the sort key; editing name/text must not move the skill.
 			const order = config.skills[index].order;
 			config.skills[index] = order === undefined ? { name: skill.name, text: skill.text } : { name: skill.name, text: skill.text, order };
-			if (oldName !== skill.name && config.columnDefaults) {
-				for (const col of Object.keys(config.columnDefaults)) {
-					const cd = config.columnDefaults[col];
-					if (cd?.checkedSkills) {
+			if (oldName !== skill.name) {
+				this.forEachColumnDefault(config, (cd) => {
+					if (cd.checkedSkills) {
 						cd.checkedSkills = cd.checkedSkills.map(s => s === oldName ? skill.name : s);
 					}
-				}
+					if (cd.skillOrder) {
+						cd.skillOrder = cd.skillOrder.map(s => s === oldName ? skill.name : s);
+					}
+				});
 			}
 		});
 	}
@@ -293,13 +301,11 @@ export class LauncherConfigManager {
 	removeProfile(scope: "app" | "project", slug: string, name: string): void {
 		this.withConfig(scope, slug, (config) => {
 			config.profiles = (config.profiles ?? []).filter(p => p.name !== name);
-			if (config.columnDefaults) {
-				for (const col of Object.keys(config.columnDefaults)) {
-					if (config.columnDefaults[col]?.profileName === name) {
-						config.columnDefaults[col].profileName = null;
-					}
+			this.forEachColumnDefault(config, (cd) => {
+				if (cd.profileName === name) {
+					cd.profileName = null;
 				}
-			}
+			});
 		});
 	}
 
@@ -312,12 +318,12 @@ export class LauncherConfigManager {
 				throw new Error(`Profile with name "${profile.name}" already exists`);
 			}
 			config.profiles[index] = { name: profile.name, command: profile.command };
-			if (oldName !== profile.name && config.columnDefaults) {
-				for (const col of Object.keys(config.columnDefaults)) {
-					if (config.columnDefaults[col]?.profileName === oldName) {
-						config.columnDefaults[col].profileName = profile.name;
+			if (oldName !== profile.name) {
+				this.forEachColumnDefault(config, (cd) => {
+					if (cd.profileName === oldName) {
+						cd.profileName = profile.name;
 					}
-				}
+				});
 			}
 		});
 	}
