@@ -374,9 +374,20 @@ button:not([data-scope]), [role="button"]:not([data-scope]), .ripple {
 	font-size: 0.875rem;
 }
 .input::placeholder { color: var(--muted-foreground); }
-.input:focus-visible {
+
+.input-sm { height: 2.25rem; }
+
+/* Design-system focus ring on controls; Ark parts signal focus themselves. */
+.input:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible {
 	outline: none;
 	box-shadow: 0 0 0 2px var(--ring);
 }
 
-.input-sm { height: 2.25rem; }
+[data-scope="menu"][data-part="content"]:focus-visible,
+[data-scope="menu"][data-part="item"]:focus-visible,
+[data-scope="dialog"][data-part="content"]:focus-visible,
+[data-scope="floating-panel"][data-part="content"]:focus-visible {
+	outline: none;
+}
