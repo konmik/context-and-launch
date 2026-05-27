@@ -95,6 +95,11 @@ export interface LauncherColumnDefaults {
 	checkedSkills: string[];
 	profileName: string | null;
 	lastLayer?: "editor" | "launcher" | "shortcuts";
+	// Per-column display-order override: an explicit list of skill names for this
+	// column's launcher. Distinct from the global fractional `order` on
+	// LauncherSkill (which orders the merged list everywhere) -- this lets one
+	// status reorder its skills without affecting other columns. Applied via
+	// orderByNameList; names that no longer exist fall back to the global order.
 	skillOrder?: string[];
 }
 
