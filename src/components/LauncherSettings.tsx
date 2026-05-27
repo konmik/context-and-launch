@@ -1,4 +1,4 @@
-import { createSignal, createEffect, createMemo, onCleanup, on, Show, For } from "solid-js";
+import { createSignal, createEffect, createMemo, onCleanup, on, Show, For, Index } from "solid-js";
 import {
 	DragDropProvider,
 	DragDropSensors,
@@ -125,7 +125,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 
 	// Boards and columns state
 	const [boards, setBoards] = createSignal<BoardDefinition[]>([]);
-	const [selectedBoardId, setSelectedBoardId] = createSignal<string>("");
+	const [boardOverride, setBoardOverride] = createSignal<string | null>(null);
 	const [columnForm, setColumnForm] = createSignal<ColumnFormState | null>(null);
 	const [boardForm, setBoardForm] = createSignal<{ name: string } | null>(null);
 	const [renameForm, setRenameForm] = createSignal<RenameFormState | null>(null);
@@ -134,7 +134,19 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 	const [activeColumnId, setActiveColumnId] = createSignal<string | null>(null);
 	const [overColumnId, setOverColumnId] = createSignal<string | null>(null);
 
+	const selectedBoardId = createMemo(() => {
+		const list = boards();
+		const valid = (id: string | null | undefined) => (id && list.some(b => b.id === id) ? id : null);
+		return valid(boardOverride()) ?? valid(config()?.boardId) ?? list[0]?.id ?? "";
+	});
+
 	const selectedBoard = () => boards().find(b => b.id === selectedBoardId());
+
+	const BoardOptions = (p: { selectedId: string }) => (
+		<Index each={boards()}>
+			{(b) => <option value={b().id} selected={b().id === p.selectedId}>{b().name}</option>}
+		</Index>
+	);
 
 	const apiPathSegments: Record<ItemType, string> = { template: "templates", skill: "skills", profile: "profiles", shortcut: "shortcuts" };
 
@@ -143,7 +155,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 		return `${base}/${apiPathSegments[itemType]}`;
 	}
 
-	createEffect(on(() => props.open, (open) => { if (open) { loadConfig(); setForm(null); setColumnForm(null); setBoardForm(null); setRenameForm(null); setDeleteConfirm(null); } }));
+	createEffect(on(() => props.open, (open) => { if (open) { setBoardOverride(null); loadConfig(); setForm(null); setColumnForm(null); setBoardForm(null); setRenameForm(null); setDeleteConfirm(null); } }));
 
 	const anyDialogOpen = () => !!form() || !!columnForm() || !!boardForm() || !!renameForm() || !!deleteConfirm();
 
@@ -184,11 +196,8 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 		try {
 			const res = await fetch("/api/boards");
 			if (res.ok) {
-				const data = await res.json();
+				const data: BoardDefinition[] = await res.json();
 				setBoards(data);
-				if (!selectedBoardId() || !data.some((b: BoardDefinition) => b.id === selectedBoardId())) {
-					setSelectedBoardId(data[0]?.id ?? "");
-				}
 			}
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "Failed to load boards");
@@ -261,7 +270,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 			const created = await res.json();
 			setBoardForm(null);
 			await loadBoards();
-			setSelectedBoardId(created.id);
+			setBoardOverride(created.id);
 		} catch (e) { setColumnError(e instanceof Error ? e.message : "Failed to create board"); }
 	}
 
@@ -543,14 +552,11 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 												<section>
 													<h3 class="mb-2 text-sm font-semibold">Board <ScopeBadge scope="project" /></h3>
 													<select
-														value={cfg().boardId ?? "kanban"}
 														onChange={(e) => handleBoardIdChange(e.currentTarget.value)}
 														class="input input-sm"
 														data-testid="board-id-select"
 													>
-														<For each={boards()}>
-															{(b) => <option value={b.id}>{b.name}</option>}
-														</For>
+														<BoardOptions selectedId={cfg().boardId ?? boards()[0]?.id ?? ""} />
 													</select>
 												</section>
 												<section>
@@ -632,14 +638,11 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 												<section>
 													<div class="mb-2 flex items-center gap-2">
 														<select
-															value={selectedBoardId()}
-															onChange={(e) => setSelectedBoardId(e.currentTarget.value)}
+															onChange={(e) => setBoardOverride(e.currentTarget.value)}
 															class="input input-sm flex-1"
 															data-testid="board-selector"
 														>
-															<For each={boards()}>
-																{(b) => <option value={b.id}>{b.name}</option>}
-															</For>
+															<BoardOptions selectedId={selectedBoardId()} />
 														</select>
 														<button onClick={() => setBoardForm({ name: "" })} class="btn-primary btn-sm" data-testid="add-board-btn">Add Board</button>
 														<button
