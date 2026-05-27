@@ -1,19 +1,17 @@
-import { createSignal, createEffect, createMemo, onCleanup, on, Show, For, Index } from "solid-js";
-import {
-	DragDropProvider,
-	DragDropSensors,
-	SortableProvider,
-	closestCenter,
-} from "@thisbeyond/solid-dnd";
+import { createSignal, createEffect, createMemo, onCleanup, on, Show } from "solid-js";
 import { FloatingPanelRoot, FloatingPanelHeader, FloatingPanelBody, FloatingPanelDragTrigger, FloatingPanelResizeTrigger, FloatingPanelCloseTrigger, FloatingPanelTitle } from "./ui/floating-panel";
-import { TabsRoot, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
+import { TabsRoot, TabsList, TabsTrigger } from "./ui/tabs";
 import type { MergedLauncherConfig } from "~/server/launcher-config.js";
 import type { BoardDefinition, ColumnDefinition } from "~/server/board-config.js";
 import { useModEnterSubmit } from "~/lib/use-mod-enter-submit";
 import { slugifyColumnName } from "~/lib/slugify.js";
-import { NameDragOverlay } from "./dnd-shared.js";
 import { createListReorder, midpointOrder } from "./list-reorder.js";
-import { ScopeBadge, ROW_CLASS, SortableColumnRow, ColumnDropPreview, ItemRowBody, SortableSkillRow, SkillDropPreview, type MergedSkill } from "./launcher-settings-rows.js";
+import type { MergedSkill } from "./launcher-settings-rows.js";
+import { GeneralTab } from "./launcher-settings-general-tab.js";
+import { PromptsTab } from "./launcher-settings-prompts-tab.js";
+import { SkillsTab } from "./launcher-settings-skills-tab.js";
+import { LaunchTab } from "./launcher-settings-launch-tab.js";
+import { ColumnsTab } from "./launcher-settings-columns-tab.js";
 import {
 	ItemFormDialog,
 	ColumnFormDialog,
@@ -61,12 +59,6 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 	});
 
 	const selectedBoard = () => boards().find(b => b.id === selectedBoardId());
-
-	const BoardOptions = (p: { selectedId: string }) => (
-		<Index each={boards()}>
-			{(b) => <option value={b().id} selected={b().id === p.selectedId}>{b().name}</option>}
-		</Index>
-	);
 
 	const apiPathSegments: Record<ItemType, string> = { template: "templates", skill: "skills", profile: "profiles", shortcut: "shortcuts" };
 
@@ -419,20 +411,6 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 	useModEnterSubmit({ onSubmit: handleRenameColumn, disabled: () => false, active: () => !!renameForm() });
 	useModEnterSubmit({ onSubmit: handleCreateBoard, disabled: () => !boardForm()?.name.trim(), active: () => !!boardForm() });
 
-	function ItemRow(props: { itemType: ItemType; scope: Scope; name: string; detail: string }) {
-		return (
-			<div class={ROW_CLASS}>
-				<ItemRowBody
-					scope={props.scope}
-					name={props.name}
-					detail={props.detail}
-					onEdit={() => startEdit(props.itemType, props.scope, props.name, props.detail)}
-					onDelete={() => deleteItem(props.itemType, props.scope, props.name)}
-				/>
-			</div>
-		);
-	}
-
 	return (<>
 		<FloatingPanelRoot
 			open={props.open}
@@ -474,203 +452,35 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 
 								<Show when={config()}>
 									{(cfg) => (<>
-										<TabsContent value="general">
-											<div class="space-y-6">
-												<section>
-													<h3 class="mb-2 text-sm font-semibold">Board <ScopeBadge scope="project" /></h3>
-													<select
-														onChange={(e) => {
-															const newId = e.currentTarget.value;
-															const current = cfg().boardId ?? boards()[0]?.id ?? "";
-															e.currentTarget.value = current;
-															if (newId === current) return;
-															const b = boards().find(x => x.id === newId);
-															if (b) setProjectBoardConfirm({ id: b.id, name: b.name });
-														}}
-														class="input input-sm"
-														data-testid="board-id-select"
-													>
-														<BoardOptions selectedId={cfg().boardId ?? boards()[0]?.id ?? ""} />
-													</select>
-												</section>
-												<section>
-													<h3 class="mb-2 text-sm font-semibold">Agent worktree root path <ScopeBadge scope="project" /></h3>
-													<div class="flex gap-2">
-														<input type="text" value={worktreeRootPath()} onInput={(e) => setWorktreeRootPath(e.currentTarget.value)} onBlur={saveWorktreeRootPath} onKeyDown={(e) => { if (e.key === "Enter") saveWorktreeRootPath(); }} class="input input-sm flex-1" placeholder="e.g. ~/.context-launch/worktrees" />
-														<button type="button" onClick={async () => { try { const res = await fetch("/api/pick-directory"); if (!res.ok) return; const { path } = await res.json(); setWorktreeRootPath(path); await saveWorktreeRootPath(); } catch (e) { setError(e instanceof Error ? e.message : "Failed to pick directory"); } }} class="btn-secondary">Browse</button>
-													</div>
-												</section>
-												<section>
-													<h3 class="mb-2 text-sm font-semibold">Conflict resolution prompt <ScopeBadge scope="project" /></h3>
-													<textarea value={conflictPrompt()} onInput={(e) => setConflictPrompt(e.currentTarget.value)} onBlur={saveConflictResolution} class="input min-h-[80px]" style={{ height: "auto" }} placeholder="Prompt for resolving merge conflicts..." data-testid="conflict-prompt" />
-												</section>
-											</div>
-										</TabsContent>
-
-										<TabsContent value="templates">
-											<div class="space-y-6">
-												<section>
-													<div class="mb-2 flex items-center justify-between">
-														<h3 class="text-sm font-semibold">Prompts</h3>
-														<button onClick={() => startAdd("template")} class="btn-primary btn-sm">Add</button>
-													</div>
-													<Show when={cfg().templates.length > 0} fallback={<p class="py-3 text-center text-sm text-muted-foreground">No prompts configured.</p>}>
-														<div class="space-y-2">
-															<For each={cfg().templates}>{(item) => <ItemRow itemType="template" scope={item.scope} name={item.name} detail={item.text} />}</For>
-														</div>
-													</Show>
-												</section>
-											</div>
-										</TabsContent>
-
-										<TabsContent value="skills">
-											<div class="space-y-6">
-												<section>
-													<div class="mb-2 flex items-center justify-between">
-														<h3 class="text-sm font-semibold">Skills</h3>
-														<button onClick={() => startAdd("skill")} class="btn-primary btn-sm">Add</button>
-													</div>
-													<Show when={cfg().skills.length > 0} fallback={<p class="py-3 text-center text-sm text-muted-foreground">No skills configured.</p>}>
-														<DragDropProvider
-															onDragStart={skillReorder.onDragStart}
-															onDragOver={skillReorder.onDragOver}
-															onDragEnd={skillReorder.onDragEnd}
-															collisionDetector={closestCenter}
-														>
-															<DragDropSensors />
-															<SortableProvider ids={cfg().skills.map(s => s.name)}>
-																<div class="space-y-2">
-																	<For each={cfg().skills}>
-																		{(skill, i) => (
-																			<>
-																				<Show when={skillReorder.dropPreview()?.insertBefore === i()}>
-																					<SkillDropPreview skill={skillReorder.dropPreview()!.item} />
-																				</Show>
-																				<SortableSkillRow
-																					skill={skill}
-																					isActive={skillReorder.activeId() === skill.name}
-																					onEdit={() => startEdit("skill", skill.scope, skill.name, skill.text)}
-																					onDelete={() => deleteItem("skill", skill.scope, skill.name)}
-																				/>
-																			</>
-																		)}
-																	</For>
-																	<Show when={skillReorder.dropPreview()?.insertBefore === cfg().skills.length}>
-																		<SkillDropPreview skill={skillReorder.dropPreview()!.item} />
-																	</Show>
-																</div>
-															</SortableProvider>
-															<NameDragOverlay nameOf={(id) => cfg().skills.find(s => s.name === id)?.name} />
-														</DragDropProvider>
-													</Show>
-													<Show when={cfg().skills.some(s => s.scope === "app")}>
-														<p class="mt-2 text-xs text-muted-foreground" data-testid="skill-order-warning">
-															Skill order is shared. User skills appear in every project, so reordering one here changes its position in all of them.
-														</p>
-													</Show>
-												</section>
-											</div>
-										</TabsContent>
-
-										<TabsContent value="profiles">
-											<div class="space-y-6">
-												<section>
-													<div class="mb-2 flex items-center justify-between">
-														<h3 class="text-sm font-semibold">Profiles</h3>
-														<button onClick={() => startAdd("profile")} class="btn-primary btn-sm">Add</button>
-													</div>
-													<Show when={cfg().profiles.length > 0} fallback={<p class="py-3 text-center text-sm text-muted-foreground">No profiles configured.</p>}>
-														<div class="space-y-2">
-															<For each={cfg().profiles}>{(item) => <ItemRow itemType="profile" scope={item.scope} name={item.name} detail={item.command} />}</For>
-														</div>
-													</Show>
-												</section>
-												<section>
-													<div class="mb-2 flex items-center justify-between">
-														<h3 class="text-sm font-semibold">Shortcuts</h3>
-														<button onClick={() => startAdd("shortcut")} class="btn-primary btn-sm">Add</button>
-													</div>
-													<Show when={cfg().shortcuts.length > 0} fallback={<p class="py-3 text-center text-sm text-muted-foreground">No shortcuts configured.</p>}>
-														<div class="space-y-2">
-															<For each={cfg().shortcuts}>{(item) => <ItemRow itemType="shortcut" scope={item.scope} name={item.name} detail={item.command} />}</For>
-														</div>
-													</Show>
-												</section>
-											</div>
-										</TabsContent>
-
-										<TabsContent value="columns">
-											<div class="space-y-6">
-												<Show when={columnError()}><div class="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{columnError()}</div></Show>
-												<section>
-													<div class="mb-2 flex items-center gap-2">
-														<select
-															onChange={(e) => setBoardOverride(e.currentTarget.value)}
-															class="input input-sm flex-1"
-															data-testid="board-selector"
-														>
-															<BoardOptions selectedId={selectedBoardId()} />
-														</select>
-														<button
-															onClick={() => { const b = selectedBoard(); if (b) setProjectBoardConfirm({ id: b.id, name: b.name }); }}
-															disabled={config()?.boardId === selectedBoardId()}
-															class="btn-secondary btn-sm"
-															data-testid="set-project-board-btn"
-														>Set as project board</button>
-														<button onClick={() => setBoardForm({ name: "" })} class="btn-primary btn-sm" data-testid="add-board-btn">Add Board</button>
-														<button
-															onClick={() => { const b = selectedBoard(); if (b) setDeleteConfirm({ type: "board", id: b.id, name: b.name }); }}
-															disabled={boards().length <= 1}
-															class="btn-secondary btn-sm text-destructive hover:bg-destructive hover:text-destructive-foreground"
-															data-testid="delete-board-btn"
-														>Delete Board</button>
-													</div>
-												</section>
-												<section>
-													<div class="mb-2 flex items-center justify-between">
-														<h3 class="text-sm font-semibold">Columns</h3>
-														<button onClick={() => { setColumnError(""); setColumnForm({ mode: "add", name: "", description: "" }); }} class="btn-primary btn-sm" data-testid="add-column-btn">Add</button>
-													</div>
-													<Show when={selectedBoard()}>
-														{(board) => (
-															<Show when={board().columns.length > 0} fallback={<p class="py-3 text-center text-sm text-muted-foreground">No columns. Add one to get started.</p>}>
-																<DragDropProvider
-																	onDragStart={columnReorder.onDragStart}
-																	onDragOver={columnReorder.onDragOver}
-																	onDragEnd={columnReorder.onDragEnd}
-																	collisionDetector={closestCenter}
-																>
-																	<DragDropSensors />
-																	<SortableProvider ids={board().columns.map(c => c.name)}>
-																		<div class="space-y-2">
-																			<For each={board().columns}>
-																				{(col, i) => (
-																					<>
-																						<Show when={columnReorder.dropPreview()?.insertBefore === i()}>
-																							<ColumnDropPreview column={columnReorder.dropPreview()!.item} />
-																						</Show>
-																						<SortableColumnRow
-																							column={col}
-																							isActive={columnReorder.activeId() === col.name}
-																							onEdit={() => { setColumnError(""); setColumnForm({ mode: "edit", name: col.name, description: col.description ?? "", oldName: col.name }); }}
-																							onDelete={() => setDeleteConfirm({ type: "column", id: col.name, name: col.name })}
-																						/>
-																					</>
-																				)}
-																			</For>
-																			<Show when={columnReorder.dropPreview()?.insertBefore === board().columns.length}>
-																				<ColumnDropPreview column={columnReorder.dropPreview()!.item} />
-																			</Show>
-																		</div>
-																	</SortableProvider>
-																	<NameDragOverlay nameOf={(id) => board().columns.find(c => c.name === id)?.name} />
-																</DragDropProvider>
-															</Show>
-														)}
-													</Show>
-												</section>
-											</div>
-										</TabsContent>
+										<GeneralTab
+											config={cfg()}
+											boards={boards()}
+											worktreeRootPath={worktreeRootPath()}
+											setWorktreeRootPath={setWorktreeRootPath}
+											saveWorktreeRootPath={saveWorktreeRootPath}
+											conflictPrompt={conflictPrompt()}
+											setConflictPrompt={setConflictPrompt}
+											saveConflictResolution={saveConflictResolution}
+											onProjectBoard={setProjectBoardConfirm}
+											setError={setError}
+										/>
+										<PromptsTab config={cfg()} startAdd={startAdd} startEdit={startEdit} deleteItem={deleteItem} />
+										<SkillsTab config={cfg()} skillReorder={skillReorder} startAdd={startAdd} startEdit={startEdit} deleteItem={deleteItem} />
+										<LaunchTab config={cfg()} startAdd={startAdd} startEdit={startEdit} deleteItem={deleteItem} />
+										<ColumnsTab
+											config={cfg()}
+											boards={boards()}
+											columnError={columnError()}
+											setColumnError={setColumnError}
+											selectedBoardId={selectedBoardId()}
+											selectedBoard={selectedBoard()}
+											columnReorder={columnReorder}
+											setBoardOverride={setBoardOverride}
+											onProjectBoard={setProjectBoardConfirm}
+											setBoardForm={setBoardForm}
+											setColumnForm={setColumnForm}
+											setDeleteConfirm={setDeleteConfirm}
+										/>
 									</>)}
 								</Show>
 							</div>

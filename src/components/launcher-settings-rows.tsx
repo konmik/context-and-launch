@@ -1,8 +1,8 @@
-import { Show } from "solid-js";
+import { Show, Index } from "solid-js";
 import { createSortable } from "@thisbeyond/solid-dnd";
 import { DragGrip, DragPreview, DND_ACTIVE_CLASS } from "./dnd-shared.js";
 import type { MergedLauncherConfig } from "~/server/launcher-config.js";
-import type { ColumnDefinition } from "~/server/board-config.js";
+import type { BoardDefinition, ColumnDefinition } from "~/server/board-config.js";
 
 export type MergedSkill = MergedLauncherConfig["skills"][number];
 
@@ -123,5 +123,21 @@ export function SkillDropPreview(props: { skill: MergedSkill }) {
 		<DragPreview class={ROW_CLASS}>
 			<ItemRowBody scope={props.skill.scope} name={props.skill.name} detail={props.skill.text} grip />
 		</DragPreview>
+	);
+}
+
+export function BoardOptions(props: { boards: BoardDefinition[]; selectedId: string }) {
+	return (
+		<Index each={props.boards}>
+			{(b) => <option value={b().id} selected={b().id === props.selectedId}>{b().name}</option>}
+		</Index>
+	);
+}
+
+export function ItemRow(props: { scope: string; name: string; detail: string; onEdit: () => void; onDelete: () => void }) {
+	return (
+		<div class={ROW_CLASS}>
+			<ItemRowBody scope={props.scope} name={props.name} detail={props.detail} onEdit={props.onEdit} onDelete={props.onDelete} />
+		</div>
 	);
 }
