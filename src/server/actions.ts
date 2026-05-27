@@ -1,5 +1,14 @@
 import { query } from "@solidjs/router";
-import type { BoardState, ProjectInfo } from "~/types.js";
+import type { ProjectInfo } from "~/server/project-registry.js";
+import type { ColumnDefinition } from "~/server/board-config.js";
+import type { TicketInfo } from "~/server/ticket-store.js";
+import type { TicketOrder } from "~/server/ticket-order.js";
+
+export interface BoardState {
+  columns: ColumnDefinition[];
+  tickets: TicketInfo[];
+  ticketOrder: TicketOrder;
+}
 
 interface BoardPageData {
   projects: ProjectInfo[];

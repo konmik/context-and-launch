@@ -2,7 +2,7 @@ import { useParams, useNavigate, createAsync, revalidate } from "@solidjs/router
 import { createSignal, Show, For } from "solid-js";
 import { DialogRoot, DialogTitle } from "~/components/ui/dialog";
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "~/components/ui/menu";
-import type { TicketInfo } from "~/types.js";
+import type { TicketInfo } from "~/server/ticket-store.js";
 import KanbanBoard from "~/components/KanbanBoard";
 import CreateTicketDialog from "~/components/CreateTicketDialog";
 import EditTicketDialog from "~/components/EditTicketDialog";
@@ -12,7 +12,7 @@ import WorktreeCleanupDialog from "~/components/WorktreeCleanupDialog";
 import TicketDetailDialog from "~/components/TicketDetailDialog";
 import ConflictDialog from "~/components/ConflictDialog";
 import ErrorDialog from "~/components/ErrorDialog";
-import type { ErrorInfo } from "~/types.js";
+import type { ErrorInfo } from "~/server/errors.js";
 import AddProjectForm from "~/components/AddProjectForm";
 import ThemeToggle from "~/components/ThemeToggle";
 import LauncherSettings from "~/components/LauncherSettings";

@@ -1,6 +1,7 @@
 import { createSignal, Show, onMount } from "solid-js";
 import { DialogRoot, DialogTitle, DialogDescription } from "./ui/dialog";
-import type { TicketInfo, ErrorInfo } from "~/types.js";
+import type { TicketInfo } from "~/server/ticket-store.js";
+import type { ErrorInfo } from "~/server/errors.js";
 
 const STORAGE_KEY = "worktree-cleanup-options";
 

@@ -1,15 +1,66 @@
 import fs from 'fs';
-import type {
-	LauncherConfig,
-	LauncherTemplate,
-	LauncherSkill,
-	LauncherProfile,
-	LauncherShortcut,
-	LauncherColumnDefaults,
-	MergedLauncherConfig,
-} from '../types.js';
 import { RUN_AGENT_PS1, RUN_AGENT_SH } from './platform-scripts.js';
 import type { ConfigPaths } from './config-paths.js';
+
+export interface LauncherTemplate {
+	name: string;
+	text: string;
+}
+
+export interface LauncherSkill {
+	name: string;
+	text: string;
+	// Fractional sort key. Skills are shown sorted by `order` ascending across the
+	// merged user+project list; dragging sets the moved skill to the midpoint of
+	// its neighbours so only that one skill needs rewriting. Optional for legacy
+	// configs and freshly added skills (see getMergedConfig for the fallback).
+	order?: number;
+}
+
+export interface LauncherProfile {
+	name: string;
+	command: string;
+}
+
+export interface LauncherShortcut {
+	name: string;
+	command: string;
+}
+
+export interface LauncherColumnDefaults {
+	templateName: string | null;
+	checkedSkills: string[];
+	profileName: string | null;
+	lastLayer?: "editor" | "launcher" | "shortcuts";
+	// Per-column display-order override: an explicit list of skill names for this
+	// column's launcher. Distinct from the global fractional `order` on
+	// LauncherSkill (which orders the merged list everywhere) -- this lets one
+	// status reorder its skills without affecting other columns. Applied via
+	// orderByNameList; names that no longer exist fall back to the global order.
+	skillOrder?: string[];
+}
+
+export interface LauncherConfig {
+	templates: LauncherTemplate[];
+	skills: LauncherSkill[];
+	profiles?: LauncherProfile[];
+	shortcuts?: LauncherShortcut[];
+	columnDefaults?: Record<string, LauncherColumnDefaults>;
+	worktreeRootPath?: string;
+	boardId?: string;
+	conflictResolutionPrompt?: string;
+}
+
+export interface MergedLauncherConfig {
+	templates: (LauncherTemplate & { scope: "app" | "project" })[];
+	skills: (LauncherSkill & { scope: "app" | "project"; order: number })[];
+	profiles: (LauncherProfile & { scope: "app" | "project" })[];
+	shortcuts: (LauncherShortcut & { scope: "app" | "project" })[];
+	columnDefaults: Record<string, LauncherColumnDefaults>;
+	worktreeRootPath: string | null;
+	boardId: string | null;
+	conflictResolutionPrompt: string;
+}
 
 export const DEFAULT_CONFLICT_RESOLUTION_PROMPT =
 	'Resolve all merge conflicts, then run git rebase --continue. Repeat until the rebase completes. Then push to remote and verify with git status that everything is clean. CRITICAL: Do not leave untracked, uncommitted or unpushed files. The goal is to sync the local branch with remote.';

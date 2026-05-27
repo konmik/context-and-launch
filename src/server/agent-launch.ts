@@ -4,7 +4,9 @@ import { worktreeManager, projectRegistry, launcherConfigManager, agentWorktreeM
 import { TicketStore } from "~/server/ticket-store.js";
 import { ProcessError } from "~/server/errors.js";
 import { assemblePrompt, interpolatePrompt, splitCommand } from "~/server/prompt-interpolation.js";
-import type { TicketInfo, ProjectInfo, LauncherProfile } from "~/types.js";
+import type { TicketInfo } from "~/server/ticket-store.js";
+import type { ProjectInfo } from "~/server/project-registry.js";
+import type { LauncherProfile } from "~/server/launcher-config.js";
 
 const TITLE_SUFFIX = " -- AI";
 const FALLBACK_PROMPT = "Current ticket files are in {{ticketDir}}. Read the files there for context.";
