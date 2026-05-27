@@ -24,7 +24,7 @@ if ($major -lt 20) {
 }
 
 # Read config
-$configPath = Join-Path $env:USERPROFILE ".ai-stages" "config.json"
+$configPath = Join-Path (Join-Path $env:USERPROFILE ".ai-stages") "config.json"
 $port = 14780
 $browser = "chrome"
 
