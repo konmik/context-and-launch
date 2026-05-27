@@ -11,7 +11,7 @@ vi.mock("~/server/agent-launch.js", () => ({
 import { POST } from "~/routes/api/projects/[slug]/board/resolve-conflicts.js";
 import { launcherConfigManager } from "~/server/instances.js";
 import { spawnProfile } from "~/server/agent-launch.js";
-import type { MergedLauncherConfig, LauncherProfile } from "~/types.js";
+import type { MergedLauncherConfig, LauncherProfile } from "~/server/launcher-config.js";
 
 function makeMerged(overrides: Partial<MergedLauncherConfig> & { profiles: (LauncherProfile & { scope: "app" | "project" })[] }): MergedLauncherConfig {
 	return {

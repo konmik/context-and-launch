@@ -1,7 +1,9 @@
 // All test data is defined as plain JavaScript objects.
 // No fs, path, os, or memfs imports -- purely in-memory mock data.
 
-import type { TicketInfo, ColumnDefinition, BoardDefinition, BoardState } from "~/types.js";
+import type { TicketInfo } from "~/server/ticket-store.js";
+import type { ColumnDefinition, BoardDefinition } from "~/server/board-config.js";
+import type { BoardState } from "~/server/actions.js";
 export type { TicketInfo, ColumnDefinition, BoardDefinition, BoardState };
 
 const SLUG = "e2e-test";

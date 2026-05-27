@@ -28,7 +28,7 @@ vi.mock("./ui/floating-panel", () => ({
 
 import { createSignal } from "solid-js";
 import TicketDetailDialog from "./TicketDetailDialog";
-import type { TicketInfo } from "~/types.js";
+import type { TicketInfo } from "~/server/ticket-store.js";
 
 function makeTicket(folder: string, number: string, title: string): TicketInfo {
   return {

@@ -2,7 +2,33 @@ import fs from 'fs';
 import path from 'path';
 import { TicketOrderStore } from './ticket-order.js';
 import { suggestNextTicketNumber } from './ticket-number.js';
-import type { TicketInfo, TicketOrder } from '../types.js';
+import type { TicketOrder } from './ticket-order.js';
+
+export interface TicketInfo {
+	number: string;
+	title: string;
+	status: string;
+	folderName: string;
+	contextNames: string[];
+	useWorktree: boolean;
+	fileNames: string[];
+	references: { path: string; exists: boolean }[];
+}
+
+export interface CreateTicketRequest {
+	number: string;
+	title: string;
+}
+
+export interface UpdateTicketRequest {
+	number?: string;
+	title?: string;
+	status?: string;
+}
+
+export interface DocContent {
+	content: string;
+}
 
 interface StatusJson {
 	number: string;

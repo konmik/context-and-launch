@@ -1,7 +1,24 @@
 import fs from 'fs';
 import path from 'path';
-import type { ProjectConfig, ProjectEntry, ProjectInfo } from '../types.js';
 import type { ConfigPaths } from './config-paths.js';
+
+export interface ProjectInfo {
+	path: string;
+	slug: string;
+	available: boolean;
+}
+
+export interface ProjectEntry {
+	path: string;
+	slug: string;
+}
+
+export interface ProjectConfig {
+	projects: ProjectEntry[];
+	lastUsedSlug: string | null;
+	port?: number;
+	browser?: string;
+}
 
 function isGitRepo(dirPath: string): boolean {
 	try {

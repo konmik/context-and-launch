@@ -10,7 +10,9 @@ import {
   type Id,
   type DragEvent as DndDragEvent,
 } from "@thisbeyond/solid-dnd";
-import type { TicketInfo, BoardState, ColumnDefinition } from "~/types.js";
+import type { TicketInfo } from "~/server/ticket-store.js";
+import type { BoardState } from "~/server/actions.js";
+import type { ColumnDefinition } from "~/server/board-config.js";
 import TicketCard from "./TicketCard";
 import { computeHoverTarget, type HoverTarget } from "./drop-index.js";
 import { DragPreview, DragOverlayCard, DND_ACTIVE_CLASS } from "./dnd-shared.js";

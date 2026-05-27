@@ -4,7 +4,8 @@ import { FloatingPanelRoot, FloatingPanelHeader, FloatingPanelBody, FloatingPane
 import { TabsRoot, TabsList, TabsTrigger } from "./ui/tabs";
 import { Portal } from "solid-js/web";
 import { revalidate } from "@solidjs/router";
-import type { TicketInfo, MergedLauncherConfig, LauncherColumnDefaults } from "~/types.js";
+import type { TicketInfo } from "~/server/ticket-store.js";
+import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/server/launcher-config.js";
 import AgentLauncher from "./AgentLauncher";
 import MarkdownEditor from "./MarkdownEditor";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";

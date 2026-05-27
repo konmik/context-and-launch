@@ -1,6 +1,8 @@
 import fs from 'fs';
 import path from 'path';
-import type { TicketInfo, TicketOrder } from '../types.js';
+import type { TicketInfo } from './ticket-store.js';
+
+export type TicketOrder = Record<string, string[]>;
 
 export class TicketOrderStore {
 	private worktreeDir: string;

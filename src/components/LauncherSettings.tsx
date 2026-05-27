@@ -8,7 +8,8 @@ import {
 import { DialogRoot, DialogTitle, DialogCloseTrigger } from "./ui/dialog";
 import { FloatingPanelRoot, FloatingPanelHeader, FloatingPanelBody, FloatingPanelDragTrigger, FloatingPanelResizeTrigger, FloatingPanelCloseTrigger, FloatingPanelTitle } from "./ui/floating-panel";
 import { TabsRoot, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
-import type { MergedLauncherConfig, BoardDefinition, ColumnDefinition } from "~/types.js";
+import type { MergedLauncherConfig } from "~/server/launcher-config.js";
+import type { BoardDefinition, ColumnDefinition } from "~/server/board-config.js";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 import { slugifyColumnName } from "~/lib/slugify.js";
 import { NameDragOverlay } from "./dnd-shared.js";

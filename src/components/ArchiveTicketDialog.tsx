@@ -1,6 +1,6 @@
 import { createSignal, Show } from "solid-js";
 import { DialogRoot, DialogTitle, DialogDescription } from "./ui/dialog";
-import type { TicketInfo } from "~/types.js";
+import type { TicketInfo } from "~/server/ticket-store.js";
 
 interface ArchiveTicketDialogProps {
   open: boolean;

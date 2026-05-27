@@ -1,7 +1,8 @@
 import { Show } from "solid-js";
 import { createSortable } from "@thisbeyond/solid-dnd";
 import { DragGrip, DragPreview, DND_ACTIVE_CLASS } from "./dnd-shared.js";
-import type { MergedLauncherConfig, ColumnDefinition } from "~/types.js";
+import type { MergedLauncherConfig } from "~/server/launcher-config.js";
+import type { ColumnDefinition } from "~/server/board-config.js";
 
 export type MergedSkill = MergedLauncherConfig["skills"][number];
 

@@ -1,8 +1,22 @@
-import type { BoardConfig, BoardDefinition, ColumnDefinition } from '../types.js';
 import type { ConfigPaths } from './config-paths.js';
 import { slugifyColumnName } from '../lib/slugify.js';
 
 export { slugifyColumnName };
+
+export interface ColumnDefinition {
+	name: string;
+	description?: string;
+}
+
+export interface BoardDefinition {
+	id: string;
+	name: string;
+	columns: ColumnDefinition[];
+}
+
+export interface BoardConfig {
+	columns: ColumnDefinition[];
+}
 
 export const DEFAULT_BOARD_ID = 'kanban';
 

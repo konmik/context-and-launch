@@ -1,4 +1,8 @@
-import type { ErrorInfo } from '~/types.js';
+export interface ErrorInfo {
+	description: string;
+	command?: string;
+	output?: string;
+}
 
 export class ProcessError extends Error {
 	readonly shortDescription: string;
