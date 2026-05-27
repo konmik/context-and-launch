@@ -7,8 +7,9 @@ import {
   createBoardWithTickets,
   type TicketInfo,
 } from "./setup-test-data.js";
+import { pickPort } from "./test-port.js";
 
-const PORT = 4001 + Math.floor(Math.random() * 100);
+const PORT = pickPort();
 const BASE_URL = `http://localhost:${PORT}`;
 
 let browser: Browser;
