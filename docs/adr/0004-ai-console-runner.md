@@ -12,7 +12,7 @@ Transport: SSE for server-to-client streaming, POST endpoint for steering input 
 
 UI: "AI Console" tab inside TicketDetailDialog. Assistant text rendered in full, tool calls collapsed with a counter, Agent and WebSearch shown individually. Glowing border on ticket card while process is active. Kill button with confirmation. "/clear" button visible only when running.
 
-Persistence: event history saved to `~/.ai-stages/runs/` as JSON files (one per ticket), survives server restart. Also kept in an unbounded in-memory buffer for active sessions.
+Persistence: event history saved to `~/.context-launch/runs/` as JSON files (one per ticket), survives server restart. Also kept in an unbounded in-memory buffer for active sessions.
 
 Concurrency: multiple tickets can run Claude Code simultaneously, no limit.
 

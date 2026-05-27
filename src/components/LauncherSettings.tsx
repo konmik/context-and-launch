@@ -507,7 +507,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 												<section>
 													<h3 class="mb-2 text-sm font-semibold">Agent worktree root path <ScopeBadge scope="project" /></h3>
 													<div class="flex gap-2">
-														<input type="text" value={worktreeRootPath()} onInput={(e) => setWorktreeRootPath(e.currentTarget.value)} onBlur={saveWorktreeRootPath} onKeyDown={(e) => { if (e.key === "Enter") saveWorktreeRootPath(); }} class="input input-sm flex-1" placeholder="e.g. ~/.ai-stages/worktrees" />
+														<input type="text" value={worktreeRootPath()} onInput={(e) => setWorktreeRootPath(e.currentTarget.value)} onBlur={saveWorktreeRootPath} onKeyDown={(e) => { if (e.key === "Enter") saveWorktreeRootPath(); }} class="input input-sm flex-1" placeholder="e.g. ~/.context-launch/worktrees" />
 														<button type="button" onClick={async () => { try { const res = await fetch("/api/pick-directory"); if (!res.ok) return; const { path } = await res.json(); setWorktreeRootPath(path); await saveWorktreeRootPath(); } catch (e) { setError(e instanceof Error ? e.message : "Failed to pick directory"); } }} class="btn-secondary">Browse</button>
 													</div>
 												</section>

@@ -1,4 +1,4 @@
-# run.ps1 -- Start ai-stages server and open in browser app mode
+# run.ps1 -- Start Context & Launch server and open in browser app mode
 $ErrorActionPreference = "Stop"
 
 # Check Node.js version
@@ -24,7 +24,7 @@ if ($major -lt 20) {
 }
 
 # Read config
-$configPath = Join-Path (Join-Path $env:USERPROFILE ".ai-stages") "config.json"
+$configPath = Join-Path (Join-Path $env:USERPROFILE ".context-launch") "config.json"
 $port = 14780
 $browser = "chrome"
 
@@ -150,4 +150,4 @@ if (-not $opened) {
     Start-Process $url
 }
 
-Write-Host "ai-stages running at $url"
+Write-Host "Context & Launch running at $url"

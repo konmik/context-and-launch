@@ -21,7 +21,7 @@ Rewrite the entire application as a SvelteKit project with the following stack:
 - Vitest for server-side tests
 - SvelteKit load functions and form actions as primary data layer, +server.ts routes only for client-side fetches (drag-and-drop updates)
 
-The SvelteKit app is a drop-in replacement: same ~/.ai-stages/ directory layout, same config files, same git orphan branch storage. No data migration needed.
+The SvelteKit app is a drop-in replacement: same ~/.context-launch/ directory layout, same config files, same git orphan branch storage. No data migration needed.
 
 The Kotlin project is replaced entirely. Git history preserves the old code.
 

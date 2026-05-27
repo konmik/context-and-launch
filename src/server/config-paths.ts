@@ -6,7 +6,7 @@ export class ConfigPaths {
 	readonly baseDir: string;
 
 	constructor(baseDir?: string) {
-		this.baseDir = baseDir ?? path.join(os.homedir(), '.ai-stages');
+		this.baseDir = baseDir ?? path.join(os.homedir(), '.context-launch');
 	}
 
 	private requireSafeSlug(slug: string): void {

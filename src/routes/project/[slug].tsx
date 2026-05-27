@@ -112,7 +112,7 @@ export default function ProjectPage() {
       {(d) => (
         <div class="flex min-h-screen flex-col">
           <header class="flex items-center justify-between border-b border-border px-4 py-3">
-            <h1 class="text-xl font-semibold">AI Stages</h1>
+            <h1 class="text-xl font-semibold">Context & Launch</h1>
             <div class="flex items-center gap-2">
               <ThemeToggle />
               <button

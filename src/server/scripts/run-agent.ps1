@@ -1,11 +1,11 @@
-# AI Stages - Agent Launch Script (Windows)
-# This script is called by AI Stages to launch a Claude coding agent.
+# Context & Launch - Agent Launch Script (Windows)
+# This script is called by Context & Launch to launch a Claude coding agent.
 # It receives two arguments:
 #   -initialPrompt: the prompt text to send to the agent
 #   -ticketTitle: used to set the terminal window title
 #
 # You can edit this script to customize how the agent is launched.
-# AI Stages will not overwrite your changes.
+# Context & Launch will not overwrite your changes.
 
 param(
     [string]$initialPrompt,

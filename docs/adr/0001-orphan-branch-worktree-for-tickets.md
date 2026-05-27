@@ -1,6 +1,6 @@
 # Orphan branch + worktree for ticket storage
 
-Tickets are stored in a git orphan branch (`ai-stages`) checked out as a worktree, rather than in the project's main branch or in a separate database/repo. This keeps ticket history fully in git (reviewable, mergeable, portable) without polluting the project's code history. The worktree lets the server read and write tickets without disturbing the user's working tree.
+Tickets are stored in a git orphan branch (`context-launch`) checked out as a worktree, rather than in the project's main branch or in a separate database/repo. This keeps ticket history fully in git (reviewable, mergeable, portable) without polluting the project's code history. The worktree lets the server read and write tickets without disturbing the user's working tree.
 
 ## Considered Options
 

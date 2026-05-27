@@ -56,8 +56,8 @@ describe('WorktreeManager', () => {
 		expect(fs.existsSync(worktreeDir)).toBe(true);
 		expect(fs.existsSync(path.join(worktreeDir, '.git'))).toBe(true);
 
-		const branches = await git(projectDir, 'branch', '--list', 'ai-stages');
-		expect(branches).toContain('ai-stages');
+		const branches = await git(projectDir, 'branch', '--list', 'context-launch');
+		expect(branches).toContain('context-launch');
 
 		const files = fs.readdirSync(worktreeDir).filter((f) => !f.startsWith('.'));
 		expect(files.length).toBe(0);
@@ -143,8 +143,8 @@ describe('WorktreeManager', () => {
 		expect(fs.existsSync(path.join(wtA, '.git'))).toBe(true);
 		expect(fs.existsSync(path.join(wtB, '.git'))).toBe(true);
 
-		const branches = await git(projectDir, 'branch', '--list', 'ai-stages');
-		expect(branches).toContain('ai-stages');
+		const branches = await git(projectDir, 'branch', '--list', 'context-launch');
+		expect(branches).toContain('context-launch');
 	});
 
 	it('recovers stale worktree with removed gitdir target', async () => {
@@ -221,15 +221,15 @@ describe('WorktreeManager', () => {
 		// Simulate the orphan creation path partially completing: step 1
 		// (git worktree add --orphan) succeeds but step 2 (git commit) fails.
 		// The worktree directory is left behind with a valid .git file, but the
-		// ai-stages branch is in "born" state (no commits). The per-slug branch
-		// ai-stages--partial-slug was never created.
+		// context-launch branch is in "born" state (no commits). The per-slug branch
+		// context-launch--partial-slug was never created.
 		fs.mkdirSync(projectsDir, { recursive: true });
-		await git(projectDir, 'worktree', 'add', '--orphan', '-b', 'ai-stages', worktreeDir);
+		await git(projectDir, 'worktree', 'add', '--orphan', '-b', 'context-launch', worktreeDir);
 		// Do NOT commit -- this simulates the failure after step 1.
 
 		// Remove the .git file so isValidWorktree returns false, forcing
 		// the recovery path (rmSync + prune + re-create). The re-creation
-		// must handle the ai-stages branch already existing in born state.
+		// must handle the context-launch branch already existing in born state.
 		const dotGit = path.join(worktreeDir, '.git');
 		const content = fs.readFileSync(dotGit, 'utf-8').trim();
 		const gitDirRel = content.replace(/^gitdir:\s*/, '');
@@ -344,11 +344,11 @@ describe('WorktreeManager', () => {
 
 		// Simulate: orphan branch creation succeeded but commit failed.
 		// The worktree directory exists with a valid .git pointer, but the
-		// branch 'ai-stages' is in "born" state (no commits).
-		// This leaves the worktree on 'ai-stages' (wrong branch) instead of
-		// 'ai-stages--broken-slug' (the correct per-slug branch).
+		// branch 'context-launch' is in "born" state (no commits).
+		// This leaves the worktree on 'context-launch' (wrong branch) instead of
+		// 'context-launch--broken-slug' (the correct per-slug branch).
 		fs.mkdirSync(projectsDir, { recursive: true });
-		await git(projectDir, 'worktree', 'add', '--orphan', '-b', 'ai-stages', worktreeDir);
+		await git(projectDir, 'worktree', 'add', '--orphan', '-b', 'context-launch', worktreeDir);
 		// Do NOT commit -- simulates the commit failure at line 62
 
 		// Verify the .git pointer is valid (isValidWorktree would return true)
@@ -370,7 +370,7 @@ describe('WorktreeManager', () => {
 
 		// The worktree must be on the correct per-slug branch
 		const branch = (await git(result, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
-		expect(branch).toBe('ai-stages--broken-slug');
+		expect(branch).toBe('context-launch--broken-slug');
 
 		// The recovered worktree must be functional -- we can commit to it
 		await git(result, 'commit', '--allow-empty', '-m', 'verify functional');

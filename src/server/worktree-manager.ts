@@ -44,20 +44,20 @@ export class WorktreeManager {
 
 		fs.mkdirSync(this.paths.projectDir(slug), { recursive: true });
 
-		const worktreeBranch = `ai-stages--${slug}`;
+		const worktreeBranch = `context-launch--${slug}`;
 		const branchList = await git(projectPath, 'branch', '--list', worktreeBranch);
 		const branchExists = branchList.trim().length > 0;
-		const orphanList = await git(projectPath, 'branch', '--list', 'ai-stages');
+		const orphanList = await git(projectPath, 'branch', '--list', 'context-launch');
 		const orphanExists = orphanList.trim().length > 0;
 
 		if (branchExists) {
 			await git(projectPath, 'worktree', 'add', worktreeDir, worktreeBranch);
 		} else if (orphanExists) {
-			await git(projectPath, 'worktree', 'add', '-b', worktreeBranch, worktreeDir, 'ai-stages');
+			await git(projectPath, 'worktree', 'add', '-b', worktreeBranch, worktreeDir, 'context-launch');
 		} else {
-			await git(projectPath, 'worktree', 'add', '--orphan', '-b', 'ai-stages', worktreeDir);
-			await git(worktreeDir, 'commit', '--allow-empty', '-m', 'init ai-stages');
-			if (worktreeBranch !== 'ai-stages') {
+			await git(projectPath, 'worktree', 'add', '--orphan', '-b', 'context-launch', worktreeDir);
+			await git(worktreeDir, 'commit', '--allow-empty', '-m', 'init context-launch');
+			if (worktreeBranch !== 'context-launch') {
 				await git(projectPath, 'worktree', 'remove', worktreeDir);
 				await git(
 					projectPath,
@@ -66,7 +66,7 @@ export class WorktreeManager {
 					'-b',
 					worktreeBranch,
 					worktreeDir,
-					'ai-stages'
+					'context-launch'
 				);
 			}
 		}
@@ -106,7 +106,7 @@ export class WorktreeManager {
 			return true;
 		}
 
-		const ref = head.slice(5); // e.g. "refs/heads/ai-stages"
+		const ref = head.slice(5); // e.g. "refs/heads/context-launch"
 		// Resolve ref via commondir (worktrees store shared refs in the main .git)
 		const commondirPath = path.join(gitDir, 'commondir');
 		const commondir = fs.existsSync(commondirPath)
