@@ -529,11 +529,11 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 				return n === dragged.name ? { ...s, order: newOrder } : s;
 			});
 			setConfig({ ...cfg, skills: newSkills });
-			setSkillOrder(dragged.scope, dragged.name, newOrder);
+			saveSkillOrder(dragged.scope, dragged.name, newOrder);
 		},
 	});
 
-	async function setSkillOrder(scope: Scope, name: string, order: number) {
+	async function saveSkillOrder(scope: Scope, name: string, order: number) {
 		setError("");
 		try {
 			const res = await fetch(`${itemEndpoint("skill", scope)}/reorder`, {

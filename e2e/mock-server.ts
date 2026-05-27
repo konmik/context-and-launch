@@ -417,8 +417,9 @@ export function startMockServer(port: number, state: MockServerState): Promise<h
       // Board API routes
       if (handleBoardApi(req, res, pathname, state)) return;
 
-      // Launcher config endpoint. Mirrors the server merge: skills are returned
-      // sorted by `order` (explicit wins, else canonical index).
+      // Launcher config endpoint. Mirrors LauncherConfigManager.getMergedConfig:
+      // skills are returned sorted by `order` (explicit wins, else canonical index).
+      // Keep this in sync with that canonical implementation.
       if (pathname.match(/\/api\/projects\/[^/]+\/launcher-config$/) && req.method === "GET") {
         const config = state.launcherConfig ?? { templates: [], skills: [], profiles: [], shortcuts: [], columnDefaults: {}, worktreeRootPath: null };
         const skills = config.skills
