@@ -326,9 +326,10 @@ export default function KanbanBoard(props: KanbanBoardProps) {
         </For>
         <Show when={orphanedTickets().length > 0}>
           <div class="flex min-w-[250px] flex-1 flex-col rounded-lg border-2 border-destructive bg-muted/50 p-3" data-testid="undefined-column">
-            <h3 class="mb-3 text-sm font-semibold uppercase text-destructive">
+            <h3 class="mb-1 text-sm font-semibold uppercase text-destructive">
               undefined
             </h3>
+            <p class="mb-2 text-xs text-destructive/80" data-testid="undefined-column-description">Update manually</p>
             <SortableProvider ids={orphanedTickets().map(t => makeId("undefined", t.folderName))}>
               <div
                 class="flex flex-1 flex-col gap-2"

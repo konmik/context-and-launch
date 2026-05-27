@@ -111,4 +111,27 @@ describe("Board/columns sync in settings (e2e)", () => {
     expect(value).toBe("kanban");
     expect(names).toEqual(BOARD_COLUMNS[value]);
   }, 15000);
+
+  it("sets the selected board as the project board via the button and confirmation", async () => {
+    await openColumnsTab();
+    await page.waitForSelector('[data-testid="set-project-board-btn"]:disabled', { timeout: 3000 });
+    await page.selectOption('[data-testid="board-selector"]', "kanban");
+    await page.waitForSelector('[data-testid="set-project-board-btn"]:not(:disabled)', { timeout: 3000 });
+    await page.click('[data-testid="set-project-board-btn"]');
+    const message = await page.waitForSelector('[data-testid="set-project-board-message"]', { timeout: 3000 });
+    expect(await message!.textContent()).toContain("undefined column");
+    await page.click('[data-testid="set-project-board-confirm-btn"]');
+    await page.waitForSelector('[data-testid="set-project-board-btn"]:disabled', { timeout: 3000 });
+    expect(mockState.launcherConfig?.boardId).toBe("kanban");
+  }, 15000);
+
+  it("cancelling the set-project-board dialog leaves the project board unchanged", async () => {
+    await openColumnsTab();
+    await page.selectOption('[data-testid="board-selector"]', "kanban");
+    await page.click('[data-testid="set-project-board-btn"]');
+    await page.waitForSelector('[data-testid="set-project-board-message"]', { timeout: 3000 });
+    await page.click('[data-testid="set-project-board-cancel-btn"]');
+    await page.waitForSelector('[data-testid="set-project-board-message"]', { state: "detached", timeout: 3000 });
+    expect(mockState.launcherConfig?.boardId).toBe("simple");
+  }, 15000);
 });

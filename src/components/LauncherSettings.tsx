@@ -130,6 +130,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 	const [boardForm, setBoardForm] = createSignal<{ name: string } | null>(null);
 	const [renameForm, setRenameForm] = createSignal<RenameFormState | null>(null);
 	const [deleteConfirm, setDeleteConfirm] = createSignal<{ type: "board" | "column"; id: string; name: string } | null>(null);
+	const [projectBoardConfirm, setProjectBoardConfirm] = createSignal<{ id: string; name: string } | null>(null);
 	const [columnError, setColumnError] = createSignal("");
 	const [activeColumnId, setActiveColumnId] = createSignal<string | null>(null);
 	const [overColumnId, setOverColumnId] = createSignal<string | null>(null);
@@ -155,9 +156,9 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 		return `${base}/${apiPathSegments[itemType]}`;
 	}
 
-	createEffect(on(() => props.open, (open) => { if (open) { setBoardOverride(null); loadConfig(); setForm(null); setColumnForm(null); setBoardForm(null); setRenameForm(null); setDeleteConfirm(null); } }));
+	createEffect(on(() => props.open, (open) => { if (open) { setBoardOverride(null); loadConfig(); setForm(null); setColumnForm(null); setBoardForm(null); setRenameForm(null); setDeleteConfirm(null); setProjectBoardConfirm(null); } }));
 
-	const anyDialogOpen = () => !!form() || !!columnForm() || !!boardForm() || !!renameForm() || !!deleteConfirm();
+	const anyDialogOpen = () => !!form() || !!columnForm() || !!boardForm() || !!renameForm() || !!deleteConfirm() || !!projectBoardConfirm();
 
 	// Close the settings panel on Escape. The floating panel is non-modal, so its
 	// own Escape handler only fires when focus is inside it; this catches Escape
@@ -406,7 +407,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 		} catch (e) { setColumnError(e instanceof Error ? e.message : "Failed to reorder"); }
 	}
 
-	async function handleBoardIdChange(boardId: string) {
+	async function handleBoardIdChange(boardId: string): Promise<boolean> {
 		setError("");
 		try {
 			const res = await fetch(`/api/projects/${props.slug}/launcher-config/board-id`, {
@@ -414,9 +415,16 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ boardId }),
 			});
-			if (!res.ok) { setError(await res.text() || "Failed to save"); return; }
+			if (!res.ok) { setError(await res.text() || "Failed to save"); return false; }
 			await loadConfig();
-		} catch (e) { setError(e instanceof Error ? e.message : "Failed to save"); }
+			return true;
+		} catch (e) { setError(e instanceof Error ? e.message : "Failed to save"); return false; }
+	}
+
+	async function handleSetProjectBoard() {
+		const pbc = projectBoardConfirm();
+		if (!pbc) return;
+		if (await handleBoardIdChange(pbc.id)) setProjectBoardConfirm(null);
 	}
 
 	function columnNameValidation(): string {
@@ -644,6 +652,12 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 														>
 															<BoardOptions selectedId={selectedBoardId()} />
 														</select>
+														<button
+															onClick={() => { const b = selectedBoard(); if (b) setProjectBoardConfirm({ id: b.id, name: b.name }); }}
+															disabled={config()?.boardId === selectedBoardId()}
+															class="btn-secondary btn-sm"
+															data-testid="set-project-board-btn"
+														>Set as project board</button>
 														<button onClick={() => setBoardForm({ name: "" })} class="btn-primary btn-sm" data-testid="add-board-btn">Add Board</button>
 														<button
 															onClick={() => { const b = selectedBoard(); if (b) setDeleteConfirm({ type: "board", id: b.id, name: b.name }); }}
@@ -925,6 +939,27 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 							class="btn-primary bg-destructive text-destructive-foreground hover:bg-destructive/90"
 							data-testid="delete-confirm-btn"
 						>Delete</button>
+					</div>
+				</>)}
+			</Show>
+		</DialogRoot>
+
+		{/* Set-as-project-board confirmation dialog */}
+		<DialogRoot open={!!projectBoardConfirm()} onOpenChange={() => setProjectBoardConfirm(null)} class="max-w-sm p-0">
+			<Show when={projectBoardConfirm()}>
+				{(pbc) => (<>
+					<div class="flex items-center justify-between border-b border-border px-6 py-4">
+						<DialogTitle class="mb-0">Set Project Board</DialogTitle>
+						<DialogCloseTrigger>
+							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+						</DialogCloseTrigger>
+					</div>
+					<div class="px-6 py-4">
+						<p class="text-sm" data-testid="set-project-board-message">Set "{pbc().name}" as the board for this project? Tickets whose status is not a column in this board will appear in the undefined column and must be updated manually.</p>
+					</div>
+					<div class="flex justify-end gap-2 border-t border-border px-6 py-3">
+						<button onClick={() => setProjectBoardConfirm(null)} class="btn-secondary" data-testid="set-project-board-cancel-btn">Cancel</button>
+						<button onClick={handleSetProjectBoard} class="btn-primary" data-testid="set-project-board-confirm-btn">Set board</button>
 					</div>
 				</>)}
 			</Show>
