@@ -3,8 +3,9 @@ import { chromium, type Browser, type Page } from "playwright";
 import type http from "node:http";
 import { startMockServer, stopMockServer, type MockServerState } from "./mock-server.js";
 import { createBoardWithTickets, type ColumnDefinition, type TicketInfo } from "./setup-test-data.js";
+import { pickPort } from "./test-port.js";
 
-const PORT = 4030 + Math.floor(Math.random() * 100);
+const PORT = pickPort();
 const BASE_URL = `http://localhost:${PORT}`;
 
 let browser: Browser;
