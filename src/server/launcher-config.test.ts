@@ -316,6 +316,88 @@ describe('LauncherConfigManager', () => {
 		expect(config.skills.find(s => s.name === 'NewSkill')?.text).toBe('new');
 	});
 
+	it('updateSkill preserves the existing order', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		mgr.saveProjectConfig('slug', {
+			templates: [],
+			skills: [{ name: 'S1', text: 'old', order: 2.5 }],
+		});
+		mgr.updateSkill('project', 'slug', 'S1', { name: 'S1', text: 'new' });
+		const config = mgr.loadProjectConfig('slug');
+		expect(config.skills.find(s => s.name === 'S1')?.order).toBe(2.5);
+		expect(config.skills.find(s => s.name === 'S1')?.text).toBe('new');
+	});
+
+	it('setSkillOrder sets the order on the named skill in the correct scope', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		mgr.saveProjectConfig('slug', {
+			templates: [],
+			skills: [{ name: 'A', text: 'a' }, { name: 'B', text: 'b' }],
+		});
+		mgr.setSkillOrder('project', 'slug', 'B', 0.5);
+		const config = mgr.loadProjectConfig('slug');
+		expect(config.skills.find(s => s.name === 'B')?.order).toBe(0.5);
+		expect(config.skills.find(s => s.name === 'A')?.order).toBeUndefined();
+	});
+
+	it('setSkillOrder throws for an unknown skill', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		mgr.saveProjectConfig('slug', { templates: [], skills: [{ name: 'A', text: 'a' }] });
+		expect(() => mgr.setSkillOrder('project', 'slug', 'Nope', 1)).toThrow('not found');
+	});
+
+	it('setSkillOrder rejects a non-finite order', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		mgr.saveProjectConfig('slug', { templates: [], skills: [{ name: 'A', text: 'a' }] });
+		expect(() => mgr.setSkillOrder('project', 'slug', 'A', Infinity)).toThrow('finite number');
+		expect(() => mgr.setSkillOrder('project', 'slug', 'A', NaN)).toThrow('finite number');
+	});
+
+	it('getMergedConfig sorts skills by order, falling back to canonical index', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		// Canonical order is user-then-project: [UA, UB, P1]. Give UB an explicit
+		// order that drops it below P1.
+		mgr.saveAppConfig({
+			templates: [],
+			skills: [{ name: 'UA', text: 'ua' }, { name: 'UB', text: 'ub', order: 5 }],
+		});
+		mgr.saveProjectConfig('slug', {
+			templates: [],
+			skills: [{ name: 'P1', text: 'p1' }],
+		});
+		const merged = mgr.getMergedConfig('slug');
+		// UA falls back to index 0, P1 to index 2, UB is explicit 5 -> last.
+		expect(merged.skills.map(s => s.name)).toEqual(['UA', 'P1', 'UB']);
+		expect(merged.skills.map(s => s.order)).toEqual([0, 2, 5]);
+	});
+
+	it('getMergedConfig: a fractional order interleaves user and project skills', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		mgr.saveAppConfig({
+			templates: [],
+			skills: [{ name: 'U1', text: 'u1' }, { name: 'U2', text: 'u2' }],
+		});
+		mgr.saveProjectConfig('slug', {
+			templates: [],
+			// Project skill dragged between the two user skills: midpoint of 0 and 1.
+			skills: [{ name: 'P1', text: 'p1', order: 0.5 }],
+		});
+		const merged = mgr.getMergedConfig('slug');
+		expect(merged.skills.map(s => s.name)).toEqual(['U1', 'P1', 'U2']);
+	});
+
 	it('merge worktreeRootPath comes from project config', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);

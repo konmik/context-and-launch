@@ -170,7 +170,7 @@ function buildHtmlTemplate(): string {
 export interface MockServerState {
   boardData: BoardPageData;
   boards?: BoardDefinition[];
-  launcherConfig?: { templates: { name: string; text: string; scope: string }[]; skills: { name: string; text: string; scope: string }[]; profiles?: { name: string; command: string; scope: string }[]; shortcuts?: { name: string; command: string; scope: string }[]; columnDefaults: Record<string, any>; worktreeRootPath: string | null; boardId?: string | null };
+  launcherConfig?: { templates: { name: string; text: string; scope: string }[]; skills: { name: string; text: string; scope: string; order?: number }[]; profiles?: { name: string; command: string; scope: string }[]; shortcuts?: { name: string; command: string; scope: string }[]; columnDefaults: Record<string, any>; worktreeRootPath: string | null; boardId?: string | null };
   onLaunchAgent?: (slug: string, folderName: string, body: any) => { status: number; body: any } | Promise<{ status: number; body: any }>;
   onCreateTicket?: (slug: string, number: string, title: string) => { success: true } | { error: string };
   onUpdateTicket?: (slug: string, folderName: string, number: string | null, title: string | null, status: string | null) => { success: true } | { error: string };
@@ -417,11 +417,34 @@ export function startMockServer(port: number, state: MockServerState): Promise<h
       // Board API routes
       if (handleBoardApi(req, res, pathname, state)) return;
 
-      // Launcher config endpoint
+      // Launcher config endpoint. Mirrors the server merge: skills are returned
+      // sorted by `order` (explicit wins, else canonical index).
       if (pathname.match(/\/api\/projects\/[^/]+\/launcher-config$/) && req.method === "GET") {
         const config = state.launcherConfig ?? { templates: [], skills: [], profiles: [], shortcuts: [], columnDefaults: {}, worktreeRootPath: null };
+        const skills = config.skills
+          .map((s, i) => ({ ...s, order: typeof s.order === "number" ? s.order : i }))
+          .sort((a, b) => a.order - b.order);
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify(config));
+        res.end(JSON.stringify({ ...config, skills }));
+        return;
+      }
+
+      // Skill reorder: set a single skill's fractional order (user or project scope).
+      if (pathname.match(/\/api\/(?:projects\/[^/]+\/)?launcher-config\/skills\/reorder$/) && req.method === "PUT") {
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk: Buffer) => chunks.push(chunk));
+        req.on("end", () => {
+          try {
+            const body = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+            const skill = state.launcherConfig?.skills.find((s) => s.name === body.name);
+            if (skill) skill.order = body.order;
+            res.writeHead(204);
+            res.end();
+          } catch (err) {
+            res.writeHead(400);
+            res.end(String(err));
+          }
+        });
         return;
       }
 

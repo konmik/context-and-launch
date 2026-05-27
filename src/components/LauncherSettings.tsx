@@ -6,7 +6,6 @@ import {
 	SortableProvider,
 	createSortable,
 	closestCenter,
-	type DragEvent as DndDragEvent,
 } from "@thisbeyond/solid-dnd";
 import { DialogRoot, DialogTitle, DialogCloseTrigger } from "./ui/dialog";
 import { FloatingPanelRoot, FloatingPanelHeader, FloatingPanelBody, FloatingPanelDragTrigger, FloatingPanelResizeTrigger, FloatingPanelCloseTrigger, FloatingPanelTitle } from "./ui/floating-panel";
@@ -15,6 +14,7 @@ import type { MergedLauncherConfig, BoardDefinition, ColumnDefinition } from "~/
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 import { slugifyColumnName } from "~/lib/slugify.js";
 import { DragPreview, DragOverlayCard, DND_ACTIVE_CLASS } from "./dnd-shared.js";
+import { createListReorder, midpointOrder } from "./list-reorder.js";
 
 interface LauncherSettingsProps {
 	open: boolean;
@@ -24,6 +24,7 @@ interface LauncherSettingsProps {
 
 type ItemType = "template" | "skill" | "profile" | "shortcut";
 type Scope = "app" | "project";
+type MergedSkill = MergedLauncherConfig["skills"][number];
 
 interface ItemFormState {
 	mode: "add" | "edit";
@@ -53,6 +54,22 @@ function GripIcon() {
 	);
 }
 
+function DragGrip(props: { gripProps?: Record<string, unknown>; testId: string }) {
+	return (
+		<span {...(props.gripProps ?? {})} class="cursor-grab text-muted-foreground" data-testid={props.testId}>
+			<GripIcon />
+		</span>
+	);
+}
+
+function ScopeBadge(props: { scope: string }) {
+	return <span class={`rounded px-1.5 py-0.5 text-xs ${props.scope === "app" ? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" : "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"}`}>{props.scope === "app" ? "User" : "Project"}</span>;
+}
+
+// Shared layout for every settings row (columns, skills, prompts, ...): same
+// border, padding, and flex. Drag-reorderable rows add a grip via DragGrip.
+const ROW_CLASS = "flex items-center justify-between rounded-md border border-border px-3 py-2";
+
 function ColumnRowBody(props: {
 	column: ColumnDefinition;
 	gripProps?: Record<string, unknown>;
@@ -62,13 +79,7 @@ function ColumnRowBody(props: {
 	return (
 		<>
 			<div class="flex min-w-0 flex-1 items-center gap-2">
-				<span
-					{...(props.gripProps ?? {})}
-					class="cursor-grab text-muted-foreground"
-					data-testid="column-drag-handle"
-				>
-					<GripIcon />
-				</span>
+				<DragGrip gripProps={props.gripProps} testId="column-drag-handle" />
 				<div class="min-w-0 flex-1">
 					<span class="text-sm font-medium">{props.column.name}</span>
 					{props.column.description && (
@@ -84,8 +95,6 @@ function ColumnRowBody(props: {
 	);
 }
 
-const COLUMN_ROW_CLASS = "flex items-center justify-between rounded-md border border-border px-3 py-2";
-
 function SortableColumnRow(props: {
 	column: ColumnDefinition;
 	isActive: boolean;
@@ -99,7 +108,7 @@ function SortableColumnRow(props: {
 			data-testid="column-row"
 			data-column-name={props.column.name}
 			classList={{ [DND_ACTIVE_CLASS]: props.isActive }}
-			class={COLUMN_ROW_CLASS}
+			class={ROW_CLASS}
 		>
 			<ColumnRowBody column={props.column} gripProps={sortable.dragActivators} onEdit={props.onEdit} onDelete={props.onDelete} />
 		</div>
@@ -108,9 +117,89 @@ function SortableColumnRow(props: {
 
 function ColumnDropPreview(props: { column: ColumnDefinition }) {
 	return (
-		<DragPreview class={COLUMN_ROW_CLASS}>
+		<DragPreview class={ROW_CLASS}>
 			<ColumnRowBody column={props.column} />
 		</DragPreview>
+	);
+}
+
+function ItemRowBody(props: {
+	scope: string;
+	name: string;
+	detail: string;
+	grip?: boolean;
+	gripProps?: Record<string, unknown>;
+	onEdit?: () => void;
+	onDelete?: () => void;
+}) {
+	return (
+		<>
+			<div class="flex min-w-0 flex-1 items-center gap-2">
+				<Show when={props.grip}>
+					<DragGrip gripProps={props.gripProps} testId="skill-drag-handle" />
+				</Show>
+				<div class="min-w-0 flex-1">
+					<div class="flex items-center gap-2">
+						<span class="text-sm font-medium">{props.name}</span>
+						<ScopeBadge scope={props.scope} />
+					</div>
+					<p class="mt-1 truncate text-xs text-muted-foreground">{props.detail}</p>
+				</div>
+			</div>
+			<div class="ml-2 flex shrink-0 gap-1">
+				<button onClick={props.onEdit} class="btn-secondary btn-sm">Edit</button>
+				<button onClick={props.onDelete} class="btn-secondary btn-sm text-destructive hover:bg-destructive hover:text-destructive-foreground">Delete</button>
+			</div>
+		</>
+	);
+}
+
+function SortableSkillRow(props: {
+	skill: MergedSkill;
+	isActive: boolean;
+	onEdit: () => void;
+	onDelete: () => void;
+}) {
+	const sortable = createSortable(props.skill.name);
+	return (
+		<div
+			ref={sortable.ref}
+			data-testid="skill-row"
+			data-skill-name={props.skill.name}
+			classList={{ [DND_ACTIVE_CLASS]: props.isActive }}
+			class={ROW_CLASS}
+		>
+			<ItemRowBody scope={props.skill.scope} name={props.skill.name} detail={props.skill.text} grip gripProps={sortable.dragActivators} onEdit={props.onEdit} onDelete={props.onDelete} />
+		</div>
+	);
+}
+
+function SkillDropPreview(props: { skill: MergedSkill }) {
+	return (
+		<DragPreview class={ROW_CLASS}>
+			<ItemRowBody scope={props.skill.scope} name={props.skill.name} detail={props.skill.text} grip />
+		</DragPreview>
+	);
+}
+
+// The card that floats under the cursor while dragging a row keyed by its name.
+// Renders nothing once the id no longer maps to a live item.
+function NameDragOverlay(props: { nameOf: (id: string) => string | undefined }) {
+	return (
+		<DragOverlay>
+			{(draggable) => {
+				const name = props.nameOf(String(draggable?.id));
+				return (
+					<Show when={name}>
+						{(n) => (
+							<DragOverlayCard class="rounded-md border border-border bg-card px-3 py-2">
+								<span class="text-sm font-medium">{n()}</span>
+							</DragOverlayCard>
+						)}
+					</Show>
+				);
+			}}
+		</DragOverlay>
 	);
 }
 
@@ -132,8 +221,6 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 	const [deleteConfirm, setDeleteConfirm] = createSignal<{ type: "board" | "column"; id: string; name: string } | null>(null);
 	const [projectBoardConfirm, setProjectBoardConfirm] = createSignal<{ id: string; name: string } | null>(null);
 	const [columnError, setColumnError] = createSignal("");
-	const [activeColumnId, setActiveColumnId] = createSignal<string | null>(null);
-	const [overColumnId, setOverColumnId] = createSignal<string | null>(null);
 
 	const selectedBoardId = createMemo(() => {
 		const list = boards();
@@ -442,49 +529,57 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 		return "";
 	}
 
-	function handleColumnDragStart(event: DndDragEvent) {
-		setActiveColumnId(String(event.draggable.id));
-		setOverColumnId(null);
-	}
-
-	function handleColumnDragOver(event: DndDragEvent) {
-		setOverColumnId(event.droppable ? String(event.droppable.id) : null);
-	}
-
-	// The faded ghost row marking where the dragged column will land.
-	const columnDropPreview = createMemo<{ insertBefore: number; column: ColumnDefinition } | null>(() => {
-		const board = selectedBoard();
-		const activeId = activeColumnId();
-		const overId = overColumnId();
-		if (!board || !activeId || !overId || overId === activeId) return null;
-		const names = board.columns.map(c => c.name);
-		const fromIdx = names.indexOf(activeId);
-		const overIdx = names.indexOf(overId);
-		if (fromIdx < 0 || overIdx < 0) return null;
-		const insertBefore = fromIdx < overIdx ? overIdx + 1 : overIdx;
-		return { insertBefore, column: board.columns[fromIdx] };
+	const columnReorder = createListReorder<ColumnDefinition>({
+		items: () => selectedBoard()?.columns ?? [],
+		idOf: (c) => c.name,
+		onReorder: (orderedNames) => {
+			const board = selectedBoard();
+			if (!board) return;
+			// Optimistic update
+			const colMap = new Map(board.columns.map(c => [c.name, c]));
+			const newColumns = orderedNames.map(n => colMap.get(n)!);
+			setBoards(prev => prev.map(b => b.id === board.id ? { ...b, columns: newColumns } : b));
+			handleReorderColumns(orderedNames);
+		},
 	});
 
-	function handleColumnDragEnd(event: DndDragEvent) {
-		setActiveColumnId(null);
-		setOverColumnId(null);
-		const board = selectedBoard();
-		if (!board) return;
-		const draggableId = String(event.draggable.id);
-		const droppableId = event.droppable?.id;
-		if (!droppableId) return;
-		const currentOrder = board.columns.map(c => c.name);
-		const fromIdx = currentOrder.indexOf(draggableId);
-		const toIdx = currentOrder.indexOf(String(droppableId));
-		if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return;
-		const newOrder = [...currentOrder];
-		newOrder.splice(fromIdx, 1);
-		newOrder.splice(toIdx, 0, draggableId);
-		// Optimistic update
-		const colMap = new Map(board.columns.map(c => [c.name, c]));
-		const newColumns = newOrder.map(n => colMap.get(n)!);
-		setBoards(prev => prev.map(b => b.id === board.id ? { ...b, columns: newColumns } : b));
-		handleReorderColumns(newOrder);
+	// Skills span two configs (user + project) merged into one ordered list, so a
+	// drag can't be expressed as a per-list reorder. Instead each skill carries a
+	// fractional `order`; dropping a skill sets it to the midpoint of its new
+	// neighbours, which only rewrites the one moved skill in its own config.
+	const skillReorder = createListReorder<MergedSkill>({
+		items: () => config()?.skills ?? [],
+		idOf: (s) => s.name,
+		onReorder: (orderedNames, dragged) => {
+			const cfg = config();
+			if (!cfg) return;
+			const orderOf = (name: string) => cfg.skills.find(s => s.name === name)?.order;
+			const newIndex = orderedNames.indexOf(dragged.name);
+			const before = newIndex > 0 ? orderOf(orderedNames[newIndex - 1]) : undefined;
+			const after = newIndex < orderedNames.length - 1 ? orderOf(orderedNames[newIndex + 1]) : undefined;
+			const newOrder = midpointOrder(before, after);
+			// Optimistic update: reorder the displayed list and stamp the new order.
+			const skillMap = new Map(cfg.skills.map(s => [s.name, s]));
+			const newSkills = orderedNames.map(n => {
+				const s = skillMap.get(n)!;
+				return n === dragged.name ? { ...s, order: newOrder } : s;
+			});
+			setConfig({ ...cfg, skills: newSkills });
+			setSkillOrder(dragged.scope, dragged.name, newOrder);
+		},
+	});
+
+	async function setSkillOrder(scope: Scope, name: string, order: number) {
+		setError("");
+		try {
+			const res = await fetch(`${itemEndpoint("skill", scope)}/reorder`, {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ name, order }),
+			});
+			if (!res.ok) { setError(await res.text() || "Failed to reorder"); return; }
+			await loadConfig();
+		} catch (e) { setError(e instanceof Error ? e.message : "Failed to reorder"); }
 	}
 
 	useModEnterSubmit({ onSubmit: submitForm, disabled: () => !form()?.name.trim(), active: () => !!form() });
@@ -492,24 +587,16 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 	useModEnterSubmit({ onSubmit: handleRenameColumn, disabled: () => false, active: () => !!renameForm() });
 	useModEnterSubmit({ onSubmit: handleCreateBoard, disabled: () => !boardForm()?.name.trim(), active: () => !!boardForm() });
 
-	function ScopeBadge(props: { scope: string }) {
-		return <span class={`rounded px-1.5 py-0.5 text-xs ${props.scope === "app" ? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" : "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"}`}>{props.scope === "app" ? "User" : "Project"}</span>;
-	}
-
 	function ItemRow(props: { itemType: ItemType; scope: Scope; name: string; detail: string }) {
 		return (
-			<div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
-				<div class="min-w-0 flex-1">
-					<div class="flex items-center gap-2">
-						<span class="text-sm font-medium">{props.name}</span>
-						<ScopeBadge scope={props.scope} />
-					</div>
-					<p class="mt-1 truncate text-xs text-muted-foreground">{props.detail}</p>
-				</div>
-				<div class="ml-2 flex shrink-0 gap-1">
-					<button onClick={() => startEdit(props.itemType, props.scope, props.name, props.detail)} class="btn-secondary btn-sm">Edit</button>
-					<button onClick={() => deleteItem(props.itemType, props.scope, props.name)} class="btn-secondary btn-sm text-destructive hover:bg-destructive hover:text-destructive-foreground">Delete</button>
-				</div>
+			<div class={ROW_CLASS}>
+				<ItemRowBody
+					scope={props.scope}
+					name={props.name}
+					detail={props.detail}
+					onEdit={() => startEdit(props.itemType, props.scope, props.name, props.detail)}
+					onDelete={() => deleteItem(props.itemType, props.scope, props.name)}
+				/>
 			</div>
 		);
 	}
@@ -605,9 +692,42 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 														<button onClick={() => startAdd("skill")} class="btn-primary btn-sm">Add</button>
 													</div>
 													<Show when={cfg().skills.length > 0} fallback={<p class="py-3 text-center text-sm text-muted-foreground">No skills configured.</p>}>
-														<div class="space-y-2">
-															<For each={cfg().skills}>{(item) => <ItemRow itemType="skill" scope={item.scope} name={item.name} detail={item.text} />}</For>
-														</div>
+														<DragDropProvider
+															onDragStart={skillReorder.onDragStart}
+															onDragOver={skillReorder.onDragOver}
+															onDragEnd={skillReorder.onDragEnd}
+															collisionDetector={closestCenter}
+														>
+															<DragDropSensors />
+															<SortableProvider ids={cfg().skills.map(s => s.name)}>
+																<div class="space-y-2">
+																	<For each={cfg().skills}>
+																		{(skill, i) => (
+																			<>
+																				<Show when={skillReorder.dropPreview()?.insertBefore === i()}>
+																					<SkillDropPreview skill={skillReorder.dropPreview()!.item} />
+																				</Show>
+																				<SortableSkillRow
+																					skill={skill}
+																					isActive={skillReorder.activeId() === skill.name}
+																					onEdit={() => startEdit("skill", skill.scope, skill.name, skill.text)}
+																					onDelete={() => deleteItem("skill", skill.scope, skill.name)}
+																				/>
+																			</>
+																		)}
+																	</For>
+																	<Show when={skillReorder.dropPreview()?.insertBefore === cfg().skills.length}>
+																		<SkillDropPreview skill={skillReorder.dropPreview()!.item} />
+																	</Show>
+																</div>
+															</SortableProvider>
+															<NameDragOverlay nameOf={(id) => cfg().skills.find(s => s.name === id)?.name} />
+														</DragDropProvider>
+													</Show>
+													<Show when={cfg().skills.some(s => s.scope === "app")}>
+														<p class="mt-2 text-xs text-muted-foreground" data-testid="skill-order-warning">
+															Skill order is shared. User skills appear in every project, so reordering one here changes its position in all of them.
+														</p>
 													</Show>
 												</section>
 											</div>
@@ -676,9 +796,9 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 														{(board) => (
 															<Show when={board().columns.length > 0} fallback={<p class="py-3 text-center text-sm text-muted-foreground">No columns. Add one to get started.</p>}>
 																<DragDropProvider
-																	onDragStart={handleColumnDragStart}
-																	onDragOver={handleColumnDragOver}
-																	onDragEnd={handleColumnDragEnd}
+																	onDragStart={columnReorder.onDragStart}
+																	onDragOver={columnReorder.onDragOver}
+																	onDragEnd={columnReorder.onDragEnd}
 																	collisionDetector={closestCenter}
 																>
 																	<DragDropSensors />
@@ -687,37 +807,24 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 																			<For each={board().columns}>
 																				{(col, i) => (
 																					<>
-																						<Show when={columnDropPreview()?.insertBefore === i()}>
-																							<ColumnDropPreview column={columnDropPreview()!.column} />
+																						<Show when={columnReorder.dropPreview()?.insertBefore === i()}>
+																							<ColumnDropPreview column={columnReorder.dropPreview()!.item} />
 																						</Show>
 																						<SortableColumnRow
 																							column={col}
-																							isActive={activeColumnId() === col.name}
+																							isActive={columnReorder.activeId() === col.name}
 																							onEdit={() => { setColumnError(""); setColumnForm({ mode: "edit", name: col.name, description: col.description ?? "", oldName: col.name }); }}
 																							onDelete={() => setDeleteConfirm({ type: "column", id: col.name, name: col.name })}
 																						/>
 																					</>
 																				)}
 																			</For>
-																			<Show when={columnDropPreview()?.insertBefore === board().columns.length}>
-																				<ColumnDropPreview column={columnDropPreview()!.column} />
+																			<Show when={columnReorder.dropPreview()?.insertBefore === board().columns.length}>
+																				<ColumnDropPreview column={columnReorder.dropPreview()!.item} />
 																			</Show>
 																		</div>
 																	</SortableProvider>
-																	<DragOverlay>
-																		{(draggable) => {
-																			const col = board().columns.find(c => c.name === String(draggable?.id));
-																			return (
-																				<Show when={col}>
-																					{(c) => (
-																						<DragOverlayCard class="rounded-md border border-border bg-card px-3 py-2">
-																							<span class="text-sm font-medium">{c().name}</span>
-																						</DragOverlayCard>
-																					)}
-																				</Show>
-																			);
-																		}}
-																	</DragOverlay>
+																	<NameDragOverlay nameOf={(id) => board().columns.find(c => c.name === id)?.name} />
 																</DragDropProvider>
 															</Show>
 														)}

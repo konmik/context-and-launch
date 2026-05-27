@@ -128,6 +128,13 @@ export class LauncherConfigManager {
 		for (const s of project.skills) {
 			skillMap.set(s.name, { ...s, scope: "project" });
 		}
+		// Resolve every skill to a concrete order: an explicit `order` wins,
+		// otherwise fall back to the canonical (user-then-project) index so legacy
+		// and un-dragged skills keep their original position. Sort is stable, so
+		// equal orders preserve canonical order.
+		const sortedSkills = [...skillMap.values()]
+			.map((s, i) => ({ ...s, order: typeof s.order === "number" && Number.isFinite(s.order) ? s.order : i }))
+			.sort((a, b) => a.order - b.order);
 
 		const profileMap = new Map<string, LauncherProfile & { scope: "app" | "project" }>();
 		for (const p of app.profiles ?? []) {
@@ -147,7 +154,7 @@ export class LauncherConfigManager {
 
 		return {
 			templates: [...templateMap.values()],
-			skills: [...skillMap.values()],
+			skills: sortedSkills,
 			profiles: [...profileMap.values()],
 			shortcuts: [...shortcutMap.values()],
 			columnDefaults: project.columnDefaults ?? {},
@@ -248,7 +255,9 @@ export class LauncherConfigManager {
 			if (oldName !== skill.name && config.skills.some(s => s.name === skill.name)) {
 				throw new Error(`Skill with name "${skill.name}" already exists`);
 			}
-			config.skills[index] = { name: skill.name, text: skill.text };
+			// Preserve the sort key; editing name/text must not move the skill.
+			const order = config.skills[index].order;
+			config.skills[index] = order === undefined ? { name: skill.name, text: skill.text } : { name: skill.name, text: skill.text, order };
 			if (oldName !== skill.name && config.columnDefaults) {
 				for (const col of Object.keys(config.columnDefaults)) {
 					const cd = config.columnDefaults[col];
@@ -257,6 +266,17 @@ export class LauncherConfigManager {
 					}
 				}
 			}
+		});
+	}
+
+	setSkillOrder(scope: "app" | "project", slug: string, name: string, order: number): void {
+		if (typeof order !== "number" || !Number.isFinite(order)) {
+			throw new Error("order must be a finite number");
+		}
+		this.withConfig(scope, slug, (config) => {
+			const skill = config.skills.find(s => s.name === name);
+			if (!skill) throw new Error(`Skill "${name}" not found`);
+			skill.order = order;
 		});
 	}
 
