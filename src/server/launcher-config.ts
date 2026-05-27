@@ -211,6 +211,14 @@ export class LauncherConfigManager {
 	removeSkill(scope: "app" | "project", slug: string, name: string): void {
 		this.withConfig(scope, slug, (config) => {
 			config.skills = config.skills.filter(s => s.name !== name);
+			if (config.columnDefaults) {
+				for (const col of Object.keys(config.columnDefaults)) {
+					const cd = config.columnDefaults[col];
+					if (cd?.checkedSkills) {
+						cd.checkedSkills = cd.checkedSkills.filter(s => s !== name);
+					}
+				}
+			}
 		});
 	}
 
@@ -222,6 +230,13 @@ export class LauncherConfigManager {
 				throw new Error(`Template with name "${template.name}" already exists`);
 			}
 			config.templates[index] = { name: template.name, text: template.text };
+			if (oldName !== template.name && config.columnDefaults) {
+				for (const col of Object.keys(config.columnDefaults)) {
+					if (config.columnDefaults[col]?.templateName === oldName) {
+						config.columnDefaults[col].templateName = template.name;
+					}
+				}
+			}
 		});
 	}
 
@@ -233,6 +248,14 @@ export class LauncherConfigManager {
 				throw new Error(`Skill with name "${skill.name}" already exists`);
 			}
 			config.skills[index] = { name: skill.name, text: skill.text };
+			if (oldName !== skill.name && config.columnDefaults) {
+				for (const col of Object.keys(config.columnDefaults)) {
+					const cd = config.columnDefaults[col];
+					if (cd?.checkedSkills) {
+						cd.checkedSkills = cd.checkedSkills.map(s => s === oldName ? skill.name : s);
+					}
+				}
+			}
 		});
 	}
 
@@ -268,6 +291,13 @@ export class LauncherConfigManager {
 				throw new Error(`Profile with name "${profile.name}" already exists`);
 			}
 			config.profiles[index] = { name: profile.name, command: profile.command };
+			if (oldName !== profile.name && config.columnDefaults) {
+				for (const col of Object.keys(config.columnDefaults)) {
+					if (config.columnDefaults[col]?.profileName === oldName) {
+						config.columnDefaults[col].profileName = profile.name;
+					}
+				}
+			}
 		});
 	}
 

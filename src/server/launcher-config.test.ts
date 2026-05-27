@@ -1322,4 +1322,125 @@ describe('LauncherConfigManager', () => {
 		expect(merged.shortcuts).toEqual([]);
 	});
 
+	it('updateTemplate rename updates columnDefaults.templateName', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+
+		// Add a template and set columnDefaults referencing it
+		mgr.addTemplate('project', 'slug', { name: 'old-name', text: 'some text' });
+		mgr.saveColumnDefaults('slug', 'todo', {
+			templateName: 'old-name',
+			checkedSkills: [],
+			profileName: null,
+		});
+		mgr.saveColumnDefaults('slug', 'done', {
+			templateName: 'other-template',
+			checkedSkills: [],
+			profileName: null,
+		});
+
+		// Rename the template
+		mgr.updateTemplate('project', 'slug', 'old-name', { name: 'new-name', text: 'some text' });
+
+		// columnDefaults referencing old-name should now reference new-name
+		const config = mgr.loadProjectConfig('slug');
+		expect(config.columnDefaults?.['todo']?.templateName).toBe('new-name');
+		// Unrelated column default should be untouched
+		expect(config.columnDefaults?.['done']?.templateName).toBe('other-template');
+	});
+
+	it('updateSkill rename updates columnDefaults.checkedSkills', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+
+		// Add a skill and set columnDefaults referencing it
+		mgr.addSkill('project', 'slug', { name: 'old-skill', text: 'skill text' });
+		mgr.saveColumnDefaults('slug', 'todo', {
+			templateName: null,
+			checkedSkills: ['old-skill', 'other-skill'],
+			profileName: null,
+		});
+		mgr.saveColumnDefaults('slug', 'done', {
+			templateName: null,
+			checkedSkills: ['other-skill'],
+			profileName: null,
+		});
+
+		// Rename the skill
+		mgr.updateSkill('project', 'slug', 'old-skill', { name: 'new-skill', text: 'skill text' });
+
+		// columnDefaults referencing old-skill should now reference new-skill
+		const config = mgr.loadProjectConfig('slug');
+		expect(config.columnDefaults?.['todo']?.checkedSkills).toEqual(['new-skill', 'other-skill']);
+		// Unrelated column default should be untouched
+		expect(config.columnDefaults?.['done']?.checkedSkills).toEqual(['other-skill']);
+	});
+
+	it('updateProfile rename updates columnDefaults.profileName', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+
+		// Add a profile and set columnDefaults referencing it
+		mgr.addProfile('project', 'slug', { name: 'old-profile', command: 'cmd' });
+		mgr.saveColumnDefaults('slug', 'todo', {
+			templateName: null,
+			checkedSkills: [],
+			profileName: 'old-profile',
+		});
+		mgr.saveColumnDefaults('slug', 'done', {
+			templateName: null,
+			checkedSkills: [],
+			profileName: 'other-profile',
+		});
+
+		// Rename the profile
+		mgr.updateProfile('project', 'slug', 'old-profile', { name: 'new-profile', command: 'cmd' });
+
+		// columnDefaults referencing old-profile should now reference new-profile
+		const config = mgr.loadProjectConfig('slug');
+		expect(config.columnDefaults?.['todo']?.profileName).toBe('new-profile');
+		// Unrelated column default should be untouched
+		expect(config.columnDefaults?.['done']?.profileName).toBe('other-profile');
+	});
+
+	it('removeSkill cleans up columnDefaults.checkedSkills referencing the deleted skill name', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+
+		// Add a skill to the project scope
+		mgr.addSkill('project', 'slug', { name: 'MySkill', text: 'skill text' });
+
+		// Save column defaults that reference this skill in checkedSkills
+		mgr.saveColumnDefaults('slug', 'todo', {
+			templateName: 'Default',
+			checkedSkills: ['MySkill', 'OtherSkill'],
+			profileName: null,
+		});
+		mgr.saveColumnDefaults('slug', 'done', {
+			templateName: 'Custom',
+			checkedSkills: ['MySkill'],
+			profileName: null,
+		});
+		// A column that does not reference the skill -- should remain untouched
+		mgr.saveColumnDefaults('slug', 'in-progress', {
+			templateName: 'Other',
+			checkedSkills: ['OtherSkill'],
+			profileName: null,
+		});
+
+		// Remove the skill
+		mgr.removeSkill('project', 'slug', 'MySkill');
+
+		// Column defaults referencing the deleted skill should have it removed from checkedSkills
+		const config = mgr.loadProjectConfig('slug');
+		expect(config.columnDefaults?.['todo']?.checkedSkills).toEqual(['OtherSkill']);
+		expect(config.columnDefaults?.['done']?.checkedSkills).toEqual([]);
+		// The unrelated column default should be untouched
+		expect(config.columnDefaults?.['in-progress']?.checkedSkills).toEqual(['OtherSkill']);
+	});
+
 });

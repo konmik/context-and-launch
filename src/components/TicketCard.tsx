@@ -23,15 +23,15 @@ export default function TicketCard(props: TicketCardProps) {
     >
       <div class="mb-1 flex items-start justify-between">
         <span class="text-sm font-medium text-primary">{props.ticket.number}</span>
-        <div data-menu class="-mr-2 -mt-2">
+        <div data-menu>
           <MenuRoot
             trigger={
               <MenuTrigger
-                class="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                class="rounded p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 aria-label="Ticket actions"
                 onClick={(e: MouseEvent) => e.stopPropagation()}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></svg>
               </MenuTrigger>
             }
           >
