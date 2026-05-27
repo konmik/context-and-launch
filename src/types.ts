@@ -27,20 +27,25 @@ export interface TicketInfo {
 	references: { path: string; exists: boolean }[];
 }
 
+export interface ColumnDefinition {
+	name: string;
+	description?: string;
+}
+
 export interface BoardDefinition {
 	id: string;
 	name: string;
-	columns: string[];
+	columns: ColumnDefinition[];
 }
 
 export interface BoardConfig {
-	columns: string[];
+	columns: ColumnDefinition[];
 }
 
 export type TicketOrder = Record<string, string[]>;
 
 export interface BoardState {
-	columns: string[];
+	columns: ColumnDefinition[];
 	tickets: TicketInfo[];
 	ticketOrder: TicketOrder;
 }

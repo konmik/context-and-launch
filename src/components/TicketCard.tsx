@@ -3,6 +3,7 @@ import type { TicketInfo } from "~/types.js";
 
 interface TicketCardProps {
   ticket: TicketInfo;
+  orphanedStatus?: string;
   onEdit: (ticket: TicketInfo) => void;
   onDelete: (ticket: TicketInfo) => void;
   onArchive: (ticket: TicketInfo) => void;
@@ -44,6 +45,7 @@ export default function TicketCard(props: TicketCardProps) {
         </div>
       </div>
       <p class="line-clamp-2 text-sm">{props.ticket.title}</p>
+      {props.orphanedStatus && <p class="mt-1 text-xs text-destructive" data-testid="orphaned-status">{props.orphanedStatus}</p>}
     </div>
   );
 }

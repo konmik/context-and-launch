@@ -1,24 +1,10 @@
 // All test data is defined as plain JavaScript objects.
 // No fs, path, os, or memfs imports -- purely in-memory mock data.
 
+import type { TicketInfo, ColumnDefinition, BoardDefinition, BoardState } from "~/types.js";
+export type { TicketInfo, ColumnDefinition, BoardDefinition, BoardState };
+
 const SLUG = "e2e-test";
-
-export interface TicketInfo {
-  number: string;
-  title: string;
-  status: string;
-  folderName: string;
-  stageNames: string[];
-  useWorktree: boolean;
-  fileNames: string[];
-  references: { path: string; exists: boolean }[];
-}
-
-export interface BoardState {
-  columns: string[];
-  tickets: TicketInfo[];
-  ticketOrder: Record<string, string[]>;
-}
 
 export interface BoardPageData {
   projects: { path: string; slug: string; available: boolean }[];
@@ -33,7 +19,16 @@ export interface BoardPageData {
   error?: string;
 }
 
-const DEFAULT_COLUMNS = ["todo", "in-progress", "done"];
+const DEFAULT_COLUMNS: ColumnDefinition[] = [{ name: "todo" }, { name: "in-progress" }, { name: "done" }];
+
+export const DEFAULT_BOARDS: BoardDefinition[] = [
+  { id: "kanban", name: "Kanban", columns: [
+    { name: "todo" }, { name: "prd" }, { name: "in-progress" }, { name: "review" }, { name: "done" },
+  ]},
+  { id: "simple", name: "Simple", columns: [
+    { name: "todo" }, { name: "in-progress" }, { name: "done" },
+  ]},
+];
 
 const DEFAULT_TICKETS: TicketInfo[] = [
   { number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha", stageNames: [], useWorktree: false, fileNames: [], references: [] },
@@ -42,10 +37,10 @@ const DEFAULT_TICKETS: TicketInfo[] = [
   { number: "T-4", title: "Delta", status: "in-progress", folderName: "t-4-delta", stageNames: [], useWorktree: false, fileNames: [], references: [] },
 ];
 
-function buildTicketOrder(tickets: TicketInfo[], columns: string[]): Record<string, string[]> {
+function buildTicketOrder(tickets: TicketInfo[], columns: ColumnDefinition[]): Record<string, string[]> {
   const order: Record<string, string[]> = {};
   for (const col of columns) {
-    order[col] = [];
+    order[col.name] = [];
   }
   for (const t of tickets) {
     if (!order[t.status]) order[t.status] = [];
@@ -54,7 +49,7 @@ function buildTicketOrder(tickets: TicketInfo[], columns: string[]): Record<stri
   return order;
 }
 
-export function createBoardWithTickets(tickets: TicketInfo[], columns = DEFAULT_COLUMNS, hasRemote = false, hasConflict = false): BoardPageData {
+export function createBoardWithTickets(tickets: TicketInfo[], columns: ColumnDefinition[] = DEFAULT_COLUMNS, hasRemote = false, hasConflict = false): BoardPageData {
   return {
     projects: [{ path: "/test-project", slug: SLUG, available: true }],
     slug: SLUG,
