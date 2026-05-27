@@ -64,7 +64,7 @@ describe("Board CRUD (e2e)", () => {
         title,
         status: "todo",
         folderName: `${number.toLowerCase()}-${title.toLowerCase().replace(/\s+/g, "-")}`,
-        stageNames: [],
+        contextNames: [],
         useWorktree: false,
         fileNames: [],
         references: [],

@@ -219,38 +219,38 @@ export class TicketStore {
 		this.writeStatusJson(dir, { ...current, useWorktree: value });
 	}
 
-	getStageMarkdown(folderName: string, stage: string): string | null {
-		this.requireSimpleName(stage, 'stage');
+	getTicketContext(folderName: string, name: string): string | null {
+		this.requireSimpleName(name, 'name');
 		const dir = path.join(this.worktreeDir, folderName);
 		this.requireContained(dir, 'folderName');
 		if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
 			return null;
 		}
-		const file = path.join(dir, `${stage}.md`);
-		this.requireContained(file, 'stage');
-		this.requireContainedIn(file, dir, 'stage');
+		const file = path.join(dir, `${name}.md`);
+		this.requireContained(file, 'name');
+		this.requireContainedIn(file, dir, 'name');
 		return fs.existsSync(file) ? fs.readFileSync(file, 'utf-8') : null;
 	}
 
-	deleteStageMarkdown(folderName: string, stage: string): void {
-		this.requireSimpleName(stage, 'stage');
+	deleteTicketContext(folderName: string, name: string): void {
+		this.requireSimpleName(name, 'name');
 		const dir = this.resolveTicketDir(folderName);
-		const file = path.join(dir, `${stage}.md`);
-		this.requireContained(file, 'stage');
-		this.requireContainedIn(file, dir, 'stage');
+		const file = path.join(dir, `${name}.md`);
+		this.requireContained(file, 'name');
+		this.requireContainedIn(file, dir, 'name');
 		if (!fs.existsSync(file)) return;
 		fs.unlinkSync(file);
 	}
 
-	saveStageMarkdown(folderName: string, stage: string, content: string): void {
+	saveTicketContext(folderName: string, name: string, content: string): void {
 		if (typeof content !== 'string') {
 			throw new TypeError('content must be a string');
 		}
-		this.requireSimpleName(stage, 'stage');
+		this.requireSimpleName(name, 'name');
 		const dir = this.resolveTicketDir(folderName);
-		const file = path.join(dir, `${stage}.md`);
-		this.requireContained(file, 'stage');
-		this.requireContainedIn(file, dir, 'stage');
+		const file = path.join(dir, `${name}.md`);
+		this.requireContained(file, 'name');
+		this.requireContainedIn(file, dir, 'name');
 		fs.writeFileSync(file, content);
 	}
 
@@ -283,7 +283,7 @@ export class TicketStore {
 		const status = this.readStatusJson(dir);
 		if (!status) return null;
 		const entries = fs.readdirSync(dir, { withFileTypes: true });
-		const stageNames = entries
+		const contextNames = entries
 			.filter((e) => e.isFile() && e.name.endsWith('.md'))
 			.map((e) => e.name.replace(/\.md$/, ''))
 			.sort();
@@ -300,7 +300,7 @@ export class TicketStore {
 			title: status.title,
 			status: status.status,
 			folderName: path.basename(dir),
-			stageNames,
+			contextNames,
 			useWorktree: status.useWorktree === true,
 			fileNames,
 			references,

@@ -113,21 +113,21 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(path.join(worktreeDir, 'del-1-to-delete'))).toBe(false);
 	});
 
-	it('stage markdown read write roundtrip', async () => {
+	it('ticket context read write roundtrip', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
 		const store = new TicketStore(worktreeDir);
 		store.createTicket('MD-1', 'With Markdown');
 
-		expect(store.getStageMarkdown('md-1-with-markdown', 'todo')).toBeNull();
+		expect(store.getTicketContext('md-1-with-markdown', 'todo')).toBeNull();
 
-		store.saveStageMarkdown('md-1-with-markdown', 'todo', '# My Notes\nSome content');
-		const content = store.getStageMarkdown('md-1-with-markdown', 'todo');
+		store.saveTicketContext('md-1-with-markdown', 'todo', '# My Notes\nSome content');
+		const content = store.getTicketContext('md-1-with-markdown', 'todo');
 		expect(content).toBe('# My Notes\nSome content');
 
 		const ticket = store.listTickets()[0];
-		expect(ticket.stageNames).toContain('todo');
+		expect(ticket.contextNames).toContain('todo');
 	});
 
 	it('createTicket rejects blank number or title', async () => {
@@ -214,7 +214,7 @@ describe('TicketStore', () => {
 		expect(() => store.updateTicket('a-1-second', 'A-1', 'First', null)).toThrow();
 	});
 
-	it('saveStageMarkdown rejects path traversal in stage name', async () => {
+	it('saveTicketContext rejects path traversal in name', async () => {
 		const parentDir = tmpDir('save-traversal-test-');
 		dirs.push(parentDir);
 
@@ -226,13 +226,13 @@ describe('TicketStore', () => {
 		const store = new TicketStore(worktreeDir);
 		store.createTicket('T-1', 'Test');
 
-		expect(() => store.saveStageMarkdown('t-1-test', '../sibling/evil', 'pwned')).toThrow();
+		expect(() => store.saveTicketContext('t-1-test', '../sibling/evil', 'pwned')).toThrow();
 
 		const escaped = path.join(parentDir, 'sibling');
 		expect(fs.existsSync(escaped)).toBe(false);
 	});
 
-	it('getStageMarkdown rejects path traversal in folderName', async () => {
+	it('getTicketContext rejects path traversal in folderName', async () => {
 		const parentDir = tmpDir('folder-traversal-test-');
 		dirs.push(parentDir);
 
@@ -245,10 +245,10 @@ describe('TicketStore', () => {
 		await git(worktreeDir, 'commit', '--allow-empty', '-m', 'init');
 
 		const store = new TicketStore(worktreeDir);
-		expect(() => store.getStageMarkdown('..', 'todo')).toThrow();
+		expect(() => store.getTicketContext('..', 'todo')).toThrow();
 	});
 
-	it('getStageMarkdown rejects path traversal in stage name', async () => {
+	it('getTicketContext rejects path traversal in name', async () => {
 		const parentDir = tmpDir('traversal-test-');
 		dirs.push(parentDir);
 
@@ -263,7 +263,7 @@ describe('TicketStore', () => {
 		const store = new TicketStore(worktreeDir);
 		store.createTicket('T-1', 'Test');
 
-		expect(() => store.getStageMarkdown('t-1-test', '../../secret')).toThrow();
+		expect(() => store.getTicketContext('t-1-test', '../../secret')).toThrow();
 	});
 
 	it('updateTicket rejects path traversal in folderName', async () => {
@@ -284,14 +284,14 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(path.join(outsideDir, 'status.json'))).toBe(false);
 	});
 
-	it('saveStageMarkdown rejects stage name containing path separators', async () => {
+	it('saveTicketContext rejects name containing path separators', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
 		const store = new TicketStore(worktreeDir);
 		store.createTicket('S-1', 'Slashes');
 
-		expect(() => store.saveStageMarkdown('s-1-slashes', 'sub/dir', 'content')).toThrow();
+		expect(() => store.saveTicketContext('s-1-slashes', 'sub/dir', 'content')).toThrow();
 
 		const subDir = path.join(worktreeDir, 's-1-slashes', 'sub');
 		expect(fs.existsSync(subDir)).toBe(false);
@@ -328,11 +328,11 @@ describe('TicketStore', () => {
 		const statusAfterCreate = await git(worktreeDir, 'status', '--porcelain');
 		expect(statusAfterCreate.trim()).not.toBe('');
 
-		store.saveStageMarkdown('lock-1-lock-test', 'todo', '# Notes\nSome content');
+		store.saveTicketContext('lock-1-lock-test', 'todo', '# Notes\nSome content');
 
-		const stageFile = path.join(worktreeDir, 'lock-1-lock-test', 'todo.md');
-		expect(fs.existsSync(stageFile)).toBe(true);
-		expect(fs.readFileSync(stageFile, 'utf-8')).toBe('# Notes\nSome content');
+		const docFile = path.join(worktreeDir, 'lock-1-lock-test', 'todo.md');
+		expect(fs.existsSync(docFile)).toBe(true);
+		expect(fs.readFileSync(docFile, 'utf-8')).toBe('# Notes\nSome content');
 
 		// Only the init commit should exist
 		const log = await git(worktreeDir, 'log', '--oneline');
@@ -347,14 +347,14 @@ describe('TicketStore', () => {
 
 		const store = new TicketStore(worktreeDir);
 		const ticket = store.createTicket('RAP-1', 'Rapid Ops');
-		store.saveStageMarkdown(ticket.folderName, 'todo', '# Todo\nDo the thing');
+		store.saveTicketContext(ticket.folderName, 'todo', '# Todo\nDo the thing');
 
 		// Verify final state has both files on disk
 		const statusPath = path.join(worktreeDir, ticket.folderName, 'status.json');
-		const stagePath = path.join(worktreeDir, ticket.folderName, 'todo.md');
+		const docPath = path.join(worktreeDir, ticket.folderName, 'todo.md');
 		expect(fs.existsSync(statusPath)).toBe(true);
-		expect(fs.existsSync(stagePath)).toBe(true);
-		expect(fs.readFileSync(stagePath, 'utf-8')).toBe('# Todo\nDo the thing');
+		expect(fs.existsSync(docPath)).toBe(true);
+		expect(fs.readFileSync(docPath, 'utf-8')).toBe('# Todo\nDo the thing');
 
 		// No autoCommit: changes are uncommitted
 		const status = await git(worktreeDir, 'status', '--porcelain');
@@ -509,7 +509,7 @@ describe('TicketStore', () => {
 		expect(onDisk.number).toBe('SECRET-1');
 	});
 
-	it('saveStageMarkdown with a folderName renamed away by updateTicket throws Ticket not found', async () => {
+	it('saveTicketContext with a folderName renamed away by updateTicket throws Ticket not found', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -521,15 +521,15 @@ describe('TicketStore', () => {
 		store.updateTicket(oldFolder, null, 'Renamed', null);
 
 		// Old folder no longer exists; saving to it should throw
-		expect(() => store.saveStageMarkdown(oldFolder, 'todo', '# stale write')).toThrow(
+		expect(() => store.saveTicketContext(oldFolder, 'todo', '# stale write')).toThrow(
 			/Ticket not found/
 		);
 
-		// Verify no stage file was written at the old path
+		// Verify no context file was written at the old path
 		expect(fs.existsSync(path.join(worktreeDir, oldFolder, 'todo.md'))).toBe(false);
 	});
 
-	it('saveStageMarkdown to a recycled folderName writes to the wrong ticket (data corruption)', async () => {
+	it('saveTicketContext to a recycled folderName writes to the wrong ticket (data corruption)', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -547,22 +547,22 @@ describe('TicketStore', () => {
 		const ticketB = store.createTicket('REC-1', 'Reusable Name');
 		expect(ticketB.folderName).toBe(originalFolder); // same kebab name recycled
 
-		// A stale reference saves stage markdown using the original folderName.
+		// A stale reference saves context using the original folderName.
 		// This silently writes into ticket B's folder -- data corruption.
-		store.saveStageMarkdown(originalFolder, 'todo', '# This was meant for ticket A');
+		store.saveTicketContext(originalFolder, 'todo', '# This was meant for ticket A');
 
-		// The stage file lands in ticket B's directory, not ticket A's
-		const stageInB = path.join(worktreeDir, ticketB.folderName, 'todo.md');
-		expect(fs.existsSync(stageInB)).toBe(true);
-		expect(fs.readFileSync(stageInB, 'utf-8')).toBe('# This was meant for ticket A');
+		// The context file lands in ticket B's directory, not ticket A's
+		const docInB = path.join(worktreeDir, ticketB.folderName, 'todo.md');
+		expect(fs.existsSync(docInB)).toBe(true);
+		expect(fs.readFileSync(docInB, 'utf-8')).toBe('# This was meant for ticket A');
 
-		// Ticket A (now at rec-99-reusable-name) has no stage file -- the write went to the wrong ticket
+		// Ticket A (now at rec-99-reusable-name) has no context file -- the write went to the wrong ticket
 		const renamedFolder = 'rec-99-reusable-name';
-		const stageInA = path.join(worktreeDir, renamedFolder, 'todo.md');
-		expect(fs.existsSync(stageInA)).toBe(false);
+		const docInA = path.join(worktreeDir, renamedFolder, 'todo.md');
+		expect(fs.existsSync(docInA)).toBe(false);
 	});
 
-	it('getStageMarkdown with a folderName that no longer exists returns null silently', async () => {
+	it('getTicketContext with a folderName that no longer exists returns null silently', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -570,26 +570,26 @@ describe('TicketStore', () => {
 		const ticket = store.createTicket('GONE-1', 'Will Vanish');
 		const oldFolder = ticket.folderName; // 'gone-1-will-vanish'
 
-		// Write stage content while the ticket exists
-		store.saveStageMarkdown(oldFolder, 'todo', '# Important notes');
-		expect(store.getStageMarkdown(oldFolder, 'todo')).toBe('# Important notes');
+		// Write context content while the ticket exists
+		store.saveTicketContext(oldFolder, 'todo', '# Important notes');
+		expect(store.getTicketContext(oldFolder, 'todo')).toBe('# Important notes');
 
 		// Rename the ticket so the old folder disappears
 		store.updateTicket(oldFolder, null, 'Vanished', null);
 		expect(fs.existsSync(path.join(worktreeDir, oldFolder))).toBe(false);
 
-		// getStageMarkdown with the stale folderName returns null instead of
-		// throwing an error -- the caller has no way to distinguish "stage was
+		// getTicketContext with the stale folderName returns null instead of
+		// throwing an error -- the caller has no way to distinguish "context was
 		// never written" from "ticket was renamed and content lives elsewhere"
-		const result = store.getStageMarkdown(oldFolder, 'todo');
+		const result = store.getTicketContext(oldFolder, 'todo');
 		expect(result).toBeNull();
 
 		// Meanwhile the content still exists at the new path
 		const newFolder = 'gone-1-vanished';
-		expect(store.getStageMarkdown(newFolder, 'todo')).toBe('# Important notes');
+		expect(store.getTicketContext(newFolder, 'todo')).toBe('# Important notes');
 	});
 
-	it('saveStageMarkdown with undefined content throws TypeError from fs.writeFileSync', async () => {
+	it('saveTicketContext with undefined content throws TypeError from fs.writeFileSync', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -601,11 +601,11 @@ describe('TicketStore', () => {
 		// call does throw -- but with a low-level Node error rather than a
 		// clear application-level message like "content must be a string".
 		expect(() =>
-			store.saveStageMarkdown('undef-1-undefined-test', 'notes', undefined as any)
+			store.saveTicketContext('undef-1-undefined-test', 'notes', undefined as any)
 		).toThrow(TypeError);
 	});
 
-	it('saveStageMarkdown with null content throws TypeError from fs.writeFileSync', async () => {
+	it('saveTicketContext with null content throws TypeError from fs.writeFileSync', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -617,11 +617,11 @@ describe('TicketStore', () => {
 		// call does throw -- but with a low-level Node error rather than a
 		// clear application-level message like "content must be a string".
 		expect(() =>
-			store.saveStageMarkdown('null-1-null-test', 'notes', null as any)
+			store.saveTicketContext('null-1-null-test', 'notes', null as any)
 		).toThrow(TypeError);
 	});
 
-	it('saveStageMarkdown with numeric content rejects non-string input', async () => {
+	it('saveTicketContext with numeric content rejects non-string input', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -632,7 +632,7 @@ describe('TicketStore', () => {
 		// Without an explicit guard, fs.writeFileSync silently coerces numbers
 		// to strings, writing "123" to the file -- data corruption.
 		expect(() =>
-			store.saveStageMarkdown('num-1-numeric-test', 'notes', 123 as any)
+			store.saveTicketContext('num-1-numeric-test', 'notes', 123 as any)
 		).toThrow(TypeError);
 	});
 
@@ -677,7 +677,7 @@ describe('TicketStore', () => {
 		expect(result).toEqual([]);
 	});
 
-	it('saveStageMarkdown on a nonexistent worktreeDir throws about the missing directory', () => {
+	it('saveTicketContext on a nonexistent worktreeDir throws about the missing directory', () => {
 		const base = tmpDir('nonexistent-save-');
 		dirs.push(base);
 		const missing = path.join(base, 'does-not-exist');
@@ -687,12 +687,12 @@ describe('TicketStore', () => {
 		// When worktreeDir itself does not exist, requireContained calls
 		// realpathSync on the missing parent, which throws a raw ENOENT.
 		// The error should mention the worktree directory, not "Ticket not found".
-		expect(() => store.saveStageMarkdown('some-folder', 'todo', 'content')).toThrow(
+		expect(() => store.saveTicketContext('some-folder', 'todo', 'content')).toThrow(
 			/Worktree directory does not exist/
 		);
 	});
 
-	it('getStageMarkdown on a nonexistent worktreeDir throws about the missing directory', () => {
+	it('getTicketContext on a nonexistent worktreeDir throws about the missing directory', () => {
 		const base = tmpDir('nonexistent-get-');
 		dirs.push(base);
 		const missing = path.join(base, 'does-not-exist');
@@ -701,8 +701,8 @@ describe('TicketStore', () => {
 
 		// When worktreeDir does not exist, requireContainedIn detects the
 		// missing parent and throws a clear error. This is consistent with
-		// saveStageMarkdown but inconsistent with listTickets (which returns []).
-		expect(() => store.getStageMarkdown('some-folder', 'todo')).toThrow(
+		// saveTicketContext but inconsistent with listTickets (which returns []).
+		expect(() => store.getTicketContext('some-folder', 'todo')).toThrow(
 			/Worktree directory does not exist/
 		);
 	});
@@ -906,7 +906,7 @@ describe('TicketStore', () => {
 		expect(tickets[0].folderName).toBe(winner.folderName);
 	});
 
-	it('rename where old dir contains stage markdown files: .md files survive at the new path', async () => {
+	it('rename where old dir contains context files: .md files survive at the new path', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -914,10 +914,10 @@ describe('TicketStore', () => {
 		const ticket = store.createTicket('MD-5', 'Has Stages');
 		const oldFolder = ticket.folderName; // 'md-5-has-stages'
 
-		// Add multiple stage markdown files
-		store.saveStageMarkdown(oldFolder, 'to-do', '# To Do\n- item 1\n- item 2');
-		store.saveStageMarkdown(oldFolder, 'product-requirement-document', '# PRD\nRequirements here');
-		store.saveStageMarkdown(oldFolder, 'design', '# Design\nArchitecture notes');
+		// Add multiple context files
+		store.saveTicketContext(oldFolder, 'to-do', '# To Do\n- item 1\n- item 2');
+		store.saveTicketContext(oldFolder, 'product-requirement-document', '# PRD\nRequirements here');
+		store.saveTicketContext(oldFolder, 'design', '# Design\nArchitecture notes');
 
 		// Rename the ticket by changing its title
 		const updated = store.updateTicket(oldFolder, null, 'Renamed Stages', null);
@@ -928,18 +928,18 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(path.join(worktreeDir, newFolder))).toBe(true);
 
 		// Verify all .md files exist at the new path with correct content
-		expect(store.getStageMarkdown(newFolder, 'to-do')).toBe('# To Do\n- item 1\n- item 2');
-		expect(store.getStageMarkdown(newFolder, 'product-requirement-document')).toBe('# PRD\nRequirements here');
-		expect(store.getStageMarkdown(newFolder, 'design')).toBe('# Design\nArchitecture notes');
+		expect(store.getTicketContext(newFolder, 'to-do')).toBe('# To Do\n- item 1\n- item 2');
+		expect(store.getTicketContext(newFolder, 'product-requirement-document')).toBe('# PRD\nRequirements here');
+		expect(store.getTicketContext(newFolder, 'design')).toBe('# Design\nArchitecture notes');
 
-		// Verify readTicket (via listTickets) still returns the stage names
+		// Verify readTicket (via listTickets) still returns the names
 		const tickets = store.listTickets();
 		expect(tickets.length).toBe(1);
 		expect(tickets[0].folderName).toBe(newFolder);
-		expect(tickets[0].stageNames).toContain('to-do');
-		expect(tickets[0].stageNames).toContain('product-requirement-document');
-		expect(tickets[0].stageNames).toContain('design');
-		expect(tickets[0].stageNames.length).toBe(3);
+		expect(tickets[0].contextNames).toContain('to-do');
+		expect(tickets[0].contextNames).toContain('product-requirement-document');
+		expect(tickets[0].contextNames).toContain('design');
+		expect(tickets[0].contextNames.length).toBe(3);
 	});
 
 	it('setUseWorktree persists to status.json and survives a re-read via listTickets', async () => {
@@ -1110,14 +1110,14 @@ describe('TicketStore', () => {
 		expect(lines.length).toBe(1);
 	});
 
-	it('archiveTicket preserves stage markdown files', async () => {
+	it('archiveTicket preserves context files', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
 		const store = new TicketStore(worktreeDir);
 		store.createTicket('STG-1', 'With Stages');
-		store.saveStageMarkdown('stg-1-with-stages', 'todo', '# Todo items');
-		store.saveStageMarkdown('stg-1-with-stages', 'design', '# Design notes');
+		store.saveTicketContext('stg-1-with-stages', 'todo', '# Todo items');
+		store.saveTicketContext('stg-1-with-stages', 'design', '# Design notes');
 
 		store.archiveTicket('stg-1-with-stages');
 

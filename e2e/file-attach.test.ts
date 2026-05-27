@@ -22,7 +22,7 @@ function makeTicketWithFiles(overrides?: Partial<TicketInfo>): TicketInfo {
     title: "File Test",
     status: "todo",
     folderName: "t-10-file-test",
-    stageNames: [],
+    contextNames: [],
     useWorktree: false,
     fileNames: [],
     references: [],

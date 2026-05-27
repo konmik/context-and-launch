@@ -11,7 +11,7 @@ function makeTicket(overrides: Partial<TicketInfo> & { folderName: string }): Ti
     number: overrides.number ?? "T-1",
     title: overrides.title ?? "Test ticket",
     status: overrides.status ?? "todo",
-    stageNames: [],
+    contextNames: [],
     useWorktree: false,
     fileNames: [],
     references: [],

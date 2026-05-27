@@ -13,7 +13,7 @@ let page: Page;
 let server: http.Server;
 let mockState: MockServerState;
 
-const TICKET: TicketInfo = { number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha", stageNames: [], useWorktree: false, fileNames: [], references: [] };
+const TICKET: TicketInfo = { number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha", contextNames: [], useWorktree: false, fileNames: [], references: [] };
 
 function freshConfig() {
   return {

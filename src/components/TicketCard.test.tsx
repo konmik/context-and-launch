@@ -9,7 +9,7 @@ function makeTicket(overrides?: Partial<TicketInfo>): TicketInfo {
     title: "Test ticket",
     status: "todo",
     folderName: "t-1-test-ticket",
-    stageNames: [],
+    contextNames: [],
     useWorktree: false,
     fileNames: [],
     references: [],

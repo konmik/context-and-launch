@@ -21,7 +21,7 @@ Avoid: id, key
 ### Tickets & Board
 
 Ticket:
-A unit of work. Stored as a folder in the project's worktree. Contains a `status.json` and zero or more stage markdowns.
+A unit of work. Stored as a folder in the project's worktree. Contains a `status.json` and any number of Context documents.
 Avoid: task, issue, card
 
 Ticket Number:
@@ -29,11 +29,11 @@ An identifier for a ticket following the pattern PREFIX-ZEROPADDEDNUMBER (e.g. `
 Avoid: ticket id
 
 Ticket Folder:
-A directory named by kebab-casing the ticket number and title (e.g. `abc-1-fix-login-timeout/`). Contains `status.json` and stage markdowns.
+A directory named by kebab-casing the ticket number and title (e.g. `abc-1-fix-login-timeout/`). Contains `status.json` and Context documents.
 
-Stage Markdown:
-A markdown file inside a ticket folder, named after a board column (e.g. `todo.md`, `review.md`). Created on demand. Holds notes, context, or instructions for that stage. Read by AI agents working on the ticket.
-Avoid: stage file, phase file
+Context:
+A named markdown document attached to a ticket, stored as `{name}.md` in the ticket folder (e.g. `to-do.md`, `product-requirement-document.md`). Names are chosen freely and are not tied to board columns. Created on demand. Holds notes, requirements, or instructions read by the AI agent launched against the ticket -- the context you assemble before you launch.
+Avoid: stage, stage markdown, doc, note
 
 Board Definition:
 A named board layout with an id, name, and ordered list of columns. All board definitions live in a single `~/.context-launch/config/boards.json` array. A project selects one by `boardId` in its Launcher Config (defaults to "kanban").
@@ -108,10 +108,10 @@ Avoid: sandbox, workspace
 - A Project has exactly one Worktree (created automatically on first board load)
 - A Worktree is checked out from the Project's Orphan Branch
 - A Worktree contains zero or more Ticket Folders
-- A Ticket Folder contains exactly one `status.json` and zero or more Stage Markdowns
+- A Ticket Folder contains exactly one `status.json` and zero or more Context documents
 - A Board Definition defines the set of Columns available to a Project
 - A Column has a name and an optional description
-- A Column name determines the filename of its Stage Markdown (e.g. column `review` -> `review.md`)
+- A Context name is chosen freely; by convention it often mirrors a Column name (e.g. `review.md`) but the two are not linked
 - A Column name is auto-slugified and must be unique within its Board Definition
 - The reserved name "undefined" cannot be used for a Column
 - When a Column is renamed, ticket statuses and column defaults may be migrated (scoped to all projects, current project, or none)

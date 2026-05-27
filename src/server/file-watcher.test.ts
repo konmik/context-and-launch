@@ -404,7 +404,7 @@ describe('FileWatcher', () => {
 
 		const store = new TicketStore(dir);
 		store.createTicket('BASE-1', 'Setup');
-		store.saveStageMarkdown('base-1-setup', 'todo', '# Notes');
+		store.saveTicketContext('base-1-setup', 'todo', '# Notes');
 
 		// Confirm changes are uncommitted (no autoCommit)
 		const statusBefore = await git(dir, 'status', '--porcelain');
@@ -477,8 +477,8 @@ describe('FileWatcher', () => {
 			const store = new TicketStore(dir);
 			store.createTicket('PART-1', 'First ticket');
 
-			// Write a stage markdown file
-			store.saveStageMarkdown('part-1-first-ticket', 'todo', '# Todo list');
+			// Write a ticket context file
+			store.saveTicketContext('part-1-first-ticket', 'todo', '# Todo list');
 
 			// Verify the file exists on disk
 			expect(fs.existsSync(path.join(dir, 'part-1-first-ticket', 'todo.md'))).toBe(true);
