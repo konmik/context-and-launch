@@ -72,6 +72,14 @@ describe("Column descriptions and undefined column (e2e)", () => {
     expect(text).toBe("deleted-column");
   }, 15000);
 
+  it("undefined column shows an Update manually description", async () => {
+    await page.goto(`${BASE_URL}/project/e2e-test`);
+    await page.waitForSelector("h3");
+    const desc = await page.waitForSelector('[data-testid="undefined-column-description"]', { timeout: 3000 });
+    const text = await desc!.textContent();
+    expect(text).toBe("Update manually");
+  }, 15000);
+
   it("undefined column has red border styling", async () => {
     await page.goto(`${BASE_URL}/project/e2e-test`);
     await page.waitForSelector("h3");
