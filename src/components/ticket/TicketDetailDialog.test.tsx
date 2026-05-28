@@ -5,17 +5,17 @@ vi.mock("@solidjs/router", () => ({
   revalidate: vi.fn(),
 }));
 
-vi.mock("./MarkdownEditor", () => ({
+vi.mock("../shared/MarkdownEditor", () => ({
   default: (props: { value: string }) => (
     <div data-testid="editor-content">{props.value}</div>
   ),
 }));
 
-vi.mock("./AgentLauncher", () => ({
+vi.mock("../launcher/AgentLauncher", () => ({
   default: () => <div data-testid="agent-launcher" />,
 }));
 
-vi.mock("./ui/floating-panel", () => ({
+vi.mock("../ui/floating-panel", () => ({
   FloatingPanelRoot: (props: any) => <div data-testid="floating-panel">{props.children}</div>,
   FloatingPanelHeader: (props: any) => <div>{props.children}</div>,
   FloatingPanelBody: (props: any) => <div>{props.children}</div>,

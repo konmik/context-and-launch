@@ -1,6 +1,6 @@
 import { Show, Index } from "solid-js";
 import { createSortable } from "@thisbeyond/solid-dnd";
-import { DragGrip, DragPreview, DND_ACTIVE_CLASS } from "./dnd-shared.js";
+import { DragGrip, DragPreview, DND_ACTIVE_CLASS } from "../board/dnd-shared.js";
 import type { MergedLauncherConfig } from "~/server/launcher/launcher-config.js";
 import type { BoardDefinition, ColumnDefinition } from "~/server/project/board-config.js";
 

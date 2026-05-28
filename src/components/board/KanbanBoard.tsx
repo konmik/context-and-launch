@@ -13,7 +13,7 @@ import {
 import type { TicketInfo } from "~/server/ticket/ticket-store.js";
 import type { BoardState } from "~/server/actions.js";
 import type { ColumnDefinition } from "~/server/project/board-config.js";
-import TicketCard from "./TicketCard";
+import TicketCard from "../ticket/TicketCard";
 import { computeHoverTarget, type HoverTarget } from "./drop-index.js";
 import { DragPreview, DragOverlayCard, DND_ACTIVE_CLASS } from "./dnd-shared.js";
 

@@ -1,11 +1,11 @@
 import { createSignal, createEffect, createMemo, onCleanup, on, Show } from "solid-js";
-import { FloatingPanelRoot, FloatingPanelHeader, FloatingPanelBody, FloatingPanelDragTrigger, FloatingPanelResizeTrigger, FloatingPanelCloseTrigger, FloatingPanelTitle } from "./ui/floating-panel";
-import { TabsRoot, TabsList, TabsTrigger } from "./ui/tabs";
+import { FloatingPanelRoot, FloatingPanelHeader, FloatingPanelBody, FloatingPanelDragTrigger, FloatingPanelResizeTrigger, FloatingPanelCloseTrigger, FloatingPanelTitle } from "../ui/floating-panel";
+import { TabsRoot, TabsList, TabsTrigger } from "../ui/tabs";
 import type { MergedLauncherConfig } from "~/server/launcher/launcher-config.js";
 import type { BoardDefinition, ColumnDefinition } from "~/server/project/board-config.js";
 import { useModEnterSubmit } from "~/lib/use-mod-enter-submit";
 import { slugifyColumnName } from "~/lib/slugify.js";
-import { createListReorder, midpointOrder } from "./list-reorder.js";
+import { createListReorder, midpointOrder } from "../board/list-reorder.js";
 import type { MergedSkill } from "./launcher-settings-rows.js";
 import { GeneralTab } from "./launcher-settings-general-tab.js";
 import { PromptsTab } from "./launcher-settings-prompts-tab.js";

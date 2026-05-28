@@ -1,5 +1,5 @@
 import { createSignal, Show, onMount } from "solid-js";
-import { DialogRoot, DialogTitle, DialogDescription } from "./ui/dialog";
+import { DialogRoot, DialogTitle, DialogDescription } from "../ui/dialog";
 import type { TicketInfo } from "~/server/ticket/ticket-store.js";
 import type { ErrorInfo } from "~/server/shared/errors.js";
 

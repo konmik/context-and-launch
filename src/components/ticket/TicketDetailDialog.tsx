@@ -1,6 +1,6 @@
 import { createSignal, createEffect, Show, on, onCleanup } from "solid-js";
-import { FloatingPanelRoot, FloatingPanelHeader, FloatingPanelBody, FloatingPanelDragTrigger, FloatingPanelResizeTrigger, FloatingPanelCloseTrigger, FloatingPanelTitle } from "./ui/floating-panel";
-import { TabsRoot, TabsList, TabsTrigger } from "./ui/tabs";
+import { FloatingPanelRoot, FloatingPanelHeader, FloatingPanelBody, FloatingPanelDragTrigger, FloatingPanelResizeTrigger, FloatingPanelCloseTrigger, FloatingPanelTitle } from "../ui/floating-panel";
+import { TabsRoot, TabsList, TabsTrigger } from "../ui/tabs";
 import { revalidate } from "@solidjs/router";
 import type { TicketInfo } from "~/server/ticket/ticket-store.js";
 import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/server/launcher/launcher-config.js";

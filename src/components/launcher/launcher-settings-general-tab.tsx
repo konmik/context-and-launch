@@ -1,4 +1,4 @@
-import { TabsContent } from "./ui/tabs";
+import { TabsContent } from "../ui/tabs";
 import type { MergedLauncherConfig } from "~/server/launcher/launcher-config.js";
 import type { BoardDefinition } from "~/server/project/board-config.js";
 import { ScopeBadge, BoardOptions } from "./launcher-settings-rows.js";

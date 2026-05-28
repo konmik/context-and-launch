@@ -1,4 +1,4 @@
-import AgentLauncher from "./AgentLauncher";
+import AgentLauncher from "../launcher/AgentLauncher";
 import { TAB_PANE_CLASS } from "./ticket-detail-parts.js";
 import type { TicketInfo } from "~/server/ticket/ticket-store.js";
 import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/server/launcher/launcher-config.js";

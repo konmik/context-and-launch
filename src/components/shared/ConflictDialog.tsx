@@ -1,5 +1,5 @@
 import { createSignal, createEffect, Show, For } from "solid-js";
-import { DialogRoot, DialogTitle, DialogDescription } from "./ui/dialog";
+import { DialogRoot, DialogTitle, DialogDescription } from "../ui/dialog";
 
 interface ConflictDialogProps {
   open: boolean;
