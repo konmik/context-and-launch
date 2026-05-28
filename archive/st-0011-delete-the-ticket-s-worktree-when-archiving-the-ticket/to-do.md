@@ -1,0 +1,1 @@
+We need to clean up. Add "Archive" option to the ticket menu. When the ticket is deleted or archived, and there is a worktree, ask the user if the worktree must be deleted. Archive operstion move the ticket into "archive" folder. It is not a ticket folder, and when reading ticket folder list, the server must ignore it. Only use the folder to dump tickets into it.
