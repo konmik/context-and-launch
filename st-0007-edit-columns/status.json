@@ -1,6 +1,6 @@
 {
-  "useWorktree": true,
   "number": "ST-0007",
   "title": "Edit columns",
-  "status": "prd"
+  "status": "in-progress",
+  "useWorktree": true
 }

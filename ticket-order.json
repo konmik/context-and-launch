@@ -1,12 +1,14 @@
 {
   "todo": [
-    "st-0008-improve-the-codebase"
+    "st-0008-improve-the-codebase",
+    "st-0016-sort-skills"
   ],
   "prd": [
-    "st-0014-readme-update",
+    "st-0014-readme-update"
+  ],
+  "in-progress": [
     "st-0007-edit-columns"
   ],
-  "in-progress": [],
   "review": [],
   "done": []
 }
