@@ -6,11 +6,13 @@ export interface ProjectInfo {
 	path: string;
 	slug: string;
 	available: boolean;
+	branch?: string;
 }
 
 export interface ProjectEntry {
 	path: string;
 	slug: string;
+	branch?: string;
 }
 
 export interface ProjectConfig {
@@ -34,6 +36,26 @@ function toSlugSegment(name: string): string {
 		.replace(/[^a-z0-9-]/g, '-')
 		.replace(/-+/g, '-')
 		.replace(/^-|-$/g, '');
+}
+
+export function validateBranchName(name: string): void {
+	if (!name) throw new Error('Branch name cannot be empty');
+	if (/\s/.test(name)) throw new Error('Branch name cannot contain whitespace');
+	if (/[~^:?*[\\\x00-\x1f\x7f]/.test(name)) {
+		throw new Error(`Branch name contains invalid characters: ${name}`);
+	}
+	if (name.includes('..')) throw new Error('Branch name cannot contain ".."');
+	if (name.includes('@{')) throw new Error('Branch name cannot contain "@{"');
+	if (name.includes('//')) throw new Error('Branch name cannot contain "//"');
+	if (name.startsWith('/') || name.endsWith('/')) {
+		throw new Error('Branch name cannot start or end with "/"');
+	}
+	if (name.startsWith('-')) throw new Error('Branch name cannot start with "-"');
+	if (name.startsWith('.') || name.endsWith('.')) {
+		throw new Error('Branch name cannot start or end with "."');
+	}
+	if (name.endsWith('.lock')) throw new Error('Branch name cannot end with ".lock"');
+	if (name === '@') throw new Error('Branch name cannot be "@"');
 }
 
 export function generateSlug(filePath: string, existingSlugs: Set<string>): string {
@@ -120,16 +142,20 @@ export class ProjectRegistry {
 		return this.load().projects.map((entry) => ({
 			path: entry.path,
 			slug: entry.slug,
-			available: isGitRepo(entry.path)
+			available: isGitRepo(entry.path),
+			branch: entry.branch
 		}));
 	}
 
-	addProject(projectPath: string, slug?: string): ProjectInfo {
+	addProject(projectPath: string, slug?: string, branch?: string): ProjectInfo {
 		if (!fs.existsSync(projectPath)) {
 			throw new Error(`Path does not exist: ${projectPath}`);
 		}
 		if (!fs.existsSync(path.join(projectPath, '.git'))) {
 			throw new Error(`Not a git repository: ${projectPath}`);
+		}
+		if (branch !== undefined) {
+			validateBranchName(branch);
 		}
 
 		const config = this.load();
@@ -152,13 +178,14 @@ export class ProjectRegistry {
 		}
 
 		const entry: ProjectEntry = { path: canonicalPath, slug: finalSlug };
+		if (branch !== undefined) entry.branch = branch;
 		this.save({
 			...config,
 			projects: [...config.projects, entry],
 			lastUsedSlug: finalSlug
 		});
 
-		return { path: entry.path, slug: entry.slug, available: true };
+		return { path: entry.path, slug: entry.slug, available: true, branch: entry.branch };
 	}
 
 	updateProject(slug: string, newPath?: string, newSlug?: string): ProjectInfo {
@@ -179,7 +206,7 @@ export class ProjectRegistry {
 			}
 		}
 
-		const updated: ProjectEntry = { path: updatedPath, slug: updatedSlug };
+		const updated: ProjectEntry = { ...entry, path: updatedPath, slug: updatedSlug };
 		const newProjects = config.projects.map((p, i) => (i === index ? updated : p));
 		const newLastUsed = config.lastUsedSlug === slug ? updatedSlug : config.lastUsedSlug;
 		this.save({ ...config, projects: newProjects, lastUsedSlug: newLastUsed });
@@ -187,7 +214,8 @@ export class ProjectRegistry {
 		return {
 			path: updatedPath,
 			slug: updatedSlug,
-			available: isGitRepo(updatedPath)
+			available: isGitRepo(updatedPath),
+			branch: updated.branch
 		};
 	}
 

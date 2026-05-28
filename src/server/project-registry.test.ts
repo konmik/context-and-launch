@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { ProjectRegistry, generateSlug } from './project-registry.js';
+import { ProjectRegistry, generateSlug, validateBranchName } from './project-registry.js';
 import { ConfigPaths } from './config-paths.js';
 
 function tmpDir(prefix: string): string {
@@ -478,6 +478,89 @@ describe('ProjectRegistry', () => {
 		expect(afterUpdate.browser).toBe('safari');
 		expect(afterUpdate.projects[0].slug).toBe('renamed');
 		expect(afterUpdate.lastUsedSlug).toBe('renamed');
+	});
+
+	it('addProject stores the chosen branch and listProjects returns it', () => {
+		const configDir = tmpDir('registry-config-');
+		const projectDir = tmpDir('registry-project-');
+		dirs.push(configDir, projectDir);
+
+		fs.mkdirSync(path.join(projectDir, '.git'));
+		const registry = new ProjectRegistry(new ConfigPaths(configDir));
+		const info = registry.addProject(projectDir, 'branch-proj', 'tickets');
+		expect(info.branch).toBe('tickets');
+
+		const listed = registry.listProjects().find((p) => p.slug === 'branch-proj');
+		expect(listed?.branch).toBe('tickets');
+
+		const onDisk = JSON.parse(
+			fs.readFileSync(path.join(configDir, 'config', 'config.json'), 'utf-8')
+		);
+		expect(onDisk.projects[0].branch).toBe('tickets');
+	});
+
+	it('addProject without a branch leaves the field undefined (legacy fallback)', () => {
+		const configDir = tmpDir('registry-config-');
+		const projectDir = tmpDir('registry-project-');
+		dirs.push(configDir, projectDir);
+
+		fs.mkdirSync(path.join(projectDir, '.git'));
+		const registry = new ProjectRegistry(new ConfigPaths(configDir));
+		const info = registry.addProject(projectDir, 'no-branch');
+		expect(info.branch).toBeUndefined();
+
+		const onDisk = JSON.parse(
+			fs.readFileSync(path.join(configDir, 'config', 'config.json'), 'utf-8')
+		);
+		expect('branch' in onDisk.projects[0]).toBe(false);
+	});
+
+	it('addProject rejects an invalid branch name before registering', () => {
+		const configDir = tmpDir('registry-config-');
+		const projectDir = tmpDir('registry-project-');
+		dirs.push(configDir, projectDir);
+
+		fs.mkdirSync(path.join(projectDir, '.git'));
+		const registry = new ProjectRegistry(new ConfigPaths(configDir));
+		expect(() => registry.addProject(projectDir, 'bad', 'has space')).toThrow('whitespace');
+		expect(registry.listProjects()).toHaveLength(0);
+	});
+
+	it('updateProject preserves the branch field across rename', () => {
+		const configDir = tmpDir('registry-config-');
+		const projectDir = tmpDir('registry-project-');
+		dirs.push(configDir, projectDir);
+
+		fs.mkdirSync(path.join(projectDir, '.git'));
+		const registry = new ProjectRegistry(new ConfigPaths(configDir));
+		registry.addProject(projectDir, 'before', 'tasks');
+		const updated = registry.updateProject('before', undefined, 'after');
+		expect(updated.branch).toBe('tasks');
+
+		const onDisk = JSON.parse(
+			fs.readFileSync(path.join(configDir, 'config', 'config.json'), 'utf-8')
+		);
+		expect(onDisk.projects[0].branch).toBe('tasks');
+	});
+
+	it('validateBranchName accepts valid names and rejects invalid ones', () => {
+		expect(() => validateBranchName('tickets')).not.toThrow();
+		expect(() => validateBranchName('feature/work-items')).not.toThrow();
+		expect(() => validateBranchName('release-1.2')).not.toThrow();
+
+		expect(() => validateBranchName('')).toThrow('empty');
+		expect(() => validateBranchName('a b')).toThrow('whitespace');
+		expect(() => validateBranchName('a~b')).toThrow('invalid characters');
+		expect(() => validateBranchName('a..b')).toThrow('".."');
+		expect(() => validateBranchName('a//b')).toThrow('"//"');
+		expect(() => validateBranchName('/lead')).toThrow('"/"');
+		expect(() => validateBranchName('trail/')).toThrow('"/"');
+		expect(() => validateBranchName('-lead')).toThrow('"-"');
+		expect(() => validateBranchName('.lead')).toThrow('"."');
+		expect(() => validateBranchName('trail.')).toThrow('"."');
+		expect(() => validateBranchName('x.lock')).toThrow('.lock');
+		expect(() => validateBranchName('@')).toThrow('"@"');
+		expect(() => validateBranchName('a@{b')).toThrow('"@{"');
 	});
 
 	it('setLastUsed preserves port and browser fields', () => {
