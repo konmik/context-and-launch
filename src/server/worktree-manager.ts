@@ -11,7 +11,7 @@ export class WorktreeManager {
 		this.paths = paths;
 	}
 
-	async ensureWorktree(projectPath: string, slug: string, branch = 'context-launch'): Promise<string> {
+	async ensureWorktree(projectPath: string, slug: string, branch = 'tickets'): Promise<string> {
 		if (!fs.existsSync(projectPath)) {
 			throw new Error(`Project path does not exist: ${projectPath}`);
 		}
@@ -44,31 +44,14 @@ export class WorktreeManager {
 
 		fs.mkdirSync(this.paths.projectDir(slug), { recursive: true });
 
-		const worktreeBranch = `${branch}--${slug}`;
-		const branchList = await git(projectPath, 'branch', '--list', worktreeBranch);
+		const branchList = await git(projectPath, 'branch', '--list', branch);
 		const branchExists = branchList.trim().length > 0;
-		const orphanList = await git(projectPath, 'branch', '--list', branch);
-		const orphanExists = orphanList.trim().length > 0;
 
 		if (branchExists) {
-			await git(projectPath, 'worktree', 'add', worktreeDir, worktreeBranch);
-		} else if (orphanExists) {
-			await git(projectPath, 'worktree', 'add', '-b', worktreeBranch, worktreeDir, branch);
+			await git(projectPath, 'worktree', 'add', worktreeDir, branch);
 		} else {
 			await git(projectPath, 'worktree', 'add', '--orphan', '-b', branch, worktreeDir);
 			await git(worktreeDir, 'commit', '--allow-empty', '-m', `init ${branch}`);
-			if (worktreeBranch !== branch) {
-				await git(projectPath, 'worktree', 'remove', worktreeDir);
-				await git(
-					projectPath,
-					'worktree',
-					'add',
-					'-b',
-					worktreeBranch,
-					worktreeDir,
-					branch
-				);
-			}
 		}
 
 		return worktreeDir;
@@ -106,7 +89,7 @@ export class WorktreeManager {
 			return true;
 		}
 
-		const ref = head.slice(5); // e.g. "refs/heads/context-launch"
+		const ref = head.slice(5); // e.g. "refs/heads/tickets"
 		// Resolve ref via commondir (worktrees store shared refs in the main .git)
 		const commondirPath = path.join(gitDir, 'commondir');
 		const commondir = fs.existsSync(commondirPath)
