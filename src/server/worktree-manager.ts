@@ -52,6 +52,7 @@ export class WorktreeManager {
 
 		const localList = await git(projectPath, 'branch', '--list', branch);
 		if (localList.trim().length > 0) {
+			await this.releaseBranchWorktree(projectPath, worktreeDir, branch);
 			await git(projectPath, 'worktree', 'add', worktreeDir, branch);
 			return worktreeDir;
 		}
@@ -78,6 +79,25 @@ export class WorktreeManager {
 			console.warn(`Could not adopt ${remote}/${branch}; creating a local orphan branch instead:`, err);
 			return false;
 		}
+	}
+
+	private async releaseBranchWorktree(projectPath: string, worktreeDir: string, branch: string): Promise<void> {
+		await git(projectPath, 'worktree', 'prune');
+		const existing = await this.worktreePathForBranch(projectPath, branch);
+		if (existing && path.resolve(existing) !== path.resolve(worktreeDir)) {
+			console.warn(`Branch '${branch}' is checked out at ${existing}; removing that worktree to use ${worktreeDir}.`);
+			await git(projectPath, 'worktree', 'remove', '--force', existing);
+		}
+	}
+
+	private async worktreePathForBranch(projectPath: string, branch: string): Promise<string | null> {
+		const out = await git(projectPath, 'worktree', 'list', '--porcelain');
+		let currentPath: string | null = null;
+		for (const line of out.split('\n')) {
+			if (line.startsWith('worktree ')) currentPath = line.slice('worktree '.length).trim();
+			else if (line.trim() === `branch refs/heads/${branch}` && currentPath) return currentPath;
+		}
+		return null;
 	}
 
 	private async defaultRemote(projectPath: string): Promise<string | null> {
