@@ -1,7 +1,7 @@
 import { createSignal, Show } from "solid-js";
 
 interface AddProjectFormProps {
-  action: (path: string) => Promise<{ slug?: string; error?: string }>;
+  action: (path: string, branch: string) => Promise<{ slug?: string; error?: string }>;
   errorMessage?: string;
   onSuccess?: (slug: string) => void;
   submitTitle?: string;
@@ -9,6 +9,7 @@ interface AddProjectFormProps {
 
 export default function AddProjectForm(props: AddProjectFormProps) {
   const [pathValue, setPathValue] = createSignal("");
+  const [branchValue, setBranchValue] = createSignal("tickets");
   const [submitting, setSubmitting] = createSignal(false);
   const [localError, setLocalError] = createSignal(props.errorMessage ?? "");
 
@@ -26,9 +27,10 @@ export default function AddProjectForm(props: AddProjectFormProps) {
     if (submitting()) return;
     const trimmed = pathValue().trim();
     if (!trimmed) return;
+    const branch = branchValue().trim() || "tickets";
     setSubmitting(true); setLocalError("");
     try {
-      const result = await props.action(trimmed);
+      const result = await props.action(trimmed, branch);
       if (result.error) setLocalError(result.error);
       else if (result.slug) props.onSuccess?.(result.slug);
     } catch (err: any) { setLocalError(err?.message ?? "Unknown error"); }
@@ -46,9 +48,13 @@ export default function AddProjectForm(props: AddProjectFormProps) {
           </Show>
         </div>
       </div>
+      <div class="mb-4">
+        <label for="project-branch" class="mb-2 block text-sm font-medium">Branch Name</label>
+        <input id="project-branch" type="text" value={branchValue()} onInput={(e) => setBranchValue(e.currentTarget.value)} placeholder="tickets" class="input" />
+      </div>
       <Show when={localError()}><p class="mb-4 text-sm text-destructive">{localError()}</p></Show>
       <button type="submit" disabled={submitting() || !pathValue().trim()} title={props.submitTitle} class="btn-primary w-full">
-        {submitting() ? "Adding..." : "Add Project"}
+        Add Project
       </button>
     </form>
   );

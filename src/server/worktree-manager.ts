@@ -11,7 +11,7 @@ export class WorktreeManager {
 		this.paths = paths;
 	}
 
-	async ensureWorktree(projectPath: string, slug: string): Promise<string> {
+	async ensureWorktree(projectPath: string, slug: string, branch = 'context-launch'): Promise<string> {
 		if (!fs.existsSync(projectPath)) {
 			throw new Error(`Project path does not exist: ${projectPath}`);
 		}
@@ -22,15 +22,15 @@ export class WorktreeManager {
 		const lockKey = canonicalPath;
 		const prev = this.locks.get(lockKey) ?? Promise.resolve();
 		const next = prev.then(
-			() => this.doEnsureWorktree(canonicalPath, slug),
-			() => this.doEnsureWorktree(canonicalPath, slug)
+			() => this.doEnsureWorktree(canonicalPath, slug, branch),
+			() => this.doEnsureWorktree(canonicalPath, slug, branch)
 		);
 		this.locks.set(lockKey, next);
 
 		return next;
 	}
 
-	private async doEnsureWorktree(projectPath: string, slug: string): Promise<string> {
+	private async doEnsureWorktree(projectPath: string, slug: string, branch: string): Promise<string> {
 		const worktreeDir = this.paths.ticketWorktreeDir(slug);
 
 		if (fs.existsSync(worktreeDir) && this.isValidWorktree(worktreeDir)) {
@@ -44,20 +44,20 @@ export class WorktreeManager {
 
 		fs.mkdirSync(this.paths.projectDir(slug), { recursive: true });
 
-		const worktreeBranch = `context-launch--${slug}`;
+		const worktreeBranch = `${branch}--${slug}`;
 		const branchList = await git(projectPath, 'branch', '--list', worktreeBranch);
 		const branchExists = branchList.trim().length > 0;
-		const orphanList = await git(projectPath, 'branch', '--list', 'context-launch');
+		const orphanList = await git(projectPath, 'branch', '--list', branch);
 		const orphanExists = orphanList.trim().length > 0;
 
 		if (branchExists) {
 			await git(projectPath, 'worktree', 'add', worktreeDir, worktreeBranch);
 		} else if (orphanExists) {
-			await git(projectPath, 'worktree', 'add', '-b', worktreeBranch, worktreeDir, 'context-launch');
+			await git(projectPath, 'worktree', 'add', '-b', worktreeBranch, worktreeDir, branch);
 		} else {
-			await git(projectPath, 'worktree', 'add', '--orphan', '-b', 'context-launch', worktreeDir);
-			await git(worktreeDir, 'commit', '--allow-empty', '-m', 'init context-launch');
-			if (worktreeBranch !== 'context-launch') {
+			await git(projectPath, 'worktree', 'add', '--orphan', '-b', branch, worktreeDir);
+			await git(worktreeDir, 'commit', '--allow-empty', '-m', `init ${branch}`);
+			if (worktreeBranch !== branch) {
 				await git(projectPath, 'worktree', 'remove', worktreeDir);
 				await git(
 					projectPath,
@@ -66,7 +66,7 @@ export class WorktreeManager {
 					'-b',
 					worktreeBranch,
 					worktreeDir,
-					'context-launch'
+					branch
 				);
 			}
 		}

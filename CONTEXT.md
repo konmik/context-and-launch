@@ -54,7 +54,7 @@ A git worktree checked out at `~/.context-launch/projects/{slug}/tickets/` from 
 Avoid: checkout, workspace
 
 Orphan Branch:
-A git branch named `context-launch` with no common history with the project's main branch. Holds ticket data without polluting code history.
+A git branch with no common history with the project's main branch, holding ticket data without polluting code history. The name is chosen per project on the welcome screen (defaults to `tickets`) and stored as `branch` in the Project Registry; projects predating this field fall back to `context-launch`. The worktree is checked out on a per-project variant named `{branch}--{slug}`.
 
 ### Sync & Conflict Resolution
 

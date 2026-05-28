@@ -63,6 +63,28 @@ describe('WorktreeManager', () => {
 		expect(files.length).toBe(0);
 	});
 
+	it('uses a custom branch name when provided', async () => {
+		const configDir = tmpDir('wt-config-');
+		const projectDir = tmpDir('wt-project-');
+		dirs.push(configDir, projectDir);
+
+		await git(projectDir, 'init');
+		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
+
+		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const worktreeDir = await manager.ensureWorktree(projectDir, 'custom-slug', 'tickets');
+		worktreeCleanups.push([projectDir, worktreeDir]);
+
+		const orphan = await git(projectDir, 'branch', '--list', 'tickets');
+		expect(orphan).toContain('tickets');
+
+		const branch = (await git(worktreeDir, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
+		expect(branch).toBe('tickets--custom-slug');
+
+		const legacy = await git(projectDir, 'branch', '--list', 'context-launch');
+		expect(legacy.trim()).toBe('');
+	});
+
 	it('second call is idempotent', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');

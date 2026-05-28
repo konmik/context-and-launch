@@ -68,7 +68,7 @@ export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
   }
 
   try {
-    const worktreeDir = await worktreeManager.ensureWorktree(project.path, slug);
+    const worktreeDir = await worktreeManager.ensureWorktree(project.path, slug, project.branch);
     fileWatcher.stopAll();
     fileWatcher.watch(worktreeDir);
     const merged = launcherConfigManager.getMergedConfig(slug);
@@ -105,12 +105,12 @@ export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
   }
 }, "board-data");
 
-export async function addProjectAction(pathValue: string) {
+export async function addProjectAction(pathValue: string, branch?: string) {
   "use server";
   const { projectRegistry } = await import("~/server/instances.js");
   const { errorMessage } = await import("~/server/errors.js");
   try {
-    const project = projectRegistry.addProject(pathValue);
+    const project = projectRegistry.addProject(pathValue, undefined, branch);
     return { slug: project.slug };
   } catch (e) {
     return { error: errorMessage(e) };
