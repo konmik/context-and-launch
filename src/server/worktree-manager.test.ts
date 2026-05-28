@@ -231,42 +231,30 @@ describe('WorktreeManager', () => {
 		expect(currentCommit).toBe(commitHash);
 	});
 
-	it('a single repo shares one ticket branch, so a second slug conflicts clearly', async () => {
+	it('takes over the ticket branch from a stale worktree at another location', async () => {
 		const configDir = tmpDir('wt-config-');
+		const staleConfigDir = tmpDir('wt-stale-');
 		const projectDir = tmpDir('wt-project-');
-		dirs.push(configDir, projectDir);
+		dirs.push(configDir, staleConfigDir, projectDir);
 
 		await git(projectDir, 'init');
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
+		// A different data dir already checked out the branch (simulates an old data dir)
+		const staleManager = new WorktreeManager(new ConfigPaths(staleConfigDir));
+		const staleWt = await staleManager.ensureWorktree(projectDir, 'ai-stages', 'tickets');
+		worktreeCleanups.push([projectDir, staleWt]);
+		expect(fs.existsSync(staleWt)).toBe(true);
+
+		// The current data dir wants the same branch -- it should take over, not fail
 		const manager = new WorktreeManager(new ConfigPaths(configDir));
-		const results = await Promise.allSettled([
-			manager.ensureWorktree(projectDir, 'slug-a'),
-			manager.ensureWorktree(projectDir, 'slug-b')
-		]);
+		const wt = await manager.ensureWorktree(projectDir, 'ai-stages', 'tickets');
+		worktreeCleanups.push([projectDir, wt]);
 
-		const fulfilled = results.filter(
-			(r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled'
-		);
-		const rejected = results.filter(
-			(r): r is PromiseRejectedResult => r.status === 'rejected'
-		);
-
-		expect(fulfilled).toHaveLength(1);
-		expect(rejected).toHaveLength(1);
-
-		for (const r of fulfilled) {
-			worktreeCleanups.push([projectDir, r.value]);
-			expect(fs.existsSync(path.join(r.value, '.git'))).toBe(true);
-			const branch = (await git(r.value, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
-			expect(branch).toBe('tickets');
-		}
-
-		expect(rejected[0].reason).toBeInstanceOf(Error);
-		expect((rejected[0].reason as Error).message.length).toBeGreaterThan(0);
-
-		const branches = await git(projectDir, 'branch', '--list', 'tickets');
-		expect(branches).toContain('tickets');
+		expect(path.resolve(wt)).not.toBe(path.resolve(staleWt));
+		expect(fs.existsSync(path.join(wt, '.git'))).toBe(true);
+		expect((await git(wt, 'rev-parse', '--abbrev-ref', 'HEAD')).trim()).toBe('tickets');
+		expect(fs.existsSync(staleWt)).toBe(false);
 	});
 
 	it('recovers stale worktree with removed gitdir target', async () => {
