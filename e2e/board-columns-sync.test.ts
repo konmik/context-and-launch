@@ -137,4 +137,30 @@ describe("Board/columns sync in settings (e2e)", () => {
     await page.waitForSelector('[data-testid="set-project-board-message"]', { state: "detached", timeout: 3000 });
     expect(mockState.launcherConfig?.boardId).toBe("simple");
   }, 15000);
+
+  it("reloads the board's columns and tickets after closing settings", async () => {
+    const initial = await page.locator("main h3").allTextContents();
+    expect(initial.map(h => h.toLowerCase())).not.toContain("review");
+
+    await openColumnsTab();
+
+    // Simulate a column edit reaching the server while settings is open:
+    // a new "review" column with a ticket parked in it.
+    mockState.boardData.board!.columns.push({ name: "review" });
+    mockState.boardData.board!.ticketOrder["review"] = ["t-9-review-me"];
+    mockState.boardData.board!.tickets.push({
+      number: "T-9", title: "Review Me", status: "review",
+      folderName: "t-9-review-me", contextNames: [], useWorktree: false, fileNames: [], references: [],
+    });
+
+    await closeSettings();
+
+    // Closing settings reloads the project, so the board reflects the new
+    // column and ticket without a manual page reload.
+    await page.waitForSelector('main h3:has-text("review")', { timeout: 3000 });
+    const reloaded = await page.locator("main h3").allTextContents();
+    expect(reloaded.map(h => h.toLowerCase())).toContain("review");
+    await page.waitForSelector('[data-drag-source]:has-text("Review Me")', { timeout: 3000 });
+    expect(await page.locator('[data-drag-source]:has-text("Review Me")').count()).toBe(1);
+  }, 15000);
 });
