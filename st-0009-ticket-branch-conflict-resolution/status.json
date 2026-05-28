@@ -1,6 +1,1 @@
-{
-  "number": "ST-0009",
-  "title": "Ticket branch conflict resolution",
-  "status": "done",
-  "useWorktree": true
-}
+{"number":"ST-0009","title":"Ticket branch conflict resolution","status":"wontfix","useWorktree":true}
