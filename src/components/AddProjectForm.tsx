@@ -70,7 +70,7 @@ export default function AddProjectForm(props: AddProjectFormProps) {
         </div>
       </div>
       <div class="mb-4">
-        <label for="project-branch" class="mb-2 block text-sm font-medium">Branch Name</label>
+        <label for="project-branch" class="mb-2 block text-sm font-medium">Tickets branch name</label>
         <input id="project-branch" type="text" value={branchValue()} onInput={(e) => setBranchValue(e.currentTarget.value)} placeholder="tickets" class="input" />
       </div>
       <div class="mb-4">
