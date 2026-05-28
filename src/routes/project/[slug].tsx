@@ -184,7 +184,7 @@ export default function ProjectPage() {
 
           <ConflictDialog open={conflictDialogOpen()} onOpenChange={setConflictDialogOpen} onResolve={handleConflictResolve} onAbort={handleConflictAbort} slug={d().slug} />
           <ErrorDialog error={syncError()} onClose={() => setSyncError(null)} />
-          <LauncherSettings open={settingsOpen()} onOpenChange={setSettingsOpen} slug={d().slug} />
+          <LauncherSettings open={settingsOpen()} onOpenChange={(open) => { setSettingsOpen(open); if (!open) revalidate("board-data"); }} slug={d().slug} />
         </div>
       )}
     </Show>
