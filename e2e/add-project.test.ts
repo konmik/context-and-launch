@@ -97,6 +97,8 @@ describe("Add project welcome screen (sandboxed e2e)", () => {
     );
     expect(launcher.worktreeRootPath).toBe(customWorktrees);
 
+    expect(fs.existsSync(customWorktrees)).toBe(true);
+
     const orphan = execSync('git branch --list "work-items"', {
       cwd: repoDir,
       encoding: "utf-8",
