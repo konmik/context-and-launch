@@ -1,6 +1,6 @@
 # Restructure ~/.context-launch into config/ and projects/ directories
 
-Collapse the flat `~/.context-launch/` layout into two top-level directories: `config/` for app-wide configuration and platform scripts, and `projects/{slug}/` for per-project data (tickets worktree, project config, agent worktrees). Per-project config moves out of the ticket worktree and into its own directory, making it local-only rather than versioned in the orphan branch.
+Collapse the flat `~/.context-launch/` layout into two top-level directories: `config/` for app-wide configuration and platform scripts, and `projects/{projectSlug}/` for per-project data (tickets worktree, project config, agent worktrees). Per-project config moves out of the ticket worktree and into its own directory, making it local-only rather than versioned in the orphan branch.
 
 ## Considered Options
 

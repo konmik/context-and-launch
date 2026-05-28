@@ -18,7 +18,7 @@ import { createTicketDetailState, type Tab } from "./ticket-detail-state.js";
 
 interface TicketDetailDialogProps {
   onClose: () => void;
-  slug: string;
+  projectSlug: string;
   ticket: TicketInfo | null;
 }
 
@@ -29,7 +29,7 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
         <TicketDetailContent
           ticket={ticket}
           onClose={props.onClose}
-          slug={props.slug}
+          projectSlug={props.projectSlug}
         />
       )}
     </Show>
@@ -39,7 +39,7 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
 function TicketDetailContent(props: {
   ticket: TicketInfo;
   onClose: () => void;
-  slug: string;
+  projectSlug: string;
 }) {
   const s = createTicketDetailState(props);
 
@@ -138,7 +138,7 @@ function TicketDetailContent(props: {
             />
           </Show>
           <Show when={s.activeTab() === "launcher"}>
-            <LauncherTab slug={props.slug} ticket={props.ticket} config={s.launcherConfig()} onDefaultsChange={s.patchColumnDefaults} useWorktree={s.useWorktree()} />
+            <LauncherTab projectSlug={props.projectSlug} ticket={props.ticket} config={s.launcherConfig()} onDefaultsChange={s.patchColumnDefaults} useWorktree={s.useWorktree()} />
           </Show>
           <Show when={s.activeTab() === "shortcuts"}>
             <ShortcutsTabPane config={s.launcherConfig()} running={s.runningShortcut()} onRun={s.runShortcut} />

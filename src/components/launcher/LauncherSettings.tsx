@@ -20,7 +20,7 @@ import { createLauncherSettingsState } from "./launcher-settings-state.js";
 interface LauncherSettingsProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	slug: string;
+	projectSlug: string;
 }
 
 export default function LauncherSettings(props: LauncherSettingsProps) {
@@ -46,8 +46,8 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 						<FloatingPanelTitle>Settings</FloatingPanelTitle>
 						<div class="flex items-center gap-1">
 							<button data-no-drag onClick={() => fetch("/api/open-config-dir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: "app" }) })} class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground" title="Open user config directory">User&#8599;</button>
-							<button data-no-drag onClick={() => fetch("/api/open-config-dir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: "project", slug: props.slug }) })} class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground" title="Open project config directory">Project&#8599;</button>
-							<button data-no-drag onClick={() => fetch("/api/open-config-dir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: "worktree", slug: props.slug }) })} class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground" title="Open worktrees directory">Worktrees&#8599;</button>
+							<button data-no-drag onClick={() => fetch("/api/open-config-dir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: "project", projectSlug: props.projectSlug }) })} class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground" title="Open project config directory">Project&#8599;</button>
+							<button data-no-drag onClick={() => fetch("/api/open-config-dir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: "worktree", projectSlug: props.projectSlug }) })} class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground" title="Open worktrees directory">Worktrees&#8599;</button>
 							<FloatingPanelCloseTrigger>
 								<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
 							</FloatingPanelCloseTrigger>

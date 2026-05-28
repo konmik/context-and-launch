@@ -109,9 +109,9 @@ describe("Columns tab (e2e)", () => {
     const nameInput = await page.waitForSelector('[data-testid="column-name-input"]', { timeout: 3000 });
     await nameInput!.fill("Code Review");
     await page.fill('[data-testid="column-desc-input"]', "Awaiting review");
-    // Check slug preview
-    const slug = await page.textContent('[data-testid="column-slug-preview"]');
-    expect(slug).toContain("code-review");
+    // Check column slug preview
+    const columnSlug = await page.textContent('[data-testid="column-slug-preview"]');
+    expect(columnSlug).toContain("code-review");
     await page.click('[data-testid="column-form-submit"]');
     await page.waitForTimeout(500);
     // Column should appear in list

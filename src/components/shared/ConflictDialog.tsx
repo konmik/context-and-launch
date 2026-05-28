@@ -6,7 +6,7 @@ interface ConflictDialogProps {
   onOpenChange: (open: boolean) => void;
   onResolve: (profileName: string) => Promise<void>;
   onAbort: () => Promise<void>;
-  slug: string;
+  projectSlug: string;
 }
 
 export default function ConflictDialog(props: ConflictDialogProps) {
@@ -18,7 +18,7 @@ export default function ConflictDialog(props: ConflictDialogProps) {
   createEffect(() => {
     if (props.open) {
       setErrorMsg("");
-      fetch(`/api/projects/${props.slug}/launcher-config`)
+      fetch(`/api/projects/${props.projectSlug}/launcher-config`)
         .then(r => r.json())
         .then(data => {
           const list = (data.profiles ?? []).map((p: any) => ({ name: p.name }));
@@ -56,7 +56,7 @@ export default function ConflictDialog(props: ConflictDialogProps) {
       <div class="flex items-center justify-between">
         <button
           type="button"
-          onClick={() => fetch("/api/open-config-dir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: "tickets", slug: props.slug }) })}
+          onClick={() => fetch("/api/open-config-dir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scope: "tickets", projectSlug: props.projectSlug }) })}
           class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
           title="Open tickets directory"
         >Tickets repo &#8599;</button>

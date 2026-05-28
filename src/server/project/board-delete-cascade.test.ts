@@ -17,15 +17,15 @@ function cleanup(...dirs: string[]) {
 	}
 }
 
-function setupProject(configDir: string, slug: string, boardId: string | undefined): void {
-	const projectPath = path.join(configDir, 'repos', slug);
+function setupProject(configDir: string, projectSlug: string, boardId: string | undefined): void {
+	const projectPath = path.join(configDir, 'repos', projectSlug);
 	fs.mkdirSync(path.join(projectPath, '.git'), { recursive: true });
 
 	const registry = new ProjectRegistry(new ConfigPaths(configDir));
-	registry.addProject(projectPath, slug);
+	registry.addProject(projectPath, projectSlug);
 
 	const lcm = new LauncherConfigManager(new ConfigPaths(configDir));
-	lcm.saveProjectConfig(slug, {
+	lcm.saveProjectConfig(projectSlug, {
 		templates: [],
 		skills: [],
 		boardId,

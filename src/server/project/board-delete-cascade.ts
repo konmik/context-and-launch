@@ -16,7 +16,7 @@ export function cascadeClearBoardId(
 ): number {
 	let cleared = 0;
 
-	let projects: { slug: string }[];
+	let projects: { projectSlug: string }[];
 	try {
 		projects = deps.projectRegistry.listProjects();
 	} catch (e) {
@@ -26,14 +26,14 @@ export function cascadeClearBoardId(
 
 	for (const project of projects) {
 		try {
-			const config = deps.launcherConfigManager.loadProjectConfig(project.slug);
+			const config = deps.launcherConfigManager.loadProjectConfig(project.projectSlug);
 			if (config.boardId === deletedBoardId) {
 				config.boardId = undefined;
-				deps.launcherConfigManager.saveProjectConfig(project.slug, config);
+				deps.launcherConfigManager.saveProjectConfig(project.projectSlug, config);
 				cleared++;
 			}
 		} catch (e) {
-			console.warn(`Skipping project "${project.slug}" during board delete cascade`, e);
+			console.warn(`Skipping project "${project.projectSlug}" during board delete cascade`, e);
 		}
 	}
 

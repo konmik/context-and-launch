@@ -73,13 +73,13 @@ export function windowExists(title: string): Promise<boolean> {
   });
 }
 
-export async function resolveLaunchDir(slug: string, folderName: string, useWorktree: boolean, projectPath: string, force?: boolean): Promise<string | Response> {
+export async function resolveLaunchDir(projectSlug: string, folderName: string, useWorktree: boolean, projectPath: string, force?: boolean): Promise<string | Response> {
   if (!useWorktree) return projectPath;
-  const merged = launcherConfigManager.getMergedConfig(slug);
+  const merged = launcherConfigManager.getMergedConfig(projectSlug);
   if (!merged.worktreeRootPath) {
     return new Response("Worktree root path is not configured", { status: 400 });
   }
-  const result = await agentWorktreeManager.ensureAgentWorktree(projectPath, slug, folderName, { skipDirtyCheck: force });
+  const result = await agentWorktreeManager.ensureAgentWorktree(projectPath, projectSlug, folderName, { skipDirtyCheck: force });
   if ('dirtyWorktree' in result) {
     return Response.json(
       { dirtyWorktree: true, message: "Main branch has uncommitted changes. Launch anyway?" },
@@ -95,13 +95,13 @@ export async function resolveLaunchDir(slug: string, folderName: string, useWork
   return result.worktreePath;
 }
 
-export function resolveTicketAndProject(slug: string, folderName: string): { ticket: TicketInfo; project: ProjectInfo; worktreeDir: string } | Response {
-  const worktreeDir = worktreeManager.getWorktreeDir(slug);
+export function resolveTicketAndProject(projectSlug: string, folderName: string): { ticket: TicketInfo; project: ProjectInfo; worktreeDir: string } | Response {
+  const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
   const store = new TicketStore(worktreeDir);
   const ticket = store.listTickets().find(t => t.folderName === folderName);
   if (!ticket) return new Response("Ticket not found", { status: 404 });
 
-  const project = projectRegistry.listProjects().find(p => p.slug === slug);
+  const project = projectRegistry.listProjects().find(p => p.projectSlug === projectSlug);
   if (!project) return new Response("Project not found", { status: 404 });
 
   return { ticket, project, worktreeDir };
@@ -161,14 +161,14 @@ export async function spawnProfile(
 }
 
 export async function launchAgent(
-  slug: string,
+  projectSlug: string,
   ticket: TicketInfo,
   project: ProjectInfo,
   worktreeDir: string,
   launchRequest: LaunchRequest,
   launchDir: string,
 ): Promise<void> {
-  const merged = launcherConfigManager.getMergedConfig(slug);
+  const merged = launcherConfigManager.getMergedConfig(projectSlug);
   const templateText =
     merged.templates.find(t => t.name === launchRequest.templateName)?.text
     ?? merged.templates.find(t => t.name === "Default")?.text
@@ -188,7 +188,7 @@ export async function launchAgent(
     ticketNumber: ticket.number,
     ticketStatus: ticket.status,
     projectPath: project.path,
-    projectSlug: slug,
+    projectSlug,
   };
 
   const initialPrompt = interpolatePrompt(assembled, variables);

@@ -6,7 +6,7 @@ import { errorMessage, ValidationError } from "~/server/shared/errors.js";
 export async function POST({ params, request }: APIEvent) {
 	try {
 		const { boardId, columnName } = params;
-		const { newName, scope, currentSlug } = await request.json();
+		const { newName, scope, currentProjectSlug } = await request.json();
 		if (!newName || typeof newName !== "string") {
 			throw new ValidationError("Missing required field: newName");
 		}
@@ -14,13 +14,13 @@ export async function POST({ params, request }: APIEvent) {
 		if (!validScopes.includes(scope)) {
 			throw new ValidationError("Invalid scope: must be all, current, or none");
 		}
-		if (scope === "current" && (!currentSlug || typeof currentSlug !== "string")) {
-			throw new ValidationError("Missing required field: currentSlug (required when scope is 'current')");
+		if (scope === "current" && (!currentProjectSlug || typeof currentProjectSlug !== "string")) {
+			throw new ValidationError("Missing required field: currentProjectSlug (required when scope is 'current')");
 		}
 		const result = boardConfigManager.renameColumn(boardId, columnName, newName);
 		let migration;
 		try {
-			migration = migrateColumnRename(boardId, columnName, result.newName, scope, currentSlug, {
+			migration = migrateColumnRename(boardId, columnName, result.newName, scope, currentProjectSlug, {
 				projectRegistry,
 				launcherConfigManager,
 				worktreeManager,

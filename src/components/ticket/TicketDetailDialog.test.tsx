@@ -114,7 +114,7 @@ describe("TicketDetailDialog content loading", () => {
     render(() => (
       <TicketDetailDialog
         onClose={() => setTicket(null)}
-        slug="test-project"
+        projectSlug="test-project"
         ticket={ticket()}
       />
     ));
@@ -162,7 +162,7 @@ describe("TicketDetailDialog multi-file upload confirmation", () => {
     render(() => (
       <TicketDetailDialog
         onClose={() => {}}
-        slug="test-project"
+        projectSlug="test-project"
         ticket={ticket}
       />
     ));
@@ -234,7 +234,7 @@ describe("TicketDetailDialog multi-file upload confirmation", () => {
     render(() => (
       <TicketDetailDialog
         onClose={() => {}}
-        slug="test-project"
+        projectSlug="test-project"
         ticket={ticket}
       />
     ));
@@ -283,7 +283,7 @@ describe("TicketDetailDialog multi-file upload confirmation", () => {
     render(() => (
       <TicketDetailDialog
         onClose={() => {}}
-        slug="test-project"
+        projectSlug="test-project"
         ticket={ticket}
       />
     ));
@@ -351,7 +351,7 @@ describe("TicketDetailDialog context deletion clears extraFiles", () => {
     render(() => (
       <TicketDetailDialog
         onClose={() => {}}
-        slug="test-project"
+        projectSlug="test-project"
         ticket={ticket}
       />
     ));
@@ -443,7 +443,7 @@ describe("TicketDetailDialog initial tab", () => {
     render(() => (
       <TicketDetailDialog
         onClose={() => {}}
-        slug="test-project"
+        projectSlug="test-project"
         ticket={ticket}
       />
     ));

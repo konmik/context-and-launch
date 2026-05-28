@@ -16,7 +16,7 @@ const LOAD_BOARD_ID = "src_server_actions_ts--loadBoard_query";
 const CREATE_TICKET_ID = "src_server_actions_ts--createTicketAction_1";
 const UPDATE_TICKET_ID = "src_server_actions_ts--updateTicketAction_1";
 const DELETE_TICKET_ID = "src_server_actions_ts--deleteTicketAction_1";
-const GET_DEFAULT_SLUG_ID = "src_server_actions_ts--getDefaultSlug_query";
+const GET_DEFAULT_PROJECT_SLUG_ID = "src_server_actions_ts--getDefaultProjectSlug_query";
 
 const MIME_TYPES: Record<string, string> = {
   ".html": "text/html",
@@ -171,14 +171,14 @@ export interface MockServerState {
   boardData: BoardPageData;
   boards?: BoardDefinition[];
   launcherConfig?: { templates: { name: string; text: string; scope: string }[]; skills: { name: string; text: string; scope: string; order?: number }[]; profiles?: { name: string; command: string; scope: string }[]; shortcuts?: { name: string; command: string; scope: string }[]; columnDefaults: Record<string, any>; worktreeRootPath: string | null; boardId?: string | null };
-  onLaunchAgent?: (slug: string, folderName: string, body: any) => { status: number; body: any } | Promise<{ status: number; body: any }>;
-  onCreateTicket?: (slug: string, number: string, title: string) => { success: true } | { error: string };
-  onUpdateTicket?: (slug: string, folderName: string, number: string | null, title: string | null, status: string | null) => { success: true } | { error: string };
-  onDeleteTicket?: (slug: string, folderName: string) => { success: true } | { error: string };
-  onReorderTicket?: (slug: string, folderName: string, fromColumn: string, toColumn: string, newIndex: number) => { success: true } | { error: string };
-  onSync?: (slug: string) => { status: "success" } | { status: "conflict" } | { status: "error"; message: string };
-  onSyncAbort?: (slug: string) => { success: true } | { error: string };
-  onResolveConflicts?: (slug: string) => { success: true } | { error: string };
+  onLaunchAgent?: (projectSlug: string, folderName: string, body: any) => { status: number; body: any } | Promise<{ status: number; body: any }>;
+  onCreateTicket?: (projectSlug: string, number: string, title: string) => { success: true } | { error: string };
+  onUpdateTicket?: (projectSlug: string, folderName: string, number: string | null, title: string | null, status: string | null) => { success: true } | { error: string };
+  onDeleteTicket?: (projectSlug: string, folderName: string) => { success: true } | { error: string };
+  onReorderTicket?: (projectSlug: string, folderName: string, fromColumn: string, toColumn: string, newIndex: number) => { success: true } | { error: string };
+  onSync?: (projectSlug: string) => { status: "success" } | { status: "conflict" } | { status: "error"; message: string };
+  onSyncAbort?: (projectSlug: string) => { success: true } | { error: string };
+  onResolveConflicts?: (projectSlug: string) => { success: true } | { error: string };
   referenceFileContents?: Record<string, string>;
   uploadedFiles?: Record<string, Buffer>;
   failColumnPut?: boolean;
@@ -496,7 +496,7 @@ export function startMockServer(port: number, state: MockServerState): Promise<h
           if (state.onLaunchAgent) {
             const parts = pathname.split("/");
             const ticketsIdx = parts.indexOf("tickets");
-            const slug = parts[parts.indexOf("projects") + 1];
+            const projectSlug = parts[parts.indexOf("projects") + 1];
             const folderName = ticketsIdx >= 0 ? parts[ticketsIdx + 1] : "";
             let body: any = {};
             try { body = JSON.parse(Buffer.concat(chunks).toString("utf-8")); } catch {}
@@ -509,7 +509,7 @@ export function startMockServer(port: number, state: MockServerState): Promise<h
                 res.end(result.body != null ? JSON.stringify(result.body) : "");
               }
             };
-            const result = state.onLaunchAgent(slug, folderName, body);
+            const result = state.onLaunchAgent(projectSlug, folderName, body);
             if (result && typeof (result as any).then === "function") {
               (result as Promise<{ status: number; body: any }>).then(sendResult);
             } else {
@@ -682,16 +682,16 @@ export function startMockServer(port: number, state: MockServerState): Promise<h
 
       // Sync endpoint
       if (pathname.includes("/board/sync") && req.method === "POST") {
-        const slug = pathname.split("/")[3];
-        const result = state.onSync ? state.onSync(slug) : { status: "success" };
+        const projectSlug = pathname.split("/")[3];
+        const result = state.onSync ? state.onSync(projectSlug) : { status: "success" };
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(result));
         return;
       }
 
       if (pathname.includes("/board/sync") && req.method === "DELETE") {
-        const slug = pathname.split("/")[3];
-        const result = state.onSyncAbort ? state.onSyncAbort(slug) : { success: true };
+        const projectSlug = pathname.split("/")[3];
+        const result = state.onSyncAbort ? state.onSyncAbort(projectSlug) : { success: true };
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(result));
         return;
@@ -699,23 +699,23 @@ export function startMockServer(port: number, state: MockServerState): Promise<h
 
       // Resolve conflicts endpoint
       if (pathname.includes("/board/resolve-conflicts") && req.method === "POST") {
-        const slug = pathname.split("/")[3];
-        const result = state.onResolveConflicts ? state.onResolveConflicts(slug) : { success: true };
+        const projectSlug = pathname.split("/")[3];
+        const result = state.onResolveConflicts ? state.onResolveConflicts(projectSlug) : { success: true };
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(result));
         return;
       }
 
       if (pathname.includes("/board/reorder") && req.method === "POST") {
-        // The page uses fetch("/api/projects/:slug/board/reorder") for reorder
+        // The page uses fetch("/api/projects/:projectSlug/board/reorder") for reorder
         const chunks: Buffer[] = [];
         req.on("data", (chunk: Buffer) => chunks.push(chunk));
         req.on("end", () => {
           try {
             const body = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
             if (state.onReorderTicket) {
-              const slug = state.boardData.slug;
-              state.onReorderTicket(slug, body.folderName, body.fromColumn, body.toColumn, body.newIndex);
+              const projectSlug = state.boardData.projectSlug;
+              state.onReorderTicket(projectSlug, body.folderName, body.fromColumn, body.toColumn, body.newIndex);
             }
           } catch (err) {
             console.error("Error parsing reorder body:", err);
@@ -791,7 +791,7 @@ function handleServerFunction(
   const urlId = url.searchParams.get("id");
   const fnId = serverId || urlId || "";
 
-  // GET requests (queries like loadBoard, getDefaultSlug)
+  // GET requests (queries like loadBoard, getDefaultProjectSlug)
   if (req.method === "GET") {
     handleGetQuery(fnId, url, res, state);
     return;
@@ -817,8 +817,8 @@ function handleGetQuery(fnId: string, url: URL, res: http.ServerResponse, state:
 
   if (fnId.includes(LOAD_BOARD_ID)) {
     responseData = state.boardData;
-  } else if (fnId.includes(GET_DEFAULT_SLUG_ID)) {
-    responseData = state.boardData.slug;
+  } else if (fnId.includes(GET_DEFAULT_PROJECT_SLUG_ID)) {
+    responseData = state.boardData.projectSlug;
   } else {
     res.writeHead(404);
     res.end(`Unknown server function: ${fnId}`);
@@ -863,18 +863,18 @@ function handlePostMutation(
 
     if (fnId.includes(CREATE_TICKET_ID)) {
       if (state.onCreateTicket) {
-        const [slug, number, title] = args as [string, string, string];
-        responseData = state.onCreateTicket(slug, number, title);
+        const [projectSlug, number, title] = args as [string, string, string];
+        responseData = state.onCreateTicket(projectSlug, number, title);
       }
     } else if (fnId.includes(UPDATE_TICKET_ID)) {
       if (state.onUpdateTicket) {
-        const [slug, folderName, number, title, status] = args as [string, string, string | null, string | null, string | null];
-        responseData = state.onUpdateTicket(slug, folderName, number, title, status);
+        const [projectSlug, folderName, number, title, status] = args as [string, string, string | null, string | null, string | null];
+        responseData = state.onUpdateTicket(projectSlug, folderName, number, title, status);
       }
     } else if (fnId.includes(DELETE_TICKET_ID)) {
       if (state.onDeleteTicket) {
-        const [slug, folderName] = args as [string, string];
-        responseData = state.onDeleteTicket(slug, folderName);
+        const [projectSlug, folderName] = args as [string, string];
+        responseData = state.onDeleteTicket(projectSlug, folderName);
       }
     }
   } catch (err) {

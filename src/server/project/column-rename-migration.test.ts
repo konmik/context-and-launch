@@ -37,22 +37,18 @@ describe('migrateColumnRename', () => {
 		dirs.length = 0;
 	});
 
-	function setupProject(configDir: string, slug: string, boardId: string): string {
-		// Create a fake git repo for worktree
-		const projectPath = path.join(configDir, 'repos', slug);
+	function setupProject(configDir: string, projectSlug: string, boardId: string): string {
+		const projectPath = path.join(configDir, 'repos', projectSlug);
 		fs.mkdirSync(path.join(projectPath, '.git'), { recursive: true });
 
-		// Register project
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectPath, slug);
+		registry.addProject(projectPath, projectSlug);
 
-		// Create worktree dir (simulated - WorktreeManager.getWorktreeDir reads from paths)
-		const worktreeDir = path.join(configDir, 'projects', slug, 'tickets');
+		const worktreeDir = path.join(configDir, 'projects', projectSlug, 'tickets');
 		fs.mkdirSync(worktreeDir, { recursive: true });
 
-		// Save launcher config with boardId
 		const lcm = new LauncherConfigManager(new ConfigPaths(configDir));
-		lcm.saveProjectConfig(slug, {
+		lcm.saveProjectConfig(projectSlug, {
 			templates: [],
 			skills: [],
 			boardId,
@@ -198,16 +194,16 @@ describe('migrateColumnRename', () => {
 		expect(result.projectsUpdated).toBe(1);
 	});
 
-	it('scope "current" with undefined currentSlug silently returns zeroes (API route guards this)', () => {
+	it('scope "current" with undefined currentProjectSlug silently returns zeroes (API route guards this)', () => {
 		const configDir = tmpDir('migration-test-');
 		dirs.push(configDir);
 
 		setupProject(configDir, 'proj-a', 'kanban');
 
-		// When currentSlug is undefined, the migration iterates over [undefined],
+		// When currentProjectSlug is undefined, the migration iterates over [undefined],
 		// getWorktreeDir throws, the catch swallows it, and we get {0, 0}.
-		// The API route now validates currentSlug before calling migrateColumnRename,
-		// returning 400 when scope is "current" and currentSlug is missing.
+		// The API route now validates currentProjectSlug before calling migrateColumnRename,
+		// returning 400 when scope is "current" and currentProjectSlug is missing.
 		const result = migrateColumnRename('kanban', 'todo', 'backlog', 'current', undefined as unknown as string, {
 			projectRegistry: new ProjectRegistry(new ConfigPaths(configDir)),
 			launcherConfigManager: new LauncherConfigManager(new ConfigPaths(configDir)),
@@ -265,9 +261,9 @@ describe('migrateColumnRename', () => {
 
 		const realLcm = new LauncherConfigManager(new ConfigPaths(configDir));
 		const brokenLcm = {
-			getMergedConfig(slug: string) {
-				if (slug === 'proj-b') throw new Error('corrupt config');
-				return realLcm.getMergedConfig(slug);
+			getMergedConfig(projectSlug: string) {
+				if (projectSlug === 'proj-b') throw new Error('corrupt config');
+				return realLcm.getMergedConfig(projectSlug);
 			},
 			loadProjectConfig: realLcm.loadProjectConfig.bind(realLcm),
 			saveProjectConfig: realLcm.saveProjectConfig.bind(realLcm),

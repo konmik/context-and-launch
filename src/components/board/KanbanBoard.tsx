@@ -19,7 +19,7 @@ import { DragPreview, DragOverlayCard, DND_ACTIVE_CLASS } from "./dnd-shared.js"
 
 interface KanbanBoardProps {
   board: BoardState;
-  slug: string;
+  projectSlug: string;
   onEdit: (ticket: TicketInfo) => void;
   onDelete: (ticket: TicketInfo) => void;
   onArchive: (ticket: TicketInfo) => void;

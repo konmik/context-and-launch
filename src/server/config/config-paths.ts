@@ -45,29 +45,29 @@ export class ConfigPaths {
 		return path.join(this.baseDir, 'config', 'run-agent.sh');
 	}
 
-	projectDir(slug: string): string {
-		this.requireSafeSlug(slug);
-		return path.join(this.baseDir, 'projects', slug);
+	projectDir(projectSlug: string): string {
+		this.requireSafeSlug(projectSlug);
+		return path.join(this.baseDir, 'projects', projectSlug);
 	}
 
-	projectConfigDir(slug: string): string {
-		this.requireSafeSlug(slug);
-		return path.join(this.baseDir, 'projects', slug, 'config');
+	projectConfigDir(projectSlug: string): string {
+		this.requireSafeSlug(projectSlug);
+		return path.join(this.baseDir, 'projects', projectSlug, 'config');
 	}
 
-	projectLauncherConfigFile(slug: string): string {
-		this.requireSafeSlug(slug);
-		return path.join(this.baseDir, 'projects', slug, 'config', 'launcher-config.json');
+	projectLauncherConfigFile(projectSlug: string): string {
+		this.requireSafeSlug(projectSlug);
+		return path.join(this.baseDir, 'projects', projectSlug, 'config', 'launcher-config.json');
 	}
 
-	ticketWorktreeDir(slug: string): string {
-		this.requireSafeSlug(slug);
-		return path.join(this.baseDir, 'projects', slug, 'tickets');
+	ticketWorktreeDir(projectSlug: string): string {
+		this.requireSafeSlug(projectSlug);
+		return path.join(this.baseDir, 'projects', projectSlug, 'tickets');
 	}
 
-	agentWorktreeDir(slug: string): string {
-		this.requireSafeSlug(slug);
-		return path.join(this.baseDir, 'projects', slug, 'worktrees');
+	agentWorktreeDir(projectSlug: string): string {
+		this.requireSafeSlug(projectSlug);
+		return path.join(this.baseDir, 'projects', projectSlug, 'worktrees');
 	}
 
 	readConfigFile(filePath: string): string | null {

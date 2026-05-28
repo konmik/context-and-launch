@@ -11,12 +11,16 @@ A reference to a local git repository on disk that Context & Launch manages. Def
 Avoid: repo, repository
 
 Project Registry:
-A JSON config file at `~/.context-launch/config/config.json` that stores the list of registered projects and the last-used project slug. Lives outside any project repo.
+A JSON config file at `~/.context-launch/config/config.json` that stores the list of registered projects and the last-used project's `projectSlug`. Lives outside any project repo.
 Avoid: config, settings
 
-Slug:
-A short URL-friendly identifier for a project, derived from its directory name (e.g. `my-repo`). Used in URLs like `/project/my-repo`. Editable by the user. Must be unique across the registry.
-Avoid: id, key
+Project Slug:
+A short URL-friendly identifier for a project, derived from its directory name (e.g. `my-repo`). Used in URLs like `/project/my-repo`. Editable by the user. Must be unique across the registry. Field name: `projectSlug`.
+Avoid: id, key, bare "slug"
+
+Column Slug:
+A filesystem-safe identifier for a board column, produced by `slugifyColumnName()` from the user-typed column name (e.g. `Code Review` becomes `code-review`). Used as the column's storage key and matched against ticket statuses.
+Avoid: bare "slug", column id
 
 ### Tickets & Board
 
@@ -40,7 +44,7 @@ A named board layout with an id, name, and ordered list of columns. All board de
 Avoid: column config, workflow, board config
 
 Column:
-A named stage in a Board Definition representing a ticket status (e.g. `todo`, `prd`, `in-progress`, `review`, `done`). Has a name (auto-slugified, filesystem-safe, unique within its board) and an optional plain-text description displayed below the column header on the board.
+A named stage in a Board Definition representing a ticket status (e.g. `todo`, `prd`, `in-progress`, `review`, `done`). Has a name (auto-slugified into a Column Slug, filesystem-safe, unique within its board) and an optional plain-text description displayed below the column header on the board.
 Avoid: lane, swimlane, stage
 
 Undefined Column:
@@ -50,7 +54,7 @@ Avoid: orphan column, missing column
 ### Git Infrastructure
 
 Worktree:
-A git worktree checked out from the project repo's orphan branch, holding all ticket folders. Defaults to `~/.context-launch/projects/{slug}/tickets/`; the location is chosen per project on the welcome screen and stored as `ticketsPath` in the Project Registry.
+A git worktree checked out from the project repo's orphan branch, holding all ticket folders. Defaults to `~/.context-launch/projects/{projectSlug}/tickets/`; the location is chosen per project on the welcome screen and stored as `ticketsPath` in the Project Registry.
 Avoid: checkout, workspace
 
 Orphan Branch:
@@ -92,7 +96,7 @@ Placeholder:
 A `{{variable}}` reference in a Template, Skill, or Shortcut that gets replaced with a runtime value at launch time. Available: `{{ticketDir}}`, `{{ticketSlug}}`, `{{ticketTitle}}`, `{{ticketNumber}}`, `{{ticketStatus}}`, `{{projectPath}}`, `{{projectSlug}}`, `{{launchDir}}`.
 
 Launcher Config:
-A JSON file defining available Templates, Skills, Coding Agent Profiles, and launcher settings. Exists at two scopes: app-level (`~/.context-launch/config/launcher-config.json`) and project-level (`~/.context-launch/projects/{slug}/config/launcher-config.json`). Project-level merges additively with app-level; project wins on name collision.
+A JSON file defining available Templates, Skills, Coding Agent Profiles, and launcher settings. Exists at two scopes: app-level (`~/.context-launch/config/launcher-config.json`) and project-level (`~/.context-launch/projects/{projectSlug}/config/launcher-config.json`). Project-level merges additively with app-level; project wins on name collision.
 Avoid: agent config, prompt config
 
 Settings:
@@ -100,7 +104,7 @@ The dialog for managing Launcher Config entries (Templates, Skills, Coding Agent
 Avoid: launcher settings, preferences
 
 Agent Worktree:
-A git worktree created from the project's main branch for an agent to work in isolation. Located under a user-configured worktree root path (defaults to `~/.context-launch/projects/{slug}/worktrees/`). Branch named `ai/{folderName}`. Reused across runs.
+A git worktree created from the project's main branch for an agent to work in isolation. Located under a user-configured worktree root path (defaults to `~/.context-launch/projects/{projectSlug}/worktrees/`). Branch named `ai/{folderName}`. Reused across runs.
 Avoid: sandbox, workspace
 
 ## Relationships
@@ -112,7 +116,7 @@ Avoid: sandbox, workspace
 - A Board Definition defines the set of Columns available to a Project
 - A Column has a name and an optional description
 - A Context name is chosen freely; by convention it often mirrors a Column name (e.g. `review.md`) but the two are not linked
-- A Column name is auto-slugified and must be unique within its Board Definition
+- A Column name is auto-slugified into a Column Slug and must be unique within its Board Definition
 - The reserved name "undefined" cannot be used for a Column
 - When a Column is renamed, ticket statuses and column defaults may be migrated (scoped to all projects, current project, or none)
 - When a Column is deleted, affected tickets appear in the Undefined Column
@@ -126,7 +130,7 @@ Avoid: sandbox, workspace
 
 Config files live under `~/.context-launch/config/`: the Project Registry, app-level Launcher Config, Board Definitions (`boards.json`), and platform scripts. This directory is designed to be shared across machines via symlink or sync tool.
 
-Per-project data lives under `~/.context-launch/projects/{slug}/`. Each project gets:
+Per-project data lives under `~/.context-launch/projects/{projectSlug}/`. Each project gets:
 - A `config/` directory with its project-level Launcher Config (local-only, not versioned)
 - A `tickets/` directory that is a git Worktree of the Orphan Branch — this stores all Ticket Folders
 - A `worktrees/` directory (by default) for Agent Worktrees — git checkouts of main/master where agents do their work

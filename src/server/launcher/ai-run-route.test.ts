@@ -34,7 +34,7 @@ describe('ai/run.ts endpoint logic', () => {
 		dirs.length = 0;
 	});
 
-	it('valid slug but nonexistent folderName returns 404 "Ticket not found"', () => {
+	it('valid projectSlug but nonexistent folderName returns 404 "Ticket not found"', () => {
 		// Create a real worktree directory with one ticket
 		const worktreeDir = tmpDir('run-worktree-');
 		dirs.push(worktreeDir);
@@ -65,15 +65,15 @@ describe('ai/run.ts endpoint logic', () => {
 		expect(body).toBe('Ticket not found');
 	});
 
-	it('nonexistent slug returns misleading "Ticket not found" instead of indicating missing worktree', () => {
+	it('nonexistent projectSlug returns misleading "Ticket not found" instead of indicating missing worktree', () => {
 		const configDir = tmpDir('run-config-');
 		dirs.push(configDir);
 
 		const manager = new WorktreeManager(new ConfigPaths(configDir));
-		const slug = 'does-not-exist';
+		const projectSlug = 'does-not-exist';
 
 		// This mirrors the POST handler logic: getWorktreeDir then TicketStore.listTickets
-		const worktreeDir = manager.getWorktreeDir(slug);
+		const worktreeDir = manager.getWorktreeDir(projectSlug);
 
 		// worktreeDir points to a nonexistent directory
 		expect(fs.existsSync(worktreeDir)).toBe(false);
@@ -90,7 +90,7 @@ describe('ai/run.ts endpoint logic', () => {
 
 		// So the endpoint returns 404 "Ticket not found" -- misleading because
 		// the real issue is that the worktree directory does not exist (ensureWorktree
-		// was never called for this slug). The user sees "Ticket not found" when the
+		// was never called for this projectSlug). The user sees "Ticket not found" when the
 		// actual problem is "project worktree not initialized".
 		//
 		// Simulating the response the POST handler would produce:
@@ -101,14 +101,14 @@ describe('ai/run.ts endpoint logic', () => {
 		expect(body).toBe('Ticket not found');
 	});
 
-	it('slug with path traversal ("..") causes requireSafeSlug to throw and try-catch returns 500', () => {
+	it('projectSlug with path traversal ("..") causes requireSafeSlug to throw and try-catch returns 500', () => {
 		const configDir = tmpDir('run-config-');
 		dirs.push(configDir);
 
 		const manager = new WorktreeManager(new ConfigPaths(configDir));
 
 		// Simulate the POST handler: getWorktreeDir is the first call inside the try block.
-		// A traversal slug like ".." should throw from requireSafeSlug.
+		// A traversal projectSlug like ".." should throw from requireSafeSlug.
 		let status: number;
 		let body: string;
 
@@ -278,11 +278,11 @@ describe('pull-and-retry skips windowExists check (code-inspection)', () => {
 	// agent window for the same ticket.
 
 	const runSource = fs.readFileSync(
-		path.resolve(__dirname, '../../routes/api/projects/[slug]/board/tickets/[folderName]/ai/run.ts'),
+		path.resolve(__dirname, '../../routes/api/projects/[projectSlug]/board/tickets/[folderName]/ai/run.ts'),
 		'utf-8'
 	);
 	const pullAndRetrySource = fs.readFileSync(
-		path.resolve(__dirname, '../../routes/api/projects/[slug]/board/tickets/[folderName]/ai/pull-and-retry.ts'),
+		path.resolve(__dirname, '../../routes/api/projects/[projectSlug]/board/tickets/[folderName]/ai/pull-and-retry.ts'),
 		'utf-8'
 	);
 
@@ -471,7 +471,7 @@ describe('launchAgent ticketDir vs launchDir separation (code-inspection)', () =
 	);
 
 	it('ticketDir is computed from worktreeDir (first param), not launchDir (last param)', () => {
-		// The function signature: launchAgent(slug, ticket, project, worktreeDir, launchRequest, launchDir)
+		// The function signature: launchAgent(projectSlug, ticket, project, worktreeDir, launchRequest, launchDir)
 		// ticketDir must resolve from worktreeDir, not launchDir
 		expect(agentLaunchSource).toMatch(/const ticketDir\s*=\s*path\.resolve\(worktreeDir,/);
 		// ticketDir must NOT reference launchDir
@@ -503,7 +503,7 @@ describe('launchAgent ticketDir vs launchDir separation (code-inspection)', () =
 
 	it('the run route uses resolveLaunchDir and passes worktreeDir and launchDir separately to launchAgent', () => {
 		const runSource = fs.readFileSync(
-			path.resolve(__dirname, '../../routes/api/projects/[slug]/board/tickets/[folderName]/ai/run.ts'),
+			path.resolve(__dirname, '../../routes/api/projects/[projectSlug]/board/tickets/[folderName]/ai/run.ts'),
 			'utf-8'
 		);
 		// worktreeDir comes from resolveTicketAndProject destructuring

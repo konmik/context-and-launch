@@ -124,7 +124,7 @@ export function ColumnFormDialog(props: {
 							/>
 							<Show when={cf().name.trim()}>
 								<p class="mt-1 text-xs text-muted-foreground" data-testid="column-slug-preview">
-									Slug: {slugifyColumnName(cf().name)}
+									Column slug: {slugifyColumnName(cf().name)}
 								</p>
 							</Show>
 							<Show when={props.validation}>

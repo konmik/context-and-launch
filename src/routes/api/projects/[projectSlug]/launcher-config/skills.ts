@@ -4,9 +4,9 @@ import { errorMessage } from "~/server/shared/errors.js";
 
 export async function POST({ params, request }: APIEvent) {
 	try {
-		const { slug } = params;
+		const { projectSlug } = params;
 		const { name, text } = await request.json();
-		launcherConfigManager.addTemplate("project", slug, { name, text });
+		launcherConfigManager.addSkill("project", projectSlug, { name, text });
 		return new Response(null, { status: 201 });
 	} catch (e) {
 		return Response.json({ error: errorMessage(e) }, { status: 400 });
@@ -15,9 +15,9 @@ export async function POST({ params, request }: APIEvent) {
 
 export async function PUT({ params, request }: APIEvent) {
 	try {
-		const { slug } = params;
+		const { projectSlug } = params;
 		const { oldName, name, text } = await request.json();
-		launcherConfigManager.updateTemplate("project", slug, oldName, { name, text });
+		launcherConfigManager.updateSkill("project", projectSlug, oldName, { name, text });
 		return new Response(null, { status: 204 });
 	} catch (e) {
 		return Response.json({ error: errorMessage(e) }, { status: 400 });
@@ -26,9 +26,9 @@ export async function PUT({ params, request }: APIEvent) {
 
 export async function DELETE({ params, request }: APIEvent) {
 	try {
-		const { slug } = params;
+		const { projectSlug } = params;
 		const { name } = await request.json();
-		launcherConfigManager.removeTemplate("project", slug, name);
+		launcherConfigManager.removeSkill("project", projectSlug, name);
 		return new Response(null, { status: 204 });
 	} catch (e) {
 		return Response.json({ error: errorMessage(e) }, { status: 400 });

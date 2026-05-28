@@ -4,9 +4,9 @@ import { errorMessage } from "~/server/shared/errors.js";
 
 export async function PUT({ params, request }: APIEvent) {
 	try {
-		const { slug } = params;
+		const { projectSlug } = params;
 		const { column, ...patch } = await request.json();
-		launcherConfigManager.saveColumnDefaults(slug, column, patch);
+		launcherConfigManager.saveColumnDefaults(projectSlug, column, patch);
 		return new Response(null, { status: 204 });
 	} catch (e) {
 		return Response.json({ error: errorMessage(e) }, { status: 500 });

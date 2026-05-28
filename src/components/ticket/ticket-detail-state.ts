@@ -12,7 +12,7 @@ import {
 
 export type Tab = "editor" | "launcher" | "shortcuts";
 
-export function createTicketDetailState(props: { ticket: TicketInfo; slug: string; onClose: () => void }) {
+export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug: string; onClose: () => void }) {
   const [activeFile, setActiveFile] = createSignal<ActiveFile>({ type: "context", name: "to-do" });
   const [content, setContent] = createSignal("");
   const [savedContent, setSavedContent] = createSignal("");
@@ -49,7 +49,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; slug: strin
   function persistWorktree(value: boolean) {
     setUseWorktree(value);
     fetch(
-      `/api/projects/${props.slug}/board/tickets/${props.ticket.folderName}/use-worktree`,
+      `/api/projects/${props.projectSlug}/board/tickets/${props.ticket.folderName}/use-worktree`,
       { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ useWorktree: value }) }
     ).catch((err) => { console.warn("Failed to persist useWorktree:", err); });
   }
@@ -59,7 +59,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; slug: strin
     setError("");
     try {
       const res = await fetch(
-        `/api/projects/${props.slug}/board/tickets/${props.ticket.folderName}/shortcut/run`,
+        `/api/projects/${props.projectSlug}/board/tickets/${props.ticket.folderName}/shortcut/run`,
         { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, useWorktree: useWorktree(), force }) }
       );
       if (!res.ok) {
@@ -112,7 +112,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; slug: strin
   }
 
   function ticketUrl(suffix: string): string {
-    return `/api/projects/${props.slug}/board/tickets/${props.ticket.folderName}/${suffix}`;
+    return `/api/projects/${props.projectSlug}/board/tickets/${props.ticket.folderName}/${suffix}`;
   }
 
   async function loadTextContent(url: string): Promise<void> {
@@ -131,11 +131,11 @@ export function createTicketDetailState(props: { ticket: TicketInfo; slug: strin
   }
 
   createEffect(on(
-    () => [props.slug, props.ticket.folderName] as const,
-    async ([slug]) => {
-      if (!slug) return;
+    () => [props.projectSlug, props.ticket.folderName] as const,
+    async ([projectSlug]) => {
+      if (!projectSlug) return;
       try {
-        const res = await fetch(`/api/projects/${slug}/launcher-config`);
+        const res = await fetch(`/api/projects/${projectSlug}/launcher-config`);
         if (res.ok) {
           const data: MergedLauncherConfig = await res.json();
           setLauncherConfig(data);
@@ -153,7 +153,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; slug: strin
   ));
 
   function patchColumnDefaults(patch: Partial<LauncherColumnDefaults>) {
-    fetch(`/api/projects/${props.slug}/launcher-config/column-defaults`, {
+    fetch(`/api/projects/${props.projectSlug}/launcher-config/column-defaults`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ column: props.ticket.status, ...patch }),
     }).catch((e) => { console.warn("Failed to save column defaults:", e); });
@@ -218,11 +218,11 @@ export function createTicketDetailState(props: { ticket: TicketInfo; slug: strin
   function submitNewFile() {
     const raw = newFileName().trim();
     if (!raw) return;
-    const slug = raw.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    if (!slug) return;
+    const contextFileName = raw.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    if (!contextFileName) return;
     setNewFileDialogOpen(false);
-    if (!contextOptions().some((o) => o.type === "context" && o.name === slug)) setExtraFiles((prev) => [...prev, slug]);
-    requestFileSwitch({ type: "context", name: slug });
+    if (!contextOptions().some((o) => o.type === "context" && o.name === contextFileName)) setExtraFiles((prev) => [...prev, contextFileName]);
+    requestFileSwitch({ type: "context", name: contextFileName });
   }
 
   async function deleteOrRemoveFile() {

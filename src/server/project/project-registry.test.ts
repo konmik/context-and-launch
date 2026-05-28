@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { ProjectRegistry, generateSlug, validateBranchName } from './project-registry.js';
+import { ProjectRegistry, generateProjectSlug, validateBranchName } from './project-registry.js';
 import { ConfigPaths } from '../config/config-paths.js';
 
 function tmpDir(prefix: string): string {
@@ -27,7 +27,7 @@ describe('ProjectRegistry', () => {
 		dirs.length = 0;
 	});
 
-	it('addProject with explicit slug that collides is rejected', () => {
+	it('addProject with explicit projectSlug that collides is rejected', () => {
 		const configDir = tmpDir('registry-config-');
 		const projectDir1 = tmpDir('registry-project1-');
 		const projectDir2 = tmpDir('registry-project2-');
@@ -37,9 +37,9 @@ describe('ProjectRegistry', () => {
 		fs.mkdirSync(path.join(projectDir2, '.git'));
 
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir1, 'my-slug');
+		registry.addProject(projectDir1, 'my-project');
 
-		expect(() => registry.addProject(projectDir2, 'my-slug')).toThrow('Slug already exists');
+		expect(() => registry.addProject(projectDir2, 'my-project')).toThrow('Project slug already exists');
 	});
 
 	it('addProject rejects duplicate canonical path even when raw paths differ', () => {
@@ -59,13 +59,13 @@ describe('ProjectRegistry', () => {
 		expect(() => registry.addProject(altPath, 'second')).toThrow('already registered');
 	});
 
-	it('generateSlug deduplicates when dir name and parent-dir-name combos collide', () => {
-		expect(generateSlug('/a/b/my-project', new Set(['my-project', 'b-my-project']))).toBe(
+	it('generateProjectSlug deduplicates when dir name and parent-dir-name combos collide', () => {
+		expect(generateProjectSlug('/a/b/my-project', new Set(['my-project', 'b-my-project']))).toBe(
 			'b-my-project-2'
 		);
 
 		expect(
-			generateSlug(
+			generateProjectSlug(
 				'/a/b/my-project',
 				new Set(['my-project', 'b-my-project', 'b-my-project-2'])
 			)
@@ -95,38 +95,38 @@ describe('ProjectRegistry', () => {
 		expect(registry.listProjects()).toEqual([]);
 	});
 
-	it('getDefaultSlug returns lastUsedSlug if valid', () => {
+	it('getDefaultProjectSlug returns lastUsedProjectSlug if valid', () => {
 		const configDir = tmpDir('registry-config-');
 		const projectDir = tmpDir('registry-project-');
 		dirs.push(configDir, projectDir);
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir, 'test-slug');
+		registry.addProject(projectDir, 'test-project');
 
-		expect(registry.getDefaultSlug()).toBe('test-slug');
+		expect(registry.getDefaultProjectSlug()).toBe('test-project');
 	});
 
-	it('getDefaultSlug returns first project if lastUsedSlug is invalid', () => {
+	it('getDefaultProjectSlug returns first project if lastUsedProjectSlug is invalid', () => {
 		const configDir = tmpDir('registry-config-');
 		const projectDir = tmpDir('registry-project-');
 		dirs.push(configDir, projectDir);
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir, 'test-slug');
+		registry.addProject(projectDir, 'test-project');
 
-		// Manually corrupt lastUsedSlug
+		// Manually corrupt lastUsedProjectSlug
 		const configFile = path.join(configDir, 'config', 'config.json');
 		const config = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
-		config.lastUsedSlug = 'nonexistent';
+		config.lastUsedProjectSlug = 'nonexistent';
 		fs.writeFileSync(configFile, JSON.stringify(config));
 
 		const registry2 = new ProjectRegistry(new ConfigPaths(configDir));
-		expect(registry2.getDefaultSlug()).toBe('test-slug');
+		expect(registry2.getDefaultProjectSlug()).toBe('test-project');
 	});
 
-	it('removeProject clears lastUsedSlug when removing the last-used project', () => {
+	it('removeProject clears lastUsedProjectSlug when removing the last-used project', () => {
 		const configDir = tmpDir('registry-config-');
 		const projectDir = tmpDir('registry-project-');
 		dirs.push(configDir, projectDir);
@@ -136,7 +136,7 @@ describe('ProjectRegistry', () => {
 		registry.addProject(projectDir, 'remove-me');
 		registry.removeProject('remove-me');
 
-		expect(registry.getDefaultSlug()).toBeNull();
+		expect(registry.getDefaultProjectSlug()).toBeNull();
 	});
 
 	it('external edit to config.json after cache is populated is invisible to listProjects', () => {
@@ -151,11 +151,11 @@ describe('ProjectRegistry', () => {
 		// Externally add a second project directly to config.json on disk
 		const configFile = path.join(configDir, 'config', 'config.json');
 		const onDisk = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
-		onDisk.projects.push({ path: '/fake/external-project', slug: 'external' });
+		onDisk.projects.push({ path: '/fake/external-project', projectSlug: 'external' });
 		fs.writeFileSync(configFile, JSON.stringify(onDisk, null, 2));
 
 		// The registry still uses its in-memory cache, so the external project is invisible
-		const slugs = registry.listProjects().map((p) => p.slug);
+		const slugs = registry.listProjects().map((p) => p.projectSlug);
 		expect(slugs).toContain('original');
 		expect(slugs).not.toContain('external');
 		expect(slugs).toHaveLength(1);
@@ -176,7 +176,7 @@ describe('ProjectRegistry', () => {
 		// Externally add project B directly to config.json on disk
 		const configFile = path.join(configDir, 'config', 'config.json');
 		const onDisk = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
-		onDisk.projects.push({ path: '/fake/project-b', slug: 'project-b' });
+		onDisk.projects.push({ path: '/fake/project-b', projectSlug: 'project-b' });
 		fs.writeFileSync(configFile, JSON.stringify(onDisk, null, 2));
 
 		// Now add project C through the registry -- this save() overwrites disk with cached state
@@ -184,7 +184,7 @@ describe('ProjectRegistry', () => {
 
 		// Read config.json from disk to see what was actually persisted
 		const finalOnDisk = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
-		const slugsOnDisk = finalOnDisk.projects.map((p: { slug: string }) => p.slug);
+		const slugsOnDisk = finalOnDisk.projects.map((p: { projectSlug: string }) => p.projectSlug);
 
 		// Project B was silently dropped because the registry's cache never knew about it
 		expect(slugsOnDisk).toContain('project-a');
@@ -214,35 +214,35 @@ describe('ProjectRegistry', () => {
 		expect(() => registry.addProject(projectDir + ' ')).toThrow('Path does not exist');
 	});
 
-	it('H7.25 - generateSlug falls back to "project" when base name is entirely non-alphanumeric', () => {
+	it('H7.25 - generateProjectSlug falls back to "project" when base name is entirely non-alphanumeric', () => {
 		// Path whose base is all special characters -- toSlugSegment strips everything, leaving ""
-		// generateSlug should fall back to "project"
-		expect(generateSlug('/@@@/!!!', new Set())).toBe('project');
-		// If "project" is already taken, it tries parent-slug combination.
+		// generateProjectSlug should fall back to "project"
+		expect(generateProjectSlug('/@@@/!!!', new Set())).toBe('project');
+		// If "project" is already taken, it tries parent-name combination.
 		// Parent segment is "@@@" -> toSlugSegment -> "" (empty), so base stays "project" (no prefix).
 		// The deduplication then appends a numeric suffix.
-		expect(generateSlug('/@@@/!!!', new Set(['project']))).toBe('project-2');
-		expect(generateSlug('/@@@/!!!', new Set(['project', 'project-2']))).toBe('project-3');
+		expect(generateProjectSlug('/@@@/!!!', new Set(['project']))).toBe('project-2');
+		expect(generateProjectSlug('/@@@/!!!', new Set(['project', 'project-2']))).toBe('project-3');
 	});
 
-	it('H7.25 - generateSlug with a very long path produces an unbounded slug (no truncation)', () => {
+	it('H7.25 - generateProjectSlug with a very long path produces an unbounded projectSlug (no truncation)', () => {
 		const longSegment = 'a'.repeat(200);
 		const parentSegment = 'b'.repeat(200);
 
-		// No collision: slug equals the full lowercased base name, no truncation
-		const slug = generateSlug(`/${parentSegment}/${longSegment}`, new Set());
-		expect(slug).toBe(longSegment);
-		expect(slug.length).toBe(200);
+		// No collision: projectSlug equals the full lowercased base name, no truncation
+		const projectSlug = generateProjectSlug(`/${parentSegment}/${longSegment}`, new Set());
+		expect(projectSlug).toBe(longSegment);
+		expect(projectSlug.length).toBe(200);
 
-		// When base collides, slug becomes parent-base (200 + 1 + 200 = 401 chars)
-		const slugWithParent = generateSlug(
+		// When base collides, projectSlug becomes parent-base (200 + 1 + 200 = 401 chars)
+		const slugWithParent = generateProjectSlug(
 			`/${parentSegment}/${longSegment}`,
 			new Set([longSegment])
 		);
 		expect(slugWithParent).toBe(`${parentSegment}-${longSegment}`);
 		expect(slugWithParent.length).toBe(401);
 
-		// Confirm addProject with a long directory name produces the expected long slug
+		// Confirm addProject with a long directory name produces the expected long projectSlug
 		const configDir = tmpDir('registry-config-');
 		const parentDir = tmpDir('registry-parent-');
 		const longDirName = 'z'.repeat(100); // keep OS-safe (most filesystems cap filename at 255 bytes)
@@ -253,11 +253,11 @@ describe('ProjectRegistry', () => {
 
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
 		const info = registry.addProject(longProjectDir);
-		expect(info.slug).toBe(longDirName);
-		expect(info.slug.length).toBe(100);
+		expect(info.projectSlug).toBe(longDirName);
+		expect(info.projectSlug.length).toBe(100);
 	});
 
-	it('removeProject on a nonexistent slug does not throw but silently rewrites config.json', () => {
+	it('removeProject on a nonexistent projectSlug does not throw but silently rewrites config.json', () => {
 		const configDir = tmpDir('registry-config-');
 		const projectDir = tmpDir('registry-project-');
 		dirs.push(configDir, projectDir);
@@ -270,7 +270,7 @@ describe('ProjectRegistry', () => {
 		const beforeMtime = fs.statSync(configFile).mtimeMs;
 		const beforeContent = fs.readFileSync(configFile, 'utf-8');
 
-		// removeProject with a slug that was never added -- should not throw
+		// removeProject with a projectSlug that was never added -- should not throw
 		expect(() => registry.removeProject('never-added')).not.toThrow();
 
 		// config.json was rewritten (save() was called) even though nothing changed
@@ -279,8 +279,8 @@ describe('ProjectRegistry', () => {
 
 		// The project list is unchanged -- the existing project is still there
 		expect(afterConfig.projects).toHaveLength(1);
-		expect(afterConfig.projects[0].slug).toBe('existing');
-		expect(afterConfig.lastUsedSlug).toBe('existing');
+		expect(afterConfig.projects[0].projectSlug).toBe('existing');
+		expect(afterConfig.lastUsedProjectSlug).toBe('existing');
 
 		// save() was called (wasteful no-op write) -- content is semantically identical
 		expect(JSON.parse(afterContent)).toEqual(JSON.parse(beforeContent));
@@ -298,7 +298,7 @@ describe('ProjectRegistry', () => {
 		const configFile = path.join(configDir, 'config', 'config.json');
 		fs.writeFileSync(configFile, JSON.stringify({
 			projects: [],
-			lastUsedSlug: null,
+			lastUsedProjectSlug: null,
 			port: 9999,
 			browser: "msedge"
 		}));
@@ -349,7 +349,7 @@ describe('ProjectRegistry', () => {
 		const configFile = path.join(configDir, 'config', 'config.json');
 		fs.writeFileSync(configFile, JSON.stringify({
 			projects: [],
-			lastUsedSlug: null,
+			lastUsedProjectSlug: null,
 			port: 8080,
 			browser: 'firefox',
 			theme: 'dark',
@@ -387,7 +387,7 @@ describe('ProjectRegistry', () => {
 		// Both projects exist on disk because registry2 loaded from disk before caching
 		const configFile = path.join(configDir, 'config', 'config.json');
 		const onDisk = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
-		const slugs = onDisk.projects.map((p: { slug: string }) => p.slug);
+		const slugs = onDisk.projects.map((p: { projectSlug: string }) => p.projectSlug);
 		expect(slugs).toContain('from-instance-1');
 		expect(slugs).toContain('from-instance-2');
 	});
@@ -418,7 +418,7 @@ describe('ProjectRegistry', () => {
 
 		const configFile = path.join(configDir, 'config', 'config.json');
 		const onDisk = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
-		const slugs = onDisk.projects.map((p: { slug: string }) => p.slug);
+		const slugs = onDisk.projects.map((p: { projectSlug: string }) => p.projectSlug);
 
 		// registry1's save used its stale cache: 'initial' + 'from-1-late'
 		// 'from-2' was silently dropped
@@ -427,7 +427,7 @@ describe('ProjectRegistry', () => {
 		expect(slugs).not.toContain('from-2');
 	});
 
-	it('setLastUsed with stale cache ignores slug that exists on disk but not in cache', () => {
+	it('setLastUsed with stale cache ignores projectSlug that exists on disk but not in cache', () => {
 		const configDir = tmpDir('registry-config-');
 		const projectDir = tmpDir('registry-project-');
 		dirs.push(configDir, projectDir);
@@ -442,16 +442,16 @@ describe('ProjectRegistry', () => {
 		const configFile = path.join(configDir, 'config', 'config.json');
 		fs.mkdirSync(path.join(configDir, 'config'), { recursive: true });
 		fs.writeFileSync(configFile, JSON.stringify({
-			projects: [{ path: projectDir, slug: 'disk-only' }],
-			lastUsedSlug: null
+			projects: [{ path: projectDir, projectSlug: 'disk-only' }],
+			lastUsedProjectSlug: null
 		}));
 
 		// setLastUsed checks the cached project list, which is empty
 		registry.setLastUsed('disk-only');
 
-		// lastUsedSlug was NOT updated because cache doesn't know about 'disk-only'
+		// lastUsedProjectSlug was NOT updated because cache doesn't know about 'disk-only'
 		const onDisk = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
-		expect(onDisk.lastUsedSlug).toBeNull();
+		expect(onDisk.lastUsedProjectSlug).toBeNull();
 	});
 
 	it('updateProject preserves port and browser fields', () => {
@@ -464,8 +464,8 @@ describe('ProjectRegistry', () => {
 
 		const configFile = path.join(configDir, 'config', 'config.json');
 		fs.writeFileSync(configFile, JSON.stringify({
-			projects: [{ path: fs.realpathSync(projectDir), slug: 'my-proj' }],
-			lastUsedSlug: 'my-proj',
+			projects: [{ path: fs.realpathSync(projectDir), projectSlug: 'my-proj' }],
+			lastUsedProjectSlug: 'my-proj',
 			port: 3000,
 			browser: 'safari'
 		}));
@@ -476,8 +476,8 @@ describe('ProjectRegistry', () => {
 		const afterUpdate = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
 		expect(afterUpdate.port).toBe(3000);
 		expect(afterUpdate.browser).toBe('safari');
-		expect(afterUpdate.projects[0].slug).toBe('renamed');
-		expect(afterUpdate.lastUsedSlug).toBe('renamed');
+		expect(afterUpdate.projects[0].projectSlug).toBe('renamed');
+		expect(afterUpdate.lastUsedProjectSlug).toBe('renamed');
 	});
 
 	it('addProject stores the chosen branch and listProjects returns it', () => {
@@ -490,7 +490,7 @@ describe('ProjectRegistry', () => {
 		const info = registry.addProject(projectDir, 'branch-proj', 'tickets');
 		expect(info.branch).toBe('tickets');
 
-		const listed = registry.listProjects().find((p) => p.slug === 'branch-proj');
+		const listed = registry.listProjects().find((p) => p.projectSlug === 'branch-proj');
 		expect(listed?.branch).toBe('tickets');
 
 		const onDisk = JSON.parse(
@@ -590,10 +590,10 @@ describe('ProjectRegistry', () => {
 		const configFile = path.join(configDir, 'config', 'config.json');
 		fs.writeFileSync(configFile, JSON.stringify({
 			projects: [
-				{ path: fs.realpathSync(projectDir), slug: 'alpha' },
-				{ path: '/fake/beta', slug: 'beta' }
+				{ path: fs.realpathSync(projectDir), projectSlug: 'alpha' },
+				{ path: '/fake/beta', projectSlug: 'beta' }
 			],
-			lastUsedSlug: 'alpha',
+			lastUsedProjectSlug: 'alpha',
 			port: 5555,
 			browser: 'edge'
 		}));
@@ -604,6 +604,6 @@ describe('ProjectRegistry', () => {
 		const afterSet = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
 		expect(afterSet.port).toBe(5555);
 		expect(afterSet.browser).toBe('edge');
-		expect(afterSet.lastUsedSlug).toBe('beta');
+		expect(afterSet.lastUsedProjectSlug).toBe('beta');
 	});
 });
