@@ -8,6 +8,6 @@ export async function PUT({ request }: APIEvent) {
 		launcherConfigManager.setSkillOrder("app", "", name, order);
 		return new Response(null, { status: 204 });
 	} catch (e) {
-		return new Response(errorMessage(e), { status: 400 });
+		return Response.json({ error: errorMessage(e) }, { status: 400 });
 	}
 }

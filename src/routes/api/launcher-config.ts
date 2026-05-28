@@ -7,7 +7,7 @@ export async function GET() {
 		const config = launcherConfigManager.loadAppConfig();
 		return Response.json(config);
 	} catch (e) {
-		return new Response(errorMessage(e), { status: 500 });
+		return Response.json({ error: errorMessage(e) }, { status: 500 });
 	}
 }
 
@@ -17,6 +17,6 @@ export async function PUT({ request }: APIEvent) {
 		launcherConfigManager.saveAppConfig(body);
 		return new Response(null, { status: 204 });
 	} catch (e) {
-		return new Response(errorMessage(e), { status: 500 });
+		return Response.json({ error: errorMessage(e) }, { status: 500 });
 	}
 }

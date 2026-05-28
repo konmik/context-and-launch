@@ -9,7 +9,7 @@ export async function POST({ params, request }: APIEvent) {
 		launcherConfigManager.addSkill("project", slug, { name, text });
 		return new Response(null, { status: 201 });
 	} catch (e) {
-		return new Response(errorMessage(e), { status: 400 });
+		return Response.json({ error: errorMessage(e) }, { status: 400 });
 	}
 }
 
@@ -20,7 +20,7 @@ export async function PUT({ params, request }: APIEvent) {
 		launcherConfigManager.updateSkill("project", slug, oldName, { name, text });
 		return new Response(null, { status: 204 });
 	} catch (e) {
-		return new Response(errorMessage(e), { status: 400 });
+		return Response.json({ error: errorMessage(e) }, { status: 400 });
 	}
 }
 
@@ -31,6 +31,6 @@ export async function DELETE({ params, request }: APIEvent) {
 		launcherConfigManager.removeSkill("project", slug, name);
 		return new Response(null, { status: 204 });
 	} catch (e) {
-		return new Response(errorMessage(e), { status: 400 });
+		return Response.json({ error: errorMessage(e) }, { status: 400 });
 	}
 }
