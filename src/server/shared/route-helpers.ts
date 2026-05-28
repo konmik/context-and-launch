@@ -1,7 +1,7 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { worktreeManager } from "~/server/config/instances.js";
 import { TicketStore } from "~/server/ticket/ticket-store.js";
-import { errorMessage } from "~/server/shared/errors.js";
+import { AppError, errorMessage } from "~/server/shared/errors.js";
 
 export interface ProjectContext {
   slug: string;
@@ -24,7 +24,8 @@ export function withProject(
       const worktreeDir = worktreeManager.getWorktreeDir(slug);
       return await handler({ slug, worktreeDir, params }, request);
     } catch (e) {
-      return Response.json({ error: errorMessage(e) }, { status: errorStatus });
+      const status = e instanceof AppError ? e.statusCode : errorStatus;
+      return Response.json({ error: errorMessage(e) }, { status });
     }
   };
 }

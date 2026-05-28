@@ -13,7 +13,7 @@ export async function GET({ params, request }: APIEvent) {
 		const merged = launcherConfigManager.getMergedConfig(slug);
 		return Response.json(merged);
 	} catch (e) {
-		return new Response(errorMessage(e), { status: 500 });
+		return Response.json({ error: errorMessage(e) }, { status: 500 });
 	}
 }
 
@@ -24,6 +24,6 @@ export async function PUT({ params, request }: APIEvent) {
 		launcherConfigManager.saveProjectConfig(slug, body);
 		return new Response(null, { status: 204 });
 	} catch (e) {
-		return new Response(errorMessage(e), { status: 500 });
+		return Response.json({ error: errorMessage(e) }, { status: 500 });
 	}
 }

@@ -1,17 +1,17 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { boardConfigManager } from "~/server/config/instances.js";
-import { errorMessage } from "~/server/shared/errors.js";
+import { errorMessage, ValidationError } from "~/server/shared/errors.js";
 
 export async function PUT({ params, request }: APIEvent) {
 	try {
 		const { boardId } = params;
 		const { columns } = await request.json();
 		if (!Array.isArray(columns)) {
-			return new Response("Missing required field: columns (array)", { status: 400 });
+			throw new ValidationError("Missing required field: columns (array)");
 		}
 		boardConfigManager.reorderColumns(boardId, columns);
 		return new Response(null, { status: 204 });
 	} catch (e) {
-		return new Response(errorMessage(e), { status: 400 });
+		return Response.json({ error: errorMessage(e) }, { status: 400 });
 	}
 }

@@ -1,6 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { boardConfigManager } from "~/server/config/instances.js";
-import { errorMessage } from "~/server/shared/errors.js";
+import { errorMessage, ValidationError } from "~/server/shared/errors.js";
 
 export async function GET() {
 	try {
@@ -9,7 +9,7 @@ export async function GET() {
 			headers: { "Content-Type": "application/json" },
 		});
 	} catch (e) {
-		return new Response(errorMessage(e), { status: 500 });
+		return Response.json({ error: errorMessage(e) }, { status: 500 });
 	}
 }
 
@@ -17,7 +17,7 @@ export async function POST({ request }: APIEvent) {
 	try {
 		const { name } = await request.json();
 		if (!name || typeof name !== "string") {
-			return new Response("Missing required field: name", { status: 400 });
+			throw new ValidationError("Missing required field: name");
 		}
 		const board = boardConfigManager.createBoard(name);
 		return new Response(JSON.stringify(board), {
@@ -25,6 +25,6 @@ export async function POST({ request }: APIEvent) {
 			headers: { "Content-Type": "application/json" },
 		});
 	} catch (e) {
-		return new Response(errorMessage(e), { status: 400 });
+		return Response.json({ error: errorMessage(e) }, { status: 400 });
 	}
 }

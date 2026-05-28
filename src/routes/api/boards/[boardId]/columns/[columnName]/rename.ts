@@ -1,21 +1,21 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { boardConfigManager, projectRegistry, launcherConfigManager, worktreeManager } from "~/server/config/instances.js";
 import { migrateColumnRename, type MigrationScope } from "~/server/project/column-rename-migration.js";
-import { errorMessage } from "~/server/shared/errors.js";
+import { errorMessage, ValidationError } from "~/server/shared/errors.js";
 
 export async function POST({ params, request }: APIEvent) {
 	try {
 		const { boardId, columnName } = params;
 		const { newName, scope, currentSlug } = await request.json();
 		if (!newName || typeof newName !== "string") {
-			return new Response("Missing required field: newName", { status: 400 });
+			throw new ValidationError("Missing required field: newName");
 		}
 		const validScopes: MigrationScope[] = ["all", "current", "none"];
 		if (!validScopes.includes(scope)) {
-			return new Response("Invalid scope: must be all, current, or none", { status: 400 });
+			throw new ValidationError("Invalid scope: must be all, current, or none");
 		}
 		if (scope === "current" && (!currentSlug || typeof currentSlug !== "string")) {
-			return new Response("Missing required field: currentSlug (required when scope is 'current')", { status: 400 });
+			throw new ValidationError("Missing required field: currentSlug (required when scope is 'current')");
 		}
 		const result = boardConfigManager.renameColumn(boardId, columnName, newName);
 		let migration;
@@ -42,6 +42,6 @@ export async function POST({ params, request }: APIEvent) {
 			headers: { "Content-Type": "application/json" },
 		});
 	} catch (e) {
-		return new Response(errorMessage(e), { status: 400 });
+		return Response.json({ error: errorMessage(e) }, { status: 400 });
 	}
 }

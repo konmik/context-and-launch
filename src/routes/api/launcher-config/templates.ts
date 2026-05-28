@@ -8,7 +8,7 @@ export async function POST({ request }: APIEvent) {
 		launcherConfigManager.addTemplate("app", "", { name, text });
 		return new Response(null, { status: 201 });
 	} catch (e) {
-		return new Response(errorMessage(e), { status: 400 });
+		return Response.json({ error: errorMessage(e) }, { status: 400 });
 	}
 }
 
@@ -18,7 +18,7 @@ export async function PUT({ request }: APIEvent) {
 		launcherConfigManager.updateTemplate("app", "", oldName, { name, text });
 		return new Response(null, { status: 204 });
 	} catch (e) {
-		return new Response(errorMessage(e), { status: 400 });
+		return Response.json({ error: errorMessage(e) }, { status: 400 });
 	}
 }
 
@@ -28,6 +28,6 @@ export async function DELETE({ request }: APIEvent) {
 		launcherConfigManager.removeTemplate("app", "", name);
 		return new Response(null, { status: 204 });
 	} catch (e) {
-		return new Response(errorMessage(e), { status: 400 });
+		return Response.json({ error: errorMessage(e) }, { status: 400 });
 	}
 }

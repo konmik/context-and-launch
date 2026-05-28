@@ -6,6 +6,6 @@ export async function POST() {
     const paths = await openFileDialog();
     return Response.json({ paths });
   } catch (e) {
-    return new Response(errorMessage(e), { status: 500 });
+    return Response.json({ error: errorMessage(e) }, { status: 500 });
   }
 }
