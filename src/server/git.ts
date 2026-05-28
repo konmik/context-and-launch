@@ -5,11 +5,13 @@ function escapeArgs(args: string[]): string {
 	return args.map((a) => `"${a.replace(/"/g, '\\"')}"`).join(' ');
 }
 
+const gitEnv = { ...process.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' };
+
 export function git(workDir: string, ...args: string[]): Promise<string> {
 	const command = `git ${args.join(' ')}`;
 	console.log(`[git] ${command}  (cwd: ${workDir})`);
 	return new Promise((resolve, reject) => {
-		exec(`git ${escapeArgs(args)}`, { cwd: workDir, timeout: 30000 }, (error, stdout, stderr) => {
+		exec(`git ${escapeArgs(args)}`, { cwd: workDir, timeout: 30000, env: gitEnv }, (error, stdout, stderr) => {
 			if (error) {
 				const output = (stderr || stdout || '').trim();
 				console.log(`[git] FAIL ${command}  =>  ${output}`);
@@ -24,7 +26,7 @@ export function git(workDir: string, ...args: string[]): Promise<string> {
 export function gitSync(workDir: string, ...args: string[]): string {
 	const command = `git ${args.join(' ')}`;
 	console.log(`[git] ${command}  (cwd: ${workDir})`);
-	return execSync(`git ${escapeArgs(args)}`, { cwd: workDir, timeout: 30000, encoding: 'utf-8' });
+	return execSync(`git ${escapeArgs(args)}`, { cwd: workDir, timeout: 30000, encoding: 'utf-8', env: gitEnv });
 }
 
 export function autoCommit(workDir: string, message: string): void {

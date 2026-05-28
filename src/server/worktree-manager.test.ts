@@ -131,6 +131,23 @@ describe('WorktreeManager', () => {
 		expect(upstream).toBe('origin/tickets');
 	});
 
+	it('falls back to a local orphan when the remote is unreachable', async () => {
+		const configDir = tmpDir('wt-config-');
+		const projectDir = tmpDir('wt-project-');
+		dirs.push(configDir, projectDir);
+
+		await git(projectDir, 'init');
+		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
+		await git(projectDir, 'remote', 'add', 'origin', path.join(projectDir, 'does-not-exist'));
+
+		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const worktreeDir = await manager.ensureWorktree(projectDir, 'unreachable-slug', 'tickets');
+		worktreeCleanups.push([projectDir, worktreeDir]);
+
+		const head = (await git(worktreeDir, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
+		expect(head).toBe('tickets');
+	});
+
 	it('creates a new orphan branch when the remote lacks the chosen name', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');

@@ -56,19 +56,28 @@ export class WorktreeManager {
 			return worktreeDir;
 		}
 
-		const remote = await this.defaultRemote(projectPath);
-		if (remote) {
-			const remoteHeads = await git(projectPath, 'ls-remote', '--heads', remote, branch);
-			if (remoteHeads.trim().length > 0) {
-				await git(projectPath, 'fetch', remote, branch);
-				await git(projectPath, 'worktree', 'add', '--track', '-b', branch, worktreeDir, `${remote}/${branch}`);
-				return worktreeDir;
-			}
+		if (await this.tryAdoptRemoteBranch(projectPath, worktreeDir, branch)) {
+			return worktreeDir;
 		}
 
 		await git(projectPath, 'worktree', 'add', '--orphan', '-b', branch, worktreeDir);
 		await git(worktreeDir, 'commit', '--allow-empty', '-m', `init ${branch}`);
 		return worktreeDir;
+	}
+
+	private async tryAdoptRemoteBranch(projectPath: string, worktreeDir: string, branch: string): Promise<boolean> {
+		const remote = await this.defaultRemote(projectPath);
+		if (!remote) return false;
+		try {
+			const remoteHeads = await git(projectPath, 'ls-remote', '--heads', remote, branch);
+			if (remoteHeads.trim().length === 0) return false;
+			await git(projectPath, 'fetch', remote, branch);
+			await git(projectPath, 'worktree', 'add', '--track', '-b', branch, worktreeDir, `${remote}/${branch}`);
+			return true;
+		} catch (err) {
+			console.warn(`Could not adopt ${remote}/${branch}; creating a local orphan branch instead:`, err);
+			return false;
+		}
 	}
 
 	private async defaultRemote(projectPath: string): Promise<string | null> {
