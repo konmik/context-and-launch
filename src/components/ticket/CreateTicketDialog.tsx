@@ -1,5 +1,5 @@
 import { createSignal, createEffect, Show } from "solid-js";
-import { DialogRoot, DialogTitle } from "./ui/dialog";
+import { DialogRoot, DialogTitle } from "../ui/dialog";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 
 interface CreateTicketDialogProps {

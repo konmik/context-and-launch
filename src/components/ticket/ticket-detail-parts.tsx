@@ -1,7 +1,7 @@
 import { Show, For } from "solid-js";
 import { Portal } from "solid-js/web";
-import { DialogRoot, DialogTitle, DialogDescription } from "./ui/dialog";
-import MarkdownEditor from "./MarkdownEditor";
+import { DialogRoot, DialogTitle, DialogDescription } from "../ui/dialog";
+import MarkdownEditor from "../shared/MarkdownEditor";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 import type { MergedLauncherConfig } from "~/server/launcher/launcher-config.js";
 

@@ -1,5 +1,5 @@
 import { Show, type JSX } from "solid-js";
-import { DialogRoot, DialogTitle, DialogCloseTrigger } from "./ui/dialog";
+import { DialogRoot, DialogTitle, DialogCloseTrigger } from "../ui/dialog";
 import { modEnterHint } from "~/lib/use-mod-enter-submit";
 import { slugifyColumnName } from "~/lib/slugify.js";
 

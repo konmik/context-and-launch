@@ -1,5 +1,5 @@
 import { Show, For } from "solid-js";
-import { TabsContent } from "./ui/tabs";
+import { TabsContent } from "../ui/tabs";
 import type { MergedLauncherConfig } from "~/server/launcher/launcher-config.js";
 import { ItemRow } from "./launcher-settings-rows.js";
 import type { ItemType, Scope } from "./launcher-settings-dialogs.js";

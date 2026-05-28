@@ -1,4 +1,4 @@
-import { MenuRoot, MenuTrigger, MenuContent, MenuItem } from "./ui/menu";
+import { MenuRoot, MenuTrigger, MenuContent, MenuItem } from "../ui/menu";
 import type { TicketInfo } from "~/server/ticket/ticket-store.js";
 
 interface TicketCardProps {

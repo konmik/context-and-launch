@@ -1,12 +1,12 @@
 import { createSignal, createEffect, createMemo, on, Show, For } from "solid-js";
 import { DragDropProvider, DragDropSensors, SortableProvider, createSortable, closestCenter } from "@thisbeyond/solid-dnd";
-import { DialogRoot, DialogTitle } from "./ui/dialog";
+import { DialogRoot, DialogTitle } from "../ui/dialog";
 import type { TicketInfo } from "~/server/ticket/ticket-store.js";
 import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/server/launcher/launcher-config.js";
 import type { ErrorInfo } from "~/server/shared/errors.js";
-import ErrorDialog from "./ErrorDialog.js";
-import { DragPreview, DragGrip, NameDragOverlay, DND_ACTIVE_CLASS } from "./dnd-shared.js";
-import { createListReorder, orderByNameList } from "./list-reorder.js";
+import ErrorDialog from "../shared/ErrorDialog.js";
+import { DragPreview, DragGrip, NameDragOverlay, DND_ACTIVE_CLASS } from "../board/dnd-shared.js";
+import { createListReorder, orderByNameList } from "../board/list-reorder.js";
 
 type MergedSkill = MergedLauncherConfig["skills"][number];
 
