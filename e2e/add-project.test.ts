@@ -77,6 +77,13 @@ describe("Add project welcome screen (sandboxed e2e)", () => {
     expect(defaultWorktrees).toContain(dataDir);
     expect(defaultWorktrees.endsWith("worktrees")).toBe(true);
 
+    await page.waitForFunction(
+      (expected) =>
+        (document.querySelector("#project-worktree-root") as HTMLInputElement | null)?.value === expected,
+      defaultWorktrees,
+      { timeout: 5000 },
+    );
+
     const customRoot = path.join(dataDir, "custom-worktrees");
     await page.fill("#project-worktree-root", customRoot);
     await page.waitForFunction(

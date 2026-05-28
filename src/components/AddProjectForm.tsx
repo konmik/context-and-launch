@@ -12,10 +12,9 @@ export default function AddProjectForm(props: AddProjectFormProps) {
   const [pathValue, setPathValue] = createSignal("");
   const [branchValue, setBranchValue] = createSignal("tickets");
   const [worktreeRootPath, setWorktreeRootPath] = createSignal("");
+  const [worktreeTouched, setWorktreeTouched] = createSignal(false);
   const [submitting, setSubmitting] = createSignal(false);
   const [localError, setLocalError] = createSignal(props.errorMessage ?? "");
-
-  const canBrowse = typeof globalThis.window !== "undefined" && "showDirectoryPicker" in globalThis.window;
 
   const [debouncedPath, setDebouncedPath] = createSignal("");
   createEffect(() => {
@@ -25,22 +24,31 @@ export default function AddProjectForm(props: AddProjectFormProps) {
   });
   const [preview] = createResource(() => debouncedPath() || null, (p) => previewProjectPaths(p));
 
-  async function handleBrowse() {
-    if (canBrowse) {
-      try { const handle = await (globalThis.window as any).showDirectoryPicker(); setPathValue(handle.name); }
-      catch { /* user cancelled */ }
+  createEffect(() => {
+    const p = preview();
+    if (p && !worktreeTouched()) setWorktreeRootPath(p.defaultWorktreesPath);
+  });
+
+  async function pickDirectory(current: string): Promise<string | null> {
+    try {
+      const res = await fetch(`/api/pick-directory?path=${encodeURIComponent(current)}`);
+      if (!res.ok) return null;
+      const { path } = await res.json();
+      return path;
+    } catch (err: any) {
+      setLocalError(err?.message ?? "Failed to pick directory");
+      return null;
     }
   }
 
+  async function handleBrowsePath() {
+    const picked = await pickDirectory(pathValue().trim());
+    if (picked) setPathValue(picked);
+  }
+
   async function handleBrowseWorktreeRoot() {
-    try {
-      const res = await fetch("/api/pick-directory");
-      if (!res.ok) return;
-      const { path } = await res.json();
-      setWorktreeRootPath(path);
-    } catch (err: any) {
-      setLocalError(err?.message ?? "Failed to pick directory");
-    }
+    const picked = await pickDirectory(worktreeRootPath().trim());
+    if (picked) { setWorktreeTouched(true); setWorktreeRootPath(picked); }
   }
 
   async function handleSubmit(e: SubmitEvent) {
@@ -64,9 +72,7 @@ export default function AddProjectForm(props: AddProjectFormProps) {
         <label for="project-path" class="mb-2 block text-sm font-medium">Git Repository Path</label>
         <div class="flex gap-2">
           <input id="project-path" type="text" value={pathValue()} onInput={(e) => setPathValue(e.currentTarget.value)} placeholder="/path/to/your/repo" class="input" />
-          <Show when={canBrowse}>
-            <button type="button" onClick={handleBrowse} class="btn-secondary">Browse</button>
-          </Show>
+          <button type="button" onClick={handleBrowsePath} class="btn-secondary">Browse</button>
         </div>
       </div>
       <div class="mb-4">
@@ -76,7 +82,7 @@ export default function AddProjectForm(props: AddProjectFormProps) {
       <div class="mb-4">
         <label for="project-worktree-root" class="mb-2 block text-sm font-medium">Agent worktree root path</label>
         <div class="flex gap-2">
-          <input id="project-worktree-root" type="text" value={worktreeRootPath()} onInput={(e) => setWorktreeRootPath(e.currentTarget.value)} placeholder="Defaults to the location shown below" class="input" />
+          <input id="project-worktree-root" type="text" value={worktreeRootPath()} onInput={(e) => { setWorktreeTouched(true); setWorktreeRootPath(e.currentTarget.value); }} placeholder="Defaults to the location shown below" class="input" />
           <button type="button" onClick={handleBrowseWorktreeRoot} class="btn-secondary">Browse</button>
         </div>
       </div>
