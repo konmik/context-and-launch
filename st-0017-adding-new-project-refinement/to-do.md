@@ -1,0 +1,1 @@
+When we add a new project, we need to be able to pick a board config, and create tickets branch (enter a name), and add remote for the tickets branch. There might be other settings as well that we are missing.

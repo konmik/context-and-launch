@@ -1,7 +1,8 @@
 {
   "todo": [
     "st-0008-improve-the-codebase",
-    "st-0016-sort-skills"
+    "st-0016-sort-skills",
+    "st-0017-adding-new-project-refinement"
   ],
   "prd": [
     "st-0014-readme-update"
