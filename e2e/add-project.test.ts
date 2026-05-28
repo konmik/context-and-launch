@@ -59,11 +59,33 @@ describe("Add project welcome screen (sandboxed e2e)", () => {
     expect(await input.inputValue()).toBe("work-items");
   }, 30000);
 
-  it("registers the project with the chosen branch and creates the worktree on it", async () => {
+  it("shows ticket/worktree locations and persists the branch + worktree root", async () => {
     await page.goto(`${server.baseUrl}/add-project`);
     await page.waitForSelector("#project-branch", { state: "visible", timeout: 10000 });
 
     await page.fill("#project-path", repoDir);
+
+    const tickets = await page.waitForSelector('[data-testid="tickets-location"]', {
+      state: "visible",
+      timeout: 10000,
+    });
+    const ticketsText = ((await tickets.textContent()) ?? "").trim();
+    expect(ticketsText).toContain(dataDir);
+    expect(ticketsText.endsWith("tickets")).toBe(true);
+
+    const defaultWorktrees = ((await page.textContent('[data-testid="worktrees-location"]')) ?? "").trim();
+    expect(defaultWorktrees).toContain(dataDir);
+    expect(defaultWorktrees.endsWith("worktrees")).toBe(true);
+
+    const customRoot = path.join(dataDir, "custom-worktrees");
+    await page.fill("#project-worktree-root", customRoot);
+    await page.waitForFunction(
+      (expected) =>
+        document.querySelector('[data-testid="worktrees-location"]')?.textContent?.trim() === expected,
+      customRoot,
+      { timeout: 5000 },
+    );
+
     await page.fill("#project-branch", "work-items");
     await page.click('button[type="submit"]');
 
@@ -75,6 +97,11 @@ describe("Add project welcome screen (sandboxed e2e)", () => {
     expect(config.projects).toHaveLength(1);
     const slug: string = config.projects[0].slug;
     expect(config.projects[0].branch).toBe("work-items");
+
+    const launcher = JSON.parse(
+      fs.readFileSync(path.join(dataDir, "projects", slug, "config", "launcher-config.json"), "utf-8"),
+    );
+    expect(launcher.worktreeRootPath).toBe(customRoot);
 
     const orphan = execSync('git branch --list "work-items"', {
       cwd: repoDir,

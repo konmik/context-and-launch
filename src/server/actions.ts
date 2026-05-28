@@ -105,16 +105,33 @@ export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
   }
 }, "board-data");
 
-export async function addProjectAction(pathValue: string, branch?: string) {
+export async function addProjectAction(pathValue: string, branch?: string, worktreeRootPath?: string) {
   "use server";
-  const { projectRegistry } = await import("~/server/instances.js");
+  const { projectRegistry, launcherConfigManager } = await import("~/server/instances.js");
   const { errorMessage } = await import("~/server/errors.js");
   try {
     const project = projectRegistry.addProject(pathValue, undefined, branch);
+    const trimmedRoot = worktreeRootPath?.trim();
+    if (trimmedRoot) {
+      launcherConfigManager.saveWorktreeRootPath(project.slug, trimmedRoot);
+    }
     return { slug: project.slug };
   } catch (e) {
     return { error: errorMessage(e) };
   }
+}
+
+export async function previewProjectPaths(pathValue: string) {
+  "use server";
+  const { projectRegistry, configPaths } = await import("~/server/instances.js");
+  const { generateSlug } = await import("~/server/project-registry.js");
+  const existing = new Set(projectRegistry.listProjects().map((p) => p.slug));
+  const slug = generateSlug(pathValue, existing);
+  return {
+    slug,
+    ticketsPath: configPaths.ticketWorktreeDir(slug),
+    defaultWorktreesPath: configPaths.agentWorktreeDir(slug),
+  };
 }
 
 export async function createTicketAction(slug: string, number: string, title: string) {
