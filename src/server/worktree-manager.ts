@@ -44,17 +44,32 @@ export class WorktreeManager {
 
 		fs.mkdirSync(this.paths.projectDir(slug), { recursive: true });
 
-		const branchList = await git(projectPath, 'branch', '--list', branch);
-		const branchExists = branchList.trim().length > 0;
-
-		if (branchExists) {
+		const localList = await git(projectPath, 'branch', '--list', branch);
+		if (localList.trim().length > 0) {
 			await git(projectPath, 'worktree', 'add', worktreeDir, branch);
-		} else {
-			await git(projectPath, 'worktree', 'add', '--orphan', '-b', branch, worktreeDir);
-			await git(worktreeDir, 'commit', '--allow-empty', '-m', `init ${branch}`);
+			return worktreeDir;
 		}
 
+		const remote = await this.defaultRemote(projectPath);
+		if (remote) {
+			const remoteHeads = await git(projectPath, 'ls-remote', '--heads', remote, branch);
+			if (remoteHeads.trim().length > 0) {
+				await git(projectPath, 'fetch', remote, branch);
+				await git(projectPath, 'worktree', 'add', '--track', '-b', branch, worktreeDir, `${remote}/${branch}`);
+				return worktreeDir;
+			}
+		}
+
+		await git(projectPath, 'worktree', 'add', '--orphan', '-b', branch, worktreeDir);
+		await git(worktreeDir, 'commit', '--allow-empty', '-m', `init ${branch}`);
 		return worktreeDir;
+	}
+
+	private async defaultRemote(projectPath: string): Promise<string | null> {
+		const out = await git(projectPath, 'remote');
+		const remotes = out.split('\n').map((r) => r.trim()).filter(Boolean);
+		if (remotes.includes('origin')) return 'origin';
+		return remotes[0] ?? null;
 	}
 
 	getWorktreeDir(slug: string): string {
