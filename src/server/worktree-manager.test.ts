@@ -79,6 +79,60 @@ describe('WorktreeManager', () => {
 		expect(branch).toBe('tickets');
 	});
 
+	it('adopts an existing remote branch matching the chosen name', async () => {
+		const configDir = tmpDir('wt-config-');
+		const projectDir = tmpDir('wt-project-');
+		const remoteDir = tmpDir('wt-remote-');
+		dirs.push(configDir, projectDir, remoteDir);
+
+		await git(remoteDir, 'init');
+		await git(remoteDir, 'commit', '--allow-empty', '-m', 'init');
+		await git(remoteDir, 'checkout', '--orphan', 'tickets');
+		fs.writeFileSync(path.join(remoteDir, 'EXISTING.md'), 'from remote');
+		await git(remoteDir, 'add', '.');
+		await git(remoteDir, 'commit', '-m', 'seed tickets');
+
+		await git(projectDir, 'init');
+		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
+		await git(projectDir, 'remote', 'add', 'origin', remoteDir);
+
+		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const worktreeDir = await manager.ensureWorktree(projectDir, 'remote-slug', 'tickets');
+		worktreeCleanups.push([projectDir, worktreeDir]);
+
+		const head = (await git(worktreeDir, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
+		expect(head).toBe('tickets');
+		expect(fs.existsSync(path.join(worktreeDir, 'EXISTING.md'))).toBe(true);
+
+		const upstream = (
+			await git(worktreeDir, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', 'tickets@{u}')
+		).trim();
+		expect(upstream).toBe('origin/tickets');
+	});
+
+	it('creates a new orphan branch when the remote lacks the chosen name', async () => {
+		const configDir = tmpDir('wt-config-');
+		const projectDir = tmpDir('wt-project-');
+		const remoteDir = tmpDir('wt-remote-');
+		dirs.push(configDir, projectDir, remoteDir);
+
+		await git(remoteDir, 'init');
+		await git(remoteDir, 'commit', '--allow-empty', '-m', 'init');
+
+		await git(projectDir, 'init');
+		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
+		await git(projectDir, 'remote', 'add', 'origin', remoteDir);
+
+		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const worktreeDir = await manager.ensureWorktree(projectDir, 'no-remote-branch', 'tickets');
+		worktreeCleanups.push([projectDir, worktreeDir]);
+
+		const head = (await git(worktreeDir, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
+		expect(head).toBe('tickets');
+		const files = fs.readdirSync(worktreeDir).filter((f) => !f.startsWith('.'));
+		expect(files.length).toBe(0);
+	});
+
 	it('second call is idempotent', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
