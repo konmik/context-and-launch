@@ -14,7 +14,7 @@ export default function AddProjectPage() {
         <h1 class="mb-6 text-2xl font-semibold">Welcome to Context & Launch</h1>
         <AddProjectForm
           action={addProjectAction}
-          onSuccess={(slug) => navigate(`/project/${slug}`)}
+          onSuccess={(projectSlug) => navigate(`/project/${projectSlug}`)}
         />
       </div>
     </div>

@@ -12,7 +12,7 @@ export interface BoardState {
 
 interface BoardPageData {
   projects: ProjectInfo[];
-  slug: string;
+  projectSlug: string;
   board: BoardState | null;
   projectUnavailable: boolean;
   projectNotFound: boolean;
@@ -23,27 +23,27 @@ interface BoardPageData {
   error?: string;
 }
 
-export const getDefaultSlug = query(async (): Promise<string | null> => {
+export const getDefaultProjectSlug = query(async (): Promise<string | null> => {
   "use server";
   const { projectRegistry } = await import("~/server/config/instances.js");
-  return projectRegistry.getDefaultSlug();
-}, "default-slug");
+  return projectRegistry.getDefaultProjectSlug();
+}, "default-project-slug");
 
-export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
+export const loadBoard = query(async (projectSlug: string): Promise<BoardPageData> => {
   "use server";
   const { projectRegistry, boardConfigManager, worktreeManager, fileWatcher, launcherConfigManager, ticketSyncManager } =
     await import("~/server/config/instances.js");
   const { TicketStore } = await import("~/server/ticket/ticket-store.js");
   const { errorMessage } = await import("~/server/shared/errors.js");
 
-  projectRegistry.setLastUsed(slug);
+  projectRegistry.setLastUsed(projectSlug);
   const projects = projectRegistry.listProjects();
-  const project = projects.find((p) => p.slug === slug);
+  const project = projects.find((p) => p.projectSlug === projectSlug);
 
   if (!project) {
     return {
       projects,
-      slug,
+      projectSlug,
       board: null,
       projectUnavailable: false,
       projectNotFound: true,
@@ -56,7 +56,7 @@ export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
   if (!project.available) {
     return {
       projects,
-      slug,
+      projectSlug,
       board: null,
       projectUnavailable: true,
       projectNotFound: false,
@@ -68,10 +68,10 @@ export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
   }
 
   try {
-    const worktreeDir = await worktreeManager.ensureWorktree(project.path, slug, project.branch);
+    const worktreeDir = await worktreeManager.ensureWorktree(project.path, projectSlug, project.branch);
     fileWatcher.stopAll();
     fileWatcher.watch(worktreeDir);
-    const merged = launcherConfigManager.getMergedConfig(slug);
+    const merged = launcherConfigManager.getMergedConfig(projectSlug);
     const config = boardConfigManager.getConfig(merged.boardId);
     const store = new TicketStore(worktreeDir);
     const { tickets, ticketOrder } = store.loadBoardState(config.columns.map(c => c.name));
@@ -80,7 +80,7 @@ export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
     const hasConflict = ticketSyncManager.hasActiveRebase(worktreeDir);
     return {
       projects,
-      slug,
+      projectSlug,
       board: { columns: config.columns, tickets, ticketOrder },
       projectUnavailable: false,
       projectNotFound: false,
@@ -92,7 +92,7 @@ export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
   } catch (e) {
     return {
       projects,
-      slug,
+      projectSlug,
       board: null,
       projectUnavailable: false,
       projectNotFound: false,
@@ -115,9 +115,9 @@ export async function addProjectAction(pathValue: string, branch?: string, workt
     const trimmedRoot = worktreeRootPath?.trim();
     if (trimmedRoot) {
       fs.mkdirSync(trimmedRoot, { recursive: true });
-      launcherConfigManager.saveWorktreeRootPath(project.slug, trimmedRoot);
+      launcherConfigManager.saveWorktreeRootPath(project.projectSlug, trimmedRoot);
     }
-    return { slug: project.slug };
+    return { projectSlug: project.projectSlug };
   } catch (e) {
     return { error: errorMessage(e) };
   }
@@ -126,17 +126,17 @@ export async function addProjectAction(pathValue: string, branch?: string, workt
 export async function previewProjectPaths(pathValue: string) {
   "use server";
   const { projectRegistry, configPaths } = await import("~/server/config/instances.js");
-  const { generateSlug } = await import("~/server/project/project-registry.js");
-  const existing = new Set(projectRegistry.listProjects().map((p) => p.slug));
-  const slug = generateSlug(pathValue, existing);
+  const { generateProjectSlug } = await import("~/server/project/project-registry.js");
+  const existing = new Set(projectRegistry.listProjects().map((p) => p.projectSlug));
+  const projectSlug = generateProjectSlug(pathValue, existing);
   return {
-    slug,
-    ticketsPath: configPaths.ticketWorktreeDir(slug),
-    defaultWorktreesPath: configPaths.agentWorktreeDir(slug),
+    projectSlug,
+    ticketsPath: configPaths.ticketWorktreeDir(projectSlug),
+    defaultWorktreesPath: configPaths.agentWorktreeDir(projectSlug),
   };
 }
 
-export async function createTicketAction(slug: string, number: string, title: string) {
+export async function createTicketAction(projectSlug: string, number: string, title: string) {
   "use server";
   const { worktreeManager, boardConfigManager, launcherConfigManager } = await import(
     "~/server/config/instances.js"
@@ -144,8 +144,8 @@ export async function createTicketAction(slug: string, number: string, title: st
   const { TicketStore } = await import("~/server/ticket/ticket-store.js");
   const { errorMessage } = await import("~/server/shared/errors.js");
   try {
-    const worktreeDir = worktreeManager.getWorktreeDir(slug);
-    const merged = launcherConfigManager.getMergedConfig(slug);
+    const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
+    const merged = launcherConfigManager.getMergedConfig(projectSlug);
     const firstColumn = boardConfigManager.getConfig(merged.boardId).columns[0]?.name;
     new TicketStore(worktreeDir).createTicket(number, title, firstColumn);
     return { success: true };
@@ -155,7 +155,7 @@ export async function createTicketAction(slug: string, number: string, title: st
 }
 
 export async function updateTicketAction(
-  slug: string,
+  projectSlug: string,
   folderName: string,
   number: string | null,
   title: string | null,
@@ -166,7 +166,7 @@ export async function updateTicketAction(
   const { TicketStore } = await import("~/server/ticket/ticket-store.js");
   const { errorMessage } = await import("~/server/shared/errors.js");
   try {
-    const worktreeDir = worktreeManager.getWorktreeDir(slug);
+    const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
     new TicketStore(worktreeDir).updateTicket(
       folderName,
       number,
@@ -179,13 +179,13 @@ export async function updateTicketAction(
   }
 }
 
-export async function archiveTicketAction(slug: string, folderName: string) {
+export async function archiveTicketAction(projectSlug: string, folderName: string) {
   "use server";
   const { worktreeManager } = await import("~/server/config/instances.js");
   const { TicketStore } = await import("~/server/ticket/ticket-store.js");
   const { errorMessage } = await import("~/server/shared/errors.js");
   try {
-    const worktreeDir = worktreeManager.getWorktreeDir(slug);
+    const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
     new TicketStore(worktreeDir).archiveTicket(folderName);
     return { success: true };
   } catch (e) {
@@ -193,13 +193,13 @@ export async function archiveTicketAction(slug: string, folderName: string) {
   }
 }
 
-export async function deleteTicketAction(slug: string, folderName: string) {
+export async function deleteTicketAction(projectSlug: string, folderName: string) {
   "use server";
   const { worktreeManager } = await import("~/server/config/instances.js");
   const { TicketStore } = await import("~/server/ticket/ticket-store.js");
   const { errorMessage } = await import("~/server/shared/errors.js");
   try {
-    const worktreeDir = worktreeManager.getWorktreeDir(slug);
+    const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
     new TicketStore(worktreeDir).deleteTicket(folderName);
     return { success: true };
   } catch (e) {
@@ -208,7 +208,7 @@ export async function deleteTicketAction(slug: string, folderName: string) {
 }
 
 export async function worktreeCleanupAction(
-  slug: string,
+  projectSlug: string,
   folderName: string,
   options: { deleteWorktree: boolean; deleteLocalBranch: boolean; deleteRemoteBranch: boolean }
 ) {
@@ -219,13 +219,13 @@ export async function worktreeCleanupAction(
   const { WorktreeCleanupService } = await import("~/server/worktree/worktree-cleanup.js");
   const { errorPayload } = await import("~/server/shared/errors.js");
   try {
-    const merged = launcherConfigManager.getMergedConfig(slug);
+    const merged = launcherConfigManager.getMergedConfig(projectSlug);
     if (!merged.worktreeRootPath) {
       return { error: { description: "Worktree root path is not configured" } };
     }
     const worktreePath = `${merged.worktreeRootPath}/${folderName}`;
     const projects = projectRegistry.listProjects();
-    const project = projects.find((p) => p.slug === slug);
+    const project = projects.find((p) => p.projectSlug === projectSlug);
     if (!project) {
       return { error: { description: "Project not found" } };
     }

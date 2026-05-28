@@ -6,11 +6,11 @@ import type { ColumnDefinition, BoardDefinition } from "~/server/project/board-c
 import type { BoardState } from "~/server/actions.js";
 export type { TicketInfo, ColumnDefinition, BoardDefinition, BoardState };
 
-const SLUG = "e2e-test";
+const PROJECT_SLUG = "e2e-test";
 
 export interface BoardPageData {
-  projects: { path: string; slug: string; available: boolean }[];
-  slug: string;
+  projects: { path: string; projectSlug: string; available: boolean }[];
+  projectSlug: string;
   board: BoardState | null;
   projectUnavailable: boolean;
   projectNotFound: boolean;
@@ -53,8 +53,8 @@ function buildTicketOrder(tickets: TicketInfo[], columns: ColumnDefinition[]): R
 
 export function createBoardWithTickets(tickets: TicketInfo[], columns: ColumnDefinition[] = DEFAULT_COLUMNS, hasRemote = false, hasConflict = false): BoardPageData {
   return {
-    projects: [{ path: "/test-project", slug: SLUG, available: true }],
-    slug: SLUG,
+    projects: [{ path: "/test-project", projectSlug: PROJECT_SLUG, available: true }],
+    projectSlug: PROJECT_SLUG,
     board: {
       columns,
       tickets,

@@ -4,7 +4,7 @@ import { TicketStore } from "~/server/ticket/ticket-store.js";
 import { AppError, errorMessage } from "~/server/shared/errors.js";
 
 export interface ProjectContext {
-  slug: string;
+  projectSlug: string;
   worktreeDir: string;
   params: Record<string, string>;
 }
@@ -20,9 +20,9 @@ export function withProject(
 ): (event: APIEvent) => Promise<Response> {
   return async ({ params, request }: APIEvent) => {
     try {
-      const slug = params.slug;
-      const worktreeDir = worktreeManager.getWorktreeDir(slug);
-      return await handler({ slug, worktreeDir, params }, request);
+      const projectSlug = params.projectSlug;
+      const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
+      return await handler({ projectSlug, worktreeDir, params }, request);
     } catch (e) {
       const status = e instanceof AppError ? e.statusCode : errorStatus;
       return Response.json({ error: errorMessage(e) }, { status });

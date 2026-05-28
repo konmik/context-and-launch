@@ -1,12 +1,12 @@
 import { createSignal, createEffect, onCleanup, Show } from "solid-js";
 import { previewProjectPaths } from "~/server/actions";
 
-type ProjectPathsPreview = { slug: string; ticketsPath: string; defaultWorktreesPath: string };
+type ProjectPathsPreview = { projectSlug: string; ticketsPath: string; defaultWorktreesPath: string };
 
 interface AddProjectFormProps {
-  action: (path: string, branch: string, worktreeRootPath: string, ticketsPath: string) => Promise<{ slug?: string; error?: string }>;
+  action: (path: string, branch: string, worktreeRootPath: string, ticketsPath: string) => Promise<{ projectSlug?: string; error?: string }>;
   errorMessage?: string;
-  onSuccess?: (slug: string) => void;
+  onSuccess?: (projectSlug: string) => void;
   submitTitle?: string;
 }
 
@@ -82,7 +82,7 @@ export default function AddProjectForm(props: AddProjectFormProps) {
     try {
       const result = await props.action(trimmed, branch, worktreeRootPath().trim(), ticketsRootPath().trim());
       if (result.error) setLocalError(result.error);
-      else if (result.slug) props.onSuccess?.(result.slug);
+      else if (result.projectSlug) props.onSuccess?.(result.projectSlug);
     } catch (err: any) { setLocalError(err?.message ?? "Unknown error"); }
     finally { setSubmitting(false); }
   }

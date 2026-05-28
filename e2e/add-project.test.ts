@@ -88,12 +88,12 @@ describe("Add project welcome screen (sandboxed e2e)", () => {
       fs.readFileSync(path.join(dataDir, "config", "config.json"), "utf-8"),
     );
     expect(config.projects).toHaveLength(1);
-    const slug: string = config.projects[0].slug;
+    const projectSlug: string = config.projects[0].projectSlug;
     expect(config.projects[0].branch).toBe("work-items");
     expect(config.projects[0].ticketsPath).toBe(customTickets);
 
     const launcher = JSON.parse(
-      fs.readFileSync(path.join(dataDir, "projects", slug, "config", "launcher-config.json"), "utf-8"),
+      fs.readFileSync(path.join(dataDir, "projects", projectSlug, "config", "launcher-config.json"), "utf-8"),
     );
     expect(launcher.worktreeRootPath).toBe(customWorktrees);
 

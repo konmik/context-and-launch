@@ -1,17 +1,17 @@
 import { useNavigate, createAsync } from "@solidjs/router";
 import { createEffect } from "solid-js";
-import { getDefaultSlug } from "~/server/actions";
+import { getDefaultProjectSlug } from "~/server/actions";
 
 export const route = {
-  load: () => getDefaultSlug(),
+  load: () => getDefaultProjectSlug(),
 };
 
 export default function Home() {
   const navigate = useNavigate();
-  const slug = createAsync(() => getDefaultSlug());
+  const defaultProjectSlug = createAsync(() => getDefaultProjectSlug());
 
   createEffect(() => {
-    const s = slug();
+    const s = defaultProjectSlug();
     if (s === undefined) return;
     if (s) {
       navigate(`/project/${s}`, { replace: true });

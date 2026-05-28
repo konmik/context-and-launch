@@ -611,7 +611,7 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it('defaults to projects/{slug}/worktrees/ when worktreeRootPath is not configured', async () => {
+	it('defaults to projects/{projectSlug}/worktrees/ when worktreeRootPath is not configured', async () => {
 		const configDir = tmpDir('awm-config-pullretry-');
 		const projectDir = tmpDir('awm-project-pullretry-');
 		dirs.push(configDir, projectDir);

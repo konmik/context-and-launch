@@ -3,7 +3,7 @@ import { spawn } from "child_process";
 import { launcherConfigManager, worktreeManager } from "~/server/config/instances.js";
 
 export async function POST({ request }: APIEvent) {
-  let body: { scope: string; slug?: string };
+  let body: { scope: string; projectSlug?: string };
   try {
     body = await request.json();
   } catch {
@@ -11,16 +11,16 @@ export async function POST({ request }: APIEvent) {
   }
 
   let dir: string;
-  if (body.scope === "tickets" && body.slug) {
-    dir = worktreeManager.getWorktreeDir(body.slug);
-  } else if (body.scope === "worktree" && body.slug) {
-    const config = launcherConfigManager.loadProjectConfig(body.slug);
+  if (body.scope === "tickets" && body.projectSlug) {
+    dir = worktreeManager.getWorktreeDir(body.projectSlug);
+  } else if (body.scope === "worktree" && body.projectSlug) {
+    const config = launcherConfigManager.loadProjectConfig(body.projectSlug);
     if (!config.worktreeRootPath) {
       return new Response("Worktree root path not configured", { status: 400 });
     }
     dir = config.worktreeRootPath;
-  } else if (body.scope === "project" && body.slug) {
-    dir = launcherConfigManager.getProjectConfigDir(body.slug);
+  } else if (body.scope === "project" && body.projectSlug) {
+    dir = launcherConfigManager.getProjectConfigDir(body.projectSlug);
   } else {
     dir = launcherConfigManager.getAppConfigDir();
   }

@@ -5,39 +5,38 @@ import type { ConfigPaths } from '../config/config-paths.js';
 
 export class WorktreeManager {
 	private paths: ConfigPaths;
-	private ticketsDirResolver?: (slug: string) => string | undefined;
+	private ticketsDirResolver?: (projectSlug: string) => string | undefined;
 	private locks = new Map<string, Promise<unknown>>();
 
-	constructor(paths: ConfigPaths, ticketsDirResolver?: (slug: string) => string | undefined) {
+	constructor(paths: ConfigPaths, ticketsDirResolver?: (projectSlug: string) => string | undefined) {
 		this.paths = paths;
 		this.ticketsDirResolver = ticketsDirResolver;
 	}
 
-	private resolveTicketsDir(slug: string): string {
-		return this.ticketsDirResolver?.(slug) || this.paths.ticketWorktreeDir(slug);
+	private resolveTicketsDir(projectSlug: string): string {
+		return this.ticketsDirResolver?.(projectSlug) || this.paths.ticketWorktreeDir(projectSlug);
 	}
 
-	async ensureWorktree(projectPath: string, slug: string, branch = 'tickets'): Promise<string> {
+	async ensureWorktree(projectPath: string, projectSlug: string, branch = 'tickets'): Promise<string> {
 		if (!fs.existsSync(projectPath)) {
 			throw new Error(`Project path does not exist: ${projectPath}`);
 		}
 
 		const canonicalPath = fs.realpathSync(projectPath);
 
-		// Async mutex per canonical project path
 		const lockKey = canonicalPath;
 		const prev = this.locks.get(lockKey) ?? Promise.resolve();
 		const next = prev.then(
-			() => this.doEnsureWorktree(canonicalPath, slug, branch),
-			() => this.doEnsureWorktree(canonicalPath, slug, branch)
+			() => this.doEnsureWorktree(canonicalPath, projectSlug, branch),
+			() => this.doEnsureWorktree(canonicalPath, projectSlug, branch)
 		);
 		this.locks.set(lockKey, next);
 
 		return next;
 	}
 
-	private async doEnsureWorktree(projectPath: string, slug: string, branch: string): Promise<string> {
-		const worktreeDir = this.resolveTicketsDir(slug);
+	private async doEnsureWorktree(projectPath: string, projectSlug: string, branch: string): Promise<string> {
+		const worktreeDir = this.resolveTicketsDir(projectSlug);
 
 		if (fs.existsSync(worktreeDir) && this.isValidWorktree(worktreeDir)) {
 			return worktreeDir;
@@ -107,8 +106,8 @@ export class WorktreeManager {
 		return remotes[0] ?? null;
 	}
 
-	getWorktreeDir(slug: string): string {
-		return this.resolveTicketsDir(slug);
+	getWorktreeDir(projectSlug: string): string {
+		return this.resolveTicketsDir(projectSlug);
 	}
 
 	private isValidWorktree(dir: string): boolean {
@@ -119,13 +118,9 @@ export class WorktreeManager {
 
 		const content = fs.readFileSync(dotGit, 'utf-8').trim();
 		const gitDir = content.replace(/^gitdir:\s*/, '');
-		// git may write forward slashes even on Windows; resolve properly
 		const resolved = path.resolve(dir, gitDir);
 		if (!fs.existsSync(resolved)) return false;
 
-		// Verify the branch has at least one commit (not in "born" state).
-		// A worktree left by a failed initial commit has HEAD pointing to a
-		// ref that doesn't exist yet.
 		return this.headResolves(resolved);
 	}
 
@@ -135,21 +130,17 @@ export class WorktreeManager {
 
 		const head = fs.readFileSync(headPath, 'utf-8').trim();
 		if (!head.startsWith('ref: ')) {
-			// Detached HEAD with a direct commit hash -- valid
 			return true;
 		}
 
-		const ref = head.slice(5); // e.g. "refs/heads/tickets"
-		// Resolve ref via commondir (worktrees store shared refs in the main .git)
+		const ref = head.slice(5);
 		const commondirPath = path.join(gitDir, 'commondir');
 		const commondir = fs.existsSync(commondirPath)
 			? path.resolve(gitDir, fs.readFileSync(commondirPath, 'utf-8').trim())
 			: gitDir;
 
-		// Check loose ref
 		if (fs.existsSync(path.join(commondir, ref))) return true;
 
-		// Check packed-refs
 		const packedRefsPath = path.join(commondir, 'packed-refs');
 		if (fs.existsSync(packedRefsPath)) {
 			const packedRefs = fs.readFileSync(packedRefsPath, 'utf-8');

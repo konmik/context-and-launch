@@ -8,7 +8,7 @@ vi.mock("~/server/launcher/agent-launch.js", () => ({
 	spawnProfile: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { POST } from "~/routes/api/projects/[slug]/board/resolve-conflicts.js";
+import { POST } from "~/routes/api/projects/[projectSlug]/board/resolve-conflicts.js";
 import { launcherConfigManager } from "~/server/config/instances.js";
 import { spawnProfile } from "~/server/launcher/agent-launch.js";
 import type { MergedLauncherConfig, LauncherProfile } from "~/server/launcher/launcher-config.js";
@@ -26,10 +26,10 @@ function makeMerged(overrides: Partial<MergedLauncherConfig> & { profiles: (Laun
 	};
 }
 
-function fakeEvent(slug: string, body: Record<string, unknown> = {}) {
+function fakeEvent(projectSlug: string, body: Record<string, unknown> = {}) {
 	return {
-		params: { slug },
-		request: new Request("http://localhost/api/projects/" + slug + "/board/resolve-conflicts", {
+		params: { projectSlug },
+		request: new Request("http://localhost/api/projects/" + projectSlug + "/board/resolve-conflicts", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(body),
@@ -43,7 +43,7 @@ describe("resolve-conflicts profile lookup", () => {
 	});
 
 	it("returns 400 when no profileName is provided", async () => {
-		const response = await POST(fakeEvent("test-slug", {}));
+		const response = await POST(fakeEvent("test-project", {}));
 		expect(response.status).toBe(400);
 		const body = await response.json();
 		expect(body.error).toMatch(/No profile selected/i);
@@ -58,7 +58,7 @@ describe("resolve-conflicts profile lookup", () => {
 			makeMerged({ profiles }),
 		);
 
-		const response = await POST(fakeEvent("test-slug", { profileName: "Deleted Profile" }));
+		const response = await POST(fakeEvent("test-project", { profileName: "Deleted Profile" }));
 		expect(response.status).toBe(400);
 		const body = await response.json();
 		expect(body.error).toMatch(/Deleted Profile/i);
@@ -73,7 +73,7 @@ describe("resolve-conflicts profile lookup", () => {
 			makeMerged({ profiles }),
 		);
 
-		const response = await POST(fakeEvent("test-slug", { profileName: "Claude Win" }));
+		const response = await POST(fakeEvent("test-project", { profileName: "Claude Win" }));
 		expect(response.status).toBe(200);
 		expect(spawnProfile).toHaveBeenCalledWith(
 			profiles[0],

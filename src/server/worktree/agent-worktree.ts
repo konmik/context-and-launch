@@ -33,12 +33,12 @@ export class AgentWorktreeManager {
 
 	async ensureAgentWorktree(
 		projectPath: string,
-		slug: string,
+		projectSlug: string,
 		folderName: string,
 		options?: { skipDirtyCheck?: boolean }
 	): Promise<WorktreeResult | BehindRemoteResult | DirtyWorktreeResult> {
-		const config = this.launcherConfig.loadProjectConfig(slug);
-		const worktreeRootPath = config.worktreeRootPath || this.paths.agentWorktreeDir(slug);
+		const config = this.launcherConfig.loadProjectConfig(projectSlug);
+		const worktreeRootPath = config.worktreeRootPath || this.paths.agentWorktreeDir(projectSlug);
 
 		const branchName = `ai/${folderName}`;
 		const worktreePath = `${worktreeRootPath}/${folderName}`;

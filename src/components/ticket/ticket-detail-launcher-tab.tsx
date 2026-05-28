@@ -4,7 +4,7 @@ import type { TicketInfo } from "~/server/ticket/ticket-store.js";
 import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/server/launcher/launcher-config.js";
 
 export function LauncherTab(props: {
-  slug: string;
+  projectSlug: string;
   ticket: TicketInfo;
   config: MergedLauncherConfig | null;
   onDefaultsChange: (patch: Partial<LauncherColumnDefaults>) => void;
@@ -12,7 +12,7 @@ export function LauncherTab(props: {
 }) {
   return (
     <div class={TAB_PANE_CLASS}>
-      <AgentLauncher slug={props.slug} ticket={props.ticket} config={props.config} onDefaultsChange={props.onDefaultsChange} useWorktree={props.useWorktree} />
+      <AgentLauncher projectSlug={props.projectSlug} ticket={props.ticket} config={props.config} onDefaultsChange={props.onDefaultsChange} useWorktree={props.useWorktree} />
     </div>
   );
 }

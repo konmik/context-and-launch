@@ -97,14 +97,14 @@ describe('LauncherConfigManager', () => {
 			],
 			skills: [],
 		});
-		mgr.saveProjectConfig('slug', {
+		mgr.saveProjectConfig('test-project', {
 			templates: [
 				{ name: 'Default', text: 'project default' },
 				{ name: 'ProjOnly', text: 'proj only' },
 			],
 			skills: [],
 		});
-		const merged = mgr.getMergedConfig('slug');
+		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.templates).toHaveLength(3);
 
 		const defaultT = merged.templates.find(t => t.name === 'Default');
@@ -129,14 +129,14 @@ describe('LauncherConfigManager', () => {
 				{ name: 'AppSkill', text: 'app skill' },
 			],
 		});
-		mgr.saveProjectConfig('slug', {
+		mgr.saveProjectConfig('test-project', {
 			templates: [],
 			skills: [
 				{ name: 'Shared', text: 'project version' },
 				{ name: 'ProjSkill', text: 'proj skill' },
 			],
 		});
-		const merged = mgr.getMergedConfig('slug');
+		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.skills).toHaveLength(3);
 
 		const shared = merged.skills.find(s => s.name === 'Shared');
@@ -155,11 +155,11 @@ describe('LauncherConfigManager', () => {
 			templates: [{ name: 'A', text: 'a' }],
 			skills: [{ name: 'SA', text: 'sa' }],
 		});
-		mgr.saveProjectConfig('slug', {
+		mgr.saveProjectConfig('test-project', {
 			templates: [{ name: 'P', text: 'p' }],
 			skills: [{ name: 'SP', text: 'sp' }],
 		});
-		const merged = mgr.getMergedConfig('slug');
+		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.templates.find(t => t.name === 'A')?.scope).toBe('app');
 		expect(merged.templates.find(t => t.name === 'P')?.scope).toBe('project');
 		expect(merged.skills.find(s => s.name === 'SA')?.scope).toBe('app');
@@ -170,17 +170,17 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.saveColumnDefaults('slug', 'todo', {
+		mgr.saveColumnDefaults('test-project', 'todo', {
 			templateName: 'Default',
 			checkedSkills: ['S1'],
 			profileName: null,
 		});
-		mgr.saveColumnDefaults('slug', 'done', {
+		mgr.saveColumnDefaults('test-project', 'done', {
 			templateName: 'Custom',
 			checkedSkills: ['S2', 'S3'],
 			profileName: null,
 		});
-		const config = mgr.loadProjectConfig('slug');
+		const config = mgr.loadProjectConfig('test-project');
 		expect(config.columnDefaults?.['todo']).toEqual({
 			templateName: 'Default',
 			checkedSkills: ['S1'],
@@ -197,12 +197,12 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.saveColumnDefaults('slug', 'todo', {
+		mgr.saveColumnDefaults('test-project', 'todo', {
 			templateName: 'Default',
 			checkedSkills: ['S1', 'S2'],
 			profileName: null,
 		});
-		const config = mgr.loadProjectConfig('slug');
+		const config = mgr.loadProjectConfig('test-project');
 		expect(config.columnDefaults?.['todo']).toEqual({
 			templateName: 'Default',
 			checkedSkills: ['S1', 'S2'],
@@ -214,7 +214,7 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.addTemplate('app', 'any-slug', { name: 'New', text: 'new text' });
+		mgr.addTemplate('app', 'any-project', { name: 'New', text: 'new text' });
 		const raw = JSON.parse(fs.readFileSync(path.join(configDir, 'config', 'launcher-config.json'), 'utf-8'));
 		const found = raw.templates.find((t: { name: string }) => t.name === 'New');
 		expect(found).toBeDefined();
@@ -225,8 +225,8 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.addTemplate('app', 'slug', { name: 'Dup', text: 'first' });
-		expect(() => mgr.addTemplate('app', 'slug', { name: 'Dup', text: 'second' }))
+		mgr.addTemplate('app', 'test-project', { name: 'Dup', text: 'first' });
+		expect(() => mgr.addTemplate('app', 'test-project', { name: 'Dup', text: 'second' }))
 			.toThrow('already exists');
 	});
 
@@ -234,8 +234,8 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.addTemplate('app', 'slug', { name: 'ToRemove', text: 'text' });
-		mgr.removeTemplate('app', 'slug', 'ToRemove');
+		mgr.addTemplate('app', 'test-project', { name: 'ToRemove', text: 'text' });
+		mgr.removeTemplate('app', 'test-project', 'ToRemove');
 		const config = mgr.loadAppConfig();
 		expect(config.templates.find(t => t.name === 'ToRemove')).toBeUndefined();
 	});
@@ -249,7 +249,7 @@ describe('LauncherConfigManager', () => {
 			skills: [],
 		});
 		// Pass a template with an extra field that is not part of LauncherTemplate
-		mgr.updateTemplate('app', 'slug', 'Original', { name: 'Original', text: 'updated', color: 'red' } as any);
+		mgr.updateTemplate('app', 'test-project', 'Original', { name: 'Original', text: 'updated', color: 'red' } as any);
 		const config = mgr.loadAppConfig();
 		const t = config.templates.find(t => t.name === 'Original');
 		expect(t).toEqual({ name: 'Original', text: 'updated' });
@@ -264,7 +264,7 @@ describe('LauncherConfigManager', () => {
 			templates: [{ name: 'Old', text: 'old text' }],
 			skills: [],
 		});
-		mgr.updateTemplate('app', 'slug', 'Old', { name: 'New', text: 'new text' });
+		mgr.updateTemplate('app', 'test-project', 'Old', { name: 'New', text: 'new text' });
 		const config = mgr.loadAppConfig();
 		expect(config.templates.find(t => t.name === 'Old')).toBeUndefined();
 		expect(config.templates.find(t => t.name === 'New')?.text).toBe('new text');
@@ -287,8 +287,8 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.addSkill('project', 'slug', { name: 'Dup', text: 'first' });
-		expect(() => mgr.addSkill('project', 'slug', { name: 'Dup', text: 'second' }))
+		mgr.addSkill('project', 'test-project', { name: 'Dup', text: 'first' });
+		expect(() => mgr.addSkill('project', 'test-project', { name: 'Dup', text: 'second' }))
 			.toThrow('already exists');
 	});
 
@@ -296,9 +296,9 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.addSkill('project', 'slug', { name: 'ToRemove', text: 'text' });
-		mgr.removeSkill('project', 'slug', 'ToRemove');
-		const config = mgr.loadProjectConfig('slug');
+		mgr.addSkill('project', 'test-project', { name: 'ToRemove', text: 'text' });
+		mgr.removeSkill('project', 'test-project', 'ToRemove');
+		const config = mgr.loadProjectConfig('test-project');
 		expect(config.skills.find(s => s.name === 'ToRemove')).toBeUndefined();
 	});
 
@@ -306,12 +306,12 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.saveProjectConfig('slug', {
+		mgr.saveProjectConfig('test-project', {
 			templates: [],
 			skills: [{ name: 'OldSkill', text: 'old' }],
 		});
-		mgr.updateSkill('project', 'slug', 'OldSkill', { name: 'NewSkill', text: 'new' });
-		const config = mgr.loadProjectConfig('slug');
+		mgr.updateSkill('project', 'test-project', 'OldSkill', { name: 'NewSkill', text: 'new' });
+		const config = mgr.loadProjectConfig('test-project');
 		expect(config.skills.find(s => s.name === 'OldSkill')).toBeUndefined();
 		expect(config.skills.find(s => s.name === 'NewSkill')?.text).toBe('new');
 	});
@@ -320,12 +320,12 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.saveProjectConfig('slug', {
+		mgr.saveProjectConfig('test-project', {
 			templates: [],
 			skills: [{ name: 'S1', text: 'old', order: 2.5 }],
 		});
-		mgr.updateSkill('project', 'slug', 'S1', { name: 'S1', text: 'new' });
-		const config = mgr.loadProjectConfig('slug');
+		mgr.updateSkill('project', 'test-project', 'S1', { name: 'S1', text: 'new' });
+		const config = mgr.loadProjectConfig('test-project');
 		expect(config.skills.find(s => s.name === 'S1')?.order).toBe(2.5);
 		expect(config.skills.find(s => s.name === 'S1')?.text).toBe('new');
 	});
@@ -334,12 +334,12 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.saveProjectConfig('slug', {
+		mgr.saveProjectConfig('test-project', {
 			templates: [],
 			skills: [{ name: 'A', text: 'a' }, { name: 'B', text: 'b' }],
 		});
-		mgr.setSkillOrder('project', 'slug', 'B', 0.5);
-		const config = mgr.loadProjectConfig('slug');
+		mgr.setSkillOrder('project', 'test-project', 'B', 0.5);
+		const config = mgr.loadProjectConfig('test-project');
 		expect(config.skills.find(s => s.name === 'B')?.order).toBe(0.5);
 		expect(config.skills.find(s => s.name === 'A')?.order).toBeUndefined();
 	});
@@ -348,17 +348,17 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.saveProjectConfig('slug', { templates: [], skills: [{ name: 'A', text: 'a' }] });
-		expect(() => mgr.setSkillOrder('project', 'slug', 'Nope', 1)).toThrow('not found');
+		mgr.saveProjectConfig('test-project', { templates: [], skills: [{ name: 'A', text: 'a' }] });
+		expect(() => mgr.setSkillOrder('project', 'test-project', 'Nope', 1)).toThrow('not found');
 	});
 
 	it('setSkillOrder rejects a non-finite order', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.saveProjectConfig('slug', { templates: [], skills: [{ name: 'A', text: 'a' }] });
-		expect(() => mgr.setSkillOrder('project', 'slug', 'A', Infinity)).toThrow('finite number');
-		expect(() => mgr.setSkillOrder('project', 'slug', 'A', NaN)).toThrow('finite number');
+		mgr.saveProjectConfig('test-project', { templates: [], skills: [{ name: 'A', text: 'a' }] });
+		expect(() => mgr.setSkillOrder('project', 'test-project', 'A', Infinity)).toThrow('finite number');
+		expect(() => mgr.setSkillOrder('project', 'test-project', 'A', NaN)).toThrow('finite number');
 	});
 
 	it('getMergedConfig sorts skills by order, falling back to canonical index', () => {
@@ -371,11 +371,11 @@ describe('LauncherConfigManager', () => {
 			templates: [],
 			skills: [{ name: 'UA', text: 'ua' }, { name: 'UB', text: 'ub', order: 5 }],
 		});
-		mgr.saveProjectConfig('slug', {
+		mgr.saveProjectConfig('test-project', {
 			templates: [],
 			skills: [{ name: 'P1', text: 'p1' }],
 		});
-		const merged = mgr.getMergedConfig('slug');
+		const merged = mgr.getMergedConfig('test-project');
 		// UA falls back to index 0, P1 to index 2, UB is explicit 5 -> last.
 		expect(merged.skills.map(s => s.name)).toEqual(['UA', 'P1', 'UB']);
 		expect(merged.skills.map(s => s.order)).toEqual([0, 2, 5]);
@@ -389,12 +389,12 @@ describe('LauncherConfigManager', () => {
 			templates: [],
 			skills: [{ name: 'U1', text: 'u1' }, { name: 'U2', text: 'u2' }],
 		});
-		mgr.saveProjectConfig('slug', {
+		mgr.saveProjectConfig('test-project', {
 			templates: [],
 			// Project skill dragged between the two user skills: midpoint of 0 and 1.
 			skills: [{ name: 'P1', text: 'p1', order: 0.5 }],
 		});
-		const merged = mgr.getMergedConfig('slug');
+		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.skills.map(s => s.name)).toEqual(['U1', 'P1', 'U2']);
 	});
 
@@ -402,12 +402,12 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.saveProjectConfig('slug', {
+		mgr.saveProjectConfig('test-project', {
 			templates: [],
 			skills: [],
 			worktreeRootPath: 'C:\\worktrees',
 		});
-		const merged = mgr.getMergedConfig('slug');
+		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.worktreeRootPath).toBe('C:\\worktrees');
 	});
 
@@ -415,7 +415,7 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		const merged = mgr.getMergedConfig('slug');
+		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.worktreeRootPath).toBeNull();
 	});
 
@@ -460,9 +460,9 @@ describe('LauncherConfigManager', () => {
 		}, null, 2));
 
 		// Project has no columnDefaults
-		mgr.saveProjectConfig('slug', { templates: [], skills: [] });
+		mgr.saveProjectConfig('test-project', { templates: [], skills: [] });
 
-		const merged = mgr.getMergedConfig('slug');
+		const merged = mgr.getMergedConfig('test-project');
 		// App-level columnDefaults are invisible to merge; result is empty
 		expect(merged.columnDefaults).toEqual({});
 	});
@@ -480,7 +480,7 @@ describe('LauncherConfigManager', () => {
 		const before = fs.readFileSync(path.join(configDir, 'config', 'launcher-config.json'), 'utf-8');
 
 		// Should not throw
-		expect(() => mgr.removeTemplate('app', 'slug', 'DoesNotExist')).not.toThrow();
+		expect(() => mgr.removeTemplate('app', 'test-project', 'DoesNotExist')).not.toThrow();
 
 		// Config file is byte-identical (no unnecessary rewrite side-effects)
 		const after = fs.readFileSync(path.join(configDir, 'config', 'launcher-config.json'), 'utf-8');
@@ -497,13 +497,13 @@ describe('LauncherConfigManager', () => {
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		// First add with empty name succeeds -- no empty-name validation exists
-		mgr.addTemplate('app', 'slug', { name: '', text: 'empty name template' });
+		mgr.addTemplate('app', 'test-project', { name: '', text: 'empty name template' });
 		const config = mgr.loadAppConfig();
 		const found = config.templates.find(t => t.name === '');
 		expect(found).toBeDefined();
 		expect(found?.text).toBe('empty name template');
 		// Second add with same empty name throws duplicate error
-		expect(() => mgr.addTemplate('app', 'slug', { name: '', text: 'another' }))
+		expect(() => mgr.addTemplate('app', 'test-project', { name: '', text: 'another' }))
 			.toThrow('already exists');
 	});
 
@@ -529,40 +529,34 @@ describe('LauncherConfigManager', () => {
 		expect(loaded.worktreeRootPath).toBe('/some/path');
 	});
 
-	it('empty slug resolves project config to projects/config/ dir, not a subdirectory', () => {
+	it('empty projectSlug resolves project config to projects/config/ dir, not a subdirectory', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 
 		const config = {
-			templates: [{ name: 'EmptySlug', text: 'empty slug template' }],
+			templates: [{ name: 'EmptyProjectSlug', text: 'empty projectSlug template' }],
 			skills: [],
 		};
 		mgr.saveProjectConfig('', config);
 
-		// path.join collapses the empty slug segment: projects//config/ -> projects/config/
-		// This collides with the app config directory (config/)
 		const collapsedPath = path.join(configDir, 'projects', 'config', 'launcher-config.json');
 		expect(fs.existsSync(collapsedPath)).toBe(true);
 
-		// loadProjectConfig with empty slug reads from the same collapsed path
 		const loaded = mgr.loadProjectConfig('');
-		expect(loaded.templates[0].name).toBe('EmptySlug');
+		expect(loaded.templates[0].name).toBe('EmptyProjectSlug');
 
-		// Demonstrate the collision: a real slug's config lives in projects/<slug>/config/
-		// but the empty slug's config collapses into projects/config/
-		mgr.saveProjectConfig('real-slug', {
-			templates: [{ name: 'RealSlug', text: 'real' }],
+		mgr.saveProjectConfig('real-project', {
+			templates: [{ name: 'RealProject', text: 'real' }],
 			skills: [],
 		});
-		const realSlugPath = path.join(configDir, 'projects', 'real-slug', 'config', 'launcher-config.json');
-		expect(fs.existsSync(realSlugPath)).toBe(true);
+		const realProjectPath = path.join(configDir, 'projects', 'real-project', 'config', 'launcher-config.json');
+		expect(fs.existsSync(realProjectPath)).toBe(true);
 
-		// Both configs coexist under projects/
 		const projectsDir = path.join(configDir, 'projects');
 		const entriesAfter = fs.readdirSync(projectsDir);
-		expect(entriesAfter).toContain('config'); // empty slug's collapsed dir
-		expect(entriesAfter).toContain('real-slug'); // real slug's directory
+		expect(entriesAfter).toContain('config');
+		expect(entriesAfter).toContain('real-project');
 	});
 
 	it('saveColumnDefaults with column="__proto__" does not pollute prototype and persists through roundtrip', () => {
@@ -571,7 +565,7 @@ describe('LauncherConfigManager', () => {
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 
 		const defaults = { templateName: 'T1', checkedSkills: ['S1'], profileName: null };
-		mgr.saveColumnDefaults('slug', '__proto__', defaults);
+		mgr.saveColumnDefaults('test-project', '__proto__', defaults);
 
 		// Verify no prototype pollution on a fresh plain object
 		const fresh: Record<string, unknown> = {};
@@ -579,7 +573,7 @@ describe('LauncherConfigManager', () => {
 		expect(fresh['checkedSkills']).toBeUndefined();
 
 		// Load the config back and check whether __proto__ column was persisted
-		const config = mgr.loadProjectConfig('slug');
+		const config = mgr.loadProjectConfig('test-project');
 		const stored = config.columnDefaults?.['__proto__'];
 
 		// With bracket assignment on a plain object, obj['__proto__'] = value
@@ -595,9 +589,9 @@ describe('LauncherConfigManager', () => {
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 
 		// No runtime type guard exists, so non-string values are accepted
-		mgr.addTemplate('app', 'slug', { name: 42, text: null } as any);
-		mgr.addTemplate('app', 'slug', { name: undefined, text: { nested: true } } as any);
-		mgr.addTemplate('app', 'slug', { name: { complex: 'object' }, text: 'valid text' } as any);
+		mgr.addTemplate('app', 'test-project', { name: 42, text: null } as any);
+		mgr.addTemplate('app', 'test-project', { name: undefined, text: { nested: true } } as any);
+		mgr.addTemplate('app', 'test-project', { name: { complex: 'object' }, text: 'valid text' } as any);
 
 		// Read raw JSON from disk to see what was serialized
 		const raw = JSON.parse(
@@ -648,7 +642,7 @@ describe('LauncherConfigManager', () => {
 
 		// Name with control characters: null byte, tab, newline, carriage return, bell, etc.
 		const controlName = 'ctrl\x00\x01\x07\t\n\r\x1b chars';
-		mgr.addTemplate('app', 'slug', { name: controlName, text: 'control template' });
+		mgr.addTemplate('app', 'test-project', { name: controlName, text: 'control template' });
 
 		const configAfterCtrl = mgr.loadAppConfig();
 		const ctrlTemplate = configAfterCtrl.templates.find(t => t.name === controlName);
@@ -657,26 +651,26 @@ describe('LauncherConfigManager', () => {
 
 		// Extremely long name: 10000 characters
 		const longName = 'A'.repeat(10000);
-		mgr.addSkill('project', 'slug', { name: longName, text: 'long name skill' });
+		mgr.addSkill('project', 'test-project', { name: longName, text: 'long name skill' });
 
-		const projectConfig = mgr.loadProjectConfig('slug');
+		const projectConfig = mgr.loadProjectConfig('test-project');
 		const longSkill = projectConfig.skills.find(s => s.name === longName);
 		expect(longSkill).toBeDefined();
 		expect(longSkill!.name).toHaveLength(10000);
 		expect(longSkill!.text).toBe('long name skill');
 
 		// Verify the long-name skill also appears in merged config
-		const merged = mgr.getMergedConfig('slug');
+		const merged = mgr.getMergedConfig('test-project');
 		const mergedSkill = merged.skills.find(s => s.name === longName);
 		expect(mergedSkill).toBeDefined();
 		expect(mergedSkill!.name).toHaveLength(10000);
 
 		// Duplicate detection still works for control-char name
-		expect(() => mgr.addTemplate('app', 'slug', { name: controlName, text: 'dup' }))
+		expect(() => mgr.addTemplate('app', 'test-project', { name: controlName, text: 'dup' }))
 			.toThrow('already exists');
 
 		// Duplicate detection still works for long name
-		expect(() => mgr.addSkill('project', 'slug', { name: longName, text: 'dup' }))
+		expect(() => mgr.addSkill('project', 'test-project', { name: longName, text: 'dup' }))
 			.toThrow('already exists');
 	});
 
@@ -715,7 +709,7 @@ describe('LauncherConfigManager', () => {
 		// and silently falls back to empty arrays when those properties are missing.
 	});
 
-	it('saveProjectConfig with Windows-reserved device names (CON, NUL, AUX, PRN) as slugs', () => {
+	it('saveProjectConfig with Windows-reserved device names (CON, NUL, AUX, PRN) as projectSlug values', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
@@ -725,34 +719,20 @@ describe('LauncherConfigManager', () => {
 			skills: [],
 		};
 
-		for (const slug of reservedNames) {
-			// requireSafeSlug does not reject Windows-reserved device names,
-			// so saveProjectConfig will attempt to create a directory named e.g. "CON".
-			// On Windows, these are reserved device names and fs.mkdirSync may behave
-			// unexpectedly -- it might silently succeed (creating an unusable path),
-			// or throw an error depending on the Windows version and filesystem.
-			//
-			// The slug validation should ideally reject these names on Windows.
-
-			// Test: does saveProjectConfig throw or succeed?
+		for (const reservedName of reservedNames) {
 			let threw = false;
-			let errorMessage = '';
+			let errorMsg = '';
 			try {
-				mgr.saveProjectConfig(slug, config);
+				mgr.saveProjectConfig(reservedName, config);
 			} catch (e) {
 				threw = true;
-				errorMessage = e instanceof Error ? e.message : String(e);
+				errorMsg = e instanceof Error ? e.message : String(e);
 			}
 
 			if (threw) {
-				// If it threw, that's the filesystem rejecting the reserved name.
-				// The slug validator should catch this before it reaches the filesystem.
-				expect(errorMessage).toBeTruthy();
+				expect(errorMsg).toBeTruthy();
 			} else {
-				// If it didn't throw, verify we can read the config back.
-				// On some Windows configurations, the directory might be created
-				// but the path may point to a device rather than a real file.
-				const loaded = mgr.loadProjectConfig(slug);
+				const loaded = mgr.loadProjectConfig(reservedName);
 				expect(loaded.templates).toEqual(config.templates);
 			}
 		}
@@ -764,19 +744,19 @@ describe('LauncherConfigManager', () => {
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 
 		const defaults = { templateName: 'MyTemplate', checkedSkills: ['S1', 'S2'], profileName: null };
-		mgr.saveColumnDefaults('slug', '', defaults);
+		mgr.saveColumnDefaults('test-project', '', defaults);
 
 		// Verify it persists through JSON roundtrip at the project config level
-		const config = mgr.loadProjectConfig('slug');
+		const config = mgr.loadProjectConfig('test-project');
 		expect(config.columnDefaults).toBeDefined();
 		expect(config.columnDefaults?.['']).toEqual(defaults);
 
 		// Verify it is accessible via getMergedConfig
-		const merged = mgr.getMergedConfig('slug');
+		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.columnDefaults['']).toEqual(defaults);
 
 		// Verify the raw JSON file on disk has an empty string key
-		const rawPath = path.join(configDir, 'projects', 'slug', 'config', 'launcher-config.json');
+		const rawPath = path.join(configDir, 'projects', 'test-project', 'config', 'launcher-config.json');
 		const raw = JSON.parse(fs.readFileSync(rawPath, 'utf-8'));
 		expect(raw.columnDefaults).toHaveProperty('');
 		expect(raw.columnDefaults['']).toEqual(defaults);
@@ -809,16 +789,16 @@ describe('LauncherConfigManager', () => {
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 
-		mgr.saveProjectConfig('slug', {
+		mgr.saveProjectConfig('test-project', {
 			templates: [{ name: 'T1', text: 'text' }],
 			skills: [{ name: 'S1', text: 'skill' }],
 			profiles: [],
 			columnDefaults: { todo: { templateName: 'T1', checkedSkills: ['S1'], profileName: null } },
 		});
 
-		mgr.saveWorktreeRootPath('slug', '/new/path');
+		mgr.saveWorktreeRootPath('test-project', '/new/path');
 
-		const config = mgr.loadProjectConfig('slug');
+		const config = mgr.loadProjectConfig('test-project');
 		expect(config.worktreeRootPath).toBe('/new/path');
 		expect(config.templates).toEqual([{ name: 'T1', text: 'text' }]);
 		expect(config.skills).toEqual([{ name: 'S1', text: 'skill' }]);
@@ -830,15 +810,15 @@ describe('LauncherConfigManager', () => {
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 
-		mgr.saveProjectConfig('slug', {
+		mgr.saveProjectConfig('test-project', {
 			templates: [],
 			skills: [],
 			worktreeRootPath: '/old/path',
 		});
 
-		mgr.saveWorktreeRootPath('slug', undefined);
+		mgr.saveWorktreeRootPath('test-project', undefined);
 
-		const config = mgr.loadProjectConfig('slug');
+		const config = mgr.loadProjectConfig('test-project');
 		expect(config.worktreeRootPath).toBeUndefined();
 	});
 
@@ -847,15 +827,15 @@ describe('LauncherConfigManager', () => {
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 
-		mgr.saveProjectConfig('slug', {
+		mgr.saveProjectConfig('test-project', {
 			templates: [{ name: 'Original', text: 'original' }],
 			skills: [],
 		});
 
-		mgr.addTemplate('project', 'slug', { name: 'NewTemplate', text: 'new' });
-		mgr.saveWorktreeRootPath('slug', '/worktrees');
+		mgr.addTemplate('project', 'test-project', { name: 'NewTemplate', text: 'new' });
+		mgr.saveWorktreeRootPath('test-project', '/worktrees');
 
-		const config = mgr.loadProjectConfig('slug');
+		const config = mgr.loadProjectConfig('test-project');
 		expect(config.templates).toHaveLength(2);
 		expect(config.templates.find(t => t.name === 'NewTemplate')).toBeDefined();
 		expect(config.worktreeRootPath).toBe('/worktrees');
@@ -866,16 +846,16 @@ describe('LauncherConfigManager', () => {
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 
-		mgr.saveProjectConfig('slug', {
+		mgr.saveProjectConfig('test-project', {
 			templates: [],
 			skills: [],
 			profiles: [],
 		});
 
-		mgr.saveColumnDefaults('slug', 'todo', { templateName: 'T1', checkedSkills: ['S1'], profileName: null });
-		mgr.saveWorktreeRootPath('slug', '/worktrees');
+		mgr.saveColumnDefaults('test-project', 'todo', { templateName: 'T1', checkedSkills: ['S1'], profileName: null });
+		mgr.saveWorktreeRootPath('test-project', '/worktrees');
 
-		const config = mgr.loadProjectConfig('slug');
+		const config = mgr.loadProjectConfig('test-project');
 		expect(config.columnDefaults?.['todo']).toEqual({ templateName: 'T1', checkedSkills: ['S1'], profileName: null });
 		expect(config.worktreeRootPath).toBe('/worktrees');
 	});
@@ -885,18 +865,18 @@ describe('LauncherConfigManager', () => {
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 
-		mgr.saveProjectConfig('slug', {
+		mgr.saveProjectConfig('test-project', {
 			templates: [{ name: 'T1', text: 'original' }],
 			skills: [],
 		});
 
-		const staleSnapshot = mgr.loadProjectConfig('slug');
+		const staleSnapshot = mgr.loadProjectConfig('test-project');
 
-		mgr.addTemplate('project', 'slug', { name: 'T2', text: 'added between GET and PUT' });
+		mgr.addTemplate('project', 'test-project', { name: 'T2', text: 'added between GET and PUT' });
 
-		mgr.saveProjectConfig('slug', { ...staleSnapshot, worktreeRootPath: '/new' });
+		mgr.saveProjectConfig('test-project', { ...staleSnapshot, worktreeRootPath: '/new' });
 
-		const config = mgr.loadProjectConfig('slug');
+		const config = mgr.loadProjectConfig('test-project');
 		expect(config.worktreeRootPath).toBe('/new');
 		// This demonstrates the race: T2 is lost because the stale snapshot didn't have it
 		expect(config.templates.find(t => t.name === 'T2')).toBeUndefined();
@@ -907,15 +887,15 @@ describe('LauncherConfigManager', () => {
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 
-		mgr.saveProjectConfig('slug', {
+		mgr.saveProjectConfig('test-project', {
 			templates: [{ name: 'T1', text: 'original' }],
 			skills: [],
 		});
 
-		mgr.addTemplate('project', 'slug', { name: 'T2', text: 'concurrent add' });
-		mgr.saveWorktreeRootPath('slug', '/new');
+		mgr.addTemplate('project', 'test-project', { name: 'T2', text: 'concurrent add' });
+		mgr.saveWorktreeRootPath('test-project', '/new');
 
-		const config = mgr.loadProjectConfig('slug');
+		const config = mgr.loadProjectConfig('test-project');
 		expect(config.worktreeRootPath).toBe('/new');
 		expect(config.templates.find(t => t.name === 'T2')).toBeDefined();
 	});
@@ -949,7 +929,7 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.addProfile('app', 'any-slug', { name: 'Custom Profile', command: 'my-command --flag' });
+		mgr.addProfile('app', 'any-project', { name: 'Custom Profile', command: 'my-command --flag' });
 		const raw = JSON.parse(fs.readFileSync(path.join(configDir, 'config', 'launcher-config.json'), 'utf-8'));
 		const found = raw.profiles.find((p: { name: string }) => p.name === 'Custom Profile');
 		expect(found).toBeDefined();
@@ -960,8 +940,8 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.addProfile('app', 'slug', { name: 'Dup', command: 'first' });
-		expect(() => mgr.addProfile('app', 'slug', { name: 'Dup', command: 'second' }))
+		mgr.addProfile('app', 'test-project', { name: 'Dup', command: 'first' });
+		expect(() => mgr.addProfile('app', 'test-project', { name: 'Dup', command: 'second' }))
 			.toThrow('already exists');
 	});
 
@@ -969,8 +949,8 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.addProfile('app', 'slug', { name: 'ToRemove', command: 'cmd' });
-		mgr.removeProfile('app', 'slug', 'ToRemove');
+		mgr.addProfile('app', 'test-project', { name: 'ToRemove', command: 'cmd' });
+		mgr.removeProfile('app', 'test-project', 'ToRemove');
 		const config = mgr.loadAppConfig();
 		expect((config.profiles ?? []).find(p => p.name === 'ToRemove')).toBeUndefined();
 	});
@@ -984,7 +964,7 @@ describe('LauncherConfigManager', () => {
 			skills: [],
 			profiles: [{ name: 'Old', command: 'old cmd' }],
 		});
-		mgr.updateProfile('app', 'slug', 'Old', { name: 'New', command: 'new cmd' });
+		mgr.updateProfile('app', 'test-project', 'Old', { name: 'New', command: 'new cmd' });
 		const config = mgr.loadAppConfig();
 		expect((config.profiles ?? []).find(p => p.name === 'Old')).toBeUndefined();
 		expect((config.profiles ?? []).find(p => p.name === 'New')?.command).toBe('new cmd');
@@ -999,7 +979,7 @@ describe('LauncherConfigManager', () => {
 			skills: [],
 			profiles: [{ name: 'Original', command: 'orig cmd' }],
 		});
-		mgr.updateProfile('app', 'slug', 'Original', { name: 'Original', command: 'updated', extra: 'junk' } as any);
+		mgr.updateProfile('app', 'test-project', 'Original', { name: 'Original', command: 'updated', extra: 'junk' } as any);
 		const config = mgr.loadAppConfig();
 		const p = (config.profiles ?? []).find(p => p.name === 'Original');
 		expect(p).toEqual({ name: 'Original', command: 'updated' });
@@ -1018,7 +998,7 @@ describe('LauncherConfigManager', () => {
 				{ name: 'AppOnly', command: 'app only' },
 			],
 		});
-		mgr.saveProjectConfig('slug', {
+		mgr.saveProjectConfig('test-project', {
 			templates: [],
 			skills: [],
 			profiles: [
@@ -1026,7 +1006,7 @@ describe('LauncherConfigManager', () => {
 				{ name: 'ProjOnly', command: 'proj only' },
 			],
 		});
-		const merged = mgr.getMergedConfig('slug');
+		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.profiles).toHaveLength(3);
 
 		const shared = merged.profiles.find(p => p.name === 'Shared');
@@ -1046,12 +1026,12 @@ describe('LauncherConfigManager', () => {
 			skills: [],
 			profiles: [{ name: 'AP', command: 'app' }],
 		});
-		mgr.saveProjectConfig('slug', {
+		mgr.saveProjectConfig('test-project', {
 			templates: [],
 			skills: [],
 			profiles: [{ name: 'PP', command: 'proj' }],
 		});
-		const merged = mgr.getMergedConfig('slug');
+		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.profiles.find(p => p.name === 'AP')?.scope).toBe('app');
 		expect(merged.profiles.find(p => p.name === 'PP')?.scope).toBe('project');
 	});
@@ -1060,12 +1040,12 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.saveColumnDefaults('slug', 'todo', {
+		mgr.saveColumnDefaults('test-project', 'todo', {
 			templateName: 'Default',
 			checkedSkills: ['S1'],
 			profileName: 'Claude Win',
 		});
-		const config = mgr.loadProjectConfig('slug');
+		const config = mgr.loadProjectConfig('test-project');
 		expect(config.columnDefaults?.['todo']?.profileName).toBe('Claude Win');
 	});
 
@@ -1073,12 +1053,12 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.saveColumnDefaults('slug', 'done', {
+		mgr.saveColumnDefaults('test-project', 'done', {
 			templateName: 'T1',
 			checkedSkills: [],
 			profileName: 'Claude macOS',
 		});
-		const merged = mgr.getMergedConfig('slug');
+		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.columnDefaults['done']?.profileName).toBe('Claude macOS');
 	});
 
@@ -1108,31 +1088,31 @@ describe('LauncherConfigManager', () => {
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 
 		// Add a profile to the project scope
-		mgr.addProfile('project', 'slug', { name: 'MyProfile', command: 'my-cmd' });
+		mgr.addProfile('project', 'test-project', { name: 'MyProfile', command: 'my-cmd' });
 
 		// Save column defaults that reference this profile
-		mgr.saveColumnDefaults('slug', 'todo', {
+		mgr.saveColumnDefaults('test-project', 'todo', {
 			templateName: 'Default',
 			checkedSkills: ['S1'],
 			profileName: 'MyProfile',
 		});
-		mgr.saveColumnDefaults('slug', 'done', {
+		mgr.saveColumnDefaults('test-project', 'done', {
 			templateName: 'Custom',
 			checkedSkills: [],
 			profileName: 'MyProfile',
 		});
 		// A column that references a different profile -- should remain untouched
-		mgr.saveColumnDefaults('slug', 'in-progress', {
+		mgr.saveColumnDefaults('test-project', 'in-progress', {
 			templateName: 'Other',
 			checkedSkills: ['S2'],
 			profileName: 'OtherProfile',
 		});
 
 		// Remove the profile
-		mgr.removeProfile('project', 'slug', 'MyProfile');
+		mgr.removeProfile('project', 'test-project', 'MyProfile');
 
 		// Column defaults referencing the deleted profile should have profileName cleared
-		const merged = mgr.getMergedConfig('slug');
+		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.columnDefaults['todo']?.profileName).toBeNull();
 		expect(merged.columnDefaults['done']?.profileName).toBeNull();
 		// The unrelated column default should be untouched
@@ -1145,31 +1125,31 @@ describe('LauncherConfigManager', () => {
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 
 		// Add a template to the project scope
-		mgr.addTemplate('project', 'slug', { name: 'MyTemplate', text: 'some text' });
+		mgr.addTemplate('project', 'test-project', { name: 'MyTemplate', text: 'some text' });
 
 		// Save column defaults that reference this template
-		mgr.saveColumnDefaults('slug', 'todo', {
+		mgr.saveColumnDefaults('test-project', 'todo', {
 			templateName: 'MyTemplate',
 			checkedSkills: ['S1'],
 			profileName: null,
 		});
-		mgr.saveColumnDefaults('slug', 'done', {
+		mgr.saveColumnDefaults('test-project', 'done', {
 			templateName: 'MyTemplate',
 			checkedSkills: [],
 			profileName: 'SomeProfile',
 		});
 		// A column that references a different template -- should remain untouched
-		mgr.saveColumnDefaults('slug', 'in-progress', {
+		mgr.saveColumnDefaults('test-project', 'in-progress', {
 			templateName: 'OtherTemplate',
 			checkedSkills: ['S2'],
 			profileName: null,
 		});
 
 		// Remove the template
-		mgr.removeTemplate('project', 'slug', 'MyTemplate');
+		mgr.removeTemplate('project', 'test-project', 'MyTemplate');
 
 		// Column defaults referencing the deleted template should have templateName cleared
-		const merged = mgr.getMergedConfig('slug');
+		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.columnDefaults['todo']?.templateName).toBeNull();
 		expect(merged.columnDefaults['done']?.templateName).toBeNull();
 		// The unrelated column default should be untouched
@@ -1180,7 +1160,7 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		const merged = mgr.getMergedConfig('slug');
+		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.conflictResolutionPrompt).toContain('merge conflicts');
 	});
 
@@ -1188,10 +1168,10 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.saveConflictResolutionSettings('slug', 'Custom prompt text');
-		const config = mgr.loadProjectConfig('slug');
+		mgr.saveConflictResolutionSettings('test-project', 'Custom prompt text');
+		const config = mgr.loadProjectConfig('test-project');
 		expect(config.conflictResolutionPrompt).toBe('Custom prompt text');
-		const merged = mgr.getMergedConfig('slug');
+		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.conflictResolutionPrompt).toBe('Custom prompt text');
 	});
 
@@ -1199,14 +1179,14 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.saveProjectConfig('slug', {
+		mgr.saveProjectConfig('test-project', {
 			templates: [{ name: 'T1', text: 'text' }],
 			skills: [],
 			profiles: [],
 			worktreeRootPath: '/some/path',
 		});
-		mgr.saveConflictResolutionSettings('slug', 'My prompt');
-		const config = mgr.loadProjectConfig('slug');
+		mgr.saveConflictResolutionSettings('test-project', 'My prompt');
+		const config = mgr.loadProjectConfig('test-project');
 		expect(config.templates).toHaveLength(1);
 		expect(config.worktreeRootPath).toBe('/some/path');
 		expect(config.conflictResolutionPrompt).toBe('My prompt');
@@ -1217,13 +1197,13 @@ describe('LauncherConfigManager', () => {
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		// Hand-edited / corrupt project file with a non-string prompt.
-		const projPath = path.join(configDir, 'projects', 'slug', 'config', 'launcher-config.json');
+		const projPath = path.join(configDir, 'projects', 'test-project', 'config', 'launcher-config.json');
 		fs.mkdirSync(path.dirname(projPath), { recursive: true });
 		fs.writeFileSync(projPath, JSON.stringify({
 			templates: [], skills: [], profiles: [], shortcuts: [],
 			conflictResolutionPrompt: 12345,
 		}));
-		const merged = mgr.getMergedConfig('slug');
+		const merged = mgr.getMergedConfig('test-project');
 		// MergedLauncherConfig.conflictResolutionPrompt is typed string; a truthy
 		// non-string value must not leak through. It falls back to the default.
 		expect(typeof merged.conflictResolutionPrompt).toBe('string');
@@ -1234,8 +1214,8 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.saveConflictResolutionSettings('slug', '');
-		const merged = mgr.getMergedConfig('slug');
+		mgr.saveConflictResolutionSettings('test-project', '');
+		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.conflictResolutionPrompt).toContain('merge conflicts');
 	});
 
@@ -1256,7 +1236,7 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.addShortcut('app', 'any-slug', { name: 'Open Editor', command: 'code {{projectPath}}' });
+		mgr.addShortcut('app', 'any-project', { name: 'Open Editor', command: 'code {{projectPath}}' });
 		const raw = JSON.parse(fs.readFileSync(path.join(configDir, 'config', 'launcher-config.json'), 'utf-8'));
 		const found = raw.shortcuts.find((s: { name: string }) => s.name === 'Open Editor');
 		expect(found).toBeDefined();
@@ -1280,8 +1260,8 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.addShortcut('app', 'slug', { name: 'Dup', command: 'first' });
-		expect(() => mgr.addShortcut('app', 'slug', { name: 'Dup', command: 'second' }))
+		mgr.addShortcut('app', 'test-project', { name: 'Dup', command: 'first' });
+		expect(() => mgr.addShortcut('app', 'test-project', { name: 'Dup', command: 'second' }))
 			.toThrow('already exists');
 	});
 
@@ -1289,8 +1269,8 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.addShortcut('app', 'slug', { name: 'ToRemove', command: 'cmd' });
-		mgr.removeShortcut('app', 'slug', 'ToRemove');
+		mgr.addShortcut('app', 'test-project', { name: 'ToRemove', command: 'cmd' });
+		mgr.removeShortcut('app', 'test-project', 'ToRemove');
 		const config = mgr.loadAppConfig();
 		expect((config.shortcuts ?? []).find(s => s.name === 'ToRemove')).toBeUndefined();
 	});
@@ -1305,7 +1285,7 @@ describe('LauncherConfigManager', () => {
 			profiles: [],
 			shortcuts: [{ name: 'Old', command: 'old cmd' }],
 		});
-		mgr.updateShortcut('app', 'slug', 'Old', { name: 'New', command: 'new cmd' });
+		mgr.updateShortcut('app', 'test-project', 'Old', { name: 'New', command: 'new cmd' });
 		const config = mgr.loadAppConfig();
 		expect((config.shortcuts ?? []).find(s => s.name === 'Old')).toBeUndefined();
 		expect((config.shortcuts ?? []).find(s => s.name === 'New')?.command).toBe('new cmd');
@@ -1321,7 +1301,7 @@ describe('LauncherConfigManager', () => {
 			profiles: [],
 			shortcuts: [{ name: 'Original', command: 'orig cmd' }],
 		});
-		mgr.updateShortcut('app', 'slug', 'Original', { name: 'Original', command: 'updated', extra: 'junk' } as any);
+		mgr.updateShortcut('app', 'test-project', 'Original', { name: 'Original', command: 'updated', extra: 'junk' } as any);
 		const config = mgr.loadAppConfig();
 		const s = (config.shortcuts ?? []).find(s => s.name === 'Original');
 		expect(s).toEqual({ name: 'Original', command: 'updated' });
@@ -1338,7 +1318,7 @@ describe('LauncherConfigManager', () => {
 			profiles: [],
 			shortcuts: [],
 		});
-		expect(() => mgr.updateShortcut('app', 'slug', 'Missing', { name: 'Missing', command: 'cmd' }))
+		expect(() => mgr.updateShortcut('app', 'test-project', 'Missing', { name: 'Missing', command: 'cmd' }))
 			.toThrow('not found');
 	});
 
@@ -1355,7 +1335,7 @@ describe('LauncherConfigManager', () => {
 				{ name: 'AppOnly', command: 'app only' },
 			],
 		});
-		mgr.saveProjectConfig('slug', {
+		mgr.saveProjectConfig('test-project', {
 			templates: [],
 			skills: [],
 			profiles: [],
@@ -1364,7 +1344,7 @@ describe('LauncherConfigManager', () => {
 				{ name: 'ProjOnly', command: 'proj only' },
 			],
 		});
-		const merged = mgr.getMergedConfig('slug');
+		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.shortcuts).toHaveLength(3);
 
 		const shared = merged.shortcuts.find(s => s.name === 'Shared');
@@ -1385,13 +1365,13 @@ describe('LauncherConfigManager', () => {
 			profiles: [],
 			shortcuts: [{ name: 'AS', command: 'app' }],
 		});
-		mgr.saveProjectConfig('slug', {
+		mgr.saveProjectConfig('test-project', {
 			templates: [],
 			skills: [],
 			profiles: [],
 			shortcuts: [{ name: 'PS', command: 'proj' }],
 		});
-		const merged = mgr.getMergedConfig('slug');
+		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.shortcuts.find(s => s.name === 'AS')?.scope).toBe('app');
 		expect(merged.shortcuts.find(s => s.name === 'PS')?.scope).toBe('project');
 	});
@@ -1400,7 +1380,7 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		const merged = mgr.getMergedConfig('slug');
+		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.shortcuts).toEqual([]);
 	});
 
@@ -1410,23 +1390,23 @@ describe('LauncherConfigManager', () => {
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 
 		// Add a template and set columnDefaults referencing it
-		mgr.addTemplate('project', 'slug', { name: 'old-name', text: 'some text' });
-		mgr.saveColumnDefaults('slug', 'todo', {
+		mgr.addTemplate('project', 'test-project', { name: 'old-name', text: 'some text' });
+		mgr.saveColumnDefaults('test-project', 'todo', {
 			templateName: 'old-name',
 			checkedSkills: [],
 			profileName: null,
 		});
-		mgr.saveColumnDefaults('slug', 'done', {
+		mgr.saveColumnDefaults('test-project', 'done', {
 			templateName: 'other-template',
 			checkedSkills: [],
 			profileName: null,
 		});
 
 		// Rename the template
-		mgr.updateTemplate('project', 'slug', 'old-name', { name: 'new-name', text: 'some text' });
+		mgr.updateTemplate('project', 'test-project', 'old-name', { name: 'new-name', text: 'some text' });
 
 		// columnDefaults referencing old-name should now reference new-name
-		const config = mgr.loadProjectConfig('slug');
+		const config = mgr.loadProjectConfig('test-project');
 		expect(config.columnDefaults?.['todo']?.templateName).toBe('new-name');
 		// Unrelated column default should be untouched
 		expect(config.columnDefaults?.['done']?.templateName).toBe('other-template');
@@ -1438,23 +1418,23 @@ describe('LauncherConfigManager', () => {
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 
 		// Add a skill and set columnDefaults referencing it
-		mgr.addSkill('project', 'slug', { name: 'old-skill', text: 'skill text' });
-		mgr.saveColumnDefaults('slug', 'todo', {
+		mgr.addSkill('project', 'test-project', { name: 'old-skill', text: 'skill text' });
+		mgr.saveColumnDefaults('test-project', 'todo', {
 			templateName: null,
 			checkedSkills: ['old-skill', 'other-skill'],
 			profileName: null,
 		});
-		mgr.saveColumnDefaults('slug', 'done', {
+		mgr.saveColumnDefaults('test-project', 'done', {
 			templateName: null,
 			checkedSkills: ['other-skill'],
 			profileName: null,
 		});
 
 		// Rename the skill
-		mgr.updateSkill('project', 'slug', 'old-skill', { name: 'new-skill', text: 'skill text' });
+		mgr.updateSkill('project', 'test-project', 'old-skill', { name: 'new-skill', text: 'skill text' });
 
 		// columnDefaults referencing old-skill should now reference new-skill
-		const config = mgr.loadProjectConfig('slug');
+		const config = mgr.loadProjectConfig('test-project');
 		expect(config.columnDefaults?.['todo']?.checkedSkills).toEqual(['new-skill', 'other-skill']);
 		// Unrelated column default should be untouched
 		expect(config.columnDefaults?.['done']?.checkedSkills).toEqual(['other-skill']);
@@ -1466,14 +1446,14 @@ describe('LauncherConfigManager', () => {
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 
 		// Add a skill and set columnDefaults referencing it in skillOrder
-		mgr.addSkill('project', 'slug', { name: 'old-skill', text: 'skill text' });
-		mgr.saveColumnDefaults('slug', 'todo', {
+		mgr.addSkill('project', 'test-project', { name: 'old-skill', text: 'skill text' });
+		mgr.saveColumnDefaults('test-project', 'todo', {
 			templateName: null,
 			checkedSkills: [],
 			profileName: null,
 			skillOrder: ['other-skill', 'old-skill'],
 		});
-		mgr.saveColumnDefaults('slug', 'done', {
+		mgr.saveColumnDefaults('test-project', 'done', {
 			templateName: null,
 			checkedSkills: [],
 			profileName: null,
@@ -1481,10 +1461,10 @@ describe('LauncherConfigManager', () => {
 		});
 
 		// Rename the skill
-		mgr.updateSkill('project', 'slug', 'old-skill', { name: 'new-skill', text: 'skill text' });
+		mgr.updateSkill('project', 'test-project', 'old-skill', { name: 'new-skill', text: 'skill text' });
 
 		// columnDefaults referencing old-skill should now reference new-skill
-		const config = mgr.loadProjectConfig('slug');
+		const config = mgr.loadProjectConfig('test-project');
 		expect(config.columnDefaults?.['todo']?.skillOrder).toEqual(['other-skill', 'new-skill']);
 		// Unrelated column default should be untouched
 		expect(config.columnDefaults?.['done']?.skillOrder).toEqual(['other-skill']);
@@ -1496,23 +1476,23 @@ describe('LauncherConfigManager', () => {
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 
 		// Add a profile and set columnDefaults referencing it
-		mgr.addProfile('project', 'slug', { name: 'old-profile', command: 'cmd' });
-		mgr.saveColumnDefaults('slug', 'todo', {
+		mgr.addProfile('project', 'test-project', { name: 'old-profile', command: 'cmd' });
+		mgr.saveColumnDefaults('test-project', 'todo', {
 			templateName: null,
 			checkedSkills: [],
 			profileName: 'old-profile',
 		});
-		mgr.saveColumnDefaults('slug', 'done', {
+		mgr.saveColumnDefaults('test-project', 'done', {
 			templateName: null,
 			checkedSkills: [],
 			profileName: 'other-profile',
 		});
 
 		// Rename the profile
-		mgr.updateProfile('project', 'slug', 'old-profile', { name: 'new-profile', command: 'cmd' });
+		mgr.updateProfile('project', 'test-project', 'old-profile', { name: 'new-profile', command: 'cmd' });
 
 		// columnDefaults referencing old-profile should now reference new-profile
-		const config = mgr.loadProjectConfig('slug');
+		const config = mgr.loadProjectConfig('test-project');
 		expect(config.columnDefaults?.['todo']?.profileName).toBe('new-profile');
 		// Unrelated column default should be untouched
 		expect(config.columnDefaults?.['done']?.profileName).toBe('other-profile');
@@ -1524,31 +1504,31 @@ describe('LauncherConfigManager', () => {
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 
 		// Add a skill to the project scope
-		mgr.addSkill('project', 'slug', { name: 'MySkill', text: 'skill text' });
+		mgr.addSkill('project', 'test-project', { name: 'MySkill', text: 'skill text' });
 
 		// Save column defaults that reference this skill in checkedSkills
-		mgr.saveColumnDefaults('slug', 'todo', {
+		mgr.saveColumnDefaults('test-project', 'todo', {
 			templateName: 'Default',
 			checkedSkills: ['MySkill', 'OtherSkill'],
 			profileName: null,
 		});
-		mgr.saveColumnDefaults('slug', 'done', {
+		mgr.saveColumnDefaults('test-project', 'done', {
 			templateName: 'Custom',
 			checkedSkills: ['MySkill'],
 			profileName: null,
 		});
 		// A column that does not reference the skill -- should remain untouched
-		mgr.saveColumnDefaults('slug', 'in-progress', {
+		mgr.saveColumnDefaults('test-project', 'in-progress', {
 			templateName: 'Other',
 			checkedSkills: ['OtherSkill'],
 			profileName: null,
 		});
 
 		// Remove the skill
-		mgr.removeSkill('project', 'slug', 'MySkill');
+		mgr.removeSkill('project', 'test-project', 'MySkill');
 
 		// Column defaults referencing the deleted skill should have it removed from checkedSkills
-		const config = mgr.loadProjectConfig('slug');
+		const config = mgr.loadProjectConfig('test-project');
 		expect(config.columnDefaults?.['todo']?.checkedSkills).toEqual(['OtherSkill']);
 		expect(config.columnDefaults?.['done']?.checkedSkills).toEqual([]);
 		// The unrelated column default should be untouched
@@ -1561,23 +1541,23 @@ describe('LauncherConfigManager', () => {
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 
 		// Add a skill to the project scope
-		mgr.addSkill('project', 'slug', { name: 'MySkill', text: 'skill text' });
+		mgr.addSkill('project', 'test-project', { name: 'MySkill', text: 'skill text' });
 
 		// Save column defaults that reference this skill in skillOrder
-		mgr.saveColumnDefaults('slug', 'todo', {
+		mgr.saveColumnDefaults('test-project', 'todo', {
 			templateName: 'Default',
 			checkedSkills: [],
 			profileName: null,
 			skillOrder: ['MySkill', 'OtherSkill'],
 		});
-		mgr.saveColumnDefaults('slug', 'done', {
+		mgr.saveColumnDefaults('test-project', 'done', {
 			templateName: 'Custom',
 			checkedSkills: [],
 			profileName: null,
 			skillOrder: ['MySkill'],
 		});
 		// A column that does not reference the skill -- should remain untouched
-		mgr.saveColumnDefaults('slug', 'in-progress', {
+		mgr.saveColumnDefaults('test-project', 'in-progress', {
 			templateName: 'Other',
 			checkedSkills: [],
 			profileName: null,
@@ -1585,10 +1565,10 @@ describe('LauncherConfigManager', () => {
 		});
 
 		// Remove the skill
-		mgr.removeSkill('project', 'slug', 'MySkill');
+		mgr.removeSkill('project', 'test-project', 'MySkill');
 
 		// Column defaults referencing the deleted skill should have it removed from skillOrder
-		const config = mgr.loadProjectConfig('slug');
+		const config = mgr.loadProjectConfig('test-project');
 		expect(config.columnDefaults?.['todo']?.skillOrder).toEqual(['OtherSkill']);
 		expect(config.columnDefaults?.['done']?.skillOrder).toEqual([]);
 		// The unrelated column default should be untouched

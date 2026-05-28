@@ -51,7 +51,7 @@ describe("KanbanBoard drag-and-drop (e2e)", () => {
   beforeAll(async () => {
     mockState = {
       boardData: structuredClone(SEEDED_BOARD),
-      onReorderTicket: (slug, folderName, fromColumn, toColumn, newIndex) => {
+      onReorderTicket: (_projectSlug, folderName, fromColumn, toColumn, newIndex) => {
         const bd = mockState.boardData;
         const ticket = bd.board!.tickets.find((t) => t.folderName === folderName);
         if (ticket) {

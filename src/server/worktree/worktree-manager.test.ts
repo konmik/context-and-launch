@@ -50,7 +50,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
 		const manager = new WorktreeManager(new ConfigPaths(configDir));
-		const worktreeDir = await manager.ensureWorktree(projectDir, 'test-slug');
+		const worktreeDir = await manager.ensureWorktree(projectDir, 'test-project');
 		worktreeCleanups.push([projectDir, worktreeDir]);
 
 		expect(fs.existsSync(worktreeDir)).toBe(true);
@@ -72,7 +72,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
 		const manager = new WorktreeManager(new ConfigPaths(configDir));
-		const worktreeDir = await manager.ensureWorktree(projectDir, 'custom-slug', 'tickets');
+		const worktreeDir = await manager.ensureWorktree(projectDir, 'custom-project', 'tickets');
 		worktreeCleanups.push([projectDir, worktreeDir]);
 
 		const branch = (await git(worktreeDir, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
@@ -90,9 +90,9 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
 		const manager = new WorktreeManager(new ConfigPaths(configDir), () => customDir);
-		expect(manager.getWorktreeDir('any-slug')).toBe(customDir);
+		expect(manager.getWorktreeDir('any-project')).toBe(customDir);
 
-		const worktreeDir = await manager.ensureWorktree(projectDir, 'any-slug', 'tickets');
+		const worktreeDir = await manager.ensureWorktree(projectDir, 'any-project', 'tickets');
 		worktreeCleanups.push([projectDir, worktreeDir]);
 		expect(worktreeDir).toBe(customDir);
 		expect(fs.existsSync(path.join(customDir, '.git'))).toBe(true);
@@ -118,7 +118,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'remote', 'add', 'origin', remoteDir);
 
 		const manager = new WorktreeManager(new ConfigPaths(configDir));
-		const worktreeDir = await manager.ensureWorktree(projectDir, 'remote-slug', 'tickets');
+		const worktreeDir = await manager.ensureWorktree(projectDir, 'remote-project', 'tickets');
 		worktreeCleanups.push([projectDir, worktreeDir]);
 
 		const head = (await git(worktreeDir, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
@@ -141,7 +141,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'remote', 'add', 'origin', path.join(projectDir, 'does-not-exist'));
 
 		const manager = new WorktreeManager(new ConfigPaths(configDir));
-		const worktreeDir = await manager.ensureWorktree(projectDir, 'unreachable-slug', 'tickets');
+		const worktreeDir = await manager.ensureWorktree(projectDir, 'unreachable-project', 'tickets');
 		worktreeCleanups.push([projectDir, worktreeDir]);
 
 		const head = (await git(worktreeDir, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
@@ -162,7 +162,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'remote', 'add', 'origin', remoteDir);
 
 		const manager = new WorktreeManager(new ConfigPaths(configDir));
-		const worktreeDir = await manager.ensureWorktree(projectDir, 'no-remote-branch', 'tickets');
+		const worktreeDir = await manager.ensureWorktree(projectDir, 'no-remote-project', 'tickets');
 		worktreeCleanups.push([projectDir, worktreeDir]);
 
 		const head = (await git(worktreeDir, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
@@ -180,9 +180,9 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
 		const manager = new WorktreeManager(new ConfigPaths(configDir));
-		const first = await manager.ensureWorktree(projectDir, 'test-slug');
+		const first = await manager.ensureWorktree(projectDir, 'test-project');
 		worktreeCleanups.push([projectDir, first]);
-		const second = await manager.ensureWorktree(projectDir, 'test-slug');
+		const second = await manager.ensureWorktree(projectDir, 'test-project');
 
 		expect(first).toBe(second);
 	});
@@ -200,7 +200,7 @@ describe('WorktreeManager', () => {
 		const branchBefore = (await git(projectDir, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
 
 		const manager = new WorktreeManager(new ConfigPaths(configDir));
-		const wt = await manager.ensureWorktree(projectDir, 'safe-slug');
+		const wt = await manager.ensureWorktree(projectDir, 'safe-project');
 		worktreeCleanups.push([projectDir, wt]);
 
 		const branchAfter = (await git(projectDir, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
@@ -221,7 +221,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'checkout', '--detach');
 
 		const manager = new WorktreeManager(new ConfigPaths(configDir));
-		const wt = await manager.ensureWorktree(projectDir, 'detach-slug');
+		const wt = await manager.ensureWorktree(projectDir, 'detach-project');
 		worktreeCleanups.push([projectDir, wt]);
 
 		const currentBranch = (await git(projectDir, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
@@ -266,7 +266,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
 		const manager = new WorktreeManager(new ConfigPaths(configDir));
-		const worktreeDir = await manager.ensureWorktree(projectDir, 'stale-slug');
+		const worktreeDir = await manager.ensureWorktree(projectDir, 'stale-project');
 		worktreeCleanups.push([projectDir, worktreeDir]);
 		expect(fs.existsSync(worktreeDir)).toBe(true);
 
@@ -277,7 +277,7 @@ describe('WorktreeManager', () => {
 		fs.rmSync(gitDir, { recursive: true, force: true });
 		expect(fs.existsSync(gitDir)).toBe(false);
 
-		const recreated = await manager.ensureWorktree(projectDir, 'stale-slug');
+		const recreated = await manager.ensureWorktree(projectDir, 'stale-project');
 		expect(fs.existsSync(recreated)).toBe(true);
 		const newDotGit = path.join(recreated, '.git');
 		expect(fs.statSync(newDotGit).isFile()).toBe(true);
@@ -296,7 +296,7 @@ describe('WorktreeManager', () => {
 		await expect(git(projectDir, 'log')).rejects.toThrow(/does not have any commits/);
 	});
 
-	it('concurrent ensureWorktree with same slug and same project returns same directory', async () => {
+	it('concurrent ensureWorktree with same projectSlug and same project returns same directory', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		dirs.push(configDir, projectDir);
@@ -306,8 +306,8 @@ describe('WorktreeManager', () => {
 
 		const manager = new WorktreeManager(new ConfigPaths(configDir));
 		const [a, b] = await Promise.all([
-			manager.ensureWorktree(projectDir, 'concurrent-slug'),
-			manager.ensureWorktree(projectDir, 'concurrent-slug')
+			manager.ensureWorktree(projectDir, 'concurrent-project'),
+			manager.ensureWorktree(projectDir, 'concurrent-project')
 		]);
 		worktreeCleanups.push([projectDir, a]);
 
@@ -325,7 +325,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
 		const manager = new WorktreeManager(new ConfigPaths(configDir));
-		const projectsDir = path.join(configDir, 'projects', 'partial-slug');
+		const projectsDir = path.join(configDir, 'projects', 'partial-project');
 		const worktreeDir = path.join(projectsDir, 'tickets');
 
 		// Simulate the orphan creation path partially completing: step 1
@@ -347,7 +347,7 @@ describe('WorktreeManager', () => {
 
 		// ensureWorktree should detect the invalid worktree, remove it,
 		// prune stale entries, and re-create everything from scratch.
-		const recovered = await manager.ensureWorktree(projectDir, 'partial-slug');
+		const recovered = await manager.ensureWorktree(projectDir, 'partial-project');
 		worktreeCleanups.push([projectDir, recovered]);
 
 		expect(fs.existsSync(recovered)).toBe(true);
@@ -366,7 +366,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
 		const manager = new WorktreeManager(new ConfigPaths(configDir));
-		const worktreeDir = await manager.ensureWorktree(projectDir, 'dotgit-missing');
+		const worktreeDir = await manager.ensureWorktree(projectDir, 'dotgit-missing-project');
 		worktreeCleanups.push([projectDir, worktreeDir]);
 		expect(fs.existsSync(path.join(worktreeDir, '.git'))).toBe(true);
 
@@ -376,7 +376,7 @@ describe('WorktreeManager', () => {
 		expect(fs.existsSync(worktreeDir)).toBe(true);
 
 		// ensureWorktree should detect the invalid state, clean up, and recreate
-		const recreated = await manager.ensureWorktree(projectDir, 'dotgit-missing');
+		const recreated = await manager.ensureWorktree(projectDir, 'dotgit-missing-project');
 		expect(fs.existsSync(recreated)).toBe(true);
 		expect(fs.existsSync(path.join(recreated, '.git'))).toBe(true);
 
@@ -390,36 +390,36 @@ describe('WorktreeManager', () => {
 
 		const manager = new WorktreeManager(new ConfigPaths(configDir));
 		await expect(
-			manager.ensureWorktree('/nonexistent/path/that/does/not/exist', 'bad-slug')
+			manager.ensureWorktree('/nonexistent/path/that/does/not/exist', 'bad-project')
 		).rejects.toThrow('Project path does not exist');
 	});
 
-	it('getWorktreeDir returns a path for an unregistered slug without error (pure path computation)', () => {
+	it('getWorktreeDir returns a path for an unregistered projectSlug without error (pure path computation)', () => {
 		const configDir = tmpDir('wt-config-');
 		dirs.push(configDir);
 
 		const manager = new WorktreeManager(new ConfigPaths(configDir));
-		const slug = 'nonexistent-project';
+		const projectSlug = 'nonexistent-project';
 
 		let result: string | undefined;
 		expect(() => {
-			result = manager.getWorktreeDir(slug);
+			result = manager.getWorktreeDir(projectSlug);
 		}).not.toThrow();
 
 		expect(result).toBeDefined();
-		expect(result).toContain(slug);
+		expect(result).toContain(projectSlug);
 		// The directory is not guaranteed to exist -- this is by design
 		expect(fs.existsSync(result!)).toBe(false);
 	});
 
-	it('getWorktreeDir rejects slugs containing path traversal', () => {
+	it('getWorktreeDir rejects projectSlugs containing path traversal', () => {
 		const configDir = tmpDir('wt-config-');
 		dirs.push(configDir);
 
 		const manager = new WorktreeManager(new ConfigPaths(configDir));
 
-		// All of these slugs contain path traversal or separators and must be rejected
-		const maliciousSlugs = [
+		// All of these projectSlugs contain path traversal or separators and must be rejected
+		const maliciousProjectSlugs = [
 			'../../tmp/evil',
 			'..\\..\\tmp\\evil',
 			'../sibling',
@@ -427,16 +427,16 @@ describe('WorktreeManager', () => {
 			'..'
 		];
 
-		for (const slug of maliciousSlugs) {
+		for (const projectSlug of maliciousProjectSlugs) {
 			expect(
-				() => manager.getWorktreeDir(slug),
-				`slug "${slug}" should be rejected`
+				() => manager.getWorktreeDir(projectSlug),
+				`projectSlug "${projectSlug}" should be rejected`
 			).toThrow('Invalid slug');
 		}
 
-		// Valid slugs should work fine
+		// Valid projectSlugs should work fine
 		expect(() => manager.getWorktreeDir('my-project')).not.toThrow();
-		expect(() => manager.getWorktreeDir('slug-123')).not.toThrow();
+		expect(() => manager.getWorktreeDir('project-123')).not.toThrow();
 	});
 
 	it('detects unusable worktree left by failed commit during orphan creation', async () => {
@@ -448,7 +448,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
 		const manager = new WorktreeManager(new ConfigPaths(configDir));
-		const projectsDir = path.join(configDir, 'projects', 'broken-slug');
+		const projectsDir = path.join(configDir, 'projects', 'broken-project');
 		const worktreeDir = path.join(projectsDir, 'tickets');
 
 		// Simulate: orphan branch creation succeeded but commit failed.
@@ -469,7 +469,7 @@ describe('WorktreeManager', () => {
 		// Now call ensureWorktree. It should NOT silently return the broken
 		// worktree that is on the wrong branch with no commits.
 		// It should detect the problem and repair/recreate.
-		const result = await manager.ensureWorktree(projectDir, 'broken-slug');
+		const result = await manager.ensureWorktree(projectDir, 'broken-project');
 		worktreeCleanups.push([projectDir, result]);
 
 		expect(fs.existsSync(result)).toBe(true);
@@ -492,7 +492,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
 		const manager = new WorktreeManager(new ConfigPaths(configDir));
-		const worktreeDir = await manager.ensureWorktree(projectDir, 'prune-fail');
+		const worktreeDir = await manager.ensureWorktree(projectDir, 'prune-fail-project');
 		worktreeCleanups.push([projectDir, worktreeDir]);
 
 		// Break the worktree so isValidWorktree returns false:
@@ -515,7 +515,7 @@ describe('WorktreeManager', () => {
 		// ensureWorktree should propagate the error from prune, not swallow it.
 		// The directory gets rmSync'd first (step 1 succeeds), then prune fails.
 		await expect(
-			manager.ensureWorktree(projectDir, 'prune-fail')
+			manager.ensureWorktree(projectDir, 'prune-fail-project')
 		).rejects.toThrow();
 
 		// After the error, verify the worktree directory was already removed
@@ -529,12 +529,12 @@ describe('WorktreeManager', () => {
 		fs.mkdirSync(worktreesGitDir, { recursive: true });
 
 		// Retry should now succeed since directory is gone and prune works
-		const retried = await manager.ensureWorktree(projectDir, 'prune-fail');
+		const retried = await manager.ensureWorktree(projectDir, 'prune-fail-project');
 		expect(fs.existsSync(retried)).toBe(true);
 		expect(fs.existsSync(path.join(retried, '.git'))).toBe(true);
 	});
 
-	it('three sequential calls to same slug after first fails: lock chain does not deadlock', async () => {
+	it('three sequential calls to same projectSlug after first fails: lock chain does not deadlock', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		dirs.push(configDir, projectDir);
@@ -547,7 +547,7 @@ describe('WorktreeManager', () => {
 
 		// First call: should fail because projectDir is not a git repo
 		const first = await Promise.race([
-			manager.ensureWorktree(projectDir, 'deadlock-slug').then(
+			manager.ensureWorktree(projectDir, 'deadlock-project').then(
 				(v) => ({ status: 'fulfilled' as const, value: v }),
 				(e: unknown) => ({ status: 'rejected' as const, reason: e })
 			),
@@ -563,7 +563,7 @@ describe('WorktreeManager', () => {
 
 		// Second call: should succeed (not deadlock waiting on the failed first promise)
 		const second = await Promise.race([
-			manager.ensureWorktree(projectDir, 'deadlock-slug'),
+			manager.ensureWorktree(projectDir, 'deadlock-project'),
 			new Promise<never>((_, reject) =>
 				setTimeout(() => reject(new Error('DEADLOCK: second call timed out')), DEADLOCK_MS)
 			)
@@ -573,7 +573,7 @@ describe('WorktreeManager', () => {
 
 		// Third call: should also succeed (idempotent)
 		const third = await Promise.race([
-			manager.ensureWorktree(projectDir, 'deadlock-slug'),
+			manager.ensureWorktree(projectDir, 'deadlock-project'),
 			new Promise<never>((_, reject) =>
 				setTimeout(() => reject(new Error('DEADLOCK: third call timed out')), DEADLOCK_MS)
 			)
@@ -581,7 +581,7 @@ describe('WorktreeManager', () => {
 		expect(third).toBe(second);
 	});
 
-	it('same slug from two different project paths races without corruption', async () => {
+	it('same projectSlug from two different project paths races without corruption', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectA = tmpDir('wt-projectA-');
 		const projectB = tmpDir('wt-projectB-');
@@ -594,16 +594,16 @@ describe('WorktreeManager', () => {
 		await git(projectB, 'commit', '--allow-empty', '-m', 'init B');
 
 		const manager = new WorktreeManager(new ConfigPaths(configDir));
-		const slug = 'colliding-slug';
+		const projectSlug = 'colliding-project';
 
-		// Call ensureWorktree concurrently from two different projects with the same slug.
+		// Call ensureWorktree concurrently from two different projects with the same projectSlug.
 		// Since the lock is keyed by canonical project path, these get different locks
 		// but target the same worktree directory. The code should either:
 		// 1. Return successfully for both (with the same or different paths), OR
 		// 2. Throw a clear error for at least one (not silent corruption)
 		const results = await Promise.allSettled([
-			manager.ensureWorktree(projectA, slug),
-			manager.ensureWorktree(projectB, slug)
+			manager.ensureWorktree(projectA, projectSlug),
+			manager.ensureWorktree(projectB, projectSlug)
 		]);
 
 		const fulfilled = results.filter(

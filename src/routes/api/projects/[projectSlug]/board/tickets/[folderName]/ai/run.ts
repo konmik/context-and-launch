@@ -11,8 +11,8 @@ import {
 
 export async function POST({ params, request }: APIEvent) {
   try {
-    const { slug, folderName } = params;
-    const resolved = resolveTicketAndProject(slug, folderName);
+    const { projectSlug, folderName } = params;
+    const resolved = resolveTicketAndProject(projectSlug, folderName);
     if (resolved instanceof Response) return resolved;
     const { ticket, project, worktreeDir } = resolved;
 
@@ -23,11 +23,11 @@ export async function POST({ params, request }: APIEvent) {
 
     const launchRequest = await readLaunchRequest(request);
 
-    const launchDirResult = await resolveLaunchDir(slug, folderName, launchRequest.useWorktree, project.path, launchRequest.force);
+    const launchDirResult = await resolveLaunchDir(projectSlug, folderName, launchRequest.useWorktree, project.path, launchRequest.force);
     if (launchDirResult instanceof Response) return launchDirResult;
     const launchDir = launchDirResult;
 
-    await launchAgent(slug, ticket, project, worktreeDir, launchRequest, launchDir);
+    await launchAgent(projectSlug, ticket, project, worktreeDir, launchRequest, launchDir);
     return new Response(null, { status: 200 });
   } catch (e) {
     return Response.json(errorPayload(e), { status: 500 });

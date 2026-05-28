@@ -11,7 +11,7 @@ import { createListReorder, orderByNameList } from "../board/list-reorder.js";
 type MergedSkill = MergedLauncherConfig["skills"][number];
 
 interface AgentLauncherProps {
-	slug: string;
+	projectSlug: string;
 	ticket: TicketInfo;
 	config: MergedLauncherConfig | null;
 	onDefaultsChange: (patch: Partial<LauncherColumnDefaults>) => void;
@@ -112,7 +112,7 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 	}
 
 	function ticketAiUrl(action: string) {
-		return `/api/projects/${props.slug}/board/tickets/${props.ticket.folderName}/ai/${action}`;
+		return `/api/projects/${props.projectSlug}/board/tickets/${props.ticket.folderName}/ai/${action}`;
 	}
 
 	function textToErrorInfo(text: string, status: number): ErrorInfo {

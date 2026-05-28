@@ -5,15 +5,15 @@ import { spawnProfile } from "~/server/launcher/agent-launch.js";
 
 export async function POST({ params, request }: APIEvent) {
 	try {
-		const { slug } = params;
+		const { projectSlug } = params;
 		const body = await request.json();
 		const profileName = body.profileName;
 		if (!profileName) {
 			return Response.json({ error: "No profile selected" }, { status: 400 });
 		}
 
-		const worktreeDir = worktreeManager.getWorktreeDir(slug);
-		const merged = launcherConfigManager.getMergedConfig(slug);
+		const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
+		const merged = launcherConfigManager.getMergedConfig(projectSlug);
 		const profile = merged.profiles.find(p => p.name === profileName);
 
 		if (!profile) {

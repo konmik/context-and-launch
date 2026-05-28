@@ -16,7 +16,7 @@ export function migrateColumnRename(
 	oldColumnName: string,
 	newColumnName: string,
 	scope: MigrationScope,
-	currentSlug: string,
+	currentProjectSlug: string,
 	deps: {
 		projectRegistry: ProjectRegistry;
 		launcherConfigManager: LauncherConfigManager;
@@ -27,46 +27,44 @@ export function migrateColumnRename(
 		return { ticketsUpdated: 0, projectsUpdated: 0 };
 	}
 
-	let slugs: string[];
+	let projectSlugs: string[];
 	if (scope === 'current') {
-		slugs = [currentSlug];
+		projectSlugs = [currentProjectSlug];
 	} else {
-		// scope === 'all': find all projects using this board
 		try {
 			const projects = deps.projectRegistry.listProjects();
-			slugs = projects
+			projectSlugs = projects
 				.filter(p => {
 					try {
-						const merged = deps.launcherConfigManager.getMergedConfig(p.slug);
+						const merged = deps.launcherConfigManager.getMergedConfig(p.projectSlug);
 						const projectBoardId = merged.boardId ?? DEFAULT_BOARD_ID;
 						return projectBoardId === boardId;
 					} catch (e) {
-						console.warn(`Skipping project "${p.slug}" during column rename migration: config unreadable`, e);
+						console.warn(`Skipping project "${p.projectSlug}" during column rename migration: config unreadable`, e);
 						return false;
 					}
 				})
-				.map(p => p.slug);
+				.map(p => p.projectSlug);
 		} catch (e) {
 			console.warn('Failed to list projects during column rename migration', e);
-			slugs = [];
+			projectSlugs = [];
 		}
 	}
 
 	let ticketsUpdated = 0;
 	let projectsUpdated = 0;
 
-	for (const slug of slugs) {
+	for (const projectSlug of projectSlugs) {
 		let worktreeDir: string;
 		try {
-			worktreeDir = deps.worktreeManager.getWorktreeDir(slug);
+			worktreeDir = deps.worktreeManager.getWorktreeDir(projectSlug);
 		} catch (e) {
-			console.warn(`Skipping project "${slug}" during column rename migration: worktree not resolved`, e);
+			console.warn(`Skipping project "${projectSlug}" during column rename migration: worktree not resolved`, e);
 			continue;
 		}
 
 		let projectChanged = false;
 
-		// Update ticket statuses
 		try {
 			const store = new TicketStore(worktreeDir);
 			const tickets = store.listTickets();
@@ -78,21 +76,20 @@ export function migrateColumnRename(
 				}
 			}
 		} catch (e) {
-			console.warn(`Skipping ticket migration for project "${slug}": ticket store inaccessible`, e);
+			console.warn(`Skipping ticket migration for project "${projectSlug}": ticket store inaccessible`, e);
 		}
 
-		// Re-key columnDefaults
 		try {
-			const projectConfig = deps.launcherConfigManager.loadProjectConfig(slug);
+			const projectConfig = deps.launcherConfigManager.loadProjectConfig(projectSlug);
 			if (projectConfig.columnDefaults && Object.prototype.hasOwnProperty.call(projectConfig.columnDefaults, oldColumnName)) {
 				const defaults = projectConfig.columnDefaults[oldColumnName];
 				projectConfig.columnDefaults[newColumnName] = defaults;
 				delete projectConfig.columnDefaults[oldColumnName];
-				deps.launcherConfigManager.saveProjectConfig(slug, projectConfig);
+				deps.launcherConfigManager.saveProjectConfig(projectSlug, projectConfig);
 				projectChanged = true;
 			}
 		} catch (e) {
-			console.warn(`Skipping columnDefaults re-keying for project "${slug}"`, e);
+			console.warn(`Skipping columnDefaults re-keying for project "${projectSlug}"`, e);
 		}
 
 		if (projectChanged) {

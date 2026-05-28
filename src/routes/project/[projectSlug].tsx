@@ -23,14 +23,14 @@ import {
 } from "~/server/actions";
 
 export const route = {
-  load: ({ params }: { params: { slug: string } }) => loadBoard(params.slug),
+  load: ({ params }: { params: { projectSlug: string } }) => loadBoard(params.projectSlug),
 };
 
 export default function ProjectPage() {
   const params = useParams();
   const navigate = useNavigate();
-  const slug = () => params.slug ?? "";
-  const data = createAsync(() => loadBoard(slug()));
+  const projectSlug = () => params.projectSlug ?? "";
+  const data = createAsync(() => loadBoard(projectSlug()));
 
   const [addProjectDialogOpen, setAddProjectDialogOpen] = createSignal(false);
   const [settingsOpen, setSettingsOpen] = createSignal(false);
@@ -52,7 +52,7 @@ export default function ProjectPage() {
     if (!data()?.hasRemote) { setSyncError({ description: "No remote tracking branch configured. Push the ticket branch to a remote first." }); return; }
     setSyncing(true); setSyncError(null);
     try {
-      const res = await fetch(`/api/projects/${slug()}/board/sync`, { method: "POST" });
+      const res = await fetch(`/api/projects/${projectSlug()}/board/sync`, { method: "POST" });
       const result = await res.json();
       if (result.status === "success") { setSyncSuccess(true); setTimeout(() => setSyncSuccess(false), 2000); await revalidate("board-data"); }
       else if (result.status === "conflict") setConflictDialogOpen(true);
@@ -62,13 +62,13 @@ export default function ProjectPage() {
   }
 
   async function handleConflictResolve(profileName: string) {
-    const res = await fetch(`/api/projects/${slug()}/board/resolve-conflicts`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileName }) });
+    const res = await fetch(`/api/projects/${projectSlug()}/board/resolve-conflicts`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileName }) });
     if (!res.ok) { const body = await res.json(); throw new Error(body.error || "Failed to launch resolver"); }
     await revalidate("board-data");
   }
 
   async function handleConflictAbort() {
-    const res = await fetch(`/api/projects/${slug()}/board/sync`, { method: "DELETE" });
+    const res = await fetch(`/api/projects/${projectSlug()}/board/sync`, { method: "DELETE" });
     if (!res.ok) { const body = await res.json(); throw new Error(body.error || "Failed to abort rebase"); }
     await revalidate("board-data");
   }
@@ -84,22 +84,22 @@ export default function ProjectPage() {
   }
 
   async function handleReorder(folderName: string, fromColumn: string, toColumn: string, newIndex: number) {
-    const res = await fetch(`/api/projects/${slug()}/board/reorder`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folderName, fromColumn, toColumn, newIndex }) });
+    const res = await fetch(`/api/projects/${projectSlug()}/board/reorder`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folderName, fromColumn, toColumn, newIndex }) });
     if (res.ok) await revalidate("board-data");
   }
 
-  async function handleCreateTicket(number: string, title: string) { const result = await createTicketAction(slug(), number, title); if (!result.error) revalidate("board-data"); return result; }
-  async function handleEditTicket(folderName: string, number: string, title: string) { const result = await updateTicketAction(slug(), folderName, number, title, null); if (!result.error) revalidate("board-data"); return result; }
-  async function handleArchiveTicket(folderName: string) { const result = await archiveTicketAction(slug(), folderName); if (!result.error) revalidate("board-data"); return result; }
-  async function handleDeleteTicket(folderName: string) { const result = await deleteTicketAction(slug(), folderName); if (!result.error) revalidate("board-data"); return result; }
+  async function handleCreateTicket(number: string, title: string) { const result = await createTicketAction(projectSlug(), number, title); if (!result.error) revalidate("board-data"); return result; }
+  async function handleEditTicket(folderName: string, number: string, title: string) { const result = await updateTicketAction(projectSlug(), folderName, number, title, null); if (!result.error) revalidate("board-data"); return result; }
+  async function handleArchiveTicket(folderName: string) { const result = await archiveTicketAction(projectSlug(), folderName); if (!result.error) revalidate("board-data"); return result; }
+  async function handleDeleteTicket(folderName: string) { const result = await deleteTicketAction(projectSlug(), folderName); if (!result.error) revalidate("board-data"); return result; }
 
   async function handleCleanupSubmit(folderName: string, options: { deleteWorktree: boolean; deleteLocalBranch: boolean; deleteRemoteBranch: boolean }) {
     if (options.deleteWorktree || options.deleteLocalBranch || options.deleteRemoteBranch) {
-      const cleanupResult = await worktreeCleanupAction(slug(), folderName, options);
+      const cleanupResult = await worktreeCleanupAction(projectSlug(), folderName, options);
       if (cleanupResult.error) return cleanupResult;
     }
     const action = cleanupAction();
-    const result = action === "archive" ? await archiveTicketAction(slug(), folderName) : await deleteTicketAction(slug(), folderName);
+    const result = action === "archive" ? await archiveTicketAction(projectSlug(), folderName) : await deleteTicketAction(projectSlug(), folderName);
     if (!result.error) revalidate("board-data");
     return result;
   }
@@ -137,7 +137,7 @@ export default function ProjectPage() {
               <MenuRoot
                 trigger={
                   <MenuTrigger class="ripple btn-secondary">
-                    {d().slug}
+                    {d().projectSlug}
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ml-2"><path d="m6 9 6 6 6-6" /></svg>
                   </MenuTrigger>
                 }
@@ -146,12 +146,12 @@ export default function ProjectPage() {
                   <For each={d().projects}>
                     {(project) => (
                       <MenuItem
-                        value={`project-${project.slug}`}
+                        value={`project-${project.projectSlug}`}
                         disabled={!project.available}
-                        class={project.slug === d().slug ? "font-semibold" : ""}
-                        onClick={() => navigate(`/project/${project.slug}`)}
+                        class={project.projectSlug === d().projectSlug ? "font-semibold" : ""}
+                        onClick={() => navigate(`/project/${project.projectSlug}`)}
                       >
-                        {project.slug}
+                        {project.projectSlug}
                       </MenuItem>
                     )}
                   </For>
@@ -167,7 +167,7 @@ export default function ProjectPage() {
             <Show when={d().projectNotFound}><div class="flex h-64 items-center justify-center"><p class="text-muted-foreground">Project not found</p></div></Show>
             <Show when={d().projectUnavailable}><div class="flex h-64 flex-col items-center justify-center gap-2"><p class="text-lg font-medium">Project unavailable</p><p class="text-sm text-muted-foreground">{d().projectPath}</p></div></Show>
             <Show when={d().error}><div class="flex h-64 flex-col items-center justify-center gap-2"><p class="text-destructive">{d().error}</p><button class="btn-secondary" onClick={() => revalidate("board-data")}>Retry</button></div></Show>
-            <Show when={d().board}>{(board) => (<KanbanBoard board={board()} slug={d().slug} onEdit={handleEdit} onDelete={handleDelete} onArchive={handleArchive} onViewDetail={handleViewDetail} onReorder={handleReorder} />)}</Show>
+            <Show when={d().board}>{(board) => (<KanbanBoard board={board()} projectSlug={d().projectSlug} onEdit={handleEdit} onDelete={handleDelete} onArchive={handleArchive} onViewDetail={handleViewDetail} onReorder={handleReorder} />)}</Show>
           </main>
 
           <CreateTicketDialog open={createTicketOpen()} onOpenChange={setCreateTicketOpen} onSubmit={handleCreateTicket} suggestedNextNumber={d().suggestedNextNumber} />
@@ -175,16 +175,16 @@ export default function ProjectPage() {
           <DeleteTicketDialog open={deleteTicketOpen()} onOpenChange={setDeleteTicketOpen} ticket={selectedTicket()} onSubmit={handleDeleteTicket} />
           <ArchiveTicketDialog open={archiveTicketOpen()} onOpenChange={setArchiveTicketOpen} ticket={selectedTicket()} onSubmit={handleArchiveTicket} />
           <WorktreeCleanupDialog open={cleanupDialogOpen()} onOpenChange={setCleanupDialogOpen} ticket={selectedTicket()} action={cleanupAction()} onSubmit={handleCleanupSubmit} />
-          <TicketDetailDialog onClose={() => setDetailTicket(null)} slug={d().slug} ticket={detailTicket()} />
+          <TicketDetailDialog onClose={() => setDetailTicket(null)} projectSlug={d().projectSlug} ticket={detailTicket()} />
 
           <DialogRoot open={addProjectDialogOpen()} onOpenChange={() => setAddProjectDialogOpen(false)} ref={addProjectDialogRef}>
             <DialogTitle>Add Project</DialogTitle>
             <AddProjectForm action={addProjectAction} onSuccess={(s) => { setAddProjectDialogOpen(false); navigate(`/project/${s}`); }} submitTitle={modEnterHint()} />
           </DialogRoot>
 
-          <ConflictDialog open={conflictDialogOpen()} onOpenChange={setConflictDialogOpen} onResolve={handleConflictResolve} onAbort={handleConflictAbort} slug={d().slug} />
+          <ConflictDialog open={conflictDialogOpen()} onOpenChange={setConflictDialogOpen} onResolve={handleConflictResolve} onAbort={handleConflictAbort} projectSlug={d().projectSlug} />
           <ErrorDialog error={syncError()} onClose={() => setSyncError(null)} />
-          <LauncherSettings open={settingsOpen()} onOpenChange={(open) => { setSettingsOpen(open); if (!open) revalidate("board-data"); }} slug={d().slug} />
+          <LauncherSettings open={settingsOpen()} onOpenChange={(open) => { setSettingsOpen(open); if (!open) revalidate("board-data"); }} projectSlug={d().projectSlug} />
         </div>
       )}
     </Show>

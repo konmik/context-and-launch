@@ -58,7 +58,7 @@ describe("Board CRUD (e2e)", () => {
     // Start with empty board; when create is called, update board data and respond with success
     const board = structuredClone(EMPTY_BOARD);
     mockState.boardData = board;
-    mockState.onCreateTicket = (slug, number, title) => {
+    mockState.onCreateTicket = (_projectSlug, number, title) => {
       const newTicket: TicketInfo = {
         number,
         title,
@@ -93,7 +93,7 @@ describe("Board CRUD (e2e)", () => {
   it("edits a ticket", async () => {
     const board = structuredClone(SEEDED_BOARD);
     mockState.boardData = board;
-    mockState.onUpdateTicket = (_slug, folderName, number, title, _status) => {
+    mockState.onUpdateTicket = (_projectSlug, folderName, number, title, _status) => {
       const ticket = board.board!.tickets.find((t) => t.folderName === folderName);
       if (ticket) {
         if (title !== null) ticket.title = title;
@@ -140,7 +140,7 @@ describe("Board CRUD (e2e)", () => {
   it("deletes a ticket", async () => {
     const board = structuredClone(SEEDED_BOARD);
     mockState.boardData = board;
-    mockState.onDeleteTicket = (_slug, folderName) => {
+    mockState.onDeleteTicket = (_projectSlug, folderName) => {
       const idx = board.board!.tickets.findIndex((t) => t.folderName === folderName);
       if (idx >= 0) {
         const ticket = board.board!.tickets[idx];

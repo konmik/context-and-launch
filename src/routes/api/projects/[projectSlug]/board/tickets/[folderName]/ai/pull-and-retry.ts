@@ -9,8 +9,8 @@ import {
 
 export async function POST({ params, request }: APIEvent) {
   try {
-    const { slug, folderName } = params;
-    const resolved = resolveTicketAndProject(slug, folderName);
+    const { projectSlug, folderName } = params;
+    const resolved = resolveTicketAndProject(projectSlug, folderName);
     if (resolved instanceof Response) return resolved;
     const { ticket, project, worktreeDir } = resolved;
 
@@ -18,7 +18,7 @@ export async function POST({ params, request }: APIEvent) {
 
     const launchRequest = await readLaunchRequest(request);
 
-    const worktreeResult = await agentWorktreeManager.ensureAgentWorktree(project.path, slug, folderName);
+    const worktreeResult = await agentWorktreeManager.ensureAgentWorktree(project.path, projectSlug, folderName);
     if ('dirtyWorktree' in worktreeResult) {
       return Response.json(
         { dirtyWorktree: true, message: "Main branch has uncommitted changes. Launch anyway?" },
@@ -29,7 +29,7 @@ export async function POST({ params, request }: APIEvent) {
       return new Response("Still behind remote after pulling", { status: 500 });
     }
 
-    await launchAgent(slug, ticket, project, worktreeDir, launchRequest, worktreeResult.worktreePath);
+    await launchAgent(projectSlug, ticket, project, worktreeDir, launchRequest, worktreeResult.worktreePath);
     return new Response(null, { status: 200 });
   } catch (e) {
     return Response.json(errorPayload(e), { status: 500 });

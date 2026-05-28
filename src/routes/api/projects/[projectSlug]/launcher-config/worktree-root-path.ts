@@ -4,12 +4,12 @@ import { errorMessage } from "~/server/shared/errors.js";
 
 export async function PUT({ params, request }: APIEvent) {
 	try {
-		const { slug } = params;
-		const body = await request.json();
-		const prompt = typeof body.conflictResolutionPrompt === "string" && body.conflictResolutionPrompt.trim()
-			? body.conflictResolutionPrompt.trim()
+		const { projectSlug } = params;
+		const { worktreeRootPath } = await request.json();
+		const value = typeof worktreeRootPath === "string" && worktreeRootPath.trim()
+			? worktreeRootPath.trim()
 			: undefined;
-		launcherConfigManager.saveConflictResolutionSettings(slug, prompt);
+		launcherConfigManager.saveWorktreeRootPath(projectSlug, value);
 		return new Response(null, { status: 204 });
 	} catch (e) {
 		return Response.json({ error: errorMessage(e) }, { status: 500 });

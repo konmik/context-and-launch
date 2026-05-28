@@ -7,19 +7,19 @@ import { splitCommand } from "~/server/launcher/prompt-interpolation.js";
 
 export async function POST({ params, request }: APIEvent) {
 	try {
-		const { slug, folderName } = params;
-		const resolved = resolveTicketAndProject(slug, folderName);
+		const { projectSlug, folderName } = params;
+		const resolved = resolveTicketAndProject(projectSlug, folderName);
 		if (resolved instanceof Response) return resolved;
 		const { ticket, project, worktreeDir } = resolved;
 
 		const { name, useWorktree, force } = await request.json();
-		const merged = launcherConfigManager.getMergedConfig(slug);
+		const merged = launcherConfigManager.getMergedConfig(projectSlug);
 		const shortcut = merged.shortcuts.find(s => s.name === name);
 		if (!shortcut) {
 			return new Response(`Shortcut "${name}" not found`, { status: 404 });
 		}
 
-		const launchDirResult = await resolveLaunchDir(slug, folderName, useWorktree, project.path, force);
+		const launchDirResult = await resolveLaunchDir(projectSlug, folderName, useWorktree, project.path, force);
 		if (launchDirResult instanceof Response) return launchDirResult;
 		const launchDir = launchDirResult;
 
@@ -31,7 +31,7 @@ export async function POST({ params, request }: APIEvent) {
 			ticketNumber: ticket.number,
 			ticketStatus: ticket.status,
 			projectPath: project.path,
-			projectSlug: slug,
+			projectSlug,
 			launchDir,
 		};
 
