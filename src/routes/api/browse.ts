@@ -1,5 +1,5 @@
-import { openFileDialog } from "~/server/native-file-dialog.js";
-import { errorMessage } from "~/server/errors.js";
+import { openFileDialog } from "~/server/infra/native-file-dialog.js";
+import { errorMessage } from "~/server/shared/errors.js";
 
 export async function POST() {
   try {

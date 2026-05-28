@@ -3,8 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { cascadeClearBoardId } from './board-delete-cascade.js';
-import { ConfigPaths } from './config-paths.js';
-import { LauncherConfigManager } from './launcher-config.js';
+import { ConfigPaths } from '../config/config-paths.js';
+import { LauncherConfigManager } from '../launcher/launcher-config.js';
 import { ProjectRegistry } from './project-registry.js';
 
 function tmpDir(prefix: string): string {

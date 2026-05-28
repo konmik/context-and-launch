@@ -3,7 +3,7 @@ import { Portal } from "solid-js/web";
 import { DialogRoot, DialogTitle, DialogDescription } from "./ui/dialog";
 import MarkdownEditor from "./MarkdownEditor";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
-import type { MergedLauncherConfig } from "~/server/launcher-config.js";
+import type { MergedLauncherConfig } from "~/server/launcher/launcher-config.js";
 
 export type ActiveFile =
   | { type: "context"; name: string }

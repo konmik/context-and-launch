@@ -1,5 +1,5 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { errorPayload } from "~/server/errors.js";
+import { errorPayload } from "~/server/shared/errors.js";
 import {
   resolveTicketAndProject,
   resolveLaunchDir,
@@ -7,7 +7,7 @@ import {
   buildWindowTitle,
   launchAgent,
   windowExists,
-} from "~/server/agent-launch.js";
+} from "~/server/launcher/agent-launch.js";
 
 export async function POST({ params, request }: APIEvent) {
   try {

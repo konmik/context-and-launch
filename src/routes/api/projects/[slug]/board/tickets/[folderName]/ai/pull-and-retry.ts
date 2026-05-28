@@ -1,11 +1,11 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { agentWorktreeManager } from "~/server/instances.js";
-import { errorPayload } from "~/server/errors.js";
+import { agentWorktreeManager } from "~/server/config/instances.js";
+import { errorPayload } from "~/server/shared/errors.js";
 import {
   resolveTicketAndProject,
   readLaunchRequest,
   launchAgent,
-} from "~/server/agent-launch.js";
+} from "~/server/launcher/agent-launch.js";
 
 export async function POST({ params, request }: APIEvent) {
   try {

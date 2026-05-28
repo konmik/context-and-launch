@@ -2,9 +2,9 @@ import { describe, it, expect, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { errorMessage } from './errors.js';
+import { errorMessage } from '../shared/errors.js';
 import { TicketStore } from './ticket-store.js';
-import { git } from './git.js';
+import { git } from '../infra/git.js';
 
 /**
  * Tests that non-JSON request bodies to the context PUT endpoint produce

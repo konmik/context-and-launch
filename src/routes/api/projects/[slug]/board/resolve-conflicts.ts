@@ -1,7 +1,7 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { worktreeManager, launcherConfigManager } from "~/server/instances.js";
-import { errorMessage } from "~/server/errors.js";
-import { spawnProfile } from "~/server/agent-launch.js";
+import { worktreeManager, launcherConfigManager } from "~/server/config/instances.js";
+import { errorMessage } from "~/server/shared/errors.js";
+import { spawnProfile } from "~/server/launcher/agent-launch.js";
 
 export async function POST({ params, request }: APIEvent) {
 	try {

@@ -1,7 +1,7 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { boardConfigManager, projectRegistry, launcherConfigManager } from "~/server/instances.js";
-import { errorMessage } from "~/server/errors.js";
-import { cascadeClearBoardId } from "~/server/board-delete-cascade.js";
+import { boardConfigManager, projectRegistry, launcherConfigManager } from "~/server/config/instances.js";
+import { errorMessage } from "~/server/shared/errors.js";
+import { cascadeClearBoardId } from "~/server/project/board-delete-cascade.js";
 
 export async function PUT({ params, request }: APIEvent) {
 	try {

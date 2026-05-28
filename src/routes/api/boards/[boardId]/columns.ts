@@ -1,6 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { boardConfigManager } from "~/server/instances.js";
-import { errorMessage } from "~/server/errors.js";
+import { boardConfigManager } from "~/server/config/instances.js";
+import { errorMessage } from "~/server/shared/errors.js";
 
 export async function POST({ params, request }: APIEvent) {
 	try {

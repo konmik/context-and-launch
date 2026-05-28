@@ -3,8 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { WorktreeManager } from './worktree-manager.js';
-import { ConfigPaths } from './config-paths.js';
-import { git } from './git.js';
+import { ConfigPaths } from '../config/config-paths.js';
+import { git } from '../infra/git.js';
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));

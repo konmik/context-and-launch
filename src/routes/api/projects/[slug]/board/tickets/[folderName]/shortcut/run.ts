@@ -1,9 +1,9 @@
 import type { APIEvent } from "@solidjs/start/server";
 import path from "path";
-import { launcherConfigManager } from "~/server/instances.js";
-import { errorPayload } from "~/server/errors.js";
-import { resolveTicketAndProject, resolveLaunchDir, spawnDetached } from "~/server/agent-launch.js";
-import { splitCommand } from "~/server/prompt-interpolation.js";
+import { launcherConfigManager } from "~/server/config/instances.js";
+import { errorPayload } from "~/server/shared/errors.js";
+import { resolveTicketAndProject, resolveLaunchDir, spawnDetached } from "~/server/launcher/agent-launch.js";
+import { splitCommand } from "~/server/launcher/prompt-interpolation.js";
 
 export async function POST({ params, request }: APIEvent) {
 	try {

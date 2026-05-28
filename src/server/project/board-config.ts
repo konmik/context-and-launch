@@ -1,5 +1,5 @@
-import type { ConfigPaths } from './config-paths.js';
-import { slugifyColumnName } from '../lib/slugify.js';
+import type { ConfigPaths } from '../config/config-paths.js';
+import { slugifyColumnName } from '../../lib/slugify.js';
 
 export { slugifyColumnName };
 

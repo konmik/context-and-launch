@@ -1,6 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { launcherConfigManager } from "~/server/instances.js";
-import { errorMessage } from "~/server/errors.js";
+import { launcherConfigManager } from "~/server/config/instances.js";
+import { errorMessage } from "~/server/shared/errors.js";
 
 export async function PUT({ request }: APIEvent) {
 	try {

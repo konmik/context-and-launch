@@ -4,8 +4,8 @@ import path from 'path';
 import os from 'os';
 import { execSync, spawn, type ChildProcess } from 'child_process';
 import { AgentWorktreeManager } from './agent-worktree.js';
-import { LauncherConfigManager } from './launcher-config.js';
-import { ConfigPaths } from './config-paths.js';
+import { LauncherConfigManager } from '../launcher/launcher-config.js';
+import { ConfigPaths } from '../config/config-paths.js';
 import { WorktreeCleanupService } from './worktree-cleanup.js';
 
 function tmpDir(prefix: string): string {

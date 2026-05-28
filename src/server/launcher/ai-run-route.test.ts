@@ -2,11 +2,11 @@ import { describe, it, expect, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { WorktreeManager } from './worktree-manager.js';
-import { ConfigPaths } from './config-paths.js';
-import { TicketStore } from './ticket-store.js';
-import { errorMessage } from './errors.js';
-import { escapeBatchTitle } from './batch-escape.js';
+import { WorktreeManager } from '../worktree/worktree-manager.js';
+import { ConfigPaths } from '../config/config-paths.js';
+import { TicketStore } from '../ticket/ticket-store.js';
+import { errorMessage } from '../shared/errors.js';
+import { escapeBatchTitle } from '../shared/batch-escape.js';
 // parseLaunchRequest cannot be imported directly because agent-launch.ts pulls in
 // singleton instances via the ~ alias which vitest cannot resolve without the
 // SvelteKit build pipeline. Instead, replicate the pure function here and verify
@@ -278,11 +278,11 @@ describe('pull-and-retry skips windowExists check (code-inspection)', () => {
 	// agent window for the same ticket.
 
 	const runSource = fs.readFileSync(
-		path.resolve(__dirname, '../routes/api/projects/[slug]/board/tickets/[folderName]/ai/run.ts'),
+		path.resolve(__dirname, '../../routes/api/projects/[slug]/board/tickets/[folderName]/ai/run.ts'),
 		'utf-8'
 	);
 	const pullAndRetrySource = fs.readFileSync(
-		path.resolve(__dirname, '../routes/api/projects/[slug]/board/tickets/[folderName]/ai/pull-and-retry.ts'),
+		path.resolve(__dirname, '../../routes/api/projects/[slug]/board/tickets/[folderName]/ai/pull-and-retry.ts'),
 		'utf-8'
 	);
 
@@ -503,7 +503,7 @@ describe('launchAgent ticketDir vs launchDir separation (code-inspection)', () =
 
 	it('the run route uses resolveLaunchDir and passes worktreeDir and launchDir separately to launchAgent', () => {
 		const runSource = fs.readFileSync(
-			path.resolve(__dirname, '../routes/api/projects/[slug]/board/tickets/[folderName]/ai/run.ts'),
+			path.resolve(__dirname, '../../routes/api/projects/[slug]/board/tickets/[folderName]/ai/run.ts'),
 			'utf-8'
 		);
 		// worktreeDir comes from resolveTicketAndProject destructuring

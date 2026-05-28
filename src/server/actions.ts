@@ -1,8 +1,8 @@
 import { query } from "@solidjs/router";
-import type { ProjectInfo } from "~/server/project-registry.js";
-import type { ColumnDefinition } from "~/server/board-config.js";
-import type { TicketInfo } from "~/server/ticket-store.js";
-import type { TicketOrder } from "~/server/ticket-order.js";
+import type { ProjectInfo } from "~/server/project/project-registry.js";
+import type { ColumnDefinition } from "~/server/project/board-config.js";
+import type { TicketInfo } from "~/server/ticket/ticket-store.js";
+import type { TicketOrder } from "~/server/ticket/ticket-order.js";
 
 export interface BoardState {
   columns: ColumnDefinition[];
@@ -25,16 +25,16 @@ interface BoardPageData {
 
 export const getDefaultSlug = query(async (): Promise<string | null> => {
   "use server";
-  const { projectRegistry } = await import("~/server/instances.js");
+  const { projectRegistry } = await import("~/server/config/instances.js");
   return projectRegistry.getDefaultSlug();
 }, "default-slug");
 
 export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
   "use server";
   const { projectRegistry, boardConfigManager, worktreeManager, fileWatcher, launcherConfigManager, ticketSyncManager } =
-    await import("~/server/instances.js");
-  const { TicketStore } = await import("~/server/ticket-store.js");
-  const { errorMessage } = await import("~/server/errors.js");
+    await import("~/server/config/instances.js");
+  const { TicketStore } = await import("~/server/ticket/ticket-store.js");
+  const { errorMessage } = await import("~/server/shared/errors.js");
 
   projectRegistry.setLastUsed(slug);
   const projects = projectRegistry.listProjects();
@@ -107,8 +107,8 @@ export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
 
 export async function addProjectAction(pathValue: string, branch?: string, worktreeRootPath?: string, ticketsPath?: string) {
   "use server";
-  const { projectRegistry, launcherConfigManager } = await import("~/server/instances.js");
-  const { errorMessage } = await import("~/server/errors.js");
+  const { projectRegistry, launcherConfigManager } = await import("~/server/config/instances.js");
+  const { errorMessage } = await import("~/server/shared/errors.js");
   const fs = await import("node:fs");
   try {
     const project = projectRegistry.addProject(pathValue, undefined, branch, ticketsPath?.trim() || undefined);
@@ -125,8 +125,8 @@ export async function addProjectAction(pathValue: string, branch?: string, workt
 
 export async function previewProjectPaths(pathValue: string) {
   "use server";
-  const { projectRegistry, configPaths } = await import("~/server/instances.js");
-  const { generateSlug } = await import("~/server/project-registry.js");
+  const { projectRegistry, configPaths } = await import("~/server/config/instances.js");
+  const { generateSlug } = await import("~/server/project/project-registry.js");
   const existing = new Set(projectRegistry.listProjects().map((p) => p.slug));
   const slug = generateSlug(pathValue, existing);
   return {
@@ -139,10 +139,10 @@ export async function previewProjectPaths(pathValue: string) {
 export async function createTicketAction(slug: string, number: string, title: string) {
   "use server";
   const { worktreeManager, boardConfigManager, launcherConfigManager } = await import(
-    "~/server/instances.js"
+    "~/server/config/instances.js"
   );
-  const { TicketStore } = await import("~/server/ticket-store.js");
-  const { errorMessage } = await import("~/server/errors.js");
+  const { TicketStore } = await import("~/server/ticket/ticket-store.js");
+  const { errorMessage } = await import("~/server/shared/errors.js");
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(slug);
     const merged = launcherConfigManager.getMergedConfig(slug);
@@ -162,9 +162,9 @@ export async function updateTicketAction(
   status: string | null
 ) {
   "use server";
-  const { worktreeManager } = await import("~/server/instances.js");
-  const { TicketStore } = await import("~/server/ticket-store.js");
-  const { errorMessage } = await import("~/server/errors.js");
+  const { worktreeManager } = await import("~/server/config/instances.js");
+  const { TicketStore } = await import("~/server/ticket/ticket-store.js");
+  const { errorMessage } = await import("~/server/shared/errors.js");
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(slug);
     new TicketStore(worktreeDir).updateTicket(
@@ -181,9 +181,9 @@ export async function updateTicketAction(
 
 export async function archiveTicketAction(slug: string, folderName: string) {
   "use server";
-  const { worktreeManager } = await import("~/server/instances.js");
-  const { TicketStore } = await import("~/server/ticket-store.js");
-  const { errorMessage } = await import("~/server/errors.js");
+  const { worktreeManager } = await import("~/server/config/instances.js");
+  const { TicketStore } = await import("~/server/ticket/ticket-store.js");
+  const { errorMessage } = await import("~/server/shared/errors.js");
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(slug);
     new TicketStore(worktreeDir).archiveTicket(folderName);
@@ -195,9 +195,9 @@ export async function archiveTicketAction(slug: string, folderName: string) {
 
 export async function deleteTicketAction(slug: string, folderName: string) {
   "use server";
-  const { worktreeManager } = await import("~/server/instances.js");
-  const { TicketStore } = await import("~/server/ticket-store.js");
-  const { errorMessage } = await import("~/server/errors.js");
+  const { worktreeManager } = await import("~/server/config/instances.js");
+  const { TicketStore } = await import("~/server/ticket/ticket-store.js");
+  const { errorMessage } = await import("~/server/shared/errors.js");
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(slug);
     new TicketStore(worktreeDir).deleteTicket(folderName);
@@ -214,10 +214,10 @@ export async function worktreeCleanupAction(
 ) {
   "use server";
   const { launcherConfigManager, agentWorktreeManager, projectRegistry } = await import(
-    "~/server/instances.js"
+    "~/server/config/instances.js"
   );
-  const { WorktreeCleanupService } = await import("~/server/worktree-cleanup.js");
-  const { errorPayload } = await import("~/server/errors.js");
+  const { WorktreeCleanupService } = await import("~/server/worktree/worktree-cleanup.js");
+  const { errorPayload } = await import("~/server/shared/errors.js");
   try {
     const merged = launcherConfigManager.getMergedConfig(slug);
     if (!merged.worktreeRootPath) {

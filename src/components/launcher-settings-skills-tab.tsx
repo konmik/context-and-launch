@@ -1,7 +1,7 @@
 import { Show, For } from "solid-js";
 import { DragDropProvider, DragDropSensors, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd";
 import { TabsContent } from "./ui/tabs";
-import type { MergedLauncherConfig } from "~/server/launcher-config.js";
+import type { MergedLauncherConfig } from "~/server/launcher/launcher-config.js";
 import { NameDragOverlay } from "./dnd-shared.js";
 import type { ListReorder } from "./list-reorder.js";
 import { SortableSkillRow, SkillDropPreview, type MergedSkill } from "./launcher-settings-rows.js";

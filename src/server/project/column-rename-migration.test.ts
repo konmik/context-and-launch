@@ -3,10 +3,10 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { migrateColumnRename } from './column-rename-migration.js';
-import { ConfigPaths } from './config-paths.js';
-import { LauncherConfigManager } from './launcher-config.js';
+import { ConfigPaths } from '../config/config-paths.js';
+import { LauncherConfigManager } from '../launcher/launcher-config.js';
 import { ProjectRegistry } from './project-registry.js';
-import { WorktreeManager } from './worktree-manager.js';
+import { WorktreeManager } from '../worktree/worktree-manager.js';
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));

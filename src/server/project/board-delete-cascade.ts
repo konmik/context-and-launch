@@ -1,5 +1,5 @@
 import type { ProjectRegistry } from './project-registry.js';
-import type { LauncherConfigManager } from './launcher-config.js';
+import type { LauncherConfigManager } from '../launcher/launcher-config.js';
 
 /**
  * After deleting a board, clear boardId from any project launcher config

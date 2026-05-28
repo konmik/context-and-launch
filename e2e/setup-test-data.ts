@@ -1,8 +1,8 @@
 // All test data is defined as plain JavaScript objects.
 // No fs, path, os, or memfs imports -- purely in-memory mock data.
 
-import type { TicketInfo } from "~/server/ticket-store.js";
-import type { ColumnDefinition, BoardDefinition } from "~/server/board-config.js";
+import type { TicketInfo } from "~/server/ticket/ticket-store.js";
+import type { ColumnDefinition, BoardDefinition } from "~/server/project/board-config.js";
 import type { BoardState } from "~/server/actions.js";
 export type { TicketInfo, ColumnDefinition, BoardDefinition, BoardState };
 

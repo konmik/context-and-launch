@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
-import type { MergedLauncherConfig } from "~/server/launcher-config.js";
+import type { MergedLauncherConfig } from "~/server/launcher/launcher-config.js";
 
 describe("LauncherSettings name placeholder adapts to itemType", () => {
 	const source = fs.readFileSync(
