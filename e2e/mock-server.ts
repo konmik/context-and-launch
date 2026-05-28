@@ -16,7 +16,6 @@ const LOAD_BOARD_ID = "src_server_actions_ts--loadBoard_query";
 const CREATE_TICKET_ID = "src_server_actions_ts--createTicketAction_1";
 const UPDATE_TICKET_ID = "src_server_actions_ts--updateTicketAction_1";
 const DELETE_TICKET_ID = "src_server_actions_ts--deleteTicketAction_1";
-const ADD_PROJECT_ID = "src_server_actions_ts--addProjectAction_1";
 const GET_DEFAULT_SLUG_ID = "src_server_actions_ts--getDefaultSlug_query";
 
 const MIME_TYPES: Record<string, string> = {
@@ -176,7 +175,6 @@ export interface MockServerState {
   onCreateTicket?: (slug: string, number: string, title: string) => { success: true } | { error: string };
   onUpdateTicket?: (slug: string, folderName: string, number: string | null, title: string | null, status: string | null) => { success: true } | { error: string };
   onDeleteTicket?: (slug: string, folderName: string) => { success: true } | { error: string };
-  onAddProject?: (path: string, branch: string) => { slug?: string; error?: string };
   onReorderTicket?: (slug: string, folderName: string, fromColumn: string, toColumn: string, newIndex: number) => { success: true } | { error: string };
   onSync?: (slug: string) => { status: "success" } | { status: "conflict" } | { status: "error"; message: string };
   onSyncAbort?: (slug: string) => { success: true } | { error: string };
@@ -877,11 +875,6 @@ function handlePostMutation(
       if (state.onDeleteTicket) {
         const [slug, folderName] = args as [string, string];
         responseData = state.onDeleteTicket(slug, folderName);
-      }
-    } else if (fnId.includes(ADD_PROJECT_ID)) {
-      if (state.onAddProject) {
-        const [path, branch] = args as [string, string];
-        responseData = state.onAddProject(path, branch);
       }
     }
   } catch (err) {

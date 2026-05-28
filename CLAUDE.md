@@ -10,7 +10,8 @@ Run dev server: `npm run dev`.
 Run all tests: `npm run test:all` (tsc + unit + build + e2e). Never skip e2e.
 There cannot be any pre-existing errors. All tests pass before and after merging. If there is an error, fix it immediately, do not leave it for later.
 Write UI tests with playwright.
-When writing e2e, mock file system and process calls only, use playwright for UI.
+e2e tests run the real server against a sandboxed CONTEXT_LAUNCH_DATA_DIR temp dir and a scratch git repo, drive the UI with playwright, and assert on real side effects (config.json contents, git branches/worktrees). Use the e2e/real-server.ts harness. Never stub the app's own server functions; mock only true external boundaries.
+e2e/mock-server.ts is a fixture for pure-UI rendering tests that need no real backend behavior.
 We are using only TypeScript, do not check for types randomly, do not write incorrect-type tests.
 Avoid non-ASCII unless explicitly asked.
 Do not use z-index (Tailwind z-* classes). Use Portal from solid-js/web for stacking.
