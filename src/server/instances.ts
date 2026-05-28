@@ -7,7 +7,7 @@ import { LauncherConfigManager } from './launcher-config.js';
 import { AgentWorktreeManager } from './agent-worktree.js';
 import { TicketSyncManager } from './ticket-sync.js';
 
-const configPaths = new ConfigPaths(process.env.CONTEXT_LAUNCH_DATA_DIR || undefined);
+export const configPaths = new ConfigPaths(process.env.CONTEXT_LAUNCH_DATA_DIR || undefined);
 
 export const projectRegistry = new ProjectRegistry(configPaths);
 export const boardConfigManager = new BoardConfigManager(configPaths);
