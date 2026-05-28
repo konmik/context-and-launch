@@ -8,8 +8,8 @@
     "st-0007-edit-columns"
   ],
   "in-progress": [],
-  "review": [],
-  "done": [
+  "review": [
     "st-0009-ticket-branch-conflict-resolution"
-  ]
+  ],
+  "done": []
 }
