@@ -526,6 +526,22 @@ describe('ProjectRegistry', () => {
 		expect(registry.listProjects()).toHaveLength(0);
 	});
 
+	it('addProject stores ticketsPath, getTicketsPath returns it, and rename preserves it', () => {
+		const configDir = tmpDir('registry-config-');
+		const projectDir = tmpDir('registry-project-');
+		dirs.push(configDir, projectDir);
+
+		fs.mkdirSync(path.join(projectDir, '.git'));
+		const registry = new ProjectRegistry(new ConfigPaths(configDir));
+		const info = registry.addProject(projectDir, 'tix-proj', 'tickets', 'D:\\my-tickets');
+		expect(info.ticketsPath).toBe('D:\\my-tickets');
+		expect(registry.getTicketsPath('tix-proj')).toBe('D:\\my-tickets');
+
+		const updated = registry.updateProject('tix-proj', undefined, 'renamed');
+		expect(updated.ticketsPath).toBe('D:\\my-tickets');
+		expect(registry.getTicketsPath('renamed')).toBe('D:\\my-tickets');
+	});
+
 	it('updateProject preserves the branch field across rename', () => {
 		const configDir = tmpDir('registry-config-');
 		const projectDir = tmpDir('registry-project-');

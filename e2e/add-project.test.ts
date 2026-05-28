@@ -59,40 +59,26 @@ describe("Add project welcome screen (sandboxed e2e)", () => {
     expect(await input.inputValue()).toBe("work-items");
   }, 30000);
 
-  it("shows ticket/worktree locations and persists the branch + worktree root", async () => {
+  it("prefills tickets/worktree folders and persists branch + both folders", async () => {
     await page.goto(`${server.baseUrl}/add-project`);
     await page.waitForSelector("#project-branch", { state: "visible", timeout: 10000 });
 
     await page.fill("#project-path", repoDir);
 
-    const tickets = await page.waitForSelector('[data-testid="tickets-location"]', {
-      state: "visible",
-      timeout: 10000,
-    });
-    const ticketsText = ((await tickets.textContent()) ?? "").trim();
-    expect(ticketsText).toContain(dataDir);
-    expect(ticketsText.endsWith("tickets")).toBe(true);
-
-    const defaultWorktrees = ((await page.textContent('[data-testid="worktrees-location"]')) ?? "").trim();
-    expect(defaultWorktrees).toContain(dataDir);
-    expect(defaultWorktrees.endsWith("worktrees")).toBe(true);
-
     await page.waitForFunction(
-      (expected) =>
-        (document.querySelector("#project-worktree-root") as HTMLInputElement | null)?.value === expected,
-      defaultWorktrees,
-      { timeout: 5000 },
+      (dir) => {
+        const t = (document.querySelector("#project-tickets-root") as HTMLInputElement | null)?.value ?? "";
+        const w = (document.querySelector("#project-worktree-root") as HTMLInputElement | null)?.value ?? "";
+        return t.includes(dir) && t.endsWith("tickets") && w.includes(dir) && w.endsWith("worktrees");
+      },
+      dataDir,
+      { timeout: 10000 },
     );
 
-    const customRoot = path.join(dataDir, "custom-worktrees");
-    await page.fill("#project-worktree-root", customRoot);
-    await page.waitForFunction(
-      (expected) =>
-        document.querySelector('[data-testid="worktrees-location"]')?.textContent?.trim() === expected,
-      customRoot,
-      { timeout: 5000 },
-    );
-
+    const customTickets = path.join(dataDir, "custom-tickets");
+    const customWorktrees = path.join(dataDir, "custom-worktrees");
+    await page.fill("#project-tickets-root", customTickets);
+    await page.fill("#project-worktree-root", customWorktrees);
     await page.fill("#project-branch", "work-items");
     await page.click('button[type="submit"]');
 
@@ -104,11 +90,12 @@ describe("Add project welcome screen (sandboxed e2e)", () => {
     expect(config.projects).toHaveLength(1);
     const slug: string = config.projects[0].slug;
     expect(config.projects[0].branch).toBe("work-items");
+    expect(config.projects[0].ticketsPath).toBe(customTickets);
 
     const launcher = JSON.parse(
       fs.readFileSync(path.join(dataDir, "projects", slug, "config", "launcher-config.json"), "utf-8"),
     );
-    expect(launcher.worktreeRootPath).toBe(customRoot);
+    expect(launcher.worktreeRootPath).toBe(customWorktrees);
 
     const orphan = execSync('git branch --list "work-items"', {
       cwd: repoDir,
@@ -116,9 +103,8 @@ describe("Add project welcome screen (sandboxed e2e)", () => {
     });
     expect(orphan.trim()).toContain("work-items");
 
-    const worktreeDir = path.join(dataDir, "projects", slug, "tickets");
     const head = execSync("git rev-parse --abbrev-ref HEAD", {
-      cwd: worktreeDir,
+      cwd: customTickets,
       encoding: "utf-8",
     }).trim();
     expect(head).toBe("work-items");

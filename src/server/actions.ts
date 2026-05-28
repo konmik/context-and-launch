@@ -105,12 +105,12 @@ export const loadBoard = query(async (slug: string): Promise<BoardPageData> => {
   }
 }, "board-data");
 
-export async function addProjectAction(pathValue: string, branch?: string, worktreeRootPath?: string) {
+export async function addProjectAction(pathValue: string, branch?: string, worktreeRootPath?: string, ticketsPath?: string) {
   "use server";
   const { projectRegistry, launcherConfigManager } = await import("~/server/instances.js");
   const { errorMessage } = await import("~/server/errors.js");
   try {
-    const project = projectRegistry.addProject(pathValue, undefined, branch);
+    const project = projectRegistry.addProject(pathValue, undefined, branch, ticketsPath?.trim() || undefined);
     const trimmedRoot = worktreeRootPath?.trim();
     if (trimmedRoot) {
       launcherConfigManager.saveWorktreeRootPath(project.slug, trimmedRoot);

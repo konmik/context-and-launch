@@ -7,12 +7,14 @@ export interface ProjectInfo {
 	slug: string;
 	available: boolean;
 	branch?: string;
+	ticketsPath?: string;
 }
 
 export interface ProjectEntry {
 	path: string;
 	slug: string;
 	branch?: string;
+	ticketsPath?: string;
 }
 
 export interface ProjectConfig {
@@ -143,11 +145,16 @@ export class ProjectRegistry {
 			path: entry.path,
 			slug: entry.slug,
 			available: isGitRepo(entry.path),
-			branch: entry.branch
+			branch: entry.branch,
+			ticketsPath: entry.ticketsPath
 		}));
 	}
 
-	addProject(projectPath: string, slug?: string, branch?: string): ProjectInfo {
+	getTicketsPath(slug: string): string | undefined {
+		return this.load().projects.find((p) => p.slug === slug)?.ticketsPath;
+	}
+
+	addProject(projectPath: string, slug?: string, branch?: string, ticketsPath?: string): ProjectInfo {
 		if (!fs.existsSync(projectPath)) {
 			throw new Error(`Path does not exist: ${projectPath}`);
 		}
@@ -179,13 +186,14 @@ export class ProjectRegistry {
 
 		const entry: ProjectEntry = { path: canonicalPath, slug: finalSlug };
 		if (branch !== undefined) entry.branch = branch;
+		if (ticketsPath !== undefined) entry.ticketsPath = ticketsPath;
 		this.save({
 			...config,
 			projects: [...config.projects, entry],
 			lastUsedSlug: finalSlug
 		});
 
-		return { path: entry.path, slug: entry.slug, available: true, branch: entry.branch };
+		return { path: entry.path, slug: entry.slug, available: true, branch: entry.branch, ticketsPath: entry.ticketsPath };
 	}
 
 	updateProject(slug: string, newPath?: string, newSlug?: string): ProjectInfo {
@@ -215,7 +223,8 @@ export class ProjectRegistry {
 			path: updatedPath,
 			slug: updatedSlug,
 			available: isGitRepo(updatedPath),
-			branch: updated.branch
+			branch: updated.branch,
+			ticketsPath: updated.ticketsPath
 		};
 	}
 
