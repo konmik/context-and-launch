@@ -109,10 +109,12 @@ export async function addProjectAction(pathValue: string, branch?: string, workt
   "use server";
   const { projectRegistry, launcherConfigManager } = await import("~/server/instances.js");
   const { errorMessage } = await import("~/server/errors.js");
+  const fs = await import("node:fs");
   try {
     const project = projectRegistry.addProject(pathValue, undefined, branch, ticketsPath?.trim() || undefined);
     const trimmedRoot = worktreeRootPath?.trim();
     if (trimmedRoot) {
+      fs.mkdirSync(trimmedRoot, { recursive: true });
       launcherConfigManager.saveWorktreeRootPath(project.slug, trimmedRoot);
     }
     return { slug: project.slug };
