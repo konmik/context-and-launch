@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { TicketStore, toKebabCase } from './ticket-store.js';
-import { git, gitSync } from './git.js';
+import { git, gitSync } from '../infra/git.js';
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));

@@ -3,8 +3,8 @@ import { render, screen, cleanup } from "@solidjs/testing-library";
 import { createSignal } from "solid-js";
 import KanbanBoard from "./KanbanBoard";
 import type { BoardState } from "~/server/actions.js";
-import type { TicketInfo } from "~/server/ticket-store.js";
-import type { ColumnDefinition } from "~/server/board-config.js";
+import type { TicketInfo } from "~/server/ticket/ticket-store.js";
+import type { ColumnDefinition } from "~/server/project/board-config.js";
 
 afterEach(() => cleanup());
 

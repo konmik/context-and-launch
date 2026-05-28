@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { ProcessError } from './errors.js';
-import { git } from './git.js';
+import { ProcessError } from '../shared/errors.js';
+import { git } from '../infra/git.js';
 
 export type SyncResult =
 	| { status: 'success' }

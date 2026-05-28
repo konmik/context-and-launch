@@ -1,8 +1,8 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { worktreeManager } from "~/server/instances.js";
-import { TicketStore } from "~/server/ticket-store.js";
-import { getMimeType } from "~/server/mime-types.js";
-import { errorMessage } from "~/server/errors.js";
+import { worktreeManager } from "~/server/config/instances.js";
+import { TicketStore } from "~/server/ticket/ticket-store.js";
+import { getMimeType } from "~/server/shared/mime-types.js";
+import { errorMessage } from "~/server/shared/errors.js";
 
 export async function GET({ params, request }: APIEvent) {
   try {

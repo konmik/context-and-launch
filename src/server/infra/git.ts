@@ -1,5 +1,5 @@
 import { exec, execSync } from 'child_process';
-import { ProcessError } from './errors.js';
+import { ProcessError } from '../shared/errors.js';
 
 function escapeArgs(args: string[]): string {
 	return args.map((a) => `"${a.replace(/"/g, '\\"')}"`).join(' ');

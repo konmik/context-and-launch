@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { git } from './git.js';
-import type { ConfigPaths } from './config-paths.js';
+import { git } from '../infra/git.js';
+import type { ConfigPaths } from '../config/config-paths.js';
 
 export class WorktreeManager {
 	private paths: ConfigPaths;

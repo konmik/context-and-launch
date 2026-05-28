@@ -1,11 +1,11 @@
 import { ConfigPaths } from './config-paths.js';
-import { ProjectRegistry } from './project-registry.js';
-import { BoardConfigManager } from './board-config.js';
-import { WorktreeManager } from './worktree-manager.js';
-import { FileWatcher } from './file-watcher.js';
-import { LauncherConfigManager } from './launcher-config.js';
-import { AgentWorktreeManager } from './agent-worktree.js';
-import { TicketSyncManager } from './ticket-sync.js';
+import { ProjectRegistry } from '../project/project-registry.js';
+import { BoardConfigManager } from '../project/board-config.js';
+import { WorktreeManager } from '../worktree/worktree-manager.js';
+import { FileWatcher } from '../infra/file-watcher.js';
+import { LauncherConfigManager } from '../launcher/launcher-config.js';
+import { AgentWorktreeManager } from '../worktree/agent-worktree.js';
+import { TicketSyncManager } from '../ticket/ticket-sync.js';
 
 export const configPaths = new ConfigPaths(process.env.CONTEXT_LAUNCH_DATA_DIR || undefined);
 

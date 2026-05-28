@@ -1,6 +1,6 @@
 import { createSignal, createEffect, Show } from "solid-js";
 import { DialogRoot, DialogTitle } from "./ui/dialog";
-import type { TicketInfo } from "~/server/ticket-store.js";
+import type { TicketInfo } from "~/server/ticket/ticket-store.js";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 
 interface EditTicketDialogProps {

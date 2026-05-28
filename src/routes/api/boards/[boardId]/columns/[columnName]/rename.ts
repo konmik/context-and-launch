@@ -1,7 +1,7 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { boardConfigManager, projectRegistry, launcherConfigManager, worktreeManager } from "~/server/instances.js";
-import { migrateColumnRename, type MigrationScope } from "~/server/column-rename-migration.js";
-import { errorMessage } from "~/server/errors.js";
+import { boardConfigManager, projectRegistry, launcherConfigManager, worktreeManager } from "~/server/config/instances.js";
+import { migrateColumnRename, type MigrationScope } from "~/server/project/column-rename-migration.js";
+import { errorMessage } from "~/server/shared/errors.js";
 
 export async function POST({ params, request }: APIEvent) {
 	try {

@@ -1,6 +1,6 @@
 import { Show } from "solid-js";
 import { DialogRoot, DialogTitle } from "./ui/dialog";
-import type { ErrorInfo } from "~/server/errors.js";
+import type { ErrorInfo } from "~/server/shared/errors.js";
 
 interface ErrorDialogProps {
   error: ErrorInfo | null;

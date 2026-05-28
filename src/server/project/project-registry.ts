@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import type { ConfigPaths } from './config-paths.js';
+import type { ConfigPaths } from '../config/config-paths.js';
 
 export interface ProjectInfo {
 	path: string;

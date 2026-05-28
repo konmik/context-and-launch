@@ -1,12 +1,12 @@
 import { spawn, execFile } from "child_process";
 import path from "path";
-import { worktreeManager, projectRegistry, launcherConfigManager, agentWorktreeManager } from "~/server/instances.js";
-import { TicketStore } from "~/server/ticket-store.js";
-import { ProcessError } from "~/server/errors.js";
-import { assemblePrompt, interpolatePrompt, splitCommand } from "~/server/prompt-interpolation.js";
-import type { TicketInfo } from "~/server/ticket-store.js";
-import type { ProjectInfo } from "~/server/project-registry.js";
-import type { LauncherProfile } from "~/server/launcher-config.js";
+import { worktreeManager, projectRegistry, launcherConfigManager, agentWorktreeManager } from "~/server/config/instances.js";
+import { TicketStore } from "~/server/ticket/ticket-store.js";
+import { ProcessError } from "~/server/shared/errors.js";
+import { assemblePrompt, interpolatePrompt, splitCommand } from "~/server/launcher/prompt-interpolation.js";
+import type { TicketInfo } from "~/server/ticket/ticket-store.js";
+import type { ProjectInfo } from "~/server/project/project-registry.js";
+import type { LauncherProfile } from "~/server/launcher/launcher-config.js";
 
 const TITLE_SUFFIX = " -- AI";
 const FALLBACK_PROMPT = "Current ticket files are in {{ticketDir}}. Read the files there for context.";

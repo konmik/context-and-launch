@@ -1,5 +1,5 @@
 import { ShortcutsTab, TAB_PANE_CLASS } from "./ticket-detail-parts.js";
-import type { MergedLauncherConfig } from "~/server/launcher-config.js";
+import type { MergedLauncherConfig } from "~/server/launcher/launcher-config.js";
 
 export function ShortcutsTabPane(props: {
   config: MergedLauncherConfig | null;

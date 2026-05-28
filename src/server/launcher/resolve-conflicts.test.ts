@@ -1,17 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("~/server/instances.js", () => ({
+vi.mock("~/server/config/instances.js", () => ({
 	worktreeManager: { getWorktreeDir: vi.fn().mockReturnValue("/fake/worktree") },
 	launcherConfigManager: { getMergedConfig: vi.fn(), getAppConfigDir: vi.fn().mockReturnValue("/fake/config") },
 }));
-vi.mock("~/server/agent-launch.js", () => ({
+vi.mock("~/server/launcher/agent-launch.js", () => ({
 	spawnProfile: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { POST } from "~/routes/api/projects/[slug]/board/resolve-conflicts.js";
-import { launcherConfigManager } from "~/server/instances.js";
-import { spawnProfile } from "~/server/agent-launch.js";
-import type { MergedLauncherConfig, LauncherProfile } from "~/server/launcher-config.js";
+import { launcherConfigManager } from "~/server/config/instances.js";
+import { spawnProfile } from "~/server/launcher/agent-launch.js";
+import type { MergedLauncherConfig, LauncherProfile } from "~/server/launcher/launcher-config.js";
 
 function makeMerged(overrides: Partial<MergedLauncherConfig> & { profiles: (LauncherProfile & { scope: "app" | "project" })[] }): MergedLauncherConfig {
 	return {

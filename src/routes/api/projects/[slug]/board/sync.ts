@@ -1,6 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { worktreeManager, ticketSyncManager } from "~/server/instances.js";
-import { errorMessage } from "~/server/errors.js";
+import { worktreeManager, ticketSyncManager } from "~/server/config/instances.js";
+import { errorMessage } from "~/server/shared/errors.js";
 
 export async function POST({ params }: APIEvent) {
 	try {

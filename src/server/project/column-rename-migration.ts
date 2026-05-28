@@ -1,7 +1,7 @@
 import type { ProjectRegistry } from './project-registry.js';
-import type { LauncherConfigManager } from './launcher-config.js';
-import type { WorktreeManager } from './worktree-manager.js';
-import { TicketStore } from './ticket-store.js';
+import type { LauncherConfigManager } from '../launcher/launcher-config.js';
+import type { WorktreeManager } from '../worktree/worktree-manager.js';
+import { TicketStore } from '../ticket/ticket-store.js';
 import { DEFAULT_BOARD_ID } from './board-config.js';
 
 export type MigrationScope = 'all' | 'current' | 'none';

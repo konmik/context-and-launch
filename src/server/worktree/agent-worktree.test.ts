@@ -4,9 +4,9 @@ import path from 'path';
 import os from 'os';
 import { execSync, spawn, type ChildProcess } from 'child_process';
 import { AgentWorktreeManager } from './agent-worktree.js';
-import { LauncherConfigManager } from './launcher-config.js';
-import { ConfigPaths } from './config-paths.js';
-import * as gitModule from './git.js';
+import { LauncherConfigManager } from '../launcher/launcher-config.js';
+import { ConfigPaths } from '../config/config-paths.js';
+import * as gitModule from '../infra/git.js';
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -692,7 +692,7 @@ describe('AgentWorktreeManager', () => {
 
 			// 4. In pull-and-retry.ts, this error reaches errorMessage(e) on line 35,
 			//    which extracts e.message. Verify errorMessage produces the full details.
-			const { errorMessage } = await import('./errors.js');
+			const { errorMessage } = await import('../shared/errors.js');
 			const responseBody = errorMessage(caughtError);
 			expect(responseBody).toContain('Failed to pull main branch');
 			expect(responseBody).toContain('src/important-file.ts');

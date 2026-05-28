@@ -1,6 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { spawn } from "child_process";
-import { launcherConfigManager, worktreeManager } from "~/server/instances.js";
+import { launcherConfigManager, worktreeManager } from "~/server/config/instances.js";
 
 export async function POST({ request }: APIEvent) {
   let body: { scope: string; slug?: string };

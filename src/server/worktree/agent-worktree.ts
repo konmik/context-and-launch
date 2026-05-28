@@ -1,9 +1,9 @@
 import { rename } from 'fs/promises';
 import { exec } from 'child_process';
-import { git } from './git.js';
-import { ProcessError } from './errors.js';
-import type { LauncherConfigManager } from './launcher-config.js';
-import type { ConfigPaths } from './config-paths.js';
+import { git } from '../infra/git.js';
+import { ProcessError } from '../shared/errors.js';
+import type { LauncherConfigManager } from '../launcher/launcher-config.js';
+import type { ConfigPaths } from '../config/config-paths.js';
 
 export interface WorktreeResult {
 	worktreePath: string;

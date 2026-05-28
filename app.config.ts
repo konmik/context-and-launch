@@ -27,7 +27,7 @@ export default defineConfig({
 }).addRouter({
   name: "ws",
   type: "http",
-  handler: "./src/server/ws.ts",
+  handler: "./src/server/infra/ws.ts",
   target: "server",
   base: "/api/heartbeat",
 });

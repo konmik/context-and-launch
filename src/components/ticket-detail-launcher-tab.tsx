@@ -1,7 +1,7 @@
 import AgentLauncher from "./AgentLauncher";
 import { TAB_PANE_CLASS } from "./ticket-detail-parts.js";
-import type { TicketInfo } from "~/server/ticket-store.js";
-import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/server/launcher-config.js";
+import type { TicketInfo } from "~/server/ticket/ticket-store.js";
+import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/server/launcher/launcher-config.js";
 
 export function LauncherTab(props: {
   slug: string;

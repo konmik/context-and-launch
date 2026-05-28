@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { FileWatcher } from './file-watcher.js';
-import { TicketStore } from './ticket-store.js';
+import { TicketStore } from '../ticket/ticket-store.js';
 import { git, gitSync } from './git.js';
 
 function tmpDir(prefix: string): string {

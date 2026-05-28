@@ -1,6 +1,6 @@
 import fs from 'fs';
 import { RUN_AGENT_PS1, RUN_AGENT_SH } from './platform-scripts.js';
-import type { ConfigPaths } from './config-paths.js';
+import type { ConfigPaths } from '../config/config-paths.js';
 
 export interface LauncherTemplate {
 	name: string;
