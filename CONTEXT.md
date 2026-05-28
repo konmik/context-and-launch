@@ -50,7 +50,7 @@ Avoid: orphan column, missing column
 ### Git Infrastructure
 
 Worktree:
-A git worktree checked out at `~/.context-launch/projects/{slug}/tickets/` from the project repo's orphan branch. All ticket folders live here.
+A git worktree checked out from the project repo's orphan branch, holding all ticket folders. Defaults to `~/.context-launch/projects/{slug}/tickets/`; the location is chosen per project on the welcome screen and stored as `ticketsPath` in the Project Registry.
 Avoid: checkout, workspace
 
 Orphan Branch:

@@ -5,10 +5,16 @@ import type { ConfigPaths } from './config-paths.js';
 
 export class WorktreeManager {
 	private paths: ConfigPaths;
+	private ticketsDirResolver?: (slug: string) => string | undefined;
 	private locks = new Map<string, Promise<unknown>>();
 
-	constructor(paths: ConfigPaths) {
+	constructor(paths: ConfigPaths, ticketsDirResolver?: (slug: string) => string | undefined) {
 		this.paths = paths;
+		this.ticketsDirResolver = ticketsDirResolver;
+	}
+
+	private resolveTicketsDir(slug: string): string {
+		return this.ticketsDirResolver?.(slug) || this.paths.ticketWorktreeDir(slug);
 	}
 
 	async ensureWorktree(projectPath: string, slug: string, branch = 'tickets'): Promise<string> {
@@ -31,7 +37,7 @@ export class WorktreeManager {
 	}
 
 	private async doEnsureWorktree(projectPath: string, slug: string, branch: string): Promise<string> {
-		const worktreeDir = this.paths.ticketWorktreeDir(slug);
+		const worktreeDir = this.resolveTicketsDir(slug);
 
 		if (fs.existsSync(worktreeDir) && this.isValidWorktree(worktreeDir)) {
 			return worktreeDir;
@@ -42,7 +48,7 @@ export class WorktreeManager {
 			await git(projectPath, 'worktree', 'prune');
 		}
 
-		fs.mkdirSync(this.paths.projectDir(slug), { recursive: true });
+		fs.mkdirSync(path.dirname(worktreeDir), { recursive: true });
 
 		const localList = await git(projectPath, 'branch', '--list', branch);
 		if (localList.trim().length > 0) {
@@ -73,7 +79,7 @@ export class WorktreeManager {
 	}
 
 	getWorktreeDir(slug: string): string {
-		return this.paths.ticketWorktreeDir(slug);
+		return this.resolveTicketsDir(slug);
 	}
 
 	private isValidWorktree(dir: string): boolean {

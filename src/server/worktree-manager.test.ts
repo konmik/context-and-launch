@@ -79,6 +79,27 @@ describe('WorktreeManager', () => {
 		expect(branch).toBe('tickets');
 	});
 
+	it('creates the worktree at the resolver-provided tickets dir', async () => {
+		const configDir = tmpDir('wt-config-');
+		const projectDir = tmpDir('wt-project-');
+		const customParent = tmpDir('wt-tickets-');
+		const customDir = path.join(customParent, 'tix');
+		dirs.push(configDir, projectDir, customParent);
+
+		await git(projectDir, 'init');
+		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
+
+		const manager = new WorktreeManager(new ConfigPaths(configDir), () => customDir);
+		expect(manager.getWorktreeDir('any-slug')).toBe(customDir);
+
+		const worktreeDir = await manager.ensureWorktree(projectDir, 'any-slug', 'tickets');
+		worktreeCleanups.push([projectDir, worktreeDir]);
+		expect(worktreeDir).toBe(customDir);
+		expect(fs.existsSync(path.join(customDir, '.git'))).toBe(true);
+		const head = (await git(customDir, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
+		expect(head).toBe('tickets');
+	});
+
 	it('adopts an existing remote branch matching the chosen name', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
