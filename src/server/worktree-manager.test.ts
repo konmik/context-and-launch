@@ -56,8 +56,8 @@ describe('WorktreeManager', () => {
 		expect(fs.existsSync(worktreeDir)).toBe(true);
 		expect(fs.existsSync(path.join(worktreeDir, '.git'))).toBe(true);
 
-		const branches = await git(projectDir, 'branch', '--list', 'context-launch');
-		expect(branches).toContain('context-launch');
+		const branches = await git(projectDir, 'branch', '--list', 'tickets');
+		expect(branches).toContain('tickets');
 
 		const files = fs.readdirSync(worktreeDir).filter((f) => !f.startsWith('.'));
 		expect(files.length).toBe(0);
@@ -75,14 +75,8 @@ describe('WorktreeManager', () => {
 		const worktreeDir = await manager.ensureWorktree(projectDir, 'custom-slug', 'tickets');
 		worktreeCleanups.push([projectDir, worktreeDir]);
 
-		const orphan = await git(projectDir, 'branch', '--list', 'tickets');
-		expect(orphan).toContain('tickets');
-
 		const branch = (await git(worktreeDir, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
-		expect(branch).toBe('tickets--custom-slug');
-
-		const legacy = await git(projectDir, 'branch', '--list', 'context-launch');
-		expect(legacy.trim()).toBe('');
+		expect(branch).toBe('tickets');
 	});
 
 	it('second call is idempotent', async () => {
@@ -145,7 +139,7 @@ describe('WorktreeManager', () => {
 		expect(currentCommit).toBe(commitHash);
 	});
 
-	it('two slugs for same project create separate worktrees', async () => {
+	it('a single repo shares one ticket branch, so a second slug conflicts clearly', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		dirs.push(configDir, projectDir);
@@ -154,19 +148,33 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
 		const manager = new WorktreeManager(new ConfigPaths(configDir));
-		const [wtA, wtB] = await Promise.all([
-			manager.ensureWorktree(projectDir, 'race-slug-a'),
-			manager.ensureWorktree(projectDir, 'race-slug-b')
+		const results = await Promise.allSettled([
+			manager.ensureWorktree(projectDir, 'slug-a'),
+			manager.ensureWorktree(projectDir, 'slug-b')
 		]);
-		worktreeCleanups.push([projectDir, wtA], [projectDir, wtB]);
 
-		expect(fs.existsSync(wtA)).toBe(true);
-		expect(fs.existsSync(wtB)).toBe(true);
-		expect(fs.existsSync(path.join(wtA, '.git'))).toBe(true);
-		expect(fs.existsSync(path.join(wtB, '.git'))).toBe(true);
+		const fulfilled = results.filter(
+			(r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled'
+		);
+		const rejected = results.filter(
+			(r): r is PromiseRejectedResult => r.status === 'rejected'
+		);
 
-		const branches = await git(projectDir, 'branch', '--list', 'context-launch');
-		expect(branches).toContain('context-launch');
+		expect(fulfilled).toHaveLength(1);
+		expect(rejected).toHaveLength(1);
+
+		for (const r of fulfilled) {
+			worktreeCleanups.push([projectDir, r.value]);
+			expect(fs.existsSync(path.join(r.value, '.git'))).toBe(true);
+			const branch = (await git(r.value, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
+			expect(branch).toBe('tickets');
+		}
+
+		expect(rejected[0].reason).toBeInstanceOf(Error);
+		expect((rejected[0].reason as Error).message.length).toBeGreaterThan(0);
+
+		const branches = await git(projectDir, 'branch', '--list', 'tickets');
+		expect(branches).toContain('tickets');
 	});
 
 	it('recovers stale worktree with removed gitdir target', async () => {
@@ -243,15 +251,14 @@ describe('WorktreeManager', () => {
 		// Simulate the orphan creation path partially completing: step 1
 		// (git worktree add --orphan) succeeds but step 2 (git commit) fails.
 		// The worktree directory is left behind with a valid .git file, but the
-		// context-launch branch is in "born" state (no commits). The per-slug branch
-		// context-launch--partial-slug was never created.
+		// tickets branch is in "born" state (no commits).
 		fs.mkdirSync(projectsDir, { recursive: true });
-		await git(projectDir, 'worktree', 'add', '--orphan', '-b', 'context-launch', worktreeDir);
+		await git(projectDir, 'worktree', 'add', '--orphan', '-b', 'tickets', worktreeDir);
 		// Do NOT commit -- this simulates the failure after step 1.
 
 		// Remove the .git file so isValidWorktree returns false, forcing
 		// the recovery path (rmSync + prune + re-create). The re-creation
-		// must handle the context-launch branch already existing in born state.
+		// must handle the tickets branch already existing in born state.
 		const dotGit = path.join(worktreeDir, '.git');
 		const content = fs.readFileSync(dotGit, 'utf-8').trim();
 		const gitDirRel = content.replace(/^gitdir:\s*/, '');
@@ -366,12 +373,10 @@ describe('WorktreeManager', () => {
 
 		// Simulate: orphan branch creation succeeded but commit failed.
 		// The worktree directory exists with a valid .git pointer, but the
-		// branch 'context-launch' is in "born" state (no commits).
-		// This leaves the worktree on 'context-launch' (wrong branch) instead of
-		// 'context-launch--broken-slug' (the correct per-slug branch).
+		// branch 'tickets' is in "born" state (no commits).
 		fs.mkdirSync(projectsDir, { recursive: true });
-		await git(projectDir, 'worktree', 'add', '--orphan', '-b', 'context-launch', worktreeDir);
-		// Do NOT commit -- simulates the commit failure at line 62
+		await git(projectDir, 'worktree', 'add', '--orphan', '-b', 'tickets', worktreeDir);
+		// Do NOT commit -- simulates the commit failure after orphan creation
 
 		// Verify the .git pointer is valid (isValidWorktree would return true)
 		const dotGit = path.join(worktreeDir, '.git');
@@ -390,9 +395,9 @@ describe('WorktreeManager', () => {
 		expect(fs.existsSync(result)).toBe(true);
 		expect(fs.existsSync(path.join(result, '.git'))).toBe(true);
 
-		// The worktree must be on the correct per-slug branch
+		// The worktree must be on the ticket branch
 		const branch = (await git(result, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
-		expect(branch).toBe('context-launch--broken-slug');
+		expect(branch).toBe('tickets');
 
 		// The recovered worktree must be functional -- we can commit to it
 		await git(result, 'commit', '--allow-empty', '-m', 'verify functional');

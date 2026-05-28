@@ -87,6 +87,6 @@ describe("Add project welcome screen (sandboxed e2e)", () => {
       cwd: worktreeDir,
       encoding: "utf-8",
     }).trim();
-    expect(head).toBe(`work-items--${slug}`);
+    expect(head).toBe("work-items");
   }, 45000);
 });
