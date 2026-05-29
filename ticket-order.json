@@ -1,6 +1,5 @@
 {
   "todo": [
-    "st-0008-improve-the-codebase",
     "st-0017-adding-new-project-refinement",
     "st-0016-sort-skills"
   ],
@@ -8,8 +7,6 @@
     "st-0014-readme-update"
   ],
   "in-progress": [],
-  "review": [
-    "st-0007-edit-columns"
-  ],
+  "review": [],
   "done": []
 }
