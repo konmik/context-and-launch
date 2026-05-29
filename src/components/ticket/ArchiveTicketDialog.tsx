@@ -1,45 +1,35 @@
-import { createSignal, Show } from "solid-js";
+import { Show } from "solid-js";
 import { DialogRoot, DialogTitle, DialogDescription } from "../ui/dialog";
 import type { TicketInfo } from "~/server/ticket/ticket-store.js";
+import {
+  createArchiveTicketController,
+  type ArchiveTicketController,
+} from "./archive-ticket-controller.js";
 
 interface ArchiveTicketDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   ticket: TicketInfo | null;
   onSubmit: (folderName: string) => Promise<{ error?: string }>;
+  ctrl?: ArchiveTicketController;
 }
 
 export default function ArchiveTicketDialog(props: ArchiveTicketDialogProps) {
-  const [submitting, setSubmitting] = createSignal(false);
-  const [errorMsg, setErrorMsg] = createSignal("");
-
-  function close() { props.onOpenChange(false); setErrorMsg(""); }
-
-  async function handleSubmit(e: SubmitEvent) {
-    e.preventDefault();
-    if (!props.ticket) return;
-    setSubmitting(true);
-    setErrorMsg("");
-    try {
-      const result = await props.onSubmit(props.ticket.folderName);
-      if (result?.error) setErrorMsg(result.error);
-      else close();
-    } catch (err: any) {
-      setErrorMsg(err?.message ?? "Unknown error");
-    } finally {
-      setSubmitting(false);
-    }
-  }
+  const s = props.ctrl ?? createArchiveTicketController({
+    onSubmit: props.onSubmit,
+    onOpenChange: props.onOpenChange,
+    ticket: () => props.ticket,
+  });
 
   return (
-    <DialogRoot open={props.open && !!props.ticket} onOpenChange={close}>
+    <DialogRoot open={props.open && !!props.ticket} onOpenChange={s.close}>
       <DialogTitle>Archive Ticket</DialogTitle>
       <DialogDescription>Archive ticket {props.ticket?.number} - {props.ticket?.title}?</DialogDescription>
-      <Show when={errorMsg()}><p class="mb-4 text-sm text-destructive">{errorMsg()}</p></Show>
-      <form onSubmit={handleSubmit}>
+      <Show when={s.errorMsg()}><p class="mb-4 text-sm text-destructive">{s.errorMsg()}</p></Show>
+      <form onSubmit={s.handleSubmit}>
         <div class="flex justify-end gap-2">
-          <button type="button" onClick={close} class="btn-secondary">Cancel</button>
-          <button type="submit" disabled={submitting()} class="btn-primary">Archive</button>
+          <button type="button" onClick={s.close} class="btn-secondary">Cancel</button>
+          <button type="submit" disabled={s.submitting()} class="btn-primary">Archive</button>
         </div>
       </form>
     </DialogRoot>
