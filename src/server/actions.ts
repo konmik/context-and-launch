@@ -10,18 +10,19 @@ export interface BoardState {
   ticketOrder: TicketOrder;
 }
 
-interface BoardPageData {
+interface BoardPageBase {
   projects: ProjectInfo[];
   projectSlug: string;
-  board: BoardState | null;
-  projectUnavailable: boolean;
-  projectNotFound: boolean;
-  projectPath: string;
-  suggestedNextNumber: string | null;
-  hasRemote: boolean;
-  hasConflict: boolean;
-  error?: string;
 }
+
+export type BoardPageData =
+  | (BoardPageBase & {
+      status: 'loaded'; board: BoardState; projectPath: string;
+      suggestedNextNumber: string | null; hasRemote: boolean; hasConflict: boolean;
+    })
+  | (BoardPageBase & { status: 'not-found' })
+  | (BoardPageBase & { status: 'unavailable'; projectPath: string })
+  | (BoardPageBase & { status: 'error'; projectPath: string; error: string });
 
 export const getDefaultProjectSlug = query(async (): Promise<string | null> => {
   "use server";
@@ -43,30 +44,10 @@ export const loadBoard = query(async (projectSlug: string): Promise<BoardPageDat
   const project = projects.find((p) => p.projectSlug === projectSlug);
 
   if (!project) {
-    return {
-      projects,
-      projectSlug,
-      board: null,
-      projectUnavailable: false,
-      projectNotFound: true,
-      projectPath: "",
-      suggestedNextNumber: null,
-      hasRemote: false,
-      hasConflict: false,
-    };
+    return { status: 'not-found' as const, projects, projectSlug };
   }
   if (!project.available) {
-    return {
-      projects,
-      projectSlug,
-      board: null,
-      projectUnavailable: true,
-      projectNotFound: false,
-      projectPath: project.path,
-      suggestedNextNumber: null,
-      hasRemote: false,
-      hasConflict: false,
-    };
+    return { status: 'unavailable' as const, projects, projectSlug, projectPath: project.path };
   }
 
   try {
@@ -81,11 +62,10 @@ export const loadBoard = query(async (projectSlug: string): Promise<BoardPageDat
     const hasRemote = await ticketSyncManager.hasRemote(worktreeDir);
     const hasConflict = ticketSyncManager.hasActiveRebase(worktreeDir);
     return {
+      status: 'loaded' as const,
       projects,
       projectSlug,
       board: { columns: config.columns, tickets, ticketOrder },
-      projectUnavailable: false,
-      projectNotFound: false,
       projectPath: project.path,
       suggestedNextNumber,
       hasRemote,
@@ -93,15 +73,10 @@ export const loadBoard = query(async (projectSlug: string): Promise<BoardPageDat
     };
   } catch (e) {
     return {
+      status: 'error' as const,
       projects,
       projectSlug,
-      board: null,
-      projectUnavailable: false,
-      projectNotFound: false,
       projectPath: project.path,
-      suggestedNextNumber: null,
-      hasRemote: false,
-      hasConflict: false,
       error: errorMessage(e),
     };
   }

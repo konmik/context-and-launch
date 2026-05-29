@@ -21,7 +21,6 @@ export interface KanbanTestHooks {
   setHoverTarget: (target: HoverTarget | null) => void;
   setActiveId: (id: string | null) => void;
   setOrderOverride: (order: Record<string, string[]> | null) => void;
-  setLastDragCenterY: (y: number) => void;
   commitDrop: (fromColumn: string, folderName: string, toColumn: string, newIndex: number) => void;
 }
 
@@ -222,7 +221,6 @@ function OrphanColumn(props: TicketColumnProps & { tickets: TicketInfo[] }) {
 
 export default function KanbanBoard(props: KanbanBoardProps) {
   const [activeId, setActiveId] = createSignal<string | null>(null);
-  const [lastDragCenterY, setLastDragCenterY] = createSignal(0);
   const [hoverTarget, setHoverTarget] = createSignal<HoverTarget | null>(null);
   const [orderOverride, setOrderOverride] = createSignal<Record<string, string[]> | null>(null);
 
@@ -244,7 +242,7 @@ export default function KanbanBoard(props: KanbanBoardProps) {
     props.onReorder(folderName, fromColumn, toColumn, newIndex);
   }
 
-  props.onTestReady?.({ setHoverTarget, setActiveId, setOrderOverride, setLastDragCenterY, commitDrop });
+  props.onTestReady?.({ setHoverTarget, setActiveId, setOrderOverride, commitDrop });
 
   createEffect(on(
     () => props.board.ticketOrder,
@@ -293,7 +291,7 @@ export default function KanbanBoard(props: KanbanBoardProps) {
   }
 
   function handleDragMove(event: DndDragEvent) {
-    const overlay = (event as any).overlay;
+    const overlay = (event as DndDragEvent & { overlay?: { node?: HTMLElement } }).overlay;
     const node = event.draggable.node;
     if (!node) return;
 
@@ -309,7 +307,6 @@ export default function KanbanBoard(props: KanbanBoardProps) {
       cursorX = rect.left + rect.width / 2 + (transform?.x ?? 0);
       cursorY = rect.top + rect.height / 2 + (transform?.y ?? 0);
     }
-    setLastDragCenterY(cursorY);
     const colRects = new Map<string, { left: number; right: number }>();
     const cardRectsByCol = new Map<string, { top: number; height: number }[]>();
     for (const [col, el] of columnRefs) {

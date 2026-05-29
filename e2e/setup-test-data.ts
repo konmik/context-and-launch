@@ -8,18 +8,19 @@ export type { TicketInfo, ColumnDefinition, BoardDefinition, BoardState };
 
 const PROJECT_SLUG = "e2e-test";
 
-export interface BoardPageData {
+interface BoardPageBase {
   projects: { path: string; projectSlug: string; available: boolean }[];
   projectSlug: string;
-  board: BoardState | null;
-  projectUnavailable: boolean;
-  projectNotFound: boolean;
-  projectPath: string;
-  suggestedNextNumber?: string | null;
-  hasRemote: boolean;
-  hasConflict: boolean;
-  error?: string;
 }
+
+export type BoardPageData =
+  | (BoardPageBase & {
+      status: 'loaded'; board: BoardState; projectPath: string;
+      suggestedNextNumber: string | null; hasRemote: boolean; hasConflict: boolean;
+    })
+  | (BoardPageBase & { status: 'not-found' })
+  | (BoardPageBase & { status: 'unavailable'; projectPath: string })
+  | (BoardPageBase & { status: 'error'; projectPath: string; error: string });
 
 const DEFAULT_COLUMNS: ColumnDefinition[] = [{ name: "todo" }, { name: "in-progress" }, { name: "done" }];
 
@@ -68,6 +69,7 @@ export function createBoardWithTickets(
   hasRemote = false, hasConflict = false,
 ): BoardPageData {
   return {
+    status: 'loaded' as const,
     projects: [{ path: "/test-project", projectSlug: PROJECT_SLUG, available: true }],
     projectSlug: PROJECT_SLUG,
     board: {
@@ -75,9 +77,8 @@ export function createBoardWithTickets(
       tickets,
       ticketOrder: buildTicketOrder(tickets, columns),
     },
-    projectUnavailable: false,
-    projectNotFound: false,
     projectPath: "/test-project",
+    suggestedNextNumber: null,
     hasRemote,
     hasConflict,
   };

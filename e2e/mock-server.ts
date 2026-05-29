@@ -3,9 +3,13 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   DEFAULT_BOARDS, type BoardPageData, type TicketInfo,
-  type BoardDefinition, type ColumnDefinition,
+  type BoardDefinition, type ColumnDefinition, type BoardState,
 } from "./setup-test-data.js";
 import { slugifyColumnName } from "~/lib/slugify.js";
+
+function mockBoard(state: MockServerState): BoardState | undefined {
+  return state.boardData.status === 'loaded' ? state.boardData.board : undefined;
+}
 
 // seroval is used to serialize mock data in the format the SolidJS Start client expects
 const seroval = await import("seroval");
@@ -606,7 +610,7 @@ export function startMockServer(port: number, state: MockServerState): Promise<h
                 const ticketParts = pathname.split("/");
                 const ticketsIdx = ticketParts.indexOf("tickets");
                 const folderName = ticketsIdx >= 0 ? ticketParts[ticketsIdx + 1] : "";
-                const ticket = state.boardData.board?.tickets.find((t) => t.folderName === folderName);
+                const ticket = mockBoard(state)?.tickets.find((t) => t.folderName === folderName);
                 if (ticket && !ticket.fileNames.includes(fileName)) {
                   ticket.fileNames.push(fileName);
                   ticket.fileNames.sort();
@@ -667,7 +671,7 @@ export function startMockServer(port: number, state: MockServerState): Promise<h
             const ticketParts = pathname.split("/");
             const ticketsIdx = ticketParts.indexOf("tickets");
             const folderName = ticketsIdx >= 0 ? ticketParts[ticketsIdx + 1] : "";
-            const ticket = state.boardData.board?.tickets.find((t) => t.folderName === folderName);
+            const ticket = mockBoard(state)?.tickets.find((t) => t.folderName === folderName);
             if (ticket && body.paths) {
               for (const p of body.paths) {
                 if (!ticket.references.some((r) => r.path === p)) {
@@ -693,7 +697,7 @@ export function startMockServer(port: number, state: MockServerState): Promise<h
             const ticketParts = pathname.split("/");
             const ticketsIdx = ticketParts.indexOf("tickets");
             const folderName = ticketsIdx >= 0 ? ticketParts[ticketsIdx + 1] : "";
-            const ticket = state.boardData.board?.tickets.find((t) => t.folderName === folderName);
+            const ticket = mockBoard(state)?.tickets.find((t) => t.folderName === folderName);
             if (ticket && body.path) {
               ticket.references = ticket.references.filter((r) => r.path !== body.path);
             }
