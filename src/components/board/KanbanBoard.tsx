@@ -184,7 +184,13 @@ function TicketColumn(props: TicketColumnProps & {
 
 function OrphanColumn(props: TicketColumnProps & { tickets: TicketInfo[] }) {
   return (
-    <div class="flex min-w-[250px] flex-1 flex-col rounded-lg border-2 border-destructive bg-muted/50 p-3" data-testid="undefined-column">
+    <div
+      class={
+        "flex min-w-[250px] flex-1 flex-col rounded-lg "
+        + "border-2 border-destructive bg-muted/50 p-3"
+      }
+      data-testid="undefined-column"
+    >
       <h3 class="mb-1 text-sm font-semibold uppercase text-destructive">
         undefined
       </h3>

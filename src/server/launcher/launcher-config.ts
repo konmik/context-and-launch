@@ -63,7 +63,10 @@ export interface MergedLauncherConfig {
 }
 
 export const DEFAULT_CONFLICT_RESOLUTION_PROMPT =
-	'Resolve all merge conflicts, then run git rebase --continue. Repeat until the rebase completes. Then push to remote and verify with git status that everything is clean. CRITICAL: Do not leave untracked, uncommitted or unpushed files. The goal is to sync the local branch with remote.';
+	'Resolve all merge conflicts, then run git rebase --continue.'
+	+ ' Repeat until the rebase completes. Then push to remote and verify with git status that everything is clean.'
+	+ ' CRITICAL: Do not leave untracked, uncommitted or unpushed files.'
+	+ ' The goal is to sync the local branch with remote.';
 
 const DEFAULT_APP_CONFIG: LauncherConfig = {
 	templates: [
@@ -74,7 +77,10 @@ const DEFAULT_APP_CONFIG: LauncherConfig = {
 	],
 	skills: [],
 	profiles: [
-		{ name: 'Claude Win', command: 'powershell -File {{appConfigDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}}' },
+		{
+			name: 'Claude Win',
+			command: 'powershell -File {{appConfigDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}}',
+		},
 		{ name: 'Claude macOS', command: 'bash {{appConfigDir}}/run-agent.sh {{initialPrompt}} {{windowTitle}}' },
 	],
 };
@@ -211,8 +217,9 @@ export class LauncherConfigManager {
 			columnDefaults: project.columnDefaults ?? {},
 			worktreeRootPath: project.worktreeRootPath ?? null,
 			boardId: project.boardId ?? null,
-			conflictResolutionPrompt: typeof project.conflictResolutionPrompt === 'string' && project.conflictResolutionPrompt
-				? project.conflictResolutionPrompt
+			conflictResolutionPrompt:
+				typeof project.conflictResolutionPrompt === 'string' && project.conflictResolutionPrompt
+					? project.conflictResolutionPrompt
 				: DEFAULT_CONFLICT_RESOLUTION_PROMPT,
 		};
 	}
@@ -220,8 +227,12 @@ export class LauncherConfigManager {
 	saveColumnDefaults(projectSlug: string, column: string, patch: Partial<LauncherColumnDefaults>): void {
 		const config = this.loadProjectConfig(projectSlug);
 		const columnDefaults = config.columnDefaults ?? {};
-		const existing = Object.prototype.hasOwnProperty.call(columnDefaults, column) ? columnDefaults[column] : { templateName: null, checkedSkills: [], profileName: null };
-		Object.defineProperty(columnDefaults, column, { value: { ...existing, ...patch }, writable: true, enumerable: true, configurable: true });
+		const existing = Object.prototype.hasOwnProperty.call(columnDefaults, column)
+			? columnDefaults[column]
+			: { templateName: null, checkedSkills: [], profileName: null };
+		Object.defineProperty(columnDefaults, column, {
+			value: { ...existing, ...patch }, writable: true, enumerable: true, configurable: true,
+		});
 		this.saveProjectConfig(projectSlug, { ...config, columnDefaults });
 	}
 
@@ -313,7 +324,9 @@ export class LauncherConfigManager {
 			}
 			// Preserve the sort key; editing name/text must not move the skill.
 			const order = config.skills[index].order;
-			config.skills[index] = order === undefined ? { name: skill.name, text: skill.text } : { name: skill.name, text: skill.text, order };
+			config.skills[index] = order === undefined
+				? { name: skill.name, text: skill.text }
+				: { name: skill.name, text: skill.text, order };
 			if (oldName !== skill.name) {
 				this.forEachColumnDefault(config, (cd) => {
 					if (cd.checkedSkills) {

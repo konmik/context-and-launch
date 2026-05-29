@@ -153,7 +153,8 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(path.join(worktreeDir, 'x-1-same-name-2'))).toBe(true);
 	});
 
-	it('H7.29 - two sequential createTicket calls with same number and title produce distinct folders via resolveUniqueFolderPath', async () => {
+	it('H7.29 - two sequential createTicket calls with same number and title'
+		+ ' produce distinct folders via resolveUniqueFolderPath', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1019,7 +1020,8 @@ describe('TicketStore', () => {
 		expect(tickets[0].number).toBe('KEEP-1');
 	});
 
-	it('writeStatusJson throws after successful rename: error propagates, folder at new path with stale status.json', async () => {
+	it('writeStatusJson throws after successful rename:'
+		+ ' error propagates, folder at new path with stale status.json', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1497,7 +1499,8 @@ describe('TicketStore', () => {
 		expect(mtimeAfter).toBe(mtimeBefore);
 	});
 
-	it('H2: setUseWorktree(true) then updateTicket with title rename -- useWorktree survives after folder rename', async () => {
+	it('H2: setUseWorktree(true) then updateTicket with title rename'
+		+ ' -- useWorktree survives after folder rename', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 

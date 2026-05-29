@@ -27,7 +27,10 @@ export default function ThemeToggle() {
 
   return (
     <button
-      class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+      class={
+        "inline-flex h-9 w-9 items-center justify-center rounded-md "
+        + "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+      }
       onClick={toggle}
       title={theme() === "dark" ? "Switch to light mode" : "Switch to dark mode"}
     >

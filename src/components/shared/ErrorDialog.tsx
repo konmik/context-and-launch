@@ -9,7 +9,11 @@ interface ErrorDialogProps {
 
 export default function ErrorDialog(props: ErrorDialogProps) {
   return (
-    <DialogRoot open={!!props.error} onOpenChange={props.onClose} class="flex max-h-[80vh] max-w-lg flex-col p-0">
+    <DialogRoot
+      open={!!props.error}
+      onOpenChange={props.onClose}
+      class="flex max-h-[80vh] max-w-lg flex-col p-0"
+    >
       <div class="flex-none px-6 pt-6 pb-2">
         <DialogTitle class="mb-0 text-sm">{props.error?.description}</DialogTitle>
       </div>
@@ -23,7 +27,10 @@ export default function ErrorDialog(props: ErrorDialogProps) {
         <Show when={props.error?.output}>
           <div class="mt-2">
             <p class="mb-1 text-xs text-muted-foreground">Output</p>
-            <pre class="max-h-60 overflow-y-auto whitespace-pre-wrap rounded border border-destructive bg-muted px-3 py-2 text-xs">{props.error!.output}</pre>
+            <pre class={
+              "max-h-60 overflow-y-auto whitespace-pre-wrap rounded "
+              + "border border-destructive bg-muted px-3 py-2 text-xs"
+            }>{props.error!.output}</pre>
           </div>
         </Show>
       </div>

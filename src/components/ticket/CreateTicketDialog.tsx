@@ -55,16 +55,35 @@ export default function CreateTicketDialog(props: CreateTicketDialogProps) {
       <form onSubmit={(e) => { e.preventDefault(); doSubmit(); }}>
         <div class="mb-4">
           <label for="ticket-number" class="mb-2 block text-sm font-medium">Number</label>
-          <input id="ticket-number" type="text" value={number()} onInput={(e) => setNumber(e.currentTarget.value)} class="input" placeholder="e.g. ABC-1" />
+          <input
+            id="ticket-number"
+            type="text"
+            value={number()}
+            onInput={(e) => setNumber(e.currentTarget.value)}
+            class="input"
+            placeholder="e.g. ABC-1"
+          />
         </div>
         <div class="mb-4">
           <label for="ticket-title" class="mb-2 block text-sm font-medium">Title</label>
-          <input id="ticket-title" type="text" value={title()} onInput={(e) => setTitle(e.currentTarget.value)} class="input" placeholder="e.g. Fix login timeout" />
+          <input
+            id="ticket-title"
+            type="text"
+            value={title()}
+            onInput={(e) => setTitle(e.currentTarget.value)}
+            class="input"
+            placeholder="e.g. Fix login timeout"
+          />
         </div>
         <Show when={errorMsg()}><p class="mb-4 text-sm text-destructive">{errorMsg()}</p></Show>
         <div class="flex justify-end gap-2">
           <button type="button" onClick={close} class="btn-secondary">Cancel</button>
-          <button type="submit" disabled={submitting() || !number().trim() || !title().trim()} title={modEnterHint()} class="btn-primary">Create</button>
+          <button
+            type="submit"
+            disabled={submitting() || !number().trim() || !title().trim()}
+            title={modEnterHint()}
+            class="btn-primary"
+          >Create</button>
         </div>
       </form>
     </DialogRoot>

@@ -1,5 +1,9 @@
 import { Show } from "solid-js";
-import { FloatingPanelRoot, FloatingPanelHeader, FloatingPanelBody, FloatingPanelDragTrigger, FloatingPanelResizeTrigger, FloatingPanelCloseTrigger, FloatingPanelTitle } from "../ui/floating-panel";
+import {
+  FloatingPanelRoot, FloatingPanelHeader, FloatingPanelBody,
+  FloatingPanelDragTrigger, FloatingPanelResizeTrigger,
+  FloatingPanelCloseTrigger, FloatingPanelTitle,
+} from "../ui/floating-panel";
 import { TabsRoot, TabsList, TabsTrigger } from "../ui/tabs";
 import type { TicketInfo } from "~/server/ticket/ticket-store.js";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
@@ -85,12 +89,23 @@ function TicketDetailContent(props: {
               <div class="flex items-center gap-3">
                 <Show when={s.launcherConfig()?.worktreeRootPath != null}>
                   <label class="flex items-center gap-1.5 text-xs text-muted-foreground" data-no-drag>
-                    <input type="checkbox" checked={s.useWorktree()} onChange={(e) => s.persistWorktree(e.currentTarget.checked)} class="rounded border-input" />
+                    <input
+                      type="checkbox"
+                      checked={s.useWorktree()}
+                      onChange={(e) => s.persistWorktree(e.currentTarget.checked)}
+                      class="rounded border-input"
+                    />
                     Launch in worktree
                   </label>
                 </Show>
                 <FloatingPanelCloseTrigger>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                  >
+                    <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                  </svg>
                 </FloatingPanelCloseTrigger>
               </div>
             </div>
@@ -138,16 +153,32 @@ function TicketDetailContent(props: {
             />
           </Show>
           <Show when={s.activeTab() === "launcher"}>
-            <LauncherTab projectSlug={props.projectSlug} ticket={props.ticket} config={s.launcherConfig()} onDefaultsChange={s.patchColumnDefaults} useWorktree={s.useWorktree()} />
+            <LauncherTab
+              projectSlug={props.projectSlug}
+              ticket={props.ticket}
+              config={s.launcherConfig()}
+              onDefaultsChange={s.patchColumnDefaults}
+              useWorktree={s.useWorktree()}
+            />
           </Show>
           <Show when={s.activeTab() === "shortcuts"}>
-            <ShortcutsTabPane config={s.launcherConfig()} running={s.runningShortcut()} onRun={s.runShortcut} />
+            <ShortcutsTabPane
+              config={s.launcherConfig()}
+              running={s.runningShortcut()}
+              onRun={s.runShortcut}
+            />
           </Show>
 
           <div class="flex justify-end gap-2 border-t border-border px-4 py-3">
             <button type="button" onClick={s.close} class="btn-secondary">Close</button>
             <Show when={s.showSaveButton()}>
-              <button type="button" onClick={s.saveFile} disabled={s.saving() || !s.hasUnsavedChanges()} title={modEnterHint()} class="btn-primary">Save</button>
+              <button
+                type="button"
+                onClick={s.saveFile}
+                disabled={s.saving() || !s.hasUnsavedChanges()}
+                title={modEnterHint()}
+                class="btn-primary"
+              >Save</button>
             </Show>
           </div>
         </div>
@@ -161,7 +192,15 @@ function TicketDetailContent(props: {
         <FloatingPanelResizeTrigger axis="nw" />
         <FloatingPanelResizeTrigger axis="sw" />
         <FloatingPanelResizeTrigger axis="se">
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><path d="M10 2v8H2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg" width="12" height="12"
+            viewBox="0 0 12 12"
+          >
+            <path
+              d="M10 2v8H2" fill="none" stroke="currentColor"
+              stroke-width="1.5" stroke-linecap="round"
+            />
+          </svg>
         </FloatingPanelResizeTrigger>
       </FloatingPanelRoot>
       </Show>
@@ -215,7 +254,11 @@ function TicketDetailContent(props: {
       <ConfirmUploadDialog
         open={!!s.confirmSize()}
         title="Large File"
-        description={`"${s.confirmSize()?.fileName}" is ${((s.confirmSize()?.size ?? 0) / 1024).toFixed(1)} KB, which is larger than 10 KB. Copy it anyway?`}
+        description={
+          `"${s.confirmSize()?.fileName}" is `
+          + `${((s.confirmSize()?.size ?? 0) / 1024).toFixed(1)} KB, `
+          + "which is larger than 10 KB. Copy it anyway?"
+        }
         confirmLabel="Copy Anyway"
         confirmClass="btn-primary"
         onCancel={s.cancelSizeConfirm}

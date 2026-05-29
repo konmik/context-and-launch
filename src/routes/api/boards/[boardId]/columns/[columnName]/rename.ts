@@ -1,5 +1,7 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { boardConfigManager, projectRegistry, launcherConfigManager, worktreeManager } from "~/server/config/instances.js";
+import {
+	boardConfigManager, projectRegistry, launcherConfigManager, worktreeManager,
+} from "~/server/config/instances.js";
 import { migrateColumnRename, type MigrationScope } from "~/server/project/column-rename-migration.js";
 import { errorMessage, ValidationError } from "~/server/shared/errors.js";
 

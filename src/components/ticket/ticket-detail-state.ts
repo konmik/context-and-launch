@@ -39,18 +39,29 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   const [confirmSize, setConfirmSize] = createSignal<{ fileName: string; file: File; size: number } | null>(null);
   let resolveUploadConfirm: ((confirmed: boolean) => void) | null = null;
   const [runningShortcut, setRunningShortcut] = createSignal("");
-  const [dirtyWorktreeShortcut, setDirtyWorktreeShortcut] = createSignal<{ name: string; message: string } | null>(null);
+  const [dirtyWorktreeShortcut, setDirtyWorktreeShortcut] = createSignal<
+    { name: string; message: string } | null
+  >(null);
   const [useWorktree, setUseWorktree] = createSignal(props.ticket.useWorktree);
   const [ticketFileNames, setTicketFileNames] = createSignal<string[]>(props.ticket.fileNames ?? []);
-  const [ticketReferences, setTicketReferences] = createSignal<{ path: string; exists: boolean }[]>(props.ticket.references ?? []);
+  const [ticketReferences, setTicketReferences] = createSignal<
+    { path: string; exists: boolean }[]
+  >(props.ticket.references ?? []);
 
-  createEffect(on(() => props.ticket.folderName, () => setUseWorktree(props.ticket.useWorktree)));
+  createEffect(on(
+    () => props.ticket.folderName,
+    () => setUseWorktree(props.ticket.useWorktree),
+  ));
 
   function persistWorktree(value: boolean) {
     setUseWorktree(value);
     fetch(
       `/api/projects/${props.projectSlug}/board/tickets/${props.ticket.folderName}/use-worktree`,
-      { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ useWorktree: value }) }
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ useWorktree: value }),
+      }
     ).catch((err) => { console.warn("Failed to persist useWorktree:", err); });
   }
 
@@ -60,12 +71,22 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     try {
       const res = await fetch(
         `/api/projects/${props.projectSlug}/board/tickets/${props.ticket.folderName}/shortcut/run`,
-        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, useWorktree: useWorktree(), force }) }
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, useWorktree: useWorktree(), force }),
+        }
       );
       if (!res.ok) {
         const text = await res.text();
         if (res.status === 409) {
-          try { const data = JSON.parse(text); if (data.dirtyWorktree) { setDirtyWorktreeShortcut({ name, message: data.message }); return; } } catch { /* Not JSON */ }
+          try {
+            const data = JSON.parse(text);
+            if (data.dirtyWorktree) {
+              setDirtyWorktreeShortcut({ name, message: data.message });
+              return;
+            }
+          } catch { /* Not JSON */ }
         }
         setError(text || `Error ${res.status}`);
       }
@@ -81,15 +102,21 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     const existing = props.ticket.contextNames ?? [];
     const extra = extraFiles();
     const all = [...defaults];
-    for (const name of [...existing, ...extra]) { if (!all.includes(name)) all.push(name); }
+    for (const name of [...existing, ...extra]) {
+      if (!all.includes(name)) all.push(name);
+    }
     return all.map((name) => ({ type: "context" as const, name }));
   };
 
   const fileEntryOptions = (): ActiveFile[] =>
-    ticketFileNames().filter((n) => !n.endsWith(".md") && n !== "status.json").map((name) => ({ type: "file" as const, name }));
+    ticketFileNames()
+      .filter((n) => !n.endsWith(".md") && n !== "status.json")
+      .map((name) => ({ type: "file" as const, name }));
 
   const referenceOptions = (): ActiveFile[] =>
-    ticketReferences().map((ref) => ({ type: "reference" as const, path: ref.path }));
+    ticketReferences().map(
+      (ref) => ({ type: "reference" as const, path: ref.path }),
+    );
 
   const allFileOptions = () => [...contextOptions(), ...fileEntryOptions(), ...referenceOptions()];
 
@@ -103,9 +130,15 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     return ref ? !ref.exists : false;
   }
 
-  const hasUnsavedChanges = () => activeTab() === "editor" && fileViewMode() === "editor" && !isCurrentReadOnly() && content() !== savedContent();
+  const hasUnsavedChanges = () =>
+    activeTab() === "editor"
+    && fileViewMode() === "editor"
+    && !isCurrentReadOnly()
+    && content() !== savedContent();
 
-  function handleBeforeUnload(e: BeforeUnloadEvent) { if (hasUnsavedChanges()) e.preventDefault(); }
+  function handleBeforeUnload(e: BeforeUnloadEvent) {
+    if (hasUnsavedChanges()) e.preventDefault();
+  }
   if (typeof window !== "undefined") {
     window.addEventListener("beforeunload", handleBeforeUnload);
     onCleanup(() => window.removeEventListener("beforeunload", handleBeforeUnload));
@@ -119,15 +152,26 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     setFileViewMode("editor");
     try {
       const res = await fetch(url);
-      if (res.ok) { const text = await res.text(); setContent(text); setSavedContent(text); }
+      if (res.ok) {
+        const text = await res.text();
+        setContent(text); setSavedContent(text);
+      }
       else { setContent(""); setSavedContent(""); }
-    } catch (e) { setContent(""); setSavedContent(""); setError(e instanceof Error ? e.message : "Failed to load file"); }
+    } catch (e) {
+      setContent(""); setSavedContent("");
+      setError(e instanceof Error ? e.message : "Failed to load file");
+    }
   }
 
   function loadFileByName(fileName: string, url: string): void {
-    if (isImage(fileName)) { setFileViewMode("image"); setImageUrl(url); setContent(""); setSavedContent(""); }
+    if (isImage(fileName)) {
+      setFileViewMode("image"); setImageUrl(url);
+      setContent(""); setSavedContent("");
+    }
     else if (isText(fileName)) { loadTextContent(url); }
-    else { setFileViewMode("unsupported"); setContent(""); setSavedContent(""); }
+    else {
+      setFileViewMode("unsupported"); setContent(""); setSavedContent("");
+    }
   }
 
   createEffect(on(
@@ -140,9 +184,15 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
           const data: MergedLauncherConfig = await res.json();
           setLauncherConfig(data);
           const defaults = data.columnDefaults[props.ticket.status];
-          if (defaults?.lastLayer === "launcher" || defaults?.lastLayer === "shortcuts") setActiveTab(defaults.lastLayer);
+          if (
+            defaults?.lastLayer === "launcher"
+            || defaults?.lastLayer === "shortcuts"
+          ) setActiveTab(defaults.lastLayer);
         } else {
-          setError((await res.text()) || `Failed to load launcher config (${res.status})`);
+          setError(
+            (await res.text())
+            || `Failed to load launcher config (${res.status})`,
+          );
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load launcher config");
@@ -156,7 +206,9 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     fetch(`/api/projects/${props.projectSlug}/launcher-config/column-defaults`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ column: props.ticket.status, ...patch }),
-    }).catch((e) => { console.warn("Failed to save column defaults:", e); });
+    }).catch((e) => {
+      console.warn("Failed to save column defaults:", e);
+    });
   }
 
   createEffect(on(activeFile, async (af) => {
@@ -166,13 +218,27 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
       setFileViewMode("editor");
       try {
         const res = await fetch(ticketUrl(`context/${af.name}`));
-        if (res.ok) { const data = await res.json(); setContent(data.content); setSavedContent(data.content); }
+        if (res.ok) {
+          const data = await res.json();
+          setContent(data.content); setSavedContent(data.content);
+        }
         else { setContent(""); setSavedContent(""); }
-      } catch (e) { setContent(""); setSavedContent(""); setError(e instanceof Error ? e.message : "Failed to load file"); }
+      } catch (e) {
+        setContent(""); setSavedContent("");
+        setError(e instanceof Error ? e.message : "Failed to load file");
+      }
     } else if (af.type === "file") {
-      loadFileByName(af.name, ticketUrl(`files/${encodeURIComponent(af.name)}`));
+      loadFileByName(
+        af.name,
+        ticketUrl(`files/${encodeURIComponent(af.name)}`),
+      );
     } else if (af.type === "reference") {
-      loadFileByName(activeFileLabel(af), ticketUrl(`references/content?path=${encodeURIComponent(af.path)}`));
+      loadFileByName(
+        activeFileLabel(af),
+        ticketUrl(
+          `references/content?path=${encodeURIComponent(af.path)}`,
+        ),
+      );
     }
   }));
 
@@ -181,7 +247,11 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     if (af.type !== "context") return;
     setSaving(true);
     try {
-      await fetch(ticketUrl(`context/${af.name}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: content() }) });
+      await fetch(ticketUrl(`context/${af.name}`), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: content() }),
+      });
       setSavedContent(content());
       revalidate("board-data");
     } catch (e) { setError(e instanceof Error ? e.message : "Failed to save file"); }
@@ -190,7 +260,9 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
 
   function requestFileSwitch(file: ActiveFile) {
     if (isActiveFileMatch(file, activeFile()) && activeTab() === "editor") return;
-    if (hasUnsavedChanges()) { setPendingFile(file); setConfirmingFileSwitch(true); return; }
+    if (hasUnsavedChanges()) {
+      setPendingFile(file); setConfirmingFileSwitch(true); return;
+    }
     setActiveTab("editor");
     if (!isActiveFileMatch(file, activeFile())) setActiveFile(file);
   }
@@ -198,16 +270,27 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   function switchTab(tab: Tab) {
     if (tab === activeTab()) return;
     if (tab !== "editor") {
-      if (hasUnsavedChanges()) { setPendingFile(null); setPendingTab(tab); setConfirmingFileSwitch(true); return; }
+      if (hasUnsavedChanges()) {
+        setPendingFile(null); setPendingTab(tab);
+        setConfirmingFileSwitch(true); return;
+      }
       setActiveTab(tab);
       if (tab === "launcher" || tab === "shortcuts") patchColumnDefaults({ lastLayer: tab });
-    } else { setActiveTab("editor"); patchColumnDefaults({ lastLayer: "editor" }); }
+    } else {
+      setActiveTab("editor");
+      patchColumnDefaults({ lastLayer: "editor" });
+    }
   }
 
   function proceedFileSwitch() {
     const file = pendingFile(); const toTab = pendingTab();
     setConfirmingFileSwitch(false); setPendingFile(null); setPendingTab(null);
-    if (toTab) { setActiveTab(toTab); if (toTab === "launcher" || toTab === "shortcuts") patchColumnDefaults({ lastLayer: toTab }); }
+    if (toTab) {
+      setActiveTab(toTab);
+      if (toTab === "launcher" || toTab === "shortcuts") {
+        patchColumnDefaults({ lastLayer: toTab });
+      }
+    }
     else if (file) { setActiveTab("editor"); setActiveFile(file); }
   }
 
@@ -218,10 +301,14 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   function submitNewFile() {
     const raw = newFileName().trim();
     if (!raw) return;
-    const contextFileName = raw.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const contextFileName = raw.toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
     if (!contextFileName) return;
     setNewFileDialogOpen(false);
-    if (!contextOptions().some((o) => o.type === "context" && o.name === contextFileName)) setExtraFiles((prev) => [...prev, contextFileName]);
+    if (!contextOptions().some(
+      (o) => o.type === "context" && o.name === contextFileName,
+    )) setExtraFiles((prev) => [...prev, contextFileName]);
     requestFileSwitch({ type: "context", name: contextFileName });
   }
 
@@ -229,14 +316,33 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     const af = activeFile();
     setConfirmingDelete(false);
     let url: string, errorLabel: string, fetchOpts: RequestInit;
-    if (af.type === "reference") { url = ticketUrl("references"); errorLabel = "Failed to remove reference"; fetchOpts = { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: af.path }) }; }
-    else if (af.type === "file") { url = ticketUrl(`files/${encodeURIComponent(af.name)}`); errorLabel = "Failed to delete file"; fetchOpts = { method: "DELETE" }; }
-    else { url = ticketUrl(`context/${af.name}`); errorLabel = "Failed to delete file"; fetchOpts = { method: "DELETE" }; }
+    if (af.type === "reference") {
+      url = ticketUrl("references");
+      errorLabel = "Failed to remove reference";
+      fetchOpts = {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: af.path }),
+      };
+    } else if (af.type === "file") {
+      url = ticketUrl(`files/${encodeURIComponent(af.name)}`);
+      errorLabel = "Failed to delete file";
+      fetchOpts = { method: "DELETE" };
+    } else {
+      url = ticketUrl(`context/${af.name}`);
+      errorLabel = "Failed to delete file";
+      fetchOpts = { method: "DELETE" };
+    }
     try {
       const res = await fetch(url, fetchOpts);
       if (!res.ok) { setError(await res.text() || errorLabel); return; }
-      if (af.type === "reference") setTicketReferences((prev) => prev.filter((r) => r.path !== af.path));
-      else if (af.type === "file") setTicketFileNames((prev) => prev.filter((n) => n !== af.name));
+      if (af.type === "reference") {
+        setTicketReferences(
+          (prev) => prev.filter((r) => r.path !== af.path),
+        );
+      } else if (af.type === "file") {
+        setTicketFileNames((prev) => prev.filter((n) => n !== af.name));
+      }
       else setExtraFiles((prev) => prev.filter((n) => n !== af.name));
       revalidate("board-data");
       const remaining = allFileOptions().filter((f) => !isActiveFileMatch(f, af));
@@ -249,11 +355,18 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     else setConfirmingDelete(true);
   }
 
-  function close() { if (hasUnsavedChanges()) { setConfirmingClose(true); return; } props.onClose(); }
+  function close() {
+    if (hasUnsavedChanges()) { setConfirmingClose(true); return; }
+    props.onClose();
+  }
   function forceClose() { setConfirmingClose(false); props.onClose(); }
 
-  function handleDragOver(e: DragEvent) { e.preventDefault(); e.stopPropagation(); setDragging(true); }
-  function handleDragLeave(e: DragEvent) { e.preventDefault(); e.stopPropagation(); setDragging(false); }
+  function handleDragOver(e: DragEvent) {
+    e.preventDefault(); e.stopPropagation(); setDragging(true);
+  }
+  function handleDragLeave(e: DragEvent) {
+    e.preventDefault(); e.stopPropagation(); setDragging(false);
+  }
 
   async function handleDrop(e: DragEvent) {
     e.preventDefault(); e.stopPropagation(); setDragging(false);
@@ -271,7 +384,10 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   }
 
   function wouldOverwrite(fileName: string): boolean {
-    const allExisting = [...ticketFileNames(), ...(props.ticket.contextNames ?? []).map((s) => `${s}.md`)];
+    const allExisting = [
+      ...ticketFileNames(),
+      ...(props.ticket.contextNames ?? []).map((s) => `${s}.md`),
+    ];
     return allExisting.includes(fileName);
   }
 
@@ -305,7 +421,13 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
       if (!res.ok) { setError(await res.text() || "Upload failed"); return; }
       const data = await res.json();
       for (const result of data.results) {
-        if (result.ok) { setTicketFileNames((prev) => prev.includes(result.name) ? prev : [...prev, result.name].sort()); }
+        if (result.ok) {
+          setTicketFileNames((prev) =>
+            prev.includes(result.name)
+              ? prev
+              : [...prev, result.name].sort(),
+          );
+        }
         else { setError(result.error || `Failed to upload ${result.name}`); }
       }
       revalidate("board-data");
@@ -315,8 +437,12 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     finally { setUploading(false); }
   }
 
-  function confirmUpload() { resolveUploadConfirm?.(true); resolveUploadConfirm = null; }
-  function cancelUpload() { resolveUploadConfirm?.(false); resolveUploadConfirm = null; }
+  function confirmUpload() {
+    resolveUploadConfirm?.(true); resolveUploadConfirm = null;
+  }
+  function cancelUpload() {
+    resolveUploadConfirm?.(false); resolveUploadConfirm = null;
+  }
 
   async function openNativeFileBrowser() {
     setBrowsing(true); setError("");
@@ -334,10 +460,17 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   async function handleReferencesSelected(paths: string[]) {
     setError("");
     try {
-      const res = await fetch(ticketUrl("references"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paths }) });
+      const res = await fetch(ticketUrl("references"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paths }),
+      });
       if (!res.ok) { setError(await res.text() || "Failed to add references"); return; }
       const newRefs = paths.map((p) => ({ path: p, exists: true }));
-      setTicketReferences((prev) => { const existing = new Set(prev.map((r) => r.path)); return [...prev, ...newRefs.filter((r) => !existing.has(r.path))]; });
+      setTicketReferences((prev) => {
+        const existing = new Set(prev.map((r) => r.path));
+        return [...prev, ...newRefs.filter((r) => !existing.has(r.path))];
+      });
       revalidate("board-data");
       if (paths.length > 0) requestFileSwitch({ type: "reference", path: paths[0] });
     } catch (e) { setError(e instanceof Error ? e.message : "Failed to add references"); }

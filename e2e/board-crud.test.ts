@@ -130,7 +130,12 @@ describe("Board CRUD (e2e)", () => {
     await page.waitForTimeout(300);
     await page.evaluate(() => {
       const items = document.querySelectorAll('[role="menuitem"]');
-      for (const item of items) { if (item.textContent?.trim() === "Archive") { (item as HTMLElement).click(); break; } }
+      for (const item of items) {
+        if (item.textContent?.trim() === "Archive") {
+          (item as HTMLElement).click();
+          break;
+        }
+      }
     });
 
     await page.waitForSelector('[data-part="title"]:has-text("Archive Ticket")');

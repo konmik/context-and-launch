@@ -33,10 +33,22 @@ export const DEFAULT_BOARDS: BoardDefinition[] = [
 ];
 
 const DEFAULT_TICKETS: TicketInfo[] = [
-  { number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha", contextNames: [], useWorktree: false, fileNames: [], references: [] },
-  { number: "T-2", title: "Bravo", status: "todo", folderName: "t-2-bravo", contextNames: [], useWorktree: false, fileNames: [], references: [] },
-  { number: "T-3", title: "Charlie", status: "in-progress", folderName: "t-3-charlie", contextNames: [], useWorktree: false, fileNames: [], references: [] },
-  { number: "T-4", title: "Delta", status: "in-progress", folderName: "t-4-delta", contextNames: [], useWorktree: false, fileNames: [], references: [] },
+  {
+    number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha",
+    contextNames: [], useWorktree: false, fileNames: [], references: [],
+  },
+  {
+    number: "T-2", title: "Bravo", status: "todo", folderName: "t-2-bravo",
+    contextNames: [], useWorktree: false, fileNames: [], references: [],
+  },
+  {
+    number: "T-3", title: "Charlie", status: "in-progress", folderName: "t-3-charlie",
+    contextNames: [], useWorktree: false, fileNames: [], references: [],
+  },
+  {
+    number: "T-4", title: "Delta", status: "in-progress", folderName: "t-4-delta",
+    contextNames: [], useWorktree: false, fileNames: [], references: [],
+  },
 ];
 
 function buildTicketOrder(tickets: TicketInfo[], columns: ColumnDefinition[]): Record<string, string[]> {
@@ -51,7 +63,10 @@ function buildTicketOrder(tickets: TicketInfo[], columns: ColumnDefinition[]): R
   return order;
 }
 
-export function createBoardWithTickets(tickets: TicketInfo[], columns: ColumnDefinition[] = DEFAULT_COLUMNS, hasRemote = false, hasConflict = false): BoardPageData {
+export function createBoardWithTickets(
+  tickets: TicketInfo[], columns: ColumnDefinition[] = DEFAULT_COLUMNS,
+  hasRemote = false, hasConflict = false,
+): BoardPageData {
   return {
     projects: [{ path: "/test-project", projectSlug: PROJECT_SLUG, available: true }],
     projectSlug: PROJECT_SLUG,

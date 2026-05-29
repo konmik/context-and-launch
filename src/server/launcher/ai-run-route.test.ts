@@ -278,11 +278,16 @@ describe('pull-and-retry skips windowExists check (code-inspection)', () => {
 	// agent window for the same ticket.
 
 	const runSource = fs.readFileSync(
-		path.resolve(__dirname, '../../routes/api/projects/[projectSlug]/board/tickets/[folderName]/ai/run.ts'),
+		path.resolve(
+			__dirname, '../../routes/api/projects/[projectSlug]/board/tickets/[folderName]/ai/run.ts',
+		),
 		'utf-8'
 	);
 	const pullAndRetrySource = fs.readFileSync(
-		path.resolve(__dirname, '../../routes/api/projects/[projectSlug]/board/tickets/[folderName]/ai/pull-and-retry.ts'),
+		path.resolve(
+			__dirname,
+			'../../routes/api/projects/[projectSlug]/board/tickets/[folderName]/ai/pull-and-retry.ts',
+		),
 		'utf-8'
 	);
 
@@ -332,9 +337,13 @@ describe('useWorktree=true with worktreeRootPath=null returns 400 (code-inspecti
 
 describe('parseLaunchRequest with missing/malformed request body', () => {
 	// Replicate the pure function from agent-launch.ts (cannot import due to ~ alias)
-	interface LaunchRequest { templateName: string; checkedSkills: string[]; useWorktree: boolean; profileName: string; }
+	interface LaunchRequest {
+		templateName: string; checkedSkills: string[]; useWorktree: boolean; profileName: string;
+	}
 	function parseLaunchRequest(body: unknown): LaunchRequest {
-		const result: LaunchRequest = { templateName: 'Default', checkedSkills: [], useWorktree: false, profileName: '' };
+		const result: LaunchRequest = {
+			templateName: 'Default', checkedSkills: [], useWorktree: false, profileName: '',
+		};
 		if (body && typeof body === 'object') {
 			const b = body as Record<string, unknown>;
 			if (typeof b.templateName === 'string') result.templateName = b.templateName;

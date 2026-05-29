@@ -11,7 +11,12 @@ export function TabsRoot(props: {
   onMouseDown?: (e: MouseEvent) => void;
 }) {
   return (
-    <ArkTabs.Root value={props.value} onValueChange={props.onValueChange} class={props.class} onMouseDown={props.onMouseDown}>
+    <ArkTabs.Root
+      value={props.value}
+      onValueChange={props.onValueChange}
+      class={props.class}
+      onMouseDown={props.onMouseDown}
+    >
       {props.children}
     </ArkTabs.Root>
   );

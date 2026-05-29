@@ -75,7 +75,9 @@ describe('WorktreeCleanupService', () => {
 		});
 
 		expect(fs.existsSync(result.worktreePath)).toBe(false);
-		const branchList = execSync('git branch --list ai/st-cleanup-both', { cwd: projectDir, timeout: 5000 }).toString();
+		const branchList = execSync(
+			'git branch --list ai/st-cleanup-both', { cwd: projectDir, timeout: 5000 },
+		).toString();
 		expect(branchList.trim()).toBe('');
 	});
 
@@ -97,7 +99,9 @@ describe('WorktreeCleanupService', () => {
 		).rejects.toThrow(/uncommitted changes/);
 
 		expect(fs.existsSync(result.worktreePath)).toBe(true);
-		const branchList = execSync(`git branch --list ai/${folderName}`, { cwd: projectDir, timeout: 5000 }).toString();
+		const branchList = execSync(
+			`git branch --list ai/${folderName}`, { cwd: projectDir, timeout: 5000 },
+		).toString();
 		expect(branchList.trim()).toBeTruthy();
 	});
 
@@ -134,7 +138,9 @@ describe('WorktreeCleanupService', () => {
 			deleteRemoteBranch: false,
 		});
 
-		const branchList = execSync(`git branch --list ai/${folderName}`, { cwd: projectDir, timeout: 5000 }).toString();
+		const branchList = execSync(
+			`git branch --list ai/${folderName}`, { cwd: projectDir, timeout: 5000 },
+		).toString();
 		expect(branchList.trim()).toBe('');
 	});
 
@@ -152,7 +158,9 @@ describe('WorktreeCleanupService', () => {
 		});
 
 		expect(fs.existsSync(result.worktreePath)).toBe(true);
-		const branchList = execSync(`git branch --list ai/${folderName}`, { cwd: projectDir, timeout: 5000 }).toString();
+		const branchList = execSync(
+			`git branch --list ai/${folderName}`, { cwd: projectDir, timeout: 5000 },
+		).toString();
 		expect(branchList.trim()).toBeTruthy();
 	});
 
@@ -181,7 +189,9 @@ describe('WorktreeCleanupService', () => {
 			).rejects.toThrow(/in use by another process/);
 
 			expect(fs.existsSync(result.worktreePath)).toBe(true);
-			const branchList = execSync(`git branch --list ai/${folderName}`, { cwd: projectDir, timeout: 5000 }).toString();
+			const branchList = execSync(
+			`git branch --list ai/${folderName}`, { cwd: projectDir, timeout: 5000 },
+		).toString();
 			expect(branchList.trim()).toBeTruthy();
 		} finally {
 			child.kill();

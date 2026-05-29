@@ -40,7 +40,9 @@ export function migrateColumnRename(
 						const projectBoardId = merged.boardId ?? DEFAULT_BOARD_ID;
 						return projectBoardId === boardId;
 					} catch (e) {
-						console.warn(`Skipping project "${p.projectSlug}" during column rename migration: config unreadable`, e);
+						console.warn(
+				`Skipping project "${p.projectSlug}" during column rename migration: config unreadable`, e,
+			);
 						return false;
 					}
 				})
@@ -81,7 +83,8 @@ export function migrateColumnRename(
 
 		try {
 			const projectConfig = deps.launcherConfigManager.loadProjectConfig(projectSlug);
-			if (projectConfig.columnDefaults && Object.prototype.hasOwnProperty.call(projectConfig.columnDefaults, oldColumnName)) {
+			if (projectConfig.columnDefaults
+				&& Object.prototype.hasOwnProperty.call(projectConfig.columnDefaults, oldColumnName)) {
 				const defaults = projectConfig.columnDefaults[oldColumnName];
 				projectConfig.columnDefaults[newColumnName] = defaults;
 				delete projectConfig.columnDefaults[oldColumnName];

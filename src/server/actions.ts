@@ -31,8 +31,10 @@ export const getDefaultProjectSlug = query(async (): Promise<string | null> => {
 
 export const loadBoard = query(async (projectSlug: string): Promise<BoardPageData> => {
   "use server";
-  const { projectRegistry, boardConfigManager, worktreeManager, fileWatcher, launcherConfigManager, ticketSyncManager } =
-    await import("~/server/config/instances.js");
+  const {
+    projectRegistry, boardConfigManager, worktreeManager,
+    fileWatcher, launcherConfigManager, ticketSyncManager,
+  } = await import("~/server/config/instances.js");
   const { TicketStore } = await import("~/server/ticket/ticket-store.js");
   const { errorMessage } = await import("~/server/shared/errors.js");
 
@@ -105,7 +107,9 @@ export const loadBoard = query(async (projectSlug: string): Promise<BoardPageDat
   }
 }, "board-data");
 
-export async function addProjectAction(pathValue: string, branch?: string, worktreeRootPath?: string, ticketsPath?: string) {
+export async function addProjectAction(
+  pathValue: string, branch?: string, worktreeRootPath?: string, ticketsPath?: string,
+) {
   "use server";
   const { projectRegistry, launcherConfigManager } = await import("~/server/config/instances.js");
   const { errorMessage } = await import("~/server/shared/errors.js");

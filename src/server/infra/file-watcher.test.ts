@@ -159,7 +159,8 @@ describe('FileWatcher', () => {
 		}
 	});
 
-	it('interleaving: FileWatcher add -A then TicketStore autoCommit then FileWatcher status -- no redundant commit', async () => {
+	it('interleaving: FileWatcher add -A then TicketStore autoCommit then FileWatcher status'
+		+ ' -- no redundant commit', async () => {
 		const dir = tmpDir('filewatcher-interleave-test-');
 		dirs.push(dir);
 
@@ -310,7 +311,8 @@ describe('FileWatcher', () => {
 		}
 	});
 
-	it('reload same board: stopAll then watch same dir creates a fresh watcher that responds to fs events', async () => {
+	it('reload same board: stopAll then watch same dir creates a fresh watcher'
+		+ ' that responds to fs events', async () => {
 		const dir = tmpDir('filewatcher-reload-same-board-');
 		dirs.push(dir);
 

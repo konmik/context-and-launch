@@ -24,7 +24,10 @@ export class WorktreeCleanupService {
 			}
 			const busy = await this.agentWorktreeManager.isWorktreeBusy(worktreePath);
 			if (busy) {
-				throw new Error('Worktree folder is in use by another process. Close any editors, terminals, or running programs that use this folder, then try again.');
+				throw new Error(
+				'Worktree folder is in use by another process.'
+				+ ' Close any editors, terminals, or running programs that use this folder, then try again.',
+			);
 			}
 		}
 

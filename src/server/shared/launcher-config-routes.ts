@@ -45,21 +45,24 @@ export function itemRoutes(kind: keyof typeof KINDS) {
 			const body = await request.json();
 			const [scope, projectSlug] = scopeOf(params);
 			return handleRoute(() => {
-				(launcherConfigManager[k.add] as Function).call(launcherConfigManager, scope, projectSlug, pick(body, k.fields));
+				(launcherConfigManager[k.add] as Function)
+					.call(launcherConfigManager, scope, projectSlug, pick(body, k.fields));
 			}, 201);
 		},
 		async PUT({ params, request }: APIEvent) {
 			const body = await request.json();
 			const [scope, projectSlug] = scopeOf(params);
 			return handleRoute(() => {
-				(launcherConfigManager[k.update] as Function).call(launcherConfigManager, scope, projectSlug, body.oldName, pick(body, k.fields));
+				(launcherConfigManager[k.update] as Function)
+					.call(launcherConfigManager, scope, projectSlug, body.oldName, pick(body, k.fields));
 			}, 204);
 		},
 		async DELETE({ params, request }: APIEvent) {
 			const body = await request.json();
 			const [scope, projectSlug] = scopeOf(params);
 			return handleRoute(() => {
-				(launcherConfigManager[k.remove] as Function).call(launcherConfigManager, scope, projectSlug, body.name);
+				(launcherConfigManager[k.remove] as Function)
+					.call(launcherConfigManager, scope, projectSlug, body.name);
 			}, 204);
 		},
 	};
