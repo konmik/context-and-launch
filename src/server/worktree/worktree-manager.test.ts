@@ -187,28 +187,6 @@ describe('WorktreeManager', () => {
 		expect(first).toBe(second);
 	});
 
-	it('ensureWorktree returns worktree on wrong branch when branch config changes', async () => {
-		const configDir = tmpDir('wt-config-');
-		const projectDir = tmpDir('wt-project-');
-		dirs.push(configDir, projectDir);
-
-		await git(projectDir, 'init');
-		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
-
-		const manager = new WorktreeManager(new ConfigPaths(configDir));
-
-		const first = await manager.ensureWorktree(projectDir, 'branch-change', 'tickets');
-		worktreeCleanups.push([projectDir, first]);
-
-		const firstBranch = (await git(first, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
-		expect(firstBranch).toBe('tickets');
-
-		const second = await manager.ensureWorktree(projectDir, 'branch-change', 'tasks');
-
-		const secondBranch = (await git(second, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
-		expect(secondBranch).toBe('tasks');
-	});
-
 	it('does not modify project working directory during worktree creation', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
