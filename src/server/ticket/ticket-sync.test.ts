@@ -80,6 +80,31 @@ describe('TicketSyncManager', () => {
 		expect(status.trim()).toBe('');
 	});
 
+	it('sync squashes multiple unpushed commits into one before pushing', async () => {
+		const { worktreeDir, remoteDir } = await createRepoWithRemote();
+		dirs.push(worktreeDir, remoteDir);
+
+		fs.writeFileSync(path.join(worktreeDir, 'a.txt'), 'a');
+		await git(worktreeDir, 'add', '-A');
+		await git(worktreeDir, 'commit', '-m', 'auto: external changes');
+
+		fs.writeFileSync(path.join(worktreeDir, 'b.txt'), 'b');
+		await git(worktreeDir, 'add', '-A');
+		await git(worktreeDir, 'commit', '-m', 'auto: external changes');
+
+		fs.writeFileSync(path.join(worktreeDir, 'c.txt'), 'c');
+
+		const manager = new TicketSyncManager();
+		const result = await manager.sync(worktreeDir);
+		expect(result.status).toBe('success');
+
+		const log = await git(worktreeDir, 'log', '--oneline');
+		const lines = log.trim().split('\n');
+		expect(lines).toHaveLength(2);
+		expect(lines[0]).toContain('sync: local changes');
+		expect(lines[1]).toContain('init');
+	});
+
 	it('sync with nothing to do returns success', async () => {
 		const { worktreeDir, remoteDir } = await createRepoWithRemote();
 		dirs.push(worktreeDir, remoteDir);

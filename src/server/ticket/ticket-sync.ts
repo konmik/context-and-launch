@@ -48,19 +48,13 @@ export class TicketSyncManager {
 
 	async sync(worktreeDir: string): Promise<SyncResult> {
 		try {
-			// Stage all changes
 			await git(worktreeDir, 'add', '-A');
 
-			// Check if there is anything to commit
 			const porcelain = await git(worktreeDir, 'status', '--porcelain');
 			if (porcelain.trim()) {
 				await git(worktreeDir, 'commit', '-m', 'sync: local changes');
 			}
 
-			// Fetch from remote
-			await git(worktreeDir, 'fetch');
-
-			// Get the upstream ref
 			let upstream: string;
 			try {
 				upstream = (await git(worktreeDir, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}')).trim();
@@ -68,7 +62,6 @@ export class TicketSyncManager {
 				const isNoUpstream = err instanceof ProcessError
 					&& /no upstream configured/.test(err.output);
 				if (!isNoUpstream) throw err;
-				// No upstream configured; nothing to rebase on, just push
 				try {
 					await git(worktreeDir, 'push');
 				} catch (pushErr) {
@@ -77,34 +70,28 @@ export class TicketSyncManager {
 				return { status: 'success' };
 			}
 
-			// Check if we are behind
-			const behindCount = (await git(worktreeDir, 'rev-list', '--count', `HEAD..${upstream}`)).trim();
-			if (behindCount === '0') {
-				// Not behind, just push local commits if any
-				const aheadCount = (await git(worktreeDir, 'rev-list', '--count', `${upstream}..HEAD`)).trim();
-				if (aheadCount !== '0') {
-					await git(worktreeDir, 'push');
-				}
-				return { status: 'success' };
+			const aheadCount = parseInt(
+				(await git(worktreeDir, 'rev-list', '--count', `${upstream}..HEAD`)).trim(), 10,
+			);
+			if (aheadCount > 1) {
+				await git(worktreeDir, 'reset', '--soft', upstream);
+				await git(worktreeDir, 'commit', '-m', 'sync: local changes');
 			}
 
-			// Rebase on upstream
+			await git(worktreeDir, 'fetch');
+
 			try {
 				await git(worktreeDir, 'rebase', upstream);
 			} catch (rebaseErr) {
-				// A real merge conflict leaves a rebase in progress (rebase-merge/
-				// rebase-apply). Any other rebase failure (e.g. a refusing
-				// pre-rebase hook, untracked files that would be overwritten) leaves
-				// no in-progress rebase and must be surfaced rather than mislabeled
-				// as a conflict.
 				if (this.gitRepo.hasActiveRebase(worktreeDir)) {
 					return { status: 'conflict' };
 				}
 				return { status: 'error', message: rebaseErr instanceof Error ? rebaseErr.message : String(rebaseErr) };
 			}
 
-			// Push after successful rebase
-			await git(worktreeDir, 'push');
+			if (aheadCount > 0) {
+				await git(worktreeDir, 'push');
+			}
 			return { status: 'success' };
 		} catch (err) {
 			return { status: 'error', message: err instanceof Error ? err.message : String(err) };

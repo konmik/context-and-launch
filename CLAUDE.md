@@ -18,6 +18,7 @@ Do not use z-index (Tailwind z-* classes). Use Portal from solid-js/web for stac
 Do not duplicate code. Extract shared logic into reusable helpers.
 Never use bare "slug" as a variable, parameter, property, or type field name. Always qualify it: `projectSlug`, `columnSlug`, `contextFileName`, etc. The only exception is generic slug utility functions like `requireSafeSlug` and `toSlugSegment`. See CONTEXT.md for the full glossary.
 Do not add comments unless explicitly asked.
+Spec files in `spec/` describe behavior as nested bullet lists in plain English. No code, no pseudocode. Short sentences. Represent control flow with nesting.
 
 ## Complex component architecture
 
