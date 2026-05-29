@@ -1,1 +1,0 @@
-We have to be able to sort skills in settings and in ticket agent launcher.
