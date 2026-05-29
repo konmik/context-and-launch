@@ -8,6 +8,7 @@ import type {
 	ItemType, Scope, ItemFormState, ColumnFormState,
 	RenameFormState, DeleteTarget,
 } from "./launcher-settings-dialogs.js";
+import { itemEndpoint, validateColumnName, buildFormPayload } from "./launcher-settings-pure.js";
 
 export function createLauncherSettingsState(props: {
 	open: boolean;
@@ -39,18 +40,6 @@ export function createLauncherSettingsState(props: {
 	});
 
 	const selectedBoard = () => boards().find(b => b.id === selectedBoardId());
-
-	const apiPathSegments: Record<ItemType, string> = {
-		template: "templates", skill: "skills",
-		profile: "profiles", shortcut: "shortcuts",
-	};
-
-	function itemEndpoint(itemType: ItemType, scope: Scope): string {
-		const base = scope === "app"
-			? "/api/launcher-config"
-			: `/api/projects/${props.projectSlug}/launcher-config`;
-		return `${base}/${apiPathSegments[itemType]}`;
-	}
 
 	createEffect(on(() => props.open, (open) => {
 		if (open) {
@@ -114,16 +103,9 @@ export function createLauncherSettingsState(props: {
 		const f = form();
 		if (!f || !f.name.trim()) return;
 		setError("");
-		const endpoint = itemEndpoint(f.itemType, f.scope);
-		const usesCommand = f.itemType === "profile" || f.itemType === "shortcut";
+		const endpoint = itemEndpoint(props.projectSlug, f.itemType, f.scope);
 		try {
-			const payload = usesCommand
-				? (f.mode === "add"
-					? { name: f.name, command: f.text }
-					: { oldName: f.oldName, name: f.name, command: f.text })
-				: (f.mode === "add"
-					? { name: f.name, text: f.text }
-					: { oldName: f.oldName, name: f.name, text: f.text });
+			const payload = buildFormPayload(f);
 			const res = await fetch(endpoint, {
 				method: f.mode === "add" ? "POST" : "PUT",
 				headers: { "Content-Type": "application/json" },
@@ -137,7 +119,7 @@ export function createLauncherSettingsState(props: {
 	async function deleteItem(itemType: ItemType, scope: Scope, name: string) {
 		setError("");
 		try {
-			const res = await fetch(itemEndpoint(itemType, scope), {
+			const res = await fetch(itemEndpoint(props.projectSlug, itemType, scope), {
 				method: "DELETE",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ name }),
@@ -348,15 +330,7 @@ export function createLauncherSettingsState(props: {
 
 	function columnNameValidation(): string {
 		const cf = columnForm(); if (!cf) return "";
-		const slugified = slugifyColumnName(cf.name);
-		if (!slugified) return cf.name.trim() ? "Name resolves to empty after slugification" : "";
-		if (slugified === "undefined") return 'Name "undefined" is reserved';
-		const board = selectedBoard(); if (!board) return "";
-		const existing = board.columns.map(c => c.name);
-		const allowSame = cf.mode === "edit" ? cf.oldName : undefined;
-		const others = allowSame ? existing.filter(n => n !== allowSame) : existing;
-		if (others.includes(slugified)) return `Name "${slugified}" already exists`;
-		return "";
+		return validateColumnName(cf.name, cf.mode, cf.oldName, selectedBoard()?.columns ?? []);
 	}
 
 	const columnReorder = createListReorder<ColumnDefinition>({
@@ -399,7 +373,7 @@ export function createLauncherSettingsState(props: {
 	async function saveSkillOrder(scope: Scope, name: string, order: number) {
 		setError("");
 		try {
-			const res = await fetch(`${itemEndpoint("skill", scope)}/reorder`, {
+			const res = await fetch(`${itemEndpoint(props.projectSlug, "skill", scope)}/reorder`, {
 				method: "PUT",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ name, order }),
@@ -420,3 +394,5 @@ export function createLauncherSettingsState(props: {
 		columnNameValidation, columnReorder, skillReorder,
 	};
 }
+
+export type LauncherSettingsController = ReturnType<typeof createLauncherSettingsState>;

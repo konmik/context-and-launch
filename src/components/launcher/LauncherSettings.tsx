@@ -19,16 +19,20 @@ import {
 	DeleteConfirmDialog,
 	ProjectBoardConfirmDialog,
 } from "./launcher-settings-dialogs.js";
-import { createLauncherSettingsState } from "./launcher-settings-state.js";
+import {
+	createLauncherSettingsState,
+	type LauncherSettingsController,
+} from "./launcher-settings-state.js";
 
 interface LauncherSettingsProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	projectSlug: string;
+	ctrl?: LauncherSettingsController;
 }
 
 export default function LauncherSettings(props: LauncherSettingsProps) {
-	const s = createLauncherSettingsState(props);
+	const s = props.ctrl ?? createLauncherSettingsState(props);
 
 	useModEnterSubmit({
 		onSubmit: s.submitForm,
