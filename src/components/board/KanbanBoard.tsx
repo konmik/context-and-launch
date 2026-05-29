@@ -17,6 +17,14 @@ import TicketCard from "../ticket/TicketCard";
 import { computeHoverTarget, type HoverTarget } from "./drop-index.js";
 import { DragPreview, DragOverlayCard, DND_ACTIVE_CLASS } from "./dnd-shared.js";
 
+export interface KanbanTestHooks {
+  setHoverTarget: (target: HoverTarget | null) => void;
+  setActiveId: (id: string | null) => void;
+  setOrderOverride: (order: Record<string, string[]> | null) => void;
+  setLastDragCenterY: (y: number) => void;
+  commitDrop: (fromColumn: string, folderName: string, toColumn: string, newIndex: number) => void;
+}
+
 interface KanbanBoardProps {
   board: BoardState;
   projectSlug: string;
@@ -25,6 +33,7 @@ interface KanbanBoardProps {
   onArchive: (ticket: TicketInfo) => void;
   onViewDetail: (ticket: TicketInfo) => void;
   onReorder: (folderName: string, fromColumn: string, toColumn: string, newIndex: number) => void;
+  onTestReady?: (hooks: KanbanTestHooks) => void;
 }
 
 function parseId(id: Id): { column: string; folderName: string } {
@@ -229,9 +238,7 @@ export default function KanbanBoard(props: KanbanBoardProps) {
     props.onReorder(folderName, fromColumn, toColumn, newIndex);
   }
 
-  if (typeof window !== "undefined") {
-    (window as any).__kanbanTestHooks = { setHoverTarget, setActiveId, setOrderOverride, setLastDragCenterY, commitDrop };
-  }
+  props.onTestReady?.({ setHoverTarget, setActiveId, setOrderOverride, setLastDragCenterY, commitDrop });
 
   createEffect(on(
     () => props.board.ticketOrder,
