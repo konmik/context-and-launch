@@ -1,5 +1,5 @@
 import { useParams, useNavigate, createAsync, revalidate } from "@solidjs/router";
-import { createSignal, Show, For } from "solid-js";
+import { createSignal, Show, For, Switch, Match } from "solid-js";
 import { DialogRoot, DialogTitle } from "~/components/ui/dialog";
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "~/components/ui/menu";
 import type { TicketInfo } from "~/server/ticket/ticket-store.js";
@@ -49,7 +49,9 @@ export default function ProjectPage() {
 
   async function handleSync() {
     if (syncing()) return;
-    if (!data()?.hasRemote) {
+    const d = data();
+    if (!d || d.status !== 'loaded') return;
+    if (!d.hasRemote) {
       setSyncError({
         description: "No remote tracking branch configured. Push the ticket branch to a remote first.",
       });
@@ -114,7 +116,9 @@ export default function ProjectPage() {
 
   async function handleViewDetail(ticket: TicketInfo) {
     await revalidate("board-data");
-    const fresh = data()?.board?.tickets.find((t: TicketInfo) => t.folderName === ticket.folderName);
+    const d = data();
+    const board = d?.status === 'loaded' ? d.board : undefined;
+    const fresh = board?.tickets.find((t: TicketInfo) => t.folderName === ticket.folderName);
     setDetailTicket(fresh ?? ticket);
   }
 
@@ -175,19 +179,23 @@ export default function ProjectPage() {
 
   return (
     <Show when={data()} fallback={<p>Loading...</p>}>
-      {(d) => (
+      {(d) => {
+        const ld = () => { const v = d(); return v.status === 'loaded' ? v : undefined; };
+        const unavail = () => { const v = d(); return v.status === 'unavailable' ? v : undefined; };
+        const pageErr = () => { const v = d(); return v.status === 'error' ? v : undefined; };
+        return (
         <div class="flex min-h-screen flex-col">
           <header class="flex items-center justify-between border-b border-border px-4 py-3">
             <h1 class="text-xl font-semibold">Context & Launch</h1>
             <div class="flex items-center gap-2">
               <ThemeToggle />
               <button
-                onClick={d().hasConflict ? () => setConflictDialogOpen(true) : handleSync}
+                onClick={ld()?.hasConflict ? () => setConflictDialogOpen(true) : handleSync}
                 disabled={syncing()}
                 class={`btn-icon relative ${
-                  d().hasConflict ? "border-destructive text-destructive hover:bg-destructive/10" : ""
+                  ld()?.hasConflict ? "border-destructive text-destructive hover:bg-destructive/10" : ""
                 }`}
-                title={d().hasConflict ? "Resolve conflicts" : "Sync tickets"}
+                title={ld()?.hasConflict ? "Resolve conflicts" : "Sync tickets"}
                 data-testid="sync-button"
               >
                 <Show when={syncSuccess()} fallback={
@@ -208,7 +216,7 @@ export default function ProjectPage() {
                     <path d="M20 6 9 17l-5-5"/>
                   </svg>
                 </Show>
-                <Show when={d().hasConflict}>
+                <Show when={ld()?.hasConflict}>
                   <span
                     class={
                       "absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center"
@@ -264,43 +272,49 @@ export default function ProjectPage() {
           </header>
 
           <main class="flex-1">
-            <Show when={d().projectNotFound}>
-              <div class="flex h-64 items-center justify-center">
-                <p class="text-muted-foreground">Project not found</p>
-              </div>
-            </Show>
-            <Show when={d().projectUnavailable}>
-              <div class="flex h-64 flex-col items-center justify-center gap-2">
-                <p class="text-lg font-medium">Project unavailable</p>
-                <p class="text-sm text-muted-foreground">{d().projectPath}</p>
-              </div>
-            </Show>
-            <Show when={d().error}>
-              <div class="flex h-64 flex-col items-center justify-center gap-2">
-                <p class="text-destructive">{d().error}</p>
-                <button class="btn-secondary" onClick={() => revalidate("board-data")}>Retry</button>
-              </div>
-            </Show>
-            <Show when={d().board}>
-              {(board) => (
-                <KanbanBoard
-                  board={board()}
-                  projectSlug={d().projectSlug}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  onArchive={handleArchive}
-                  onViewDetail={handleViewDetail}
-                  onReorder={handleReorder}
-                />
-              )}
-            </Show>
+            <Switch>
+              <Match when={d().status === 'not-found'}>
+                <div class="flex h-64 items-center justify-center">
+                  <p class="text-muted-foreground">Project not found</p>
+                </div>
+              </Match>
+              <Match when={unavail()}>
+                {(u) => (
+                  <div class="flex h-64 flex-col items-center justify-center gap-2">
+                    <p class="text-lg font-medium">Project unavailable</p>
+                    <p class="text-sm text-muted-foreground">{u().projectPath}</p>
+                  </div>
+                )}
+              </Match>
+              <Match when={pageErr()}>
+                {(e) => (
+                  <div class="flex h-64 flex-col items-center justify-center gap-2">
+                    <p class="text-destructive">{e().error}</p>
+                    <button class="btn-secondary" onClick={() => revalidate("board-data")}>Retry</button>
+                  </div>
+                )}
+              </Match>
+              <Match when={ld()}>
+                {(loaded) => (
+                  <KanbanBoard
+                    board={loaded().board}
+                    projectSlug={d().projectSlug}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onArchive={handleArchive}
+                    onViewDetail={handleViewDetail}
+                    onReorder={handleReorder}
+                  />
+                )}
+              </Match>
+            </Switch>
           </main>
 
           <CreateTicketDialog
             open={createTicketOpen()}
             onOpenChange={setCreateTicketOpen}
             onSubmit={handleCreateTicket}
-            suggestedNextNumber={d().suggestedNextNumber}
+            suggestedNextNumber={ld()?.suggestedNextNumber ?? null}
           />
           <EditTicketDialog
             open={editTicketOpen()}
@@ -366,7 +380,8 @@ export default function ProjectPage() {
             projectSlug={d().projectSlug}
           />
         </div>
-      )}
+        );
+      }}
     </Show>
   );
 }

@@ -218,16 +218,12 @@ export class TicketStore {
 
 	deleteTicket(folderName: string): void {
 		const dir = this.resolveTicketDir(folderName);
-		const status = this.readStatusJson(dir);
-		const number = status?.number ?? folderName;
 		fs.rmSync(dir, { recursive: true, force: true });
 		this.orderStore.removeTicket(folderName);
 	}
 
 	archiveTicket(folderName: string): void {
 		const dir = this.resolveTicketDir(folderName);
-		const status = this.readStatusJson(dir);
-		const number = status?.number ?? folderName;
 		const archiveDir = path.join(this.worktreeDir, 'archive');
 		fs.mkdirSync(archiveDir, { recursive: true });
 		const dest = path.join(archiveDir, folderName);
