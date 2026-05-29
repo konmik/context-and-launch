@@ -16,7 +16,7 @@ export const DND_OVERLAY_CLASS = "rotate-2 scale-95 opacity-80 shadow-xl";
 // The ghost preview rendered at the drop target slot.
 export const DND_PREVIEW_CLASS = "pointer-events-none opacity-40";
 
-function cx(base: string, extra?: string): string {
+function joinClass(base: string, extra?: string): string {
 	return extra ? `${base} ${extra}` : base;
 }
 
@@ -25,7 +25,7 @@ function cx(base: string, extra?: string): string {
 // its presence.
 export function DragPreview(props: { class?: string; children: JSX.Element }) {
 	return (
-		<div data-drop-indicator data-drop-preview class={cx(DND_PREVIEW_CLASS, props.class)}>
+		<div data-drop-indicator data-drop-preview class={joinClass(DND_PREVIEW_CLASS, props.class)}>
 			{props.children}
 		</div>
 	);
@@ -34,7 +34,7 @@ export function DragPreview(props: { class?: string; children: JSX.Element }) {
 // Floating representation of the dragged item, rendered inside a DragOverlay.
 export function DragOverlayCard(props: { class?: string; style?: JSX.CSSProperties; children: JSX.Element }) {
 	return (
-		<div class={cx(DND_OVERLAY_CLASS, props.class)} style={props.style}>
+		<div class={joinClass(DND_OVERLAY_CLASS, props.class)} style={props.style}>
 			{props.children}
 		</div>
 	);
