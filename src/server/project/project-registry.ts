@@ -103,15 +103,30 @@ export class ProjectRegistry {
 				this.extraFields = {};
 				return this.cached;
 			}
-			const { projects, lastUsedProjectSlug, port, browser, ...extra } = raw;
+			const lastUsed = raw.lastUsedProjectSlug ?? raw.lastUsedSlug ?? null;
+			const migratedProjects: ProjectEntry[] = raw.projects.map(
+				(p: Record<string, unknown>) => {
+					const projectSlug = (p.projectSlug ?? p.slug) as string;
+					const entry: ProjectEntry = { path: p.path as string, projectSlug };
+					if (p.branch !== undefined) entry.branch = p.branch as string;
+					if (p.ticketsPath !== undefined) entry.ticketsPath = p.ticketsPath as string;
+					return entry;
+				},
+			);
+			const { projects: _, lastUsedProjectSlug: _a, lastUsedSlug: _b, port, browser, ...extra } = raw;
 			const config: ProjectConfig = {
-				projects,
-				lastUsedProjectSlug: lastUsedProjectSlug ?? null,
+				projects: migratedProjects,
+				lastUsedProjectSlug: lastUsed,
 				port,
 				browser,
 			};
 			this.cached = config;
 			this.extraFields = extra;
+			const hasLegacyKeys = raw.lastUsedSlug !== undefined
+				|| raw.projects.some((p: Record<string, unknown>) => p.slug !== undefined);
+			if (hasLegacyKeys) {
+				this.save(config);
+			}
 			return config;
 		} catch {
 			this.cached = ProjectRegistry.emptyConfig();
