@@ -1,49 +1,21 @@
-import type { APIEvent } from "@solidjs/start/server";
 import {
 	boardConfigManager, projectRegistry, launcherConfigManager, worktreeManager,
 } from "~/server/config/instances.js";
-import { migrateColumnRename, type MigrationScope } from "~/server/project/column-rename-migration.js";
-import { errorMessage, ValidationError } from "~/server/shared/errors.js";
+import { renameColumnWithMigration, type MigrationScope } from "~/server/project/column-rename-migration.js";
+import { ValidationError } from "~/server/shared/errors.js";
+import { withService } from "~/server/shared/route-helpers.js";
 
-export async function POST({ params, request }: APIEvent) {
-	try {
-		const { boardId, columnName } = params;
-		const { newName, scope, currentProjectSlug } = await request.json();
-		if (!newName || typeof newName !== "string") {
-			throw new ValidationError("Missing required field: newName");
-		}
-		const validScopes: MigrationScope[] = ["all", "current", "none"];
-		if (!validScopes.includes(scope)) {
-			throw new ValidationError("Invalid scope: must be all, current, or none");
-		}
-		if (scope === "current" && (!currentProjectSlug || typeof currentProjectSlug !== "string")) {
-			throw new ValidationError("Missing required field: currentProjectSlug (required when scope is 'current')");
-		}
-		const result = boardConfigManager.renameColumn(boardId, columnName, newName);
-		let migration;
-		try {
-			migration = migrateColumnRename(boardId, columnName, result.newName, scope, currentProjectSlug, {
-				projectRegistry,
-				launcherConfigManager,
-				worktreeManager,
-			});
-		} catch (migrationError) {
-			// Rollback: restore the original column name so board config stays consistent
-			try {
-				boardConfigManager.renameColumn(boardId, result.newName, columnName);
-			} catch (rollbackError) {
-				console.error('Column rename rollback failed', rollbackError);
-			}
-			throw migrationError;
-		}
-		return new Response(JSON.stringify({
-			newName: result.newName,
-			ticketsUpdated: migration.ticketsUpdated,
-			projectsUpdated: migration.projectsUpdated,
-		}), {
-			headers: { "Content-Type": "application/json" },
-		});
-	} catch (e) {
-		return Response.json({ error: errorMessage(e) }, { status: 400 });
+export const POST = withService(async ({ params, request }) => {
+	const { boardId, columnName } = params;
+	const { newName, scope, currentProjectSlug } = await request.json();
+	if (!newName || typeof newName !== "string") throw new ValidationError("Missing required field: newName");
+	const validScopes: MigrationScope[] = ["all", "current", "none"];
+	if (!validScopes.includes(scope)) throw new ValidationError("Invalid scope: must be all, current, or none");
+	if (scope === "current" && (!currentProjectSlug || typeof currentProjectSlug !== "string")) {
+		throw new ValidationError("Missing required field: currentProjectSlug (required when scope is 'current')");
 	}
-}
+	const result = renameColumnWithMigration(boardId, columnName, newName, scope, currentProjectSlug, {
+		boardConfigManager, projectRegistry, launcherConfigManager, worktreeManager,
+	});
+	return Response.json(result);
+}, 400);

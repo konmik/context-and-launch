@@ -1,22 +1,22 @@
-import fs from 'fs';
-import path from 'path';
+import { reconcileOrder } from './ticket-order-reconcile.js';
+import { TicketRepository } from './ticket-repository.js';
 import type { TicketInfo } from './ticket-store.js';
 
 export type TicketOrder = Record<string, string[]>;
 
 export class TicketOrderStore {
 	private worktreeDir: string;
-	private filePath: string;
+	private repo: TicketRepository;
 
-	constructor(worktreeDir: string) {
+	constructor(worktreeDir: string, repo?: TicketRepository) {
 		this.worktreeDir = worktreeDir;
-		this.filePath = path.join(worktreeDir, 'ticket-order.json');
+		this.repo = repo ?? new TicketRepository();
 	}
 
 	read(): TicketOrder {
 		try {
-			if (!fs.existsSync(this.filePath)) return {};
-			const raw = fs.readFileSync(this.filePath, 'utf-8');
+			const raw = this.repo.readOrderFile(this.worktreeDir);
+			if (raw === null) return {};
 			const parsed = JSON.parse(raw);
 			if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {};
 			for (const key of Object.keys(parsed)) {
@@ -24,57 +24,22 @@ export class TicketOrderStore {
 			}
 			return parsed as TicketOrder;
 		} catch (err) {
-			console.warn(`Failed to read ticket order from ${this.filePath}:`, err);
+			console.warn(`Failed to read ticket order:`, err);
 			return {};
 		}
 	}
 
 	write(order: TicketOrder): void {
-		fs.writeFileSync(this.filePath, JSON.stringify(order, null, 2));
+		this.repo.writeOrderFile(this.worktreeDir, JSON.stringify(order, null, 2));
 	}
 
 	reconcile(tickets: TicketInfo[], columns: string[]): TicketOrder {
-		if (columns.length === 0) return {};
-
 		const existing = this.read();
-		const ticketsByColumn = new Map<string, string[]>();
-		for (const col of columns) {
-			ticketsByColumn.set(col, []);
-		}
-
-		// Group tickets by their status column
-		for (const t of tickets) {
-			const col = columns.includes(t.status) ? t.status : columns[0];
-			ticketsByColumn.get(col)!.push(t.folderName);
-		}
-
-		const result: TicketOrder = {};
-		for (const col of columns) {
-			const actualFolders = new Set(ticketsByColumn.get(col) ?? []);
-			const existingOrder = existing[col] ?? [];
-
-			// Keep existing order for folders still in this column, remove stale
-			const ordered: string[] = [];
-			for (const fn of existingOrder) {
-				if (actualFolders.has(fn)) {
-					ordered.push(fn);
-					actualFolders.delete(fn);
-				}
-			}
-			// Append any new folders not in existing order
-			for (const fn of actualFolders) {
-				ordered.push(fn);
-			}
-			result[col] = ordered;
-		}
-
-		// Only write if the order actually changed to avoid
-		// unnecessary git commits and file-watcher triggers on every page load
-		const changed = JSON.stringify(result) !== JSON.stringify(existing);
+		const { order, changed } = reconcileOrder(existing, tickets, columns);
 		if (changed) {
-			this.write(result);
+			this.write(order);
 		}
-		return result;
+		return order;
 	}
 
 	moveTicket(folderName: string, fromColumn: string, toColumn: string, newIndex: number): void {

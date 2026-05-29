@@ -2,23 +2,23 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
+export function requireSafeSlug(slug: string): void {
+	if (
+		slug === '.' ||
+		slug === '..' ||
+		slug.includes('/') ||
+		slug.includes('\\') ||
+		slug.includes('\0')
+	) {
+		throw new Error(`Invalid slug: ${slug}`);
+	}
+}
+
 export class ConfigPaths {
 	readonly baseDir: string;
 
 	constructor(baseDir?: string) {
 		this.baseDir = baseDir ?? path.join(os.homedir(), '.context-launch');
-	}
-
-	private requireSafeSlug(slug: string): void {
-		if (
-			slug === '.' ||
-			slug === '..' ||
-			slug.includes('/') ||
-			slug.includes('\\') ||
-			slug.includes('\0')
-		) {
-			throw new Error(`Invalid slug: ${slug}`);
-		}
 	}
 
 	appConfigDir(): string {
@@ -46,27 +46,27 @@ export class ConfigPaths {
 	}
 
 	projectDir(projectSlug: string): string {
-		this.requireSafeSlug(projectSlug);
+		requireSafeSlug(projectSlug);
 		return path.join(this.baseDir, 'projects', projectSlug);
 	}
 
 	projectConfigDir(projectSlug: string): string {
-		this.requireSafeSlug(projectSlug);
+		requireSafeSlug(projectSlug);
 		return path.join(this.baseDir, 'projects', projectSlug, 'config');
 	}
 
 	projectLauncherConfigFile(projectSlug: string): string {
-		this.requireSafeSlug(projectSlug);
+		requireSafeSlug(projectSlug);
 		return path.join(this.baseDir, 'projects', projectSlug, 'config', 'launcher-config.json');
 	}
 
 	ticketWorktreeDir(projectSlug: string): string {
-		this.requireSafeSlug(projectSlug);
+		requireSafeSlug(projectSlug);
 		return path.join(this.baseDir, 'projects', projectSlug, 'tickets');
 	}
 
 	agentWorktreeDir(projectSlug: string): string {
-		this.requireSafeSlug(projectSlug);
+		requireSafeSlug(projectSlug);
 		return path.join(this.baseDir, 'projects', projectSlug, 'worktrees');
 	}
 

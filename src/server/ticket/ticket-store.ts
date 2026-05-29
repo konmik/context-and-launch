@@ -1,8 +1,12 @@
-import fs from 'fs';
 import path from 'path';
 import { TicketOrderStore } from './ticket-order.js';
 import { suggestNextTicketNumber } from './ticket-number.js';
+import { toKebabCase, requireNonBlank, requireSimpleName } from './ticket-naming.js';
+import { TicketRepository } from './ticket-repository.js';
+import type { StatusJson } from './ticket-repository.js';
 import type { TicketOrder } from './ticket-order.js';
+
+export { toKebabCase } from './ticket-naming.js';
 
 export interface TicketInfo {
 	number: string;
@@ -30,30 +34,15 @@ export interface DocContent {
 	content: string;
 }
 
-interface StatusJson {
-	number: string;
-	title: string;
-	status: string;
-	useWorktree: boolean;
-	createdAt?: string;
-	references?: { path: string }[];
-}
-
-export function toKebabCase(input: string): string {
-	return input
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, '-')
-		.replace(/-+/g, '-')
-		.replace(/^-|-$/g, '');
-}
-
 export class TicketStore {
 	private worktreeDir: string;
 	private orderStore: TicketOrderStore;
+	private repo: TicketRepository;
 
-	constructor(worktreeDir: string) {
+	constructor(worktreeDir: string, repo?: TicketRepository) {
 		this.worktreeDir = worktreeDir;
-		this.orderStore = new TicketOrderStore(worktreeDir);
+		this.repo = repo ?? new TicketRepository();
+		this.orderStore = new TicketOrderStore(worktreeDir, this.repo);
 	}
 
 	private requireContained(filePath: string, label: string): void {
@@ -61,40 +50,24 @@ export class TicketStore {
 	}
 
 	private requireContainedIn(filePath: string, parent: string, label: string): void {
-		// Resolve the canonical path. If the file doesn't exist yet,
-		// resolve its parent directory and append the filename.
 		let canonical: string;
-		if (fs.existsSync(filePath)) {
-			canonical = fs.realpathSync(filePath);
+		if (this.repo.exists(filePath)) {
+			canonical = this.repo.realpathSync(filePath);
 		} else {
 			const dir = path.dirname(filePath);
 			const base = path.basename(filePath);
-			if (fs.existsSync(dir)) {
-				canonical = path.join(fs.realpathSync(dir), base);
+			if (this.repo.exists(dir)) {
+				canonical = path.join(this.repo.realpathSync(dir), base);
 			} else {
 				canonical = path.resolve(filePath);
 			}
 		}
-		if (!fs.existsSync(parent)) {
+		if (!this.repo.exists(parent)) {
 			throw new Error(`Worktree directory does not exist: ${parent}`);
 		}
-		const root = fs.realpathSync(parent) + path.sep;
+		const root = this.repo.realpathSync(parent) + path.sep;
 		if (!canonical.startsWith(root)) {
 			throw new Error(`${label} escapes allowed directory: ${canonical}`);
-		}
-	}
-
-	private requireNonBlank(value: string, label: string): string {
-		const trimmed = value.trim();
-		if (!trimmed) throw new Error(`${label} must not be blank`);
-		return trimmed;
-	}
-
-	private requireSimpleName(name: string, label: string): void {
-		if (name.includes('/') || name.includes('\\') || name === '..' || name === '.') {
-			throw new Error(
-				`${label} must be a simple name without path separators: ${name}`
-			);
 		}
 	}
 
@@ -116,18 +89,18 @@ export class TicketStore {
 	}
 
 	private resolveTicketDir(folderName: string): string {
-		this.requireSimpleName(folderName, 'folderName');
+		requireSimpleName(folderName, 'folderName');
 		const dir = path.join(this.worktreeDir, folderName);
 		this.requireContained(dir, 'folderName');
-		if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
+		if (!this.repo.isDirectory(dir)) {
 			throw new Error(`Ticket not found: ${folderName}`);
 		}
 		return dir;
 	}
 
 	listTickets(): TicketInfo[] {
-		if (!fs.existsSync(this.worktreeDir)) return [];
-		const entries = fs.readdirSync(this.worktreeDir, { withFileTypes: true });
+		if (!this.repo.exists(this.worktreeDir)) return [];
+		const entries = this.repo.listEntries(this.worktreeDir);
 		const tickets: TicketInfo[] = [];
 		for (const entry of entries) {
 			if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'archive') continue;
@@ -144,16 +117,16 @@ export class TicketStore {
 
 		const baseFolderName = toKebabCase(`${number} ${title}`);
 		const dir = this.resolveUniqueFolderPath(baseFolderName);
-		fs.mkdirSync(dir, { recursive: true });
+		this.repo.createDirectory(dir);
 
-		const status: StatusJson = {
+		const statusData: StatusJson = {
 			number: number.trim(),
 			title: title.trim(),
 			status: initialStatus,
 			useWorktree: false,
 			createdAt: new Date().toISOString(),
 		};
-		this.writeStatusJson(dir, status);
+		this.repo.writeStatusJson(dir, statusData);
 
 		const ticket = this.readTicket(dir)!;
 		this.orderStore.appendTicket(ticket.folderName, initialStatus);
@@ -167,11 +140,11 @@ export class TicketStore {
 		status?: string | null
 	): TicketInfo {
 		const dir = this.resolveTicketDir(folderName);
-		const current = this.readStatusJson(dir);
+		const current = this.repo.readStatusJson(dir);
 		if (!current) throw new Error(`Malformed ticket: ${folderName}`);
 
-		const updatedNumber = number != null ? this.requireNonBlank(number, 'Ticket number') : current.number;
-		const updatedTitle = title != null ? this.requireNonBlank(title, 'Ticket title') : current.title;
+		const updatedNumber = number != null ? requireNonBlank(number, 'Ticket number') : current.number;
+		const updatedTitle = title != null ? requireNonBlank(title, 'Ticket title') : current.title;
 		const updatedStatus = status ?? current.status;
 
 		const updated: StatusJson = {
@@ -192,11 +165,11 @@ export class TicketStore {
 			const newFolderName = toKebabCase(`${updated.number} ${updated.title}`);
 			if (newFolderName !== folderName) {
 				const newDir = path.join(this.worktreeDir, newFolderName);
-				if (fs.existsSync(newDir)) {
+				if (this.repo.exists(newDir)) {
 					throw new Error(`Folder name collision: ${newFolderName}`);
 				}
 				try {
-					fs.renameSync(dir, newDir);
+					this.repo.renameDirectory(dir, newDir);
 				} catch (err) {
 					throw new Error(
 						`Failed to rename ticket folder from ${path.basename(dir)} to ${newFolderName}`,
@@ -207,7 +180,7 @@ export class TicketStore {
 			}
 		}
 
-		this.writeStatusJson(finalDir, updated);
+		this.repo.writeStatusJson(finalDir, updated);
 
 		if (needsRename && path.basename(finalDir) !== folderName) {
 			this.orderStore.renameTicket(folderName, path.basename(finalDir));
@@ -218,73 +191,73 @@ export class TicketStore {
 
 	deleteTicket(folderName: string): void {
 		const dir = this.resolveTicketDir(folderName);
-		fs.rmSync(dir, { recursive: true, force: true });
+		this.repo.removeDirectory(dir);
 		this.orderStore.removeTicket(folderName);
 	}
 
 	archiveTicket(folderName: string): void {
 		const dir = this.resolveTicketDir(folderName);
 		const archiveDir = path.join(this.worktreeDir, 'archive');
-		fs.mkdirSync(archiveDir, { recursive: true });
+		this.repo.createDirectory(archiveDir);
 		const dest = path.join(archiveDir, folderName);
-		if (fs.existsSync(dest)) {
+		if (this.repo.exists(dest)) {
 			throw new Error(`Archive destination already exists: ${folderName}`);
 		}
-		fs.renameSync(dir, dest);
+		this.repo.renameDirectory(dir, dest);
 		this.orderStore.removeTicket(folderName);
 	}
 
 	setUseWorktree(folderName: string, value: boolean): void {
 		const dir = this.resolveTicketDir(folderName);
-		const current = this.readStatusJson(dir);
+		const current = this.repo.readStatusJson(dir);
 		if (!current) throw new Error(`Ticket not found: ${folderName}`);
-		this.writeStatusJson(dir, { ...current, useWorktree: value });
+		this.repo.writeStatusJson(dir, { ...current, useWorktree: value });
 	}
 
 	getTicketContext(folderName: string, name: string): string | null {
-		this.requireSimpleName(name, 'name');
+		requireSimpleName(name, 'name');
 		const dir = path.join(this.worktreeDir, folderName);
 		this.requireContained(dir, 'folderName');
-		if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
+		if (!this.repo.isDirectory(dir)) {
 			return null;
 		}
 		const file = path.join(dir, `${name}.md`);
 		this.requireContained(file, 'name');
 		this.requireContainedIn(file, dir, 'name');
-		return fs.existsSync(file) ? fs.readFileSync(file, 'utf-8') : null;
+		return this.repo.exists(file) ? this.repo.readFileText(file) : null;
 	}
 
 	deleteTicketContext(folderName: string, name: string): void {
-		this.requireSimpleName(name, 'name');
+		requireSimpleName(name, 'name');
 		const dir = this.resolveTicketDir(folderName);
 		const file = path.join(dir, `${name}.md`);
 		this.requireContained(file, 'name');
 		this.requireContainedIn(file, dir, 'name');
-		if (!fs.existsSync(file)) return;
-		fs.unlinkSync(file);
+		if (!this.repo.exists(file)) return;
+		this.repo.deleteFile(file);
 	}
 
 	saveTicketContext(folderName: string, name: string, content: string): void {
 		if (typeof content !== 'string') {
 			throw new TypeError('content must be a string');
 		}
-		this.requireSimpleName(name, 'name');
+		requireSimpleName(name, 'name');
 		const dir = this.resolveTicketDir(folderName);
 		const file = path.join(dir, `${name}.md`);
 		this.requireContained(file, 'name');
 		this.requireContainedIn(file, dir, 'name');
-		fs.writeFileSync(file, content);
+		this.repo.writeFile(file, content);
 	}
 
 	listAllTicketNumbers(): Array<{ number: string; createdAt?: string }> {
 		const results: Array<{ number: string; createdAt?: string }> = [];
 
 		const scanDir = (dir: string) => {
-			if (!fs.existsSync(dir)) return;
-			const entries = fs.readdirSync(dir, { withFileTypes: true });
+			if (!this.repo.exists(dir)) return;
+			const entries = this.repo.listEntries(dir);
 			for (const entry of entries) {
 				if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'archive') continue;
-				const status = this.readStatusJson(path.join(dir, entry.name));
+				const status = this.repo.readStatusJson(path.join(dir, entry.name));
 				if (status) {
 					results.push({ number: status.number, createdAt: status.createdAt });
 				}
@@ -302,9 +275,9 @@ export class TicketStore {
 	}
 
 	private readTicket(dir: string): TicketInfo | null {
-		const status = this.readStatusJson(dir);
+		const status = this.repo.readStatusJson(dir);
 		if (!status) return null;
-		const entries = fs.readdirSync(dir, { withFileTypes: true });
+		const entries = this.repo.listEntries(dir);
 		const contextNames = entries
 			.filter((e) => e.isFile() && e.name.endsWith('.md'))
 			.map((e) => e.name.replace(/\.md$/, ''))
@@ -315,7 +288,7 @@ export class TicketStore {
 			.sort();
 		const references = (status.references ?? []).map((ref) => ({
 			path: ref.path,
-			exists: fs.existsSync(ref.path),
+			exists: this.repo.exists(ref.path),
 		}));
 		return {
 			number: status.number,
@@ -331,7 +304,7 @@ export class TicketStore {
 
 	listTicketFiles(folderName: string): string[] {
 		const dir = this.resolveTicketDir(folderName);
-		const entries = fs.readdirSync(dir, { withFileTypes: true });
+		const entries = this.repo.listEntries(dir);
 		return entries
 			.filter((e) => e.isFile() && e.name !== 'status.json')
 			.map((e) => e.name)
@@ -339,96 +312,80 @@ export class TicketStore {
 	}
 
 	copyFileToTicket(folderName: string, fileName: string, content: Buffer): void {
-		this.requireSimpleName(fileName, 'fileName');
+		requireSimpleName(fileName, 'fileName');
 		if (fileName === 'status.json') {
 			throw new Error('Cannot overwrite status.json');
 		}
 		const dir = this.resolveTicketDir(folderName);
 		const filePath = path.join(dir, fileName);
 		this.requireContainedIn(filePath, dir, 'fileName');
-		fs.writeFileSync(filePath, content);
+		this.repo.writeFile(filePath, content);
 	}
 
 	deleteTicketFile(folderName: string, fileName: string): void {
-		this.requireSimpleName(fileName, 'fileName');
+		requireSimpleName(fileName, 'fileName');
 		if (fileName === 'status.json') {
 			throw new Error('Cannot delete status.json');
 		}
 		const dir = this.resolveTicketDir(folderName);
 		const filePath = path.join(dir, fileName);
 		this.requireContainedIn(filePath, dir, 'fileName');
-		if (!fs.existsSync(filePath)) {
+		if (!this.repo.exists(filePath)) {
 			throw new Error(`File not found: ${fileName}`);
 		}
-		fs.unlinkSync(filePath);
+		this.repo.deleteFile(filePath);
 	}
 
 	getFileContent(folderName: string, fileName: string): Buffer {
-		this.requireSimpleName(fileName, 'fileName');
+		requireSimpleName(fileName, 'fileName');
 		const dir = this.resolveTicketDir(folderName);
 		const filePath = path.join(dir, fileName);
 		this.requireContainedIn(filePath, dir, 'fileName');
-		if (!fs.existsSync(filePath)) {
+		if (!this.repo.exists(filePath)) {
 			throw new Error(`File not found: ${fileName}`);
 		}
-		return fs.readFileSync(filePath);
+		return this.repo.readFile(filePath);
 	}
 
 	addReference(folderName: string, refPath: string): void {
 		const dir = this.resolveTicketDir(folderName);
-		const status = this.readStatusJson(dir);
+		const status = this.repo.readStatusJson(dir);
 		if (!status) throw new Error(`Malformed ticket: ${folderName}`);
 		const refs = status.references ?? [];
 		if (refs.some((r) => r.path === refPath)) return;
 		refs.push({ path: refPath });
-		this.writeStatusJson(dir, { ...status, references: refs });
+		this.repo.writeStatusJson(dir, { ...status, references: refs });
 	}
 
 	removeReference(folderName: string, refPath: string): void {
 		const dir = this.resolveTicketDir(folderName);
-		const status = this.readStatusJson(dir);
+		const status = this.repo.readStatusJson(dir);
 		if (!status) throw new Error(`Malformed ticket: ${folderName}`);
 		const refs = (status.references ?? []).filter((r) => r.path !== refPath);
-		this.writeStatusJson(dir, { ...status, references: refs });
+		this.repo.writeStatusJson(dir, { ...status, references: refs });
 	}
 
 	getReferencedFileContent(folderName: string, refPath: string): Buffer {
 		const dir = this.resolveTicketDir(folderName);
-		const status = this.readStatusJson(dir);
+		const status = this.repo.readStatusJson(dir);
 		if (!status) throw new Error(`Malformed ticket: ${folderName}`);
 		const refs = status.references ?? [];
 		if (!refs.some((r) => r.path === refPath)) {
 			throw new Error(`Path is not a registered reference of ticket ${status.number}: ${refPath}`);
 		}
-		if (!fs.existsSync(refPath)) {
+		if (!this.repo.exists(refPath)) {
 			throw new Error(`Referenced file not found: ${refPath}`);
 		}
-		return fs.readFileSync(refPath);
-	}
-
-	private readStatusJson(dir: string): StatusJson | null {
-		const file = path.join(dir, 'status.json');
-		if (!fs.existsSync(file)) return null;
-		try {
-			const raw = JSON.parse(fs.readFileSync(file, 'utf-8'));
-			return { useWorktree: false, ...raw } as StatusJson;
-		} catch (err) {
-			console.warn(`Malformed status.json in ${dir}:`, err);
-			return null;
-		}
-	}
-
-	private writeStatusJson(dir: string, status: StatusJson): void {
-		fs.writeFileSync(path.join(dir, 'status.json'), JSON.stringify(status, null, 2));
+		return this.repo.readFile(refPath);
 	}
 
 	private resolveUniqueFolderPath(baseName: string): string {
 		let dir = path.join(this.worktreeDir, baseName);
-		if (!fs.existsSync(dir)) return dir;
+		if (!this.repo.exists(dir)) return dir;
 		let i = 2;
 		while (true) {
 			dir = path.join(this.worktreeDir, `${baseName}-${i}`);
-			if (!fs.existsSync(dir)) return dir;
+			if (!this.repo.exists(dir)) return dir;
 			i++;
 		}
 	}

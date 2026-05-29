@@ -1,30 +1,16 @@
-import type { APIEvent } from "@solidjs/start/server";
 import { boardConfigManager } from "~/server/config/instances.js";
-import { errorMessage, ValidationError } from "~/server/shared/errors.js";
+import { ValidationError } from "~/server/shared/errors.js";
+import { withService } from "~/server/shared/route-helpers.js";
 
-export async function GET() {
-	try {
-		const boards = boardConfigManager.listBoards();
-		return new Response(JSON.stringify(boards), {
-			headers: { "Content-Type": "application/json" },
-		});
-	} catch (e) {
-		return Response.json({ error: errorMessage(e) }, { status: 500 });
-	}
-}
+export const GET = withService(async () => {
+	return Response.json(boardConfigManager.listBoards());
+});
 
-export async function POST({ request }: APIEvent) {
-	try {
-		const { name } = await request.json();
-		if (!name || typeof name !== "string") {
-			throw new ValidationError("Missing required field: name");
-		}
-		const board = boardConfigManager.createBoard(name);
-		return new Response(JSON.stringify(board), {
-			status: 201,
-			headers: { "Content-Type": "application/json" },
-		});
-	} catch (e) {
-		return Response.json({ error: errorMessage(e) }, { status: 400 });
+export const POST = withService(async ({ request }) => {
+	const { name } = await request.json();
+	if (!name || typeof name !== "string") {
+		throw new ValidationError("Missing required field: name");
 	}
-}
+	const board = boardConfigManager.createBoard(name);
+	return Response.json(board, { status: 201 });
+}, 400);

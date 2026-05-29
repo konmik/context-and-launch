@@ -3,6 +3,20 @@ import { worktreeManager } from "~/server/config/instances.js";
 import { TicketStore } from "~/server/ticket/ticket-store.js";
 import { AppError, errorMessage } from "~/server/shared/errors.js";
 
+export function withService(
+  handler: (event: APIEvent) => Promise<Response>,
+  defaultStatus = 500,
+): (event: APIEvent) => Promise<Response> {
+  return async (event: APIEvent) => {
+    try {
+      return await handler(event);
+    } catch (e) {
+      const status = e instanceof AppError ? e.statusCode : defaultStatus;
+      return Response.json({ error: errorMessage(e) }, { status });
+    }
+  };
+}
+
 export interface ProjectContext {
   projectSlug: string;
   worktreeDir: string;

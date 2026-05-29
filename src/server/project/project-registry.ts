@@ -1,6 +1,6 @@
-import fs from 'fs';
 import path from 'path';
 import type { ConfigPaths } from '../config/config-paths.js';
+import { ConfigRepository } from '../config/config-repository.js';
 
 export interface ProjectInfo {
 	path: string;
@@ -24,9 +24,9 @@ export interface ProjectConfig {
 	browser?: string;
 }
 
-function isGitRepo(dirPath: string): boolean {
+function isGitRepo(dirPath: string, configRepo: ConfigRepository): boolean {
 	try {
-		return fs.existsSync(dirPath) && fs.existsSync(path.join(dirPath, '.git'));
+		return configRepo.exists(dirPath) && configRepo.exists(path.join(dirPath, '.git'));
 	} catch {
 		return false;
 	}
@@ -76,11 +76,13 @@ export function generateProjectSlug(filePath: string, existingProjectSlugs: Set<
 
 export class ProjectRegistry {
 	private paths: ConfigPaths;
+	private configRepo: ConfigRepository;
 	private cached: ProjectConfig | null = null;
 	private extraFields: Record<string, unknown> = {};
 
-	constructor(paths: ConfigPaths) {
+	constructor(paths: ConfigPaths, configRepo?: ConfigRepository) {
 		this.paths = paths;
+		this.configRepo = configRepo ?? new ConfigRepository();
 	}
 
 	private static emptyConfig(): ProjectConfig {
@@ -90,20 +92,19 @@ export class ProjectRegistry {
 	private load(): ProjectConfig {
 		if (this.cached) return this.cached;
 		const configFile = this.paths.projectRegistryFile();
-		if (!fs.existsSync(configFile)) {
+		const raw = this.configRepo.readJson(configFile) as Record<string, unknown> | null;
+		if (raw === null) {
 			this.cached = ProjectRegistry.emptyConfig();
 			this.extraFields = {};
 			return this.cached;
 		}
 		try {
-			const text = fs.readFileSync(configFile, 'utf-8');
-			const raw = JSON.parse(text);
 			if (!Array.isArray(raw.projects)) {
 				this.cached = ProjectRegistry.emptyConfig();
 				this.extraFields = {};
 				return this.cached;
 			}
-			const lastUsed = raw.lastUsedProjectSlug ?? raw.lastUsedSlug ?? null;
+			const lastUsed = (raw.lastUsedProjectSlug ?? raw.lastUsedSlug ?? null) as string | null;
 			const migratedProjects: ProjectEntry[] = raw.projects.map(
 				(p: Record<string, unknown>) => {
 					const projectSlug = (p.projectSlug ?? p.slug) as string;
@@ -117,8 +118,8 @@ export class ProjectRegistry {
 			const config: ProjectConfig = {
 				projects: migratedProjects,
 				lastUsedProjectSlug: lastUsed,
-				port,
-				browser,
+				port: port as number | undefined,
+				browser: browser as string | undefined,
 			};
 			this.cached = config;
 			this.extraFields = extra;
@@ -136,9 +137,9 @@ export class ProjectRegistry {
 	}
 
 	private save(config: ProjectConfig): void {
-		this.paths.writeConfigFile(
+		this.configRepo.writeJson(
 			this.paths.projectRegistryFile(),
-			JSON.stringify({ ...this.extraFields, ...config }, null, 2)
+			{ ...this.extraFields, ...config },
 		);
 		this.cached = config;
 	}
@@ -159,7 +160,7 @@ export class ProjectRegistry {
 		return this.load().projects.map((entry) => ({
 			path: entry.path,
 			projectSlug: entry.projectSlug,
-			available: isGitRepo(entry.path),
+			available: isGitRepo(entry.path, this.configRepo),
 			branch: entry.branch,
 			ticketsPath: entry.ticketsPath
 		}));
@@ -170,10 +171,10 @@ export class ProjectRegistry {
 	}
 
 	addProject(projectPath: string, projectSlug?: string, branch?: string, ticketsPath?: string): ProjectInfo {
-		if (!fs.existsSync(projectPath)) {
+		if (!this.configRepo.exists(projectPath)) {
 			throw new Error(`Path does not exist: ${projectPath}`);
 		}
-		if (!fs.existsSync(path.join(projectPath, '.git'))) {
+		if (!this.configRepo.exists(path.join(projectPath, '.git'))) {
 			throw new Error(`Not a git repository: ${projectPath}`);
 		}
 		if (branch !== undefined) {
@@ -181,10 +182,10 @@ export class ProjectRegistry {
 		}
 
 		const config = this.load();
-		const canonicalPath = fs.realpathSync(projectPath);
+		const canonicalPath = this.configRepo.realpathSync(projectPath);
 		const alreadyRegistered = config.projects.some((p) => {
 			try {
-				return fs.realpathSync(p.path) === canonicalPath;
+				return this.configRepo.realpathSync(p.path) === canonicalPath;
 			} catch {
 				return false;
 			}
@@ -220,7 +221,7 @@ export class ProjectRegistry {
 		if (index < 0) throw new Error(`Project not found: ${projectSlug}`);
 
 		const entry = config.projects[index];
-		const updatedPath = newPath ? fs.realpathSync(newPath) : entry.path;
+		const updatedPath = newPath ? this.configRepo.realpathSync(newPath) : entry.path;
 		const updatedProjectSlug = newProjectSlug ?? entry.projectSlug;
 
 		if (newProjectSlug && newProjectSlug !== projectSlug) {
@@ -241,7 +242,7 @@ export class ProjectRegistry {
 		return {
 			path: updatedPath,
 			projectSlug: updatedProjectSlug,
-			available: isGitRepo(updatedPath),
+			available: isGitRepo(updatedPath, this.configRepo),
 			branch: updated.branch,
 			ticketsPath: updated.ticketsPath
 		};

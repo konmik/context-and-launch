@@ -20,9 +20,6 @@ const MANIFEST_PATH = path.join(PUBLIC_DIR, "_build", ".vite", "manifest.json");
 
 // Server function IDs used by the SolidJS Start client
 const LOAD_BOARD_ID = "src_server_actions_ts--loadBoard_query";
-const CREATE_TICKET_ID = "src_server_actions_ts--createTicketAction_1";
-const UPDATE_TICKET_ID = "src_server_actions_ts--updateTicketAction_1";
-const DELETE_TICKET_ID = "src_server_actions_ts--deleteTicketAction_1";
 const GET_DEFAULT_PROJECT_SLUG_ID = "src_server_actions_ts--getDefaultProjectSlug_query";
 
 const MIME_TYPES: Record<string, string> = {
@@ -752,6 +749,82 @@ export function startMockServer(port: number, state: MockServerState): Promise<h
         return;
       }
 
+      // POST /api/projects/:projectSlug/board/tickets -- create ticket
+      const ticketsMatch = pathname.match(/^\/api\/projects\/([^/]+)\/board\/tickets$/);
+      if (ticketsMatch && req.method === "POST") {
+        const projectSlug = ticketsMatch[1];
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk: Buffer) => chunks.push(chunk));
+        req.on("end", () => {
+          try {
+            const body = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+            const result = state.onCreateTicket
+              ? state.onCreateTicket(projectSlug, body.number, body.title)
+              : { success: true };
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify(result));
+          } catch (err) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: String(err) }));
+          }
+        });
+        return;
+      }
+
+      // POST /api/projects/:projectSlug/board/tickets/:folderName/archive -- archive ticket
+      const archiveMatch = pathname.match(/^\/api\/projects\/([^/]+)\/board\/tickets\/([^/]+)\/archive$/);
+      if (archiveMatch && req.method === "POST") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ success: true }));
+        return;
+      }
+
+      // PUT or DELETE /api/projects/:projectSlug/board/tickets/:folderName -- update/delete ticket
+      const ticketMatch = pathname.match(/^\/api\/projects\/([^/]+)\/board\/tickets\/([^/]+)$/);
+      if (ticketMatch && (req.method === "PUT" || req.method === "DELETE")) {
+        const projectSlug = ticketMatch[1];
+        const folderName = ticketMatch[2];
+        if (req.method === "DELETE") {
+          const result = state.onDeleteTicket
+            ? state.onDeleteTicket(projectSlug, folderName)
+            : { success: true };
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(result));
+          return;
+        }
+        // PUT -- update ticket
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk: Buffer) => chunks.push(chunk));
+        req.on("end", () => {
+          try {
+            const body = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+            const result = state.onUpdateTicket
+              ? state.onUpdateTicket(
+                  projectSlug, folderName,
+                  body.number ?? null, body.title ?? null, body.status ?? null,
+                )
+              : { success: true };
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify(result));
+          } catch (err) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: String(err) }));
+          }
+        });
+        return;
+      }
+
+      // POST /api/projects/:projectSlug/worktree-cleanup
+      if (pathname.match(/^\/api\/projects\/[^/]+\/worktree-cleanup$/) && req.method === "POST") {
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk: Buffer) => chunks.push(chunk));
+        req.on("end", () => {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ success: true }));
+        });
+        return;
+      }
+
       if (pathname.includes("/board/reorder") && req.method === "POST") {
         // The page uses fetch("/api/projects/:projectSlug/board/reorder") for reorder
         const chunks: Buffer[] = [];
@@ -883,53 +956,13 @@ function handleGetQuery(fnId: string, url: URL, res: http.ServerResponse, state:
 }
 
 function handlePostMutation(
-  fnId: string,
-  body: string,
-  req: http.IncomingMessage,
+  _fnId: string,
+  _body: string,
+  _req: http.IncomingMessage,
   res: http.ServerResponse,
-  state: MockServerState
+  _state: MockServerState
 ) {
-  let responseData: unknown = { success: true };
-
-  try {
-    // The body may be JSON-stringified seroval output (when x-serialized header is set),
-    // or it could be a FormData/URLSearchParams body.
-    // For our mock, we try to parse the JSON wrapper then eval the seroval payload.
-    let args: unknown[] = [];
-    const isSerialized = req.headers["x-serialized"] === "true";
-    if (isSerialized && body) {
-      // The client sends JSON.stringify({t: AST, f: features, m: marked})
-      // where t is a seroval cross-serialized AST tree (not a string).
-      // We use seroval.fromCrossJSON to reconstruct the original JS values.
-      const parsed = JSON.parse(body);
-      if (parsed && parsed.t != null) {
-        args = seroval.fromCrossJSON(parsed.t, { plugins: [] }) as unknown[];
-      }
-    }
-
-    if (fnId.includes(CREATE_TICKET_ID)) {
-      if (state.onCreateTicket) {
-        const [projectSlug, number, title] = args as [string, string, string];
-        responseData = state.onCreateTicket(projectSlug, number, title);
-      }
-    } else if (fnId.includes(UPDATE_TICKET_ID)) {
-      if (state.onUpdateTicket) {
-        const [projectSlug, folderName, number, title, status] =
-          args as [string, string, string | null, string | null, string | null];
-        responseData = state.onUpdateTicket(projectSlug, folderName, number, title, status);
-      }
-    } else if (fnId.includes(DELETE_TICKET_ID)) {
-      if (state.onDeleteTicket) {
-        const [projectSlug, folderName] = args as [string, string];
-        responseData = state.onDeleteTicket(projectSlug, folderName);
-      }
-    }
-  } catch (err) {
-    console.error("Error handling server function:", fnId, err);
-    responseData = { error: String(err) };
-  }
-
-  const responseBuffer = buildServerFnResponse(responseData);
+  const responseBuffer = buildServerFnResponse({ success: true });
   res.writeHead(200, {
     "Content-Type": "application/octet-stream",
     "x-serialized": "true",

@@ -1,22 +1,12 @@
-import type { APIEvent } from "@solidjs/start/server";
 import { launcherConfigManager } from "~/server/config/instances.js";
-import { errorMessage } from "~/server/shared/errors.js";
+import { withService } from "~/server/shared/route-helpers.js";
 
-export async function GET() {
-	try {
-		const config = launcherConfigManager.loadAppConfig();
-		return Response.json(config);
-	} catch (e) {
-		return Response.json({ error: errorMessage(e) }, { status: 500 });
-	}
-}
+export const GET = withService(async () => {
+	return Response.json(launcherConfigManager.loadAppConfig());
+});
 
-export async function PUT({ request }: APIEvent) {
-	try {
-		const body = await request.json();
-		launcherConfigManager.saveAppConfig(body);
-		return new Response(null, { status: 204 });
-	} catch (e) {
-		return Response.json({ error: errorMessage(e) }, { status: 500 });
-	}
-}
+export const PUT = withService(async ({ request }) => {
+	const body = await request.json();
+	launcherConfigManager.saveAppConfig(body);
+	return new Response(null, { status: 204 });
+});

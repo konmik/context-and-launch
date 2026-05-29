@@ -17,10 +17,9 @@ import AddProjectForm from "~/components/project/AddProjectForm";
 import ThemeToggle from "~/components/shared/ThemeToggle";
 import LauncherSettings from "~/components/launcher/LauncherSettings";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
-import {
-  loadBoard, addProjectAction, createTicketAction, updateTicketAction,
-  deleteTicketAction, archiveTicketAction, worktreeCleanupAction,
-} from "~/server/actions";
+import { loadBoard } from "~/server/actions";
+import { addProjectAction } from "~/lib/add-project";
+import { apiFetch } from "~/lib/api";
 
 export const route = {
   load: ({ params }: { params: { projectSlug: string } }) => loadBoard(params.projectSlug),
@@ -133,25 +132,35 @@ export default function ProjectPage() {
     if (res.ok) await revalidate("board-data");
   }
 
-  async function handleCreateTicket(number: string, title: string) {
-    const result = await createTicketAction(projectSlug(), number, title);
+  async function ticketAction(url: string, init?: RequestInit) {
+    const result = await apiFetch(url, init);
     if (!result.error) revalidate("board-data");
     return result;
+  }
+
+  async function handleCreateTicket(number: string, title: string) {
+    return ticketAction(`/api/projects/${projectSlug()}/board/tickets`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ number, title }),
+    });
   }
   async function handleEditTicket(folderName: string, number: string, title: string) {
-    const result = await updateTicketAction(projectSlug(), folderName, number, title, null);
-    if (!result.error) revalidate("board-data");
-    return result;
+    return ticketAction(`/api/projects/${projectSlug()}/board/tickets/${folderName}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ number, title }),
+    });
   }
   async function handleArchiveTicket(folderName: string) {
-    const result = await archiveTicketAction(projectSlug(), folderName);
-    if (!result.error) revalidate("board-data");
-    return result;
+    return ticketAction(`/api/projects/${projectSlug()}/board/tickets/${folderName}/archive`, {
+      method: "POST",
+    });
   }
   async function handleDeleteTicket(folderName: string) {
-    const result = await deleteTicketAction(projectSlug(), folderName);
-    if (!result.error) revalidate("board-data");
-    return result;
+    return ticketAction(`/api/projects/${projectSlug()}/board/tickets/${folderName}`, {
+      method: "DELETE",
+    });
   }
 
   async function handleCleanupSubmit(
@@ -159,14 +168,17 @@ export default function ProjectPage() {
     options: { deleteWorktree: boolean; deleteLocalBranch: boolean; deleteRemoteBranch: boolean },
   ) {
     if (options.deleteWorktree || options.deleteLocalBranch || options.deleteRemoteBranch) {
-      const cleanupResult = await worktreeCleanupAction(projectSlug(), folderName, options);
+      const cleanupResult = await apiFetch(`/api/projects/${projectSlug()}/worktree-cleanup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folderName, options }),
+      });
       if (cleanupResult.error) return cleanupResult;
     }
     const action = cleanupAction();
     const result = action === "archive"
-      ? await archiveTicketAction(projectSlug(), folderName)
-      : await deleteTicketAction(projectSlug(), folderName);
-    if (!result.error) revalidate("board-data");
+      ? await handleArchiveTicket(folderName)
+      : await handleDeleteTicket(folderName);
     return result;
   }
 

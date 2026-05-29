@@ -1,20 +1,14 @@
-import { ConfigPaths } from './config-paths.js';
-import { ProjectRegistry } from '../project/project-registry.js';
-import { BoardConfigManager } from '../project/board-config.js';
-import { WorktreeManager } from '../worktree/worktree-manager.js';
-import { FileWatcher } from '../infra/file-watcher.js';
-import { LauncherConfigManager } from '../launcher/launcher-config.js';
-import { AgentWorktreeManager } from '../worktree/agent-worktree.js';
-import { TicketSyncManager } from '../ticket/ticket-sync.js';
+import { createServices } from './service-container.js';
 
-export const configPaths = new ConfigPaths(process.env.CONTEXT_LAUNCH_DATA_DIR || undefined);
+const services = createServices(process.env.CONTEXT_LAUNCH_DATA_DIR || undefined);
 
-export const projectRegistry = new ProjectRegistry(configPaths);
-export const boardConfigManager = new BoardConfigManager(configPaths);
-export const worktreeManager = new WorktreeManager(
-	configPaths, (projectSlug) => projectRegistry.getTicketsPath(projectSlug),
-);
-export const fileWatcher = new FileWatcher();
-export const launcherConfigManager = new LauncherConfigManager(configPaths);
-export const agentWorktreeManager = new AgentWorktreeManager(launcherConfigManager, configPaths);
-export const ticketSyncManager = new TicketSyncManager();
+export const configPaths = services.configPaths;
+export const configRepo = services.configRepo;
+export const projectRegistry = services.projectRegistry;
+export const boardConfigManager = services.boardConfigManager;
+export const worktreeManager = services.worktreeManager;
+export const fileWatcher = services.fileWatcher;
+export const launcherConfigManager = services.launcherConfigManager;
+export const agentWorktreeManager = services.agentWorktreeManager;
+export const ticketSyncManager = services.ticketSyncManager;
+export const boardService = services.boardService;
