@@ -45,8 +45,10 @@ export class TicketSyncManager {
 				return true;
 			} catch (innerErr) {
 				// head-name file missing (no active rebase) or branch has no upstream -- both mean no remote
-				const isFileNotFound = innerErr instanceof Error && 'code' in innerErr && (innerErr as NodeJS.ErrnoException).code === 'ENOENT';
-				const isGitNoUpstream = innerErr instanceof ProcessError && /no upstream configured/.test(innerErr.output);
+				const isFileNotFound = innerErr instanceof Error
+					&& 'code' in innerErr && (innerErr as NodeJS.ErrnoException).code === 'ENOENT';
+				const isGitNoUpstream = innerErr instanceof ProcessError
+					&& /no upstream configured/.test(innerErr.output);
 				if (!isFileNotFound && !isGitNoUpstream) {
 					console.warn('hasRemote: unexpected error during rebase-merge upstream check:', innerErr);
 				}

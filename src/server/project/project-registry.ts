@@ -193,7 +193,10 @@ export class ProjectRegistry {
 			lastUsedProjectSlug: finalProjectSlug
 		});
 
-		return { path: entry.path, projectSlug: entry.projectSlug, available: true, branch: entry.branch, ticketsPath: entry.ticketsPath };
+		return {
+			path: entry.path, projectSlug: entry.projectSlug, available: true,
+			branch: entry.branch, ticketsPath: entry.ticketsPath,
+		};
 	}
 
 	updateProject(projectSlug: string, newPath?: string, newProjectSlug?: string): ProjectInfo {
@@ -216,7 +219,8 @@ export class ProjectRegistry {
 
 		const updated: ProjectEntry = { ...entry, path: updatedPath, projectSlug: updatedProjectSlug };
 		const newProjects = config.projects.map((p, i) => (i === index ? updated : p));
-		const newLastUsed = config.lastUsedProjectSlug === projectSlug ? updatedProjectSlug : config.lastUsedProjectSlug;
+		const newLastUsed = config.lastUsedProjectSlug === projectSlug
+			? updatedProjectSlug : config.lastUsedProjectSlug;
 		this.save({ ...config, projects: newProjects, lastUsedProjectSlug: newLastUsed });
 
 		return {
@@ -231,8 +235,9 @@ export class ProjectRegistry {
 	removeProject(projectSlug: string): void {
 		const config = this.load();
 		const newProjects = config.projects.filter((p) => p.projectSlug !== projectSlug);
-		const newLastUsed =
-			config.lastUsedProjectSlug === projectSlug ? (newProjects[0]?.projectSlug ?? null) : config.lastUsedProjectSlug;
+		const newLastUsed = config.lastUsedProjectSlug === projectSlug
+			? (newProjects[0]?.projectSlug ?? null)
+			: config.lastUsedProjectSlug;
 		this.save({ ...config, projects: newProjects, lastUsedProjectSlug: newLastUsed });
 	}
 

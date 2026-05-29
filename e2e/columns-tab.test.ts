@@ -248,7 +248,10 @@ describe("Columns tab (e2e)", () => {
     await page.goto(`${BASE_URL}/project/e2e-test`);
     await page.waitForSelector("h3");
     await page.click('button[title="Settings"]');
-    await page.waitForSelector('[data-scope="floating-panel"][data-part="content"]', { state: "visible", timeout: 3000 });
+    await page.waitForSelector(
+      '[data-scope="floating-panel"][data-part="content"]',
+      { state: "visible", timeout: 3000 },
+    );
     // Should be on General tab by default
     const boardSelect = await page.waitForSelector('[data-testid="board-id-select"]', { timeout: 3000 });
     expect(boardSelect).toBeTruthy();
@@ -266,7 +269,10 @@ describe("Columns tab (e2e)", () => {
     await page.goto(`${BASE_URL}/project/e2e-test`);
     await page.waitForSelector("h3");
     await page.click('button[title="Settings"]');
-    await page.waitForSelector('[data-scope="floating-panel"][data-part="content"]', { state: "visible", timeout: 3000 });
+    await page.waitForSelector(
+      '[data-scope="floating-panel"][data-part="content"]',
+      { state: "visible", timeout: 3000 },
+    );
     await page.waitForSelector('[data-testid="board-id-select"]', { timeout: 3000 });
     const before = await page.inputValue('[data-testid="board-id-select"]');
     await page.selectOption('[data-testid="board-id-select"]', "simple");

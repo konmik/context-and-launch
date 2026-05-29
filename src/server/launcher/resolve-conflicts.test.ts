@@ -13,7 +13,9 @@ import { launcherConfigManager } from "~/server/config/instances.js";
 import { spawnProfile } from "~/server/launcher/agent-launch.js";
 import type { MergedLauncherConfig, LauncherProfile } from "~/server/launcher/launcher-config.js";
 
-function makeMerged(overrides: Partial<MergedLauncherConfig> & { profiles: (LauncherProfile & { scope: "app" | "project" })[] }): MergedLauncherConfig {
+function makeMerged(
+	overrides: Partial<MergedLauncherConfig> & { profiles: (LauncherProfile & { scope: "app" | "project" })[] },
+): MergedLauncherConfig {
 	return {
 		templates: [],
 		skills: [],

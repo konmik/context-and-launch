@@ -7,7 +7,14 @@ import type { BoardDefinition, ColumnDefinition } from "~/server/project/board-c
 export type MergedSkill = MergedLauncherConfig["skills"][number];
 
 export function ScopeBadge(props: { scope: string }) {
-	return <span class={`rounded px-1.5 py-0.5 text-xs ${props.scope === "app" ? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" : "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"}`}>{props.scope === "app" ? "User" : "Project"}</span>;
+	const cls = props.scope === "app"
+		? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+		: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200";
+	return (
+		<span class={`rounded px-1.5 py-0.5 text-xs ${cls}`}>
+			{props.scope === "app" ? "User" : "Project"}
+		</span>
+	);
 }
 
 // Shared layout for every settings row (columns, skills, prompts, ...): same
@@ -33,7 +40,13 @@ function ColumnRowBody(props: {
 			</div>
 			<div class="ml-2 flex shrink-0 gap-1">
 				<button onClick={props.onEdit} class="btn-secondary btn-sm">Edit</button>
-				<button onClick={props.onDelete} class="btn-secondary btn-sm text-destructive hover:bg-destructive hover:text-destructive-foreground">Delete</button>
+				<button
+			onClick={props.onDelete}
+			class={
+				"btn-secondary btn-sm text-destructive "
+				+ "hover:bg-destructive hover:text-destructive-foreground"
+			}
+		>Delete</button>
 			</div>
 		</>
 	);
@@ -54,7 +67,12 @@ export function SortableColumnRow(props: {
 			classList={{ [DND_ACTIVE_CLASS]: props.isActive }}
 			class={ROW_CLASS}
 		>
-			<ColumnRowBody column={props.column} gripProps={sortable.dragActivators} onEdit={props.onEdit} onDelete={props.onDelete} />
+			<ColumnRowBody
+			column={props.column}
+			gripProps={sortable.dragActivators}
+			onEdit={props.onEdit}
+			onDelete={props.onDelete}
+		/>
 		</div>
 	);
 }
@@ -92,7 +110,13 @@ export function ItemRowBody(props: {
 			</div>
 			<div class="ml-2 flex shrink-0 gap-1">
 				<button onClick={props.onEdit} class="btn-secondary btn-sm">Edit</button>
-				<button onClick={props.onDelete} class="btn-secondary btn-sm text-destructive hover:bg-destructive hover:text-destructive-foreground">Delete</button>
+				<button
+			onClick={props.onDelete}
+			class={
+				"btn-secondary btn-sm text-destructive "
+				+ "hover:bg-destructive hover:text-destructive-foreground"
+			}
+		>Delete</button>
 			</div>
 		</>
 	);
@@ -113,7 +137,15 @@ export function SortableSkillRow(props: {
 			classList={{ [DND_ACTIVE_CLASS]: props.isActive }}
 			class={ROW_CLASS}
 		>
-			<ItemRowBody scope={props.skill.scope} name={props.skill.name} detail={props.skill.text} grip gripProps={sortable.dragActivators} onEdit={props.onEdit} onDelete={props.onDelete} />
+			<ItemRowBody
+			scope={props.skill.scope}
+			name={props.skill.name}
+			detail={props.skill.text}
+			grip
+			gripProps={sortable.dragActivators}
+			onEdit={props.onEdit}
+			onDelete={props.onDelete}
+		/>
 		</div>
 	);
 }
@@ -121,7 +153,12 @@ export function SortableSkillRow(props: {
 export function SkillDropPreview(props: { skill: MergedSkill }) {
 	return (
 		<DragPreview class={ROW_CLASS}>
-			<ItemRowBody scope={props.skill.scope} name={props.skill.name} detail={props.skill.text} grip />
+			<ItemRowBody
+			scope={props.skill.scope}
+			name={props.skill.name}
+			detail={props.skill.text}
+			grip
+		/>
 		</DragPreview>
 	);
 }
@@ -134,10 +171,19 @@ export function BoardOptions(props: { boards: BoardDefinition[]; selectedId: str
 	);
 }
 
-export function ItemRow(props: { scope: string; name: string; detail: string; onEdit: () => void; onDelete: () => void }) {
+export function ItemRow(props: {
+	scope: string; name: string; detail: string;
+	onEdit: () => void; onDelete: () => void;
+}) {
 	return (
 		<div class={ROW_CLASS}>
-			<ItemRowBody scope={props.scope} name={props.name} detail={props.detail} onEdit={props.onEdit} onDelete={props.onDelete} />
+			<ItemRowBody
+			scope={props.scope}
+			name={props.name}
+			detail={props.detail}
+			onEdit={props.onEdit}
+			onDelete={props.onDelete}
+		/>
 		</div>
 	);
 }

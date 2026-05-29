@@ -1,6 +1,8 @@
 import { spawn, execFile } from "child_process";
 import path from "path";
-import { worktreeManager, projectRegistry, launcherConfigManager, agentWorktreeManager } from "~/server/config/instances.js";
+import {
+  worktreeManager, projectRegistry, launcherConfigManager, agentWorktreeManager,
+} from "~/server/config/instances.js";
 import { TicketStore } from "~/server/ticket/ticket-store.js";
 import { ProcessError } from "~/server/shared/errors.js";
 import { assemblePrompt, interpolatePrompt, splitCommand } from "~/server/launcher/prompt-interpolation.js";
@@ -40,9 +42,14 @@ export async function spawnDetached(executable: string, args: string[], cwd: str
       if (settled) return;
       settled = true;
       if (code !== 0 && code !== null) {
-        reject(new ProcessError(fullCommand, code, stderr.trim() || `Process exited with code ${code}`, `Failed (exit ${code})`));
+        reject(new ProcessError(
+          fullCommand, code, stderr.trim() || `Process exited with code ${code}`, `Failed (exit ${code})`,
+        ));
       } else if (code === null) {
-        reject(new ProcessError(fullCommand, undefined, stderr.trim() || "Process terminated abnormally", "Process terminated abnormally"));
+        reject(new ProcessError(
+          fullCommand, undefined,
+          stderr.trim() || "Process terminated abnormally", "Process terminated abnormally",
+        ));
       } else {
         resolve();
       }
@@ -64,7 +71,8 @@ function escapeTitle(title: string): string {
 }
 
 export function windowExists(title: string): Promise<boolean> {
-  const script = `$ws = New-Object -ComObject WScript.Shell; if ($ws.AppActivate('${escapeTitle(title)}')) { exit 0 } else { exit 1 }`;
+  const script = `$ws = New-Object -ComObject WScript.Shell;`
+    + ` if ($ws.AppActivate('${escapeTitle(title)}')) { exit 0 } else { exit 1 }`;
   const encoded = Buffer.from(script, "utf16le").toString("base64");
   return new Promise((resolve) => {
     execFile("powershell", ["-NoProfile", "-EncodedCommand", encoded], { windowsHide: true }, (err) => {
@@ -73,13 +81,17 @@ export function windowExists(title: string): Promise<boolean> {
   });
 }
 
-export async function resolveLaunchDir(projectSlug: string, folderName: string, useWorktree: boolean, projectPath: string, force?: boolean): Promise<string | Response> {
+export async function resolveLaunchDir(
+  projectSlug: string, folderName: string, useWorktree: boolean, projectPath: string, force?: boolean,
+): Promise<string | Response> {
   if (!useWorktree) return projectPath;
   const merged = launcherConfigManager.getMergedConfig(projectSlug);
   if (!merged.worktreeRootPath) {
     return new Response("Worktree root path is not configured", { status: 400 });
   }
-  const result = await agentWorktreeManager.ensureAgentWorktree(projectPath, projectSlug, folderName, { skipDirtyCheck: force });
+  const result = await agentWorktreeManager.ensureAgentWorktree(
+    projectPath, projectSlug, folderName, { skipDirtyCheck: force },
+  );
   if ('dirtyWorktree' in result) {
     return Response.json(
       { dirtyWorktree: true, message: "Main branch has uncommitted changes. Launch anyway?" },
@@ -95,7 +107,9 @@ export async function resolveLaunchDir(projectSlug: string, folderName: string, 
   return result.worktreePath;
 }
 
-export function resolveTicketAndProject(projectSlug: string, folderName: string): { ticket: TicketInfo; project: ProjectInfo; worktreeDir: string } | Response {
+export function resolveTicketAndProject(
+  projectSlug: string, folderName: string,
+): { ticket: TicketInfo; project: ProjectInfo; worktreeDir: string } | Response {
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
   const store = new TicketStore(worktreeDir);
   const ticket = store.listTickets().find(t => t.folderName === folderName);
@@ -116,7 +130,9 @@ export interface LaunchRequest {
 }
 
 export function parseLaunchRequest(body: unknown): LaunchRequest {
-  const result: LaunchRequest = { templateName: "Default", checkedSkills: [], useWorktree: false, profileName: "", force: false };
+  const result: LaunchRequest = {
+    templateName: "Default", checkedSkills: [], useWorktree: false, profileName: "", force: false,
+  };
   if (body && typeof body === "object") {
     const b = body as Record<string, unknown>;
     if (typeof b.templateName === "string") result.templateName = b.templateName;
@@ -202,7 +218,9 @@ export async function launchAgent(
     throw new Error("No valid profile configured for launch");
   }
 
-  const commandVars: Record<string, string> = { initialPrompt, windowTitle, appConfigDir: launcherConfigManager.getAppConfigDir() };
+  const commandVars: Record<string, string> = {
+    initialPrompt, windowTitle, appConfigDir: launcherConfigManager.getAppConfigDir(),
+  };
   await spawnProfile(profile, commandVars, launchDir);
 
 }

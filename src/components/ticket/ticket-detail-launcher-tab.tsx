@@ -12,7 +12,13 @@ export function LauncherTab(props: {
 }) {
   return (
     <div class={TAB_PANE_CLASS}>
-      <AgentLauncher projectSlug={props.projectSlug} ticket={props.ticket} config={props.config} onDefaultsChange={props.onDefaultsChange} useWorktree={props.useWorktree} />
+      <AgentLauncher
+        projectSlug={props.projectSlug}
+        ticket={props.ticket}
+        config={props.config}
+        onDefaultsChange={props.onDefaultsChange}
+        useWorktree={props.useWorktree}
+      />
     </div>
   );
 }

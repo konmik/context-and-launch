@@ -9,9 +9,13 @@ describe('parseLaunchRequest profileName (code-inspection)', () => {
 	);
 
 	// Replicate the pure function from agent-launch.ts
-	interface LaunchRequest { templateName: string; checkedSkills: string[]; useWorktree: boolean; profileName: string; }
+	interface LaunchRequest {
+		templateName: string; checkedSkills: string[]; useWorktree: boolean; profileName: string;
+	}
 	function parseLaunchRequest(body: unknown): LaunchRequest {
-		const result: LaunchRequest = { templateName: 'Default', checkedSkills: [], useWorktree: false, profileName: '' };
+		const result: LaunchRequest = {
+			templateName: 'Default', checkedSkills: [], useWorktree: false, profileName: '',
+		};
 		if (body && typeof body === 'object') {
 			const b = body as Record<string, unknown>;
 			if (typeof b.templateName === 'string') result.templateName = b.templateName;

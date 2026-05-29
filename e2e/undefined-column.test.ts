@@ -19,9 +19,18 @@ const columnsWithDesc: ColumnDefinition[] = [
 ];
 
 const TICKETS: TicketInfo[] = [
-  { number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha", contextNames: [], useWorktree: false, fileNames: [], references: [] },
-  { number: "T-2", title: "Bravo", status: "done", folderName: "t-2-bravo", contextNames: [], useWorktree: false, fileNames: [], references: [] },
-  { number: "T-3", title: "Orphan", status: "deleted-column", folderName: "t-3-orphan", contextNames: [], useWorktree: false, fileNames: [], references: [] },
+  {
+    number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha",
+    contextNames: [], useWorktree: false, fileNames: [], references: [],
+  },
+  {
+    number: "T-2", title: "Bravo", status: "done", folderName: "t-2-bravo",
+    contextNames: [], useWorktree: false, fileNames: [], references: [],
+  },
+  {
+    number: "T-3", title: "Orphan", status: "deleted-column", folderName: "t-3-orphan",
+    contextNames: [], useWorktree: false, fileNames: [], references: [],
+  },
 ];
 
 describe("Column descriptions and undefined column (e2e)", () => {
@@ -92,7 +101,10 @@ describe("Column descriptions and undefined column (e2e)", () => {
   it("undefined column disappears when no orphaned tickets", async () => {
     // Use data with no orphaned tickets
     const ticketsNoOrphan: TicketInfo[] = [
-      { number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha", contextNames: [], useWorktree: false, fileNames: [], references: [] },
+      {
+        number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha",
+        contextNames: [], useWorktree: false, fileNames: [], references: [],
+      },
     ];
     mockState.boardData = createBoardWithTickets(ticketsNoOrphan, columnsWithDesc);
     await page.goto(`${BASE_URL}/project/e2e-test`);

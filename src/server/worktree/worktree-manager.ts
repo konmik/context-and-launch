@@ -84,7 +84,9 @@ export class WorktreeManager {
 		await git(projectPath, 'worktree', 'prune');
 		const existing = await this.worktreePathForBranch(projectPath, branch);
 		if (existing && path.resolve(existing) !== path.resolve(worktreeDir)) {
-			console.warn(`Branch '${branch}' is checked out at ${existing}; removing that worktree to use ${worktreeDir}.`);
+			console.warn(
+			`Branch '${branch}' is checked out at ${existing}; removing that worktree to use ${worktreeDir}.`,
+		);
 			await git(projectPath, 'worktree', 'remove', '--force', existing);
 		}
 	}

@@ -1,7 +1,10 @@
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
-import { DEFAULT_BOARDS, type BoardPageData, type TicketInfo, type BoardDefinition, type ColumnDefinition } from "./setup-test-data.js";
+import {
+  DEFAULT_BOARDS, type BoardPageData, type TicketInfo,
+  type BoardDefinition, type ColumnDefinition,
+} from "./setup-test-data.js";
 import { slugifyColumnName } from "~/lib/slugify.js";
 
 // seroval is used to serialize mock data in the format the SolidJS Start client expects
@@ -148,13 +151,16 @@ function buildHtmlTemplate(): string {
   // which is what we want since we serve an empty #app div (no SSR content).
   const hydrationScript = `<script>window._$HY={events:[],completed:new WeakSet,r:{},fe(){},done:true};</script>`;
 
+  // eslint-disable-next-line max-len
+  const themeScript = `<script>(function(){try{var t=localStorage.getItem("theme");if(t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme:dark)").matches))document.documentElement.classList.add("dark")}catch(e){}})()</script>`;
+
   return `<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Context & Launch</title>
-    <script>(function(){try{var t=localStorage.getItem("theme");if(t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme:dark)").matches))document.documentElement.classList.add("dark")}catch(e){}})()</script>
+    ${themeScript}
     ${cssLinks}
     ${modulePreloads}
   </head>
@@ -170,13 +176,35 @@ function buildHtmlTemplate(): string {
 export interface MockServerState {
   boardData: BoardPageData;
   boards?: BoardDefinition[];
-  launcherConfig?: { templates: { name: string; text: string; scope: string }[]; skills: { name: string; text: string; scope: string; order?: number }[]; profiles?: { name: string; command: string; scope: string }[]; shortcuts?: { name: string; command: string; scope: string }[]; columnDefaults: Record<string, any>; worktreeRootPath: string | null; boardId?: string | null };
-  onLaunchAgent?: (projectSlug: string, folderName: string, body: any) => { status: number; body: any } | Promise<{ status: number; body: any }>;
-  onCreateTicket?: (projectSlug: string, number: string, title: string) => { success: true } | { error: string };
-  onUpdateTicket?: (projectSlug: string, folderName: string, number: string | null, title: string | null, status: string | null) => { success: true } | { error: string };
-  onDeleteTicket?: (projectSlug: string, folderName: string) => { success: true } | { error: string };
-  onReorderTicket?: (projectSlug: string, folderName: string, fromColumn: string, toColumn: string, newIndex: number) => { success: true } | { error: string };
-  onSync?: (projectSlug: string) => { status: "success" } | { status: "conflict" } | { status: "error"; message: string };
+  launcherConfig?: {
+    templates: { name: string; text: string; scope: string }[];
+    skills: { name: string; text: string; scope: string; order?: number }[];
+    profiles?: { name: string; command: string; scope: string }[];
+    shortcuts?: { name: string; command: string; scope: string }[];
+    columnDefaults: Record<string, any>;
+    worktreeRootPath: string | null;
+    boardId?: string | null;
+  };
+  onLaunchAgent?: (
+    projectSlug: string, folderName: string, body: any,
+  ) => { status: number; body: any } | Promise<{ status: number; body: any }>;
+  onCreateTicket?: (
+    projectSlug: string, number: string, title: string,
+  ) => { success: true } | { error: string };
+  onUpdateTicket?: (
+    projectSlug: string, folderName: string,
+    number: string | null, title: string | null, status: string | null,
+  ) => { success: true } | { error: string };
+  onDeleteTicket?: (
+    projectSlug: string, folderName: string,
+  ) => { success: true } | { error: string };
+  onReorderTicket?: (
+    projectSlug: string, folderName: string,
+    fromColumn: string, toColumn: string, newIndex: number,
+  ) => { success: true } | { error: string };
+  onSync?: (
+    projectSlug: string,
+  ) => { status: "success" } | { status: "conflict" } | { status: "error"; message: string };
   onSyncAbort?: (projectSlug: string) => { success: true } | { error: string };
   onResolveConflicts?: (projectSlug: string) => { success: true } | { error: string };
   referenceFileContents?: Record<string, string>;
@@ -191,7 +219,10 @@ function getBoards(state: MockServerState): BoardDefinition[] {
   return state.boards!;
 }
 
-function handleBoardApi(req: http.IncomingMessage, res: http.ServerResponse, pathname: string, state: MockServerState): boolean {
+function handleBoardApi(
+  req: http.IncomingMessage, res: http.ServerResponse,
+  pathname: string, state: MockServerState,
+): boolean {
   // GET /api/boards
   if (pathname === "/api/boards" && req.method === "GET") {
     res.writeHead(200, { "Content-Type": "application/json" });
@@ -209,7 +240,9 @@ function handleBoardApi(req: http.IncomingMessage, res: http.ServerResponse, pat
         const boards = getBoards(state);
         const id = slugifyColumnName(body.name);
         if (!id) { res.writeHead(400); res.end("Board name must not be empty"); return; }
-        if (boards.some((b: BoardDefinition) => b.id === id)) { res.writeHead(400); res.end(`Board with id "${id}" already exists`); return; }
+        if (boards.some((b: BoardDefinition) => b.id === id)) {
+          res.writeHead(400); res.end(`Board with id "${id}" already exists`); return;
+        }
         const board: BoardDefinition = { id, name: body.name.trim(), columns: [] };
         boards.push(board);
         res.writeHead(201, { "Content-Type": "application/json" });
@@ -327,7 +360,9 @@ function handleBoardApi(req: http.IncomingMessage, res: http.ServerResponse, pat
         const name = slugifyColumnName(body.name);
         if (!name) { res.writeHead(400); res.end("Column name must not be empty"); return; }
         if (name === "undefined") { res.writeHead(400); res.end('Column name "undefined" is reserved'); return; }
-        if (board.columns.some((c: ColumnDefinition) => c.name === name)) { res.writeHead(400); res.end(`Column name "${name}" already exists`); return; }
+        if (board.columns.some((c: ColumnDefinition) => c.name === name)) {
+          res.writeHead(400); res.end(`Column name "${name}" already exists`); return;
+        }
         const col: ColumnDefinition = { name };
         if (body.description?.trim()) col.description = body.description.trim();
         board.columns.push(col);
@@ -421,7 +456,10 @@ export function startMockServer(port: number, state: MockServerState): Promise<h
       // skills are returned sorted by `order` (explicit wins, else canonical index).
       // Keep this in sync with that canonical implementation.
       if (pathname.match(/\/api\/projects\/[^/]+\/launcher-config$/) && req.method === "GET") {
-        const config = state.launcherConfig ?? { templates: [], skills: [], profiles: [], shortcuts: [], columnDefaults: {}, worktreeRootPath: null };
+        const config = state.launcherConfig ?? {
+          templates: [], skills: [], profiles: [], shortcuts: [],
+          columnDefaults: {}, worktreeRootPath: null,
+        };
         const skills = config.skills
           .map((s, i) => ({ ...s, order: typeof s.order === "number" ? s.order : i }))
           .sort((a, b) => a.order - b.order);
@@ -456,7 +494,8 @@ export function startMockServer(port: number, state: MockServerState): Promise<h
           try {
             const { column, ...patch } = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
             if (state.launcherConfig) {
-              const existing = state.launcherConfig.columnDefaults[column] ?? { templateName: null, checkedSkills: [], profileName: null };
+              const existing = state.launcherConfig.columnDefaults[column]
+                ?? { templateName: null, checkedSkills: [], profileName: null };
               state.launcherConfig.columnDefaults[column] = { ...existing, ...patch };
             }
             res.writeHead(204);
@@ -591,7 +630,10 @@ export function startMockServer(port: number, state: MockServerState): Promise<h
           const content = state.uploadedFiles?.[fileName];
           if (content) {
             const ext = path.extname(fileName).toLowerCase();
-            const mimeMap: Record<string, string> = { ".png": "image/png", ".jpg": "image/jpeg", ".gif": "image/gif", ".txt": "text/plain", ".md": "text/plain" };
+            const mimeMap: Record<string, string> = {
+              ".png": "image/png", ".jpg": "image/jpeg", ".gif": "image/gif",
+              ".txt": "text/plain", ".md": "text/plain",
+            };
             res.writeHead(200, { "Content-Type": mimeMap[ext] || "application/octet-stream" });
             res.end(content);
           } else {
@@ -868,7 +910,8 @@ function handlePostMutation(
       }
     } else if (fnId.includes(UPDATE_TICKET_ID)) {
       if (state.onUpdateTicket) {
-        const [projectSlug, folderName, number, title, status] = args as [string, string, string | null, string | null, string | null];
+        const [projectSlug, folderName, number, title, status] =
+          args as [string, string, string | null, string | null, string | null];
         responseData = state.onUpdateTicket(projectSlug, folderName, number, title, status);
       }
     } else if (fnId.includes(DELETE_TICKET_ID)) {

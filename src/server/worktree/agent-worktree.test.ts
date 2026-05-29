@@ -139,7 +139,8 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it('Windows backslash worktreeRootPath: worktree created, existence check matches on re-call, returned path uses mixed separators', async () => {
+	it('Windows backslash worktreeRootPath: worktree created, existence check matches on re-call,'
+		+ ' returned path uses mixed separators', async () => {
 		const configDir = tmpDir('awm-config-');
 		const projectDir = tmpDir('awm-project-');
 		const worktreeRoot = tmpDir('awm-worktrees-');
@@ -190,15 +191,21 @@ describe('AgentWorktreeManager', () => {
 		expect(fs.existsSync(worktreePath)).toBe(true);
 
 		// Branch exists
-		const branchBefore = execSync('git branch --list ai/st-0003-readd', { cwd: projectDir, timeout: 5000 }).toString();
+		const branchBefore = execSync(
+			'git branch --list ai/st-0003-readd', { cwd: projectDir, timeout: 5000 },
+		).toString();
 		expect(branchBefore.trim()).toBeTruthy();
 
 		// Remove the worktree via git (branch stays)
-		execSync(`git worktree remove "${worktreePath}"`, { cwd: projectDir, timeout: 5000 });
+		execSync(
+			`git worktree remove "${worktreePath}"`, { cwd: projectDir, timeout: 5000 },
+		);
 		expect(fs.existsSync(worktreePath)).toBe(false);
 
 		// Branch still exists after worktree removal
-		const branchAfter = execSync('git branch --list ai/st-0003-readd', { cwd: projectDir, timeout: 5000 }).toString();
+		const branchAfter = execSync(
+			'git branch --list ai/st-0003-readd', { cwd: projectDir, timeout: 5000 },
+		).toString();
 		expect(branchAfter.trim()).toBeTruthy();
 
 		// Second call: should re-add worktree using existing branch, not throw
@@ -207,7 +214,8 @@ describe('AgentWorktreeManager', () => {
 		expect(fs.existsSync(worktreePath)).toBe(true);
 	});
 
-	it('TOCTOU: config deleted between getMergedConfig guard and ensureAgentWorktree falls back to default path', async () => {
+	it('TOCTOU: config deleted between getMergedConfig guard and ensureAgentWorktree'
+		+ ' falls back to default path', async () => {
 		const { projectDir, lcm, awm, configDir, paths } = setup();
 
 		// Step 1: Route guard reads merged config -- worktreeRootPath is present, guard passes
@@ -296,7 +304,8 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it('pullMainBranch with merge conflict: error contains git failure details and subsequent ensureAgentWorktree returns dirtyWorktree', async () => {
+	it('pullMainBranch with merge conflict: error contains git failure details'
+		+ ' and subsequent ensureAgentWorktree returns dirtyWorktree', async () => {
 		// 1. Create a bare repo as the "remote"
 		const bareDir = tmpDir('awm-bare-conflict-');
 		dirs.push(bareDir);
@@ -384,7 +393,8 @@ describe('AgentWorktreeManager', () => {
 		await expect(awm.getMainBranch(projectDir)).rejects.toThrow('Neither main nor master');
 	});
 
-	it('concurrent ensureAgentWorktree for same folderName: at least one succeeds, the other succeeds or gets a clean error', async () => {
+	it('concurrent ensureAgentWorktree for same folderName: at least one succeeds,'
+		+ ' the other succeeds or gets a clean error', async () => {
 		const { projectDir, worktreeRoot, awm } = setup();
 		const folderName = 'st-concurrent-race';
 
@@ -425,7 +435,8 @@ describe('AgentWorktreeManager', () => {
 		expect(fs.existsSync(path.join(worktreePath, '.git'))).toBe(true);
 	});
 
-	it('pullMainBranch pulls current branch not main: bare git pull operates on whatever branch is checked out', async () => {
+	it('pullMainBranch pulls current branch not main:'
+		+ ' bare git pull operates on whatever branch is checked out', async () => {
 		// 1. Create a bare repo as the remote
 		const bareDir = tmpDir('awm-bare-pullbranch-');
 		dirs.push(bareDir);
@@ -467,7 +478,9 @@ describe('AgentWorktreeManager', () => {
 		execSync('git fetch', { cwd: projectDir, timeout: 5000 });
 
 		// Confirm we are on feature-x, not main
-		const currentBranch = execSync('git branch --show-current', { cwd: projectDir, timeout: 5000 }).toString().trim();
+		const currentBranch = execSync(
+			'git branch --show-current', { cwd: projectDir, timeout: 5000 },
+		).toString().trim();
 		expect(currentBranch).toBe('feature-x');
 
 		// 6. Call pullMainBranch -- despite the name, it just runs `git pull`
@@ -492,7 +505,8 @@ describe('AgentWorktreeManager', () => {
 		// the wrong branch entirely.
 	});
 
-	it('behind-remote catch swallows non-upstream errors: generic rev-list failure logs warning and worktree creation proceeds', async () => {
+	it('behind-remote catch swallows non-upstream errors:'
+		+ ' generic rev-list failure logs warning and worktree creation proceeds', async () => {
 		const { projectDir, worktreeRoot, awm } = setup();
 
 		const originalGit = gitModule.git;
@@ -526,7 +540,8 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it('branch already checked out in another worktree: changing worktreeRootPath causes git to refuse duplicate checkout', async () => {
+	it('branch already checked out in another worktree:'
+		+ ' changing worktreeRootPath causes git to refuse duplicate checkout', async () => {
 		const configDir = tmpDir('awm-config-dup-');
 		const projectDir = tmpDir('awm-project-dup-');
 		const worktreeRootA = tmpDir('awm-wt-A-');
@@ -554,7 +569,9 @@ describe('AgentWorktreeManager', () => {
 		}
 
 		// Verify the branch exists
-		const branchCheck = execSync('git branch --list ai/st-dup-branch', { cwd: projectDir, timeout: 5000 }).toString();
+		const branchCheck = execSync(
+			'git branch --list ai/st-dup-branch', { cwd: projectDir, timeout: 5000 },
+		).toString();
 		expect(branchCheck.trim()).toBeTruthy();
 
 		// Change worktreeRootPath to path B (simulating user config change)
@@ -574,7 +591,8 @@ describe('AgentWorktreeManager', () => {
 		expect((error as Error).message).toMatch(/already checked out|is already used by worktree/i);
 	});
 
-	it('rev-list returns non-numeric output: parseInt produces NaN, NaN > 0 is false, silently skipping behind-remote check', async () => {
+	it('rev-list returns non-numeric output: parseInt produces NaN,'
+		+ ' NaN > 0 is false, silently skipping behind-remote check', async () => {
 		const { projectDir, worktreeRoot, awm } = setup();
 
 		const originalGit = gitModule.git;
@@ -639,7 +657,8 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it('pullMainBranch error short-circuits pull-and-retry flow: ensureAgentWorktree is never called and error contains pull failure details', async () => {
+	it('pullMainBranch error short-circuits pull-and-retry flow:'
+		+ ' ensureAgentWorktree is never called and error contains pull failure details', async () => {
 		const { projectDir, awm } = setup();
 
 		// Mock git to throw on pull with specific failure details
@@ -704,7 +723,8 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it('pull-and-retry still behind remote after pull: pull succeeds but ensureAgentWorktree returns behindRemote again', async () => {
+	it('pull-and-retry still behind remote after pull:'
+		+ ' pull succeeds but ensureAgentWorktree returns behindRemote again', async () => {
 		const { projectDir, awm } = setup();
 
 		// Mock git so that:
@@ -799,7 +819,9 @@ describe('AgentWorktreeManager', () => {
 		if ('worktreePath' in result) {
 			await awm.removeWorktree(projectDir, result.worktreePath);
 			await awm.deleteLocalBranch(projectDir, 'ai/st-delbranch');
-			const branchList = execSync('git branch --list ai/st-delbranch', { cwd: projectDir, timeout: 5000 }).toString();
+			const branchList = execSync(
+				'git branch --list ai/st-delbranch', { cwd: projectDir, timeout: 5000 },
+			).toString();
 			expect(branchList.trim()).toBe('');
 		}
 	});

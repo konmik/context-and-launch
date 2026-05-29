@@ -76,15 +76,27 @@ export default function WorktreeCleanupDialog(props: WorktreeCleanupDialogProps)
       <div class="mb-4 space-y-2">
         <p class="text-sm font-medium">Worktree cleanup</p>
         <label class="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={options().deleteWorktree} onChange={(e) => updateOption("deleteWorktree", e.currentTarget.checked)} />
+          <input
+            type="checkbox"
+            checked={options().deleteWorktree}
+            onChange={(e) => updateOption("deleteWorktree", e.currentTarget.checked)}
+          />
           Delete worktree
         </label>
         <label class="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={options().deleteLocalBranch} onChange={(e) => updateOption("deleteLocalBranch", e.currentTarget.checked)} />
+          <input
+            type="checkbox"
+            checked={options().deleteLocalBranch}
+            onChange={(e) => updateOption("deleteLocalBranch", e.currentTarget.checked)}
+          />
           Delete local branch
         </label>
         <label class="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={options().deleteRemoteBranch} onChange={(e) => updateOption("deleteRemoteBranch", e.currentTarget.checked)} />
+          <input
+            type="checkbox"
+            checked={options().deleteRemoteBranch}
+            onChange={(e) => updateOption("deleteRemoteBranch", e.currentTarget.checked)}
+          />
           Delete remote branch
         </label>
       </div>
@@ -93,8 +105,16 @@ export default function WorktreeCleanupDialog(props: WorktreeCleanupDialogProps)
         {(err) => (
           <div class="mb-4 rounded-md bg-destructive/10 px-3 py-2">
             <p class="text-sm text-destructive">{err().description}</p>
-            <Show when={err().command}><p class="mt-1 text-xs text-muted-foreground">Command: <code>{err().command}</code></p></Show>
-            <Show when={err().output}><pre class="mt-1 max-h-32 overflow-y-auto whitespace-pre-wrap text-xs">{err().output}</pre></Show>
+            <Show when={err().command}>
+              <p class="mt-1 text-xs text-muted-foreground">
+                Command: <code>{err().command}</code>
+              </p>
+            </Show>
+            <Show when={err().output}>
+              <pre class="mt-1 max-h-32 overflow-y-auto whitespace-pre-wrap text-xs">
+                {err().output}
+              </pre>
+            </Show>
           </div>
         )}
       </Show>
@@ -102,7 +122,11 @@ export default function WorktreeCleanupDialog(props: WorktreeCleanupDialogProps)
       <form onSubmit={handleSubmit}>
         <div class="flex justify-end gap-2">
           <button type="button" onClick={close} class="btn-secondary">Cancel</button>
-          <button type="submit" disabled={submitting()} class={props.action === "delete" ? "btn-destructive" : "btn-primary"}>{actionLabel()}</button>
+          <button
+            type="submit"
+            disabled={submitting()}
+            class={props.action === "delete" ? "btn-destructive" : "btn-primary"}
+          >{actionLabel()}</button>
         </div>
       </form>
     </DialogRoot>

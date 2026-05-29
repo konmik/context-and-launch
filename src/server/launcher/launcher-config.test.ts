@@ -249,7 +249,9 @@ describe('LauncherConfigManager', () => {
 			skills: [],
 		});
 		// Pass a template with an extra field that is not part of LauncherTemplate
-		mgr.updateTemplate('app', 'test-project', 'Original', { name: 'Original', text: 'updated', color: 'red' } as any);
+		mgr.updateTemplate(
+			'app', 'test-project', 'Original', { name: 'Original', text: 'updated', color: 'red' } as any,
+		);
 		const config = mgr.loadAppConfig();
 		const t = config.templates.find(t => t.name === 'Original');
 		expect(t).toEqual({ name: 'Original', text: 'updated' });
@@ -507,7 +509,8 @@ describe('LauncherConfigManager', () => {
 			.toThrow('already exists');
 	});
 
-	it('saveAppConfig with missing templates/skills writes raw body, loadAppConfig treats missing arrays as empty', () => {
+	it('saveAppConfig with missing templates/skills writes raw body,'
+		+ ' loadAppConfig treats missing arrays as empty', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
@@ -583,7 +586,8 @@ describe('LauncherConfigManager', () => {
 		expect(stored).toEqual(defaults);
 	});
 
-	it('addTemplate with non-string name/text (null, undefined, number, object) passes through and roundtrips via JSON', () => {
+	it('addTemplate with non-string name/text (null, undefined, number, object)'
+		+ ' passes through and roundtrips via JSON', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
@@ -611,7 +615,9 @@ describe('LauncherConfigManager', () => {
 		expect(rawUndef.text).toEqual({ nested: true });
 
 		// name: { complex: 'object' } survives as a nested object
-		const rawObj = raw.templates.find((t: any) => typeof t.name === 'object' && t.name !== null && t.name.complex === 'object');
+		const rawObj = raw.templates.find(
+			(t: any) => typeof t.name === 'object' && t.name !== null && t.name.complex === 'object',
+		);
 		expect(rawObj).toBeDefined();
 		expect(rawObj.text).toBe('valid text');
 
@@ -674,7 +680,8 @@ describe('LauncherConfigManager', () => {
 			.toThrow('already exists');
 	});
 
-	it('saveAppConfig with a JSON array (not object) writes array, loadAppConfig returns empty templates/skills', () => {
+	it('saveAppConfig with a JSON array (not object) writes array,'
+		+ ' loadAppConfig returns empty templates/skills', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
@@ -738,7 +745,8 @@ describe('LauncherConfigManager', () => {
 		}
 	});
 
-	it('saveColumnDefaults with column="" (empty string) persists through JSON roundtrip and is accessible via getMergedConfig', () => {
+	it('saveColumnDefaults with column="" (empty string) persists through JSON roundtrip'
+		+ ' and is accessible via getMergedConfig', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
@@ -802,7 +810,9 @@ describe('LauncherConfigManager', () => {
 		expect(config.worktreeRootPath).toBe('/new/path');
 		expect(config.templates).toEqual([{ name: 'T1', text: 'text' }]);
 		expect(config.skills).toEqual([{ name: 'S1', text: 'skill' }]);
-		expect(config.columnDefaults?.['todo']).toEqual({ templateName: 'T1', checkedSkills: ['S1'], profileName: null });
+		expect(config.columnDefaults?.['todo']).toEqual(
+			{ templateName: 'T1', checkedSkills: ['S1'], profileName: null },
+		);
 	});
 
 	it('saveWorktreeRootPath with undefined removes the path', () => {
@@ -852,11 +862,15 @@ describe('LauncherConfigManager', () => {
 			profiles: [],
 		});
 
-		mgr.saveColumnDefaults('test-project', 'todo', { templateName: 'T1', checkedSkills: ['S1'], profileName: null });
+		mgr.saveColumnDefaults(
+			'test-project', 'todo', { templateName: 'T1', checkedSkills: ['S1'], profileName: null },
+		);
 		mgr.saveWorktreeRootPath('test-project', '/worktrees');
 
 		const config = mgr.loadProjectConfig('test-project');
-		expect(config.columnDefaults?.['todo']).toEqual({ templateName: 'T1', checkedSkills: ['S1'], profileName: null });
+		expect(config.columnDefaults?.['todo']).toEqual(
+			{ templateName: 'T1', checkedSkills: ['S1'], profileName: null },
+		);
 		expect(config.worktreeRootPath).toBe('/worktrees');
 	});
 
@@ -920,9 +934,11 @@ describe('LauncherConfigManager', () => {
 		const config = mgr.loadAppConfig();
 		expect(config.profiles).toHaveLength(2);
 		expect(config.profiles![0].name).toBe('Claude Win');
-		expect(config.profiles![0].command).toBe('powershell -File {{appConfigDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}}');
+		expect(config.profiles![0].command)
+			.toBe('powershell -File {{appConfigDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}}');
 		expect(config.profiles![1].name).toBe('Claude macOS');
-		expect(config.profiles![1].command).toBe('bash {{appConfigDir}}/run-agent.sh {{initialPrompt}} {{windowTitle}}');
+		expect(config.profiles![1].command)
+			.toBe('bash {{appConfigDir}}/run-agent.sh {{initialPrompt}} {{windowTitle}}');
 	});
 
 	it('addProfile to app scope, verify file on disk', () => {
@@ -979,7 +995,10 @@ describe('LauncherConfigManager', () => {
 			skills: [],
 			profiles: [{ name: 'Original', command: 'orig cmd' }],
 		});
-		mgr.updateProfile('app', 'test-project', 'Original', { name: 'Original', command: 'updated', extra: 'junk' } as any);
+		mgr.updateProfile(
+			'app', 'test-project', 'Original',
+			{ name: 'Original', command: 'updated', extra: 'junk' } as any,
+		);
 		const config = mgr.loadAppConfig();
 		const p = (config.profiles ?? []).find(p => p.name === 'Original');
 		expect(p).toEqual({ name: 'Original', command: 'updated' });
@@ -1301,7 +1320,10 @@ describe('LauncherConfigManager', () => {
 			profiles: [],
 			shortcuts: [{ name: 'Original', command: 'orig cmd' }],
 		});
-		mgr.updateShortcut('app', 'test-project', 'Original', { name: 'Original', command: 'updated', extra: 'junk' } as any);
+		mgr.updateShortcut(
+			'app', 'test-project', 'Original',
+			{ name: 'Original', command: 'updated', extra: 'junk' } as any,
+		);
 		const config = mgr.loadAppConfig();
 		const s = (config.shortcuts ?? []).find(s => s.name === 'Original');
 		expect(s).toEqual({ name: 'Original', command: 'updated' });

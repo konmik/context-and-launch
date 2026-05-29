@@ -1,12 +1,18 @@
 import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/700.css";
 import { onMount, onCleanup, createEffect } from "solid-js";
-import { EditorView, ViewPlugin, Decoration, type DecorationSet, keymap, placeholder as cmPlaceholder } from "@codemirror/view";
+import {
+  EditorView, ViewPlugin, Decoration, type DecorationSet,
+  keymap, placeholder as cmPlaceholder,
+} from "@codemirror/view";
 import { EditorState, type Range } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { syntaxHighlighting, defaultHighlightStyle, HighlightStyle, bracketMatching, syntaxTree } from "@codemirror/language";
+import {
+  syntaxHighlighting, defaultHighlightStyle, HighlightStyle,
+  bracketMatching, syntaxTree,
+} from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
@@ -63,7 +69,11 @@ const markdownStyle = HighlightStyle.define([
   { tag: tags.emphasis, fontStyle: "italic" },
   { tag: tags.strong, fontWeight: "700" },
   { tag: tags.strikethrough, textDecoration: "line-through" },
-  { tag: tags.monospace, fontFamily: "'JetBrains Mono', ui-monospace, monospace", backgroundColor: "var(--muted)", borderRadius: "3px", padding: "1px 3px" },
+  {
+    tag: tags.monospace,
+    fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+    backgroundColor: "var(--muted)", borderRadius: "3px", padding: "1px 3px",
+  },
   { tag: tags.link, color: "oklch(0.55 0.15 250)", textDecoration: "underline" },
   { tag: tags.url, color: "oklch(0.55 0.15 250)" },
   { tag: tags.quote, color: "var(--muted-foreground)", fontStyle: "italic" },

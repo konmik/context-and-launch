@@ -13,7 +13,10 @@ let page: Page;
 let server: http.Server;
 let mockState: MockServerState;
 
-const TICKET: TicketInfo = { number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha", contextNames: [], useWorktree: false, fileNames: [], references: [] };
+const TICKET: TicketInfo = {
+  number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha",
+  contextNames: [], useWorktree: false, fileNames: [], references: [],
+};
 
 function freshConfig() {
   return {
@@ -36,7 +39,9 @@ async function skillNames(p: Page): Promise<string[]> {
 }
 
 async function dragSkill(p: Page, fromName: string, toName: string) {
-  const s = (await p.locator(`[data-skill-name="${fromName}"] [data-testid="launcher-skill-drag-handle"]`).boundingBox())!;
+  const s = (await p.locator(
+    `[data-skill-name="${fromName}"] [data-testid="launcher-skill-drag-handle"]`,
+  ).boundingBox())!;
   const t = (await p.locator(`[data-skill-name="${toName}"]`).boundingBox())!;
   const sx = s.x + s.width / 2;
   const sy = s.y + s.height / 2;
@@ -96,12 +101,17 @@ describe("Agent launcher skill reorder (e2e)", () => {
     expect(after[0]).not.toBe("alpha-skill");
     expect(after).toContain("alpha-skill");
     expect(mockState.launcherConfig!.columnDefaults["todo"].skillOrder).toEqual(after);
-    expect(mockState.launcherConfig!.skills.map((s) => s.name)).toEqual(["alpha-skill", "bravo-skill", "charlie-skill"]);
+    expect(mockState.launcherConfig!.skills.map((s) => s.name)).toEqual(
+      ["alpha-skill", "bravo-skill", "charlie-skill"],
+    );
   }, 20000);
 
   it("applies a saved per-status skill order on open", async () => {
     mockState.launcherConfig!.columnDefaults = {
-      todo: { templateName: null, checkedSkills: [], profileName: null, skillOrder: ["charlie-skill", "alpha-skill", "bravo-skill"] },
+      todo: {
+        templateName: null, checkedSkills: [], profileName: null,
+        skillOrder: ["charlie-skill", "alpha-skill", "bravo-skill"],
+      },
     };
     await openLauncher(page);
     expect(await skillNames(page)).toEqual(["charlie-skill", "alpha-skill", "bravo-skill"]);

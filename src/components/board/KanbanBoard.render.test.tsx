@@ -275,7 +275,15 @@ describe("KanbanBoard column descriptions", () => {
   it("renders description when present", () => {
     const board = makeBoard([], [{ name: "todo", description: "Work items" }, { name: "done" }]);
     const { container } = render(() => (
-      <KanbanBoard board={board} projectSlug="test" onEdit={noop} onDelete={noop} onViewDetail={noop} onArchive={noop} onReorder={noop} />
+      <KanbanBoard
+        board={board}
+        projectSlug="test"
+        onEdit={noop}
+        onDelete={noop}
+        onViewDetail={noop}
+        onArchive={noop}
+        onReorder={noop}
+      />
     ));
     const desc = container.querySelector('[data-testid="column-description"]');
     expect(desc).toBeTruthy();
@@ -285,7 +293,15 @@ describe("KanbanBoard column descriptions", () => {
   it("does not render description when absent", () => {
     const board = makeBoard([], ["todo", "done"]);
     const { container } = render(() => (
-      <KanbanBoard board={board} projectSlug="test" onEdit={noop} onDelete={noop} onViewDetail={noop} onArchive={noop} onReorder={noop} />
+      <KanbanBoard
+        board={board}
+        projectSlug="test"
+        onEdit={noop}
+        onDelete={noop}
+        onViewDetail={noop}
+        onArchive={noop}
+        onReorder={noop}
+      />
     ));
     expect(container.querySelectorAll('[data-testid="column-description"]').length).toBe(0);
   });
@@ -298,7 +314,15 @@ describe("KanbanBoard undefined column", () => {
     ];
     const board = makeBoard(tickets, ["todo", "done"]);
     const { container } = render(() => (
-      <KanbanBoard board={board} projectSlug="test" onEdit={noop} onDelete={noop} onViewDetail={noop} onArchive={noop} onReorder={noop} />
+      <KanbanBoard
+        board={board}
+        projectSlug="test"
+        onEdit={noop}
+        onDelete={noop}
+        onViewDetail={noop}
+        onArchive={noop}
+        onReorder={noop}
+      />
     ));
     const undefinedCol = container.querySelector('[data-testid="undefined-column"]');
     expect(undefinedCol).toBeTruthy();
@@ -311,7 +335,15 @@ describe("KanbanBoard undefined column", () => {
     ];
     const board = makeBoard(tickets, ["todo"]);
     const { container } = render(() => (
-      <KanbanBoard board={board} projectSlug="test" onEdit={noop} onDelete={noop} onViewDetail={noop} onArchive={noop} onReorder={noop} />
+      <KanbanBoard
+        board={board}
+        projectSlug="test"
+        onEdit={noop}
+        onDelete={noop}
+        onViewDetail={noop}
+        onArchive={noop}
+        onReorder={noop}
+      />
     ));
     const undefinedCol = container.querySelector('[data-testid="undefined-column"]');
     expect(undefinedCol!.className).toContain("border-destructive");
@@ -323,7 +355,15 @@ describe("KanbanBoard undefined column", () => {
     ];
     const board = makeBoard(tickets, ["todo"]);
     const { container } = render(() => (
-      <KanbanBoard board={board} projectSlug="test" onEdit={noop} onDelete={noop} onViewDetail={noop} onArchive={noop} onReorder={noop} />
+      <KanbanBoard
+        board={board}
+        projectSlug="test"
+        onEdit={noop}
+        onDelete={noop}
+        onViewDetail={noop}
+        onArchive={noop}
+        onReorder={noop}
+      />
     ));
     const orphanedStatus = container.querySelector('[data-testid="orphaned-status"]');
     expect(orphanedStatus).toBeTruthy();
@@ -336,7 +376,15 @@ describe("KanbanBoard undefined column", () => {
     ];
     const board = makeBoard(tickets, ["todo", "done"]);
     const { container } = render(() => (
-      <KanbanBoard board={board} projectSlug="test" onEdit={noop} onDelete={noop} onViewDetail={noop} onArchive={noop} onReorder={noop} />
+      <KanbanBoard
+        board={board}
+        projectSlug="test"
+        onEdit={noop}
+        onDelete={noop}
+        onViewDetail={noop}
+        onArchive={noop}
+        onReorder={noop}
+      />
     ));
     expect(container.querySelector('[data-testid="undefined-column"]')).toBeNull();
   });

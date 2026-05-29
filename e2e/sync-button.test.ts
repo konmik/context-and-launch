@@ -18,7 +18,10 @@ let server: http.Server;
 let mockState: MockServerState;
 
 const TICKETS: TicketInfo[] = [
-  { number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha", contextNames: [], useWorktree: false, fileNames: [], references: [] },
+  {
+    number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha",
+    contextNames: [], useWorktree: false, fileNames: [], references: [],
+  },
 ];
 
 describe("Sync button (e2e)", () => {
@@ -101,7 +104,10 @@ describe("Sync button (e2e)", () => {
     await page.click('button:has-text("Abort")');
 
     // Dialog should close
-    await page.waitForFunction(() => !document.querySelector('text=Sync Conflicts Detected'), { timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(
+      () => !document.querySelector('text=Sync Conflicts Detected'),
+      { timeout: 5000 },
+    ).catch(() => {});
     // Small delay for dialog animation
     await page.waitForTimeout(500);
     expect(await page.locator('text=Sync Conflicts Detected').count()).toBe(0);
@@ -118,7 +124,9 @@ describe("Sync button (e2e)", () => {
     await page.locator('[data-testid="sync-button"]').click();
     await page.waitForSelector('text=Sync Conflicts Detected', { timeout: 5000 });
 
-    await page.locator('[data-scope="dialog"][data-part="backdrop"]').click({ position: { x: 10, y: 10 }, force: true });
+    await page.locator('[data-scope="dialog"][data-part="backdrop"]').click(
+      { position: { x: 10, y: 10 }, force: true },
+    );
     await page.waitForTimeout(500);
 
     // After the fix: dialog should STILL be open (backdrop click is blocked)
@@ -128,7 +136,11 @@ describe("Sync button (e2e)", () => {
 
   it("launch button picks profile and launches resolver", async () => {
     mockState.boardData = structuredClone(createBoardWithTickets(TICKETS, undefined, true));
-    mockState.launcherConfig = { templates: [], skills: [], profiles: [{ name: "Claude Win", command: "cmd /c claude", scope: "app" }], shortcuts: [], columnDefaults: {}, worktreeRootPath: null };
+    mockState.launcherConfig = {
+      templates: [], skills: [],
+      profiles: [{ name: "Claude Win", command: "cmd /c claude", scope: "app" }],
+      shortcuts: [], columnDefaults: {}, worktreeRootPath: null,
+    };
     mockState.onSync = () => ({ status: "conflict" });
     let resolveCalled = false;
     mockState.onResolveConflicts = () => { resolveCalled = true; return { success: true }; };

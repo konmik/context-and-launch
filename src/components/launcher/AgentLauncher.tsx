@@ -1,5 +1,8 @@
 import { createSignal, createEffect, createMemo, on, Show, For } from "solid-js";
-import { DragDropProvider, DragDropSensors, SortableProvider, createSortable, closestCenter } from "@thisbeyond/solid-dnd";
+import {
+	DragDropProvider, DragDropSensors, SortableProvider,
+	createSortable, closestCenter,
+} from "@thisbeyond/solid-dnd";
 import { DialogRoot, DialogTitle } from "../ui/dialog";
 import type { TicketInfo } from "~/server/ticket/ticket-store.js";
 import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/server/launcher/launcher-config.js";
@@ -180,14 +183,32 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 						<div class="flex flex-col gap-4 rounded-md border border-border p-4">
 							<div>
 								<label class="mb-1 block text-sm text-muted-foreground">Launch</label>
-								<select value={selectedProfile()} onChange={(e) => { setSelectedProfile(e.currentTarget.value); props.onDefaultsChange({ profileName: e.currentTarget.value }); }} class="input input-sm">
-									<For each={cfg().profiles}>{(p) => <option value={p.name}>{p.name}</option>}</For>
+								<select
+									value={selectedProfile()}
+									onChange={(e) => {
+										setSelectedProfile(e.currentTarget.value);
+										props.onDefaultsChange({ profileName: e.currentTarget.value });
+									}}
+									class="input input-sm"
+								>
+									<For each={cfg().profiles}>
+									{(p) => <option value={p.name}>{p.name}</option>}
+								</For>
 								</select>
 							</div>
 							<div>
 								<label class="mb-1 block text-sm text-muted-foreground">Prompt</label>
-								<select value={selectedTemplate()} onChange={(e) => { setSelectedTemplate(e.currentTarget.value); props.onDefaultsChange({ templateName: e.currentTarget.value }); }} class="input input-sm">
-									<For each={cfg().templates}>{(t) => <option value={t.name}>{t.name}</option>}</For>
+								<select
+									value={selectedTemplate()}
+									onChange={(e) => {
+										setSelectedTemplate(e.currentTarget.value);
+										props.onDefaultsChange({ templateName: e.currentTarget.value });
+									}}
+									class="input input-sm"
+								>
+									<For each={cfg().templates}>
+									{(t) => <option value={t.name}>{t.name}</option>}
+								</For>
 								</select>
 							</div>
 							<Show when={cfg().skills.length > 0}>
@@ -205,8 +226,12 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 												<For each={orderedSkills()}>
 													{(skill, i) => (
 														<>
-															<Show when={skillReorder.dropPreview()?.insertBefore === i()}>
-																<LauncherSkillDropPreview skill={skillReorder.dropPreview()!.item} />
+															<Show when={
+																skillReorder.dropPreview()?.insertBefore === i()
+															}>
+																<LauncherSkillDropPreview
+																	skill={skillReorder.dropPreview()!.item}
+																/>
 															</Show>
 															<SortableLauncherSkill
 																skill={skill}
@@ -217,16 +242,26 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 														</>
 													)}
 												</For>
-												<Show when={skillReorder.dropPreview()?.insertBefore === orderedSkills().length}>
-													<LauncherSkillDropPreview skill={skillReorder.dropPreview()!.item} />
+												<Show when={
+												skillReorder.dropPreview()?.insertBefore === orderedSkills().length
+											}>
+													<LauncherSkillDropPreview
+														skill={skillReorder.dropPreview()!.item}
+													/>
 												</Show>
 											</div>
 										</SortableProvider>
-										<NameDragOverlay nameOf={(id) => orderedSkills().find(s => s.name === id)?.name} />
+										<NameDragOverlay nameOf={
+											(id) => orderedSkills().find(s => s.name === id)?.name
+										} />
 									</DragDropProvider>
 								</div>
 							</Show>
-							<button onClick={() => launchAgent()} disabled={launching()} class="btn-primary">Run</button>
+							<button
+								onClick={() => launchAgent()}
+								disabled={launching()}
+								class="btn-primary"
+							>Run</button>
 						</div>
 					</div>
 				)}
@@ -248,7 +283,14 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 				<p class="mb-4 text-sm">{dirtyWorktreeMsg()}</p>
 				<div class="flex justify-end gap-2">
 					<button onClick={() => setDirtyWorktreeMsg("")} class="btn-secondary">Cancel</button>
-					<button onClick={() => { setDirtyWorktreeMsg(""); launchAgent({ force: true }); }} disabled={launching()} class="btn-primary">Launch Anyway</button>
+					<button
+				onClick={() => {
+					setDirtyWorktreeMsg("");
+					launchAgent({ force: true });
+				}}
+				disabled={launching()}
+				class="btn-primary"
+			>Launch Anyway</button>
 				</div>
 			</DialogRoot>
 		</div>

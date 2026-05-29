@@ -53,16 +53,33 @@ export default function EditTicketDialog(props: EditTicketDialogProps) {
       <form onSubmit={(e) => { e.preventDefault(); doSubmit(); }}>
         <div class="mb-4">
           <label for="edit-number" class="mb-2 block text-sm font-medium">Number</label>
-          <input id="edit-number" type="text" value={number()} onInput={(e) => setNumber(e.currentTarget.value)} class="input" />
+          <input
+            id="edit-number"
+            type="text"
+            value={number()}
+            onInput={(e) => setNumber(e.currentTarget.value)}
+            class="input"
+          />
         </div>
         <div class="mb-4">
           <label for="edit-title" class="mb-2 block text-sm font-medium">Title</label>
-          <input id="edit-title" type="text" value={title()} onInput={(e) => setTitle(e.currentTarget.value)} class="input" />
+          <input
+            id="edit-title"
+            type="text"
+            value={title()}
+            onInput={(e) => setTitle(e.currentTarget.value)}
+            class="input"
+          />
         </div>
         <Show when={errorMsg()}><p class="mb-4 text-sm text-destructive">{errorMsg()}</p></Show>
         <div class="flex justify-end gap-2">
           <button type="button" onClick={close} class="btn-secondary">Cancel</button>
-          <button type="submit" disabled={submitting() || !number().trim() || !title().trim()} title={modEnterHint()} class="btn-primary">Save</button>
+          <button
+            type="submit"
+            disabled={submitting() || !number().trim() || !title().trim()}
+            title={modEnterHint()}
+            class="btn-primary"
+          >Save</button>
         </div>
       </form>
     </DialogRoot>

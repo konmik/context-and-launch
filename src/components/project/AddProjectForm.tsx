@@ -4,7 +4,9 @@ import { previewProjectPaths } from "~/server/actions";
 type ProjectPathsPreview = { projectSlug: string; ticketsPath: string; defaultWorktreesPath: string };
 
 interface AddProjectFormProps {
-  action: (path: string, branch: string, worktreeRootPath: string, ticketsPath: string) => Promise<{ projectSlug?: string; error?: string }>;
+  action: (
+    path: string, branch: string, worktreeRootPath: string, ticketsPath: string,
+  ) => Promise<{ projectSlug?: string; error?: string }>;
   errorMessage?: string;
   onSuccess?: (projectSlug: string) => void;
   submitTitle?: string;
@@ -92,30 +94,69 @@ export default function AddProjectForm(props: AddProjectFormProps) {
       <div class="mb-4">
         <label for="project-path" class="mb-2 block text-sm font-medium">Git Repository Path</label>
         <div class="flex gap-2">
-          <input id="project-path" type="text" value={pathValue()} onInput={(e) => setPathValue(e.currentTarget.value)} placeholder="/path/to/your/repo" class="input" />
+          <input
+            id="project-path"
+            type="text"
+            value={pathValue()}
+            onInput={(e) => setPathValue(e.currentTarget.value)}
+            placeholder="/path/to/your/repo"
+            class="input"
+          />
           <button type="button" onClick={handleBrowsePath} class="btn-secondary">Browse</button>
         </div>
       </div>
       <div class="mb-4">
         <label for="project-branch" class="mb-2 block text-sm font-medium">Tickets branch name</label>
-        <input id="project-branch" type="text" value={branchValue()} onInput={(e) => setBranchValue(e.currentTarget.value)} placeholder="tickets" class="input" />
+        <input
+          id="project-branch"
+          type="text"
+          value={branchValue()}
+          onInput={(e) => setBranchValue(e.currentTarget.value)}
+          placeholder="tickets"
+          class="input"
+        />
       </div>
       <div class="mb-4">
         <label for="project-tickets-root" class="mb-2 block text-sm font-medium">Tickets folder</label>
         <div class="flex gap-2">
-          <input id="project-tickets-root" type="text" value={ticketsRootPath()} onInput={(e) => { setTicketsTouched(true); setTicketsRootPath(e.currentTarget.value); }} placeholder="Defaults to the project data directory" class="input" />
+          <input
+            id="project-tickets-root"
+            type="text"
+            value={ticketsRootPath()}
+            onInput={(e) => {
+              setTicketsTouched(true);
+              setTicketsRootPath(e.currentTarget.value);
+            }}
+            placeholder="Defaults to the project data directory"
+            class="input"
+          />
           <button type="button" onClick={handleBrowseTicketsRoot} class="btn-secondary">Browse</button>
         </div>
       </div>
       <div class="mb-4">
         <label for="project-worktree-root" class="mb-2 block text-sm font-medium">Agent worktree root path</label>
         <div class="flex gap-2">
-          <input id="project-worktree-root" type="text" value={worktreeRootPath()} onInput={(e) => { setWorktreeTouched(true); setWorktreeRootPath(e.currentTarget.value); }} placeholder="Defaults to the project data directory" class="input" />
+          <input
+            id="project-worktree-root"
+            type="text"
+            value={worktreeRootPath()}
+            onInput={(e) => {
+              setWorktreeTouched(true);
+              setWorktreeRootPath(e.currentTarget.value);
+            }}
+            placeholder="Defaults to the project data directory"
+            class="input"
+          />
           <button type="button" onClick={handleBrowseWorktreeRoot} class="btn-secondary">Browse</button>
         </div>
       </div>
       <Show when={localError()}><p class="mb-4 text-sm text-destructive">{localError()}</p></Show>
-      <button type="submit" disabled={submitting() || !pathValue().trim()} title={props.submitTitle} class="btn-primary w-full">
+      <button
+        type="submit"
+        disabled={submitting() || !pathValue().trim()}
+        title={props.submitTitle}
+        class="btn-primary w-full"
+      >
         Add Project
       </button>
     </form>

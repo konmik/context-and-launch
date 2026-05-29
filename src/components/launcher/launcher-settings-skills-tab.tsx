@@ -22,7 +22,14 @@ export function SkillsTab(props: {
 						<h3 class="text-sm font-semibold">Skills</h3>
 						<button onClick={() => props.startAdd("skill")} class="btn-primary btn-sm">Add</button>
 					</div>
-					<Show when={props.config.skills.length > 0} fallback={<p class="py-3 text-center text-sm text-muted-foreground">No skills configured.</p>}>
+					<Show
+						when={props.config.skills.length > 0}
+						fallback={
+							<p class="py-3 text-center text-sm text-muted-foreground">
+								No skills configured.
+							</p>
+						}
+					>
 						<DragDropProvider
 							onDragStart={props.skillReorder.onDragStart}
 							onDragOver={props.skillReorder.onDragOver}
@@ -41,23 +48,38 @@ export function SkillsTab(props: {
 												<SortableSkillRow
 													skill={skill}
 													isActive={props.skillReorder.activeId() === skill.name}
-													onEdit={() => props.startEdit("skill", skill.scope, skill.name, skill.text)}
-													onDelete={() => props.deleteItem("skill", skill.scope, skill.name)}
+													onEdit={() => props.startEdit(
+														"skill", skill.scope, skill.name, skill.text,
+													)}
+													onDelete={() => props.deleteItem(
+														"skill", skill.scope, skill.name,
+													)}
 												/>
 											</>
 										)}
 									</For>
-									<Show when={props.skillReorder.dropPreview()?.insertBefore === props.config.skills.length}>
-										<SkillDropPreview skill={props.skillReorder.dropPreview()!.item} />
+									<Show when={
+										props.skillReorder.dropPreview()?.insertBefore
+											=== props.config.skills.length
+									}>
+										<SkillDropPreview
+											skill={props.skillReorder.dropPreview()!.item}
+										/>
 									</Show>
 								</div>
 							</SortableProvider>
-							<NameDragOverlay nameOf={(id) => props.config.skills.find(s => s.name === id)?.name} />
+							<NameDragOverlay nameOf={
+								(id) => props.config.skills.find(s => s.name === id)?.name
+							} />
 						</DragDropProvider>
 					</Show>
 					<Show when={props.config.skills.some(s => s.scope === "app")}>
-						<p class="mt-2 text-xs text-muted-foreground" data-testid="skill-order-warning">
-							Skill order is shared. User skills appear in every project, so reordering one here changes its position in all of them.
+						<p
+							class="mt-2 text-xs text-muted-foreground"
+							data-testid="skill-order-warning"
+						>
+							Skill order is shared. User skills appear in every project,
+							so reordering one here changes its position in all of them.
 						</p>
 					</Show>
 				</section>
