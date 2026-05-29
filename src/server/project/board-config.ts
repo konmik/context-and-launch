@@ -19,17 +19,6 @@ export interface BoardConfig {
 	columns: ColumnDefinition[];
 }
 
-export const DEFAULT_BOARD_ID = 'kanban';
-
-export const DEFAULT_BOARDS: BoardDefinition[] = [
-	{ id: 'kanban', name: 'Kanban', columns: [
-		{ name: 'todo' }, { name: 'prd' }, { name: 'in-progress' }, { name: 'review' }, { name: 'done' },
-	]},
-	{ id: 'simple', name: 'Simple', columns: [
-		{ name: 'todo' }, { name: 'in-progress' }, { name: 'done' },
-	]},
-];
-
 export function validateColumnName(name: string, existingNames: string[], renamingFrom?: string): string {
 	const slugified = slugifyColumnName(name);
 	if (!slugified) {
@@ -65,27 +54,20 @@ export class BoardConfigManager {
 	}
 
 	private loadAll(): BoardDefinition[] {
-		const raw = this.configRepo.readJson(this.paths.boardsFile());
+		const filePath = this.paths.boardsFile();
+		const raw = this.configRepo.readJson(filePath);
 		if (raw === null) {
-			const defaults = structuredClone(DEFAULT_BOARDS);
-			this.saveAll(defaults);
-			return defaults;
+			throw new Error(`boards.json not found: ${filePath}`);
 		}
-		try {
-			const parsed = raw as unknown[];
-			if (!Array.isArray(parsed) || parsed.length === 0) {
-				return structuredClone(DEFAULT_BOARDS);
-			}
-			for (const board of parsed as BoardDefinition[]) {
-				if (Array.isArray(board.columns)) {
-					board.columns = migrateColumns(board.columns);
-				}
-			}
-			return parsed as BoardDefinition[];
-		} catch (e) {
-			console.warn('Failed to parse boards.json, falling back to defaults', e);
-			return structuredClone(DEFAULT_BOARDS);
+		if (!Array.isArray(raw) || raw.length === 0) {
+			throw new Error(`boards.json is empty or not an array: ${filePath}`);
 		}
+		for (const board of raw as BoardDefinition[]) {
+			if (Array.isArray(board.columns)) {
+				board.columns = migrateColumns(board.columns);
+			}
+		}
+		return raw as BoardDefinition[];
 	}
 
 	private saveAll(boards: BoardDefinition[]): void {
@@ -107,17 +89,19 @@ export class BoardConfigManager {
 		return this.loadAll().find(b => b.id === boardId);
 	}
 
+	getDefaultBoardId(): string {
+		return this.loadAll()[0].id;
+	}
+
 	getConfig(boardId?: string | null): BoardConfig {
-		const id = boardId || DEFAULT_BOARD_ID;
-		const board = this.getBoard(id);
+		const boards = this.loadAll();
+		const id = boardId || boards[0].id;
+		const board = boards.find(b => b.id === id);
 		if (!board) {
-			const fallback = this.loadAll()[0];
-			return { columns: fallback?.columns ?? DEFAULT_BOARDS[0].columns };
+			return { columns: boards[0].columns };
 		}
 		return { columns: board.columns };
 	}
-
-	// Board CRUD
 
 	createBoard(name: string): BoardDefinition {
 		const id = slugifyColumnName(name);
@@ -149,8 +133,6 @@ export class BoardConfigManager {
 		board.name = newName.trim();
 		this.saveAll(boards);
 	}
-
-	// Column CRUD
 
 	addColumn(boardId: string, name: string, description?: string): ColumnDefinition {
 		const { boards, board } = this.findBoard(boardId);

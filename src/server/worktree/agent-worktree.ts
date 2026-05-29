@@ -52,7 +52,10 @@ export class AgentWorktreeManager {
 		}
 
 		try {
-			const behindCount = await git(projectPath, 'rev-list', `${mainBranch}..${mainBranch}@{upstream}`, '--count');
+			const behindCount = await git(
+				projectPath, 'rev-list',
+				`${mainBranch}..${mainBranch}@{upstream}`, '--count',
+			);
 			if (parseInt(behindCount.trim(), 10) > 0) {
 				return { behindRemote: true };
 			}

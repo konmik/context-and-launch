@@ -25,8 +25,12 @@ export type BoardPageData =
 const DEFAULT_COLUMNS: ColumnDefinition[] = [{ name: "todo" }, { name: "in-progress" }, { name: "done" }];
 
 export const DEFAULT_BOARDS: BoardDefinition[] = [
-  { id: "kanban", name: "Kanban", columns: [
-    { name: "todo" }, { name: "prd" }, { name: "in-progress" }, { name: "review" }, { name: "done" },
+  { id: "standard", name: "Standard", columns: [
+    { name: "todo", description: "wishlist" },
+    { name: "plan", description: "/grill-me" },
+    { name: "in-progress", description: "/hero" },
+    { name: "review", description: "interactive" },
+    { name: "done", description: "/merge" },
   ]},
   { id: "simple", name: "Simple", columns: [
     { name: "todo" }, { name: "in-progress" }, { name: "done" },

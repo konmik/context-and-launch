@@ -6,6 +6,7 @@ import { execSync, spawn, type ChildProcess } from 'child_process';
 import { AgentWorktreeManager } from './agent-worktree.js';
 import { LauncherConfigManager } from '../launcher/launcher-config.js';
 import { ConfigPaths } from '../config/config-paths.js';
+import { initializeDataDir } from '../config/initialize.js';
 import * as gitModule from '../infra/git.js';
 
 function tmpDir(prefix: string): string {
@@ -50,6 +51,7 @@ describe('AgentWorktreeManager', () => {
 		initGitRepo(projectDir, branch);
 
 		const paths = new ConfigPaths(configDir);
+		initializeDataDir(paths);
 		const lcm = new LauncherConfigManager(paths);
 		lcm.saveProjectConfig('my-proj', {
 			templates: [],

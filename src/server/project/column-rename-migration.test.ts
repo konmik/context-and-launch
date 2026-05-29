@@ -4,8 +4,10 @@ import path from 'path';
 import os from 'os';
 import { migrateColumnRename } from './column-rename-migration.js';
 import { ConfigPaths } from '../config/config-paths.js';
+import { initializeDataDir } from '../config/initialize.js';
 import { LauncherConfigManager } from '../launcher/launcher-config.js';
 import { ProjectRegistry } from './project-registry.js';
+import { BoardConfigManager } from './board-config.js';
 import { WorktreeManager } from '../worktree/worktree-manager.js';
 
 function tmpDir(prefix: string): string {
@@ -27,6 +29,16 @@ function createTicketDir(worktreeDir: string, folderName: string, status: string
 		status,
 		useWorktree: false,
 	}));
+}
+
+function makeDeps(configDir: string) {
+	const paths = new ConfigPaths(configDir);
+	return {
+		projectRegistry: new ProjectRegistry(paths),
+		launcherConfigManager: new LauncherConfigManager(paths),
+		worktreeManager: new WorktreeManager(paths),
+		boardConfigManager: new BoardConfigManager(paths),
+	};
 }
 
 describe('migrateColumnRename', () => {
@@ -60,12 +72,9 @@ describe('migrateColumnRename', () => {
 	it('scope "none" makes no changes', () => {
 		const configDir = tmpDir('migration-test-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 
-		const result = migrateColumnRename('kanban', 'old', 'new', 'none', 'test', {
-			projectRegistry: new ProjectRegistry(new ConfigPaths(configDir)),
-			launcherConfigManager: new LauncherConfigManager(new ConfigPaths(configDir)),
-			worktreeManager: new WorktreeManager(new ConfigPaths(configDir)),
-		});
+		const result = migrateColumnRename('standard', 'old', 'new', 'none', 'test', makeDeps(configDir));
 
 		expect(result.ticketsUpdated).toBe(0);
 		expect(result.projectsUpdated).toBe(0);
@@ -74,22 +83,18 @@ describe('migrateColumnRename', () => {
 	it('scope "current" updates only current project tickets', () => {
 		const configDir = tmpDir('migration-test-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 
-		const worktreeDir = setupProject(configDir, 'proj-a', 'kanban');
+		const worktreeDir = setupProject(configDir, 'proj-a', 'standard');
 		createTicketDir(worktreeDir, 't-1-alpha', 'todo');
 		createTicketDir(worktreeDir, 't-2-bravo', 'todo');
 		createTicketDir(worktreeDir, 't-3-charlie', 'done');
 
-		const result = migrateColumnRename('kanban', 'todo', 'backlog', 'current', 'proj-a', {
-			projectRegistry: new ProjectRegistry(new ConfigPaths(configDir)),
-			launcherConfigManager: new LauncherConfigManager(new ConfigPaths(configDir)),
-			worktreeManager: new WorktreeManager(new ConfigPaths(configDir)),
-		});
+		const result = migrateColumnRename('standard', 'todo', 'backlog', 'current', 'proj-a', makeDeps(configDir));
 
 		expect(result.ticketsUpdated).toBe(2);
 		expect(result.projectsUpdated).toBe(1);
 
-		// Verify status.json updated
 		const status1 = JSON.parse(fs.readFileSync(path.join(worktreeDir, 't-1-alpha', 'status.json'), 'utf-8'));
 		expect(status1.status).toBe('backlog');
 		const status3 = JSON.parse(fs.readFileSync(path.join(worktreeDir, 't-3-charlie', 'status.json'), 'utf-8'));
@@ -99,10 +104,10 @@ describe('migrateColumnRename', () => {
 	it('scope "current" re-keys columnDefaults', () => {
 		const configDir = tmpDir('migration-test-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 
-		const worktreeDir = setupProject(configDir, 'proj-a', 'kanban');
+		setupProject(configDir, 'proj-a', 'standard');
 
-		// Set column defaults for the old column name
 		const lcm = new LauncherConfigManager(new ConfigPaths(configDir));
 		const config = lcm.loadProjectConfig('proj-a');
 		config.columnDefaults = {
@@ -110,11 +115,11 @@ describe('migrateColumnRename', () => {
 		};
 		lcm.saveProjectConfig('proj-a', config);
 
-		migrateColumnRename('kanban', 'todo', 'backlog', 'current', 'proj-a', {
-			projectRegistry: new ProjectRegistry(new ConfigPaths(configDir)),
-			launcherConfigManager: lcm,
-			worktreeManager: new WorktreeManager(new ConfigPaths(configDir)),
-		});
+		const deps = makeDeps(configDir);
+		migrateColumnRename(
+			'standard', 'todo', 'backlog', 'current', 'proj-a',
+			{ ...deps, launcherConfigManager: lcm },
+		);
 
 		const updated = lcm.loadProjectConfig('proj-a');
 		expect(updated.columnDefaults!['backlog']).toBeDefined();
@@ -124,21 +129,17 @@ describe('migrateColumnRename', () => {
 	it('scope "all" updates all matching projects', () => {
 		const configDir = tmpDir('migration-test-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 
-		const wtA = setupProject(configDir, 'proj-a', 'kanban');
+		const wtA = setupProject(configDir, 'proj-a', 'standard');
 		createTicketDir(wtA, 't-1-alpha', 'todo');
 
-		const wtB = setupProject(configDir, 'proj-b', 'kanban');
+		const wtB = setupProject(configDir, 'proj-b', 'standard');
 		createTicketDir(wtB, 't-2-bravo', 'todo');
 
-		// proj-c uses a different board
 		setupProject(configDir, 'proj-c', 'simple');
 
-		const result = migrateColumnRename('kanban', 'todo', 'backlog', 'all', 'proj-a', {
-			projectRegistry: new ProjectRegistry(new ConfigPaths(configDir)),
-			launcherConfigManager: new LauncherConfigManager(new ConfigPaths(configDir)),
-			worktreeManager: new WorktreeManager(new ConfigPaths(configDir)),
-		});
+		const result = migrateColumnRename('standard', 'todo', 'backlog', 'all', 'proj-a', makeDeps(configDir));
 
 		expect(result.ticketsUpdated).toBe(2);
 		expect(result.projectsUpdated).toBe(2);
@@ -147,15 +148,12 @@ describe('migrateColumnRename', () => {
 	it('no tickets match old status returns zero updates', () => {
 		const configDir = tmpDir('migration-test-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 
-		const worktreeDir = setupProject(configDir, 'proj-a', 'kanban');
+		const worktreeDir = setupProject(configDir, 'proj-a', 'standard');
 		createTicketDir(worktreeDir, 't-1-alpha', 'done');
 
-		const result = migrateColumnRename('kanban', 'todo', 'backlog', 'current', 'proj-a', {
-			projectRegistry: new ProjectRegistry(new ConfigPaths(configDir)),
-			launcherConfigManager: new LauncherConfigManager(new ConfigPaths(configDir)),
-			worktreeManager: new WorktreeManager(new ConfigPaths(configDir)),
-		});
+		const result = migrateColumnRename('standard', 'todo', 'backlog', 'current', 'proj-a', makeDeps(configDir));
 
 		expect(result.ticketsUpdated).toBe(0);
 		expect(result.projectsUpdated).toBe(0);
@@ -164,11 +162,10 @@ describe('migrateColumnRename', () => {
 	it('re-keys columnDefaults even when ticket store throws', () => {
 		const configDir = tmpDir('migration-test-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 
-		// Set up the project normally first (so registry and config exist)
-		const worktreeDir = setupProject(configDir, 'proj-a', 'kanban');
+		const worktreeDir = setupProject(configDir, 'proj-a', 'standard');
 
-		// Set column defaults for the old column name
 		const lcm = new LauncherConfigManager(new ConfigPaths(configDir));
 		const config = lcm.loadProjectConfig('proj-a');
 		config.columnDefaults = {
@@ -176,17 +173,14 @@ describe('migrateColumnRename', () => {
 		};
 		lcm.saveProjectConfig('proj-a', config);
 
-		// Corrupt the worktree dir: replace it with a file so readdirSync throws
 		fs.rmSync(worktreeDir, { recursive: true, force: true });
 		fs.writeFileSync(worktreeDir, 'not-a-directory');
 
-		const result = migrateColumnRename('kanban', 'todo', 'backlog', 'current', 'proj-a', {
-			projectRegistry: new ProjectRegistry(new ConfigPaths(configDir)),
-			launcherConfigManager: lcm,
-			worktreeManager: new WorktreeManager(new ConfigPaths(configDir)),
+		const deps = makeDeps(configDir);
+		const result = migrateColumnRename('standard', 'todo', 'backlog', 'current', 'proj-a', {
+			...deps, launcherConfigManager: lcm,
 		});
 
-		// columnDefaults should be re-keyed even though ticket migration failed
 		const updated = lcm.loadProjectConfig('proj-a');
 		expect(updated.columnDefaults!['backlog']).toBeDefined();
 		expect(updated.columnDefaults!['todo']).toBeUndefined();
@@ -194,21 +188,16 @@ describe('migrateColumnRename', () => {
 		expect(result.projectsUpdated).toBe(1);
 	});
 
-	it('scope "current" with undefined currentProjectSlug silently returns zeroes (API route guards this)', () => {
+	it('scope "current" with undefined currentProjectSlug silently returns zeroes', () => {
 		const configDir = tmpDir('migration-test-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 
-		setupProject(configDir, 'proj-a', 'kanban');
+		setupProject(configDir, 'proj-a', 'standard');
 
-		// When currentProjectSlug is undefined, the migration iterates over [undefined],
-		// getWorktreeDir throws, the catch swallows it, and we get {0, 0}.
-		// The API route now validates currentProjectSlug before calling migrateColumnRename,
-		// returning 400 when scope is "current" and currentProjectSlug is missing.
-		const result = migrateColumnRename('kanban', 'todo', 'backlog', 'current', undefined as unknown as string, {
-			projectRegistry: new ProjectRegistry(new ConfigPaths(configDir)),
-			launcherConfigManager: new LauncherConfigManager(new ConfigPaths(configDir)),
-			worktreeManager: new WorktreeManager(new ConfigPaths(configDir)),
-		});
+		const result = migrateColumnRename(
+			'standard', 'todo', 'backlog', 'current', undefined as unknown as string, makeDeps(configDir),
+		);
 
 		expect(result.ticketsUpdated).toBe(0);
 		expect(result.projectsUpdated).toBe(0);
@@ -217,16 +206,12 @@ describe('migrateColumnRename', () => {
 	it('project with no columnDefaults does not error', () => {
 		const configDir = tmpDir('migration-test-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 
-		const worktreeDir = setupProject(configDir, 'proj-a', 'kanban');
+		const worktreeDir = setupProject(configDir, 'proj-a', 'standard');
 		createTicketDir(worktreeDir, 't-1-alpha', 'todo');
 
-		// No columnDefaults set
-		const result = migrateColumnRename('kanban', 'todo', 'backlog', 'current', 'proj-a', {
-			projectRegistry: new ProjectRegistry(new ConfigPaths(configDir)),
-			launcherConfigManager: new LauncherConfigManager(new ConfigPaths(configDir)),
-			worktreeManager: new WorktreeManager(new ConfigPaths(configDir)),
-		});
+		const result = migrateColumnRename('standard', 'todo', 'backlog', 'current', 'proj-a', makeDeps(configDir));
 
 		expect(result.ticketsUpdated).toBe(1);
 		expect(result.projectsUpdated).toBe(1);
@@ -235,15 +220,15 @@ describe('migrateColumnRename', () => {
 	it('scope "all" returns zeroes when listProjects throws', () => {
 		const configDir = tmpDir('migration-test-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 
 		const brokenRegistry = {
 			listProjects() { throw new Error('corrupt projects.json'); },
 		} as unknown as ProjectRegistry;
 
-		const result = migrateColumnRename('kanban', 'todo', 'backlog', 'all', '', {
-			projectRegistry: brokenRegistry,
-			launcherConfigManager: new LauncherConfigManager(new ConfigPaths(configDir)),
-			worktreeManager: new WorktreeManager(new ConfigPaths(configDir)),
+		const deps = makeDeps(configDir);
+		const result = migrateColumnRename('standard', 'todo', 'backlog', 'all', '', {
+			...deps, projectRegistry: brokenRegistry,
 		});
 
 		expect(result.ticketsUpdated).toBe(0);
@@ -253,11 +238,11 @@ describe('migrateColumnRename', () => {
 	it('scope "all" skips projects whose getMergedConfig throws', () => {
 		const configDir = tmpDir('migration-test-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 
-		// Set up two projects -- proj-a works, proj-b has broken config
-		const wtA = setupProject(configDir, 'proj-a', 'kanban');
+		const wtA = setupProject(configDir, 'proj-a', 'standard');
 		createTicketDir(wtA, 't-1-alpha', 'todo');
-		setupProject(configDir, 'proj-b', 'kanban');
+		setupProject(configDir, 'proj-b', 'standard');
 
 		const realLcm = new LauncherConfigManager(new ConfigPaths(configDir));
 		const brokenLcm = {
@@ -269,13 +254,11 @@ describe('migrateColumnRename', () => {
 			saveProjectConfig: realLcm.saveProjectConfig.bind(realLcm),
 		} as unknown as LauncherConfigManager;
 
-		const result = migrateColumnRename('kanban', 'todo', 'backlog', 'all', '', {
-			projectRegistry: new ProjectRegistry(new ConfigPaths(configDir)),
-			launcherConfigManager: brokenLcm,
-			worktreeManager: new WorktreeManager(new ConfigPaths(configDir)),
+		const deps = makeDeps(configDir);
+		const result = migrateColumnRename('standard', 'todo', 'backlog', 'all', '', {
+			...deps, launcherConfigManager: brokenLcm,
 		});
 
-		// proj-a should still be migrated, proj-b skipped
 		expect(result.ticketsUpdated).toBe(1);
 		expect(result.projectsUpdated).toBe(1);
 	});

@@ -84,7 +84,7 @@ describe('ProjectRegistry', () => {
 		expect(fs.existsSync(path.join(configDir, 'config', 'config.json'))).toBe(true);
 	});
 
-	it('malformed config.json is handled gracefully', () => {
+	it('malformed config.json throws', () => {
 		const configDir = tmpDir('registry-config-');
 		dirs.push(configDir);
 
@@ -92,7 +92,7 @@ describe('ProjectRegistry', () => {
 		fs.writeFileSync(path.join(configDir, 'config', 'config.json'), 'not valid json');
 
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		expect(registry.listProjects()).toEqual([]);
+		expect(() => registry.listProjects()).toThrow();
 	});
 
 	it('getDefaultProjectSlug returns lastUsedProjectSlug if valid', () => {
