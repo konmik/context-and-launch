@@ -1,7 +1,7 @@
 {
-  "useWorktree": true,
   "number": "ST-0018",
   "title": "Exploratory testing",
-  "status": "in-progress",
+  "status": "done",
+  "useWorktree": true,
   "createdAt": "2026-05-28T22:38:35.684Z"
 }
