@@ -39,7 +39,12 @@ export class WorktreeManager {
 		const worktreeDir = this.resolveTicketsDir(projectSlug);
 
 		if (fs.existsSync(worktreeDir) && this.isValidWorktree(worktreeDir)) {
-			return worktreeDir;
+			const currentBranch = await this.currentBranch(worktreeDir);
+			if (currentBranch === branch) {
+				return worktreeDir;
+			}
+			fs.rmSync(worktreeDir, { recursive: true, force: true });
+			await git(projectPath, 'worktree', 'prune');
 		}
 
 		if (fs.existsSync(worktreeDir)) {
@@ -110,6 +115,14 @@ export class WorktreeManager {
 
 	getWorktreeDir(projectSlug: string): string {
 		return this.resolveTicketsDir(projectSlug);
+	}
+
+	private async currentBranch(worktreeDir: string): Promise<string | null> {
+		try {
+			return (await git(worktreeDir, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
+		} catch {
+			return null;
+		}
 	}
 
 	private isValidWorktree(dir: string): boolean {
