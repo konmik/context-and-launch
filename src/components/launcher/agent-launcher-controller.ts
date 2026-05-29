@@ -19,10 +19,11 @@ export interface AgentLauncherDeps {
 }
 
 export function createAgentLauncherController(props: AgentLauncherDeps) {
-	const [selectedTemplate, setSelectedTemplate] = createSignal("");
-	const [selectedProfile, setSelectedProfile] = createSignal("");
-	const [checkedSkills, setCheckedSkills] = createSignal<Set<string>>(new Set());
-	const [skillOrder, setSkillOrder] = createSignal<string[]>([]);
+	const initial = resolveDefaults(props.config, props.ticket.status);
+	const [selectedTemplate, setSelectedTemplate] = createSignal(initial.templateName);
+	const [selectedProfile, setSelectedProfile] = createSignal(initial.profileName);
+	const [checkedSkills, setCheckedSkills] = createSignal<Set<string>>(new Set(initial.checkedSkills));
+	const [skillOrder, setSkillOrder] = createSignal<string[]>(initial.skillOrder);
 	const [launching, setLaunching] = createSignal(false);
 	const [errorInfo, setErrorInfo] = createSignal<ErrorInfo | null>(null);
 	const [behindRemoteMsg, setBehindRemoteMsg] = createSignal("");
@@ -37,6 +38,7 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 			setCheckedSkills(new Set(defaults.checkedSkills));
 			setSkillOrder(defaults.skillOrder);
 		},
+		{ defer: true },
 	));
 
 	const orderedSkills = createMemo(() =>
