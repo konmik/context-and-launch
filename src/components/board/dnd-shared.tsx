@@ -1,5 +1,6 @@
 import { Show, type JSX } from "solid-js";
 import { DragOverlay } from "@thisbeyond/solid-dnd";
+import { joinClass } from "~/lib/class-util";
 
 // Shared drag-and-drop visual language, used by both the KanbanBoard (ticket
 // reorder) and LauncherSettings (column reorder). The DnD algorithms differ,
@@ -16,9 +17,6 @@ export const DND_OVERLAY_CLASS = "rotate-2 scale-95 opacity-80 shadow-xl";
 // The ghost preview rendered at the drop target slot.
 export const DND_PREVIEW_CLASS = "pointer-events-none opacity-40";
 
-function joinClass(base: string, extra?: string): string {
-	return extra ? `${base} ${extra}` : base;
-}
 
 // Ghost preview shown where the dragged item will land. data-drop-preview marks
 // it so drag-position math can exclude it; data-drop-indicator lets tests detect
