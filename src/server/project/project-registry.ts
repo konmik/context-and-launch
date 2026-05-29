@@ -90,15 +90,7 @@ export class ProjectRegistry {
 		const configFile = this.paths.projectRegistryFile();
 		const raw = this.configRepo.readJson(configFile) as Record<string, unknown> | null;
 		if (raw === null) {
-			const empty: ProjectConfig = {
-				projects: [],
-				lastUsedProjectSlug: null,
-				port: undefined,
-				browser: undefined,
-			};
-			this.cached = empty;
-			this.extraFields = {};
-			return this.cached;
+			throw new Error(`config.json not found: ${configFile}`);
 		}
 		if (!Array.isArray(raw.projects)) {
 			throw new Error(

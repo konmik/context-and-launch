@@ -4,6 +4,7 @@ import path from 'path';
 import os from 'os';
 import { ProjectRegistry, generateProjectSlug, validateBranchName } from './project-registry.js';
 import { ConfigPaths } from '../config/config-paths.js';
+import { initializeDataDir } from '../config/initialize.js';
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -27,11 +28,18 @@ describe('ProjectRegistry', () => {
 		dirs.length = 0;
 	});
 
+	function initConfigDir(prefix = 'registry-config-'): string {
+		const configDir = tmpDir(prefix);
+		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
+		return configDir;
+	}
+
 	it('addProject with explicit projectSlug that collides is rejected', () => {
-		const configDir = tmpDir('registry-config-');
+		const configDir = initConfigDir();
 		const projectDir1 = tmpDir('registry-project1-');
 		const projectDir2 = tmpDir('registry-project2-');
-		dirs.push(configDir, projectDir1, projectDir2);
+		dirs.push(projectDir1, projectDir2);
 
 		fs.mkdirSync(path.join(projectDir1, '.git'));
 		fs.mkdirSync(path.join(projectDir2, '.git'));
@@ -43,9 +51,9 @@ describe('ProjectRegistry', () => {
 	});
 
 	it('addProject rejects duplicate canonical path even when raw paths differ', () => {
-		const configDir = tmpDir('registry-config-');
+		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
-		dirs.push(configDir, projectDir);
+		dirs.push(projectDir);
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
@@ -73,9 +81,9 @@ describe('ProjectRegistry', () => {
 	});
 
 	it('config file is created on first addProject', () => {
-		const configDir = tmpDir('registry-config-');
+		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
-		dirs.push(configDir, projectDir);
+		dirs.push(projectDir);
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
@@ -96,9 +104,9 @@ describe('ProjectRegistry', () => {
 	});
 
 	it('getDefaultProjectSlug returns lastUsedProjectSlug if valid', () => {
-		const configDir = tmpDir('registry-config-');
+		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
-		dirs.push(configDir, projectDir);
+		dirs.push(projectDir);
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
@@ -108,9 +116,9 @@ describe('ProjectRegistry', () => {
 	});
 
 	it('getDefaultProjectSlug returns first project if lastUsedProjectSlug is invalid', () => {
-		const configDir = tmpDir('registry-config-');
+		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
-		dirs.push(configDir, projectDir);
+		dirs.push(projectDir);
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
@@ -127,9 +135,9 @@ describe('ProjectRegistry', () => {
 	});
 
 	it('removeProject clears lastUsedProjectSlug when removing the last-used project', () => {
-		const configDir = tmpDir('registry-config-');
+		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
-		dirs.push(configDir, projectDir);
+		dirs.push(projectDir);
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
@@ -140,9 +148,9 @@ describe('ProjectRegistry', () => {
 	});
 
 	it('external edit to config.json after cache is populated is invisible to listProjects', () => {
-		const configDir = tmpDir('registry-config-');
+		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
-		dirs.push(configDir, projectDir);
+		dirs.push(projectDir);
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
@@ -162,10 +170,10 @@ describe('ProjectRegistry', () => {
 	});
 
 	it('external edit is overwritten on save: adding project C after external B silently drops B', () => {
-		const configDir = tmpDir('registry-config-');
+		const configDir = initConfigDir();
 		const projectDirA = tmpDir('registry-projectA-');
 		const projectDirC = tmpDir('registry-projectC-');
-		dirs.push(configDir, projectDirA, projectDirC);
+		dirs.push(projectDirA, projectDirC);
 
 		fs.mkdirSync(path.join(projectDirA, '.git'));
 		fs.mkdirSync(path.join(projectDirC, '.git'));
@@ -194,8 +202,7 @@ describe('ProjectRegistry', () => {
 	});
 
 	it('H7.16 - addProject with a tilde path throws "Path does not exist" (no tilde expansion)', () => {
-		const configDir = tmpDir('registry-config-');
-		dirs.push(configDir);
+		const configDir = initConfigDir();
 
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
 		// fs.existsSync does not expand ~ -- the literal path "~/nonexistent" does not exist
@@ -203,9 +210,9 @@ describe('ProjectRegistry', () => {
 	});
 
 	it('H7.16 - addProject with trailing whitespace in path throws "Path does not exist"', () => {
-		const configDir = tmpDir('registry-config-');
+		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
-		dirs.push(configDir, projectDir);
+		dirs.push(projectDir);
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
@@ -243,11 +250,11 @@ describe('ProjectRegistry', () => {
 		expect(slugWithParent.length).toBe(401);
 
 		// Confirm addProject with a long directory name produces the expected long projectSlug
-		const configDir = tmpDir('registry-config-');
+		const configDir = initConfigDir();
 		const parentDir = tmpDir('registry-parent-');
 		const longDirName = 'z'.repeat(100); // keep OS-safe (most filesystems cap filename at 255 bytes)
 		const longProjectDir = path.join(parentDir, longDirName);
-		dirs.push(configDir, parentDir);
+		dirs.push(parentDir);
 		fs.mkdirSync(longProjectDir);
 		fs.mkdirSync(path.join(longProjectDir, '.git'));
 
@@ -258,9 +265,9 @@ describe('ProjectRegistry', () => {
 	});
 
 	it('removeProject on a nonexistent projectSlug does not throw but silently rewrites config.json', () => {
-		const configDir = tmpDir('registry-config-');
+		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
-		dirs.push(configDir, projectDir);
+		dirs.push(projectDir);
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
@@ -287,9 +294,9 @@ describe('ProjectRegistry', () => {
 	});
 
 	it('port and browser fields round-trip without data loss', () => {
-		const configDir = tmpDir('registry-config-');
+		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
-		dirs.push(configDir, projectDir);
+		dirs.push(projectDir);
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 
@@ -323,25 +330,23 @@ describe('ProjectRegistry', () => {
 	});
 
 	it('getPort returns default 14780 when not specified', () => {
-		const configDir = tmpDir('registry-config-');
-		dirs.push(configDir);
+		const configDir = initConfigDir();
 
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
 		expect(registry.getPort()).toBe(14780);
 	});
 
 	it('getBrowser returns default "chrome" when not specified', () => {
-		const configDir = tmpDir('registry-config-');
-		dirs.push(configDir);
+		const configDir = initConfigDir();
 
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
 		expect(registry.getBrowser()).toBe('chrome');
 	});
 
 	it('save preserves unknown fields added by external tools', () => {
-		const configDir = tmpDir('registry-config-');
+		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
-		dirs.push(configDir, projectDir);
+		dirs.push(projectDir);
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		fs.mkdirSync(path.join(configDir, 'config'), { recursive: true });
@@ -369,10 +374,10 @@ describe('ProjectRegistry', () => {
 	});
 
 	it('two registry instances: second overwrites first on save', () => {
-		const configDir = tmpDir('registry-config-');
+		const configDir = initConfigDir();
 		const projectDir1 = tmpDir('registry-project1-');
 		const projectDir2 = tmpDir('registry-project2-');
-		dirs.push(configDir, projectDir1, projectDir2);
+		dirs.push(projectDir1, projectDir2);
 
 		fs.mkdirSync(path.join(projectDir1, '.git'));
 		fs.mkdirSync(path.join(projectDir2, '.git'));
@@ -380,7 +385,6 @@ describe('ProjectRegistry', () => {
 		const registry1 = new ProjectRegistry(new ConfigPaths(configDir));
 		registry1.addProject(projectDir1, 'from-instance-1');
 
-		// Second instance reads from disk (gets instance-1's project)
 		const registry2 = new ProjectRegistry(new ConfigPaths(configDir));
 		registry2.addProject(projectDir2, 'from-instance-2');
 
@@ -393,11 +397,11 @@ describe('ProjectRegistry', () => {
 	});
 
 	it('two registry instances: first instance save after second clobbers second changes', () => {
-		const configDir = tmpDir('registry-config-');
+		const configDir = initConfigDir();
 		const projectDir1 = tmpDir('registry-project1-');
 		const projectDir2 = tmpDir('registry-project2-');
 		const projectDir3 = tmpDir('registry-project3-');
-		dirs.push(configDir, projectDir1, projectDir2, projectDir3);
+		dirs.push(projectDir1, projectDir2, projectDir3);
 
 		fs.mkdirSync(path.join(projectDir1, '.git'));
 		fs.mkdirSync(path.join(projectDir2, '.git'));
@@ -428,9 +432,9 @@ describe('ProjectRegistry', () => {
 	});
 
 	it('setLastUsed with stale cache ignores projectSlug that exists on disk but not in cache', () => {
-		const configDir = tmpDir('registry-config-');
+		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
-		dirs.push(configDir, projectDir);
+		dirs.push(projectDir);
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 
@@ -455,9 +459,9 @@ describe('ProjectRegistry', () => {
 	});
 
 	it('updateProject preserves port and browser fields', () => {
-		const configDir = tmpDir('registry-config-');
+		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
-		dirs.push(configDir, projectDir);
+		dirs.push(projectDir);
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		fs.mkdirSync(path.join(configDir, 'config'), { recursive: true });
@@ -481,9 +485,9 @@ describe('ProjectRegistry', () => {
 	});
 
 	it('addProject stores the chosen branch and listProjects returns it', () => {
-		const configDir = tmpDir('registry-config-');
+		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
-		dirs.push(configDir, projectDir);
+		dirs.push(projectDir);
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
@@ -500,9 +504,9 @@ describe('ProjectRegistry', () => {
 	});
 
 	it('addProject without a branch leaves the field undefined (legacy fallback)', () => {
-		const configDir = tmpDir('registry-config-');
+		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
-		dirs.push(configDir, projectDir);
+		dirs.push(projectDir);
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
@@ -516,9 +520,9 @@ describe('ProjectRegistry', () => {
 	});
 
 	it('addProject rejects an invalid branch name before registering', () => {
-		const configDir = tmpDir('registry-config-');
+		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
-		dirs.push(configDir, projectDir);
+		dirs.push(projectDir);
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
@@ -527,9 +531,9 @@ describe('ProjectRegistry', () => {
 	});
 
 	it('addProject stores ticketsPath, getTicketsPath returns it, and rename preserves it', () => {
-		const configDir = tmpDir('registry-config-');
+		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
-		dirs.push(configDir, projectDir);
+		dirs.push(projectDir);
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
@@ -543,9 +547,9 @@ describe('ProjectRegistry', () => {
 	});
 
 	it('updateProject preserves the branch field across rename', () => {
-		const configDir = tmpDir('registry-config-');
+		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
-		dirs.push(configDir, projectDir);
+		dirs.push(projectDir);
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
@@ -580,9 +584,9 @@ describe('ProjectRegistry', () => {
 	});
 
 	it('setLastUsed preserves port and browser fields', () => {
-		const configDir = tmpDir('registry-config-');
+		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
-		dirs.push(configDir, projectDir);
+		dirs.push(projectDir);
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		fs.mkdirSync(path.join(configDir, 'config'), { recursive: true });

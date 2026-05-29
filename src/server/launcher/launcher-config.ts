@@ -1,4 +1,5 @@
 import type { ConfigPaths } from '../config/config-paths.js';
+import EMPTY_PROJECT_CONFIG from '../../../config-defaults/project-launcher-config.json';
 
 export interface LauncherTemplate {
 	name: string;
@@ -119,7 +120,7 @@ export class LauncherConfigManager {
 		return (
 			this.readLauncherFile(
 				this.projectLauncherPath(projectSlug),
-			) ?? { templates: [], skills: [], profiles: [], shortcuts: [] }
+			) ?? structuredClone(EMPTY_PROJECT_CONFIG) as LauncherConfig
 		);
 	}
 
