@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@solidjs/testing-library";
 import { createSignal } from "solid-js";
-import KanbanBoard from "./KanbanBoard";
+import KanbanBoard, { type KanbanTestHooks } from "./KanbanBoard";
 import type { BoardState } from "~/server/actions.js";
 import type { TicketInfo } from "~/server/ticket/ticket-store.js";
 import type { ColumnDefinition } from "~/server/project/board-config.js";
@@ -122,6 +122,8 @@ describe("KanbanBoard reactivity after reorder", () => {
     const ticketA = makeTicket({ folderName: "t-1-alpha", number: "T-1", title: "Alpha", status: "todo" });
     const [board, setBoard] = createSignal(makeBoard([ticketA]));
 
+    let hooks: KanbanTestHooks | undefined;
+
     render(() => (
       <KanbanBoard
         board={board()}
@@ -131,17 +133,14 @@ describe("KanbanBoard reactivity after reorder", () => {
         onViewDetail={noop}
         onArchive={noop}
         onReorder={noop}
+        onTestReady={(h) => { hooks = h; }}
       />
     ));
 
     expect(screen.getByText("Alpha")).toBeTruthy();
+    expect(hooks).toBeTruthy();
 
-    const { setOrderOverride } = (window as any).__kanbanTestHooks ?? {};
-    if (!setOrderOverride) {
-      expect.fail("KanbanBoard must expose __kanbanTestHooks.setOrderOverride");
-    }
-
-    setOrderOverride({ todo: ["t-1-alpha"], done: [] });
+    hooks!.setOrderOverride({ todo: ["t-1-alpha"], done: [] });
 
     const ticketB = makeTicket({ folderName: "t-2-bravo", number: "T-2", title: "Bravo", status: "todo" });
     setBoard(makeBoard([ticketA, ticketB]));
@@ -157,6 +156,9 @@ describe("KanbanBoard drop indicator", () => {
       makeTicket({ folderName: "t-2-bravo", number: "T-2", title: "Bravo", status: "done" }),
     ];
     const board = makeBoard(tickets);
+
+    let hooks: KanbanTestHooks | undefined;
+
     const { container } = render(() => (
       <KanbanBoard
         board={board}
@@ -166,26 +168,15 @@ describe("KanbanBoard drop indicator", () => {
         onViewDetail={noop}
         onArchive={noop}
         onReorder={noop}
+        onTestReady={(h) => { hooks = h; }}
       />
     ));
 
-    // No indicator when not dragging
     expect(container.querySelectorAll("[data-drop-indicator]").length).toBe(0);
+    expect(hooks).toBeTruthy();
 
-    // Simulate: user is dragging t-1-alpha from todo, hovering over done column at index 0.
-    // The board should expose a way to set the hover target for testing.
-    // We use the data-testid="hover-target-input" hidden input that the component
-    // exposes in dev mode... no. We need a real mechanism.
-    //
-    // Since jsdom can't simulate real pointer DnD, we test this through
-    // the component's exported setHoverTargetForTest function.
-    const { setHoverTarget, setActiveId } = (window as any).__kanbanTestHooks ?? {};
-    if (!setHoverTarget || !setActiveId) {
-      expect.fail("KanbanBoard must expose __kanbanTestHooks.{setHoverTarget, setActiveId}");
-    }
-
-    setActiveId("todo:t-1-alpha");
-    setHoverTarget({ column: "done", index: 0 });
+    hooks!.setActiveId("todo:t-1-alpha");
+    hooks!.setHoverTarget({ column: "done", index: 0 });
 
     const indicators = container.querySelectorAll("[data-drop-indicator]");
     expect(indicators.length).toBe(1);
@@ -206,6 +197,8 @@ describe("KanbanBoard drag-end resolves to hoverTarget", () => {
       reorderCall = { folderName, fromColumn, toColumn, newIndex };
     });
 
+    let hooks: KanbanTestHooks | undefined;
+
     render(() => (
       <KanbanBoard
         board={board}
@@ -215,19 +208,15 @@ describe("KanbanBoard drag-end resolves to hoverTarget", () => {
         onViewDetail={noop}
         onArchive={noop}
         onReorder={onReorder}
+        onTestReady={(h) => { hooks = h; }}
       />
     ));
 
-    const hooks = (window as any).__kanbanTestHooks;
-    if (!hooks?.setHoverTarget || !hooks?.setActiveId || !hooks?.commitDrop) {
-      expect.fail("KanbanBoard must expose __kanbanTestHooks.{setHoverTarget, setActiveId, commitDrop}");
-    }
+    expect(hooks).toBeTruthy();
 
-    // Simulate: dragging t-1-alpha from todo, hovering over done at index 1 (between Bravo and Charlie)
-    hooks.setActiveId("todo:t-1-alpha");
-    hooks.setHoverTarget({ column: "done", index: 1 });
-
-    hooks.commitDrop("todo", "t-1-alpha", "done", 1);
+    hooks!.setActiveId("todo:t-1-alpha");
+    hooks!.setHoverTarget({ column: "done", index: 1 });
+    hooks!.commitDrop("todo", "t-1-alpha", "done", 1);
 
     expect(onReorder).toHaveBeenCalledTimes(1);
     expect(reorderCall).toEqual({
@@ -251,6 +240,8 @@ describe("KanbanBoard drag-end resolves to hoverTarget", () => {
       reorderCall = { folderName, fromColumn, toColumn, newIndex };
     });
 
+    let hooks: KanbanTestHooks | undefined;
+
     render(() => (
       <KanbanBoard
         board={board}
@@ -260,19 +251,15 @@ describe("KanbanBoard drag-end resolves to hoverTarget", () => {
         onViewDetail={noop}
         onArchive={noop}
         onReorder={onReorder}
+        onTestReady={(h) => { hooks = h; }}
       />
     ));
 
-    const hooks = (window as any).__kanbanTestHooks;
-    if (!hooks?.setHoverTarget || !hooks?.setActiveId || !hooks?.commitDrop) {
-      expect.fail("KanbanBoard must expose __kanbanTestHooks.{setHoverTarget, setActiveId, commitDrop}");
-    }
+    expect(hooks).toBeTruthy();
 
-    // Simulate: dragging t-1-alpha from position 0 to position 2 (between Bravo and Charlie)
-    hooks.setActiveId("todo:t-1-alpha");
-    hooks.setHoverTarget({ column: "todo", index: 2 });
-
-    hooks.commitDrop("todo", "t-1-alpha", "todo", 2);
+    hooks!.setActiveId("todo:t-1-alpha");
+    hooks!.setHoverTarget({ column: "todo", index: 2 });
+    hooks!.commitDrop("todo", "t-1-alpha", "todo", 2);
 
     expect(onReorder).toHaveBeenCalledTimes(1);
     expect(reorderCall).toEqual({
@@ -362,6 +349,7 @@ describe("KanbanBoard undefined column", () => {
     const board = makeBoard(tickets, ["todo", "done"]);
 
     const onReorder = vi.fn();
+    let hooks: KanbanTestHooks | undefined;
 
     render(() => (
       <KanbanBoard
@@ -372,18 +360,12 @@ describe("KanbanBoard undefined column", () => {
         onViewDetail={noop}
         onArchive={noop}
         onReorder={onReorder}
+        onTestReady={(h) => { hooks = h; }}
       />
     ));
 
-    const hooks = (window as any).__kanbanTestHooks;
-    if (!hooks?.commitDrop) {
-      expect.fail("KanbanBoard must expose __kanbanTestHooks.commitDrop");
-    }
-
-    // Attempt to drop a ticket into the undefined column
-    hooks.commitDrop("todo", "t-1-alpha", "undefined", 0);
-
-    // Should NOT have called onReorder with "undefined" as toColumn
+    expect(hooks).toBeTruthy();
+    hooks!.commitDrop("todo", "t-1-alpha", "undefined", 0);
     expect(onReorder).not.toHaveBeenCalled();
   });
 });
