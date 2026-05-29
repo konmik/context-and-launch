@@ -1,5 +1,3 @@
-import fs from 'fs';
-import { RUN_AGENT_PS1, RUN_AGENT_SH } from './platform-scripts.js';
 import type { ConfigPaths } from '../config/config-paths.js';
 
 export interface LauncherTemplate {
@@ -10,10 +8,6 @@ export interface LauncherTemplate {
 export interface LauncherSkill {
 	name: string;
 	text: string;
-	// Fractional sort key. Skills are shown sorted by `order` ascending across the
-	// merged user+project list; dragging sets the moved skill to the midpoint of
-	// its neighbours so only that one skill needs rewriting. Optional for legacy
-	// configs and freshly added skills (see getMergedConfig for the fallback).
 	order?: number;
 }
 
@@ -32,11 +26,6 @@ export interface LauncherColumnDefaults {
 	checkedSkills: string[];
 	profileName: string | null;
 	lastLayer?: "editor" | "launcher" | "shortcuts";
-	// Per-column display-order override: an explicit list of skill names for this
-	// column's launcher. Distinct from the global fractional `order` on
-	// LauncherSkill (which orders the merged list everywhere) -- this lets one
-	// status reorder its skills without affecting other columns. Applied via
-	// orderByNameList; names that no longer exist fall back to the global order.
 	skillOrder?: string[];
 }
 
@@ -62,40 +51,13 @@ export interface MergedLauncherConfig {
 	conflictResolutionPrompt: string;
 }
 
-export const DEFAULT_CONFLICT_RESOLUTION_PROMPT =
-	'Resolve all merge conflicts, then run git rebase --continue.'
-	+ ' Repeat until the rebase completes. Then push to remote and verify with git status that everything is clean.'
-	+ ' CRITICAL: Do not leave untracked, uncommitted or unpushed files.'
-	+ ' The goal is to sync the local branch with remote.';
-
-const DEFAULT_APP_CONFIG: LauncherConfig = {
-	templates: [
-		{
-			name: 'Default',
-			text: 'Current ticket files are in {{ticketDir}}. Read the files there for context.',
-		},
-	],
-	skills: [],
-	profiles: [
-		{
-			name: 'Claude Win',
-			command: 'powershell -File {{appConfigDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}}',
-		},
-		{ name: 'Claude macOS', command: 'bash {{appConfigDir}}/run-agent.sh {{initialPrompt}} {{windowTitle}}' },
-	],
-};
-
-function emptyConfig(): LauncherConfig {
-	return { templates: [], skills: [], profiles: [], shortcuts: [] };
-}
-
 function parseConfig(text: string): LauncherConfig {
 	const parsed = JSON.parse(text);
 	return {
-		templates: Array.isArray(parsed.templates) ? parsed.templates : [],
-		skills: Array.isArray(parsed.skills) ? parsed.skills : [],
-		profiles: Array.isArray(parsed.profiles) ? parsed.profiles : [],
-		shortcuts: Array.isArray(parsed.shortcuts) ? parsed.shortcuts : [],
+		templates: parsed.templates ?? [],
+		skills: parsed.skills ?? [],
+		profiles: parsed.profiles ?? [],
+		shortcuts: parsed.shortcuts ?? [],
 		columnDefaults: parsed.columnDefaults,
 		worktreeRootPath: parsed.worktreeRootPath,
 		boardId: parsed.boardId,
@@ -105,7 +67,6 @@ function parseConfig(text: string): LauncherConfig {
 
 export class LauncherConfigManager {
 	private paths: ConfigPaths;
-	private platformScriptsEnsured = false;
 
 	constructor(paths: ConfigPaths) {
 		this.paths = paths;
@@ -130,47 +91,60 @@ export class LauncherConfigManager {
 	private readLauncherFile(filePath: string): LauncherConfig | null {
 		const text = this.paths.readConfigFile(filePath);
 		if (text === null) return null;
-		try {
-			return parseConfig(text);
-		} catch (e) {
-			console.warn(`Failed to parse ${filePath}: ${e instanceof Error ? e.message : e}`);
-			return null;
-		}
+		return parseConfig(text);
 	}
 
-	private writeLauncherFile(filePath: string, config: LauncherConfig): void {
-		this.paths.writeConfigFile(filePath, JSON.stringify(config, null, 2));
+	private writeLauncherFile(
+		filePath: string,
+		config: LauncherConfig,
+	): void {
+		this.paths.writeConfigFile(
+			filePath,
+			JSON.stringify(config, null, 2),
+		);
 	}
 
 	loadAppConfig(): LauncherConfig {
-		const config = this.readLauncherFile(this.appLauncherPath());
+		const filePath = this.appLauncherPath();
+		const config = this.readLauncherFile(filePath);
 		if (config === null) {
-			const defaults = structuredClone(DEFAULT_APP_CONFIG);
-			this.writeLauncherFile(this.appLauncherPath(), defaults);
-			this.ensurePlatformScripts();
-			return defaults;
+			throw new Error(
+				`App launcher config not found: ${filePath}`,
+			);
 		}
-		this.ensurePlatformScripts();
 		return config;
 	}
 
 	loadProjectConfig(projectSlug: string): LauncherConfig {
-		return this.readLauncherFile(this.projectLauncherPath(projectSlug)) ?? emptyConfig();
+		return (
+			this.readLauncherFile(
+				this.projectLauncherPath(projectSlug),
+			) ?? { templates: [], skills: [], profiles: [], shortcuts: [] }
+		);
 	}
 
 	saveAppConfig(config: LauncherConfig): void {
 		this.writeLauncherFile(this.appLauncherPath(), config);
 	}
 
-	saveProjectConfig(projectSlug: string, config: LauncherConfig): void {
-		this.writeLauncherFile(this.projectLauncherPath(projectSlug), config);
+	saveProjectConfig(
+		projectSlug: string,
+		config: LauncherConfig,
+	): void {
+		this.writeLauncherFile(
+			this.projectLauncherPath(projectSlug),
+			config,
+		);
 	}
 
 	getMergedConfig(projectSlug: string): MergedLauncherConfig {
 		const app = this.loadAppConfig();
 		const project = this.loadProjectConfig(projectSlug);
 
-		const templateMap = new Map<string, LauncherTemplate & { scope: "app" | "project" }>();
+		const templateMap = new Map<
+			string,
+			LauncherTemplate & { scope: "app" | "project" }
+		>();
 		for (const t of app.templates) {
 			templateMap.set(t.name, { ...t, scope: "app" });
 		}
@@ -178,22 +152,30 @@ export class LauncherConfigManager {
 			templateMap.set(t.name, { ...t, scope: "project" });
 		}
 
-		const skillMap = new Map<string, LauncherSkill & { scope: "app" | "project" }>();
+		const skillMap = new Map<
+			string,
+			LauncherSkill & { scope: "app" | "project" }
+		>();
 		for (const s of app.skills) {
 			skillMap.set(s.name, { ...s, scope: "app" });
 		}
 		for (const s of project.skills) {
 			skillMap.set(s.name, { ...s, scope: "project" });
 		}
-		// Resolve every skill to a concrete order: an explicit `order` wins,
-		// otherwise fall back to the canonical (user-then-project) index so legacy
-		// and un-dragged skills keep their original position. Sort is stable, so
-		// equal orders preserve canonical order.
 		const sortedSkills = [...skillMap.values()]
-			.map((s, i) => ({ ...s, order: typeof s.order === "number" && Number.isFinite(s.order) ? s.order : i }))
+			.map((s, i) => ({
+				...s,
+				order:
+					typeof s.order === "number" && Number.isFinite(s.order)
+						? s.order
+						: i,
+			}))
 			.sort((a, b) => a.order - b.order);
 
-		const profileMap = new Map<string, LauncherProfile & { scope: "app" | "project" }>();
+		const profileMap = new Map<
+			string,
+			LauncherProfile & { scope: "app" | "project" }
+		>();
 		for (const p of app.profiles ?? []) {
 			profileMap.set(p.name, { ...p, scope: "app" });
 		}
@@ -201,13 +183,22 @@ export class LauncherConfigManager {
 			profileMap.set(p.name, { ...p, scope: "project" });
 		}
 
-		const shortcutMap = new Map<string, LauncherShortcut & { scope: "app" | "project" }>();
+		const shortcutMap = new Map<
+			string,
+			LauncherShortcut & { scope: "app" | "project" }
+		>();
 		for (const s of app.shortcuts ?? []) {
 			shortcutMap.set(s.name, { ...s, scope: "app" });
 		}
 		for (const s of project.shortcuts ?? []) {
 			shortcutMap.set(s.name, { ...s, scope: "project" });
 		}
+
+		const appPrompt =
+			typeof app.conflictResolutionPrompt === 'string'
+			&& app.conflictResolutionPrompt
+				? app.conflictResolutionPrompt
+				: '';
 
 		return {
 			templates: [...templateMap.values()],
@@ -218,25 +209,46 @@ export class LauncherConfigManager {
 			worktreeRootPath: project.worktreeRootPath ?? null,
 			boardId: project.boardId ?? null,
 			conflictResolutionPrompt:
-				typeof project.conflictResolutionPrompt === 'string' && project.conflictResolutionPrompt
+				typeof project.conflictResolutionPrompt === 'string'
+				&& project.conflictResolutionPrompt
 					? project.conflictResolutionPrompt
-				: DEFAULT_CONFLICT_RESOLUTION_PROMPT,
+					: appPrompt,
 		};
 	}
 
-	saveColumnDefaults(projectSlug: string, column: string, patch: Partial<LauncherColumnDefaults>): void {
+	saveColumnDefaults(
+		projectSlug: string,
+		column: string,
+		patch: Partial<LauncherColumnDefaults>,
+	): void {
 		const config = this.loadProjectConfig(projectSlug);
 		const columnDefaults = config.columnDefaults ?? {};
-		const existing = Object.prototype.hasOwnProperty.call(columnDefaults, column)
+		const existing = Object.prototype.hasOwnProperty.call(
+			columnDefaults,
+			column,
+		)
 			? columnDefaults[column]
-			: { templateName: null, checkedSkills: [], profileName: null };
+			: {
+				templateName: null,
+				checkedSkills: [],
+				profileName: null,
+			};
 		Object.defineProperty(columnDefaults, column, {
-			value: { ...existing, ...patch }, writable: true, enumerable: true, configurable: true,
+			value: { ...existing, ...patch },
+			writable: true,
+			enumerable: true,
+			configurable: true,
 		});
-		this.saveProjectConfig(projectSlug, { ...config, columnDefaults });
+		this.saveProjectConfig(projectSlug, {
+			...config,
+			columnDefaults,
+		});
 	}
 
-	private forEachColumnDefault(config: LauncherConfig, fn: (cd: LauncherColumnDefaults) => void): void {
+	private forEachColumnDefault(
+		config: LauncherConfig,
+		fn: (cd: LauncherColumnDefaults) => void,
+	): void {
 		if (!config.columnDefaults) return;
 		for (const col of Object.keys(config.columnDefaults)) {
 			const cd = config.columnDefaults[col];
@@ -244,8 +256,15 @@ export class LauncherConfigManager {
 		}
 	}
 
-	private withConfig(scope: "app" | "project", projectSlug: string, fn: (config: LauncherConfig) => void): void {
-		const config = scope === "app" ? this.loadAppConfig() : this.loadProjectConfig(projectSlug);
+	private withConfig(
+		scope: "app" | "project",
+		projectSlug: string,
+		fn: (config: LauncherConfig) => void,
+	): void {
+		const config =
+			scope === "app"
+				? this.loadAppConfig()
+				: this.loadProjectConfig(projectSlug);
 		fn(config);
 		if (scope === "app") {
 			this.saveAppConfig(config);
@@ -254,27 +273,45 @@ export class LauncherConfigManager {
 		}
 	}
 
-	addTemplate(scope: "app" | "project", projectSlug: string, template: LauncherTemplate): void {
+	addTemplate(
+		scope: "app" | "project",
+		projectSlug: string,
+		template: LauncherTemplate,
+	): void {
 		this.withConfig(scope, projectSlug, (config) => {
-			if (config.templates.some(t => t.name === template.name)) {
-				throw new Error(`Template with name "${template.name}" already exists`);
+			if (config.templates.some((t) => t.name === template.name)) {
+				throw new Error(
+					`Template with name "${template.name}" already exists`,
+				);
 			}
 			config.templates.push(template);
 		});
 	}
 
-	addSkill(scope: "app" | "project", projectSlug: string, skill: LauncherSkill): void {
+	addSkill(
+		scope: "app" | "project",
+		projectSlug: string,
+		skill: LauncherSkill,
+	): void {
 		this.withConfig(scope, projectSlug, (config) => {
-			if (config.skills.some(s => s.name === skill.name)) {
-				throw new Error(`Skill with name "${skill.name}" already exists`);
+			if (config.skills.some((s) => s.name === skill.name)) {
+				throw new Error(
+					`Skill with name "${skill.name}" already exists`,
+				);
 			}
 			config.skills.push(skill);
 		});
 	}
 
-	removeTemplate(scope: "app" | "project", projectSlug: string, name: string): void {
+	removeTemplate(
+		scope: "app" | "project",
+		projectSlug: string,
+		name: string,
+	): void {
 		this.withConfig(scope, projectSlug, (config) => {
-			config.templates = config.templates.filter(t => t.name !== name);
+			config.templates = config.templates.filter(
+				(t) => t.name !== name,
+			);
 			this.forEachColumnDefault(config, (cd) => {
 				if (cd.templateName === name) {
 					cd.templateName = null;
@@ -283,28 +320,57 @@ export class LauncherConfigManager {
 		});
 	}
 
-	removeSkill(scope: "app" | "project", projectSlug: string, name: string): void {
+	removeSkill(
+		scope: "app" | "project",
+		projectSlug: string,
+		name: string,
+	): void {
 		this.withConfig(scope, projectSlug, (config) => {
-			config.skills = config.skills.filter(s => s.name !== name);
+			config.skills = config.skills.filter(
+				(s) => s.name !== name,
+			);
 			this.forEachColumnDefault(config, (cd) => {
 				if (cd.checkedSkills) {
-					cd.checkedSkills = cd.checkedSkills.filter(s => s !== name);
+					cd.checkedSkills = cd.checkedSkills.filter(
+						(s) => s !== name,
+					);
 				}
 				if (cd.skillOrder) {
-					cd.skillOrder = cd.skillOrder.filter(s => s !== name);
+					cd.skillOrder = cd.skillOrder.filter(
+						(s) => s !== name,
+					);
 				}
 			});
 		});
 	}
 
-	updateTemplate(scope: "app" | "project", projectSlug: string, oldName: string, template: LauncherTemplate): void {
+	updateTemplate(
+		scope: "app" | "project",
+		projectSlug: string,
+		oldName: string,
+		template: LauncherTemplate,
+	): void {
 		this.withConfig(scope, projectSlug, (config) => {
-			const index = config.templates.findIndex(t => t.name === oldName);
-			if (index < 0) throw new Error(`Template "${oldName}" not found`);
-			if (oldName !== template.name && config.templates.some(t => t.name === template.name)) {
-				throw new Error(`Template with name "${template.name}" already exists`);
+			const index = config.templates.findIndex(
+				(t) => t.name === oldName,
+			);
+			if (index < 0) {
+				throw new Error(`Template "${oldName}" not found`);
 			}
-			config.templates[index] = { name: template.name, text: template.text };
+			if (
+				oldName !== template.name
+				&& config.templates.some(
+					(t) => t.name === template.name,
+				)
+			) {
+				throw new Error(
+					`Template with name "${template.name}" already exists`,
+				);
+			}
+			config.templates[index] = {
+				name: template.name,
+				text: template.text,
+			};
 			if (oldName !== template.name) {
 				this.forEachColumnDefault(config, (cd) => {
 					if (cd.templateName === oldName) {
@@ -315,55 +381,90 @@ export class LauncherConfigManager {
 		});
 	}
 
-	updateSkill(scope: "app" | "project", projectSlug: string, oldName: string, skill: LauncherSkill): void {
+	updateSkill(
+		scope: "app" | "project",
+		projectSlug: string,
+		oldName: string,
+		skill: LauncherSkill,
+	): void {
 		this.withConfig(scope, projectSlug, (config) => {
-			const index = config.skills.findIndex(s => s.name === oldName);
-			if (index < 0) throw new Error(`Skill "${oldName}" not found`);
-			if (oldName !== skill.name && config.skills.some(s => s.name === skill.name)) {
-				throw new Error(`Skill with name "${skill.name}" already exists`);
+			const index = config.skills.findIndex(
+				(s) => s.name === oldName,
+			);
+			if (index < 0) {
+				throw new Error(`Skill "${oldName}" not found`);
 			}
-			// Preserve the sort key; editing name/text must not move the skill.
+			if (
+				oldName !== skill.name
+				&& config.skills.some((s) => s.name === skill.name)
+			) {
+				throw new Error(
+					`Skill with name "${skill.name}" already exists`,
+				);
+			}
 			const order = config.skills[index].order;
-			config.skills[index] = order === undefined
-				? { name: skill.name, text: skill.text }
-				: { name: skill.name, text: skill.text, order };
+			config.skills[index] =
+				order === undefined
+					? { name: skill.name, text: skill.text }
+					: { name: skill.name, text: skill.text, order };
 			if (oldName !== skill.name) {
 				this.forEachColumnDefault(config, (cd) => {
 					if (cd.checkedSkills) {
-						cd.checkedSkills = cd.checkedSkills.map(s => s === oldName ? skill.name : s);
+						cd.checkedSkills = cd.checkedSkills.map((s) =>
+							s === oldName ? skill.name : s,
+						);
 					}
 					if (cd.skillOrder) {
-						cd.skillOrder = cd.skillOrder.map(s => s === oldName ? skill.name : s);
+						cd.skillOrder = cd.skillOrder.map((s) =>
+							s === oldName ? skill.name : s,
+						);
 					}
 				});
 			}
 		});
 	}
 
-	setSkillOrder(scope: "app" | "project", projectSlug: string, name: string, order: number): void {
+	setSkillOrder(
+		scope: "app" | "project",
+		projectSlug: string,
+		name: string,
+		order: number,
+	): void {
 		if (typeof order !== "number" || !Number.isFinite(order)) {
 			throw new Error("order must be a finite number");
 		}
 		this.withConfig(scope, projectSlug, (config) => {
-			const skill = config.skills.find(s => s.name === name);
+			const skill = config.skills.find((s) => s.name === name);
 			if (!skill) throw new Error(`Skill "${name}" not found`);
 			skill.order = order;
 		});
 	}
 
-	addProfile(scope: "app" | "project", projectSlug: string, profile: LauncherProfile): void {
+	addProfile(
+		scope: "app" | "project",
+		projectSlug: string,
+		profile: LauncherProfile,
+	): void {
 		this.withConfig(scope, projectSlug, (config) => {
 			if (!config.profiles) config.profiles = [];
-			if (config.profiles.some(p => p.name === profile.name)) {
-				throw new Error(`Profile with name "${profile.name}" already exists`);
+			if (config.profiles.some((p) => p.name === profile.name)) {
+				throw new Error(
+					`Profile with name "${profile.name}" already exists`,
+				);
 			}
 			config.profiles.push(profile);
 		});
 	}
 
-	removeProfile(scope: "app" | "project", projectSlug: string, name: string): void {
+	removeProfile(
+		scope: "app" | "project",
+		projectSlug: string,
+		name: string,
+	): void {
 		this.withConfig(scope, projectSlug, (config) => {
-			config.profiles = (config.profiles ?? []).filter(p => p.name !== name);
+			config.profiles = (config.profiles ?? []).filter(
+				(p) => p.name !== name,
+			);
 			this.forEachColumnDefault(config, (cd) => {
 				if (cd.profileName === name) {
 					cd.profileName = null;
@@ -372,15 +473,34 @@ export class LauncherConfigManager {
 		});
 	}
 
-	updateProfile(scope: "app" | "project", projectSlug: string, oldName: string, profile: LauncherProfile): void {
+	updateProfile(
+		scope: "app" | "project",
+		projectSlug: string,
+		oldName: string,
+		profile: LauncherProfile,
+	): void {
 		this.withConfig(scope, projectSlug, (config) => {
 			if (!config.profiles) config.profiles = [];
-			const index = config.profiles.findIndex(p => p.name === oldName);
-			if (index < 0) throw new Error(`Profile "${oldName}" not found`);
-			if (oldName !== profile.name && config.profiles.some(p => p.name === profile.name)) {
-				throw new Error(`Profile with name "${profile.name}" already exists`);
+			const index = config.profiles.findIndex(
+				(p) => p.name === oldName,
+			);
+			if (index < 0) {
+				throw new Error(`Profile "${oldName}" not found`);
 			}
-			config.profiles[index] = { name: profile.name, command: profile.command };
+			if (
+				oldName !== profile.name
+				&& config.profiles.some(
+					(p) => p.name === profile.name,
+				)
+			) {
+				throw new Error(
+					`Profile with name "${profile.name}" already exists`,
+				);
+			}
+			config.profiles[index] = {
+				name: profile.name,
+				command: profile.command,
+			};
 			if (oldName !== profile.name) {
 				this.forEachColumnDefault(config, (cd) => {
 					if (cd.profileName === oldName) {
@@ -391,56 +511,84 @@ export class LauncherConfigManager {
 		});
 	}
 
-	addShortcut(scope: "app" | "project", projectSlug: string, shortcut: LauncherShortcut): void {
+	addShortcut(
+		scope: "app" | "project",
+		projectSlug: string,
+		shortcut: LauncherShortcut,
+	): void {
 		this.withConfig(scope, projectSlug, (config) => {
 			if (!config.shortcuts) config.shortcuts = [];
-			if (config.shortcuts.some(s => s.name === shortcut.name)) {
-				throw new Error(`Shortcut with name "${shortcut.name}" already exists`);
+			if (
+				config.shortcuts.some(
+					(s) => s.name === shortcut.name,
+				)
+			) {
+				throw new Error(
+					`Shortcut with name "${shortcut.name}" already exists`,
+				);
 			}
 			config.shortcuts.push(shortcut);
 		});
 	}
 
-	removeShortcut(scope: "app" | "project", projectSlug: string, name: string): void {
+	removeShortcut(
+		scope: "app" | "project",
+		projectSlug: string,
+		name: string,
+	): void {
 		this.withConfig(scope, projectSlug, (config) => {
-			config.shortcuts = (config.shortcuts ?? []).filter(s => s.name !== name);
+			config.shortcuts = (config.shortcuts ?? []).filter(
+				(s) => s.name !== name,
+			);
 		});
 	}
 
-	updateShortcut(scope: "app" | "project", projectSlug: string, oldName: string, shortcut: LauncherShortcut): void {
+	updateShortcut(
+		scope: "app" | "project",
+		projectSlug: string,
+		oldName: string,
+		shortcut: LauncherShortcut,
+	): void {
 		this.withConfig(scope, projectSlug, (config) => {
 			if (!config.shortcuts) config.shortcuts = [];
-			const index = config.shortcuts.findIndex(s => s.name === oldName);
-			if (index < 0) throw new Error(`Shortcut "${oldName}" not found`);
-			if (oldName !== shortcut.name && config.shortcuts.some(s => s.name === shortcut.name)) {
-				throw new Error(`Shortcut with name "${shortcut.name}" already exists`);
+			const index = config.shortcuts.findIndex(
+				(s) => s.name === oldName,
+			);
+			if (index < 0) {
+				throw new Error(`Shortcut "${oldName}" not found`);
 			}
-			config.shortcuts[index] = { name: shortcut.name, command: shortcut.command };
+			if (
+				oldName !== shortcut.name
+				&& config.shortcuts.some(
+					(s) => s.name === shortcut.name,
+				)
+			) {
+				throw new Error(
+					`Shortcut with name "${shortcut.name}" already exists`,
+				);
+			}
+			config.shortcuts[index] = {
+				name: shortcut.name,
+				command: shortcut.command,
+			};
 		});
 	}
 
-	saveWorktreeRootPath(projectSlug: string, worktreeRootPath: string | undefined): void {
+	saveWorktreeRootPath(
+		projectSlug: string,
+		worktreeRootPath: string | undefined,
+	): void {
 		const config = this.loadProjectConfig(projectSlug);
 		config.worktreeRootPath = worktreeRootPath;
 		this.saveProjectConfig(projectSlug, config);
 	}
 
-	saveConflictResolutionSettings(projectSlug: string, prompt: string | undefined): void {
+	saveConflictResolutionSettings(
+		projectSlug: string,
+		prompt: string | undefined,
+	): void {
 		const config = this.loadProjectConfig(projectSlug);
 		config.conflictResolutionPrompt = prompt;
 		this.saveProjectConfig(projectSlug, config);
-	}
-
-	ensurePlatformScripts(): void {
-		if (this.platformScriptsEnsured) return;
-		const ps1Path = this.paths.platformScriptPs1();
-		const shPath = this.paths.platformScriptSh();
-		if (!fs.existsSync(ps1Path)) {
-			this.paths.writeConfigFile(ps1Path, RUN_AGENT_PS1);
-		}
-		if (!fs.existsSync(shPath)) {
-			this.paths.writeConfigFile(shPath, RUN_AGENT_SH);
-		}
-		this.platformScriptsEnsured = true;
 	}
 }

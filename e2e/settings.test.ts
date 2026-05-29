@@ -62,7 +62,7 @@ describe("Settings panel (e2e)", () => {
   it("keeps column edit dialog open when description PUT fails after rename", async () => {
     // Set up board with a column that has a description
     mockState.boards = [
-      { id: "kanban", name: "Kanban", columns: [
+      { id: "standard", name: "Standard", columns: [
         { name: "todo", description: "Tasks to do" },
         { name: "in-progress" },
         { name: "done" },

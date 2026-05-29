@@ -1,0 +1,22 @@
+[
+  {
+    "id": "standard",
+    "name": "Standard",
+    "columns": [
+      { "name": "todo", "description": "wishlist" },
+      { "name": "plan", "description": "/grill-me" },
+      { "name": "in-progress", "description": "/hero" },
+      { "name": "review", "description": "interactive" },
+      { "name": "done", "description": "/merge" }
+    ]
+  },
+  {
+    "id": "simple",
+    "name": "Simple",
+    "columns": [
+      { "name": "todo" },
+      { "name": "in-progress" },
+      { "name": "done" }
+    ]
+  }
+]

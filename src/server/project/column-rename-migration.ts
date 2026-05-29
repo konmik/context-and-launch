@@ -3,7 +3,6 @@ import type { LauncherConfigManager } from '../launcher/launcher-config.js';
 import type { WorktreeManager } from '../worktree/worktree-manager.js';
 import type { BoardConfigManager } from './board-config.js';
 import { TicketStore } from '../ticket/ticket-store.js';
-import { DEFAULT_BOARD_ID } from './board-config.js';
 
 export type MigrationScope = 'all' | 'current' | 'none';
 
@@ -22,6 +21,7 @@ export function migrateColumnRename(
 		projectRegistry: ProjectRegistry;
 		launcherConfigManager: LauncherConfigManager;
 		worktreeManager: WorktreeManager;
+		boardConfigManager: BoardConfigManager;
 	}
 ): MigrationResult {
 	if (scope === 'none') {
@@ -33,12 +33,13 @@ export function migrateColumnRename(
 		projectSlugs = [currentProjectSlug];
 	} else {
 		try {
+			const defaultBoardId = deps.boardConfigManager.getDefaultBoardId();
 			const projects = deps.projectRegistry.listProjects();
 			projectSlugs = projects
 				.filter(p => {
 					try {
 						const merged = deps.launcherConfigManager.getMergedConfig(p.projectSlug);
-						const projectBoardId = merged.boardId ?? DEFAULT_BOARD_ID;
+						const projectBoardId = merged.boardId ?? defaultBoardId;
 						return projectBoardId === boardId;
 					} catch (e) {
 						console.warn(

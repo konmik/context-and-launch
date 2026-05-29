@@ -3,9 +3,10 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import {
-	BoardConfigManager, DEFAULT_BOARDS, DEFAULT_BOARD_ID, slugifyColumnName, validateColumnName,
+	BoardConfigManager, slugifyColumnName, validateColumnName,
 } from './board-config.js';
 import { ConfigPaths } from '../config/config-paths.js';
+import { initializeDataDir } from '../config/initialize.js';
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -29,32 +30,34 @@ describe('BoardConfigManager', () => {
 		dirs.length = 0;
 	});
 
-	it('first call creates default boards.json', () => {
+	it('throws when boards.json is missing', () => {
 		const configDir = tmpDir('board-config-test-');
 		dirs.push(configDir);
-
 		const manager = new BoardConfigManager(new ConfigPaths(configDir));
-		const boards = manager.listBoards();
-
-		expect(boards).toHaveLength(DEFAULT_BOARDS.length);
-		expect(boards[0].id).toBe('kanban');
-		expect(boards[1].id).toBe('simple');
-		expect(fs.existsSync(path.join(configDir, 'config', 'boards.json'))).toBe(true);
+		expect(() => manager.listBoards()).toThrow('not found');
 	});
 
 	it('getConfig returns columns for the default board', () => {
 		const configDir = tmpDir('board-config-test-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 
 		const manager = new BoardConfigManager(new ConfigPaths(configDir));
 		const config = manager.getConfig();
 
-		expect(config.columns).toEqual(DEFAULT_BOARDS[0].columns);
+		expect(config.columns).toEqual([
+			{ name: 'todo', description: 'wishlist' },
+			{ name: 'plan', description: '/grill-me' },
+			{ name: 'in-progress', description: '/hero' },
+			{ name: 'review', description: 'interactive' },
+			{ name: 'done', description: '/merge' },
+		]);
 	});
 
 	it('getConfig with specific boardId returns that board', () => {
 		const configDir = tmpDir('board-config-test-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 
 		const manager = new BoardConfigManager(new ConfigPaths(configDir));
 		const config = manager.getConfig('simple');
@@ -67,26 +70,41 @@ describe('BoardConfigManager', () => {
 	it('getConfig with unknown boardId falls back to first board', () => {
 		const configDir = tmpDir('board-config-test-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 
 		const manager = new BoardConfigManager(new ConfigPaths(configDir));
 		const config = manager.getConfig('nonexistent');
 
-		expect(config.columns).toEqual(DEFAULT_BOARDS[0].columns);
+		expect(config.columns).toEqual([
+			{ name: 'todo', description: 'wishlist' },
+			{ name: 'plan', description: '/grill-me' },
+			{ name: 'in-progress', description: '/hero' },
+			{ name: 'review', description: 'interactive' },
+			{ name: 'done', description: '/merge' },
+		]);
 	});
 
 	it('getConfig with null boardId uses default', () => {
 		const configDir = tmpDir('board-config-test-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 
 		const manager = new BoardConfigManager(new ConfigPaths(configDir));
 		const config = manager.getConfig(null);
 
-		expect(config.columns).toEqual(DEFAULT_BOARDS[0].columns);
+		expect(config.columns).toEqual([
+			{ name: 'todo', description: 'wishlist' },
+			{ name: 'plan', description: '/grill-me' },
+			{ name: 'in-progress', description: '/hero' },
+			{ name: 'review', description: 'interactive' },
+			{ name: 'done', description: '/merge' },
+		]);
 	});
 
 	it('getBoard returns undefined for unknown id', () => {
 		const configDir = tmpDir('board-config-test-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 
 		const manager = new BoardConfigManager(new ConfigPaths(configDir));
 		expect(manager.getBoard('nonexistent')).toBeUndefined();
@@ -95,40 +113,35 @@ describe('BoardConfigManager', () => {
 	it('reads back saved boards', () => {
 		const configDir = tmpDir('board-config-test-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 
 		const manager = new BoardConfigManager(new ConfigPaths(configDir));
-		manager.listBoards(); // creates default
+		manager.listBoards();
 
 		const manager2 = new BoardConfigManager(new ConfigPaths(configDir));
 		const boards = manager2.listBoards();
-		expect(boards).toHaveLength(DEFAULT_BOARDS.length);
-		expect(boards[0].id).toBe('kanban');
+		expect(boards).toHaveLength(2);
+		expect(boards[0].id).toBe('standard');
 	});
 
-	it('empty array falls back to defaults', () => {
+	it('empty array throws', () => {
 		const configDir = tmpDir('board-config-test-');
 		dirs.push(configDir);
-
 		const configSubdir = path.join(configDir, 'config');
 		fs.mkdirSync(configSubdir, { recursive: true });
 		fs.writeFileSync(path.join(configSubdir, 'boards.json'), '[]');
-
 		const manager = new BoardConfigManager(new ConfigPaths(configDir));
-		const boards = manager.listBoards();
-		expect(boards).toHaveLength(DEFAULT_BOARDS.length);
+		expect(() => manager.listBoards()).toThrow('empty or not an array');
 	});
 
-	it('malformed JSON falls back to defaults', () => {
+	it('malformed JSON throws', () => {
 		const configDir = tmpDir('board-config-test-');
 		dirs.push(configDir);
-
 		const configSubdir = path.join(configDir, 'config');
 		fs.mkdirSync(configSubdir, { recursive: true });
 		fs.writeFileSync(path.join(configSubdir, 'boards.json'), 'not valid json');
-
 		const manager = new BoardConfigManager(new ConfigPaths(configDir));
-		const config = manager.getConfig();
-		expect(config.columns).toEqual(DEFAULT_BOARDS[0].columns);
+		expect(() => manager.getConfig()).toThrow();
 	});
 
 	it('custom boards file is respected', () => {
@@ -227,7 +240,9 @@ describe('BoardConfigManager CRUD', () => {
 	function createManager(): BoardConfigManager {
 		const configDir = tmpDir('board-crud-test-');
 		dirs.push(configDir);
-		return new BoardConfigManager(new ConfigPaths(configDir));
+		const paths = new ConfigPaths(configDir);
+		initializeDataDir(paths);
+		return new BoardConfigManager(paths);
 	}
 
 	describe('createBoard', () => {
@@ -269,7 +284,7 @@ describe('BoardConfigManager CRUD', () => {
 		it('rejects deleting the last board', () => {
 			const mgr = createManager();
 			mgr.deleteBoard('simple');
-			expect(() => mgr.deleteBoard('kanban')).toThrow('Cannot delete the last board');
+			expect(() => mgr.deleteBoard('standard')).toThrow('Cannot delete the last board');
 		});
 
 		it('throws for nonexistent board', () => {
@@ -281,8 +296,8 @@ describe('BoardConfigManager CRUD', () => {
 	describe('renameBoard', () => {
 		it('renames a board', () => {
 			const mgr = createManager();
-			mgr.renameBoard('kanban', 'Agile Board');
-			expect(mgr.getBoard('kanban')!.name).toBe('Agile Board');
+			mgr.renameBoard('standard', 'Agile Board');
+			expect(mgr.getBoard('standard')!.name).toBe('Agile Board');
 		});
 
 		it('throws for nonexistent board', () => {
@@ -294,67 +309,67 @@ describe('BoardConfigManager CRUD', () => {
 	describe('addColumn', () => {
 		it('adds a column with name and description', () => {
 			const mgr = createManager();
-			const col = mgr.addColumn('kanban', 'Blocked', 'Stuck tickets');
+			const col = mgr.addColumn('standard', 'Blocked', 'Stuck tickets');
 			expect(col.name).toBe('blocked');
 			expect(col.description).toBe('Stuck tickets');
-			const board = mgr.getBoard('kanban')!;
+			const board = mgr.getBoard('standard')!;
 			expect(board.columns.find(c => c.name === 'blocked')).toBeDefined();
 		});
 
 		it('slugifies the column name', () => {
 			const mgr = createManager();
-			const col = mgr.addColumn('kanban', 'Quality Check');
+			const col = mgr.addColumn('standard', 'Quality Check');
 			expect(col.name).toBe('quality-check');
 		});
 
 		it('rejects duplicate name', () => {
 			const mgr = createManager();
-			expect(() => mgr.addColumn('kanban', 'todo')).toThrow('already exists');
+			expect(() => mgr.addColumn('standard', 'todo')).toThrow('already exists');
 		});
 
 		it('rejects empty name', () => {
 			const mgr = createManager();
-			expect(() => mgr.addColumn('kanban', '!!!')).toThrow('must not be empty');
+			expect(() => mgr.addColumn('standard', '!!!')).toThrow('must not be empty');
 		});
 
 		it('rejects "undefined" name', () => {
 			const mgr = createManager();
-			expect(() => mgr.addColumn('kanban', 'undefined')).toThrow('reserved');
+			expect(() => mgr.addColumn('standard', 'undefined')).toThrow('reserved');
 		});
 
 		it('rejects collision after slugification', () => {
 			const mgr = createManager();
-			expect(() => mgr.addColumn('kanban', 'In Progress')).toThrow('already exists');
+			expect(() => mgr.addColumn('standard', 'In Progress')).toThrow('already exists');
 		});
 	});
 
 	describe('removeColumn', () => {
 		it('removes a column', () => {
 			const mgr = createManager();
-			const before = mgr.getBoard('kanban')!.columns.length;
-			mgr.removeColumn('kanban', 'prd');
-			expect(mgr.getBoard('kanban')!.columns.length).toBe(before - 1);
+			const before = mgr.getBoard('standard')!.columns.length;
+			mgr.removeColumn('standard', 'plan');
+			expect(mgr.getBoard('standard')!.columns.length).toBe(before - 1);
 		});
 
 		it('throws for nonexistent column', () => {
 			const mgr = createManager();
-			expect(() => mgr.removeColumn('kanban', 'nope')).toThrow('Column not found');
+			expect(() => mgr.removeColumn('standard', 'nope')).toThrow('Column not found');
 		});
 	});
 
 	describe('updateColumn', () => {
 		it('updates description', () => {
 			const mgr = createManager();
-			mgr.updateColumn('kanban', 'todo', { description: 'Work items' });
-			const col = mgr.getBoard('kanban')!.columns.find(c => c.name === 'todo')!;
+			mgr.updateColumn('standard', 'todo', { description: 'Work items' });
+			const col = mgr.getBoard('standard')!.columns.find(c => c.name === 'todo')!;
 			expect(col.description).toBe('Work items');
 		});
 
 		it('clears description with empty string', () => {
 			const mgr = createManager();
-			mgr.updateColumn('kanban', 'todo', { description: 'Something' });
-			mgr.updateColumn('kanban', 'todo', { description: '' });
-			const col = mgr.getBoard('kanban')!.columns.find(c => c.name === 'todo')!;
+			mgr.updateColumn('standard', 'todo', { description: 'Something' });
+			mgr.updateColumn('standard', 'todo', { description: '' });
+			const col = mgr.getBoard('standard')!.columns.find(c => c.name === 'todo')!;
 			expect(col.description).toBeUndefined();
 		});
 	});
@@ -362,21 +377,21 @@ describe('BoardConfigManager CRUD', () => {
 	describe('renameColumn', () => {
 		it('renames a column', () => {
 			const mgr = createManager();
-			const result = mgr.renameColumn('kanban', 'prd', 'spec');
-			expect(result.oldName).toBe('prd');
+			const result = mgr.renameColumn('standard', 'plan', 'spec');
+			expect(result.oldName).toBe('plan');
 			expect(result.newName).toBe('spec');
-			expect(mgr.getBoard('kanban')!.columns.find(c => c.name === 'spec')).toBeDefined();
-			expect(mgr.getBoard('kanban')!.columns.find(c => c.name === 'prd')).toBeUndefined();
+			expect(mgr.getBoard('standard')!.columns.find(c => c.name === 'spec')).toBeDefined();
+			expect(mgr.getBoard('standard')!.columns.find(c => c.name === 'plan')).toBeUndefined();
 		});
 
 		it('rejects duplicate name', () => {
 			const mgr = createManager();
-			expect(() => mgr.renameColumn('kanban', 'prd', 'todo')).toThrow('already exists');
+			expect(() => mgr.renameColumn('standard', 'plan', 'todo')).toThrow('already exists');
 		});
 
 		it('throws for nonexistent column', () => {
 			const mgr = createManager();
-			expect(() => mgr.renameColumn('kanban', 'nope', 'x')).toThrow('Column not found');
+			expect(() => mgr.renameColumn('standard', 'nope', 'x')).toThrow('Column not found');
 		});
 	});
 

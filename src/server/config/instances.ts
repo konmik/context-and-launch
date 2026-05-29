@@ -1,6 +1,8 @@
 import { createServices } from './service-container.js';
+import { initializeDataDir } from './initialize.js';
 
 const services = createServices(process.env.CONTEXT_LAUNCH_DATA_DIR || undefined);
+initializeDataDir(services.configPaths);
 
 export const configPaths = services.configPaths;
 export const configRepo = services.configRepo;

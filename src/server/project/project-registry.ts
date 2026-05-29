@@ -85,55 +85,52 @@ export class ProjectRegistry {
 		this.configRepo = configRepo ?? new ConfigRepository();
 	}
 
-	private static emptyConfig(): ProjectConfig {
-		return { projects: [], lastUsedProjectSlug: null, port: undefined, browser: undefined };
-	}
-
 	private load(): ProjectConfig {
 		if (this.cached) return this.cached;
 		const configFile = this.paths.projectRegistryFile();
 		const raw = this.configRepo.readJson(configFile) as Record<string, unknown> | null;
 		if (raw === null) {
-			this.cached = ProjectRegistry.emptyConfig();
-			this.extraFields = {};
-			return this.cached;
-		}
-		try {
-			if (!Array.isArray(raw.projects)) {
-				this.cached = ProjectRegistry.emptyConfig();
-				this.extraFields = {};
-				return this.cached;
-			}
-			const lastUsed = (raw.lastUsedProjectSlug ?? raw.lastUsedSlug ?? null) as string | null;
-			const migratedProjects: ProjectEntry[] = raw.projects.map(
-				(p: Record<string, unknown>) => {
-					const projectSlug = (p.projectSlug ?? p.slug) as string;
-					const entry: ProjectEntry = { path: p.path as string, projectSlug };
-					if (p.branch !== undefined) entry.branch = p.branch as string;
-					if (p.ticketsPath !== undefined) entry.ticketsPath = p.ticketsPath as string;
-					return entry;
-				},
-			);
-			const { projects: _, lastUsedProjectSlug: _a, lastUsedSlug: _b, port, browser, ...extra } = raw;
-			const config: ProjectConfig = {
-				projects: migratedProjects,
-				lastUsedProjectSlug: lastUsed,
-				port: port as number | undefined,
-				browser: browser as string | undefined,
+			const empty: ProjectConfig = {
+				projects: [],
+				lastUsedProjectSlug: null,
+				port: undefined,
+				browser: undefined,
 			};
-			this.cached = config;
-			this.extraFields = extra;
-			const hasLegacyKeys = raw.lastUsedSlug !== undefined
-				|| raw.projects.some((p: Record<string, unknown>) => p.slug !== undefined);
-			if (hasLegacyKeys) {
-				this.save(config);
-			}
-			return config;
-		} catch {
-			this.cached = ProjectRegistry.emptyConfig();
+			this.cached = empty;
 			this.extraFields = {};
 			return this.cached;
 		}
+		if (!Array.isArray(raw.projects)) {
+			throw new Error(
+				`Invalid config.json: "projects" is not an array`
+				+ ` (${configFile})`,
+			);
+		}
+		const lastUsed = (raw.lastUsedProjectSlug ?? raw.lastUsedSlug ?? null) as string | null;
+		const migratedProjects: ProjectEntry[] = raw.projects.map(
+			(p: Record<string, unknown>) => {
+				const projectSlug = (p.projectSlug ?? p.slug) as string;
+				const entry: ProjectEntry = { path: p.path as string, projectSlug };
+				if (p.branch !== undefined) entry.branch = p.branch as string;
+				if (p.ticketsPath !== undefined) entry.ticketsPath = p.ticketsPath as string;
+				return entry;
+			},
+		);
+		const { projects: _, lastUsedProjectSlug: _a, lastUsedSlug: _b, port, browser, ...extra } = raw;
+		const config: ProjectConfig = {
+			projects: migratedProjects,
+			lastUsedProjectSlug: lastUsed,
+			port: port as number | undefined,
+			browser: browser as string | undefined,
+		};
+		this.cached = config;
+		this.extraFields = extra;
+		const hasLegacyKeys = raw.lastUsedSlug !== undefined
+			|| raw.projects.some((p: Record<string, unknown>) => p.slug !== undefined);
+		if (hasLegacyKeys) {
+			this.save(config);
+		}
+		return config;
 	}
 
 	private save(config: ProjectConfig): void {

@@ -70,7 +70,7 @@ describe("Columns tab (e2e)", () => {
     const options = await selector!.$$("option");
     expect(options.length).toBe(2);
     const texts = await Promise.all(options.map(o => o.textContent()));
-    expect(texts).toContain("Kanban");
+    expect(texts).toContain("Standard");
     expect(texts).toContain("Simple");
   }, 15000);
 

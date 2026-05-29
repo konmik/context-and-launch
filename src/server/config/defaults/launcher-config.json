@@ -1,0 +1,43 @@
+{
+  "templates": [
+    {
+      "name": "Default",
+      "text": "Current ticket files are in {{ticketDir}}. Read the files there for context. Do not do anything else."
+    },
+    {
+      "name": "Implement",
+      "text": "Current ticket files are in {{ticketDir}}. Read the files there for context. Do not do anything else.\n\nrun: git rebase master\n/hero2 hero {{ticketSlug}}\n/exploratory-testing current branch\n"
+    },
+    {
+      "name": "Merge",
+      "text": "Execute strictly in order:\n\n- If there are untracked or uncommitted changes, commit them first\n- Squash all changes in the branch into a single commit (the commit message must start with the ticket number and ticket title)\n- Run git -C <main-worktree> merge --ff-only <branch> to fast-forward master\n- If there are conflicts:\n    - Rebase the branch on master\n    - Resolve the issues\n    - Make all tests pass\n    - Run git -C <main-worktree> merge --ff-only <branch> to fast-forward master again\n"
+    }
+  ],
+  "skills": [
+    { "name": "Simplify", "text": "/simplify-k" },
+    { "name": "Deslop", "text": "/deslop" },
+    {
+      "name": "Plan",
+      "text": "/grill-with-docs-k help me creating a detailed product-requirement-document.md in the ticket folder. use /to-prd-k to generate the prd at the end",
+      "order": -1
+    },
+    { "name": "Fix tests", "text": "fix all tests" }
+  ],
+  "profiles": [
+    {
+      "name": "Claude Win",
+      "command": "powershell -File {{appConfigDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}}"
+    },
+    {
+      "name": "Claude macOS",
+      "command": "bash {{appConfigDir}}/run-agent.sh {{initialPrompt}} {{windowTitle}}"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "WebStorm",
+      "command": "\"C:\\Program Files\\JetBrains\\WebStorm\\bin\\webstorm64.exe\" ."
+    }
+  ],
+  "conflictResolutionPrompt": "Resolve all merge conflicts, then run git rebase --continue. Repeat until the rebase completes. Then push to remote and verify with git status that everything is clean. CRITICAL: Do not leave untracked, uncommitted or unpushed files. The goal is to sync the local branch with remote."
+}

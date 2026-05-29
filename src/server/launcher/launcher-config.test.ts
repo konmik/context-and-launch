@@ -2,8 +2,9 @@ import { describe, it, expect, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { LauncherConfigManager, DEFAULT_CONFLICT_RESOLUTION_PROMPT } from './launcher-config.js';
+import { LauncherConfigManager } from './launcher-config.js';
 import { ConfigPaths } from '../config/config-paths.js';
+import { initializeDataDir } from '../config/initialize.js';
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -27,26 +28,20 @@ describe('LauncherConfigManager', () => {
 		dirs.length = 0;
 	});
 
-	it('loadAppConfig returns defaults when file is missing', () => {
+	it('loadAppConfig throws when file is missing', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		const config = mgr.loadAppConfig();
-		expect(config.templates).toHaveLength(1);
-		expect(config.templates[0].name).toBe('Default');
-		expect(config.skills).toEqual([]);
+		expect(() => mgr.loadAppConfig()).toThrow('not found');
 	});
 
-	it('loadAppConfig returns defaults when file contains invalid JSON', () => {
+	it('loadAppConfig throws when file contains invalid JSON', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		fs.mkdirSync(path.join(configDir, 'config'), { recursive: true });
 		fs.writeFileSync(path.join(configDir, 'config', 'launcher-config.json'), 'not json');
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		const config = mgr.loadAppConfig();
-		// Falls back to creating default
-		expect(config.templates).toHaveLength(1);
-		expect(config.templates[0].name).toBe('Default');
+		expect(() => mgr.loadAppConfig()).toThrow();
 	});
 
 	it('saveAppConfig then loadAppConfig roundtrips correctly', () => {
@@ -213,6 +208,7 @@ describe('LauncherConfigManager', () => {
 	it('addTemplate to app scope, verify file on disk', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		mgr.addTemplate('app', 'any-project', { name: 'New', text: 'new text' });
 		const raw = JSON.parse(fs.readFileSync(path.join(configDir, 'config', 'launcher-config.json'), 'utf-8'));
@@ -224,6 +220,7 @@ describe('LauncherConfigManager', () => {
 	it('addTemplate with duplicate name throws', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		mgr.addTemplate('app', 'test-project', { name: 'Dup', text: 'first' });
 		expect(() => mgr.addTemplate('app', 'test-project', { name: 'Dup', text: 'second' }))
@@ -233,6 +230,7 @@ describe('LauncherConfigManager', () => {
 	it('removeTemplate removes from correct scope', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		mgr.addTemplate('app', 'test-project', { name: 'ToRemove', text: 'text' });
 		mgr.removeTemplate('app', 'test-project', 'ToRemove');
@@ -403,6 +401,7 @@ describe('LauncherConfigManager', () => {
 	it('merge worktreeRootPath comes from project config', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		mgr.saveProjectConfig('test-project', {
 			templates: [],
@@ -416,32 +415,19 @@ describe('LauncherConfigManager', () => {
 	it('merge worktreeRootPath is null when not configured', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.worktreeRootPath).toBeNull();
 	});
 
-	it('loadAppConfig on corrupt JSON overwrites file with defaults', () => {
+	it('loadAppConfig throws on corrupt JSON', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
-		const configPath = path.join(configDir, 'config', 'launcher-config.json');
 		fs.mkdirSync(path.join(configDir, 'config'), { recursive: true });
-		fs.writeFileSync(configPath, '{{{not valid json!!!');
-
+		fs.writeFileSync(path.join(configDir, 'config', 'launcher-config.json'), '{{{not valid json!!!');
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		const config = mgr.loadAppConfig();
-
-		// Returned config matches DEFAULT_APP_CONFIG
-		expect(config.templates).toHaveLength(1);
-		expect(config.templates[0].name).toBe('Default');
-		expect(config.templates[0].text).toContain('{{ticketDir}}');
-		expect(config.skills).toEqual([]);
-
-		// Corrupt file on disk was replaced with valid defaults
-		const ondisk = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-		expect(ondisk.templates).toHaveLength(1);
-		expect(ondisk.templates[0].name).toBe('Default');
-		expect(ondisk.skills).toEqual([]);
+		expect(() => mgr.loadAppConfig()).toThrow();
 	});
 
 	it('getMergedConfig ignores app-level columnDefaults', () => {
@@ -497,6 +483,7 @@ describe('LauncherConfigManager', () => {
 	it('addTemplate with empty string name succeeds, second add throws duplicate', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		// First add with empty name succeeds -- no empty-name validation exists
 		mgr.addTemplate('app', 'test-project', { name: '', text: 'empty name template' });
@@ -590,6 +577,7 @@ describe('LauncherConfigManager', () => {
 		+ ' passes through and roundtrips via JSON', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 
 		// No runtime type guard exists, so non-string values are accepted
@@ -623,8 +611,8 @@ describe('LauncherConfigManager', () => {
 
 		// Roundtrip: loadAppConfig reads them back through parseConfig
 		const reloaded = mgr.loadAppConfig();
-		// Default template + 3 non-string entries = 4 total
-		expect(reloaded.templates).toHaveLength(4);
+		// 3 default templates + 3 non-string entries = 6 total
+		expect(reloaded.templates).toHaveLength(6);
 
 		// name: 42 survives JSON roundtrip (number stays number)
 		const t42 = reloaded.templates.find(t => (t.name as any) === 42);
@@ -644,6 +632,7 @@ describe('LauncherConfigManager', () => {
 	it('addTemplate/addSkill with control characters or 10000-char name: accepted and persisted', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 
 		// Name with control characters: null byte, tab, newline, carriage return, bell, etc.
@@ -749,6 +738,7 @@ describe('LauncherConfigManager', () => {
 		+ ' and is accessible via getMergedConfig', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 
 		const defaults = { templateName: 'MyTemplate', checkedSkills: ['S1', 'S2'], profileName: null };
@@ -927,9 +917,10 @@ describe('LauncherConfigManager', () => {
 		expect(config.skills).toEqual([]);
 	});
 
-	it('loadAppConfig returns defaults with two profiles when file is missing', () => {
+	it('initializeDataDir creates app config with two profiles', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		const config = mgr.loadAppConfig();
 		expect(config.profiles).toHaveLength(2);
@@ -944,6 +935,7 @@ describe('LauncherConfigManager', () => {
 	it('addProfile to app scope, verify file on disk', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		mgr.addProfile('app', 'any-project', { name: 'Custom Profile', command: 'my-command --flag' });
 		const raw = JSON.parse(fs.readFileSync(path.join(configDir, 'config', 'launcher-config.json'), 'utf-8'));
@@ -955,6 +947,7 @@ describe('LauncherConfigManager', () => {
 	it('addProfile with duplicate name throws', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		mgr.addProfile('app', 'test-project', { name: 'Dup', command: 'first' });
 		expect(() => mgr.addProfile('app', 'test-project', { name: 'Dup', command: 'second' }))
@@ -964,6 +957,7 @@ describe('LauncherConfigManager', () => {
 	it('removeProfile removes from correct scope', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		mgr.addProfile('app', 'test-project', { name: 'ToRemove', command: 'cmd' });
 		mgr.removeProfile('app', 'test-project', 'ToRemove');
@@ -1058,6 +1052,7 @@ describe('LauncherConfigManager', () => {
 	it('saveColumnDefaults with profileName persists through roundtrip', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		mgr.saveColumnDefaults('test-project', 'todo', {
 			templateName: 'Default',
@@ -1071,6 +1066,7 @@ describe('LauncherConfigManager', () => {
 	it('getMergedConfig includes profileName in columnDefaults', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		mgr.saveColumnDefaults('test-project', 'done', {
 			templateName: 'T1',
@@ -1081,32 +1077,12 @@ describe('LauncherConfigManager', () => {
 		expect(merged.columnDefaults['done']?.profileName).toBe('Claude macOS');
 	});
 
-	it('ensurePlatformScripts writes scripts only if missing', () => {
-		const configDir = tmpDir('lc-');
-		dirs.push(configDir);
-		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-
-		mgr.ensurePlatformScripts();
-
-		const ps1Path = path.join(configDir, 'config', 'run-agent.ps1');
-		const shPath = path.join(configDir, 'config', 'run-agent.sh');
-		expect(fs.existsSync(ps1Path)).toBe(true);
-		expect(fs.existsSync(shPath)).toBe(true);
-
-		// Modify a file
-		fs.writeFileSync(ps1Path, 'custom content');
-
-		// Call again -- should not overwrite
-		mgr.ensurePlatformScripts();
-		expect(fs.readFileSync(ps1Path, 'utf-8')).toBe('custom content');
-	});
-
 	it('removeProfile cleans up columnDefaults referencing the deleted profile name', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 
-		// Add a profile to the project scope
 		mgr.addProfile('project', 'test-project', { name: 'MyProfile', command: 'my-cmd' });
 
 		// Save column defaults that reference this profile
@@ -1141,9 +1117,9 @@ describe('LauncherConfigManager', () => {
 	it('removeTemplate cleans up columnDefaults referencing the deleted template name', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 
-		// Add a template to the project scope
 		mgr.addTemplate('project', 'test-project', { name: 'MyTemplate', text: 'some text' });
 
 		// Save column defaults that reference this template
@@ -1178,6 +1154,7 @@ describe('LauncherConfigManager', () => {
 	it('getMergedConfig returns default conflict resolution prompt when not configured', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.conflictResolutionPrompt).toContain('merge conflicts');
@@ -1186,6 +1163,7 @@ describe('LauncherConfigManager', () => {
 	it('conflictResolutionPrompt round-trips through save/load', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		mgr.saveConflictResolutionSettings('test-project', 'Custom prompt text');
 		const config = mgr.loadProjectConfig('test-project');
@@ -1214,6 +1192,7 @@ describe('LauncherConfigManager', () => {
 	it('non-string conflictResolutionPrompt on disk falls back to default in getMergedConfig', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		// Hand-edited / corrupt project file with a non-string prompt.
 		const projPath = path.join(configDir, 'projects', 'test-project', 'config', 'launcher-config.json');
@@ -1226,34 +1205,23 @@ describe('LauncherConfigManager', () => {
 		// MergedLauncherConfig.conflictResolutionPrompt is typed string; a truthy
 		// non-string value must not leak through. It falls back to the default.
 		expect(typeof merged.conflictResolutionPrompt).toBe('string');
-		expect(merged.conflictResolutionPrompt).toBe(DEFAULT_CONFLICT_RESOLUTION_PROMPT);
+		expect(merged.conflictResolutionPrompt).toContain('merge conflicts');
 	});
 
 	it('empty conflictResolutionPrompt falls back to default in getMergedConfig', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		mgr.saveConflictResolutionSettings('test-project', '');
 		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.conflictResolutionPrompt).toContain('merge conflicts');
 	});
 
-	it('ensurePlatformScripts creates scripts on first loadAppConfig', () => {
-		const configDir = tmpDir('lc-');
-		dirs.push(configDir);
-		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-
-		mgr.loadAppConfig();
-
-		const ps1Path = path.join(configDir, 'config', 'run-agent.ps1');
-		const shPath = path.join(configDir, 'config', 'run-agent.sh');
-		expect(fs.existsSync(ps1Path)).toBe(true);
-		expect(fs.existsSync(shPath)).toBe(true);
-	});
-
 	it('addShortcut to app scope, verify file on disk', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		mgr.addShortcut('app', 'any-project', { name: 'Open Editor', command: 'code {{projectPath}}' });
 		const raw = JSON.parse(fs.readFileSync(path.join(configDir, 'config', 'launcher-config.json'), 'utf-8'));
@@ -1278,6 +1246,7 @@ describe('LauncherConfigManager', () => {
 	it('addShortcut with duplicate name throws', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		mgr.addShortcut('app', 'test-project', { name: 'Dup', command: 'first' });
 		expect(() => mgr.addShortcut('app', 'test-project', { name: 'Dup', command: 'second' }))
@@ -1287,6 +1256,7 @@ describe('LauncherConfigManager', () => {
 	it('removeShortcut removes from correct scope', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		mgr.addShortcut('app', 'test-project', { name: 'ToRemove', command: 'cmd' });
 		mgr.removeShortcut('app', 'test-project', 'ToRemove');
@@ -1398,12 +1368,14 @@ describe('LauncherConfigManager', () => {
 		expect(merged.shortcuts.find(s => s.name === 'PS')?.scope).toBe('project');
 	});
 
-	it('getMergedConfig returns empty shortcuts when neither scope has any', () => {
+	it('getMergedConfig returns default shortcuts when neither scope overrides', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		const merged = mgr.getMergedConfig('test-project');
-		expect(merged.shortcuts).toEqual([]);
+		expect(merged.shortcuts).toHaveLength(1);
+		expect(merged.shortcuts[0].name).toBe('WebStorm');
 	});
 
 	it('updateTemplate rename updates columnDefaults.templateName', () => {
