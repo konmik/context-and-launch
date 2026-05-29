@@ -52,12 +52,12 @@ export class AgentWorktreeManager {
 		}
 
 		try {
-			const behindCount = await git(projectPath, 'rev-list', `HEAD..@{upstream}`, '--count');
+			const behindCount = await git(projectPath, 'rev-list', `${mainBranch}..${mainBranch}@{upstream}`, '--count');
 			if (parseInt(behindCount.trim(), 10) > 0) {
 				return { behindRemote: true };
 			}
 		} catch (e) {
-			// No upstream configured -- skip the behind-remote check
+			// No upstream configured for main -- skip the behind-remote check
 			console.warn('Skipping upstream check:', e instanceof Error ? e.message : e);
 		}
 
@@ -86,7 +86,14 @@ export class AgentWorktreeManager {
 
 	async pullMainBranch(projectPath: string): Promise<void> {
 		try {
-			await git(projectPath, 'pull');
+			const mainBranch = await this.getMainBranch(projectPath);
+			const currentBranch = (await git(projectPath, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
+			if (currentBranch === mainBranch) {
+				await git(projectPath, 'pull');
+			} else {
+				await git(projectPath, 'fetch', 'origin', mainBranch);
+				await git(projectPath, 'branch', '-f', mainBranch, `origin/${mainBranch}`);
+			}
 		} catch (e) {
 			if (e instanceof ProcessError) {
 				throw new ProcessError(e.command, e.exitCode, e.output, 'Failed to pull main branch');

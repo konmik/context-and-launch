@@ -304,6 +304,73 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
+	it('behind-remote check passes on feature branch while main is stale:'
+		+ ' worktree created from outdated main without warning', async () => {
+		const bareDir = tmpDir('awm-bare-');
+		dirs.push(bareDir);
+		execSync('git init --bare -b main', { cwd: bareDir, timeout: 5000 });
+
+		const projectDir = tmpDir('awm-stale-main-');
+		dirs.push(projectDir);
+		execSync(`git clone "${bareDir}" "${projectDir}"`, { timeout: 5000 });
+		execSync('git config user.email "test@test.com"', { cwd: projectDir, timeout: 5000 });
+		execSync('git config user.name "Test"', { cwd: projectDir, timeout: 5000 });
+		fs.writeFileSync(path.join(projectDir, 'README.md'), '# test');
+		execSync('git add .', { cwd: projectDir, timeout: 5000 });
+		execSync('git commit -m "init"', { cwd: projectDir, timeout: 5000 });
+		execSync('git push -u origin main', { cwd: projectDir, timeout: 5000 });
+
+		// Create a feature branch and push it (user works here)
+		execSync('git checkout -b feature', { cwd: projectDir, timeout: 5000 });
+		fs.writeFileSync(path.join(projectDir, 'feature.txt'), 'feature work');
+		execSync('git add .', { cwd: projectDir, timeout: 5000 });
+		execSync('git commit -m "feature commit"', { cwd: projectDir, timeout: 5000 });
+		execSync('git push -u origin feature', { cwd: projectDir, timeout: 5000 });
+
+		// Push a new commit to main from another clone (main becomes stale in projectDir)
+		const pusherDir = tmpDir('awm-pusher-');
+		dirs.push(pusherDir);
+		execSync(`git clone "${bareDir}" "${pusherDir}"`, { timeout: 5000 });
+		execSync('git config user.email "test@test.com"', { cwd: pusherDir, timeout: 5000 });
+		execSync('git config user.name "Test"', { cwd: pusherDir, timeout: 5000 });
+		fs.writeFileSync(path.join(pusherDir, 'new-on-main.txt'), 'newer content');
+		execSync('git add .', { cwd: pusherDir, timeout: 5000 });
+		execSync('git commit -m "newer main commit"', { cwd: pusherDir, timeout: 5000 });
+		execSync('git push', { cwd: pusherDir, timeout: 5000 });
+
+		// Fetch so projectDir knows about new remote commits (feature branch is up-to-date, main is behind)
+		execSync('git fetch', { cwd: projectDir, timeout: 5000 });
+
+		const configDir = tmpDir('awm-config-');
+		const worktreeRoot = tmpDir('awm-worktrees-');
+		dirs.push(configDir, worktreeRoot);
+
+		const paths = new ConfigPaths(configDir);
+		const lcm = new LauncherConfigManager(paths);
+		lcm.saveProjectConfig('my-proj', {
+			templates: [],
+			skills: [],
+			worktreeRootPath: worktreeRoot,
+		});
+
+		const awm = new AgentWorktreeManager(lcm, paths);
+		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-stale-main');
+
+		// BUG: behind-remote check uses HEAD..@{upstream} which is feature's upstream.
+		// Feature branch is up-to-date, so behind-remote passes.
+		// But main is 1 commit behind origin/main. The worktree is created from stale main.
+		// This should either return behindRemote or create from fresh origin/main.
+		if ('worktreePath' in result) {
+			// Worktree was created -- check if it has the newer content
+			const hasNewerContent = fs.existsSync(path.join(result.worktreePath, 'new-on-main.txt'));
+			// This assertion documents the bug: worktree is created from stale main
+			expect(hasNewerContent).toBe(true);
+		} else {
+			// If behindRemote was returned, the bug is fixed
+			expect('behindRemote' in result).toBe(true);
+		}
+	});
+
 	it('pullMainBranch with merge conflict: error contains git failure details'
 		+ ' and subsequent ensureAgentWorktree returns dirtyWorktree', async () => {
 		// 1. Create a bare repo as the "remote"
@@ -435,14 +502,11 @@ describe('AgentWorktreeManager', () => {
 		expect(fs.existsSync(path.join(worktreePath, '.git'))).toBe(true);
 	});
 
-	it('pullMainBranch pulls current branch not main:'
-		+ ' bare git pull operates on whatever branch is checked out', async () => {
-		// 1. Create a bare repo as the remote
+	it('pullMainBranch updates main even when on a feature branch', async () => {
 		const bareDir = tmpDir('awm-bare-pullbranch-');
 		dirs.push(bareDir);
 		execSync('git init --bare -b main', { cwd: bareDir, timeout: 5000 });
 
-		// 2. Clone as working repo, initial commit on main, push
 		const projectDir = tmpDir('awm-pullbranch-');
 		dirs.push(projectDir);
 		execSync(`git clone "${bareDir}" "${projectDir}"`, { timeout: 5000 });
@@ -455,54 +519,41 @@ describe('AgentWorktreeManager', () => {
 
 		const mainCommitBefore = execSync('git rev-parse main', { cwd: projectDir, timeout: 5000 }).toString().trim();
 
-		// 3. Create a feature branch, push it with tracking
 		execSync('git checkout -b feature-x', { cwd: projectDir, timeout: 5000 });
 		fs.writeFileSync(path.join(projectDir, 'feature.txt'), 'feature work');
 		execSync('git add .', { cwd: projectDir, timeout: 5000 });
 		execSync('git commit -m "feature commit"', { cwd: projectDir, timeout: 5000 });
-		execSync('git push -u origin feature-x', { cwd: projectDir, timeout: 5000 });
 
-		// 4. Add a new commit to feature-x on the remote via a second clone
 		const pusherDir = tmpDir('awm-pusher-pullbranch-');
 		dirs.push(pusherDir);
 		execSync(`git clone "${bareDir}" "${pusherDir}"`, { timeout: 5000 });
 		execSync('git config user.email "test@test.com"', { cwd: pusherDir, timeout: 5000 });
 		execSync('git config user.name "Test"', { cwd: pusherDir, timeout: 5000 });
-		execSync('git checkout feature-x', { cwd: pusherDir, timeout: 5000 });
-		fs.writeFileSync(path.join(pusherDir, 'remote-feature.txt'), 'remote feature work');
+		fs.writeFileSync(path.join(pusherDir, 'new-on-main.txt'), 'newer main content');
 		execSync('git add .', { cwd: pusherDir, timeout: 5000 });
-		execSync('git commit -m "remote feature commit"', { cwd: pusherDir, timeout: 5000 });
+		execSync('git commit -m "newer main commit"', { cwd: pusherDir, timeout: 5000 });
 		execSync('git push', { cwd: pusherDir, timeout: 5000 });
 
-		// 5. In working repo, fetch so it knows about the remote commit
-		execSync('git fetch', { cwd: projectDir, timeout: 5000 });
-
-		// Confirm we are on feature-x, not main
 		const currentBranch = execSync(
 			'git branch --show-current', { cwd: projectDir, timeout: 5000 },
 		).toString().trim();
 		expect(currentBranch).toBe('feature-x');
 
-		// 6. Call pullMainBranch -- despite the name, it just runs `git pull`
 		const configDir = tmpDir('awm-config-pullbranch-');
 		dirs.push(configDir);
-		const paths = new ConfigPaths(configDir);
-		const lcm = new LauncherConfigManager(paths);
-		const awm = new AgentWorktreeManager(lcm, paths);
+		const awmPaths = new ConfigPaths(configDir);
+		const lcm = new LauncherConfigManager(awmPaths);
+		const awm = new AgentWorktreeManager(lcm, awmPaths);
 
 		await awm.pullMainBranch(projectDir);
 
-		// 7. Verify: the feature branch got the remote commit (remote-feature.txt exists)
-		expect(fs.existsSync(path.join(projectDir, 'remote-feature.txt'))).toBe(true);
-
-		// Verify: main is unchanged -- still at its original commit
 		const mainCommitAfter = execSync('git rev-parse main', { cwd: projectDir, timeout: 5000 }).toString().trim();
-		expect(mainCommitAfter).toBe(mainCommitBefore);
+		expect(mainCommitAfter).not.toBe(mainCommitBefore);
 
-		// The method pulled the feature branch, not main. This confirms the method name
-		// is misleading: pullMainBranch does not switch to main before pulling.
-		// In the pull-and-retry flow, if the user is on a feature branch, this pulls
-		// the wrong branch entirely.
+		const stillOnFeature = execSync(
+			'git branch --show-current', { cwd: projectDir, timeout: 5000 },
+		).toString().trim();
+		expect(stillOnFeature).toBe('feature-x');
 	});
 
 	it('behind-remote catch swallows non-upstream errors:'
