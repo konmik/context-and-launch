@@ -1,65 +1,44 @@
-import { createSignal, createEffect, Show } from "solid-js";
+import { Show } from "solid-js";
 import { DialogRoot, DialogTitle } from "../ui/dialog";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
+import {
+  createCreateTicketController,
+  type CreateTicketController,
+} from "./create-ticket-controller.js";
 
 interface CreateTicketDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (number: string, title: string) => Promise<{ error?: string }>;
   suggestedNextNumber?: string | null;
+  ctrl?: CreateTicketController;
 }
 
 export default function CreateTicketDialog(props: CreateTicketDialogProps) {
-  const [number, setNumber] = createSignal("");
-  const [title, setTitle] = createSignal("");
-  const [submitting, setSubmitting] = createSignal(false);
-  const [errorMsg, setErrorMsg] = createSignal("");
-
-  createEffect(() => {
-    if (props.open && props.suggestedNextNumber) {
-      setNumber(props.suggestedNextNumber);
-    }
+  const s = props.ctrl ?? createCreateTicketController({
+    onSubmit: props.onSubmit,
+    onOpenChange: props.onOpenChange,
+    suggestedNextNumber: () => props.suggestedNextNumber,
+    open: () => props.open,
   });
 
-  function close() {
-    props.onOpenChange(false);
-    setNumber("");
-    setTitle("");
-    setErrorMsg("");
-  }
-
-  async function doSubmit() {
-    if (!number().trim() || !title().trim()) return;
-    setSubmitting(true);
-    setErrorMsg("");
-    try {
-      const result = await props.onSubmit(number().trim(), title().trim());
-      if (result?.error) setErrorMsg(result.error);
-      else close();
-    } catch (err: any) {
-      setErrorMsg(err?.message ?? "Unknown error");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
   useModEnterSubmit({
-    onSubmit: doSubmit,
-    disabled: () => submitting() || !number().trim() || !title().trim(),
+    onSubmit: s.doSubmit,
+    disabled: () => s.submitting() || !s.number().trim() || !s.title().trim(),
     active: () => props.open,
   });
 
   return (
-    <DialogRoot open={props.open} onOpenChange={close}>
+    <DialogRoot open={props.open} onOpenChange={s.close}>
       <DialogTitle>New Ticket</DialogTitle>
-      <form onSubmit={(e) => { e.preventDefault(); doSubmit(); }}>
+      <form onSubmit={(e) => { e.preventDefault(); s.doSubmit(); }}>
         <div class="mb-4">
           <label for="ticket-number" class="mb-2 block text-sm font-medium">Number</label>
           <input
             id="ticket-number"
             type="text"
-            value={number()}
-            onInput={(e) => setNumber(e.currentTarget.value)}
+            value={s.number()}
+            onInput={(e) => s.setNumber(e.currentTarget.value)}
             class="input"
             placeholder="e.g. ABC-1"
           />
@@ -69,18 +48,18 @@ export default function CreateTicketDialog(props: CreateTicketDialogProps) {
           <input
             id="ticket-title"
             type="text"
-            value={title()}
-            onInput={(e) => setTitle(e.currentTarget.value)}
+            value={s.title()}
+            onInput={(e) => s.setTitle(e.currentTarget.value)}
             class="input"
             placeholder="e.g. Fix login timeout"
           />
         </div>
-        <Show when={errorMsg()}><p class="mb-4 text-sm text-destructive">{errorMsg()}</p></Show>
+        <Show when={s.errorMsg()}><p class="mb-4 text-sm text-destructive">{s.errorMsg()}</p></Show>
         <div class="flex justify-end gap-2">
-          <button type="button" onClick={close} class="btn-secondary">Cancel</button>
+          <button type="button" onClick={s.close} class="btn-secondary">Cancel</button>
           <button
             type="submit"
-            disabled={submitting() || !number().trim() || !title().trim()}
+            disabled={s.submitting() || !s.number().trim() || !s.title().trim()}
             title={modEnterHint()}
             class="btn-primary"
           >Create</button>

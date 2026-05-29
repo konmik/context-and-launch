@@ -5,10 +5,20 @@ import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/server/laun
 import {
   type ActiveFile,
   activeFileLabel,
-  isImage,
-  isText,
   isActiveFileMatch,
-} from "./ticket-detail-parts.js";
+  buildContextOptions,
+  buildFileEntryOptions,
+  buildReferenceOptions,
+  buildAllFileOptions,
+  isReadOnly,
+  checkReferenceStale,
+  hasUnsavedEditorChanges,
+  slugifyFileName,
+  wouldOverwrite,
+  ticketApiUrl,
+  resolveFileViewMode,
+  showSaveButton as showSaveButtonPure,
+} from "./ticket-detail-pure.js";
 
 export type Tab = "editor" | "launcher" | "shortcuts";
 
@@ -97,44 +107,34 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     }
   }
 
-  const contextOptions = (): ActiveFile[] => {
-    const defaults = ["to-do", "product-requirement-document"];
-    const existing = props.ticket.contextNames ?? [];
-    const extra = extraFiles();
-    const all = [...defaults];
-    for (const name of [...existing, ...extra]) {
-      if (!all.includes(name)) all.push(name);
-    }
-    return all.map((name) => ({ type: "context" as const, name }));
-  };
-
-  const fileEntryOptions = (): ActiveFile[] =>
-    ticketFileNames()
-      .filter((n) => !n.endsWith(".md") && n !== "status.json")
-      .map((name) => ({ type: "file" as const, name }));
-
-  const referenceOptions = (): ActiveFile[] =>
-    ticketReferences().map(
-      (ref) => ({ type: "reference" as const, path: ref.path }),
+  const contextOptions = (): ActiveFile[] =>
+    buildContextOptions(
+      ["to-do", "product-requirement-document"],
+      props.ticket.contextNames ?? [],
+      extraFiles(),
     );
 
-  const allFileOptions = () => [...contextOptions(), ...fileEntryOptions(), ...referenceOptions()];
+  const fileEntryOptions = (): ActiveFile[] =>
+    buildFileEntryOptions(ticketFileNames());
+
+  const referenceOptions = (): ActiveFile[] =>
+    buildReferenceOptions(ticketReferences());
+
+  const allFileOptions = () =>
+    buildAllFileOptions(contextOptions(), fileEntryOptions(), referenceOptions());
 
   function isCurrentReadOnly(): boolean {
-    const af = activeFile();
-    return af.type === "reference" || af.type === "file";
+    return isReadOnly(activeFile());
   }
 
   function isReferenceStale(refPath: string): boolean {
-    const ref = ticketReferences().find((r) => r.path === refPath);
-    return ref ? !ref.exists : false;
+    return checkReferenceStale(ticketReferences(), refPath);
   }
 
   const hasUnsavedChanges = () =>
-    activeTab() === "editor"
-    && fileViewMode() === "editor"
-    && !isCurrentReadOnly()
-    && content() !== savedContent();
+    hasUnsavedEditorChanges(
+      activeTab(), fileViewMode(), isCurrentReadOnly(), content(), savedContent(),
+    );
 
   function handleBeforeUnload(e: BeforeUnloadEvent) {
     if (hasUnsavedChanges()) e.preventDefault();
@@ -145,7 +145,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   }
 
   function ticketUrl(suffix: string): string {
-    return `/api/projects/${props.projectSlug}/board/tickets/${props.ticket.folderName}/${suffix}`;
+    return ticketApiUrl(props.projectSlug, props.ticket.folderName, suffix);
   }
 
   async function loadTextContent(url: string): Promise<void> {
@@ -164,12 +164,13 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   }
 
   function loadFileByName(fileName: string, url: string): void {
-    if (isImage(fileName)) {
+    const mode = resolveFileViewMode(fileName);
+    if (mode === "image") {
       setFileViewMode("image"); setImageUrl(url);
       setContent(""); setSavedContent("");
-    }
-    else if (isText(fileName)) { loadTextContent(url); }
-    else {
+    } else if (mode === "editor") {
+      loadTextContent(url);
+    } else {
       setFileViewMode("unsupported"); setContent(""); setSavedContent("");
     }
   }
@@ -299,11 +300,8 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   function openNewFileDialog() { setDropdownOpen(false); setNewFileName(""); setNewFileDialogOpen(true); }
 
   function submitNewFile() {
-    const raw = newFileName().trim();
-    if (!raw) return;
-    const contextFileName = raw.toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
+    const raw = newFileName();
+    const contextFileName = slugifyFileName(raw);
     if (!contextFileName) return;
     setNewFileDialogOpen(false);
     if (!contextOptions().some(
@@ -383,14 +381,6 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     input.value = "";
   }
 
-  function wouldOverwrite(fileName: string): boolean {
-    const allExisting = [
-      ...ticketFileNames(),
-      ...(props.ticket.contextNames ?? []).map((s) => `${s}.md`),
-    ];
-    return allExisting.includes(fileName);
-  }
-
   function awaitUploadConfirm<T>(setter: (v: T) => void, value: T): Promise<boolean> {
     return new Promise<boolean>((resolve) => {
       resolveUploadConfirm = resolve;
@@ -405,7 +395,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
       setConfirmSize(null);
       if (!proceed) return;
     }
-    if (wouldOverwrite(file.name)) {
+    if (wouldOverwrite(file.name, ticketFileNames(), props.ticket.contextNames ?? [])) {
       const proceed = await awaitUploadConfirm(setConfirmOverwrite, { fileName: file.name, file });
       setConfirmOverwrite(null);
       if (!proceed) return;
@@ -476,7 +466,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     } catch (e) { setError(e instanceof Error ? e.message : "Failed to add references"); }
   }
 
-  const showSaveButton = () => activeTab() === "editor" && activeFile().type === "context";
+  const showSaveButton = () => showSaveButtonPure(activeTab(), activeFile().type);
 
   return {
     activeFile, content, setContent, saving, confirmingClose, setConfirmingClose,
@@ -488,7 +478,10 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     useWorktree, allFileOptions, isReferenceStale, hasUnsavedChanges, isCurrentReadOnly,
     showSaveButton, persistWorktree, runShortcut, switchTab, selectFile, openNewFileDialog,
     submitNewFile, deleteOrRemoveFile, handleTrashClick, close, forceClose,
-    proceedFileSwitch, cancelFileSwitch: () => { setConfirmingFileSwitch(false); setPendingFile(null); },
+    proceedFileSwitch,
+    cancelFileSwitch: () => {
+      setConfirmingFileSwitch(false); setPendingFile(null); setPendingTab(null);
+    },
     handleDragOver, handleDragLeave, handleDrop, handleFileInputChange,
     confirmSizeAndUpload: confirmUpload, confirmOverwriteAndUpload: confirmUpload, openNativeFileBrowser,
     cancelSizeConfirm: cancelUpload, cancelOverwriteConfirm: cancelUpload,

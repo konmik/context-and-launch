@@ -4,47 +4,10 @@ import { DialogRoot, DialogTitle, DialogDescription } from "../ui/dialog";
 import MarkdownEditor from "../shared/MarkdownEditor";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 import type { MergedLauncherConfig } from "~/server/launcher/launcher-config.js";
+import { type ActiveFile, activeFileLabel, isActiveFileMatch } from "./ticket-detail-pure.js";
 
-export type ActiveFile =
-  | { type: "context"; name: string }
-  | { type: "file"; name: string }
-  | { type: "reference"; path: string };
-
-const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"]);
-const TEXT_EXTENSIONS = new Set([".txt", ".md"]);
-
-function getExtension(name: string): string {
-  const dot = name.lastIndexOf(".");
-  return dot >= 0 ? name.slice(dot).toLowerCase() : "";
-}
-
-export function isImage(name: string): boolean {
-  return IMAGE_EXTENSIONS.has(getExtension(name));
-}
-
-export function isText(name: string): boolean {
-  return TEXT_EXTENSIONS.has(getExtension(name));
-}
-
-export function activeFileLabel(af: ActiveFile): string {
-  switch (af.type) {
-    case "context": return `${af.name}.md`;
-    case "file": return af.name;
-    case "reference": {
-      const sep = af.path.includes("\\") ? "\\" : "/";
-      const parts = af.path.split(sep);
-      return parts[parts.length - 1] || af.path;
-    }
-  }
-}
-
-export function isActiveFileMatch(a: ActiveFile, b: ActiveFile): boolean {
-  if (a.type !== b.type) return false;
-  if (a.type === "reference" && b.type === "reference") return a.path === b.path;
-  if (a.type === "context" && b.type === "context") return a.name === b.name;
-  if (a.type === "file" && b.type === "file") return a.name === b.name;
-  return false;
-}
+export type { ActiveFile } from "./ticket-detail-pure.js";
+export { activeFileLabel, isActiveFileMatch } from "./ticket-detail-pure.js";
 
 export function DiscardConfirmation(props: {
   open: boolean;

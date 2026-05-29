@@ -1,4 +1,5 @@
-import { FileToolbar, EditorPane, activeFileLabel, TAB_PANE_CLASS, type ActiveFile } from "./ticket-detail-parts.js";
+import { FileToolbar, EditorPane, TAB_PANE_CLASS } from "./ticket-detail-parts.js";
+import { activeFileLabel, type ActiveFile } from "./ticket-detail-pure.js";
 
 export function EditorTab(props: {
   activeFile: ActiveFile;

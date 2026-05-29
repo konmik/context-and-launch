@@ -44,8 +44,9 @@ function TicketDetailContent(props: {
   ticket: TicketInfo;
   onClose: () => void;
   projectSlug: string;
+  ctrl?: ReturnType<typeof createTicketDetailState>;
 }) {
-  const s = createTicketDetailState(props);
+  const s = props.ctrl ?? createTicketDetailState(props);
 
   useModEnterSubmit({
     onSubmit: s.submitNewFile,

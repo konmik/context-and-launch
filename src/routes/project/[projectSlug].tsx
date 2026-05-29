@@ -1,5 +1,5 @@
 import { useParams, useNavigate, createAsync, revalidate } from "@solidjs/router";
-import { createSignal, Show, For, Switch, Match } from "solid-js";
+import { Show, For, Switch, Match } from "solid-js";
 import { DialogRoot, DialogTitle } from "~/components/ui/dialog";
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "~/components/ui/menu";
 import type { TicketInfo } from "~/server/ticket/ticket-store.js";
@@ -12,181 +12,35 @@ import WorktreeCleanupDialog from "~/components/shared/WorktreeCleanupDialog";
 import TicketDetailDialog from "~/components/ticket/TicketDetailDialog";
 import ConflictDialog from "~/components/shared/ConflictDialog";
 import ErrorDialog from "~/components/shared/ErrorDialog";
-import type { ErrorInfo } from "~/server/shared/errors.js";
 import AddProjectForm from "~/components/project/AddProjectForm";
 import ThemeToggle from "~/components/shared/ThemeToggle";
 import LauncherSettings from "~/components/launcher/LauncherSettings";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 import { loadBoard } from "~/server/actions";
 import { addProjectAction } from "~/lib/add-project";
-import { apiFetch } from "~/lib/api";
+import {
+  createProjectPageController,
+  type ProjectPageController,
+} from "~/components/project/project-page-controller.js";
 
 export const route = {
   load: ({ params }: { params: { projectSlug: string } }) => loadBoard(params.projectSlug),
 };
 
-export default function ProjectPage() {
+export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   const params = useParams();
   const navigate = useNavigate();
   const projectSlug = () => params.projectSlug ?? "";
   const data = createAsync(() => loadBoard(projectSlug()));
 
-  const [addProjectDialogOpen, setAddProjectDialogOpen] = createSignal(false);
-  const [settingsOpen, setSettingsOpen] = createSignal(false);
-  const [createTicketOpen, setCreateTicketOpen] = createSignal(false);
-  const [editTicketOpen, setEditTicketOpen] = createSignal(false);
-  const [deleteTicketOpen, setDeleteTicketOpen] = createSignal(false);
-  const [archiveTicketOpen, setArchiveTicketOpen] = createSignal(false);
-  const [cleanupDialogOpen, setCleanupDialogOpen] = createSignal(false);
-  const [cleanupAction, setCleanupAction] = createSignal<"archive" | "delete">("archive");
-  const [selectedTicket, setSelectedTicket] = createSignal<TicketInfo | null>(null);
-  const [detailTicket, setDetailTicket] = createSignal<TicketInfo | null>(null);
-  const [syncing, setSyncing] = createSignal(false);
-  const [syncSuccess, setSyncSuccess] = createSignal(false);
-  const [syncError, setSyncError] = createSignal<ErrorInfo | null>(null);
-  const [conflictDialogOpen, setConflictDialogOpen] = createSignal(false);
-
-  async function handleSync() {
-    if (syncing()) return;
-    const d = data();
-    if (!d || d.status !== 'loaded') return;
-    if (!d.hasRemote) {
-      setSyncError({
-        description: "No remote tracking branch configured. Push the ticket branch to a remote first.",
-      });
-      return;
-    }
-    setSyncing(true); setSyncError(null);
-    try {
-      const res = await fetch(`/api/projects/${projectSlug()}/board/sync`, { method: "POST" });
-      const result = await res.json();
-      if (result.status === "success") {
-        setSyncSuccess(true);
-        setTimeout(() => setSyncSuccess(false), 2000);
-        await revalidate("board-data");
-      } else if (result.status === "conflict") {
-        setConflictDialogOpen(true);
-      } else if (result.status === "error") {
-        setSyncError({ description: result.message || "Sync failed" });
-      }
-    } catch (err) {
-      setSyncError({ description: err instanceof Error ? err.message : "Sync failed" });
-    }
-    finally { setSyncing(false); }
-  }
-
-  async function handleConflictResolve(profileName: string) {
-    const res = await fetch(`/api/projects/${projectSlug()}/board/resolve-conflicts`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ profileName }),
-    });
-    if (!res.ok) {
-      const body = await res.json();
-      throw new Error(body.error || "Failed to launch resolver");
-    }
-    await revalidate("board-data");
-  }
-
-  async function handleConflictAbort() {
-    const res = await fetch(`/api/projects/${projectSlug()}/board/sync`, { method: "DELETE" });
-    if (!res.ok) { const body = await res.json(); throw new Error(body.error || "Failed to abort rebase"); }
-    await revalidate("board-data");
-  }
-
-  function handleEdit(ticket: TicketInfo) {
-    setSelectedTicket(ticket);
-    setEditTicketOpen(true);
-  }
-  function handleDelete(ticket: TicketInfo) {
-    setSelectedTicket(ticket);
-    if (ticket.useWorktree) {
-      setCleanupAction("delete");
-      setCleanupDialogOpen(true);
-    } else setDeleteTicketOpen(true);
-  }
-  function handleArchive(ticket: TicketInfo) {
-    setSelectedTicket(ticket);
-    if (ticket.useWorktree) {
-      setCleanupAction("archive");
-      setCleanupDialogOpen(true);
-    } else setArchiveTicketOpen(true);
-  }
-
-  async function handleViewDetail(ticket: TicketInfo) {
-    await revalidate("board-data");
-    const d = data();
-    const board = d?.status === 'loaded' ? d.board : undefined;
-    const fresh = board?.tickets.find((t: TicketInfo) => t.folderName === ticket.folderName);
-    setDetailTicket(fresh ?? ticket);
-  }
-
-  async function handleReorder(
-    folderName: string, fromColumn: string, toColumn: string, newIndex: number,
-  ) {
-    const res = await fetch(`/api/projects/${projectSlug()}/board/reorder`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ folderName, fromColumn, toColumn, newIndex }),
-    });
-    if (res.ok) await revalidate("board-data");
-  }
-
-  async function ticketAction(url: string, init?: RequestInit) {
-    const result = await apiFetch(url, init);
-    if (!result.error) revalidate("board-data");
-    return result;
-  }
-
-  async function handleCreateTicket(number: string, title: string) {
-    return ticketAction(`/api/projects/${projectSlug()}/board/tickets`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ number, title }),
-    });
-  }
-  async function handleEditTicket(folderName: string, number: string, title: string) {
-    return ticketAction(`/api/projects/${projectSlug()}/board/tickets/${folderName}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ number, title }),
-    });
-  }
-  async function handleArchiveTicket(folderName: string) {
-    return ticketAction(`/api/projects/${projectSlug()}/board/tickets/${folderName}/archive`, {
-      method: "POST",
-    });
-  }
-  async function handleDeleteTicket(folderName: string) {
-    return ticketAction(`/api/projects/${projectSlug()}/board/tickets/${folderName}`, {
-      method: "DELETE",
-    });
-  }
-
-  async function handleCleanupSubmit(
-    folderName: string,
-    options: { deleteWorktree: boolean; deleteLocalBranch: boolean; deleteRemoteBranch: boolean },
-  ) {
-    if (options.deleteWorktree || options.deleteLocalBranch || options.deleteRemoteBranch) {
-      const cleanupResult = await apiFetch(`/api/projects/${projectSlug()}/worktree-cleanup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ folderName, options }),
-      });
-      if (cleanupResult.error) return cleanupResult;
-    }
-    const action = cleanupAction();
-    const result = action === "archive"
-      ? await handleArchiveTicket(folderName)
-      : await handleDeleteTicket(folderName);
-    return result;
-  }
+  const { dialogState, syncState, selectionState, commands } =
+    props?.ctrl ?? createProjectPageController({ projectSlug, data: data as any });
 
   let addProjectDialogRef: HTMLDivElement | undefined;
   useModEnterSubmit({
     onSubmit: () => { addProjectDialogRef?.querySelector("form")?.requestSubmit(); },
     disabled: () => false,
-    active: () => addProjectDialogOpen(),
+    active: () => dialogState().addProjectDialogOpen,
   });
 
   return (
@@ -202,15 +56,15 @@ export default function ProjectPage() {
             <div class="flex items-center gap-2">
               <ThemeToggle />
               <button
-                onClick={ld()?.hasConflict ? () => setConflictDialogOpen(true) : handleSync}
-                disabled={syncing()}
+                onClick={ld()?.hasConflict ? () => commands.setConflictDialogOpen(true) : commands.handleSync}
+                disabled={syncState().syncing}
                 class={`btn-icon relative ${
                   ld()?.hasConflict ? "border-destructive text-destructive hover:bg-destructive/10" : ""
                 }`}
                 title={ld()?.hasConflict ? "Resolve conflicts" : "Sync tickets"}
                 data-testid="sync-button"
               >
-                <Show when={syncSuccess()} fallback={
+                <Show when={syncState().syncSuccess} fallback={
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
                     viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round"
@@ -239,7 +93,7 @@ export default function ProjectPage() {
                   >!</span>
                 </Show>
               </button>
-              <button onClick={() => setSettingsOpen(true)} class="btn-icon" title="Settings">
+              <button onClick={commands.openSettings} class="btn-icon" title="Settings">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
                   viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                   stroke-linecap="round" stroke-linejoin="round"
@@ -276,10 +130,10 @@ export default function ProjectPage() {
                     )}
                   </For>
                   <MenuSeparator />
-                  <MenuItem value="add-project" onClick={() => setAddProjectDialogOpen(true)}>Add project...</MenuItem>
+                  <MenuItem value="add-project" onClick={commands.openAddProject}>Add project...</MenuItem>
                 </MenuContent>
               </MenuRoot>
-              <button class="btn-primary" onClick={() => setCreateTicketOpen(true)}>+ New Ticket</button>
+              <button class="btn-primary" onClick={commands.openCreate}>+ New Ticket</button>
             </div>
           </header>
 
@@ -311,11 +165,11 @@ export default function ProjectPage() {
                   <KanbanBoard
                     board={loaded().board}
                     projectSlug={d().projectSlug}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                    onArchive={handleArchive}
-                    onViewDetail={handleViewDetail}
-                    onReorder={handleReorder}
+                    onEdit={commands.openEdit}
+                    onDelete={commands.openDelete}
+                    onArchive={commands.openArchive}
+                    onViewDetail={commands.openDetail}
+                    onReorder={commands.handleReorder}
                   />
                 )}
               </Match>
@@ -323,52 +177,52 @@ export default function ProjectPage() {
           </main>
 
           <CreateTicketDialog
-            open={createTicketOpen()}
-            onOpenChange={setCreateTicketOpen}
-            onSubmit={handleCreateTicket}
+            open={dialogState().createTicketOpen}
+            onOpenChange={commands.setCreateTicketOpen}
+            onSubmit={commands.handleCreateTicket}
             suggestedNextNumber={ld()?.suggestedNextNumber ?? null}
           />
           <EditTicketDialog
-            open={editTicketOpen()}
-            onOpenChange={setEditTicketOpen}
-            ticket={selectedTicket()}
-            onSubmit={handleEditTicket}
+            open={dialogState().editTicketOpen}
+            onOpenChange={commands.setEditTicketOpen}
+            ticket={selectionState().selectedTicket}
+            onSubmit={commands.handleEditTicket}
           />
           <DeleteTicketDialog
-            open={deleteTicketOpen()}
-            onOpenChange={setDeleteTicketOpen}
-            ticket={selectedTicket()}
-            onSubmit={handleDeleteTicket}
+            open={dialogState().deleteTicketOpen}
+            onOpenChange={commands.setDeleteTicketOpen}
+            ticket={selectionState().selectedTicket}
+            onSubmit={commands.handleDeleteTicket}
           />
           <ArchiveTicketDialog
-            open={archiveTicketOpen()}
-            onOpenChange={setArchiveTicketOpen}
-            ticket={selectedTicket()}
-            onSubmit={handleArchiveTicket}
+            open={dialogState().archiveTicketOpen}
+            onOpenChange={commands.setArchiveTicketOpen}
+            ticket={selectionState().selectedTicket}
+            onSubmit={commands.handleArchiveTicket}
           />
           <WorktreeCleanupDialog
-            open={cleanupDialogOpen()}
-            onOpenChange={setCleanupDialogOpen}
-            ticket={selectedTicket()}
-            action={cleanupAction()}
-            onSubmit={handleCleanupSubmit}
+            open={dialogState().cleanupDialogOpen}
+            onOpenChange={commands.setCleanupDialogOpen}
+            ticket={selectionState().selectedTicket}
+            action={dialogState().cleanupAction}
+            onSubmit={commands.handleCleanupSubmit}
           />
           <TicketDetailDialog
-            onClose={() => setDetailTicket(null)}
+            onClose={commands.closeDetail}
             projectSlug={d().projectSlug}
-            ticket={detailTicket()}
+            ticket={selectionState().detailTicket}
           />
 
           <DialogRoot
-            open={addProjectDialogOpen()}
-            onOpenChange={() => setAddProjectDialogOpen(false)}
+            open={dialogState().addProjectDialogOpen}
+            onOpenChange={commands.closeAddProject}
             ref={addProjectDialogRef}
           >
             <DialogTitle>Add Project</DialogTitle>
             <AddProjectForm
               action={addProjectAction}
               onSuccess={(s) => {
-                setAddProjectDialogOpen(false);
+                commands.closeAddProject();
                 navigate(`/project/${s}`);
               }}
               submitTitle={modEnterHint()}
@@ -376,18 +230,21 @@ export default function ProjectPage() {
           </DialogRoot>
 
           <ConflictDialog
-            open={conflictDialogOpen()}
-            onOpenChange={setConflictDialogOpen}
-            onResolve={handleConflictResolve}
-            onAbort={handleConflictAbort}
+            open={dialogState().conflictDialogOpen}
+            onOpenChange={commands.setConflictDialogOpen}
+            onResolve={commands.handleConflictResolve}
+            onAbort={commands.handleConflictAbort}
             projectSlug={d().projectSlug}
           />
-          <ErrorDialog error={syncError()} onClose={() => setSyncError(null)} />
+          <ErrorDialog error={syncState().syncError} onClose={() => commands.setSyncError(null)} />
           <LauncherSettings
-            open={settingsOpen()}
+            open={dialogState().settingsOpen}
             onOpenChange={(open) => {
-              setSettingsOpen(open);
-              if (!open) revalidate("board-data");
+              if (open) commands.openSettings();
+              else {
+                commands.closeSettings();
+                revalidate("board-data");
+              }
             }}
             projectSlug={d().projectSlug}
           />

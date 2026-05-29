@@ -1,11 +1,5 @@
 import { createSignal, onMount } from "solid-js";
-
-function getTheme(): "light" | "dark" {
-  if (typeof window === "undefined") return "light";
-  const stored = localStorage.getItem("theme");
-  if (stored === "dark" || stored === "light") return stored;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
+import { getStoredTheme } from "./theme-toggle-pure.js";
 
 function applyTheme(theme: "light" | "dark") {
   document.documentElement.classList.toggle("dark", theme === "dark");
@@ -16,7 +10,8 @@ export default function ThemeToggle() {
   const [theme, setTheme] = createSignal<"light" | "dark">("light");
 
   onMount(() => {
-    setTheme(getTheme());
+    const matchesDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    setTheme(getStoredTheme(localStorage, matchesDark));
   });
 
   function toggle() {
