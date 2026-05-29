@@ -4,6 +4,7 @@ import path from 'path';
 import os from 'os';
 import { cascadeClearBoardId } from './board-delete-cascade.js';
 import { ConfigPaths } from '../config/config-paths.js';
+import { initializeDataDir } from '../config/initialize.js';
 import { LauncherConfigManager } from '../launcher/launcher-config.js';
 import { ProjectRegistry } from './project-registry.js';
 
@@ -43,6 +44,7 @@ describe('cascadeClearBoardId', () => {
 	it('clears boardId from projects referencing the deleted board', () => {
 		const configDir = tmpDir('cascade-test-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 
 		setupProject(configDir, 'proj-a', 'custom-board');
 		setupProject(configDir, 'proj-b', 'custom-board');
@@ -71,6 +73,7 @@ describe('cascadeClearBoardId', () => {
 	it('returns 0 when no projects reference the deleted board', () => {
 		const configDir = tmpDir('cascade-test-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 
 		setupProject(configDir, 'proj-a', 'other-board');
 
@@ -86,6 +89,7 @@ describe('cascadeClearBoardId', () => {
 	it('returns 0 when there are no projects', () => {
 		const configDir = tmpDir('cascade-test-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 
 		const paths = new ConfigPaths(configDir);
 		const cleared = cascadeClearBoardId('any-board', {
@@ -99,6 +103,7 @@ describe('cascadeClearBoardId', () => {
 	it('skips projects with undefined boardId', () => {
 		const configDir = tmpDir('cascade-test-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 
 		setupProject(configDir, 'proj-a', undefined);
 
@@ -114,6 +119,7 @@ describe('cascadeClearBoardId', () => {
 	it('handles projectRegistry.listProjects throwing gracefully', () => {
 		const configDir = tmpDir('cascade-test-');
 		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
 
 		const brokenRegistry = {
 			listProjects() { throw new Error('corrupt'); },
