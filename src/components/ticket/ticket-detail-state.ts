@@ -37,7 +37,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   const [uploading, setUploading] = createSignal(false);
   const [confirmOverwrite, setConfirmOverwrite] = createSignal<{ fileName: string; file: File } | null>(null);
   const [confirmSize, setConfirmSize] = createSignal<{ fileName: string; file: File; size: number } | null>(null);
-  const [confirmResolver, setConfirmResolver] = createSignal<(() => void) | null>(null);
+  let resolveUploadConfirm: ((confirmed: boolean) => void) | null = null;
   const [runningShortcut, setRunningShortcut] = createSignal("");
   const [dirtyWorktreeShortcut, setDirtyWorktreeShortcut] = createSignal<{ name: string; message: string } | null>(null);
   const [useWorktree, setUseWorktree] = createSignal(props.ticket.useWorktree);
@@ -275,10 +275,25 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     return allExisting.includes(fileName);
   }
 
+  function awaitUploadConfirm<T>(setter: (v: T) => void, value: T): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      resolveUploadConfirm = resolve;
+      setter(value);
+    });
+  }
+
   async function processFileForUpload(file: File) {
     if (file.name === "status.json") { setError("Cannot overwrite status.json"); return; }
-    if (file.size > 10240) { setConfirmSize({ fileName: file.name, file, size: file.size }); await new Promise<void>((resolve) => setConfirmResolver(() => resolve)); return; }
-    if (wouldOverwrite(file.name)) { setConfirmOverwrite({ fileName: file.name, file }); await new Promise<void>((resolve) => setConfirmResolver(() => resolve)); return; }
+    if (file.size > 10240) {
+      const proceed = await awaitUploadConfirm(setConfirmSize, { fileName: file.name, file, size: file.size });
+      setConfirmSize(null);
+      if (!proceed) return;
+    }
+    if (wouldOverwrite(file.name)) {
+      const proceed = await awaitUploadConfirm(setConfirmOverwrite, { fileName: file.name, file });
+      setConfirmOverwrite(null);
+      if (!proceed) return;
+    }
     await uploadFile(file);
   }
 
@@ -300,20 +315,8 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     finally { setUploading(false); }
   }
 
-  async function confirmSizeAndUpload() {
-    const info = confirmSize(); const resolver = confirmResolver();
-    setConfirmSize(null); setConfirmResolver(null);
-    if (!info) return;
-    if (wouldOverwrite(info.file.name)) { setConfirmOverwrite({ fileName: info.file.name, file: info.file }); await new Promise<void>((resolve) => setConfirmResolver(() => resolve)); resolver?.(); return; }
-    await uploadFile(info.file); resolver?.();
-  }
-
-  async function confirmOverwriteAndUpload() {
-    const info = confirmOverwrite(); const resolver = confirmResolver();
-    setConfirmOverwrite(null); setConfirmResolver(null);
-    if (!info) return;
-    await uploadFile(info.file); resolver?.();
-  }
+  function confirmUpload() { resolveUploadConfirm?.(true); resolveUploadConfirm = null; }
+  function cancelUpload() { resolveUploadConfirm?.(false); resolveUploadConfirm = null; }
 
   async function openNativeFileBrowser() {
     setBrowsing(true); setError("");
@@ -354,9 +357,8 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     submitNewFile, deleteOrRemoveFile, handleTrashClick, close, forceClose,
     proceedFileSwitch, cancelFileSwitch: () => { setConfirmingFileSwitch(false); setPendingFile(null); },
     handleDragOver, handleDragLeave, handleDrop, handleFileInputChange,
-    confirmSizeAndUpload, confirmOverwriteAndUpload, openNativeFileBrowser,
-    cancelSizeConfirm: () => { const r = confirmResolver(); setConfirmSize(null); setConfirmResolver(null); r?.(); },
-    cancelOverwriteConfirm: () => { const r = confirmResolver(); setConfirmOverwrite(null); setConfirmResolver(null); r?.(); },
+    confirmSizeAndUpload: confirmUpload, confirmOverwriteAndUpload: confirmUpload, openNativeFileBrowser,
+    cancelSizeConfirm: cancelUpload, cancelOverwriteConfirm: cancelUpload,
     saveFile, patchColumnDefaults,
   };
 }
