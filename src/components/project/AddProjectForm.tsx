@@ -1,5 +1,4 @@
 import { createSignal, createEffect, onCleanup, Show } from "solid-js";
-import { previewProjectPaths } from "~/server/actions";
 
 type ProjectPathsPreview = { projectSlug: string; ticketsPath: string; defaultWorktreesPath: string };
 
@@ -34,7 +33,8 @@ export default function AddProjectForm(props: AddProjectFormProps) {
     const p = debouncedPath();
     if (!p) { setPreview(null); return; }
     let cancelled = false;
-    previewProjectPaths(p)
+    fetch(`/api/projects?previewPath=${encodeURIComponent(p)}`)
+      .then((res) => res.json())
       .then((res) => { if (!cancelled) setPreview(res); })
       .catch((err: any) => { if (!cancelled) setLocalError(err?.message ?? "Failed to compute paths"); });
     onCleanup(() => { cancelled = true; });

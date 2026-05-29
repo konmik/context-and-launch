@@ -1,38 +1,19 @@
-import type { APIEvent } from "@solidjs/start/server";
 import { worktreeManager, launcherConfigManager } from "~/server/config/instances.js";
-import { errorMessage } from "~/server/shared/errors.js";
 import { spawnProfile } from "~/server/launcher/agent-launch.js";
+import { ValidationError } from "~/server/shared/errors.js";
+import { withService } from "~/server/shared/route-helpers.js";
 
-export async function POST({ params, request }: APIEvent) {
-	try {
-		const { projectSlug } = params;
-		const body = await request.json();
-		const profileName = body.profileName;
-		if (!profileName) {
-			return Response.json({ error: "No profile selected" }, { status: 400 });
-		}
-
-		const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
-		const merged = launcherConfigManager.getMergedConfig(projectSlug);
-		const profile = merged.profiles.find(p => p.name === profileName);
-
-		if (!profile) {
-			return Response.json(
-				{ error: `Profile "${profileName}" not found. Check your launcher settings.` },
-				{ status: 400 },
-			);
-		}
-
-		const commandVars: Record<string, string> = {
-			initialPrompt: merged.conflictResolutionPrompt,
-			windowTitle: "Resolve Conflicts",
-			appConfigDir: launcherConfigManager.getAppConfigDir(),
-		};
-
-		await spawnProfile(profile, commandVars, worktreeDir);
-
-		return Response.json({ success: true });
-	} catch (e) {
-		return Response.json({ error: errorMessage(e) }, { status: 500 });
-	}
-}
+export const POST = withService(async ({ params, request }) => {
+	const { projectSlug } = params;
+	const { profileName } = await request.json();
+	if (!profileName) throw new ValidationError("No profile selected");
+	const merged = launcherConfigManager.getMergedConfig(projectSlug);
+	const profile = merged.profiles.find(p => p.name === profileName);
+	if (!profile) throw new ValidationError(`Profile "${profileName}" not found. Check your launcher settings.`);
+	await spawnProfile(profile, {
+		initialPrompt: merged.conflictResolutionPrompt,
+		windowTitle: "Resolve Conflicts",
+		appConfigDir: launcherConfigManager.getAppConfigDir(),
+	}, worktreeManager.getWorktreeDir(projectSlug));
+	return Response.json({ success: true });
+});

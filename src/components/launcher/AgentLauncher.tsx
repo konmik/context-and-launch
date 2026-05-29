@@ -8,6 +8,7 @@ import type { TicketInfo } from "~/server/ticket/ticket-store.js";
 import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/server/launcher/launcher-config.js";
 import type { ErrorInfo } from "~/server/shared/errors.js";
 import ErrorDialog from "../shared/ErrorDialog.js";
+import { textToErrorInfo } from "./agent-launcher-pure.js";
 import { DragPreview, DragGrip, NameDragOverlay, DND_ACTIVE_CLASS } from "../board/dnd-shared.js";
 import { createListReorder, orderByNameList } from "../board/list-reorder.js";
 
@@ -116,16 +117,6 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 
 	function ticketAiUrl(action: string) {
 		return `/api/projects/${props.projectSlug}/board/tickets/${props.ticket.folderName}/ai/${action}`;
-	}
-
-	function textToErrorInfo(text: string, status: number): ErrorInfo {
-		try {
-			const data = JSON.parse(text);
-			if (data.description) return data as ErrorInfo;
-			return { description: JSON.stringify(data) };
-		} catch {
-			return { description: text || `Error ${status}` };
-		}
 	}
 
 	async function launchAgent(extra?: Record<string, unknown>) {

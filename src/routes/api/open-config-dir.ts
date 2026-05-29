@@ -1,32 +1,23 @@
-import type { APIEvent } from "@solidjs/start/server";
 import { spawn } from "child_process";
 import { launcherConfigManager, worktreeManager } from "~/server/config/instances.js";
+import { ValidationError } from "~/server/shared/errors.js";
+import { withService } from "~/server/shared/route-helpers.js";
 
-export async function POST({ request }: APIEvent) {
-  let body: { scope: string; projectSlug?: string };
-  try {
-    body = await request.json();
-  } catch {
-    return new Response("Invalid JSON", { status: 400 });
+function resolveConfigDir(scope: string, projectSlug?: string): string {
+  if (scope === "tickets" && projectSlug) return worktreeManager.getWorktreeDir(projectSlug);
+  if (scope === "worktree" && projectSlug) {
+    const config = launcherConfigManager.loadProjectConfig(projectSlug);
+    if (!config.worktreeRootPath) throw new ValidationError("Worktree root path not configured");
+    return config.worktreeRootPath;
   }
+  if (scope === "project" && projectSlug) return launcherConfigManager.getProjectConfigDir(projectSlug);
+  return launcherConfigManager.getAppConfigDir();
+}
 
-  let dir: string;
-  if (body.scope === "tickets" && body.projectSlug) {
-    dir = worktreeManager.getWorktreeDir(body.projectSlug);
-  } else if (body.scope === "worktree" && body.projectSlug) {
-    const config = launcherConfigManager.loadProjectConfig(body.projectSlug);
-    if (!config.worktreeRootPath) {
-      return new Response("Worktree root path not configured", { status: 400 });
-    }
-    dir = config.worktreeRootPath;
-  } else if (body.scope === "project" && body.projectSlug) {
-    dir = launcherConfigManager.getProjectConfigDir(body.projectSlug);
-  } else {
-    dir = launcherConfigManager.getAppConfigDir();
-  }
-
+export const POST = withService(async ({ request }) => {
+  const body = await request.json().catch(() => { throw new ValidationError("Invalid JSON"); });
+  const dir = resolveConfigDir(body.scope, body.projectSlug);
   const cmd = process.platform === "darwin" ? "open" : "explorer.exe";
   spawn(cmd, [dir], { stdio: "ignore" }).unref();
-
   return new Response(null, { status: 200 });
-}
+});

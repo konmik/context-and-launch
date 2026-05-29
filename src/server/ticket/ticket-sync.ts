@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { ProcessError } from '../shared/errors.js';
 import { git } from '../infra/git.js';
+import { GitRepository } from '../infra/git-repository.js';
 
 export type SyncResult =
 	| { status: 'success' }
@@ -9,22 +10,10 @@ export type SyncResult =
 	| { status: 'error'; message: string };
 
 export class TicketSyncManager {
-	private resolveGitDir(worktreeDir: string): string {
-		const dotGit = path.join(worktreeDir, '.git');
-		try {
-			const stat = fs.statSync(dotGit);
-			if (stat.isFile()) {
-				const content = fs.readFileSync(dotGit, 'utf-8').trim();
-				const match = content.match(/^gitdir:\s*(.+)$/);
-				if (match) return path.resolve(worktreeDir, match[1]);
-			}
-		} catch (err: unknown) {
-			// .git may not exist (e.g. not a git repo) -- fall back to dotGit path
-			if (!(err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT')) {
-				console.warn(`resolveGitDir: unexpected error reading ${dotGit}:`, err);
-			}
-		}
-		return dotGit;
+	private gitRepo: GitRepository;
+
+	constructor(gitRepo?: GitRepository) {
+		this.gitRepo = gitRepo ?? new GitRepository();
 	}
 
 	async hasRemote(worktreeDir: string): Promise<boolean> {
@@ -36,7 +25,7 @@ export class TicketSyncManager {
 				&& /no upstream configured|does not point to a branch/.test(err.output);
 			if (!isExpectedGitError) throw err;
 
-			const gitDir = this.resolveGitDir(worktreeDir);
+			const gitDir = this.gitRepo.resolveGitDir(worktreeDir);
 			const headNameFile = path.join(gitDir, 'rebase-merge', 'head-name');
 			try {
 				const ref = fs.readFileSync(headNameFile, 'utf-8').trim();
@@ -108,7 +97,7 @@ export class TicketSyncManager {
 				// pre-rebase hook, untracked files that would be overwritten) leaves
 				// no in-progress rebase and must be surfaced rather than mislabeled
 				// as a conflict.
-				if (this.hasActiveRebase(worktreeDir)) {
+				if (this.gitRepo.hasActiveRebase(worktreeDir)) {
 					return { status: 'conflict' };
 				}
 				return { status: 'error', message: rebaseErr instanceof Error ? rebaseErr.message : String(rebaseErr) };
@@ -127,8 +116,6 @@ export class TicketSyncManager {
 	}
 
 	hasActiveRebase(worktreeDir: string): boolean {
-		const gitDir = this.resolveGitDir(worktreeDir);
-		return fs.existsSync(path.join(gitDir, 'rebase-merge'))
-			|| fs.existsSync(path.join(gitDir, 'rebase-apply'));
+		return this.gitRepo.hasActiveRebase(worktreeDir);
 	}
 }

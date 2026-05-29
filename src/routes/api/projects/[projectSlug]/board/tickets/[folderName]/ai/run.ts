@@ -1,5 +1,3 @@
-import type { APIEvent } from "@solidjs/start/server";
-import { errorPayload } from "~/server/shared/errors.js";
 import {
   resolveTicketAndProject,
   resolveLaunchDir,
@@ -8,30 +6,20 @@ import {
   launchAgent,
   windowExists,
 } from "~/server/launcher/agent-launch.js";
+import { withService } from "~/server/shared/route-helpers.js";
 
-export async function POST({ params, request }: APIEvent) {
-  try {
-    const { projectSlug, folderName } = params;
-    const resolved = resolveTicketAndProject(projectSlug, folderName);
-    if (resolved instanceof Response) return resolved;
-    const { ticket, project, worktreeDir } = resolved;
-
-    const windowTitle = buildWindowTitle(ticket);
-    if (await windowExists(windowTitle)) {
-      return new Response("Already started", { status: 409 });
-    }
-
-    const launchRequest = await readLaunchRequest(request);
-
-    const launchDirResult = await resolveLaunchDir(
-      projectSlug, folderName, launchRequest.useWorktree, project.path, launchRequest.force,
-    );
-    if (launchDirResult instanceof Response) return launchDirResult;
-    const launchDir = launchDirResult;
-
-    await launchAgent(projectSlug, ticket, project, worktreeDir, launchRequest, launchDir);
-    return new Response(null, { status: 200 });
-  } catch (e) {
-    return Response.json(errorPayload(e), { status: 500 });
-  }
-}
+export const POST = withService(async ({ params, request }) => {
+  const { projectSlug, folderName } = params;
+  const resolved = resolveTicketAndProject(projectSlug, folderName);
+  if (resolved instanceof Response) return resolved;
+  const { ticket, project, worktreeDir } = resolved;
+  const windowTitle = buildWindowTitle(ticket);
+  if (await windowExists(windowTitle)) return new Response("Already started", { status: 409 });
+  const launchRequest = await readLaunchRequest(request);
+  const launchDirResult = await resolveLaunchDir(
+    projectSlug, folderName, launchRequest.useWorktree, project.path, launchRequest.force,
+  );
+  if (launchDirResult instanceof Response) return launchDirResult;
+  await launchAgent(projectSlug, ticket, project, worktreeDir, launchRequest, launchDirResult);
+  return new Response(null, { status: 200 });
+});

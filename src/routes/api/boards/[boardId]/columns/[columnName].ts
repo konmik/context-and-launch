@@ -1,24 +1,15 @@
-import type { APIEvent } from "@solidjs/start/server";
 import { boardConfigManager } from "~/server/config/instances.js";
-import { errorMessage } from "~/server/shared/errors.js";
+import { withService } from "~/server/shared/route-helpers.js";
 
-export async function PUT({ params, request }: APIEvent) {
-	try {
-		const { boardId, columnName } = params;
-		const { description } = await request.json();
-		boardConfigManager.updateColumn(boardId, columnName, { description });
-		return new Response(null, { status: 204 });
-	} catch (e) {
-		return Response.json({ error: errorMessage(e) }, { status: 400 });
-	}
-}
+export const PUT = withService(async ({ params, request }) => {
+	const { boardId, columnName } = params;
+	const { description } = await request.json();
+	boardConfigManager.updateColumn(boardId, columnName, { description });
+	return new Response(null, { status: 204 });
+}, 400);
 
-export async function DELETE({ params }: APIEvent) {
-	try {
-		const { boardId, columnName } = params;
-		boardConfigManager.removeColumn(boardId, columnName);
-		return new Response(null, { status: 204 });
-	} catch (e) {
-		return Response.json({ error: errorMessage(e) }, { status: 400 });
-	}
-}
+export const DELETE = withService(async ({ params }) => {
+	const { boardId, columnName } = params;
+	boardConfigManager.removeColumn(boardId, columnName);
+	return new Response(null, { status: 204 });
+}, 400);

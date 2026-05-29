@@ -1,4 +1,5 @@
 import type { ConfigPaths } from '../config/config-paths.js';
+import { ConfigRepository } from '../config/config-repository.js';
 import { slugifyColumnName } from '../../lib/slugify.js';
 
 export { slugifyColumnName };
@@ -56,30 +57,31 @@ function migrateColumns(columns: unknown[]): ColumnDefinition[] {
 
 export class BoardConfigManager {
 	private paths: ConfigPaths;
+	private configRepo: ConfigRepository;
 
-	constructor(paths: ConfigPaths) {
+	constructor(paths: ConfigPaths, configRepo?: ConfigRepository) {
 		this.paths = paths;
+		this.configRepo = configRepo ?? new ConfigRepository();
 	}
 
 	private loadAll(): BoardDefinition[] {
-		const text = this.paths.readConfigFile(this.paths.boardsFile());
-		if (text === null) {
+		const raw = this.configRepo.readJson(this.paths.boardsFile());
+		if (raw === null) {
 			const defaults = structuredClone(DEFAULT_BOARDS);
 			this.saveAll(defaults);
 			return defaults;
 		}
 		try {
-			const parsed = JSON.parse(text);
+			const parsed = raw as unknown[];
 			if (!Array.isArray(parsed) || parsed.length === 0) {
 				return structuredClone(DEFAULT_BOARDS);
 			}
-			// Migrate legacy string[] columns to ColumnDefinition[]
-			for (const board of parsed) {
+			for (const board of parsed as BoardDefinition[]) {
 				if (Array.isArray(board.columns)) {
 					board.columns = migrateColumns(board.columns);
 				}
 			}
-			return parsed;
+			return parsed as BoardDefinition[];
 		} catch (e) {
 			console.warn('Failed to parse boards.json, falling back to defaults', e);
 			return structuredClone(DEFAULT_BOARDS);
@@ -87,7 +89,7 @@ export class BoardConfigManager {
 	}
 
 	private saveAll(boards: BoardDefinition[]): void {
-		this.paths.writeConfigFile(this.paths.boardsFile(), JSON.stringify(boards, null, 2));
+		this.configRepo.writeJson(this.paths.boardsFile(), boards);
 	}
 
 	private findBoard(boardId: string): { boards: BoardDefinition[]; board: BoardDefinition; index: number } {

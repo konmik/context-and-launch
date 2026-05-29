@@ -1,11 +1,7 @@
 import { openFileDialog } from "~/server/infra/native-file-dialog.js";
-import { errorMessage } from "~/server/shared/errors.js";
+import { withService } from "~/server/shared/route-helpers.js";
 
-export async function POST() {
-  try {
-    const paths = await openFileDialog();
-    return Response.json({ paths });
-  } catch (e) {
-    return Response.json({ error: errorMessage(e) }, { status: 500 });
-  }
-}
+export const POST = withService(async () => {
+  const paths = await openFileDialog();
+  return Response.json({ paths });
+});
