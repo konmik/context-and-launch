@@ -1,426 +1,385 @@
 import { For, Show, createSignal, createMemo, createEffect, on } from "solid-js";
 import {
-  DragDropProvider,
-  DragDropSensors,
-  DragOverlay,
-  SortableProvider,
-  createSortable,
-  createDroppable,
-  closestCenter,
-  type Id,
-  type DragEvent as DndDragEvent,
+	DragDropProvider,
+	DragDropSensors,
+	DragOverlay,
+	closestCenter,
+	type DragEvent as DndDragEvent,
 } from "@thisbeyond/solid-dnd";
 import type { TicketInfo } from "~/server/ticket/ticket-store.js";
 import type { BoardState } from "~/server/actions.js";
-import type { ColumnDefinition } from "~/server/project/board-config.js";
 import TicketCard from "../ticket/TicketCard";
 import { computeHoverTarget, type HoverTarget } from "./drop-index.js";
-import { DragPreview, DragOverlayCard, DND_ACTIVE_CLASS } from "./dnd-shared.js";
+import { DragOverlayCard } from "./dnd-shared.js";
+import { parseId } from "./kanban-id.js";
+import { TicketColumn, OrphanColumn } from "./kanban-columns.js";
 
 export interface KanbanTestHooks {
-  setHoverTarget: (target: HoverTarget | null) => void;
-  setActiveId: (id: string | null) => void;
-  setOrderOverride: (order: Record<string, string[]> | null) => void;
-  commitDrop: (fromColumn: string, folderName: string, toColumn: string, newIndex: number) => void;
+	setHoverTarget: (target: HoverTarget | null) => void;
+	setActiveId: (id: string | null) => void;
+	setOrderOverride: (
+		order: Record<string, string[]> | null,
+	) => void;
+	commitDrop: (
+		fromColumn: string, folderName: string,
+		toColumn: string, newIndex: number,
+	) => void;
 }
 
 interface KanbanBoardProps {
-  board: BoardState;
-  projectSlug: string;
-  onEdit: (ticket: TicketInfo) => void;
-  onDelete: (ticket: TicketInfo) => void;
-  onArchive: (ticket: TicketInfo) => void;
-  onViewDetail: (ticket: TicketInfo) => void;
-  onReorder: (folderName: string, fromColumn: string, toColumn: string, newIndex: number) => void;
-  onTestReady?: (hooks: KanbanTestHooks) => void;
+	board: BoardState;
+	projectSlug: string;
+	onEdit: (ticket: TicketInfo) => void;
+	onDelete: (ticket: TicketInfo) => void;
+	onArchive: (ticket: TicketInfo) => void;
+	onViewDetail: (ticket: TicketInfo) => void;
+	onReorder: (
+		folderName: string, fromColumn: string,
+		toColumn: string, newIndex: number,
+	) => void;
+	onTestReady?: (hooks: KanbanTestHooks) => void;
 }
 
-function parseId(id: Id): { column: string; folderName: string } {
-  const str = String(id);
-  const sep = str.indexOf(":");
-  return { column: str.slice(0, sep), folderName: str.slice(sep + 1) };
+function resolveTicketOrder(
+	override: Record<string, string[]> | null,
+	base: Record<string, string[]>,
+): Record<string, string[]> {
+	return override ?? base;
 }
 
-function makeId(column: string, folderName: string): string {
-  return `${column}:${folderName}`;
+function resolveTicketsForColumn(
+	column: string,
+	order: Record<string, string[]>,
+	ticketMap: Map<string, TicketInfo>,
+	orphanFolderNames: Set<string>,
+): TicketInfo[] {
+	const names = order[column] ?? [];
+	const result: TicketInfo[] = [];
+	for (const fn of names) {
+		if (orphanFolderNames.has(fn)) continue;
+		const t = ticketMap.get(fn);
+		if (t) result.push(t);
+	}
+	return result;
 }
 
-const COLUMN_PREFIX = "column:";
-
-function DropPreview(props: { ticket: TicketInfo }) {
-  return (
-    <DragPreview>
-      <TicketCard
-        ticket={props.ticket}
-        onEdit={() => {}}
-        onDelete={() => {}}
-        onArchive={() => {}}
-        onViewDetail={() => {}}
-      />
-    </DragPreview>
-  );
+function resolveActiveTicket(
+	activeId: string | null,
+	ticketMap: Map<string, TicketInfo>,
+): TicketInfo | null {
+	if (!activeId) return null;
+	const { folderName } = parseId(activeId);
+	return ticketMap.get(folderName) ?? null;
 }
 
-function SortableTicketCard(props: {
-  ticket: TicketInfo;
-  column: string;
-  index: number;
-  activeId: string | null;
-  activeTicket: TicketInfo | null;
-  hoverTarget: HoverTarget | null;
-  orphanedStatus?: string;
-  onEdit: (ticket: TicketInfo) => void;
-  onDelete: (ticket: TicketInfo) => void;
-  onArchive: (ticket: TicketInfo) => void;
-  onViewDetail: (ticket: TicketInfo) => void;
-}) {
-  const id = makeId(props.column, props.ticket.folderName);
-  const sortable = createSortable(id);
-  const isActive = () => props.activeId === id;
-  const isCrossColumn = () => {
-    const aid = props.activeId;
-    return aid !== null && parseId(aid).column !== props.column;
-  };
-  const showIndicator = () =>
-    isCrossColumn() &&
-    !isActive() &&
-    props.hoverTarget !== null &&
-    props.hoverTarget.column === props.column &&
-    props.hoverTarget.index === props.index;
-
-  return (
-    <div
-      ref={sortable.ref}
-      data-sortable-id={id}
-      class="flex flex-col gap-2"
-      classList={{ [DND_ACTIVE_CLASS]: isActive() }}
-      style={{
-        ...(sortable.transform ? {
-          transform: `translate3d(${sortable.transform.x}px, ${sortable.transform.y}px, 0)`,
-        } : {}),
-      }}
-      {...sortable.dragActivators}
-    >
-      <Show when={showIndicator() && props.activeTicket}>
-        {(t) => <DropPreview ticket={t()} />}
-      </Show>
-      <TicketCard
-        ticket={props.ticket}
-        orphanedStatus={props.orphanedStatus}
-        onEdit={props.onEdit}
-        onDelete={props.onDelete}
-        onArchive={props.onArchive}
-        onViewDetail={props.onViewDetail}
-      />
-    </div>
-  );
+function applyDrop(
+	order: Record<string, string[]>,
+	fromColumn: string,
+	folderName: string,
+	toColumn: string,
+	newIndex: number,
+): Record<string, string[]> {
+	const updated = { ...order };
+	updated[fromColumn] = (updated[fromColumn] ?? [])
+		.filter(fn => fn !== folderName);
+	updated[toColumn] = [...(updated[toColumn] ?? [])];
+	updated[toColumn].splice(newIndex, 0, folderName);
+	return updated;
 }
 
-function EmptyColumnDropzone(props: { column: string }) {
-  const droppable = createDroppable(COLUMN_PREFIX + props.column);
-  return <div ref={droppable.ref} class="flex-1" />;
+function resolveCursorPosition(
+	event: DndDragEvent,
+): { x: number; y: number } | null {
+	type WithOverlay = DndDragEvent & {
+		overlay?: { node?: HTMLElement };
+	};
+	const overlay = (event as WithOverlay).overlay;
+	const node = event.draggable.node;
+	if (!node) return null;
+
+	if (overlay?.node) {
+		const r = overlay.node.getBoundingClientRect();
+		return {
+			x: r.left + r.width / 2,
+			y: r.top + r.height / 2,
+		};
+	}
+	const rect = node.getBoundingClientRect();
+	const t = event.draggable.transform;
+	return {
+		x: rect.left + rect.width / 2 + (t?.x ?? 0),
+		y: rect.top + rect.height / 2 + (t?.y ?? 0),
+	};
 }
 
-interface TicketColumnProps {
-  activeId: string | null;
-  activeTicket: TicketInfo | null;
-  hoverTarget: HoverTarget | null;
-  onEdit: (ticket: TicketInfo) => void;
-  onDelete: (ticket: TicketInfo) => void;
-  onArchive: (ticket: TicketInfo) => void;
-  onViewDetail: (ticket: TicketInfo) => void;
+function collectColumnRects(
+	columnRefs: Map<string, HTMLDivElement>,
+): {
+	colRects: Map<string, { left: number; right: number }>;
+	cardRectsByCol: Map<
+		string, { top: number; height: number }[]
+	>;
+} {
+	const colRects = new Map<
+		string, { left: number; right: number }
+	>();
+	const cardRectsByCol = new Map<
+		string, { top: number; height: number }[]
+	>();
+	for (const [col, el] of columnRefs) {
+		const r = el.getBoundingClientRect();
+		colRects.set(col, { left: r.left, right: r.right });
+		const sel =
+			"[data-drag-source]:not([data-drop-preview] *)";
+		const cards = el.querySelectorAll<HTMLElement>(sel);
+		const rects: { top: number; height: number }[] = [];
+		for (const card of cards) {
+			const cr = card.getBoundingClientRect();
+			rects.push({ top: cr.top, height: cr.height });
+		}
+		cardRectsByCol.set(col, rects);
+	}
+	return { colRects, cardRectsByCol };
 }
 
-function TicketColumn(props: TicketColumnProps & {
-  column: ColumnDefinition;
-  tickets: TicketInfo[];
-  registerRef: (el: HTMLDivElement) => void;
-}) {
-  const ids = () => props.tickets.map((t) => makeId(props.column.name, t.folderName));
-  const tailPreview = () => {
-    const h = props.hoverTarget;
-    const aid = props.activeId;
-    if (!h || !aid || h.column !== props.column.name || h.index !== props.tickets.length) return false;
-    return parseId(aid).column !== props.column.name;
-  };
-  return (
-    <div class="flex min-w-[250px] flex-1 flex-col rounded-lg bg-muted/50 p-3">
-      <h3 class="mb-3 text-sm font-semibold uppercase text-muted-foreground">
-        {props.column.name}
-      </h3>
-      <Show when={props.column.description}>
-        <p class="mb-2 text-xs text-muted-foreground" data-testid="column-description">{props.column.description}</p>
-      </Show>
-      <SortableProvider ids={ids()}>
-        <div ref={(el) => props.registerRef(el)} class="flex flex-1 flex-col gap-2">
-          <For each={props.tickets}>
-            {(ticket, i) => (
-              <SortableTicketCard
-                ticket={ticket}
-                column={props.column.name}
-                index={i()}
-                activeId={props.activeId}
-                activeTicket={props.activeTicket}
-                hoverTarget={props.hoverTarget}
-                onEdit={props.onEdit}
-                onDelete={props.onDelete}
-                onArchive={props.onArchive}
-                onViewDetail={props.onViewDetail}
-              />
-            )}
-          </For>
-          <Show when={tailPreview() && props.activeTicket}>
-            {(t) => <DropPreview ticket={t()} />}
-          </Show>
-          <Show when={props.tickets.length === 0}>
-            <EmptyColumnDropzone column={props.column.name} />
-          </Show>
-        </div>
-      </SortableProvider>
-    </div>
-  );
+function resolveDragSource(
+	dragId: string | null,
+	order: Record<string, string[]>,
+	ticketMap: Map<string, TicketInfo>,
+	orphanFolderNames: Set<string>,
+): { column: string; index: number } | undefined {
+	if (!dragId) return undefined;
+	const { column, folderName } = parseId(dragId);
+	const tickets = resolveTicketsForColumn(
+		column, order, ticketMap, orphanFolderNames,
+	);
+	const idx = tickets.findIndex(
+		t => t.folderName === folderName,
+	);
+	return idx !== -1 ? { column, index: idx } : undefined;
 }
 
-function OrphanColumn(props: TicketColumnProps & { tickets: TicketInfo[] }) {
-  return (
-    <div
-      class={
-        "flex min-w-[250px] flex-1 flex-col rounded-lg "
-        + "border-2 border-destructive bg-muted/50 p-3"
-      }
-      data-testid="undefined-column"
-    >
-      <h3 class="mb-1 text-sm font-semibold uppercase text-destructive">
-        undefined
-      </h3>
-      <p class="mb-2 text-xs text-destructive/80" data-testid="undefined-column-description">Update manually</p>
-      <SortableProvider ids={props.tickets.map((t) => makeId("undefined", t.folderName))}>
-        <div class="flex flex-1 flex-col gap-2">
-          <For each={props.tickets}>
-            {(ticket, i) => (
-              <SortableTicketCard
-                ticket={ticket}
-                column="undefined"
-                index={i()}
-                activeId={props.activeId}
-                activeTicket={props.activeTicket}
-                hoverTarget={props.hoverTarget}
-                onEdit={props.onEdit}
-                onDelete={props.onDelete}
-                onArchive={props.onArchive}
-                onViewDetail={props.onViewDetail}
-                orphanedStatus={ticket.status}
-              />
-            )}
-          </For>
-        </div>
-      </SortableProvider>
-    </div>
-  );
+function computeDragMoveTarget(
+	event: DndDragEvent,
+	dragId: string | null,
+	columnRefs: Map<string, HTMLDivElement>,
+	order: Record<string, string[]>,
+	ticketMap: Map<string, TicketInfo>,
+	orphanFolderNames: Set<string>,
+): HoverTarget | null {
+	const cursor = resolveCursorPosition(event);
+	if (!cursor) return null;
+	const { colRects, cardRectsByCol } =
+		collectColumnRects(columnRefs);
+	const dragSource = resolveDragSource(
+		dragId, order, ticketMap, orphanFolderNames,
+	);
+	return computeHoverTarget(
+		colRects, cardRectsByCol, cursor, dragSource,
+	);
+}
+
+function resolveDrop(
+	activeId: string | null,
+	hoverTarget: HoverTarget | null,
+	order: Record<string, string[]>,
+	ticketMap: Map<string, TicketInfo>,
+	orphanFolderNames: Set<string>,
+): {
+	fromColumn: string;
+	folderName: string;
+	toColumn: string;
+	newIndex: number;
+} | null {
+	if (!activeId || !hoverTarget) return null;
+	const { column: fromColumn, folderName } = parseId(activeId);
+	const { column: toColumn, index: newIndex } = hoverTarget;
+	if (fromColumn === toColumn) {
+		const colTickets = resolveTicketsForColumn(
+			toColumn, order, ticketMap, orphanFolderNames,
+		);
+		const fromIdx = colTickets.findIndex(
+			t => t.folderName === folderName,
+		);
+		if (fromIdx === newIndex) return null;
+	}
+	return { fromColumn, folderName, toColumn, newIndex };
+}
+
+function commitDrop(
+	fromColumn: string,
+	folderName: string,
+	toColumn: string,
+	newIndex: number,
+	currentOrder: Record<string, string[]>,
+	setOrderOverride: (
+		o: Record<string, string[]> | null,
+	) => void,
+	setActiveId: (id: string | null) => void,
+	setHoverTarget: (t: HoverTarget | null) => void,
+	onReorder: KanbanBoardProps["onReorder"],
+): void {
+	if (toColumn === "undefined") {
+		setActiveId(null);
+		setHoverTarget(null);
+		return;
+	}
+	setOrderOverride(applyDrop(
+		currentOrder, fromColumn, folderName, toColumn, newIndex,
+	));
+	setActiveId(null);
+	setHoverTarget(null);
+	onReorder(folderName, fromColumn, toColumn, newIndex);
 }
 
 export default function KanbanBoard(props: KanbanBoardProps) {
-  const [activeId, setActiveId] = createSignal<string | null>(null);
-  const [hoverTarget, setHoverTarget] = createSignal<HoverTarget | null>(null);
-  const [orderOverride, setOrderOverride] = createSignal<Record<string, string[]> | null>(null);
+	const [activeId, setActiveId] =
+		createSignal<string | null>(null);
+	const [hoverTarget, setHoverTarget] =
+		createSignal<HoverTarget | null>(null);
+	const [orderOverride, setOrderOverride] =
+		createSignal<Record<string, string[]> | null>(null);
 
-  const columnRefs = new Map<string, HTMLDivElement>();
+	const columnRefs = new Map<string, HTMLDivElement>();
 
-  function commitDrop(fromColumn: string, folderName: string, toColumn: string, newIndex: number) {
-    if (toColumn === "undefined") {
-      setActiveId(null);
-      setHoverTarget(null);
-      return;
-    }
-    const updated = { ...ticketOrder() };
-    updated[fromColumn] = (updated[fromColumn] ?? []).filter(fn => fn !== folderName);
-    updated[toColumn] = [...(updated[toColumn] ?? [])];
-    updated[toColumn].splice(newIndex, 0, folderName);
-    setOrderOverride(updated);
-    setActiveId(null);
-    setHoverTarget(null);
-    props.onReorder(folderName, fromColumn, toColumn, newIndex);
-  }
+	const ticketMap = createMemo(() => {
+		const map = new Map<string, TicketInfo>();
+		for (const t of props.board.tickets) {
+			map.set(t.folderName, t);
+		}
+		return map;
+	});
 
-  props.onTestReady?.({ setHoverTarget, setActiveId, setOrderOverride, commitDrop });
+	const orphanedTickets = createMemo(() => {
+		const colNames = new Set(
+			props.board.columns.map(c => c.name),
+		);
+		return props.board.tickets.filter(
+			t => !colNames.has(t.status),
+		);
+	});
 
-  createEffect(on(
-    () => props.board.ticketOrder,
-    () => setOrderOverride(null)
-  ));
+	const orphanFolderNames = createMemo(() =>
+		new Set(orphanedTickets().map(t => t.folderName))
+	);
 
-  const ticketMap = createMemo(() => {
-    const map = new Map<string, TicketInfo>();
-    for (const t of props.board.tickets) {
-      map.set(t.folderName, t);
-    }
-    return map;
-  });
+	const currentOrder = createMemo(() =>
+		resolveTicketOrder(
+			orderOverride(), props.board.ticketOrder,
+		)
+	);
 
-  function ticketOrder(): Record<string, string[]> {
-    return orderOverride() ?? props.board.ticketOrder;
-  }
+	const activeTicket = createMemo(() =>
+		resolveActiveTicket(activeId(), ticketMap())
+	);
 
-  function ticketsForColumn(column: string): TicketInfo[] {
-    const order = ticketOrder()[column] ?? [];
-    const map = ticketMap();
-    const orphanSet = new Set(orphanedTickets().map(t => t.folderName));
-    const result: TicketInfo[] = [];
-    for (const fn of order) {
-      if (orphanSet.has(fn)) continue;
-      const t = map.get(fn);
-      if (t) result.push(t);
-    }
-    return result;
-  }
+	createEffect(on(
+		() => props.board.ticketOrder,
+		() => setOrderOverride(null),
+	));
 
-  const orphanedTickets = createMemo(() => {
-    const colNames = new Set(props.board.columns.map(c => c.name));
-    return props.board.tickets.filter(t => !colNames.has(t.status));
-  });
+	props.onTestReady?.({
+		setHoverTarget,
+		setActiveId,
+		setOrderOverride,
+		commitDrop: (from, name, to, idx) => commitDrop(
+			from, name, to, idx, currentOrder(),
+			setOrderOverride, setActiveId,
+			setHoverTarget, props.onReorder,
+		),
+	});
 
-  function activeTicket(): TicketInfo | null {
-    const id = activeId();
-    if (!id) return null;
-    const { folderName } = parseId(id);
-    return ticketMap().get(folderName) ?? null;
-  }
-
-  function handleDragStart(event: DndDragEvent) {
-    setActiveId(String(event.draggable.id));
-  }
-
-  function handleDragMove(event: DndDragEvent) {
-    const overlay = (event as DndDragEvent & { overlay?: { node?: HTMLElement } }).overlay;
-    const node = event.draggable.node;
-    if (!node) return;
-
-    const rect = node.getBoundingClientRect();
-    const transform = event.draggable.transform;
-
-    let cursorX: number, cursorY: number;
-    if (overlay?.node) {
-      const overlayRect = overlay.node.getBoundingClientRect();
-      cursorX = overlayRect.left + overlayRect.width / 2;
-      cursorY = overlayRect.top + overlayRect.height / 2;
-    } else {
-      cursorX = rect.left + rect.width / 2 + (transform?.x ?? 0);
-      cursorY = rect.top + rect.height / 2 + (transform?.y ?? 0);
-    }
-    const colRects = new Map<string, { left: number; right: number }>();
-    const cardRectsByCol = new Map<string, { top: number; height: number }[]>();
-    for (const [col, el] of columnRefs) {
-      const r = el.getBoundingClientRect();
-      colRects.set(col, { left: r.left, right: r.right });
-      const cards = el.querySelectorAll<HTMLElement>("[data-drag-source]:not([data-drop-preview] *)");
-      const rects: { top: number; height: number }[] = [];
-      for (const card of cards) {
-        const cr = card.getBoundingClientRect();
-        rects.push({ top: cr.top, height: cr.height });
-      }
-      cardRectsByCol.set(col, rects);
-    }
-
-    let dragSource: { column: string; index: number } | undefined;
-    const dragId = activeId();
-    if (dragId) {
-      const { column: fromColumn, folderName } = parseId(dragId);
-      const colTickets = ticketsForColumn(fromColumn);
-      const idx = colTickets.findIndex(t => t.folderName === folderName);
-      if (idx !== -1) dragSource = { column: fromColumn, index: idx };
-    }
-
-    setHoverTarget(computeHoverTarget(colRects, cardRectsByCol, { x: cursorX, y: cursorY }, dragSource));
-  }
-
-  function handleDragEnd(_event: DndDragEvent) {
-    const draggableId = activeId();
-    const ht = hoverTarget();
-
-    if (!draggableId || !ht) {
-      setActiveId(null);
-      setHoverTarget(null);
-      return;
-    }
-
-    const { column: fromColumn, folderName } = parseId(draggableId);
-    const toColumn = ht.column;
-    const newIndex = ht.index;
-
-    if (fromColumn === toColumn) {
-      const colTickets = ticketsForColumn(toColumn);
-      const fromIdx = colTickets.findIndex(t => t.folderName === folderName);
-      if (fromIdx === newIndex) {
-        setActiveId(null);
-        setHoverTarget(null);
-        return;
-      }
-    }
-
-    commitDrop(fromColumn, folderName, toColumn, newIndex);
-  }
-
-  return (
-    <DragDropProvider
-      onDragStart={handleDragStart}
-      onDragMove={handleDragMove}
-      onDragEnd={handleDragEnd}
-      collisionDetector={closestCenter}
-    >
-      <DragDropSensors />
-      <div
-        class="flex gap-4 overflow-x-auto p-4"
-        style={{ "min-height": "calc(100vh - 80px)" }}
-      >
-        <For each={props.board.columns}>
-          {(column) => (
-            <TicketColumn
-              column={column}
-              tickets={ticketsForColumn(column.name)}
-              registerRef={(el) => columnRefs.set(column.name, el)}
-              activeId={activeId()}
-              activeTicket={activeTicket()}
-              hoverTarget={hoverTarget()}
-              onEdit={props.onEdit}
-              onDelete={props.onDelete}
-              onArchive={props.onArchive}
-              onViewDetail={props.onViewDetail}
-            />
-          )}
-        </For>
-        <Show when={orphanedTickets().length > 0}>
-          <OrphanColumn
-            tickets={orphanedTickets()}
-            activeId={activeId()}
-            activeTicket={activeTicket()}
-            hoverTarget={hoverTarget()}
-            onEdit={props.onEdit}
-            onDelete={props.onDelete}
-            onArchive={props.onArchive}
-            onViewDetail={props.onViewDetail}
-          />
-        </Show>
-      </div>
-      <DragOverlay>
-        {() => {
-          const ticket = activeTicket();
-          return (
-            <Show when={ticket}>
-              {(t) => (
-                <DragOverlayCard style={{ width: "250px" }}>
-                  <TicketCard
-                    ticket={t()}
-                    onEdit={() => {}}
-                    onDelete={() => {}}
-                    onArchive={() => {}}
-                    onViewDetail={() => {}}
-                  />
-                </DragOverlayCard>
-              )}
-            </Show>
-          );
-        }}
-      </DragOverlay>
-    </DragDropProvider>
-  );
+	return (
+		<DragDropProvider
+			onDragStart={(e) =>
+				setActiveId(String(e.draggable.id))
+			}
+			onDragMove={(e) => setHoverTarget(
+				computeDragMoveTarget(
+					e, activeId(), columnRefs,
+					currentOrder(), ticketMap(),
+					orphanFolderNames(),
+				),
+			)}
+			onDragEnd={() => {
+				const drop = resolveDrop(
+					activeId(), hoverTarget(),
+					currentOrder(), ticketMap(),
+					orphanFolderNames(),
+				);
+				if (drop) {
+					commitDrop(
+						drop.fromColumn, drop.folderName,
+						drop.toColumn, drop.newIndex,
+						currentOrder(),
+						setOrderOverride, setActiveId,
+						setHoverTarget, props.onReorder,
+					);
+				} else {
+					setActiveId(null);
+					setHoverTarget(null);
+				}
+			}}
+			collisionDetector={closestCenter}
+		>
+			<DragDropSensors />
+			<div
+				class="flex gap-4 overflow-x-auto p-4"
+				style={{ "min-height": "calc(100vh - 80px)" }}
+			>
+				<For each={props.board.columns}>
+					{(column) => (
+						<TicketColumn
+							column={column}
+							tickets={resolveTicketsForColumn(
+								column.name, currentOrder(),
+								ticketMap(), orphanFolderNames(),
+							)}
+							registerRef={(el) =>
+								columnRefs.set(column.name, el)
+							}
+							activeId={activeId()}
+							activeTicket={activeTicket()}
+							hoverTarget={hoverTarget()}
+							onEdit={props.onEdit}
+							onDelete={props.onDelete}
+							onArchive={props.onArchive}
+							onViewDetail={props.onViewDetail}
+						/>
+					)}
+				</For>
+				<Show when={orphanedTickets().length > 0}>
+					<OrphanColumn
+						tickets={orphanedTickets()}
+						activeId={activeId()}
+						activeTicket={activeTicket()}
+						hoverTarget={hoverTarget()}
+						onEdit={props.onEdit}
+						onDelete={props.onDelete}
+						onArchive={props.onArchive}
+						onViewDetail={props.onViewDetail}
+					/>
+				</Show>
+			</div>
+			<DragOverlay>
+				{() => (
+					<Show when={activeTicket()}>
+						{(t) => (
+							<DragOverlayCard
+								style={{ width: "250px" }}
+							>
+								<TicketCard
+									ticket={t()}
+									onEdit={() => {}}
+									onDelete={() => {}}
+									onArchive={() => {}}
+									onViewDetail={() => {}}
+								/>
+							</DragOverlayCard>
+						)}
+					</Show>
+				)}
+			</DragOverlay>
+		</DragDropProvider>
+	);
 }
