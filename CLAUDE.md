@@ -18,3 +18,18 @@ Do not use z-index (Tailwind z-* classes). Use Portal from solid-js/web for stac
 Do not duplicate code. Extract shared logic into reusable helpers.
 Never use bare "slug" as a variable, parameter, property, or type field name. Always qualify it: `projectSlug`, `columnSlug`, `contextFileName`, etc. The only exception is generic slug utility functions like `requireSafeSlug` and `toSlugSegment`. See CONTEXT.md for the full glossary.
 Do not add comments unless explicitly asked.
+
+## Complex component architecture
+
+Split complex components into three layers:
+
+1. Pure functions: stateless data transforms. No signals, no framework imports. Testable with plain unit tests.
+2. Controller factory: a function that owns signals internally and returns reactive accessors and commands. Contains no logic -- just wires signals to the pure functions from layer 1.
+3. Component: thin wiring that connects the controller to the framework and JSX.
+
+Rules:
+- Separate data from behavior. Data types contain only fields. Command types contain only functions. Never mix data and function references in the same type/interface/object.
+- Separate data types by update trigger. Group fields that change together into one type. Cross-cutting derivations are standalone accessors.
+- Treat state as immutable. Signal setters replace, never mutate in place.
+- Do not use effects to clear optimistic overrides when server data arrives. Instead, store the server data reference alongside the override (e.g. `{ order, basedOn: ticketOrder }`), and in the memo check `override.basedOn === currentBase` to decide whether to use the override or fall back.
+- For testability, the component should accept the controller's return values as optional props that default to an internally created controller. In production nobody passes them. In tests, pass a pre-built controller to drive state transitions directly (call commands, read accessors) without simulating DOM events. Keep render tests separate -- they verify DOM output given board data, not state logic.
