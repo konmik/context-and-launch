@@ -21,7 +21,6 @@ vi.mock("../ui/floating-panel", () => ({
   FloatingPanelBody: (props: any) => <div>{props.children}</div>,
   FloatingPanelDragTrigger: (props: any) => <div>{props.children}</div>,
   FloatingPanelResizeTrigger: () => null,
-  FloatingPanelCloseTrigger: (props: any) => <button>{props.children}</button>,
   FloatingPanelTitle: (props: any) => <h2>{props.children}</h2>,
 }));
 

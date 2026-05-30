@@ -2,7 +2,7 @@ import { Show } from "solid-js";
 import {
   FloatingPanelRoot, FloatingPanelHeader, FloatingPanelBody,
   FloatingPanelDragTrigger, FloatingPanelResizeTrigger,
-  FloatingPanelCloseTrigger, FloatingPanelTitle,
+  FloatingPanelTitle,
 } from "../ui/floating-panel";
 import { TabsRoot, TabsList, TabsTrigger } from "../ui/tabs";
 import type { TicketInfo } from "~/server/ticket/ticket-store.js";
@@ -99,7 +99,16 @@ function TicketDetailContent(props: {
                     Launch in worktree
                   </label>
                 </Show>
-                <FloatingPanelCloseTrigger>
+                <button
+                  type="button"
+                  data-no-drag
+                  aria-label="Close Window"
+                  onClick={() => s.close()}
+                  class={
+                    "inline-flex h-8 w-8 items-center justify-center rounded-md "
+                    + "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  }
+                >
                   <svg
                     xmlns="http://www.w3.org/2000/svg" width="16" height="16"
                     viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -107,7 +116,7 @@ function TicketDetailContent(props: {
                   >
                     <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
                   </svg>
-                </FloatingPanelCloseTrigger>
+                </button>
               </div>
             </div>
             <div data-no-drag class="-mx-4 -mb-4">
@@ -204,7 +213,6 @@ function TicketDetailContent(props: {
           </svg>
         </FloatingPanelResizeTrigger>
       </FloatingPanelRoot>
-      </Show>
 
       <DiscardConfirmation
         open={s.confirmingClose()}
@@ -265,6 +273,8 @@ function TicketDetailContent(props: {
         onCancel={s.cancelSizeConfirm}
         onConfirm={s.confirmSizeAndUpload}
       />
+
+      </Show>
 
     </>
   );

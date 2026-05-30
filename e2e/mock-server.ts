@@ -209,6 +209,7 @@ export interface MockServerState {
   onSyncAbort?: (projectSlug: string) => { success: true } | { error: string };
   onResolveConflicts?: (projectSlug: string) => { success: true } | { error: string };
   referenceFileContents?: Record<string, string>;
+  contextContents?: Record<string, string>;
   uploadedFiles?: Record<string, Buffer>;
   failColumnPut?: boolean;
 }
@@ -563,10 +564,26 @@ export function startMockServer(port: number, state: MockServerState): Promise<h
         return;
       }
 
-      // Ticket context content
-      if (pathname.includes("/context/") && req.method === "GET") {
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ content: "" }));
+      // Ticket context content: GET and PUT
+      if (pathname.includes("/context/") && (req.method === "GET" || req.method === "PUT")) {
+        const contextName = pathname.split("/context/")[1];
+        if (req.method === "GET") {
+          const content = state.contextContents?.[contextName] ?? "";
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ content }));
+          return;
+        }
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk: Buffer) => chunks.push(chunk));
+        req.on("end", () => {
+          try {
+            const body = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+            if (!state.contextContents) state.contextContents = {};
+            state.contextContents[contextName] = body.content;
+          } catch {}
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ ok: true }));
+        });
         return;
       }
 

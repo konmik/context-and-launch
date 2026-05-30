@@ -13,6 +13,7 @@ import {
   isReadOnly,
   checkReferenceStale,
   hasUnsavedEditorChanges,
+  normalizeLineEndings,
   slugifyFileName,
   wouldOverwrite,
   ticketApiUrl,
@@ -153,7 +154,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     try {
       const res = await fetch(url);
       if (res.ok) {
-        const text = await res.text();
+        const text = normalizeLineEndings(await res.text());
         setContent(text); setSavedContent(text);
       }
       else { setContent(""); setSavedContent(""); }
@@ -221,7 +222,8 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
         const res = await fetch(ticketUrl(`context/${af.name}`));
         if (res.ok) {
           const data = await res.json();
-          setContent(data.content); setSavedContent(data.content);
+          const normalized = normalizeLineEndings(data.content);
+          setContent(normalized); setSavedContent(normalized);
         }
         else { setContent(""); setSavedContent(""); }
       } catch (e) {
