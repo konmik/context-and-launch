@@ -113,6 +113,19 @@ export class AgentWorktreeManager {
 				await git(projectPath, 'pull', '--no-rebase');
 			} else {
 				await git(projectPath, 'fetch', 'origin', mainBranch);
+				const localRef = (await git(projectPath, 'rev-parse', mainBranch)).trim();
+				const remoteRef = (await git(projectPath, 'rev-parse', `origin/${mainBranch}`)).trim();
+				if (localRef !== remoteRef) {
+					const aheadCount = (await git(
+						projectPath, 'rev-list', `origin/${mainBranch}..${mainBranch}`, '--count',
+					)).trim();
+					if (parseInt(aheadCount, 10) > 0) {
+						throw new Error(
+							`Local '${mainBranch}' has ${aheadCount} unpushed commit(s). `
+							+ `Push them (git push) or reset (git branch -f ${mainBranch} origin/${mainBranch}) first.`,
+						);
+					}
+				}
 				await git(projectPath, 'branch', '-f', mainBranch, `origin/${mainBranch}`);
 			}
 		} catch (e) {

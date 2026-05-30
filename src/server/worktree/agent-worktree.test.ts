@@ -945,6 +945,47 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
+	it('pullMainBranch discards unpushed local commits on main when on feature branch', async () => {
+		const bareDir = tmpDir('awm-bare-discard-');
+		dirs.push(bareDir);
+		execSync('git init --bare -b main', { cwd: bareDir, timeout: 5000 });
+
+		const projectDir = tmpDir('awm-discard-');
+		dirs.push(projectDir);
+		execSync(`git clone "${bareDir}" "${projectDir}"`, { timeout: 5000 });
+		execSync('git config user.email "test@test.com"', { cwd: projectDir, timeout: 5000 });
+		execSync('git config user.name "Test"', { cwd: projectDir, timeout: 5000 });
+		fs.writeFileSync(path.join(projectDir, 'README.md'), '# test');
+		execSync('git add .', { cwd: projectDir, timeout: 5000 });
+		execSync('git commit -m "init"', { cwd: projectDir, timeout: 5000 });
+		execSync('git push -u origin main', { cwd: projectDir, timeout: 5000 });
+
+		fs.writeFileSync(path.join(projectDir, 'local-only.txt'), 'unpushed work');
+		execSync('git add .', { cwd: projectDir, timeout: 5000 });
+		execSync('git commit -m "local unpushed commit"', { cwd: projectDir, timeout: 5000 });
+
+		const localCommit = execSync('git rev-parse main', { cwd: projectDir, timeout: 5000 }).toString().trim();
+		const remoteCommit = execSync(
+			'git rev-parse origin/main', { cwd: projectDir, timeout: 5000 },
+		).toString().trim();
+		expect(localCommit).not.toBe(remoteCommit);
+
+		execSync('git checkout -b feature-work', { cwd: projectDir, timeout: 5000 });
+
+		const configDir = tmpDir('awm-config-discard-');
+		dirs.push(configDir);
+		const awmPaths = new ConfigPaths(configDir);
+		const lcm = new LauncherConfigManager(awmPaths);
+		const awm = new AgentWorktreeManager(lcm, awmPaths);
+
+		const error = await awm.pullMainBranch(projectDir).catch((e: Error) => e);
+		expect(error).toBeInstanceOf(Error);
+		expect((error as Error).message).toMatch(/unpushed/i);
+
+		const mainAfter = execSync('git rev-parse main', { cwd: projectDir, timeout: 5000 }).toString().trim();
+		expect(mainAfter).toBe(localCommit);
+	});
+
 	it('isWorktreeBusy returns false for an unoccupied directory', async () => {
 		const { projectDir, awm } = setup();
 		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-busy-free');
