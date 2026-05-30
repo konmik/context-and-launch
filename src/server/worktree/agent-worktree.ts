@@ -163,7 +163,10 @@ export class AgentWorktreeManager {
 		await git(projectPath, 'worktree', 'prune');
 		const existing = await this.worktreePathForBranch(projectPath, branchName);
 		if (existing && canonicalize(existing) !== canonicalize(targetWorktreePath)) {
-			await git(projectPath, 'worktree', 'remove', '--force', existing);
+			throw new Error(
+				`Branch '${branchName}' is already checked out at ${existing}.`
+				+ ` Remove that worktree first (git worktree remove "${existing}").`,
+			);
 		}
 	}
 
