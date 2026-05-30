@@ -231,7 +231,7 @@ describe('WorktreeManager', () => {
 		expect(currentCommit).toBe(commitHash);
 	});
 
-	it('takes over the ticket branch from a stale worktree at another location', async () => {
+	it('errors when ticket branch is checked out at a different worktree location', async () => {
 		const configDir = tmpDir('wt-config-');
 		const staleConfigDir = tmpDir('wt-stale-');
 		const projectDir = tmpDir('wt-project-');
@@ -240,24 +240,20 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'init');
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
-		// A different data dir already checked out the branch (simulates an old data dir)
 		const staleManager = new WorktreeManager(new ConfigPaths(staleConfigDir));
 		const staleWt = await staleManager.ensureWorktree(projectDir, 'ai-stages', 'tickets');
 		worktreeCleanups.push([projectDir, staleWt]);
 		expect(fs.existsSync(staleWt)).toBe(true);
 
-		// The current data dir wants the same branch -- it should take over, not fail
 		const manager = new WorktreeManager(new ConfigPaths(configDir));
-		const wt = await manager.ensureWorktree(projectDir, 'ai-stages', 'tickets');
-		worktreeCleanups.push([projectDir, wt]);
+		await expect(
+			manager.ensureWorktree(projectDir, 'ai-stages', 'tickets')
+		).rejects.toThrow(/already checked out at/);
 
-		expect(path.resolve(wt)).not.toBe(path.resolve(staleWt));
-		expect(fs.existsSync(path.join(wt, '.git'))).toBe(true);
-		expect((await git(wt, 'rev-parse', '--abbrev-ref', 'HEAD')).trim()).toBe('tickets');
-		expect(fs.existsSync(staleWt)).toBe(false);
+		expect(fs.existsSync(staleWt)).toBe(true);
 	});
 
-	it('recovers stale worktree with removed gitdir target', async () => {
+	it('errors when worktree directory exists but gitdir target is missing', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		dirs.push(configDir, projectDir);
@@ -275,16 +271,11 @@ describe('WorktreeManager', () => {
 		const gitDirRel = content.replace(/^gitdir:\s*/, '');
 		const gitDir = path.resolve(worktreeDir, gitDirRel);
 		fs.rmSync(gitDir, { recursive: true, force: true });
-		expect(fs.existsSync(gitDir)).toBe(false);
 
-		const recreated = await manager.ensureWorktree(projectDir, 'stale-project');
-		expect(fs.existsSync(recreated)).toBe(true);
-		const newDotGit = path.join(recreated, '.git');
-		expect(fs.statSync(newDotGit).isFile()).toBe(true);
-		const newContent = fs.readFileSync(newDotGit, 'utf-8').trim();
-		const newGitDirRel = newContent.replace(/^gitdir:\s*/, '');
-		const newGitDir = path.resolve(recreated, newGitDirRel);
-		expect(fs.existsSync(newGitDir)).toBe(true);
+		await expect(
+			manager.ensureWorktree(projectDir, 'stale-project')
+		).rejects.toThrow(/invalid git metadata/);
+		expect(fs.existsSync(worktreeDir)).toBe(true);
 	});
 
 	it('git with non-zero exit code includes stderr in exception message', async () => {
@@ -316,7 +307,7 @@ describe('WorktreeManager', () => {
 		expect(fs.existsSync(path.join(a, '.git'))).toBe(true);
 	});
 
-	it('recovers from partial orphan branch creation failure', async () => {
+	it('errors when partial orphan creation left invalid worktree directory', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		dirs.push(configDir, projectDir);
@@ -328,36 +319,23 @@ describe('WorktreeManager', () => {
 		const projectsDir = path.join(configDir, 'projects', 'partial-project');
 		const worktreeDir = path.join(projectsDir, 'tickets');
 
-		// Simulate the orphan creation path partially completing: step 1
-		// (git worktree add --orphan) succeeds but step 2 (git commit) fails.
-		// The worktree directory is left behind with a valid .git file, but the
-		// tickets branch is in "born" state (no commits).
 		fs.mkdirSync(projectsDir, { recursive: true });
 		await git(projectDir, 'worktree', 'add', '--orphan', '-b', 'tickets', worktreeDir);
-		// Do NOT commit -- this simulates the failure after step 1.
+		worktreeCleanups.push([projectDir, worktreeDir]);
 
-		// Remove the .git file so isValidWorktree returns false, forcing
-		// the recovery path (rmSync + prune + re-create). The re-creation
-		// must handle the tickets branch already existing in born state.
 		const dotGit = path.join(worktreeDir, '.git');
 		const content = fs.readFileSync(dotGit, 'utf-8').trim();
 		const gitDirRel = content.replace(/^gitdir:\s*/, '');
 		const gitDir = path.resolve(worktreeDir, gitDirRel);
 		fs.rmSync(gitDir, { recursive: true, force: true });
 
-		// ensureWorktree should detect the invalid worktree, remove it,
-		// prune stale entries, and re-create everything from scratch.
-		const recovered = await manager.ensureWorktree(projectDir, 'partial-project');
-		worktreeCleanups.push([projectDir, recovered]);
-
-		expect(fs.existsSync(recovered)).toBe(true);
-		expect(fs.existsSync(path.join(recovered, '.git'))).toBe(true);
-
-		// The worktree should be fully functional
-		await git(recovered, 'commit', '--allow-empty', '-m', 'recovery commit');
+		await expect(
+			manager.ensureWorktree(projectDir, 'partial-project')
+		).rejects.toThrow(/invalid git metadata/);
+		expect(fs.existsSync(worktreeDir)).toBe(true);
 	});
 
-	it('recreates worktree when directory exists but .git file is missing', async () => {
+	it('errors when worktree directory exists but .git file is missing', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		dirs.push(configDir, projectDir);
@@ -370,18 +348,13 @@ describe('WorktreeManager', () => {
 		worktreeCleanups.push([projectDir, worktreeDir]);
 		expect(fs.existsSync(path.join(worktreeDir, '.git'))).toBe(true);
 
-		// Simulate manual deletion of the .git file only
 		fs.unlinkSync(path.join(worktreeDir, '.git'));
-		expect(fs.existsSync(path.join(worktreeDir, '.git'))).toBe(false);
 		expect(fs.existsSync(worktreeDir)).toBe(true);
 
-		// ensureWorktree should detect the invalid state, clean up, and recreate
-		const recreated = await manager.ensureWorktree(projectDir, 'dotgit-missing-project');
-		expect(fs.existsSync(recreated)).toBe(true);
-		expect(fs.existsSync(path.join(recreated, '.git'))).toBe(true);
-
-		// Verify the worktree is functional
-		await git(recreated, 'commit', '--allow-empty', '-m', 'post-recovery commit');
+		await expect(
+			manager.ensureWorktree(projectDir, 'dotgit-missing-project')
+		).rejects.toThrow(/invalid git metadata/);
+		expect(fs.existsSync(worktreeDir)).toBe(true);
 	});
 
 	it('handles missing project path', async () => {
@@ -439,7 +412,7 @@ describe('WorktreeManager', () => {
 		expect(() => manager.getWorktreeDir('project-123')).not.toThrow();
 	});
 
-	it('detects unusable worktree left by failed commit during orphan creation', async () => {
+	it('errors when worktree has valid .git but unresolvable HEAD (born branch)', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		dirs.push(configDir, projectDir);
@@ -451,39 +424,17 @@ describe('WorktreeManager', () => {
 		const projectsDir = path.join(configDir, 'projects', 'broken-project');
 		const worktreeDir = path.join(projectsDir, 'tickets');
 
-		// Simulate: orphan branch creation succeeded but commit failed.
-		// The worktree directory exists with a valid .git pointer, but the
-		// branch 'tickets' is in "born" state (no commits).
 		fs.mkdirSync(projectsDir, { recursive: true });
 		await git(projectDir, 'worktree', 'add', '--orphan', '-b', 'tickets', worktreeDir);
-		// Do NOT commit -- simulates the commit failure after orphan creation
+		worktreeCleanups.push([projectDir, worktreeDir]);
 
-		// Verify the .git pointer is valid (isValidWorktree would return true)
-		const dotGit = path.join(worktreeDir, '.git');
-		expect(fs.existsSync(dotGit)).toBe(true);
-		const content = fs.readFileSync(dotGit, 'utf-8').trim();
-		const gitDirRel = content.replace(/^gitdir:\s*/, '');
-		const gitDir = path.resolve(worktreeDir, gitDirRel);
-		expect(fs.existsSync(gitDir)).toBe(true);
-
-		// Now call ensureWorktree. It should NOT silently return the broken
-		// worktree that is on the wrong branch with no commits.
-		// It should detect the problem and repair/recreate.
-		const result = await manager.ensureWorktree(projectDir, 'broken-project');
-		worktreeCleanups.push([projectDir, result]);
-
-		expect(fs.existsSync(result)).toBe(true);
-		expect(fs.existsSync(path.join(result, '.git'))).toBe(true);
-
-		// The worktree must be on the ticket branch
-		const branch = (await git(result, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
-		expect(branch).toBe('tickets');
-
-		// The recovered worktree must be functional -- we can commit to it
-		await git(result, 'commit', '--allow-empty', '-m', 'verify functional');
+		await expect(
+			manager.ensureWorktree(projectDir, 'broken-project')
+		).rejects.toThrow(/invalid git metadata/);
+		expect(fs.existsSync(worktreeDir)).toBe(true);
 	});
 
-	it('error propagates when git worktree prune fails during recovery of invalid worktree', async () => {
+	it('preserves worktree directory when erroring on invalid metadata', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		dirs.push(configDir, projectDir);
@@ -495,43 +446,15 @@ describe('WorktreeManager', () => {
 		const worktreeDir = await manager.ensureWorktree(projectDir, 'prune-fail-project');
 		worktreeCleanups.push([projectDir, worktreeDir]);
 
-		// Break the worktree so isValidWorktree returns false:
-		// Remove the .git file from the worktree directory
 		const dotGit = path.join(worktreeDir, '.git');
 		fs.unlinkSync(dotGit);
-		expect(fs.existsSync(dotGit)).toBe(false);
 		expect(fs.existsSync(worktreeDir)).toBe(true);
 
-		// Now corrupt the project's .git/worktrees directory so that
-		// 'git worktree prune' will fail. Replace the worktrees directory
-		// with a file (git expects it to be a directory).
-		const gitDir = path.join(projectDir, '.git');
-		const worktreesGitDir = path.join(gitDir, 'worktrees');
-		// Remove the existing worktrees directory
-		fs.rmSync(worktreesGitDir, { recursive: true, force: true });
-		// Create a file in its place to confuse git
-		fs.writeFileSync(worktreesGitDir, 'corrupted');
-
-		// ensureWorktree should propagate the error from prune, not swallow it.
-		// The directory gets rmSync'd first (step 1 succeeds), then prune fails.
 		await expect(
 			manager.ensureWorktree(projectDir, 'prune-fail-project')
-		).rejects.toThrow();
+		).rejects.toThrow(/invalid git metadata/);
 
-		// After the error, verify the worktree directory was already removed
-		// (step 1 succeeded before step 2 failed). This confirms half-deleted
-		// state -- but the error correctly propagated so the caller knows.
-		expect(fs.existsSync(worktreeDir)).toBe(false);
-
-		// Restore the worktrees dir so a retry could succeed (proving
-		// the state is recoverable even though error propagated)
-		fs.unlinkSync(worktreesGitDir);
-		fs.mkdirSync(worktreesGitDir, { recursive: true });
-
-		// Retry should now succeed since directory is gone and prune works
-		const retried = await manager.ensureWorktree(projectDir, 'prune-fail-project');
-		expect(fs.existsSync(retried)).toBe(true);
-		expect(fs.existsSync(path.join(retried, '.git'))).toBe(true);
+		expect(fs.existsSync(worktreeDir)).toBe(true);
 	});
 
 	it('three sequential calls to same projectSlug after first fails: lock chain does not deadlock', async () => {

@@ -185,7 +185,7 @@ export class AgentWorktreeManager {
 	}
 
 	async deleteLocalBranch(projectPath: string, branchName: string): Promise<void> {
-		await git(projectPath, 'branch', '-D', branchName);
+		await git(projectPath, 'branch', '-d', branchName);
 	}
 
 	async deleteRemoteBranch(projectPath: string, branchName: string): Promise<void> {
