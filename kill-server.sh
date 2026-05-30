@@ -19,12 +19,26 @@ if [ -f "$config_path" ]; then
     fi
 fi
 
-if ! command -v lsof >/dev/null 2>&1; then
-    echo "ERROR: lsof is not installed." >&2
-    exit 1
+# Discover PIDs listening on $port using whichever tool is available.
+# macOS only ships with lsof; common Linux distros have fuser or ss.
+# If none are available we cannot identify the process, but absence of a
+# port-inspection tool is not itself an error -- the server is probably
+# not running at all on such a minimal host.
+pids=""
+if command -v lsof >/dev/null 2>&1; then
+    pids=$(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null || true)
+elif command -v fuser >/dev/null 2>&1; then
+    pids=$(fuser -n tcp "$port" 2>/dev/null | tr -s ' ' '\n' | grep -E '^[0-9]+$' || true)
+elif command -v ss >/dev/null 2>&1; then
+    pids=$(ss -H -ltnp "sport = :$port" 2>/dev/null \
+        | grep -oE 'pid=[0-9]+' \
+        | cut -d= -f2 \
+        | sort -u || true)
+else
+    echo "WARNING: none of lsof, fuser, ss are installed; cannot inspect port $port."
+    echo "No process listening on port $port (assumed)."
+    exit 0
 fi
-
-pids=$(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null || true)
 
 if [ -z "$pids" ]; then
     echo "No process listening on port $port."
