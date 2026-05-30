@@ -3,8 +3,8 @@ import {
   isImage, isText, activeFileLabel, isActiveFileMatch,
   buildContextOptions, buildFileEntryOptions, buildReferenceOptions,
   buildAllFileOptions, isReadOnly, checkReferenceStale,
-  hasUnsavedEditorChanges, slugifyFileName, wouldOverwrite,
-  ticketApiUrl, resolveFileViewMode, showSaveButton,
+  hasUnsavedEditorChanges, normalizeLineEndings, slugifyFileName,
+  wouldOverwrite, ticketApiUrl, resolveFileViewMode, showSaveButton,
 } from "./ticket-detail-pure.js";
 
 describe("isImage", () => {
@@ -164,6 +164,21 @@ describe("hasUnsavedEditorChanges", () => {
   });
   it("returns false when viewing image", () => {
     expect(hasUnsavedEditorChanges("editor", "image", false, "new", "old")).toBe(false);
+  });
+});
+
+describe("normalizeLineEndings", () => {
+  it("converts CRLF to LF", () => {
+    expect(normalizeLineEndings("a\r\nb\r\n")).toBe("a\nb\n");
+  });
+  it("preserves LF-only content", () => {
+    expect(normalizeLineEndings("a\nb\n")).toBe("a\nb\n");
+  });
+  it("handles empty string", () => {
+    expect(normalizeLineEndings("")).toBe("");
+  });
+  it("handles string without newlines", () => {
+    expect(normalizeLineEndings("hello")).toBe("hello");
   });
 });
 
