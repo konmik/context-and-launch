@@ -65,9 +65,40 @@ if (-not $portInUse) {
         }
     }
 
-    # Build if needed
+    # Build if needed: missing .output or any source file newer than the built entry.
+    function Test-OutputStale {
+        $marker = ".output/server/index.mjs"
+        if (-not (Test-Path $marker)) { return $true }
+        $markerTime = (Get-Item $marker).LastWriteTime
+        $sources = @("src", "app.config.ts", "package.json", "package-lock.json")
+        foreach ($s in $sources) {
+            if (-not (Test-Path $s)) { continue }
+            $newer = Get-ChildItem -Path $s -Recurse -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.LastWriteTime -gt $markerTime } |
+                Select-Object -First 1
+            if ($newer) { return $true }
+        }
+        return $false
+    }
+
+    $buildReason = ""
     if (-not (Test-Path ".output")) {
-        Write-Host "Building application..."
+        $buildReason = "missing"
+    } elseif (Test-OutputStale) {
+        $buildReason = "stale"
+    }
+
+    if ($buildReason) {
+        if ($buildReason -eq "stale") {
+            Write-Host "Source files are newer than .output, rebuilding..."
+        } else {
+            Write-Host "Building application..."
+        }
+        if ($env:RUN_SH_DRY_RUN -eq "1") {
+            Write-Host "DRY_RUN: BUILD=yes REASON=$buildReason"
+            Pop-Location
+            exit 0
+        }
         npx vinxi build
         if ($LASTEXITCODE -ne 0) {
             Write-Host "ERROR: Build failed."
@@ -75,6 +106,10 @@ if (-not $portInUse) {
             Read-Host "Press Enter to exit"
             exit 1
         }
+    } elseif ($env:RUN_SH_DRY_RUN -eq "1") {
+        Write-Host "DRY_RUN: BUILD=no"
+        Pop-Location
+        exit 0
     }
 
     # Start server hidden
