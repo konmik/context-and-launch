@@ -1,24 +1,33 @@
 import { execFile } from "child_process";
 import { withService } from "~/server/shared/route-helpers.js";
 
-function runPicker(exe: string, encoded: string): Promise<{ ran: boolean; path?: string }> {
+interface PickerResult {
+	available: boolean;
+	path?: string;
+}
+
+function runWindowsPicker(exe: string, encoded: string): Promise<PickerResult> {
 	return new Promise((resolve) => {
 		execFile(
 			exe,
 			["-NoProfile", "-EncodedCommand", encoded],
-			{ timeout: 60000 },
+			{ timeout: 600000 },
 			(err, stdout) => {
 				if (err) {
-					resolve({ ran: (err as NodeJS.ErrnoException).code !== "ENOENT" });
+					if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+						resolve({ available: false });
+						return;
+					}
+					resolve({ available: true });
 					return;
 				}
-				resolve({ ran: true, path: stdout.trim() });
-			}
+				resolve({ available: true, path: stdout.trim() });
+			},
 		);
 	});
 }
 
-function buildPickerScript(preselect: string): string {
+function buildWindowsPickerScript(preselect: string): string {
 	const selectedPath = preselect
 		? `$d.SelectedPath = '${preselect.replace(/'/g, "''")}'\n`
 		: "";
@@ -31,11 +40,104 @@ ${selectedPath}if ($d.ShowDialog() -eq 'OK') { $d.SelectedPath } else { exit 1 }
 `;
 }
 
+function runMacPicker(preselect: string): Promise<PickerResult> {
+	const escaped = preselect.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+	const defaultLoc = preselect
+		? ` default location POSIX file "${escaped}"`
+		: "";
+	const script =
+		`POSIX path of (choose folder with prompt "Select directory"${defaultLoc})`;
+	return new Promise((resolve) => {
+		execFile(
+			"osascript",
+			["-e", script],
+			{ timeout: 600000 },
+			(err, stdout) => {
+				if (err) {
+					if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+						resolve({ available: false });
+						return;
+					}
+					resolve({ available: true });
+					return;
+				}
+				const picked = stdout.trim().replace(/\/$/, "");
+				resolve({ available: true, path: picked });
+			},
+		);
+	});
+}
+
+function runZenity(preselect: string): Promise<PickerResult> {
+	const args = ["--file-selection", "--directory", "--title=Select directory"];
+	if (preselect) args.push(`--filename=${preselect.replace(/\/?$/, "/")}`);
+	return new Promise((resolve) => {
+		execFile("zenity", args, { timeout: 600000 }, (err, stdout) => {
+			if (err) {
+				if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+					resolve({ available: false });
+					return;
+				}
+				resolve({ available: true });
+				return;
+			}
+			resolve({ available: true, path: stdout.trim() });
+		});
+	});
+}
+
+function runKdialog(preselect: string): Promise<PickerResult> {
+	const start = preselect || process.env.HOME || "/";
+	return new Promise((resolve) => {
+		execFile(
+			"kdialog",
+			["--getexistingdirectory", start],
+			{ timeout: 600000 },
+			(err, stdout) => {
+				if (err) {
+					if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+						resolve({ available: false });
+						return;
+					}
+					resolve({ available: true });
+					return;
+				}
+				resolve({ available: true, path: stdout.trim() });
+			},
+		);
+	});
+}
+
+async function pickByPlatform(preselect: string): Promise<PickerResult> {
+	if (process.platform === "darwin") {
+		return runMacPicker(preselect);
+	}
+	if (process.platform === "win32") {
+		const encoded = Buffer.from(
+			buildWindowsPickerScript(preselect),
+			"utf16le",
+		).toString("base64");
+		const first = await runWindowsPicker("pwsh", encoded);
+		if (first.available) return first;
+		return runWindowsPicker("powershell", encoded);
+	}
+	const zen = await runZenity(preselect);
+	if (zen.available) return zen;
+	return runKdialog(preselect);
+}
+
 export const GET = withService(async ({ request }) => {
 	const preselect = new URL(request.url).searchParams.get("path") ?? "";
-	const encoded = Buffer.from(buildPickerScript(preselect), "utf16le").toString("base64");
-	let result = await runPicker("pwsh", encoded);
-	if (!result.ran) result = await runPicker("powershell", encoded);
+	const result = await pickByPlatform(preselect);
 	if (result.path) return Response.json({ path: result.path });
-	return new Response("No directory selected", { status: 204 });
+	if (result.available) {
+		return new Response("No directory selected", { status: 204 });
+	}
+	return Response.json(
+		{
+			error: `No directory picker is available on ${process.platform}. ` +
+				"Install zenity or kdialog (Linux), or paste the path manually.",
+		},
+		{ status: 501 },
+	);
 });
