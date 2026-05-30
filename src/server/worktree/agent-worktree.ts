@@ -96,6 +96,7 @@ export class AgentWorktreeManager {
 
 		const branchList = await git(projectPath, 'branch', '--list', branchName);
 		if (branchList.trim()) {
+			await this.releaseBranchFromOtherWorktree(projectPath, worktreePath, branchName);
 			await git(projectPath, 'worktree', 'add', worktreePath, branchName);
 		} else {
 			await git(projectPath, 'worktree', 'add', '-b', branchName, worktreePath, mainBranch);
@@ -154,6 +155,26 @@ export class AgentWorktreeManager {
 				resolve(lines.length > 0);
 			});
 		});
+	}
+
+	private async releaseBranchFromOtherWorktree(
+		projectPath: string, targetWorktreePath: string, branchName: string,
+	): Promise<void> {
+		await git(projectPath, 'worktree', 'prune');
+		const existing = await this.worktreePathForBranch(projectPath, branchName);
+		if (existing && canonicalize(existing) !== canonicalize(targetWorktreePath)) {
+			await git(projectPath, 'worktree', 'remove', '--force', existing);
+		}
+	}
+
+	private async worktreePathForBranch(projectPath: string, branchName: string): Promise<string | null> {
+		const out = await git(projectPath, 'worktree', 'list', '--porcelain');
+		let currentPath: string | null = null;
+		for (const line of out.split('\n')) {
+			if (line.startsWith('worktree ')) currentPath = line.slice('worktree '.length).trim();
+			else if (line.trim() === `branch refs/heads/${branchName}` && currentPath) return currentPath;
+		}
+		return null;
 	}
 
 	async removeWorktree(projectPath: string, worktreePath: string): Promise<void> {

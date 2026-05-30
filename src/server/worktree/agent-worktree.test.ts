@@ -594,8 +594,7 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it('branch already checked out in another worktree:'
-		+ ' changing worktreeRootPath causes git to refuse duplicate checkout', async () => {
+	it('branch checked out in another worktree: releases old worktree and succeeds at new path', async () => {
 		const configDir = tmpDir('awm-config-dup-');
 		const projectDir = tmpDir('awm-project-dup-');
 		const worktreeRootA = tmpDir('awm-wt-A-');
@@ -615,34 +614,61 @@ describe('AgentWorktreeManager', () => {
 		const awm = new AgentWorktreeManager(lcm, paths);
 		const folderName = 'st-dup-branch';
 
-		// First call: creates worktree at path A with branch ai/st-dup-branch
 		const result1 = await awm.ensureAgentWorktree(projectDir, 'dup-proj', folderName);
 		expect('worktreePath' in result1).toBe(true);
-		if ('worktreePath' in result1) {
-			expect(fs.existsSync(result1.worktreePath)).toBe(true);
-		}
 
-		// Verify the branch exists
-		const branchCheck = execSync(
-			'git branch --list ai/st-dup-branch', { cwd: projectDir, timeout: 5000 },
-		).toString();
-		expect(branchCheck.trim()).toBeTruthy();
-
-		// Change worktreeRootPath to path B (simulating user config change)
 		lcm.saveProjectConfig('dup-proj', {
 			templates: [],
 			skills: [],
 			worktreeRootPath: worktreeRootB,
 		});
 
-		// Second call: worktree at path B does not exist, branch ai/st-dup-branch exists,
-		// so it tries `git worktree add <pathB>/st-dup-branch ai/st-dup-branch`.
-		// Git should refuse because the branch is already checked out in worktree A.
-		const error = await awm.ensureAgentWorktree(projectDir, 'dup-proj', folderName)
-			.catch((e: Error) => e);
+		const result2 = await awm.ensureAgentWorktree(projectDir, 'dup-proj', folderName);
+		expect('worktreePath' in result2).toBe(true);
+		if ('worktreePath' in result2) {
+			expect(fs.existsSync(result2.worktreePath)).toBe(true);
+			expect(result2.worktreePath.replace(/\\/g, '/')).toContain(worktreeRootB.replace(/\\/g, '/'));
+		}
+	});
 
-		expect(error).toBeInstanceOf(Error);
-		expect((error as Error).message).toMatch(/already checked out|is already used by worktree/i);
+	it('stale worktree reference is pruned when old directory no longer exists', async () => {
+		const configDir = tmpDir('awm-config-stale-');
+		const projectDir = tmpDir('awm-project-stale-');
+		const worktreeRootA = tmpDir('awm-wt-A-');
+		const worktreeRootB = tmpDir('awm-wt-B-');
+		dirs.push(configDir, projectDir, worktreeRootA, worktreeRootB);
+
+		initGitRepo(projectDir);
+
+		const paths = new ConfigPaths(configDir);
+		const lcm = new LauncherConfigManager(paths);
+		lcm.saveProjectConfig('stale-proj', {
+			templates: [],
+			skills: [],
+			worktreeRootPath: worktreeRootA,
+		});
+
+		const awm = new AgentWorktreeManager(lcm, paths);
+		const folderName = 'st-stale-ref';
+
+		const result1 = await awm.ensureAgentWorktree(projectDir, 'stale-proj', folderName);
+		expect('worktreePath' in result1).toBe(true);
+
+		if ('worktreePath' in result1) {
+			fs.rmSync(result1.worktreePath, { recursive: true, force: true });
+		}
+
+		lcm.saveProjectConfig('stale-proj', {
+			templates: [],
+			skills: [],
+			worktreeRootPath: worktreeRootB,
+		});
+
+		const result2 = await awm.ensureAgentWorktree(projectDir, 'stale-proj', folderName);
+		expect('worktreePath' in result2).toBe(true);
+		if ('worktreePath' in result2) {
+			expect(fs.existsSync(result2.worktreePath)).toBe(true);
+		}
 	});
 
 	it('rev-list returns non-numeric output: parseInt produces NaN,'
