@@ -141,7 +141,8 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it('Windows backslash worktreeRootPath: worktree created, existence check matches on re-call,'
+	it.skipIf(process.platform !== 'win32')('Windows backslash worktreeRootPath:'
+		+ ' worktree created, existence check matches on re-call,'
 		+ ' returned path uses mixed separators', async () => {
 		const configDir = tmpDir('awm-config-');
 		const projectDir = tmpDir('awm-project-');

@@ -205,7 +205,9 @@ describe('TicketSyncManager', () => {
 		// Install a pre-rebase hook that refuses the rebase. This makes `git rebase`
 		// fail for a non-conflict reason and leaves no in-progress rebase.
 		const hooksDir = path.join(worktreeDir, '.git', 'hooks');
-		fs.writeFileSync(path.join(hooksDir, 'pre-rebase'), '#!/bin/sh\nexit 1\n');
+		const hookPath = path.join(hooksDir, 'pre-rebase');
+		fs.writeFileSync(hookPath, '#!/bin/sh\nexit 1\n');
+		fs.chmodSync(hookPath, 0o755);
 
 		// A local change so sync commits and then attempts to rebase.
 		fs.writeFileSync(path.join(worktreeDir, 'local.txt'), 'local content');
