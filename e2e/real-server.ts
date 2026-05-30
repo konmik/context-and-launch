@@ -10,10 +10,19 @@ export interface RealServer {
   baseUrl: string;
 }
 
-export async function startRealServer(port: number, dataDir: string): Promise<RealServer> {
+export async function startRealServer(
+  port: number,
+  dataDir: string,
+  extraEnv: NodeJS.ProcessEnv = {},
+): Promise<RealServer> {
   const baseUrl = `http://localhost:${port}`;
   const proc = spawn(process.execPath, [SERVER_ENTRY], {
-    env: { ...process.env, PORT: String(port), CONTEXT_LAUNCH_DATA_DIR: dataDir },
+    env: {
+      ...process.env,
+      PORT: String(port),
+      CONTEXT_LAUNCH_DATA_DIR: dataDir,
+      ...extraEnv,
+    },
     stdio: ["ignore", "ignore", "pipe"],
   });
   let stderr = "";

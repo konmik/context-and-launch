@@ -47,7 +47,12 @@ export function createAddProjectController(deps: AddProjectControllerDeps) {
   async function pickDirectory(current: string): Promise<string | null> {
     try {
       const res = await fetch(`/api/pick-directory?path=${encodeURIComponent(current)}`);
-      if (!res.ok) return null;
+      if (res.status === 204) return null;
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setLocalError(body?.error ?? `Directory picker failed (${res.status})`);
+        return null;
+      }
       const { path } = await res.json();
       return path;
     } catch (err: any) {

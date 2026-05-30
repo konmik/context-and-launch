@@ -57,7 +57,12 @@ export function GeneralTab(props: {
 							onClick={async () => {
 								try {
 									const res = await fetch("/api/pick-directory");
-									if (!res.ok) return;
+									if (res.status === 204) return;
+									if (!res.ok) {
+										const body = await res.json().catch(() => ({}));
+										props.setError(body?.error ?? `Directory picker failed (${res.status})`);
+										return;
+									}
 									const { path } = await res.json();
 									props.setWorktreeRootPath(path);
 									props.saveWorktreeRootPath();
