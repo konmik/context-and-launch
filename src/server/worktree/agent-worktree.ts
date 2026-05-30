@@ -1,9 +1,26 @@
+import fs from 'fs';
+import path from 'path';
 import { rename } from 'fs/promises';
 import { exec } from 'child_process';
 import { git } from '../infra/git.js';
 import { ProcessError } from '../shared/errors.js';
 import type { LauncherConfigManager } from '../launcher/launcher-config.js';
 import type { ConfigPaths } from '../config/config-paths.js';
+
+function canonicalize(p: string): string {
+	const slashed = p.replace(/\\/g, '/');
+	try {
+		return fs.realpathSync(slashed);
+	} catch {
+		try {
+			const parent = path.posix.dirname(slashed);
+			const base = path.posix.basename(slashed);
+			return `${fs.realpathSync(parent)}/${base}`;
+		} catch {
+			return slashed;
+		}
+	}
+}
 
 export interface WorktreeResult {
 	worktreePath: string;
@@ -65,12 +82,12 @@ export class AgentWorktreeManager {
 		}
 
 		const worktreeListOutput = await git(projectPath, 'worktree', 'list', '--porcelain');
-		const normalizedTarget = worktreePath.replace(/\\/g, '/');
+		const normalizedTarget = canonicalize(worktreePath);
 		const alreadyExists = worktreeListOutput
 			.split('\n')
 			.some(line =>
 				line.startsWith('worktree ') &&
-				line.slice('worktree '.length).trim().replace(/\\/g, '/') === normalizedTarget
+				canonicalize(line.slice('worktree '.length).trim()) === normalizedTarget
 			);
 
 		if (alreadyExists) {
@@ -92,7 +109,7 @@ export class AgentWorktreeManager {
 			const mainBranch = await this.getMainBranch(projectPath);
 			const currentBranch = (await git(projectPath, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
 			if (currentBranch === mainBranch) {
-				await git(projectPath, 'pull');
+				await git(projectPath, 'pull', '--no-rebase');
 			} else {
 				await git(projectPath, 'fetch', 'origin', mainBranch);
 				await git(projectPath, 'branch', '-f', mainBranch, `origin/${mainBranch}`);
@@ -132,8 +149,9 @@ export class AgentWorktreeManager {
 			}
 		}
 		return new Promise((resolve) => {
-			exec(`lsof +D "${worktreePath}"`, { timeout: 5000 }, (error, stdout) => {
-				resolve(!error && stdout.trim().length > 0);
+			exec(`lsof +D "${worktreePath}"`, { timeout: 5000 }, (_error, stdout) => {
+				const lines = stdout.split('\n').filter(l => l.trim() && !l.startsWith('COMMAND'));
+				resolve(lines.length > 0);
 			});
 		});
 	}
