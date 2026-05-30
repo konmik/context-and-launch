@@ -1,5 +1,6 @@
 import { execFile } from "child_process";
 import { withService } from "~/server/shared/route-helpers.js";
+import { normalizeMacPickedPath } from "~/server/infra/picker-paths.js";
 
 interface PickerResult {
 	available: boolean;
@@ -61,8 +62,7 @@ function runMacPicker(preselect: string): Promise<PickerResult> {
 					resolve({ available: true });
 					return;
 				}
-				const picked = stdout.trim().replace(/\/$/, "");
-				resolve({ available: true, path: picked });
+				resolve({ available: true, path: normalizeMacPickedPath(stdout) });
 			},
 		);
 	});
