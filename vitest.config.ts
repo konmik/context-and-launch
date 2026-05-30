@@ -6,7 +6,8 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const alias = { "~": path.resolve(__dirname, "src") };
-const solidVite = { plugins: [solidPlugin()], resolve: { alias, conditions: ["browser", "development"] } };
+const plugins = [solidPlugin()] as any[];
+const solidVite = { plugins, resolve: { alias, conditions: ["browser", "development"] } };
 
 export default defineConfig({
   ...solidVite,
