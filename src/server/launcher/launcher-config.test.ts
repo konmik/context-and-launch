@@ -1375,7 +1375,7 @@ describe('LauncherConfigManager', () => {
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.shortcuts).toHaveLength(1);
-		expect(merged.shortcuts[0].name).toBe('WebStorm');
+		expect(merged.shortcuts[0].name).toBe('VS Code');
 	});
 
 	it('updateTemplate rename updates columnDefaults.templateName', () => {

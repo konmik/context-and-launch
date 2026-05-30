@@ -111,7 +111,7 @@ export function ItemFormDialog(props: {
 								style={{ height: "auto" }}
 								placeholder={
 									f().itemType === "profile"
-										? "e.g. powershell -File run-agent.ps1"
+										? "e.g. bash run-agent.sh or powershell -File run-agent.ps1"
 									: f().itemType === "shortcut"
 										? "e.g. code {{projectPath}}"
 									: "Prompt text with {{placeholders}}"

@@ -71,11 +71,38 @@ function escapeTitle(title: string): string {
 }
 
 export function windowExists(title: string): Promise<boolean> {
-  const script = `$ws = New-Object -ComObject WScript.Shell;`
-    + ` if ($ws.AppActivate('${escapeTitle(title)}')) { exit 0 } else { exit 1 }`;
-  const encoded = Buffer.from(script, "utf16le").toString("base64");
+  if (process.platform === "win32") {
+    const script = `$ws = New-Object -ComObject WScript.Shell;`
+      + ` if ($ws.AppActivate('${escapeTitle(title)}')) { exit 0 } else { exit 1 }`;
+    const encoded = Buffer.from(script, "utf16le").toString("base64");
+    return new Promise((resolve) => {
+      execFile("powershell", ["-NoProfile", "-EncodedCommand", encoded], { windowsHide: true }, (err) => {
+        resolve(!err);
+      });
+    });
+  }
+  if (process.platform === "darwin") {
+    const escaped = title.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    const script = `tell application "System Events"
+  repeat with p in (every process whose visible is true)
+    try
+      repeat with w in (every window of p)
+        if name of w contains "${escaped}" then return "true"
+      end repeat
+    end try
+  end repeat
+end tell
+return "false"`;
+    return new Promise((resolve) => {
+      execFile("osascript", ["-e", script], { timeout: 5000 }, (err, stdout) => {
+        if (err) { resolve(false); return; }
+        resolve(stdout.trim() === "true");
+      });
+    });
+  }
+  const escaped = title.replace(/'/g, "'\\''");
   return new Promise((resolve) => {
-    execFile("powershell", ["-NoProfile", "-EncodedCommand", encoded], { windowsHide: true }, (err) => {
+    execFile("sh", ["-c", `wmctrl -l 2>/dev/null | grep -qF '${escaped}'`], (err) => {
       resolve(!err);
     });
   });
