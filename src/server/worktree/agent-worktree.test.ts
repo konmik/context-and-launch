@@ -594,7 +594,7 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it('branch checked out in another worktree: releases old worktree and succeeds at new path', async () => {
+	it('branch checked out in existing worktree at different path: returns error instead of data loss', async () => {
 		const configDir = tmpDir('awm-config-dup-');
 		const projectDir = tmpDir('awm-project-dup-');
 		const worktreeRootA = tmpDir('awm-wt-A-');
@@ -623,11 +623,14 @@ describe('AgentWorktreeManager', () => {
 			worktreeRootPath: worktreeRootB,
 		});
 
-		const result2 = await awm.ensureAgentWorktree(projectDir, 'dup-proj', folderName);
-		expect('worktreePath' in result2).toBe(true);
-		if ('worktreePath' in result2) {
-			expect(fs.existsSync(result2.worktreePath)).toBe(true);
-			expect(result2.worktreePath.replace(/\\/g, '/')).toContain(worktreeRootB.replace(/\\/g, '/'));
+		const error = await awm.ensureAgentWorktree(projectDir, 'dup-proj', folderName)
+			.catch((e: Error) => e);
+		expect(error).toBeInstanceOf(Error);
+		expect((error as Error).message).toMatch(/already checked out/i);
+		expect((error as Error).message).toContain('git worktree remove');
+
+		if ('worktreePath' in result1) {
+			expect(fs.existsSync(result1.worktreePath)).toBe(true);
 		}
 	});
 

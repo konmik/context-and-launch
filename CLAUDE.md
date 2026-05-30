@@ -5,6 +5,7 @@ Never use the memory system.
 Do not use underscore or bold markdown formatting in md files.
 Never use claude -p or claude --print flags. These modes are billed.
 Never swallow errors with empty catch blocks. Always surface errors to the user.
+Never silently delete, overwrite, or force-remove user data (worktrees, files, branches with uncommitted work). If a resource is in the way, return an error telling the user how to resolve it.
 Do not change the text of buttons when running, use a disabled state instead.
 Run dev server: `npm run dev`.
 Run all tests: `npm run test:all` (tsc + unit + build + e2e). Never skip e2e.
