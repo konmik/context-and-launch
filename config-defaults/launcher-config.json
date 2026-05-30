@@ -25,7 +25,7 @@
   ],
   "profiles": [
     {
-      "name": "Claude Win",
+      "name": "Claude Windows",
       "command": "powershell -File {{appConfigDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}}"
     },
     {
@@ -37,6 +37,14 @@
     {
       "name": "VS Code",
       "command": "code {{projectPath}}"
+    },
+    {
+      "name": "WebStorm Windows",
+      "command": "\"C:\\Program Files\\JetBrains\\WebStorm\\bin\\webstorm64.exe\" ."
+    },
+    {
+      "name": "WebStorm macOS",
+      "command": "open -a WebStorm ."
     }
   ],
   "conflictResolutionPrompt": "Resolve all merge conflicts, then run git rebase --continue. Repeat until the rebase completes. Then push to remote and verify with git status that everything is clean. CRITICAL: Do not leave untracked, uncommitted or unpushed files. The goal is to sync the local branch with remote."
