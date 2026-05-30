@@ -43,8 +43,10 @@ export class WorktreeManager {
 		}
 
 		if (fs.existsSync(worktreeDir)) {
-			fs.rmSync(worktreeDir, { recursive: true, force: true });
-			await git(projectPath, 'worktree', 'prune');
+			throw new Error(
+				`Worktree directory exists but has invalid git metadata: ${worktreeDir}.`
+				+ ` Inspect and remove it manually, then try again.`,
+			);
 		}
 
 		fs.mkdirSync(path.dirname(worktreeDir), { recursive: true });
@@ -84,10 +86,10 @@ export class WorktreeManager {
 		await git(projectPath, 'worktree', 'prune');
 		const existing = await this.worktreePathForBranch(projectPath, branch);
 		if (existing && path.resolve(existing) !== path.resolve(worktreeDir)) {
-			console.warn(
-			`Branch '${branch}' is checked out at ${existing}; removing that worktree to use ${worktreeDir}.`,
-		);
-			await git(projectPath, 'worktree', 'remove', '--force', existing);
+			throw new Error(
+				`Branch '${branch}' is already checked out at ${existing}.`
+				+ ` Remove that worktree first (git worktree remove "${existing}"), then try again.`,
+			);
 		}
 	}
 
