@@ -57,6 +57,16 @@ port_in_use() {
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Returns 0 (true) if .output is missing or older than any tracked source path.
+# Tracked sources: src/, app.config.ts, package.json, package-lock.json.
+output_is_stale() {
+    local marker=".output/server/index.mjs"
+    [ -f "$marker" ] || return 0
+    local newer
+    newer=$(find src app.config.ts package.json package-lock.json -newer "$marker" -print -quit 2>/dev/null || true)
+    [ -n "$newer" ]
+}
+
 if ! port_in_use "$port"; then
     cd "$script_dir"
 
@@ -65,9 +75,27 @@ if ! port_in_use "$port"; then
         npm install || die "npm install failed."
     fi
 
+    build_reason=""
     if [ ! -d ".output" ]; then
-        echo "Building application..."
+        build_reason="missing"
+    elif output_is_stale; then
+        build_reason="stale"
+    fi
+
+    if [ -n "$build_reason" ]; then
+        if [ "$build_reason" = "stale" ]; then
+            echo "Source files are newer than .output, rebuilding..."
+        else
+            echo "Building application..."
+        fi
+        if [ "${RUN_SH_DRY_RUN:-}" = "1" ]; then
+            echo "DRY_RUN: BUILD=yes REASON=$build_reason"
+            exit 0
+        fi
         npx vinxi build || die "Build failed."
+    elif [ "${RUN_SH_DRY_RUN:-}" = "1" ]; then
+        echo "DRY_RUN: BUILD=no"
+        exit 0
     fi
 
     echo "Starting server on port $port..."
