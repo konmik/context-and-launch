@@ -109,6 +109,8 @@ function runKdialog(preselect: string): Promise<PickerResult> {
 }
 
 async function pickByPlatform(preselect: string): Promise<PickerResult> {
+	const stub = process.env.CONTEXT_PICKER_STUB;
+	if (stub) return { available: true, path: stub };
 	if (process.platform === "darwin") {
 		return runMacPicker(preselect);
 	}

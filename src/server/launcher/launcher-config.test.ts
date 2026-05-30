@@ -924,7 +924,7 @@ describe('LauncherConfigManager', () => {
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		const config = mgr.loadAppConfig();
 		expect(config.profiles).toHaveLength(2);
-		expect(config.profiles![0].name).toBe('Claude Win');
+		expect(config.profiles![0].name).toBe('Claude Windows');
 		expect(config.profiles![0].command)
 			.toBe('powershell -File {{appConfigDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}}');
 		expect(config.profiles![1].name).toBe('Claude macOS');
@@ -1374,8 +1374,8 @@ describe('LauncherConfigManager', () => {
 		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		const merged = mgr.getMergedConfig('test-project');
-		expect(merged.shortcuts).toHaveLength(1);
-		expect(merged.shortcuts[0].name).toBe('VS Code');
+		expect(merged.shortcuts).toHaveLength(3);
+		expect(merged.shortcuts.map(s => s.name)).toEqual(['VS Code', 'WebStorm Windows', 'WebStorm macOS']);
 	});
 
 	it('updateTemplate rename updates columnDefaults.templateName', () => {

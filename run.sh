@@ -63,7 +63,7 @@ output_is_stale() {
     local marker=".output/server/index.mjs"
     [ -f "$marker" ] || return 0
     local newer
-    newer=$(find src app.config.ts package.json package-lock.json -newer "$marker" -print -quit 2>/dev/null || true)
+    newer=$(find src public app.config.ts package.json package-lock.json -newer "$marker" -print -quit 2>/dev/null || true)
     [ -n "$newer" ]
 }
 
