@@ -1,4 +1,11 @@
+import os from "os";
 import { describe, it, expect, vi } from "vitest";
+
+// A real directory that exists on every host so tests that target the spawn
+// behavior (not the existsSync gate) can run past the pre-check. Individual
+// tests override these mocks to point at non-existent paths when the missing-
+// dir branch is the subject under test.
+const realDir = os.tmpdir();
 
 vi.mock("~/server/config/instances.js", () => ({
 	worktreeManager: { getWorktreeDir: vi.fn().mockReturnValue("/fake/worktree") },
@@ -8,6 +15,8 @@ vi.mock("~/server/config/instances.js", () => ({
 		getAppConfigDir: vi.fn().mockReturnValue("/fake/app-config"),
 	},
 }));
+
+import { launcherConfigManager } from "~/server/config/instances.js";
 
 import { POST, openInOs, platformOpenCommand } from "~/routes/api/open-config-dir.js";
 
@@ -76,11 +85,39 @@ describe("openInOs surfaces spawn errors (regression: original swallowed ENOENT)
 
 	it("POST returns 500 with error body when the underlying open command fails", async () => {
 		setPlatform("linux");
+		vi.mocked(launcherConfigManager.getAppConfigDir).mockReturnValueOnce(realDir);
 		try {
 			const response = await POST(fakeEvent({ scope: "app" }));
 			expect(response.status).toBe(500);
 			const body = await response.json();
 			expect(body.error).toMatch(/Failed to open/);
+		} finally {
+			restorePlatform();
+		}
+	});
+});
+
+describe("POST guards against missing target directory (regression: spawn fired before exit, returned 200)", () => {
+	it("returns 404 when the resolved app-config dir does not exist on disk", async () => {
+		// On the dev host `open` IS installed, so the spawn event fires successfully
+		// and the original code resolved with 200 even though `/fake/app-config`
+		// does not exist. The fix pre-checks fs.existsSync and returns 404.
+		setPlatform("darwin");
+		try {
+			const response = await POST(fakeEvent({ scope: "app" }));
+			expect(response.status).toBe(404);
+			const body = await response.json();
+			expect(body.error).toMatch(/does not exist|not found/i);
+		} finally {
+			restorePlatform();
+		}
+	});
+
+	it("returns 404 when the resolved project-config dir does not exist on disk", async () => {
+		setPlatform("darwin");
+		try {
+			const response = await POST(fakeEvent({ scope: "project", projectSlug: "proj" }));
+			expect(response.status).toBe(404);
 		} finally {
 			restorePlatform();
 		}
