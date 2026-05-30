@@ -28,17 +28,20 @@ describe("/api/pick-directory (sandboxed e2e)", () => {
     dataDir = tmpDir("cl-pick-data-");
     binDir = tmpDir("cl-pick-bin-");
 
-    if (process.platform === "darwin") {
-      writeFakePicker("osascript", FAKE_PICKED);
-    } else if (process.platform === "win32") {
-      writeFakePicker("pwsh.cmd", FAKE_PICKED);
+    const env: Record<string, string> = {};
+
+    if (process.platform === "win32") {
+      env.CONTEXT_PICKER_STUB = FAKE_PICKED;
     } else {
-      writeFakePicker("zenity", FAKE_PICKED);
+      if (process.platform === "darwin") {
+        writeFakePicker("osascript", FAKE_PICKED);
+      } else {
+        writeFakePicker("zenity", FAKE_PICKED);
+      }
+      env.PATH = `${binDir}${path.delimiter}${process.env.PATH ?? ""}`;
     }
 
-    server = await startRealServer(PORT, dataDir, {
-      PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ""}`,
-    });
+    server = await startRealServer(PORT, dataDir, env);
   }, 60000);
 
   afterAll(async () => {

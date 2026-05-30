@@ -43,7 +43,7 @@ $url = "http://localhost:$port"
 # Check if port already in use
 $portInUse = $false
 try {
-    $connections = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
+    $connections = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
     if ($connections) { $portInUse = $true }
 } catch {
     Write-Verbose "Port check failed: $_"
@@ -70,7 +70,7 @@ if (-not $portInUse) {
         $marker = ".output/server/index.mjs"
         if (-not (Test-Path $marker)) { return $true }
         $markerTime = (Get-Item $marker).LastWriteTime
-        $sources = @("src", "app.config.ts", "package.json", "package-lock.json")
+        $sources = @("src", "public", "app.config.ts", "package.json", "package-lock.json")
         foreach ($s in $sources) {
             if (-not (Test-Path $s)) { continue }
             $newer = Get-ChildItem -Path $s -Recurse -File -ErrorAction SilentlyContinue |
