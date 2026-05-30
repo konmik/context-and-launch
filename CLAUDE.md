@@ -1,25 +1,42 @@
-Do not add Co-Authored-By lines to commit messages.
-Never push to remote.
-Be brief.
-Never use the memory system.
-Do not use underscore or bold markdown formatting in md files.
-Never use claude -p or claude --print flags. These modes are billed.
-Never swallow errors with empty catch blocks. Always surface errors to the user.
-Never silently delete, overwrite, or force-remove user data (worktrees, files, branches with uncommitted work). If a resource is in the way, return an error telling the user how to resolve it.
-Do not change the text of buttons when running, use a disabled state instead.
-Run dev server: `npm run dev`.
-Run all tests: `npm run test:all` (tsc + unit + build + e2e). Never skip e2e.
-There cannot be any pre-existing errors. All tests pass before and after merging. If there is an error, fix it immediately, do not leave it for later.
-Write UI tests with playwright.
-e2e tests run the real server against a sandboxed CONTEXT_LAUNCH_DATA_DIR temp dir and a scratch git repo, drive the UI with playwright, and assert on real side effects (config.json contents, git branches/worktrees). Use the e2e/real-server.ts harness. Never stub the app's own server functions; mock only true external boundaries.
-e2e/mock-server.ts is a fixture for pure-UI rendering tests that need no real backend behavior.
-We are using only TypeScript, do not check for types randomly, do not write incorrect-type tests.
-Avoid non-ASCII unless explicitly asked.
-Do not use z-index (Tailwind z-* classes). Use Portal from solid-js/web for stacking.
-Do not duplicate code. Extract shared logic into reusable helpers.
-Never use bare "slug" as a variable, parameter, property, or type field name. Always qualify it: `projectSlug`, `columnSlug`, `contextFileName`, etc. The only exception is generic slug utility functions like `requireSafeSlug` and `toSlugSegment`. See CONTEXT.md for the full glossary.
-Do not add comments unless explicitly asked.
-Spec files in `spec/` describe behavior as nested bullet lists in plain English. No code, no pseudocode. Short sentences. Represent control flow with nesting.
+## General
+
+- Be brief.
+- Do not add comments unless explicitly asked.
+- Do not add Co-Authored-By lines to commit messages.
+- Never push to remote.
+- Never use the memory system.
+- Never use claude -p or claude --print flags. These modes are billed.
+
+## Safety
+
+- Never swallow errors with empty catch blocks. Always surface errors to the user.
+- Never silently delete, overwrite, or force-remove user data (worktrees, files, branches with uncommitted work). If a resource is in the way, return an error telling the user how to resolve it.
+- There cannot be any pre-existing errors. All tests pass before and after merging. If there is an error, fix it immediately, do not leave it for later.
+
+## Code style
+
+- We are using only TypeScript, do not check for types randomly, do not write incorrect-type tests.
+- Do not duplicate code. Extract shared logic into reusable helpers.
+- Avoid non-ASCII unless explicitly asked.
+- Do not use underscore or bold markdown formatting in md files.
+- Never use bare "slug" as a variable, parameter, property, or type field name. Always qualify it: `projectSlug`, `columnSlug`, `contextFileName`, etc. The only exception is generic slug utility functions like `requireSafeSlug` and `toSlugSegment`. See CONTEXT.md for the full glossary.
+
+## UI
+
+- Do not use z-index (Tailwind z-* classes). Use Portal from solid-js/web for stacking.
+- Do not change the text of buttons when running, use a disabled state instead.
+
+## Testing
+
+- Run dev server: `npm run dev`.
+- Run all tests: `npm run test:all` (tsc + unit + build + e2e). Never skip e2e.
+- Write UI tests with playwright.
+- e2e tests run the real server against a sandboxed CONTEXT_LAUNCH_DATA_DIR temp dir and a scratch git repo, drive the UI with playwright, and assert on real side effects (config.json contents, git branches/worktrees). Use the e2e/real-server.ts harness. Never stub the app's own server functions; mock only true external boundaries.
+- e2e/mock-server.ts is a fixture for pure-UI rendering tests that need no real backend behavior.
+
+## Specs
+
+- Spec files in `spec/` describe behavior as nested bullet lists in plain English. No code, no pseudocode. Short sentences. Represent control flow with nesting.
 
 ## Complex component architecture
 
