@@ -14,10 +14,29 @@ function resolveConfigDir(scope: string, projectSlug?: string): string {
   return launcherConfigManager.getAppConfigDir();
 }
 
+export function platformOpenCommand(): { cmd: string; extraArgs: string[] } {
+  if (process.platform === "darwin") return { cmd: "open", extraArgs: [] };
+  if (process.platform === "win32") return { cmd: "explorer.exe", extraArgs: [] };
+  return { cmd: "xdg-open", extraArgs: [] };
+}
+
+export function openInOs(dir: string): Promise<void> {
+  const { cmd, extraArgs } = platformOpenCommand();
+  return new Promise((resolve, reject) => {
+    const child = spawn(cmd, [...extraArgs, dir], { stdio: "ignore" });
+    child.once("error", (err) => {
+      reject(new Error(`Failed to open ${dir} with ${cmd}: ${err.message}`));
+    });
+    child.once("spawn", () => {
+      child.unref();
+      resolve();
+    });
+  });
+}
+
 export const POST = withService(async ({ request }) => {
   const body = await request.json().catch(() => { throw new ValidationError("Invalid JSON"); });
   const dir = resolveConfigDir(body.scope, body.projectSlug);
-  const cmd = process.platform === "darwin" ? "open" : "explorer.exe";
-  spawn(cmd, [dir], { stdio: "ignore" }).unref();
+  await openInOs(dir);
   return new Response(null, { status: 200 });
 });
