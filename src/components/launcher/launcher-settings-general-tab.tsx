@@ -57,7 +57,9 @@ export function GeneralTab(props: {
 							data-testid="settings-worktree-browse"
 							onClick={async () => {
 								try {
-									const res = await fetch("/api/pick-directory");
+									const res = await fetch(
+										`/api/pick-directory?path=${encodeURIComponent(props.worktreeRootPath)}`,
+									);
 									if (res.status === 204) return;
 									if (!res.ok) {
 										const body = await res.json().catch(() => ({}));

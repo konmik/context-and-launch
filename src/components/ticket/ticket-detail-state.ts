@@ -439,11 +439,22 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   async function openNativeFileBrowser() {
     setBrowsing(true); setError("");
     try {
-      const res = await fetch("/api/browse", { method: "POST" });
+      const remembered = localStorage.getItem("picker:references:lastDir") ?? "";
+      const refs = ticketReferences();
+      const lastRef = refs[refs.length - 1]?.path;
+      const fallback = lastRef ? lastRef.replace(/\/[^/]*$/, "") : "";
+      const startDir = remembered || fallback;
+      const url = startDir
+        ? `/api/browse?startDir=${encodeURIComponent(startDir)}`
+        : "/api/browse";
+      const res = await fetch(url, { method: "POST" });
       if (!res.ok) { setError(await res.text() || "Failed to open file dialog"); return; }
       const data = await res.json();
       const paths: string[] = data.paths ?? [];
       if (paths.length === 0) return;
+      const lastPicked = paths[paths.length - 1];
+      const pickedDir = lastPicked.replace(/\/[^/]*$/, "");
+      if (pickedDir) localStorage.setItem("picker:references:lastDir", pickedDir);
       await handleReferencesSelected(paths);
     } catch (e) { setError(e instanceof Error ? e.message : "Failed to open file dialog"); }
     finally { setBrowsing(false); }
