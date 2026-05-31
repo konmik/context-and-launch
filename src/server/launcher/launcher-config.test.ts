@@ -1157,7 +1157,7 @@ describe('LauncherConfigManager', () => {
 		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		const merged = mgr.getMergedConfig('test-project');
-		expect(merged.conflictResolutionPrompt).toContain('merge conflicts');
+		expect(merged.conflictResolutionPrompt).toContain('git rebase --continue');
 	});
 
 	it('conflictResolutionPrompt round-trips through save/load', () => {
@@ -1205,7 +1205,7 @@ describe('LauncherConfigManager', () => {
 		// MergedLauncherConfig.conflictResolutionPrompt is typed string; a truthy
 		// non-string value must not leak through. It falls back to the default.
 		expect(typeof merged.conflictResolutionPrompt).toBe('string');
-		expect(merged.conflictResolutionPrompt).toContain('merge conflicts');
+		expect(merged.conflictResolutionPrompt).toContain('git rebase --continue');
 	});
 
 	it('empty conflictResolutionPrompt falls back to default in getMergedConfig', () => {
@@ -1215,7 +1215,7 @@ describe('LauncherConfigManager', () => {
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		mgr.saveConflictResolutionSettings('test-project', '');
 		const merged = mgr.getMergedConfig('test-project');
-		expect(merged.conflictResolutionPrompt).toContain('merge conflicts');
+		expect(merged.conflictResolutionPrompt).toContain('git rebase --continue');
 	});
 
 	it('addShortcut to app scope, verify file on disk', () => {

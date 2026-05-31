@@ -47,5 +47,5 @@
       "command": "open -a WebStorm ."
     }
   ],
-  "conflictResolutionPrompt": "Resolve all merge conflicts, then run git rebase --continue. Repeat until the rebase completes. Then push to remote and verify with git status that everything is clean. CRITICAL: Do not leave untracked, uncommitted or unpushed files. The goal is to sync the local branch with remote."
+  "conflictResolutionPrompt": "You are in a scratch git worktree with a rebase already in progress that has conflicts. Stay in this folder; do not cd elsewhere or touch any other directory. Resolve every conflicted file, then run git rebase --continue, repeating until the rebase completes. Then push your result to its upstream branch (the exact push command is given below). Finally verify with git status that the rebase is finished and your work is pushed. CRITICAL: do not leave the rebase unfinished or any commit unpushed."
 }

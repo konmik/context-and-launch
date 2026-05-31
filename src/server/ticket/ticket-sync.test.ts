@@ -28,11 +28,29 @@ async function createRepoWithRemote(): Promise<{ worktreeDir: string; remoteDir:
 	await git(worktreeDir, 'init');
 	await git(worktreeDir, 'config', 'user.email', 'test@test.com');
 	await git(worktreeDir, 'config', 'user.name', 'Test');
+	await git(worktreeDir, 'config', 'core.editor', 'true');
 	await git(worktreeDir, 'commit', '--allow-empty', '-m', 'init');
 	await git(worktreeDir, 'remote', 'add', 'origin', remoteDir);
 	await git(worktreeDir, 'push', '-u', 'origin', 'master');
 
 	return { worktreeDir, remoteDir };
+}
+
+function conflictResolveDir(worktreeDir: string): string {
+	return path.join(path.dirname(worktreeDir), `${path.basename(worktreeDir)}-conflict-resolve`);
+}
+
+// Push a conflicting change to `conflict.txt` on the remote via a second clone.
+async function pushRemoteConflict(remoteDir: string, dirs: string[]): Promise<void> {
+	const clone2 = tmpDir('sync-clone2-');
+	dirs.push(clone2);
+	await git(clone2, 'clone', remoteDir, '.');
+	await git(clone2, 'config', 'user.email', 'test@test.com');
+	await git(clone2, 'config', 'user.name', 'Test');
+	fs.writeFileSync(path.join(clone2, 'conflict.txt'), 'remote content');
+	await git(clone2, 'add', '-A');
+	await git(clone2, 'commit', '-m', 'remote change');
+	await git(clone2, 'push');
 }
 
 describe('TicketSyncManager', () => {
@@ -59,7 +77,7 @@ describe('TicketSyncManager', () => {
 		expect(await manager.hasRemote(worktreeDir)).toBe(true);
 	});
 
-	it('sync with no conflicts commits, rebases, and pushes successfully', async () => {
+	it('sync with no conflicts commits, merges, and pushes successfully', async () => {
 		const { worktreeDir, remoteDir } = await createRepoWithRemote();
 		dirs.push(worktreeDir, remoteDir);
 
@@ -115,38 +133,32 @@ describe('TicketSyncManager', () => {
 		expect(result.status).toBe('success');
 	});
 
-	it('sync that hits a conflict returns conflict status and abort restores state', async () => {
+	it('sync that hits a conflict returns conflict and leaves the live tree untouched', async () => {
 		const { worktreeDir, remoteDir } = await createRepoWithRemote();
 		dirs.push(worktreeDir, remoteDir);
 
-		// Create a second clone to push a conflicting change
-		const clone2 = tmpDir('sync-clone2-');
-		dirs.push(clone2);
-		await git(clone2, 'clone', remoteDir, '.');
-		await git(clone2, 'config', 'user.email', 'test@test.com');
-		await git(clone2, 'config', 'user.name', 'Test');
-
-		// Both sides modify the same file
-		fs.writeFileSync(path.join(clone2, 'conflict.txt'), 'remote content');
-		await git(clone2, 'add', '-A');
-		await git(clone2, 'commit', '-m', 'remote change');
-		await git(clone2, 'push');
-
+		await pushRemoteConflict(remoteDir, dirs);
 		fs.writeFileSync(path.join(worktreeDir, 'conflict.txt'), 'local content');
+
+		const baseCommit = (await git(worktreeDir, 'rev-parse', 'HEAD')).trim();
 
 		const manager = new TicketSyncManager();
 		const result = await manager.sync(worktreeDir);
 
 		expect(result.status).toBe('conflict');
+		expect(manager.hasActiveRebase(worktreeDir)).toBe(false);
 
-		// Abort should restore the pre-rebase state
-		await manager.abort(worktreeDir);
+		const fileContent = fs.readFileSync(path.join(worktreeDir, 'conflict.txt'), 'utf-8');
+		expect(fileContent).toBe('local content');
+		expect(fileContent).not.toContain('<<<<<<<');
 
-		// The local commit should still exist
+		const parent = (await git(worktreeDir, 'rev-parse', 'HEAD^')).trim();
+		expect(parent).toBe(baseCommit);
+
 		const log = await git(worktreeDir, 'log', '--oneline');
 		expect(log).toContain('sync: local changes');
 
-		// The file should have our local content
+		await expect(manager.abort(worktreeDir)).resolves.toBeUndefined();
 		expect(fs.readFileSync(path.join(worktreeDir, 'conflict.txt'), 'utf-8')).toBe('local content');
 	});
 
@@ -183,63 +195,143 @@ describe('TicketSyncManager', () => {
 		const { worktreeDir, remoteDir } = await createRepoWithRemote();
 		dirs.push(worktreeDir, remoteDir);
 
-		// Create a second clone to push a conflicting change
-		const clone2 = tmpDir('sync-clone2-');
-		dirs.push(clone2);
-		await git(clone2, 'clone', remoteDir, '.');
-		await git(clone2, 'config', 'user.email', 'test@test.com');
-		await git(clone2, 'config', 'user.name', 'Test');
-
-		// Both sides modify the same file to create a conflict
-		fs.writeFileSync(path.join(clone2, 'conflict.txt'), 'remote content');
-		await git(clone2, 'add', '-A');
-		await git(clone2, 'commit', '-m', 'remote change');
-		await git(clone2, 'push');
-
+		await pushRemoteConflict(remoteDir, dirs);
 		fs.writeFileSync(path.join(worktreeDir, 'conflict.txt'), 'local content');
+		await git(worktreeDir, 'add', '-A');
+		await git(worktreeDir, 'commit', '-m', 'local change');
+		await git(worktreeDir, 'fetch');
 
 		const manager = new TicketSyncManager();
-		const result = await manager.sync(worktreeDir);
-		expect(result.status).toBe('conflict');
+		await expect(git(worktreeDir, 'rebase', 'origin/master')).rejects.toThrow();
+		expect(manager.hasActiveRebase(worktreeDir)).toBe(true);
 
-		// Rebase is now in progress -- verify hasRemote still returns true
 		expect(await manager.hasRemote(worktreeDir)).toBe(true);
 
 		// Clean up the active rebase
 		await manager.abort(worktreeDir);
 	});
 
-	it('sync surfaces a non-conflict rebase failure as error, not conflict', async () => {
+	it('abort is a no-op when no rebase is active', async () => {
 		const { worktreeDir, remoteDir } = await createRepoWithRemote();
 		dirs.push(worktreeDir, remoteDir);
 
-		// Push a remote change so the local side is behind and a rebase is required.
+		const manager = new TicketSyncManager();
+		expect(manager.hasActiveRebase(worktreeDir)).toBe(false);
+		await expect(manager.abort(worktreeDir)).resolves.toBeUndefined();
+		expect(manager.hasActiveRebase(worktreeDir)).toBe(false);
+	});
+
+	it('prepareResolution rebases in a scratch worktree, never touching the live tree', async () => {
+		const { worktreeDir, remoteDir } = await createRepoWithRemote();
+		dirs.push(worktreeDir, remoteDir, conflictResolveDir(worktreeDir));
+
+		await pushRemoteConflict(remoteDir, dirs);
+		fs.writeFileSync(path.join(worktreeDir, 'conflict.txt'), 'local content');
+
+		const manager = new TicketSyncManager();
+		expect((await manager.sync(worktreeDir)).status).toBe('conflict');
+		const liveHead = (await git(worktreeDir, 'rev-parse', 'HEAD')).trim();
+
+		const plan = await manager.prepareResolution(worktreeDir);
+		expect(plan.needsAgent).toBe(true);
+		expect(plan.scratchDir).toBe(conflictResolveDir(worktreeDir));
+		expect(manager.isResolving(worktreeDir)).toBe(true);
+
+		// The rebase is in the scratch worktree; the live tree is untouched.
+		expect(manager.hasActiveRebase(plan.scratchDir)).toBe(true);
+		expect(manager.hasActiveRebase(worktreeDir)).toBe(false);
+		expect((await git(worktreeDir, 'rev-parse', 'HEAD')).trim()).toBe(liveHead);
+		expect(fs.readFileSync(path.join(worktreeDir, 'conflict.txt'), 'utf-8')).toBe('local content');
+	});
+
+	it('finalizeResolution advances the live tree to the pushed result and removes the scratch', async () => {
+		const { worktreeDir, remoteDir } = await createRepoWithRemote();
+		dirs.push(worktreeDir, remoteDir, conflictResolveDir(worktreeDir));
+
+		await pushRemoteConflict(remoteDir, dirs);
+		fs.writeFileSync(path.join(worktreeDir, 'conflict.txt'), 'local content');
+
+		const manager = new TicketSyncManager();
+		await manager.sync(worktreeDir);
+		const plan = await manager.prepareResolution(worktreeDir);
+
+		// Simulate the agent resolving and pushing inside the scratch worktree.
+		fs.writeFileSync(path.join(plan.scratchDir, 'conflict.txt'), 'merged content');
+		await git(plan.scratchDir, 'add', '-A');
+		await git(plan.scratchDir, 'rebase', '--continue');
+		await git(plan.scratchDir, 'push', 'origin', 'HEAD:master');
+
+		expect(await manager.finalizeResolution(worktreeDir)).toBe(true);
+		expect(manager.isResolving(worktreeDir)).toBe(false);
+		expect(fs.existsSync(plan.scratchDir)).toBe(false);
+
+		// Live tree now matches the pushed upstream, with the merged content.
+		expect(fs.readFileSync(path.join(worktreeDir, 'conflict.txt'), 'utf-8')).toBe('merged content');
+		const head = (await git(worktreeDir, 'rev-parse', 'HEAD')).trim();
+		const upstream = (await git(worktreeDir, 'rev-parse', 'origin/master')).trim();
+		expect(head).toBe(upstream);
+		expect((await git(worktreeDir, 'status', '--porcelain')).trim()).toBe('');
+	});
+
+	it('sync returns conflict while a resolution is pending in the scratch worktree', async () => {
+		const { worktreeDir, remoteDir } = await createRepoWithRemote();
+		dirs.push(worktreeDir, remoteDir, conflictResolveDir(worktreeDir));
+
+		await pushRemoteConflict(remoteDir, dirs);
+		fs.writeFileSync(path.join(worktreeDir, 'conflict.txt'), 'local content');
+
+		const manager = new TicketSyncManager();
+		await manager.sync(worktreeDir);
+		await manager.prepareResolution(worktreeDir);
+
+		expect((await manager.sync(worktreeDir)).status).toBe('conflict');
+	});
+
+	it('abort removes the scratch worktree and leaves the live tree untouched', async () => {
+		const { worktreeDir, remoteDir } = await createRepoWithRemote();
+		dirs.push(worktreeDir, remoteDir, conflictResolveDir(worktreeDir));
+
+		await pushRemoteConflict(remoteDir, dirs);
+		fs.writeFileSync(path.join(worktreeDir, 'conflict.txt'), 'local content');
+
+		const manager = new TicketSyncManager();
+		await manager.sync(worktreeDir);
+		const liveHead = (await git(worktreeDir, 'rev-parse', 'HEAD')).trim();
+		const plan = await manager.prepareResolution(worktreeDir);
+
+		await manager.abort(worktreeDir);
+		expect(fs.existsSync(plan.scratchDir)).toBe(false);
+		expect(manager.isResolving(worktreeDir)).toBe(false);
+		expect((await git(worktreeDir, 'rev-parse', 'HEAD')).trim()).toBe(liveHead);
+		expect(fs.readFileSync(path.join(worktreeDir, 'conflict.txt'), 'utf-8')).toBe('local content');
+	});
+
+	it('prepareResolution pushes and finalizes without an agent when the rebase is clean', async () => {
+		const { worktreeDir, remoteDir } = await createRepoWithRemote();
+		dirs.push(worktreeDir, remoteDir, conflictResolveDir(worktreeDir));
+
+		// Local commit and a non-conflicting remote commit on a different file.
+		fs.writeFileSync(path.join(worktreeDir, 'local.txt'), 'local');
+		await git(worktreeDir, 'add', '-A');
+		await git(worktreeDir, 'commit', '-m', 'sync: local changes');
+
 		const clone2 = tmpDir('sync-clone2-');
 		dirs.push(clone2);
 		await git(clone2, 'clone', remoteDir, '.');
 		await git(clone2, 'config', 'user.email', 'test@test.com');
 		await git(clone2, 'config', 'user.name', 'Test');
-		fs.writeFileSync(path.join(clone2, 'remote.txt'), 'remote content');
+		fs.writeFileSync(path.join(clone2, 'remote.txt'), 'remote');
 		await git(clone2, 'add', '-A');
 		await git(clone2, 'commit', '-m', 'remote change');
 		await git(clone2, 'push');
 
-		// Install a pre-rebase hook that refuses the rebase. This makes `git rebase`
-		// fail for a non-conflict reason and leaves no in-progress rebase.
-		const hooksDir = path.join(worktreeDir, '.git', 'hooks');
-		const hookPath = path.join(hooksDir, 'pre-rebase');
-		fs.writeFileSync(hookPath, '#!/bin/sh\nexit 1\n');
-		fs.chmodSync(hookPath, 0o755);
-
-		// A local change so sync commits and then attempts to rebase.
-		fs.writeFileSync(path.join(worktreeDir, 'local.txt'), 'local content');
-
 		const manager = new TicketSyncManager();
-		const result = await manager.sync(worktreeDir);
+		const plan = await manager.prepareResolution(worktreeDir);
 
-		expect(result.status).toBe('error');
-		// No phantom rebase should be left behind.
-		expect(manager.hasActiveRebase(worktreeDir)).toBe(false);
+		expect(plan.needsAgent).toBe(false);
+		expect(fs.existsSync(plan.scratchDir)).toBe(false);
+		expect(fs.existsSync(path.join(worktreeDir, 'local.txt'))).toBe(true);
+		expect(fs.existsSync(path.join(worktreeDir, 'remote.txt'))).toBe(true);
 	});
 
 });

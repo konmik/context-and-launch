@@ -254,6 +254,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
             onResolve={commands.handleConflictResolve}
             onAbort={commands.handleConflictAbort}
             projectSlug={d().projectSlug}
+            hasConflict={!!ld()?.hasConflict}
           />
           <ErrorDialog error={syncState().syncError} onClose={() => commands.setSyncError(null)} />
           <LauncherSettings

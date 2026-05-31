@@ -8,6 +8,40 @@ import {
   openConflictDialog,
 } from "./fixtures.js";
 
+// Reproduce the state after a user launches conflict resolution: a scratch
+// worktree (sibling of the live tickets folder) with a rebase in progress.
+// The live tickets folder is left clean on its last good commit.
+function createActiveRebaseConflict(ticketsPath: string, remoteUrl: string | null | undefined): void {
+  fs.writeFileSync(path.join(ticketsPath, "conflict.txt"), "local\n");
+  execSync("git add -A", { cwd: ticketsPath });
+  execSync("git commit -m local-change", { cwd: ticketsPath });
+
+  if (!remoteUrl) throw new Error("expected remoteUrl");
+  const tmpClone = fs.mkdtempSync(path.join(os.tmpdir(), "cl-conflict-remote-"));
+  try {
+    execSync(`git clone -b tickets "${remoteUrl}" "${tmpClone}"`);
+    execSync("git config user.email test@test.com", { cwd: tmpClone });
+    execSync("git config user.name Test", { cwd: tmpClone });
+    fs.writeFileSync(path.join(tmpClone, "conflict.txt"), "remote\n");
+    execSync("git add -A", { cwd: tmpClone });
+    execSync("git commit -m remote-change", { cwd: tmpClone });
+    execSync("git push origin tickets", { cwd: tmpClone });
+  } finally {
+    fs.rmSync(tmpClone, { recursive: true, force: true });
+  }
+
+  execSync("git fetch", { cwd: ticketsPath });
+  const scratch = `${ticketsPath}-conflict-resolve`;
+  execSync(`git worktree add --detach "${scratch}" HEAD`, { cwd: ticketsPath });
+  let rebaseFailed = false;
+  try {
+    execSync("git rebase origin/tickets", { cwd: scratch, stdio: "pipe" });
+  } catch {
+    rebaseFailed = true;
+  }
+  if (!rebaseFailed) throw new Error("expected rebase to leave a conflict");
+}
+
 describe("Conflict dialog (e2e, real server)", () => {
   const ctx = setupE2E();
 
@@ -37,8 +71,8 @@ describe("Conflict dialog (e2e, real server)", () => {
 
     expect(await ctx.page.locator('[data-testid="conflict-dialog-open-tickets-repo"]').count()).toBe(1);
     expect(await ctx.page.locator('[data-testid="conflict-dialog-close"]').count()).toBe(1);
-    expect(await ctx.page.locator('[data-testid="conflict-dialog-abort"]').count()).toBe(1);
     expect(await ctx.page.locator('[data-testid="conflict-dialog-launch"]').count()).toBe(1);
+    expect(await ctx.page.locator('[data-testid="conflict-dialog-abort"]').count()).toBe(0);
 
     await ctx.page.click('[data-testid="conflict-dialog-close"]');
     await ctx.page.waitForSelector('[data-testid="conflict-dialog-profile-select"]', {
@@ -46,7 +80,7 @@ describe("Conflict dialog (e2e, real server)", () => {
     });
   }, 60000);
 
-  it("abort dismisses the dialog", async () => {
+  it("abort dismisses the dialog during an active rebase", async () => {
     const project = await createProject(ctx.testServer, {
       projectSlug: uniqueSlug("conflict-abort"),
       withRemote: true,
@@ -56,21 +90,14 @@ describe("Conflict dialog (e2e, real server)", () => {
     });
     ctx.projects.push(project);
 
-    await ctx.page.route((url) => url.pathname.endsWith("/board/sync"), (route) => {
-      if (route.request().method() === "POST") {
-        route.fulfill({
-          status: 200, contentType: "application/json",
-          body: JSON.stringify({ status: "conflict" }),
-        });
-      } else if (route.request().method() === "DELETE") {
-        route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true }) });
-      } else {
-        route.continue();
-      }
-    });
+    const ticketsPath = path.join(
+      ctx.testServer.dataDir, "projects", project.projectSlug, "tickets",
+    );
+    createActiveRebaseConflict(ticketsPath, project.remoteUrl);
 
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await openConflictDialog(ctx.page);
+    expect(await ctx.page.locator('[data-testid="conflict-dialog-abort"]').count()).toBe(1);
     await ctx.page.click('[data-testid="conflict-dialog-abort"]');
     await ctx.page.waitForSelector('[data-testid="conflict-dialog-abort"]', {
       state: "detached", timeout: 15000,
@@ -123,33 +150,7 @@ describe("Conflict dialog (e2e, real server)", () => {
     const ticketsPath = path.join(
       ctx.testServer.dataDir, "projects", project.projectSlug, "tickets",
     );
-
-    fs.writeFileSync(path.join(ticketsPath, "conflict.txt"), "local\n");
-    execSync("git add -A", { cwd: ticketsPath });
-    execSync("git commit -m local-change", { cwd: ticketsPath });
-
-    if (!project.remoteUrl) throw new Error("expected remoteUrl");
-    const tmpClone = fs.mkdtempSync(path.join(os.tmpdir(), "cl-conflict-remote-"));
-    try {
-      execSync(`git clone -b tickets "${project.remoteUrl}" "${tmpClone}"`);
-      execSync("git config user.email test@test.com", { cwd: tmpClone });
-      execSync("git config user.name Test", { cwd: tmpClone });
-      fs.writeFileSync(path.join(tmpClone, "conflict.txt"), "remote\n");
-      execSync("git add -A", { cwd: tmpClone });
-      execSync("git commit -m remote-change", { cwd: tmpClone });
-      execSync("git push origin tickets", { cwd: tmpClone });
-    } finally {
-      fs.rmSync(tmpClone, { recursive: true, force: true });
-    }
-
-    execSync("git fetch", { cwd: ticketsPath });
-    let rebaseFailed = false;
-    try {
-      execSync("git rebase origin/tickets", { cwd: ticketsPath, stdio: "pipe" });
-    } catch {
-      rebaseFailed = true;
-    }
-    if (!rebaseFailed) throw new Error("expected rebase to leave a conflict");
+    createActiveRebaseConflict(ticketsPath, project.remoteUrl);
 
     const syncRes = await fetch(
       `${ctx.testServer.baseUrl}/api/projects/${project.projectSlug}/board/sync`,

@@ -9,6 +9,15 @@ export type SyncResult =
 	| { status: 'conflict' }
 	| { status: 'error'; message: string };
 
+export interface ResolutionPlan {
+	/** True when conflicts remain and an agent must resolve them in `scratchDir`. */
+	needsAgent: boolean;
+	/** The scratch worktree the agent runs in; never the live tickets folder. */
+	scratchDir: string;
+	/** Exact push command for the agent once the rebase completes. */
+	pushCommand: string;
+}
+
 export class TicketSyncManager {
 	private gitRepo: GitRepository;
 
@@ -48,6 +57,11 @@ export class TicketSyncManager {
 
 	async sync(worktreeDir: string): Promise<SyncResult> {
 		try {
+			const scratch = this.conflictResolveDir(worktreeDir);
+			if (fs.existsSync(scratch)) {
+				await this.finalizeResolution(worktreeDir);
+				if (fs.existsSync(scratch)) return { status: 'conflict' };
+			}
 			if (this.gitRepo.hasActiveRebase(worktreeDir)) {
 				return { status: 'conflict' };
 			}
@@ -74,29 +88,55 @@ export class TicketSyncManager {
 				return { status: 'success' };
 			}
 
+			await this.gitRepo.assertSupportsMergeTree(worktreeDir);
+
+			const baseUpstream = (await git(worktreeDir, 'rev-parse', upstream)).trim();
 			const aheadCount = parseInt(
-				(await git(worktreeDir, 'rev-list', '--count', `${upstream}..HEAD`)).trim(), 10,
+				(await git(worktreeDir, 'rev-list', '--count', `${baseUpstream}..HEAD`)).trim(), 10,
 			);
 			if (aheadCount > 1) {
-				await git(worktreeDir, 'reset', '--soft', upstream);
+				await git(worktreeDir, 'reset', '--soft', baseUpstream);
 				await this.assertNoConflictMarkers(worktreeDir);
 				await git(worktreeDir, 'commit', '-m', 'sync: local changes');
 			}
 
 			await git(worktreeDir, 'fetch');
+			const newUpstream = (await git(worktreeDir, 'rev-parse', upstream)).trim();
 
+			if (aheadCount === 0) {
+				if (baseUpstream !== newUpstream) {
+					await git(worktreeDir, 'reset', '--hard', newUpstream);
+				}
+				return { status: 'success' };
+			}
+
+			let mergedTree: string;
 			try {
-				await git(worktreeDir, 'rebase', upstream);
-			} catch (rebaseErr) {
-				if (this.gitRepo.hasActiveRebase(worktreeDir)) {
+				mergedTree = (await git(worktreeDir, 'merge-tree', '--write-tree', 'HEAD', newUpstream))
+					.trim().split('\n')[0];
+			} catch (mergeErr) {
+				// merge-tree exits 1 both for a real conflict (CONFLICT lines on stdout) and
+				// for genuine failures (stderr, no conflict listing); match the output so an
+				// error -- or a timeout, where exitCode is undefined -- is not read as a conflict.
+				if (mergeErr instanceof ProcessError && mergeErr.exitCode === 1
+					&& /^CONFLICT|Merge conflict/m.test(mergeErr.output)) {
 					return { status: 'conflict' };
 				}
-				return { status: 'error', message: rebaseErr instanceof Error ? rebaseErr.message : String(rebaseErr) };
+				return { status: 'error', message: mergeErr instanceof Error ? mergeErr.message : String(mergeErr) };
 			}
 
-			if (aheadCount > 0) {
-				await git(worktreeDir, 'push');
+			const newCommit = (await git(
+				worktreeDir, 'commit-tree', mergedTree, '-p', newUpstream, '-m', 'sync: local changes',
+			)).trim();
+
+			try {
+				const { remote, branch } = this.parseUpstream(upstream);
+				await git(worktreeDir, 'push', remote, `${newCommit}:${branch}`);
+			} catch (pushErr) {
+				return { status: 'error', message: pushErr instanceof Error ? pushErr.message : String(pushErr) };
 			}
+
+			await git(worktreeDir, 'reset', '--hard', newCommit);
 			return { status: 'success' };
 		} catch (err) {
 			return { status: 'error', message: err instanceof Error ? err.message : String(err) };
@@ -119,11 +159,106 @@ export class TicketSyncManager {
 		}
 	}
 
+	/**
+	 * Set up an isolated scratch worktree and start the rebase there, so conflict
+	 * markers never touch the live tickets folder. If the rebase applies cleanly
+	 * (no real conflict -- e.g. the user retried after the conflict was already
+	 * resolved) it is pushed and finalized here, and no agent is needed.
+	 */
+	async prepareResolution(worktreeDir: string): Promise<ResolutionPlan> {
+		const scratch = this.conflictResolveDir(worktreeDir);
+		const upstream = (await git(
+			worktreeDir, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}',
+		)).trim();
+		const { remote, branch } = this.parseUpstream(upstream);
+		const pushCommand = `git push ${remote} HEAD:${branch}`;
+
+		if (!fs.existsSync(scratch)) {
+			await git(worktreeDir, 'worktree', 'add', '--detach', scratch, 'HEAD');
+		}
+		await git(worktreeDir, 'fetch');
+
+		if (!this.gitRepo.hasActiveRebase(scratch)) {
+			try {
+				await git(scratch, 'rebase', upstream);
+			} catch (err) {
+				// A conflict leaves a rebase in progress; anything else is a real failure.
+				if (!this.gitRepo.hasActiveRebase(scratch)) {
+					await this.removeResolveWorktree(worktreeDir, scratch);
+					throw err;
+				}
+			}
+		}
+
+		if (!this.gitRepo.hasActiveRebase(scratch)) {
+			await git(scratch, 'push', remote, `HEAD:${branch}`);
+			await this.finalizeResolution(worktreeDir);
+			return { needsAgent: false, scratchDir: scratch, pushCommand };
+		}
+
+		return { needsAgent: true, scratchDir: scratch, pushCommand };
+	}
+
+	/**
+	 * Once the agent has resolved and pushed, advance the live tree to the pushed
+	 * result and remove the scratch worktree. Deterministic fast-forward via
+	 * reset, never a re-merge (the local commit was rebased, so merging it again
+	 * would re-conflict). A no-op until the resolution is actually pushed.
+	 */
+	async finalizeResolution(worktreeDir: string): Promise<boolean> {
+		const scratch = this.conflictResolveDir(worktreeDir);
+		if (!fs.existsSync(scratch)) return false;
+		if (this.gitRepo.hasActiveRebase(scratch)) return false;
+
+		const upstream = (await git(
+			worktreeDir, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}',
+		)).trim();
+		await git(worktreeDir, 'fetch');
+		const scratchHead = (await git(scratch, 'rev-parse', 'HEAD')).trim();
+		const upstreamHead = (await git(worktreeDir, 'rev-parse', upstream)).trim();
+		if (scratchHead !== upstreamHead) return false;
+
+		await git(worktreeDir, 'reset', '--hard', upstream);
+		await this.removeResolveWorktree(worktreeDir, scratch);
+		return true;
+	}
+
+	/** True while a conflict resolution is pending in the scratch worktree. */
+	isResolving(worktreeDir: string): boolean {
+		return fs.existsSync(this.conflictResolveDir(worktreeDir));
+	}
+
 	async abort(worktreeDir: string): Promise<void> {
-		await git(worktreeDir, 'rebase', '--abort');
+		const scratch = this.conflictResolveDir(worktreeDir);
+		if (fs.existsSync(scratch)) {
+			if (this.gitRepo.hasActiveRebase(scratch)) {
+				await git(scratch, 'rebase', '--abort');
+			}
+			await this.removeResolveWorktree(worktreeDir, scratch);
+			return;
+		}
+		// Recover a stuck legacy rebase left directly in the live tree.
+		if (this.gitRepo.hasActiveRebase(worktreeDir)) {
+			await git(worktreeDir, 'rebase', '--abort');
+		}
 	}
 
 	hasActiveRebase(worktreeDir: string): boolean {
 		return this.gitRepo.hasActiveRebase(worktreeDir);
+	}
+
+	private parseUpstream(upstream: string): { remote: string; branch: string } {
+		const slashIndex = upstream.indexOf('/');
+		if (slashIndex === -1) return { remote: 'origin', branch: upstream };
+		return { remote: upstream.slice(0, slashIndex), branch: upstream.slice(slashIndex + 1) };
+	}
+
+	private conflictResolveDir(worktreeDir: string): string {
+		const normalized = worktreeDir.replace(/[\\/]+$/, '');
+		return path.join(path.dirname(normalized), `${path.basename(normalized)}-conflict-resolve`);
+	}
+
+	private async removeResolveWorktree(worktreeDir: string, scratch: string): Promise<void> {
+		await git(worktreeDir, 'worktree', 'remove', scratch);
 	}
 }

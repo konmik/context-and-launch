@@ -47,8 +47,9 @@ export class BoardService {
 				config.columns.map(c => c.name),
 			);
 			const suggestedNextNumber = store.suggestNextNumber();
+			await this.ticketSyncManager.finalizeResolution(worktreeDir);
 			const hasRemote = await this.ticketSyncManager.hasRemote(worktreeDir);
-			const hasConflict = this.ticketSyncManager.hasActiveRebase(worktreeDir);
+			const hasConflict = this.ticketSyncManager.isResolving(worktreeDir);
 			return {
 				status: 'loaded' as const,
 				projects,
