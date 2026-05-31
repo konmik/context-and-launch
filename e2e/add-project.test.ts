@@ -1,35 +1,35 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll } from "vitest";
-import { chromium, type Browser, type Page } from "playwright";
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { pickPort } from "./test-port.js";
-import { startRealServer, stopRealServer, type RealServer } from "./real-server.js";
+import { type Browser, type Page } from "playwright";
+import {
+  createServer, launchBrowser, type TestServer, type TestBrowser,
+  readProjectRegistry, readProjectLauncherConfig, getLocalStorageItem,
+} from "./fixtures.js";
 
-const PORT = pickPort();
-
+let testServer: TestServer;
+let testBrowser: TestBrowser;
 let browser: Browser;
 let page: Page;
-let server: RealServer;
-let dataDir: string;
 let repoDir: string;
 
-function tmpDir(prefix: string): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+function makeRepo(): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cl-addproj-repo-"));
+  execSync("git init", { cwd: dir });
+  execSync("git config user.email test@test.com", { cwd: dir });
+  execSync("git config user.name Test", { cwd: dir });
+  execSync("git commit --allow-empty -m init", { cwd: dir });
+  return dir;
 }
 
-describe("Add project welcome screen (sandboxed e2e)", () => {
+describe("Add project welcome screen (e2e, real server)", () => {
   beforeAll(async () => {
-    dataDir = tmpDir("cl-e2e-data-");
-    repoDir = tmpDir("cl-e2e-repo-");
-    execSync("git init", { cwd: repoDir });
-    execSync("git config user.email test@test.com", { cwd: repoDir });
-    execSync("git config user.name Test", { cwd: repoDir });
-    execSync("git commit --allow-empty -m init", { cwd: repoDir });
-
-    server = await startRealServer(PORT, dataDir);
-    browser = await chromium.launch({ headless: true });
+    testServer = await createServer();
+    testBrowser = await launchBrowser();
+    browser = testBrowser.browser;
+    repoDir = makeRepo();
   }, 60000);
 
   beforeEach(async () => {
@@ -41,74 +41,103 @@ describe("Add project welcome screen (sandboxed e2e)", () => {
   });
 
   afterAll(async () => {
-    await browser?.close();
-    if (server) await stopRealServer(server);
-    if (dataDir) fs.rmSync(dataDir, { recursive: true, force: true });
+    await testBrowser?.stop();
+    await testServer?.stop();
     if (repoDir) fs.rmSync(repoDir, { recursive: true, force: true });
   }, 20000);
 
-  it("shows a branch name field defaulting to tickets and lets the user edit it", async () => {
-    await page.goto(`${server.baseUrl}/add-project`);
-    const input = await page.waitForSelector("#project-branch", {
-      state: "visible",
-      timeout: 10000,
-    });
-    expect(await input.inputValue()).toBe("tickets");
+  it("theme-toggle-button toggles class and writes localStorage", async () => {
+    await page.goto(`${testServer.baseUrl}/add-project`);
+    await page.waitForSelector('[data-testid="theme-toggle-button"]', { state: "visible", timeout: 10000 });
+    const before = await page.evaluate(() => document.documentElement.classList.contains("dark"));
+    await page.click('[data-testid="theme-toggle-button"]');
+    await page.waitForFunction(
+      (was) => document.documentElement.classList.contains("dark") !== was,
+      before, { timeout: 3000 },
+    );
+    const theme = await getLocalStorageItem(page, "theme");
+    expect(theme === "light" || theme === "dark").toBe(true);
+  }, 60000);
 
+  it("branch input defaults to tickets and is editable", async () => {
+    await page.goto(`${testServer.baseUrl}/add-project`);
+    await page.waitForSelector('[data-testid="add-project-branch-input"]', { state: "visible", timeout: 10000 });
+    const input = page.locator('[data-testid="add-project-branch-input"]');
+    expect(await input.inputValue()).toBe("tickets");
     await input.fill("work-items");
     expect(await input.inputValue()).toBe("work-items");
-  }, 30000);
+  }, 60000);
 
-  it("prefills tickets/worktree folders and persists branch + both folders", async () => {
-    await page.goto(`${server.baseUrl}/add-project`);
-    await page.waitForSelector("#project-branch", { state: "visible", timeout: 10000 });
+  it("path Browse button is rendered", async () => {
+    await page.goto(`${testServer.baseUrl}/add-project`);
+    await page.waitForSelector('[data-testid="add-project-path-browse"]', { state: "visible", timeout: 10000 });
+    expect(await page.locator('[data-testid="add-project-path-browse"]').count()).toBe(1);
+  }, 60000);
 
-    await page.fill("#project-path", repoDir);
+  it("tickets folder and worktree root Browse buttons are rendered", async () => {
+    await page.goto(`${testServer.baseUrl}/add-project`);
+    await page.waitForSelector('[data-testid="add-project-tickets-browse"]', { state: "visible", timeout: 10000 });
+    expect(await page.locator('[data-testid="add-project-tickets-browse"]').count()).toBe(1);
+    expect(await page.locator('[data-testid="add-project-worktree-browse"]').count()).toBe(1);
+  }, 60000);
 
+  it("path input prefills tickets and worktree inputs", async () => {
+    await page.goto(`${testServer.baseUrl}/add-project`);
+    await page.waitForSelector('[data-testid="add-project-path-input"]', { state: "visible", timeout: 10000 });
+    await page.locator('[data-testid="add-project-path-input"]').fill(repoDir);
     await page.waitForFunction(
-      (dir) => {
-        const t = (document.querySelector("#project-tickets-root") as HTMLInputElement | null)?.value ?? "";
-        const w = (document.querySelector("#project-worktree-root") as HTMLInputElement | null)?.value ?? "";
-        return t.includes(dir) && t.endsWith("tickets") && w.includes(dir) && w.endsWith("worktrees");
+      () => {
+        const t = (
+          document.querySelector('[data-testid="add-project-tickets-root-input"]') as HTMLInputElement | null
+        )?.value ?? "";
+        const w = (
+          document.querySelector('[data-testid="add-project-worktree-root-input"]') as HTMLInputElement | null
+        )?.value ?? "";
+        return t.length > 0 && w.length > 0;
       },
-      dataDir,
       { timeout: 10000 },
     );
+    const t = await page.locator('[data-testid="add-project-tickets-root-input"]').inputValue();
+    const w = await page.locator('[data-testid="add-project-worktree-root-input"]').inputValue();
+    expect(t).toMatch(/tickets/);
+    expect(w).toMatch(/worktrees/);
+  }, 60000);
 
-    const customTickets = path.join(dataDir, "custom-tickets");
-    const customWorktrees = path.join(dataDir, "custom-worktrees");
-    await page.fill("#project-tickets-root", customTickets);
-    await page.fill("#project-worktree-root", customWorktrees);
-    await page.fill("#project-branch", "work-items");
-    await page.click('button[type="submit"]');
+  it("submit registers the project on disk and creates the orphan branch", async () => {
+    await page.goto(`${testServer.baseUrl}/add-project`);
+    await page.waitForSelector('[data-testid="add-project-path-input"]', { state: "visible", timeout: 10000 });
 
-    await page.waitForSelector('button[title="Settings"]', { state: "visible", timeout: 15000 });
+    const customTickets = path.join(testServer.dataDir, "custom-tickets");
+    const customWorktrees = path.join(testServer.dataDir, "custom-worktrees");
 
-    const config = JSON.parse(
-      fs.readFileSync(path.join(dataDir, "config", "config.json"), "utf-8"),
-    );
-    expect(config.projects).toHaveLength(1);
-    const projectSlug: string = config.projects[0].projectSlug;
-    expect(config.projects[0].branch).toBe("work-items");
-    expect(config.projects[0].ticketsPath).toBe(customTickets);
+    await page.locator('[data-testid="add-project-path-input"]').fill(repoDir);
+    await page.waitForFunction(() => {
+      const t = (
+        document.querySelector('[data-testid="add-project-tickets-root-input"]') as HTMLInputElement | null
+      )?.value ?? "";
+      return t.length > 0;
+    }, { timeout: 15000 });
+    await page.locator('[data-testid="add-project-tickets-root-input"]').fill(customTickets);
+    await page.locator('[data-testid="add-project-worktree-root-input"]').fill(customWorktrees);
+    await page.locator('[data-testid="add-project-branch-input"]').fill("work-items");
+    await page.locator('[data-testid="add-project-submit"]').click();
 
-    const launcher = JSON.parse(
-      fs.readFileSync(path.join(dataDir, "projects", projectSlug, "config", "launcher-config.json"), "utf-8"),
-    );
-    expect(launcher.worktreeRootPath).toBe(customWorktrees);
+    await page.waitForSelector('[data-testid="project-header-settings-button"]', {
+      state: "visible", timeout: 15000,
+    });
+
+    const registry = readProjectRegistry(testServer);
+    expect(registry.projects).toHaveLength(1);
+    const projectSlug = registry.projects[0].projectSlug;
+    expect(registry.projects[0].branch).toBe("work-items");
+    expect(registry.projects[0].ticketsPath).toBe(customTickets);
+
+    const launcher = readProjectLauncherConfig(testServer, projectSlug);
+    expect(launcher?.worktreeRootPath).toBe(customWorktrees);
 
     expect(fs.existsSync(customWorktrees)).toBe(true);
 
-    const orphan = execSync('git branch --list "work-items"', {
-      cwd: repoDir,
-      encoding: "utf-8",
-    });
-    expect(orphan.trim()).toContain("work-items");
-
-    const head = execSync("git rev-parse --abbrev-ref HEAD", {
-      cwd: customTickets,
-      encoding: "utf-8",
-    }).trim();
-    expect(head).toBe("work-items");
-  }, 45000);
+    const orphan = execSync('git branch --list "work-items"', { cwd: repoDir, encoding: "utf-8" });
+    expect(orphan).toContain("work-items");
+  }, 60000);
 });

@@ -95,6 +95,7 @@ function TicketDetailContent(props: {
                       checked={s.useWorktree()}
                       onChange={(e) => s.persistWorktree(e.currentTarget.checked)}
                       class="rounded border-input"
+                      data-testid="ticket-detail-use-worktree-checkbox"
                     />
                     Launch in worktree
                   </label>
@@ -102,6 +103,7 @@ function TicketDetailContent(props: {
                 <button
                   type="button"
                   data-no-drag
+                  data-testid="ticket-detail-close-window-button"
                   aria-label="Close Window"
                   onClick={() => s.close()}
                   class={
@@ -122,9 +124,9 @@ function TicketDetailContent(props: {
             <div data-no-drag class="-mx-4 -mb-4">
               <TabsRoot value={s.activeTab()} onValueChange={(d) => s.switchTab(d.value as Tab)}>
                 <TabsList>
-                  <TabsTrigger value="editor">File Editor</TabsTrigger>
-                  <TabsTrigger value="launcher">Agent Launcher</TabsTrigger>
-                  <TabsTrigger value="shortcuts">Shortcuts</TabsTrigger>
+                  <TabsTrigger value="editor" data-testid="ticket-detail-tab-editor">File Editor</TabsTrigger>
+                  <TabsTrigger value="launcher" data-testid="ticket-detail-tab-launcher">Agent Launcher</TabsTrigger>
+                  <TabsTrigger value="shortcuts" data-testid="ticket-detail-tab-shortcuts">Shortcuts</TabsTrigger>
                 </TabsList>
               </TabsRoot>
             </div>
@@ -180,7 +182,12 @@ function TicketDetailContent(props: {
           </Show>
 
           <div class="flex justify-end gap-2 border-t border-border px-4 py-3">
-            <button type="button" onClick={s.close} class="btn-secondary">Close</button>
+            <button
+              type="button"
+              onClick={s.close}
+              class="btn-secondary"
+              data-testid="ticket-detail-close-button"
+            >Close</button>
             <Show when={s.showSaveButton()}>
               <button
                 type="button"
@@ -188,6 +195,7 @@ function TicketDetailContent(props: {
                 disabled={s.saving() || !s.hasUnsavedChanges()}
                 title={modEnterHint()}
                 class="btn-primary"
+                data-testid="ticket-detail-save-button"
               >Save</button>
             </Show>
           </div>

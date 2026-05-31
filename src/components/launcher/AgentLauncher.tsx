@@ -41,7 +41,14 @@ function SortableLauncherSkill(props: {
 		>
 			<DragGrip gripProps={sortable.dragActivators} testId="launcher-skill-drag-handle" />
 			<label class="flex items-center gap-2 text-sm">
-				<input type="checkbox" checked={props.checked} onChange={props.onToggle} class="rounded border-input" />
+				<input
+					type="checkbox"
+					checked={props.checked}
+					onChange={props.onToggle}
+					class="rounded border-input"
+					data-testid="ticket-detail-launcher-skill-checkbox"
+					data-skill-name={props.skill.name}
+				/>
 				{props.skill.name}
 			</label>
 		</div>
@@ -75,6 +82,7 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 										props.onDefaultsChange({ profileName: e.currentTarget.value });
 									}}
 									class="input input-sm"
+									data-testid="ticket-detail-launcher-profile-select"
 								>
 									<For each={cfg().profiles}>
 									{(p) => <option value={p.name}>{p.name}</option>}
@@ -90,6 +98,7 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 										props.onDefaultsChange({ templateName: e.currentTarget.value });
 									}}
 									class="input input-sm"
+									data-testid="ticket-detail-launcher-template-select"
 								>
 									<For each={cfg().templates}>
 									{(t) => <option value={t.name}>{t.name}</option>}
@@ -146,6 +155,7 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 								onClick={() => c.launchAgent()}
 								disabled={c.launching()}
 								class="btn-primary"
+								data-testid="ticket-detail-launcher-run-button"
 							>Run</button>
 						</div>
 					</div>
@@ -158,8 +168,17 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 				<DialogTitle class="sr-only">Behind Remote</DialogTitle>
 				<p class="mb-4 text-sm">{c.behindRemoteMsg()}</p>
 				<div class="flex justify-end gap-2">
-					<button onClick={() => c.setBehindRemoteMsg("")} class="btn-secondary">Cancel</button>
-					<button onClick={c.pullAndRetry} disabled={c.launching()} class="btn-primary">Pull & Retry</button>
+					<button
+						onClick={() => c.setBehindRemoteMsg("")}
+						class="btn-secondary"
+						data-testid="ticket-detail-launcher-behind-remote-cancel"
+					>Cancel</button>
+					<button
+						onClick={c.pullAndRetry}
+						disabled={c.launching()}
+						class="btn-primary"
+						data-testid="ticket-detail-launcher-pull-retry"
+					>Pull & Retry</button>
 				</div>
 			</DialogRoot>
 
@@ -167,7 +186,11 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 				<DialogTitle class="sr-only">Uncommitted Changes</DialogTitle>
 				<p class="mb-4 text-sm">{c.dirtyWorktreeMsg()}</p>
 				<div class="flex justify-end gap-2">
-					<button onClick={() => c.setDirtyWorktreeMsg("")} class="btn-secondary">Cancel</button>
+					<button
+						onClick={() => c.setDirtyWorktreeMsg("")}
+						class="btn-secondary"
+						data-testid="ticket-detail-launcher-dirty-cancel"
+					>Cancel</button>
 					<button
 				onClick={() => {
 					c.setDirtyWorktreeMsg("");
@@ -175,6 +198,7 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 				}}
 				disabled={c.launching()}
 				class="btn-primary"
+				data-testid="ticket-detail-launcher-dirty-launch-anyway"
 			>Launch Anyway</button>
 				</div>
 			</DialogRoot>

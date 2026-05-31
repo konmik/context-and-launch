@@ -30,7 +30,7 @@ function ColumnRowBody(props: {
 	return (
 		<>
 			<div class="flex min-w-0 flex-1 items-center gap-2">
-				<DragGrip gripProps={props.gripProps} testId="column-drag-handle" />
+				<DragGrip gripProps={props.gripProps} testId="launcher-settings-columns-drag-handle" />
 				<div class="min-w-0 flex-1">
 					<span class="text-sm font-medium">{props.column.name}</span>
 					{props.column.description && (
@@ -39,13 +39,18 @@ function ColumnRowBody(props: {
 				</div>
 			</div>
 			<div class="ml-2 flex shrink-0 gap-1">
-				<button onClick={props.onEdit} class="btn-secondary btn-sm">Edit</button>
+				<button
+					onClick={props.onEdit}
+					class="btn-secondary btn-sm"
+					data-testid="launcher-settings-columns-edit-button"
+				>Edit</button>
 				<button
 			onClick={props.onDelete}
 			class={
 				"btn-secondary btn-sm text-destructive "
 				+ "hover:bg-destructive hover:text-destructive-foreground"
 			}
+			data-testid="launcher-settings-columns-delete-button"
 		>Delete</button>
 			</div>
 		</>
@@ -62,7 +67,7 @@ export function SortableColumnRow(props: {
 	return (
 		<div
 			ref={sortable.ref}
-			data-testid="column-row"
+			data-testid="launcher-settings-columns-row"
 			data-column-name={props.column.name}
 			classList={{ [DND_ACTIVE_CLASS]: props.isActive }}
 			class={ROW_CLASS}
@@ -93,12 +98,18 @@ export function ItemRowBody(props: {
 	gripProps?: Record<string, unknown>;
 	onEdit?: () => void;
 	onDelete?: () => void;
+	editTestId?: string;
+	deleteTestId?: string;
+	dragHandleTestId?: string;
 }) {
 	return (
 		<>
 			<div class="flex min-w-0 flex-1 items-center gap-2">
 				<Show when={props.grip}>
-					<DragGrip gripProps={props.gripProps} testId="skill-drag-handle" />
+					<DragGrip
+						gripProps={props.gripProps}
+						testId={props.dragHandleTestId ?? "launcher-settings-skills-drag-handle"}
+					/>
 				</Show>
 				<div class="min-w-0 flex-1">
 					<div class="flex items-center gap-2">
@@ -109,13 +120,18 @@ export function ItemRowBody(props: {
 				</div>
 			</div>
 			<div class="ml-2 flex shrink-0 gap-1">
-				<button onClick={props.onEdit} class="btn-secondary btn-sm">Edit</button>
+				<button
+					onClick={props.onEdit}
+					class="btn-secondary btn-sm"
+					data-testid={props.editTestId}
+				>Edit</button>
 				<button
 			onClick={props.onDelete}
 			class={
 				"btn-secondary btn-sm text-destructive "
 				+ "hover:bg-destructive hover:text-destructive-foreground"
 			}
+			data-testid={props.deleteTestId}
 		>Delete</button>
 			</div>
 		</>
@@ -132,7 +148,7 @@ export function SortableSkillRow(props: {
 	return (
 		<div
 			ref={sortable.ref}
-			data-testid="skill-row"
+			data-testid="launcher-settings-skills-row"
 			data-skill-name={props.skill.name}
 			classList={{ [DND_ACTIVE_CLASS]: props.isActive }}
 			class={ROW_CLASS}
@@ -145,6 +161,9 @@ export function SortableSkillRow(props: {
 			gripProps={sortable.dragActivators}
 			onEdit={props.onEdit}
 			onDelete={props.onDelete}
+			editTestId="launcher-settings-skills-edit-button"
+			deleteTestId="launcher-settings-skills-delete-button"
+			dragHandleTestId="launcher-settings-skills-drag-handle"
 		/>
 		</div>
 	);
@@ -174,6 +193,8 @@ export function BoardOptions(props: { boards: BoardDefinition[]; selectedId: str
 export function ItemRow(props: {
 	scope: string; name: string; detail: string;
 	onEdit: () => void; onDelete: () => void;
+	editTestId?: string;
+	deleteTestId?: string;
 }) {
 	return (
 		<div class={ROW_CLASS}>
@@ -183,6 +204,8 @@ export function ItemRow(props: {
 			detail={props.detail}
 			onEdit={props.onEdit}
 			onDelete={props.onDelete}
+			editTestId={props.editTestId}
+			deleteTestId={props.deleteTestId}
 		/>
 		</div>
 	);

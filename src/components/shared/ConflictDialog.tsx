@@ -37,7 +37,7 @@ export default function ConflictDialog(props: ConflictDialogProps) {
           value={s.selectedProfile()}
           onChange={(e) => s.setSelectedProfile(e.currentTarget.value)}
           class="input input-sm"
-          data-testid="conflict-profile-select"
+          data-testid="conflict-dialog-profile-select"
         >
           <For each={s.profiles()}>{(p) => <option value={p.name}>{p.name}</option>}</For>
         </select>
@@ -55,20 +55,29 @@ export default function ConflictDialog(props: ConflictDialogProps) {
           })}
           class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
           title="Open tickets directory"
+          data-testid="conflict-dialog-open-tickets-repo"
         >Tickets repo &#8599;</button>
         <div class="flex gap-2">
-          <button type="button" onClick={s.close} disabled={s.submitting()} class="btn-secondary">Close</button>
+          <button
+            type="button"
+            onClick={s.close}
+            disabled={s.submitting()}
+            class="btn-secondary"
+            data-testid="conflict-dialog-close"
+          >Close</button>
           <button
             type="button"
             onClick={s.abort}
             disabled={s.submitting()}
             class="btn-secondary"
+            data-testid="conflict-dialog-abort"
           >Abort</button>
           <button
             type="button"
             onClick={s.resolve}
             disabled={s.submitting() || !s.selectedProfile()}
             class="btn-primary"
+            data-testid="conflict-dialog-launch"
           >Launch</button>
         </div>
       </div>

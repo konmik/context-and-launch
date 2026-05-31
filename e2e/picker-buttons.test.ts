@@ -212,19 +212,26 @@ describe("Picker buttons (e2e, real server)", () => {
 
   // --- Settings panel: worktree root directory picker ---
 
+  const WORKTREE_BROWSE = "launcher-settings-general-worktree-browse";
   async function goToSettingsGeneral(page: Page) {
     await page.goto(`${server.baseUrl}/project/${projectSlug}`);
     await page.waitForSelector('button[title="Settings"]', { state: "visible", timeout: 15000 });
     await page.click('button[title="Settings"]');
-    await page.waitForSelector('[data-testid="settings-worktree-browse"]', { state: "visible", timeout: 5000 });
+    await page.waitForSelector(`[data-testid="${WORKTREE_BROWSE}"]`, {
+      state: "visible", timeout: 5000,
+    });
   }
 
   testDirectoryPicker({
     name: "Settings > worktree root Browse",
     setup: goToSettingsGeneral,
-    button: (p) => p.locator('[data-testid="settings-worktree-browse"]'),
-    input: (p) => p.locator('[data-testid="settings-worktree-browse"]').locator("xpath=preceding-sibling::input"),
-    errorContainer: (p) => p.locator('[data-scope="floating-panel"][data-part="content"] div.text-destructive'),
+    button: (p) => p.locator(`[data-testid="${WORKTREE_BROWSE}"]`),
+    input: (p) => p.locator(`[data-testid="${WORKTREE_BROWSE}"]`).locator(
+      "xpath=preceding-sibling::input",
+    ),
+    errorContainer: (p) => p.locator(
+      '[data-scope="floating-panel"][data-part="content"] div.text-destructive',
+    ),
   });
 
   // --- Ticket detail: file reference picker ---

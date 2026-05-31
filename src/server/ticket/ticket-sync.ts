@@ -48,6 +48,9 @@ export class TicketSyncManager {
 
 	async sync(worktreeDir: string): Promise<SyncResult> {
 		try {
+			if (this.gitRepo.hasActiveRebase(worktreeDir)) {
+				return { status: 'conflict' };
+			}
 			await git(worktreeDir, 'add', '-A');
 
 			const porcelain = await git(worktreeDir, 'status', '--porcelain');

@@ -12,13 +12,20 @@ export function ItemSection<T extends { scope: Scope; name: string }>(props: {
 	startAdd: (itemType: ItemType) => void;
 	startEdit: (itemType: ItemType, scope: Scope, name: string, detail: string) => void;
 	deleteItem: (itemType: ItemType, scope: Scope, name: string) => void;
+	addButtonTestId?: string;
+	editTestId?: string;
+	deleteTestId?: string;
 	children?: JSX.Element;
 }) {
 	return (
 		<section>
 			<div class="mb-2 flex items-center justify-between">
 				<h3 class="text-sm font-semibold">{props.heading}</h3>
-				<button onClick={() => props.startAdd(props.itemType)} class="btn-primary btn-sm">Add</button>
+				<button
+					onClick={() => props.startAdd(props.itemType)}
+					class="btn-primary btn-sm"
+					data-testid={props.addButtonTestId}
+				>Add</button>
 			</div>
 			<Show
 				when={props.items.length > 0}
@@ -41,6 +48,8 @@ export function ItemSection<T extends { scope: Scope; name: string }>(props: {
 								onDelete={() => props.deleteItem(
 									props.itemType, item.scope, item.name,
 								)}
+								editTestId={props.editTestId}
+								deleteTestId={props.deleteTestId}
 							/>
 						)}
 					</For>
@@ -68,6 +77,9 @@ export function PromptsTab(props: {
 					startAdd={props.startAdd}
 					startEdit={props.startEdit}
 					deleteItem={props.deleteItem}
+					addButtonTestId="launcher-settings-prompts-add-button"
+					editTestId="launcher-settings-prompts-edit-button"
+					deleteTestId="launcher-settings-prompts-delete-button"
 				/>
 			</div>
 		</TabsContent>

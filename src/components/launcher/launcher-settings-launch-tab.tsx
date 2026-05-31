@@ -20,6 +20,9 @@ export function LaunchTab(props: {
 					startAdd={props.startAdd}
 					startEdit={props.startEdit}
 					deleteItem={props.deleteItem}
+					addButtonTestId="launcher-settings-launch-add-profile-button"
+					editTestId="launcher-settings-launch-profile-edit-button"
+					deleteTestId="launcher-settings-launch-profile-delete-button"
 				/>
 				<ItemSection
 					heading="Shortcuts"
@@ -29,6 +32,9 @@ export function LaunchTab(props: {
 					startAdd={props.startAdd}
 					startEdit={props.startEdit}
 					deleteItem={props.deleteItem}
+					addButtonTestId="launcher-settings-launch-add-shortcut-button"
+					editTestId="launcher-settings-launch-shortcut-edit-button"
+					deleteTestId="launcher-settings-launch-shortcut-delete-button"
 				/>
 			</div>
 		</TabsContent>

@@ -19,6 +19,8 @@ export default function TicketCard(props: TicketCardProps) {
   return (
     <div
       data-drag-source
+      data-testid="kanban-board-ticket-card"
+      data-folder-name={props.ticket.folderName}
       class={
         "ripple cursor-pointer rounded-md border border-border bg-card "
         + "p-3 shadow-sm transition-shadow hover:shadow-md"
@@ -36,6 +38,7 @@ export default function TicketCard(props: TicketCardProps) {
                   + "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 }
                 aria-label="Ticket actions"
+                data-testid="kanban-board-ticket-menu-trigger"
                 onClick={(e: MouseEvent) => e.stopPropagation()}
               >
                 <svg
@@ -53,12 +56,14 @@ export default function TicketCard(props: TicketCardProps) {
             <MenuContent>
               <MenuItem
                 value="edit"
+                data-testid="kanban-board-ticket-menu-edit"
                 onClick={(e: MouseEvent) => {
                   e.stopPropagation(); props.onEdit(props.ticket);
                 }}
               >Edit</MenuItem>
               <MenuItem
                 value="archive"
+                data-testid="kanban-board-ticket-menu-archive"
                 onClick={(e: MouseEvent) => {
                   e.stopPropagation(); props.onArchive(props.ticket);
                 }}
@@ -66,6 +71,7 @@ export default function TicketCard(props: TicketCardProps) {
               <MenuItem
                 value="delete"
                 class="text-destructive"
+                data-testid="kanban-board-ticket-menu-delete"
                 onClick={(e: MouseEvent) => {
                   e.stopPropagation(); props.onDelete(props.ticket);
                 }}
@@ -76,7 +82,7 @@ export default function TicketCard(props: TicketCardProps) {
       </div>
       <p class="line-clamp-2 text-sm">{props.ticket.title}</p>
       {props.orphanedStatus && (
-        <p class="mt-1 text-xs text-destructive" data-testid="orphaned-status">
+        <p class="mt-1 text-xs text-destructive" data-testid="kanban-board-ticket-orphaned-status">
           {props.orphanedStatus}
         </p>
       )}

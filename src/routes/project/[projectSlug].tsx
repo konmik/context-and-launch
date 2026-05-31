@@ -62,7 +62,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                   ld()?.hasConflict ? "border-destructive text-destructive hover:bg-destructive/10" : ""
                 }`}
                 title={ld()?.hasConflict ? "Resolve conflicts" : "Sync tickets"}
-                data-testid="sync-button"
+                data-testid="sync-button-trigger"
               >
                 <Show when={syncState().syncSuccess} fallback={
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
@@ -77,7 +77,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                 }>
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
                     viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round" data-testid="sync-check"
+                    stroke-linecap="round" stroke-linejoin="round" data-testid="sync-button-check-icon"
                   >
                     <path d="M20 6 9 17l-5-5"/>
                   </svg>
@@ -89,11 +89,16 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                       + " rounded-full bg-destructive text-[8px] font-bold leading-none"
                       + " text-destructive-foreground"
                     }
-                    data-testid="sync-conflict-badge"
+                    data-testid="sync-button-conflict-badge"
                   >!</span>
                 </Show>
               </button>
-              <button onClick={commands.openSettings} class="btn-icon" title="Settings">
+              <button
+                onClick={commands.openSettings}
+                class="btn-icon"
+                title="Settings"
+                data-testid="project-header-settings-button"
+              >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
                   viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                   stroke-linecap="round" stroke-linejoin="round"
@@ -105,7 +110,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
               </button>
               <MenuRoot
                 trigger={
-                  <MenuTrigger class="ripple btn-secondary">
+                  <MenuTrigger class="ripple btn-secondary" data-testid="project-header-project-dropdown-trigger">
                     {d().projectSlug}
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
                       viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -124,16 +129,25 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                         disabled={!project.available}
                         class={project.projectSlug === d().projectSlug ? "font-semibold" : ""}
                         onClick={() => navigate(`/project/${project.projectSlug}`)}
+                        data-testid="project-header-project-item"
                       >
                         {project.projectSlug}
                       </MenuItem>
                     )}
                   </For>
                   <MenuSeparator />
-                  <MenuItem value="add-project" onClick={commands.openAddProject}>Add project...</MenuItem>
+                  <MenuItem
+                    value="add-project"
+                    onClick={commands.openAddProject}
+                    data-testid="project-header-add-project-menuitem"
+                  >Add project...</MenuItem>
                 </MenuContent>
               </MenuRoot>
-              <button class="btn-primary" onClick={commands.openCreate}>+ New Ticket</button>
+              <button
+                class="btn-primary"
+                onClick={commands.openCreate}
+                data-testid="project-header-new-ticket-button"
+              >+ New Ticket</button>
             </div>
           </header>
 

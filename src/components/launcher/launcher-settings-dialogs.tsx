@@ -89,6 +89,7 @@ export function ItemFormDialog(props: {
 									...f(), name: e.currentTarget.value,
 								})}
 								class="input input-sm"
+								data-testid="launcher-settings-item-form-name-input"
 								placeholder={
 									f().itemType === "profile" ? "Launch name"
 									: f().itemType === "skill" ? "Skill name"
@@ -109,6 +110,7 @@ export function ItemFormDialog(props: {
 								})}
 								class="input min-h-[120px]"
 								style={{ height: "auto" }}
+								data-testid="launcher-settings-item-form-text-input"
 								placeholder={
 									f().itemType === "profile"
 										? "e.g. bash run-agent.sh or powershell -File run-agent.ps1"
@@ -146,6 +148,7 @@ export function ItemFormDialog(props: {
 											onChange={() => props.setForm({
 												...f(), scope: "app",
 											})}
+											data-testid="launcher-settings-item-form-scope-app"
 										/> User
 									</label>
 									<label class="flex items-center gap-1.5 text-sm">
@@ -155,6 +158,7 @@ export function ItemFormDialog(props: {
 											onChange={() => props.setForm({
 												...f(), scope: "project",
 											})}
+											data-testid="launcher-settings-item-form-scope-project"
 										/> Project
 									</label>
 								</div>
@@ -162,12 +166,17 @@ export function ItemFormDialog(props: {
 						</Show>
 					</div>
 					<DialogFooter>
-						<button onClick={() => props.setForm(null)} class="btn-secondary">Cancel</button>
+						<button
+							onClick={() => props.setForm(null)}
+							class="btn-secondary"
+							data-testid="launcher-settings-item-form-cancel"
+						>Cancel</button>
 						<button
 							onClick={props.onSubmit}
 							disabled={!f().name.trim()}
 							title={modEnterHint()}
 							class="btn-primary"
+							data-testid="launcher-settings-item-form-submit"
 						>{f().mode === "add" ? "Add" : "Save"}</button>
 					</DialogFooter>
 				</>)}
@@ -202,18 +211,21 @@ export function ColumnFormDialog(props: {
 								value={cf().name}
 								onInput={(e) => props.setColumnForm({ ...cf(), name: e.currentTarget.value })}
 								class="input input-sm"
-								data-testid="column-name-input"
+								data-testid="launcher-settings-columns-name-input"
 								placeholder="e.g. In Progress"
 							/>
 							<Show when={cf().name.trim()}>
-								<p class="mt-1 text-xs text-muted-foreground" data-testid="column-slug-preview">
+								<p
+									class="mt-1 text-xs text-muted-foreground"
+									data-testid="launcher-settings-columns-slug-preview"
+								>
 									Column slug: {slugifyColumnName(cf().name)}
 								</p>
 							</Show>
 							<Show when={props.validation}>
 								<p
 									class="mt-1 text-xs text-destructive"
-									data-testid="column-name-error"
+									data-testid="launcher-settings-columns-name-error"
 								>{props.validation}</p>
 							</Show>
 						</div>
@@ -224,19 +236,23 @@ export function ColumnFormDialog(props: {
 								onInput={(e) => props.setColumnForm({ ...cf(), description: e.currentTarget.value })}
 								class="input min-h-[60px]"
 								style={{ height: "auto" }}
-								data-testid="column-desc-input"
+								data-testid="launcher-settings-columns-desc-input"
 								placeholder="Brief description of this column"
 							/>
 						</div>
 					</div>
 					<DialogFooter>
-						<button onClick={() => props.setColumnForm(null)} class="btn-secondary">Cancel</button>
+						<button
+							onClick={() => props.setColumnForm(null)}
+							class="btn-secondary"
+							data-testid="launcher-settings-columns-form-cancel"
+						>Cancel</button>
 						<button
 							onClick={props.onSubmit}
 							disabled={!cf().name.trim() || !!props.validation}
 							title={modEnterHint()}
 							class="btn-primary"
-							data-testid="column-form-submit"
+							data-testid="launcher-settings-columns-form-submit"
 						>{cf().mode === "add" ? "Add" : "Save"}</button>
 					</DialogFooter>
 				</>)}
@@ -272,7 +288,7 @@ export function RenameColumnDialog(props: {
 								onChange={() => props.setRenameForm({
 									...rf(), scope: "all",
 								})}
-								data-testid="rename-scope-all"
+								data-testid="launcher-settings-columns-rename-scope-all"
 							/>
 								All projects using this board
 							</label>
@@ -283,7 +299,7 @@ export function RenameColumnDialog(props: {
 								onChange={() => props.setRenameForm({
 									...rf(), scope: "current",
 								})}
-								data-testid="rename-scope-current"
+								data-testid="launcher-settings-columns-rename-scope-current"
 							/>
 								Current project only
 							</label>
@@ -294,15 +310,24 @@ export function RenameColumnDialog(props: {
 								onChange={() => props.setRenameForm({
 									...rf(), scope: "none",
 								})}
-								data-testid="rename-scope-none"
+								data-testid="launcher-settings-columns-rename-scope-none"
 							/>
 								None (rename column only)
 							</label>
 						</div>
 					</div>
 					<DialogFooter>
-						<button onClick={() => props.setRenameForm(null)} class="btn-secondary">Cancel</button>
-						<button onClick={props.onRename} title={modEnterHint()} class="btn-primary">Rename</button>
+						<button
+							onClick={() => props.setRenameForm(null)}
+							class="btn-secondary"
+							data-testid="launcher-settings-columns-rename-cancel"
+						>Cancel</button>
+						<button
+							onClick={props.onRename}
+							title={modEnterHint()}
+							class="btn-primary"
+							data-testid="launcher-settings-columns-rename-confirm"
+						>Rename</button>
 					</DialogFooter>
 				</>)}
 			</Show>
@@ -330,19 +355,23 @@ export function BoardFormDialog(props: {
 								value={bf().name}
 								onInput={(e) => props.setBoardForm({ name: e.currentTarget.value })}
 								class="input input-sm"
-								data-testid="board-name-input"
+								data-testid="launcher-settings-columns-board-name-input"
 								placeholder="e.g. Development"
 							/>
 						</div>
 					</div>
 					<DialogFooter>
-						<button onClick={() => props.setBoardForm(null)} class="btn-secondary">Cancel</button>
+						<button
+							onClick={() => props.setBoardForm(null)}
+							class="btn-secondary"
+							data-testid="launcher-settings-columns-board-form-cancel"
+						>Cancel</button>
 						<button
 							onClick={props.onCreate}
 							disabled={!bf().name.trim()}
 							title={modEnterHint()}
 							class="btn-primary"
-							data-testid="board-form-submit"
+							data-testid="launcher-settings-columns-board-form-submit"
 						>Add</button>
 					</DialogFooter>
 				</>)}
@@ -363,7 +392,7 @@ export function DeleteConfirmDialog(props: {
 				{(dc) => (<>
 					<DialogHeader title={`Delete ${dc().type === "board" ? "Board" : "Column"}`} />
 					<div class="px-6 py-4">
-						<p class="text-sm" data-testid="delete-confirm-message">
+						<p class="text-sm" data-testid="launcher-settings-columns-delete-confirm-message">
 							{dc().type === "board"
 								? `Delete board "${dc().name}"? This cannot be undone.`
 								: `Delete column "${dc().name}"? Tickets with this status `
@@ -371,11 +400,15 @@ export function DeleteConfirmDialog(props: {
 						</p>
 					</div>
 					<DialogFooter>
-						<button onClick={() => props.setDeleteConfirm(null)} class="btn-secondary">Cancel</button>
+						<button
+							onClick={() => props.setDeleteConfirm(null)}
+							class="btn-secondary"
+							data-testid="launcher-settings-columns-delete-cancel"
+						>Cancel</button>
 						<button
 							onClick={dc().type === "board" ? props.onDeleteBoard : props.onDeleteColumn}
 							class="btn-primary bg-destructive text-destructive-foreground hover:bg-destructive/90"
-							data-testid="delete-confirm-btn"
+							data-testid="launcher-settings-columns-delete-confirm-btn"
 						>Delete</button>
 					</DialogFooter>
 				</>)}
@@ -399,7 +432,7 @@ export function ProjectBoardConfirmDialog(props: {
 				{(pbc) => (<>
 					<DialogHeader title="Set Project Board" />
 					<div class="px-6 py-4">
-						<p class="text-sm" data-testid="set-project-board-message">
+						<p class="text-sm" data-testid="launcher-settings-columns-set-project-board-message">
 							Set "{pbc().name}" as the board for this project? Tickets whose
 							status is not a column in this board will appear in the undefined
 							column and must be updated manually.
@@ -409,12 +442,12 @@ export function ProjectBoardConfirmDialog(props: {
 						<button
 							onClick={() => props.setProjectBoardConfirm(null)}
 							class="btn-secondary"
-							data-testid="set-project-board-cancel-btn"
+							data-testid="launcher-settings-columns-set-project-board-cancel-btn"
 						>Cancel</button>
 						<button
 							onClick={props.onConfirm}
 							class="btn-primary"
-							data-testid="set-project-board-confirm-btn"
+							data-testid="launcher-settings-columns-set-project-board-confirm-btn"
 						>Set board</button>
 					</DialogFooter>
 				</>)}

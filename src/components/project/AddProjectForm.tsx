@@ -33,8 +33,14 @@ export default function AddProjectForm(props: AddProjectFormProps) {
             onInput={(e) => s.setPathValue(e.currentTarget.value)}
             placeholder="/path/to/your/repo"
             class="input"
+            data-testid="add-project-path-input"
           />
-          <button type="button" onClick={s.handleBrowsePath} class="btn-secondary">Browse</button>
+          <button
+            type="button"
+            onClick={s.handleBrowsePath}
+            class="btn-secondary"
+            data-testid="add-project-path-browse"
+          >Browse</button>
         </div>
       </div>
       <div class="mb-4">
@@ -46,6 +52,7 @@ export default function AddProjectForm(props: AddProjectFormProps) {
           onInput={(e) => s.setBranchValue(e.currentTarget.value)}
           placeholder="tickets"
           class="input"
+          data-testid="add-project-branch-input"
         />
       </div>
       <div class="mb-4">
@@ -58,8 +65,14 @@ export default function AddProjectForm(props: AddProjectFormProps) {
             onInput={(e) => s.setTicketsRootPath(e.currentTarget.value)}
             placeholder="Defaults to the project data directory"
             class="input"
+            data-testid="add-project-tickets-root-input"
           />
-          <button type="button" onClick={s.handleBrowseTicketsRoot} class="btn-secondary">Browse</button>
+          <button
+            type="button"
+            onClick={s.handleBrowseTicketsRoot}
+            class="btn-secondary"
+            data-testid="add-project-tickets-browse"
+          >Browse</button>
         </div>
       </div>
       <div class="mb-4">
@@ -72,8 +85,14 @@ export default function AddProjectForm(props: AddProjectFormProps) {
             onInput={(e) => s.setWorktreeRootPath(e.currentTarget.value)}
             placeholder="Defaults to the project data directory"
             class="input"
+            data-testid="add-project-worktree-root-input"
           />
-          <button type="button" onClick={s.handleBrowseWorktreeRoot} class="btn-secondary">Browse</button>
+          <button
+            type="button"
+            onClick={s.handleBrowseWorktreeRoot}
+            class="btn-secondary"
+            data-testid="add-project-worktree-browse"
+          >Browse</button>
         </div>
       </div>
       <Show when={s.localError()}><p class="mb-4 text-sm text-destructive">{s.localError()}</p></Show>
@@ -82,6 +101,7 @@ export default function AddProjectForm(props: AddProjectFormProps) {
         disabled={s.submitting() || !s.pathValue().trim()}
         title={props.submitTitle}
         class="btn-primary w-full"
+        data-testid="add-project-submit"
       >
         Add Project
       </button>

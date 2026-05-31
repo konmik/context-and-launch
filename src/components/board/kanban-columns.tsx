@@ -82,7 +82,14 @@ function SortableTicketCard(props: {
 
 function EmptyColumnDropzone(props: { column: string }) {
 	const droppable = createDroppable(COLUMN_PREFIX + props.column);
-	return <div ref={droppable.ref} class="flex-1" />;
+	return (
+		<div
+			ref={droppable.ref}
+			class="flex-1"
+			data-testid="kanban-board-empty-dropzone"
+			data-column-name={props.column}
+		/>
+	);
 }
 
 export interface TicketColumnProps {
@@ -109,11 +116,15 @@ export function TicketColumn(props: TicketColumnProps & {
 	};
 	return (
 		<div class="flex min-w-[250px] flex-1 flex-col rounded-lg bg-muted/50 p-3">
-			<h3 class="mb-3 text-sm font-semibold uppercase text-muted-foreground">
+			<h3
+				class="mb-3 text-sm font-semibold uppercase text-muted-foreground"
+				data-testid="kanban-board-column-header"
+				data-column-name={props.column.name}
+			>
 				{props.column.name}
 			</h3>
 			<Show when={props.column.description}>
-				<p class="mb-2 text-xs text-muted-foreground" data-testid="column-description">
+				<p class="mb-2 text-xs text-muted-foreground" data-testid="kanban-board-column-description">
 					{props.column.description}
 				</p>
 			</Show>
@@ -154,12 +165,15 @@ export function OrphanColumn(props: TicketColumnProps & { tickets: TicketInfo[] 
 				"flex min-w-[250px] flex-1 flex-col rounded-lg "
 				+ "border-2 border-destructive bg-muted/50 p-3"
 			}
-			data-testid="undefined-column"
+			data-testid="kanban-board-undefined-column"
 		>
 			<h3 class="mb-1 text-sm font-semibold uppercase text-destructive">
 				undefined
 			</h3>
-			<p class="mb-2 text-xs text-destructive/80" data-testid="undefined-column-description">Update manually</p>
+			<p
+				class="mb-2 text-xs text-destructive/80"
+				data-testid="kanban-board-undefined-column-description"
+			>Update manually</p>
 			<SortableProvider ids={props.tickets.map((t) => makeId("undefined", t.folderName))}>
 				<div class="flex flex-1 flex-col gap-2">
 					<For each={props.tickets}>

@@ -41,6 +41,7 @@ export default function CreateTicketDialog(props: CreateTicketDialogProps) {
             onInput={(e) => s.setNumber(e.currentTarget.value)}
             class="input"
             placeholder="e.g. ABC-1"
+            data-testid="create-ticket-number-input"
           />
         </div>
         <div class="mb-4">
@@ -52,16 +53,23 @@ export default function CreateTicketDialog(props: CreateTicketDialogProps) {
             onInput={(e) => s.setTitle(e.currentTarget.value)}
             class="input"
             placeholder="e.g. Fix login timeout"
+            data-testid="create-ticket-title-input"
           />
         </div>
         <Show when={s.errorMsg()}><p class="mb-4 text-sm text-destructive">{s.errorMsg()}</p></Show>
         <div class="flex justify-end gap-2">
-          <button type="button" onClick={s.close} class="btn-secondary">Cancel</button>
+          <button
+            type="button"
+            onClick={s.close}
+            class="btn-secondary"
+            data-testid="create-ticket-cancel"
+          >Cancel</button>
           <button
             type="submit"
             disabled={s.submitting() || !s.number().trim() || !s.title().trim()}
             title={modEnterHint()}
             class="btn-primary"
+            data-testid="create-ticket-submit"
           >Create</button>
         </div>
       </form>
