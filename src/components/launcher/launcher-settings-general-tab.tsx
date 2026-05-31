@@ -54,6 +54,7 @@ export function GeneralTab(props: {
 						/>
 						<button
 							type="button"
+							data-testid="settings-worktree-browse"
 							onClick={async () => {
 								try {
 									const res = await fetch("/api/pick-directory");
