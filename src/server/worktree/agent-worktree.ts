@@ -193,6 +193,16 @@ export class AgentWorktreeManager {
 		return null;
 	}
 
+	async isBranchMerged(projectPath: string, branchName: string): Promise<boolean> {
+		const mainBranch = await this.getMainBranch(projectPath);
+		try {
+			await git(projectPath, 'merge-base', '--is-ancestor', branchName, mainBranch);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
 	async removeWorktree(projectPath: string, worktreePath: string): Promise<void> {
 		await git(projectPath, 'worktree', 'remove', worktreePath);
 	}
