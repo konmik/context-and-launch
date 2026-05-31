@@ -31,6 +31,16 @@ export class WorktreeCleanupService {
 			}
 		}
 
+		if (options.deleteLocalBranch) {
+			const merged = await this.agentWorktreeManager.isBranchMerged(projectPath, branchName);
+			if (!merged) {
+				throw new Error(
+					`Branch '${branchName}' has unmerged commits.`
+					+ ' Merge or force-delete the branch before cleanup.',
+				);
+			}
+		}
+
 		if (options.deleteRemoteBranch) {
 			const exists = await this.agentWorktreeManager.hasRemoteBranch(projectPath, branchName);
 			if (!exists) {
