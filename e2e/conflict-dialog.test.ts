@@ -5,6 +5,7 @@ import path from "node:path";
 import os from "node:os";
 import {
   createProject, uniqueSlug, gotoProject, setupE2E, expectOpenConfigDirRequest,
+  openConflictDialog,
 } from "./fixtures.js";
 
 describe("Conflict dialog (e2e, real server)", () => {
@@ -32,10 +33,7 @@ describe("Conflict dialog (e2e, real server)", () => {
     });
 
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await ctx.page.click('[data-testid="sync-button-trigger"]');
-    await ctx.page.waitForSelector('[data-testid="conflict-dialog-profile-select"]', {
-      state: "visible", timeout: 15000,
-    });
+    await openConflictDialog(ctx.page);
 
     expect(await ctx.page.locator('[data-testid="conflict-dialog-open-tickets-repo"]').count()).toBe(1);
     expect(await ctx.page.locator('[data-testid="conflict-dialog-close"]').count()).toBe(1);
@@ -72,8 +70,7 @@ describe("Conflict dialog (e2e, real server)", () => {
     });
 
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await ctx.page.click('[data-testid="sync-button-trigger"]');
-    await ctx.page.waitForSelector('[data-testid="conflict-dialog-abort"]', { timeout: 15000 });
+    await openConflictDialog(ctx.page);
     await ctx.page.click('[data-testid="conflict-dialog-abort"]');
     await ctx.page.waitForSelector('[data-testid="conflict-dialog-abort"]', {
       state: "detached", timeout: 15000,
@@ -107,8 +104,7 @@ describe("Conflict dialog (e2e, real server)", () => {
     });
 
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await ctx.page.click('[data-testid="sync-button-trigger"]');
-    await ctx.page.waitForSelector('[data-testid="conflict-dialog-launch"]', { timeout: 15000 });
+    await openConflictDialog(ctx.page);
     await ctx.page.click('[data-testid="conflict-dialog-launch"]');
     await ctx.page.waitForTimeout(1500);
     expect(resolveCalled).toBe(true);
@@ -163,10 +159,7 @@ describe("Conflict dialog (e2e, real server)", () => {
     expect(syncBody).toEqual({ status: "conflict" });
 
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await ctx.page.click('[data-testid="sync-button-trigger"]');
-    await ctx.page.waitForSelector('[data-testid="conflict-dialog-profile-select"]', {
-      state: "visible", timeout: 15000,
-    });
+    await openConflictDialog(ctx.page);
   }, 60000);
 
   it("open-tickets-repo fires open-config-dir", async () => {
@@ -191,8 +184,7 @@ describe("Conflict dialog (e2e, real server)", () => {
     });
 
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await ctx.page.click('[data-testid="sync-button-trigger"]');
-    await ctx.page.waitForSelector('[data-testid="conflict-dialog-open-tickets-repo"]', { timeout: 15000 });
+    await openConflictDialog(ctx.page);
     await expectOpenConfigDirRequest(ctx.page, () =>
       ctx.page.click('[data-testid="conflict-dialog-open-tickets-repo"]'));
   }, 60000);
