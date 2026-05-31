@@ -11,7 +11,7 @@ function runWindowsPicker(exe: string, encoded: string): Promise<PickerResult> {
 	return new Promise((resolve) => {
 		execFile(
 			exe,
-			["-NoProfile", "-EncodedCommand", encoded],
+			["-STA", "-NoProfile", "-EncodedCommand", encoded],
 			{ timeout: 600000 },
 			(err, stdout) => {
 				if (err) {
@@ -29,15 +29,14 @@ function runWindowsPicker(exe: string, encoded: string): Promise<PickerResult> {
 }
 
 function buildWindowsPickerScript(preselect: string): string {
-	const selectedPath = preselect
-		? `$d.SelectedPath = '${preselect.replace(/'/g, "''")}'\n`
+	const initialDir = preselect
+		? `$d.InitialDirectory = '${preselect.replace(/'/g, "''")}'\n`
 		: "";
 	return `
-Add-Type -AssemblyName System.Windows.Forms
-$d = New-Object System.Windows.Forms.FolderBrowserDialog
-$d.Description = 'Select directory'
-$d.ShowNewFolderButton = $true
-${selectedPath}if ($d.ShowDialog() -eq 'OK') { $d.SelectedPath } else { exit 1 }
+Add-Type -AssemblyName PresentationFramework
+$d = New-Object Microsoft.Win32.OpenFolderDialog
+$d.Title = 'Select directory'
+${initialDir}if ($d.ShowDialog()) { $d.FolderName } else { exit 1 }
 `;
 }
 
