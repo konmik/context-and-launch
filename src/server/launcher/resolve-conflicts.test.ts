@@ -6,6 +6,7 @@ vi.mock("~/server/config/instances.js", () => ({
 }));
 vi.mock("~/server/launcher/agent-launch.js", () => ({
 	spawnProfile: vi.fn().mockResolvedValue(undefined),
+	agentMarkerPath: vi.fn().mockReturnValue("/fake/config/running/test-project/__resolve-conflicts__.json"),
 }));
 
 import { POST } from "~/routes/api/projects/[projectSlug]/board/resolve-conflicts.js";

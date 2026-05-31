@@ -926,10 +926,10 @@ describe('LauncherConfigManager', () => {
 		expect(config.profiles).toHaveLength(2);
 		expect(config.profiles![0].name).toBe('Claude Windows');
 		expect(config.profiles![0].command)
-			.toBe('powershell -File {{appConfigDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}}');
+			.toBe('powershell -File {{appConfigDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}} {{markerPath}}');
 		expect(config.profiles![1].name).toBe('Claude macOS');
 		expect(config.profiles![1].command)
-			.toBe('bash {{appConfigDir}}/run-agent.sh {{initialPrompt}} {{windowTitle}}');
+			.toBe('bash {{appConfigDir}}/run-agent.sh {{initialPrompt}} {{windowTitle}} {{markerPath}}');
 	});
 
 	it('addProfile to app scope, verify file on disk', () => {

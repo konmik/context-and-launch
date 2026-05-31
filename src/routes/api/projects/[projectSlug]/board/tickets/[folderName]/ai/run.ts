@@ -2,9 +2,8 @@ import {
   resolveTicketAndProject,
   resolveLaunchDir,
   readLaunchRequest,
-  buildWindowTitle,
   launchAgent,
-  windowExists,
+  agentRunning,
 } from "~/server/launcher/agent-launch.js";
 import { withService } from "~/server/shared/route-helpers.js";
 
@@ -13,8 +12,7 @@ export const POST = withService(async ({ params, request }) => {
   const resolved = resolveTicketAndProject(projectSlug, folderName);
   if (resolved instanceof Response) return resolved;
   const { ticket, project, worktreeDir } = resolved;
-  const windowTitle = buildWindowTitle(ticket);
-  if (await windowExists(windowTitle)) return new Response("Already started", { status: 409 });
+  if (agentRunning(projectSlug, folderName)) return new Response("Already started", { status: 409 });
   const launchRequest = await readLaunchRequest(request);
   const launchDirResult = await resolveLaunchDir(
     projectSlug, folderName, launchRequest.useWorktree, project.path, launchRequest.force,

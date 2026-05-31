@@ -1,4 +1,5 @@
-import { spawn, execFile } from "child_process";
+import { spawn, execFileSync } from "child_process";
+import fs from "fs";
 import path from "path";
 import {
   worktreeManager, projectRegistry, launcherConfigManager, agentWorktreeManager,
@@ -66,46 +67,78 @@ export async function spawnDetached(executable: string, args: string[], cwd: str
   });
 }
 
-function escapeTitle(title: string): string {
-  return title.replace(/'/g, "''");
+interface AgentMarker {
+  pid: number;
+  start?: string;
 }
 
-export function windowExists(title: string): Promise<boolean> {
-  if (process.platform === "win32") {
-    const script = `$ws = New-Object -ComObject WScript.Shell;`
-      + ` if ($ws.AppActivate('${escapeTitle(title)}')) { exit 0 } else { exit 1 }`;
-    const encoded = Buffer.from(script, "utf16le").toString("base64");
-    return new Promise((resolve) => {
-      execFile("powershell", ["-NoProfile", "-EncodedCommand", encoded], { windowsHide: true }, (err) => {
-        resolve(!err);
-      });
-    });
+/**
+ * Path to the per-ticket marker file an agent launch script writes while the
+ * agent is running. Lives under the app config dir (not the worktree) so it
+ * survives worktree teardown and is never committed.
+ */
+export function agentMarkerPath(projectSlug: string, folderName: string): string {
+  return path.join(
+    launcherConfigManager.getAppConfigDir(), "running", projectSlug, `${folderName}.json`,
+  );
+}
+
+function normalizeStart(out: string): string {
+  return out.trim().replace(/\s+/g, " ");
+}
+
+/** Wall-clock start time of a pid, used to distinguish a live agent from a reused pid. */
+function processStart(pid: number): string | null {
+  if (process.platform === "win32") return null;
+  try {
+    return normalizeStart(execFileSync("ps", ["-o", "lstart=", "-p", String(pid)], { timeout: 2000 }).toString());
+  } catch {
+    return null;
   }
-  if (process.platform === "darwin") {
-    const escaped = title.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-    const script = `tell application "System Events"
-  repeat with p in (every process whose visible is true)
-    try
-      repeat with w in (every window of p)
-        if name of w contains "${escaped}" then return "true"
-      end repeat
-    end try
-  end repeat
-end tell
-return "false"`;
-    return new Promise((resolve) => {
-      execFile("osascript", ["-e", script], { timeout: 5000 }, (err, stdout) => {
-        if (err) { resolve(false); return; }
-        resolve(stdout.trim() === "true");
-      });
-    });
+}
+
+function isAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return (e as NodeJS.ErrnoException).code === "EPERM";
   }
-  const escaped = title.replace(/'/g, "'\\''");
-  return new Promise((resolve) => {
-    execFile("sh", ["-c", `wmctrl -l 2>/dev/null | grep -qF '${escaped}'`], (err) => {
-      resolve(!err);
-    });
-  });
+}
+
+function reapMarker(markerPath: string): void {
+  try {
+    fs.rmSync(markerPath, { force: true });
+  } catch (e) {
+    console.warn(`Failed to reap stale agent marker ${markerPath}:`, e);
+  }
+}
+
+/**
+ * Whether an agent is currently running for this ticket. Reads the marker file
+ * and confirms its pid is both alive and the same process instance we recorded
+ * (start time match defeats pid reuse). A dead or recycled pid is reaped and
+ * treated as not running; a missing marker fails open (not running).
+ */
+export function agentRunning(projectSlug: string, folderName: string): boolean {
+  const markerPath = agentMarkerPath(projectSlug, folderName);
+  let marker: AgentMarker;
+  try {
+    marker = JSON.parse(fs.readFileSync(markerPath, "utf-8"));
+  } catch {
+    return false;
+  }
+  if (typeof marker.pid !== "number") return false;
+  if (!isAlive(marker.pid)) {
+    reapMarker(markerPath);
+    return false;
+  }
+  const start = processStart(marker.pid);
+  if (start && marker.start && start !== marker.start) {
+    reapMarker(markerPath);
+    return false;
+  }
+  return true;
 }
 
 export async function resolveLaunchDir(
@@ -246,7 +279,9 @@ export async function launchAgent(
   }
 
   const commandVars: Record<string, string> = {
-    initialPrompt, windowTitle, appConfigDir: launcherConfigManager.getAppConfigDir(),
+    initialPrompt, windowTitle,
+    markerPath: agentMarkerPath(projectSlug, ticket.folderName),
+    appConfigDir: launcherConfigManager.getAppConfigDir(),
   };
   await spawnProfile(profile, commandVars, launchDir);
 

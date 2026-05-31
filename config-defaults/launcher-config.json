@@ -26,11 +26,11 @@
   "profiles": [
     {
       "name": "Claude Windows",
-      "command": "powershell -File {{appConfigDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}}"
+      "command": "powershell -File {{appConfigDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}} {{markerPath}}"
     },
     {
       "name": "Claude macOS",
-      "command": "bash {{appConfigDir}}/run-agent.sh {{initialPrompt}} {{windowTitle}}"
+      "command": "bash {{appConfigDir}}/run-agent.sh {{initialPrompt}} {{windowTitle}} {{markerPath}}"
     }
   ],
   "shortcuts": [

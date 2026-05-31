@@ -3,6 +3,7 @@ import {
   resolveTicketAndProject,
   readLaunchRequest,
   launchAgent,
+  agentRunning,
 } from "~/server/launcher/agent-launch.js";
 import { withService } from "~/server/shared/route-helpers.js";
 
@@ -11,6 +12,7 @@ export const POST = withService(async ({ params, request }) => {
   const resolved = resolveTicketAndProject(projectSlug, folderName);
   if (resolved instanceof Response) return resolved;
   const { ticket, project, worktreeDir } = resolved;
+  if (agentRunning(projectSlug, folderName)) return new Response("Already started", { status: 409 });
   await agentWorktreeManager.pullMainBranch(project.path);
   const launchRequest = await readLaunchRequest(request);
   const worktreeResult = await agentWorktreeManager.ensureAgentWorktree(project.path, projectSlug, folderName);
