@@ -60,7 +60,7 @@ function testDirectoryPicker(spec: DirectoryPickerSpec) {
         .toBe(PICKED_DIR);
     }, 30000);
 
-    it("leaves the input unchanged when the user cancels", async () => {
+    it("leaves the input unchanged and shows no error when the user cancels", async () => {
       page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
       setPickerStub("__cancel__");
       await spec.setup(page);
@@ -68,11 +68,23 @@ function testDirectoryPicker(spec: DirectoryPickerSpec) {
       await spec.button(page).click();
       await page.waitForTimeout(500);
       expect(await spec.input(page).inputValue()).toBe(before);
+      expect(await spec.errorContainer(page).count()).toBe(0);
     }, 30000);
 
     it("shows an error when no picker is available", async () => {
       page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
       setPickerStub("__unavailable__");
+      await spec.setup(page);
+      await spec.button(page).click();
+      await expect.poll(
+        () => spec.errorContainer(page).textContent(),
+        { timeout: 5000 },
+      ).toBeTruthy();
+    }, 30000);
+
+    it("shows an error when the picker fails (not cancel)", async () => {
+      page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
+      setPickerStub("__error__");
       await spec.setup(page);
       await spec.button(page).click();
       await expect.poll(
@@ -232,6 +244,47 @@ describe("Picker buttons (e2e, real server)", () => {
     await page.click("[data-drag-source]");
     await page.waitForSelector('button:has-text("Add file reference")', { state: "visible", timeout: 5000 });
   }
+
+  describe("Ticket Detail > Add file reference > remembers last directory", () => {
+    let page: Page;
+    afterEach(async () => { await page?.close(); });
+
+    it("uses the directory of the previously picked file on the next open", async () => {
+      page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
+      // Clear any persisted dir from prior tests
+      await page.addInitScript(() => { try { localStorage.clear(); } catch {} });
+      const browseRequests: string[] = [];
+      page.on("request", (req) => {
+        const url = req.url();
+        if (url.includes("/api/browse")) browseRequests.push(url);
+      });
+
+      const firstFile = path.join(os.tmpdir(), "dir-A", "file1.ts");
+      const secondFile = path.join(os.tmpdir(), "dir-B", "file2.ts");
+
+      setFilePickerStub(firstFile);
+      await goToTicketDetail(page);
+      await page.locator('button:has-text("Add file reference")').click();
+      await expect.poll(
+        async () => {
+          const btns = await page.locator("button").allTextContents();
+          return btns.some(t => t.includes("REFERENCE"));
+        },
+        { timeout: 5000 },
+      ).toBe(true);
+
+      const firstUrl = browseRequests[0] ?? "";
+      expect(firstUrl).not.toContain("startDir=");
+
+      setFilePickerStub(secondFile);
+      await page.locator('button:has-text("Add file reference")').click();
+      await expect.poll(() => browseRequests.length, { timeout: 5000 }).toBeGreaterThanOrEqual(2);
+
+      const secondUrl = browseRequests[1] ?? "";
+      const expectedDir = path.dirname(firstFile);
+      expect(decodeURIComponent(secondUrl)).toContain(`startDir=${expectedDir}`);
+    }, 30000);
+  });
 
   testFilePicker({
     name: "Ticket Detail > Add file reference",
