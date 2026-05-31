@@ -18,7 +18,8 @@ vi.mock("~/server/config/instances.js", () => ({
 
 import { launcherConfigManager } from "~/server/config/instances.js";
 
-import { POST, openInOs, platformOpenCommand } from "~/routes/api/open-config-dir.js";
+import { openInOs, platformOpenCommand } from "~/server/infra/open-in-os.js";
+import { POST } from "~/routes/api/open-config-dir.js";
 
 function fakeEvent(body: Record<string, unknown>) {
 	return {

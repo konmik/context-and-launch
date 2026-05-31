@@ -1,8 +1,8 @@
-import { spawn } from "child_process";
 import fs from "fs";
 import { launcherConfigManager, worktreeManager } from "~/server/config/instances.js";
 import { NotFoundError, ValidationError } from "~/server/shared/errors.js";
 import { withService } from "~/server/shared/route-helpers.js";
+import { openInOs } from "~/server/infra/open-in-os.js";
 
 function resolveConfigDir(scope: string, projectSlug?: string): string {
   if (scope === "tickets" && projectSlug) return worktreeManager.getWorktreeDir(projectSlug);
@@ -13,26 +13,6 @@ function resolveConfigDir(scope: string, projectSlug?: string): string {
   }
   if (scope === "project" && projectSlug) return launcherConfigManager.getProjectConfigDir(projectSlug);
   return launcherConfigManager.getAppConfigDir();
-}
-
-export function platformOpenCommand(): { cmd: string; extraArgs: string[] } {
-  if (process.platform === "darwin") return { cmd: "open", extraArgs: [] };
-  if (process.platform === "win32") return { cmd: "explorer.exe", extraArgs: [] };
-  return { cmd: "xdg-open", extraArgs: [] };
-}
-
-export function openInOs(dir: string): Promise<void> {
-  const { cmd, extraArgs } = platformOpenCommand();
-  return new Promise((resolve, reject) => {
-    const child = spawn(cmd, [...extraArgs, dir], { stdio: "ignore" });
-    child.once("error", (err) => {
-      reject(new Error(`Failed to open ${dir} with ${cmd}: ${err.message}`));
-    });
-    child.once("spawn", () => {
-      child.unref();
-      resolve();
-    });
-  });
 }
 
 export const POST = withService(async ({ request }) => {
