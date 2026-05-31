@@ -1,0 +1,30 @@
+# Agent Launch
+
+- Receive template name, checked skills, profile name, worktree flag
+- Resolve ticket and project
+  - Either not found: error
+- Read marker file for this ticket
+  - Marker exists and PID alive and start time matches OS: error, already running
+  - Marker exists but PID dead or start time mismatch: delete stale marker, continue
+- Resolve launch directory
+  - Worktree disabled: use project path
+  - Worktree enabled
+    - Root not configured: error
+    - Main branch dirty: return dirty flag
+      - User can force-retry, skipping dirty check
+    - Main branch behind remote: return behind-remote flag
+      - User can pull and retry
+    - Create or reuse worktree on a per-ticket branch
+- Find template by name, fall back to default, fall back to hardcoded fallback
+- Collect text for each checked skill
+- Concatenate template and skills into a single prompt
+- Interpolate variable placeholders with ticket and project values
+- Resolve profile by name, fall back to first available
+  - No profile available: error
+- Parse profile command, interpolate prompt and marker path into arguments
+- Spawn detached process, wait up to 10 seconds
+  - Exits with non-zero code before timeout: error
+- Launch script writes marker file with wrapper shell PID and start time
+- Launch script runs the agent
+- Launch script delivers the initial prompt via keystroke injection
+- On agent exit: delete marker

@@ -48,9 +48,15 @@ function buildWindowsPickerScript(preselect: string): string {
 		: "";
 	return `
 Add-Type -AssemblyName PresentationFramework
+$p = @{ Width=0; Height=0; WindowStyle='None'
+  ShowInTaskbar=$false; Topmost=$true }
+$h = New-Object System.Windows.Window -Property $p
+$h.Show()
 $d = New-Object Microsoft.Win32.OpenFolderDialog
 $d.Title = 'Select directory'
-${initialDir}if ($d.ShowDialog()) { $d.FolderName } else { exit 1 }
+${initialDir}$r = $d.ShowDialog($h)
+$h.Close()
+if ($r) { $d.FolderName } else { exit 1 }
 `;
 }
 

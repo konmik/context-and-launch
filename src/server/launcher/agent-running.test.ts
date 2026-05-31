@@ -35,20 +35,22 @@ describe("agentRunning", () => {
 		expect(agentRunning("proj", "ticket")).toBe(false);
 	});
 
-	it("is true when the marker pid is alive (no start recorded)", () => {
-		writeMarker("proj", "ticket", JSON.stringify({ pid: process.pid }));
+	it("is true when the marker pid is alive", () => {
+		const startSec = Math.floor(Date.now() / 1000);
+		writeMarker("proj", "ticket",
+			JSON.stringify({ pid: process.pid, startSec }));
 		expect(agentRunning("proj", "ticket")).toBe(true);
 	});
 
 	it("is false and reaps the marker when the pid is dead", () => {
-		// A pid near the max is overwhelmingly unlikely to exist.
-		const p = writeMarker("proj", "ticket", JSON.stringify({ pid: 2147483646 }));
+		const p = writeMarker("proj", "ticket",
+			JSON.stringify({ pid: 2147483646 }));
 		expect(agentRunning("proj", "ticket")).toBe(false);
 		expect(fs.existsSync(p)).toBe(false);
 	});
 
-	it("is false and reaps the marker when a live pid was reused (start mismatch)", () => {
-		const stale = JSON.stringify({ pid: process.pid, start: "Thu Jan  1 00:00:00 1970" });
+	it("is false and reaps the marker when a live pid was reused", () => {
+		const stale = JSON.stringify({ pid: process.pid, startSec: 0 });
 		const p = writeMarker("proj", "ticket", stale);
 		expect(agentRunning("proj", "ticket")).toBe(false);
 		expect(fs.existsSync(p)).toBe(false);

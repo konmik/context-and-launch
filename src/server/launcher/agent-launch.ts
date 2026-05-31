@@ -69,7 +69,7 @@ export async function spawnDetached(executable: string, args: string[], cwd: str
 
 interface AgentMarker {
   pid: number;
-  start?: string;
+  startSec?: number;
 }
 
 /**
@@ -83,15 +83,37 @@ export function agentMarkerPath(projectSlug: string, folderName: string): string
   );
 }
 
-function normalizeStart(out: string): string {
-  return out.trim().replace(/\s+/g, " ");
-}
+const MARKER_START_TOLERANCE_SEC = 5;
 
-/** Wall-clock start time of a pid, used to distinguish a live agent from a reused pid. */
-function processStart(pid: number): string | null {
-  if (process.platform === "win32") return null;
+function processStartSec(pid: number): number | null {
   try {
-    return normalizeStart(execFileSync("ps", ["-o", "lstart=", "-p", String(pid)], { timeout: 2000 }).toString());
+    if (process.platform === "linux") {
+      const raw = fs.readFileSync(`/proc/${pid}/stat`, "utf-8");
+      const afterComm = raw.slice(raw.lastIndexOf(")") + 2);
+      const startTicks = Number(afterComm.split(" ")[19]);
+      const uptimeSec = Number(
+        fs.readFileSync("/proc/uptime", "utf-8").split(" ")[0],
+      );
+      const bootSec = Math.floor(Date.now() / 1000 - uptimeSec);
+      return bootSec + Math.floor(startTicks / 100);
+    }
+    if (process.platform === "darwin") {
+      const out = execFileSync(
+        "ps", ["-o", "lstart=", "-p", String(pid)],
+        { timeout: 2000 },
+      ).toString().trim();
+      return Math.floor(new Date(out).getTime() / 1000);
+    }
+    if (process.platform === "win32") {
+      const cmd =
+        `(Get-Process -Id ${pid}).StartTime.ToString("o")`;
+      const out = execFileSync(
+        "powershell", ["-NoProfile", "-Command", cmd],
+        { timeout: 5000 },
+      ).toString().trim();
+      return Math.floor(new Date(out).getTime() / 1000);
+    }
+    return null;
   } catch {
     return null;
   }
@@ -114,12 +136,6 @@ function reapMarker(markerPath: string): void {
   }
 }
 
-/**
- * Whether an agent is currently running for this ticket. Reads the marker file
- * and confirms its pid is both alive and the same process instance we recorded
- * (start time match defeats pid reuse). A dead or recycled pid is reaped and
- * treated as not running; a missing marker fails open (not running).
- */
 export function agentRunning(projectSlug: string, folderName: string): boolean {
   const markerPath = agentMarkerPath(projectSlug, folderName);
   let marker: AgentMarker;
@@ -133,10 +149,13 @@ export function agentRunning(projectSlug: string, folderName: string): boolean {
     reapMarker(markerPath);
     return false;
   }
-  const start = processStart(marker.pid);
-  if (start && marker.start && start !== marker.start) {
-    reapMarker(markerPath);
-    return false;
+  if (typeof marker.startSec === "number") {
+    const osSec = processStartSec(marker.pid);
+    if (osSec !== null
+      && Math.abs(osSec - marker.startSec) > MARKER_START_TOLERANCE_SEC) {
+      reapMarker(markerPath);
+      return false;
+    }
   }
   return true;
 }
