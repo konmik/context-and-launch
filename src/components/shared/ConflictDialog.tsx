@@ -11,6 +11,7 @@ interface ConflictDialogProps {
   onResolve: (profileName: string) => Promise<void>;
   onAbort: () => Promise<void>;
   projectSlug: string;
+  hasConflict: boolean;
   ctrl?: ConflictDialogController;
 }
 
@@ -27,8 +28,9 @@ export default function ConflictDialog(props: ConflictDialogProps) {
     <DialogRoot open={props.open} onOpenChange={s.close} closeOnInteractOutside={false}>
       <DialogTitle>Sync Conflicts Detected</DialogTitle>
       <DialogDescription>
-        The sync encountered conflicts during rebase. You can launch an AI agent
-        to resolve them, or abort to keep your local changes and retry later.
+        Sync detected that your local changes conflict with the remote. Your
+        working tree was left untouched. You can launch an AI agent to rebase
+        and resolve the conflicts, or close and retry later.
       </DialogDescription>
 
       <div class="mb-4">
@@ -65,13 +67,15 @@ export default function ConflictDialog(props: ConflictDialogProps) {
             class="btn-secondary"
             data-testid="conflict-dialog-close"
           >Close</button>
-          <button
-            type="button"
-            onClick={s.abort}
-            disabled={s.submitting()}
-            class="btn-secondary"
-            data-testid="conflict-dialog-abort"
-          >Abort</button>
+          <Show when={props.hasConflict}>
+            <button
+              type="button"
+              onClick={s.abort}
+              disabled={s.submitting()}
+              class="btn-secondary"
+              data-testid="conflict-dialog-abort"
+            >Abort</button>
+          </Show>
           <button
             type="button"
             onClick={s.resolve}

@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { git } from './git.js';
 
 export class GitRepository {
 	resolveGitDir(worktreeDir: string): string {
@@ -23,5 +24,19 @@ export class GitRepository {
 		const gitDir = this.resolveGitDir(worktreeDir);
 		return fs.existsSync(path.join(gitDir, 'rebase-merge'))
 			|| fs.existsSync(path.join(gitDir, 'rebase-apply'));
+	}
+
+	async assertSupportsMergeTree(worktreeDir: string): Promise<void> {
+		const out = (await git(worktreeDir, '--version')).trim();
+		const m = out.match(/(\d+)\.(\d+)/);
+		if (!m) throw new Error(`Could not determine git version from: ${out}`);
+		const major = parseInt(m[1], 10);
+		const minor = parseInt(m[2], 10);
+		if (major < 2 || (major === 2 && minor < 38)) {
+			throw new Error(
+				`git ${major}.${minor} is too old: tickets sync requires git >= 2.38 `
+				+ 'for "merge-tree --write-tree". Please upgrade git.',
+			);
+		}
 	}
 }

@@ -3,6 +3,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("~/server/config/instances.js", () => ({
 	worktreeManager: { getWorktreeDir: vi.fn().mockReturnValue("/fake/worktree") },
 	launcherConfigManager: { getMergedConfig: vi.fn(), getAppConfigDir: vi.fn().mockReturnValue("/fake/config") },
+	ticketSyncManager: {
+		prepareResolution: vi.fn().mockResolvedValue({
+			needsAgent: true, scratchDir: "/fake/worktree-conflict-resolve",
+			pushCommand: "git push origin HEAD:tickets",
+		}),
+	},
 }));
 vi.mock("~/server/launcher/agent-launch.js", () => ({
 	spawnProfile: vi.fn().mockResolvedValue(undefined),
@@ -10,7 +16,7 @@ vi.mock("~/server/launcher/agent-launch.js", () => ({
 }));
 
 import { POST } from "~/routes/api/projects/[projectSlug]/board/resolve-conflicts.js";
-import { launcherConfigManager } from "~/server/config/instances.js";
+import { launcherConfigManager, ticketSyncManager } from "~/server/config/instances.js";
 import { spawnProfile } from "~/server/launcher/agent-launch.js";
 import type { MergedLauncherConfig, LauncherProfile } from "~/server/launcher/launcher-config.js";
 
@@ -80,8 +86,28 @@ describe("resolve-conflicts profile lookup", () => {
 		expect(response.status).toBe(200);
 		expect(spawnProfile).toHaveBeenCalledWith(
 			profiles[0],
-			expect.objectContaining({ initialPrompt: "resolve conflicts" }),
-			"/fake/worktree",
+			expect.objectContaining({
+				initialPrompt: expect.stringContaining("git push origin HEAD:tickets"),
+			}),
+			"/fake/worktree-conflict-resolve",
 		);
+	});
+
+	it("does not launch an agent when the rebase resolves cleanly", async () => {
+		const profiles: (LauncherProfile & { scope: "app" | "project" })[] = [
+			{ name: "Claude Win", command: "cmd /c claude", scope: "app" },
+		];
+		vi.mocked(launcherConfigManager.getMergedConfig).mockReturnValue(
+			makeMerged({ profiles }),
+		);
+		vi.mocked(ticketSyncManager.prepareResolution).mockResolvedValueOnce({
+			needsAgent: false, scratchDir: "/fake/worktree-conflict-resolve",
+			pushCommand: "git push origin HEAD:tickets",
+		});
+
+		const response = await POST(fakeEvent("test-project", { profileName: "Claude Win" }));
+		expect(response.status).toBe(200);
+		expect(await response.json()).toEqual({ success: true, resolved: true });
+		expect(spawnProfile).not.toHaveBeenCalled();
 	});
 });
