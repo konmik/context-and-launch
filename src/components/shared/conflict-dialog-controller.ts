@@ -1,5 +1,6 @@
 import { createSignal, createEffect } from "solid-js";
 import { extractProfiles } from "./conflict-dialog-pure.js";
+import { fetchLastUsedProfile, saveLastUsedProfile } from "~/lib/last-used-profile.js";
 
 export interface ConflictDialogDeps {
   projectSlug: () => string;
@@ -20,16 +21,33 @@ export function createConflictDialogController(deps: ConflictDialogDeps) {
       setErrorMsg("");
       fetch(`/api/projects/${deps.projectSlug()}/launcher-config`)
         .then(r => r.json())
-        .then(data => {
+        .then(async data => {
           const list = extractProfiles(data);
           setProfiles(list);
-          if (list.length > 0 && !selectedProfile()) {
-            setSelectedProfile(list[0].name);
-          }
+          if (list.length === 0) return;
+          const current = selectedProfile();
+          if (current && list.some(p => p.name === current)) return;
+          const preferred = await fetchLastUsedProfile().catch(() => null);
+          const match = preferred && list.some(p => p.name === preferred)
+            ? preferred
+            : list[0].name;
+          setSelectedProfile(match);
         })
         .catch(() => setErrorMsg("Failed to load profiles"));
     }
   });
+
+  async function selectProfile(name: string) {
+    setSelectedProfile(name);
+    if (!name) return;
+    try {
+      await saveLastUsedProfile(name);
+    } catch (err) {
+      setErrorMsg(
+        err instanceof Error ? err.message : "Failed to save last used profile",
+      );
+    }
+  }
 
   function close() {
     deps.onOpenChange(false);
@@ -66,7 +84,7 @@ export function createConflictDialogController(deps: ConflictDialogDeps) {
 
   return {
     submitting, errorMsg, profiles, selectedProfile,
-    setSelectedProfile, close, resolve, abort,
+    setSelectedProfile, selectProfile, close, resolve, abort,
   };
 }
 

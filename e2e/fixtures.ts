@@ -430,6 +430,7 @@ export async function clickTicketMenuItem(
 export interface ProjectRegistryShape {
   projects: { path: string; projectSlug: string; branch?: string; ticketsPath?: string }[];
   lastUsedProjectSlug: string | null;
+  lastUsedProfileName?: string | null;
 }
 
 export function readProjectRegistry(server: TestServer): ProjectRegistryShape {

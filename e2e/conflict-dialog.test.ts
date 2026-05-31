@@ -5,8 +5,22 @@ import path from "node:path";
 import os from "node:os";
 import {
   createProject, uniqueSlug, gotoProject, setupE2E, expectOpenConfigDirRequest,
-  openConflictDialog,
+  openConflictDialog, readProjectRegistry,
 } from "./fixtures.js";
+import { type Page } from "playwright";
+
+async function forceSyncConflict(page: Page): Promise<void> {
+  await page.route((url) => url.pathname.endsWith("/board/sync"), (route) => {
+    if (route.request().method() === "POST") {
+      route.fulfill({
+        status: 200, contentType: "application/json",
+        body: JSON.stringify({ status: "conflict" }),
+      });
+    } else {
+      route.continue();
+    }
+  });
+}
 
 // Reproduce the state after a user launches conflict resolution: a scratch
 // worktree (sibling of the live tickets folder) with a rebase in progress.
@@ -161,6 +175,45 @@ describe("Conflict dialog (e2e, real server)", () => {
 
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await openConflictDialog(ctx.page);
+  }, 60000);
+
+  it("selecting a profile persists the global pref and pre-selects it on reopen", async () => {
+    const project = await createProject(ctx.testServer, {
+      projectSlug: uniqueSlug("conflict-global-pref"),
+      withRemote: true,
+      appLauncherConfig: {
+        profiles: [
+          { name: "Claude", command: "echo claude" },
+          { name: "Codex", command: "echo codex" },
+        ],
+      },
+    });
+    ctx.projects.push(project);
+
+    await forceSyncConflict(ctx.page);
+    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+    await openConflictDialog(ctx.page);
+
+    const select = ctx.page.locator('[data-testid="conflict-dialog-profile-select"]');
+    await select.selectOption("Codex");
+
+    // Wait for the PUT to land in config.json.
+    await expect.poll(
+      () => readProjectRegistry(ctx.testServer).lastUsedProfileName,
+      { timeout: 15000 },
+    ).toBe("Codex");
+
+    await ctx.page.click('[data-testid="conflict-dialog-close"]');
+    await ctx.page.waitForSelector('[data-testid="conflict-dialog-profile-select"]', {
+      state: "detached", timeout: 15000,
+    });
+
+    // Reload the page and reopen the dialog: the previously selected profile is pre-selected.
+    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+    await openConflictDialog(ctx.page);
+    await expect.poll(async () =>
+      ctx.page.locator('[data-testid="conflict-dialog-profile-select"]').inputValue(),
+    ).toBe("Codex");
   }, 60000);
 
   it("open-tickets-repo fires open-config-dir", async () => {

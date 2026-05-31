@@ -583,6 +583,113 @@ describe('ProjectRegistry', () => {
 		expect(() => validateBranchName('a@{b')).toThrow('"@{"');
 	});
 
+	it('getLastUsedProfileName returns null for a fresh config and the stored value after set', () => {
+		const configDir = initConfigDir();
+		const projectDir = tmpDir('registry-project-');
+		dirs.push(projectDir);
+
+		fs.mkdirSync(path.join(projectDir, '.git'));
+		const registry = new ProjectRegistry(new ConfigPaths(configDir));
+		registry.addProject(projectDir, 'profile-proj');
+
+		expect(registry.getLastUsedProfileName()).toBeNull();
+
+		registry.setLastUsedProfileName('Claude');
+		expect(registry.getLastUsedProfileName()).toBe('Claude');
+
+		const onDisk = JSON.parse(
+			fs.readFileSync(path.join(configDir, 'config', 'config.json'), 'utf-8')
+		);
+		expect(onDisk.lastUsedProfileName).toBe('Claude');
+	});
+
+	it('setLastUsedProfileName rejects an empty profile name', () => {
+		const configDir = initConfigDir();
+		const projectDir = tmpDir('registry-project-');
+		dirs.push(projectDir);
+
+		fs.mkdirSync(path.join(projectDir, '.git'));
+		const registry = new ProjectRegistry(new ConfigPaths(configDir));
+		registry.addProject(projectDir, 'profile-proj');
+
+		expect(() => registry.setLastUsedProfileName('')).toThrow('profileName cannot be empty');
+	});
+
+	it('lastUsedProfileName survives add/update/remove/setLastUsed round-trips', () => {
+		const configDir = initConfigDir();
+		const projectDir1 = tmpDir('registry-project1-');
+		const projectDir2 = tmpDir('registry-project2-');
+		dirs.push(projectDir1, projectDir2);
+
+		fs.mkdirSync(path.join(projectDir1, '.git'));
+		fs.mkdirSync(path.join(projectDir2, '.git'));
+
+		const registry = new ProjectRegistry(new ConfigPaths(configDir));
+		registry.addProject(projectDir1, 'alpha');
+		registry.setLastUsedProfileName('Claude');
+
+		registry.addProject(projectDir2, 'beta');
+		expect(registry.getLastUsedProfileName()).toBe('Claude');
+
+		registry.updateProject('beta', undefined, 'beta-renamed');
+		expect(registry.getLastUsedProfileName()).toBe('Claude');
+
+		registry.setLastUsed('alpha');
+		expect(registry.getLastUsedProfileName()).toBe('Claude');
+
+		registry.removeProject('alpha');
+		expect(registry.getLastUsedProfileName()).toBe('Claude');
+
+		const onDisk = JSON.parse(
+			fs.readFileSync(path.join(configDir, 'config', 'config.json'), 'utf-8')
+		);
+		expect(onDisk.lastUsedProfileName).toBe('Claude');
+	});
+
+	it('external-config-edit-clobbered-by-set: external field written after load is dropped on set', () => {
+		const configDir = initConfigDir();
+		const projectDir = tmpDir('registry-project-');
+		dirs.push(projectDir);
+
+		fs.mkdirSync(path.join(projectDir, '.git'));
+		const registry = new ProjectRegistry(new ConfigPaths(configDir));
+		registry.addProject(projectDir, 'alpha');
+
+		const configFile = path.join(configDir, 'config', 'config.json');
+		const onDisk = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
+		onDisk.theme = 'dark';
+		fs.writeFileSync(configFile, JSON.stringify(onDisk, null, 2));
+
+		registry.setLastUsedProfileName('Codex');
+
+		const afterSave = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
+		expect(afterSave.theme).toBe('dark');
+		expect(afterSave.lastUsedProfileName).toBe('Codex');
+	});
+
+	it('setLastUsedProfileName preserves unknown external fields', () => {
+		const configDir = initConfigDir();
+		const projectDir = tmpDir('registry-project-');
+		dirs.push(projectDir);
+
+		fs.mkdirSync(path.join(projectDir, '.git'));
+		fs.mkdirSync(path.join(configDir, 'config'), { recursive: true });
+
+		const configFile = path.join(configDir, 'config', 'config.json');
+		fs.writeFileSync(configFile, JSON.stringify({
+			projects: [],
+			lastUsedProjectSlug: null,
+			theme: 'dark'
+		}));
+
+		const registry = new ProjectRegistry(new ConfigPaths(configDir));
+		registry.setLastUsedProfileName('Codex');
+
+		const afterSave = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
+		expect(afterSave.theme).toBe('dark');
+		expect(afterSave.lastUsedProfileName).toBe('Codex');
+	});
+
 	it('setLastUsed preserves port and browser fields', () => {
 		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
