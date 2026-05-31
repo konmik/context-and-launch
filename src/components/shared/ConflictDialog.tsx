@@ -37,7 +37,7 @@ export default function ConflictDialog(props: ConflictDialogProps) {
         <label class="mb-1 block text-sm font-medium">Profile</label>
         <select
           value={s.selectedProfile()}
-          onChange={(e) => s.setSelectedProfile(e.currentTarget.value)}
+          onChange={(e) => s.selectProfile(e.currentTarget.value)}
           class="input input-sm"
           data-testid="conflict-dialog-profile-select"
         >

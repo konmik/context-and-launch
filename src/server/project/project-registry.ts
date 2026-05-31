@@ -20,6 +20,7 @@ export interface ProjectEntry {
 export interface ProjectConfig {
 	projects: ProjectEntry[];
 	lastUsedProjectSlug: string | null;
+	lastUsedProfileName: string | null;
 	port?: number;
 	browser?: string;
 }
@@ -99,6 +100,7 @@ export class ProjectRegistry {
 			);
 		}
 		const lastUsed = (raw.lastUsedProjectSlug ?? raw.lastUsedSlug ?? null) as string | null;
+		const lastUsedProfileName = (raw.lastUsedProfileName ?? null) as string | null;
 		const migratedProjects: ProjectEntry[] = raw.projects.map(
 			(p: Record<string, unknown>) => {
 				const projectSlug = (p.projectSlug ?? p.slug) as string;
@@ -108,10 +110,14 @@ export class ProjectRegistry {
 				return entry;
 			},
 		);
-		const { projects: _, lastUsedProjectSlug: _a, lastUsedSlug: _b, port, browser, ...extra } = raw;
+		const {
+			projects: _, lastUsedProjectSlug: _a, lastUsedSlug: _b,
+			lastUsedProfileName: _c, port, browser, ...extra
+		} = raw;
 		const config: ProjectConfig = {
 			projects: migratedProjects,
 			lastUsedProjectSlug: lastUsed,
+			lastUsedProfileName,
 			port: port as number | undefined,
 			browser: browser as string | undefined,
 		};
@@ -125,10 +131,24 @@ export class ProjectRegistry {
 		return config;
 	}
 
+	private currentExtraFields(): Record<string, unknown> {
+		const raw = this.configRepo.readJson(this.paths.projectRegistryFile()) as
+			| Record<string, unknown>
+			| null;
+		if (raw === null) return this.extraFields;
+		const {
+			projects: _, lastUsedProjectSlug: _a, lastUsedSlug: _b,
+			lastUsedProfileName: _c, port: _d, browser: _e, ...extra
+		} = raw;
+		return extra;
+	}
+
 	private save(config: ProjectConfig): void {
+		const extraFields = this.currentExtraFields();
+		this.extraFields = extraFields;
 		this.configRepo.writeJson(
 			this.paths.projectRegistryFile(),
-			{ ...this.extraFields, ...config },
+			{ ...extraFields, ...config },
 		);
 		this.cached = config;
 	}
@@ -259,5 +279,17 @@ export class ProjectRegistry {
 
 	getBrowser(): string {
 		return this.load().browser ?? 'chrome';
+	}
+
+	getLastUsedProfileName(): string | null {
+		return this.load().lastUsedProfileName;
+	}
+
+	setLastUsedProfileName(profileName: string): void {
+		if (!profileName) throw new Error('profileName cannot be empty');
+		const config = this.load();
+		if (config.lastUsedProfileName !== profileName) {
+			this.save({ ...config, lastUsedProfileName: profileName });
+		}
 	}
 }
