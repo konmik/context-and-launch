@@ -55,6 +55,7 @@ export class TicketSyncManager {
 
 			const porcelain = await git(worktreeDir, 'status', '--porcelain');
 			if (porcelain.trim()) {
+				await this.assertNoConflictMarkers(worktreeDir);
 				await git(worktreeDir, 'commit', '-m', 'sync: local changes');
 			}
 
@@ -78,6 +79,7 @@ export class TicketSyncManager {
 			);
 			if (aheadCount > 1) {
 				await git(worktreeDir, 'reset', '--soft', upstream);
+				await this.assertNoConflictMarkers(worktreeDir);
 				await git(worktreeDir, 'commit', '-m', 'sync: local changes');
 			}
 
@@ -98,6 +100,22 @@ export class TicketSyncManager {
 			return { status: 'success' };
 		} catch (err) {
 			return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+		}
+	}
+
+	private async assertNoConflictMarkers(worktreeDir: string): Promise<void> {
+		try {
+			await git(worktreeDir, 'diff', '--cached', '--check');
+		} catch (err) {
+			if (!(err instanceof ProcessError)) throw err;
+			// `git diff --check` also fails on benign whitespace errors; only block on
+			// leftover conflict markers, which must never be committed.
+			if (/conflict marker/i.test(err.output)) {
+				throw new Error(
+					'Refusing to commit unresolved conflict markers. Resolve the conflict in the '
+					+ 'tickets repository, then sync again.',
+				);
+			}
 		}
 	}
 

@@ -1,5 +1,5 @@
 import { useParams, useNavigate, createAsync, revalidate } from "@solidjs/router";
-import { Show, For, Switch, Match } from "solid-js";
+import { Show, For, Switch, Match, createSignal, onMount } from "solid-js";
 import { DialogRoot, DialogTitle } from "~/components/ui/dialog";
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "~/components/ui/menu";
 import type { TicketInfo } from "~/server/ticket/ticket-store.js";
@@ -33,6 +33,11 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   const projectSlug = () => params.projectSlug ?? "";
   const data = createAsync(() => loadBoard(projectSlug()));
 
+  // onMount runs only after client hydration, so this attribute marks the point
+  // at which event handlers are live and clicks will no longer be dropped.
+  const [hydrated, setHydrated] = createSignal(false);
+  onMount(() => setHydrated(true));
+
   const { dialogState, syncState, selectionState, commands } =
     props?.ctrl ?? createProjectPageController({ projectSlug, data: data as any });
 
@@ -50,7 +55,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
         const unavail = () => { const v = d(); return v.status === 'unavailable' ? v : undefined; };
         const pageErr = () => { const v = d(); return v.status === 'error' ? v : undefined; };
         return (
-        <div class="flex min-h-screen flex-col">
+        <div class="flex min-h-screen flex-col" data-hydrated={hydrated() ? "true" : undefined}>
           <header class="flex items-center justify-between border-b border-border px-4 py-3">
             <h1 class="text-xl font-semibold">Context & Launch</h1>
             <div class="flex items-center gap-2">

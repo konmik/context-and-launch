@@ -307,6 +307,20 @@ export async function gotoProject(page: Page, server: TestServer, projectSlug: s
     state: "visible",
     timeout: 15000,
   });
+  // Wait for client hydration to finish so event handlers are live; a click fired
+  // before this point is dropped (SSR markup is interactive-looking but inert).
+  await page.waitForSelector('[data-hydrated="true"]', {
+    state: "attached",
+    timeout: 15000,
+  });
+}
+
+export async function openConflictDialog(page: Page): Promise<void> {
+  await page.click('[data-testid="sync-button-trigger"]');
+  await page.waitForSelector('[data-testid="conflict-dialog-profile-select"]', {
+    state: "visible",
+    timeout: 15000,
+  });
 }
 
 export async function openTicketDetail(page: Page, folderName: string): Promise<void> {

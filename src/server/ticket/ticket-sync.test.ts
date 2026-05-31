@@ -150,6 +150,28 @@ describe('TicketSyncManager', () => {
 		expect(fs.readFileSync(path.join(worktreeDir, 'conflict.txt'), 'utf-8')).toBe('local content');
 	});
 
+	it('sync refuses to commit a working tree containing conflict markers', async () => {
+		const { worktreeDir, remoteDir } = await createRepoWithRemote();
+		dirs.push(worktreeDir, remoteDir);
+
+		fs.writeFileSync(
+			path.join(worktreeDir, 'status.json'),
+			'{\n<<<<<<< HEAD\n  "status": "done"\n=======\n  "status": "in-progress"\n>>>>>>> other\n}\n',
+		);
+
+		const manager = new TicketSyncManager();
+		const result = await manager.sync(worktreeDir);
+
+		expect(result.status).toBe('error');
+		if (result.status === 'error') {
+			expect(result.message).toMatch(/conflict marker/i);
+		}
+
+		// Nothing with conflict markers should have been committed.
+		const log = await git(worktreeDir, 'log', '--oneline');
+		expect(log).not.toContain('sync: local changes');
+	});
+
 	it('hasRemote with non-existent directory throws instead of silently returning false', async () => {
 		const manager = new TicketSyncManager();
 		const bogusDir = path.join(os.tmpdir(), 'does-not-exist-' + Date.now());
