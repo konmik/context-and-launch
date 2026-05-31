@@ -2,7 +2,7 @@ import { spawn } from "child_process";
 
 export function platformOpenCommand(): { cmd: string; extraArgs: string[] } {
   if (process.platform === "darwin") return { cmd: "open", extraArgs: [] };
-  if (process.platform === "win32") return { cmd: "explorer.exe", extraArgs: [] };
+  if (process.platform === "win32") return { cmd: "cmd.exe", extraArgs: ["/c", "start", ""] };
   return { cmd: "xdg-open", extraArgs: [] };
 }
 

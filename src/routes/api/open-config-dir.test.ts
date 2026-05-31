@@ -50,10 +50,12 @@ describe("open-config-dir platform branching", () => {
 		}
 	});
 
-	it("win32 maps to 'explorer.exe'", () => {
+	it("win32 maps to 'cmd.exe' with start for foreground activation", () => {
 		setPlatform("win32");
 		try {
-			expect(platformOpenCommand().cmd).toBe("explorer.exe");
+			const result = platformOpenCommand();
+			expect(result.cmd).toBe("cmd.exe");
+			expect(result.extraArgs).toEqual(["/c", "start", ""]);
 		} finally {
 			restorePlatform();
 		}
