@@ -62,6 +62,18 @@ The server shuts down on its own several minutes after the app is closed, but it
 - Windows: `./kill-server.ps1`
 - Linux / macOS: `./kill-server.sh`
 
+### First-time setup
+
+After you add your project to the app, go to Settings and configure it for your own workflow.
+
+The app comes with a starting set of prompts, skills, and launch commands, but they almost certainly won't match how you work — every developer uses different skills, commands, editors, and optional tooling (Jira, etc.). Treat the built-ins as examples to edit or replace, not as a config you should leave untouched.
+
+Click the gear icon in the top-right header to open Settings, then walk through the tabs.
+Most items can be saved at User scope (shared across all projects) or Project scope (only the current project).
+Most templates accept placeholders like `{{ticketDir}}`, `{{ticketTitle}}`, `{{projectPath}}` that are filled in at launch time.
+
+You can start adding tickets to the board right away, but expect to spend a few minutes tailoring prompts, skills, and launch commands before the one-click launch really fits your workflow.
+
 ### For contributors
 
 ```
