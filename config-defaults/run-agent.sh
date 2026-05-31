@@ -26,14 +26,9 @@ if [ "$1" = "--self-launch" ]; then
   export CL_AGENT_PROMPT="$PROMPT"
   export CL_AGENT_TITLE="$TITLE"
   [ -n "$CWD" ] && [ -d "$CWD" ] && cd "$CWD"
-  # Record a marker the app reads to detect a running agent. We store THIS
-  # shell's pid (it stays alive as expect's parent for the whole session) plus
-  # its start time, so a later pid reuse can't be mistaken for a live agent.
-  # The trap removes it on exit, including when the user closes the window.
   if [ -n "$MARKER" ]; then
     mkdir -p "$(dirname "$MARKER")"
-    START="$(ps -o lstart= -p $$ | tr -s '[:space:]' ' ' | sed -e 's/^ //' -e 's/ $//')"
-    printf '{"pid":%d,"start":"%s"}\n' "$$" "$START" > "$MARKER"
+    printf '{"pid":%d,"startSec":%d}\n' "$$" "$(date +%s)" > "$MARKER"
     trap 'rm -f "$MARKER"' EXIT HUP INT TERM
   fi
   # Terminal launches us under a login shell, which does NOT source ~/.zshrc /

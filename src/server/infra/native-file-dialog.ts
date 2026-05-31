@@ -16,10 +16,16 @@ export function openFileDialog(startDir?: string): Promise<string[]> {
 				: "";
 			const script = `
 Add-Type -AssemblyName PresentationFramework
+$p = @{ Width=0; Height=0; WindowStyle='None'
+  ShowInTaskbar=$false; Topmost=$true }
+$h = New-Object System.Windows.Window -Property $p
+$h.Show()
 $d = New-Object Microsoft.Win32.OpenFileDialog
 $d.Multiselect = $true
 $d.Title = 'Select files for reference'
-${initialDir}if ($d.ShowDialog()) { $d.FileNames -join [char]10 }
+${initialDir}$r = $d.ShowDialog($h)
+$h.Close()
+if ($r) { $d.FileNames -join [char]10 }
 `;
 			console.log('[exec] powershell OpenFileDialog');
 			execFile('powershell', ['-STA', '-NoProfile', '-Command', script], (err, stdout) => {

@@ -9,7 +9,7 @@ const SCRIPT = [
 ].join("");
 
 export function pickPort(): number {
-  const out = execSync(`${process.execPath} -e "${SCRIPT}"`, { encoding: "utf-8" });
+  const out = execSync(`"${process.execPath}" -e "${SCRIPT}"`, { encoding: "utf-8" });
   const port = parseInt(out.trim(), 10);
   if (!Number.isFinite(port) || port <= 0) {
     throw new Error(`pickPort: unexpected output: ${out}`);

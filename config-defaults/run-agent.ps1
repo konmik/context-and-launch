@@ -26,7 +26,8 @@ if ($env:CL_AGENT_MARKER) {
     $m = $env:CL_AGENT_MARKER
     $d = Split-Path -Parent $m
     if ($d) { New-Item -ItemType Directory -Force -Path $d | Out-Null }
-    Set-Content -LiteralPath $m -Value ("{""pid"":$PID}")
+    $s = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+    Set-Content -LiteralPath $m -Value ("{""pid"":$PID,""startSec"":$s}")
     try { claude --dangerously-skip-permissions } finally { Remove-Item -LiteralPath $m -ErrorAction SilentlyContinue }
 } else {
     claude --dangerously-skip-permissions
