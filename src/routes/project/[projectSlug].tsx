@@ -56,9 +56,16 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
         const pageErr = () => { const v = d(); return v.status === 'error' ? v : undefined; };
         return (
         <div class="flex min-h-screen flex-col" data-hydrated={hydrated() ? "true" : undefined}>
-          <header class="flex items-center justify-between border-b border-border px-4 py-3">
+          <header class="flex items-center justify-between px-4 py-3">
+            <div class="flex flex-1 items-center justify-start">
+              <button
+                class="btn-primary"
+                onClick={commands.openCreate}
+                data-testid="project-header-new-ticket-button"
+              >+ New Ticket</button>
+            </div>
             <h1 class="text-xl font-semibold">Context & Launch</h1>
-            <div class="flex items-center gap-2">
+            <div class="flex flex-1 items-center justify-end gap-2">
               <ThemeToggle />
               <button
                 onClick={ld()?.hasConflict ? () => commands.setConflictDialogOpen(true) : commands.handleSync}
@@ -148,11 +155,6 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                   >Add project...</MenuItem>
                 </MenuContent>
               </MenuRoot>
-              <button
-                class="btn-primary"
-                onClick={commands.openCreate}
-                data-testid="project-header-new-ticket-button"
-              >+ New Ticket</button>
             </div>
           </header>
 
