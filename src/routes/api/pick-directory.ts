@@ -132,7 +132,7 @@ export const GET = withService(async ({ request }) => {
 	const result = await pickByPlatform(preselect);
 	if (result.path) return Response.json({ path: result.path });
 	if (result.available) {
-		return new Response("No directory selected", { status: 204 });
+		return new Response(null, { status: 204 });
 	}
 	return Response.json(
 		{
