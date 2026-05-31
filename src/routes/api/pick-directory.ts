@@ -1,4 +1,5 @@
 import { execFile } from "child_process";
+import { readFileSync } from "fs";
 import { withService } from "~/server/shared/route-helpers.js";
 import { normalizeMacPickedPath } from "~/server/infra/picker-paths.js";
 
@@ -108,7 +109,10 @@ function runKdialog(preselect: string): Promise<PickerResult> {
 }
 
 async function pickByPlatform(preselect: string): Promise<PickerResult> {
-	const stub = process.env.CONTEXT_PICKER_STUB;
+	const stubFile = process.env.CONTEXT_PICKER_STUB_FILE;
+	const stub = stubFile ? readFileSync(stubFile, "utf-8").trim() : process.env.CONTEXT_PICKER_STUB;
+	if (stub === "__cancel__") return { available: true };
+	if (stub === "__unavailable__") return { available: false };
 	if (stub) return { available: true, path: stub };
 	if (process.platform === "darwin") {
 		return runMacPicker(preselect);

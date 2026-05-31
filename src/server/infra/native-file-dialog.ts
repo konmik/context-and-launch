@@ -1,6 +1,12 @@
 import { execFile } from 'child_process';
+import { readFileSync } from 'fs';
 
 export function openFileDialog(): Promise<string[]> {
+	const stubFile = process.env.CONTEXT_FILE_PICKER_STUB_FILE;
+	const stub = stubFile ? readFileSync(stubFile, "utf-8").trim() : process.env.CONTEXT_FILE_PICKER_STUB;
+	if (stub === "__cancel__") return Promise.resolve([]);
+	if (stub === "__error__") return Promise.reject(new Error("Stubbed file picker error"));
+	if (stub) return Promise.resolve(stub.split("\n").filter(Boolean));
 	return new Promise((resolve, reject) => {
 		const platform = process.platform;
 
