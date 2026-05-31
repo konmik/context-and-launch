@@ -35,7 +35,7 @@ export function ColumnsTab(props: {
 						<select
 							onChange={(e) => props.setBoardOverride(e.currentTarget.value)}
 							class="input input-sm flex-1"
-							data-testid="board-selector"
+							data-testid="launcher-settings-columns-board-selector"
 						>
 							<BoardOptions
 							boards={props.boards}
@@ -49,12 +49,12 @@ export function ColumnsTab(props: {
 							}}
 							disabled={props.config.boardId === props.selectedBoardId}
 							class="btn-secondary btn-sm"
-							data-testid="set-project-board-btn"
+							data-testid="launcher-settings-columns-set-project-board-btn"
 						>Set as project board</button>
 						<button
 							onClick={() => props.setBoardForm({ name: "" })}
 							class="btn-primary btn-sm"
-							data-testid="add-board-btn"
+							data-testid="launcher-settings-columns-add-board-btn"
 						>Add Board</button>
 						<button
 							onClick={() => {
@@ -68,7 +68,7 @@ export function ColumnsTab(props: {
 								"btn-secondary btn-sm text-destructive "
 								+ "hover:bg-destructive hover:text-destructive-foreground"
 							}
-							data-testid="delete-board-btn"
+							data-testid="launcher-settings-columns-delete-board-btn"
 						>Delete Board</button>
 					</div>
 				</section>
@@ -83,7 +83,7 @@ export function ColumnsTab(props: {
 								});
 							}}
 							class="btn-primary btn-sm"
-							data-testid="add-column-btn"
+							data-testid="launcher-settings-columns-add-column-btn"
 						>Add</button>
 					</div>
 					<Show when={props.selectedBoard}>

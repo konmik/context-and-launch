@@ -30,7 +30,7 @@ export function GeneralTab(props: {
 							if (b) props.onProjectBoard({ id: b.id, name: b.name });
 						}}
 						class="input input-sm"
-						data-testid="board-id-select"
+						data-testid="launcher-settings-general-board-select"
 					>
 						<BoardOptions
 							boards={props.boards}
@@ -51,10 +51,11 @@ export function GeneralTab(props: {
 							}}
 							class="input input-sm flex-1"
 							placeholder="e.g. ~/.context-launch/worktrees"
+							data-testid="launcher-settings-general-worktree-input"
 						/>
 						<button
 							type="button"
-							data-testid="settings-worktree-browse"
+							data-testid="launcher-settings-general-worktree-browse"
 							onClick={async () => {
 								try {
 									const res = await fetch(
@@ -90,7 +91,7 @@ export function GeneralTab(props: {
 						class="input min-h-[80px]"
 						style={{ height: "auto" }}
 						placeholder="Prompt for resolving merge conflicts..."
-						data-testid="conflict-prompt"
+						data-testid="launcher-settings-general-conflict-prompt"
 					/>
 				</section>
 			</div>

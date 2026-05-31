@@ -28,8 +28,18 @@ export default function ArchiveTicketDialog(props: ArchiveTicketDialogProps) {
       <Show when={s.errorMsg()}><p class="mb-4 text-sm text-destructive">{s.errorMsg()}</p></Show>
       <form onSubmit={s.handleSubmit}>
         <div class="flex justify-end gap-2">
-          <button type="button" onClick={s.close} class="btn-secondary">Cancel</button>
-          <button type="submit" disabled={s.submitting()} class="btn-primary">Archive</button>
+          <button
+            type="button"
+            onClick={s.close}
+            class="btn-secondary"
+            data-testid="archive-ticket-cancel"
+          >Cancel</button>
+          <button
+            type="submit"
+            disabled={s.submitting()}
+            class="btn-primary"
+            data-testid="archive-ticket-submit"
+          >Archive</button>
         </div>
       </form>
     </DialogRoot>

@@ -12,8 +12,9 @@
     "start": "vinxi start",
     "lint": "eslint .",
     "test": "tsc --noEmit && eslint . && vitest run --exclude 'e2e/**'",
-    "test:e2e": "vinxi build && vitest run e2e/board-crud.test.ts && vitest run e2e/kanban-dnd.test.ts && vitest run e2e/file-attach.test.ts",
-    "test:all": "tsc --noEmit && eslint . && vitest run --exclude 'e2e/**' && vinxi build && vitest run e2e/",
+    "test:gate": "tsx scripts/testid-coverage.ts",
+    "test:e2e": "vinxi build && vitest run e2e/",
+    "test:all": "tsc --noEmit && eslint . && vitest run --exclude 'e2e/**' && vinxi build && tsx scripts/testid-coverage.ts && vitest run e2e/",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -42,6 +43,7 @@
     "memfs": "^4.57.2",
     "playwright": "^1.60.0",
     "tailwindcss": "^4.3.0",
+    "tsx": "^4.22.4",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.60.0",
     "vite-plugin-solid": "^2.11.12",

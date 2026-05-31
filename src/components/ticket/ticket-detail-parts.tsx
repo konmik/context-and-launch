@@ -30,8 +30,19 @@ export function DiscardConfirmation(props: {
       <DialogTitle>Unsaved Changes</DialogTitle>
       <DialogDescription>{props.message}</DialogDescription>
       <div class="flex justify-end gap-2">
-        <button type="button" onClick={props.onCancel} class="btn-secondary">Cancel</button>
-        <button type="button" onClick={props.onDiscard} title={modEnterHint()} class="btn-destructive">Discard</button>
+        <button
+          type="button"
+          onClick={props.onCancel}
+          class="btn-secondary"
+          data-testid="ticket-detail-discard-cancel"
+        >Cancel</button>
+        <button
+          type="button"
+          onClick={props.onDiscard}
+          title={modEnterHint()}
+          class="btn-destructive"
+          data-testid="ticket-detail-discard-discard"
+        >Discard</button>
       </div>
     </DialogRoot>
   );
@@ -67,6 +78,7 @@ export function FileToolbar(props: {
           <button
             ref={(el) => (dropdownBtnRef = el)}
             type="button"
+            data-testid="ticket-detail-editor-file-dropdown-trigger"
             onClick={() => props.setDropdownOpen(!props.dropdownOpen)}
             class={
               "flex h-9 w-full items-center justify-between "
@@ -103,6 +115,7 @@ export function FileToolbar(props: {
                   {(option) => (
                     <button
                       type="button"
+                      data-testid="ticket-detail-editor-file-dropdown-option"
                       onClick={() => props.onSelect(option)}
                       class={
                         "flex w-full items-center gap-1 px-3 py-2 text-left "
@@ -148,6 +161,7 @@ export function FileToolbar(props: {
         </div>
         <button
           type="button"
+          data-testid="ticket-detail-editor-trash-button"
           onClick={props.onTrash}
           class="btn-icon text-muted-foreground hover:bg-destructive hover:text-destructive-foreground"
           title={
@@ -169,7 +183,12 @@ export function FileToolbar(props: {
       </div>
 
       <div class="flex flex-wrap items-center gap-2 px-6 pb-2">
-        <button type="button" onClick={props.onNewFile} class="btn-secondary btn-sm gap-1.5">
+        <button
+          type="button"
+          data-testid="ticket-detail-editor-new-file-button"
+          onClick={props.onNewFile}
+          class="btn-secondary btn-sm gap-1.5"
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg" width="14" height="14"
             viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -182,6 +201,7 @@ export function FileToolbar(props: {
         </button>
         <button
           type="button"
+          data-testid="ticket-detail-editor-copy-button"
           onClick={() => fileInputRef?.click()}
           onDragOver={props.onDragOver}
           onDragLeave={props.onDragLeave}
@@ -209,6 +229,7 @@ export function FileToolbar(props: {
         />
         <button
           type="button"
+          data-testid="ticket-detail-editor-add-reference-button"
           onClick={props.onBrowse}
           disabled={props.browsing}
           class="btn-secondary btn-sm gap-1.5"
@@ -303,6 +324,8 @@ export function ShortcutsTab(props: {
                     <div class="truncate font-mono text-xs text-muted-foreground">{shortcut.command}</div>
                   </div>
                   <button
+                    data-testid="ticket-detail-shortcuts-run-button"
+                    data-shortcut-name={shortcut.name}
                     onClick={() => props.onRun(shortcut.name)}
                     disabled={props.running !== ""}
                     class="btn-primary btn-sm"
@@ -347,15 +370,22 @@ export function NewFileDialog(props: {
         autofocus
         class="input mb-4"
         placeholder="e.g. design-notes"
+        data-testid="ticket-detail-new-file-name-input"
       />
       <div class="flex justify-end gap-2">
-        <button type="button" onClick={props.onClose} class="btn-secondary">Cancel</button>
+        <button
+          type="button"
+          onClick={props.onClose}
+          class="btn-secondary"
+          data-testid="ticket-detail-new-file-cancel"
+        >Cancel</button>
         <button
           type="button"
           onClick={props.onSubmit}
           disabled={!props.name.trim()}
           title={modEnterHint()}
           class="btn-primary"
+          data-testid="ticket-detail-new-file-create"
         >Create</button>
       </div>
     </DialogRoot>
@@ -379,12 +409,18 @@ export function DeleteFileDialog(props: {
         Delete {props.label}? This cannot be undone.
       </DialogDescription>
       <div class="flex justify-end gap-2">
-        <button type="button" onClick={props.onClose} class="btn-secondary">Cancel</button>
+        <button
+          type="button"
+          onClick={props.onClose}
+          class="btn-secondary"
+          data-testid="ticket-detail-delete-file-cancel"
+        >Cancel</button>
         <button
           type="button"
           onClick={props.onDelete}
           title={modEnterHint()}
           class="btn-destructive"
+          data-testid="ticket-detail-delete-file-confirm"
         >Delete</button>
       </div>
     </DialogRoot>
@@ -409,13 +445,19 @@ export function ConfirmUploadDialog(props: {
       <DialogTitle>{props.title}</DialogTitle>
       <DialogDescription>{props.description}</DialogDescription>
       <div class="flex justify-end gap-2">
-        <button type="button" onClick={props.onCancel} class="btn-secondary">
+        <button
+          type="button"
+          onClick={props.onCancel}
+          class="btn-secondary"
+          data-testid="ticket-detail-confirm-upload-cancel"
+        >
           Cancel
         </button>
         <button
           type="button"
           onClick={props.onConfirm}
           class={props.confirmClass}
+          data-testid="ticket-detail-confirm-upload-confirm"
         >{props.confirmLabel}</button>
       </div>
     </DialogRoot>
@@ -437,13 +479,18 @@ export function DirtyWorktreeShortcutDialog(props: {
       <DialogTitle class="sr-only">Uncommitted Changes</DialogTitle>
       <p class="mb-4 text-sm">{props.info?.message}</p>
       <div class="flex justify-end gap-2">
-        <button onClick={props.onCancel} class="btn-secondary">
+        <button
+          onClick={props.onCancel}
+          class="btn-secondary"
+          data-testid="ticket-detail-dirty-worktree-cancel"
+        >
           Cancel
         </button>
         <button
           onClick={() => props.onRunAnyway(props.info!.name)}
           disabled={props.running}
           class="btn-primary"
+          data-testid="ticket-detail-dirty-worktree-run-anyway"
         >Run Anyway</button>
       </div>
     </DialogRoot>

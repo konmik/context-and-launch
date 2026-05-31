@@ -71,6 +71,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 						<div class="flex items-center gap-1">
 							<button
 								data-no-drag
+								data-testid="launcher-settings-open-user-config"
 								onClick={() => fetch("/api/open-config-dir", {
 									method: "POST",
 									headers: { "Content-Type": "application/json" },
@@ -81,6 +82,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 							>User&#8599;</button>
 							<button
 								data-no-drag
+								data-testid="launcher-settings-open-project-config"
 								onClick={() => fetch("/api/open-config-dir", {
 									method: "POST",
 									headers: { "Content-Type": "application/json" },
@@ -94,6 +96,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 							>Project&#8599;</button>
 							<button
 								data-no-drag
+								data-testid="launcher-settings-open-worktrees-dir"
 								onClick={() => fetch("/api/open-config-dir", {
 									method: "POST",
 									headers: { "Content-Type": "application/json" },
@@ -105,7 +108,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 								class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
 								title="Open worktrees directory"
 							>Worktrees&#8599;</button>
-							<FloatingPanelCloseTrigger>
+							<FloatingPanelCloseTrigger data-testid="launcher-settings-close-button">
 								<svg
 								xmlns="http://www.w3.org/2000/svg"
 								width="16" height="16"
@@ -121,11 +124,26 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 					</div>
 					<div data-no-drag class="-mx-4 -mb-4">
 						<TabsList>
-							<TabsTrigger value="general">General</TabsTrigger>
-							<TabsTrigger value="templates">Prompts</TabsTrigger>
-							<TabsTrigger value="skills">Skills</TabsTrigger>
-							<TabsTrigger value="profiles">Launch</TabsTrigger>
-							<TabsTrigger value="columns" data-testid="tab-columns">Columns</TabsTrigger>
+							<TabsTrigger
+								value="general"
+								data-testid="launcher-settings-tab-general"
+							>General</TabsTrigger>
+							<TabsTrigger
+								value="templates"
+								data-testid="launcher-settings-tab-prompts"
+							>Prompts</TabsTrigger>
+							<TabsTrigger
+								value="skills"
+								data-testid="launcher-settings-tab-skills"
+							>Skills</TabsTrigger>
+							<TabsTrigger
+								value="profiles"
+								data-testid="launcher-settings-tab-launch"
+							>Launch</TabsTrigger>
+							<TabsTrigger
+								value="columns"
+								data-testid="launcher-settings-tab-columns"
+							>Columns</TabsTrigger>
 						</TabsList>
 					</div>
 				</FloatingPanelDragTrigger>

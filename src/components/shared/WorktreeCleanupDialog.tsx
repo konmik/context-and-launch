@@ -37,6 +37,7 @@ export default function WorktreeCleanupDialog(props: WorktreeCleanupDialogProps)
             type="checkbox"
             checked={s.options().deleteWorktree}
             onChange={(e) => s.updateOption("deleteWorktree", e.currentTarget.checked)}
+            data-testid="worktree-cleanup-delete-worktree-checkbox"
           />
           Delete worktree
         </label>
@@ -45,6 +46,7 @@ export default function WorktreeCleanupDialog(props: WorktreeCleanupDialogProps)
             type="checkbox"
             checked={s.options().deleteLocalBranch}
             onChange={(e) => s.updateOption("deleteLocalBranch", e.currentTarget.checked)}
+            data-testid="worktree-cleanup-delete-local-checkbox"
           />
           Delete local branch
         </label>
@@ -53,6 +55,7 @@ export default function WorktreeCleanupDialog(props: WorktreeCleanupDialogProps)
             type="checkbox"
             checked={s.options().deleteRemoteBranch}
             onChange={(e) => s.updateOption("deleteRemoteBranch", e.currentTarget.checked)}
+            data-testid="worktree-cleanup-delete-remote-checkbox"
           />
           Delete remote branch
         </label>
@@ -78,11 +81,17 @@ export default function WorktreeCleanupDialog(props: WorktreeCleanupDialogProps)
 
       <form onSubmit={s.handleSubmit}>
         <div class="flex justify-end gap-2">
-          <button type="button" onClick={s.close} class="btn-secondary">Cancel</button>
+          <button
+            type="button"
+            onClick={s.close}
+            class="btn-secondary"
+            data-testid="worktree-cleanup-cancel"
+          >Cancel</button>
           <button
             type="submit"
             disabled={s.submitting()}
             class={props.action === "delete" ? "btn-destructive" : "btn-primary"}
+            data-testid="worktree-cleanup-submit"
           >{s.actionLabel()}</button>
         </div>
       </form>

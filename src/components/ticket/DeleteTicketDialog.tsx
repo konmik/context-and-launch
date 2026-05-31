@@ -35,8 +35,19 @@ export default function DeleteTicketDialog(props: DeleteTicketDialogProps) {
       <Show when={s.errorMsg()}><p class="mb-4 text-sm text-destructive">{s.errorMsg()}</p></Show>
       <form onSubmit={(e) => { e.preventDefault(); s.doSubmit(); }}>
         <div class="flex justify-end gap-2">
-          <button type="button" onClick={s.close} class="btn-secondary">Cancel</button>
-          <button type="submit" disabled={s.submitting()} title={modEnterHint()} class="btn-destructive">Delete</button>
+          <button
+            type="button"
+            onClick={s.close}
+            class="btn-secondary"
+            data-testid="delete-ticket-cancel"
+          >Cancel</button>
+          <button
+            type="submit"
+            disabled={s.submitting()}
+            title={modEnterHint()}
+            class="btn-destructive"
+            data-testid="delete-ticket-submit"
+          >Delete</button>
         </div>
       </form>
     </DialogRoot>

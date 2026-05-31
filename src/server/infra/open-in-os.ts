@@ -7,6 +7,7 @@ export function platformOpenCommand(): { cmd: string; extraArgs: string[] } {
 }
 
 export function openInOs(dir: string): Promise<void> {
+  if (process.env.CONTEXT_OPEN_IN_OS_STUB === "__noop__") return Promise.resolve();
   const { cmd, extraArgs } = platformOpenCommand();
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, [...extraArgs, dir], { stdio: "ignore" });

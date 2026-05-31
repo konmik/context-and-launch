@@ -15,7 +15,17 @@ export default defineConfig({
     projects: [
       { ...solidVite, test: { name: "unit-ts", include: ["src/**/*.test.ts"], testTimeout: 20000 } },
       { ...solidVite, test: { name: "unit-tsx", include: ["src/**/*.test.tsx"], environment: "jsdom", setupFiles: ["src/test-setup.ts"] } },
-      { resolve: { alias }, test: { name: "e2e", include: ["e2e/**/*.test.ts"] } },
+      {
+        resolve: { alias },
+        test: {
+          name: "e2e",
+          include: ["e2e/**/*.test.ts"],
+          testTimeout: 60000,
+          hookTimeout: 60000,
+          maxConcurrency: 1,
+          fileParallelism: false,
+        },
+      },
     ],
   },
 });

@@ -41,6 +41,7 @@ export default function EditTicketDialog(props: EditTicketDialogProps) {
             value={s.number()}
             onInput={(e) => s.setNumber(e.currentTarget.value)}
             class="input"
+            data-testid="edit-ticket-number-input"
           />
         </div>
         <div class="mb-4">
@@ -51,16 +52,23 @@ export default function EditTicketDialog(props: EditTicketDialogProps) {
             value={s.title()}
             onInput={(e) => s.setTitle(e.currentTarget.value)}
             class="input"
+            data-testid="edit-ticket-title-input"
           />
         </div>
         <Show when={s.errorMsg()}><p class="mb-4 text-sm text-destructive">{s.errorMsg()}</p></Show>
         <div class="flex justify-end gap-2">
-          <button type="button" onClick={s.close} class="btn-secondary">Cancel</button>
+          <button
+            type="button"
+            onClick={s.close}
+            class="btn-secondary"
+            data-testid="edit-ticket-cancel"
+          >Cancel</button>
           <button
             type="submit"
             disabled={s.submitting() || !s.number().trim() || !s.title().trim()}
             title={modEnterHint()}
             class="btn-primary"
+            data-testid="edit-ticket-submit"
           >Save</button>
         </div>
       </form>

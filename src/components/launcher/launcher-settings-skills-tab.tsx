@@ -20,7 +20,11 @@ export function SkillsTab(props: {
 				<section>
 					<div class="mb-2 flex items-center justify-between">
 						<h3 class="text-sm font-semibold">Skills</h3>
-						<button onClick={() => props.startAdd("skill")} class="btn-primary btn-sm">Add</button>
+						<button
+							onClick={() => props.startAdd("skill")}
+							class="btn-primary btn-sm"
+							data-testid="launcher-settings-skills-add-button"
+						>Add</button>
 					</div>
 					<Show
 						when={props.config.skills.length > 0}
@@ -76,7 +80,7 @@ export function SkillsTab(props: {
 					<Show when={props.config.skills.some(s => s.scope === "app")}>
 						<p
 							class="mt-2 text-xs text-muted-foreground"
-							data-testid="skill-order-warning"
+							data-testid="launcher-settings-skills-order-warning"
 						>
 							Skill order is shared. User skills appear in every project,
 							so reordering one here changes its position in all of them.

@@ -130,7 +130,7 @@ describe("KanbanBoard column descriptions", () => {
         onReorder={noop}
       />
     ));
-    const desc = container.querySelector('[data-testid="column-description"]');
+    const desc = container.querySelector('[data-testid="kanban-board-column-description"]');
     expect(desc).toBeTruthy();
     expect(desc!.textContent).toBe("Work items");
   });
@@ -148,7 +148,7 @@ describe("KanbanBoard column descriptions", () => {
         onReorder={noop}
       />
     ));
-    expect(container.querySelectorAll('[data-testid="column-description"]').length).toBe(0);
+    expect(container.querySelectorAll('[data-testid="kanban-board-column-description"]').length).toBe(0);
   });
 });
 
@@ -169,7 +169,7 @@ describe("KanbanBoard undefined column", () => {
         onReorder={noop}
       />
     ));
-    const undefinedCol = container.querySelector('[data-testid="undefined-column"]');
+    const undefinedCol = container.querySelector('[data-testid="kanban-board-undefined-column"]');
     expect(undefinedCol).toBeTruthy();
     expect(undefinedCol!.textContent).toContain("undefined");
   });
@@ -190,7 +190,7 @@ describe("KanbanBoard undefined column", () => {
         onReorder={noop}
       />
     ));
-    const undefinedCol = container.querySelector('[data-testid="undefined-column"]');
+    const undefinedCol = container.querySelector('[data-testid="kanban-board-undefined-column"]');
     expect(undefinedCol!.className).toContain("border-destructive");
   });
 
@@ -210,7 +210,7 @@ describe("KanbanBoard undefined column", () => {
         onReorder={noop}
       />
     ));
-    const orphanedStatus = container.querySelector('[data-testid="orphaned-status"]');
+    const orphanedStatus = container.querySelector('[data-testid="kanban-board-ticket-orphaned-status"]');
     expect(orphanedStatus).toBeTruthy();
     expect(orphanedStatus!.textContent).toBe("vanished");
   });
@@ -231,6 +231,6 @@ describe("KanbanBoard undefined column", () => {
         onReorder={noop}
       />
     ));
-    expect(container.querySelector('[data-testid="undefined-column"]')).toBeNull();
+    expect(container.querySelector('[data-testid="kanban-board-undefined-column"]')).toBeNull();
   });
 });

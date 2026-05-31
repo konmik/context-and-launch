@@ -35,7 +35,7 @@ export default function ErrorDialog(props: ErrorDialogProps) {
         </Show>
       </div>
       <div class="flex flex-none justify-end px-6 pt-4 pb-6">
-        <button onClick={props.onClose} class="btn-primary">OK</button>
+        <button onClick={props.onClose} class="btn-primary" data-testid="error-dialog-ok">OK</button>
       </div>
     </DialogRoot>
   );
