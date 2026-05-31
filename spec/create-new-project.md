@@ -1,0 +1,21 @@
+# Create New Project
+
+- User opens form from welcome page (no projects) or project menu
+  - project-path (required), with browse button
+  - project-branch, default "tickets"
+  - project-tickets-root, with browse button
+  - project-worktree-root, with browse button
+- Path input debounces 300ms, fetches preview
+  - Apply preview only to fields user has not manually edited
+- Submit
+  - Append project entry to config.json, set as last used
+  - If worktree root provided, create directory and save to launcher config
+  - Error: display in form
+  - Success: navigate to project board
+- On first board view, initialize worktree
+  - Lock to prevent concurrent creation
+  - Existing valid worktree: done
+  - Existing directory with invalid git metadata: error
+  - Branch exists locally: create worktree from it
+  - Branch exists on remote: fetch and create tracking worktree
+  - Neither: create orphan branch worktree with empty initial commit
