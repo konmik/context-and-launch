@@ -1,5 +1,5 @@
 import { worktreeManager, launcherConfigManager } from "~/server/config/instances.js";
-import { spawnProfile } from "~/server/launcher/agent-launch.js";
+import { agentMarkerPath, spawnProfile } from "~/server/launcher/agent-launch.js";
 import { ValidationError } from "~/server/shared/errors.js";
 import { withService } from "~/server/shared/route-helpers.js";
 
@@ -13,6 +13,7 @@ export const POST = withService(async ({ params, request }) => {
 	await spawnProfile(profile, {
 		initialPrompt: merged.conflictResolutionPrompt,
 		windowTitle: "Resolve Conflicts",
+		markerPath: agentMarkerPath(projectSlug, "__resolve-conflicts__"),
 		appConfigDir: launcherConfigManager.getAppConfigDir(),
 	}, worktreeManager.getWorktreeDir(projectSlug));
 	return Response.json({ success: true });

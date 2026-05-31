@@ -10,7 +10,7 @@ import { escapeBatchTitle } from '../shared/batch-escape.js';
 // parseLaunchRequest cannot be imported directly because agent-launch.ts pulls in
 // singleton instances via the ~ alias which vitest cannot resolve without the
 // SvelteKit build pipeline. Instead, replicate the pure function here and verify
-// it matches the source code (same pattern used for escapeTitle above).
+// it matches the source code.
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -128,91 +128,6 @@ describe('ai/run.ts endpoint logic', () => {
 	});
 });
 
-describe('escapeTitle - PowerShell single-quote escape safety', () => {
-	// Replicate the production function (not exported from run.ts)
-	function escapeTitle(title: string): string {
-		return title.replace(/'/g, "''");
-	}
-
-	// Helper: simulate how the title is embedded in a PS single-quoted string
-	function inPsSingleQuoted(title: string): string {
-		return `'${escapeTitle(title)}'`;
-	}
-
-	it('doubles single quotes to prevent breakout', () => {
-		const result = escapeTitle("'; whoami; '");
-		// Each ' becomes '' so: ''; whoami; ''
-		expect(result).toBe("''; whoami; ''");
-		// When placed in PS string: '  +  escaped content  +  '
-		const embedded = inPsSingleQuoted("'; whoami; '");
-		expect(embedded).toBe("'''; whoami; '''");
-		// Verify inner content has all quotes paired
-		const inner = embedded.slice(1, -1);
-		const afterPairs = inner.replace(/''/g, '');
-		expect(afterPairs).not.toContain("'");
-	});
-
-	it('consecutive single quotes are all doubled', () => {
-		expect(escapeTitle("a''b")).toBe("a''''b");
-		expect(escapeTitle("'''")).toBe("''''''");
-	});
-
-	it('$() subexpression is inert inside single quotes', () => {
-		const payload = '$(whoami)';
-		const escaped = escapeTitle(payload);
-		// No single quotes in payload, so nothing changes
-		expect(escaped).toBe('$(whoami)');
-		// The key safety property: it's embedded in single quotes where $ has no meaning
-		const embedded = inPsSingleQuoted(payload);
-		expect(embedded).toBe("'$(whoami)'");
-		// Verify no unbalanced single quotes (count should be even for inner content)
-		const innerQuotes = embedded.slice(1, -1).split("''").length - 1;
-		// No quotes inside at all
-		expect(embedded.slice(1, -1)).not.toMatch(/(?<!')'(?!')/);
-	});
-
-	it('backtick escape sequences are inert inside single quotes', () => {
-		const payload = '`ls`';
-		const escaped = escapeTitle(payload);
-		expect(escaped).toBe('`ls`');
-		const embedded = inPsSingleQuoted(payload);
-		expect(embedded).toBe("'`ls`'");
-	});
-
-	it('double quotes are inert inside single quotes', () => {
-		const payload = '"hello"';
-		const escaped = escapeTitle(payload);
-		expect(escaped).toBe('"hello"');
-		const embedded = inPsSingleQuoted(payload);
-		expect(embedded).toBe("'\"hello\"'");
-	});
-
-	it('combined dangerous payload with single-quote breakout attempt', () => {
-		// Attacker tries: close quote, run command, open quote
-		const payload = "test'); Start-Process calc; ('";
-		const escaped = escapeTitle(payload);
-		expect(escaped).toBe("test''); Start-Process calc; (''");
-		const embedded = inPsSingleQuoted(payload);
-		// The outer quotes wrap everything; inner quotes are all doubled
-		expect(embedded).toBe("'test''); Start-Process calc; ('''");
-		// Verify: no lone single quote (all are paired)
-		const inner = embedded.slice(1, -1); // strip outer quotes
-		// Replace all '' with nothing; no quotes should remain
-		const afterPairs = inner.replace(/''/g, '');
-		expect(afterPairs).not.toContain("'");
-	});
-
-	it('empty string is safe', () => {
-		expect(escapeTitle('')).toBe('');
-		expect(inPsSingleQuoted('')).toBe("''");
-	});
-
-	it('string with only single quotes becomes all doubled', () => {
-		expect(escapeTitle("'")).toBe("''");
-		expect(inPsSingleQuoted("'")).toBe("''''");
-	});
-});
-
 describe('escapeBatchTitle - batch metacharacter injection', () => {
 	it('strips ampersand to prevent command chaining', () => {
 		const result = escapeBatchTitle('foo & whoami');
@@ -271,11 +186,11 @@ describe('escapeBatchTitle - batch metacharacter injection', () => {
 	});
 });
 
-describe('pull-and-retry skips windowExists check (code-inspection)', () => {
-	// This test reads the actual source files to confirm the structural difference
-	// between run.ts and pull-and-retry.ts: run.ts checks windowExists before launching
-	// to prevent duplicate agent windows; pull-and-retry.ts does not, allowing a second
-	// agent window for the same ticket.
+describe('duplicate-launch guard (code-inspection)', () => {
+	// Both launch endpoints must call agentRunning() and return 409 "Already
+	// started" so a second agent can't be launched for the same ticket. Detection
+	// is marker-file based (a running agent writes a pid marker), not the old
+	// window-title matching that Claude clobbers once it owns the terminal.
 
 	const runSource = fs.readFileSync(
 		path.resolve(
@@ -291,32 +206,28 @@ describe('pull-and-retry skips windowExists check (code-inspection)', () => {
 		'utf-8'
 	);
 
-	it('run.ts imports windowExists from agent-launch', () => {
-		expect(runSource).toContain('windowExists');
-		// Verify it appears in an import statement
-		expect(runSource).toMatch(/import\s*\{[^}]*windowExists[^}]*\}\s*from/);
-	});
-
-	it('run.ts calls windowExists and returns 409 "Already started"', () => {
-		// The guard: if (await windowExists(windowTitle)) { return new Response("Already started", { status: 409 }); }
-		expect(runSource).toMatch(/await\s+windowExists\s*\(/);
+	it('run.ts guards with agentRunning and returns 409 "Already started"', () => {
+		expect(runSource).toMatch(/import\s*\{[^}]*agentRunning[^}]*\}\s*from/);
+		expect(runSource).toMatch(/agentRunning\(projectSlug,\s*folderName\)/);
 		expect(runSource).toContain('Already started');
 		expect(runSource).toContain('409');
 	});
 
-	it('pull-and-retry.ts does NOT import or call windowExists', () => {
-		// This is the bug: pull-and-retry lacks the duplicate-window guard entirely
+	it('pull-and-retry.ts guards with agentRunning and returns 409 "Already started"', () => {
+		// Previously pull-and-retry lacked any duplicate guard; it now shares the same check.
+		expect(pullAndRetrySource).toMatch(/import\s*\{[^}]*agentRunning[^}]*\}\s*from/);
+		expect(pullAndRetrySource).toMatch(/agentRunning\(projectSlug,\s*folderName\)/);
+		expect(pullAndRetrySource).toContain('Already started');
+		expect(pullAndRetrySource).toContain('409');
+	});
+
+	it('neither endpoint relies on window-title matching anymore', () => {
+		expect(runSource).not.toContain('windowExists');
+		expect(runSource).not.toContain('buildWindowTitle');
 		expect(pullAndRetrySource).not.toContain('windowExists');
-		expect(pullAndRetrySource).not.toContain('buildWindowTitle');
 	});
 
-	it('pull-and-retry.ts does NOT return 409 for duplicate windows', () => {
-		expect(pullAndRetrySource).not.toContain('Already started');
-	});
-
-	it('both endpoints call launchAgent -- confirming pull-and-retry does launch a window', () => {
-		// Both endpoints reach launchAgent which spawns a new wt window.
-		// Without the windowExists guard, pull-and-retry will create a duplicate.
+	it('both endpoints call launchAgent', () => {
 		expect(runSource).toContain('launchAgent');
 		expect(pullAndRetrySource).toContain('launchAgent');
 	});
