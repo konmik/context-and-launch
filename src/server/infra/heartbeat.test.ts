@@ -20,11 +20,11 @@ describe('HeartbeatManager', () => {
 		expect(hb.isShutdownScheduled()).toBe(true);
 		expect(exit).not.toHaveBeenCalled();
 
-		vi.advanceTimersByTime(30_000);
+		vi.advanceTimersByTime(300_000);
 		expect(exit).toHaveBeenCalledOnce();
 	});
 
-	it('cancels shutdown timer when a peer reconnects within 30s', () => {
+	it('cancels shutdown timer when a peer reconnects within 5 minutes', () => {
 		const exit = vi.fn();
 		const hb = new HeartbeatManager(exit);
 
@@ -32,11 +32,11 @@ describe('HeartbeatManager', () => {
 		hb.removePeer();
 		expect(hb.isShutdownScheduled()).toBe(true);
 
-		vi.advanceTimersByTime(15_000);
+		vi.advanceTimersByTime(150_000);
 		hb.addPeer();
 		expect(hb.isShutdownScheduled()).toBe(false);
 
-		vi.advanceTimersByTime(30_000);
+		vi.advanceTimersByTime(300_000);
 		expect(exit).not.toHaveBeenCalled();
 	});
 
@@ -61,7 +61,7 @@ describe('HeartbeatManager', () => {
 		expect(hb.getPeerCount()).toBe(0);
 		expect(hb.isShutdownScheduled()).toBe(true);
 
-		vi.advanceTimersByTime(30_000);
+		vi.advanceTimersByTime(300_000);
 		expect(exit).toHaveBeenCalledOnce();
 	});
 
@@ -73,18 +73,18 @@ describe('HeartbeatManager', () => {
 		expect(hb.getPeerCount()).toBe(0);
 		expect(hb.isShutdownScheduled()).toBe(true);
 
-		vi.advanceTimersByTime(30_000);
+		vi.advanceTimersByTime(300_000);
 		expect(exit).toHaveBeenCalledOnce();
 	});
 
-	it('does not call exit before 30s elapses', () => {
+	it('does not call exit before 5 minutes elapses', () => {
 		const exit = vi.fn();
 		const hb = new HeartbeatManager(exit);
 
 		hb.addPeer();
 		hb.removePeer();
 
-		vi.advanceTimersByTime(29_999);
+		vi.advanceTimersByTime(299_999);
 		expect(exit).not.toHaveBeenCalled();
 
 		vi.advanceTimersByTime(1);
@@ -98,17 +98,17 @@ describe('HeartbeatManager', () => {
 		hb.addPeer();
 		hb.removePeer();
 
-		vi.advanceTimersByTime(20_000);
+		vi.advanceTimersByTime(200_000);
 		expect(exit).not.toHaveBeenCalled();
 
 		// Reconnect resets the timer
 		hb.addPeer();
 		hb.removePeer();
 
-		vi.advanceTimersByTime(20_000);
+		vi.advanceTimersByTime(200_000);
 		expect(exit).not.toHaveBeenCalled();
 
-		vi.advanceTimersByTime(10_000);
+		vi.advanceTimersByTime(100_000);
 		expect(exit).toHaveBeenCalledOnce();
 	});
 
@@ -126,8 +126,8 @@ describe('HeartbeatManager', () => {
 		expect(hb.isShutdownScheduled()).toBe(true);
 		expect(hb.getPeerCount()).toBe(0);
 
-		// Exit should only fire once after 30s
-		vi.advanceTimersByTime(30_000);
+		// Exit should only fire once after 5m
+		vi.advanceTimersByTime(300_000);
 		expect(exit).toHaveBeenCalledOnce();
 	});
 
@@ -142,7 +142,7 @@ describe('HeartbeatManager', () => {
 		expect(hb.getPeerCount()).toBe(0);
 		expect(hb.isShutdownScheduled()).toBe(true);
 
-		vi.advanceTimersByTime(30_000);
+		vi.advanceTimersByTime(300_000);
 		expect(exit).toHaveBeenCalledOnce();
 	});
 
@@ -161,7 +161,7 @@ describe('HeartbeatManager', () => {
 		expect(hb.getPeerCount()).toBe(1);
 		expect(hb.isShutdownScheduled()).toBe(false);
 
-		vi.advanceTimersByTime(30_000);
+		vi.advanceTimersByTime(300_000);
 		expect(exit).not.toHaveBeenCalled();
 	});
 
@@ -173,8 +173,7 @@ describe('HeartbeatManager', () => {
 		hb.removePeer();
 		expect(hb.isShutdownScheduled()).toBe(true);
 
-		// 25s into the 30s window, a new peer connects
-		vi.advanceTimersByTime(25_000);
+		vi.advanceTimersByTime(250_000);
 		hb.addPeer();
 		expect(hb.isShutdownScheduled()).toBe(false);
 
@@ -184,7 +183,7 @@ describe('HeartbeatManager', () => {
 		expect(hb.isShutdownScheduled()).toBe(true);
 
 		// The full 30s from THIS disconnect must elapse
-		vi.advanceTimersByTime(29_999);
+		vi.advanceTimersByTime(299_999);
 		expect(exit).not.toHaveBeenCalled();
 		vi.advanceTimersByTime(1);
 		expect(exit).toHaveBeenCalledOnce();
@@ -196,7 +195,7 @@ describe('HeartbeatManager', () => {
 
 		hb.addPeer();
 		hb.removePeer();
-		vi.advanceTimersByTime(30_000);
+		vi.advanceTimersByTime(300_000);
 		expect(exit).toHaveBeenCalledOnce();
 
 		// A new peer arrives after exit was called (exitFn didn't actually kill process)
@@ -208,7 +207,7 @@ describe('HeartbeatManager', () => {
 		hb.removePeer();
 		expect(hb.isShutdownScheduled()).toBe(true);
 
-		vi.advanceTimersByTime(30_000);
+		vi.advanceTimersByTime(300_000);
 		expect(exit).toHaveBeenCalledTimes(2);
 	});
 
@@ -218,7 +217,7 @@ describe('HeartbeatManager', () => {
 
 		hb.addPeer();
 		hb.removePeer();
-		vi.advanceTimersByTime(30_000);
+		vi.advanceTimersByTime(300_000);
 		expect(exit).toHaveBeenCalledOnce();
 
 		// After timer fires, isShutdownScheduled should be false
@@ -240,7 +239,7 @@ describe('HeartbeatManager', () => {
 		expect(hb.isShutdownScheduled()).toBe(false);
 		expect(hb.getPeerCount()).toBe(1);
 
-		vi.advanceTimersByTime(30_000);
+		vi.advanceTimersByTime(300_000);
 		expect(exit).not.toHaveBeenCalled();
 	});
 });

@@ -8,7 +8,7 @@
 - Connection closes (tab closed, network drop)
   - Server removes the peer
   - Peer count reaches zero
-    - Server schedules shutdown after 30 seconds
+    - Server schedules shutdown after 5 minutes
     - Another peer connects before the timer fires
       - Cancel shutdown
     - Timer fires with no peers

@@ -1,4 +1,4 @@
-const SHUTDOWN_DELAY_MS = 30_000;
+const SHUTDOWN_DELAY_MS = 300_000;
 
 export class HeartbeatManager {
 	private peerCount = 0;
