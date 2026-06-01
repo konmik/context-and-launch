@@ -212,11 +212,12 @@ describe("Picker buttons (e2e, real server)", () => {
 
   // --- Settings panel: worktree root directory picker ---
 
-  const WORKTREE_BROWSE = "launcher-settings-general-worktree-browse";
-  async function goToSettingsGeneral(page: Page) {
+  const WORKTREE_BROWSE = "launcher-settings-misc-worktree-browse";
+  async function goToSettingsMisc(page: Page) {
     await page.goto(`${server.baseUrl}/project/${projectSlug}`);
     await page.waitForSelector('button[title="Settings"]', { state: "visible", timeout: 15000 });
     await page.click('button[title="Settings"]');
+    await page.click('[data-testid="launcher-settings-tab-misc"]');
     await page.waitForSelector(`[data-testid="${WORKTREE_BROWSE}"]`, {
       state: "visible", timeout: 5000,
     });
@@ -224,7 +225,7 @@ describe("Picker buttons (e2e, real server)", () => {
 
   testDirectoryPicker({
     name: "Settings > worktree root Browse",
-    setup: goToSettingsGeneral,
+    setup: goToSettingsMisc,
     button: (p) => p.locator(`[data-testid="${WORKTREE_BROWSE}"]`),
     input: (p) => p.locator(`[data-testid="${WORKTREE_BROWSE}"]`).locator(
       "xpath=preceding-sibling::input",

@@ -11,7 +11,7 @@ const APP_BOARDS = [
   { id: "simple", name: "Simple", columns: [{ name: "todo" }, { name: "in-progress" }, { name: "done" }] },
 ];
 
-describe("Launcher Settings General tab (e2e, real server)", () => {
+describe("Launcher Settings Misc tab (e2e, real server)", () => {
   const ctx = setupE2E();
 
   async function setup(suffix: string) {
@@ -22,12 +22,13 @@ describe("Launcher Settings General tab (e2e, real server)", () => {
     ctx.projects.push(project);
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await openLauncherSettings(ctx.page);
+    await ctx.page.click('[data-testid="launcher-settings-tab-misc"]');
     return project;
   }
 
-  it("opens settings panel and shows General tab", async () => {
+  it("opens settings panel and shows Misc tab", async () => {
     await setup("opens");
-    expect(await ctx.page.locator('[data-testid="launcher-settings-tab-general"]').count()).toBe(1);
+    expect(await ctx.page.locator('[data-testid="launcher-settings-tab-misc"]').count()).toBe(1);
   }, 60000);
 
   it("launcher-settings-open-user-config fires open-config-dir request", async () => {
@@ -51,35 +52,35 @@ describe("Launcher Settings General tab (e2e, real server)", () => {
   it("launcher-settings-close-button hides the floating panel", async () => {
     await setup("close");
     await ctx.page.click('[data-testid="launcher-settings-close-button"]');
-    await ctx.page.waitForSelector('[data-testid="launcher-settings-tab-general"]', {
+    await ctx.page.waitForSelector('[data-testid="launcher-settings-tab-misc"]', {
       state: "detached", timeout: 15000,
     });
   }, 60000);
 
-  it("launcher-settings-general-worktree-input persists on Enter", async () => {
+  it("launcher-settings-misc-worktree-input persists on Enter", async () => {
     const project = await setup("wt-input");
     await ctx.page.fill(
-      '[data-testid="launcher-settings-general-worktree-input"]',
+      '[data-testid="launcher-settings-misc-worktree-input"]',
       "/tmp/some-wt-path-for-test",
     );
-    await ctx.page.locator('[data-testid="launcher-settings-general-worktree-input"]').press("Enter");
+    await ctx.page.locator('[data-testid="launcher-settings-misc-worktree-input"]').press("Enter");
     await ctx.page.waitForTimeout(800);
     const cfg = readProjectLauncherConfig(ctx.testServer, project.projectSlug);
     expect(cfg?.worktreeRootPath).toBe("/tmp/some-wt-path-for-test");
   }, 60000);
 
-  it("launcher-settings-general-worktree-browse button exists", async () => {
+  it("launcher-settings-misc-worktree-browse button exists", async () => {
     await setup("wt-browse");
-    expect(await ctx.page.locator('[data-testid="launcher-settings-general-worktree-browse"]').count()).toBe(1);
+    expect(await ctx.page.locator('[data-testid="launcher-settings-misc-worktree-browse"]').count()).toBe(1);
   }, 60000);
 
-  it("launcher-settings-general-conflict-prompt persists on blur", async () => {
+  it("launcher-settings-misc-conflict-prompt persists on blur", async () => {
     const project = await setup("cprompt");
     await ctx.page.fill(
-      '[data-testid="launcher-settings-general-conflict-prompt"]',
+      '[data-testid="launcher-settings-misc-conflict-prompt"]',
       "my custom prompt",
     );
-    await ctx.page.locator('[data-testid="launcher-settings-general-conflict-prompt"]').blur();
+    await ctx.page.locator('[data-testid="launcher-settings-misc-conflict-prompt"]').blur();
     await ctx.page.waitForTimeout(800);
     const cfg = readProjectLauncherConfig(ctx.testServer, project.projectSlug);
     expect(cfg?.conflictResolutionPrompt).toBe("my custom prompt");

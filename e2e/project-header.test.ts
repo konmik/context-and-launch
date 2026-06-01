@@ -30,7 +30,7 @@ describe("Project page header toolbar (e2e, real server)", () => {
     await ctx.page.waitForSelector('[data-scope="floating-panel"][data-part="content"]', {
       state: "visible", timeout: 15000,
     });
-    expect(await ctx.page.locator('[data-testid="launcher-settings-tab-general"]').count()).toBe(1);
+    expect(await ctx.page.locator('[data-testid="launcher-settings-tab-misc"]').count()).toBe(1);
   }, 60000);
 
   it("project-header-project-dropdown-trigger opens menu with all projects", async () => {

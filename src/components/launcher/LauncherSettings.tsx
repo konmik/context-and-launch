@@ -6,7 +6,7 @@ import {
 } from "../ui/floating-panel";
 import { TabsRoot, TabsList, TabsTrigger } from "../ui/tabs";
 import { useModEnterSubmit } from "~/lib/use-mod-enter-submit";
-import { GeneralTab } from "./launcher-settings-general-tab.js";
+import { MiscTab } from "./launcher-settings-misc-tab.js";
 import { PromptsTab } from "./launcher-settings-prompts-tab.js";
 import { SkillsTab } from "./launcher-settings-skills-tab.js";
 import { LaunchTab } from "./launcher-settings-launch-tab.js";
@@ -137,9 +137,9 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 								data-testid="launcher-settings-tab-skills"
 							>Skills</TabsTrigger>
 							<TabsTrigger
-								value="general"
-								data-testid="launcher-settings-tab-general"
-							>General</TabsTrigger>
+								value="misc"
+								data-testid="launcher-settings-tab-misc"
+							>Misc</TabsTrigger>
 							<TabsTrigger
 								value="columns"
 								data-testid="launcher-settings-tab-columns"
@@ -162,7 +162,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 
 								<Show when={s.config()}>
 									{(cfg) => (<>
-										<GeneralTab
+										<MiscTab
 											worktreeRootPath={s.worktreeRootPath()}
 											setWorktreeRootPath={s.setWorktreeRootPath}
 											saveWorktreeRootPath={s.saveWorktreeRootPath}

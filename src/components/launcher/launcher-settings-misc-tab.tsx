@@ -1,7 +1,7 @@
 import { TabsContent } from "../ui/tabs";
 import { ScopeBadge } from "./launcher-settings-rows.js";
 
-export function GeneralTab(props: {
+export function MiscTab(props: {
 	worktreeRootPath: string;
 	setWorktreeRootPath: (v: string) => void;
 	saveWorktreeRootPath: () => void;
@@ -11,7 +11,7 @@ export function GeneralTab(props: {
 	setError: (v: string) => void;
 }) {
 	return (
-		<TabsContent value="general">
+		<TabsContent value="misc">
 			<div class="space-y-6">
 				<section>
 					<h3 class="mb-2 text-sm font-semibold">Agent worktree root path <ScopeBadge scope="project" /></h3>
@@ -26,11 +26,11 @@ export function GeneralTab(props: {
 							}}
 							class="input input-sm flex-1"
 							placeholder="e.g. ~/.context-launch/worktrees"
-							data-testid="launcher-settings-general-worktree-input"
+							data-testid="launcher-settings-misc-worktree-input"
 						/>
 						<button
 							type="button"
-							data-testid="launcher-settings-general-worktree-browse"
+							data-testid="launcher-settings-misc-worktree-browse"
 							onClick={async () => {
 								try {
 									const res = await fetch(
@@ -66,7 +66,7 @@ export function GeneralTab(props: {
 						class="input min-h-[80px]"
 						style={{ height: "auto" }}
 						placeholder="Prompt for resolving merge conflicts..."
-						data-testid="launcher-settings-general-conflict-prompt"
+						data-testid="launcher-settings-misc-conflict-prompt"
 					/>
 				</section>
 			</div>

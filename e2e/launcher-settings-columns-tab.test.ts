@@ -206,7 +206,7 @@ describe("Launcher Settings Columns tab (e2e, real server)", () => {
 
   it("tab triggers for all 5 launcher settings tabs exist", async () => {
     await setup("tabs");
-    expect(await ctx.page.locator('[data-testid="launcher-settings-tab-general"]').count()).toBe(1);
+    expect(await ctx.page.locator('[data-testid="launcher-settings-tab-misc"]').count()).toBe(1);
     expect(await ctx.page.locator('[data-testid="launcher-settings-tab-prompts"]').count()).toBe(1);
     expect(await ctx.page.locator('[data-testid="launcher-settings-tab-skills"]').count()).toBe(1);
     expect(await ctx.page.locator('[data-testid="launcher-settings-tab-launch"]').count()).toBe(1);
