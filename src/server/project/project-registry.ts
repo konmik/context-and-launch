@@ -187,6 +187,10 @@ export class ProjectRegistry {
 		return this.load().projects.map((entry) => entryToInfo(entry, this.configRepo));
 	}
 
+	getProjectDir(projectSlug: string): string | undefined {
+		return this.load().projects.find((p) => p.projectSlug === projectSlug)?.path;
+	}
+
 	getTicketsPath(projectSlug: string): string | undefined {
 		return this.load().projects.find((p) => p.projectSlug === projectSlug)?.ticketsPath;
 	}

@@ -39,8 +39,10 @@ vi.mock("~/server/config/instances.js", () => ({
 	worktreeManager: { getWorktreeDir: vi.fn().mockReturnValue("/fake/worktree") },
 	launcherConfigManager: {
 		loadProjectConfig: vi.fn(),
-		getProjectConfigDir: vi.fn().mockReturnValue("/fake/project-config"),
 		getAppConfigDir: vi.fn().mockReturnValue("/fake/app-config"),
+	},
+	projectRegistry: {
+		getProjectDir: vi.fn().mockReturnValue("/fake/project-dir"),
 	},
 }));
 
