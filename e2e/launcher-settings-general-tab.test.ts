@@ -49,12 +49,6 @@ describe("Launcher Settings General tab (e2e, real server)", () => {
       ctx.page.click('[data-testid="launcher-settings-open-project-config"]'));
   }, 60000);
 
-  it("launcher-settings-open-worktrees-dir fires open-config-dir request", async () => {
-    await setup("open-wt");
-    await expectOpenConfigDirRequest(ctx.page, () =>
-      ctx.page.click('[data-testid="launcher-settings-open-worktrees-dir"]'));
-  }, 60000);
-
   it("launcher-settings-close-button hides the floating panel", async () => {
     await setup("close");
     await ctx.page.click('[data-testid="launcher-settings-close-button"]');
@@ -69,23 +63,6 @@ describe("Launcher Settings General tab (e2e, real server)", () => {
     await ctx.page.waitForSelector('[data-testid="launcher-settings-columns-set-project-board-confirm-btn"]', {
       state: "visible", timeout: 15000,
     });
-  }, 60000);
-
-  it("launcher-settings-general-worktree-input persists on Enter", async () => {
-    const project = await setup("wt-input");
-    await ctx.page.fill(
-      '[data-testid="launcher-settings-general-worktree-input"]',
-      "/tmp/some-wt-path-for-test",
-    );
-    await ctx.page.locator('[data-testid="launcher-settings-general-worktree-input"]').press("Enter");
-    await ctx.page.waitForTimeout(800);
-    const cfg = readProjectLauncherConfig(ctx.testServer, project.projectSlug);
-    expect(cfg?.worktreeRootPath).toBe("/tmp/some-wt-path-for-test");
-  }, 60000);
-
-  it("launcher-settings-general-worktree-browse button exists", async () => {
-    await setup("wt-browse");
-    expect(await ctx.page.locator('[data-testid="launcher-settings-general-worktree-browse"]').count()).toBe(1);
   }, 60000);
 
   it("launcher-settings-general-conflict-prompt persists on blur", async () => {

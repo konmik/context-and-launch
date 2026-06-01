@@ -7,7 +7,7 @@ import BoardSelector from "./BoardSelector.js";
 
 interface AddProjectFormProps {
   action: (
-    path: string, branch: string, worktreeRootPath: string, ticketsPath: string,
+    path: string, branch: string,
     mainBranch: string, boardId: string,
   ) => Promise<{ projectSlug?: string; error?: string }>;
   errorMessage?: string;
@@ -73,46 +73,6 @@ export default function AddProjectForm(props: AddProjectFormProps) {
           class="input"
           data-testid="add-project-branch-input"
         />
-      </div>
-      <div class="mb-4">
-        <label for="project-tickets-root" class="mb-2 block text-sm font-medium">Tickets folder</label>
-        <div class="flex gap-2">
-          <input
-            id="project-tickets-root"
-            type="text"
-            value={s.ticketsRootPath()}
-            onInput={(e) => s.setTicketsRootPath(e.currentTarget.value)}
-            placeholder="Defaults to the project data directory"
-            class="input"
-            data-testid="add-project-tickets-root-input"
-          />
-          <button
-            type="button"
-            onClick={s.handleBrowseTicketsRoot}
-            class="btn-secondary"
-            data-testid="add-project-tickets-browse"
-          >Browse</button>
-        </div>
-      </div>
-      <div class="mb-4">
-        <label for="project-worktree-root" class="mb-2 block text-sm font-medium">Agent worktree root path</label>
-        <div class="flex gap-2">
-          <input
-            id="project-worktree-root"
-            type="text"
-            value={s.worktreeRootPath()}
-            onInput={(e) => s.setWorktreeRootPath(e.currentTarget.value)}
-            placeholder="Defaults to the project data directory"
-            class="input"
-            data-testid="add-project-worktree-root-input"
-          />
-          <button
-            type="button"
-            onClick={s.handleBrowseWorktreeRoot}
-            class="btn-secondary"
-            data-testid="add-project-worktree-browse"
-          >Browse</button>
-        </div>
       </div>
       <Show when={s.localError()}><p class="mb-4 text-sm text-destructive">{s.localError()}</p></Show>
       <button

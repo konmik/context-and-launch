@@ -20,7 +20,6 @@ export function createLauncherSettingsState(props: {
 	const [loading, setLoading] = createSignal(false);
 	const [error, setError] = createSignal("");
 	const [form, setForm] = createSignal<ItemFormState | null>(null);
-	const [worktreeRootPath, setWorktreeRootPath] = createSignal("");
 	const [conflictPrompt, setConflictPrompt] = createSignal("");
 	const [activeTab, setActiveTab] = createSignal<string>("general");
 	const [boards, setBoards] = createSignal<BoardDefinition[]>([]);
@@ -71,7 +70,6 @@ export function createLauncherSettingsState(props: {
 			if (res.ok) {
 			const data = await res.json();
 			setConfig(data);
-			setWorktreeRootPath(data.worktreeRootPath ?? "");
 			setConflictPrompt(data.conflictResolutionPrompt ?? "");
 		}
 			else setError(await res.text() || "Failed to load config");
@@ -125,22 +123,6 @@ export function createLauncherSettingsState(props: {
 			if (!res.ok) { setError(await res.text() || "Failed to delete"); return; }
 			await loadConfig();
 		} catch (e) { setError(e instanceof Error ? e.message : "Failed to delete"); }
-	}
-
-	async function saveWorktreeRootPath() {
-		setError("");
-		try {
-			const res = await fetch(
-				`/api/projects/${props.projectSlug}/launcher-config/worktree-root-path`,
-				{
-					method: "PUT",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ worktreeRootPath: worktreeRootPath() }),
-				},
-			);
-			if (!res.ok) { setError(await res.text() || "Failed to save"); return; }
-			await loadConfig();
-		} catch (e) { setError(e instanceof Error ? e.message : "Failed to save"); }
 	}
 
 	async function saveConflictResolution() {
@@ -382,12 +364,12 @@ export function createLauncherSettingsState(props: {
 	}
 
 	return {
-		config, loading, error, setError, form, setForm, worktreeRootPath, setWorktreeRootPath,
+		config, loading, error, setError, form, setForm,
 		conflictPrompt, setConflictPrompt, activeTab, setActiveTab, boards, boardOverride, setBoardOverride,
 		columnForm, setColumnForm, boardForm, setBoardForm, renameForm, setRenameForm,
 		deleteConfirm, setDeleteConfirm, projectBoardConfirm, setProjectBoardConfirm, columnError, setColumnError,
 		selectedBoardId, selectedBoard, startAdd, startEdit, submitForm, deleteItem,
-		saveWorktreeRootPath, saveConflictResolution, handleCreateBoard, handleDeleteBoard, handleSaveColumn,
+		saveConflictResolution, handleCreateBoard, handleDeleteBoard, handleSaveColumn,
 		handleDeleteColumn, handleRenameColumn, handleSetProjectBoard,
 		columnNameValidation, columnReorder, skillReorder,
 	};

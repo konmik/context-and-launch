@@ -8,9 +8,6 @@ import BoardSelect from "../project/BoardSelect.js";
 export function GeneralTab(props: {
 	config: MergedLauncherConfig;
 	boards: BoardDefinition[];
-	worktreeRootPath: string;
-	setWorktreeRootPath: (v: string) => void;
-	saveWorktreeRootPath: () => void;
 	conflictPrompt: string;
 	setConflictPrompt: (v: string) => void;
 	saveConflictResolution: () => void;
@@ -36,48 +33,6 @@ export function GeneralTab(props: {
 						class="input input-sm"
 						testId="launcher-settings-general-board-select"
 					/>
-				</section>
-				<section>
-					<h3 class="mb-2 text-sm font-semibold">Agent worktree root path <ScopeBadge scope="project" /></h3>
-					<div class="flex gap-2">
-						<input
-							type="text"
-							value={props.worktreeRootPath}
-							onInput={(e) => props.setWorktreeRootPath(e.currentTarget.value)}
-							onBlur={props.saveWorktreeRootPath}
-							onKeyDown={(e) => {
-								if (e.key === "Enter") props.saveWorktreeRootPath();
-							}}
-							class="input input-sm flex-1"
-							placeholder="e.g. ~/.context-launch/worktrees"
-							data-testid="launcher-settings-general-worktree-input"
-						/>
-						<button
-							type="button"
-							data-testid="launcher-settings-general-worktree-browse"
-							onClick={async () => {
-								try {
-									const res = await fetch(
-										`/api/pick-directory?path=${encodeURIComponent(props.worktreeRootPath)}`,
-									);
-									if (res.status === 204) return;
-									if (!res.ok) {
-										const body = await res.json().catch(() => ({}));
-										props.setError(body?.error ?? `Directory picker failed (${res.status})`);
-										return;
-									}
-									const { path } = await res.json();
-									props.setWorktreeRootPath(path);
-									props.saveWorktreeRootPath();
-								} catch (e) {
-									props.setError(
-										e instanceof Error ? e.message : "Failed to pick directory",
-									);
-								}
-							}}
-							class="btn-secondary"
-						>Browse</button>
-					</div>
 				</section>
 				<section>
 					<h3 class="mb-2 text-sm font-semibold">
