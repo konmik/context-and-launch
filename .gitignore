@@ -11,3 +11,4 @@ temp/
 .playwright-mcp/
 app.config.timestamp_*.js
 skills-lock.json
+test-results/
