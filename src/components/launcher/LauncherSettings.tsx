@@ -8,7 +8,6 @@ import { TabsRoot, TabsList, TabsTrigger } from "../ui/tabs";
 import { useModEnterSubmit } from "~/lib/use-mod-enter-submit";
 import { MiscTab } from "./launcher-settings-misc-tab.js";
 import { PromptsTab } from "./launcher-settings-prompts-tab.js";
-import { SkillsTab } from "./launcher-settings-skills-tab.js";
 import { LaunchTab } from "./launcher-settings-launch-tab.js";
 import { ColumnsTab } from "./launcher-settings-columns-tab.js";
 import {
@@ -133,10 +132,6 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 								data-testid="launcher-settings-tab-prompts"
 							>Prompts</TabsTrigger>
 							<TabsTrigger
-								value="skills"
-								data-testid="launcher-settings-tab-skills"
-							>Skills</TabsTrigger>
-							<TabsTrigger
 								value="misc"
 								data-testid="launcher-settings-tab-misc"
 							>Misc</TabsTrigger>
@@ -172,12 +167,6 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 											setError={s.setError}
 										/>
 										<PromptsTab
-											config={cfg()}
-											startAdd={s.startAdd}
-											startEdit={s.startEdit}
-											deleteItem={s.deleteItem}
-										/>
-										<SkillsTab
 											config={cfg()}
 											skillReorder={s.skillReorder}
 											startAdd={s.startAdd}

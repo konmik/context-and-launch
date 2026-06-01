@@ -353,7 +353,7 @@ export async function openLauncherSettings(page: Page): Promise<void> {
   });
 }
 
-export type LauncherSettingsTab = "general" | "prompts" | "skills" | "launch" | "columns";
+export type LauncherSettingsTab = "misc" | "prompts" | "launch" | "columns";
 
 export async function openLauncherSettingsTab(page: Page, name: LauncherSettingsTab): Promise<void> {
   await page.click(`[data-testid="launcher-settings-tab-${name}"]`);
