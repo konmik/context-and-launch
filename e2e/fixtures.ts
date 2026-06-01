@@ -347,7 +347,7 @@ export async function openLauncherSettings(page: Page): Promise<void> {
     state: "visible",
     timeout: 15000,
   });
-  await page.waitForSelector('[data-testid="launcher-settings-tab-general"]', {
+  await page.waitForSelector('[data-testid="launcher-settings-tab-misc"]', {
     state: "visible",
     timeout: 15000,
   });
