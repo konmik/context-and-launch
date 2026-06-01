@@ -53,7 +53,6 @@ describe('WorktreeCleanupService', () => {
 		lcm.saveProjectConfig('my-proj', {
 			templates: [],
 			skills: [],
-			boardId: 'standard',
 			worktreeRootPath: worktreeRoot,
 		});
 
