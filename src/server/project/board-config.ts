@@ -93,10 +93,9 @@ export class BoardConfigManager {
 		return this.loadAll()[0].id;
 	}
 
-	getConfig(boardId?: string | null): BoardConfig {
+	getConfig(boardId: string): BoardConfig {
 		const boards = this.loadAll();
-		const id = boardId || boards[0].id;
-		const board = boards.find(b => b.id === id);
+		const board = boards.find(b => b.id === boardId);
 		if (!board) {
 			return { columns: boards[0].columns };
 		}

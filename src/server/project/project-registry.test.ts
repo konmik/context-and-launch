@@ -712,7 +712,7 @@ describe('ProjectRegistry', () => {
 		expect(onDisk.projects[0].boardId).toBe('kanban');
 	});
 
-	it('addProject without mainBranch and boardId leaves fields absent from config.json', () => {
+	it('addProject without mainBranch defaults boardId to standard', () => {
 		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
 		dirs.push(projectDir);
@@ -725,7 +725,7 @@ describe('ProjectRegistry', () => {
 			fs.readFileSync(path.join(configDir, 'config', 'config.json'), 'utf-8')
 		);
 		expect('mainBranch' in onDisk.projects[0]).toBe(false);
-		expect('boardId' in onDisk.projects[0]).toBe(false);
+		expect(onDisk.projects[0].boardId).toBe('standard');
 	});
 
 	it('addProject rejects mainBranch with invalid git branch characters', () => {

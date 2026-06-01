@@ -1,20 +1,17 @@
 import type { ProjectRegistry } from './project-registry.js';
 import type { LauncherConfigManager } from '../launcher/launcher-config.js';
+import type { BoardConfigManager } from './board-config.js';
 
-/**
- * After deleting a board, clear boardId from any project launcher config
- * that references the deleted board. This prevents silent fallback to the
- * first board (which ADR 0009 explicitly rejected) and instead causes
- * those projects to use the default board (null boardId).
- */
-export function cascadeClearBoardId(
+export function cascadeReassignBoardId(
 	deletedBoardId: string,
 	deps: {
 		projectRegistry: ProjectRegistry;
 		launcherConfigManager: LauncherConfigManager;
+		boardConfigManager: BoardConfigManager;
 	}
 ): number {
-	let cleared = 0;
+	let reassigned = 0;
+	const fallbackBoardId = deps.boardConfigManager.getDefaultBoardId();
 
 	let projects: { projectSlug: string }[];
 	try {
@@ -28,14 +25,14 @@ export function cascadeClearBoardId(
 		try {
 			const config = deps.launcherConfigManager.loadProjectConfig(project.projectSlug);
 			if (config.boardId === deletedBoardId) {
-				config.boardId = undefined;
+				config.boardId = fallbackBoardId;
 				deps.launcherConfigManager.saveProjectConfig(project.projectSlug, config);
-				cleared++;
+				reassigned++;
 			}
 		} catch (e) {
 			console.warn(`Skipping project "${project.projectSlug}" during board delete cascade`, e);
 		}
 	}
 
-	return cleared;
+	return reassigned;
 }

@@ -43,7 +43,7 @@ describe('BoardConfigManager', () => {
 		initializeDataDir(new ConfigPaths(configDir));
 
 		const manager = new BoardConfigManager(new ConfigPaths(configDir));
-		const config = manager.getConfig();
+		const config = manager.getConfig('standard');
 
 		expect(config.columns).toEqual([
 			{ name: 'todo', description: 'wishlist' },
@@ -90,7 +90,7 @@ describe('BoardConfigManager', () => {
 		initializeDataDir(new ConfigPaths(configDir));
 
 		const manager = new BoardConfigManager(new ConfigPaths(configDir));
-		const config = manager.getConfig(null);
+		const config = manager.getConfig('standard');
 
 		expect(config.columns).toEqual([
 			{ name: 'todo', description: 'wishlist' },
@@ -141,7 +141,7 @@ describe('BoardConfigManager', () => {
 		fs.mkdirSync(configSubdir, { recursive: true });
 		fs.writeFileSync(path.join(configSubdir, 'boards.json'), 'not valid json');
 		const manager = new BoardConfigManager(new ConfigPaths(configDir));
-		expect(() => manager.getConfig()).toThrow();
+		expect(() => manager.getConfig('standard')).toThrow();
 	});
 
 	it('custom boards file is respected', () => {

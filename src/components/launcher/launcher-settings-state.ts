@@ -33,8 +33,8 @@ export function createLauncherSettingsState(props: {
 
 	const selectedBoardId = createMemo(() => {
 		const list = boards();
-		const valid = (id: string | null | undefined) => (id && list.some(b => b.id === id) ? id : null);
-		return valid(boardOverride()) ?? valid(config()?.boardId) ?? list[0]?.id ?? "";
+		const valid = (id: string | undefined) => (id && list.some(b => b.id === id) ? id : null);
+		return valid(boardOverride() ?? undefined) ?? valid(config()?.boardId) ?? list[0]?.id ?? "";
 	});
 
 	const selectedBoard = () => boards().find(b => b.id === selectedBoardId());

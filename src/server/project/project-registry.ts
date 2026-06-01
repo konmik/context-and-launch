@@ -9,7 +9,7 @@ export interface ProjectInfo {
 	branch?: string;
 	ticketsPath?: string;
 	mainBranch?: string;
-	boardId?: string;
+	boardId: string;
 }
 
 export interface ProjectEntry {
@@ -18,7 +18,7 @@ export interface ProjectEntry {
 	branch?: string;
 	ticketsPath?: string;
 	mainBranch?: string;
-	boardId?: string;
+	boardId: string;
 }
 
 export interface ProjectConfig {
@@ -120,11 +120,13 @@ export class ProjectRegistry {
 		const migratedProjects: ProjectEntry[] = raw.projects.map(
 			(p: Record<string, unknown>) => {
 				const projectSlug = (p.projectSlug ?? p.slug) as string;
-				const entry: ProjectEntry = { path: p.path as string, projectSlug };
+				const entry: ProjectEntry = {
+					path: p.path as string, projectSlug,
+					boardId: (p.boardId as string | undefined) ?? 'standard',
+				};
 				if (p.branch !== undefined) entry.branch = p.branch as string;
 				if (p.ticketsPath !== undefined) entry.ticketsPath = p.ticketsPath as string;
 				if (p.mainBranch !== undefined) entry.mainBranch = p.mainBranch as string;
-				if (p.boardId !== undefined) entry.boardId = p.boardId as string;
 				return entry;
 			},
 		);
@@ -197,7 +199,7 @@ export class ProjectRegistry {
 
 	addProject(
 		projectPath: string, projectSlug?: string, branch?: string,
-		ticketsPath?: string, mainBranch?: string, boardId?: string,
+		ticketsPath?: string, mainBranch?: string, boardId: string = 'standard',
 	): ProjectInfo {
 		if (!this.configRepo.exists(projectPath)) {
 			throw new Error(`Path does not exist: ${projectPath}`);
@@ -231,11 +233,10 @@ export class ProjectRegistry {
 			throw new Error(`Project slug already exists: ${finalProjectSlug}`);
 		}
 
-		const entry: ProjectEntry = { path: canonicalPath, projectSlug: finalProjectSlug };
+		const entry: ProjectEntry = { path: canonicalPath, projectSlug: finalProjectSlug, boardId };
 		if (branch !== undefined) entry.branch = branch;
 		if (ticketsPath !== undefined) entry.ticketsPath = ticketsPath;
 		if (mainBranch !== undefined) entry.mainBranch = mainBranch;
-		if (boardId !== undefined) entry.boardId = boardId;
 		this.save({
 			...config,
 			projects: [...config.projects, entry],

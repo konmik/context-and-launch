@@ -1,13 +1,14 @@
-import { projectRegistry } from "~/server/config/instances.js";
+import { projectRegistry, boardConfigManager } from "~/server/config/instances.js";
 import { generateProjectSlug } from "~/server/project/project-registry.js";
 import { detectMainBranch } from "~/server/infra/git.js";
 import { withService } from "~/server/shared/route-helpers.js";
 
 export const POST = withService(async ({ request }) => {
 	const { path: pathValue, branch, mainBranch, boardId } = await request.json();
+	const resolvedBoardId = boardId?.trim() || boardConfigManager.getDefaultBoardId();
 	const project = projectRegistry.addProject(
 		pathValue, undefined, branch, undefined,
-		mainBranch?.trim() || undefined, boardId?.trim() || undefined,
+		mainBranch?.trim() || undefined, resolvedBoardId,
 	);
 	return Response.json({ projectSlug: project.projectSlug });
 });
