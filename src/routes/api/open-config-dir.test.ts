@@ -1,5 +1,33 @@
 import os from "os";
+import { EventEmitter } from "events";
 import { describe, it, expect, vi } from "vitest";
+
+// Mock child_process so platform branching can be asserted against the exact
+// (cmd, args, options) openInOs passes. The default implementation delegates to
+// the real spawn, so the real-spawn regression tests below are unaffected;
+// branching tests override a single call with mockImplementationOnce.
+// child_process is CJS, so `import { spawn }` resolves through `default.spawn`
+// under interop -- the override must replace both the named and default export.
+const { spawnMock } = vi.hoisted(() => ({ spawnMock: vi.fn() }));
+vi.mock("child_process", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("child_process")>();
+	spawnMock.mockImplementation(actual.spawn);
+	return { ...actual, default: { ...actual, spawn: spawnMock }, spawn: spawnMock };
+});
+
+// Records the args of the next spawn and emits "spawn" so openInOs resolves
+// without launching anything.
+function captureSpawn() {
+	const calls: Array<{ cmd: string; args: string[]; opts: Record<string, unknown> }> = [];
+	spawnMock.mockImplementationOnce((cmd: string, args: string[], opts: Record<string, unknown>) => {
+		calls.push({ cmd, args, opts });
+		const child = new EventEmitter() as EventEmitter & { unref: () => void };
+		child.unref = () => {};
+		queueMicrotask(() => child.emit("spawn"));
+		return child;
+	});
+	return calls;
+}
 
 // A real directory that exists on every host so tests that target the spawn
 // behavior (not the existsSync gate) can run past the pre-check. Individual
@@ -18,7 +46,7 @@ vi.mock("~/server/config/instances.js", () => ({
 
 import { launcherConfigManager } from "~/server/config/instances.js";
 
-import { openInOs, platformOpenCommand } from "~/server/infra/open-in-os.js";
+import { openInOs } from "~/server/infra/open-in-os.js";
 import { POST } from "~/routes/api/open-config-dir.js";
 
 function fakeEvent(body: Record<string, unknown>) {
@@ -40,32 +68,41 @@ function restorePlatform(): void {
 	Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
 }
 
-describe("open-config-dir platform branching", () => {
-	it("darwin maps to 'open'", () => {
+describe("openInOs platform branching", () => {
+	it("darwin spawns 'open', not detached", async () => {
 		setPlatform("darwin");
+		const calls = captureSpawn();
 		try {
-			expect(platformOpenCommand().cmd).toBe("open");
+			await openInOs("/some/dir");
+			expect(calls[0].cmd).toBe("open");
+			expect(calls[0].args).toEqual(["/some/dir"]);
+			expect(calls[0].opts.detached).toBe(false);
 		} finally {
 			restorePlatform();
 		}
 	});
 
-	it("win32 maps to 'cmd.exe' with start for foreground activation", () => {
+	it("win32 spawns 'explorer.exe' detached (for foreground activation)", async () => {
 		setPlatform("win32");
+		const calls = captureSpawn();
 		try {
-			const result = platformOpenCommand();
-			expect(result.cmd).toBe("cmd.exe");
-			expect(result.extraArgs).toEqual(["/c", "start", ""]);
+			await openInOs("C:/some/dir");
+			expect(calls[0].cmd).toBe("explorer.exe");
+			expect(calls[0].args).toEqual(["C:/some/dir"]);
+			expect(calls[0].opts.detached).toBe(true);
 		} finally {
 			restorePlatform();
 		}
 	});
 
-	it("linux maps to 'xdg-open' (regression: original code wrongly used explorer.exe)", () => {
+	it("linux spawns 'xdg-open' (regression: original code wrongly used explorer.exe), not detached", async () => {
 		setPlatform("linux");
+		const calls = captureSpawn();
 		try {
-			expect(platformOpenCommand().cmd).toBe("xdg-open");
-			expect(platformOpenCommand().cmd).not.toBe("explorer.exe");
+			await openInOs("/some/dir");
+			expect(calls[0].cmd).toBe("xdg-open");
+			expect(calls[0].cmd).not.toBe("explorer.exe");
+			expect(calls[0].opts.detached).toBe(false);
 		} finally {
 			restorePlatform();
 		}
