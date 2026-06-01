@@ -17,7 +17,7 @@ import DeleteProjectDialog from "~/components/project/DeleteProjectDialog";
 import ThemeToggle from "~/components/shared/ThemeToggle";
 import LauncherSettings from "~/components/launcher/LauncherSettings";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
-import { loadBoard } from "~/server/actions";
+import { loadProjectPage } from "~/server/actions";
 import { addProjectAction } from "~/lib/add-project";
 import {
   createProjectPageController,
@@ -25,14 +25,14 @@ import {
 } from "~/components/project/project-page-controller.js";
 
 export const route = {
-  load: ({ params }: { params: { projectSlug: string } }) => loadBoard(params.projectSlug),
+  load: ({ params }: { params: { projectSlug: string } }) => loadProjectPage(params.projectSlug),
 };
 
 export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   const params = useParams();
   const navigate = useNavigate();
   const projectSlug = () => params.projectSlug ?? "";
-  const data = createAsync(() => loadBoard(projectSlug()));
+  const data = createAsync(() => loadProjectPage(projectSlug()));
 
   // onMount runs only after client hydration, so this attribute marks the point
   // at which event handlers are live and clicks will no longer be dropped.
@@ -184,7 +184,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                 {(e) => (
                   <div class="flex h-64 flex-col items-center justify-center gap-2">
                     <p class="text-destructive">{e().error}</p>
-                    <button class="btn-secondary" onClick={() => revalidate("board-data")}>Retry</button>
+                    <button class="btn-secondary" onClick={() => revalidate("project-page")}>Retry</button>
                   </div>
                 )}
               </Match>
@@ -290,7 +290,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
               if (open) commands.openSettings();
               else {
                 commands.closeSettings();
-                revalidate("board-data");
+                revalidate("project-page");
               }
             }}
             projectSlug={d().projectSlug}

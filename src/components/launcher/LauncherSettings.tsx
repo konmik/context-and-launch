@@ -82,7 +82,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 							>User&#8599;</button>
 							<button
 								data-no-drag
-								data-testid="launcher-settings-open-project-dir"
+								data-testid="launcher-settings-open-project-config"
 								onClick={() => fetch("/api/open-config-dir", {
 									method: "POST",
 									headers: { "Content-Type": "application/json" },
@@ -92,22 +92,22 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 									}),
 								})}
 								class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
-								title="Open project directory"
+								title="Open project config directory"
 							>Project&#8599;</button>
 							<button
 								data-no-drag
-								data-testid="launcher-settings-open-project-config"
+								data-testid="launcher-settings-open-worktrees-dir"
 								onClick={() => fetch("/api/open-config-dir", {
 									method: "POST",
 									headers: { "Content-Type": "application/json" },
 									body: JSON.stringify({
-										scope: "project-config",
+										scope: "worktree",
 										projectSlug: props.projectSlug,
 									}),
 								})}
 								class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
-								title="Open project config directory"
-							>Config&#8599;</button>
+								title="Open worktrees directory"
+							>Worktrees&#8599;</button>
 							<FloatingPanelCloseTrigger data-testid="launcher-settings-close-button">
 								<svg
 								xmlns="http://www.w3.org/2000/svg"
@@ -163,8 +163,11 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 								<Show when={s.config()}>
 									{(cfg) => (<>
 										<GeneralTab
-											config={cfg()}
+											projectBoardId={s.projectBoardId()}
 											boards={s.boards()}
+											worktreeRootPath={s.worktreeRootPath()}
+											setWorktreeRootPath={s.setWorktreeRootPath}
+											saveWorktreeRootPath={s.saveWorktreeRootPath}
 											conflictPrompt={s.conflictPrompt()}
 											setConflictPrompt={s.setConflictPrompt}
 											saveConflictResolution={s.saveConflictResolution}
@@ -191,7 +194,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 											deleteItem={s.deleteItem}
 										/>
 										<ColumnsTab
-											config={cfg()}
+											projectBoardId={s.projectBoardId()}
 											boards={s.boards()}
 											columnError={s.columnError()}
 											setColumnError={s.setColumnError}

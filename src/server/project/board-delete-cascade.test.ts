@@ -2,11 +2,9 @@ import { describe, it, expect, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { cascadeReassignBoardId } from './board-delete-cascade.js';
-import { BoardConfigManager } from './board-config.js';
+import { cascadeClearBoardId } from './board-delete-cascade.js';
 import { ConfigPaths } from '../config/config-paths.js';
 import { initializeDataDir } from '../config/initialize.js';
-import { LauncherConfigManager } from '../launcher/launcher-config.js';
 import { ProjectRegistry } from './project-registry.js';
 
 function tmpDir(prefix: string): string {
@@ -19,22 +17,15 @@ function cleanup(...dirs: string[]) {
 	}
 }
 
-function setupProject(configDir: string, projectSlug: string, boardId: string): void {
+function setupProject(configDir: string, projectSlug: string, boardId: string | undefined): void {
 	const projectPath = path.join(configDir, 'repos', projectSlug);
 	fs.mkdirSync(path.join(projectPath, '.git'), { recursive: true });
 
 	const registry = new ProjectRegistry(new ConfigPaths(configDir));
-	registry.addProject(projectPath, projectSlug);
-
-	const lcm = new LauncherConfigManager(new ConfigPaths(configDir));
-	lcm.saveProjectConfig(projectSlug, {
-		templates: [],
-		skills: [],
-		boardId,
-	});
+	registry.addProject(projectPath, projectSlug, undefined, undefined, undefined, boardId);
 }
 
-describe('cascadeReassignBoardId', () => {
+describe('cascadeClearBoardId', () => {
 	const dirs: string[] = [];
 
 	afterEach(() => {
@@ -42,7 +33,7 @@ describe('cascadeReassignBoardId', () => {
 		dirs.length = 0;
 	});
 
-	it('reassigns boardId on projects referencing the deleted board', () => {
+	it('clears boardId from projects referencing the deleted board', () => {
 		const configDir = tmpDir('cascade-test-');
 		dirs.push(configDir);
 		initializeDataDir(new ConfigPaths(configDir));
@@ -52,25 +43,22 @@ describe('cascadeReassignBoardId', () => {
 		setupProject(configDir, 'proj-c', 'other-board');
 
 		const paths = new ConfigPaths(configDir);
-		const boardConfigManager = new BoardConfigManager(paths);
-		const fallbackBoardId = boardConfigManager.getDefaultBoardId();
-		const reassigned = cascadeReassignBoardId('custom-board', {
-			projectRegistry: new ProjectRegistry(paths),
-			launcherConfigManager: new LauncherConfigManager(paths),
-			boardConfigManager,
+		const registry = new ProjectRegistry(paths);
+		const cleared = cascadeClearBoardId('custom-board', {
+			projectRegistry: registry,
 		});
 
-		expect(reassigned).toBe(2);
+		expect(cleared).toBe(2);
 
-		const lcm = new LauncherConfigManager(paths);
-		const configA = lcm.loadProjectConfig('proj-a');
-		expect(configA.boardId).toBe(fallbackBoardId);
+		const projects = registry.listProjects();
+		const projA = projects.find(p => p.projectSlug === 'proj-a');
+		expect(projA?.boardId).toBeUndefined();
 
-		const configB = lcm.loadProjectConfig('proj-b');
-		expect(configB.boardId).toBe(fallbackBoardId);
+		const projB = projects.find(p => p.projectSlug === 'proj-b');
+		expect(projB?.boardId).toBeUndefined();
 
-		const configC = lcm.loadProjectConfig('proj-c');
-		expect(configC.boardId).toBe('other-board');
+		const projC = projects.find(p => p.projectSlug === 'proj-c');
+		expect(projC?.boardId).toBe('other-board');
 	});
 
 	it('returns 0 when no projects reference the deleted board', () => {
@@ -81,13 +69,11 @@ describe('cascadeReassignBoardId', () => {
 		setupProject(configDir, 'proj-a', 'other-board');
 
 		const paths = new ConfigPaths(configDir);
-		const reassigned = cascadeReassignBoardId('deleted-board', {
+		const cleared = cascadeClearBoardId('deleted-board', {
 			projectRegistry: new ProjectRegistry(paths),
-			launcherConfigManager: new LauncherConfigManager(paths),
-			boardConfigManager: new BoardConfigManager(paths),
 		});
 
-		expect(reassigned).toBe(0);
+		expect(cleared).toBe(0);
 	});
 
 	it('returns 0 when there are no projects', () => {
@@ -96,13 +82,26 @@ describe('cascadeReassignBoardId', () => {
 		initializeDataDir(new ConfigPaths(configDir));
 
 		const paths = new ConfigPaths(configDir);
-		const reassigned = cascadeReassignBoardId('any-board', {
+		const cleared = cascadeClearBoardId('any-board', {
 			projectRegistry: new ProjectRegistry(paths),
-			launcherConfigManager: new LauncherConfigManager(paths),
-			boardConfigManager: new BoardConfigManager(paths),
 		});
 
-		expect(reassigned).toBe(0);
+		expect(cleared).toBe(0);
+	});
+
+	it('skips projects with undefined boardId', () => {
+		const configDir = tmpDir('cascade-test-');
+		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
+
+		setupProject(configDir, 'proj-a', undefined);
+
+		const paths = new ConfigPaths(configDir);
+		const cleared = cascadeClearBoardId('some-board', {
+			projectRegistry: new ProjectRegistry(paths),
+		});
+
+		expect(cleared).toBe(0);
 	});
 
 	it('handles projectRegistry.listProjects throwing gracefully', () => {
@@ -110,17 +109,14 @@ describe('cascadeReassignBoardId', () => {
 		dirs.push(configDir);
 		initializeDataDir(new ConfigPaths(configDir));
 
-		const paths = new ConfigPaths(configDir);
 		const brokenRegistry = {
 			listProjects() { throw new Error('corrupt'); },
 		} as unknown as ProjectRegistry;
 
-		const reassigned = cascadeReassignBoardId('any-board', {
+		const cleared = cascadeClearBoardId('any-board', {
 			projectRegistry: brokenRegistry,
-			launcherConfigManager: new LauncherConfigManager(paths),
-			boardConfigManager: new BoardConfigManager(paths),
 		});
 
-		expect(reassigned).toBe(0);
+		expect(cleared).toBe(0);
 	});
 });

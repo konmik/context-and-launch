@@ -23,4 +23,4 @@ export const fileWatcher = services.fileWatcher;
 export const launcherConfigManager = services.launcherConfigManager;
 export const agentWorktreeManager = services.agentWorktreeManager;
 export const ticketSyncManager = services.ticketSyncManager;
-export const boardService = services.boardService;
+export const projectPageService = services.projectPageService;

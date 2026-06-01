@@ -1,4 +1,4 @@
-import { For } from "solid-js";
+import { For, createEffect } from "solid-js";
 import type { BoardRef } from "~/lib/fetch-boards.js";
 
 export interface BoardSelectProps {
@@ -11,10 +11,16 @@ export interface BoardSelectProps {
 }
 
 export default function BoardSelect(props: BoardSelectProps) {
+  let ref!: HTMLSelectElement;
+  createEffect(() => {
+    const v = props.value;
+    void props.boards;
+    queueMicrotask(() => { ref.value = v; });
+  });
   return (
     <select
+      ref={ref}
       id={props.id}
-      value={props.value}
       onChange={props.onChange}
       class={props.class}
       data-testid={props.testId}

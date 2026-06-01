@@ -37,16 +37,16 @@ describe("Launcher Settings General tab (e2e, real server)", () => {
       ctx.page.click('[data-testid="launcher-settings-open-user-config"]'));
   }, 60000);
 
-  it("launcher-settings-open-project-dir fires open-config-dir request", async () => {
+  it("launcher-settings-open-project-config fires open-config-dir request", async () => {
     await setup("open-proj");
     await expectOpenConfigDirRequest(ctx.page, () =>
-      ctx.page.click('[data-testid="launcher-settings-open-project-dir"]'));
+      ctx.page.click('[data-testid="launcher-settings-open-project-config"]'));
   }, 60000);
 
-  it("launcher-settings-open-project-config fires open-config-dir request", async () => {
-    await setup("open-proj-cfg");
+  it("launcher-settings-open-worktrees-dir fires open-config-dir request", async () => {
+    await setup("open-wt");
     await expectOpenConfigDirRequest(ctx.page, () =>
-      ctx.page.click('[data-testid="launcher-settings-open-project-config"]'));
+      ctx.page.click('[data-testid="launcher-settings-open-worktrees-dir"]'));
   }, 60000);
 
   it("launcher-settings-close-button hides the floating panel", async () => {
@@ -63,6 +63,39 @@ describe("Launcher Settings General tab (e2e, real server)", () => {
     await ctx.page.waitForSelector('[data-testid="launcher-settings-columns-set-project-board-confirm-btn"]', {
       state: "visible", timeout: 15000,
     });
+  }, 60000);
+
+  it("launcher-settings-general-worktree-input persists on Enter", async () => {
+    const project = await setup("wt-input");
+    await ctx.page.fill(
+      '[data-testid="launcher-settings-general-worktree-input"]',
+      "/tmp/some-wt-path-for-test",
+    );
+    await ctx.page.locator('[data-testid="launcher-settings-general-worktree-input"]').press("Enter");
+    await ctx.page.waitForTimeout(800);
+    const cfg = readProjectLauncherConfig(ctx.testServer, project.projectSlug);
+    expect(cfg?.worktreeRootPath).toBe("/tmp/some-wt-path-for-test");
+  }, 60000);
+
+  it("launcher-settings-general-worktree-browse button exists", async () => {
+    await setup("wt-browse");
+    expect(await ctx.page.locator('[data-testid="launcher-settings-general-worktree-browse"]').count()).toBe(1);
+  }, 60000);
+
+  it("board dropdown reflects new board after confirm", async () => {
+    await setup("board-reflect");
+    const sel = ctx.page.locator('[data-testid="launcher-settings-general-board-select"]');
+    expect(await sel.inputValue()).toBe("kanban");
+    await sel.selectOption("simple");
+    await ctx.page.waitForSelector('[data-testid="launcher-settings-columns-set-project-board-confirm-btn"]', {
+      state: "visible", timeout: 15000,
+    });
+    await ctx.page.click('[data-testid="launcher-settings-columns-set-project-board-confirm-btn"]');
+    await ctx.page.waitForSelector('[data-testid="launcher-settings-columns-set-project-board-confirm-btn"]', {
+      state: "detached", timeout: 15000,
+    });
+    await ctx.page.waitForTimeout(500);
+    expect(await sel.inputValue()).toBe("simple");
   }, 60000);
 
   it("launcher-settings-general-conflict-prompt persists on blur", async () => {

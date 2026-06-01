@@ -1,5 +1,5 @@
 import fs from "fs";
-import { launcherConfigManager, worktreeManager, projectRegistry } from "~/server/config/instances.js";
+import { launcherConfigManager, worktreeManager } from "~/server/config/instances.js";
 import { NotFoundError, ValidationError } from "~/server/shared/errors.js";
 import { withService } from "~/server/shared/route-helpers.js";
 import { openInOs } from "~/server/infra/open-in-os.js";
@@ -11,12 +11,7 @@ function resolveConfigDir(scope: string, projectSlug?: string): string {
     if (!config.worktreeRootPath) throw new ValidationError("Worktree root path not configured");
     return config.worktreeRootPath;
   }
-  if (scope === "project" && projectSlug) {
-    const projectDir = projectRegistry.getProjectDir(projectSlug);
-    if (!projectDir) throw new NotFoundError(`Project "${projectSlug}" not found`);
-    return projectDir;
-  }
-  if (scope === "project-config" && projectSlug) return launcherConfigManager.getProjectConfigDir(projectSlug);
+  if (scope === "project" && projectSlug) return launcherConfigManager.getProjectConfigDir(projectSlug);
   return launcherConfigManager.getAppConfigDir();
 }
 

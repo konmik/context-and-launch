@@ -33,19 +33,12 @@ export function migrateColumnRename(
 		projectSlugs = [currentProjectSlug];
 	} else {
 		try {
+			const defaultBoardId = deps.boardConfigManager.getDefaultBoardId();
 			const projects = deps.projectRegistry.listProjects();
 			projectSlugs = projects
 				.filter(p => {
-					try {
-						const merged = deps.launcherConfigManager.getMergedConfig(p.projectSlug);
-						const projectBoardId = merged.boardId;
-						return projectBoardId === boardId;
-					} catch (e) {
-						console.warn(
-				`Skipping project "${p.projectSlug}" during column rename migration: config unreadable`, e,
-			);
-						return false;
-					}
+					const projectBoardId = p.boardId ?? defaultBoardId;
+					return projectBoardId === boardId;
 				})
 				.map(p => p.projectSlug);
 		} catch (e) {

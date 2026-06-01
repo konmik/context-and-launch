@@ -1,4 +1,4 @@
-import { launcherConfigManager } from "~/server/config/instances.js";
+import { launcherConfigManager, projectRegistry } from "~/server/config/instances.js";
 import { withService } from "~/server/shared/route-helpers.js";
 
 export const GET = withService(async ({ params, request }) => {
@@ -7,7 +7,8 @@ export const GET = withService(async ({ params, request }) => {
 	if (url.searchParams.get("raw") === "true") {
 		return Response.json(launcherConfigManager.loadProjectConfig(projectSlug));
 	}
-	return Response.json(launcherConfigManager.getMergedConfig(projectSlug));
+	const merged = launcherConfigManager.getMergedConfig(projectSlug);
+	return Response.json({ ...merged, projectBoardId: projectRegistry.getBoardId(projectSlug) ?? null });
 });
 
 export const PUT = withService(async ({ params, request }) => {

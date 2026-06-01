@@ -45,7 +45,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
       if (parsed.type === "success") {
         setSyncSuccess(true);
         setTimeout(() => setSyncSuccess(false), 2000);
-        await revalidate("board-data");
+        await revalidate("project-page");
       } else if (parsed.type === "conflict") {
         setConflictDialogOpen(true);
       } else {
@@ -68,7 +68,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
       const body = await res.json();
       throw new Error(body.error || "Failed to launch resolver");
     }
-    await revalidate("board-data");
+    await revalidate("project-page");
   }
 
   async function handleConflictAbort() {
@@ -77,7 +77,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
       const body = await res.json();
       throw new Error(body.error || "Failed to abort rebase");
     }
-    await revalidate("board-data");
+    await revalidate("project-page");
   }
 
   function openEdit(ticket: TicketInfo) {
@@ -106,7 +106,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
   }
 
   async function openDetail(ticket: TicketInfo) {
-    await revalidate("board-data");
+    await revalidate("project-page");
     const d = deps.data();
     const board = d?.status === "loaded" ? (d as any).board : undefined;
     const fresh = board?.tickets.find((t: TicketInfo) => t.folderName === ticket.folderName);
@@ -115,7 +115,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
 
   async function ticketAction(url: string, init?: RequestInit) {
     const result = await apiFetch(url, init);
-    if (!result.error) revalidate("board-data");
+    if (!result.error) revalidate("project-page");
     return result;
   }
 
@@ -160,7 +160,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ folderName, fromColumn, toColumn, newIndex }),
     });
-    if (res.ok) await revalidate("board-data");
+    if (res.ok) await revalidate("project-page");
   }
 
   async function handleCleanupSubmit(

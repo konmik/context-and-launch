@@ -1,19 +1,14 @@
 import type { ProjectRegistry } from './project-registry.js';
-import type { LauncherConfigManager } from '../launcher/launcher-config.js';
-import type { BoardConfigManager } from './board-config.js';
 
-export function cascadeReassignBoardId(
+export function cascadeClearBoardId(
 	deletedBoardId: string,
 	deps: {
 		projectRegistry: ProjectRegistry;
-		launcherConfigManager: LauncherConfigManager;
-		boardConfigManager: BoardConfigManager;
 	}
 ): number {
-	let reassigned = 0;
-	const fallbackBoardId = deps.boardConfigManager.getDefaultBoardId();
+	let cleared = 0;
 
-	let projects: { projectSlug: string }[];
+	let projects: { projectSlug: string; boardId?: string }[];
 	try {
 		projects = deps.projectRegistry.listProjects();
 	} catch (e) {
@@ -23,16 +18,14 @@ export function cascadeReassignBoardId(
 
 	for (const project of projects) {
 		try {
-			const config = deps.launcherConfigManager.loadProjectConfig(project.projectSlug);
-			if (config.boardId === deletedBoardId) {
-				config.boardId = fallbackBoardId;
-				deps.launcherConfigManager.saveProjectConfig(project.projectSlug, config);
-				reassigned++;
+			if (project.boardId === deletedBoardId) {
+				deps.projectRegistry.setBoardId(project.projectSlug, undefined);
+				cleared++;
 			}
 		} catch (e) {
 			console.warn(`Skipping project "${project.projectSlug}" during board delete cascade`, e);
 		}
 	}
 
-	return reassigned;
+	return cleared;
 }
