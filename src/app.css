@@ -221,14 +221,20 @@
 	}
 
 	[data-scope="floating-panel"][data-part="content"] {
-		display: flex;
-		flex-direction: column;
 		width: 100%;
 		height: 100%;
+		overflow: hidden;
 		border-radius: var(--radius-lg);
 		border: 1px solid var(--border);
 		background: var(--card);
 		box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+	}
+
+	[data-scope="floating-panel"][data-part="content"] > [data-part="root"] {
+		display: flex;
+		flex-direction: column;
+		height: 100%;
+		min-height: 0;
 	}
 
 	[data-scope="floating-panel"][data-part="header"] {
