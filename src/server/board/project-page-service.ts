@@ -4,21 +4,19 @@ import type { ProjectRegistry } from "~/server/project/project-registry.js";
 import type { BoardConfigManager } from "~/server/project/board-config.js";
 import type { WorktreeManager } from "~/server/worktree/worktree-manager.js";
 import type { FileWatcher } from "~/server/infra/file-watcher.js";
-import type { LauncherConfigManager } from "~/server/launcher/launcher-config.js";
 import type { TicketSyncManager } from "~/server/ticket/ticket-sync.js";
-import type { BoardPageData } from "./board-types.js";
+import type { ProjectPageData } from "./board-types.js";
 
-export class BoardService {
+export class ProjectPageService {
 	constructor(
 		private projectRegistry: ProjectRegistry,
 		private boardConfigManager: BoardConfigManager,
 		private worktreeManager: WorktreeManager,
 		private fileWatcher: FileWatcher,
-		private launcherConfigManager: LauncherConfigManager,
 		private ticketSyncManager: TicketSyncManager,
 	) {}
 
-	async loadBoard(projectSlug: string): Promise<BoardPageData> {
+	async loadProjectPage(projectSlug: string): Promise<ProjectPageData> {
 		const projects = this.projectRegistry.listProjects();
 		const project = projects.find((p) => p.projectSlug === projectSlug);
 
@@ -40,8 +38,7 @@ export class BoardService {
 			);
 			this.fileWatcher.stopAll();
 			this.fileWatcher.watch(worktreeDir);
-			const merged = this.launcherConfigManager.getMergedConfig(projectSlug);
-			const config = this.boardConfigManager.getConfig(merged.boardId);
+			const config = this.boardConfigManager.getConfig(project.boardId);
 			const store = new TicketStore(worktreeDir);
 			const { tickets, ticketOrder } = store.loadBoardState(
 				config.columns.map(c => c.name),

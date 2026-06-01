@@ -42,9 +42,6 @@ vi.mock("~/server/config/instances.js", () => ({
 		getProjectConfigDir: vi.fn().mockReturnValue("/fake/project-config"),
 		getAppConfigDir: vi.fn().mockReturnValue("/fake/app-config"),
 	},
-	projectRegistry: {
-		getProjectDir: vi.fn().mockReturnValue("/fake/project-dir"),
-	},
 }));
 
 import { launcherConfigManager } from "~/server/config/instances.js";
@@ -156,20 +153,10 @@ describe("POST guards against missing target directory (regression: spawn fired 
 		}
 	});
 
-	it("returns 404 when the resolved project dir does not exist on disk", async () => {
-		setPlatform("darwin");
-		try {
-			const response = await POST(fakeEvent({ scope: "project", projectSlug: "proj" }));
-			expect(response.status).toBe(404);
-		} finally {
-			restorePlatform();
-		}
-	});
-
 	it("returns 404 when the resolved project-config dir does not exist on disk", async () => {
 		setPlatform("darwin");
 		try {
-			const response = await POST(fakeEvent({ scope: "project-config", projectSlug: "proj" }));
+			const response = await POST(fakeEvent({ scope: "project", projectSlug: "proj" }));
 			expect(response.status).toBe(404);
 		} finally {
 			restorePlatform();

@@ -6,7 +6,7 @@ import os from "node:os";
 import { type Browser, type Page } from "playwright";
 import {
   createServer, launchBrowser, type TestServer, type TestBrowser,
-  readProjectRegistry,
+  readProjectRegistry, readProjectLauncherConfig,
   getLocalStorageItem,
 } from "./fixtures.js";
 
@@ -75,6 +75,35 @@ describe("Add project welcome screen (e2e, real server)", () => {
     expect(await page.locator('[data-testid="add-project-path-browse"]').count()).toBe(1);
   }, 60000);
 
+  it("tickets folder and worktree root Browse buttons are rendered", async () => {
+    await page.goto(`${testServer.baseUrl}/add-project`);
+    await page.waitForSelector('[data-testid="add-project-tickets-browse"]', { state: "visible", timeout: 10000 });
+    expect(await page.locator('[data-testid="add-project-tickets-browse"]').count()).toBe(1);
+    expect(await page.locator('[data-testid="add-project-worktree-browse"]').count()).toBe(1);
+  }, 60000);
+
+  it("path input prefills tickets and worktree inputs", async () => {
+    await page.goto(`${testServer.baseUrl}/add-project`);
+    await page.waitForSelector('[data-testid="add-project-path-input"]', { state: "visible", timeout: 10000 });
+    await page.locator('[data-testid="add-project-path-input"]').fill(repoDir);
+    await page.waitForFunction(
+      () => {
+        const t = (
+          document.querySelector('[data-testid="add-project-tickets-root-input"]') as HTMLInputElement | null
+        )?.value ?? "";
+        const w = (
+          document.querySelector('[data-testid="add-project-worktree-root-input"]') as HTMLInputElement | null
+        )?.value ?? "";
+        return t.length > 0 && w.length > 0;
+      },
+      { timeout: 10000 },
+    );
+    const t = await page.locator('[data-testid="add-project-tickets-root-input"]').inputValue();
+    const w = await page.locator('[data-testid="add-project-worktree-root-input"]').inputValue();
+    expect(t).toMatch(/tickets/);
+    expect(w).toMatch(/worktrees/);
+  }, 60000);
+
   it("main branch input is auto-filled after entering a valid path", async () => {
     await page.goto(`${testServer.baseUrl}/add-project`);
     await page.waitForSelector('[data-testid="add-project-path-input"]', { state: "visible", timeout: 10000 });
@@ -96,13 +125,21 @@ describe("Add project welcome screen (e2e, real server)", () => {
     await page.goto(`${testServer.baseUrl}/add-project`);
     await page.waitForSelector('[data-testid="add-project-path-input"]', { state: "visible", timeout: 10000 });
 
+    const customTickets = path.join(testServer.dataDir, "custom-tickets");
+    const customWorktrees = path.join(testServer.dataDir, "custom-worktrees");
+
     await page.locator('[data-testid="add-project-path-input"]').fill(repoDir);
     await page.waitForFunction(() => {
+      const t = (
+        document.querySelector('[data-testid="add-project-tickets-root-input"]') as HTMLInputElement | null
+      )?.value ?? "";
       const m = (
         document.querySelector('[data-testid="add-project-main-branch-input"]') as HTMLInputElement | null
       )?.value ?? "";
-      return m.length > 0;
+      return t.length > 0 && m.length > 0;
     }, { timeout: 15000 });
+    await page.locator('[data-testid="add-project-tickets-root-input"]').fill(customTickets);
+    await page.locator('[data-testid="add-project-worktree-root-input"]').fill(customWorktrees);
     await page.locator('[data-testid="add-project-branch-input"]').fill("work-items");
     await page.locator('[data-testid="add-project-submit"]').click();
 
@@ -112,9 +149,16 @@ describe("Add project welcome screen (e2e, real server)", () => {
 
     const registry = readProjectRegistry(testServer);
     expect(registry.projects).toHaveLength(1);
+    const projectSlug = registry.projects[0].projectSlug;
     expect(registry.projects[0].branch).toBe("work-items");
+    expect(registry.projects[0].ticketsPath).toBe(customTickets);
     expect(registry.projects[0].mainBranch).toBe("main");
     expect(typeof registry.projects[0].boardId).toBe("string");
+
+    const launcher = readProjectLauncherConfig(testServer, projectSlug);
+    expect(launcher?.worktreeRootPath).toBe(customWorktrees);
+
+    expect(fs.existsSync(customWorktrees)).toBe(true);
 
     const orphan = execSync('git branch --list "work-items"', { cwd: repoDir, encoding: "utf-8" });
     expect(orphan).toContain("work-items");

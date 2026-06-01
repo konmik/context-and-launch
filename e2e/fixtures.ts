@@ -459,7 +459,6 @@ export interface LauncherConfigShape {
     skillOrder?: string[];
   }>;
   worktreeRootPath?: string;
-  boardId?: string;
   conflictResolutionPrompt?: string;
 }
 

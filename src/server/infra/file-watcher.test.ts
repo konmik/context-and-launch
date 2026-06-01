@@ -289,7 +289,7 @@ describe('FileWatcher', () => {
 			await delay(300);
 
 			// Simulate rapid board switch: stopAll then watch a different directory
-			// This is what loadBoard does on every navigation
+			// This is what loadProjectPage does on every navigation
 			watcher.stopAll();
 			watcher.watch(dirB, debounceMs);
 

@@ -20,9 +20,11 @@ export function createLauncherSettingsState(props: {
 	const [loading, setLoading] = createSignal(false);
 	const [error, setError] = createSignal("");
 	const [form, setForm] = createSignal<ItemFormState | null>(null);
+	const [worktreeRootPath, setWorktreeRootPath] = createSignal("");
 	const [conflictPrompt, setConflictPrompt] = createSignal("");
 	const [activeTab, setActiveTab] = createSignal<string>("general");
 	const [boards, setBoards] = createSignal<BoardDefinition[]>([]);
+	const [projectBoardId, setProjectBoardId] = createSignal<string | null>(null);
 	const [boardOverride, setBoardOverride] = createSignal<string | null>(null);
 	const [columnForm, setColumnForm] = createSignal<ColumnFormState | null>(null);
 	const [boardForm, setBoardForm] = createSignal<{ name: string } | null>(null);
@@ -33,8 +35,8 @@ export function createLauncherSettingsState(props: {
 
 	const selectedBoardId = createMemo(() => {
 		const list = boards();
-		const valid = (id: string | undefined) => (id && list.some(b => b.id === id) ? id : null);
-		return valid(boardOverride() ?? undefined) ?? valid(config()?.boardId) ?? list[0]?.id ?? "";
+		const valid = (id: string | null | undefined) => (id && list.some(b => b.id === id) ? id : null);
+		return valid(boardOverride()) ?? valid(projectBoardId()) ?? list[0]?.id ?? "";
 	});
 
 	const selectedBoard = () => boards().find(b => b.id === selectedBoardId());
@@ -70,6 +72,8 @@ export function createLauncherSettingsState(props: {
 			if (res.ok) {
 			const data = await res.json();
 			setConfig(data);
+			setProjectBoardId(data.projectBoardId ?? null);
+			setWorktreeRootPath(data.worktreeRootPath ?? "");
 			setConflictPrompt(data.conflictResolutionPrompt ?? "");
 		}
 			else setError(await res.text() || "Failed to load config");
@@ -123,6 +127,22 @@ export function createLauncherSettingsState(props: {
 			if (!res.ok) { setError(await res.text() || "Failed to delete"); return; }
 			await loadConfig();
 		} catch (e) { setError(e instanceof Error ? e.message : "Failed to delete"); }
+	}
+
+	async function saveWorktreeRootPath() {
+		setError("");
+		try {
+			const res = await fetch(
+				`/api/projects/${props.projectSlug}/launcher-config/worktree-root-path`,
+				{
+					method: "PUT",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ worktreeRootPath: worktreeRootPath() }),
+				},
+			);
+			if (!res.ok) { setError(await res.text() || "Failed to save"); return; }
+			await loadConfig();
+		} catch (e) { setError(e instanceof Error ? e.message : "Failed to save"); }
 	}
 
 	async function saveConflictResolution() {
@@ -291,7 +311,7 @@ export function createLauncherSettingsState(props: {
 		setError("");
 		try {
 			const res = await fetch(
-				`/api/projects/${props.projectSlug}/launcher-config/board-id`,
+				`/api/projects/${props.projectSlug}/board-id`,
 				{
 					method: "PUT",
 					headers: { "Content-Type": "application/json" },
@@ -364,12 +384,13 @@ export function createLauncherSettingsState(props: {
 	}
 
 	return {
-		config, loading, error, setError, form, setForm,
-		conflictPrompt, setConflictPrompt, activeTab, setActiveTab, boards, boardOverride, setBoardOverride,
+		config, loading, error, setError, form, setForm, worktreeRootPath, setWorktreeRootPath,
+		conflictPrompt, setConflictPrompt, activeTab, setActiveTab,
+		boards, projectBoardId, boardOverride, setBoardOverride,
 		columnForm, setColumnForm, boardForm, setBoardForm, renameForm, setRenameForm,
 		deleteConfirm, setDeleteConfirm, projectBoardConfirm, setProjectBoardConfirm, columnError, setColumnError,
 		selectedBoardId, selectedBoard, startAdd, startEdit, submitForm, deleteItem,
-		saveConflictResolution, handleCreateBoard, handleDeleteBoard, handleSaveColumn,
+		saveWorktreeRootPath, saveConflictResolution, handleCreateBoard, handleDeleteBoard, handleSaveColumn,
 		handleDeleteColumn, handleRenameColumn, handleSetProjectBoard,
 		columnNameValidation, columnReorder, skillReorder,
 	};

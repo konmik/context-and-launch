@@ -14,7 +14,7 @@ interface BoardPageBase {
   projectSlug: string;
 }
 
-export type BoardPageData =
+export type ProjectPageData =
   | (BoardPageBase & {
       status: 'loaded'; board: BoardState; projectPath: string;
       suggestedNextNumber: string | null; hasRemote: boolean; hasConflict: boolean;

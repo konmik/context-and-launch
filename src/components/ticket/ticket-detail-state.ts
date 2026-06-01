@@ -256,7 +256,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
         body: JSON.stringify({ content: content() }),
       });
       setSavedContent(content());
-      revalidate("board-data");
+      revalidate("project-page");
     } catch (e) { setError(e instanceof Error ? e.message : "Failed to save file"); }
     finally { setSaving(false); }
   }
@@ -344,7 +344,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
         setTicketFileNames((prev) => prev.filter((n) => n !== af.name));
       }
       else setExtraFiles((prev) => prev.filter((n) => n !== af.name));
-      revalidate("board-data");
+      revalidate("project-page");
       const remaining = allFileOptions().filter((f) => !isActiveFileMatch(f, af));
       setActiveFile(remaining[0] ?? { type: "context", name: "to-do" });
     } catch (e) { setError(e instanceof Error ? e.message : errorLabel); }
@@ -422,7 +422,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
         }
         else { setError(result.error || `Failed to upload ${result.name}`); }
       }
-      revalidate("board-data");
+      revalidate("project-page");
       if (file.name.endsWith(".md")) requestFileSwitch({ type: "context", name: file.name.replace(/\.md$/, "") });
       else requestFileSwitch({ type: "file", name: file.name });
     } catch (e) { setError(e instanceof Error ? e.message : "Upload failed"); }
@@ -474,7 +474,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
         const existing = new Set(prev.map((r) => r.path));
         return [...prev, ...newRefs.filter((r) => !existing.has(r.path))];
       });
-      revalidate("board-data");
+      revalidate("project-page");
       if (paths.length > 0) requestFileSwitch({ type: "reference", path: paths[0] });
     } catch (e) { setError(e instanceof Error ? e.message : "Failed to add references"); }
   }

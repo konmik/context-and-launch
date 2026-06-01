@@ -1,7 +1,6 @@
 import { Show, For } from "solid-js";
 import { DragDropProvider, DragDropSensors, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd";
 import { TabsContent } from "../ui/tabs";
-import type { MergedLauncherConfig } from "~/server/launcher/launcher-config.js";
 import type { BoardDefinition, ColumnDefinition } from "~/server/project/board-config.js";
 import type { BoardRef } from "~/lib/fetch-boards.js";
 import { NameDragOverlay } from "../board/dnd-shared.js";
@@ -11,7 +10,7 @@ import BoardSelect from "../project/BoardSelect.js";
 import type { ColumnFormState, DeleteTarget } from "./launcher-settings-dialogs.js";
 
 export function ColumnsTab(props: {
-	config: MergedLauncherConfig;
+	projectBoardId: string | null;
 	boards: BoardDefinition[];
 	columnError: string;
 	setColumnError: (v: string) => void;
@@ -46,7 +45,7 @@ export function ColumnsTab(props: {
 								const b = props.selectedBoard;
 								if (b) props.onProjectBoard({ id: b.id, name: b.name });
 							}}
-							disabled={props.config.boardId === props.selectedBoardId}
+							disabled={props.projectBoardId === props.selectedBoardId}
 							class="btn-secondary btn-sm"
 							data-testid="launcher-settings-columns-set-project-board-btn"
 						>Set as project board</button>

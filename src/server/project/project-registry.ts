@@ -9,7 +9,7 @@ export interface ProjectInfo {
 	branch?: string;
 	ticketsPath?: string;
 	mainBranch?: string;
-	boardId: string;
+	boardId?: string;
 }
 
 export interface ProjectEntry {
@@ -18,7 +18,7 @@ export interface ProjectEntry {
 	branch?: string;
 	ticketsPath?: string;
 	mainBranch?: string;
-	boardId: string;
+	boardId?: string;
 }
 
 export interface ProjectConfig {
@@ -120,13 +120,11 @@ export class ProjectRegistry {
 		const migratedProjects: ProjectEntry[] = raw.projects.map(
 			(p: Record<string, unknown>) => {
 				const projectSlug = (p.projectSlug ?? p.slug) as string;
-				const entry: ProjectEntry = {
-					path: p.path as string, projectSlug,
-					boardId: (p.boardId as string | undefined) ?? 'standard',
-				};
+				const entry: ProjectEntry = { path: p.path as string, projectSlug };
 				if (p.branch !== undefined) entry.branch = p.branch as string;
 				if (p.ticketsPath !== undefined) entry.ticketsPath = p.ticketsPath as string;
 				if (p.mainBranch !== undefined) entry.mainBranch = p.mainBranch as string;
+				if (p.boardId !== undefined) entry.boardId = p.boardId as string;
 				return entry;
 			},
 		);
@@ -189,17 +187,17 @@ export class ProjectRegistry {
 		return this.load().projects.map((entry) => entryToInfo(entry, this.configRepo));
 	}
 
-	getProjectDir(projectSlug: string): string | undefined {
-		return this.load().projects.find((p) => p.projectSlug === projectSlug)?.path;
-	}
-
 	getTicketsPath(projectSlug: string): string | undefined {
 		return this.load().projects.find((p) => p.projectSlug === projectSlug)?.ticketsPath;
 	}
 
+	getBoardId(projectSlug: string): string | undefined {
+		return this.load().projects.find((p) => p.projectSlug === projectSlug)?.boardId;
+	}
+
 	addProject(
 		projectPath: string, projectSlug?: string, branch?: string,
-		ticketsPath?: string, mainBranch?: string, boardId: string = 'standard',
+		ticketsPath?: string, mainBranch?: string, boardId?: string,
 	): ProjectInfo {
 		if (!this.configRepo.exists(projectPath)) {
 			throw new Error(`Path does not exist: ${projectPath}`);
@@ -233,10 +231,11 @@ export class ProjectRegistry {
 			throw new Error(`Project slug already exists: ${finalProjectSlug}`);
 		}
 
-		const entry: ProjectEntry = { path: canonicalPath, projectSlug: finalProjectSlug, boardId };
+		const entry: ProjectEntry = { path: canonicalPath, projectSlug: finalProjectSlug };
 		if (branch !== undefined) entry.branch = branch;
 		if (ticketsPath !== undefined) entry.ticketsPath = ticketsPath;
 		if (mainBranch !== undefined) entry.mainBranch = mainBranch;
+		if (boardId !== undefined) entry.boardId = boardId;
 		this.save({
 			...config,
 			projects: [...config.projects, entry],
@@ -287,6 +286,20 @@ export class ProjectRegistry {
 		if (config.projects.some((p) => p.projectSlug === projectSlug) && config.lastUsedProjectSlug !== projectSlug) {
 			this.save({ ...config, lastUsedProjectSlug: projectSlug });
 		}
+	}
+
+	setBoardId(projectSlug: string, boardId: string | undefined): void {
+		const config = this.load();
+		const index = config.projects.findIndex((p) => p.projectSlug === projectSlug);
+		if (index < 0) throw new Error(`Project not found: ${projectSlug}`);
+		const updated = { ...config.projects[index] };
+		if (boardId !== undefined) {
+			updated.boardId = boardId;
+		} else {
+			delete updated.boardId;
+		}
+		const newProjects = config.projects.map((p, i) => (i === index ? updated : p));
+		this.save({ ...config, projects: newProjects });
 	}
 
 	getPort(): number {

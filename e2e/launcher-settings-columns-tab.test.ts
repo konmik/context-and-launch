@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   createProject, uniqueSlug, gotoProject,
   openLauncherSettings, openLauncherSettingsTab,
-  readBoardDefinitions, readProjectLauncherConfig,
+  readBoardDefinitions, readProjectRegistry,
   setupE2E,
 } from "./fixtures.js";
 
@@ -184,7 +184,9 @@ describe("Launcher Settings Columns tab (e2e, real server)", () => {
     });
     await ctx.page.click('[data-testid="launcher-settings-columns-set-project-board-cancel-btn"]');
     await ctx.page.waitForTimeout(500);
-    expect(readProjectLauncherConfig(ctx.testServer, project.projectSlug)?.boardId).toBeFalsy();
+    const registryBefore = readProjectRegistry(ctx.testServer);
+    const entryBefore = registryBefore.projects.find((p) => p.projectSlug === project.projectSlug);
+    expect(entryBefore?.boardId).toBeFalsy();
 
     await ctx.page.click('[data-testid="launcher-settings-columns-set-project-board-btn"]');
     await ctx.page.waitForSelector('[data-testid="launcher-settings-columns-set-project-board-confirm-btn"]', {
@@ -192,7 +194,9 @@ describe("Launcher Settings Columns tab (e2e, real server)", () => {
     });
     await ctx.page.click('[data-testid="launcher-settings-columns-set-project-board-confirm-btn"]');
     await ctx.page.waitForTimeout(800);
-    expect(readProjectLauncherConfig(ctx.testServer, project.projectSlug)?.boardId).toBe("simple");
+    const registryAfter = readProjectRegistry(ctx.testServer);
+    const entryAfter = registryAfter.projects.find((p) => p.projectSlug === project.projectSlug);
+    expect(entryAfter?.boardId).toBe("simple");
   }, 60000);
 
   it("columns drag handle exists (reordering covered elsewhere)", async () => {

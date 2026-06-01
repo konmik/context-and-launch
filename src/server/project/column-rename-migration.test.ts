@@ -54,17 +54,10 @@ describe('migrateColumnRename', () => {
 		fs.mkdirSync(path.join(projectPath, '.git'), { recursive: true });
 
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectPath, projectSlug);
+		registry.addProject(projectPath, projectSlug, undefined, undefined, undefined, boardId);
 
 		const worktreeDir = path.join(configDir, 'projects', projectSlug, 'tickets');
 		fs.mkdirSync(worktreeDir, { recursive: true });
-
-		const lcm = new LauncherConfigManager(new ConfigPaths(configDir));
-		lcm.saveProjectConfig(projectSlug, {
-			templates: [],
-			skills: [],
-			boardId,
-		});
 
 		return worktreeDir;
 	}
@@ -235,29 +228,18 @@ describe('migrateColumnRename', () => {
 		expect(result.projectsUpdated).toBe(0);
 	});
 
-	it('scope "all" skips projects whose getMergedConfig throws', () => {
+	it('scope "all" skips projects with a different boardId', () => {
 		const configDir = tmpDir('migration-test-');
 		dirs.push(configDir);
 		initializeDataDir(new ConfigPaths(configDir));
 
 		const wtA = setupProject(configDir, 'proj-a', 'standard');
 		createTicketDir(wtA, 't-1-alpha', 'todo');
-		setupProject(configDir, 'proj-b', 'standard');
-
-		const realLcm = new LauncherConfigManager(new ConfigPaths(configDir));
-		const brokenLcm = {
-			getMergedConfig(projectSlug: string) {
-				if (projectSlug === 'proj-b') throw new Error('corrupt config');
-				return realLcm.getMergedConfig(projectSlug);
-			},
-			loadProjectConfig: realLcm.loadProjectConfig.bind(realLcm),
-			saveProjectConfig: realLcm.saveProjectConfig.bind(realLcm),
-		} as unknown as LauncherConfigManager;
+		const wtB = setupProject(configDir, 'proj-b', 'other');
+		createTicketDir(wtB, 't-2-bravo', 'todo');
 
 		const deps = makeDeps(configDir);
-		const result = migrateColumnRename('standard', 'todo', 'backlog', 'all', '', {
-			...deps, launcherConfigManager: brokenLcm,
-		});
+		const result = migrateColumnRename('standard', 'todo', 'backlog', 'all', '', deps);
 
 		expect(result.ticketsUpdated).toBe(1);
 		expect(result.projectsUpdated).toBe(1);

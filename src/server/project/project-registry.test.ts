@@ -712,7 +712,7 @@ describe('ProjectRegistry', () => {
 		expect(onDisk.projects[0].boardId).toBe('kanban');
 	});
 
-	it('addProject without mainBranch defaults boardId to standard', () => {
+	it('addProject without mainBranch and boardId leaves fields absent from config.json', () => {
 		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
 		dirs.push(projectDir);
@@ -725,7 +725,7 @@ describe('ProjectRegistry', () => {
 			fs.readFileSync(path.join(configDir, 'config', 'config.json'), 'utf-8')
 		);
 		expect('mainBranch' in onDisk.projects[0]).toBe(false);
-		expect(onDisk.projects[0].boardId).toBe('standard');
+		expect('boardId' in onDisk.projects[0]).toBe(false);
 	});
 
 	it('addProject rejects mainBranch with invalid git branch characters', () => {
@@ -744,6 +744,37 @@ describe('ProjectRegistry', () => {
 			registry.addProject(projectDir, 'bad-main2', 'tickets', undefined, 'a~b')
 		).toThrow('invalid characters');
 		expect(registry.listProjects()).toHaveLength(0);
+	});
+
+	it('setBoardId persists boardId to config.json', () => {
+		const configDir = initConfigDir();
+		const projectDir = tmpDir('registry-project-');
+		dirs.push(projectDir);
+
+		fs.mkdirSync(path.join(projectDir, '.git'));
+		const registry = new ProjectRegistry(new ConfigPaths(configDir));
+		registry.addProject(projectDir, 'my-proj', 'tickets', undefined, 'main');
+
+		registry.setBoardId('my-proj', 'simple');
+
+		const configFile = path.join(configDir, 'config', 'config.json');
+		const onDisk = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
+		expect(onDisk.projects[0].boardId).toBe('simple');
+		expect(onDisk.projects[0].projectSlug).toBe('my-proj');
+		expect(onDisk.projects[0].branch).toBe('tickets');
+		expect(onDisk.projects[0].mainBranch).toBe('main');
+	});
+
+	it('setBoardId throws for unknown project', () => {
+		const configDir = initConfigDir();
+		const projectDir = tmpDir('registry-project-');
+		dirs.push(projectDir);
+
+		fs.mkdirSync(path.join(projectDir, '.git'));
+		const registry = new ProjectRegistry(new ConfigPaths(configDir));
+		registry.addProject(projectDir, 'existing');
+
+		expect(() => registry.setBoardId('nonexistent', 'kanban')).toThrow('Project not found');
 	});
 
 	it('setLastUsed preserves port and browser fields', () => {
