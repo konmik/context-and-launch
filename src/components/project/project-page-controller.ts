@@ -3,6 +3,7 @@ import { revalidate } from "@solidjs/router";
 import type { TicketInfo } from "~/server/ticket/ticket-store.js";
 import type { ErrorInfo } from "~/server/shared/errors.js";
 import { apiFetch } from "~/lib/api.js";
+import { deleteProjectAction } from "~/lib/delete-project.js";
 import { parseSyncResult } from "./project-page-pure.js";
 
 export interface ProjectPageDeps {
@@ -12,6 +13,7 @@ export interface ProjectPageDeps {
 
 export function createProjectPageController(deps: ProjectPageDeps) {
   const [addProjectDialogOpen, setAddProjectDialogOpen] = createSignal(false);
+  const [deleteProjectOpen, setDeleteProjectOpen] = createSignal(false);
   const [settingsOpen, setSettingsOpen] = createSignal(false);
   const [createTicketOpen, setCreateTicketOpen] = createSignal(false);
   const [editTicketOpen, setEditTicketOpen] = createSignal(false);
@@ -146,6 +148,10 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     });
   }
 
+  async function handleDeleteProject(projectSlug: string) {
+    return deleteProjectAction(projectSlug);
+  }
+
   async function handleReorder(
     folderName: string, fromColumn: string, toColumn: string, newIndex: number,
   ) {
@@ -184,6 +190,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     cleanupAction: cleanupAction(),
     settingsOpen: settingsOpen(),
     addProjectDialogOpen: addProjectDialogOpen(),
+    deleteProjectOpen: deleteProjectOpen(),
     conflictDialogOpen: conflictDialogOpen(),
   });
 
@@ -218,6 +225,9 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     closeSettings: () => setSettingsOpen(false),
     openAddProject: () => setAddProjectDialogOpen(true),
     closeAddProject: () => setAddProjectDialogOpen(false),
+    openDeleteProject: () => setDeleteProjectOpen(true),
+    setDeleteProjectOpen,
+    handleDeleteProject,
     setCreateTicketOpen,
     setEditTicketOpen,
     setDeleteTicketOpen,
