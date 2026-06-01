@@ -6,7 +6,7 @@
     },
     {
       "name": "Implement",
-      "text": "Current ticket files are in {{ticketDir}}. Read the files there for context. Do not do anything else.\n\nrun: git rebase master\n/hero2 hero {{ticketSlug}}\n/exploratory-testing current branch\n"
+      "text": "Current ticket files are in {{ticketDir}}. Read the files there for context. Do not do anything else.\n\nrun: git rebase master\n/implement {{ticketSlug}}\n/exploratory-testing current branch\n"
     },
     {
       "name": "Merge",
@@ -14,13 +14,9 @@
     }
   ],
   "skills": [
-    { "name": "Simplify", "text": "/simplify-k" },
+    { "name": "Plan", "text": "/grill-me help me creating a detailed product-requirement-document.md in the ticket folder. use /to-prd to generate the prd at the end" },
+    { "name": "Simplify", "text": "/simplify" },
     { "name": "Deslop", "text": "/deslop" },
-    {
-      "name": "Plan",
-      "text": "/grill-with-docs-k help me creating a detailed product-requirement-document.md in the ticket folder. use /to-prd-k to generate the prd at the end",
-      "order": -1
-    },
     { "name": "Fix tests", "text": "fix all tests" }
   ],
   "profiles": [
