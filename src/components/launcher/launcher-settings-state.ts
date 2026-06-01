@@ -22,7 +22,7 @@ export function createLauncherSettingsState(props: {
 	const [form, setForm] = createSignal<ItemFormState | null>(null);
 	const [worktreeRootPath, setWorktreeRootPath] = createSignal("");
 	const [conflictPrompt, setConflictPrompt] = createSignal("");
-	const [activeTab, setActiveTab] = createSignal<string>("general");
+	const [activeTab, setActiveTab] = createSignal<string>("profiles");
 	const [boards, setBoards] = createSignal<BoardDefinition[]>([]);
 	const [projectBoardId, setProjectBoardId] = createSignal<string | null>(null);
 	const [boardOverride, setBoardOverride] = createSignal<string | null>(null);

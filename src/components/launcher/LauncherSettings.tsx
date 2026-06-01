@@ -125,9 +125,9 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 					<div data-no-drag class="-mx-4 -mb-4">
 						<TabsList>
 							<TabsTrigger
-								value="general"
-								data-testid="launcher-settings-tab-general"
-							>General</TabsTrigger>
+								value="profiles"
+								data-testid="launcher-settings-tab-launch"
+							>Launch</TabsTrigger>
 							<TabsTrigger
 								value="templates"
 								data-testid="launcher-settings-tab-prompts"
@@ -137,9 +137,9 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 								data-testid="launcher-settings-tab-skills"
 							>Skills</TabsTrigger>
 							<TabsTrigger
-								value="profiles"
-								data-testid="launcher-settings-tab-launch"
-							>Launch</TabsTrigger>
+								value="general"
+								data-testid="launcher-settings-tab-general"
+							>General</TabsTrigger>
 							<TabsTrigger
 								value="columns"
 								data-testid="launcher-settings-tab-columns"

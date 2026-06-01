@@ -25,7 +25,7 @@ describe("Launcher Settings General tab (e2e, real server)", () => {
     return project;
   }
 
-  it("opens settings panel and shows General tab by default", async () => {
+  it("opens settings panel and shows General tab", async () => {
     await setup("opens");
     expect(await ctx.page.locator('[data-testid="launcher-settings-tab-general"]').count()).toBe(1);
   }, 60000);
