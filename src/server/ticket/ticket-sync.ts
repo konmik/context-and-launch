@@ -56,7 +56,8 @@ export class TicketSyncManager {
 					&& /no upstream configured/.test(err.output);
 				if (!isNoUpstream) throw err;
 				try {
-					await git(worktreeDir, 'push');
+					const branch = (await git(worktreeDir, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
+					await git(worktreeDir, 'push', '-u', 'origin', branch);
 				} catch (pushErr) {
 					return { status: 'error', message: pushErr instanceof Error ? pushErr.message : String(pushErr) };
 				}
