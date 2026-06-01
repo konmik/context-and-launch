@@ -57,7 +57,7 @@ describe('TicketSyncManager', () => {
 	const dirs: string[] = [];
 	afterEach(() => { cleanup(...dirs); dirs.length = 0; });
 
-	it('hasRemote returns false when no tracking branch', async () => {
+	it('hasRemote returns false when no remote is configured', async () => {
 		const dir = tmpDir('sync-noremote-');
 		dirs.push(dir);
 		await git(dir, 'init');
@@ -67,6 +67,22 @@ describe('TicketSyncManager', () => {
 
 		const manager = new TicketSyncManager();
 		expect(await manager.hasRemote(dir)).toBe(false);
+	});
+
+	it('hasRemote returns true when remote exists but no tracking branch', async () => {
+		const dir = tmpDir('sync-notrack-');
+		dirs.push(dir);
+		const remoteDir = tmpDir('sync-remote-notrack-');
+		dirs.push(remoteDir);
+		await git(remoteDir, 'init', '--bare');
+		await git(dir, 'init');
+		await git(dir, 'config', 'user.email', 'test@test.com');
+		await git(dir, 'config', 'user.name', 'Test');
+		await git(dir, 'commit', '--allow-empty', '-m', 'init');
+		await git(dir, 'remote', 'add', 'origin', remoteDir);
+
+		const manager = new TicketSyncManager();
+		expect(await manager.hasRemote(dir)).toBe(true);
 	});
 
 	it('hasRemote returns true when tracking branch exists', async () => {
