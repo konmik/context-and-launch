@@ -51,7 +51,6 @@ describe('LauncherConfigManager', () => {
 		const config = {
 			templates: [{ name: 'Custom', text: 'custom text' }],
 			skills: [{ name: 'S1', text: 'skill text' }],
-			boardId: 'standard',
 		};
 		mgr.saveAppConfig(config);
 		const loaded = mgr.loadAppConfig();
@@ -66,7 +65,6 @@ describe('LauncherConfigManager', () => {
 		const config = {
 			templates: [{ name: 'Proj', text: 'proj text' }],
 			skills: [{ name: 'PS1', text: 'proj skill' }],
-			boardId: 'standard',
 		};
 		mgr.saveProjectConfig('my-project', config);
 		const loaded = mgr.loadProjectConfig('my-project');
@@ -93,7 +91,6 @@ describe('LauncherConfigManager', () => {
 				{ name: 'AppOnly', text: 'app only' },
 			],
 			skills: [],
-			boardId: 'standard',
 		});
 		mgr.saveProjectConfig('test-project', {
 			templates: [
@@ -101,7 +98,6 @@ describe('LauncherConfigManager', () => {
 				{ name: 'ProjOnly', text: 'proj only' },
 			],
 			skills: [],
-			boardId: 'standard',
 		});
 		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.templates).toHaveLength(3);
@@ -127,7 +123,6 @@ describe('LauncherConfigManager', () => {
 				{ name: 'Shared', text: 'app version' },
 				{ name: 'AppSkill', text: 'app skill' },
 			],
-			boardId: 'standard',
 		});
 		mgr.saveProjectConfig('test-project', {
 			templates: [],
@@ -135,7 +130,6 @@ describe('LauncherConfigManager', () => {
 				{ name: 'Shared', text: 'project version' },
 				{ name: 'ProjSkill', text: 'proj skill' },
 			],
-			boardId: 'standard',
 		});
 		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.skills).toHaveLength(3);
@@ -155,12 +149,10 @@ describe('LauncherConfigManager', () => {
 		mgr.saveAppConfig({
 			templates: [{ name: 'A', text: 'a' }],
 			skills: [{ name: 'SA', text: 'sa' }],
-			boardId: 'standard',
 		});
 		mgr.saveProjectConfig('test-project', {
 			templates: [{ name: 'P', text: 'p' }],
 			skills: [{ name: 'SP', text: 'sp' }],
-			boardId: 'standard',
 		});
 		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.templates.find(t => t.name === 'A')?.scope).toBe('app');
@@ -253,7 +245,6 @@ describe('LauncherConfigManager', () => {
 		mgr.saveAppConfig({
 			templates: [{ name: 'Original', text: 'original text' }],
 			skills: [],
-			boardId: 'standard',
 		});
 		// Pass a template with an extra field that is not part of LauncherTemplate
 		mgr.updateTemplate(
@@ -272,7 +263,6 @@ describe('LauncherConfigManager', () => {
 		mgr.saveAppConfig({
 			templates: [{ name: 'Old', text: 'old text' }],
 			skills: [],
-			boardId: 'standard',
 		});
 		mgr.updateTemplate('app', 'test-project', 'Old', { name: 'New', text: 'new text' });
 		const config = mgr.loadAppConfig();
@@ -319,7 +309,6 @@ describe('LauncherConfigManager', () => {
 		mgr.saveProjectConfig('test-project', {
 			templates: [],
 			skills: [{ name: 'OldSkill', text: 'old' }],
-			boardId: 'standard',
 		});
 		mgr.updateSkill('project', 'test-project', 'OldSkill', { name: 'NewSkill', text: 'new' });
 		const config = mgr.loadProjectConfig('test-project');
@@ -334,7 +323,6 @@ describe('LauncherConfigManager', () => {
 		mgr.saveProjectConfig('test-project', {
 			templates: [],
 			skills: [{ name: 'S1', text: 'old', order: 2.5 }],
-			boardId: 'standard',
 		});
 		mgr.updateSkill('project', 'test-project', 'S1', { name: 'S1', text: 'new' });
 		const config = mgr.loadProjectConfig('test-project');
@@ -349,7 +337,6 @@ describe('LauncherConfigManager', () => {
 		mgr.saveProjectConfig('test-project', {
 			templates: [],
 			skills: [{ name: 'A', text: 'a' }, { name: 'B', text: 'b' }],
-			boardId: 'standard',
 		});
 		mgr.setSkillOrder('project', 'test-project', 'B', 0.5);
 		const config = mgr.loadProjectConfig('test-project');
@@ -361,7 +348,7 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.saveProjectConfig('test-project', { templates: [], skills: [{ name: 'A', text: 'a' }], boardId: 'standard' });
+		mgr.saveProjectConfig('test-project', { templates: [], skills: [{ name: 'A', text: 'a' }] });
 		expect(() => mgr.setSkillOrder('project', 'test-project', 'Nope', 1)).toThrow('not found');
 	});
 
@@ -369,7 +356,7 @@ describe('LauncherConfigManager', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		mgr.saveProjectConfig('test-project', { templates: [], skills: [{ name: 'A', text: 'a' }], boardId: 'standard' });
+		mgr.saveProjectConfig('test-project', { templates: [], skills: [{ name: 'A', text: 'a' }] });
 		expect(() => mgr.setSkillOrder('project', 'test-project', 'A', Infinity)).toThrow('finite number');
 		expect(() => mgr.setSkillOrder('project', 'test-project', 'A', NaN)).toThrow('finite number');
 	});
@@ -383,12 +370,10 @@ describe('LauncherConfigManager', () => {
 		mgr.saveAppConfig({
 			templates: [],
 			skills: [{ name: 'UA', text: 'ua' }, { name: 'UB', text: 'ub', order: 5 }],
-			boardId: 'standard',
 		});
 		mgr.saveProjectConfig('test-project', {
 			templates: [],
 			skills: [{ name: 'P1', text: 'p1' }],
-			boardId: 'standard',
 		});
 		const merged = mgr.getMergedConfig('test-project');
 		// UA falls back to index 0, P1 to index 2, UB is explicit 5 -> last.
@@ -403,13 +388,11 @@ describe('LauncherConfigManager', () => {
 		mgr.saveAppConfig({
 			templates: [],
 			skills: [{ name: 'U1', text: 'u1' }, { name: 'U2', text: 'u2' }],
-			boardId: 'standard',
 		});
 		mgr.saveProjectConfig('test-project', {
 			templates: [],
 			// Project skill dragged between the two user skills: midpoint of 0 and 1.
 			skills: [{ name: 'P1', text: 'p1', order: 0.5 }],
-			boardId: 'standard',
 		});
 		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.skills.map(s => s.name)).toEqual(['U1', 'P1', 'U2']);
@@ -423,7 +406,6 @@ describe('LauncherConfigManager', () => {
 		mgr.saveProjectConfig('test-project', {
 			templates: [],
 			skills: [],
-			boardId: 'standard',
 			worktreeRootPath: 'C:\\worktrees',
 		});
 		const merged = mgr.getMergedConfig('test-project');
@@ -466,7 +448,7 @@ describe('LauncherConfigManager', () => {
 		}, null, 2));
 
 		// Project has no columnDefaults
-		mgr.saveProjectConfig('test-project', { templates: [], skills: [], boardId: 'standard' });
+		mgr.saveProjectConfig('test-project', { templates: [], skills: [] });
 
 		const merged = mgr.getMergedConfig('test-project');
 		// App-level columnDefaults are invisible to merge; result is empty
@@ -482,7 +464,6 @@ describe('LauncherConfigManager', () => {
 			skills: [{ name: 'S1', text: 's1' }],
 			profiles: [],
 			shortcuts: [],
-			boardId: 'standard',
 		});
 		const before = fs.readFileSync(path.join(configDir, 'config', 'launcher-config.json'), 'utf-8');
 
@@ -546,7 +527,6 @@ describe('LauncherConfigManager', () => {
 		const config = {
 			templates: [{ name: 'EmptyProjectSlug', text: 'empty projectSlug template' }],
 			skills: [],
-			boardId: 'standard',
 		};
 		mgr.saveProjectConfig('', config);
 
@@ -559,7 +539,6 @@ describe('LauncherConfigManager', () => {
 		mgr.saveProjectConfig('real-project', {
 			templates: [{ name: 'RealProject', text: 'real' }],
 			skills: [],
-			boardId: 'standard',
 		});
 		const realProjectPath = path.join(configDir, 'projects', 'real-project', 'config', 'launcher-config.json');
 		expect(fs.existsSync(realProjectPath)).toBe(true);
@@ -734,7 +713,6 @@ describe('LauncherConfigManager', () => {
 		const config = {
 			templates: [{ name: 'T1', text: 'text' }],
 			skills: [],
-			boardId: 'standard',
 		};
 
 		for (const reservedName of reservedNames) {
@@ -814,7 +792,6 @@ describe('LauncherConfigManager', () => {
 			skills: [{ name: 'S1', text: 'skill' }],
 			profiles: [],
 			columnDefaults: { todo: { templateName: 'T1', checkedSkills: ['S1'], profileName: null } },
-			boardId: 'standard',
 		});
 
 		mgr.saveWorktreeRootPath('test-project', '/new/path');
@@ -836,7 +813,6 @@ describe('LauncherConfigManager', () => {
 		mgr.saveProjectConfig('test-project', {
 			templates: [],
 			skills: [],
-			boardId: 'standard',
 			worktreeRootPath: '/old/path',
 		});
 
@@ -854,7 +830,6 @@ describe('LauncherConfigManager', () => {
 		mgr.saveProjectConfig('test-project', {
 			templates: [{ name: 'Original', text: 'original' }],
 			skills: [],
-			boardId: 'standard',
 		});
 
 		mgr.addTemplate('project', 'test-project', { name: 'NewTemplate', text: 'new' });
@@ -875,7 +850,6 @@ describe('LauncherConfigManager', () => {
 			templates: [],
 			skills: [],
 			profiles: [],
-			boardId: 'standard',
 		});
 
 		mgr.saveColumnDefaults(
@@ -898,7 +872,6 @@ describe('LauncherConfigManager', () => {
 		mgr.saveProjectConfig('test-project', {
 			templates: [{ name: 'T1', text: 'original' }],
 			skills: [],
-			boardId: 'standard',
 		});
 
 		const staleSnapshot = mgr.loadProjectConfig('test-project');
@@ -921,7 +894,6 @@ describe('LauncherConfigManager', () => {
 		mgr.saveProjectConfig('test-project', {
 			templates: [{ name: 'T1', text: 'original' }],
 			skills: [],
-			boardId: 'standard',
 		});
 
 		mgr.addTemplate('project', 'test-project', { name: 'T2', text: 'concurrent add' });
@@ -1001,7 +973,6 @@ describe('LauncherConfigManager', () => {
 			templates: [],
 			skills: [],
 			profiles: [{ name: 'Old', command: 'old cmd' }],
-			boardId: 'standard',
 		});
 		mgr.updateProfile('app', 'test-project', 'Old', { name: 'New', command: 'new cmd' });
 		const config = mgr.loadAppConfig();
@@ -1017,7 +988,6 @@ describe('LauncherConfigManager', () => {
 			templates: [],
 			skills: [],
 			profiles: [{ name: 'Original', command: 'orig cmd' }],
-			boardId: 'standard',
 		});
 		mgr.updateProfile(
 			'app', 'test-project', 'Original',
@@ -1040,7 +1010,6 @@ describe('LauncherConfigManager', () => {
 				{ name: 'Shared', command: 'app version' },
 				{ name: 'AppOnly', command: 'app only' },
 			],
-			boardId: 'standard',
 		});
 		mgr.saveProjectConfig('test-project', {
 			templates: [],
@@ -1049,7 +1018,6 @@ describe('LauncherConfigManager', () => {
 				{ name: 'Shared', command: 'project version' },
 				{ name: 'ProjOnly', command: 'proj only' },
 			],
-			boardId: 'standard',
 		});
 		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.profiles).toHaveLength(3);
@@ -1070,13 +1038,11 @@ describe('LauncherConfigManager', () => {
 			templates: [],
 			skills: [],
 			profiles: [{ name: 'AP', command: 'app' }],
-			boardId: 'standard',
 		});
 		mgr.saveProjectConfig('test-project', {
 			templates: [],
 			skills: [],
 			profiles: [{ name: 'PP', command: 'proj' }],
-			boardId: 'standard',
 		});
 		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.profiles.find(p => p.name === 'AP')?.scope).toBe('app');
@@ -1215,7 +1181,6 @@ describe('LauncherConfigManager', () => {
 			skills: [],
 			profiles: [],
 			worktreeRootPath: '/some/path',
-			boardId: 'standard',
 		});
 		mgr.saveConflictResolutionSettings('test-project', 'My prompt');
 		const config = mgr.loadProjectConfig('test-project');
@@ -1308,7 +1273,6 @@ describe('LauncherConfigManager', () => {
 			skills: [],
 			profiles: [],
 			shortcuts: [{ name: 'Old', command: 'old cmd' }],
-			boardId: 'standard',
 		});
 		mgr.updateShortcut('app', 'test-project', 'Old', { name: 'New', command: 'new cmd' });
 		const config = mgr.loadAppConfig();
@@ -1325,7 +1289,6 @@ describe('LauncherConfigManager', () => {
 			skills: [],
 			profiles: [],
 			shortcuts: [{ name: 'Original', command: 'orig cmd' }],
-			boardId: 'standard',
 		});
 		mgr.updateShortcut(
 			'app', 'test-project', 'Original',
@@ -1346,7 +1309,6 @@ describe('LauncherConfigManager', () => {
 			skills: [],
 			profiles: [],
 			shortcuts: [],
-			boardId: 'standard',
 		});
 		expect(() => mgr.updateShortcut('app', 'test-project', 'Missing', { name: 'Missing', command: 'cmd' }))
 			.toThrow('not found');
@@ -1364,7 +1326,6 @@ describe('LauncherConfigManager', () => {
 				{ name: 'Shared', command: 'app version' },
 				{ name: 'AppOnly', command: 'app only' },
 			],
-			boardId: 'standard',
 		});
 		mgr.saveProjectConfig('test-project', {
 			templates: [],
@@ -1374,7 +1335,6 @@ describe('LauncherConfigManager', () => {
 				{ name: 'Shared', command: 'project version' },
 				{ name: 'ProjOnly', command: 'proj only' },
 			],
-			boardId: 'standard',
 		});
 		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.shortcuts).toHaveLength(3);
@@ -1396,14 +1356,12 @@ describe('LauncherConfigManager', () => {
 			skills: [],
 			profiles: [],
 			shortcuts: [{ name: 'AS', command: 'app' }],
-			boardId: 'standard',
 		});
 		mgr.saveProjectConfig('test-project', {
 			templates: [],
 			skills: [],
 			profiles: [],
 			shortcuts: [{ name: 'PS', command: 'proj' }],
-			boardId: 'standard',
 		});
 		const merged = mgr.getMergedConfig('test-project');
 		expect(merged.shortcuts.find(s => s.name === 'AS')?.scope).toBe('app');

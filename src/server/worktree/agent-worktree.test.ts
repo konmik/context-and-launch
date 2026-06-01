@@ -56,7 +56,6 @@ describe('AgentWorktreeManager', () => {
 		lcm.saveProjectConfig('my-proj', {
 			templates: [],
 			skills: [],
-			boardId: 'standard',
 			worktreeRootPath: worktreeRoot,
 		});
 
@@ -160,7 +159,6 @@ describe('AgentWorktreeManager', () => {
 		lcm.saveProjectConfig('bs-proj', {
 			templates: [],
 			skills: [],
-			boardId: 'standard',
 			worktreeRootPath: backslashRoot,
 		});
 
@@ -283,7 +281,6 @@ describe('AgentWorktreeManager', () => {
 		lcm.saveProjectConfig('my-proj', {
 			templates: [],
 			skills: [],
-			boardId: 'standard',
 			worktreeRootPath: worktreeRoot,
 		});
 
@@ -356,7 +353,6 @@ describe('AgentWorktreeManager', () => {
 		lcm.saveProjectConfig('my-proj', {
 			templates: [],
 			skills: [],
-			boardId: 'standard',
 			worktreeRootPath: worktreeRoot,
 		});
 
@@ -426,7 +422,6 @@ describe('AgentWorktreeManager', () => {
 		lcm.saveProjectConfig('conflict-proj', {
 			templates: [],
 			skills: [],
-			boardId: 'standard',
 			worktreeRootPath: worktreeRoot,
 		});
 
@@ -666,7 +661,6 @@ describe('AgentWorktreeManager', () => {
 		lcm.saveProjectConfig('dup-proj', {
 			templates: [],
 			skills: [],
-			boardId: 'standard',
 			worktreeRootPath: worktreeRootA,
 		});
 
@@ -679,7 +673,6 @@ describe('AgentWorktreeManager', () => {
 		lcm.saveProjectConfig('dup-proj', {
 			templates: [],
 			skills: [],
-			boardId: 'standard',
 			worktreeRootPath: worktreeRootB,
 		});
 
@@ -708,7 +701,6 @@ describe('AgentWorktreeManager', () => {
 		lcm.saveProjectConfig('stale-proj', {
 			templates: [],
 			skills: [],
-			boardId: 'standard',
 			worktreeRootPath: worktreeRootA,
 		});
 
@@ -725,7 +717,6 @@ describe('AgentWorktreeManager', () => {
 		lcm.saveProjectConfig('stale-proj', {
 			templates: [],
 			skills: [],
-			boardId: 'standard',
 			worktreeRootPath: worktreeRootB,
 		});
 
@@ -786,7 +777,6 @@ describe('AgentWorktreeManager', () => {
 		lcm.saveProjectConfig('no-wt-proj', {
 			templates: [{ name: 'Default', text: 'Do the thing' }],
 			skills: [],
-			boardId: 'standard',
 		});
 
 		const awm = new AgentWorktreeManager(lcm, paths);
@@ -1069,7 +1059,6 @@ describe('AgentWorktreeManager', () => {
 		lcm.saveProjectConfig('nodir-proj', {
 			templates: [],
 			skills: [],
-			boardId: 'standard',
 			worktreeRootPath: nonexistentRoot,
 		});
 
