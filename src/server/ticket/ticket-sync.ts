@@ -26,33 +26,8 @@ export class TicketSyncManager {
 	}
 
 	async hasRemote(worktreeDir: string): Promise<boolean> {
-		try {
-			await git(worktreeDir, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}');
-			return true;
-		} catch (err) {
-			const isExpectedGitError = err instanceof ProcessError
-				&& /no upstream configured|does not point to a branch/.test(err.output);
-			if (!isExpectedGitError) throw err;
-
-			const gitDir = this.gitRepo.resolveGitDir(worktreeDir);
-			const headNameFile = path.join(gitDir, 'rebase-merge', 'head-name');
-			try {
-				const ref = fs.readFileSync(headNameFile, 'utf-8').trim();
-				const branch = ref.replace(/^refs\/heads\//, '');
-				await git(worktreeDir, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', `${branch}@{u}`);
-				return true;
-			} catch (innerErr) {
-				// head-name file missing (no active rebase) or branch has no upstream -- both mean no remote
-				const isFileNotFound = innerErr instanceof Error
-					&& 'code' in innerErr && (innerErr as NodeJS.ErrnoException).code === 'ENOENT';
-				const isGitNoUpstream = innerErr instanceof ProcessError
-					&& /no upstream configured/.test(innerErr.output);
-				if (!isFileNotFound && !isGitNoUpstream) {
-					console.warn('hasRemote: unexpected error during rebase-merge upstream check:', innerErr);
-				}
-				return false;
-			}
-		}
+		const remotes = (await git(worktreeDir, 'remote')).trim();
+		return remotes.length > 0;
 	}
 
 	async sync(worktreeDir: string): Promise<SyncResult> {
