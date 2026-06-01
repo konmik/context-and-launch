@@ -28,7 +28,6 @@ describe("Launcher Settings General tab (e2e, real server)", () => {
   it("opens settings panel and shows General tab by default", async () => {
     await setup("opens");
     expect(await ctx.page.locator('[data-testid="launcher-settings-tab-general"]').count()).toBe(1);
-    expect(await ctx.page.locator('[data-testid="launcher-settings-general-board-select"]').count()).toBe(1);
   }, 60000);
 
   it("launcher-settings-open-user-config fires open-config-dir request", async () => {
@@ -57,14 +56,6 @@ describe("Launcher Settings General tab (e2e, real server)", () => {
     });
   }, 60000);
 
-  it("launcher-settings-general-board-select opens confirm dialog", async () => {
-    await setup("board-confirm");
-    await ctx.page.selectOption('[data-testid="launcher-settings-general-board-select"]', "simple");
-    await ctx.page.waitForSelector('[data-testid="launcher-settings-columns-set-project-board-confirm-btn"]', {
-      state: "visible", timeout: 15000,
-    });
-  }, 60000);
-
   it("launcher-settings-general-worktree-input persists on Enter", async () => {
     const project = await setup("wt-input");
     await ctx.page.fill(
@@ -80,22 +71,6 @@ describe("Launcher Settings General tab (e2e, real server)", () => {
   it("launcher-settings-general-worktree-browse button exists", async () => {
     await setup("wt-browse");
     expect(await ctx.page.locator('[data-testid="launcher-settings-general-worktree-browse"]').count()).toBe(1);
-  }, 60000);
-
-  it("board dropdown reflects new board after confirm", async () => {
-    await setup("board-reflect");
-    const sel = ctx.page.locator('[data-testid="launcher-settings-general-board-select"]');
-    expect(await sel.inputValue()).toBe("kanban");
-    await sel.selectOption("simple");
-    await ctx.page.waitForSelector('[data-testid="launcher-settings-columns-set-project-board-confirm-btn"]', {
-      state: "visible", timeout: 15000,
-    });
-    await ctx.page.click('[data-testid="launcher-settings-columns-set-project-board-confirm-btn"]');
-    await ctx.page.waitForSelector('[data-testid="launcher-settings-columns-set-project-board-confirm-btn"]', {
-      state: "detached", timeout: 15000,
-    });
-    await ctx.page.waitForTimeout(500);
-    expect(await sel.inputValue()).toBe("simple");
   }, 60000);
 
   it("launcher-settings-general-conflict-prompt persists on blur", async () => {

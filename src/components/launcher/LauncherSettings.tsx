@@ -163,15 +163,12 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 								<Show when={s.config()}>
 									{(cfg) => (<>
 										<GeneralTab
-											projectBoardId={s.projectBoardId()}
-											boards={s.boards()}
 											worktreeRootPath={s.worktreeRootPath()}
 											setWorktreeRootPath={s.setWorktreeRootPath}
 											saveWorktreeRootPath={s.saveWorktreeRootPath}
 											conflictPrompt={s.conflictPrompt()}
 											setConflictPrompt={s.setConflictPrompt}
 											saveConflictResolution={s.saveConflictResolution}
-											onProjectBoard={s.setProjectBoardConfirm}
 											setError={s.setError}
 										/>
 										<PromptsTab
