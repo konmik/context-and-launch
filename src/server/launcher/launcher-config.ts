@@ -78,7 +78,7 @@ export class LauncherConfigManager {
 	}
 
 	getProjectConfigDir(projectSlug: string): string {
-		return this.paths.projectConfigDir(projectSlug);
+		return this.paths.projectDir(projectSlug);
 	}
 
 	private appLauncherPath(): string {
