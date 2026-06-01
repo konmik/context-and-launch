@@ -16,6 +16,7 @@ function resolveConfigDir(scope: string, projectSlug?: string): string {
     if (!projectDir) throw new NotFoundError(`Project "${projectSlug}" not found`);
     return projectDir;
   }
+  if (scope === "project-config" && projectSlug) return launcherConfigManager.getProjectConfigDir(projectSlug);
   return launcherConfigManager.getAppConfigDir();
 }
 

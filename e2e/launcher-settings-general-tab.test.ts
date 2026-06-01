@@ -37,8 +37,14 @@ describe("Launcher Settings General tab (e2e, real server)", () => {
       ctx.page.click('[data-testid="launcher-settings-open-user-config"]'));
   }, 60000);
 
-  it("launcher-settings-open-project-config fires open-config-dir request", async () => {
+  it("launcher-settings-open-project-dir fires open-config-dir request", async () => {
     await setup("open-proj");
+    await expectOpenConfigDirRequest(ctx.page, () =>
+      ctx.page.click('[data-testid="launcher-settings-open-project-dir"]'));
+  }, 60000);
+
+  it("launcher-settings-open-project-config fires open-config-dir request", async () => {
+    await setup("open-proj-cfg");
     await expectOpenConfigDirRequest(ctx.page, () =>
       ctx.page.click('[data-testid="launcher-settings-open-project-config"]'));
   }, 60000);
