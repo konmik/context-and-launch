@@ -13,7 +13,9 @@ export const POST = withService(async ({ params, request }) => {
 	const merged = launcherConfigManager.getMergedConfig(projectSlug);
 	const shortcut = merged.shortcuts.find(s => s.name === name);
 	if (!shortcut) return new Response(`Shortcut "${name}" not found`, { status: 404 });
-	const launchDirResult = await resolveLaunchDir(projectSlug, folderName, useWorktree, project.path, force);
+	const launchDirResult = await resolveLaunchDir(
+		projectSlug, folderName, useWorktree, project.path, force, project.mainBranch,
+	);
 	if (launchDirResult instanceof Response) return launchDirResult;
 	const args = interpolateCommand(shortcut.command, {
 		ticketDir: path.resolve(worktreeDir, ticket.folderName),

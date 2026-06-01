@@ -427,15 +427,24 @@ export async function clickTicketMenuItem(
   }, testId);
 }
 
-export interface ProjectRegistryShape {
-  projects: { path: string; projectSlug: string; branch?: string; ticketsPath?: string }[];
+export interface ProjectEntry {
+  path: string;
+  projectSlug: string;
+  branch?: string;
+  ticketsPath?: string;
+  mainBranch?: string;
+  boardId?: string;
+}
+
+export interface ProjectRegistry {
+  projects: ProjectEntry[];
   lastUsedProjectSlug: string | null;
   lastUsedProfileName?: string | null;
 }
 
-export function readProjectRegistry(server: TestServer): ProjectRegistryShape {
+export function readProjectRegistry(server: TestServer): ProjectRegistry {
   const file = path.join(server.dataDir, "config", "config.json");
-  return JSON.parse(fs.readFileSync(file, "utf-8")) as ProjectRegistryShape;
+  return JSON.parse(fs.readFileSync(file, "utf-8")) as ProjectRegistry;
 }
 
 export interface LauncherConfigShape {

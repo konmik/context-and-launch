@@ -6,7 +6,8 @@ import os from "node:os";
 import { type Browser, type Page } from "playwright";
 import {
   createServer, launchBrowser, type TestServer, type TestBrowser,
-  readProjectRegistry, readProjectLauncherConfig, getLocalStorageItem,
+  readProjectRegistry, readProjectLauncherConfig,
+  getLocalStorageItem,
 } from "./fixtures.js";
 
 let testServer: TestServer;
@@ -17,7 +18,7 @@ let repoDir: string;
 
 function makeRepo(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cl-addproj-repo-"));
-  execSync("git init", { cwd: dir });
+  execSync("git init -b main", { cwd: dir });
   execSync("git config user.email test@test.com", { cwd: dir });
   execSync("git config user.name Test", { cwd: dir });
   execSync("git commit --allow-empty -m init", { cwd: dir });
@@ -103,6 +104,23 @@ describe("Add project welcome screen (e2e, real server)", () => {
     expect(w).toMatch(/worktrees/);
   }, 60000);
 
+  it("main branch input is auto-filled after entering a valid path", async () => {
+    await page.goto(`${testServer.baseUrl}/add-project`);
+    await page.waitForSelector('[data-testid="add-project-path-input"]', { state: "visible", timeout: 10000 });
+    await page.locator('[data-testid="add-project-path-input"]').fill(repoDir);
+    await page.waitForFunction(
+      () => {
+        const el = document.querySelector(
+          '[data-testid="add-project-main-branch-input"]',
+        ) as HTMLInputElement | null;
+        return (el?.value ?? "").length > 0;
+      },
+      { timeout: 10000 },
+    );
+    const mainBranch = await page.locator('[data-testid="add-project-main-branch-input"]').inputValue();
+    expect(mainBranch).toBe("main");
+  }, 60000);
+
   it("submit registers the project on disk and creates the orphan branch", async () => {
     await page.goto(`${testServer.baseUrl}/add-project`);
     await page.waitForSelector('[data-testid="add-project-path-input"]', { state: "visible", timeout: 10000 });
@@ -115,7 +133,10 @@ describe("Add project welcome screen (e2e, real server)", () => {
       const t = (
         document.querySelector('[data-testid="add-project-tickets-root-input"]') as HTMLInputElement | null
       )?.value ?? "";
-      return t.length > 0;
+      const m = (
+        document.querySelector('[data-testid="add-project-main-branch-input"]') as HTMLInputElement | null
+      )?.value ?? "";
+      return t.length > 0 && m.length > 0;
     }, { timeout: 15000 });
     await page.locator('[data-testid="add-project-tickets-root-input"]').fill(customTickets);
     await page.locator('[data-testid="add-project-worktree-root-input"]').fill(customWorktrees);
@@ -131,6 +152,8 @@ describe("Add project welcome screen (e2e, real server)", () => {
     const projectSlug = registry.projects[0].projectSlug;
     expect(registry.projects[0].branch).toBe("work-items");
     expect(registry.projects[0].ticketsPath).toBe(customTickets);
+    expect(registry.projects[0].mainBranch).toBe("main");
+    expect(typeof registry.projects[0].boardId).toBe("string");
 
     const launcher = readProjectLauncherConfig(testServer, projectSlug);
     expect(launcher?.worktreeRootPath).toBe(customWorktrees);
@@ -139,5 +162,50 @@ describe("Add project welcome screen (e2e, real server)", () => {
 
     const orphan = execSync('git branch --list "work-items"', { cwd: repoDir, encoding: "utf-8" });
     expect(orphan).toContain("work-items");
+  }, 60000);
+});
+
+describe("Add project with multiple boards (e2e)", () => {
+  let srv: TestServer;
+  let tb: TestBrowser;
+  let br: Browser;
+  let pg: Page;
+
+  beforeAll(async () => {
+    srv = await createServer();
+    const configDir = path.join(srv.dataDir, "config");
+    fs.mkdirSync(configDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(configDir, "boards.json"),
+      JSON.stringify([
+        { id: "kanban", name: "Kanban", columns: [{ name: "To Do" }] },
+        { id: "scrum", name: "Scrum", columns: [{ name: "Backlog" }] },
+      ]),
+    );
+    tb = await launchBrowser();
+    br = tb.browser;
+  }, 60000);
+
+  beforeEach(async () => {
+    pg = await br.newPage({ viewport: { width: 1200, height: 800 } });
+  });
+
+  afterEach(async () => { await pg?.close(); });
+
+  afterAll(async () => {
+    await tb?.stop();
+    await srv?.stop();
+  }, 20000);
+
+  it("board select is visible when multiple boards exist", async () => {
+    await pg.goto(`${srv.baseUrl}/add-project`);
+    await pg.waitForSelector(
+      '[data-testid="add-project-board-select"]',
+      { state: "visible", timeout: 15000 },
+    );
+    const options = await pg.locator(
+      '[data-testid="add-project-board-select"] option',
+    ).allTextContents();
+    expect(options).toEqual(["Kanban", "Scrum"]);
   }, 60000);
 });

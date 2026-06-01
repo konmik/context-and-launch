@@ -15,7 +15,7 @@ export const POST = withService(async ({ params, request }) => {
   if (agentRunning(projectSlug, folderName)) return new Response("Already started", { status: 409 });
   const launchRequest = await readLaunchRequest(request);
   const launchDirResult = await resolveLaunchDir(
-    projectSlug, folderName, launchRequest.useWorktree, project.path, launchRequest.force,
+    projectSlug, folderName, launchRequest.useWorktree, project.path, launchRequest.force, project.mainBranch,
   );
   if (launchDirResult instanceof Response) return launchDirResult;
   await launchAgent(projectSlug, ticket, project, worktreeDir, launchRequest, launchDirResult);

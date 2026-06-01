@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { rename } from 'fs/promises';
 import { exec } from 'child_process';
-import { git } from '../infra/git.js';
+import { git, detectMainBranch } from '../infra/git.js';
 import { ProcessError } from '../shared/errors.js';
 import type { LauncherConfigManager } from '../launcher/launcher-config.js';
 import type { ConfigPaths } from '../config/config-paths.js';
@@ -40,26 +40,25 @@ export class AgentWorktreeManager {
 		private paths: ConfigPaths,
 	) {}
 
-	async getMainBranch(projectPath: string): Promise<string> {
-		for (const name of ['main', 'master']) {
-			const list = await git(projectPath, 'branch', '--list', name);
-			if (list.trim()) return name;
-		}
-		throw new Error('Neither main nor master branch exists');
+	async getMainBranch(projectPath: string, configuredBranch?: string): Promise<string> {
+		const trimmed = configuredBranch?.trim();
+		if (trimmed) return trimmed;
+		return detectMainBranch(projectPath);
 	}
 
 	async ensureAgentWorktree(
 		projectPath: string,
 		projectSlug: string,
 		folderName: string,
-		options?: { skipDirtyCheck?: boolean }
+		options?: { skipDirtyCheck?: boolean },
+		configuredBranch?: string,
 	): Promise<WorktreeResult | BehindRemoteResult | DirtyWorktreeResult> {
 		const config = this.launcherConfig.loadProjectConfig(projectSlug);
 		const worktreeRootPath = config.worktreeRootPath || this.paths.agentWorktreeDir(projectSlug);
 
 		const branchName = `ai/${folderName}`;
 		const worktreePath = `${worktreeRootPath}/${folderName}`;
-		const mainBranch = await this.getMainBranch(projectPath);
+		const mainBranch = await this.getMainBranch(projectPath, configuredBranch);
 
 		if (!options?.skipDirtyCheck) {
 			const status = await git(projectPath, 'status', '--porcelain');
@@ -105,28 +104,30 @@ export class AgentWorktreeManager {
 		return { worktreePath };
 	}
 
-	async pullMainBranch(projectPath: string): Promise<void> {
+	async pullMainBranch(projectPath: string, configuredBranch?: string): Promise<void> {
 		try {
-			const mainBranch = await this.getMainBranch(projectPath);
+			const mainBranch = await this.getMainBranch(projectPath, configuredBranch);
 			const currentBranch = (await git(projectPath, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
 			if (currentBranch === mainBranch) {
 				await git(projectPath, 'pull', '--no-rebase');
 			} else {
-				await git(projectPath, 'fetch', 'origin', mainBranch);
+				const remote = await this.resolveRemote(projectPath, mainBranch);
+				await git(projectPath, 'fetch', remote, mainBranch);
 				const localRef = (await git(projectPath, 'rev-parse', mainBranch)).trim();
-				const remoteRef = (await git(projectPath, 'rev-parse', `origin/${mainBranch}`)).trim();
+				const remoteRef = (await git(projectPath, 'rev-parse', `${remote}/${mainBranch}`)).trim();
 				if (localRef !== remoteRef) {
 					const aheadCount = (await git(
-						projectPath, 'rev-list', `origin/${mainBranch}..${mainBranch}`, '--count',
+						projectPath, 'rev-list', `${remote}/${mainBranch}..${mainBranch}`, '--count',
 					)).trim();
 					if (parseInt(aheadCount, 10) > 0) {
+						const resetCmd = `git branch -f ${mainBranch} ${remote}/${mainBranch}`;
 						throw new Error(
 							`Local '${mainBranch}' has ${aheadCount} unpushed commit(s). `
-							+ `Push them (git push) or reset (git branch -f ${mainBranch} origin/${mainBranch}) first.`,
+							+ `Push them (git push) or reset (${resetCmd}) first.`,
 						);
 					}
 				}
-				await git(projectPath, 'branch', '-f', mainBranch, `origin/${mainBranch}`);
+				await git(projectPath, 'branch', '-f', mainBranch, `${remote}/${mainBranch}`);
 			}
 		} catch (e) {
 			if (e instanceof ProcessError) {
@@ -170,6 +171,15 @@ export class AgentWorktreeManager {
 		});
 	}
 
+	private async resolveRemote(projectPath: string, branchName: string): Promise<string> {
+		try {
+			const remote = (await git(projectPath, 'config', `branch.${branchName}.remote`)).trim();
+			if (remote) return remote;
+		} catch {
+		}
+		return 'origin';
+	}
+
 	private async releaseBranchFromOtherWorktree(
 		projectPath: string, targetWorktreePath: string, branchName: string,
 	): Promise<void> {
@@ -193,8 +203,8 @@ export class AgentWorktreeManager {
 		return null;
 	}
 
-	async isBranchMerged(projectPath: string, branchName: string): Promise<boolean> {
-		const mainBranch = await this.getMainBranch(projectPath);
+	async isBranchMerged(projectPath: string, branchName: string, configuredBranch?: string): Promise<boolean> {
+		const mainBranch = await this.getMainBranch(projectPath, configuredBranch);
 		try {
 			await git(projectPath, 'merge-base', '--is-ancestor', branchName, mainBranch);
 			return true;
@@ -207,8 +217,15 @@ export class AgentWorktreeManager {
 		await git(projectPath, 'worktree', 'remove', worktreePath);
 	}
 
-	async deleteLocalBranch(projectPath: string, branchName: string): Promise<void> {
-		await git(projectPath, 'branch', '-d', branchName);
+	async deleteLocalBranch(projectPath: string, branchName: string, configuredBranch?: string): Promise<void> {
+		const merged = await this.isBranchMerged(projectPath, branchName, configuredBranch);
+		if (!merged) {
+			throw new Error(
+				`Branch '${branchName}' has unmerged commits.`
+				+ ' Merge or force-delete the branch before cleanup.',
+			);
+		}
+		await git(projectPath, 'branch', '-D', branchName);
 	}
 
 	async deleteRemoteBranch(projectPath: string, branchName: string): Promise<void> {

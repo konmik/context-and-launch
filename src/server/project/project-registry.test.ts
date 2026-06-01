@@ -690,6 +690,62 @@ describe('ProjectRegistry', () => {
 		expect(afterSave.lastUsedProfileName).toBe('Codex');
 	});
 
+	it('addProject stores mainBranch and boardId when provided', () => {
+		const configDir = initConfigDir();
+		const projectDir = tmpDir('registry-project-');
+		dirs.push(projectDir);
+
+		fs.mkdirSync(path.join(projectDir, '.git'));
+		const registry = new ProjectRegistry(new ConfigPaths(configDir));
+		const info = registry.addProject(projectDir, 'mb-proj', 'tickets', undefined, 'develop', 'kanban');
+		expect(info.mainBranch).toBe('develop');
+		expect(info.boardId).toBe('kanban');
+
+		const listed = registry.listProjects().find((p) => p.projectSlug === 'mb-proj');
+		expect(listed?.mainBranch).toBe('develop');
+		expect(listed?.boardId).toBe('kanban');
+
+		const onDisk = JSON.parse(
+			fs.readFileSync(path.join(configDir, 'config', 'config.json'), 'utf-8')
+		);
+		expect(onDisk.projects[0].mainBranch).toBe('develop');
+		expect(onDisk.projects[0].boardId).toBe('kanban');
+	});
+
+	it('addProject without mainBranch and boardId leaves fields absent from config.json', () => {
+		const configDir = initConfigDir();
+		const projectDir = tmpDir('registry-project-');
+		dirs.push(projectDir);
+
+		fs.mkdirSync(path.join(projectDir, '.git'));
+		const registry = new ProjectRegistry(new ConfigPaths(configDir));
+		registry.addProject(projectDir, 'no-mb');
+
+		const onDisk = JSON.parse(
+			fs.readFileSync(path.join(configDir, 'config', 'config.json'), 'utf-8')
+		);
+		expect('mainBranch' in onDisk.projects[0]).toBe(false);
+		expect('boardId' in onDisk.projects[0]).toBe(false);
+	});
+
+	it('addProject rejects mainBranch with invalid git branch characters', () => {
+		const configDir = initConfigDir();
+		const projectDir = tmpDir('registry-project-');
+		dirs.push(projectDir);
+
+		fs.mkdirSync(path.join(projectDir, '.git'));
+		const registry = new ProjectRegistry(new ConfigPaths(configDir));
+		expect(() =>
+			registry.addProject(projectDir, 'bad-main', 'tickets', undefined, 'my branch')
+		).toThrow('whitespace');
+		expect(registry.listProjects()).toHaveLength(0);
+
+		expect(() =>
+			registry.addProject(projectDir, 'bad-main2', 'tickets', undefined, 'a~b')
+		).toThrow('invalid characters');
+		expect(registry.listProjects()).toHaveLength(0);
+	});
+
 	it('setLastUsed preserves port and browser fields', () => {
 		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');

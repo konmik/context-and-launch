@@ -1,8 +1,8 @@
-import { Show, Index } from "solid-js";
+import { Show } from "solid-js";
 import { createSortable } from "@thisbeyond/solid-dnd";
 import { DragGrip, DragPreview, DND_ACTIVE_CLASS } from "../board/dnd-shared.js";
 import type { MergedLauncherConfig } from "~/server/launcher/launcher-config.js";
-import type { BoardDefinition, ColumnDefinition } from "~/server/project/board-config.js";
+import type { ColumnDefinition } from "~/server/project/board-config.js";
 
 export type MergedSkill = MergedLauncherConfig["skills"][number];
 
@@ -179,14 +179,6 @@ export function SkillDropPreview(props: { skill: MergedSkill }) {
 			grip
 		/>
 		</DragPreview>
-	);
-}
-
-export function BoardOptions(props: { boards: BoardDefinition[]; selectedId: string }) {
-	return (
-		<Index each={props.boards}>
-			{(b) => <option value={b().id} selected={b().id === props.selectedId}>{b().name}</option>}
-		</Index>
 	);
 }
 

@@ -8,6 +8,8 @@ export interface ProjectInfo {
 	available: boolean;
 	branch?: string;
 	ticketsPath?: string;
+	mainBranch?: string;
+	boardId?: string;
 }
 
 export interface ProjectEntry {
@@ -15,6 +17,8 @@ export interface ProjectEntry {
 	projectSlug: string;
 	branch?: string;
 	ticketsPath?: string;
+	mainBranch?: string;
+	boardId?: string;
 }
 
 export interface ProjectConfig {
@@ -31,6 +35,18 @@ function isGitRepo(dirPath: string, configRepo: ConfigRepository): boolean {
 	} catch {
 		return false;
 	}
+}
+
+function entryToInfo(entry: ProjectEntry, configRepo: ConfigRepository): ProjectInfo {
+	return {
+		path: entry.path,
+		projectSlug: entry.projectSlug,
+		available: isGitRepo(entry.path, configRepo),
+		branch: entry.branch,
+		ticketsPath: entry.ticketsPath,
+		mainBranch: entry.mainBranch,
+		boardId: entry.boardId,
+	};
 }
 
 function toSlugSegment(name: string): string {
@@ -107,6 +123,8 @@ export class ProjectRegistry {
 				const entry: ProjectEntry = { path: p.path as string, projectSlug };
 				if (p.branch !== undefined) entry.branch = p.branch as string;
 				if (p.ticketsPath !== undefined) entry.ticketsPath = p.ticketsPath as string;
+				if (p.mainBranch !== undefined) entry.mainBranch = p.mainBranch as string;
+				if (p.boardId !== undefined) entry.boardId = p.boardId as string;
 				return entry;
 			},
 		);
@@ -166,20 +184,17 @@ export class ProjectRegistry {
 	}
 
 	listProjects(): ProjectInfo[] {
-		return this.load().projects.map((entry) => ({
-			path: entry.path,
-			projectSlug: entry.projectSlug,
-			available: isGitRepo(entry.path, this.configRepo),
-			branch: entry.branch,
-			ticketsPath: entry.ticketsPath
-		}));
+		return this.load().projects.map((entry) => entryToInfo(entry, this.configRepo));
 	}
 
 	getTicketsPath(projectSlug: string): string | undefined {
 		return this.load().projects.find((p) => p.projectSlug === projectSlug)?.ticketsPath;
 	}
 
-	addProject(projectPath: string, projectSlug?: string, branch?: string, ticketsPath?: string): ProjectInfo {
+	addProject(
+		projectPath: string, projectSlug?: string, branch?: string,
+		ticketsPath?: string, mainBranch?: string, boardId?: string,
+	): ProjectInfo {
 		if (!this.configRepo.exists(projectPath)) {
 			throw new Error(`Path does not exist: ${projectPath}`);
 		}
@@ -188,6 +203,9 @@ export class ProjectRegistry {
 		}
 		if (branch !== undefined) {
 			validateBranchName(branch);
+		}
+		if (mainBranch !== undefined) {
+			validateBranchName(mainBranch);
 		}
 
 		const config = this.load();
@@ -212,16 +230,15 @@ export class ProjectRegistry {
 		const entry: ProjectEntry = { path: canonicalPath, projectSlug: finalProjectSlug };
 		if (branch !== undefined) entry.branch = branch;
 		if (ticketsPath !== undefined) entry.ticketsPath = ticketsPath;
+		if (mainBranch !== undefined) entry.mainBranch = mainBranch;
+		if (boardId !== undefined) entry.boardId = boardId;
 		this.save({
 			...config,
 			projects: [...config.projects, entry],
 			lastUsedProjectSlug: finalProjectSlug
 		});
 
-		return {
-			path: entry.path, projectSlug: entry.projectSlug, available: true,
-			branch: entry.branch, ticketsPath: entry.ticketsPath,
-		};
+		return entryToInfo(entry, this.configRepo);
 	}
 
 	updateProject(projectSlug: string, newPath?: string, newProjectSlug?: string): ProjectInfo {
@@ -248,13 +265,7 @@ export class ProjectRegistry {
 			? updatedProjectSlug : config.lastUsedProjectSlug;
 		this.save({ ...config, projects: newProjects, lastUsedProjectSlug: newLastUsed });
 
-		return {
-			path: updatedPath,
-			projectSlug: updatedProjectSlug,
-			available: isGitRepo(updatedPath, this.configRepo),
-			branch: updated.branch,
-			ticketsPath: updated.ticketsPath
-		};
+		return entryToInfo(updated, this.configRepo);
 	}
 
 	removeProject(projectSlug: string): void {

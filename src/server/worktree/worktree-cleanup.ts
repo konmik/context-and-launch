@@ -13,7 +13,8 @@ export class WorktreeCleanupService {
 		projectPath: string,
 		folderName: string,
 		worktreePath: string,
-		options: CleanupOptions
+		options: CleanupOptions,
+		configuredBranch?: string,
 	): Promise<void> {
 		const branchName = `ai/${folderName}`;
 
@@ -32,7 +33,7 @@ export class WorktreeCleanupService {
 		}
 
 		if (options.deleteLocalBranch) {
-			const merged = await this.agentWorktreeManager.isBranchMerged(projectPath, branchName);
+			const merged = await this.agentWorktreeManager.isBranchMerged(projectPath, branchName, configuredBranch);
 			if (!merged) {
 				throw new Error(
 					`Branch '${branchName}' has unmerged commits.`
@@ -53,7 +54,7 @@ export class WorktreeCleanupService {
 		}
 
 		if (options.deleteLocalBranch) {
-			await this.agentWorktreeManager.deleteLocalBranch(projectPath, branchName);
+			await this.agentWorktreeManager.deleteLocalBranch(projectPath, branchName, configuredBranch);
 		}
 
 		if (options.deleteRemoteBranch) {

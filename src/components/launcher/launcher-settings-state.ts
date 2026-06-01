@@ -2,6 +2,7 @@ import { createSignal, createEffect, createMemo, onCleanup, on } from "solid-js"
 import type { MergedLauncherConfig } from "~/server/launcher/launcher-config.js";
 import type { BoardDefinition, ColumnDefinition } from "~/server/project/board-config.js";
 import { slugifyColumnName } from "~/lib/slugify.js";
+import { fetchBoards, type BoardRef } from "~/lib/fetch-boards.js";
 import { createListReorder, midpointOrder } from "../board/list-reorder.js";
 import type { MergedSkill } from "./launcher-settings-rows.js";
 import type {
@@ -28,9 +29,7 @@ export function createLauncherSettingsState(props: {
 	const [boardForm, setBoardForm] = createSignal<{ name: string } | null>(null);
 	const [renameForm, setRenameForm] = createSignal<RenameFormState | null>(null);
 	const [deleteConfirm, setDeleteConfirm] = createSignal<DeleteTarget | null>(null);
-	const [projectBoardConfirm, setProjectBoardConfirm] = createSignal<
-		{ id: string; name: string } | null
-	>(null);
+	const [projectBoardConfirm, setProjectBoardConfirm] = createSignal<BoardRef | null>(null);
 	const [columnError, setColumnError] = createSignal("");
 
 	const selectedBoardId = createMemo(() => {
@@ -83,8 +82,7 @@ export function createLauncherSettingsState(props: {
 
 	async function loadBoards() {
 		try {
-			const res = await fetch("/api/boards");
-			if (res.ok) { setBoards(await res.json()); }
+			setBoards(await fetchBoards());
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "Failed to load boards");
 		}

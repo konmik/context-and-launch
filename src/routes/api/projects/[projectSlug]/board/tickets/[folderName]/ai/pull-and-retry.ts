@@ -13,9 +13,11 @@ export const POST = withService(async ({ params, request }) => {
   if (resolved instanceof Response) return resolved;
   const { ticket, project, worktreeDir } = resolved;
   if (agentRunning(projectSlug, folderName)) return new Response("Already started", { status: 409 });
-  await agentWorktreeManager.pullMainBranch(project.path);
+  await agentWorktreeManager.pullMainBranch(project.path, project.mainBranch);
   const launchRequest = await readLaunchRequest(request);
-  const worktreeResult = await agentWorktreeManager.ensureAgentWorktree(project.path, projectSlug, folderName);
+  const worktreeResult = await agentWorktreeManager.ensureAgentWorktree(
+    project.path, projectSlug, folderName, undefined, project.mainBranch,
+  );
   if ('dirtyWorktree' in worktreeResult) {
     return Response.json(
       { dirtyWorktree: true, message: "Main branch has uncommitted changes. Launch anyway?" },

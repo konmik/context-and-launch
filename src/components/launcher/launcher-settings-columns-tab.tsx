@@ -3,9 +3,11 @@ import { DragDropProvider, DragDropSensors, SortableProvider, closestCenter } fr
 import { TabsContent } from "../ui/tabs";
 import type { MergedLauncherConfig } from "~/server/launcher/launcher-config.js";
 import type { BoardDefinition, ColumnDefinition } from "~/server/project/board-config.js";
+import type { BoardRef } from "~/lib/fetch-boards.js";
 import { NameDragOverlay } from "../board/dnd-shared.js";
 import type { ListReorder } from "../board/list-reorder.js";
-import { BoardOptions, SortableColumnRow, ColumnDropPreview } from "./launcher-settings-rows.js";
+import { SortableColumnRow, ColumnDropPreview } from "./launcher-settings-rows.js";
+import BoardSelect from "../project/BoardSelect.js";
 import type { ColumnFormState, DeleteTarget } from "./launcher-settings-dialogs.js";
 
 export function ColumnsTab(props: {
@@ -17,7 +19,7 @@ export function ColumnsTab(props: {
 	selectedBoard: BoardDefinition | undefined;
 	columnReorder: ListReorder<ColumnDefinition>;
 	setBoardOverride: (v: string) => void;
-	onProjectBoard: (b: { id: string; name: string }) => void;
+	onProjectBoard: (b: BoardRef) => void;
 	setBoardForm: (v: { name: string } | null) => void;
 	setColumnForm: (v: ColumnFormState | null) => void;
 	setDeleteConfirm: (v: DeleteTarget | null) => void;
@@ -32,16 +34,13 @@ export function ColumnsTab(props: {
 				</Show>
 				<section>
 					<div class="mb-2 flex items-center gap-2">
-						<select
+						<BoardSelect
+							boards={props.boards}
+							value={props.selectedBoardId}
 							onChange={(e) => props.setBoardOverride(e.currentTarget.value)}
 							class="input input-sm flex-1"
-							data-testid="launcher-settings-columns-board-selector"
-						>
-							<BoardOptions
-							boards={props.boards}
-							selectedId={props.selectedBoardId}
+							testId="launcher-settings-columns-board-selector"
 						/>
-						</select>
 						<button
 							onClick={() => {
 								const b = props.selectedBoard;

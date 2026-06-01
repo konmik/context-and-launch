@@ -2,6 +2,7 @@ import { Show, type JSX } from "solid-js";
 import { DialogRoot, DialogTitle, DialogCloseTrigger } from "../ui/dialog";
 import { modEnterHint } from "~/lib/use-mod-enter-submit";
 import { slugifyColumnName } from "~/lib/slugify.js";
+import type { BoardRef } from "~/lib/fetch-boards.js";
 
 export type ItemType = "template" | "skill" | "profile" | "shortcut";
 export type Scope = "app" | "project";
@@ -418,8 +419,8 @@ export function DeleteConfirmDialog(props: {
 }
 
 export function ProjectBoardConfirmDialog(props: {
-	projectBoardConfirm: { id: string; name: string } | null;
-	setProjectBoardConfirm: (target: { id: string; name: string } | null) => void;
+	projectBoardConfirm: BoardRef | null;
+	setProjectBoardConfirm: (target: BoardRef | null) => void;
 	onConfirm: () => void;
 }) {
 	return (
