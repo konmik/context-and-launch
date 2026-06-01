@@ -37,7 +37,7 @@ describe('BoardService.loadBoard', () => {
 	it('does not persist lastUsed for a known-but-unavailable project', async () => {
 		const { service, projectRegistry } = stubDeps({
 			projects: [
-				{ path: '/deleted/path', projectSlug: 'gone', available: false },
+				{ path: '/deleted/path', projectSlug: 'gone', available: false, boardId: 'standard' },
 			],
 		});
 

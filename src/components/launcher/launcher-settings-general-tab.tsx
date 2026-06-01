@@ -21,10 +21,10 @@ export function GeneralTab(props: {
 					<h3 class="mb-2 text-sm font-semibold">Board <ScopeBadge scope="project" /></h3>
 					<BoardSelect
 						boards={props.boards}
-						value={props.config.boardId ?? props.boards[0]?.id ?? ""}
+						value={props.config.boardId}
 						onChange={(e) => {
 							const newId = e.currentTarget.value;
-							const current = props.config.boardId ?? props.boards[0]?.id ?? "";
+							const current = props.config.boardId;
 							e.currentTarget.value = current;
 							if (newId === current) return;
 							const b = props.boards.find(x => x.id === newId);

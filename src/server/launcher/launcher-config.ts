@@ -37,7 +37,7 @@ export interface LauncherConfig {
 	shortcuts?: LauncherShortcut[];
 	columnDefaults?: Record<string, LauncherColumnDefaults>;
 	worktreeRootPath?: string;
-	boardId?: string;
+	boardId: string;
 	conflictResolutionPrompt?: string;
 }
 
@@ -48,7 +48,7 @@ export interface MergedLauncherConfig {
 	shortcuts: (LauncherShortcut & { scope: "app" | "project" })[];
 	columnDefaults: Record<string, LauncherColumnDefaults>;
 	worktreeRootPath: string | null;
-	boardId: string | null;
+	boardId: string;
 	conflictResolutionPrompt: string;
 }
 
@@ -61,7 +61,7 @@ function parseConfig(text: string): LauncherConfig {
 		shortcuts: parsed.shortcuts ?? [],
 		columnDefaults: parsed.columnDefaults,
 		worktreeRootPath: parsed.worktreeRootPath,
-		boardId: parsed.boardId,
+		boardId: parsed.boardId ?? 'standard',
 		conflictResolutionPrompt: parsed.conflictResolutionPrompt,
 	};
 }
@@ -120,7 +120,7 @@ export class LauncherConfigManager {
 		return (
 			this.readLauncherFile(
 				this.projectLauncherPath(projectSlug),
-			) ?? structuredClone(EMPTY_PROJECT_CONFIG) as LauncherConfig
+			) ?? { ...structuredClone(EMPTY_PROJECT_CONFIG), boardId: 'standard' } as LauncherConfig
 		);
 	}
 
@@ -208,7 +208,7 @@ export class LauncherConfigManager {
 			shortcuts: [...shortcutMap.values()],
 			columnDefaults: project.columnDefaults ?? {},
 			worktreeRootPath: project.worktreeRootPath ?? null,
-			boardId: project.boardId ?? null,
+			boardId: project.boardId,
 			conflictResolutionPrompt:
 				typeof project.conflictResolutionPrompt === 'string'
 				&& project.conflictResolutionPrompt

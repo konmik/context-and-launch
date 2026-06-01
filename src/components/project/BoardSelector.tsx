@@ -14,7 +14,7 @@ export default function BoardSelector(props: BoardSelectorProps) {
   fetchBoards()
     .then((data) => {
       setBoards(data);
-      if (!props.boardId()) props.setBoardId(data[0]?.id ?? "");
+      if (!props.boardId()) props.setBoardId(data[0].id);
     })
     .catch((err: any) => props.onError?.(err?.message ?? "Failed to load boards"));
 

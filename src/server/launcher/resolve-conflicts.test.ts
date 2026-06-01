@@ -29,7 +29,7 @@ function makeMerged(
 		shortcuts: [],
 		columnDefaults: {},
 		worktreeRootPath: null,
-		boardId: null,
+		boardId: 'standard',
 		conflictResolutionPrompt: "resolve conflicts",
 		...overrides,
 	};

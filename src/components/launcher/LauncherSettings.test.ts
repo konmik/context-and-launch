@@ -37,7 +37,7 @@ describe("LauncherSettings Show condition", () => {
 		shortcuts: [],
 		columnDefaults: {},
 		worktreeRootPath: null,
-		boardId: null,
+		boardId: 'standard',
 		conflictResolutionPrompt: "",
 	};
 
