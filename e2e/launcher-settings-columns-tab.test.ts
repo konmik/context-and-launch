@@ -204,12 +204,11 @@ describe("Launcher Settings Columns tab (e2e, real server)", () => {
     expect(await ctx.page.locator('[data-testid="launcher-settings-columns-drag-handle"]').count()).toBeGreaterThan(0);
   }, 60000);
 
-  it("tab triggers for all 5 launcher settings tabs exist", async () => {
+  it("tab triggers for all 4 launcher settings tabs exist", async () => {
     await setup("tabs");
-    expect(await ctx.page.locator('[data-testid="launcher-settings-tab-misc"]').count()).toBe(1);
-    expect(await ctx.page.locator('[data-testid="launcher-settings-tab-prompts"]').count()).toBe(1);
-    expect(await ctx.page.locator('[data-testid="launcher-settings-tab-skills"]').count()).toBe(1);
     expect(await ctx.page.locator('[data-testid="launcher-settings-tab-launch"]').count()).toBe(1);
+    expect(await ctx.page.locator('[data-testid="launcher-settings-tab-prompts"]').count()).toBe(1);
+    expect(await ctx.page.locator('[data-testid="launcher-settings-tab-misc"]').count()).toBe(1);
     expect(await ctx.page.locator('[data-testid="launcher-settings-tab-columns"]').count()).toBe(1);
   }, 60000);
 });

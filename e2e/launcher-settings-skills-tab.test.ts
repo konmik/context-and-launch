@@ -19,7 +19,7 @@ describe("Launcher Settings Skills tab (e2e, real server)", () => {
     ctx.projects.push(project);
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await openLauncherSettings(ctx.page);
-    await openLauncherSettingsTab(ctx.page, "skills");
+    await openLauncherSettingsTab(ctx.page, "prompts");
     return project;
   }
 
