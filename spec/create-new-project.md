@@ -2,12 +2,19 @@
 
 - User opens form from welcome page (no projects) or project menu
   - project-path (required), with browse button
+  - board-selector, shown only when multiple board definitions exist
+  - main-branch, auto-detected from repository
   - project-branch, default "tickets"
   - project-tickets-root, with browse button
   - project-worktree-root, with browse button
 - Path input debounces 300ms, fetches preview
+  - Preview returns default tickets path, worktree path, and detected main branch
   - Apply preview only to fields user has not manually edited
 - Submit
+  - Validate path exists and is a git repository
+  - Validate branch names
+  - Reject duplicate projects (same canonical path)
+  - Generate a unique project slug from the path
   - Append project entry to config.json, set as last used
   - If worktree root provided, create directory and save to launcher config
   - Error: display in form
@@ -16,6 +23,7 @@
   - Lock to prevent concurrent creation
   - Existing valid worktree: done
   - Existing directory with invalid git metadata: error
+  - Branch already checked out at another worktree: error
   - Branch exists locally: create worktree from it
   - Branch exists on remote: fetch and create tracking worktree
   - Neither: create orphan branch worktree with empty initial commit

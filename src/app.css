@@ -378,5 +378,6 @@ button:not([data-scope]), [role="button"]:not([data-scope]), .ripple {
 	font-size: 0.875rem;
 }
 .input::placeholder { color: var(--muted-foreground); }
+select.input { padding-right: 2rem; }
 
 .input-sm { height: 2.25rem; }
