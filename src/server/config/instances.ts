@@ -1,8 +1,18 @@
-import { createServices } from './service-container.js';
+import { createServices, type ServiceContainer } from './service-container.js';
 import { initializeDataDir } from './initialize.js';
 
-const services = createServices(process.env.CONTEXT_LAUNCH_DATA_DIR || undefined);
-initializeDataDir(services.configPaths);
+interface ServiceGlobal { __aiStagesServices?: ServiceContainer }
+
+function loadServices(): ServiceContainer {
+	const g = globalThis as unknown as ServiceGlobal;
+	if (g.__aiStagesServices) return g.__aiStagesServices;
+	const s = createServices(process.env.CONTEXT_LAUNCH_DATA_DIR || undefined);
+	initializeDataDir(s.configPaths);
+	g.__aiStagesServices = s;
+	return s;
+}
+
+const services = loadServices();
 
 export const configPaths = services.configPaths;
 export const configRepo = services.configRepo;
