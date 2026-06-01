@@ -559,6 +559,59 @@ describe('AgentWorktreeManager', () => {
 		expect(stillOnFeature).toBe('feature-x');
 	});
 
+	it('pullMainBranch succeeds when remote is not named origin', async () => {
+		const bareDir = tmpDir('awm-bare-nonorigin-');
+		dirs.push(bareDir);
+		execSync('git init --bare -b main', { cwd: bareDir, timeout: 5000 });
+
+		const projectDir = tmpDir('awm-nonorigin-');
+		dirs.push(projectDir);
+		execSync(`git clone -o upstream "${bareDir}" "${projectDir}"`, { timeout: 5000 });
+		execSync('git config user.email "test@test.com"', { cwd: projectDir, timeout: 5000 });
+		execSync('git config user.name "Test"', { cwd: projectDir, timeout: 5000 });
+		fs.writeFileSync(path.join(projectDir, 'README.md'), '# test');
+		execSync('git add .', { cwd: projectDir, timeout: 5000 });
+		execSync('git commit -m "init"', { cwd: projectDir, timeout: 5000 });
+		execSync('git push -u upstream main', { cwd: projectDir, timeout: 5000 });
+
+		const mainCommitBefore = execSync(
+			'git rev-parse main', { cwd: projectDir, timeout: 5000 },
+		).toString().trim();
+
+		execSync('git checkout -b feature-y', { cwd: projectDir, timeout: 5000 });
+		fs.writeFileSync(path.join(projectDir, 'feature.txt'), 'work');
+		execSync('git add .', { cwd: projectDir, timeout: 5000 });
+		execSync('git commit -m "feature"', { cwd: projectDir, timeout: 5000 });
+
+		const pusherDir = tmpDir('awm-pusher-nonorigin-');
+		dirs.push(pusherDir);
+		execSync(`git clone "${bareDir}" "${pusherDir}"`, { timeout: 5000 });
+		execSync('git config user.email "test@test.com"', { cwd: pusherDir, timeout: 5000 });
+		execSync('git config user.name "Test"', { cwd: pusherDir, timeout: 5000 });
+		fs.writeFileSync(path.join(pusherDir, 'newer.txt'), 'newer');
+		execSync('git add .', { cwd: pusherDir, timeout: 5000 });
+		execSync('git commit -m "newer commit"', { cwd: pusherDir, timeout: 5000 });
+		execSync('git push', { cwd: pusherDir, timeout: 5000 });
+
+		const configDir = tmpDir('awm-config-nonorigin-');
+		dirs.push(configDir);
+		const awmPaths = new ConfigPaths(configDir);
+		const lcm = new LauncherConfigManager(awmPaths);
+		const awm = new AgentWorktreeManager(lcm, awmPaths);
+
+		await awm.pullMainBranch(projectDir);
+
+		const mainCommitAfter = execSync(
+			'git rev-parse main', { cwd: projectDir, timeout: 5000 },
+		).toString().trim();
+		expect(mainCommitAfter).not.toBe(mainCommitBefore);
+
+		const stillOnFeature = execSync(
+			'git branch --show-current', { cwd: projectDir, timeout: 5000 },
+		).toString().trim();
+		expect(stillOnFeature).toBe('feature-y');
+	});
+
 	it('behind-remote catch swallows non-upstream errors:'
 		+ ' generic rev-list failure logs warning and worktree creation proceeds', async () => {
 		const { projectDir, worktreeRoot, awm } = setup();
@@ -907,6 +960,84 @@ describe('AgentWorktreeManager', () => {
 			).toString();
 			expect(branchList.trim()).toBe('');
 		}
+	});
+
+	it('deleteLocalBranch succeeds when HEAD is not on mainBranch but branch is merged into main', async () => {
+		const { projectDir, worktreeRoot, awm } = setup();
+
+		execSync('git checkout -b other-branch', { cwd: projectDir, timeout: 5000 });
+		fs.writeFileSync(path.join(projectDir, 'other.txt'), 'diverged work');
+		execSync('git add .', { cwd: projectDir, timeout: 5000 });
+		execSync('git commit -m "diverge from main"', { cwd: projectDir, timeout: 5000 });
+		execSync('git checkout main', { cwd: projectDir, timeout: 5000 });
+
+		execSync('git checkout -b ai/st-merged-feat', { cwd: projectDir, timeout: 5000 });
+		fs.writeFileSync(path.join(projectDir, 'feat.txt'), 'feature work');
+		execSync('git add .', { cwd: projectDir, timeout: 5000 });
+		execSync('git commit -m "feature commit"', { cwd: projectDir, timeout: 5000 });
+		execSync('git checkout main', { cwd: projectDir, timeout: 5000 });
+		execSync('git merge ai/st-merged-feat', { cwd: projectDir, timeout: 5000 });
+
+		const merged = await awm.isBranchMerged(projectDir, 'ai/st-merged-feat');
+		expect(merged).toBe(true);
+
+		execSync('git checkout other-branch', { cwd: projectDir, timeout: 5000 });
+		const head = execSync('git rev-parse --abbrev-ref HEAD', { cwd: projectDir, timeout: 5000 }).toString().trim();
+		expect(head).toBe('other-branch');
+
+		await awm.deleteLocalBranch(projectDir, 'ai/st-merged-feat');
+
+		const branchList = execSync(
+			'git branch --list ai/st-merged-feat', { cwd: projectDir, timeout: 5000 },
+		).toString();
+		expect(branchList.trim()).toBe('');
+	});
+
+	it('ensureAgentWorktree with configuredBranch "develop" succeeds in repo with only develop branch', async () => {
+		const { projectDir, worktreeRoot, awm } = setup('develop');
+		const result = await awm.ensureAgentWorktree(
+			projectDir, 'my-proj', 'st-develop-test', undefined, 'develop',
+		);
+		expect('worktreePath' in result).toBe(true);
+		if ('worktreePath' in result) {
+			const expected = `${worktreeRoot}/st-develop-test`;
+			expect(result.worktreePath.replace(/\\/g, '/')).toBe(expected.replace(/\\/g, '/'));
+			expect(fs.existsSync(result.worktreePath)).toBe(true);
+		}
+	});
+
+	it('pullMainBranch with configuredBranch "develop" succeeds in repo with only develop branch', async () => {
+		const bareDir = tmpDir('awm-bare-develop-');
+		dirs.push(bareDir);
+		execSync('git init --bare -b develop', { cwd: bareDir, timeout: 5000 });
+
+		const projectDir = tmpDir('awm-develop-pull-');
+		dirs.push(projectDir);
+		execSync(`git clone "${bareDir}" "${projectDir}"`, { timeout: 5000 });
+		execSync('git config user.email "test@test.com"', { cwd: projectDir, timeout: 5000 });
+		execSync('git config user.name "Test"', { cwd: projectDir, timeout: 5000 });
+		fs.writeFileSync(path.join(projectDir, 'README.md'), '# test');
+		execSync('git add .', { cwd: projectDir, timeout: 5000 });
+		execSync('git commit -m "init"', { cwd: projectDir, timeout: 5000 });
+		execSync('git push -u origin develop', { cwd: projectDir, timeout: 5000 });
+
+		const configDir = tmpDir('awm-config-develop-pull-');
+		dirs.push(configDir);
+		const paths = new ConfigPaths(configDir);
+		const lcm = new LauncherConfigManager(paths);
+		const awm = new AgentWorktreeManager(lcm, paths);
+
+		await expect(awm.pullMainBranch(projectDir, 'develop')).resolves.toBeUndefined();
+	});
+
+	it('isBranchMerged with configuredBranch "develop" succeeds in repo with only develop branch', async () => {
+		const { projectDir, awm } = setup('develop');
+		const result = await awm.ensureAgentWorktree(
+			projectDir, 'my-proj', 'st-merged-develop', undefined, 'develop',
+		);
+		expect('worktreePath' in result).toBe(true);
+		const merged = await awm.isBranchMerged(projectDir, 'ai/st-merged-develop', 'develop');
+		expect(merged).toBe(true);
 	});
 
 	it('worktreeRootPath directory does not exist on disk: git worktree add creates it automatically', async () => {

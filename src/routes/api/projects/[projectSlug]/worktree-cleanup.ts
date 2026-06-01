@@ -11,6 +11,8 @@ export const POST = withService(async ({ params, request }) => {
 	const project = projectRegistry.listProjects().find((p) => p.projectSlug === projectSlug);
 	if (!project) throw new NotFoundError("Project not found");
 	const worktreePath = `${merged.worktreeRootPath}/${folderName}`;
-	await new WorktreeCleanupService(agentWorktreeManager).cleanup(project.path, folderName, worktreePath, options);
+	await new WorktreeCleanupService(agentWorktreeManager).cleanup(
+		project.path, folderName, worktreePath, options, project.mainBranch,
+	);
 	return Response.json({ success: true });
 });

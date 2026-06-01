@@ -3,10 +3,12 @@ import {
   createAddProjectController,
   type AddProjectController,
 } from "./add-project-controller.js";
+import BoardSelector from "./BoardSelector.js";
 
 interface AddProjectFormProps {
   action: (
     path: string, branch: string, worktreeRootPath: string, ticketsPath: string,
+    mainBranch: string, boardId: string,
   ) => Promise<{ projectSlug?: string; error?: string }>;
   errorMessage?: string;
   onSuccess?: (projectSlug: string) => void;
@@ -42,6 +44,23 @@ export default function AddProjectForm(props: AddProjectFormProps) {
             data-testid="add-project-path-browse"
           >Browse</button>
         </div>
+      </div>
+      <BoardSelector
+        boardId={s.boardId}
+        setBoardId={s.setBoardId}
+        onError={s.setLocalError}
+      />
+      <div class="mb-4">
+        <label for="project-main-branch" class="mb-2 block text-sm font-medium">Main branch</label>
+        <input
+          id="project-main-branch"
+          type="text"
+          value={s.mainBranchValue()}
+          onInput={(e) => s.setMainBranchValue(e.currentTarget.value)}
+          placeholder="Auto-detected from repository"
+          class="input"
+          data-testid="add-project-main-branch-input"
+        />
       </div>
       <div class="mb-4">
         <label for="project-branch" class="mb-2 block text-sm font-medium">Tickets branch name</label>

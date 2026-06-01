@@ -1,7 +1,9 @@
 import { TabsContent } from "../ui/tabs";
 import type { MergedLauncherConfig } from "~/server/launcher/launcher-config.js";
 import type { BoardDefinition } from "~/server/project/board-config.js";
-import { ScopeBadge, BoardOptions } from "./launcher-settings-rows.js";
+import type { BoardRef } from "~/lib/fetch-boards.js";
+import { ScopeBadge } from "./launcher-settings-rows.js";
+import BoardSelect from "../project/BoardSelect.js";
 
 export function GeneralTab(props: {
 	config: MergedLauncherConfig;
@@ -12,7 +14,7 @@ export function GeneralTab(props: {
 	conflictPrompt: string;
 	setConflictPrompt: (v: string) => void;
 	saveConflictResolution: () => void;
-	onProjectBoard: (b: { id: string; name: string }) => void;
+	onProjectBoard: (b: BoardRef) => void;
 	setError: (v: string) => void;
 }) {
 	return (
@@ -20,7 +22,9 @@ export function GeneralTab(props: {
 			<div class="space-y-6">
 				<section>
 					<h3 class="mb-2 text-sm font-semibold">Board <ScopeBadge scope="project" /></h3>
-					<select
+					<BoardSelect
+						boards={props.boards}
+						value={props.config.boardId ?? props.boards[0]?.id ?? ""}
 						onChange={(e) => {
 							const newId = e.currentTarget.value;
 							const current = props.config.boardId ?? props.boards[0]?.id ?? "";
@@ -30,13 +34,8 @@ export function GeneralTab(props: {
 							if (b) props.onProjectBoard({ id: b.id, name: b.name });
 						}}
 						class="input input-sm"
-						data-testid="launcher-settings-general-board-select"
-					>
-						<BoardOptions
-							boards={props.boards}
-							selectedId={props.config.boardId ?? props.boards[0]?.id ?? ""}
-						/>
-					</select>
+						testId="launcher-settings-general-board-select"
+					/>
 				</section>
 				<section>
 					<h3 class="mb-2 text-sm font-semibold">Agent worktree root path <ScopeBadge scope="project" /></h3>

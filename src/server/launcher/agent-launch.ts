@@ -161,7 +161,8 @@ export function agentRunning(projectSlug: string, folderName: string): boolean {
 }
 
 export async function resolveLaunchDir(
-  projectSlug: string, folderName: string, useWorktree: boolean, projectPath: string, force?: boolean,
+  projectSlug: string, folderName: string, useWorktree: boolean, projectPath: string,
+  force?: boolean, mainBranch?: string,
 ): Promise<string | Response> {
   if (!useWorktree) return projectPath;
   const merged = launcherConfigManager.getMergedConfig(projectSlug);
@@ -169,7 +170,7 @@ export async function resolveLaunchDir(
     return new Response("Worktree root path is not configured", { status: 400 });
   }
   const result = await agentWorktreeManager.ensureAgentWorktree(
-    projectPath, projectSlug, folderName, { skipDirtyCheck: force },
+    projectPath, projectSlug, folderName, { skipDirtyCheck: force }, mainBranch,
   );
   if ('dirtyWorktree' in result) {
     return Response.json(

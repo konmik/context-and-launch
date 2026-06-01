@@ -29,6 +29,14 @@ export function gitSync(workDir: string, ...args: string[]): string {
 	return execSync(`git ${escapeArgs(args)}`, { cwd: workDir, timeout: 30000, encoding: 'utf-8', env: gitEnv });
 }
 
+export async function detectMainBranch(projectPath: string): Promise<string> {
+	for (const name of ['main', 'master']) {
+		const list = await git(projectPath, 'branch', '--list', name);
+		if (list.trim()) return name;
+	}
+	throw new Error('Neither main nor master branch exists');
+}
+
 export function autoCommit(workDir: string, message: string): void {
 	try {
 		gitSync(workDir, 'add', '-A');
