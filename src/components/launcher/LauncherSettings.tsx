@@ -209,7 +209,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 			<FloatingPanelResizeTrigger axis="se">
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
-					width="12" height="12" viewBox="0 0 12 12"
+					width="20" height="20" viewBox="0 0 12 12"
 				>
 					<path
 						d="M10 2v8H2" fill="none" stroke="currentColor"
