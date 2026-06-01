@@ -92,7 +92,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 									}),
 								})}
 								class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
-								title="Open project config directory"
+								title="Open project directory"
 							>Project&#8599;</button>
 							<button
 								data-no-drag
