@@ -1,5 +1,7 @@
+import { createSignal } from "solid-js";
 import { TabsContent } from "../ui/tabs";
 import { ScopeBadge } from "./launcher-settings-rows.js";
+import DeleteProjectDialog from "../project/DeleteProjectDialog.js";
 
 export function MiscTab(props: {
 	worktreeRootPath: string;
@@ -9,8 +11,11 @@ export function MiscTab(props: {
 	setConflictPrompt: (v: string) => void;
 	saveConflictResolution: () => void;
 	setError: (v: string) => void;
-	onDeleteProject?: () => void;
+	projectSlug?: string;
+	onDeleteProject?: (projectSlug: string) => Promise<{ error?: string }>;
 }) {
+	const [deleteOpen, setDeleteOpen] = createSignal(false);
+
 	return (
 		<TabsContent value="misc">
 			<div class="space-y-6">
@@ -70,14 +75,20 @@ export function MiscTab(props: {
 						data-testid="launcher-settings-misc-conflict-prompt"
 					/>
 				</section>
-				{props.onDeleteProject && (
+				{props.onDeleteProject && props.projectSlug && (
 					<section class="border-t border-border pt-6">
 						<button
 							type="button"
-							onClick={props.onDeleteProject}
+							onClick={() => setDeleteOpen(true)}
 							class="btn-destructive"
 							data-testid="launcher-settings-delete-project"
 						>Delete project</button>
+						<DeleteProjectDialog
+							open={deleteOpen()}
+							onOpenChange={setDeleteOpen}
+							projectSlug={props.projectSlug}
+							onSubmit={props.onDeleteProject}
+						/>
 					</section>
 				)}
 			</div>

@@ -13,7 +13,6 @@ import TicketDetailDialog from "~/components/ticket/TicketDetailDialog";
 import ConflictDialog from "~/components/shared/ConflictDialog";
 import ErrorDialog from "~/components/shared/ErrorDialog";
 import AddProjectForm from "~/components/project/AddProjectForm";
-import DeleteProjectDialog from "~/components/project/DeleteProjectDialog";
 import ThemeToggle from "~/components/shared/ThemeToggle";
 import LauncherSettings from "~/components/launcher/LauncherSettings";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
@@ -251,24 +250,6 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
             />
           </DialogRoot>
 
-          <DeleteProjectDialog
-            open={dialogState().deleteProjectOpen}
-            onOpenChange={commands.setDeleteProjectOpen}
-            projectSlug={d().projectSlug}
-            onSubmit={async (projectSlug) => {
-              const result = await commands.handleDeleteProject(projectSlug);
-              if (!result.error) {
-                const remaining = d().projects.filter((p) => p.projectSlug !== projectSlug);
-                await revalidate();
-                navigate(
-                  remaining[0] ? `/project/${remaining[0].projectSlug}` : "/add-project",
-                  { replace: true },
-                );
-              }
-              return result;
-            }}
-          />
-
           <ConflictDialog
             open={dialogState().conflictDialogOpen}
             onOpenChange={commands.setConflictDialogOpen}
@@ -288,7 +269,19 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
               }
             }}
             projectSlug={d().projectSlug}
-            onDeleteProject={() => { commands.closeSettings(); commands.openDeleteProject(); }}
+            onDeleteProject={async (projectSlug) => {
+              const result = await commands.handleDeleteProject(projectSlug);
+              if (!result.error) {
+                commands.closeSettings();
+                const remaining = d().projects.filter((p) => p.projectSlug !== projectSlug);
+                await revalidate();
+                navigate(
+                  remaining[0] ? `/project/${remaining[0].projectSlug}` : "/add-project",
+                  { replace: true },
+                );
+              }
+              return result;
+            }}
           />
         </div>
         );
