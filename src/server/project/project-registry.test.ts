@@ -777,6 +777,61 @@ describe('ProjectRegistry', () => {
 		expect(() => registry.setBoardId('nonexistent', 'kanban')).toThrow('Project not found');
 	});
 
+	it('removeProject deletes per-project config directory', () => {
+		const configDir = initConfigDir();
+		const projectDir = tmpDir('registry-project-');
+		dirs.push(projectDir);
+
+		fs.mkdirSync(path.join(projectDir, '.git'));
+		const paths = new ConfigPaths(configDir);
+		const registry = new ProjectRegistry(paths);
+		registry.addProject(projectDir, 'cleanup-test');
+
+		const projectConfigDir = paths.projectConfigDir('cleanup-test');
+		fs.mkdirSync(projectConfigDir, { recursive: true });
+		const launcherConfigFile = path.join(projectConfigDir, 'launcher-config.json');
+		fs.writeFileSync(launcherConfigFile, JSON.stringify({ templates: [], skills: [] }));
+		expect(fs.existsSync(launcherConfigFile)).toBe(true);
+
+		registry.removeProject('cleanup-test');
+
+		expect(fs.existsSync(launcherConfigFile)).toBe(false);
+		expect(fs.existsSync(projectConfigDir)).toBe(false);
+	});
+
+	it('removeProject leaves tickets and worktrees directories intact', () => {
+		const configDir = initConfigDir();
+		const projectDir = tmpDir('registry-project-');
+		dirs.push(projectDir);
+
+		fs.mkdirSync(path.join(projectDir, '.git'));
+		const paths = new ConfigPaths(configDir);
+		const registry = new ProjectRegistry(paths);
+		registry.addProject(projectDir, 'partial-cleanup');
+
+		const ticketsDir = paths.ticketWorktreeDir('partial-cleanup');
+		const worktreesDir = paths.agentWorktreeDir('partial-cleanup');
+		fs.mkdirSync(ticketsDir, { recursive: true });
+		fs.mkdirSync(worktreesDir, { recursive: true });
+		fs.writeFileSync(path.join(ticketsDir, 'user-file.txt'), 'user data');
+		fs.writeFileSync(path.join(worktreesDir, 'agent-file.txt'), 'agent data');
+
+		const projectConfigDir = paths.projectConfigDir('partial-cleanup');
+		fs.mkdirSync(projectConfigDir, { recursive: true });
+		fs.writeFileSync(
+			path.join(projectConfigDir, 'launcher-config.json'),
+			JSON.stringify({ templates: [], skills: [] }),
+		);
+
+		registry.removeProject('partial-cleanup');
+
+		expect(fs.existsSync(ticketsDir)).toBe(true);
+		expect(fs.existsSync(path.join(ticketsDir, 'user-file.txt'))).toBe(true);
+		expect(fs.existsSync(worktreesDir)).toBe(true);
+		expect(fs.existsSync(path.join(worktreesDir, 'agent-file.txt'))).toBe(true);
+		expect(fs.existsSync(projectConfigDir)).toBe(false);
+	});
+
 	it('setLastUsed preserves port and browser fields', () => {
 		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
