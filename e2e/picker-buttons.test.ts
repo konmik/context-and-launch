@@ -179,7 +179,7 @@ describe("Picker buttons (e2e, real server)", () => {
     if (repoDir) fs.rmSync(repoDir, { recursive: true, force: true });
   }, 20000);
 
-  // --- Add Project page: 3 directory picker buttons ---
+  // --- Add Project page: project path directory picker ---
 
   async function goToAddProject(page: Page) {
     await page.goto(`${server.baseUrl}/add-project`);
@@ -191,22 +191,6 @@ describe("Picker buttons (e2e, real server)", () => {
     setup: goToAddProject,
     button: (p) => p.locator("#project-path + button"),
     input: (p) => p.locator("#project-path"),
-    errorContainer: (p) => p.locator("form p.text-destructive"),
-  });
-
-  testDirectoryPicker({
-    name: "Add Project > tickets folder Browse",
-    setup: goToAddProject,
-    button: (p) => p.locator("#project-tickets-root + button"),
-    input: (p) => p.locator("#project-tickets-root"),
-    errorContainer: (p) => p.locator("form p.text-destructive"),
-  });
-
-  testDirectoryPicker({
-    name: "Add Project > worktree root Browse",
-    setup: goToAddProject,
-    button: (p) => p.locator("#project-worktree-root + button"),
-    input: (p) => p.locator("#project-worktree-root"),
     errorContainer: (p) => p.locator("form p.text-destructive"),
   });
 
