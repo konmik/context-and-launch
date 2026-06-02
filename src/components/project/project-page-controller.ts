@@ -13,7 +13,6 @@ export interface ProjectPageDeps {
 
 export function createProjectPageController(deps: ProjectPageDeps) {
   const [addProjectDialogOpen, setAddProjectDialogOpen] = createSignal(false);
-  const [deleteProjectOpen, setDeleteProjectOpen] = createSignal(false);
   const [settingsOpen, setSettingsOpen] = createSignal(false);
   const [createTicketOpen, setCreateTicketOpen] = createSignal(false);
   const [editTicketOpen, setEditTicketOpen] = createSignal(false);
@@ -190,7 +189,6 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     cleanupAction: cleanupAction(),
     settingsOpen: settingsOpen(),
     addProjectDialogOpen: addProjectDialogOpen(),
-    deleteProjectOpen: deleteProjectOpen(),
     conflictDialogOpen: conflictDialogOpen(),
   });
 
@@ -225,8 +223,6 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     closeSettings: () => setSettingsOpen(false),
     openAddProject: () => setAddProjectDialogOpen(true),
     closeAddProject: () => setAddProjectDialogOpen(false),
-    openDeleteProject: () => setDeleteProjectOpen(true),
-    setDeleteProjectOpen,
     handleDeleteProject,
     setCreateTicketOpen,
     setEditTicketOpen,
