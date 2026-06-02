@@ -27,6 +27,7 @@ interface LauncherSettingsProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	projectSlug: string;
+	onDeleteProject?: () => void;
 	ctrl?: LauncherSettingsController;
 }
 
@@ -151,6 +152,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 											setConflictPrompt={s.setConflictPrompt}
 											saveConflictResolution={s.saveConflictResolution}
 											setError={s.setError}
+											onDeleteProject={props.onDeleteProject}
 										/>
 										<PromptsTab
 											config={cfg()}

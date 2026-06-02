@@ -154,12 +154,6 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                     onClick={commands.openAddProject}
                     data-testid="project-header-add-project-menuitem"
                   >Add project...</MenuItem>
-                  <MenuItem
-                    value="delete-project"
-                    onClick={commands.openDeleteProject}
-                    class="text-destructive"
-                    data-testid="project-header-delete-project-menuitem"
-                  >Delete the current project</MenuItem>
                 </MenuContent>
               </MenuRoot>
             </div>
@@ -294,6 +288,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
               }
             }}
             projectSlug={d().projectSlug}
+            onDeleteProject={() => { commands.closeSettings(); commands.openDeleteProject(); }}
           />
         </div>
         );

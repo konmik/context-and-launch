@@ -9,6 +9,7 @@ export function MiscTab(props: {
 	setConflictPrompt: (v: string) => void;
 	saveConflictResolution: () => void;
 	setError: (v: string) => void;
+	onDeleteProject?: () => void;
 }) {
 	return (
 		<TabsContent value="misc">
@@ -69,6 +70,16 @@ export function MiscTab(props: {
 						data-testid="launcher-settings-misc-conflict-prompt"
 					/>
 				</section>
+				{props.onDeleteProject && (
+					<section class="border-t border-border pt-6">
+						<button
+							type="button"
+							onClick={props.onDeleteProject}
+							class="btn-destructive"
+							data-testid="launcher-settings-delete-project"
+						>Delete project</button>
+					</section>
+				)}
 			</div>
 		</TabsContent>
 	);

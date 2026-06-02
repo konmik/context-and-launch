@@ -1,13 +1,19 @@
 import { describe, it, expect } from "vitest";
 import {
   createProject, uniqueSlug, setupE2E, readProjectRegistry,
+  gotoProject, openLauncherSettings,
 } from "./fixtures.js";
 
+async function openDeleteViaSettings(page: import("playwright").Page): Promise<void> {
+  await openLauncherSettings(page);
+  await page.click('[data-testid="launcher-settings-tab-misc"]');
+  const btn = page.locator('[data-testid="launcher-settings-delete-project"]');
+  await btn.waitFor({ state: "visible", timeout: 10000 });
+  await btn.click();
+}
+
 async function deleteCurrentProject(page: import("playwright").Page): Promise<void> {
-  await page.click('[data-testid="project-header-project-dropdown-trigger"]');
-  const item = page.locator('[data-testid="project-header-delete-project-menuitem"]');
-  await item.waitFor({ state: "visible", timeout: 10000 });
-  await item.click();
+  await openDeleteViaSettings(page);
   const submit = page.locator('[data-testid="delete-project-submit"]');
   await submit.waitFor({ state: "visible", timeout: 10000 });
   await submit.click();
@@ -33,28 +39,18 @@ describe("Delete project (e2e, real server)", () => {
       { timeout: 15000 },
     );
 
-    await ctx.page.click('[data-testid="project-header-project-dropdown-trigger"]');
-    const items = ctx.page.locator('[data-testid="project-header-project-item"]');
-    await items.first().waitFor({ state: "visible", timeout: 10000 });
-    const slugs = await items.allInnerTexts();
-    expect(slugs).not.toContain(b.projectSlug);
-    expect(slugs).toContain(a.projectSlug);
-
     const registry = readProjectRegistry(ctx.testServer);
     expect(registry.projects.map((p) => p.projectSlug)).not.toContain(b.projectSlug);
+    expect(registry.projects.map((p) => p.projectSlug)).toContain(a.projectSlug);
   }, 60000);
 
   it("cancelling the delete dialog keeps the project", async () => {
     const c = await createProject(ctx.testServer, { projectSlug: uniqueSlug("del-c") });
     ctx.projects.push(c);
 
-    await ctx.page.goto(`${ctx.testServer.baseUrl}/project/${c.projectSlug}`);
-    await ctx.page.waitForSelector('[data-hydrated="true"]', { state: "attached", timeout: 15000 });
+    await gotoProject(ctx.page, ctx.testServer, c.projectSlug);
+    await openDeleteViaSettings(ctx.page);
 
-    await ctx.page.click('[data-testid="project-header-project-dropdown-trigger"]');
-    const item = ctx.page.locator('[data-testid="project-header-delete-project-menuitem"]');
-    await item.waitFor({ state: "visible", timeout: 10000 });
-    await item.click();
     const cancel = ctx.page.locator('[data-testid="delete-project-cancel"]');
     await cancel.waitFor({ state: "visible", timeout: 10000 });
     await cancel.click();
