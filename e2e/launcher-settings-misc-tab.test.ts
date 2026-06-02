@@ -43,12 +43,6 @@ describe("Launcher Settings Misc tab (e2e, real server)", () => {
       ctx.page.click('[data-testid="launcher-settings-open-project-config"]'));
   }, 60000);
 
-  it("launcher-settings-open-worktrees-dir fires open-config-dir request", async () => {
-    await setup("open-wt");
-    await expectOpenConfigDirRequest(ctx.page, () =>
-      ctx.page.click('[data-testid="launcher-settings-open-worktrees-dir"]'));
-  }, 60000);
-
   it("launcher-settings-close-button hides the floating panel", async () => {
     await setup("close");
     await ctx.page.click('[data-testid="launcher-settings-close-button"]');

@@ -38,8 +38,7 @@ const realDir = os.tmpdir();
 vi.mock("~/server/config/instances.js", () => ({
 	worktreeManager: { getWorktreeDir: vi.fn().mockReturnValue("/fake/worktree") },
 	launcherConfigManager: {
-		loadProjectConfig: vi.fn(),
-		getProjectConfigDir: vi.fn().mockReturnValue("/fake/project-config"),
+		getProjectDir: vi.fn().mockReturnValue("/fake/project"),
 		getAppConfigDir: vi.fn().mockReturnValue("/fake/app-config"),
 	},
 }));

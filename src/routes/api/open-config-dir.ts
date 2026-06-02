@@ -6,12 +6,7 @@ import { openInOs } from "~/server/infra/open-in-os.js";
 
 function resolveConfigDir(scope: string, projectSlug?: string): string {
   if (scope === "tickets" && projectSlug) return worktreeManager.getWorktreeDir(projectSlug);
-  if (scope === "worktree" && projectSlug) {
-    const config = launcherConfigManager.loadProjectConfig(projectSlug);
-    if (!config.worktreeRootPath) throw new ValidationError("Worktree root path not configured");
-    return config.worktreeRootPath;
-  }
-  if (scope === "project" && projectSlug) return launcherConfigManager.getProjectConfigDir(projectSlug);
+  if (scope === "project" && projectSlug) return launcherConfigManager.getProjectDir(projectSlug);
   return launcherConfigManager.getAppConfigDir();
 }
 
