@@ -1,7 +1,7 @@
 {
   "number": "ST-0014",
   "title": "Readme update",
-  "status": "plan",
-  "useWorktree": false,
+  "status": "review",
+  "useWorktree": true,
   "references": []
 }
