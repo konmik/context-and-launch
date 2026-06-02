@@ -1,3 +1,4 @@
+import fs from 'fs';
 import path from 'path';
 import type { ConfigPaths } from '../config/config-paths.js';
 import { ConfigRepository } from '../config/config-repository.js';
@@ -279,6 +280,11 @@ export class ProjectRegistry {
 			? (newProjects[0]?.projectSlug ?? null)
 			: config.lastUsedProjectSlug;
 		this.save({ ...config, projects: newProjects, lastUsedProjectSlug: newLastUsed });
+
+		const projectConfigDir = this.paths.projectConfigDir(projectSlug);
+		if (fs.existsSync(projectConfigDir)) {
+			fs.rmSync(projectConfigDir, { recursive: true });
+		}
 	}
 
 	setLastUsed(projectSlug: string): void {
