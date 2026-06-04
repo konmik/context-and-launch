@@ -1,7 +1,7 @@
 {
+  "useWorktree": true,
   "number": "ST-0017",
   "title": "Adding new project refinement",
-  "status": "todo",
-  "useWorktree": false,
+  "status": "plan",
   "createdAt": "2026-05-28T21:23:26.787Z"
 }
