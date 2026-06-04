@@ -1,9 +1,11 @@
 {
-  "todo": [],
-  "plan": [
+  "todo": [
+    "st-0020-move-boardid-from-launcher-config"
+  ],
+  "plan": [],
+  "in-progress": [],
+  "review": [
     "st-0017-adding-new-project-refinement"
   ],
-  "in-progress": [],
-  "review": [],
   "done": []
 }
