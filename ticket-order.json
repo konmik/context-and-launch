@@ -1,13 +1,7 @@
 {
-  "todo": [
-    "st-0020-move-boardid-from-launcher-config"
-  ],
-  "plan": [
-    "st-0021-make-a-separate-project-tab-in-settings"
-  ],
+  "todo": [],
+  "plan": [],
   "in-progress": [],
   "review": [],
-  "done": [
-    "st-0017-adding-new-project-refinement"
-  ]
+  "done": []
 }

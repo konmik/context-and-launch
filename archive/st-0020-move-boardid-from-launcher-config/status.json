@@ -1,7 +1,7 @@
 {
   "number": "ST-0020",
   "title": "Move boardId from launcher config",
-  "status": "todo",
-  "useWorktree": false,
+  "status": "done",
+  "useWorktree": true,
   "createdAt": "2026-06-04T19:54:38.512Z"
 }
