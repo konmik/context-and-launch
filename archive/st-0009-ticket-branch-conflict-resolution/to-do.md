@@ -1,1 +1,0 @@
-Sometimes (working in a team, or on several machines) tickets branch will have conflicts when updated. In this case it makes sense to notify the user and allow the user to run an agent to resolve the conflicts. A screen with the prompt is enough.

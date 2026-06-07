@@ -1,1 +1,0 @@
-I want to add two distinct drop areas in the ticket window for dropping files - copy and reference. The user will be able to drop files in then and have them saved into the ticket folder automatically, or add them to ticket config.json as a reference. There must be a warning if copying files larger than 10k.

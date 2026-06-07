@@ -1,1 +1,0 @@
-We must be able to bundle the app into a single downloadable (dmg, exe, gz, etc depending on the target system) to install on the target machine automatically in one go and to be able to download in a single file.

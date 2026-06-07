@@ -1,6 +1,0 @@
-{
-  "useWorktree": true,
-  "number": "ST-0011",
-  "title": "Delete the ticket's worktree when archiving the ticket",
-  "status": "done"
-}

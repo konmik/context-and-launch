@@ -1,1 +1,0 @@
-When the user creates a new ticket, the number must be auto generated. Check the latest tickets (do not generate if there are no tickets). The pattern is: PREFIX-ZEROPADDEDNUMBER. Use the latest ticket's prefix and latest ticket's number + 1.
