@@ -48,7 +48,7 @@ The workflow is reflected in columns. Each column represents a separate step.
 
 **REVIEW** -- The second interactive phase: read the generated code, ask questions to the LLM, and request changes.
 
-**DONE** -- The `/merge` skill squashes all commits, rebases, and fast-forwards master on the resulting commit. After that, select "Archive" in the ticket menu to hide the ticket and delete the worktree and the temporary branch.
+**MERGE** -- The `/merge` skill squashes all commits, rebases, and fast-forwards master on the resulting commit. After that, select "Archive" in the ticket menu to hide the ticket and delete the worktree and the temporary branch.
 
 ## Integration with AI agents
 
