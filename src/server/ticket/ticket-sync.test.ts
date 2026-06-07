@@ -200,6 +200,44 @@ describe('TicketSyncManager', () => {
 		expect(log).not.toContain('sync: local changes');
 	});
 
+	it('sync with no upstream adopts remote history and preserves remote-only files', async () => {
+		const remoteDir = tmpDir('sync-remote-orphan-');
+		dirs.push(remoteDir);
+		await git(remoteDir, 'init', '--bare');
+
+		const seedDir = tmpDir('sync-seed-');
+		dirs.push(seedDir);
+		await git(seedDir, 'init');
+		await git(seedDir, 'config', 'user.email', 'test@test.com');
+		await git(seedDir, 'config', 'user.name', 'Test');
+		fs.writeFileSync(path.join(seedDir, 'remote-only.txt'), 'from remote');
+		fs.writeFileSync(path.join(seedDir, 'shared.txt'), 'shared');
+		await git(seedDir, 'add', '-A');
+		await git(seedDir, 'commit', '-m', 'seed');
+		await git(seedDir, 'remote', 'add', 'origin', remoteDir);
+		await git(seedDir, 'push', '-u', 'origin', 'master');
+
+		const worktreeDir = tmpDir('sync-orphan-');
+		dirs.push(worktreeDir);
+		await git(worktreeDir, 'init');
+		await git(worktreeDir, 'config', 'user.email', 'test@test.com');
+		await git(worktreeDir, 'config', 'user.name', 'Test');
+		fs.writeFileSync(path.join(worktreeDir, 'shared.txt'), 'shared');
+		fs.writeFileSync(path.join(worktreeDir, 'local-only.txt'), 'from local');
+		await git(worktreeDir, 'add', '-A');
+		await git(worktreeDir, 'commit', '-m', 'local init');
+		await git(worktreeDir, 'remote', 'add', 'origin', remoteDir);
+
+		const manager = new TicketSyncManager();
+		const result = await manager.sync(worktreeDir);
+		expect(result.status).toBe('success');
+
+		expect(fs.existsSync(path.join(worktreeDir, 'remote-only.txt'))).toBe(true);
+		expect(fs.existsSync(path.join(worktreeDir, 'local-only.txt'))).toBe(true);
+		expect(fs.readFileSync(path.join(worktreeDir, 'remote-only.txt'), 'utf-8')).toBe('from remote');
+		expect(fs.readFileSync(path.join(worktreeDir, 'local-only.txt'), 'utf-8')).toBe('from local');
+	});
+
 	it('hasRemote with non-existent directory throws instead of silently returning false', async () => {
 		const manager = new TicketSyncManager();
 		const bogusDir = path.join(os.tmpdir(), 'does-not-exist-' + Date.now());

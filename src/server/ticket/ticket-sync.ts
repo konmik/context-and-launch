@@ -55,13 +55,20 @@ export class TicketSyncManager {
 				const isNoUpstream = err instanceof ProcessError
 					&& /no upstream configured/.test(err.output);
 				if (!isNoUpstream) throw err;
+				const branch = (await git(worktreeDir, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
 				try {
-					const branch = (await git(worktreeDir, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
 					await git(worktreeDir, 'push', '-u', 'origin', branch);
+					return { status: 'success' };
 				} catch (pushErr) {
-					return { status: 'error', message: pushErr instanceof Error ? pushErr.message : String(pushErr) };
+					const isNonFastForward = pushErr instanceof ProcessError
+						&& /non-fast-forward|fetch first/.test(pushErr.output);
+					if (!isNonFastForward) throw pushErr;
+					await git(worktreeDir, 'fetch', 'origin');
+					const localHead = (await git(worktreeDir, 'rev-parse', 'HEAD')).trim();
+					await git(worktreeDir, 'reset', '--hard', `origin/${branch}`);
+					await git(worktreeDir, 'checkout', localHead, '--', '.');
+					upstream = `origin/${branch}`;
 				}
-				return { status: 'success' };
 			}
 
 			await this.gitRepo.assertSupportsMergeTree(worktreeDir);

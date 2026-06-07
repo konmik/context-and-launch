@@ -211,6 +211,20 @@ export async function createProject(
     );
   }
 
+  if (worktreeRootPath) {
+    const wrpRes = await fetch(
+      `${server.baseUrl}/api/projects/${data.projectSlug}/launcher-config/worktree-root-path`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ worktreeRootPath }),
+      },
+    );
+    if (!wrpRes.ok) {
+      throw new Error(`createProject: PUT worktree-root-path failed ${wrpRes.status}: ${await wrpRes.text()}`);
+    }
+  }
+
   function ensureTicketsWorktree(): void {
     if (fs.existsSync(path.join(ticketsPath, ".git"))) return;
     fs.mkdirSync(path.dirname(ticketsPath), { recursive: true });

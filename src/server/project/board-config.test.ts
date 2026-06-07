@@ -50,7 +50,7 @@ describe('BoardConfigManager', () => {
 			{ name: 'plan', description: '/grill-me' },
 			{ name: 'in-progress', description: '/hero' },
 			{ name: 'review', description: 'interactive' },
-			{ name: 'done', description: '/merge' },
+			{ name: 'merge', description: '/merge' },
 		]);
 	});
 
@@ -80,7 +80,7 @@ describe('BoardConfigManager', () => {
 			{ name: 'plan', description: '/grill-me' },
 			{ name: 'in-progress', description: '/hero' },
 			{ name: 'review', description: 'interactive' },
-			{ name: 'done', description: '/merge' },
+			{ name: 'merge', description: '/merge' },
 		]);
 	});
 
@@ -97,7 +97,7 @@ describe('BoardConfigManager', () => {
 			{ name: 'plan', description: '/grill-me' },
 			{ name: 'in-progress', description: '/hero' },
 			{ name: 'review', description: 'interactive' },
-			{ name: 'done', description: '/merge' },
+			{ name: 'merge', description: '/merge' },
 		]);
 	});
 
