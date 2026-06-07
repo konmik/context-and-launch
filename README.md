@@ -50,6 +50,14 @@ The workflow is reflected in columns. Each column represents a separate step.
 
 **MERGE** -- The `/merge` skill squashes all commits, rebases, and fast-forwards master on the resulting commit. After that, select "Archive" in the ticket menu to hide the ticket and delete the worktree and the temporary branch.
 
+## Ticket storage
+
+Tickets are stored as folders on a git orphan branch -- a branch with no common history with the project code. This keeps ticket data out of the code history entirely.
+
+The orphan branch lives in a separate git worktree under `~/.context-launch/projects/{projectSlug}/tickets/`. Each ticket is a folder containing a `status.json` and any number of files: markdown context documents, images, PDFs, or anything else relevant to the task.
+
+Because it is a regular git branch, ticket data can be synced with teammates via push/pull. The Sync button on the board toolbar commits local changes, rebases on the remote, and pushes -- all in one click. If the rebase hits a conflict, the app offers to launch Claude to resolve it automatically.
+
 ## Integration with AI agents
 
 Currently supports **Claude Code**. Contributors are welcome to add integrations for other agents. Agent launch scripts are part of the app configuration; modify them as you like.
