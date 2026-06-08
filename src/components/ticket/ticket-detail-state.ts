@@ -250,7 +250,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     }
   }));
 
-  async function saveFile() {
+  async function saveFileContent() {
     const af = activeFile();
     if (af.type !== "context") return;
     setSaving(true);
@@ -261,9 +261,13 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
         body: JSON.stringify({ content: content() }),
       });
       setSavedContent(content());
-      revalidate("project-page");
     } catch (e) { setError(e instanceof Error ? e.message : "Failed to save file"); }
     finally { setSaving(false); }
+  }
+
+  async function saveFile() {
+    await saveFileContent();
+    revalidate("project-page");
   }
 
   function requestFileSwitch(file: ActiveFile) {
@@ -512,7 +516,6 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
       setSavedNumber(trimmedNumber || savedNumber());
       setSavedTitle(trimmedTitle || savedTitle());
       if (data.folderName) setSavedFolderName(data.folderName);
-      revalidate("project-page");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to update ticket");
     }
@@ -525,8 +528,9 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   async function saveAll() {
     await Promise.all([
       hasUnsavedHeaderChanges() ? saveTicketHeader() : undefined,
-      hasUnsavedFileChanges() ? saveFile() : undefined,
+      hasUnsavedFileChanges() ? saveFileContent() : undefined,
     ]);
+    revalidate("project-page");
   }
 
   const showSaveButton = () => showSaveButtonPure(activeTab(), activeFile().type);
