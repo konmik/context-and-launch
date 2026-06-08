@@ -61,16 +61,13 @@ function TicketDetailContent(props: {
   });
 
   useModEnterSubmit({
-    onSubmit: s.saveFile,
-    disabled: () => s.saving() || !s.hasUnsavedChanges(),
+    onSubmit: s.saveAll,
+    disabled: () => s.saving() || (!s.hasUnsavedFileChanges() && !s.hasUnsavedHeaderChanges()),
     active: () =>
-      s.activeTab() === "editor" &&
       !s.newFileDialogOpen() &&
       !s.confirmingDelete() &&
       !s.confirmingFileSwitch() &&
-      !s.confirmingClose() &&
-      s.fileViewMode() === "editor" &&
-      !s.isCurrentReadOnly(),
+      !s.confirmingClose(),
   });
 
   return (
@@ -86,7 +83,30 @@ function TicketDetailContent(props: {
         <FloatingPanelHeader>
           <FloatingPanelDragTrigger class="flex flex-col gap-3">
             <div class="flex items-start justify-between">
-              <FloatingPanelTitle>{props.ticket.number} - {props.ticket.title}</FloatingPanelTitle>
+              <div class="flex min-w-0 flex-1 items-center gap-1.5 text-lg font-semibold" data-no-drag>
+                <input
+                  type="text"
+                  data-testid="ticket-detail-number-input"
+                  value={s.editedNumber()}
+                  onInput={(e) => s.setEditedNumber(e.currentTarget.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") { s.setEditedNumber(props.ticket.number); e.currentTarget.blur(); }
+                  }}
+                  class="shrink-0 bg-transparent outline-none focus:border-b focus:border-accent-foreground"
+                  style={{ "field-sizing": "content" }}
+                />
+                <span class="shrink-0">-</span>
+                <input
+                  type="text"
+                  data-testid="ticket-detail-title-input"
+                  value={s.editedTitle()}
+                  onInput={(e) => s.setEditedTitle(e.currentTarget.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") { s.setEditedTitle(props.ticket.title); e.currentTarget.blur(); }
+                  }}
+                  class="min-w-0 flex-1 bg-transparent outline-none focus:border-b focus:border-accent-foreground"
+                />
+              </div>
               <div class="flex items-center gap-3">
                 <Show when={s.launcherConfig()?.worktreeRootPath != null}>
                   <label class="flex items-center gap-1.5 text-xs text-muted-foreground" data-no-drag>
@@ -188,11 +208,11 @@ function TicketDetailContent(props: {
               class="btn-secondary"
               data-testid="ticket-detail-close-button"
             >Close</button>
-            <Show when={s.showSaveButton()}>
+            <Show when={s.showSaveButton() || s.hasUnsavedHeaderChanges()}>
               <button
                 type="button"
-                onClick={s.saveFile}
-                disabled={s.saving() || !s.hasUnsavedChanges()}
+                onClick={s.saveAll}
+                disabled={s.saving() || (!s.hasUnsavedFileChanges() && !s.hasUnsavedHeaderChanges())}
                 title={modEnterHint()}
                 class="btn-primary"
                 data-testid="ticket-detail-save-button"

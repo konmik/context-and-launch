@@ -50,7 +50,7 @@ describe("ticket-detail-state cancelFileSwitch clears pendingTab", () => {
 
       ctrl.setContent("unsaved edit");
 
-      expect(ctrl.hasUnsavedChanges()).toBe(true);
+      expect(ctrl.hasUnsavedFileChanges()).toBe(true);
       expect(ctrl.activeTab()).toBe("editor");
 
       ctrl.switchTab("launcher");

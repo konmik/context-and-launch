@@ -235,4 +235,26 @@ describe("Ticket detail Editor tab (e2e, real server)", () => {
     const files = ticketFileNames(ctx.testServer, project.projectSlug, "t-1-alpha");
     expect(files).toContain("big-file.txt");
   }, 60000);
+
+  it("editing title and clicking Save persists it", async () => {
+    const project = await setup("edit-title");
+    const input = ctx.page.locator('[data-testid="ticket-detail-title-input"]');
+    await input.waitFor({ state: "visible", timeout: 15000 });
+    await input.fill("Renamed");
+    await ctx.page.click('[data-testid="ticket-detail-save-button"]');
+    await ctx.page.waitForTimeout(1000);
+    const status = readTicketStatus(ctx.testServer, project.projectSlug, "t-1-renamed");
+    expect(status?.title).toBe("Renamed");
+  }, 60000);
+
+  it("editing number and clicking Save persists it", async () => {
+    const project = await setup("edit-number");
+    const input = ctx.page.locator('[data-testid="ticket-detail-number-input"]');
+    await input.waitFor({ state: "visible", timeout: 15000 });
+    await input.fill("T-99");
+    await ctx.page.click('[data-testid="ticket-detail-save-button"]');
+    await ctx.page.waitForTimeout(1000);
+    const status = readTicketStatus(ctx.testServer, project.projectSlug, "t-99-alpha");
+    expect(status?.number).toBe("T-99");
+  }, 60000);
 });
