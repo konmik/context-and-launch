@@ -83,10 +83,7 @@ Clone or download the repo, then run the launch script:
 
 The script installs dependencies if needed, builds the app, starts a background server, and opens the browser in app mode.
 
-The server shuts down on its own a few minutes after the app is closed, but can also be stopped manually:
-
-- Windows: `./kill-server.ps1`
-- Linux / macOS: `./kill-server.sh`
+The server shuts down automatically when the app window is closed (with a few seconds grace period for pending operations).
 
 ### First-time setup
 
