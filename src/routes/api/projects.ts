@@ -6,11 +6,12 @@ export const POST = withService(async ({ request }) => {
 	const { path: pathValue, branch, mainBranch, boardId, name } = await request.json();
 	const projectSlug = projectRegistry.previewSlug(pathValue);
 	await worktreeManager.ensureWorktree(pathValue, projectSlug, branch);
-	const project = projectRegistry.addProject(
-		pathValue, undefined, branch, undefined,
-		mainBranch?.trim() || undefined, boardId?.trim() || undefined,
-		name?.trim() || undefined,
-	);
+	const project = projectRegistry.addProject(pathValue, {
+		branch,
+		mainBranch: mainBranch?.trim() || undefined,
+		boardId: boardId?.trim() || undefined,
+		name: name?.trim() || undefined,
+	});
 	return Response.json({ projectSlug: project.projectSlug });
 });
 

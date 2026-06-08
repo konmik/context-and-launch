@@ -54,7 +54,7 @@ describe('migrateColumnRename', () => {
 		fs.mkdirSync(path.join(projectPath, '.git'), { recursive: true });
 
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectPath, projectSlug, undefined, undefined, undefined, boardId);
+		registry.addProject(projectPath, { projectSlug, boardId });
 
 		const worktreeDir = path.join(configDir, 'projects', projectSlug, 'tickets');
 		fs.mkdirSync(worktreeDir, { recursive: true });
