@@ -90,7 +90,7 @@ function TicketDetailContent(props: {
                   value={s.editedNumber()}
                   onInput={(e) => s.setEditedNumber(e.currentTarget.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Escape") { s.setEditedNumber(props.ticket.number); e.currentTarget.blur(); }
+                    if (e.key === "Escape") { s.setEditedNumber(s.savedNumber()); e.currentTarget.blur(); }
                   }}
                   class="shrink-0 bg-transparent outline-none focus:border-b focus:border-accent-foreground"
                   style={{ "field-sizing": "content" }}
@@ -102,7 +102,7 @@ function TicketDetailContent(props: {
                   value={s.editedTitle()}
                   onInput={(e) => s.setEditedTitle(e.currentTarget.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Escape") { s.setEditedTitle(props.ticket.title); e.currentTarget.blur(); }
+                    if (e.key === "Escape") { s.setEditedTitle(s.savedTitle()); e.currentTarget.blur(); }
                   }}
                   class="min-w-0 flex-1 bg-transparent outline-none focus:border-b focus:border-accent-foreground"
                 />

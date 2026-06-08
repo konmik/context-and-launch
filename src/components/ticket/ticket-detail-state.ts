@@ -72,7 +72,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   function persistWorktree(value: boolean) {
     setUseWorktree(value);
     fetch(
-      `/api/projects/${props.projectSlug}/board/tickets/${props.ticket.folderName}/use-worktree`,
+      ticketUrl("use-worktree"),
       {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -86,7 +86,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     setError("");
     try {
       const res = await fetch(
-        `/api/projects/${props.projectSlug}/board/tickets/${props.ticket.folderName}/shortcut/run`,
+        ticketUrl("shortcut/run"),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -143,7 +143,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     );
 
   function handleBeforeUnload(e: BeforeUnloadEvent) {
-    if (hasUnsavedFileChanges()) e.preventDefault();
+    if (hasUnsavedFileChanges() || hasUnsavedHeaderChanges()) e.preventDefault();
   }
   if (typeof window !== "undefined") {
     window.addEventListener("beforeunload", handleBeforeUnload);
@@ -534,7 +534,8 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   return {
     activeFile, content, setContent, saving, confirmingClose, setConfirmingClose,
     confirmingFileSwitch, activeTab, initialTabResolved, launcherConfig,
-    editedNumber, setEditedNumber, editedTitle, setEditedTitle, hasUnsavedHeaderChanges, saveAll,
+    editedNumber, setEditedNumber, editedTitle, setEditedTitle,
+    savedNumber, savedTitle, hasUnsavedHeaderChanges, saveAll,
     newFileDialogOpen, setNewFileDialogOpen, newFileName, setNewFileName,
     confirmingDelete, setConfirmingDelete, error, dropdownOpen, setDropdownOpen,
     browsing, dragging, imageUrl, fileViewMode, uploading,
