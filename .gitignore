@@ -11,3 +11,5 @@ temp/
 .playwright-mcp/
 app.config.timestamp_*.js
 skills-lock.json
+dist-electron/
+electron/main.js

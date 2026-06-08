@@ -9,6 +9,7 @@ vi.mock("~/server/config/instances.js", () => ({
 			pushCommand: "git push origin HEAD:tickets",
 		}),
 	},
+	operationTracker: { track: <T>(p: Promise<T>) => p },
 }));
 vi.mock("~/server/launcher/agent-launch.js", () => ({
 	spawnProfile: vi.fn().mockResolvedValue(undefined),

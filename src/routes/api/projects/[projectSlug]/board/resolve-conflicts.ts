@@ -1,5 +1,5 @@
 import {
-	worktreeManager, launcherConfigManager, ticketSyncManager,
+	worktreeManager, launcherConfigManager, ticketSyncManager, operationTracker,
 } from "~/server/config/instances.js";
 import { agentMarkerPath, spawnProfile } from "~/server/launcher/agent-launch.js";
 import { ValidationError } from "~/server/shared/errors.js";
@@ -14,7 +14,7 @@ export const POST = withService(async ({ params, request }) => {
 	if (!profile) throw new ValidationError(`Profile "${profileName}" not found. Check your launcher settings.`);
 
 	const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
-	const plan = await ticketSyncManager.prepareResolution(worktreeDir);
+	const plan = await operationTracker.track(ticketSyncManager.prepareResolution(worktreeDir));
 	if (!plan.needsAgent) return Response.json({ success: true, resolved: true });
 
 	const initialPrompt = `${merged.conflictResolutionPrompt}\n\n`

@@ -20,14 +20,5 @@ export default defineConfig({
   },
   server: {
     preset: "node-server",
-    experimental: {
-      websocket: true
-    }
   }
-}).addRouter({
-  name: "ws",
-  type: "http",
-  handler: "./src/server/infra/ws.ts",
-  target: "server",
-  base: "/api/heartbeat",
 });
