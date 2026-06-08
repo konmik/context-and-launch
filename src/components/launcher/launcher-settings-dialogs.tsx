@@ -208,6 +208,7 @@ export function ColumnFormDialog(props: {
 						<div>
 							<label class="mb-1 block text-sm text-muted-foreground">Name</label>
 							<input
+								ref={(el) => setTimeout(() => el.focus())}
 								type="text"
 								value={cf().name}
 								onInput={(e) => props.setColumnForm({ ...cf(), name: e.currentTarget.value })}
