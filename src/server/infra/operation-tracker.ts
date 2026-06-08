@@ -1,3 +1,4 @@
+// Tracks long-running git operations (sync, abort, conflict resolution) for Electron graceful shutdown.
 export class OperationTracker {
 	private pending = new Set<Promise<unknown>>();
 
