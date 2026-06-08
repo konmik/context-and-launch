@@ -468,3 +468,86 @@ describe("TicketDetailDialog initial tab", () => {
     expect(screen.queryByText("Drop a file to copy")).toBeNull();
   });
 });
+
+describe("TicketDetailDialog editable title", () => {
+  let originalFetch: typeof globalThis.fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    cleanup();
+  });
+
+  it("Save button appears and saves header changes", async () => {
+    const { mockFetch, pending } = createFetchController();
+    globalThis.fetch = mockFetch as any;
+
+    const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
+
+    render(() => (
+      <TicketDetailDialog
+        onClose={() => {}}
+        projectSlug="test-project"
+        ticket={ticket}
+      />
+    ));
+
+    await flush();
+    pending[0].resolve(emptyConfig);
+    await flush();
+
+    const titleInput = screen.getByTestId("ticket-detail-title-input") as HTMLInputElement;
+    fireEvent.input(titleInput, { target: { value: "Beta" } });
+    await flush();
+
+    fireEvent.click(screen.getByTestId("ticket-detail-save-button"));
+    await flush();
+
+    const putCall = mockFetch.mock.calls.find(
+      ([url, opts]: [string, RequestInit?]) =>
+        url.includes("/board/tickets/t-1-alpha") && opts?.method === "PUT",
+    );
+    expect(putCall).toBeTruthy();
+    expect(JSON.parse(putCall![1]!.body as string)).toEqual({ title: "Beta" });
+  });
+
+  it("Escape reverts inputs without saving", async () => {
+    const { mockFetch, pending } = createFetchController();
+    globalThis.fetch = mockFetch as any;
+
+    const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
+
+    render(() => (
+      <TicketDetailDialog
+        onClose={() => {}}
+        projectSlug="test-project"
+        ticket={ticket}
+      />
+    ));
+
+    await flush();
+    pending[0].resolve(emptyConfig);
+    await flush();
+
+    const titleInput = screen.getByTestId("ticket-detail-title-input") as HTMLInputElement;
+    fireEvent.input(titleInput, { target: { value: "Changed" } });
+    fireEvent.keyDown(titleInput, { key: "Escape" });
+    await flush();
+    expect(titleInput.value).toBe("Alpha");
+
+    const numberInput = screen.getByTestId("ticket-detail-number-input") as HTMLInputElement;
+    fireEvent.input(numberInput, { target: { value: "X-9" } });
+    fireEvent.keyDown(numberInput, { key: "Escape" });
+    await flush();
+    expect(numberInput.value).toBe("T-1");
+
+    const putCalls = mockFetch.mock.calls.filter(
+      ([url, opts]: [string, RequestInit?]) =>
+        url.includes("/board/tickets/") && opts?.method === "PUT",
+    );
+    expect(putCalls.length).toBe(0);
+  });
+});

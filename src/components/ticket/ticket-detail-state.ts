@@ -58,6 +58,11 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   const [ticketReferences, setTicketReferences] = createSignal<
     { path: string; exists: boolean }[]
   >(props.ticket.references ?? []);
+  const [editedNumber, setEditedNumber] = createSignal(props.ticket.number);
+  const [editedTitle, setEditedTitle] = createSignal(props.ticket.title);
+  const [savedNumber, setSavedNumber] = createSignal(props.ticket.number);
+  const [savedTitle, setSavedTitle] = createSignal(props.ticket.title);
+  const [savedFolderName, setSavedFolderName] = createSignal(props.ticket.folderName);
 
   createEffect(on(
     () => props.ticket.folderName,
@@ -132,13 +137,13 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     return checkReferenceStale(ticketReferences(), refPath);
   }
 
-  const hasUnsavedChanges = () =>
+  const hasUnsavedFileChanges = () =>
     hasUnsavedEditorChanges(
       activeTab(), fileViewMode(), isCurrentReadOnly(), content(), savedContent(),
     );
 
   function handleBeforeUnload(e: BeforeUnloadEvent) {
-    if (hasUnsavedChanges()) e.preventDefault();
+    if (hasUnsavedFileChanges()) e.preventDefault();
   }
   if (typeof window !== "undefined") {
     window.addEventListener("beforeunload", handleBeforeUnload);
@@ -146,7 +151,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   }
 
   function ticketUrl(suffix: string): string {
-    return ticketApiUrl(props.projectSlug, props.ticket.folderName, suffix);
+    return ticketApiUrl(props.projectSlug, savedFolderName(), suffix);
   }
 
   async function loadTextContent(url: string): Promise<void> {
@@ -263,7 +268,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
 
   function requestFileSwitch(file: ActiveFile) {
     if (isActiveFileMatch(file, activeFile()) && activeTab() === "editor") return;
-    if (hasUnsavedChanges()) {
+    if (hasUnsavedFileChanges()) {
       setPendingFile(file); setConfirmingFileSwitch(true); return;
     }
     setActiveTab("editor");
@@ -273,7 +278,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   function switchTab(tab: Tab) {
     if (tab === activeTab()) return;
     if (tab !== "editor") {
-      if (hasUnsavedChanges()) {
+      if (hasUnsavedFileChanges()) {
         setPendingFile(null); setPendingTab(tab);
         setConfirmingFileSwitch(true); return;
       }
@@ -356,7 +361,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   }
 
   function close() {
-    if (hasUnsavedChanges()) { setConfirmingClose(true); return; }
+    if (hasUnsavedFileChanges()) { setConfirmingClose(true); return; }
     props.onClose();
   }
   function forceClose() { setConfirmingClose(false); props.onClose(); }
@@ -479,16 +484,62 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     } catch (e) { setError(e instanceof Error ? e.message : "Failed to add references"); }
   }
 
+  async function saveTicketHeader() {
+    const trimmedNumber = editedNumber().trim();
+    const trimmedTitle = editedTitle().trim();
+    if (!trimmedNumber) { setEditedNumber(savedNumber()); }
+    if (!trimmedTitle) { setEditedTitle(savedTitle()); }
+    const numberChanged = trimmedNumber && trimmedNumber !== savedNumber();
+    const titleChanged = trimmedTitle && trimmedTitle !== savedTitle();
+    if (!numberChanged && !titleChanged) return;
+    const body: Record<string, string> = {};
+    if (numberChanged) body.number = trimmedNumber;
+    if (titleChanged) body.title = trimmedTitle;
+    try {
+      const res = await fetch(
+        `/api/projects/${props.projectSlug}/board/tickets/${savedFolderName()}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
+      if (!res.ok) {
+        setError(await res.text() || "Failed to update ticket");
+        return;
+      }
+      const data = await res.json();
+      setSavedNumber(trimmedNumber || savedNumber());
+      setSavedTitle(trimmedTitle || savedTitle());
+      if (data.folderName) setSavedFolderName(data.folderName);
+      revalidate("project-page");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to update ticket");
+    }
+  }
+
+  const hasUnsavedHeaderChanges = () =>
+    editedNumber().trim() !== savedNumber()
+    || editedTitle().trim() !== savedTitle();
+
+  async function saveAll() {
+    await Promise.all([
+      hasUnsavedHeaderChanges() ? saveTicketHeader() : undefined,
+      hasUnsavedFileChanges() ? saveFile() : undefined,
+    ]);
+  }
+
   const showSaveButton = () => showSaveButtonPure(activeTab(), activeFile().type);
 
   return {
     activeFile, content, setContent, saving, confirmingClose, setConfirmingClose,
     confirmingFileSwitch, activeTab, initialTabResolved, launcherConfig,
+    editedNumber, setEditedNumber, editedTitle, setEditedTitle, hasUnsavedHeaderChanges, saveAll,
     newFileDialogOpen, setNewFileDialogOpen, newFileName, setNewFileName,
     confirmingDelete, setConfirmingDelete, error, dropdownOpen, setDropdownOpen,
     browsing, dragging, imageUrl, fileViewMode, uploading,
     confirmOverwrite, confirmSize, runningShortcut, dirtyWorktreeShortcut, setDirtyWorktreeShortcut,
-    useWorktree, allFileOptions, isReferenceStale, hasUnsavedChanges, isCurrentReadOnly,
+    useWorktree, allFileOptions, isReferenceStale, hasUnsavedFileChanges, isCurrentReadOnly,
     showSaveButton, persistWorktree, runShortcut, switchTab, selectFile, openNewFileDialog,
     submitNewFile, deleteOrRemoveFile, handleTrashClick, close, forceClose,
     proceedFileSwitch,
