@@ -104,6 +104,7 @@ npm run electron:dist
 ```
 
 On Windows this produces `dist-electron/context-launch-setup.exe` (NSIS installer).
+
 On macOS this produces `dist-electron/context-launch-setup.dmg`. Open the DMG and drag the app to Applications.
 
 The macOS build is unsigned. On first launch, right-click the app and choose Open (or go to System Settings > Privacy & Security > Open Anyway).
