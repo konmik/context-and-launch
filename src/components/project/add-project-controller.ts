@@ -3,12 +3,14 @@ import { createSignal, createEffect, onCleanup } from "solid-js";
 export interface AddProjectControllerDeps {
   action: (
     path: string, branch: string, mainBranch: string, boardId: string,
+    name: string,
   ) => Promise<{ projectSlug?: string; error?: string }>;
   onSuccess?: (projectSlug: string) => void;
   errorMessage?: string;
 }
 
 export function createAddProjectController(deps: AddProjectControllerDeps) {
+  const [nameValue, setNameValue] = createSignal("");
   const [pathValue, setPathValue] = createSignal("");
   const [branchValue, setBranchValue] = createSignal("tickets");
   const [mainBranchValue, setMainBranchValue] = createSignal("");
@@ -73,6 +75,7 @@ export function createAddProjectController(deps: AddProjectControllerDeps) {
     try {
       const result = await deps.action(
         trimmed, branch, mainBranchValue().trim(), boardId(),
+        nameValue().trim(),
       );
       if (result.error) setLocalError(result.error);
       else if (result.projectSlug) deps.onSuccess?.(result.projectSlug);
@@ -84,9 +87,9 @@ export function createAddProjectController(deps: AddProjectControllerDeps) {
   }
 
   return {
-    pathValue, branchValue, mainBranchValue, boardId,
+    nameValue, pathValue, branchValue, mainBranchValue, boardId,
     submitting, localError, setLocalError,
-    setPathValue, setBranchValue,
+    setNameValue, setPathValue, setBranchValue,
     setMainBranchValue: (v: string) => { setMainBranchTouched(true); setMainBranchValue(v); },
     setBoardId,
     handleBrowsePath,

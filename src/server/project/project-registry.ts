@@ -7,6 +7,7 @@ export interface ProjectInfo {
 	path: string;
 	projectSlug: string;
 	available: boolean;
+	name: string;
 	branch?: string;
 	ticketsPath?: string;
 	mainBranch?: string;
@@ -16,6 +17,7 @@ export interface ProjectInfo {
 export interface ProjectEntry {
 	path: string;
 	projectSlug: string;
+	name?: string;
 	branch?: string;
 	ticketsPath?: string;
 	mainBranch?: string;
@@ -43,6 +45,7 @@ function entryToInfo(entry: ProjectEntry, configRepo: ConfigRepository): Project
 		path: entry.path,
 		projectSlug: entry.projectSlug,
 		available: isGitRepo(entry.path, configRepo),
+		name: entry.name || entry.projectSlug,
 		branch: entry.branch,
 		ticketsPath: entry.ticketsPath,
 		mainBranch: entry.mainBranch,
@@ -122,6 +125,7 @@ export class ProjectRegistry {
 			(p: Record<string, unknown>) => {
 				const projectSlug = (p.projectSlug ?? p.slug) as string;
 				const entry: ProjectEntry = { path: p.path as string, projectSlug };
+				if (p.name !== undefined) entry.name = p.name as string;
 				if (p.branch !== undefined) entry.branch = p.branch as string;
 				if (p.ticketsPath !== undefined) entry.ticketsPath = p.ticketsPath as string;
 				if (p.mainBranch !== undefined) entry.mainBranch = p.mainBranch as string;
@@ -199,6 +203,7 @@ export class ProjectRegistry {
 	addProject(
 		projectPath: string, projectSlug?: string, branch?: string,
 		ticketsPath?: string, mainBranch?: string, boardId?: string,
+		name?: string,
 	): ProjectInfo {
 		if (!this.configRepo.exists(projectPath)) {
 			throw new Error(`Path does not exist: ${projectPath}`);
@@ -233,6 +238,7 @@ export class ProjectRegistry {
 		}
 
 		const entry: ProjectEntry = { path: canonicalPath, projectSlug: finalProjectSlug };
+		if (name !== undefined) entry.name = name;
 		if (branch !== undefined) entry.branch = branch;
 		if (ticketsPath !== undefined) entry.ticketsPath = ticketsPath;
 		if (mainBranch !== undefined) entry.mainBranch = mainBranch;
@@ -292,6 +298,25 @@ export class ProjectRegistry {
 		if (config.projects.some((p) => p.projectSlug === projectSlug) && config.lastUsedProjectSlug !== projectSlug) {
 			this.save({ ...config, lastUsedProjectSlug: projectSlug });
 		}
+	}
+
+	getName(projectSlug: string): string {
+		const project = this.load().projects.find((p) => p.projectSlug === projectSlug);
+		return project?.name || projectSlug;
+	}
+
+	setName(projectSlug: string, name: string | undefined): void {
+		const config = this.load();
+		const index = config.projects.findIndex((p) => p.projectSlug === projectSlug);
+		if (index < 0) throw new Error(`Project not found: ${projectSlug}`);
+		const updated = { ...config.projects[index] };
+		if (name !== undefined && name.trim()) {
+			updated.name = name.trim();
+		} else {
+			delete updated.name;
+		}
+		const newProjects = config.projects.map((p, i) => (i === index ? updated : p));
+		this.save({ ...config, projects: newProjects });
 	}
 
 	setBoardId(projectSlug: string, boardId: string | undefined): void {

@@ -8,7 +8,11 @@ export const GET = withService(async ({ params, request }) => {
 		return Response.json(launcherConfigManager.loadProjectConfig(projectSlug));
 	}
 	const merged = launcherConfigManager.getMergedConfig(projectSlug);
-	return Response.json({ ...merged, projectBoardId: projectRegistry.getBoardId(projectSlug) ?? null });
+	return Response.json({
+		...merged,
+		projectBoardId: projectRegistry.getBoardId(projectSlug) ?? null,
+		projectName: projectRegistry.getName(projectSlug),
+	});
 });
 
 export const PUT = withService(async ({ params, request }) => {

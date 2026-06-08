@@ -41,6 +41,12 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   const { dialogState, syncState, selectionState, commands } =
     props?.ctrl ?? createProjectPageController({ projectSlug, data: data as any });
 
+  const currentProjectName = () => {
+    const v = data();
+    if (!v) return "";
+    return v.projects.find((p) => p.projectSlug === v.projectSlug)?.name ?? v.projectSlug;
+  };
+
   let addProjectDialogRef: HTMLDivElement | undefined;
   useModEnterSubmit({
     onSubmit: () => { addProjectDialogRef?.querySelector("form")?.requestSubmit(); },
@@ -64,7 +70,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                 data-testid="project-header-new-ticket-button"
               >+ New Ticket</button>
             </div>
-            <h1 class="text-xl font-semibold">Context & Launch</h1>
+            <h1 class="text-xl font-semibold">{currentProjectName()}</h1>
             <div class="flex flex-1 items-center justify-end gap-2">
               <ThemeToggle />
               <button
@@ -123,7 +129,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
               <MenuRoot
                 trigger={
                   <MenuTrigger class="ripple btn-secondary" data-testid="project-header-project-dropdown-trigger">
-                    {d().projectSlug}
+                    {currentProjectName()}
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
                       viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                       stroke-linecap="round" stroke-linejoin="round" class="ml-2"
@@ -143,7 +149,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                         onClick={() => navigate(`/project/${project.projectSlug}`)}
                         data-testid="project-header-project-item"
                       >
-                        {project.projectSlug}
+                        {project.name}
                       </MenuItem>
                     )}
                   </For>

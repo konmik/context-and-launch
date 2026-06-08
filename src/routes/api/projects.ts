@@ -4,10 +4,11 @@ import { detectMainBranch } from "~/server/infra/git.js";
 import { withService } from "~/server/shared/route-helpers.js";
 
 export const POST = withService(async ({ request }) => {
-	const { path: pathValue, branch, mainBranch, boardId } = await request.json();
+	const { path: pathValue, branch, mainBranch, boardId, name } = await request.json();
 	const project = projectRegistry.addProject(
 		pathValue, undefined, branch, undefined,
 		mainBranch?.trim() || undefined, boardId?.trim() || undefined,
+		name?.trim() || undefined,
 	);
 	return Response.json({ projectSlug: project.projectSlug });
 });
