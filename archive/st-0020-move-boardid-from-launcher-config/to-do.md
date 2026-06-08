@@ -1,0 +1,1 @@
+we have it in launcher config, it would make more sense to have it in projectentry

@@ -1,0 +1,1 @@
+Implement three-layer architecture according to claude.md. Some components were already refactored, we need to refactor the rest of UI.

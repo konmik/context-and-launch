@@ -1,0 +1,1 @@
+When we add a new project, we also need to be able to pick a board config, and choose main/master branch.
