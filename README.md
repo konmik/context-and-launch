@@ -100,6 +100,15 @@ Most templates accept placeholders like `{{ticketDir}}`, `{{ticketTitle}}`, `{{p
 
 Tickets can be added to the board right away, but expect to spend a few minutes tailoring prompts, skills, and launch commands before the one-click launch fits the workflow.
 
+### Desktop app (Electron)
+
+```
+npm run electron:dist
+```
+
+This builds the web app at `dist-electron/context-launch-setup.exe`.
+Run the installer once; after that the app launches instantly.
+
 ### For contributors
 
 ```

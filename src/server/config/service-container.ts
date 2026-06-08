@@ -9,6 +9,7 @@ import { AgentWorktreeManager } from '../worktree/agent-worktree.js';
 import { TicketSyncManager } from '../ticket/ticket-sync.js';
 import { GitRepository } from '../infra/git-repository.js';
 import { ProjectPageService } from '../board/project-page-service.js';
+import { OperationTracker } from '../infra/operation-tracker.js';
 
 export interface ServiceContainer {
 	configPaths: ConfigPaths;
@@ -22,6 +23,7 @@ export interface ServiceContainer {
 	agentWorktreeManager: AgentWorktreeManager;
 	ticketSyncManager: TicketSyncManager;
 	projectPageService: ProjectPageService;
+	operationTracker: OperationTracker;
 }
 
 export function createServices(baseDir?: string): ServiceContainer {
@@ -38,6 +40,7 @@ export function createServices(baseDir?: string): ServiceContainer {
 	const launcherConfigManager = new LauncherConfigManager(configPaths);
 	const agentWorktreeManager = new AgentWorktreeManager(launcherConfigManager, configPaths);
 	const ticketSyncManager = new TicketSyncManager(gitRepo);
+	const operationTracker = new OperationTracker();
 	const projectPageService = new ProjectPageService(
 		projectRegistry, boardConfigManager, worktreeManager,
 		fileWatcher, ticketSyncManager,
@@ -55,5 +58,6 @@ export function createServices(baseDir?: string): ServiceContainer {
 		agentWorktreeManager,
 		ticketSyncManager,
 		projectPageService,
+		operationTracker,
 	};
 }

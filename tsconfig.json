@@ -14,5 +14,5 @@
       "~/*": ["./src/*"]
     }
   },
-  "include": ["src", "e2e", "scripts"]
+  "include": ["src", "e2e", "scripts", "electron"]
 }
