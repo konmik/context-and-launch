@@ -4,6 +4,9 @@ import { ScopeBadge } from "./launcher-settings-rows.js";
 import DeleteProjectDialog from "../project/DeleteProjectDialog.js";
 
 export function MiscTab(props: {
+	projectName: string;
+	setProjectName: (v: string) => void;
+	saveProjectName: () => void;
 	worktreeRootPath: string;
 	setWorktreeRootPath: (v: string) => void;
 	saveWorktreeRootPath: () => void;
@@ -19,6 +22,20 @@ export function MiscTab(props: {
 	return (
 		<TabsContent value="misc">
 			<div class="space-y-6">
+				<section>
+					<h3 class="mb-2 text-sm font-semibold">Project name <ScopeBadge scope="project" /></h3>
+					<input
+						type="text"
+						value={props.projectName}
+						onInput={(e) => props.setProjectName(e.currentTarget.value)}
+						onBlur={props.saveProjectName}
+						onKeyDown={(e) => {
+							if (e.key === "Enter") props.saveProjectName();
+						}}
+						class="input input-sm"
+						data-testid="launcher-settings-misc-project-name-input"
+					/>
+				</section>
 				<section>
 					<h3 class="mb-2 text-sm font-semibold">Agent worktree root path <ScopeBadge scope="project" /></h3>
 					<div class="flex gap-2">

@@ -20,6 +20,7 @@ export function createLauncherSettingsState(props: {
 	const [loading, setLoading] = createSignal(false);
 	const [error, setError] = createSignal("");
 	const [form, setForm] = createSignal<ItemFormState | null>(null);
+	const [projectName, setProjectName] = createSignal("");
 	const [worktreeRootPath, setWorktreeRootPath] = createSignal("");
 	const [conflictPrompt, setConflictPrompt] = createSignal("");
 	const [activeTab, setActiveTab] = createSignal<string>("profiles");
@@ -73,6 +74,7 @@ export function createLauncherSettingsState(props: {
 			const data = await res.json();
 			setConfig(data);
 			setProjectBoardId(data.projectBoardId ?? null);
+			setProjectName(data.projectName ?? "");
 			setWorktreeRootPath(data.worktreeRootPath ?? "");
 			setConflictPrompt(data.conflictResolutionPrompt ?? "");
 		}
@@ -127,6 +129,21 @@ export function createLauncherSettingsState(props: {
 			if (!res.ok) { setError(await res.text() || "Failed to delete"); return; }
 			await loadConfig();
 		} catch (e) { setError(e instanceof Error ? e.message : "Failed to delete"); }
+	}
+
+	async function saveProjectName() {
+		setError("");
+		try {
+			const res = await fetch(
+				`/api/projects/${props.projectSlug}/name`,
+				{
+					method: "PUT",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ name: projectName() }),
+				},
+			);
+			if (!res.ok) { setError(await res.text() || "Failed to save"); return; }
+		} catch (e) { setError(e instanceof Error ? e.message : "Failed to save"); }
 	}
 
 	async function saveWorktreeRootPath() {
@@ -384,13 +401,14 @@ export function createLauncherSettingsState(props: {
 	}
 
 	return {
-		config, loading, error, setError, form, setForm, worktreeRootPath, setWorktreeRootPath,
+		config, loading, error, setError, form, setForm,
+		projectName, setProjectName, worktreeRootPath, setWorktreeRootPath,
 		conflictPrompt, setConflictPrompt, activeTab, setActiveTab,
 		boards, projectBoardId, boardOverride, setBoardOverride,
 		columnForm, setColumnForm, boardForm, setBoardForm, renameForm, setRenameForm,
 		deleteConfirm, setDeleteConfirm, projectBoardConfirm, setProjectBoardConfirm, columnError, setColumnError,
 		selectedBoardId, selectedBoard, startAdd, startEdit, submitForm, deleteItem,
-		saveWorktreeRootPath, saveConflictResolution, handleCreateBoard, handleDeleteBoard, handleSaveColumn,
+		saveProjectName, saveWorktreeRootPath, saveConflictResolution, handleCreateBoard, handleDeleteBoard, handleSaveColumn,
 		handleDeleteColumn, handleRenameColumn, handleSetProjectBoard,
 		columnNameValidation, columnReorder, skillReorder,
 	};

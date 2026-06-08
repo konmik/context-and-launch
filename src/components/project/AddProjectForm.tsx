@@ -8,6 +8,7 @@ import BoardSelector from "./BoardSelector.js";
 interface AddProjectFormProps {
   action: (
     path: string, branch: string, mainBranch: string, boardId: string,
+    name: string,
   ) => Promise<{ projectSlug?: string; error?: string }>;
   errorMessage?: string;
   onSuccess?: (projectSlug: string) => void;
@@ -24,6 +25,18 @@ export default function AddProjectForm(props: AddProjectFormProps) {
 
   return (
     <form onSubmit={s.handleSubmit}>
+      <div class="mb-4">
+        <label for="project-name" class="mb-2 block text-sm font-medium">Project name</label>
+        <input
+          id="project-name"
+          type="text"
+          value={s.nameValue()}
+          onInput={(e) => s.setNameValue(e.currentTarget.value)}
+          placeholder="Optional display name"
+          class="input"
+          data-testid="add-project-name-input"
+        />
+      </div>
       <div class="mb-4">
         <label for="project-path" class="mb-2 block text-sm font-medium">Git Repository Path</label>
         <div class="flex gap-2">

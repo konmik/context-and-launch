@@ -145,6 +145,9 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 								<Show when={s.config()}>
 									{(cfg) => (<>
 										<MiscTab
+											projectName={s.projectName()}
+											setProjectName={s.setProjectName}
+											saveProjectName={s.saveProjectName}
 											worktreeRootPath={s.worktreeRootPath()}
 											setWorktreeRootPath={s.setWorktreeRootPath}
 											saveWorktreeRootPath={s.saveWorktreeRootPath}
