@@ -143,7 +143,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     );
 
   function handleBeforeUnload(e: BeforeUnloadEvent) {
-    if (hasUnsavedFileChanges() || hasUnsavedHeaderChanges()) e.preventDefault();
+    if (hasAnyUnsavedChanges()) e.preventDefault();
   }
   if (typeof window !== "undefined") {
     window.addEventListener("beforeunload", handleBeforeUnload);
@@ -365,7 +365,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   }
 
   function close() {
-    if (hasUnsavedFileChanges()) { setConfirmingClose(true); return; }
+    if (hasAnyUnsavedChanges()) { setConfirmingClose(true); return; }
     props.onClose();
   }
   function forceClose() { setConfirmingClose(false); props.onClose(); }
@@ -525,6 +525,9 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     editedNumber().trim() !== savedNumber()
     || editedTitle().trim() !== savedTitle();
 
+  const hasAnyUnsavedChanges = () =>
+    hasUnsavedFileChanges() || hasUnsavedHeaderChanges();
+
   async function saveAll() {
     await Promise.all([
       hasUnsavedHeaderChanges() ? saveTicketHeader() : undefined,
@@ -539,7 +542,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     activeFile, content, setContent, saving, confirmingClose, setConfirmingClose,
     confirmingFileSwitch, activeTab, initialTabResolved, launcherConfig,
     editedNumber, setEditedNumber, editedTitle, setEditedTitle,
-    savedNumber, savedTitle, hasUnsavedHeaderChanges, saveAll,
+    savedNumber, savedTitle, hasUnsavedHeaderChanges, hasAnyUnsavedChanges, saveAll,
     newFileDialogOpen, setNewFileDialogOpen, newFileName, setNewFileName,
     confirmingDelete, setConfirmingDelete, error, dropdownOpen, setDropdownOpen,
     browsing, dragging, imageUrl, fileViewMode, uploading,

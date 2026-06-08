@@ -62,7 +62,7 @@ function TicketDetailContent(props: {
 
   useModEnterSubmit({
     onSubmit: s.saveAll,
-    disabled: () => s.saving() || (!s.hasUnsavedFileChanges() && !s.hasUnsavedHeaderChanges()),
+    disabled: () => s.saving() || !s.hasAnyUnsavedChanges(),
     active: () =>
       !s.newFileDialogOpen() &&
       !s.confirmingDelete() &&
@@ -212,7 +212,7 @@ function TicketDetailContent(props: {
               <button
                 type="button"
                 onClick={s.saveAll}
-                disabled={s.saving() || (!s.hasUnsavedFileChanges() && !s.hasUnsavedHeaderChanges())}
+                disabled={s.saving() || !s.hasAnyUnsavedChanges()}
                 title={modEnterHint()}
                 class="btn-primary"
                 data-testid="ticket-detail-save-button"

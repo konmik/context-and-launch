@@ -146,6 +146,61 @@ describe("ticket-detail-state beforeunload guards header changes", () => {
   });
 });
 
+describe("ticket-detail-state close guards header changes", () => {
+  let originalFetch: typeof globalThis.fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify({ content: "" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })),
+    ) as any;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("shows discard confirmation when header has unsaved changes", () => {
+    createRoot((dispose) => {
+      const onClose = vi.fn();
+      const ctrl = createTicketDetailState({
+        ticket: makeTicketInfo(),
+        projectSlug: "my-project",
+        onClose,
+      });
+
+      ctrl.setEditedTitle("Changed Title");
+      ctrl.close();
+
+      expect(ctrl.confirmingClose()).toBe(true);
+      expect(onClose).not.toHaveBeenCalled();
+
+      dispose();
+    });
+  });
+
+  it("closes immediately when header is clean", () => {
+    createRoot((dispose) => {
+      const onClose = vi.fn();
+      const ctrl = createTicketDetailState({
+        ticket: makeTicketInfo(),
+        projectSlug: "my-project",
+        onClose,
+      });
+
+      ctrl.close();
+
+      expect(ctrl.confirmingClose()).toBe(false);
+      expect(onClose).toHaveBeenCalled();
+
+      dispose();
+    });
+  });
+});
+
 describe("ticket-detail-state cancelFileSwitch clears pendingTab", () => {
   let originalFetch: typeof globalThis.fetch;
 
