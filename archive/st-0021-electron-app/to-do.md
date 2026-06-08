@@ -1,0 +1,1 @@
+Build the app as an electron app instead of some script. Make it possible to pin the app on taskbar.
