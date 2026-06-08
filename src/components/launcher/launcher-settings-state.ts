@@ -131,51 +131,35 @@ export function createLauncherSettingsState(props: {
 		} catch (e) { setError(e instanceof Error ? e.message : "Failed to delete"); }
 	}
 
-	async function saveProjectName() {
+	async function putField(endpoint: string, body: object, reload?: boolean) {
 		setError("");
 		try {
-			const res = await fetch(
-				`/api/projects/${props.projectSlug}/name`,
-				{
-					method: "PUT",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ name: projectName() }),
-				},
-			);
+			const res = await fetch(endpoint, {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			});
 			if (!res.ok) { setError(await res.text() || "Failed to save"); return; }
+			if (reload) await loadConfig();
 		} catch (e) { setError(e instanceof Error ? e.message : "Failed to save"); }
 	}
 
-	async function saveWorktreeRootPath() {
-		setError("");
-		try {
-			const res = await fetch(
-				`/api/projects/${props.projectSlug}/launcher-config/worktree-root-path`,
-				{
-					method: "PUT",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ worktreeRootPath: worktreeRootPath() }),
-				},
-			);
-			if (!res.ok) { setError(await res.text() || "Failed to save"); return; }
-			await loadConfig();
-		} catch (e) { setError(e instanceof Error ? e.message : "Failed to save"); }
+	function saveProjectName() {
+		return putField(`/api/projects/${props.projectSlug}/name`, { name: projectName() });
 	}
 
-	async function saveConflictResolution() {
-		setError("");
-		try {
-			const res = await fetch(
-				`/api/projects/${props.projectSlug}/launcher-config/conflict-resolution`,
-				{
-					method: "PUT",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ conflictResolutionPrompt: conflictPrompt() }),
-				},
-			);
-			if (!res.ok) { setError(await res.text() || "Failed to save"); return; }
-			await loadConfig();
-		} catch (e) { setError(e instanceof Error ? e.message : "Failed to save"); }
+	function saveWorktreeRootPath() {
+		return putField(
+			`/api/projects/${props.projectSlug}/launcher-config/worktree-root-path`,
+			{ worktreeRootPath: worktreeRootPath() }, true,
+		);
+	}
+
+	function saveConflictResolution() {
+		return putField(
+			`/api/projects/${props.projectSlug}/launcher-config/conflict-resolution`,
+			{ conflictResolutionPrompt: conflictPrompt() }, true,
+		);
 	}
 
 	async function handleCreateBoard() {
