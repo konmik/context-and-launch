@@ -514,6 +514,46 @@ describe("TicketDetailDialog editable title", () => {
     expect(JSON.parse(putCall![1]!.body as string)).toEqual({ title: "Beta" });
   });
 
+  it("Escape after save reverts to saved value, not original prop", async () => {
+    const { mockFetch, pending } = createFetchController();
+    globalThis.fetch = mockFetch as any;
+
+    const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
+
+    render(() => (
+      <TicketDetailDialog
+        onClose={() => {}}
+        projectSlug="test-project"
+        ticket={ticket}
+      />
+    ));
+
+    await flush();
+    pending[0].resolve(emptyConfig);
+    await flush();
+
+    const titleInput = screen.getByTestId("ticket-detail-title-input") as HTMLInputElement;
+    fireEvent.input(titleInput, { target: { value: "Beta" } });
+    await flush();
+
+    fireEvent.click(screen.getByTestId("ticket-detail-save-button"));
+    await flush();
+
+    const putIdx = mockFetch.mock.calls.findIndex(
+      ([url, opts]: [string, RequestInit?]) =>
+        url.includes("/board/tickets/") && opts?.method === "PUT",
+    );
+    pending[putIdx].resolve({ folderName: "t-1-beta" });
+    await flush();
+
+    fireEvent.input(titleInput, { target: { value: "Gamma" } });
+    await flush();
+    fireEvent.keyDown(titleInput, { key: "Escape" });
+    await flush();
+
+    expect(titleInput.value).toBe("Beta");
+  });
+
   it("Escape reverts inputs without saving", async () => {
     const { mockFetch, pending } = createFetchController();
     globalThis.fetch = mockFetch as any;
