@@ -310,32 +310,31 @@ export class ProjectRegistry {
 		return project?.name || projectSlug;
 	}
 
-	setName(projectSlug: string, name: string | undefined): void {
+	private updateProjectEntry(
+		projectSlug: string,
+		patch: (entry: ProjectEntry) => ProjectEntry,
+	): void {
 		const config = this.load();
 		const index = config.projects.findIndex((p) => p.projectSlug === projectSlug);
 		if (index < 0) throw new Error(`Project not found: ${projectSlug}`);
-		const updated = { ...config.projects[index] };
-		if (name !== undefined && name.trim()) {
-			updated.name = name.trim();
-		} else {
-			delete updated.name;
-		}
-		const newProjects = config.projects.map((p, i) => (i === index ? updated : p));
+		const newProjects = config.projects.map((p, i) => (i === index ? patch({ ...p }) : p));
 		this.save({ ...config, projects: newProjects });
 	}
 
+	setName(projectSlug: string, name: string | undefined): void {
+		this.updateProjectEntry(projectSlug, (entry) => {
+			if (name !== undefined && name.trim()) entry.name = name.trim();
+			else delete entry.name;
+			return entry;
+		});
+	}
+
 	setBoardId(projectSlug: string, boardId: string | undefined): void {
-		const config = this.load();
-		const index = config.projects.findIndex((p) => p.projectSlug === projectSlug);
-		if (index < 0) throw new Error(`Project not found: ${projectSlug}`);
-		const updated = { ...config.projects[index] };
-		if (boardId !== undefined) {
-			updated.boardId = boardId;
-		} else {
-			delete updated.boardId;
-		}
-		const newProjects = config.projects.map((p, i) => (i === index ? updated : p));
-		this.save({ ...config, projects: newProjects });
+		this.updateProjectEntry(projectSlug, (entry) => {
+			if (boardId !== undefined) entry.boardId = boardId;
+			else delete entry.boardId;
+			return entry;
+		});
 	}
 
 	getPort(): number {
