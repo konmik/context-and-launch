@@ -181,10 +181,11 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
               </Match>
               <Match when={pageErr()}>
                 {(e) => (
-                  <div class="flex h-64 flex-col items-center justify-center gap-2">
-                    <p class="text-destructive">{e().error}</p>
-                    <button class="btn-secondary" onClick={() => revalidate("project-page")}>Retry</button>
-                  </div>
+                  <DialogRoot open onOpenChange={() => revalidate("project-page")}>
+                    <DialogTitle>Error</DialogTitle>
+                    <p class="mb-4 text-sm text-destructive">{e().error}</p>
+                    <button class="btn-primary w-full" onClick={() => revalidate("project-page")}>Retry</button>
+                  </DialogRoot>
                 )}
               </Match>
               <Match when={ld()}>

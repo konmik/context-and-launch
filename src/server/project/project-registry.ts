@@ -200,6 +200,11 @@ export class ProjectRegistry {
 		return this.load().projects.find((p) => p.projectSlug === projectSlug)?.boardId;
 	}
 
+	previewSlug(projectPath: string): string {
+		const existing = new Set(this.load().projects.map((p) => p.projectSlug));
+		return generateProjectSlug(projectPath, existing);
+	}
+
 	addProject(
 		projectPath: string, projectSlug?: string, branch?: string,
 		ticketsPath?: string, mainBranch?: string, boardId?: string,

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   createProject, uniqueSlug, gotoProject,
   openLauncherSettings, expectOpenConfigDirRequest,
-  readProjectLauncherConfig,
+  readProjectLauncherConfig, readProjectRegistry,
   setupE2E,
 } from "./fixtures.js";
 
@@ -29,6 +29,19 @@ describe("Launcher Settings Misc tab (e2e, real server)", () => {
   it("opens settings panel and shows Misc tab", async () => {
     await setup("opens");
     expect(await ctx.page.locator('[data-testid="launcher-settings-tab-misc"]').count()).toBe(1);
+  }, 60000);
+
+  it("project name input persists on blur", async () => {
+    const project = await setup("pname");
+    const input = ctx.page.locator('[data-testid="launcher-settings-misc-project-name-input"]');
+    await input.fill("Custom Name");
+    await input.blur();
+    await ctx.page.waitForTimeout(800);
+    const registry = readProjectRegistry(ctx.testServer);
+    const entry = registry.projects.find(
+      (p: { projectSlug: string }) => p.projectSlug === project.projectSlug,
+    );
+    expect(entry?.name).toBe("Custom Name");
   }, 60000);
 
   it("launcher-settings-open-user-config fires open-config-dir request", async () => {

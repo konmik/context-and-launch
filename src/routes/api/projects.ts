@@ -1,10 +1,11 @@
-import { projectRegistry } from "~/server/config/instances.js";
-import { generateProjectSlug } from "~/server/project/project-registry.js";
+import { projectRegistry, worktreeManager } from "~/server/config/instances.js";
 import { detectMainBranch } from "~/server/infra/git.js";
 import { withService } from "~/server/shared/route-helpers.js";
 
 export const POST = withService(async ({ request }) => {
 	const { path: pathValue, branch, mainBranch, boardId, name } = await request.json();
+	const projectSlug = projectRegistry.previewSlug(pathValue);
+	await worktreeManager.ensureWorktree(pathValue, projectSlug, branch);
 	const project = projectRegistry.addProject(
 		pathValue, undefined, branch, undefined,
 		mainBranch?.trim() || undefined, boardId?.trim() || undefined,
@@ -19,8 +20,7 @@ export const GET = withService(async ({ request }) => {
 	if (!pathValue) {
 		return Response.json({ error: "Missing previewPath parameter" }, { status: 400 });
 	}
-	const existing = new Set(projectRegistry.listProjects().map((p) => p.projectSlug));
-	const projectSlug = generateProjectSlug(pathValue, existing);
+	const projectSlug = projectRegistry.previewSlug(pathValue);
 	let mainBranch: string | undefined;
 	try {
 		mainBranch = await detectMainBranch(pathValue);

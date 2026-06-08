@@ -444,6 +444,7 @@ export async function clickTicketMenuItem(
 export interface ProjectEntry {
   path: string;
   projectSlug: string;
+  name?: string;
   branch?: string;
   ticketsPath?: string;
   mainBranch?: string;
