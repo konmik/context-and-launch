@@ -108,8 +108,9 @@ export class TicketSyncManager {
 				return { status: 'error', message: mergeErr instanceof Error ? mergeErr.message : String(mergeErr) };
 			}
 
+			const signArgs = await this.commitTreeArgs(worktreeDir);
 			const newCommit = (await git(
-				worktreeDir, 'commit-tree', mergedTree, '-p', newUpstream, '-m', 'sync: local changes',
+				worktreeDir, 'commit-tree', ...signArgs, mergedTree, '-p', newUpstream, '-m', 'sync: local changes',
 			)).trim();
 
 			try {
@@ -228,6 +229,15 @@ export class TicketSyncManager {
 
 	hasActiveRebase(worktreeDir: string): boolean {
 		return this.gitRepo.hasActiveRebase(worktreeDir);
+	}
+
+	private async commitTreeArgs(worktreeDir: string): Promise<string[]> {
+		try {
+			const val = (await git(worktreeDir, 'config', '--get', 'commit.gpgsign')).trim();
+			return val === 'true' ? ['-S'] : [];
+		} catch {
+			return [];
+		}
 	}
 
 	private parseUpstream(upstream: string): { remote: string; branch: string } {

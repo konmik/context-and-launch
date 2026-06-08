@@ -408,7 +408,8 @@ export function createLauncherSettingsState(props: {
 		columnForm, setColumnForm, boardForm, setBoardForm, renameForm, setRenameForm,
 		deleteConfirm, setDeleteConfirm, projectBoardConfirm, setProjectBoardConfirm, columnError, setColumnError,
 		selectedBoardId, selectedBoard, startAdd, startEdit, submitForm, deleteItem,
-		saveProjectName, saveWorktreeRootPath, saveConflictResolution, handleCreateBoard, handleDeleteBoard, handleSaveColumn,
+		saveProjectName, saveWorktreeRootPath, saveConflictResolution,
+		handleCreateBoard, handleDeleteBoard, handleSaveColumn,
 		handleDeleteColumn, handleRenameColumn, handleSetProjectBoard,
 		columnNameValidation, columnReorder, skillReorder,
 	};

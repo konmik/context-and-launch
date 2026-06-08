@@ -60,6 +60,15 @@ describe("Add project welcome screen (e2e, real server)", () => {
     expect(theme === "light" || theme === "dark").toBe(true);
   }, 60000);
 
+  it("project name input is empty by default and editable", async () => {
+    await page.goto(`${testServer.baseUrl}/add-project`);
+    await page.waitForSelector('[data-testid="add-project-name-input"]', { state: "visible", timeout: 10000 });
+    const input = page.locator('[data-testid="add-project-name-input"]');
+    expect(await input.inputValue()).toBe("");
+    await input.fill("My Project");
+    expect(await input.inputValue()).toBe("My Project");
+  }, 60000);
+
   it("branch input defaults to tickets and is editable", async () => {
     await page.goto(`${testServer.baseUrl}/add-project`);
     await page.waitForSelector('[data-testid="add-project-branch-input"]', { state: "visible", timeout: 10000 });
