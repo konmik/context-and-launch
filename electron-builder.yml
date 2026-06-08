@@ -21,8 +21,19 @@ nsis:
   oneClick: true
   perMachine: false
 mac:
-  target: dir
+  target: dmg
   icon: build-resources/icon.icns
+  category: public.app-category.developer-tools
+  artifactName: context-launch-setup.${ext}
+dmg:
+  title: "Context & Launch"
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
 linux:
   target: AppImage
   icon: build-resources/icon.png
