@@ -22,7 +22,7 @@ function setupProject(configDir: string, projectSlug: string, boardId: string | 
 	fs.mkdirSync(path.join(projectPath, '.git'), { recursive: true });
 
 	const registry = new ProjectRegistry(new ConfigPaths(configDir));
-	registry.addProject(projectPath, projectSlug, undefined, undefined, undefined, boardId);
+	registry.addProject(projectPath, { projectSlug, boardId });
 }
 
 describe('cascadeClearBoardId', () => {

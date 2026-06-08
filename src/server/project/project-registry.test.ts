@@ -45,9 +45,10 @@ describe('ProjectRegistry', () => {
 		fs.mkdirSync(path.join(projectDir2, '.git'));
 
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir1, 'my-project');
+		registry.addProject(projectDir1, { projectSlug: 'my-project' });
 
-		expect(() => registry.addProject(projectDir2, 'my-project')).toThrow('Project slug already exists');
+		expect(() => registry.addProject(projectDir2, { projectSlug: 'my-project' }))
+			.toThrow('Project slug already exists');
 	});
 
 	it('addProject rejects duplicate canonical path even when raw paths differ', () => {
@@ -57,14 +58,14 @@ describe('ProjectRegistry', () => {
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir, 'first');
+		registry.addProject(projectDir, { projectSlug: 'first' });
 
 		// Build alternate path via subdir/..
 		const subdir = path.join(projectDir, 'subdir');
 		fs.mkdirSync(subdir);
 		const altPath = path.join(projectDir, 'subdir', '..');
 
-		expect(() => registry.addProject(altPath, 'second')).toThrow('already registered');
+		expect(() => registry.addProject(altPath, { projectSlug: 'second' })).toThrow('already registered');
 	});
 
 	it('generateProjectSlug deduplicates when dir name and parent-dir-name combos collide', () => {
@@ -110,7 +111,7 @@ describe('ProjectRegistry', () => {
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir, 'test-project');
+		registry.addProject(projectDir, { projectSlug: 'test-project' });
 
 		expect(registry.getDefaultProjectSlug()).toBe('test-project');
 	});
@@ -122,7 +123,7 @@ describe('ProjectRegistry', () => {
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir, 'test-project');
+		registry.addProject(projectDir, { projectSlug: 'test-project' });
 
 		// Manually corrupt lastUsedProjectSlug
 		const configFile = path.join(configDir, 'config', 'config.json');
@@ -141,7 +142,7 @@ describe('ProjectRegistry', () => {
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir, 'remove-me');
+		registry.addProject(projectDir, { projectSlug: 'remove-me' });
 		registry.removeProject('remove-me');
 
 		expect(registry.getDefaultProjectSlug()).toBeNull();
@@ -154,7 +155,7 @@ describe('ProjectRegistry', () => {
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir, 'original');
+		registry.addProject(projectDir, { projectSlug: 'original' });
 
 		// Externally add a second project directly to config.json on disk
 		const configFile = path.join(configDir, 'config', 'config.json');
@@ -179,7 +180,7 @@ describe('ProjectRegistry', () => {
 		fs.mkdirSync(path.join(projectDirC, '.git'));
 
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDirA, 'project-a');
+		registry.addProject(projectDirA, { projectSlug: 'project-a' });
 
 		// Externally add project B directly to config.json on disk
 		const configFile = path.join(configDir, 'config', 'config.json');
@@ -188,7 +189,7 @@ describe('ProjectRegistry', () => {
 		fs.writeFileSync(configFile, JSON.stringify(onDisk, null, 2));
 
 		// Now add project C through the registry -- this save() overwrites disk with cached state
-		registry.addProject(projectDirC, 'project-c');
+		registry.addProject(projectDirC, { projectSlug: 'project-c' });
 
 		// Read config.json from disk to see what was actually persisted
 		const finalOnDisk = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
@@ -271,7 +272,7 @@ describe('ProjectRegistry', () => {
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir, 'existing');
+		registry.addProject(projectDir, { projectSlug: 'existing' });
 
 		const configFile = path.join(configDir, 'config', 'config.json');
 		const beforeMtime = fs.statSync(configFile).mtimeMs;
@@ -315,7 +316,7 @@ describe('ProjectRegistry', () => {
 		expect(registry.getBrowser()).toBe('msedge');
 
 		// Adding a project should preserve port and browser
-		registry.addProject(projectDir, 'test-project');
+		registry.addProject(projectDir, { projectSlug: 'test-project' });
 
 		const afterAdd = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
 		expect(afterAdd.port).toBe(9999);
@@ -362,7 +363,7 @@ describe('ProjectRegistry', () => {
 		}));
 
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir, 'test');
+		registry.addProject(projectDir, { projectSlug: 'test' });
 
 		const afterSave = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
 		// Unknown fields are preserved through round-trip
@@ -383,10 +384,10 @@ describe('ProjectRegistry', () => {
 		fs.mkdirSync(path.join(projectDir2, '.git'));
 
 		const registry1 = new ProjectRegistry(new ConfigPaths(configDir));
-		registry1.addProject(projectDir1, 'from-instance-1');
+		registry1.addProject(projectDir1, { projectSlug: 'from-instance-1' });
 
 		const registry2 = new ProjectRegistry(new ConfigPaths(configDir));
-		registry2.addProject(projectDir2, 'from-instance-2');
+		registry2.addProject(projectDir2, { projectSlug: 'from-instance-2' });
 
 		// Both projects exist on disk because registry2 loaded from disk before caching
 		const configFile = path.join(configDir, 'config', 'config.json');
@@ -409,16 +410,16 @@ describe('ProjectRegistry', () => {
 
 		// Both instances start with the same initial state (one project)
 		const registry1 = new ProjectRegistry(new ConfigPaths(configDir));
-		registry1.addProject(projectDir1, 'initial');
+		registry1.addProject(projectDir1, { projectSlug: 'initial' });
 
 		const registry2 = new ProjectRegistry(new ConfigPaths(configDir));
 		// registry2 reads from disk, caches state with 'initial'
 
 		// registry2 adds its project (disk now has initial + from-2)
-		registry2.addProject(projectDir2, 'from-2');
+		registry2.addProject(projectDir2, { projectSlug: 'from-2' });
 
 		// registry1 still has stale cache (only 'initial'), adding overwrites disk
-		registry1.addProject(projectDir3, 'from-1-late');
+		registry1.addProject(projectDir3, { projectSlug: 'from-1-late' });
 
 		const configFile = path.join(configDir, 'config', 'config.json');
 		const onDisk = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
@@ -491,7 +492,7 @@ describe('ProjectRegistry', () => {
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		const info = registry.addProject(projectDir, 'branch-proj', 'tickets');
+		const info = registry.addProject(projectDir, { projectSlug: 'branch-proj', branch: 'tickets' });
 		expect(info.branch).toBe('tickets');
 
 		const listed = registry.listProjects().find((p) => p.projectSlug === 'branch-proj');
@@ -510,7 +511,7 @@ describe('ProjectRegistry', () => {
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		const info = registry.addProject(projectDir, 'no-branch');
+		const info = registry.addProject(projectDir, { projectSlug: 'no-branch' });
 		expect(info.branch).toBeUndefined();
 
 		const onDisk = JSON.parse(
@@ -526,7 +527,8 @@ describe('ProjectRegistry', () => {
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		expect(() => registry.addProject(projectDir, 'bad', 'has space')).toThrow('whitespace');
+		expect(() => registry.addProject(projectDir, { projectSlug: 'bad', branch: 'has space' }))
+			.toThrow('whitespace');
 		expect(registry.listProjects()).toHaveLength(0);
 	});
 
@@ -537,7 +539,9 @@ describe('ProjectRegistry', () => {
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		const info = registry.addProject(projectDir, 'tix-proj', 'tickets', 'D:\\my-tickets');
+		const info = registry.addProject(
+			projectDir, { projectSlug: 'tix-proj', branch: 'tickets', ticketsPath: 'D:\\my-tickets' },
+		);
 		expect(info.ticketsPath).toBe('D:\\my-tickets');
 		expect(registry.getTicketsPath('tix-proj')).toBe('D:\\my-tickets');
 
@@ -553,7 +557,7 @@ describe('ProjectRegistry', () => {
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir, 'before', 'tasks');
+		registry.addProject(projectDir, { projectSlug: 'before', branch: 'tasks' });
 		const updated = registry.updateProject('before', undefined, 'after');
 		expect(updated.branch).toBe('tasks');
 
@@ -590,7 +594,7 @@ describe('ProjectRegistry', () => {
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir, 'profile-proj');
+		registry.addProject(projectDir, { projectSlug: 'profile-proj' });
 
 		expect(registry.getLastUsedProfileName()).toBeNull();
 
@@ -610,7 +614,7 @@ describe('ProjectRegistry', () => {
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir, 'profile-proj');
+		registry.addProject(projectDir, { projectSlug: 'profile-proj' });
 
 		expect(() => registry.setLastUsedProfileName('')).toThrow('profileName cannot be empty');
 	});
@@ -625,10 +629,10 @@ describe('ProjectRegistry', () => {
 		fs.mkdirSync(path.join(projectDir2, '.git'));
 
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir1, 'alpha');
+		registry.addProject(projectDir1, { projectSlug: 'alpha' });
 		registry.setLastUsedProfileName('Claude');
 
-		registry.addProject(projectDir2, 'beta');
+		registry.addProject(projectDir2, { projectSlug: 'beta' });
 		expect(registry.getLastUsedProfileName()).toBe('Claude');
 
 		registry.updateProject('beta', undefined, 'beta-renamed');
@@ -653,7 +657,7 @@ describe('ProjectRegistry', () => {
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir, 'alpha');
+		registry.addProject(projectDir, { projectSlug: 'alpha' });
 
 		const configFile = path.join(configDir, 'config', 'config.json');
 		const onDisk = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
@@ -697,7 +701,10 @@ describe('ProjectRegistry', () => {
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		const info = registry.addProject(projectDir, 'mb-proj', 'tickets', undefined, 'develop', 'kanban');
+		const info = registry.addProject(
+			projectDir,
+			{ projectSlug: 'mb-proj', branch: 'tickets', mainBranch: 'develop', boardId: 'kanban' },
+		);
 		expect(info.mainBranch).toBe('develop');
 		expect(info.boardId).toBe('kanban');
 
@@ -719,7 +726,7 @@ describe('ProjectRegistry', () => {
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir, 'no-mb');
+		registry.addProject(projectDir, { projectSlug: 'no-mb' });
 
 		const onDisk = JSON.parse(
 			fs.readFileSync(path.join(configDir, 'config', 'config.json'), 'utf-8')
@@ -736,12 +743,12 @@ describe('ProjectRegistry', () => {
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
 		expect(() =>
-			registry.addProject(projectDir, 'bad-main', 'tickets', undefined, 'my branch')
+			registry.addProject(projectDir, { projectSlug: 'bad-main', branch: 'tickets', mainBranch: 'my branch' })
 		).toThrow('whitespace');
 		expect(registry.listProjects()).toHaveLength(0);
 
 		expect(() =>
-			registry.addProject(projectDir, 'bad-main2', 'tickets', undefined, 'a~b')
+			registry.addProject(projectDir, { projectSlug: 'bad-main2', branch: 'tickets', mainBranch: 'a~b' })
 		).toThrow('invalid characters');
 		expect(registry.listProjects()).toHaveLength(0);
 	});
@@ -753,7 +760,7 @@ describe('ProjectRegistry', () => {
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir, 'my-proj', 'tickets', undefined, 'main');
+		registry.addProject(projectDir, { projectSlug: 'my-proj', branch: 'tickets', mainBranch: 'main' });
 
 		registry.setBoardId('my-proj', 'simple');
 
@@ -772,7 +779,7 @@ describe('ProjectRegistry', () => {
 
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir, 'existing');
+		registry.addProject(projectDir, { projectSlug: 'existing' });
 
 		expect(() => registry.setBoardId('nonexistent', 'kanban')).toThrow('Project not found');
 	});
@@ -785,7 +792,7 @@ describe('ProjectRegistry', () => {
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const paths = new ConfigPaths(configDir);
 		const registry = new ProjectRegistry(paths);
-		registry.addProject(projectDir, 'cleanup-test');
+		registry.addProject(projectDir, { projectSlug: 'cleanup-test' });
 
 		const projectConfigDir = paths.projectConfigDir('cleanup-test');
 		fs.mkdirSync(projectConfigDir, { recursive: true });
@@ -807,7 +814,7 @@ describe('ProjectRegistry', () => {
 		fs.mkdirSync(path.join(projectDir, '.git'));
 		const paths = new ConfigPaths(configDir);
 		const registry = new ProjectRegistry(paths);
-		registry.addProject(projectDir, 'partial-cleanup');
+		registry.addProject(projectDir, { projectSlug: 'partial-cleanup' });
 
 		const ticketsDir = paths.ticketWorktreeDir('partial-cleanup');
 		const worktreesDir = paths.agentWorktreeDir('partial-cleanup');

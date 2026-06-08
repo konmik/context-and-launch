@@ -206,9 +206,8 @@ export class ProjectRegistry {
 	}
 
 	addProject(
-		projectPath: string, projectSlug?: string, branch?: string,
-		ticketsPath?: string, mainBranch?: string, boardId?: string,
-		name?: string,
+		projectPath: string,
+		opts: Omit<Partial<ProjectEntry>, 'path'> = {},
 	): ProjectInfo {
 		if (!this.configRepo.exists(projectPath)) {
 			throw new Error(`Path does not exist: ${projectPath}`);
@@ -216,11 +215,11 @@ export class ProjectRegistry {
 		if (!this.configRepo.exists(path.join(projectPath, '.git'))) {
 			throw new Error(`Not a git repository: ${projectPath}`);
 		}
-		if (branch !== undefined) {
-			validateBranchName(branch);
+		if (opts.branch !== undefined) {
+			validateBranchName(opts.branch);
 		}
-		if (mainBranch !== undefined) {
-			validateBranchName(mainBranch);
+		if (opts.mainBranch !== undefined) {
+			validateBranchName(opts.mainBranch);
 		}
 
 		const config = this.load();
@@ -237,21 +236,23 @@ export class ProjectRegistry {
 		}
 
 		const existingProjectSlugs = new Set(config.projects.map((p) => p.projectSlug));
-		const finalProjectSlug = projectSlug ?? generateProjectSlug(projectPath, existingProjectSlugs);
+		const finalProjectSlug = opts.projectSlug ?? generateProjectSlug(projectPath, existingProjectSlugs);
 		if (existingProjectSlugs.has(finalProjectSlug)) {
 			throw new Error(`Project slug already exists: ${finalProjectSlug}`);
 		}
 
-		const entry: ProjectEntry = { path: canonicalPath, projectSlug: finalProjectSlug };
-		if (name !== undefined) entry.name = name;
-		if (branch !== undefined) entry.branch = branch;
-		if (ticketsPath !== undefined) entry.ticketsPath = ticketsPath;
-		if (mainBranch !== undefined) entry.mainBranch = mainBranch;
-		if (boardId !== undefined) entry.boardId = boardId;
+		const { projectSlug: _, ...optionalFields } = opts;
+		const entry: ProjectEntry = {
+			path: canonicalPath,
+			projectSlug: finalProjectSlug,
+			...Object.fromEntries(
+				Object.entries(optionalFields).filter(([, v]) => v !== undefined),
+			),
+		};
 		this.save({
 			...config,
 			projects: [...config.projects, entry],
-			lastUsedProjectSlug: finalProjectSlug
+			lastUsedProjectSlug: finalProjectSlug,
 		});
 
 		return entryToInfo(entry, this.configRepo);
