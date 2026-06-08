@@ -18,7 +18,7 @@
     "test:watch": "vitest",
     "electron:build-main": "esbuild electron/main.ts --bundle --platform=node --format=esm --outfile=electron/main.js --external:electron",
     "electron:start": "electron electron/main.js",
-    "electron:dist": "node -e \"const fs=require('fs');fs.rmSync('dist-electron',{recursive:true,force:true})\" && vinxi build && npm run electron:build-main && npx electron-builder && node -e \"const fs=require('fs');fs.readdirSync('dist-electron').filter(f=>f.endsWith('-unpacked')||f==='mac'||f==='mac-arm64'||f==='mac-universal'||f.endsWith('.blockmap')||f==='builder-debug.yml'||f==='builder-effective-config.yaml').forEach(f=>fs.rmSync('dist-electron/'+f,{recursive:true,force:true}))\""
+    "electron:dist": "tsx scripts/electron-dist.ts"
   },
   "dependencies": {
     "@ark-ui/solid": "^5.37.0",
