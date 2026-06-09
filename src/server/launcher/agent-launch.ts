@@ -192,7 +192,7 @@ export function resolveTicketAndProject(
 ): { ticket: TicketInfo; project: ProjectInfo; worktreeDir: string } | Response {
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
   const store = new TicketStore(worktreeDir);
-  const ticket = store.listTickets().find(t => t.folderName === folderName);
+  const ticket = store.getTicket(folderName);
   if (!ticket) return new Response("Ticket not found", { status: 404 });
 
   const project = projectRegistry.listProjects().find(p => p.projectSlug === projectSlug);

@@ -98,6 +98,14 @@ export class TicketStore {
 		return dir;
 	}
 
+	getTicket(folderName: string): TicketInfo | null {
+		requireSimpleName(folderName, 'folderName');
+		const dir = path.join(this.worktreeDir, folderName);
+		this.requireContained(dir, 'folderName');
+		if (!this.repo.isDirectory(dir)) return null;
+		return this.readTicket(dir);
+	}
+
 	listTickets(): TicketInfo[] {
 		if (!this.repo.exists(this.worktreeDir)) return [];
 		const entries = this.repo.listEntries(this.worktreeDir);
