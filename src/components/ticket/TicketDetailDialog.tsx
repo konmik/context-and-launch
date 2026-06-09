@@ -82,7 +82,7 @@ function TicketDetailContent(props: {
       >
         <FloatingPanelHeader>
           <FloatingPanelDragTrigger class="flex flex-col gap-3">
-            <div class="flex items-start justify-between">
+            <div class="flex items-start justify-between gap-4">
               <div class="flex min-w-0 flex-1 items-center gap-1.5 text-lg font-semibold" data-no-drag>
                 <input
                   type="text"
@@ -108,18 +108,16 @@ function TicketDetailContent(props: {
                 />
               </div>
               <div class="flex items-center gap-3">
-                <Show when={s.launcherConfig()?.worktreeRootPath != null}>
-                  <label class="flex items-center gap-1.5 text-xs text-muted-foreground" data-no-drag>
-                    <input
-                      type="checkbox"
-                      checked={s.useWorktree()}
-                      onChange={(e) => s.persistWorktree(e.currentTarget.checked)}
-                      class="rounded border-input"
-                      data-testid="ticket-detail-use-worktree-checkbox"
-                    />
-                    Launch in worktree
-                  </label>
-                </Show>
+                <label class="flex items-center gap-1.5 text-xs text-muted-foreground" data-no-drag>
+                  <input
+                    type="checkbox"
+                    checked={s.useWorktree()}
+                    onChange={(e) => s.persistWorktree(e.currentTarget.checked)}
+                    class="rounded border-input"
+                    data-testid="ticket-detail-use-worktree-checkbox"
+                  />
+                  Launch in worktree
+                </label>
                 <button
                   type="button"
                   data-no-drag
