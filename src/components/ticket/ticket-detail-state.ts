@@ -2,7 +2,6 @@ import { createSignal, createEffect, on, onCleanup } from "solid-js";
 import { revalidate } from "@solidjs/router";
 import type { TicketInfo } from "~/server/ticket/ticket-store.js";
 import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/server/launcher/launcher-config.js";
-import { apiFetch } from "~/lib/api.js";
 import {
   type ActiveFile,
   activeFileLabel,
@@ -16,11 +15,13 @@ import {
   hasUnsavedEditorChanges,
   normalizeLineEndings,
   slugifyFileName,
-  wouldOverwrite,
   ticketApiUrl,
   resolveFileViewMode,
   showSaveButton as showSaveButtonPure,
 } from "./ticket-detail-pure.js";
+import { createFileUploadState } from "./ticket-detail-upload.js";
+import { createHeaderEditState } from "./ticket-detail-header.js";
+import { createShortcutState } from "./ticket-detail-shortcuts.js";
 
 export type Tab = "editor" | "launcher" | "shortcuts";
 
@@ -43,27 +44,32 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   const [error, setError] = createSignal("");
   const [dropdownOpen, setDropdownOpen] = createSignal(false);
   const [browsing, setBrowsing] = createSignal(false);
-  const [dragging, setDragging] = createSignal(false);
   const [imageUrl, setImageUrl] = createSignal("");
   const [fileViewMode, setFileViewMode] = createSignal<"editor" | "image" | "unsupported">("editor");
-  const [uploading, setUploading] = createSignal(false);
-  const [confirmOverwrite, setConfirmOverwrite] = createSignal<{ fileName: string; file: File } | null>(null);
-  const [confirmSize, setConfirmSize] = createSignal<{ fileName: string; file: File; size: number } | null>(null);
-  let resolveUploadConfirm: ((confirmed: boolean) => void) | null = null;
-  const [runningShortcut, setRunningShortcut] = createSignal("");
-  const [dirtyWorktreeShortcut, setDirtyWorktreeShortcut] = createSignal<
-    { name: string; message: string } | null
-  >(null);
   const [useWorktree, setUseWorktree] = createSignal(props.ticket.useWorktree);
   const [ticketFileNames, setTicketFileNames] = createSignal<string[]>(props.ticket.fileNames ?? []);
   const [ticketReferences, setTicketReferences] = createSignal<
     { path: string; exists: boolean }[]
   >(props.ticket.references ?? []);
-  const [editedNumber, setEditedNumber] = createSignal(props.ticket.number);
-  const [editedTitle, setEditedTitle] = createSignal(props.ticket.title);
-  const [savedNumber, setSavedNumber] = createSignal(props.ticket.number);
-  const [savedTitle, setSavedTitle] = createSignal(props.ticket.title);
-  const [savedFolderName, setSavedFolderName] = createSignal(props.ticket.folderName);
+
+  const header = createHeaderEditState({
+    projectSlug: props.projectSlug,
+    ticket: props.ticket,
+    setError,
+  });
+
+  function ticketUrl(suffix: string): string {
+    return ticketApiUrl(props.projectSlug, header.savedFolderName(), suffix);
+  }
+
+  const shortcuts = createShortcutState({ ticketUrl, useWorktree, setError });
+
+  const upload = createFileUploadState({
+    ticketUrl, setError,
+    ticketFileNames, setTicketFileNames,
+    contextNames: props.ticket.contextNames ?? [],
+    requestFileSwitch,
+  });
 
   createEffect(on(
     () => props.ticket.folderName,
@@ -84,36 +90,6 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     }).catch((err) => {
       setError(err instanceof Error ? err.message : "Failed to persist worktree setting");
     });
-  }
-
-  async function runShortcut(name: string, force?: boolean) {
-    setRunningShortcut(name);
-    setError("");
-    try {
-      const res = await fetch(
-        ticketUrl("shortcut/run"),
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, useWorktree: useWorktree(), force }),
-        }
-      );
-      if (!res.ok) {
-        const text = await res.text();
-        if (res.status === 409 && res.headers.get("content-type")?.includes("application/json")) {
-          const data = JSON.parse(text);
-          if (data.dirtyWorktree) {
-            setDirtyWorktreeShortcut({ name, message: data.message });
-            return;
-          }
-        }
-        setError(text || `Error ${res.status}`);
-      }
-    } catch (e: any) {
-      setError(e?.message ?? "Network error");
-    } finally {
-      setRunningShortcut("");
-    }
   }
 
   const contextOptions = (): ActiveFile[] =>
@@ -145,16 +121,15 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
       activeTab(), fileViewMode(), isCurrentReadOnly(), content(), savedContent(),
     );
 
+  const hasAnyUnsavedChanges = () =>
+    hasUnsavedFileChanges() || header.hasUnsavedHeaderChanges();
+
   function handleBeforeUnload(e: BeforeUnloadEvent) {
     if (hasAnyUnsavedChanges()) e.preventDefault();
   }
   if (typeof window !== "undefined") {
     window.addEventListener("beforeunload", handleBeforeUnload);
     onCleanup(() => window.removeEventListener("beforeunload", handleBeforeUnload));
-  }
-
-  function ticketUrl(suffix: string): string {
-    return ticketApiUrl(props.projectSlug, savedFolderName(), suffix);
   }
 
   async function loadTextContent(url: string): Promise<void> {
@@ -375,81 +350,6 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   }
   function forceClose() { setConfirmingClose(false); props.onClose(); }
 
-  function handleDragOver(e: DragEvent) {
-    e.preventDefault(); e.stopPropagation(); setDragging(true);
-  }
-  function handleDragLeave(e: DragEvent) {
-    e.preventDefault(); e.stopPropagation(); setDragging(false);
-  }
-
-  async function handleDrop(e: DragEvent) {
-    e.preventDefault(); e.stopPropagation(); setDragging(false);
-    const files = e.dataTransfer?.files;
-    if (!files || files.length === 0) return;
-    for (let i = 0; i < files.length; i++) await processFileForUpload(files[i]);
-  }
-
-  async function handleFileInputChange(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const files = input.files;
-    if (!files) return;
-    for (let i = 0; i < files.length; i++) await processFileForUpload(files[i]);
-    input.value = "";
-  }
-
-  function awaitUploadConfirm<T>(setter: (v: T) => void, value: T): Promise<boolean> {
-    return new Promise<boolean>((resolve) => {
-      resolveUploadConfirm = resolve;
-      setter(value);
-    });
-  }
-
-  async function processFileForUpload(file: File) {
-    if (file.name === "status.json") { setError("Cannot overwrite status.json"); return; }
-    if (file.size > 10240) {
-      const proceed = await awaitUploadConfirm(setConfirmSize, { fileName: file.name, file, size: file.size });
-      setConfirmSize(null);
-      if (!proceed) return;
-    }
-    if (wouldOverwrite(file.name, ticketFileNames(), props.ticket.contextNames ?? [])) {
-      const proceed = await awaitUploadConfirm(setConfirmOverwrite, { fileName: file.name, file });
-      setConfirmOverwrite(null);
-      if (!proceed) return;
-    }
-    await uploadFile(file);
-  }
-
-  async function uploadFile(file: File) {
-    setUploading(true); setError("");
-    try {
-      const formData = new FormData(); formData.append("file", file);
-      const res = await fetch(ticketUrl("files/upload"), { method: "POST", body: formData });
-      if (!res.ok) { setError(await res.text() || "Upload failed"); return; }
-      const data = await res.json();
-      for (const result of data.results) {
-        if (result.ok) {
-          setTicketFileNames((prev) =>
-            prev.includes(result.name)
-              ? prev
-              : [...prev, result.name].sort(),
-          );
-        }
-        else { setError(result.error || `Failed to upload ${result.name}`); }
-      }
-      revalidate("project-page");
-      if (file.name.endsWith(".md")) requestFileSwitch({ type: "context", name: file.name.replace(/\.md$/, "") });
-      else requestFileSwitch({ type: "file", name: file.name });
-    } catch (e) { setError(e instanceof Error ? e.message : "Upload failed"); }
-    finally { setUploading(false); }
-  }
-
-  function confirmUpload() {
-    resolveUploadConfirm?.(true); resolveUploadConfirm = null;
-  }
-  function cancelUpload() {
-    resolveUploadConfirm?.(false); resolveUploadConfirm = null;
-  }
-
   async function openNativeFileBrowser() {
     setBrowsing(true); setError("");
     try {
@@ -493,35 +393,9 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     } catch (e) { setError(e instanceof Error ? e.message : "Failed to add references"); }
   }
 
-  async function saveTicketHeader() {
-    const trimmedNumber = editedNumber().trim();
-    const trimmedTitle = editedTitle().trim();
-    if (!trimmedNumber) setEditedNumber(savedNumber());
-    if (!trimmedTitle) setEditedTitle(savedTitle());
-    const body: Record<string, string> = {};
-    if (trimmedNumber && trimmedNumber !== savedNumber()) body.number = trimmedNumber;
-    if (trimmedTitle && trimmedTitle !== savedTitle()) body.title = trimmedTitle;
-    if (Object.keys(body).length === 0) return;
-    const result = await apiFetch(
-      `/api/projects/${props.projectSlug}/board/tickets/${savedFolderName()}`,
-      { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
-    );
-    if (result.error) { setError(result.error); return; }
-    if (body.number) setSavedNumber(body.number);
-    if (body.title) setSavedTitle(body.title);
-    if (result.folderName) setSavedFolderName(result.folderName as string);
-  }
-
-  const hasUnsavedHeaderChanges = () =>
-    editedNumber().trim() !== savedNumber()
-    || editedTitle().trim() !== savedTitle();
-
-  const hasAnyUnsavedChanges = () =>
-    hasUnsavedFileChanges() || hasUnsavedHeaderChanges();
-
   async function saveAll() {
     await Promise.all([
-      hasUnsavedHeaderChanges() ? saveTicketHeader() : undefined,
+      header.hasUnsavedHeaderChanges() ? header.saveTicketHeader() : undefined,
       hasUnsavedFileChanges() ? saveFileContent() : undefined,
     ]);
     revalidate("project-page");
@@ -532,22 +406,34 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   return {
     activeFile, content, setContent, saving, confirmingClose, setConfirmingClose,
     confirmingFileSwitch, activeTab, initialTabResolved, launcherConfig,
-    editedNumber, setEditedNumber, editedTitle, setEditedTitle,
-    savedNumber, savedTitle, hasUnsavedHeaderChanges, hasAnyUnsavedChanges, saveAll,
+    editedNumber: header.editedNumber, setEditedNumber: header.setEditedNumber,
+    editedTitle: header.editedTitle, setEditedTitle: header.setEditedTitle,
+    savedNumber: header.savedNumber, savedTitle: header.savedTitle,
+    hasUnsavedHeaderChanges: header.hasUnsavedHeaderChanges,
+    hasAnyUnsavedChanges, saveAll,
     newFileDialogOpen, setNewFileDialogOpen, newFileName, setNewFileName,
     confirmingDelete, setConfirmingDelete, error, dropdownOpen, setDropdownOpen,
-    browsing, dragging, imageUrl, fileViewMode, uploading,
-    confirmOverwrite, confirmSize, runningShortcut, dirtyWorktreeShortcut, setDirtyWorktreeShortcut,
+    browsing, imageUrl, fileViewMode,
+    uploading: upload.uploading, dragging: upload.dragging,
+    confirmOverwrite: upload.confirmOverwrite, confirmSize: upload.confirmSize,
+    runningShortcut: shortcuts.runningShortcut,
+    dirtyWorktreeShortcut: shortcuts.dirtyWorktreeShortcut,
+    setDirtyWorktreeShortcut: shortcuts.setDirtyWorktreeShortcut,
     useWorktree, allFileOptions, isReferenceStale, hasUnsavedFileChanges, isCurrentReadOnly,
-    showSaveButton, persistWorktree, runShortcut, switchTab, selectFile, openNewFileDialog,
+    showSaveButton, persistWorktree, runShortcut: shortcuts.runShortcut,
+    switchTab, selectFile, openNewFileDialog,
     submitNewFile, deleteOrRemoveFile, handleTrashClick, close, forceClose,
     proceedFileSwitch,
     cancelFileSwitch: () => {
       setConfirmingFileSwitch(false); setPendingFile(null); setPendingTab(null);
     },
-    handleDragOver, handleDragLeave, handleDrop, handleFileInputChange,
-    confirmSizeAndUpload: confirmUpload, confirmOverwriteAndUpload: confirmUpload, openNativeFileBrowser,
-    cancelSizeConfirm: cancelUpload, cancelOverwriteConfirm: cancelUpload,
+    handleDragOver: upload.handleDragOver, handleDragLeave: upload.handleDragLeave,
+    handleDrop: upload.handleDrop, handleFileInputChange: upload.handleFileInputChange,
+    confirmSizeAndUpload: upload.confirmSizeAndUpload,
+    confirmOverwriteAndUpload: upload.confirmOverwriteAndUpload,
+    openNativeFileBrowser,
+    cancelSizeConfirm: upload.cancelSizeConfirm,
+    cancelOverwriteConfirm: upload.cancelOverwriteConfirm,
     saveFile, patchColumnDefaults,
   };
 }
