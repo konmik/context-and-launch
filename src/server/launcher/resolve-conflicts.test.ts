@@ -2,7 +2,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("~/server/config/instances.js", () => ({
 	worktreeManager: { getWorktreeDir: vi.fn().mockReturnValue("/fake/worktree") },
-	launcherConfigManager: { getMergedConfig: vi.fn(), getAppConfigDir: vi.fn().mockReturnValue("/fake/config") },
+	launcherConfigManager: {
+		getMergedConfig: vi.fn(),
+		getAppConfigDir: vi.fn().mockReturnValue("/fake/config"),
+		getConfigDefaultsDir: vi.fn().mockReturnValue("/fake/config-defaults"),
+	},
 	ticketSyncManager: {
 		prepareResolution: vi.fn().mockResolvedValue({
 			needsAgent: true, scratchDir: "/fake/worktree-conflict-resolve",
