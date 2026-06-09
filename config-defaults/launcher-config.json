@@ -14,7 +14,7 @@
     }
   ],
   "skills": [
-    { "name": "Simplify", "text": "/simplify-k" },
+    { "name": "Simplify", "text": "/simplify" },
     { "name": "Deslop", "text": "/deslop" },
     {
       "name": "Plan",
