@@ -1,4 +1,4 @@
-import { projectRegistry, worktreeManager } from "~/server/config/instances.js";
+import { configPaths, launcherConfigManager, projectRegistry, worktreeManager } from "~/server/config/instances.js";
 import { detectMainBranch } from "~/server/infra/git.js";
 import { withService } from "~/server/shared/route-helpers.js";
 
@@ -12,6 +12,10 @@ export const POST = withService(async ({ request }) => {
 		boardId: boardId?.trim() || undefined,
 		name: name?.trim() || undefined,
 	});
+	launcherConfigManager.saveWorktreeRootPath(
+		project.projectSlug,
+		configPaths.agentWorktreeDir(project.projectSlug),
+	);
 	return Response.json({ projectSlug: project.projectSlug });
 });
 
