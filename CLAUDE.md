@@ -12,6 +12,7 @@
 - Never swallow errors with empty catch blocks. Always surface errors to the user.
 - Never silently delete, overwrite, or force-remove user data (worktrees, files, branches with uncommitted work). If a resource is in the way, return an error telling the user how to resolve it.
 - There cannot be any pre-existing errors. All tests pass before and after merging. If there is an error, fix it immediately, do not leave it for later.
+- Never add silent fallback defaults. If a required value is missing, throw an error. The user must see what went wrong.
 
 ## Code style
 
