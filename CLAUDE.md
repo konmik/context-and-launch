@@ -27,6 +27,12 @@
 - Do not use z-index (Tailwind z-* classes). Use Portal from solid-js/web for stacking.
 - Do not change the text of buttons when running, use a disabled state instead.
 
+## Building
+
+- Build Electron distributable: `npm run electron:dist`.
+- On Windows this produces `dist-electron/context-launch-setup.exe` (NSIS installer).
+- On macOS this produces `dist-electron/context-launch-setup.dmg`.
+
 ## Testing
 
 - Run dev server: `npm run dev`.
