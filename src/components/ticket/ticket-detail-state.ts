@@ -78,7 +78,11 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ useWorktree: value }),
       }
-    ).catch((err) => { console.warn("Failed to persist useWorktree:", err); });
+    ).then((res) => {
+      if (!res.ok) res.text().then((t) => setError(t || "Failed to persist worktree setting"));
+    }).catch((err) => {
+      setError(err instanceof Error ? err.message : "Failed to persist worktree setting");
+    });
   }
 
   async function runShortcut(name: string, force?: boolean) {
@@ -211,8 +215,10 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     fetch(`/api/projects/${props.projectSlug}/launcher-config/column-defaults`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ column: props.ticket.status, ...patch }),
+    }).then((res) => {
+      if (!res.ok) res.text().then((t) => setError(t || "Failed to save column defaults"));
     }).catch((e) => {
-      console.warn("Failed to save column defaults:", e);
+      setError(e instanceof Error ? e.message : "Failed to save column defaults");
     });
   }
 
