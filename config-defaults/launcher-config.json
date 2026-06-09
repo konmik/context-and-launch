@@ -18,7 +18,7 @@
     { "name": "Deslop", "text": "/deslop" },
     {
       "name": "Plan",
-      "text": "/grill-with-docs-k help me creating a detailed product-requirement-document.md in the ticket folder. use /to-prd-k to generate the prd at the end",
+      "text": "/grill-me help me creating a detailed product-requirement-document.md in the ticket folder. use /to-prd to generate the prd at the end. Do not modify status.json.",
       "order": -1
     },
     { "name": "Fix tests", "text": "fix all tests" }
