@@ -95,14 +95,12 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
       );
       if (!res.ok) {
         const text = await res.text();
-        if (res.status === 409) {
-          try {
-            const data = JSON.parse(text);
-            if (data.dirtyWorktree) {
-              setDirtyWorktreeShortcut({ name, message: data.message });
-              return;
-            }
-          } catch { /* Not JSON */ }
+        if (res.status === 409 && res.headers.get("content-type")?.includes("application/json")) {
+          const data = JSON.parse(text);
+          if (data.dirtyWorktree) {
+            setDirtyWorktreeShortcut({ name, message: data.message });
+            return;
+          }
         }
         setError(text || `Error ${res.status}`);
       }
