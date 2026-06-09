@@ -1,7 +1,15 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { worktreeManager } from "~/server/config/instances.js";
 import { TicketStore } from "~/server/ticket/ticket-store.js";
-import { AppError, errorMessage } from "~/server/shared/errors.js";
+import { AppError, PayloadError, errorMessage } from "~/server/shared/errors.js";
+
+function errorResponse(e: unknown, defaultStatus: number): Response {
+  if (e instanceof PayloadError) {
+    return Response.json(e.payload, { status: e.statusCode });
+  }
+  const status = e instanceof AppError ? e.statusCode : defaultStatus;
+  return Response.json({ error: errorMessage(e) }, { status });
+}
 
 export function withService(
   handler: (event: APIEvent) => Promise<Response>,
@@ -11,8 +19,7 @@ export function withService(
     try {
       return await handler(event);
     } catch (e) {
-      const status = e instanceof AppError ? e.statusCode : defaultStatus;
-      return Response.json({ error: errorMessage(e) }, { status });
+      return errorResponse(e, defaultStatus);
     }
   };
 }
@@ -38,8 +45,7 @@ export function withProject(
       const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
       return await handler({ projectSlug, worktreeDir, params }, request);
     } catch (e) {
-      const status = e instanceof AppError ? e.statusCode : errorStatus;
-      return Response.json({ error: errorMessage(e) }, { status });
+      return errorResponse(e, errorStatus);
     }
   };
 }

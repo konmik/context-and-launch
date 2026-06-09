@@ -5,7 +5,7 @@ import {
   worktreeManager, projectRegistry, launcherConfigManager, agentWorktreeManager,
 } from "~/server/config/instances.js";
 import { TicketStore } from "~/server/ticket/ticket-store.js";
-import { ProcessError } from "~/server/shared/errors.js";
+import { ProcessError, NotFoundError, ValidationError, PayloadError } from "~/server/shared/errors.js";
 import { assemblePrompt, interpolatePrompt, splitCommand } from "~/server/launcher/prompt-interpolation.js";
 import type { TicketInfo } from "~/server/ticket/ticket-store.js";
 import type { ProjectInfo } from "~/server/project/project-registry.js";
@@ -163,25 +163,25 @@ export function agentRunning(projectSlug: string, folderName: string): boolean {
 export async function resolveLaunchDir(
   projectSlug: string, folderName: string, useWorktree: boolean, projectPath: string,
   force?: boolean, mainBranch?: string,
-): Promise<string | Response> {
+): Promise<string> {
   if (!useWorktree) return projectPath;
   const merged = launcherConfigManager.getMergedConfig(projectSlug);
   if (!merged.worktreeRootPath) {
-    return new Response("Worktree root path is not configured", { status: 400 });
+    throw new ValidationError("Worktree root path is not configured");
   }
   const result = await agentWorktreeManager.ensureAgentWorktree(
     projectPath, projectSlug, folderName, { skipDirtyCheck: force }, mainBranch,
   );
   if ('dirtyWorktree' in result) {
-    return Response.json(
+    throw new PayloadError(
+      "Main branch has uncommitted changes. Launch anyway?", 409,
       { dirtyWorktree: true, message: "Main branch has uncommitted changes. Launch anyway?" },
-      { status: 409 }
     );
   }
   if ('behindRemote' in result) {
-    return Response.json(
+    throw new PayloadError(
+      "Main branch is behind remote. Pull latest changes before launching?", 409,
       { behindRemote: true, message: "Main branch is behind remote. Pull latest changes before launching?" },
-      { status: 409 }
     );
   }
   return result.worktreePath;
@@ -189,14 +189,14 @@ export async function resolveLaunchDir(
 
 export function resolveTicketAndProject(
   projectSlug: string, folderName: string,
-): { ticket: TicketInfo; project: ProjectInfo; worktreeDir: string } | Response {
+): { ticket: TicketInfo; project: ProjectInfo; worktreeDir: string } {
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
   const store = new TicketStore(worktreeDir);
   const ticket = store.getTicket(folderName);
-  if (!ticket) return new Response("Ticket not found", { status: 404 });
+  if (!ticket) throw new NotFoundError(`Ticket not found: ${folderName}`);
 
   const project = projectRegistry.listProjects().find(p => p.projectSlug === projectSlug);
-  if (!project) return new Response("Project not found", { status: 404 });
+  if (!project) throw new NotFoundError(`Project not found: ${projectSlug}`);
 
   return { ticket, project, worktreeDir };
 }

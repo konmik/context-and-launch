@@ -427,7 +427,7 @@ describe('launchAgent ticketDir vs launchDir separation (code-inspection)', () =
 			'utf-8'
 		);
 		// worktreeDir comes from resolveTicketAndProject destructuring
-		expect(runSource).toMatch(/const\s*\{[^}]*worktreeDir[^}]*\}\s*=\s*resolved/);
+		expect(runSource).toMatch(/const\s*\{[^}]*worktreeDir[^}]*\}\s*=\s*resolveTicketAndProject/);
 		// launchDir is resolved via the shared resolveLaunchDir helper
 		expect(runSource).toContain('resolveLaunchDir');
 		// Both are passed to launchAgent as distinct arguments

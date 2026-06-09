@@ -6,23 +6,20 @@ import { withService } from "~/server/shared/route-helpers.js";
 
 export const POST = withService(async ({ params, request }) => {
 	const { projectSlug, folderName } = params;
-	const resolved = resolveTicketAndProject(projectSlug, folderName);
-	if (resolved instanceof Response) return resolved;
-	const { ticket, project, worktreeDir } = resolved;
+	const { ticket, project, worktreeDir } = resolveTicketAndProject(projectSlug, folderName);
 	const { name, useWorktree, force } = await request.json();
 	const merged = launcherConfigManager.getMergedConfig(projectSlug);
 	const shortcut = merged.shortcuts.find(s => s.name === name);
 	if (!shortcut) return new Response(`Shortcut "${name}" not found`, { status: 404 });
-	const launchDirResult = await resolveLaunchDir(
+	const launchDir = await resolveLaunchDir(
 		projectSlug, folderName, useWorktree, project.path, force, project.mainBranch,
 	);
-	if (launchDirResult instanceof Response) return launchDirResult;
 	const args = interpolateCommand(shortcut.command, {
 		ticketDir: path.resolve(worktreeDir, ticket.folderName),
 		ticketSlug: ticket.folderName, ticketTitle: ticket.title,
 		ticketNumber: ticket.number, ticketStatus: ticket.status,
-		projectPath: project.path, projectSlug, launchDir: launchDirResult,
+		projectPath: project.path, projectSlug, launchDir,
 	});
-	await spawnDetached(args[0], args.slice(1), launchDirResult);
+	await spawnDetached(args[0], args.slice(1), launchDir);
 	return new Response(null, { status: 200 });
 });
