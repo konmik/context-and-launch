@@ -122,7 +122,7 @@ export function ItemFormDialog(props: {
 							/>
 							<p class="mt-1 text-xs text-muted-foreground">
 								{f().itemType === "profile"
-									? "{{initialPrompt}} {{windowTitle}} {{markerPath}} {{appConfigDir}}"
+									? "{{initialPrompt}} {{windowTitle}} {{markerPath}} {{configDefaultsDir}} {{appConfigDir}}"
 								: f().itemType === "shortcut"
 									? [
 										"{{ticketDir}} {{ticketSlug}}",

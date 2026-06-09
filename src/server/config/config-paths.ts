@@ -16,13 +16,19 @@ export function requireSafeSlug(slug: string): void {
 
 export class ConfigPaths {
 	readonly baseDir: string;
+	readonly configDefaultsDir: string;
 
-	constructor(baseDir?: string) {
+	constructor(baseDir?: string, configDefaultsDir?: string) {
 		this.baseDir = baseDir ?? path.join(os.homedir(), '.context-launch');
+		this.configDefaultsDir = configDefaultsDir ?? path.join(process.cwd(), 'config-defaults');
 	}
 
 	appConfigDir(): string {
 		return path.join(this.baseDir, 'config');
+	}
+
+	configDefaults(): string {
+		return this.configDefaultsDir;
 	}
 
 	projectRegistryFile(): string {
@@ -35,14 +41,6 @@ export class ConfigPaths {
 
 	boardsFile(): string {
 		return path.join(this.baseDir, 'config', 'boards.json');
-	}
-
-	platformScriptPs1(): string {
-		return path.join(this.baseDir, 'config', 'run-agent.ps1');
-	}
-
-	platformScriptSh(): string {
-		return path.join(this.baseDir, 'config', 'run-agent.sh');
 	}
 
 	projectDir(projectSlug: string): string {

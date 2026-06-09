@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 import { startServer, type ServerHandle } from "./server-adapter.js";
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+process.env.CONTEXT_LAUNCH_CONFIG_DEFAULTS_DIR = path.join(process.resourcesPath, "config-defaults");
 const windowStateFile = path.join(app.getPath("userData"), "window-state.json");
 
 const DEFAULT_WIDTH = 1400;

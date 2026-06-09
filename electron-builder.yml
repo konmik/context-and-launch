@@ -11,6 +11,9 @@ files:
 asar: true
 asarUnpack:
   - .output/**/*
+extraResources:
+  - from: config-defaults
+    to: config-defaults
 extraMetadata:
   main: electron/main.js
 win:

@@ -26,8 +26,8 @@ export interface ServiceContainer {
 	operationTracker: OperationTracker;
 }
 
-export function createServices(baseDir?: string): ServiceContainer {
-	const configPaths = new ConfigPaths(baseDir);
+export function createServices(baseDir?: string, configDefaultsDir?: string): ServiceContainer {
+	const configPaths = new ConfigPaths(baseDir, configDefaultsDir);
 	const configRepo = new ConfigRepository();
 	const gitRepo = new GitRepository();
 

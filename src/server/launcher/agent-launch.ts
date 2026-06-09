@@ -302,6 +302,7 @@ export async function launchAgent(
     initialPrompt, windowTitle,
     markerPath: agentMarkerPath(projectSlug, ticket.folderName),
     appConfigDir: launcherConfigManager.getAppConfigDir(),
+    configDefaultsDir: launcherConfigManager.getConfigDefaultsDir(),
   };
   await spawnProfile(profile, commandVars, launchDir);
 
