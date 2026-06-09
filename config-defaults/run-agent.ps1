@@ -1,41 +1,44 @@
 # Context & Launch - Agent Launch Script (Windows)
 # This script is called by Context & Launch to launch a Claude coding agent.
-# It receives three arguments:
-#   -initialPrompt: the prompt text to send to the agent
-#   -ticketTitle: used to set the terminal window title
-#   -markerPath: the marker file path the app polls to detect this running agent
+# It receives three positional arguments followed by the agent command:
+#   $args[0]: the prompt text to send to the agent
+#   $args[1]: the terminal window title
+#   $args[2]: the marker file path the app polls to detect this running agent
+#   $args[3..]: the CLI command to run (e.g. claude --dangerously-skip-permissions)
 #
 # You can edit this script to customize how the agent is launched.
 # Context & Launch will not overwrite your changes.
+#
+# Invocations:
+#   powershell -File "$0" <prompt> <title> <marker> <cmd..>   launcher entry
+#   powershell -File "$0" -selfLaunch                         inside WT tab
 
 param(
-    [string]$initialPrompt,
-    [string]$ticketTitle,
-    [string]$markerPath
+    [switch]$selfLaunch
 )
 
-$windowTitle = $ticketTitle
-
-# Record a marker the app reads to detect a running agent. The inner shell
-# writes its own pid on start and deletes the marker when claude ends; it is
-# passed via the environment to avoid quoting the path into the command string.
-# A hard window close leaves the marker, but the app reaps it once the pid dies.
-$env:CL_AGENT_MARKER = $markerPath
-$inner = @'
-if ($env:CL_AGENT_MARKER) {
+if ($selfLaunch) {
+    if (-not $env:CL_AGENT_MARKER) { throw "CL_AGENT_MARKER is not set" }
+    if (-not $env:CL_AGENT_CMD) { throw "CL_AGENT_CMD is not set" }
     $m = $env:CL_AGENT_MARKER
     $d = Split-Path -Parent $m
     if ($d) { New-Item -ItemType Directory -Force -Path $d | Out-Null }
     $s = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
     Set-Content -LiteralPath $m -Value ("{""pid"":$PID,""startSec"":$s}")
-    try { claude --dangerously-skip-permissions } finally { Remove-Item -LiteralPath $m -ErrorAction SilentlyContinue }
-} else {
-    claude --dangerously-skip-permissions
+    try { Invoke-Expression $env:CL_AGENT_CMD } finally { Remove-Item -LiteralPath $m -ErrorAction SilentlyContinue }
+    return
 }
-'@
 
-# Open a new Windows Terminal tab and run Claude under the marker-writing shell
-Start-Process wt -ArgumentList "-d", "`"$PWD`"", "--title", "`"$windowTitle`"", "--suppressApplicationTitle", "--", "powershell", "-NoExit", "-Command", $inner
+$initialPrompt = $args[0]
+$windowTitle = $args[1]
+$markerPath = $args[2]
+$agentCmd = ($args[3..($args.Length - 1)]) -join ' '
+
+$env:CL_AGENT_MARKER = $markerPath
+$env:CL_AGENT_CMD = $agentCmd
+$scriptPath = $MyInvocation.MyCommand.Path
+
+Start-Process wt -ArgumentList "-d", "`"$PWD`"", "--title", "`"$windowTitle`"", "--suppressApplicationTitle", "--", "powershell", "-NoExit", "-File", "`"$scriptPath`"", "-selfLaunch"
 
 # Deliver the initial prompt via SendKeys
 $escaped = $initialPrompt -replace '([+^%~(){}\[\]])', '{$1}'
