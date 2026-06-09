@@ -2,6 +2,7 @@ import { createSignal, createEffect, on, onCleanup } from "solid-js";
 import { revalidate } from "@solidjs/router";
 import type { TicketInfo } from "~/server/ticket/ticket-store.js";
 import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/server/launcher/launcher-config.js";
+import { apiFetch } from "~/lib/api.js";
 import {
   type ActiveFile,
   activeFileLabel,
@@ -495,34 +496,20 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   async function saveTicketHeader() {
     const trimmedNumber = editedNumber().trim();
     const trimmedTitle = editedTitle().trim();
-    if (!trimmedNumber) { setEditedNumber(savedNumber()); }
-    if (!trimmedTitle) { setEditedTitle(savedTitle()); }
-    const numberChanged = trimmedNumber && trimmedNumber !== savedNumber();
-    const titleChanged = trimmedTitle && trimmedTitle !== savedTitle();
-    if (!numberChanged && !titleChanged) return;
+    if (!trimmedNumber) setEditedNumber(savedNumber());
+    if (!trimmedTitle) setEditedTitle(savedTitle());
     const body: Record<string, string> = {};
-    if (numberChanged) body.number = trimmedNumber;
-    if (titleChanged) body.title = trimmedTitle;
-    try {
-      const res = await fetch(
-        `/api/projects/${props.projectSlug}/board/tickets/${savedFolderName()}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        },
-      );
-      if (!res.ok) {
-        setError(await res.text() || "Failed to update ticket");
-        return;
-      }
-      const data = await res.json();
-      setSavedNumber(trimmedNumber || savedNumber());
-      setSavedTitle(trimmedTitle || savedTitle());
-      if (data.folderName) setSavedFolderName(data.folderName);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to update ticket");
-    }
+    if (trimmedNumber && trimmedNumber !== savedNumber()) body.number = trimmedNumber;
+    if (trimmedTitle && trimmedTitle !== savedTitle()) body.title = trimmedTitle;
+    if (Object.keys(body).length === 0) return;
+    const result = await apiFetch(
+      `/api/projects/${props.projectSlug}/board/tickets/${savedFolderName()}`,
+      { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+    );
+    if (result.error) { setError(result.error); return; }
+    if (body.number) setSavedNumber(body.number);
+    if (body.title) setSavedTitle(body.title);
+    if (result.folderName) setSavedFolderName(result.folderName as string);
   }
 
   const hasUnsavedHeaderChanges = () =>
