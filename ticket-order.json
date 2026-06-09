@@ -1,6 +1,8 @@
 {
   "todo": [],
-  "plan": [],
+  "plan": [
+    "st-0023-show-sync-pending-indicator-on-sync-button"
+  ],
   "in-progress": [],
   "review": [],
   "done": []
