@@ -18,7 +18,7 @@ import {
 import { EditorTab } from "./ticket-detail-editor-tab.js";
 import { LauncherTab } from "./ticket-detail-launcher-tab.js";
 import { ShortcutsTabPane } from "./ticket-detail-shortcuts-tab.js";
-import { createTicketDetailState, type Tab } from "./ticket-detail-state.js";
+import { createTicketDetailState, type Tab, type TicketDetailState } from "./ticket-detail-state.js";
 
 interface TicketDetailDialogProps {
   onClose: () => void;
@@ -44,7 +44,7 @@ function TicketDetailContent(props: {
   ticket: TicketInfo;
   onClose: () => void;
   projectSlug: string;
-  ctrl?: ReturnType<typeof createTicketDetailState>;
+  ctrl?: TicketDetailState;
 }) {
   const s = props.ctrl ?? createTicketDetailState(props);
 
@@ -160,29 +160,7 @@ function TicketDetailContent(props: {
           </Show>
 
           <Show when={s.activeTab() === "editor"}>
-            <EditorTab
-              activeFile={s.activeFile()}
-              options={s.allFileOptions()}
-              isStale={s.isReferenceStale}
-              dropdownOpen={s.dropdownOpen()}
-              setDropdownOpen={s.setDropdownOpen}
-              onSelect={s.selectFile}
-              onTrash={s.handleTrashClick}
-              onNewFile={s.openNewFileDialog}
-              onBrowse={s.openNativeFileBrowser}
-              browsing={s.browsing()}
-              uploading={s.uploading()}
-              dragging={s.dragging()}
-              onDragOver={s.handleDragOver}
-              onDragLeave={s.handleDragLeave}
-              onDrop={s.handleDrop}
-              onFileInputChange={s.handleFileInputChange}
-              viewMode={s.fileViewMode()}
-              content={s.content()}
-              onChange={s.setContent}
-              onSave={s.saveFile}
-              imageUrl={s.imageUrl()}
-            />
+            <EditorTab ctrl={s} />
           </Show>
           <Show when={s.activeTab() === "launcher"}>
             <LauncherTab

@@ -551,3 +551,5 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     saveFile, patchColumnDefaults,
   };
 }
+
+export type TicketDetailState = ReturnType<typeof createTicketDetailState>;

@@ -1,59 +1,38 @@
 import { FileToolbar, EditorPane, TAB_PANE_CLASS } from "./ticket-detail-parts.js";
-import { activeFileLabel, type ActiveFile } from "./ticket-detail-pure.js";
+import { activeFileLabel, isReadOnly } from "./ticket-detail-pure.js";
+import type { TicketDetailState } from "./ticket-detail-state.js";
 
-export function EditorTab(props: {
-  activeFile: ActiveFile;
-  options: ActiveFile[];
-  isStale: (path: string) => boolean;
-  dropdownOpen: boolean;
-  setDropdownOpen: (open: boolean) => void;
-  onSelect: (af: ActiveFile) => void;
-  onTrash: () => void;
-  onNewFile: () => void;
-  onBrowse: () => void;
-  browsing: boolean;
-  uploading: boolean;
-  dragging: boolean;
-  onDragOver: (e: DragEvent) => void;
-  onDragLeave: (e: DragEvent) => void;
-  onDrop: (e: DragEvent) => void;
-  onFileInputChange: (e: Event) => void;
-  viewMode: "editor" | "image" | "unsupported";
-  content: string;
-  onChange: (value: string) => void;
-  onSave: () => void;
-  imageUrl: string;
-}) {
-  const readOnly = () => props.activeFile.type === "reference" || props.activeFile.type === "file";
+export function EditorTab(props: { ctrl: TicketDetailState }) {
+  const s = props.ctrl;
   return (
     <>
       <FileToolbar
-        activeFile={props.activeFile}
-        options={props.options}
-        isStale={props.isStale}
-        dropdownOpen={props.dropdownOpen}
-        setDropdownOpen={props.setDropdownOpen}
-        onSelect={props.onSelect}
-        onTrash={props.onTrash}
-        onNewFile={props.onNewFile}
-        onBrowse={props.onBrowse}
-        browsing={props.browsing}
-        uploading={props.uploading}
-        dragging={props.dragging}
-        onDragOver={props.onDragOver}
-        onDragLeave={props.onDragLeave}
-        onDrop={props.onDrop}
-        onFileInputChange={props.onFileInputChange}
+        activeFile={s.activeFile()}
+        options={s.allFileOptions()}
+        isStale={s.isReferenceStale}
+        dropdownOpen={s.dropdownOpen()}
+        setDropdownOpen={s.setDropdownOpen}
+        onSelect={s.selectFile}
+        onTrash={s.handleTrashClick}
+        onNewFile={s.openNewFileDialog}
+        onBrowse={s.openNativeFileBrowser}
+        browsing={s.browsing()}
+        uploading={s.uploading()}
+        dragging={s.dragging()}
+        onDragOver={s.handleDragOver}
+        onDragLeave={s.handleDragLeave}
+        onDrop={s.handleDrop}
+        onFileInputChange={s.handleFileInputChange}
       />
       <div class={TAB_PANE_CLASS}>
         <EditorPane
-          viewMode={props.viewMode}
-          content={props.content}
-          onChange={props.onChange}
-          onSave={props.activeFile.type === "context" ? props.onSave : undefined}
-          readOnly={readOnly()}
-          imageUrl={props.imageUrl}
-          label={activeFileLabel(props.activeFile)}
+          viewMode={s.fileViewMode()}
+          content={s.content()}
+          onChange={s.setContent}
+          onSave={s.activeFile().type === "context" ? s.saveFile : undefined}
+          readOnly={isReadOnly(s.activeFile())}
+          imageUrl={s.imageUrl()}
+          label={activeFileLabel(s.activeFile())}
         />
       </div>
     </>
