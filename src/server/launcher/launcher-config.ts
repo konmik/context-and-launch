@@ -1,5 +1,6 @@
+import fs from 'fs';
+import path from 'path';
 import type { ConfigPaths } from '../config/config-paths.js';
-import EMPTY_PROJECT_CONFIG from '../../../config-defaults/project-launcher-config.json';
 
 export interface LauncherTemplate {
 	name: string;
@@ -74,6 +75,10 @@ export class LauncherConfigManager {
 		return this.paths.appConfigDir();
 	}
 
+	getConfigDefaultsDir(): string {
+		return this.paths.configDefaults();
+	}
+
 	getProjectDir(projectSlug: string): string {
 		return this.paths.projectDir(projectSlug);
 	}
@@ -114,11 +119,14 @@ export class LauncherConfigManager {
 	}
 
 	loadProjectConfig(projectSlug: string): LauncherConfig {
-		return (
-			this.readLauncherFile(
-				this.projectLauncherPath(projectSlug),
-			) ?? structuredClone(EMPTY_PROJECT_CONFIG) as LauncherConfig
-		);
+		return this.readLauncherFile(this.projectLauncherPath(projectSlug))
+			?? this.readDefaultProjectConfig();
+	}
+
+	private readDefaultProjectConfig(): LauncherConfig {
+		const filePath = path.join(this.paths.configDefaults(), 'project-launcher-config.json');
+		const text = fs.readFileSync(filePath, 'utf-8');
+		return parseConfig(text);
 	}
 
 	saveAppConfig(config: LauncherConfig): void {

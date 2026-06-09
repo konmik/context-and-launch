@@ -24,6 +24,7 @@ export const POST = withService(async ({ params, request }) => {
 		windowTitle: "Resolve Conflicts",
 		markerPath: agentMarkerPath(projectSlug, "__resolve-conflicts__"),
 		appConfigDir: launcherConfigManager.getAppConfigDir(),
+		configDefaultsDir: launcherConfigManager.getConfigDefaultsDir(),
 	}, plan.scratchDir);
 	return Response.json({ success: true });
 });

@@ -6,7 +6,10 @@ interface ServiceGlobal { __aiStagesServices?: ServiceContainer }
 function loadServices(): ServiceContainer {
 	const g = globalThis as unknown as ServiceGlobal;
 	if (g.__aiStagesServices) return g.__aiStagesServices;
-	const s = createServices(process.env.CONTEXT_LAUNCH_DATA_DIR || undefined);
+	const s = createServices(
+		process.env.CONTEXT_LAUNCH_DATA_DIR || undefined,
+		process.env.CONTEXT_LAUNCH_CONFIG_DEFAULTS_DIR || undefined,
+	);
 	initializeDataDir(s.configPaths);
 	g.__aiStagesServices = s;
 	return s;

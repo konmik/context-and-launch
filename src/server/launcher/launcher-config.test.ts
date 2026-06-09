@@ -926,10 +926,10 @@ describe('LauncherConfigManager', () => {
 		expect(config.profiles).toHaveLength(2);
 		expect(config.profiles![0].name).toBe('Claude Windows');
 		expect(config.profiles![0].command)
-			.toBe('powershell -File {{appConfigDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}} {{markerPath}} claude --dangerously-skip-permissions');
+			.toBe('powershell -File {{configDefaultsDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}} {{markerPath}} claude --dangerously-skip-permissions');
 		expect(config.profiles![1].name).toBe('Claude macOS');
 		expect(config.profiles![1].command)
-			.toBe('bash {{appConfigDir}}/run-agent.sh {{initialPrompt}} {{windowTitle}} {{markerPath}} claude --dangerously-skip-permissions');
+			.toBe('bash {{configDefaultsDir}}/run-agent.sh {{initialPrompt}} {{windowTitle}} {{markerPath}} claude --dangerously-skip-permissions');
 	});
 
 	it('addProfile to app scope, verify file on disk', () => {
