@@ -18,6 +18,7 @@
 - We are using only TypeScript, do not check for types randomly, do not write incorrect-type tests.
 - Do not duplicate code. Extract shared logic into reusable helpers.
 - Avoid non-ASCII unless explicitly asked.
+- Never use ^ or ~ in package.json dependency versions. Always pin the exact version.
 - Do not use underscore or bold markdown formatting in md files.
 - Never use bare "slug" as a variable, parameter, property, or type field name. Always qualify it: `projectSlug`, `columnSlug`, `contextFileName`, etc. The only exception is generic slug utility functions like `requireSafeSlug` and `toSlugSegment`. See CONTEXT.md for the full glossary.
 
