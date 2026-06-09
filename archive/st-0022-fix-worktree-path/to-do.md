@@ -1,0 +1,1 @@
+When adding a project the default worktree and tickets path must be set in the project config
