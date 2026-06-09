@@ -926,11 +926,11 @@ describe('LauncherConfigManager', () => {
 		expect(config.profiles).toHaveLength(2);
 		expect(config.profiles![0].name).toBe('Claude Windows');
 		const winCmd = config.profiles![0].command;
-		expect(winCmd).toContain('powershell -File {{appConfigDir}}/run-agent.ps1');
+		expect(winCmd).toContain('powershell -File {{configDefaultsDir}}/run-agent.ps1');
 		expect(winCmd).toContain('claude --dangerously-skip-permissions');
 		expect(config.profiles![1].name).toBe('Claude macOS');
 		const macCmd = config.profiles![1].command;
-		expect(macCmd).toContain('bash {{appConfigDir}}/run-agent.sh');
+		expect(macCmd).toContain('bash {{configDefaultsDir}}/run-agent.sh');
 		expect(macCmd).toContain('claude --dangerously-skip-permissions');
 	});
 
