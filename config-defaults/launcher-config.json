@@ -26,11 +26,11 @@
   "profiles": [
     {
       "name": "Claude Windows",
-      "command": "powershell -File {{configDefaultsDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}} {{markerPath}} claude --dangerously-skip-permissions"
+      "command": "powershell -File {{appConfigDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}} {{markerPath}} claude --dangerously-skip-permissions"
     },
     {
       "name": "Claude macOS",
-      "command": "bash {{configDefaultsDir}}/run-agent.sh {{initialPrompt}} {{windowTitle}} {{markerPath}} claude --dangerously-skip-permissions"
+      "command": "bash {{appConfigDir}}/run-agent.sh {{initialPrompt}} {{windowTitle}} {{markerPath}} claude --dangerously-skip-permissions"
     }
   ],
   "shortcuts": [
