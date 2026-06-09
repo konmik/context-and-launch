@@ -21,6 +21,16 @@ export class NotFoundError extends AppError {
 	constructor(message: string) { super(message, 404); }
 }
 
+export class PayloadError extends AppError {
+	constructor(
+		message: string,
+		statusCode: number,
+		public readonly payload: Record<string, unknown>,
+	) {
+		super(message, statusCode);
+	}
+}
+
 export class ProcessError extends Error {
 	readonly shortDescription: string;
 

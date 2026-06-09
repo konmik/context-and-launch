@@ -9,9 +9,7 @@ import { withService } from "~/server/shared/route-helpers.js";
 
 export const POST = withService(async ({ params, request }) => {
   const { projectSlug, folderName } = params;
-  const resolved = resolveTicketAndProject(projectSlug, folderName);
-  if (resolved instanceof Response) return resolved;
-  const { ticket, project, worktreeDir } = resolved;
+  const { ticket, project, worktreeDir } = resolveTicketAndProject(projectSlug, folderName);
   if (agentRunning(projectSlug, folderName)) return new Response("Already started", { status: 409 });
   await agentWorktreeManager.pullMainBranch(project.path, project.mainBranch);
   const launchRequest = await readLaunchRequest(request);
