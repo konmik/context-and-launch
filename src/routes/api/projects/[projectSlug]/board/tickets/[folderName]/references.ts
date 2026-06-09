@@ -6,7 +6,7 @@ export const POST = withTicketStore(async (ctx, request) => {
   for (const p of paths) {
     ctx.store.addReference(ctx.folderName, p);
   }
-  return Response.json({ ok: true });
+  return Response.json({ success: true });
 });
 
 export const DELETE = withTicketStore(async (ctx, request) => {
