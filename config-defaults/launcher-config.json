@@ -6,7 +6,7 @@
     },
     {
       "name": "Implement",
-      "text": "Current ticket files are in {{ticketDir}}. Read the files there for context. Do not do anything else.\n\nrun: git rebase master\n/hero2 hero {{ticketSlug}}\n/exploratory-testing current branch\n"
+      "text": "Current ticket files are in {{ticketDir}}. Read the files there for context. Do not do anything else.\n\nrun: git rebase master\n/implement\n"
     },
     {
       "name": "Merge",
