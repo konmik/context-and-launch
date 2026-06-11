@@ -262,9 +262,14 @@ describe.runIf(process.platform === "win32")("spawnDetached windows .cmd shims",
 });
 
 describe("spawnDetached source guard", () => {
-  it("detaches everything except Windows console hosts, which get a visible console", () => {
+  // PowerShell breaks under DETACHED_PROCESS (nodejs/node#51018), so console
+  // hosts stay non-detached; windowsHide gives them a hidden console via
+  // CREATE_NO_WINDOW instead of a visible window. Their children still survive
+  // app exit because libuv's job object uses JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK
+  // (verified by the "powershell job breakaway" test above).
+  it("detaches everything except Windows console hosts, which get a hidden console", () => {
     const source = fs.readFileSync(path.resolve(__dirname, "spawn-detached.ts"), "utf-8");
     expect(source).toContain("detached: !ownConsole");
-    expect(source).toContain("windowsHide: !ownConsole");
+    expect(source).toContain("windowsHide: true");
   });
 });
