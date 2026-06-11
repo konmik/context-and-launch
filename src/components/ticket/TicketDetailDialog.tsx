@@ -108,16 +108,6 @@ function TicketDetailContent(props: {
                 />
               </div>
               <div class="flex items-center gap-3">
-                <label class="flex items-center gap-1.5 text-xs text-muted-foreground" data-no-drag>
-                  <input
-                    type="checkbox"
-                    checked={s.useWorktree()}
-                    onChange={(e) => s.persistWorktree(e.currentTarget.checked)}
-                    class="rounded border-input"
-                    data-testid="ticket-detail-use-worktree-checkbox"
-                  />
-                  Launch in worktree
-                </label>
                 <button
                   type="button"
                   data-no-drag
@@ -177,7 +167,18 @@ function TicketDetailContent(props: {
             />
           </Show>
 
-          <div class="flex justify-end gap-2 border-t border-border px-4 py-3">
+          <div class="flex items-center gap-2 border-t border-border px-4 py-3">
+            <label class="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={s.useWorktree()}
+                onChange={(e) => s.persistWorktree(e.currentTarget.checked)}
+                class="rounded border-input"
+                data-testid="ticket-detail-use-worktree-checkbox"
+              />
+              Launch in worktree
+            </label>
+            <div class="flex-1" />
             <button
               type="button"
               onClick={s.close}
