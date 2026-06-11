@@ -1,6 +1,19 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
+
+vi.mock('~/server/config/instances.js', () => ({
+	worktreeManager: {},
+	projectRegistry: {},
+	launcherConfigManager: {},
+	agentWorktreeManager: {},
+}));
+vi.mock('~/server/launcher/spawn-detached.js', () => ({
+	spawnDetached: vi.fn().mockResolvedValue(undefined),
+}));
+
+import { spawnProfile } from '~/server/launcher/agent-launch.js';
+import { spawnDetached } from '~/server/launcher/spawn-detached.js';
 
 describe('parseLaunchRequest profileName (code-inspection)', () => {
 	const source = fs.readFileSync(
@@ -58,12 +71,11 @@ describe('launchAgent profile-based spawn (code-inspection)', () => {
 	});
 
 	it('spawnProfile delegates to spawnDetached', () => {
-		expect(source).toMatch(/spawnDetached\(executable,\s*args,\s*cwd\)/);
+		expect(source).toMatch(/spawnDetached\(parts\[0\],\s*parts\.slice\(1\),\s*cwd\)/);
 	});
 
-	it('spawnProfile uses splitCommand for parsing', () => {
-		expect(source).toMatch(/splitCommand\(profile\.command\)/);
-
+	it('spawnProfile uses interpolateCommand for parsing', () => {
+		expect(source).toMatch(/interpolateCommand\(profile\.command,\s*commandVars\)/);
 	});
 
 	it('launchAgent no longer creates a bat file', () => {
@@ -77,5 +89,18 @@ describe('launchAgent profile-based spawn (code-inspection)', () => {
 
 	it('launchAgent does not save column defaults (saved by UI on change)', () => {
 		expect(source).not.toMatch(/saveColumnDefaults|patchColumnDefaults/);
+	});
+});
+
+describe('spawnProfile command interpolation', () => {
+	it('interpolates template variables in the executable token', async () => {
+		await spawnProfile(
+			{ name: 'Custom', command: '{{configDefaultsDir}}/run-agent.sh {{initialPrompt}}' },
+			{ configDefaultsDir: '/fake/config-defaults', initialPrompt: 'do the thing' },
+			'/fake/cwd',
+		);
+		expect(spawnDetached).toHaveBeenCalledWith(
+			'/fake/config-defaults/run-agent.sh', ['do the thing'], '/fake/cwd',
+		);
 	});
 });
