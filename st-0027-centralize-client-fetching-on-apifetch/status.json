@@ -1,7 +1,0 @@
-{
-  "number": "ST-0027",
-  "title": "Centralize client fetching on apiFetch",
-  "status": "plan",
-  "useWorktree": false,
-  "createdAt": "2026-06-11T14:25:30.081Z"
-}
