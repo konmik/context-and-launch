@@ -49,7 +49,7 @@ export async function spawnDetached(
   const child = spawn(executable, args, {
     cwd,
     detached: !ownConsole,
-    windowsHide: !ownConsole,
+    windowsHide: true,
     stdio: ["ignore", "ignore", stderrFd],
   });
   fs.closeSync(stderrFd);
