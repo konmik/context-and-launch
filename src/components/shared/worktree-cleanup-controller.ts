@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js";
-import type { TicketInfo } from "~/server/ticket/ticket-store.js";
-import type { ErrorInfo } from "~/server/shared/errors.js";
+import type { TicketInfo } from "~/core/ticket/ticket-store.js";
+import type { ErrorInfo } from "~/core/shared/errors.js";
 import {
   type CleanupOptions, loadCleanupOptions, saveCleanupOptions, toErrorInfo,
 } from "./worktree-cleanup-pure.js";

@@ -1,4 +1,4 @@
-import type { ErrorInfo } from "~/server/shared/errors.js";
+import type { ErrorInfo } from "~/core/shared/errors.js";
 
 export interface CleanupOptions {
   deleteWorktree: boolean;

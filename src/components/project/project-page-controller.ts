@@ -1,13 +1,13 @@
 import { createSignal } from "solid-js";
 import { revalidate } from "@solidjs/router";
-import type {
-  TicketInfo, CreateTicketBody, UpdateTicketBody, ReorderTicketBody,
-} from "~/server/ticket/ticket-store.js";
-import type { ErrorInfo } from "~/server/shared/errors.js";
-import type { ResolveConflictsBody } from "~/server/launcher/launcher-config.js";
-import type { WorktreeCleanupBody } from "~/server/worktree/worktree-cleanup.js";
-import { apiFetch } from "~/lib/api.js";
-import { deleteProjectAction } from "~/lib/delete-project.js";
+import type { TicketInfo } from "~/core/ticket/ticket-store.js";
+import type { ErrorInfo } from "~/core/shared/errors.js";
+import {
+  createTicket, updateTicket, deleteTicket, archiveTicket,
+  reorderTicket, syncTickets, worktreeCleanup,
+} from "../ticket/ticket-api.js";
+import { deleteProject } from "./project-api.js";
+import { resolveConflicts, abortRebase } from "../launcher/launcher-api.js";
 import { parseSyncResult } from "./project-page-pure.js";
 
 export interface ProjectPageDeps {
@@ -42,18 +42,21 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     setSyncing(true);
     setSyncError(null);
     try {
-      const res = await fetch(`/api/projects/${deps.projectSlug()}/board/sync`, { method: "POST" });
-      const result = await res.json();
-      const parsed = parseSyncResult(result);
-      if (parsed.type === "success") {
-        setSyncSuccess(true);
-        setTimeout(() => setSyncSuccess(false), 2000);
-        await revalidate("project-page");
-      } else if (parsed.type === "conflict") {
-        await revalidate("project-page");
-        setConflictDialogOpen(true);
+      const result = await syncTickets(deps.projectSlug());
+      if (!result.ok) {
+        setSyncError({ description: result.message });
       } else {
-        setSyncError({ description: parsed.message });
+        const parsed = parseSyncResult(result);
+        if (parsed.type === "success") {
+          setSyncSuccess(true);
+          setTimeout(() => setSyncSuccess(false), 2000);
+          await revalidate("project-page");
+        } else if (parsed.type === "conflict") {
+          await revalidate("project-page");
+          setConflictDialogOpen(true);
+        } else {
+          setSyncError({ description: parsed.message });
+        }
       }
     } catch (err) {
       setSyncError({ description: err instanceof Error ? err.message : "Sync failed" });
@@ -63,24 +66,14 @@ export function createProjectPageController(deps: ProjectPageDeps) {
   }
 
   async function handleConflictResolve(profileName: string) {
-    const res = await fetch(`/api/projects/${deps.projectSlug()}/board/resolve-conflicts`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ profileName } satisfies ResolveConflictsBody),
-    });
-    if (!res.ok) {
-      const body = await res.json();
-      throw new Error(body.error || "Failed to launch resolver");
-    }
+    const result = await resolveConflicts(deps.projectSlug(), profileName);
+    if (!result.ok) throw new Error(result.message);
     await revalidate("project-page");
   }
 
   async function handleConflictAbort() {
-    const res = await fetch(`/api/projects/${deps.projectSlug()}/board/sync`, { method: "DELETE" });
-    if (!res.ok) {
-      const body = await res.json();
-      throw new Error(body.error || "Failed to abort rebase");
-    }
+    const result = await abortRebase(deps.projectSlug());
+    if (!result.ok) throw new Error(result.message);
     await revalidate("project-page");
   }
 
@@ -117,54 +110,43 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     setDetailTicket(fresh ?? ticket);
   }
 
-  async function ticketAction(url: string, init?: RequestInit) {
-    const result = await apiFetch(url, init);
-    if (!result.error) revalidate("project-page");
-    return result;
-  }
-
   async function handleCreateTicket(number: string, title: string) {
-    const base = `/api/projects/${deps.projectSlug()}/board/tickets`;
-    return ticketAction(base, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ number, title } satisfies CreateTicketBody),
-    });
+    const result = await createTicket(deps.projectSlug(), number, title);
+    if (result.ok) revalidate("project-page");
+    return result.ok ? {} : { error: result.message };
   }
 
   async function handleEditTicket(folderName: string, number: string, title: string) {
-    return ticketAction(`/api/projects/${deps.projectSlug()}/board/tickets/${folderName}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ number, title } satisfies UpdateTicketBody),
-    });
+    const result = await updateTicket(
+      deps.projectSlug(), folderName, number || null, title || null, null,
+    );
+    if (result.ok) revalidate("project-page");
+    return result.ok ? { folderName: result.folderName } : { error: result.message };
   }
 
   async function handleArchiveTicket(folderName: string) {
-    return ticketAction(`/api/projects/${deps.projectSlug()}/board/tickets/${folderName}/archive`, {
-      method: "POST",
-    });
+    const result = await archiveTicket(deps.projectSlug(), folderName);
+    if (result.ok) revalidate("project-page");
+    return result.ok ? {} : { error: result.message };
   }
 
   async function handleDeleteTicket(folderName: string) {
-    return ticketAction(`/api/projects/${deps.projectSlug()}/board/tickets/${folderName}`, {
-      method: "DELETE",
-    });
+    const result = await deleteTicket(deps.projectSlug(), folderName);
+    if (result.ok) revalidate("project-page");
+    return result.ok ? {} : { error: result.message };
   }
 
   async function handleDeleteProject(projectSlug: string) {
-    return deleteProjectAction(projectSlug);
+    const result = await deleteProject(projectSlug);
+    if (result.ok) revalidate("project-page");
+    return result.ok ? {} : { error: result.message };
   }
 
   async function handleReorder(
     folderName: string, fromColumn: string, toColumn: string, newIndex: number,
   ) {
-    const res = await fetch(`/api/projects/${deps.projectSlug()}/board/reorder`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ folderName, fromColumn, toColumn, newIndex } satisfies ReorderTicketBody),
-    });
-    if (res.ok) await revalidate("project-page");
+    const result = await reorderTicket(deps.projectSlug(), folderName, fromColumn, toColumn, newIndex);
+    if (result.ok) revalidate("project-page");
   }
 
   async function handleCleanupSubmit(
@@ -172,12 +154,11 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     options: { deleteWorktree: boolean; deleteLocalBranch: boolean; deleteRemoteBranch: boolean },
   ) {
     if (options.deleteWorktree || options.deleteLocalBranch || options.deleteRemoteBranch) {
-      const cleanupResult = await apiFetch(`/api/projects/${deps.projectSlug()}/worktree-cleanup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ folderName, options } satisfies WorktreeCleanupBody),
-      });
-      if (cleanupResult.error) return cleanupResult;
+      const cleanupResult = await worktreeCleanup(deps.projectSlug(), folderName, options);
+      if (!cleanupResult.ok) {
+        const info = 'errorInfo' in cleanupResult ? cleanupResult.errorInfo : undefined;
+        return { error: info ?? cleanupResult.message };
+      }
     }
     const action = cleanupAction();
     return action === "archive"

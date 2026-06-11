@@ -4,8 +4,8 @@ import {
 	createSortable,
 	createDroppable,
 } from "@thisbeyond/solid-dnd";
-import type { TicketInfo } from "~/server/ticket/ticket-store.js";
-import type { ColumnDefinition } from "~/server/project/board-config.js";
+import type { TicketInfo } from "~/core/ticket/ticket-store.js";
+import type { ColumnDefinition } from "~/core/project/board-config.js";
 import TicketCard from "../ticket/TicketCard";
 import type { HoverTarget } from "./drop-index.js";
 import { DragPreview, DND_ACTIVE_CLASS } from "./dnd-shared.js";

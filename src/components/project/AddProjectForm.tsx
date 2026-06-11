@@ -2,14 +2,12 @@ import { Show } from "solid-js";
 import {
   createAddProjectController,
   type AddProjectController,
+  type AddProjectAction,
 } from "./add-project-controller.js";
 import BoardSelector from "./BoardSelector.js";
 
 interface AddProjectFormProps {
-  action: (
-    path: string, branch: string, mainBranch: string, boardId: string,
-    name: string,
-  ) => Promise<{ projectSlug?: string; error?: string }>;
+  action: AddProjectAction;
   errorMessage?: string;
   onSuccess?: (projectSlug: string) => void;
   submitTitle?: string;

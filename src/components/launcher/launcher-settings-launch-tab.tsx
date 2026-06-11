@@ -1,5 +1,5 @@
 import { TabsContent } from "../ui/tabs";
-import type { MergedLauncherConfig } from "~/server/launcher/launcher-config.js";
+import type { MergedLauncherConfig } from "~/core/launcher/launcher-config.js";
 import type { ItemType, Scope } from "./launcher-settings-dialogs.js";
 import { ItemSection } from "./launcher-settings-prompts-tab.js";
 

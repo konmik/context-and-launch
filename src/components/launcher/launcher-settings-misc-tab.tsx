@@ -2,6 +2,7 @@ import { createSignal } from "solid-js";
 import { TabsContent } from "../ui/tabs";
 import { ScopeBadge } from "./launcher-settings-rows.js";
 import DeleteProjectDialog from "../project/DeleteProjectDialog.js";
+import { pickDirectory } from "../shared/shared-api.js";
 
 export function MiscTab(props: {
 	projectName: string;
@@ -56,18 +57,13 @@ export function MiscTab(props: {
 							data-testid="launcher-settings-misc-worktree-browse"
 							onClick={async () => {
 								try {
-									const res = await fetch(
-										`/api/pick-directory?path=${encodeURIComponent(props.worktreeRootPath)}`,
-									);
-									if (res.status === 204) return;
-									if (!res.ok) {
-										const body = await res.json().catch(() => ({}));
-										props.setError(body?.error ?? `Directory picker failed (${res.status})`);
-										return;
+									const result = await pickDirectory(props.worktreeRootPath);
+									if ("path" in result) {
+										props.setWorktreeRootPath(result.path);
+										props.saveWorktreeRootPath();
+									} else if ("error" in result) {
+										props.setError(result.error);
 									}
-									const { path } = await res.json();
-									props.setWorktreeRootPath(path);
-									props.saveWorktreeRootPath();
 								} catch (e) {
 									props.setError(
 										e instanceof Error ? e.message : "Failed to pick directory",

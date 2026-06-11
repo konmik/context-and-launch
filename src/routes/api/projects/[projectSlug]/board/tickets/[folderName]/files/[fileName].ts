@@ -1,15 +1,19 @@
-import { withTicketStore } from "~/server/shared/route-helpers.js";
-import { getMimeType } from "~/server/shared/mime-types.js";
+import type { APIEvent } from "@solidjs/start/server";
+import { worktreeManager } from "~/core/config/instances.js";
+import { TicketStore } from "~/core/ticket/ticket-store.js";
+import { getMimeType } from "~/core/shared/mime-types.js";
+import { errorMessage } from "~/core/shared/errors.js";
 
-export const GET = withTicketStore(async (ctx) => {
-  const content = ctx.store.getFileContent(ctx.folderName, ctx.params.fileName);
-  const mimeType = getMimeType(ctx.params.fileName) ?? "application/octet-stream";
-  return new Response(new Uint8Array(content), {
-    headers: { "Content-Type": mimeType },
-  });
-});
-
-export const DELETE = withTicketStore(async (ctx) => {
-  ctx.store.deleteTicketFile(ctx.folderName, ctx.params.fileName);
-  return new Response(null, { status: 204 });
-});
+export async function GET({ params }: APIEvent): Promise<Response> {
+  try {
+    const worktreeDir = worktreeManager.getWorktreeDir(params.projectSlug);
+    const store = new TicketStore(worktreeDir);
+    const content = store.getFileContent(params.folderName, params.fileName);
+    const mimeType = getMimeType(params.fileName) ?? "application/octet-stream";
+    return new Response(new Uint8Array(content), {
+      headers: { "Content-Type": mimeType },
+    });
+  } catch (e) {
+    return Response.json({ error: errorMessage(e) }, { status: 500 });
+  }
+}

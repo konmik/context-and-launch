@@ -1,12 +1,10 @@
 import { createSignal, createEffect, createMemo, on } from "solid-js";
-import type { TicketInfo } from "~/server/ticket/ticket-store.js";
-import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/server/launcher/launcher-config.js";
-import type { ErrorInfo } from "~/server/shared/errors.js";
+import type { TicketInfo } from "~/core/ticket/ticket-store.js";
+import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/core/launcher/launcher-config.js";
+import type { ErrorInfo } from "~/core/shared/errors.js";
 import { createListReorder, orderByNameList } from "../board/list-reorder.js";
-import {
-	resolveDefaults, buildLaunchBody, ticketAiUrl,
-	parseLaunchResponse, textToErrorInfo,
-} from "./agent-launcher-pure.js";
+import { resolveDefaults } from "./agent-launcher-pure.js";
+import { launchAgentAction, pullAndRetryLaunch } from "./launcher-api.js";
 
 type MergedSkill = MergedLauncherConfig["skills"][number];
 
@@ -68,21 +66,21 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 		setBehindRemoteMsg("");
 		setDirtyWorktreeMsg("");
 		try {
-			const url = ticketAiUrl(props.projectSlug, props.ticket.folderName, "run");
-			const body = buildLaunchBody(
-				selectedTemplate(), [...checkedSkills()], props.useWorktree, selectedProfile(), extra,
+			const result = await launchAgentAction(
+				props.projectSlug, props.ticket.folderName,
+				{
+					templateName: selectedTemplate(),
+					checkedSkills: [...checkedSkills()],
+					useWorktree: props.useWorktree,
+					profileName: selectedProfile(),
+					force: extra?.force === true,
+				},
 			);
-			const res = await fetch(url, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(body),
-			});
-			if (res.ok) return;
-			const result = parseLaunchResponse(res.status, await res.text());
+			if (result.ok) return;
 			switch (result.type) {
 				case "behindRemote": setBehindRemoteMsg(result.message); break;
 				case "dirtyWorktree": setDirtyWorktreeMsg(result.message); break;
-				case "error": setErrorInfo(result.errorInfo); break;
+				default: setErrorInfo({ description: result.message }); break;
 			}
 		} catch (e: unknown) {
 			setErrorInfo({ description: e instanceof Error ? e.message : "Network error" });
@@ -96,16 +94,17 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 		setBehindRemoteMsg("");
 		setErrorInfo(null);
 		try {
-			const url = ticketAiUrl(props.projectSlug, props.ticket.folderName, "pull-and-retry");
-			const body = buildLaunchBody(
-				selectedTemplate(), [...checkedSkills()], props.useWorktree, selectedProfile(),
+			const result = await pullAndRetryLaunch(
+				props.projectSlug, props.ticket.folderName,
+				{
+					templateName: selectedTemplate(),
+					checkedSkills: [...checkedSkills()],
+					useWorktree: props.useWorktree,
+					profileName: selectedProfile(),
+					force: false,
+				},
 			);
-			const res = await fetch(url, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(body),
-			});
-			if (!res.ok) setErrorInfo(textToErrorInfo(await res.text(), res.status));
+			if (!result.ok) setErrorInfo({ description: result.message });
 		} catch (e: unknown) {
 			setErrorInfo({ description: e instanceof Error ? e.message : "Network error" });
 		} finally {

@@ -1,10 +1,14 @@
 import { createSignal, createEffect, onCleanup } from "solid-js";
+import { previewProjectPath } from "./project-api.js";
+import { pickDirectory } from "../shared/shared-api.js";
+
+export type AddProjectAction = (
+  pathValue: string, branch: string, mainBranch: string, boardId: string,
+  name: string,
+) => Promise<{ ok: true; projectSlug: string } | { ok: false; type: string; message: string }>;
 
 export interface AddProjectControllerDeps {
-  action: (
-    path: string, branch: string, mainBranch: string, boardId: string,
-    name: string,
-  ) => Promise<{ projectSlug?: string; error?: string }>;
+  action: AddProjectAction;
   onSuccess?: (projectSlug: string) => void;
   errorMessage?: string;
 }
@@ -30,11 +34,7 @@ export function createAddProjectController(deps: AddProjectControllerDeps) {
     const p = debouncedPath();
     if (!p) { setMainBranchValue(""); return; }
     let cancelled = false;
-    fetch(`/api/projects?previewPath=${encodeURIComponent(p)}`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`Failed to compute paths (${res.status})`);
-        return res.json();
-      })
+    previewProjectPath(p)
       .then((res) => {
         if (!cancelled && !mainBranchTouched() && res.mainBranch) setMainBranchValue(res.mainBranch);
       })
@@ -42,26 +42,14 @@ export function createAddProjectController(deps: AddProjectControllerDeps) {
     onCleanup(() => { cancelled = true; });
   });
 
-  async function pickDirectory(current: string): Promise<string | null> {
+  async function handleBrowsePath() {
     try {
-      const res = await fetch(`/api/pick-directory?path=${encodeURIComponent(current)}`);
-      if (res.status === 204) return null;
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        setLocalError(body?.error ?? `Directory picker failed (${res.status})`);
-        return null;
-      }
-      const { path } = await res.json();
-      return path;
+      const result = await pickDirectory(pathValue().trim());
+      if ("path" in result) setPathValue(result.path);
+      else if ("error" in result) setLocalError(result.error);
     } catch (err: any) {
       setLocalError(err?.message ?? "Failed to pick directory");
-      return null;
     }
-  }
-
-  async function handleBrowsePath() {
-    const picked = await pickDirectory(pathValue().trim());
-    if (picked) setPathValue(picked);
   }
 
   async function handleSubmit(e: SubmitEvent) {
@@ -77,8 +65,8 @@ export function createAddProjectController(deps: AddProjectControllerDeps) {
         trimmed, branch, mainBranchValue().trim(), boardId(),
         nameValue().trim(),
       );
-      if (result.error) setLocalError(result.error);
-      else if (result.projectSlug) deps.onSuccess?.(result.projectSlug);
+      if (!result.ok) setLocalError(result.message);
+      else deps.onSuccess?.(result.projectSlug);
     } catch (err: any) {
       setLocalError(err?.message ?? "Unknown error");
     } finally {

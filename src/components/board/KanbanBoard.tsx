@@ -5,8 +5,8 @@ import {
 	DragOverlay,
 	closestCenter,
 } from "@thisbeyond/solid-dnd";
-import type { TicketInfo } from "~/server/ticket/ticket-store.js";
-import type { BoardState } from "~/server/actions.js";
+import type { TicketInfo } from "~/core/ticket/ticket-store.js";
+import type { BoardState } from "~/components/project/project-api.js";
 import TicketCard from "../ticket/TicketCard";
 import { DragOverlayCard } from "./dnd-shared.js";
 import { TicketColumn, OrphanColumn } from "./kanban-columns.js";

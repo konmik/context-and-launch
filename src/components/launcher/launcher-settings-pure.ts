@@ -1,20 +1,6 @@
-import type { ColumnDefinition } from "~/server/project/board-config.js";
-import type { ItemType, Scope, ItemFormState } from "./launcher-settings-dialogs.js";
+import type { ColumnDefinition } from "~/core/project/board-config.js";
+import type { ItemFormState } from "./launcher-settings-dialogs.js";
 import { slugifyColumnName } from "~/lib/slugify.js";
-
-const API_PATH_SEGMENTS: Record<ItemType, string> = {
-	template: "templates",
-	skill: "skills",
-	profile: "profiles",
-	shortcut: "shortcuts",
-};
-
-export function itemEndpoint(projectSlug: string, itemType: ItemType, scope: Scope): string {
-	const base = scope === "app"
-		? "/api/launcher-config"
-		: `/api/projects/${projectSlug}/launcher-config`;
-	return `${base}/${API_PATH_SEGMENTS[itemType]}`;
-}
 
 export function validateColumnName(
 	name: string,

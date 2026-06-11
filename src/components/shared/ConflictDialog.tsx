@@ -4,6 +4,7 @@ import {
   createConflictDialogController,
   type ConflictDialogController,
 } from "./conflict-dialog-controller.js";
+import { openConfigDir } from "./shared-api.js";
 
 interface ConflictDialogProps {
   open: boolean;
@@ -50,11 +51,7 @@ export default function ConflictDialog(props: ConflictDialogProps) {
       <div class="flex items-center justify-between">
         <button
           type="button"
-          onClick={() => fetch("/api/open-config-dir", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ scope: "tickets", projectSlug: props.projectSlug }),
-          })}
+          onClick={() => openConfigDir("tickets", props.projectSlug)}
           class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
           title="Open tickets directory"
           data-testid="conflict-dialog-open-tickets-repo"

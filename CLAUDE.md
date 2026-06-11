@@ -46,15 +46,20 @@
 
 - Spec files in `spec/` describe behavior as nested bullet lists in plain English. No code, no pseudocode. Short sentences. Represent control flow with nesting.
 
-## Complex component architecture
+## Data access
 
-Split complex components into three layers:
+- Use SolidStart query()/action()/createAsync for all data access.
+- Server functions use "use server" and are colocated with features in *-api.ts files under src/components/.
+- Reads use query() + createAsync. Server functions throw on error; ErrorBoundary catches.
+- Mutations use action(). Server functions return typed discriminated results (never throw).
+- Fire-and-forget side effects use plain "use server" functions without action().
+- Server functions import from src/core/ to call stores and managers directly.
 
-1. Pure functions: stateless data transforms. No signals, no framework imports. Testable with plain unit tests.
-2. Controller factory: a function that owns signals internally and returns reactive accessors and commands. Contains no logic -- just wires signals to the pure functions from layer 1.
-3. Component: thin wiring that connects the controller to the framework and JSX.
+## Component architecture
 
-Rules:
+- Split complex components when the non-UI logic is substantial enough to test in isolation.
+- Use pure function modules for stateless data transforms.
+- Thin controllers may be collapsed into their components.
 - Separate data from behavior. Data types contain only fields. Command types contain only functions. Never mix data and function references in the same type/interface/object.
 - Separate data types by update trigger. Group fields that change together into one type. Cross-cutting derivations are standalone accessors.
 - Treat state as immutable. Signal setters replace, never mutate in place.

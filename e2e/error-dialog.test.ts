@@ -1,4 +1,5 @@
 import { describe, it } from "vitest";
+import fs from "node:fs";
 import {
   createProject, uniqueSlug, gotoProject, setupE2E,
 } from "./fixtures.js";
@@ -13,16 +14,9 @@ describe("Error dialog (e2e, real server)", () => {
     });
     ctx.projects.push(project);
 
-    await ctx.page.route((url) => url.pathname.endsWith("/board/sync"), (route) => {
-      if (route.request().method() === "POST") {
-        route.fulfill({
-          status: 500, contentType: "application/json",
-          body: JSON.stringify({ description: "Sync failed", command: "git push", output: "boom" }),
-        });
-      } else {
-        route.continue();
-      }
-    });
+    if (project.remoteUrl) {
+      fs.rmSync(project.remoteUrl, { recursive: true, force: true });
+    }
 
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     const syncButton = ctx.page.locator('[data-testid="sync-button-trigger"]');

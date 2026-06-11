@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, fireEvent, cleanup } from "@solidjs/testing-library";
 import TicketCard from "./TicketCard";
-import type { TicketInfo } from "~/server/ticket/ticket-store.js";
+import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 
 function makeTicket(overrides?: Partial<TicketInfo>): TicketInfo {
   return {

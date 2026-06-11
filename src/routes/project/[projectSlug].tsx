@@ -1,8 +1,8 @@
 import { useParams, useNavigate, createAsync, revalidate } from "@solidjs/router";
-import { Show, For, Switch, Match, createSignal, onMount } from "solid-js";
+import { Show, For, Switch, Match, createSignal, createEffect, onCleanup, onMount } from "solid-js";
 import { DialogRoot, DialogTitle } from "~/components/ui/dialog";
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "~/components/ui/menu";
-import type { TicketInfo } from "~/server/ticket/ticket-store.js";
+import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import KanbanBoard from "~/components/board/KanbanBoard";
 import CreateTicketDialog from "~/components/ticket/CreateTicketDialog";
 import EditTicketDialog from "~/components/ticket/EditTicketDialog";
@@ -16,13 +16,12 @@ import AddProjectForm from "~/components/project/AddProjectForm";
 import ThemeToggle from "~/components/shared/ThemeToggle";
 import LauncherSettings from "~/components/launcher/LauncherSettings";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
-import { loadProjectPage } from "~/server/actions";
-import { addProjectAction } from "~/lib/add-project";
+import { loadProjectPage, addProject } from "~/components/project/project-api.js";
 import {
   createProjectPageController,
   type ProjectPageController,
 } from "~/components/project/project-page-controller.js";
-import { createSyncPendingPoller } from "~/lib/sync-pending-poller.js";
+import { getSyncPending } from "~/components/ticket/ticket-api.js";
 
 export const route = {
   load: ({ params }: { params: { projectSlug: string } }) => loadProjectPage(params.projectSlug),
@@ -42,7 +41,22 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   const { dialogState, syncState, selectionState, commands } =
     props?.ctrl ?? createProjectPageController({ projectSlug, data: data as any });
 
-  const { hasPendingChanges } = createSyncPendingPoller(projectSlug);
+  const [hasPendingChanges, setHasPendingChanges] = createSignal(false);
+  createEffect(() => {
+    const ps = projectSlug();
+    if (!ps) return;
+    setHasPendingChanges(false);
+    let stopped = false;
+    const poll = async () => {
+      try {
+        const result = await getSyncPending(ps);
+        if (!stopped) setHasPendingChanges(result);
+      } catch { /* ignore poll failures */ }
+    };
+    void poll();
+    const timer = setInterval(() => void poll(), 2000);
+    onCleanup(() => { stopped = true; clearInterval(timer); });
+  });
 
   const currentProjectName = () => {
     const v = data();
@@ -257,7 +271,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
           >
             <DialogTitle>Add Project</DialogTitle>
             <AddProjectForm
-              action={addProjectAction}
+              action={addProject}
               onSuccess={(s) => {
                 commands.closeAddProject();
                 navigate(`/project/${s}`);

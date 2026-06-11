@@ -1,6 +1,6 @@
 import { Show, createSignal, type Accessor } from "solid-js";
 import BoardSelect from "./BoardSelect.js";
-import { fetchBoards, type BoardRef } from "~/lib/fetch-boards.js";
+import { listBoards, type BoardRef } from "../board/board-api.js";
 
 interface BoardSelectorProps {
   boardId: Accessor<string>;
@@ -11,7 +11,7 @@ interface BoardSelectorProps {
 export default function BoardSelector(props: BoardSelectorProps) {
   const [boards, setBoards] = createSignal<BoardRef[]>([]);
 
-  fetchBoards()
+  listBoards()
     .then((data) => {
       setBoards(data);
       if (!props.boardId()) props.setBoardId(data[0]?.id ?? "");

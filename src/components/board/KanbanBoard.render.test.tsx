@@ -1,9 +1,9 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@solidjs/testing-library";
 import KanbanBoard from "./KanbanBoard";
-import type { BoardState } from "~/server/actions.js";
-import type { TicketInfo } from "~/server/ticket/ticket-store.js";
-import type { ColumnDefinition } from "~/server/project/board-config.js";
+import type { BoardState } from "~/components/project/project-api.js";
+import type { TicketInfo } from "~/core/ticket/ticket-store.js";
+import type { ColumnDefinition } from "~/core/project/board-config.js";
 
 afterEach(() => cleanup());
 

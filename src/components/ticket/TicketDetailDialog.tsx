@@ -5,7 +5,7 @@ import {
   FloatingPanelTitle,
 } from "../ui/floating-panel";
 import { TabsRoot, TabsList, TabsTrigger } from "../ui/tabs";
-import type { TicketInfo } from "~/server/ticket/ticket-store.js";
+import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 import {
   DiscardConfirmation,
