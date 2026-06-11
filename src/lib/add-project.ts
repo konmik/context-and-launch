@@ -1,3 +1,4 @@
+import type { AddProjectBody } from "~/server/project/project-registry.js";
 import { apiFetch } from "./api.js";
 
 export async function addProjectAction(
@@ -7,6 +8,6 @@ export async function addProjectAction(
   return apiFetch("/api/projects", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path: pathValue, branch, mainBranch, boardId, name }),
+    body: JSON.stringify({ path: pathValue, branch, mainBranch, boardId, name } satisfies AddProjectBody),
   }, "Failed to add project");
 }

@@ -1,5 +1,6 @@
 import { createSignal } from "solid-js";
 import { apiFetch } from "~/lib/api.js";
+import type { UpdateTicketBody } from "~/server/ticket/ticket-store.js";
 
 export interface HeaderEditDeps {
   projectSlug: string;
@@ -23,7 +24,7 @@ export function createHeaderEditState(deps: HeaderEditDeps) {
     const trimmedTitle = editedTitle().trim();
     if (!trimmedNumber) setEditedNumber(savedNumber());
     if (!trimmedTitle) setEditedTitle(savedTitle());
-    const body: Record<string, string> = {};
+    const body: UpdateTicketBody = {};
     if (trimmedNumber && trimmedNumber !== savedNumber()) body.number = trimmedNumber;
     if (trimmedTitle && trimmedTitle !== savedTitle()) body.title = trimmedTitle;
     if (Object.keys(body).length === 0) return;

@@ -59,7 +59,7 @@ describe("resolve-conflicts profile lookup", () => {
 		const response = await POST(fakeEvent("test-project", {}));
 		expect(response.status).toBe(400);
 		const body = await response.json();
-		expect(body.error).toMatch(/No profile selected/i);
+		expect(body.error).toMatch(/profileName/i);
 		expect(spawnProfile).not.toHaveBeenCalled();
 	});
 

@@ -34,6 +34,7 @@
     "cross-spawn": "7.0.6",
     "shell-quote": "1.8.4",
     "solid-js": "1.9.13",
+    "valibot": "1.4.1",
     "vinxi": "0.5.11"
   },
   "devDependencies": {

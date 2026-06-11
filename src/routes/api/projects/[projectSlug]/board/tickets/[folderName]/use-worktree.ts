@@ -1,10 +1,7 @@
-import { withTicketStore } from "~/server/shared/route-helpers.js";
+import { withTicketStore, validated } from "~/server/shared/route-helpers.js";
+import { UseWorktreeBody } from "~/server/ticket/ticket-store.js";
 
-export const PUT = withTicketStore(async (ctx, request) => {
-  const body = await request.json();
-  if (typeof body.useWorktree !== "boolean") {
-    return new Response("useWorktree must be a boolean", { status: 400 });
-  }
+export const PUT = withTicketStore(validated(UseWorktreeBody, async (ctx, body) => {
   ctx.store.setUseWorktree(ctx.folderName, body.useWorktree);
   return new Response(null, { status: 204 });
-});
+}));

@@ -1,10 +1,19 @@
+import * as v from 'valibot';
 import type { AgentWorktreeManager } from './agent-worktree.js';
 
-export interface CleanupOptions {
-	deleteWorktree: boolean;
-	deleteLocalBranch: boolean;
-	deleteRemoteBranch: boolean;
-}
+const CleanupOptionsSchema = v.object({
+	deleteWorktree: v.boolean(),
+	deleteLocalBranch: v.boolean(),
+	deleteRemoteBranch: v.boolean(),
+});
+
+export type CleanupOptions = v.InferOutput<typeof CleanupOptionsSchema>;
+
+export const WorktreeCleanupBody = v.object({
+	folderName: v.string(),
+	options: CleanupOptionsSchema,
+});
+export type WorktreeCleanupBody = v.InferOutput<typeof WorktreeCleanupBody>;
 
 export class WorktreeCleanupService {
 	constructor(private agentWorktreeManager: AgentWorktreeManager) {}

@@ -3,12 +3,12 @@ import {
 } from "~/server/config/instances.js";
 import { agentMarkerPath, spawnProfile } from "~/server/launcher/agent-launch.js";
 import { ValidationError } from "~/server/shared/errors.js";
-import { withService } from "~/server/shared/route-helpers.js";
+import { withService, parseBody } from "~/server/shared/route-helpers.js";
+import { ResolveConflictsBody } from "~/server/launcher/launcher-config.js";
 
 export const POST = withService(async ({ params, request }) => {
 	const { projectSlug } = params;
-	const { profileName } = await request.json();
-	if (!profileName) throw new ValidationError("No profile selected");
+	const { profileName } = await parseBody(request, ResolveConflictsBody);
 	const merged = launcherConfigManager.getMergedConfig(projectSlug);
 	const profile = merged.profiles.find(p => p.name === profileName);
 	if (!profile) throw new ValidationError(`Profile "${profileName}" not found. Check your launcher settings.`);

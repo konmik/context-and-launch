@@ -1,11 +1,11 @@
 import { launcherConfigManager, agentWorktreeManager, projectRegistry } from "~/server/config/instances.js";
-import { WorktreeCleanupService } from "~/server/worktree/worktree-cleanup.js";
+import { WorktreeCleanupService, WorktreeCleanupBody } from "~/server/worktree/worktree-cleanup.js";
 import { ValidationError, NotFoundError } from "~/server/shared/errors.js";
-import { withService } from "~/server/shared/route-helpers.js";
+import { withService, parseBody } from "~/server/shared/route-helpers.js";
 
 export const POST = withService(async ({ params, request }) => {
 	const { projectSlug } = params;
-	const { folderName, options } = await request.json();
+	const { folderName, options } = await parseBody(request, WorktreeCleanupBody);
 	const merged = launcherConfigManager.getMergedConfig(projectSlug);
 	if (!merged.worktreeRootPath) throw new ValidationError("Worktree root path is not configured");
 	const project = projectRegistry.listProjects().find((p) => p.projectSlug === projectSlug);
