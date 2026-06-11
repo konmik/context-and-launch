@@ -75,7 +75,7 @@ describe("Ticket detail Launcher tab (e2e, real server)", () => {
     await setup("run");
     let aiRunRequest = false;
     ctx.page.on("request", (req) => {
-      if (req.url().includes("/ai/run")) aiRunRequest = true;
+      if (req.url().includes("/_server")) aiRunRequest = true;
     });
     await ctx.page.click('[data-testid="ticket-detail-launcher-run-button"]');
     await ctx.page.waitForTimeout(2000);

@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { createRoot, createSignal } from "solid-js";
 
+vi.mock("../board/board-api.js", () => ({
+  listBoards: vi.fn(),
+}));
+
+import { listBoards } from "../board/board-api.js";
+
 function flushMicrotasks(): Promise<void> {
   return new Promise((r) => setTimeout(r, 0));
 }
@@ -8,10 +14,8 @@ function flushMicrotasks(): Promise<void> {
 describe("BoardSelector", () => {
   afterEach(() => { vi.restoreAllMocks(); });
 
-  it("sets error and keeps boardId empty when /api/boards returns 500", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ error: "boards.json not found" }), { status: 500 }),
-    ));
+  it("sets error and keeps boardId empty when listBoards throws", async () => {
+    vi.mocked(listBoards).mockRejectedValue(new Error("boards.json not found (500)"));
 
     const result = await new Promise<{ error: string; boardId: string }>((resolve) => {
       createRoot(async (dispose) => {
@@ -31,12 +35,10 @@ describe("BoardSelector", () => {
 
   it("populates boardId on successful fetch", async () => {
     const boardData = [
-      { id: "standard", name: "Standard" },
-      { id: "simple", name: "Simple" },
+      { id: "standard", name: "Standard", columns: [] },
+      { id: "simple", name: "Simple", columns: [] },
     ];
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
-      new Response(JSON.stringify(boardData), { status: 200 }),
-    ));
+    vi.mocked(listBoards).mockResolvedValue(boardData);
 
     const result = await new Promise<{ boardId: string }>((resolve) => {
       createRoot(async (dispose) => {

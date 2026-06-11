@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { createRoot, createSignal } from "solid-js";
 import { createBoardDnd } from "./board-state";
-import type { BoardState } from "~/server/actions.js";
-import type { TicketInfo } from "~/server/ticket/ticket-store.js";
-import type { ColumnDefinition } from "~/server/project/board-config.js";
+import type { BoardState } from "~/components/project/project-api.js";
+import type { TicketInfo } from "~/core/ticket/ticket-store.js";
+import type { ColumnDefinition } from "~/core/project/board-config.js";
 
 function makeTicket(overrides: Partial<TicketInfo> & { folderName: string }): TicketInfo {
 	return {

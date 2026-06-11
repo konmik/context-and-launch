@@ -6,6 +6,7 @@ import {
 } from "../ui/floating-panel";
 import { TabsRoot, TabsList, TabsTrigger } from "../ui/tabs";
 import { useModEnterSubmit } from "~/lib/use-mod-enter-submit";
+import { openConfigDir } from "../shared/shared-api.js";
 import { MiscTab } from "./launcher-settings-misc-tab.js";
 import { PromptsTab } from "./launcher-settings-prompts-tab.js";
 import { LaunchTab } from "./launcher-settings-launch-tab.js";
@@ -72,25 +73,14 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 							<button
 								data-no-drag
 								data-testid="launcher-settings-open-user-config"
-								onClick={() => fetch("/api/open-config-dir", {
-									method: "POST",
-									headers: { "Content-Type": "application/json" },
-									body: JSON.stringify({ scope: "app" }),
-								})}
+								onClick={() => openConfigDir("app")}
 								class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
 								title="Open user config directory"
 							>User&#8599;</button>
 							<button
 								data-no-drag
 								data-testid="launcher-settings-open-project-config"
-								onClick={() => fetch("/api/open-config-dir", {
-									method: "POST",
-									headers: { "Content-Type": "application/json" },
-									body: JSON.stringify({
-										scope: "project",
-										projectSlug: props.projectSlug,
-									}),
-								})}
+								onClick={() => openConfigDir("project", props.projectSlug)}
 								class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
 								title="Open project config directory"
 							>Project&#8599;</button>

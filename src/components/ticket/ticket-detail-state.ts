@@ -1,12 +1,7 @@
 import { createSignal, createEffect, on, onCleanup } from "solid-js";
 import { revalidate } from "@solidjs/router";
-import type {
-  TicketInfo, UseWorktreeBody, SaveContextBody,
-  AddReferencesBody, RemoveReferenceBody,
-} from "~/server/ticket/ticket-store.js";
-import type {
-  MergedLauncherConfig, LauncherColumnDefaults, ColumnDefaultsBody,
-} from "~/server/launcher/launcher-config.js";
+import type { TicketInfo } from "~/core/ticket/ticket-store.js";
+import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/core/launcher/launcher-config.js";
 import {
   type ActiveFile,
   activeFileLabel,
@@ -27,6 +22,14 @@ import {
 import { createFileUploadState } from "./ticket-detail-upload.js";
 import { createHeaderEditState } from "./ticket-detail-header.js";
 import { createShortcutState } from "./ticket-detail-shortcuts.js";
+import {
+  getContext, saveContext as saveContextAction,
+  deleteContext as deleteContextAction, deleteFile as deleteFileAction,
+  removeReference as removeReferenceAction, setUseWorktree as setUseWorktreeAction,
+  addReferences as addReferencesAction,
+} from "./ticket-api.js";
+import { getMergedLauncherConfig, saveColumnDefaults } from "../launcher/launcher-api.js";
+import { openNativeFileBrowser as openNativeFileBrowserServer } from "../shared/shared-api.js";
 
 export type Tab = "editor" | "launcher" | "shortcuts";
 
@@ -67,10 +70,17 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     return ticketApiUrl(props.projectSlug, header.savedFolderName(), suffix);
   }
 
-  const shortcuts = createShortcutState({ ticketUrl, useWorktree, setError });
+  const shortcuts = createShortcutState({
+    projectSlug: props.projectSlug,
+    folderName: header.savedFolderName,
+    useWorktree,
+    setError,
+  });
 
   const upload = createFileUploadState({
-    ticketUrl, setError,
+    projectSlug: props.projectSlug,
+    folderName: header.savedFolderName,
+    setError,
     ticketFileNames, setTicketFileNames,
     contextNames: props.ticket.contextNames ?? [],
     requestFileSwitch,
@@ -83,18 +93,13 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
 
   function persistWorktree(value: boolean) {
     setUseWorktree(value);
-    fetch(
-      ticketUrl("use-worktree"),
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ useWorktree: value } satisfies UseWorktreeBody),
-      }
-    ).then((res) => {
-      if (!res.ok) res.text().then((t) => setError(t || "Failed to persist worktree setting"));
-    }).catch((err) => {
-      setError(err instanceof Error ? err.message : "Failed to persist worktree setting");
-    });
+    setUseWorktreeAction(props.projectSlug, header.savedFolderName(), value)
+      .then((result) => {
+        if (!result.ok) setError(result.message);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Failed to persist worktree setting");
+      });
   }
 
   const contextOptions = (): ActiveFile[] =>
@@ -137,13 +142,13 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     onCleanup(() => window.removeEventListener("beforeunload", handleBeforeUnload));
   }
 
-  async function loadTextContent(url: string): Promise<void> {
+  async function loadContextContent(af: ActiveFile & { type: "context" }): Promise<void> {
     setFileViewMode("editor");
     try {
-      const res = await fetch(url);
-      if (res.ok) {
-        const text = normalizeLineEndings(await res.text());
-        setContent(text); setSavedContent(text);
+      const data = await getContext(props.projectSlug, header.savedFolderName(), af.name);
+      if (data) {
+        const normalized = normalizeLineEndings(data.content);
+        setContent(normalized); setSavedContent(normalized);
       }
       else { setContent(""); setSavedContent(""); }
     } catch (e) {
@@ -158,7 +163,16 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
       setFileViewMode("image"); setImageUrl(url);
       setContent(""); setSavedContent("");
     } else if (mode === "editor") {
-      loadTextContent(url);
+      setFileViewMode("editor");
+      fetch(url).then(async (res) => {
+        if (res.ok) {
+          const text = normalizeLineEndings(await res.text());
+          setContent(text); setSavedContent(text);
+        } else { setContent(""); setSavedContent(""); }
+      }).catch((e) => {
+        setContent(""); setSavedContent("");
+        setError(e instanceof Error ? e.message : "Failed to load file");
+      });
     } else {
       setFileViewMode("unsupported"); setContent(""); setSavedContent("");
     }
@@ -169,21 +183,13 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     async ([projectSlug]) => {
       if (!projectSlug) return;
       try {
-        const res = await fetch(`/api/projects/${projectSlug}/launcher-config`);
-        if (res.ok) {
-          const data: MergedLauncherConfig = await res.json();
-          setLauncherConfig(data);
-          const defaults = data.columnDefaults[props.ticket.status];
-          if (
-            defaults?.lastLayer === "launcher"
-            || defaults?.lastLayer === "shortcuts"
-          ) setActiveTab(defaults.lastLayer);
-        } else {
-          setError(
-            (await res.text())
-            || `Failed to load launcher config (${res.status})`,
-          );
-        }
+        const data = await getMergedLauncherConfig(projectSlug);
+        setLauncherConfig(data);
+        const defaults = data.columnDefaults[props.ticket.status];
+        if (
+          defaults?.lastLayer === "launcher"
+          || defaults?.lastLayer === "shortcuts"
+        ) setActiveTab(defaults.lastLayer);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load launcher config");
       } finally {
@@ -193,33 +199,20 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   ));
 
   function patchColumnDefaults(patch: Partial<LauncherColumnDefaults>) {
-    fetch(`/api/projects/${props.projectSlug}/launcher-config/column-defaults`, {
-      method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ column: props.ticket.status, ...patch } satisfies ColumnDefaultsBody),
-    }).then((res) => {
-      if (!res.ok) res.text().then((t) => setError(t || "Failed to save column defaults"));
-    }).catch((e) => {
-      setError(e instanceof Error ? e.message : "Failed to save column defaults");
-    });
+    saveColumnDefaults(props.projectSlug, props.ticket.status, patch)
+      .then((result) => {
+        if (!result.ok) setError(result.message);
+      })
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : "Failed to save column defaults");
+      });
   }
 
   createEffect(on(activeFile, async (af) => {
     if (activeTab() !== "editor") return;
     setError(""); setImageUrl("");
     if (af.type === "context") {
-      setFileViewMode("editor");
-      try {
-        const res = await fetch(ticketUrl(`context/${af.name}`));
-        if (res.ok) {
-          const data = await res.json();
-          const normalized = normalizeLineEndings(data.content);
-          setContent(normalized); setSavedContent(normalized);
-        }
-        else { setContent(""); setSavedContent(""); }
-      } catch (e) {
-        setContent(""); setSavedContent("");
-        setError(e instanceof Error ? e.message : "Failed to load file");
-      }
+      await loadContextContent(af);
     } else if (af.type === "file") {
       loadFileByName(
         af.name,
@@ -240,12 +233,11 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     if (af.type !== "context") return;
     setSaving(true);
     try {
-      await fetch(ticketUrl(`context/${af.name}`), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: content() } satisfies SaveContextBody),
-      });
-      setSavedContent(content());
+      const result = await saveContextAction(
+        props.projectSlug, header.savedFolderName(), af.name, content(),
+      );
+      if (result.ok) setSavedContent(content());
+      else setError(result.message);
     } catch (e) { setError(e instanceof Error ? e.message : "Failed to save file"); }
     finally { setSaving(false); }
   }
@@ -309,39 +301,30 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   async function deleteOrRemoveFile() {
     const af = activeFile();
     setConfirmingDelete(false);
-    let url: string, errorLabel: string, fetchOpts: RequestInit;
-    if (af.type === "reference") {
-      url = ticketUrl("references");
-      errorLabel = "Failed to remove reference";
-      fetchOpts = {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: af.path } satisfies RemoveReferenceBody),
-      };
-    } else if (af.type === "file") {
-      url = ticketUrl(`files/${encodeURIComponent(af.name)}`);
-      errorLabel = "Failed to delete file";
-      fetchOpts = { method: "DELETE" };
-    } else {
-      url = ticketUrl(`context/${af.name}`);
-      errorLabel = "Failed to delete file";
-      fetchOpts = { method: "DELETE" };
-    }
     try {
-      const res = await fetch(url, fetchOpts);
-      if (!res.ok) { setError(await res.text() || errorLabel); return; }
       if (af.type === "reference") {
-        setTicketReferences(
-          (prev) => prev.filter((r) => r.path !== af.path),
+        const result = await removeReferenceAction(
+          props.projectSlug, header.savedFolderName(), af.path,
         );
+        if (!result.ok) { setError(result.message); return; }
+        setTicketReferences((prev) => prev.filter((r) => r.path !== af.path));
       } else if (af.type === "file") {
+        const result = await deleteFileAction(
+          props.projectSlug, header.savedFolderName(), af.name,
+        );
+        if (!result.ok) { setError(result.message); return; }
         setTicketFileNames((prev) => prev.filter((n) => n !== af.name));
+      } else {
+        const result = await deleteContextAction(
+          props.projectSlug, header.savedFolderName(), af.name,
+        );
+        if (!result.ok) { setError(result.message); return; }
+        setExtraFiles((prev) => prev.filter((n) => n !== af.name));
       }
-      else setExtraFiles((prev) => prev.filter((n) => n !== af.name));
       revalidate("project-page");
       const remaining = allFileOptions().filter((f) => !isActiveFileMatch(f, af));
       setActiveFile(remaining[0] ?? { type: "context", name: "to-do" });
-    } catch (e) { setError(e instanceof Error ? e.message : errorLabel); }
+    } catch (e) { setError(e instanceof Error ? e.message : "Failed to delete"); }
   }
 
   function handleTrashClick() {
@@ -363,13 +346,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
       const lastRef = refs[refs.length - 1]?.path;
       const fallback = lastRef ? lastRef.replace(/\/[^/]*$/, "") : "";
       const startDir = remembered || fallback;
-      const url = startDir
-        ? `/api/browse?startDir=${encodeURIComponent(startDir)}`
-        : "/api/browse";
-      const res = await fetch(url, { method: "POST" });
-      if (!res.ok) { setError(await res.text() || "Failed to open file dialog"); return; }
-      const data = await res.json();
-      const paths: string[] = data.paths ?? [];
+      const paths = await openNativeFileBrowserServer(startDir || undefined);
       if (paths.length === 0) return;
       const lastPicked = paths[paths.length - 1];
       const pickedDir = lastPicked.replace(/\/[^/]*$/, "");
@@ -382,12 +359,10 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   async function handleReferencesSelected(paths: string[]) {
     setError("");
     try {
-      const res = await fetch(ticketUrl("references"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paths } satisfies AddReferencesBody),
-      });
-      if (!res.ok) { setError(await res.text() || "Failed to add references"); return; }
+      const result = await addReferencesAction(
+        props.projectSlug, header.savedFolderName(), paths,
+      );
+      if (!result.ok) { setError(result.message); return; }
       const newRefs = paths.map((p) => ({ path: p, exists: true }));
       setTicketReferences((prev) => {
         const existing = new Set(prev.map((r) => r.path));

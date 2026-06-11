@@ -1,7 +1,7 @@
 import { useNavigate } from "@solidjs/router";
 import AddProjectForm from "~/components/project/AddProjectForm";
 import ThemeToggle from "~/components/shared/ThemeToggle";
-import { addProjectAction } from "~/lib/add-project";
+import { addProject } from "~/components/project/project-api.js";
 
 export default function AddProjectPage() {
   const navigate = useNavigate();
@@ -13,7 +13,7 @@ export default function AddProjectPage() {
       <div class="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-sm">
         <h1 class="mb-6 text-2xl font-semibold">Welcome to Context & Launch</h1>
         <AddProjectForm
-          action={addProjectAction}
+          action={addProject}
           onSuccess={(projectSlug) => navigate(`/project/${projectSlug}`)}
         />
       </div>

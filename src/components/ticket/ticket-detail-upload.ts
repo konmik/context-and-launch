@@ -1,10 +1,11 @@
 import { createSignal } from "solid-js";
-import { revalidate } from "@solidjs/router";
 import type { ActiveFile } from "./ticket-detail-pure.js";
 import { wouldOverwrite } from "./ticket-detail-pure.js";
+import { uploadFile as uploadFileAction } from "./ticket-api.js";
 
 export interface FileUploadDeps {
-  ticketUrl: (suffix: string) => string;
+  projectSlug: string;
+  folderName: () => string;
   setError: (msg: string) => void;
   ticketFileNames: () => string[];
   setTicketFileNames: (fn: string[] | ((prev: string[]) => string[])) => void;
@@ -60,27 +61,30 @@ export function createFileUploadState(deps: FileUploadDeps) {
       setConfirmOverwrite(null);
       if (!proceed) return;
     }
-    await uploadFile(file);
+    await doUploadFile(file);
   }
 
-  async function uploadFile(file: File) {
+  async function doUploadFile(file: File) {
     setUploading(true); deps.setError("");
     try {
       const formData = new FormData(); formData.append("file", file);
-      const res = await fetch(deps.ticketUrl("files/upload"), { method: "POST", body: formData });
-      if (!res.ok) { deps.setError(await res.text() || "Upload failed"); return; }
-      const data = await res.json();
-      for (const result of data.results) {
-        if (result.ok) {
-          deps.setTicketFileNames((prev) =>
-            prev.includes(result.name) ? prev : [...prev, result.name].sort(),
+      const result = await uploadFileAction(deps.projectSlug, deps.folderName(), formData);
+      if (!result.ok) { deps.setError(result.message); return; }
+      let anySucceeded = false;
+      for (const r of result.results) {
+        if (r.ok) {
+          anySucceeded = true;
+          deps.setTicketFileNames((prev: string[]) =>
+            prev.includes(r.name) ? prev : [...prev, r.name].sort(),
           );
         }
-        else { deps.setError(result.error || `Failed to upload ${result.name}`); }
+        else { deps.setError(r.error || `Failed to upload ${r.name}`); }
       }
-      revalidate("project-page");
-      if (file.name.endsWith(".md")) deps.requestFileSwitch({ type: "context", name: file.name.replace(/\.md$/, "") });
-      else deps.requestFileSwitch({ type: "file", name: file.name });
+      if (anySucceeded) {
+        if (file.name.endsWith(".md"))
+          deps.requestFileSwitch({ type: "context", name: file.name.replace(/\.md$/, "") });
+        else deps.requestFileSwitch({ type: "file", name: file.name });
+      }
     } catch (e) { deps.setError(e instanceof Error ? e.message : "Upload failed"); }
     finally { setUploading(false); }
   }

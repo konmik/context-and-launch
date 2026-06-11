@@ -23,15 +23,13 @@ describe("Ticket detail Shortcuts tab (e2e, real server)", () => {
     await ctx.page.waitForSelector('[data-testid="ticket-detail-shortcuts-run-button"]', {
       state: "visible", timeout: 15000,
     });
-    const shortcutRequests: string[] = [];
+    const serverRequests: string[] = [];
     ctx.page.on("request", (req) => {
       const url = req.url();
-      if (url.includes("/shortcut/run")) shortcutRequests.push(url);
+      if (url.includes("/_server")) serverRequests.push(url);
     });
     await ctx.page.click('[data-testid="ticket-detail-shortcuts-run-button"]');
-    await expect.poll(() => shortcutRequests.length, { timeout: 10000 }).toBeGreaterThan(0);
-    const url = shortcutRequests[0];
-    expect(url).toContain(`/api/projects/${project.projectSlug}/board/tickets/t-1-alpha/shortcut/run`);
+    await expect.poll(() => serverRequests.length, { timeout: 10000 }).toBeGreaterThan(0);
   }, 60000);
 
   it("dirty-worktree shortcut dialog testids are not present on the happy path", async () => {

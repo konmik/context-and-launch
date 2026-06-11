@@ -1,8 +1,8 @@
 import { Show, For } from "solid-js";
 import { DragDropProvider, DragDropSensors, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd";
 import { TabsContent } from "../ui/tabs";
-import type { BoardDefinition, ColumnDefinition } from "~/server/project/board-config.js";
-import type { BoardRef } from "~/lib/fetch-boards.js";
+import type { BoardDefinition, ColumnDefinition } from "~/core/project/board-config.js";
+import type { BoardRef } from "../board/board-api.js";
 import { NameDragOverlay } from "../board/dnd-shared.js";
 import type { ListReorder } from "../board/list-reorder.js";
 import { SortableColumnRow, ColumnDropPreview } from "./launcher-settings-rows.js";

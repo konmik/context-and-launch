@@ -1,5 +1,5 @@
 import { createSignal, createEffect, on } from "solid-js";
-import type { TicketInfo } from "~/server/ticket/ticket-store.js";
+import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import { createFormDialogController } from "./form-dialog-controller.js";
 
 export interface EditTicketDeps {

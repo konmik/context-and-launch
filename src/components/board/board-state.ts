@@ -1,7 +1,7 @@
 import { createSignal, createMemo, type Accessor } from "solid-js";
 import type { DragEvent as DndDragEvent } from "@thisbeyond/solid-dnd";
-import type { TicketInfo } from "~/server/ticket/ticket-store.js";
-import type { BoardState } from "~/server/actions.js";
+import type { TicketInfo } from "~/core/ticket/ticket-store.js";
+import type { BoardState } from "~/components/project/project-api.js";
 import type { HoverTarget } from "./drop-index.js";
 import {
 	type DropResult,

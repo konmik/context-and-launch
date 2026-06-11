@@ -1,7 +1,7 @@
 import { Show } from "solid-js";
 import { DialogRoot, DialogTitle, DialogDescription } from "../ui/dialog";
-import type { TicketInfo } from "~/server/ticket/ticket-store.js";
-import type { ErrorInfo } from "~/server/shared/errors.js";
+import type { TicketInfo } from "~/core/ticket/ticket-store.js";
+import type { ErrorInfo } from "~/core/shared/errors.js";
 import type { CleanupOptions } from "./worktree-cleanup-pure.js";
 import {
   createWorktreeCleanupController,

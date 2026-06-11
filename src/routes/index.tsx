@@ -1,6 +1,6 @@
 import { useNavigate, createAsync } from "@solidjs/router";
 import { createEffect } from "solid-js";
-import { getDefaultProjectSlug } from "~/server/actions";
+import { getDefaultProjectSlug } from "~/components/project/project-api.js";
 
 export const route = {
   load: () => getDefaultProjectSlug(),

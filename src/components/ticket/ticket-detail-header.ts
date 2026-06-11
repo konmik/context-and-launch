@@ -1,6 +1,5 @@
 import { createSignal } from "solid-js";
-import { apiFetch } from "~/lib/api.js";
-import type { UpdateTicketBody } from "~/server/ticket/ticket-store.js";
+import { updateTicket } from "./ticket-api.js";
 
 export interface HeaderEditDeps {
   projectSlug: string;
@@ -24,18 +23,16 @@ export function createHeaderEditState(deps: HeaderEditDeps) {
     const trimmedTitle = editedTitle().trim();
     if (!trimmedNumber) setEditedNumber(savedNumber());
     if (!trimmedTitle) setEditedTitle(savedTitle());
-    const body: UpdateTicketBody = {};
-    if (trimmedNumber && trimmedNumber !== savedNumber()) body.number = trimmedNumber;
-    if (trimmedTitle && trimmedTitle !== savedTitle()) body.title = trimmedTitle;
-    if (Object.keys(body).length === 0) return;
-    const result = await apiFetch(
-      `/api/projects/${deps.projectSlug}/board/tickets/${savedFolderName()}`,
-      { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+    const numberToSave = trimmedNumber && trimmedNumber !== savedNumber() ? trimmedNumber : null;
+    const titleToSave = trimmedTitle && trimmedTitle !== savedTitle() ? trimmedTitle : null;
+    if (!numberToSave && !titleToSave) return;
+    const result = await updateTicket(
+      deps.projectSlug, savedFolderName(), numberToSave, titleToSave, null,
     );
-    if (result.error) { deps.setError(result.error); return; }
-    if (body.number) setSavedNumber(body.number);
-    if (body.title) setSavedTitle(body.title);
-    if (result.folderName) setSavedFolderName(result.folderName as string);
+    if (!result.ok) { deps.setError(result.message); return; }
+    if (numberToSave) setSavedNumber(numberToSave);
+    if (titleToSave) setSavedTitle(titleToSave);
+    if (result.folderName) setSavedFolderName(result.folderName);
   }
 
   return {

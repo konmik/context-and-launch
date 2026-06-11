@@ -1,8 +1,9 @@
 import { createSignal } from "solid-js";
-import type { RunShortcutBody } from "~/server/launcher/launcher-config.js";
+import { runShortcut as runShortcutAction } from "../launcher/launcher-api.js";
 
 export interface ShortcutDeps {
-  ticketUrl: (suffix: string) => string;
+  projectSlug: string;
+  folderName: () => string;
   useWorktree: () => boolean;
   setError: (msg: string) => void;
 }
@@ -17,26 +18,15 @@ export function createShortcutState(deps: ShortcutDeps) {
     setRunningShortcut(name);
     deps.setError("");
     try {
-      const res = await fetch(
-        deps.ticketUrl("shortcut/run"),
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(
-            { name, useWorktree: deps.useWorktree(), force: force ?? false } satisfies RunShortcutBody,
-          ),
-        }
+      const result = await runShortcutAction(
+        deps.projectSlug, deps.folderName(), name, deps.useWorktree(), force ?? false,
       );
-      if (!res.ok) {
-        const text = await res.text();
-        if (res.status === 409 && res.headers.get("content-type")?.includes("application/json")) {
-          const data = JSON.parse(text);
-          if (data.dirtyWorktree) {
-            setDirtyWorktreeShortcut({ name, message: data.message });
-            return;
-          }
+      if (!result.ok) {
+        if (result.type === "dirtyWorktree") {
+          setDirtyWorktreeShortcut({ name, message: result.message });
+          return;
         }
-        deps.setError(text || `Error ${res.status}`);
+        deps.setError(result.message);
       }
     } catch (e: any) {
       deps.setError(e?.message ?? "Network error");

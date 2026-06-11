@@ -1,19 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { itemEndpoint, validateColumnName, buildFormPayload } from "./launcher-settings-pure.js";
-import type { ColumnDefinition } from "~/server/project/board-config.js";
+import { validateColumnName, buildFormPayload } from "./launcher-settings-pure.js";
+import type { ColumnDefinition } from "~/core/project/board-config.js";
 import type { ItemFormState } from "./launcher-settings-dialogs.js";
-
-describe("itemEndpoint", () => {
-	it("returns app-level endpoint", () => {
-		expect(itemEndpoint("proj", "template", "app"))
-			.toBe("/api/launcher-config/templates");
-	});
-
-	it("returns project-level endpoint", () => {
-		expect(itemEndpoint("proj", "skill", "project"))
-			.toBe("/api/projects/proj/launcher-config/skills");
-	});
-});
 
 describe("validateColumnName", () => {
 	const columns: ColumnDefinition[] = [

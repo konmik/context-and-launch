@@ -4,8 +4,8 @@ import {
 	createSortable, closestCenter,
 } from "@thisbeyond/solid-dnd";
 import { DialogRoot, DialogTitle } from "../ui/dialog";
-import type { TicketInfo } from "~/server/ticket/ticket-store.js";
-import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/server/launcher/launcher-config.js";
+import type { TicketInfo } from "~/core/ticket/ticket-store.js";
+import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/core/launcher/launcher-config.js";
 import ErrorDialog from "../shared/ErrorDialog.js";
 import { DragPreview, DragGrip, NameDragOverlay, DND_ACTIVE_CLASS } from "../board/dnd-shared.js";
 import {

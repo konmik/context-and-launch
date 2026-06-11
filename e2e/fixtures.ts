@@ -193,38 +193,35 @@ export async function createProject(
       ? path.join(server.dataDir, "projects", opts.projectSlug, "worktrees")
       : null);
 
-  const res = await fetch(`${server.baseUrl}/api/projects`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      path: projectPath,
-      branch,
-      worktreeRootPath: worktreeRootPath ?? undefined,
-    }),
+  const canonicalProjectPath = fs.realpathSync(projectPath);
+  const configDir = path.join(server.dataDir, "config");
+  const configFile = path.join(configDir, "config.json");
+  fs.mkdirSync(configDir, { recursive: true });
+  let registry: { projects: any[]; lastUsedProjectSlug: string | null } =
+    { projects: [], lastUsedProjectSlug: null };
+  if (fs.existsSync(configFile)) {
+    registry = JSON.parse(fs.readFileSync(configFile, "utf-8"));
+  }
+  registry.projects.push({
+    path: canonicalProjectPath,
+    projectSlug: opts.projectSlug,
+    branch,
   });
-  if (!res.ok) {
-    throw new Error(`createProject: POST /api/projects failed ${res.status}: ${await res.text()}`);
-  }
-  const data = await res.json() as { projectSlug: string };
-  if (data.projectSlug !== opts.projectSlug) {
-    throw new Error(
-      `createProject: server picked projectSlug=${data.projectSlug} but expected ${opts.projectSlug}`,
-    );
-  }
+  registry.lastUsedProjectSlug = opts.projectSlug;
+  fs.writeFileSync(configFile, JSON.stringify(registry, null, 2));
 
-  if (worktreeRootPath) {
-    const wrpRes = await fetch(
-      `${server.baseUrl}/api/projects/${data.projectSlug}/launcher-config/worktree-root-path`,
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ worktreeRootPath }),
-      },
-    );
-    if (!wrpRes.ok) {
-      throw new Error(`createProject: PUT worktree-root-path failed ${wrpRes.status}: ${await wrpRes.text()}`);
-    }
+  const defaultWorktreeRoot = path.join(server.dataDir, "projects", opts.projectSlug, "worktrees");
+  const effectiveWorktreeRootPath = worktreeRootPath ?? defaultWorktreeRoot;
+
+  const projectConfigDir = path.join(server.dataDir, "projects", opts.projectSlug, "config");
+  fs.mkdirSync(projectConfigDir, { recursive: true });
+  const projectLauncherFile = path.join(projectConfigDir, "launcher-config.json");
+  let projectLauncher: Record<string, unknown> = {};
+  if (fs.existsSync(projectLauncherFile)) {
+    projectLauncher = JSON.parse(fs.readFileSync(projectLauncherFile, "utf-8"));
   }
+  projectLauncher.worktreeRootPath = effectiveWorktreeRootPath;
+  fs.writeFileSync(projectLauncherFile, JSON.stringify(projectLauncher, null, 2));
 
   function ensureTicketsWorktree(): void {
     if (fs.existsSync(path.join(ticketsPath, ".git"))) return;
@@ -626,13 +623,13 @@ export async function expectOpenConfigDirRequest(
 ): Promise<void> {
   let called = false;
   const handler = (r: import("playwright").Request) => {
-    if (r.url().includes("/api/open-config-dir")) called = true;
+    if (r.url().includes("/_server")) called = true;
   };
   page.on("request", handler);
   try {
     await trigger();
     await page.waitForTimeout(500);
-    if (!called) throw new Error("expected /api/open-config-dir request, none observed");
+    if (!called) throw new Error("expected server function request, none observed");
   } finally {
     page.off("request", handler);
   }

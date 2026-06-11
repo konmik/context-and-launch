@@ -1,5 +1,5 @@
 import { For, createEffect } from "solid-js";
-import type { BoardRef } from "~/lib/fetch-boards.js";
+import type { BoardRef } from "../board/board-api.js";
 
 export interface BoardSelectProps {
   boards: BoardRef[];

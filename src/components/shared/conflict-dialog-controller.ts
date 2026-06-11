@@ -1,6 +1,6 @@
 import { createSignal, createEffect } from "solid-js";
 import { extractProfiles } from "./conflict-dialog-pure.js";
-import { fetchLastUsedProfile, saveLastUsedProfile } from "~/lib/last-used-profile.js";
+import { getMergedLauncherConfig, getLastUsedProfile, saveLastUsedProfile } from "../launcher/launcher-api.js";
 
 export interface ConflictDialogDeps {
   projectSlug: () => string;
@@ -19,15 +19,19 @@ export function createConflictDialogController(deps: ConflictDialogDeps) {
   createEffect(() => {
     if (deps.open()) {
       setErrorMsg("");
-      fetch(`/api/projects/${deps.projectSlug()}/launcher-config`)
-        .then(r => r.json())
+      getMergedLauncherConfig(deps.projectSlug())
         .then(async data => {
           const list = extractProfiles(data);
           setProfiles(list);
           if (list.length === 0) return;
           const current = selectedProfile();
           if (current && list.some(p => p.name === current)) return;
-          const preferred = await fetchLastUsedProfile().catch(() => null);
+          let preferred: string | null = null;
+          try {
+            preferred = await getLastUsedProfile();
+          } catch (e) {
+            console.warn("Failed to load last-used profile:", e);
+          }
           const match = preferred && list.some(p => p.name === preferred)
             ? preferred
             : list[0].name;
