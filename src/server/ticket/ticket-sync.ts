@@ -40,13 +40,7 @@ export class TicketSyncManager {
 			if (this.gitRepo.hasActiveRebase(worktreeDir)) {
 				return { status: 'conflict' };
 			}
-			await git(worktreeDir, 'add', '-A');
-
-			const porcelain = await git(worktreeDir, 'status', '--porcelain');
-			if (porcelain.trim()) {
-				await this.assertNoConflictMarkers(worktreeDir);
-				await git(worktreeDir, 'commit', '-m', 'sync: local changes');
-			}
+			await this.commitAll(worktreeDir);
 
 			let upstream: string;
 			try {
@@ -64,31 +58,43 @@ export class TicketSyncManager {
 						&& /non-fast-forward|fetch first/.test(pushErr.output);
 					if (!isNonFastForward) throw pushErr;
 					await git(worktreeDir, 'fetch', 'origin');
+					await this.commitAll(worktreeDir);
 					const localHead = (await git(worktreeDir, 'rev-parse', 'HEAD')).trim();
 					await git(worktreeDir, 'reset', '--hard', `origin/${branch}`);
 					await git(worktreeDir, 'checkout', localHead, '--', '.');
 					upstream = `origin/${branch}`;
+					await git(worktreeDir, 'branch', '--set-upstream-to', upstream);
 				}
 			}
 
 			await this.gitRepo.assertSupportsMergeTree(worktreeDir);
 
 			const baseUpstream = (await git(worktreeDir, 'rev-parse', upstream)).trim();
-			const aheadCount = parseInt(
-				(await git(worktreeDir, 'rev-list', '--count', `${baseUpstream}..HEAD`)).trim(), 10,
-			);
-			if (aheadCount > 1) {
-				await git(worktreeDir, 'reset', '--soft', baseUpstream);
-				await this.assertNoConflictMarkers(worktreeDir);
-				await git(worktreeDir, 'commit', '-m', 'sync: local changes');
+			const squashBase = (await git(worktreeDir, 'merge-base', 'HEAD', baseUpstream)).trim();
+			if (await this.countAheadOf(worktreeDir, squashBase) > 1) {
+				await git(worktreeDir, 'reset', '--soft', squashBase);
+				await this.commitAll(worktreeDir);
 			}
 
 			await git(worktreeDir, 'fetch');
+			await this.commitAll(worktreeDir);
+			const headLocal = (await git(worktreeDir, 'rev-parse', 'HEAD')).trim();
 			const newUpstream = (await git(worktreeDir, 'rev-parse', upstream)).trim();
+			const aheadCount = await this.countAheadOf(worktreeDir, baseUpstream);
 
 			if (aheadCount === 0) {
 				if (baseUpstream !== newUpstream) {
-					await git(worktreeDir, 'reset', '--hard', newUpstream);
+					await git(worktreeDir, 'merge', '--ff-only', newUpstream);
+				}
+				return { status: 'success' };
+			}
+
+			const { remote, branch } = this.parseUpstream(upstream);
+			if (await this.isAncestor(worktreeDir, newUpstream, 'HEAD')) {
+				try {
+					await git(worktreeDir, 'push', remote, `HEAD:${branch}`);
+				} catch (pushErr) {
+					return { status: 'error', message: pushErr instanceof Error ? pushErr.message : String(pushErr) };
 				}
 				return { status: 'success' };
 			}
@@ -114,17 +120,46 @@ export class TicketSyncManager {
 			)).trim();
 
 			try {
-				const { remote, branch } = this.parseUpstream(upstream);
 				await git(worktreeDir, 'push', remote, `${newCommit}:${branch}`);
 			} catch (pushErr) {
 				return { status: 'error', message: pushErr instanceof Error ? pushErr.message : String(pushErr) };
 			}
 
+			await this.commitAll(worktreeDir);
+			const headAfterPush = (await git(worktreeDir, 'rev-parse', 'HEAD')).trim();
+			if (headAfterPush !== headLocal) {
+				return { status: 'conflict' };
+			}
 			await git(worktreeDir, 'reset', '--hard', newCommit);
 			return { status: 'success' };
 		} catch (err) {
 			return { status: 'error', message: err instanceof Error ? err.message : String(err) };
 		}
+	}
+
+	private async commitAll(worktreeDir: string): Promise<void> {
+		await git(worktreeDir, 'add', '-A');
+		const porcelain = await git(worktreeDir, 'status', '--porcelain');
+		if (porcelain.trim()) {
+			await this.assertNoConflictMarkers(worktreeDir);
+			await git(worktreeDir, 'commit', '-m', 'sync: local changes');
+		}
+	}
+
+	private async isAncestor(worktreeDir: string, ancestor: string, descendant: string): Promise<boolean> {
+		try {
+			await git(worktreeDir, 'merge-base', '--is-ancestor', ancestor, descendant);
+			return true;
+		} catch (err) {
+			if (err instanceof ProcessError && err.exitCode === 1) return false;
+			throw err;
+		}
+	}
+
+	private async countAheadOf(worktreeDir: string, baseCommit: string): Promise<number> {
+		return parseInt(
+			(await git(worktreeDir, 'rev-list', '--count', `${baseCommit}..HEAD`)).trim(), 10,
+		);
 	}
 
 	private async assertNoConflictMarkers(worktreeDir: string): Promise<void> {
@@ -185,9 +220,12 @@ export class TicketSyncManager {
 
 	/**
 	 * Once the agent has resolved and pushed, advance the live tree to the pushed
-	 * result and remove the scratch worktree. Deterministic fast-forward via
-	 * reset, never a re-merge (the local commit was rebased, so merging it again
-	 * would re-conflict). A no-op until the resolution is actually pushed.
+	 * result and remove the scratch worktree. Edits made in the live tree while
+	 * the resolution was in progress are replayed onto the pushed result in the
+	 * scratch (using the scratch rebase's ORIG_HEAD as the snapshot base, never a
+	 * re-merge of the already-rebased commit, which would re-conflict) and pushed
+	 * before the live tree advances. A no-op until the resolution is actually
+	 * pushed.
 	 */
 	async finalizeResolution(worktreeDir: string): Promise<boolean> {
 		const scratch = this.conflictResolveDir(worktreeDir);
@@ -197,12 +235,39 @@ export class TicketSyncManager {
 		const upstream = (await git(
 			worktreeDir, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}',
 		)).trim();
-		await git(worktreeDir, 'fetch');
+		try {
+			await git(worktreeDir, 'fetch');
+		} catch (err) {
+			console.warn(
+				'Skipping conflict finalize check: fetch failed:',
+				err instanceof Error ? err.message : err,
+			);
+			return false;
+		}
 		const scratchHead = (await git(scratch, 'rev-parse', 'HEAD')).trim();
-		const upstreamHead = (await git(worktreeDir, 'rev-parse', upstream)).trim();
+		let upstreamHead = (await git(worktreeDir, 'rev-parse', upstream)).trim();
 		if (scratchHead !== upstreamHead) return false;
 
-		await git(worktreeDir, 'reset', '--hard', upstream);
+		await this.commitAll(worktreeDir);
+		const headLocal = (await git(worktreeDir, 'rev-parse', 'HEAD')).trim();
+		if (headLocal !== upstreamHead) {
+			const snapshotBase = (await git(scratch, 'rev-parse', 'ORIG_HEAD')).trim();
+			if (headLocal !== snapshotBase) {
+				try {
+					await git(scratch, 'rebase', '--onto', upstreamHead, snapshotBase, headLocal);
+				} catch (err) {
+					if (!this.gitRepo.hasActiveRebase(scratch)) throw err;
+					return false;
+				}
+				const { remote, branch } = this.parseUpstream(upstream);
+				await git(scratch, 'push', remote, `HEAD:${branch}`);
+				upstreamHead = (await git(scratch, 'rev-parse', 'HEAD')).trim();
+			}
+		}
+
+		await this.commitAll(worktreeDir);
+		if ((await git(worktreeDir, 'rev-parse', 'HEAD')).trim() !== headLocal) return false;
+		await git(worktreeDir, 'reset', '--hard', upstreamHead);
 		await this.removeResolveWorktree(worktreeDir, scratch);
 		return true;
 	}

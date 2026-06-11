@@ -4,54 +4,10 @@ import path from 'path';
 import os from 'os';
 import { TicketSyncManager } from './ticket-sync.js';
 import { git } from '../infra/git.js';
-
-function tmpDir(prefix: string): string {
-	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
-}
-
-function cleanup(...dirs: string[]) {
-	for (const d of dirs) {
-		try {
-			fs.rmSync(d, { recursive: true, force: true });
-		} catch (err) {
-			console.warn(`cleanup ${d}: ${err instanceof Error ? err.message : String(err)}`);
-		}
-	}
-}
-
-// Create a bare remote repo and a clone to act as the worktree
-async function createRepoWithRemote(): Promise<{ worktreeDir: string; remoteDir: string }> {
-	const remoteDir = tmpDir('sync-remote-');
-	await git(remoteDir, 'init', '--bare');
-
-	const worktreeDir = tmpDir('sync-worktree-');
-	await git(worktreeDir, 'init');
-	await git(worktreeDir, 'config', 'user.email', 'test@test.com');
-	await git(worktreeDir, 'config', 'user.name', 'Test');
-	await git(worktreeDir, 'config', 'core.editor', 'true');
-	await git(worktreeDir, 'commit', '--allow-empty', '-m', 'init');
-	await git(worktreeDir, 'remote', 'add', 'origin', remoteDir);
-	await git(worktreeDir, 'push', '-u', 'origin', 'master');
-
-	return { worktreeDir, remoteDir };
-}
-
-function conflictResolveDir(worktreeDir: string): string {
-	return path.join(path.dirname(worktreeDir), `${path.basename(worktreeDir)}-conflict-resolve`);
-}
-
-// Push a conflicting change to `conflict.txt` on the remote via a second clone.
-async function pushRemoteConflict(remoteDir: string, dirs: string[]): Promise<void> {
-	const clone2 = tmpDir('sync-clone2-');
-	dirs.push(clone2);
-	await git(clone2, 'clone', remoteDir, '.');
-	await git(clone2, 'config', 'user.email', 'test@test.com');
-	await git(clone2, 'config', 'user.name', 'Test');
-	fs.writeFileSync(path.join(clone2, 'conflict.txt'), 'remote content');
-	await git(clone2, 'add', '-A');
-	await git(clone2, 'commit', '-m', 'remote change');
-	await git(clone2, 'push');
-}
+import { checkHasPendingChanges } from '../board/sync-pending.js';
+import {
+	tmpDir, cleanup, createRepoWithRemote, conflictResolveDir, pushRemoteConflict,
+} from './sync-test-repos.js';
 
 describe('TicketSyncManager', () => {
 	const dirs: string[] = [];
@@ -139,6 +95,28 @@ describe('TicketSyncManager', () => {
 		expect(lines[1]).toContain('init');
 	});
 
+	it('sync succeeds without pushing when unpushed commits net to zero against upstream', async () => {
+		const { worktreeDir, remoteDir } = await createRepoWithRemote();
+		dirs.push(worktreeDir, remoteDir);
+
+		const remoteHeadBefore = (await git(remoteDir, 'rev-parse', 'master')).trim();
+
+		fs.writeFileSync(path.join(worktreeDir, 'flip.txt'), 'changed');
+		await git(worktreeDir, 'add', '-A');
+		await git(worktreeDir, 'commit', '-m', 'auto: external changes');
+		fs.unlinkSync(path.join(worktreeDir, 'flip.txt'));
+		await git(worktreeDir, 'add', '-A');
+		await git(worktreeDir, 'commit', '-m', 'auto: external changes');
+
+		const manager = new TicketSyncManager();
+		const result = await manager.sync(worktreeDir);
+
+		expect(result).toEqual({ status: 'success' });
+		expect((await git(remoteDir, 'rev-parse', 'master')).trim()).toBe(remoteHeadBefore);
+		expect((await git(worktreeDir, 'rev-parse', 'HEAD')).trim()).toBe(remoteHeadBefore);
+		expect((await git(worktreeDir, 'status', '--porcelain')).trim()).toBe('');
+	});
+
 	it('sync with nothing to do returns success', async () => {
 		const { worktreeDir, remoteDir } = await createRepoWithRemote();
 		dirs.push(worktreeDir, remoteDir);
@@ -200,7 +178,9 @@ describe('TicketSyncManager', () => {
 		expect(log).not.toContain('sync: local changes');
 	});
 
-	it('sync with no upstream adopts remote history and preserves remote-only files', async () => {
+	async function createNoUpstreamRepoWithExistingRemoteBranch(): Promise<{
+		worktreeDir: string; remoteDir: string;
+	}> {
 		const remoteDir = tmpDir('sync-remote-orphan-');
 		dirs.push(remoteDir);
 		await git(remoteDir, 'init', '--bare');
@@ -228,6 +208,12 @@ describe('TicketSyncManager', () => {
 		await git(worktreeDir, 'commit', '-m', 'local init');
 		await git(worktreeDir, 'remote', 'add', 'origin', remoteDir);
 
+		return { worktreeDir, remoteDir };
+	}
+
+	it('sync with no upstream adopts remote history and preserves remote-only files', async () => {
+		const { worktreeDir } = await createNoUpstreamRepoWithExistingRemoteBranch();
+
 		const manager = new TicketSyncManager();
 		const result = await manager.sync(worktreeDir);
 		expect(result.status).toBe('success');
@@ -236,6 +222,51 @@ describe('TicketSyncManager', () => {
 		expect(fs.existsSync(path.join(worktreeDir, 'local-only.txt'))).toBe(true);
 		expect(fs.readFileSync(path.join(worktreeDir, 'remote-only.txt'), 'utf-8')).toBe('from remote');
 		expect(fs.readFileSync(path.join(worktreeDir, 'local-only.txt'), 'utf-8')).toBe('from local');
+	});
+
+	it('sync with no upstream against an existing remote branch pushes local changes and clears pending', async () => {
+		const { worktreeDir, remoteDir } = await createNoUpstreamRepoWithExistingRemoteBranch();
+
+		const manager = new TicketSyncManager();
+		const result = await manager.sync(worktreeDir);
+		expect(result).toEqual({ status: 'success' });
+
+		expect((await git(worktreeDir, 'status', '--porcelain')).trim()).toBe('');
+		const remoteHead = (await git(remoteDir, 'rev-parse', 'master')).trim();
+		expect((await git(worktreeDir, 'rev-parse', 'HEAD')).trim()).toBe(remoteHead);
+		expect(await git(remoteDir, 'show', 'master:local-only.txt')).toBe('from local');
+		expect(await git(remoteDir, 'show', 'master:remote-only.txt')).toBe('from remote');
+		expect(checkHasPendingChanges(worktreeDir)).toBe(false);
+	});
+
+	it('sync with no upstream preserves an edit written while the rejected push round-trips', async () => {
+		const { worktreeDir, remoteDir } = await createNoUpstreamRepoWithExistingRemoteBranch();
+
+		const manager = new TicketSyncManager();
+		const originalLog = console.log;
+		let injected = false;
+		console.log = (...args: unknown[]) => {
+			originalLog(...args);
+			if (!injected && typeof args[0] === 'string' && /fetch origin/.test(args[0])) {
+				injected = true;
+				fs.writeFileSync(path.join(worktreeDir, 'local-only.txt'), 'concurrent edit');
+			}
+		};
+		try {
+			const result = await manager.sync(worktreeDir);
+			expect(result.status).toBe('success');
+		} finally {
+			console.log = originalLog;
+		}
+
+		expect(injected).toBe(true);
+		expect(fs.readFileSync(path.join(worktreeDir, 'local-only.txt'), 'utf-8')).toBe('concurrent edit');
+		expect(fs.readFileSync(path.join(worktreeDir, 'remote-only.txt'), 'utf-8')).toBe('from remote');
+
+		const second = await manager.sync(worktreeDir);
+		expect(second.status).toBe('success');
+		expect(await git(remoteDir, 'show', 'master:local-only.txt')).toBe('concurrent edit');
+		expect((await git(worktreeDir, 'status', '--porcelain')).trim()).toBe('');
 	});
 
 	it('hasRemote with non-existent directory throws instead of silently returning false', async () => {
@@ -327,6 +358,41 @@ describe('TicketSyncManager', () => {
 		expect((await git(worktreeDir, 'status', '--porcelain')).trim()).toBe('');
 	});
 
+	it('finalizeResolution preserves a ticket edit made in the live tree during resolution', async () => {
+		const { worktreeDir, remoteDir } = await createRepoWithRemote();
+		dirs.push(worktreeDir, remoteDir, conflictResolveDir(worktreeDir));
+
+		fs.writeFileSync(path.join(worktreeDir, 'ticket.txt'), 'v1');
+		await git(worktreeDir, 'add', '-A');
+		await git(worktreeDir, 'commit', '-m', 'add ticket');
+		await git(worktreeDir, 'push');
+
+		await pushRemoteConflict(remoteDir, dirs);
+		fs.writeFileSync(path.join(worktreeDir, 'conflict.txt'), 'local content');
+
+		const manager = new TicketSyncManager();
+		await manager.sync(worktreeDir);
+		const plan = await manager.prepareResolution(worktreeDir);
+
+		fs.writeFileSync(path.join(plan.scratchDir, 'conflict.txt'), 'merged content');
+		await git(plan.scratchDir, 'add', '-A');
+		await git(plan.scratchDir, 'rebase', '--continue');
+		await git(plan.scratchDir, 'push', 'origin', 'HEAD:master');
+
+		fs.writeFileSync(path.join(worktreeDir, 'ticket.txt'), 'edited during resolution');
+
+		expect(await manager.finalizeResolution(worktreeDir)).toBe(true);
+		expect(manager.isResolving(worktreeDir)).toBe(false);
+
+		expect(fs.readFileSync(path.join(worktreeDir, 'ticket.txt'), 'utf-8')).toBe('edited during resolution');
+		expect(fs.readFileSync(path.join(worktreeDir, 'conflict.txt'), 'utf-8')).toBe('merged content');
+		expect((await git(worktreeDir, 'status', '--porcelain')).trim()).toBe('');
+		expect(await git(remoteDir, 'show', 'master:ticket.txt')).toBe('edited during resolution');
+
+		const second = await manager.sync(worktreeDir);
+		expect(second.status).toBe('success');
+	});
+
 	it('sync returns conflict while a resolution is pending in the scratch worktree', async () => {
 		const { worktreeDir, remoteDir } = await createRepoWithRemote();
 		dirs.push(worktreeDir, remoteDir, conflictResolveDir(worktreeDir));
@@ -358,6 +424,79 @@ describe('TicketSyncManager', () => {
 		expect(manager.isResolving(worktreeDir)).toBe(false);
 		expect((await git(worktreeDir, 'rev-parse', 'HEAD')).trim()).toBe(liveHead);
 		expect(fs.readFileSync(path.join(worktreeDir, 'conflict.txt'), 'utf-8')).toBe('local content');
+	});
+
+	it('sync preserves a ticket edit written while the push is in flight', async () => {
+		const { worktreeDir, remoteDir } = await createRepoWithRemote();
+		dirs.push(worktreeDir, remoteDir);
+
+		fs.writeFileSync(path.join(worktreeDir, 'ticket.txt'), 'v1');
+		await git(worktreeDir, 'add', '-A');
+		await git(worktreeDir, 'commit', '-m', 'add ticket');
+		await git(worktreeDir, 'push');
+
+		fs.writeFileSync(path.join(worktreeDir, 'ticket.txt'), 'v2');
+
+		const worktreePosix = worktreeDir.replace(/\\/g, '/');
+		const markerPosix = `${remoteDir.replace(/\\/g, '/')}/hook-ran`;
+		const hookPath = path.join(remoteDir, 'hooks', 'pre-receive');
+		fs.writeFileSync(
+			hookPath,
+			`#!/bin/sh\nprintf 'concurrent edit' > "${worktreePosix}/ticket.txt"\n`
+			+ `printf 'yes' > "${markerPosix}"\nexit 0\n`,
+		);
+		fs.chmodSync(hookPath, 0o755);
+
+		const manager = new TicketSyncManager();
+		const result = await manager.sync(worktreeDir);
+
+		expect(fs.existsSync(path.join(remoteDir, 'hook-ran'))).toBe(true);
+		expect(result.status).toBe('success');
+		expect(fs.readFileSync(path.join(worktreeDir, 'ticket.txt'), 'utf-8')).toBe('concurrent edit');
+
+		fs.rmSync(hookPath);
+		const second = await manager.sync(worktreeDir);
+		expect(second.status).toBe('success');
+		expect(await git(remoteDir, 'show', 'master:ticket.txt')).toBe('concurrent edit');
+		expect((await git(worktreeDir, 'status', '--porcelain')).trim()).toBe('');
+	});
+
+	it('sync preserves a ticket edit landing right before the fast-forward to a moved upstream', async () => {
+		const { worktreeDir, remoteDir } = await createRepoWithRemote();
+		dirs.push(worktreeDir, remoteDir);
+
+		fs.writeFileSync(path.join(worktreeDir, 'ticket.txt'), 'v1');
+		await git(worktreeDir, 'add', '-A');
+		await git(worktreeDir, 'commit', '-m', 'add ticket');
+		await git(worktreeDir, 'push');
+
+		await pushRemoteConflict(remoteDir, dirs);
+
+		const manager = new TicketSyncManager();
+		const originalLog = console.log;
+		let injected = false;
+		console.log = (...args: unknown[]) => {
+			originalLog(...args);
+			if (!injected && typeof args[0] === 'string' && /reset --hard|merge --ff-only/.test(args[0])) {
+				injected = true;
+				fs.writeFileSync(path.join(worktreeDir, 'ticket.txt'), 'concurrent edit');
+			}
+		};
+		try {
+			const result = await manager.sync(worktreeDir);
+			expect(result.status).toBe('success');
+		} finally {
+			console.log = originalLog;
+		}
+
+		expect(injected).toBe(true);
+		expect(fs.readFileSync(path.join(worktreeDir, 'ticket.txt'), 'utf-8')).toBe('concurrent edit');
+		expect(fs.readFileSync(path.join(worktreeDir, 'conflict.txt'), 'utf-8')).toBe('remote content');
+
+		const second = await manager.sync(worktreeDir);
+		expect(second.status).toBe('success');
+		expect(await git(remoteDir, 'show', 'master:ticket.txt')).toBe('concurrent edit');
+		expect((await git(worktreeDir, 'status', '--porcelain')).trim()).toBe('');
 	});
 
 	it('prepareResolution pushes and finalizes without an agent when the rebase is clean', async () => {

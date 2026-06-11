@@ -78,6 +78,9 @@ describe("Launcher Settings Misc tab (e2e, real server)", () => {
 
   it("launcher-settings-misc-worktree-browse button exists", async () => {
     await setup("wt-browse");
+    await ctx.page.waitForSelector('[data-testid="launcher-settings-misc-worktree-browse"]', {
+      state: "visible", timeout: 10000,
+    });
     expect(await ctx.page.locator('[data-testid="launcher-settings-misc-worktree-browse"]').count()).toBe(1);
   }, 60000);
 
