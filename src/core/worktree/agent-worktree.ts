@@ -3,6 +3,7 @@ import path from 'path';
 import { rename } from 'fs/promises';
 import { exec } from 'child_process';
 import { git, detectMainBranch } from '../infra/git.js';
+import { worktreeBranchName, worktreeFolderName } from './worktree-naming.js';
 import { ProcessError } from '../shared/errors.js';
 import type { LauncherConfigManager } from '../launcher/launcher-config.js';
 import type { ConfigPaths } from '../config/config-paths.js';
@@ -56,8 +57,8 @@ export class AgentWorktreeManager {
 		const config = this.launcherConfig.loadProjectConfig(projectSlug);
 		const worktreeRootPath = config.worktreeRootPath || this.paths.agentWorktreeDir(projectSlug);
 
-		const branchName = `ai/${folderName}`;
-		const worktreePath = `${worktreeRootPath}/${folderName}`;
+		const branchName = worktreeBranchName(folderName);
+		const worktreePath = `${worktreeRootPath}/${worktreeFolderName(folderName)}`;
 		const mainBranch = await this.getMainBranch(projectPath, configuredBranch);
 
 		if (!options?.skipDirtyCheck) {
