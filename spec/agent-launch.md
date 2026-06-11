@@ -15,6 +15,9 @@
     - Main branch behind remote: return behind-remote flag
       - User can pull and retry
     - Create or reuse worktree on a per-ticket branch
+      - Worktree folder and branch name use the ticket folder name truncated to 50 characters
+        - Keeps Windows paths under the 260 character limit for repos with deep file trees
+        - Trailing hyphens left by truncation are stripped
 - Find template by name, fall back to default, fall back to hardcoded fallback
 - Collect text for each checked skill
 - Concatenate template and skills into a single prompt

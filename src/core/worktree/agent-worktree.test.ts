@@ -74,6 +74,24 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
+	it('truncates long ticket folder names for worktree path and branch', async () => {
+		const { projectDir, worktreeRoot, awm } = setup();
+		const longName = 'wna-1533-opening-customer-support-from-login-error-alert'
+			+ '-error-is-dimissed-after-opening-customer-support-page';
+		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', longName);
+		expect('worktreePath' in result).toBe(true);
+		if ('worktreePath' in result) {
+			const folderName = path.basename(result.worktreePath);
+			expect(folderName.length).toBeLessThanOrEqual(50);
+			expect(longName.startsWith(folderName)).toBe(true);
+			expect(fs.existsSync(result.worktreePath)).toBe(true);
+			const branch = execSync('git rev-parse --abbrev-ref HEAD', {
+				cwd: result.worktreePath, timeout: 5000,
+			}).toString().trim();
+			expect(branch).toBe(`ai/${folderName}`);
+		}
+	});
+
 	it('reuses existing worktree', async () => {
 		const { projectDir, awm } = setup();
 		const result1 = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0001-feature');
