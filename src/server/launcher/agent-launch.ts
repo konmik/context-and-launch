@@ -1,71 +1,20 @@
-import { spawn, execFileSync } from "child_process";
+import { execFileSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import {
   worktreeManager, projectRegistry, launcherConfigManager, agentWorktreeManager,
 } from "~/server/config/instances.js";
 import { TicketStore } from "~/server/ticket/ticket-store.js";
-import { ProcessError, NotFoundError, ValidationError, PayloadError } from "~/server/shared/errors.js";
-import { assemblePrompt, interpolatePrompt, splitCommand } from "~/server/launcher/prompt-interpolation.js";
+import { NotFoundError, ValidationError, PayloadError } from "~/server/shared/errors.js";
+import { assemblePrompt, interpolatePrompt, interpolateCommand } from "~/server/launcher/prompt-interpolation.js";
+import { spawnDetached } from "./spawn-detached.js";
+import { isAlive } from "./process-utils.js";
 import type { TicketInfo } from "~/server/ticket/ticket-store.js";
 import type { ProjectInfo } from "~/server/project/project-registry.js";
 import type { LauncherProfile } from "~/server/launcher/launcher-config.js";
 
 const TITLE_SUFFIX = " -- AI";
 const FALLBACK_PROMPT = "Current ticket files are in {{ticketDir}}. Read the files there for context.";
-const SPAWN_DETACH_DELAY_MS = 10000;
-
-export async function spawnDetached(executable: string, args: string[], cwd: string): Promise<void> {
-  const fullCommand = `${executable} ${args.map(a => a.includes(" ") ? `"${a}"` : a).join(" ")}`;
-  const label = `${executable} ${args.map(a => a.length > 60 ? a.slice(0, 60) + "..." : a).join(" ")}`;
-  console.log(`spawn: ${label} (cwd: ${cwd})`);
-
-  const child = spawn(executable, args, {
-    cwd,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  child.stdout?.resume();
-  let stderr = "";
-  child.stderr?.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
-
-  await new Promise<void>((resolve, reject) => {
-    let settled = false;
-
-    child.on("error", (err) => {
-      if (settled) return;
-      settled = true;
-      reject(new ProcessError(fullCommand, undefined, err.message, err.message));
-    });
-
-    child.on("exit", (code) => {
-      console.log(`exit ${code}: ${label}`);
-      if (stderr.trim()) console.error(`stderr: ${stderr.trim()}`);
-      if (settled) return;
-      settled = true;
-      if (code !== 0 && code !== null) {
-        reject(new ProcessError(
-          fullCommand, code, stderr.trim() || `Process exited with code ${code}`, `Failed (exit ${code})`,
-        ));
-      } else if (code === null) {
-        reject(new ProcessError(
-          fullCommand, undefined,
-          stderr.trim() || "Process terminated abnormally", "Process terminated abnormally",
-        ));
-      } else {
-        resolve();
-      }
-    });
-
-    child.on("spawn", () => {
-      child.unref();
-      setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        resolve();
-      }, SPAWN_DETACH_DELAY_MS);
-    });
-  });
-}
 
 interface AgentMarker {
   pid: number;
@@ -116,15 +65,6 @@ function processStartSec(pid: number): number | null {
     return null;
   } catch {
     return null;
-  }
-}
-
-function isAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (e) {
-    return (e as NodeJS.ErrnoException).code === "EPERM";
   }
 }
 
@@ -248,12 +188,8 @@ export async function spawnProfile(
   commandVars: Record<string, string>,
   cwd: string,
 ): Promise<void> {
-  const parts = splitCommand(profile.command);
-  const executable = parts[0];
-  const args = parts.slice(1).map(arg =>
-    arg.replace(/\{\{(\w+)\}\}/g, (match, key) => commandVars[key] ?? match)
-  );
-  await spawnDetached(executable, args, cwd);
+  const parts = interpolateCommand(profile.command, commandVars);
+  await spawnDetached(parts[0], parts.slice(1), cwd);
 }
 
 export async function launchAgent(

@@ -1,6 +1,7 @@
 import path from "path";
 import { launcherConfigManager } from "~/server/config/instances.js";
-import { resolveTicketAndProject, resolveLaunchDir, spawnDetached } from "~/server/launcher/agent-launch.js";
+import { resolveTicketAndProject, resolveLaunchDir } from "~/server/launcher/agent-launch.js";
+import { spawnDetached } from "~/server/launcher/spawn-detached.js";
 import { interpolateCommand } from "~/server/launcher/prompt-interpolation.js";
 import { withService } from "~/server/shared/route-helpers.js";
 
