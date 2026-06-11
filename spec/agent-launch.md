@@ -28,7 +28,7 @@
 - Spawn detached process, wait up to 10 seconds
   - Exits with non-zero code before timeout: error
   - Spawned process is detached from the app, so it keeps running after the app closes
-    - Windows exception: PowerShell cannot run detached, so it runs attached with a visible console
+    - Windows exception: PowerShell cannot run detached, so it runs attached with a hidden console
       - The PowerShell process itself ends when the app closes
       - Processes it starts keep running after the app closes
 - Launch script writes marker file with wrapper shell PID and start time
