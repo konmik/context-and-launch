@@ -1,7 +1,35 @@
 import type { APIEvent } from "@solidjs/start/server";
+import * as v from "valibot";
 import { launcherConfigManager } from "~/server/config/instances.js";
 import { errorMessage } from "~/server/shared/errors.js";
+import { parseBody } from "~/server/shared/route-helpers.js";
 import type { LauncherConfigManager } from "~/server/launcher/launcher-config.js";
+
+export const ItemAddBody = v.object({
+	name: v.string(),
+	text: v.optional(v.string()),
+	command: v.optional(v.string()),
+});
+export type ItemAddBody = v.InferOutput<typeof ItemAddBody>;
+
+export const ItemUpdateBody = v.object({
+	oldName: v.string(),
+	name: v.string(),
+	text: v.optional(v.string()),
+	command: v.optional(v.string()),
+});
+export type ItemUpdateBody = v.InferOutput<typeof ItemUpdateBody>;
+
+export const ItemDeleteBody = v.object({
+	name: v.string(),
+});
+export type ItemDeleteBody = v.InferOutput<typeof ItemDeleteBody>;
+
+export const SkillReorderBody = v.object({
+	name: v.string(),
+	order: v.number(),
+});
+export type SkillReorderBody = v.InferOutput<typeof SkillReorderBody>;
 
 type Scope = "app" | "project";
 
@@ -42,7 +70,7 @@ export function itemRoutes(kind: keyof typeof KINDS) {
 	const k = KINDS[kind];
 	return {
 		async POST({ params, request }: APIEvent) {
-			const body = await request.json();
+			const body = await parseBody(request, ItemAddBody);
 			const [scope, projectSlug] = scopeOf(params);
 			return handleRoute(() => {
 				(launcherConfigManager[k.add] as Function)
@@ -50,7 +78,7 @@ export function itemRoutes(kind: keyof typeof KINDS) {
 			}, 201);
 		},
 		async PUT({ params, request }: APIEvent) {
-			const body = await request.json();
+			const body = await parseBody(request, ItemUpdateBody);
 			const [scope, projectSlug] = scopeOf(params);
 			return handleRoute(() => {
 				(launcherConfigManager[k.update] as Function)
@@ -58,7 +86,7 @@ export function itemRoutes(kind: keyof typeof KINDS) {
 			}, 204);
 		},
 		async DELETE({ params, request }: APIEvent) {
-			const body = await request.json();
+			const body = await parseBody(request, ItemDeleteBody);
 			const [scope, projectSlug] = scopeOf(params);
 			return handleRoute(() => {
 				(launcherConfigManager[k.remove] as Function)
@@ -71,7 +99,7 @@ export function itemRoutes(kind: keyof typeof KINDS) {
 export function skillReorderRoute() {
 	return {
 		async PUT({ params, request }: APIEvent) {
-			const body = await request.json();
+			const body = await parseBody(request, SkillReorderBody);
 			const [scope, projectSlug] = scopeOf(params);
 			return handleRoute(() => {
 				launcherConfigManager.setSkillOrder(scope, projectSlug, body.name, body.order);

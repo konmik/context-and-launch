@@ -1,6 +1,14 @@
 import { createSignal, createEffect, createMemo, onCleanup, on } from "solid-js";
-import type { MergedLauncherConfig } from "~/server/launcher/launcher-config.js";
+import type {
+	MergedLauncherConfig, SetBoardIdBody, SetProjectNameBody,
+	WorktreeRootPathBody, ConflictResolutionBody,
+} from "~/server/launcher/launcher-config.js";
 import type { BoardDefinition, ColumnDefinition } from "~/server/project/board-config.js";
+import type {
+	CreateBoardBody, AddColumnBody, UpdateColumnBody,
+	ReorderColumnsBody, RenameColumnBody,
+} from "~/server/board/board-types.js";
+import type { SkillReorderBody } from "~/server/shared/launcher-config-routes.js";
 import { slugifyColumnName } from "~/lib/slugify.js";
 import { fetchBoards, type BoardRef } from "~/lib/fetch-boards.js";
 import { createListReorder, midpointOrder } from "../board/list-reorder.js";
@@ -145,20 +153,21 @@ export function createLauncherSettingsState(props: {
 	}
 
 	function saveProjectName() {
-		return putField(`/api/projects/${props.projectSlug}/name`, { name: projectName() });
+		const body: SetProjectNameBody = { name: projectName() };
+		return putField(`/api/projects/${props.projectSlug}/name`, body);
 	}
 
 	function saveWorktreeRootPath() {
 		return putField(
 			`/api/projects/${props.projectSlug}/launcher-config/worktree-root-path`,
-			{ worktreeRootPath: worktreeRootPath() }, true,
+			{ worktreeRootPath: worktreeRootPath() } satisfies WorktreeRootPathBody, true,
 		);
 	}
 
 	function saveConflictResolution() {
 		return putField(
 			`/api/projects/${props.projectSlug}/launcher-config/conflict-resolution`,
-			{ conflictResolutionPrompt: conflictPrompt() }, true,
+			{ conflictResolutionPrompt: conflictPrompt() } satisfies ConflictResolutionBody, true,
 		);
 	}
 
@@ -169,7 +178,7 @@ export function createLauncherSettingsState(props: {
 			const res = await fetch("/api/boards", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ name: f.name }),
+				body: JSON.stringify({ name: f.name } satisfies CreateBoardBody),
 			});
 			if (!res.ok) { setColumnError(await res.text() || "Failed to create board"); return; }
 			const created = await res.json(); setBoardForm(null); await loadBoards(); setBoardOverride(created.id);
@@ -202,7 +211,7 @@ export function createLauncherSettingsState(props: {
 					{
 						method: "PUT",
 						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({ description: cf.description }),
+						body: JSON.stringify({ description: cf.description } satisfies UpdateColumnBody),
 					},
 				);
 				if (!res.ok) { setColumnError(await res.text() || "Failed to update column"); return; }
@@ -216,7 +225,7 @@ export function createLauncherSettingsState(props: {
 					body: JSON.stringify({
 						name: cf.name,
 						description: cf.description || undefined,
-					}),
+					} satisfies AddColumnBody),
 				});
 				if (!res.ok) { setColumnError(await res.text() || "Failed to add column"); return; }
 				setColumnForm(null); await loadBoards();
@@ -238,7 +247,7 @@ export function createLauncherSettingsState(props: {
 						newName: rf.newName,
 						scope: rf.scope,
 						currentProjectSlug: props.projectSlug,
-					}),
+					} satisfies RenameColumnBody),
 				},
 			);
 			if (!res.ok) { setColumnError(await res.text() || "Failed to rename column"); return; }
@@ -260,7 +269,7 @@ export function createLauncherSettingsState(props: {
 						{
 							method: "PUT",
 							headers: { "Content-Type": "application/json" },
-							body: JSON.stringify({ description: cf.description }),
+							body: JSON.stringify({ description: cf.description } satisfies UpdateColumnBody),
 						},
 					);
 					if (!descRes.ok) {
@@ -301,7 +310,7 @@ export function createLauncherSettingsState(props: {
 			const res = await fetch(`/api/boards/${boardId}/columns/reorder`, {
 				method: "PUT",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ columns: orderedNames }),
+				body: JSON.stringify({ columns: orderedNames } satisfies ReorderColumnsBody),
 			});
 			if (!res.ok) { setColumnError(await res.text() || "Failed to reorder"); return; }
 			await loadBoards();
@@ -316,7 +325,7 @@ export function createLauncherSettingsState(props: {
 				{
 					method: "PUT",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ boardId }),
+					body: JSON.stringify({ boardId } satisfies SetBoardIdBody),
 				},
 			);
 			if (!res.ok) { setError(await res.text() || "Failed to save"); return false; }
@@ -377,7 +386,7 @@ export function createLauncherSettingsState(props: {
 			const res = await fetch(`${itemEndpoint(props.projectSlug, "skill", scope)}/reorder`, {
 				method: "PUT",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ name, order }),
+				body: JSON.stringify({ name, order } satisfies SkillReorderBody),
 			});
 			if (!res.ok) { setError(await res.text() || "Failed to reorder"); return; }
 			await loadConfig();

@@ -1,14 +1,10 @@
 import { projectRegistry } from "~/server/config/instances.js";
-import { ValidationError } from "~/server/shared/errors.js";
-import { withService } from "~/server/shared/route-helpers.js";
+import { withService, parseBody } from "~/server/shared/route-helpers.js";
+import { SetBoardIdBody } from "~/server/launcher/launcher-config.js";
 
 export const PUT = withService(async ({ params, request }) => {
 	const { projectSlug } = params;
-	const body = await request.json();
-	const boardId = body?.boardId;
-	if (!boardId || typeof boardId !== "string") {
-		throw new ValidationError("Missing required field: boardId");
-	}
+	const { boardId } = await parseBody(request, SetBoardIdBody);
 	projectRegistry.setBoardId(projectSlug, boardId);
 	return new Response(null, { status: 204 });
 });

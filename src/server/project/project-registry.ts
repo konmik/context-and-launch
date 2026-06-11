@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import * as v from 'valibot';
 import type { ConfigPaths } from '../config/config-paths.js';
 import { ConfigRepository } from '../config/config-repository.js';
 
@@ -23,6 +24,15 @@ export interface ProjectEntry {
 	mainBranch?: string;
 	boardId?: string;
 }
+
+export const AddProjectBody = v.object({
+	path: v.string(),
+	branch: v.optional(v.string()),
+	mainBranch: v.optional(v.string()),
+	boardId: v.optional(v.string()),
+	name: v.optional(v.string()),
+});
+export type AddProjectBody = v.InferOutput<typeof AddProjectBody>;
 
 export interface ProjectConfig {
 	projects: ProjectEntry[];

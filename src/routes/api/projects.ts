@@ -1,16 +1,17 @@
 import { configPaths, launcherConfigManager, projectRegistry, worktreeManager } from "~/server/config/instances.js";
 import { detectMainBranch } from "~/server/infra/git.js";
-import { withService } from "~/server/shared/route-helpers.js";
+import { withService, parseBody } from "~/server/shared/route-helpers.js";
+import { AddProjectBody } from "~/server/project/project-registry.js";
 
 export const POST = withService(async ({ request }) => {
-	const { path: pathValue, branch, mainBranch, boardId, name } = await request.json();
-	const projectSlug = projectRegistry.previewSlug(pathValue);
-	await worktreeManager.ensureWorktree(pathValue, projectSlug, branch);
-	const project = projectRegistry.addProject(pathValue, {
-		branch,
-		mainBranch: mainBranch?.trim() || undefined,
-		boardId: boardId?.trim() || undefined,
-		name: name?.trim() || undefined,
+	const body = await parseBody(request, AddProjectBody);
+	const projectSlug = projectRegistry.previewSlug(body.path);
+	await worktreeManager.ensureWorktree(body.path, projectSlug, body.branch);
+	const project = projectRegistry.addProject(body.path, {
+		branch: body.branch,
+		mainBranch: body.mainBranch?.trim() || undefined,
+		boardId: body.boardId?.trim() || undefined,
+		name: body.name?.trim() || undefined,
 	});
 	launcherConfigManager.saveWorktreeRootPath(
 		project.projectSlug,

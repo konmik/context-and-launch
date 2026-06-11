@@ -1,4 +1,5 @@
 import path from 'path';
+import * as v from 'valibot';
 import { TicketOrderStore } from './ticket-order.js';
 import { suggestNextTicketNumber } from './ticket-number.js';
 import { toKebabCase, requireNonBlank, requireSimpleName } from './ticket-naming.js';
@@ -19,20 +20,46 @@ export interface TicketInfo {
 	references: { path: string; exists: boolean }[];
 }
 
-export interface CreateTicketRequest {
-	number: string;
-	title: string;
-}
+export const CreateTicketBody = v.object({
+	number: v.string(),
+	title: v.string(),
+});
+export type CreateTicketBody = v.InferOutput<typeof CreateTicketBody>;
 
-export interface UpdateTicketRequest {
-	number?: string;
-	title?: string;
-	status?: string;
-}
+export const UpdateTicketBody = v.object({
+	number: v.optional(v.string()),
+	title: v.optional(v.string()),
+	status: v.optional(v.string()),
+});
+export type UpdateTicketBody = v.InferOutput<typeof UpdateTicketBody>;
 
-export interface DocContent {
-	content: string;
-}
+export const SaveContextBody = v.object({
+	content: v.string(),
+});
+export type SaveContextBody = v.InferOutput<typeof SaveContextBody>;
+
+export const UseWorktreeBody = v.object({
+	useWorktree: v.boolean(),
+});
+export type UseWorktreeBody = v.InferOutput<typeof UseWorktreeBody>;
+
+export const AddReferencesBody = v.object({
+	paths: v.optional(v.array(v.string()), []),
+});
+export type AddReferencesBody = v.InferOutput<typeof AddReferencesBody>;
+
+export const RemoveReferenceBody = v.object({
+	path: v.string(),
+});
+export type RemoveReferenceBody = v.InferOutput<typeof RemoveReferenceBody>;
+
+export const ReorderTicketBody = v.object({
+	folderName: v.string(),
+	fromColumn: v.string(),
+	toColumn: v.string(),
+	newIndex: v.number(),
+});
+export type ReorderTicketBody = v.InferOutput<typeof ReorderTicketBody>;
 
 export class TicketStore {
 	private worktreeDir: string;

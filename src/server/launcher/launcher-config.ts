@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import * as v from 'valibot';
 import type { ConfigPaths } from '../config/config-paths.js';
 
 export interface LauncherTemplate {
@@ -50,6 +51,53 @@ export interface MergedLauncherConfig {
 	worktreeRootPath: string | null;
 	conflictResolutionPrompt: string;
 }
+
+export const SetBoardIdBody = v.object({
+	boardId: v.pipe(v.string(), v.nonEmpty("Missing required field: boardId")),
+});
+export type SetBoardIdBody = v.InferOutput<typeof SetBoardIdBody>;
+
+export const SetProjectNameBody = v.object({
+	name: v.string(),
+});
+export type SetProjectNameBody = v.InferOutput<typeof SetProjectNameBody>;
+
+export const WorktreeRootPathBody = v.object({
+	worktreeRootPath: v.optional(v.string()),
+});
+export type WorktreeRootPathBody = v.InferOutput<typeof WorktreeRootPathBody>;
+
+export const ConflictResolutionBody = v.object({
+	conflictResolutionPrompt: v.optional(v.string()),
+});
+export type ConflictResolutionBody = v.InferOutput<typeof ConflictResolutionBody>;
+
+export const ColumnDefaultsBody = v.object({
+	column: v.string(),
+	templateName: v.optional(v.nullable(v.string())),
+	checkedSkills: v.optional(v.array(v.string())),
+	profileName: v.optional(v.nullable(v.string())),
+	lastLayer: v.optional(v.picklist(["editor", "launcher", "shortcuts"])),
+	skillOrder: v.optional(v.array(v.string())),
+});
+export type ColumnDefaultsBody = v.InferOutput<typeof ColumnDefaultsBody>;
+
+export const ProfileNameBody = v.object({
+	profileName: v.pipe(v.string(), v.nonEmpty("profileName is required")),
+});
+export type ProfileNameBody = v.InferOutput<typeof ProfileNameBody>;
+
+export const ResolveConflictsBody = v.object({
+	profileName: v.pipe(v.string(), v.nonEmpty("No profile selected")),
+});
+export type ResolveConflictsBody = v.InferOutput<typeof ResolveConflictsBody>;
+
+export const RunShortcutBody = v.object({
+	name: v.string(),
+	useWorktree: v.optional(v.boolean(), false),
+	force: v.optional(v.boolean(), false),
+});
+export type RunShortcutBody = v.InferOutput<typeof RunShortcutBody>;
 
 function parseConfig(text: string): LauncherConfig {
 	const parsed = JSON.parse(text);

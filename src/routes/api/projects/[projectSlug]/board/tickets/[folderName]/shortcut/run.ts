@@ -3,17 +3,18 @@ import { launcherConfigManager } from "~/server/config/instances.js";
 import { resolveTicketAndProject, resolveLaunchDir } from "~/server/launcher/agent-launch.js";
 import { spawnDetached } from "~/server/launcher/spawn-detached.js";
 import { interpolateCommand } from "~/server/launcher/prompt-interpolation.js";
-import { withService } from "~/server/shared/route-helpers.js";
+import { withService, parseBody } from "~/server/shared/route-helpers.js";
+import { RunShortcutBody } from "~/server/launcher/launcher-config.js";
 
 export const POST = withService(async ({ params, request }) => {
 	const { projectSlug, folderName } = params;
 	const { ticket, project, worktreeDir } = resolveTicketAndProject(projectSlug, folderName);
-	const { name, useWorktree, force } = await request.json();
+	const body = await parseBody(request, RunShortcutBody);
 	const merged = launcherConfigManager.getMergedConfig(projectSlug);
-	const shortcut = merged.shortcuts.find(s => s.name === name);
-	if (!shortcut) return new Response(`Shortcut "${name}" not found`, { status: 404 });
+	const shortcut = merged.shortcuts.find(s => s.name === body.name);
+	if (!shortcut) return new Response(`Shortcut "${body.name}" not found`, { status: 404 });
 	const launchDir = await resolveLaunchDir(
-		projectSlug, folderName, useWorktree, project.path, force, project.mainBranch,
+		projectSlug, folderName, body.useWorktree, project.path, body.force, project.mainBranch,
 	);
 	const args = interpolateCommand(shortcut.command, {
 		ticketDir: path.resolve(worktreeDir, ticket.folderName),

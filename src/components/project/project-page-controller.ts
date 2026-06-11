@@ -1,7 +1,11 @@
 import { createSignal } from "solid-js";
 import { revalidate } from "@solidjs/router";
-import type { TicketInfo } from "~/server/ticket/ticket-store.js";
+import type {
+  TicketInfo, CreateTicketBody, UpdateTicketBody, ReorderTicketBody,
+} from "~/server/ticket/ticket-store.js";
 import type { ErrorInfo } from "~/server/shared/errors.js";
+import type { ResolveConflictsBody } from "~/server/launcher/launcher-config.js";
+import type { WorktreeCleanupBody } from "~/server/worktree/worktree-cleanup.js";
 import { apiFetch } from "~/lib/api.js";
 import { deleteProjectAction } from "~/lib/delete-project.js";
 import { parseSyncResult } from "./project-page-pure.js";
@@ -62,7 +66,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     const res = await fetch(`/api/projects/${deps.projectSlug()}/board/resolve-conflicts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ profileName }),
+      body: JSON.stringify({ profileName } satisfies ResolveConflictsBody),
     });
     if (!res.ok) {
       const body = await res.json();
@@ -124,7 +128,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     return ticketAction(base, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ number, title }),
+      body: JSON.stringify({ number, title } satisfies CreateTicketBody),
     });
   }
 
@@ -132,7 +136,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     return ticketAction(`/api/projects/${deps.projectSlug()}/board/tickets/${folderName}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ number, title }),
+      body: JSON.stringify({ number, title } satisfies UpdateTicketBody),
     });
   }
 
@@ -158,7 +162,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     const res = await fetch(`/api/projects/${deps.projectSlug()}/board/reorder`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ folderName, fromColumn, toColumn, newIndex }),
+      body: JSON.stringify({ folderName, fromColumn, toColumn, newIndex } satisfies ReorderTicketBody),
     });
     if (res.ok) await revalidate("project-page");
   }
@@ -171,7 +175,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
       const cleanupResult = await apiFetch(`/api/projects/${deps.projectSlug()}/worktree-cleanup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ folderName, options }),
+        body: JSON.stringify({ folderName, options } satisfies WorktreeCleanupBody),
       });
       if (cleanupResult.error) return cleanupResult;
     }

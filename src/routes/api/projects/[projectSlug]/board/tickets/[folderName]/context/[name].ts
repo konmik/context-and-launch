@@ -1,4 +1,5 @@
-import { withTicketStore } from "~/server/shared/route-helpers.js";
+import { withTicketStore, validated } from "~/server/shared/route-helpers.js";
+import { SaveContextBody } from "~/server/ticket/ticket-store.js";
 
 export const GET = withTicketStore(async (ctx) => {
   const content = ctx.store.getTicketContext(ctx.folderName, ctx.params.name);
@@ -13,9 +14,7 @@ export const DELETE = withTicketStore(async (ctx) => {
   return new Response(null, { status: 204 });
 });
 
-export const PUT = withTicketStore(async (ctx, request) => {
-  const body = await request.json();
-  const { content } = body as { content: string };
-  ctx.store.saveTicketContext(ctx.folderName, ctx.params.name, content);
+export const PUT = withTicketStore(validated(SaveContextBody, async (ctx, body) => {
+  ctx.store.saveTicketContext(ctx.folderName, ctx.params.name, body.content);
   return new Response(null, { status: 204 });
-});
+}));

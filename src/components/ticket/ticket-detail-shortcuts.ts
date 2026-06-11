@@ -1,4 +1,5 @@
 import { createSignal } from "solid-js";
+import type { RunShortcutBody } from "~/server/launcher/launcher-config.js";
 
 export interface ShortcutDeps {
   ticketUrl: (suffix: string) => string;
@@ -21,7 +22,9 @@ export function createShortcutState(deps: ShortcutDeps) {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, useWorktree: deps.useWorktree(), force }),
+          body: JSON.stringify(
+            { name, useWorktree: deps.useWorktree(), force: force ?? false } satisfies RunShortcutBody,
+          ),
         }
       );
       if (!res.ok) {

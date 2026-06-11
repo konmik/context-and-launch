@@ -1,7 +1,12 @@
 import { createSignal, createEffect, on, onCleanup } from "solid-js";
 import { revalidate } from "@solidjs/router";
-import type { TicketInfo } from "~/server/ticket/ticket-store.js";
-import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/server/launcher/launcher-config.js";
+import type {
+  TicketInfo, UseWorktreeBody, SaveContextBody,
+  AddReferencesBody, RemoveReferenceBody,
+} from "~/server/ticket/ticket-store.js";
+import type {
+  MergedLauncherConfig, LauncherColumnDefaults, ColumnDefaultsBody,
+} from "~/server/launcher/launcher-config.js";
 import {
   type ActiveFile,
   activeFileLabel,
@@ -83,7 +88,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
       {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ useWorktree: value }),
+        body: JSON.stringify({ useWorktree: value } satisfies UseWorktreeBody),
       }
     ).then((res) => {
       if (!res.ok) res.text().then((t) => setError(t || "Failed to persist worktree setting"));
@@ -190,7 +195,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   function patchColumnDefaults(patch: Partial<LauncherColumnDefaults>) {
     fetch(`/api/projects/${props.projectSlug}/launcher-config/column-defaults`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ column: props.ticket.status, ...patch }),
+      body: JSON.stringify({ column: props.ticket.status, ...patch } satisfies ColumnDefaultsBody),
     }).then((res) => {
       if (!res.ok) res.text().then((t) => setError(t || "Failed to save column defaults"));
     }).catch((e) => {
@@ -238,7 +243,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
       await fetch(ticketUrl(`context/${af.name}`), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: content() }),
+        body: JSON.stringify({ content: content() } satisfies SaveContextBody),
       });
       setSavedContent(content());
     } catch (e) { setError(e instanceof Error ? e.message : "Failed to save file"); }
@@ -311,7 +316,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
       fetchOpts = {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: af.path }),
+        body: JSON.stringify({ path: af.path } satisfies RemoveReferenceBody),
       };
     } else if (af.type === "file") {
       url = ticketUrl(`files/${encodeURIComponent(af.name)}`);
@@ -380,7 +385,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
       const res = await fetch(ticketUrl("references"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paths }),
+        body: JSON.stringify({ paths } satisfies AddReferencesBody),
       });
       if (!res.ok) { setError(await res.text() || "Failed to add references"); return; }
       const newRefs = paths.map((p) => ({ path: p, exists: true }));
