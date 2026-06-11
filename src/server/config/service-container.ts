@@ -10,6 +10,7 @@ import { TicketSyncManager } from '../ticket/ticket-sync.js';
 import { GitRepository } from '../infra/git-repository.js';
 import { ProjectPageService } from '../board/project-page-service.js';
 import { OperationTracker } from '../infra/operation-tracker.js';
+import { SyncPendingTracker, checkHasPendingChanges } from '../board/sync-pending.js';
 
 export interface ServiceContainer {
 	configPaths: ConfigPaths;
@@ -24,6 +25,7 @@ export interface ServiceContainer {
 	ticketSyncManager: TicketSyncManager;
 	projectPageService: ProjectPageService;
 	operationTracker: OperationTracker;
+	syncPendingTracker: SyncPendingTracker;
 }
 
 export function createServices(baseDir?: string, configDefaultsDir?: string): ServiceContainer {
@@ -36,7 +38,8 @@ export function createServices(baseDir?: string, configDefaultsDir?: string): Se
 	const worktreeManager = new WorktreeManager(
 		configPaths, (projectSlug) => projectRegistry.getTicketsPath(projectSlug),
 	);
-	const fileWatcher = new FileWatcher();
+	const syncPendingTracker = new SyncPendingTracker(checkHasPendingChanges);
+	const fileWatcher = new FileWatcher((worktreeDir) => syncPendingTracker.invalidate(worktreeDir));
 	const launcherConfigManager = new LauncherConfigManager(configPaths);
 	const agentWorktreeManager = new AgentWorktreeManager(launcherConfigManager, configPaths);
 	const ticketSyncManager = new TicketSyncManager(gitRepo);
@@ -59,5 +62,6 @@ export function createServices(baseDir?: string, configDefaultsDir?: string): Se
 		ticketSyncManager,
 		projectPageService,
 		operationTracker,
+		syncPendingTracker,
 	};
 }

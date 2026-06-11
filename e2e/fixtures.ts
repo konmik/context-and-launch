@@ -19,11 +19,12 @@ export interface TestServer {
 
 export interface CreateServerOptions {
   env?: NodeJS.ProcessEnv;
+  dataDirPrefix?: string;
 }
 
 export async function createServer(opts: CreateServerOptions = {}): Promise<TestServer> {
   const startPort = pickPort();
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "cl-e2e-data-"));
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), opts.dataDirPrefix ?? "cl-e2e-data-"));
   const reposParentDir = fs.mkdtempSync(path.join(os.tmpdir(), "cl-e2e-repos-"));
   const safeEnv: NodeJS.ProcessEnv = {
     CONTEXT_PICKER_STUB: "__cancel__",
@@ -594,11 +595,14 @@ export interface E2EContext {
   projects: CreatedProject[];
 }
 
-export function setupE2E(opts: { viewport?: { width: number; height: number } } = {}): E2EContext {
+export function setupE2E(opts: {
+  viewport?: { width: number; height: number };
+  serverOpts?: CreateServerOptions;
+} = {}): E2EContext {
   const viewport = opts.viewport ?? { width: 1200, height: 800 };
   const ctx = { projects: [] as CreatedProject[] } as E2EContext;
   beforeAll(async () => {
-    ctx.testServer = await createServer();
+    ctx.testServer = await createServer(opts.serverOpts);
     ctx.testBrowser = await launchBrowser();
     ctx.browser = ctx.testBrowser.browser;
   }, 60000);

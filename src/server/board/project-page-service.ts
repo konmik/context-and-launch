@@ -36,15 +36,14 @@ export class ProjectPageService {
 			const worktreeDir = await this.worktreeManager.ensureWorktree(
 				project.path, projectSlug, project.branch,
 			);
-			this.fileWatcher.stopAll();
-			this.fileWatcher.watch(worktreeDir);
+			this.fileWatcher.watchOnly(worktreeDir);
+			await this.ticketSyncManager.finalizeResolution(worktreeDir);
 			const config = this.boardConfigManager.getConfig(project.boardId);
 			const store = new TicketStore(worktreeDir);
 			const { tickets, ticketOrder } = store.loadBoardState(
 				config.columns.map(c => c.name),
 			);
 			const suggestedNextNumber = store.suggestNextNumber();
-			await this.ticketSyncManager.finalizeResolution(worktreeDir);
 			const hasRemote = await this.ticketSyncManager.hasRemote(worktreeDir);
 			const hasConflict = this.ticketSyncManager.isResolving(worktreeDir);
 			return {

@@ -565,6 +565,165 @@ describe('FileWatcher', () => {
 		}
 	});
 
+	it('onWorktreeChange fires on file events and again after the auto-commit', async () => {
+		const dir = tmpDir('filewatcher-onchange-');
+		dirs.push(dir);
+
+		await git(dir, 'init');
+		await git(dir, 'config', 'user.email', 'test@test.com');
+		await git(dir, 'config', 'user.name', 'Test');
+		fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
+		await git(dir, 'add', '-A');
+		await git(dir, 'commit', '-m', 'initial commit');
+
+		const onWorktreeChange = vi.fn();
+		const watcher = new FileWatcher(onWorktreeChange);
+		try {
+			const debounceMs = 2000;
+			watcher.watch(dir, debounceMs);
+			await delay(500);
+
+			fs.writeFileSync(path.join(dir, 'trigger.txt'), 'content');
+			await delay(500);
+			// Within the debounce window: only the raw file event has fired
+			expect(onWorktreeChange).toHaveBeenCalledWith(dir);
+			const callsBeforeCommit = onWorktreeChange.mock.calls.length;
+
+			await delay(debounceMs + 2000);
+			expect(onWorktreeChange.mock.calls.length).toBeGreaterThan(callsBeforeCommit);
+		} finally {
+			watcher.stopAll();
+		}
+	});
+
+	it('auto-commit fires for a worktree nested under a dot-directory (default data dir)', async () => {
+		const base = tmpDir('filewatcher-dot-parent-');
+		dirs.push(base);
+		const dir = path.join(base, '.context-launch', 'projects', 'demo', 'tickets');
+		fs.mkdirSync(dir, { recursive: true });
+
+		await git(dir, 'init');
+		await git(dir, 'config', 'user.email', 'test@test.com');
+		await git(dir, 'config', 'user.name', 'Test');
+		fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
+		await git(dir, 'add', '-A');
+		await git(dir, 'commit', '-m', 'initial commit');
+
+		const watcher = new FileWatcher();
+		try {
+			const debounceMs = 300;
+			watcher.watch(dir, debounceMs);
+			await delay(500);
+
+			fs.writeFileSync(path.join(dir, 'ticket-order.json'), '{}');
+			await delay(debounceMs + 2000);
+
+			const log = await git(dir, 'log', '--oneline');
+			const lines = log.trim().split('\n');
+			expect(lines.length).toBe(2);
+			expect(lines[0]).toContain('auto: external changes');
+		} finally {
+			watcher.stopAll();
+		}
+	});
+
+	it('dotfiles inside the worktree do not trigger an auto-commit', async () => {
+		const base = tmpDir('filewatcher-dot-inside-');
+		dirs.push(base);
+		const dir = path.join(base, '.context-launch', 'projects', 'demo', 'tickets');
+		fs.mkdirSync(dir, { recursive: true });
+
+		await git(dir, 'init');
+		await git(dir, 'config', 'user.email', 'test@test.com');
+		await git(dir, 'config', 'user.name', 'Test');
+		fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
+		await git(dir, 'add', '-A');
+		await git(dir, 'commit', '-m', 'initial commit');
+
+		const watcher = new FileWatcher();
+		try {
+			const debounceMs = 300;
+			watcher.watch(dir, debounceMs);
+			await delay(500);
+
+			fs.writeFileSync(path.join(dir, '.hidden'), 'dotfile');
+			fs.mkdirSync(path.join(dir, '.cache'));
+			fs.writeFileSync(path.join(dir, '.cache', 'entry.txt'), 'inside dot dir');
+			await delay(debounceMs + 2000);
+
+			const log = await git(dir, 'log', '--oneline');
+			expect(log.trim().split('\n').length).toBe(1);
+		} finally {
+			watcher.stopAll();
+		}
+	});
+
+	it('watchOnly for the same dir keeps the watcher alive so a write just before'
+		+ ' a board reload is still committed', async () => {
+		const dir = tmpDir('filewatcher-watchonly-reload-');
+		dirs.push(dir);
+
+		await git(dir, 'init');
+		await git(dir, 'config', 'user.email', 'test@test.com');
+		await git(dir, 'config', 'user.name', 'Test');
+		fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
+		await git(dir, 'add', '-A');
+		await git(dir, 'commit', '-m', 'initial commit');
+
+		const watcher = new FileWatcher();
+		try {
+			const debounceMs = 300;
+			watcher.watchOnly(dir, debounceMs);
+			await delay(500);
+
+			fs.writeFileSync(path.join(dir, 'ticket-order.json'), '{}');
+			watcher.watchOnly(dir, debounceMs);
+			await delay(debounceMs + 2000);
+
+			const log = await git(dir, 'log', '--oneline');
+			const lines = log.trim().split('\n');
+			expect(lines.length).toBe(2);
+			expect(lines[0]).toContain('auto: external changes');
+		} finally {
+			watcher.stopAll();
+		}
+	});
+
+	it('watchOnly stops watchers for other directories', async () => {
+		const dirA = tmpDir('filewatcher-watchonly-a-');
+		const dirB = tmpDir('filewatcher-watchonly-b-');
+		dirs.push(dirA, dirB);
+
+		for (const dir of [dirA, dirB]) {
+			await git(dir, 'init');
+			await git(dir, 'config', 'user.email', 'test@test.com');
+			await git(dir, 'config', 'user.name', 'Test');
+			fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
+			await git(dir, 'add', '-A');
+			await git(dir, 'commit', '-m', 'initial commit');
+		}
+
+		const watcher = new FileWatcher();
+		try {
+			const debounceMs = 300;
+			watcher.watchOnly(dirA, debounceMs);
+			await delay(500);
+			watcher.watchOnly(dirB, debounceMs);
+			await delay(500);
+
+			fs.writeFileSync(path.join(dirA, 'ignored-after-switch.txt'), 'content');
+			fs.writeFileSync(path.join(dirB, 'observed.txt'), 'content');
+			await delay(debounceMs + 2000);
+
+			const logA = await git(dirA, 'log', '--oneline');
+			expect(logA.trim().split('\n').length).toBe(1);
+			const logB = await git(dirB, 'log', '--oneline');
+			expect(logB.trim().split('\n').length).toBe(2);
+		} finally {
+			watcher.stopAll();
+		}
+	});
+
 	it('TicketStore creates ticket folders even when index.lock exists (no autoCommit)', async () => {
 		const dir = tmpDir('filewatcher-autocommit-lock-');
 		dirs.push(dir);

@@ -22,6 +22,7 @@ import {
   createProjectPageController,
   type ProjectPageController,
 } from "~/components/project/project-page-controller.js";
+import { createSyncPendingPoller } from "~/lib/sync-pending-poller.js";
 
 export const route = {
   load: ({ params }: { params: { projectSlug: string } }) => loadProjectPage(params.projectSlug),
@@ -40,6 +41,8 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
 
   const { dialogState, syncState, selectionState, commands } =
     props?.ctrl ?? createProjectPageController({ projectSlug, data: data as any });
+
+  const { hasPendingChanges } = createSyncPendingPoller(projectSlug);
 
   const currentProjectName = () => {
     const v = data();
@@ -109,6 +112,12 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                     }
                     data-testid="sync-button-conflict-badge"
                   >!</span>
+                </Show>
+                <Show when={hasPendingChanges() && !ld()?.hasConflict}>
+                  <span
+                    class="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-yellow-400"
+                    data-testid="sync-button-pending-badge"
+                  />
                 </Show>
               </button>
               <button

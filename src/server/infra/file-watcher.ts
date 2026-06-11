@@ -1,5 +1,11 @@
+import path from 'path';
 import chokidar, { type FSWatcher } from 'chokidar';
 import { gitSync } from './git.js';
+
+function isDotPathInside(worktreeDir: string, filePath: string): boolean {
+	const relative = path.relative(worktreeDir, filePath);
+	return relative.split(/[/\\]/).some((segment) => segment.startsWith('.'));
+}
 
 interface WatcherState {
 	watcher: FSWatcher;
@@ -9,6 +15,8 @@ interface WatcherState {
 export class FileWatcher {
 	private watchers = new Map<string, WatcherState>();
 
+	constructor(private readonly onWorktreeChange?: (worktreeDir: string) => void) {}
+
 	watch(worktreeDir: string, debounceMs = 2000): void {
 		if (this.watchers.has(worktreeDir)) return;
 
@@ -16,7 +24,7 @@ export class FileWatcher {
 		try {
 			watcher = chokidar.watch(worktreeDir, {
 				ignoreInitial: true,
-				ignored: /(^|[/\\])\./,
+				ignored: (filePath: string) => isDotPathInside(worktreeDir, filePath),
 				persistent: true,
 				depth: 10
 			});
@@ -43,14 +51,27 @@ export class FileWatcher {
 				} catch (err) {
 					console.warn(`FileWatcher: auto-commit failed for ${worktreeDir}:`, err);
 				}
+				this.onWorktreeChange?.(worktreeDir);
 			}, debounceMs);
 		};
 
-		watcher.on('add', debouncedCommit);
-		watcher.on('change', debouncedCommit);
-		watcher.on('unlink', debouncedCommit);
-		watcher.on('addDir', debouncedCommit);
-		watcher.on('unlinkDir', debouncedCommit);
+		const handleEvent = () => {
+			this.onWorktreeChange?.(worktreeDir);
+			debouncedCommit();
+		};
+
+		watcher.on('add', handleEvent);
+		watcher.on('change', handleEvent);
+		watcher.on('unlink', handleEvent);
+		watcher.on('addDir', handleEvent);
+		watcher.on('unlinkDir', handleEvent);
+	}
+
+	watchOnly(worktreeDir: string, debounceMs = 2000): void {
+		for (const dir of [...this.watchers.keys()]) {
+			if (dir !== worktreeDir) this.stop(dir);
+		}
+		this.watch(worktreeDir, debounceMs);
 	}
 
 	stop(worktreeDir: string): void {

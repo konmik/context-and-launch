@@ -192,6 +192,10 @@ export class ProjectRegistry {
 		return this.load().projects.map((entry) => entryToInfo(entry, this.configRepo));
 	}
 
+	hasProject(projectSlug: string): boolean {
+		return this.load().projects.some((p) => p.projectSlug === projectSlug);
+	}
+
 	getTicketsPath(projectSlug: string): string | undefined {
 		return this.load().projects.find((p) => p.projectSlug === projectSlug)?.ticketsPath;
 	}

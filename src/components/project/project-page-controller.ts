@@ -46,6 +46,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
         setTimeout(() => setSyncSuccess(false), 2000);
         await revalidate("project-page");
       } else if (parsed.type === "conflict") {
+        await revalidate("project-page");
         setConflictDialogOpen(true);
       } else {
         setSyncError({ description: parsed.message });
