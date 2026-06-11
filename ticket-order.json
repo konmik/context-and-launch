@@ -1,11 +1,13 @@
 {
   "todo": [
-    "st-0024-fix-ide-closing-when-started-from-the-app-and-the-app-closes"
+    "st-0025-unify-config-persistence-in-server-layer",
+    "st-0027-centralize-client-fetching-on-apifetch",
+    "st-0028-extract-generic-entity-crud-in-launcher-config-manager"
   ],
-  "plan": [],
+  "plan": [
+    "st-0026-typed-api-contracts-and-route-helper"
+  ],
   "in-progress": [],
-  "review": [
-    "st-0023-show-sync-pending-indicator-on-sync-button"
-  ],
+  "review": [],
   "done": []
 }
