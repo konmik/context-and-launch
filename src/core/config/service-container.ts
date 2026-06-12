@@ -40,7 +40,7 @@ export function createServices(baseDir?: string, configDefaultsDir?: string): Se
 	);
 	const syncPendingTracker = new SyncPendingTracker(checkHasPendingChanges);
 	const fileWatcher = new FileWatcher((worktreeDir) => syncPendingTracker.invalidate(worktreeDir));
-	const launcherConfigManager = new LauncherConfigManager(configPaths);
+	const launcherConfigManager = new LauncherConfigManager(configPaths, configRepo);
 	const agentWorktreeManager = new AgentWorktreeManager(launcherConfigManager, configPaths);
 	const ticketSyncManager = new TicketSyncManager(gitRepo);
 	const operationTracker = new OperationTracker();

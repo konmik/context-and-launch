@@ -1,4 +1,3 @@
-import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
@@ -68,13 +67,4 @@ export class ConfigPaths {
 		return path.join(this.baseDir, 'projects', projectSlug, 'worktrees');
 	}
 
-	readConfigFile(filePath: string): string | null {
-		if (!fs.existsSync(filePath)) return null;
-		return fs.readFileSync(filePath, 'utf-8');
-	}
-
-	writeConfigFile(filePath: string, content: string): void {
-		fs.mkdirSync(path.dirname(filePath), { recursive: true });
-		fs.writeFileSync(filePath, content);
-	}
 }

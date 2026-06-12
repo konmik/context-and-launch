@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { ConfigRepository } from '../config/config-repository.js';
 
 export interface StatusJson {
 	number: string;
@@ -11,20 +12,41 @@ export interface StatusJson {
 }
 
 export class TicketRepository {
+	private configRepo: ConfigRepository;
+
+	constructor(configRepo?: ConfigRepository) {
+		this.configRepo = configRepo ?? new ConfigRepository();
+	}
+
 	readStatusJson(dir: string): StatusJson | null {
 		const file = path.join(dir, 'status.json');
-		if (!fs.existsSync(file)) return null;
+		let raw: unknown;
 		try {
-			const raw = JSON.parse(fs.readFileSync(file, 'utf-8'));
-			return { useWorktree: false, ...raw } as StatusJson;
+			raw = this.configRepo.readJson(file);
 		} catch (err) {
 			console.warn(`Malformed status.json in ${dir}:`, err);
 			return null;
 		}
+		if (raw === null) return null;
+		return { useWorktree: false, ...(raw as Record<string, unknown>) } as StatusJson;
 	}
 
 	writeStatusJson(dir: string, status: StatusJson): void {
-		fs.writeFileSync(path.join(dir, 'status.json'), JSON.stringify(status, null, 2));
+		this.configRepo.writeJson(path.join(dir, 'status.json'), status);
+	}
+
+	readOrderJson(worktreeDir: string): unknown | null {
+		const filePath = path.join(worktreeDir, 'ticket-order.json');
+		try {
+			return this.configRepo.readJson(filePath);
+		} catch (err) {
+			console.warn(`Failed to read ticket order from ${filePath}:`, err);
+			return null;
+		}
+	}
+
+	writeOrderJson(worktreeDir: string, data: unknown): void {
+		this.configRepo.writeJson(path.join(worktreeDir, 'ticket-order.json'), data);
 	}
 
 	listEntries(parentDir: string): fs.Dirent[] {
@@ -70,20 +92,5 @@ export class TicketRepository {
 
 	realpathSync(filePath: string): string {
 		return fs.realpathSync(filePath);
-	}
-
-	readOrderFile(worktreeDir: string): string | null {
-		const filePath = path.join(worktreeDir, 'ticket-order.json');
-		if (!fs.existsSync(filePath)) return null;
-		try {
-			return fs.readFileSync(filePath, 'utf-8');
-		} catch (err) {
-			console.warn(`Failed to read ticket order from ${filePath}:`, err);
-			return null;
-		}
-	}
-
-	writeOrderFile(worktreeDir: string, content: string): void {
-		fs.writeFileSync(path.join(worktreeDir, 'ticket-order.json'), content);
 	}
 }
