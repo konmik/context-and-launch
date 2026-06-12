@@ -1,7 +1,7 @@
-import fs from 'fs';
 import path from 'path';
 import * as v from 'valibot';
 import type { ConfigPaths } from '../config/config-paths.js';
+import { ConfigRepository } from '../config/config-repository.js';
 
 export interface LauncherTemplate {
 	name: string;
@@ -99,24 +99,76 @@ export const RunShortcutBody = v.object({
 });
 export type RunShortcutBody = v.InferOutput<typeof RunShortcutBody>;
 
-function parseConfig(text: string): LauncherConfig {
-	const parsed = JSON.parse(text);
+function parseConfig(raw: unknown): LauncherConfig {
+	const parsed = raw as Record<string, unknown>;
 	return {
-		templates: parsed.templates ?? [],
-		skills: parsed.skills ?? [],
-		profiles: parsed.profiles ?? [],
-		shortcuts: parsed.shortcuts ?? [],
-		columnDefaults: parsed.columnDefaults,
-		worktreeRootPath: parsed.worktreeRootPath,
-		conflictResolutionPrompt: parsed.conflictResolutionPrompt,
+		templates: (parsed.templates as LauncherTemplate[]) ?? [],
+		skills: (parsed.skills as LauncherSkill[]) ?? [],
+		profiles: (parsed.profiles as LauncherProfile[]) ?? [],
+		shortcuts: (parsed.shortcuts as LauncherShortcut[]) ?? [],
+		columnDefaults: parsed.columnDefaults as Record<string, LauncherColumnDefaults> | undefined,
+		worktreeRootPath: parsed.worktreeRootPath as string | undefined,
+		conflictResolutionPrompt: parsed.conflictResolutionPrompt as string | undefined,
+	};
+}
+
+function mergeByName<T extends { name: string }>(
+	appItems: T[],
+	projectItems: T[],
+): (T & { scope: "app" | "project" })[] {
+	const map = new Map<string, T & { scope: "app" | "project" }>();
+	for (const item of appItems) {
+		map.set(item.name, { ...item, scope: "app" });
+	}
+	for (const item of projectItems) {
+		map.set(item.name, { ...item, scope: "project" });
+	}
+	return [...map.values()];
+}
+
+export function mergeLauncherConfigs(
+	app: LauncherConfig,
+	project: LauncherConfig,
+): MergedLauncherConfig {
+	const mergedSkills = mergeByName(app.skills, project.skills);
+	const sortedSkills = mergedSkills
+		.map((s, i) => ({
+			...s,
+			order:
+				typeof s.order === "number" && Number.isFinite(s.order)
+					? s.order
+					: i,
+		}))
+		.sort((a, b) => a.order - b.order);
+
+	const appPrompt =
+		typeof app.conflictResolutionPrompt === 'string'
+		&& app.conflictResolutionPrompt
+			? app.conflictResolutionPrompt
+			: '';
+
+	return {
+		templates: mergeByName(app.templates, project.templates),
+		skills: sortedSkills,
+		profiles: mergeByName(app.profiles ?? [], project.profiles ?? []),
+		shortcuts: mergeByName(app.shortcuts ?? [], project.shortcuts ?? []),
+		columnDefaults: project.columnDefaults ?? {},
+		worktreeRootPath: project.worktreeRootPath ?? null,
+		conflictResolutionPrompt:
+			typeof project.conflictResolutionPrompt === 'string'
+			&& project.conflictResolutionPrompt
+				? project.conflictResolutionPrompt
+				: appPrompt,
 	};
 }
 
 export class LauncherConfigManager {
 	private paths: ConfigPaths;
+	private configRepo: ConfigRepository;
 
-	constructor(paths: ConfigPaths) {
+	constructor(paths: ConfigPaths, configRepo?: ConfigRepository) {
 		this.paths = paths;
+		this.configRepo = configRepo ?? new ConfigRepository();
 	}
 
 	getAppConfigDir(): string {
@@ -140,19 +192,16 @@ export class LauncherConfigManager {
 	}
 
 	private readLauncherFile(filePath: string): LauncherConfig | null {
-		const text = this.paths.readConfigFile(filePath);
-		if (text === null) return null;
-		return parseConfig(text);
+		const raw = this.configRepo.readJson(filePath);
+		if (raw === null) return null;
+		return parseConfig(raw);
 	}
 
 	private writeLauncherFile(
 		filePath: string,
 		config: LauncherConfig,
 	): void {
-		this.paths.writeConfigFile(
-			filePath,
-			JSON.stringify(config, null, 2),
-		);
+		this.configRepo.writeJson(filePath, config);
 	}
 
 	loadAppConfig(): LauncherConfig {
@@ -173,8 +222,11 @@ export class LauncherConfigManager {
 
 	private readDefaultProjectConfig(): LauncherConfig {
 		const filePath = path.join(this.paths.configDefaults(), 'project-launcher-config.json');
-		const text = fs.readFileSync(filePath, 'utf-8');
-		return parseConfig(text);
+		const raw = this.configRepo.readJson(filePath);
+		if (raw === null) {
+			throw new Error(`Default project launcher config not found: ${filePath}`);
+		}
+		return parseConfig(raw);
 	}
 
 	saveAppConfig(config: LauncherConfig): void {
@@ -194,79 +246,7 @@ export class LauncherConfigManager {
 	getMergedConfig(projectSlug: string): MergedLauncherConfig {
 		const app = this.loadAppConfig();
 		const project = this.loadProjectConfig(projectSlug);
-
-		const templateMap = new Map<
-			string,
-			LauncherTemplate & { scope: "app" | "project" }
-		>();
-		for (const t of app.templates) {
-			templateMap.set(t.name, { ...t, scope: "app" });
-		}
-		for (const t of project.templates) {
-			templateMap.set(t.name, { ...t, scope: "project" });
-		}
-
-		const skillMap = new Map<
-			string,
-			LauncherSkill & { scope: "app" | "project" }
-		>();
-		for (const s of app.skills) {
-			skillMap.set(s.name, { ...s, scope: "app" });
-		}
-		for (const s of project.skills) {
-			skillMap.set(s.name, { ...s, scope: "project" });
-		}
-		const sortedSkills = [...skillMap.values()]
-			.map((s, i) => ({
-				...s,
-				order:
-					typeof s.order === "number" && Number.isFinite(s.order)
-						? s.order
-						: i,
-			}))
-			.sort((a, b) => a.order - b.order);
-
-		const profileMap = new Map<
-			string,
-			LauncherProfile & { scope: "app" | "project" }
-		>();
-		for (const p of app.profiles ?? []) {
-			profileMap.set(p.name, { ...p, scope: "app" });
-		}
-		for (const p of project.profiles ?? []) {
-			profileMap.set(p.name, { ...p, scope: "project" });
-		}
-
-		const shortcutMap = new Map<
-			string,
-			LauncherShortcut & { scope: "app" | "project" }
-		>();
-		for (const s of app.shortcuts ?? []) {
-			shortcutMap.set(s.name, { ...s, scope: "app" });
-		}
-		for (const s of project.shortcuts ?? []) {
-			shortcutMap.set(s.name, { ...s, scope: "project" });
-		}
-
-		const appPrompt =
-			typeof app.conflictResolutionPrompt === 'string'
-			&& app.conflictResolutionPrompt
-				? app.conflictResolutionPrompt
-				: '';
-
-		return {
-			templates: [...templateMap.values()],
-			skills: sortedSkills,
-			profiles: [...profileMap.values()],
-			shortcuts: [...shortcutMap.values()],
-			columnDefaults: project.columnDefaults ?? {},
-			worktreeRootPath: project.worktreeRootPath ?? null,
-			conflictResolutionPrompt:
-				typeof project.conflictResolutionPrompt === 'string'
-				&& project.conflictResolutionPrompt
-					? project.conflictResolutionPrompt
-					: appPrompt,
-		};
+		return mergeLauncherConfigs(app, project);
 	}
 
 	saveColumnDefaults(

@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { LauncherConfigManager } from './launcher-config.js';
+import { LauncherConfigManager, mergeLauncherConfigs } from './launcher-config.js';
 import { ConfigPaths } from '../config/config-paths.js';
 import { initializeDataDir } from '../config/initialize.js';
 
@@ -1571,4 +1571,68 @@ describe('LauncherConfigManager', () => {
 		expect(config.columnDefaults?.['in-progress']?.skillOrder).toEqual(['OtherSkill']);
 	});
 
+});
+
+describe('mergeLauncherConfigs', () => {
+	it('merges templates with project winning on collision', () => {
+		const merged = mergeLauncherConfigs(
+			{ templates: [{ name: 'Shared', text: 'app' }, { name: 'AppOnly', text: 'app' }], skills: [] },
+			{ templates: [{ name: 'Shared', text: 'project' }, { name: 'ProjOnly', text: 'proj' }], skills: [] },
+		);
+		expect(merged.templates).toHaveLength(3);
+		expect(merged.templates.find(t => t.name === 'Shared')?.text).toBe('project');
+		expect(merged.templates.find(t => t.name === 'Shared')?.scope).toBe('project');
+		expect(merged.templates.find(t => t.name === 'AppOnly')?.scope).toBe('app');
+	});
+
+	it('sorts skills by explicit order then fallback index', () => {
+		const merged = mergeLauncherConfigs(
+			{ templates: [], skills: [{ name: 'A', text: 'a' }, { name: 'B', text: 'b', order: 5 }] },
+			{ templates: [], skills: [{ name: 'C', text: 'c' }] },
+		);
+		expect(merged.skills.map(s => s.name)).toEqual(['A', 'C', 'B']);
+	});
+
+	it('uses project conflictResolutionPrompt when available', () => {
+		const merged = mergeLauncherConfigs(
+			{ templates: [], skills: [], conflictResolutionPrompt: 'app prompt' },
+			{ templates: [], skills: [], conflictResolutionPrompt: 'project prompt' },
+		);
+		expect(merged.conflictResolutionPrompt).toBe('project prompt');
+	});
+
+	it('falls back to app conflictResolutionPrompt when project is empty', () => {
+		const merged = mergeLauncherConfigs(
+			{ templates: [], skills: [], conflictResolutionPrompt: 'app prompt' },
+			{ templates: [], skills: [], conflictResolutionPrompt: '' },
+		);
+		expect(merged.conflictResolutionPrompt).toBe('app prompt');
+	});
+
+	it('columnDefaults come from project only', () => {
+		const appDefaults = {
+			todo: { templateName: 'T', checkedSkills: [], profileName: null },
+		};
+		const merged = mergeLauncherConfigs(
+			{ templates: [], skills: [], columnDefaults: appDefaults },
+			{ templates: [], skills: [] },
+		);
+		expect(merged.columnDefaults).toEqual({});
+	});
+
+	it('worktreeRootPath comes from project', () => {
+		const merged = mergeLauncherConfigs(
+			{ templates: [], skills: [] },
+			{ templates: [], skills: [], worktreeRootPath: '/project/path' },
+		);
+		expect(merged.worktreeRootPath).toBe('/project/path');
+	});
+
+	it('worktreeRootPath is null when not set', () => {
+		const merged = mergeLauncherConfigs(
+			{ templates: [], skills: [] },
+			{ templates: [], skills: [] },
+		);
+		expect(merged.worktreeRootPath).toBeNull();
+	});
 });
