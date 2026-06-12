@@ -67,7 +67,7 @@ function DialogFooter(props: { children: JSX.Element }) {
 }
 
 const itemTypeLabel: Record<ItemType, string> = {
-	template: "Prompt", skill: "Skill", profile: "Launch", shortcut: "Shortcut",
+	template: "Prompt Template", skill: "Skill", profile: "Launch", shortcut: "Shortcut",
 };
 
 export function ItemFormDialog(props: {

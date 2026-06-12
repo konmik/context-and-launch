@@ -107,7 +107,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 							<TabsTrigger
 								value="templates"
 								data-testid="launcher-settings-tab-prompts"
-							>Prompts</TabsTrigger>
+							>Prompt Templates</TabsTrigger>
 							<TabsTrigger
 								value="misc"
 								data-testid="launcher-settings-tab-misc"

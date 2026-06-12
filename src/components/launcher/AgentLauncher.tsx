@@ -67,6 +67,7 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 					<div class="flex w-full flex-col gap-4">
 						<div class="flex flex-col gap-4">
 							<div>
+								<label class="mb-1 block text-sm text-muted-foreground">Agent</label>
 								<select
 									value={c.selectedProfile()}
 									onChange={(e) => {
@@ -82,7 +83,7 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 								</select>
 							</div>
 							<div>
-								<label class="mb-1 block text-sm text-muted-foreground">Prompt</label>
+								<label class="mb-1 block text-sm text-muted-foreground">Prompt Template</label>
 								<select
 									value={c.selectedTemplate()}
 									onChange={(e) => {
