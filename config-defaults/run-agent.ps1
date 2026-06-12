@@ -41,33 +41,29 @@ $scriptPath = $MyInvocation.MyCommand.Path
 Start-Process wt -ArgumentList "-d", "`"$PWD`"", "--title", "`"$windowTitle`"", "--suppressApplicationTitle", "--", "powershell", "-NoExit", "-File", "`"$scriptPath`"", "-selfLaunch"
 
 # Deliver the initial prompt via SendKeys, splitting on <<ENTER>> markers
-$chunks = $initialPrompt -split '<<ENTER>>'
+$tokens = $initialPrompt -split '(<<ENTER>>)' | Where-Object { $_.Length -gt 0 }
 $maxRetries = 20
 $retryCount = 0
 $titleEscaped = $windowTitle -replace "'", "''"
 
+$ws = New-Object -ComObject WScript.Shell
 while ($retryCount -lt $maxRetries) {
     Start-Sleep -Milliseconds 500
-    $ws = New-Object -ComObject WScript.Shell
-    if ($ws.AppActivate($titleEscaped)) {
-        Start-Sleep -Seconds 1
-        for ($i = 0; $i -lt $chunks.Length; $i++) {
-            [void]$ws.AppActivate($titleEscaped)
-            $text = $chunks[$i]
-            if ($text.Length -gt 0) {
-                $escaped = $text -replace '([+^%~(){}\[\]])', '{$1}'
-                $ws.SendKeys($escaped)
-            }
-            if ($i -lt $chunks.Length - 1) {
-                $ws.SendKeys("~")
-                Start-Sleep -Seconds 2
-            }
-        }
-        break
-    }
+    if ($ws.AppActivate($titleEscaped)) { break }
     $retryCount++
 }
+if ($retryCount -eq $maxRetries) { return }
 
-if ($retryCount -eq $maxRetries) {
-    Write-Warning "Failed to send keys to window '$windowTitle' after $maxRetries retries"
+Start-Sleep -Seconds 1
+foreach ($token in $tokens) {
+    [void]$ws.AppActivate($titleEscaped)
+    Start-Sleep -Milliseconds 200
+    if ($token -eq '<<ENTER>>') {
+        $ws.SendKeys("{ENTER}")
+        Start-Sleep -Seconds 2
+    } else {
+        $escaped = $token -replace '([+^%~(){}\[\]])', '{$1}'
+        $ws.SendKeys($escaped)
+        Start-Sleep -Milliseconds 300
+    }
 }

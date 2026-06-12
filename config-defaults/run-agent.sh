@@ -56,18 +56,15 @@ eval spawn $env(CL_AGENT_CMD)
 send_user "\033]0;$title\007\033]2;$title\007"
 set timeout 3
 expect timeout {}
-regsub -all {<<ENTER>>} $prompt \x1F promptPrepped
-set chunks [split $promptPrepped \x1F]
-set last_idx [expr {[llength $chunks] - 1}]
-for {set i 0} {$i < [llength $chunks]} {incr i} {
-    set chunk [lindex $chunks $i]
-    if {[string length $chunk] > 0} {
-        send -- "\x1b\[200~$chunk\x1b\[201~"
-    }
-    if {$i < $last_idx} {
+regsub -all {<<ENTER>>} $prompt "\x1F\x1E\x1F" promptPrepped
+set tokens [split $promptPrepped \x1F]
+foreach token $tokens {
+    if {$token eq "\x1E"} {
         send "\r"
         set timeout 2
         expect timeout {}
+    } elseif {[string length $token] > 0} {
+        send -- "\x1b\[200~$token\x1b\[201~"
     }
 }
 send_user "\033]0;$title\007\033]2;$title\007"
