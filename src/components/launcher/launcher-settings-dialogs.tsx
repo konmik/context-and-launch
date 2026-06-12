@@ -109,7 +109,7 @@ export function ItemFormDialog(props: {
 								onInput={(e) => props.setForm({
 									...f(), text: e.currentTarget.value,
 								})}
-								class="input min-h-[120px]"
+								class="input min-h-[280px]"
 								style={{ height: "auto" }}
 								data-testid="launcher-settings-item-form-text-input"
 								placeholder={
