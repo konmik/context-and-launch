@@ -228,39 +228,34 @@ describe('useWorktree=true with worktreeRootPath=null returns 400 (code-inspecti
 
 
 describe('parseLaunchRequest with missing/malformed request body', () => {
-	// Replicate the pure function from agent-launch.ts (cannot import due to ~ alias)
 	interface LaunchRequest {
-		templateName: string; checkedSkills: string[]; useWorktree: boolean; profileName: string;
+		initialPrompt: string; useWorktree: boolean; profileName: string; force: boolean;
 	}
 	function parseLaunchRequest(body: unknown): LaunchRequest {
 		const result: LaunchRequest = {
-			templateName: 'Default', checkedSkills: [], useWorktree: false, profileName: '',
+			initialPrompt: '', useWorktree: false, profileName: '', force: false,
 		};
 		if (body && typeof body === 'object') {
 			const b = body as Record<string, unknown>;
-			if (typeof b.templateName === 'string') result.templateName = b.templateName;
-			if (Array.isArray(b.checkedSkills)) result.checkedSkills = b.checkedSkills;
+			if (typeof b.initialPrompt === 'string') result.initialPrompt = b.initialPrompt;
 			if (typeof b.useWorktree === 'boolean') result.useWorktree = b.useWorktree;
 			if (typeof b.profileName === 'string') result.profileName = b.profileName;
+			if (typeof b.force === 'boolean') result.force = b.force;
 		}
 		return result;
 	}
 
-	const DEFAULTS = { templateName: 'Default', checkedSkills: [], useWorktree: false, profileName: '' };
+	const DEFAULTS = { initialPrompt: '', useWorktree: false, profileName: '', force: false };
 
 	it('replicated function matches source code', () => {
-		// Read the production source to verify our replica stays in sync
 		const source = fs.readFileSync(
 			path.resolve(__dirname, 'agent-launch.ts'),
 			'utf-8'
 		);
-		// The function body must contain the same default values and type guards
-		expect(source).toContain('templateName: "Default"');
-		expect(source).toContain('checkedSkills: []');
+		expect(source).toContain('initialPrompt: ""');
 		expect(source).toContain('useWorktree: false');
 		expect(source).toContain('profileName: ""');
-		expect(source).toContain("typeof b.templateName === \"string\"");
-		expect(source).toContain("Array.isArray(b.checkedSkills)");
+		expect(source).toContain("typeof b.initialPrompt === \"string\"");
 		expect(source).toContain("typeof b.useWorktree === \"boolean\"");
 		expect(source).toContain("typeof b.profileName === \"string\"");
 	});
@@ -296,62 +291,54 @@ describe('parseLaunchRequest with missing/malformed request body', () => {
 	});
 
 	it('array body is treated as object but has no matching keys, returns defaults', () => {
-		// typeof [] === "object" and Array is truthy, so it enters the object branch
-		// but none of the expected keys exist on a plain array
 		const result = parseLaunchRequest(['a', 'b']);
 		expect(result).toEqual(DEFAULTS);
 	});
 
 	it('body with wrong types for all fields returns defaults', () => {
 		const result = parseLaunchRequest({
-			templateName: 123,        // not a string
-			checkedSkills: 'not-array', // not an array
-			useWorktree: 'yes',        // not a boolean
+			initialPrompt: 123,
+			useWorktree: 'yes',
 		});
 		expect(result).toEqual(DEFAULTS);
 	});
 
 	it('body with valid fields overrides defaults', () => {
 		const result = parseLaunchRequest({
-			templateName: 'Custom',
-			checkedSkills: ['skill-a', 'skill-b'],
+			initialPrompt: 'do the thing',
 			useWorktree: true,
 		});
 		expect(result).toEqual({
-			templateName: 'Custom',
-			checkedSkills: ['skill-a', 'skill-b'],
+			initialPrompt: 'do the thing',
 			useWorktree: true,
 			profileName: '',
+			force: false,
 		});
 	});
 
 	it('body with partial valid fields merges with defaults', () => {
-		// Only templateName is valid; other fields use defaults
-		const result = parseLaunchRequest({ templateName: 'MyTemplate' });
+		const result = parseLaunchRequest({ initialPrompt: 'hello' });
 		expect(result).toEqual({
-			templateName: 'MyTemplate',
-			checkedSkills: [],
+			initialPrompt: 'hello',
 			useWorktree: false,
 			profileName: '',
+			force: false,
 		});
 	});
 
 	it('body with extra unknown fields does not affect result', () => {
 		const result = parseLaunchRequest({
-			templateName: 'Custom',
+			initialPrompt: 'do it',
 			unknownField: 'ignored',
 			anotherField: 999,
 		});
-		expect(result.templateName).toBe('Custom');
-		expect(result.checkedSkills).toEqual([]);
+		expect(result.initialPrompt).toBe('do it');
 		expect(result.useWorktree).toBe(false);
 		expect(result).not.toHaveProperty('unknownField');
 		expect(result).not.toHaveProperty('anotherField');
 	});
 
 	it('never throws for any input', () => {
-		// parseLaunchRequest must be safe to call with any value -- both run.ts and
-		// pull-and-retry.ts rely on it not throwing during body parsing
 		const inputs = [undefined, null, 0, '', false, NaN, Infinity, [], {}, 'json', 42, true];
 		for (const input of inputs) {
 			expect(() => parseLaunchRequest(input)).not.toThrow();
@@ -359,57 +346,35 @@ describe('parseLaunchRequest with missing/malformed request body', () => {
 	});
 });
 
-describe('launchAgent ticketDir vs launchDir separation (code-inspection)', () => {
-	// This test reads agent-launch.ts to confirm that ticketDir in the interpolated
-	// prompt is derived from worktreeDir (the ticket storage directory), NOT from
-	// launchDir (the git worktree or project path where the agent terminal opens).
-	// These are intentionally different paths: worktreeDir stores ticket metadata,
-	// while launchDir is the CWD for the spawned agent terminal.
-
+describe('launchAgent uses initialPrompt directly (code-inspection)', () => {
 	const agentLaunchSource = fs.readFileSync(
 		path.resolve(__dirname, 'agent-launch.ts'),
 		'utf-8'
 	);
 
-	it('ticketDir is computed from worktreeDir (first param), not launchDir (last param)', () => {
-		// The function signature: launchAgent(projectSlug, ticket, project, worktreeDir, launchRequest, launchDir)
-		// ticketDir must resolve from worktreeDir, not launchDir
-		expect(agentLaunchSource).toMatch(/const ticketDir\s*=\s*path\.resolve\(worktreeDir,/);
-		// ticketDir must NOT reference launchDir
-		expect(agentLaunchSource).not.toMatch(/const ticketDir\s*=.*launchDir/);
+	it('launchAgent passes initialPrompt from launchRequest to commandVars', () => {
+		expect(agentLaunchSource).toMatch(/launchRequest\.initialPrompt/);
 	});
 
-	it('launchDir is only used for the spawned terminal working directory, not for ticket resolution', () => {
+	it('launchAgent does not assemble or interpolate prompts', () => {
+		const fnMatch = agentLaunchSource.match(/function launchAgent\([^)]*\)[^{]*\{([\s\S]*?)^}/m);
+		expect(fnMatch).not.toBeNull();
+		const body = fnMatch![1];
+		expect(body).not.toContain('assemblePrompt');
+		expect(body).not.toContain('interpolatePrompt');
+	});
+
+	it('launchDir is used for the spawned terminal working directory', () => {
 		expect(agentLaunchSource).toMatch(/spawnProfile\(profile,\s*commandVars,\s*launchDir\)/);
-		const variablesBlockMatch = agentLaunchSource.match(/const variables[^}]+\}/s);
-		expect(variablesBlockMatch).not.toBeNull();
-		const variablesBlock = variablesBlockMatch![0];
-		expect(variablesBlock).toContain('ticketDir');
-		expect(variablesBlock).not.toContain('launchDir');
 	});
 
-	it('ticketDir flows into the variables dict for prompt interpolation', () => {
-		// ticketDir must appear as a key in the variables object
-		expect(agentLaunchSource).toMatch(/variables\s*.*=\s*\{[^}]*ticketDir[^}]*\}/s);
-		// The variables dict is passed to interpolatePrompt
-		expect(agentLaunchSource).toMatch(/interpolatePrompt\(assembled,\s*variables\)/);
-	});
-
-	it('worktreeDir and launchDir are separate parameters in the function signature', () => {
-		// The function must accept both worktreeDir and launchDir as distinct parameters
-		expect(agentLaunchSource).toMatch(
-			/function launchAgent\([^)]*worktreeDir:\s*string[^)]*launchDir:\s*string[^)]*\)/s
-		);
-	});
-
-	it('the launcher-api uses resolveLaunchDir and passes worktreeDir and launchDir separately', () => {
+	it('the launcher-api uses resolveLaunchDir and launchAgentCore', () => {
 		const launcherApiSource = fs.readFileSync(
 			path.resolve(__dirname, '../../components/launcher/launcher-api.ts'),
 			'utf-8'
 		);
 		expect(launcherApiSource).toMatch(/resolveTicketAndProject/);
 		expect(launcherApiSource).toContain('resolveLaunchDir');
-		expect(launcherApiSource).toMatch(/launchAgentCore\([^)]*worktreeDir/);
+		expect(launcherApiSource).toMatch(/launchAgentCore\(/);
 	});
-
 });

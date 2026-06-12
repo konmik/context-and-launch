@@ -28,7 +28,10 @@ import {
   removeReference as removeReferenceAction, setUseWorktree as setUseWorktreeAction,
   addReferences as addReferencesAction,
 } from "./ticket-api.js";
-import { getMergedLauncherConfig, saveColumnDefaults } from "../launcher/launcher-api.js";
+import {
+  getMergedLauncherConfig, saveColumnDefaults,
+  type MergedLauncherConfigWithMeta,
+} from "../launcher/launcher-api.js";
 import { openNativeFileBrowser as openNativeFileBrowserServer } from "../shared/shared-api.js";
 
 export type Tab = "editor" | "launcher" | "shortcuts";
@@ -44,7 +47,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   const [pendingTab, setPendingTab] = createSignal<Tab | null>(null);
   const [activeTab, setActiveTab] = createSignal<Tab>("editor");
   const [initialTabResolved, setInitialTabResolved] = createSignal(false);
-  const [launcherConfig, setLauncherConfig] = createSignal<MergedLauncherConfig | null>(null);
+  const [launcherConfig, setLauncherConfig] = createSignal<MergedLauncherConfigWithMeta | null>(null);
   const [extraFiles, setExtraFiles] = createSignal<string[]>([]);
   const [newFileDialogOpen, setNewFileDialogOpen] = createSignal(false);
   const [newFileName, setNewFileName] = createSignal("");
@@ -389,6 +392,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     editedNumber: header.editedNumber, setEditedNumber: header.setEditedNumber,
     editedTitle: header.editedTitle, setEditedTitle: header.setEditedTitle,
     savedNumber: header.savedNumber, savedTitle: header.savedTitle,
+    savedFolderName: header.savedFolderName,
     hasUnsavedHeaderChanges: header.hasUnsavedHeaderChanges,
     hasAnyUnsavedChanges, saveAll,
     newFileDialogOpen, setNewFileDialogOpen, newFileName, setNewFileName,

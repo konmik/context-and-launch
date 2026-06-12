@@ -5,19 +5,22 @@ import type { ErrorInfo } from "~/core/shared/errors.js";
 import { createListReorder, orderByNameList } from "../board/list-reorder.js";
 import { resolveDefaults } from "./agent-launcher-pure.js";
 import { launchAgentAction, pullAndRetryLaunch } from "./launcher-api.js";
+import { createPromptPreviewController } from "./prompt-preview-controller.js";
 
 type MergedSkill = MergedLauncherConfig["skills"][number];
 
 export interface AgentLauncherDeps {
 	projectSlug: string;
-	ticket: TicketInfo;
+	ticket: () => TicketInfo;
 	config: MergedLauncherConfig | null;
 	onDefaultsChange: (patch: Partial<LauncherColumnDefaults>) => void;
 	useWorktree: boolean;
+	projectPath: string;
+	worktreeDir: string;
 }
 
 export function createAgentLauncherController(props: AgentLauncherDeps) {
-	const initial = resolveDefaults(props.config, props.ticket.status);
+	const initial = resolveDefaults(props.config, props.ticket().status);
 	const [selectedTemplate, setSelectedTemplate] = createSignal(initial.templateName);
 	const [selectedProfile, setSelectedProfile] = createSignal(initial.profileName);
 	const [checkedSkills, setCheckedSkills] = createSignal<Set<string>>(new Set(initial.checkedSkills));
@@ -28,9 +31,9 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 	const [dirtyWorktreeMsg, setDirtyWorktreeMsg] = createSignal("");
 
 	createEffect(on(
-		() => [props.config, props.ticket.folderName] as const,
+		() => [props.config, props.ticket().folderName] as const,
 		([cfg]) => {
-			const defaults = resolveDefaults(cfg, props.ticket.status);
+			const defaults = resolveDefaults(cfg, props.ticket().status);
 			setSelectedTemplate(defaults.templateName);
 			setSelectedProfile(defaults.profileName);
 			setCheckedSkills(new Set(defaults.checkedSkills));
@@ -60,6 +63,17 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 		},
 	});
 
+	const preview = createPromptPreviewController({
+		selectedTemplate,
+		checkedSkills,
+		orderedSkills,
+		config: () => props.config,
+		ticket: props.ticket,
+		projectPath: () => props.projectPath,
+		worktreeDir: () => props.worktreeDir,
+		projectSlug: props.projectSlug,
+	});
+
 	async function launchAgent(extra?: Record<string, unknown>) {
 		setLaunching(true);
 		setErrorInfo(null);
@@ -67,10 +81,9 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 		setDirtyWorktreeMsg("");
 		try {
 			const result = await launchAgentAction(
-				props.projectSlug, props.ticket.folderName,
+				props.projectSlug, props.ticket().folderName,
 				{
-					templateName: selectedTemplate(),
-					checkedSkills: [...checkedSkills()],
+					initialPrompt: preview.currentPrompt(),
 					useWorktree: props.useWorktree,
 					profileName: selectedProfile(),
 					force: extra?.force === true,
@@ -95,10 +108,9 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 		setErrorInfo(null);
 		try {
 			const result = await pullAndRetryLaunch(
-				props.projectSlug, props.ticket.folderName,
+				props.projectSlug, props.ticket().folderName,
 				{
-					templateName: selectedTemplate(),
-					checkedSkills: [...checkedSkills()],
+					initialPrompt: preview.currentPrompt(),
 					useWorktree: props.useWorktree,
 					profileName: selectedProfile(),
 					force: false,
@@ -118,6 +130,7 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 		setSelectedTemplate, setSelectedProfile,
 		setErrorInfo, setBehindRemoteMsg, setDirtyWorktreeMsg,
 		toggleSkill, skillReorder, launchAgent, pullAndRetry,
+		preview,
 	};
 }
 

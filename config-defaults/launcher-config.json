@@ -2,15 +2,15 @@
   "templates": [
     {
       "name": "Default",
-      "text": "Current ticket files are in {{ticketDir}}. Read the files there for context. Do not do anything else."
+      "text": "<<ENTER>>\nCurrent ticket files are in {{ticketDir}}. Read the files there for context. Do not do anything else.\n\n{{skills}}\n<<ENTER>>"
     },
     {
       "name": "Implement",
-      "text": "Current ticket files are in {{ticketDir}}. Read the files there for context. Do not do anything else.\n\nrun: git rebase master\n/implement\n"
+      "text": "<<ENTER>>\nCurrent ticket files are in {{ticketDir}}. Read the files there for context. Do not do anything else.\n\nrun: git rebase master\n/implement\n\n{{skills}}\n<<ENTER>>"
     },
     {
       "name": "Merge",
-      "text": "Execute strictly in order:\n\n- If there are untracked or uncommitted changes, commit them first\n- Squash all changes in the branch into a single commit (the commit message must start with the ticket number and ticket title)\n- Run git -C <main-worktree> merge --ff-only <branch> to fast-forward master\n- If the merge fails because master has moved ahead:\n    - Save the current HEAD: git rev-parse HEAD (call this PRE_REBASE)\n    - Rebase the branch on master\n    - Resolve any conflicts\n    - Regression check: run git diff PRE_REBASE HEAD -- it must be empty. If not, the rebase silently dropped or altered changes. Fix before continuing.\n    - Make all tests pass\n    - Run git -C <main-worktree> merge --ff-only <branch> to fast-forward master again\n"
+      "text": "<<ENTER>>\nExecute strictly in order:\n\n- If there are untracked or uncommitted changes, commit them first\n- Squash all changes in the branch into a single commit (the commit message must start with the ticket number and ticket title)\n- Run git -C <main-worktree> merge --ff-only <branch> to fast-forward master\n- If the merge fails because master has moved ahead:\n    - Save the current HEAD: git rev-parse HEAD (call this PRE_REBASE)\n    - Rebase the branch on master\n    - Resolve any conflicts\n    - Regression check: run git diff PRE_REBASE HEAD -- it must be empty. If not, the rebase silently dropped or altered changes. Fix before continuing.\n    - Make all tests pass\n    - Run git -C <main-worktree> merge --ff-only <branch> to fast-forward master again\n<<ENTER>>"
     }
   ],
   "skills": [

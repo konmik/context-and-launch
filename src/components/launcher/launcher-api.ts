@@ -19,6 +19,8 @@ import type { MergedLauncherConfig } from "~/core/launcher/launcher-config.js";
 export interface MergedLauncherConfigWithMeta extends MergedLauncherConfig {
   projectBoardId: string | null;
   projectName: string;
+  projectPath: string;
+  worktreeDir: string;
 }
 
 export const getMergedLauncherConfig = query(async (
@@ -26,10 +28,14 @@ export const getMergedLauncherConfig = query(async (
 ): Promise<MergedLauncherConfigWithMeta> => {
   "use server";
   const merged = launcherConfigManager.getMergedConfig(projectSlug);
+  const project = projectRegistry.listProjects().find(p => p.projectSlug === projectSlug);
+  if (!project) throw new Error(`Project not found: ${projectSlug}`);
   return {
     ...merged,
     projectBoardId: projectRegistry.getBoardId(projectSlug) ?? null,
     projectName: projectRegistry.getName(projectSlug),
+    projectPath: project.path,
+    worktreeDir: worktreeManager.getWorktreeDir(projectSlug),
   };
 }, "launcher-config");
 
@@ -166,7 +172,7 @@ export async function launchAgentAction(
 ) {
   "use server";
   try {
-    const { ticket, project, worktreeDir } = resolveTicketAndProject(projectSlug, folderName);
+    const { ticket, project } = resolveTicketAndProject(projectSlug, folderName);
     if (agentRunning(projectSlug, folderName)) {
       return { ok: false as const, type: "error" as const, message: "Already started" };
     }
@@ -177,7 +183,7 @@ export async function launchAgentAction(
     if (!resolved.ok) {
       return { ok: false as const, type: resolved.type, message: resolved.message };
     }
-    await launchAgentCore(projectSlug, ticket, project, worktreeDir, launchRequest, resolved.launchDir);
+    await launchAgentCore(projectSlug, ticket, launchRequest, resolved.launchDir);
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
@@ -189,7 +195,7 @@ export async function pullAndRetryLaunch(
 ) {
   "use server";
   try {
-    const { ticket, project, worktreeDir } = resolveTicketAndProject(projectSlug, folderName);
+    const { ticket, project } = resolveTicketAndProject(projectSlug, folderName);
     if (agentRunning(projectSlug, folderName)) {
       return { ok: false as const, type: "error" as const, message: "Already started" };
     }
@@ -206,7 +212,7 @@ export async function pullAndRetryLaunch(
     if ('behindRemote' in worktreeResult) {
       return { ok: false as const, type: "error" as const, message: "Still behind remote after pulling" };
     }
-    await launchAgentCore(projectSlug, ticket, project, worktreeDir, launchRequest, worktreeResult.worktreePath);
+    await launchAgentCore(projectSlug, ticket, launchRequest, worktreeResult.worktreePath);
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);

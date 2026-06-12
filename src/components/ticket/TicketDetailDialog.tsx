@@ -17,6 +17,7 @@ import {
 } from "./ticket-detail-parts.js";
 import { EditorTab } from "./ticket-detail-editor-tab.js";
 import { LauncherTab } from "./ticket-detail-launcher-tab.js";
+import { createAgentLauncherController } from "../launcher/agent-launcher-controller.js";
 import { ShortcutsTabPane } from "./ticket-detail-shortcuts-tab.js";
 import { createTicketDetailState, type Tab, type TicketDetailState } from "./ticket-detail-state.js";
 
@@ -47,6 +48,22 @@ function TicketDetailContent(props: {
   ctrl?: TicketDetailState;
 }) {
   const s = props.ctrl ?? createTicketDetailState(props);
+
+  const launcherDeps = {
+    projectSlug: props.projectSlug,
+    ticket: () => ({
+      ...props.ticket,
+      folderName: s.savedFolderName(),
+      number: s.savedNumber(),
+      title: s.savedTitle(),
+    }),
+    get config() { return s.launcherConfig(); },
+    onDefaultsChange: s.patchColumnDefaults,
+    get useWorktree() { return s.useWorktree(); },
+    get projectPath() { return s.launcherConfig()?.projectPath ?? ""; },
+    get worktreeDir() { return s.launcherConfig()?.worktreeDir ?? ""; },
+  };
+  const launcherCtrl = createAgentLauncherController(launcherDeps);
 
   useModEnterSubmit({
     onSubmit: s.submitNewFile,
@@ -152,11 +169,9 @@ function TicketDetailContent(props: {
           </Show>
           <Show when={s.activeTab() === "launcher"}>
             <LauncherTab
-              projectSlug={props.projectSlug}
-              ticket={props.ticket}
-              config={s.launcherConfig()}
-              onDefaultsChange={s.patchColumnDefaults}
-              useWorktree={s.useWorktree()}
+              config={launcherDeps.config}
+              onDefaultsChange={launcherDeps.onDefaultsChange}
+              ctrl={launcherCtrl}
             />
           </Show>
           <Show when={s.activeTab() === "shortcuts"}>
@@ -179,12 +194,15 @@ function TicketDetailContent(props: {
               Launch in worktree
             </label>
             <div class="flex-1" />
-            <button
-              type="button"
-              onClick={s.close}
-              class="btn-secondary"
-              data-testid="ticket-detail-close-button"
-            >Close</button>
+            <Show when={s.activeTab() === "launcher"}>
+              <button
+                type="button"
+                onClick={() => launcherCtrl.launchAgent()}
+                disabled={launcherCtrl.launching()}
+                class="btn-primary"
+                data-testid="ticket-detail-launcher-run-button"
+              >Run</button>
+            </Show>
             <Show when={s.showSaveButton() || s.hasUnsavedHeaderChanges()}>
               <button
                 type="button"
@@ -195,6 +213,12 @@ function TicketDetailContent(props: {
                 data-testid="ticket-detail-save-button"
               >Save</button>
             </Show>
+            <button
+              type="button"
+              onClick={s.close}
+              class="btn-secondary"
+              data-testid="ticket-detail-close-button"
+            >Close</button>
           </div>
         </div>
         </FloatingPanelBody>

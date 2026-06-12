@@ -93,7 +93,7 @@ A named command that launches an external application against a ticket's context
 Avoid: app, tool, quick launch
 
 Placeholder:
-A `{{variable}}` reference in a Template, Skill, or Shortcut that gets replaced with a runtime value at launch time. Available: `{{ticketDir}}`, `{{ticketSlug}}`, `{{ticketTitle}}`, `{{ticketNumber}}`, `{{ticketStatus}}`, `{{projectPath}}`, `{{projectSlug}}`, `{{launchDir}}`.
+A `{{variable}}` reference in a Template, Skill, or Shortcut that gets replaced with a runtime value at launch time. Available: `{{ticketDir}}`, `{{ticketSlug}}`, `{{ticketTitle}}`, `{{ticketNumber}}`, `{{ticketStatus}}`, `{{projectPath}}`, `{{projectSlug}}`, `{{skills}}`, `{{launchDir}}`.
 
 Launcher Config:
 A JSON file defining available Templates, Skills, Coding Agent Profiles, and launcher settings. Exists at two scopes: app-level (`~/.context-launch/config/launcher-config.json`) and project-level (`~/.context-launch/projects/{projectSlug}/config/launcher-config.json`). Project-level merges additively with app-level; project wins on name collision.

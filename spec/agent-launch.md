@@ -1,6 +1,6 @@
 # Agent Launch
 
-- Receive template name, checked skills, profile name, worktree flag
+- Receive initial prompt, profile name, worktree flag
 - Resolve ticket and project
   - Either not found: error
 - Read marker file for this ticket
@@ -18,10 +18,7 @@
       - Worktree folder and branch name use the ticket folder name truncated to 50 characters
         - Keeps Windows paths under the 260 character limit for repos with deep file trees
         - Trailing hyphens left by truncation are stripped
-- Find template by name, fall back to default, fall back to hardcoded fallback
-- Collect text for each checked skill
-- Concatenate template and skills into a single prompt
-- Interpolate variable placeholders with ticket and project values
+- Pass initial prompt through to the launch profile
 - Resolve profile by name, fall back to first available
   - No profile available: error
 - Parse profile command, interpolate prompt and marker path into arguments
@@ -34,4 +31,18 @@
 - Launch script writes marker file with wrapper shell PID and start time
 - Launch script runs the agent
 - Launch script delivers the initial prompt via keystroke injection
+  - Script splits prompt on <<ENTER>> markers
+  - Each text chunk is sent as keystrokes
+  - Each <<ENTER>> marker sends an Enter keystroke
+  - 2-second delay between chunks
 - On agent exit: delete marker
+
+# Prompt preview
+
+- Client interpolates {{placeholder}} variables with ticket and project values
+- {{skills}} expands to checked skill texts joined by newline, empty string if none checked
+- Preview panel shows the fully interpolated prompt
+- Edit toggle freezes preview from left-side control changes
+- Edit toggle off discards edits and snaps back to auto-generated prompt
+- Edit mode resets to off when navigating between tickets
+- Launch sends the final prompt (auto-generated or edited) as initialPrompt
