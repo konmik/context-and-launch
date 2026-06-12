@@ -1,9 +1,5 @@
 {
-  "todo": [
-    "st-0025-unify-config-persistence-in-server-layer",
-    "st-0028-extract-generic-entity-crud-in-launcher-config-manager",
-    "st-0024-fix-ide-closing-when-started-from-the-app-and-the-app-closes"
-  ],
+  "todo": [],
   "plan": [],
   "in-progress": [],
   "review": [],
