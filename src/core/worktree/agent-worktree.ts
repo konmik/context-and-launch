@@ -139,8 +139,12 @@ export class AgentWorktreeManager {
 	}
 
 	async isWorktreeClean(worktreePath: string): Promise<boolean> {
-		const status = await git(worktreePath, 'status', '--porcelain');
-		return !status.trim();
+		try {
+			const status = await git(worktreePath, 'status', '--porcelain');
+			return !status.trim();
+		} catch {
+			return true;
+		}
 	}
 
 	async hasRemoteBranch(projectPath: string, branchName: string): Promise<boolean> {
@@ -215,7 +219,13 @@ export class AgentWorktreeManager {
 	}
 
 	async removeWorktree(projectPath: string, worktreePath: string): Promise<void> {
-		await git(projectPath, 'worktree', 'remove', worktreePath);
+		try {
+			await git(projectPath, 'worktree', 'remove', worktreePath);
+		} catch {
+			if (!fs.existsSync(worktreePath)) return;
+			fs.rmSync(worktreePath, { recursive: true, force: true });
+			await git(projectPath, 'worktree', 'prune');
+		}
 	}
 
 	async deleteLocalBranch(projectPath: string, branchName: string, configuredBranch?: string): Promise<void> {

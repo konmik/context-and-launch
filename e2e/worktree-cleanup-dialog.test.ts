@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
 import {
   createProject, uniqueSlug, gotoProject, clickTicketMenuItem,
   worktreeExists,
@@ -48,6 +50,28 @@ describe("WorktreeCleanupDialog (e2e, real server)", () => {
       withWorktrees: [{ folderName: "t-1-alpha" }],
     });
     ctx.projects.push(project);
+    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+    await openDeleteWithWorktree();
+    await ctx.page.check('[data-testid="worktree-cleanup-delete-worktree-checkbox"]');
+    await ctx.page.click('[data-testid="worktree-cleanup-submit"]');
+    await ctx.page.waitForSelector('[data-testid="worktree-cleanup-submit"]', {
+      state: "detached", timeout: 15000,
+    });
+    expect(worktreeExists(ctx.testServer, project.projectSlug, "t-1-alpha")).toBe(false);
+  }, 60000);
+
+  it("worktree-cleanup succeeds when worktree folder is not a valid git repo", async () => {
+    const projectSlug = uniqueSlug("wt-notgit");
+    const project = await createProject(ctx.testServer, {
+      projectSlug,
+      withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
+      withWorktrees: [{ folderName: "t-1-alpha" }],
+    });
+    ctx.projects.push(project);
+
+    const wtPath = path.join(project.worktreeRootPath!, "t-1-alpha");
+    fs.unlinkSync(path.join(wtPath, ".git"));
+
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await openDeleteWithWorktree();
     await ctx.page.check('[data-testid="worktree-cleanup-delete-worktree-checkbox"]');
