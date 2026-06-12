@@ -14,23 +14,18 @@ export class TicketOrderStore {
 	}
 
 	read(): TicketOrder {
-		try {
-			const raw = this.repo.readOrderFile(this.worktreeDir);
-			if (raw === null) return {};
-			const parsed = JSON.parse(raw);
-			if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {};
-			for (const key of Object.keys(parsed)) {
-				if (!Array.isArray(parsed[key])) return {};
-			}
-			return parsed as TicketOrder;
-		} catch (err) {
-			console.warn(`Failed to read ticket order:`, err);
-			return {};
+		const parsed = this.repo.readOrderJson(this.worktreeDir);
+		if (parsed === null) return {};
+		if (typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+		const record = parsed as Record<string, unknown>;
+		for (const key of Object.keys(record)) {
+			if (!Array.isArray(record[key])) return {};
 		}
+		return parsed as TicketOrder;
 	}
 
 	write(order: TicketOrder): void {
-		this.repo.writeOrderFile(this.worktreeDir, JSON.stringify(order, null, 2));
+		this.repo.writeOrderJson(this.worktreeDir, order);
 	}
 
 	reconcile(tickets: TicketInfo[], columns: string[]): TicketOrder {

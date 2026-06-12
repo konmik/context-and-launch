@@ -4,7 +4,14 @@ import path from 'path';
 export class ConfigRepository {
 	readJson(filePath: string): unknown | null {
 		if (!fs.existsSync(filePath)) return null;
-		return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+		const text = fs.readFileSync(filePath, 'utf-8');
+		try {
+			return JSON.parse(text);
+		} catch (err) {
+			throw new Error(
+				`Failed to parse JSON from ${filePath}: ${err instanceof Error ? err.message : String(err)}`,
+			);
+		}
 	}
 
 	writeJson(filePath: string, data: unknown): void {
