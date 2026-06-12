@@ -44,10 +44,7 @@ export function LauncherTab(props: {
       <PanelGroup direction="row" class="h-full" onLayoutChange={persistSplitterSizes}>
         <Panel id="launcher-controls" initialSize={saved[0]} minSize={20}>
           <div class="flex h-full flex-col ">
-            <div class="px-4 pb-2 pt-4">
-              <span class="text-sm text-muted-foreground">Controls</span>
-            </div>
-            <div class="flex-1 overflow-hidden">
+            <div class="flex-1 overflow-hidden pt-4">
               <AgentLauncher
                 config={props.config}
                 onDefaultsChange={props.onDefaultsChange}
@@ -64,17 +61,19 @@ export function LauncherTab(props: {
         ].join(" ")} />
         <Panel id="launcher-preview" initialSize={saved[1]} minSize={20}>
           <div class="flex h-full flex-col ">
-            <div class="flex items-center justify-between px-4 pb-2 pt-4">
-              <span class="text-sm text-muted-foreground">Preview</span>
-              <label class="flex items-center gap-1.5 text-xs">
-                <input
-                  type="checkbox"
-                  checked={ctrl.preview.editMode()}
-                  onChange={(e) => ctrl.preview.setEditMode(e.currentTarget.checked)}
-                  data-testid="prompt-preview-edit-toggle"
-                />
-                Edit
-              </label>
+            <div class="px-4 pt-4">
+              <div class="mb-1 flex items-center justify-between">
+                <label class="text-sm text-muted-foreground">Initial Prompt</label>
+                <label class="flex items-center gap-1.5 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={ctrl.preview.editMode()}
+                    onChange={(e) => ctrl.preview.setEditMode(e.currentTarget.checked)}
+                    data-testid="prompt-preview-edit-toggle"
+                  />
+                  Edit
+                </label>
+              </div>
             </div>
             <div class="flex-1 overflow-hidden px-4">
               <MarkdownEditor

@@ -74,7 +74,7 @@ export function PromptsTab(props: {
 		<TabsContent value="templates">
 			<div class="space-y-6">
 				<ItemSection
-					heading="Prompts"
+					heading="Prompt Templates"
 					itemType="template"
 					items={props.config.templates}
 					detailOf={(t) => t.text}

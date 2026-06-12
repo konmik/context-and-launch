@@ -13,7 +13,7 @@ export function LaunchTab(props: {
 		<TabsContent value="profiles">
 			<div class="space-y-6">
 				<ItemSection
-					heading="Profiles"
+					heading="Agents"
 					itemType="profile"
 					items={props.config.profiles}
 					detailOf={(p) => p.command}
