@@ -5,7 +5,7 @@ import {
   EditorView, ViewPlugin, Decoration, type DecorationSet,
   keymap, placeholder as cmPlaceholder,
 } from "@codemirror/view";
-import { EditorState, type Range } from "@codemirror/state";
+import { EditorState, Compartment, type Range } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
@@ -119,12 +119,14 @@ interface MarkdownEditorProps {
   onSave?: () => void;
   placeholder?: string;
   readOnly?: boolean;
+  plain?: boolean;
 }
 
 export default function MarkdownEditor(props: MarkdownEditorProps) {
   let containerRef: HTMLDivElement | undefined;
   let view: EditorView | undefined;
   let lastPushedValue: string | null = null;
+  const readOnlyCompartment = new Compartment();
 
   onMount(() => {
     const saveKeymap = props.onSave
@@ -146,10 +148,12 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
         closeBrackets(),
         bracketMatching(),
         highlightSelectionMatches(),
-        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-        syntaxHighlighting(markdownStyle),
-        markdown({ codeLanguages: languages }),
-        codeBlockPlugin,
+        ...(props.plain ? [] : [
+          syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+          syntaxHighlighting(markdownStyle),
+          markdown({ codeLanguages: languages }),
+          codeBlockPlugin,
+        ]),
         EditorView.lineWrapping,
         theme,
         cmPlaceholder(props.placeholder ?? ""),
@@ -159,12 +163,11 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
             props.onChange(lastPushedValue);
           }
         }),
+        readOnlyCompartment.of([
+          EditorState.readOnly.of(!!props.readOnly),
+          EditorView.editable.of(!props.readOnly),
+        ]),
     ];
-
-    if (props.readOnly) {
-      extensions.push(EditorState.readOnly.of(true));
-      extensions.push(EditorView.editable.of(false));
-    }
 
     const state = EditorState.create({
       doc: props.value,
@@ -172,6 +175,17 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     });
 
     view = new EditorView({ state, parent: containerRef! });
+  });
+
+  createEffect(() => {
+    if (!view) return;
+    const ro = !!props.readOnly;
+    view.dispatch({
+      effects: readOnlyCompartment.reconfigure([
+        EditorState.readOnly.of(ro),
+        EditorView.editable.of(!ro),
+      ]),
+    });
   });
 
   createEffect(() => {

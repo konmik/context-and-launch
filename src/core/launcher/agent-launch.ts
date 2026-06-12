@@ -6,7 +6,7 @@ import {
 } from "~/core/config/instances.js";
 import { TicketStore } from "~/core/ticket/ticket-store.js";
 import { NotFoundError, ValidationError } from "~/core/shared/errors.js";
-import { assemblePrompt, interpolatePrompt, interpolateCommand } from "~/core/launcher/prompt-interpolation.js";
+import { interpolateCommand } from "~/core/launcher/prompt-interpolation.js";
 import { spawnDetached } from "./spawn-detached.js";
 import { isAlive } from "./process-utils.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
@@ -14,7 +14,6 @@ import type { ProjectInfo } from "~/core/project/project-registry.js";
 import type { LauncherProfile } from "~/core/launcher/launcher-config.js";
 
 const TITLE_SUFFIX = " -- AI";
-const FALLBACK_PROMPT = "Current ticket files are in {{ticketDir}}. Read the files there for context.";
 
 interface AgentMarker {
   pid: number;
@@ -147,8 +146,7 @@ export function resolveTicketAndProject(
 }
 
 export interface LaunchRequest {
-  templateName: string;
-  checkedSkills: string[];
+  initialPrompt: string;
   useWorktree: boolean;
   profileName: string;
   force: boolean;
@@ -156,12 +154,11 @@ export interface LaunchRequest {
 
 export function parseLaunchRequest(body: unknown): LaunchRequest {
   const result: LaunchRequest = {
-    templateName: "Default", checkedSkills: [], useWorktree: false, profileName: "", force: false,
+    initialPrompt: "", useWorktree: false, profileName: "", force: false,
   };
   if (body && typeof body === "object") {
     const b = body as Record<string, unknown>;
-    if (typeof b.templateName === "string") result.templateName = b.templateName;
-    if (Array.isArray(b.checkedSkills)) result.checkedSkills = b.checkedSkills;
+    if (typeof b.initialPrompt === "string") result.initialPrompt = b.initialPrompt;
     if (typeof b.useWorktree === "boolean") result.useWorktree = b.useWorktree;
     if (typeof b.profileName === "string") result.profileName = b.profileName;
     if (typeof b.force === "boolean") result.force = b.force;
@@ -200,35 +197,10 @@ export async function spawnProfile(
 export async function launchAgent(
   projectSlug: string,
   ticket: TicketInfo,
-  project: ProjectInfo,
-  worktreeDir: string,
   launchRequest: LaunchRequest,
   launchDir: string,
 ): Promise<void> {
   const merged = launcherConfigManager.getMergedConfig(projectSlug);
-  const templateText =
-    merged.templates.find(t => t.name === launchRequest.templateName)?.text
-    ?? merged.templates.find(t => t.name === "Default")?.text
-    ?? FALLBACK_PROMPT;
-
-  const skillTexts = launchRequest.checkedSkills
-    .map(name => merged.skills.find(s => s.name === name))
-    .filter((s): s is NonNullable<typeof s> => s != null)
-    .map(s => s.text);
-
-  const assembled = assemblePrompt(templateText, skillTexts);
-  const ticketDir = path.resolve(worktreeDir, ticket.folderName);
-  const variables: Record<string, string> = {
-    ticketDir,
-    ticketSlug: ticket.folderName,
-    ticketTitle: ticket.title,
-    ticketNumber: ticket.number,
-    ticketStatus: ticket.status,
-    projectPath: project.path,
-    projectSlug,
-  };
-
-  const initialPrompt = interpolatePrompt(assembled, variables);
   const windowTitle = buildWindowTitle(ticket);
 
   const profile =
@@ -240,11 +212,10 @@ export async function launchAgent(
   }
 
   const commandVars: Record<string, string> = {
-    initialPrompt, windowTitle,
+    initialPrompt: launchRequest.initialPrompt, windowTitle,
     markerPath: agentMarkerPath(projectSlug, ticket.folderName),
     appConfigDir: launcherConfigManager.getAppConfigDir(),
     configDefaultsDir: launcherConfigManager.getConfigDefaultsDir(),
   };
   await spawnProfile(profile, commandVars, launchDir);
-
 }
