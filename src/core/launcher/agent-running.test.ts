@@ -36,9 +36,8 @@ describe("agentRunning", () => {
 	});
 
 	it("is true when the marker pid is alive", () => {
-		const startSec = Math.floor(Date.now() / 1000);
 		writeMarker("proj", "ticket",
-			JSON.stringify({ pid: process.pid, startSec }));
+			JSON.stringify({ pid: process.pid }));
 		expect(agentRunning("proj", "ticket")).toBe(true);
 	});
 

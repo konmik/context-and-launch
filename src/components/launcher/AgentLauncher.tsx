@@ -4,24 +4,17 @@ import {
 	createSortable, closestCenter,
 } from "@thisbeyond/solid-dnd";
 import { DialogRoot, DialogTitle } from "../ui/dialog";
-import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/core/launcher/launcher-config.js";
 import ErrorDialog from "../shared/ErrorDialog.js";
 import { DragPreview, DragGrip, NameDragOverlay, DND_ACTIVE_CLASS } from "../board/dnd-shared.js";
-import {
-	createAgentLauncherController,
-	type AgentLauncherController,
-} from "./agent-launcher-controller.js";
+import type { AgentLauncherController } from "./agent-launcher-controller.js";
 
 type MergedSkill = MergedLauncherConfig["skills"][number];
 
 interface AgentLauncherProps {
-	projectSlug: string;
-	ticket: TicketInfo;
 	config: MergedLauncherConfig | null;
 	onDefaultsChange: (patch: Partial<LauncherColumnDefaults>) => void;
-	useWorktree: boolean;
-	ctrl?: AgentLauncherController;
+	ctrl: AgentLauncherController;
 }
 
 function SortableLauncherSkill(props: {
@@ -65,16 +58,15 @@ function LauncherSkillDropPreview(props: { skill: MergedSkill }) {
 }
 
 export default function AgentLauncher(props: AgentLauncherProps) {
-	const c = props.ctrl ?? createAgentLauncherController(props);
+	const c = props.ctrl;
 
 	return (
-		<div class="flex h-full flex-col items-center justify-center gap-4 p-4">
+		<div class="flex h-full flex-col gap-4 overflow-auto px-4 pb-4">
 			<Show when={props.config} fallback={<p class="text-sm text-muted-foreground">Loading config...</p>}>
 				{(cfg) => (
-					<div class="flex w-full max-w-sm flex-col gap-4">
-						<div class="flex flex-col gap-4 rounded-md border border-border p-4">
+					<div class="flex w-full flex-col gap-4">
+						<div class="flex flex-col gap-4">
 							<div>
-								<label class="mb-1 block text-sm text-muted-foreground">Launch</label>
 								<select
 									value={c.selectedProfile()}
 									onChange={(e) => {
@@ -151,12 +143,6 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 									</DragDropProvider>
 								</div>
 							</Show>
-							<button
-								onClick={() => c.launchAgent()}
-								disabled={c.launching()}
-								class="btn-primary"
-								data-testid="ticket-detail-launcher-run-button"
-							>Run</button>
 						</div>
 					</div>
 				)}

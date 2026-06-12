@@ -131,6 +131,13 @@ export function ItemFormDialog(props: {
 										"{{ticketStatus}} {{projectPath}}",
 										"{{projectSlug}} {{launchDir}}",
 									].join(" ")
+								: f().itemType === "template"
+									? [
+										"{{ticketDir}} {{ticketSlug}}",
+										"{{ticketTitle}} {{ticketNumber}}",
+										"{{ticketStatus}} {{projectPath}}",
+										"{{projectSlug}} {{skills}}",
+									].join(" ")
 								: [
 										"{{ticketDir}} {{ticketSlug}}",
 										"{{ticketTitle}} {{ticketNumber}}",

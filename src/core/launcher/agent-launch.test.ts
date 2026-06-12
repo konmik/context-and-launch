@@ -15,33 +15,37 @@ vi.mock('~/core/launcher/spawn-detached.js', () => ({
 import { spawnProfile } from '~/core/launcher/agent-launch.js';
 import { spawnDetached } from '~/core/launcher/spawn-detached.js';
 
-describe('parseLaunchRequest profileName (code-inspection)', () => {
+describe('parseLaunchRequest (code-inspection)', () => {
 	const source = fs.readFileSync(
 		path.resolve(__dirname, 'agent-launch.ts'),
 		'utf-8'
 	);
 
-	// Replicate the pure function from agent-launch.ts
 	interface LaunchRequest {
-		templateName: string; checkedSkills: string[]; useWorktree: boolean; profileName: string;
+		initialPrompt: string; useWorktree: boolean; profileName: string; force: boolean;
 	}
 	function parseLaunchRequest(body: unknown): LaunchRequest {
 		const result: LaunchRequest = {
-			templateName: 'Default', checkedSkills: [], useWorktree: false, profileName: '',
+			initialPrompt: '', useWorktree: false, profileName: '', force: false,
 		};
 		if (body && typeof body === 'object') {
 			const b = body as Record<string, unknown>;
-			if (typeof b.templateName === 'string') result.templateName = b.templateName;
-			if (Array.isArray(b.checkedSkills)) result.checkedSkills = b.checkedSkills;
+			if (typeof b.initialPrompt === 'string') result.initialPrompt = b.initialPrompt;
 			if (typeof b.useWorktree === 'boolean') result.useWorktree = b.useWorktree;
 			if (typeof b.profileName === 'string') result.profileName = b.profileName;
+			if (typeof b.force === 'boolean') result.force = b.force;
 		}
 		return result;
 	}
 
 	it('replicated function matches source code', () => {
 		expect(source).toContain('profileName: ""');
-		expect(source).toContain('typeof b.profileName === "string"');
+		expect(source).toContain('initialPrompt: ""');
+	});
+
+	it('parseLaunchRequest with initialPrompt extracts string value', () => {
+		const result = parseLaunchRequest({ initialPrompt: 'do the thing' });
+		expect(result.initialPrompt).toBe('do the thing');
 	});
 
 	it('parseLaunchRequest with profileName extracts string value', () => {
@@ -49,14 +53,17 @@ describe('parseLaunchRequest profileName (code-inspection)', () => {
 		expect(result.profileName).toBe('Claude Win');
 	});
 
-	it('parseLaunchRequest with missing profileName defaults to empty string', () => {
+	it('parseLaunchRequest with missing fields defaults correctly', () => {
 		const result = parseLaunchRequest({});
+		expect(result.initialPrompt).toBe('');
 		expect(result.profileName).toBe('');
+		expect(result.useWorktree).toBe(false);
+		expect(result.force).toBe(false);
 	});
 
-	it('parseLaunchRequest with non-string profileName defaults to empty string', () => {
-		const result = parseLaunchRequest({ profileName: 42 });
-		expect(result.profileName).toBe('');
+	it('parseLaunchRequest with non-string initialPrompt defaults to empty string', () => {
+		const result = parseLaunchRequest({ initialPrompt: 42 });
+		expect(result.initialPrompt).toBe('');
 	});
 });
 
@@ -78,13 +85,14 @@ describe('launchAgent profile-based spawn (code-inspection)', () => {
 		expect(source).toMatch(/interpolateCommand\(profile\.command,\s*commandVars\)/);
 	});
 
-	it('launchAgent no longer creates a bat file', () => {
-		// Extract the launchAgent function body
-		const fnMatch = source.match(/function launchAgent\([^)]*\)[^{]*\{([\s\S]*?)^}/m);
-		expect(fnMatch).not.toBeNull();
-		const body = fnMatch![1];
-		expect(body).not.toContain('batPath');
-		expect(body).not.toContain('.bat');
+	it('launchAgent passes initialPrompt from launchRequest directly', () => {
+		expect(source).toMatch(/launchRequest\.initialPrompt/);
+	});
+
+	it('launchAgent does not assemble or interpolate prompts server-side', () => {
+		expect(source).not.toContain('assemblePrompt');
+		expect(source).not.toContain('interpolatePrompt');
+		expect(source).not.toContain('FALLBACK_PROMPT');
 	});
 
 	it('launchAgent does not save column defaults (saved by UI on change)', () => {

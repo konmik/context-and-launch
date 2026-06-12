@@ -40,10 +40,8 @@ $scriptPath = $MyInvocation.MyCommand.Path
 
 Start-Process wt -ArgumentList "-d", "`"$PWD`"", "--title", "`"$windowTitle`"", "--suppressApplicationTitle", "--", "powershell", "-NoExit", "-File", "`"$scriptPath`"", "-selfLaunch"
 
-# Deliver the initial prompt via SendKeys
-$escaped = $initialPrompt -replace '([+^%~(){}\[\]])', '{$1}'
-$escaped = $escaped -replace "'", "''"
-
+# Deliver the initial prompt via SendKeys, splitting on <<ENTER>> markers
+$chunks = $initialPrompt -split '<<ENTER>>'
 $maxRetries = 20
 $retryCount = 0
 $titleEscaped = $windowTitle -replace "'", "''"
@@ -53,12 +51,18 @@ while ($retryCount -lt $maxRetries) {
     $ws = New-Object -ComObject WScript.Shell
     if ($ws.AppActivate($titleEscaped)) {
         Start-Sleep -Seconds 1
-        [void]$ws.AppActivate($titleEscaped)
-        # Press Enter to accept the trust-project warning
-        $ws.SendKeys("~")
-        Start-Sleep -Seconds 2
-        [void]$ws.AppActivate($titleEscaped)
-        $ws.SendKeys($escaped + "~")
+        for ($i = 0; $i -lt $chunks.Length; $i++) {
+            [void]$ws.AppActivate($titleEscaped)
+            $text = $chunks[$i]
+            if ($text.Length -gt 0) {
+                $escaped = $text -replace '([+^%~(){}\[\]])', '{$1}'
+                $ws.SendKeys($escaped)
+            }
+            if ($i -lt $chunks.Length - 1) {
+                $ws.SendKeys("~")
+                Start-Sleep -Seconds 2
+            }
+        }
         break
     }
     $retryCount++
