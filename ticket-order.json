@@ -5,9 +5,7 @@
     "st-0024-fix-ide-closing-when-started-from-the-app-and-the-app-closes"
   ],
   "plan": [],
-  "in-progress": [
-    "st-0027-adopt-solidstart-data-primitives"
-  ],
+  "in-progress": [],
   "review": [],
   "done": []
 }
