@@ -44,19 +44,17 @@ Start-Process wt -ArgumentList "-d", "`"$PWD`"", "--title", "`"$windowTitle`"", 
 $tokens = $initialPrompt -split '(<<ENTER>>)' | Where-Object { $_.Length -gt 0 }
 $maxRetries = 20
 $retryCount = 0
-$titleEscaped = $windowTitle -replace "'", "''"
-
 $ws = New-Object -ComObject WScript.Shell
 while ($retryCount -lt $maxRetries) {
     Start-Sleep -Milliseconds 500
-    if ($ws.AppActivate($titleEscaped)) { break }
+    if ($ws.AppActivate($windowTitle)) { break }
     $retryCount++
 }
 if ($retryCount -eq $maxRetries) { return }
 
 Start-Sleep -Seconds 1
 foreach ($token in $tokens) {
-    [void]$ws.AppActivate($titleEscaped)
+    [void]$ws.AppActivate($windowTitle)
     Start-Sleep -Milliseconds 200
     if ($token -eq '<<ENTER>>') {
         $ws.SendKeys("{ENTER}")
