@@ -137,6 +137,7 @@ export function ItemFormDialog(props: {
 										"{{ticketTitle}} {{ticketNumber}}",
 										"{{ticketStatus}} {{projectPath}}",
 										"{{projectSlug}} {{skills}}",
+										"| <<ENTER>>",
 									].join(" ")
 								: [
 										"{{ticketDir}} {{ticketSlug}}",
