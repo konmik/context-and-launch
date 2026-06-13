@@ -59,7 +59,7 @@ describe('AgentWorktreeManager', () => {
 			worktreeRootPath: worktreeRoot,
 		});
 
-		const awm = new AgentWorktreeManager(lcm, paths);
+		const awm = new AgentWorktreeManager(lcm);
 		return { configDir, projectDir, worktreeRoot, lcm, awm, paths };
 	}
 
@@ -135,7 +135,7 @@ describe('AgentWorktreeManager', () => {
 
 		const paths = new ConfigPaths(configDir);
 		const lcm = new LauncherConfigManager(paths);
-		const awm = new AgentWorktreeManager(lcm, paths);
+		const awm = new AgentWorktreeManager(lcm);
 
 		await expect(awm.getMainBranch(projectDir)).rejects.toThrow('Neither main nor master');
 	});
@@ -149,7 +149,7 @@ describe('AgentWorktreeManager', () => {
 
 		const paths = new ConfigPaths(configDir);
 		const lcm = new LauncherConfigManager(paths);
-		const awm = new AgentWorktreeManager(lcm, paths);
+		const awm = new AgentWorktreeManager(lcm);
 
 		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0001');
 		expect('worktreePath' in result).toBe(true);
@@ -180,7 +180,7 @@ describe('AgentWorktreeManager', () => {
 			worktreeRootPath: backslashRoot,
 		});
 
-		const awm = new AgentWorktreeManager(lcm, paths);
+		const awm = new AgentWorktreeManager(lcm);
 		const folderName = 'st-0002-backslash';
 
 		// First call: creates the worktree
@@ -302,7 +302,7 @@ describe('AgentWorktreeManager', () => {
 			worktreeRootPath: worktreeRoot,
 		});
 
-		const awm = new AgentWorktreeManager(lcm, paths);
+		const awm = new AgentWorktreeManager(lcm);
 
 		// Spy on git to verify no worktree add is attempted
 		const originalGit = gitModule.git;
@@ -374,7 +374,7 @@ describe('AgentWorktreeManager', () => {
 			worktreeRootPath: worktreeRoot,
 		});
 
-		const awm = new AgentWorktreeManager(lcm, paths);
+		const awm = new AgentWorktreeManager(lcm);
 		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-stale-main');
 
 		// BUG: behind-remote check uses HEAD..@{upstream} which is feature's upstream.
@@ -443,7 +443,7 @@ describe('AgentWorktreeManager', () => {
 			worktreeRootPath: worktreeRoot,
 		});
 
-		const awm = new AgentWorktreeManager(lcm, paths);
+		const awm = new AgentWorktreeManager(lcm);
 
 		// 6. pullMainBranch should fail with merge conflict details
 		const pullError = await awm.pullMainBranch(projectDir).catch((e: Error) => e);
@@ -474,7 +474,7 @@ describe('AgentWorktreeManager', () => {
 
 		const paths = new ConfigPaths(configDir);
 		const lcm = new LauncherConfigManager(paths);
-		const awm = new AgentWorktreeManager(lcm, paths);
+		const awm = new AgentWorktreeManager(lcm);
 
 		// git branch --list 'main' should NOT match 'main-v2'
 		// so getMainBranch should throw since neither 'main' nor 'master' exists
@@ -564,7 +564,7 @@ describe('AgentWorktreeManager', () => {
 		dirs.push(configDir);
 		const awmPaths = new ConfigPaths(configDir);
 		const lcm = new LauncherConfigManager(awmPaths);
-		const awm = new AgentWorktreeManager(lcm, awmPaths);
+		const awm = new AgentWorktreeManager(lcm);
 
 		await awm.pullMainBranch(projectDir);
 
@@ -615,7 +615,7 @@ describe('AgentWorktreeManager', () => {
 		dirs.push(configDir);
 		const awmPaths = new ConfigPaths(configDir);
 		const lcm = new LauncherConfigManager(awmPaths);
-		const awm = new AgentWorktreeManager(lcm, awmPaths);
+		const awm = new AgentWorktreeManager(lcm);
 
 		await awm.pullMainBranch(projectDir);
 
@@ -682,7 +682,7 @@ describe('AgentWorktreeManager', () => {
 			worktreeRootPath: worktreeRootA,
 		});
 
-		const awm = new AgentWorktreeManager(lcm, paths);
+		const awm = new AgentWorktreeManager(lcm);
 		const folderName = 'st-dup-branch';
 
 		const result1 = await awm.ensureAgentWorktree(projectDir, 'dup-proj', folderName);
@@ -722,7 +722,7 @@ describe('AgentWorktreeManager', () => {
 			worktreeRootPath: worktreeRootA,
 		});
 
-		const awm = new AgentWorktreeManager(lcm, paths);
+		const awm = new AgentWorktreeManager(lcm);
 		const folderName = 'st-stale-ref';
 
 		const result1 = await awm.ensureAgentWorktree(projectDir, 'stale-proj', folderName);
@@ -797,7 +797,7 @@ describe('AgentWorktreeManager', () => {
 			skills: [],
 		});
 
-		const awm = new AgentWorktreeManager(lcm, paths);
+		const awm = new AgentWorktreeManager(lcm);
 
 		const config = lcm.loadProjectConfig('no-wt-proj');
 		expect(config.worktreeRootPath).toBeUndefined();
@@ -1043,7 +1043,7 @@ describe('AgentWorktreeManager', () => {
 		dirs.push(configDir);
 		const paths = new ConfigPaths(configDir);
 		const lcm = new LauncherConfigManager(paths);
-		const awm = new AgentWorktreeManager(lcm, paths);
+		const awm = new AgentWorktreeManager(lcm);
 
 		await expect(awm.pullMainBranch(projectDir, 'develop')).resolves.toBeUndefined();
 	});
@@ -1080,7 +1080,7 @@ describe('AgentWorktreeManager', () => {
 			worktreeRootPath: nonexistentRoot,
 		});
 
-		const awm = new AgentWorktreeManager(lcm, paths);
+		const awm = new AgentWorktreeManager(lcm);
 
 		// Discovery: git worktree add creates intermediate directories automatically.
 		// A nonexistent worktreeRootPath does NOT cause an error -- git silently
@@ -1125,7 +1125,7 @@ describe('AgentWorktreeManager', () => {
 		dirs.push(configDir);
 		const awmPaths = new ConfigPaths(configDir);
 		const lcm = new LauncherConfigManager(awmPaths);
-		const awm = new AgentWorktreeManager(lcm, awmPaths);
+		const awm = new AgentWorktreeManager(lcm);
 
 		const error = await awm.pullMainBranch(projectDir).catch((e: Error) => e);
 		expect(error).toBeInstanceOf(Error);

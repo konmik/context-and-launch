@@ -84,7 +84,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
 
   function openDelete(ticket: TicketInfo) {
     setSelectedTicket(ticket);
-    if (ticket.useWorktree) {
+    if (ticket.hasAgentWorktree) {
       setCleanupAction("delete");
       setCleanupDialogOpen(true);
     } else {
@@ -94,7 +94,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
 
   function openArchive(ticket: TicketInfo) {
     setSelectedTicket(ticket);
-    if (ticket.useWorktree) {
+    if (ticket.hasAgentWorktree) {
       setCleanupAction("archive");
       setCleanupDialogOpen(true);
     } else {

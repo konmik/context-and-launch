@@ -86,6 +86,7 @@ function makeTicket(folder: string, number: string, title: string): TicketInfo {
     folderName: folder,
     contextNames: [],
     useWorktree: false,
+    hasAgentWorktree: false,
     fileNames: [],
     references: [],
   };

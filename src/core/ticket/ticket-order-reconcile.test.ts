@@ -5,7 +5,7 @@ import type { TicketInfo } from './ticket-store.js';
 function ticket(folderName: string, status: string): TicketInfo {
 	return {
 		number: '', title: '', status, folderName,
-		contextNames: [], useWorktree: false, fileNames: [], references: [],
+		contextNames: [], useWorktree: false, hasAgentWorktree: false, fileNames: [], references: [],
 	};
 }
 
