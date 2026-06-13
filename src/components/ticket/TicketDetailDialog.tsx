@@ -62,6 +62,7 @@ function TicketDetailContent(props: {
     get useWorktree() { return s.useWorktree(); },
     get projectPath() { return s.launcherConfig()?.projectPath ?? ""; },
     get worktreeDir() { return s.launcherConfig()?.worktreeDir ?? ""; },
+    launchDir: s.launchDir,
   };
   const launcherCtrl = createAgentLauncherController(launcherDeps);
 
@@ -182,43 +183,102 @@ function TicketDetailContent(props: {
             />
           </Show>
 
-          <div class="flex items-center gap-2 border-t border-border px-4 py-3">
-            <label class="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={s.useWorktree()}
-                onChange={(e) => s.persistWorktree(e.currentTarget.checked)}
-                class="rounded border-input"
-                data-testid="ticket-detail-use-worktree-checkbox"
-              />
-              Launch in worktree
-            </label>
-            <div class="flex-1" />
-            <Show when={s.activeTab() === "launcher"}>
+          <div class="border-t border-border px-4 py-3">
+            <div class="flex items-end gap-2">
+              <div
+                class="min-w-0 flex-1"
+                data-testid="launch-dir-display"
+              >
+                <div class="flex items-center gap-1">
+                  <span class="shrink-0 text-xs text-muted-foreground">
+                    Launch directory
+                  </span>
+                  <button
+                    type="button"
+                    class="btn-icon shrink-0 !h-6 !w-6"
+                    data-testid="launch-dir-copy-button"
+                    onClick={() => {
+                      try {
+                        navigator.clipboard.writeText(
+                          s.launchDir(),
+                        ).catch((err) => {
+                          console.warn(
+                            "Failed to copy launch dir:",
+                            err,
+                          );
+                        });
+                      } catch (err) {
+                        console.warn(
+                          "Clipboard API unavailable:",
+                          err,
+                        );
+                      }
+                    }}
+                    title="Copy path"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="12" height="12"
+                      viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <rect
+                        width="14" height="14"
+                        x="8" y="8" rx="2" ry="2"
+                      />
+                      <path d={
+                        "M4 16c-1.1 0-2-.9-2-2V4"
+                        + "c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"
+                      }/>
+                    </svg>
+                  </button>
+                  <div class="flex-1" />
+                  <label class="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={s.useWorktree()}
+                      onChange={(e) => s.persistWorktree(e.currentTarget.checked)}
+                      class="rounded border-input"
+                      data-testid="ticket-detail-use-worktree-checkbox"
+                    />
+                    Launch in worktree
+                  </label>
+                </div>
+                <span
+                  class="block truncate text-xs text-muted-foreground"
+                  dir="rtl"
+                  style={{ "text-align": "left" }}
+                >{s.launchDir()}</span>
+              </div>
+              <div class="w-8 shrink-0" />
+              <Show when={s.activeTab() === "launcher"}>
+                <button
+                  type="button"
+                  onClick={() => launcherCtrl.launchAgent()}
+                  disabled={launcherCtrl.launching()}
+                  class="btn-primary"
+                  data-testid="ticket-detail-launcher-run-button"
+                >Run</button>
+              </Show>
+              <Show when={s.showSaveButton() || s.hasUnsavedHeaderChanges()}>
+                <button
+                  type="button"
+                  onClick={s.saveAll}
+                  disabled={s.saving() || !s.hasAnyUnsavedChanges()}
+                  title={modEnterHint()}
+                  class="btn-primary"
+                  data-testid="ticket-detail-save-button"
+                >Save</button>
+              </Show>
               <button
                 type="button"
-                onClick={() => launcherCtrl.launchAgent()}
-                disabled={launcherCtrl.launching()}
-                class="btn-primary"
-                data-testid="ticket-detail-launcher-run-button"
-              >Run</button>
-            </Show>
-            <Show when={s.showSaveButton() || s.hasUnsavedHeaderChanges()}>
-              <button
-                type="button"
-                onClick={s.saveAll}
-                disabled={s.saving() || !s.hasAnyUnsavedChanges()}
-                title={modEnterHint()}
-                class="btn-primary"
-                data-testid="ticket-detail-save-button"
-              >Save</button>
-            </Show>
-            <button
-              type="button"
-              onClick={s.close}
-              class="btn-secondary"
-              data-testid="ticket-detail-close-button"
-            >Close</button>
+                onClick={s.close}
+                class="btn-secondary"
+                data-testid="ticket-detail-close-button"
+              >Close</button>
+            </div>
           </div>
         </div>
         </FloatingPanelBody>

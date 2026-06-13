@@ -46,6 +46,7 @@ describe("createPromptPreviewController", () => {
 				projectPath: () => "/project",
 				worktreeDir: () => "/work",
 				projectSlug: "test",
+				launchDir: () => "/project",
 			});
 
 			expect(ctrl.currentPrompt()).toContain("t-1-alpha");
@@ -76,6 +77,7 @@ describe("createPromptPreviewController", () => {
 				projectPath: () => "/project",
 				worktreeDir: () => "/work",
 				projectSlug: "test",
+				launchDir: () => "/project",
 			});
 
 			expect(ctrl.currentPrompt()).toContain("T-1 - Alpha");
@@ -103,9 +105,33 @@ describe("createPromptPreviewController", () => {
 				projectPath: () => "/project",
 				worktreeDir: () => "/work",
 				projectSlug: "test",
+				launchDir: () => "/project",
 			});
 
 			expect(ctrl.currentPrompt()).toBe("/work/t-1-alpha");
+
+			dispose();
+		});
+	});
+
+	it("interpolates {{launchDir}} placeholder", () => {
+		createRoot((dispose) => {
+			const ticket = makeTicket({ folderName: "t-1-alpha" });
+			const cfg = makeConfig("dir: {{launchDir}}");
+
+			const ctrl = createPromptPreviewController({
+				selectedTemplate: () => "default",
+				checkedSkills: () => new Set(),
+				orderedSkills: () => [],
+				config: () => cfg,
+				ticket: () => ticket,
+				projectPath: () => "/project",
+				worktreeDir: () => "/work",
+				projectSlug: "test",
+				launchDir: () => "/custom/launch/dir",
+			});
+
+			expect(ctrl.currentPrompt()).toBe("dir: /custom/launch/dir");
 
 			dispose();
 		});
