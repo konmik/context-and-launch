@@ -13,8 +13,16 @@ export default defineConfig({
   ...solidVite,
   test: {
     projects: [
-      { ...solidVite, test: { name: "unit-ts", include: ["src/**/*.test.ts", "electron/**/*.test.ts"], testTimeout: 20000 } },
+      { ...solidVite, test: { name: "unit-ts", include: ["src/**/*.test.ts", "electron/**/*.test.ts"], exclude: ["**/*.shell.test.ts"], testTimeout: 20000 } },
       { ...solidVite, test: { name: "unit-tsx", include: ["src/**/*.test.tsx"], environment: "jsdom", setupFiles: ["src/test-setup.ts"] } },
+      {
+        resolve: { alias },
+        test: {
+          name: "shell",
+          include: ["src/**/*.shell.test.ts"],
+          testTimeout: 30000,
+        },
+      },
       {
         resolve: { alias },
         test: {
