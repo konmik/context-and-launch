@@ -109,10 +109,6 @@ export async function resolveLaunchDir(
   force?: boolean, mainBranch?: string,
 ): Promise<ResolveLaunchDirResult> {
   if (!useWorktree) return { ok: true, launchDir: projectPath };
-  const merged = launcherConfigManager.getMergedConfig(projectSlug);
-  if (!merged.worktreeRootPath) {
-    throw new ValidationError("Worktree root path is not configured");
-  }
   const result = await agentWorktreeManager.ensureAgentWorktree(
     projectPath, projectSlug, folderName, { skipDirtyCheck: force }, mainBranch,
   );
@@ -150,11 +146,12 @@ export interface LaunchRequest {
   useWorktree: boolean;
   profileName: string;
   force: boolean;
+  launchDir: string;
 }
 
 export function parseLaunchRequest(body: unknown): LaunchRequest {
   const result: LaunchRequest = {
-    initialPrompt: "", useWorktree: false, profileName: "", force: false,
+    initialPrompt: "", useWorktree: false, profileName: "", force: false, launchDir: "",
   };
   if (body && typeof body === "object") {
     const b = body as Record<string, unknown>;
@@ -162,6 +159,7 @@ export function parseLaunchRequest(body: unknown): LaunchRequest {
     if (typeof b.useWorktree === "boolean") result.useWorktree = b.useWorktree;
     if (typeof b.profileName === "string") result.profileName = b.profileName;
     if (typeof b.force === "boolean") result.force = b.force;
+    if (typeof b.launchDir === "string") result.launchDir = b.launchDir;
   }
   return result;
 }

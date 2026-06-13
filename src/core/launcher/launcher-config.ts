@@ -96,6 +96,7 @@ export const RunShortcutBody = v.object({
 	name: v.string(),
 	useWorktree: v.optional(v.boolean(), false),
 	force: v.optional(v.boolean(), false),
+	launchDir: v.string(),
 });
 export type RunShortcutBody = v.InferOutput<typeof RunShortcutBody>;
 
@@ -181,6 +182,10 @@ export class LauncherConfigManager {
 
 	getProjectDir(projectSlug: string): string {
 		return this.paths.projectDir(projectSlug);
+	}
+
+	getAgentWorktreeDir(projectSlug: string): string {
+		return this.paths.agentWorktreeDir(projectSlug);
 	}
 
 	private appLauncherPath(): string {

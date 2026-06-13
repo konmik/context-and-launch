@@ -22,11 +22,11 @@ describe('parseLaunchRequest (code-inspection)', () => {
 	);
 
 	interface LaunchRequest {
-		initialPrompt: string; useWorktree: boolean; profileName: string; force: boolean;
+		initialPrompt: string; useWorktree: boolean; profileName: string; force: boolean; launchDir: string;
 	}
 	function parseLaunchRequest(body: unknown): LaunchRequest {
 		const result: LaunchRequest = {
-			initialPrompt: '', useWorktree: false, profileName: '', force: false,
+			initialPrompt: '', useWorktree: false, profileName: '', force: false, launchDir: '',
 		};
 		if (body && typeof body === 'object') {
 			const b = body as Record<string, unknown>;
@@ -34,6 +34,7 @@ describe('parseLaunchRequest (code-inspection)', () => {
 			if (typeof b.useWorktree === 'boolean') result.useWorktree = b.useWorktree;
 			if (typeof b.profileName === 'string') result.profileName = b.profileName;
 			if (typeof b.force === 'boolean') result.force = b.force;
+			if (typeof b.launchDir === 'string') result.launchDir = b.launchDir;
 		}
 		return result;
 	}
@@ -41,6 +42,7 @@ describe('parseLaunchRequest (code-inspection)', () => {
 	it('replicated function matches source code', () => {
 		expect(source).toContain('profileName: ""');
 		expect(source).toContain('initialPrompt: ""');
+		expect(source).toContain('launchDir: ""');
 	});
 
 	it('parseLaunchRequest with initialPrompt extracts string value', () => {
@@ -59,6 +61,12 @@ describe('parseLaunchRequest (code-inspection)', () => {
 		expect(result.profileName).toBe('');
 		expect(result.useWorktree).toBe(false);
 		expect(result.force).toBe(false);
+		expect(result.launchDir).toBe('');
+	});
+
+	it('parseLaunchRequest with launchDir extracts string value', () => {
+		const result = parseLaunchRequest({ launchDir: '/my/dir' });
+		expect(result.launchDir).toBe('/my/dir');
 	});
 
 	it('parseLaunchRequest with non-string initialPrompt defaults to empty string', () => {

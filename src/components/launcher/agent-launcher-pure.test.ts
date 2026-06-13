@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveDefaults } from "./agent-launcher-pure.js";
+import { resolveDefaults, computeLaunchDir } from "./agent-launcher-pure.js";
 import type { MergedLauncherConfig } from "~/core/launcher/launcher-config.js";
 
 describe("resolveDefaults", () => {
@@ -46,5 +46,75 @@ describe("resolveDefaults", () => {
 			checkedSkills: [],
 			skillOrder: [],
 		});
+	});
+});
+
+describe("computeLaunchDir", () => {
+	it("useWorktree off returns projectPath", () => {
+		const result = computeLaunchDir({
+			useWorktree: false,
+			projectPath: "/my/project",
+			worktreeRootPath: "/custom/root",
+			agentWorktreeDir: "/default/worktrees",
+			folderName: "t-1-alpha",
+		});
+		expect(result).toBe("/my/project");
+	});
+
+	it("useWorktree on with explicit worktreeRootPath uses it", () => {
+		const result = computeLaunchDir({
+			useWorktree: true,
+			projectPath: "/my/project",
+			worktreeRootPath: "/custom/root",
+			agentWorktreeDir: "/default/worktrees",
+			folderName: "t-1-alpha",
+		});
+		expect(result).toBe("/custom/root/t-1-alpha");
+	});
+
+	it("useWorktree on with null worktreeRootPath falls back to agentWorktreeDir", () => {
+		const result = computeLaunchDir({
+			useWorktree: true,
+			projectPath: "/my/project",
+			worktreeRootPath: null,
+			agentWorktreeDir: "/default/worktrees",
+			folderName: "t-1-alpha",
+		});
+		expect(result).toBe("/default/worktrees/t-1-alpha");
+	});
+
+	it("long folderName is truncated by worktreeFolderName", () => {
+		const longName = "t-1-" + "a".repeat(60);
+		const result = computeLaunchDir({
+			useWorktree: true,
+			projectPath: "/my/project",
+			worktreeRootPath: "/root",
+			agentWorktreeDir: "/default",
+			folderName: longName,
+		});
+		expect(result.length).toBeLessThan("/root/".length + longName.length);
+		expect(result.startsWith("/root/")).toBe(true);
+	});
+
+	it("trailing slashes on root path are stripped", () => {
+		const result = computeLaunchDir({
+			useWorktree: true,
+			projectPath: "/my/project",
+			worktreeRootPath: "/custom/root///",
+			agentWorktreeDir: "/default/worktrees",
+			folderName: "t-1-alpha",
+		});
+		expect(result).toBe("/custom/root/t-1-alpha");
+	});
+
+	it("empty string worktreeRootPath falls back to agentWorktreeDir", () => {
+		const result = computeLaunchDir({
+			useWorktree: true,
+			projectPath: "/my/project",
+			worktreeRootPath: "",
+			agentWorktreeDir: "/default/worktrees",
+			folderName: "t-1-alpha",
+		});
+		expect(result).toBe("/default/worktrees/t-1-alpha");
 	});
 });
