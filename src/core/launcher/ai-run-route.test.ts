@@ -214,26 +214,26 @@ describe('duplicate-launch guard (code-inspection)', () => {
 	});
 });
 
-describe('useWorktree=true with worktreeRootPath=null returns 400 (code-inspection)', () => {
+describe('useWorktree=true with worktreeRootPath=null (code-inspection)', () => {
 	const agentLaunchSource = fs.readFileSync(
 		path.resolve(__dirname, 'agent-launch.ts'),
 		'utf-8'
 	);
 
-	it('returns 400 error when worktreeRootPath is not configured', () => {
-		expect(agentLaunchSource).toContain('Worktree root path is not configured');
-		expect(agentLaunchSource).toMatch(/!merged\.worktreeRootPath/);
+	it('resolveLaunchDir delegates to ensureAgentWorktree which falls back to agentWorktreeDir', () => {
+		expect(agentLaunchSource).toContain('ensureAgentWorktree');
+		expect(agentLaunchSource).not.toMatch(/!merged\.worktreeRootPath/);
 	});
 });
 
 
 describe('parseLaunchRequest with missing/malformed request body', () => {
 	interface LaunchRequest {
-		initialPrompt: string; useWorktree: boolean; profileName: string; force: boolean;
+		initialPrompt: string; useWorktree: boolean; profileName: string; force: boolean; launchDir: string;
 	}
 	function parseLaunchRequest(body: unknown): LaunchRequest {
 		const result: LaunchRequest = {
-			initialPrompt: '', useWorktree: false, profileName: '', force: false,
+			initialPrompt: '', useWorktree: false, profileName: '', force: false, launchDir: '',
 		};
 		if (body && typeof body === 'object') {
 			const b = body as Record<string, unknown>;
@@ -241,11 +241,12 @@ describe('parseLaunchRequest with missing/malformed request body', () => {
 			if (typeof b.useWorktree === 'boolean') result.useWorktree = b.useWorktree;
 			if (typeof b.profileName === 'string') result.profileName = b.profileName;
 			if (typeof b.force === 'boolean') result.force = b.force;
+			if (typeof b.launchDir === 'string') result.launchDir = b.launchDir;
 		}
 		return result;
 	}
 
-	const DEFAULTS = { initialPrompt: '', useWorktree: false, profileName: '', force: false };
+	const DEFAULTS = { initialPrompt: '', useWorktree: false, profileName: '', force: false, launchDir: '' };
 
 	it('replicated function matches source code', () => {
 		const source = fs.readFileSync(
@@ -255,9 +256,11 @@ describe('parseLaunchRequest with missing/malformed request body', () => {
 		expect(source).toContain('initialPrompt: ""');
 		expect(source).toContain('useWorktree: false');
 		expect(source).toContain('profileName: ""');
+		expect(source).toContain('launchDir: ""');
 		expect(source).toContain("typeof b.initialPrompt === \"string\"");
 		expect(source).toContain("typeof b.useWorktree === \"boolean\"");
 		expect(source).toContain("typeof b.profileName === \"string\"");
+		expect(source).toContain("typeof b.launchDir === \"string\"");
 	});
 
 	it('undefined body returns all defaults', () => {
@@ -313,6 +316,7 @@ describe('parseLaunchRequest with missing/malformed request body', () => {
 			useWorktree: true,
 			profileName: '',
 			force: false,
+			launchDir: '',
 		});
 	});
 
@@ -323,6 +327,7 @@ describe('parseLaunchRequest with missing/malformed request body', () => {
 			useWorktree: false,
 			profileName: '',
 			force: false,
+			launchDir: '',
 		});
 	});
 

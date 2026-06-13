@@ -16,6 +16,7 @@ const mockGetMergedLauncherConfig = vi.fn().mockResolvedValue({
   columnDefaults: {}, worktreeRootPath: null,
   conflictResolutionPrompt: "",
   projectBoardId: null, projectName: "",
+  projectPath: "", worktreeDir: "", agentWorktreeDir: "",
 });
 
 vi.mock("./ticket-api.js", () => ({
@@ -362,6 +363,7 @@ describe("TicketDetailDialog initial tab", () => {
       columnDefaults: {}, worktreeRootPath: null,
       conflictResolutionPrompt: "",
       projectBoardId: null, projectName: "",
+      projectPath: "", worktreeDir: "", agentWorktreeDir: "",
     });
   });
 
@@ -372,6 +374,7 @@ describe("TicketDetailDialog initial tab", () => {
       worktreeRootPath: null,
       conflictResolutionPrompt: "",
       projectBoardId: null, projectName: "",
+      projectPath: "", worktreeDir: "", agentWorktreeDir: "",
       columnDefaults: { todo: { lastLayer: "launcher" } },
     });
 

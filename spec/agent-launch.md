@@ -7,6 +7,8 @@
   - Marker exists and PID alive and start time matches OS: error, already running
   - Marker exists but PID dead or start time mismatch: delete stale marker, continue
 - Resolve launch directory
+  - Client computes the launch directory and sends it as launchDir in the request
+  - Server uses the client-provided launchDir for launching
   - Worktree disabled: use project path
   - Worktree enabled
     - Root not configured: error
@@ -40,6 +42,7 @@
 # Prompt preview
 
 - Client interpolates {{placeholder}} variables with ticket and project values
+- {{launchDir}} is interpolated using the client-computed launch directory
 - {{skills}} expands to checked skill texts joined by newline, empty string if none checked
 - Preview panel shows the fully interpolated prompt
 - Edit toggle freezes preview from left-side control changes

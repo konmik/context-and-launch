@@ -5,6 +5,7 @@ export interface ShortcutDeps {
   projectSlug: string;
   folderName: () => string;
   useWorktree: () => boolean;
+  launchDir: () => string;
   setError: (msg: string) => void;
 }
 
@@ -19,7 +20,7 @@ export function createShortcutState(deps: ShortcutDeps) {
     deps.setError("");
     try {
       const result = await runShortcutAction(
-        deps.projectSlug, deps.folderName(), name, deps.useWorktree(), force ?? false,
+        deps.projectSlug, deps.folderName(), name, deps.useWorktree(), force ?? false, deps.launchDir(),
       );
       if (!result.ok) {
         if (result.type === "dirtyWorktree") {

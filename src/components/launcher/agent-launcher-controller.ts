@@ -17,6 +17,7 @@ export interface AgentLauncherDeps {
 	useWorktree: boolean;
 	projectPath: string;
 	worktreeDir: string;
+	launchDir: () => string;
 }
 
 export function createAgentLauncherController(props: AgentLauncherDeps) {
@@ -72,6 +73,7 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 		projectPath: () => props.projectPath,
 		worktreeDir: () => props.worktreeDir,
 		projectSlug: props.projectSlug,
+		launchDir: props.launchDir,
 	});
 
 	async function launchAgent(extra?: Record<string, unknown>) {
@@ -87,6 +89,7 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 					useWorktree: props.useWorktree,
 					profileName: selectedProfile(),
 					force: extra?.force === true,
+					launchDir: props.launchDir(),
 				},
 			);
 			if (result.ok) return;
@@ -114,6 +117,7 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 					useWorktree: props.useWorktree,
 					profileName: selectedProfile(),
 					force: false,
+					launchDir: props.launchDir(),
 				},
 			);
 			if (!result.ok) setErrorInfo({ description: result.message });
@@ -130,7 +134,7 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 		setSelectedTemplate, setSelectedProfile,
 		setErrorInfo, setBehindRemoteMsg, setDirtyWorktreeMsg,
 		toggleSkill, skillReorder, launchAgent, pullAndRetry,
-		preview,
+		preview, launchDir: props.launchDir,
 	};
 }
 

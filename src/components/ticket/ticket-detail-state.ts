@@ -1,4 +1,4 @@
-import { createSignal, createEffect, on, onCleanup } from "solid-js";
+import { createSignal, createEffect, createMemo, on, onCleanup } from "solid-js";
 import { revalidate } from "@solidjs/router";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/core/launcher/launcher-config.js";
@@ -22,6 +22,7 @@ import {
 import { createFileUploadState } from "./ticket-detail-upload.js";
 import { createHeaderEditState } from "./ticket-detail-header.js";
 import { createShortcutState } from "./ticket-detail-shortcuts.js";
+import { computeLaunchDir } from "../launcher/agent-launcher-pure.js";
 import {
   getContext, saveContext as saveContextAction,
   deleteContext as deleteContextAction, deleteFile as deleteFileAction,
@@ -73,10 +74,19 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     return ticketApiUrl(props.projectSlug, header.savedFolderName(), suffix);
   }
 
+  const launchDir = createMemo(() => computeLaunchDir({
+    useWorktree: useWorktree(),
+    projectPath: launcherConfig()?.projectPath ?? "",
+    worktreeRootPath: launcherConfig()?.worktreeRootPath ?? null,
+    agentWorktreeDir: launcherConfig()?.agentWorktreeDir ?? "",
+    folderName: header.savedFolderName(),
+  }));
+
   const shortcuts = createShortcutState({
     projectSlug: props.projectSlug,
     folderName: header.savedFolderName,
     useWorktree,
+    launchDir,
     setError,
   });
 
@@ -403,7 +413,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     runningShortcut: shortcuts.runningShortcut,
     dirtyWorktreeShortcut: shortcuts.dirtyWorktreeShortcut,
     setDirtyWorktreeShortcut: shortcuts.setDirtyWorktreeShortcut,
-    useWorktree, allFileOptions, isReferenceStale, hasUnsavedFileChanges, isCurrentReadOnly,
+    useWorktree, launchDir, allFileOptions, isReferenceStale, hasUnsavedFileChanges, isCurrentReadOnly,
     showSaveButton, persistWorktree, runShortcut: shortcuts.runShortcut,
     switchTab, selectFile, openNewFileDialog,
     submitNewFile, deleteOrRemoveFile, handleTrashClick, close, forceClose,

@@ -12,6 +12,7 @@ export interface PromptPreviewDeps {
 	projectPath: () => string;
 	worktreeDir: () => string;
 	projectSlug: string;
+	launchDir: () => string;
 }
 
 export function createPromptPreviewController(deps: PromptPreviewDeps) {
@@ -39,6 +40,7 @@ export function createPromptPreviewController(deps: PromptPreviewDeps) {
 			projectPath: deps.projectPath(),
 			projectSlug: deps.projectSlug,
 			skills: skillTexts.join('\n'),
+			launchDir: deps.launchDir(),
 		};
 		return interpolatePrompt(templateText, variables);
 	});

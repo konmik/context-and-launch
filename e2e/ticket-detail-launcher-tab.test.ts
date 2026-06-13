@@ -166,4 +166,52 @@ describe("Ticket detail Launcher tab (e2e, real server)", () => {
     const text = await cm.textContent();
     expect(text).toContain("<<ENTER>>");
   }, 60000);
+
+  it("launch dir display shows project path when worktree is off", async () => {
+    const project = await setup("dir-off");
+    const display = ctx.page.locator('[data-testid="launch-dir-display"]');
+    await display.waitFor({ state: "visible", timeout: 15000 });
+    const text = await display.textContent();
+    expect(text).toContain(project.projectPath);
+    expect(await ctx.page.locator('[data-testid="launch-dir-copy-button"]').count()).toBe(1);
+  }, 60000);
+
+  it("launch dir display updates when worktree toggle changes", async () => {
+    const project = await setup("dir-toggle");
+    const display = ctx.page.locator('[data-testid="launch-dir-display"]');
+    await display.waitFor({ state: "visible", timeout: 15000 });
+    const textBefore = await display.textContent();
+    expect(textBefore).toContain(project.projectPath);
+    const cb = ctx.page.locator('[data-testid="ticket-detail-use-worktree-checkbox"]');
+    await cb.check();
+    await ctx.page.waitForTimeout(500);
+    const textAfter = await display.textContent();
+    expect(textAfter).toContain("t-1-alpha");
+    expect(textAfter).not.toContain(project.projectPath);
+    await cb.uncheck();
+    await ctx.page.waitForTimeout(500);
+    const textReverted = await display.textContent();
+    expect(textReverted).toContain(project.projectPath);
+  }, 60000);
+
+  it("prompt preview interpolates {{launchDir}} placeholder", async () => {
+    const project = await createProject(ctx.testServer, {
+      projectSlug: uniqueSlug("tdl-dir-preview"),
+      withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
+      appLauncherConfig: {
+        ...APP_LAUNCHER,
+        templates: [
+          { name: "Default", text: "launch in {{launchDir}}" },
+        ],
+      },
+    });
+    ctx.projects.push(project);
+    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+    await openLauncher();
+    const cm = ctx.page.locator('.cm-content');
+    await cm.waitFor({ state: "visible", timeout: 15000 });
+    const text = await cm.textContent();
+    expect(text).toContain(project.projectPath);
+    expect(text).not.toContain("{{launchDir}}");
+  }, 60000);
 });

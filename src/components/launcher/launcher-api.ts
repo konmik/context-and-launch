@@ -21,6 +21,7 @@ export interface MergedLauncherConfigWithMeta extends MergedLauncherConfig {
   projectName: string;
   projectPath: string;
   worktreeDir: string;
+  agentWorktreeDir: string;
 }
 
 export const getMergedLauncherConfig = query(async (
@@ -36,6 +37,7 @@ export const getMergedLauncherConfig = query(async (
     projectName: projectRegistry.getName(projectSlug),
     projectPath: project.path,
     worktreeDir: worktreeManager.getWorktreeDir(projectSlug),
+    agentWorktreeDir: launcherConfigManager.getAgentWorktreeDir(projectSlug),
   };
 }, "launcher-config");
 
@@ -176,6 +178,9 @@ export async function launchAgentAction(
     if (agentRunning(projectSlug, folderName)) {
       return { ok: false as const, type: "error" as const, message: "Already started" };
     }
+    if (!launchRequest.launchDir) {
+      throw new ValidationError("launchDir is required");
+    }
     const resolved = await resolveLaunchDir(
       projectSlug, folderName, launchRequest.useWorktree, project.path,
       launchRequest.force, project.mainBranch,
@@ -183,7 +188,7 @@ export async function launchAgentAction(
     if (!resolved.ok) {
       return { ok: false as const, type: resolved.type, message: resolved.message };
     }
-    await launchAgentCore(projectSlug, ticket, launchRequest, resolved.launchDir);
+    await launchAgentCore(projectSlug, ticket, launchRequest, launchRequest.launchDir);
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
@@ -195,6 +200,9 @@ export async function pullAndRetryLaunch(
 ) {
   "use server";
   try {
+    if (!launchRequest.launchDir) {
+      throw new ValidationError("launchDir is required");
+    }
     const { ticket, project } = resolveTicketAndProject(projectSlug, folderName);
     if (agentRunning(projectSlug, folderName)) {
       return { ok: false as const, type: "error" as const, message: "Already started" };
@@ -212,7 +220,7 @@ export async function pullAndRetryLaunch(
     if ('behindRemote' in worktreeResult) {
       return { ok: false as const, type: "error" as const, message: "Still behind remote after pulling" };
     }
-    await launchAgentCore(projectSlug, ticket, launchRequest, worktreeResult.worktreePath);
+    await launchAgentCore(projectSlug, ticket, launchRequest, launchRequest.launchDir);
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
@@ -221,10 +229,11 @@ export async function pullAndRetryLaunch(
 
 export async function runShortcut(
   projectSlug: string, folderName: string,
-  name: string, useWorktree: boolean, force: boolean,
+  name: string, useWorktree: boolean, force: boolean, launchDir: string,
 ) {
   "use server";
   try {
+    if (!launchDir) throw new ValidationError("launchDir is required");
     const { ticket, project, worktreeDir } = resolveTicketAndProject(projectSlug, folderName);
     const merged = launcherConfigManager.getMergedConfig(projectSlug);
     const shortcut = merged.shortcuts.find(s => s.name === name);
@@ -239,9 +248,9 @@ export async function runShortcut(
       ticketDir: path.resolve(worktreeDir, ticket.folderName),
       ticketSlug: ticket.folderName, ticketTitle: ticket.title,
       ticketNumber: ticket.number, ticketStatus: ticket.status,
-      projectPath: project.path, projectSlug, launchDir: resolved.launchDir,
+      projectPath: project.path, projectSlug, launchDir,
     });
-    await spawnDetached(args[0], args.slice(1), resolved.launchDir);
+    await spawnDetached(args[0], args.slice(1), launchDir);
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
