@@ -6,16 +6,19 @@ import { TicketSyncManager } from '~/core/ticket/ticket-sync.js';
 import { git } from '~/core/infra/git.js';
 import {
 	cleanup, createRepoWithRemote, conflictResolveDir, pushRemoteConflict,
+	tmpDir,
 } from '~/core/ticket/sync-test-repos.js';
 import type { ProjectRegistry, ProjectInfo } from '~/core/project/project-registry.js';
 import type { BoardConfigManager } from '~/core/project/board-config.js';
 import type { WorktreeManager } from '~/core/worktree/worktree-manager.js';
+import type { LauncherConfigManager } from '~/core/launcher/launcher-config.js';
 import type { FileWatcher } from '~/core/infra/file-watcher.js';
 
 function stubDeps(overrides: {
 	projects?: ProjectInfo[];
 	worktreeDir?: string;
 	ticketSyncManager?: TicketSyncManager;
+	agentWorktreeRoot?: string;
 } = {}) {
 	const projects: ProjectInfo[] = overrides.projects ?? [];
 
@@ -37,6 +40,11 @@ function stubDeps(overrides: {
 	} as unknown as WorktreeManager;
 	const fileWatcher = { watchOnly: vi.fn() } as unknown as FileWatcher;
 	const ticketSyncManager = overrides.ticketSyncManager ?? ({} as TicketSyncManager);
+	const launcherConfigManager = {
+		resolveAgentWorktreeRoot: vi.fn(() =>
+			overrides.agentWorktreeRoot ?? '/nonexistent-agent-worktree-root',
+		),
+	} as unknown as LauncherConfigManager;
 
 	const service = new ProjectPageService(
 		projectRegistry,
@@ -44,6 +52,7 @@ function stubDeps(overrides: {
 		worktreeManager,
 		fileWatcher,
 		ticketSyncManager,
+		launcherConfigManager,
 	);
 
 	return { service, projectRegistry };
@@ -158,6 +167,66 @@ describe('ProjectPageService.loadProjectPage', () => {
 			} finally {
 				warnSpy.mockRestore();
 			}
+		});
+	});
+
+	describe('hasAgentWorktree enrichment', () => {
+		const dirs: string[] = [];
+		afterEach(() => { cleanup(...dirs); dirs.length = 0; });
+
+		function setupTicketDir(folderName: string, useWorktree: boolean) {
+			const worktreeDir = tmpDir('pps-wt-');
+			dirs.push(worktreeDir);
+			const ticketDir = path.join(worktreeDir, folderName);
+			fs.mkdirSync(ticketDir);
+			fs.writeFileSync(path.join(ticketDir, 'status.json'), JSON.stringify({
+				number: 'ST-0001', title: 'Feature', status: 'todo', useWorktree,
+			}));
+			return worktreeDir;
+		}
+
+		function simpleSyncManager() {
+			return {
+				finalizeResolution: vi.fn(),
+				hasRemote: vi.fn(async () => false),
+				isResolving: vi.fn(() => false),
+			} as unknown as TicketSyncManager;
+		}
+
+		it('sets hasAgentWorktree true when the worktree folder exists on disk', async () => {
+			const worktreeDir = setupTicketDir('st-0001-feature', false);
+			const agentWorktreeRoot = tmpDir('pps-awt-');
+			dirs.push(agentWorktreeRoot);
+			fs.mkdirSync(path.join(agentWorktreeRoot, 'st-0001-feature'));
+
+			const { service } = stubDeps({
+				projects: [{ path: worktreeDir, projectSlug: 'proj', name: 'proj', available: true }],
+				worktreeDir,
+				agentWorktreeRoot,
+				ticketSyncManager: simpleSyncManager(),
+			});
+
+			const result = await service.loadProjectPage('proj');
+			expect(result.status).toBe('loaded');
+			if (result.status !== 'loaded') return;
+			const ticket = result.board.tickets.find(t => t.folderName === 'st-0001-feature');
+			expect(ticket?.hasAgentWorktree).toBe(true);
+		});
+
+		it('sets hasAgentWorktree false when no worktree folder exists', async () => {
+			const worktreeDir = setupTicketDir('st-0001-feature', false);
+
+			const { service } = stubDeps({
+				projects: [{ path: worktreeDir, projectSlug: 'proj', name: 'proj', available: true }],
+				worktreeDir,
+				ticketSyncManager: simpleSyncManager(),
+			});
+
+			const result = await service.loadProjectPage('proj');
+			expect(result.status).toBe('loaded');
+			if (result.status !== 'loaded') return;
+			const ticket = result.board.tickets.find(t => t.folderName === 'st-0001-feature');
+			expect(ticket?.hasAgentWorktree).toBe(false);
 		});
 	});
 });

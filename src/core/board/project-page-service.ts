@@ -1,8 +1,12 @@
+import fs from "fs";
+import path from "path";
 import { TicketStore } from "~/core/ticket/ticket-store.js";
+import { worktreeFolderName } from "~/core/worktree/worktree-naming.js";
 import { errorMessage } from "~/core/shared/errors.js";
 import type { ProjectRegistry } from "~/core/project/project-registry.js";
 import type { BoardConfigManager } from "~/core/project/board-config.js";
 import type { WorktreeManager } from "~/core/worktree/worktree-manager.js";
+import type { LauncherConfigManager } from "~/core/launcher/launcher-config.js";
 import type { FileWatcher } from "~/core/infra/file-watcher.js";
 import type { TicketSyncManager } from "~/core/ticket/ticket-sync.js";
 import type { ProjectPageData } from "./board-types.js";
@@ -14,6 +18,7 @@ export class ProjectPageService {
 		private worktreeManager: WorktreeManager,
 		private fileWatcher: FileWatcher,
 		private ticketSyncManager: TicketSyncManager,
+		private launcherConfigManager: LauncherConfigManager,
 	) {}
 
 	async loadProjectPage(projectSlug: string): Promise<ProjectPageData> {
@@ -43,6 +48,11 @@ export class ProjectPageService {
 			const { tickets, ticketOrder } = store.loadBoardState(
 				config.columns.map(c => c.name),
 			);
+			const agentWorktreeRoot = this.launcherConfigManager.resolveAgentWorktreeRoot(projectSlug);
+			for (const ticket of tickets) {
+				const wtPath = path.join(agentWorktreeRoot, worktreeFolderName(ticket.folderName));
+				ticket.hasAgentWorktree = fs.existsSync(wtPath);
+			}
 			const suggestedNextNumber = store.suggestNextNumber();
 			const hasRemote = await this.ticketSyncManager.hasRemote(worktreeDir);
 			const hasConflict = this.ticketSyncManager.isResolving(worktreeDir);

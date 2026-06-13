@@ -11,6 +11,7 @@ function makeTicket(overrides: Partial<TicketInfo> & { folderName: string }): Ti
 		status: overrides.status ?? "todo",
 		contextNames: [],
 		useWorktree: false,
+		hasAgentWorktree: false,
 		fileNames: [],
 		references: [],
 		...overrides,

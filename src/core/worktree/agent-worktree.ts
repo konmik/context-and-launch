@@ -6,7 +6,7 @@ import { git, detectMainBranch } from '../infra/git.js';
 import { worktreeBranchName, worktreeFolderName } from './worktree-naming.js';
 import { ProcessError } from '../shared/errors.js';
 import type { LauncherConfigManager } from '../launcher/launcher-config.js';
-import type { ConfigPaths } from '../config/config-paths.js';
+
 
 function canonicalize(p: string): string {
 	const slashed = p.replace(/\\/g, '/');
@@ -38,7 +38,6 @@ export interface DirtyWorktreeResult {
 export class AgentWorktreeManager {
 	constructor(
 		private launcherConfig: LauncherConfigManager,
-		private paths: ConfigPaths,
 	) {}
 
 	async getMainBranch(projectPath: string, configuredBranch?: string): Promise<string> {
@@ -54,8 +53,7 @@ export class AgentWorktreeManager {
 		options?: { skipDirtyCheck?: boolean },
 		configuredBranch?: string,
 	): Promise<WorktreeResult | BehindRemoteResult | DirtyWorktreeResult> {
-		const config = this.launcherConfig.loadProjectConfig(projectSlug);
-		const worktreeRootPath = config.worktreeRootPath || this.paths.agentWorktreeDir(projectSlug);
+		const worktreeRootPath = this.launcherConfig.resolveAgentWorktreeRoot(projectSlug);
 
 		const branchName = worktreeBranchName(folderName);
 		const worktreePath = `${worktreeRootPath}/${worktreeFolderName(folderName)}`;

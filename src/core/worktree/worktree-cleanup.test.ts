@@ -56,7 +56,7 @@ describe('WorktreeCleanupService', () => {
 			worktreeRootPath: worktreeRoot,
 		});
 
-		const awm = new AgentWorktreeManager(lcm, paths);
+		const awm = new AgentWorktreeManager(lcm);
 		const service = new WorktreeCleanupService(awm);
 		return { configDir, projectDir, worktreeRoot, lcm, awm, service };
 	}

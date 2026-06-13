@@ -33,7 +33,7 @@ async function createGitWorktree(): Promise<string> {
 function ticket(folderName: string, status: string): TicketInfo {
 	return {
 		number: '', title: '', status, folderName,
-		contextNames: [], useWorktree: false, fileNames: [], references: [],
+		contextNames: [], useWorktree: false, hasAgentWorktree: false, fileNames: [], references: [],
 	};
 }
 

@@ -16,6 +16,7 @@ export interface TicketInfo {
 	folderName: string;
 	contextNames: string[];
 	useWorktree: boolean;
+	hasAgentWorktree: boolean;
 	fileNames: string[];
 	references: { path: string; exists: boolean }[];
 }
@@ -332,6 +333,7 @@ export class TicketStore {
 			folderName: path.basename(dir),
 			contextNames,
 			useWorktree: status.useWorktree === true,
+			hasAgentWorktree: false,
 			fileNames,
 			references,
 		};

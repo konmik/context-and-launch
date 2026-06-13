@@ -188,6 +188,11 @@ export class LauncherConfigManager {
 		return this.paths.agentWorktreeDir(projectSlug);
 	}
 
+	resolveAgentWorktreeRoot(projectSlug: string): string {
+		const config = this.loadProjectConfig(projectSlug);
+		return config.worktreeRootPath || this.paths.agentWorktreeDir(projectSlug);
+	}
+
 	private appLauncherPath(): string {
 		return this.paths.appLauncherConfigFile();
 	}
