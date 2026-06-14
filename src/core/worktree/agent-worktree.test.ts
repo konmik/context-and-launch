@@ -1048,6 +1048,58 @@ describe('AgentWorktreeManager', () => {
 		await expect(awm.pullMainBranch(projectDir, 'develop')).resolves.toBeUndefined();
 	});
 
+	it('isBranchMerged detects squash-merged branch', async () => {
+		const { projectDir, awm } = setup();
+
+		execSync('git checkout -b ai/st-squash-feat', { cwd: projectDir, timeout: 5000 });
+		fs.writeFileSync(path.join(projectDir, 'feat1.txt'), 'part 1');
+		execSync('git add .', { cwd: projectDir, timeout: 5000 });
+		execSync('git commit -m "feat part 1"', { cwd: projectDir, timeout: 5000 });
+		fs.writeFileSync(path.join(projectDir, 'feat2.txt'), 'part 2');
+		execSync('git add .', { cwd: projectDir, timeout: 5000 });
+		execSync('git commit -m "feat part 2"', { cwd: projectDir, timeout: 5000 });
+
+		execSync('git checkout main', { cwd: projectDir, timeout: 5000 });
+		execSync('git merge --squash ai/st-squash-feat', { cwd: projectDir, timeout: 5000 });
+		execSync('git commit -m "squash: feat"', { cwd: projectDir, timeout: 5000 });
+
+		const merged = await awm.isBranchMerged(projectDir, 'ai/st-squash-feat');
+		expect(merged).toBe(true);
+	});
+
+	it('isBranchMerged detects squash-merged branch when main has moved forward', async () => {
+		const { projectDir, awm } = setup();
+
+		execSync('git checkout -b ai/st-squash-moved', { cwd: projectDir, timeout: 5000 });
+		fs.writeFileSync(path.join(projectDir, 'feat.txt'), 'feature');
+		execSync('git add .', { cwd: projectDir, timeout: 5000 });
+		execSync('git commit -m "feature commit"', { cwd: projectDir, timeout: 5000 });
+
+		execSync('git checkout main', { cwd: projectDir, timeout: 5000 });
+		execSync('git merge --squash ai/st-squash-moved', { cwd: projectDir, timeout: 5000 });
+		execSync('git commit -m "squash: feature"', { cwd: projectDir, timeout: 5000 });
+
+		fs.writeFileSync(path.join(projectDir, 'other.txt'), 'later work');
+		execSync('git add .', { cwd: projectDir, timeout: 5000 });
+		execSync('git commit -m "more work on main"', { cwd: projectDir, timeout: 5000 });
+
+		const merged = await awm.isBranchMerged(projectDir, 'ai/st-squash-moved');
+		expect(merged).toBe(true);
+	});
+
+	it('isBranchMerged returns false for unmerged branch', async () => {
+		const { projectDir, awm } = setup();
+
+		execSync('git checkout -b ai/st-unmerged', { cwd: projectDir, timeout: 5000 });
+		fs.writeFileSync(path.join(projectDir, 'unmerged.txt'), 'not merged');
+		execSync('git add .', { cwd: projectDir, timeout: 5000 });
+		execSync('git commit -m "unmerged work"', { cwd: projectDir, timeout: 5000 });
+		execSync('git checkout main', { cwd: projectDir, timeout: 5000 });
+
+		const merged = await awm.isBranchMerged(projectDir, 'ai/st-unmerged');
+		expect(merged).toBe(false);
+	});
+
 	it('isBranchMerged with configuredBranch "develop" succeeds in repo with only develop branch', async () => {
 		const { projectDir, awm } = setup('develop');
 		const result = await awm.ensureAgentWorktree(
