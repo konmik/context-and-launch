@@ -42,13 +42,13 @@
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@solidjs/testing-library": "0.8.10",
-    "@tailwindcss/vite": "4.3.0",
+    "@tailwindcss/vite": "4.3.1",
     "@types/cross-spawn": "6.0.6",
     "@types/node": "25.9.1",
     "@types/shell-quote": "1.7.5",
-    "electron": "36.9.5",
-    "electron-builder": "26.15.2",
-    "esbuild": "0.25.12",
+    "electron": "42.4.0",
+    "electron-builder": "26.15.3",
+    "esbuild": "0.28.1",
     "eslint": "10.4.1",
     "jsdom": "29.1.1",
     "memfs": "4.57.2",
@@ -58,9 +58,17 @@
     "typescript": "5.9.3",
     "typescript-eslint": "8.60.0",
     "vite-plugin-solid": "2.11.12",
-    "vitest": "3.2.4"
+    "vitest": "3.2.6"
   },
   "overrides": {
-    "vite": "6.4.3"
+    "vite": "6.4.3",
+    "esbuild": "0.28.1",
+    "h3": "1.15.11",
+    "vite-node": {
+      "vite": "7.3.5"
+    },
+    "vitest": {
+      "vite": "7.3.5"
+    }
   }
 }
