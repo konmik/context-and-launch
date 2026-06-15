@@ -39,12 +39,20 @@ let serverHandle: ServerHandle | null = null;
 
 const SYNC_WINDOW_DELAY_MS = 5000;
 
+const execMtimeAtStart = fs.statSync(process.execPath).mtimeMs;
 const gotLock = app.requestSingleInstanceLock();
 
 if (!gotLock) {
   app.quit();
 } else {
   app.on("second-instance", () => {
+    const execMtimeNow = fs.statSync(process.execPath).mtimeMs;
+    if (execMtimeNow !== execMtimeAtStart) {
+      if (mainWindow) saveWindowState(mainWindow);
+      app.relaunch();
+      app.exit(0);
+      return;
+    }
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.focus();
@@ -56,6 +64,7 @@ if (!gotLock) {
 
     const state = loadWindowState();
     mainWindow = new BrowserWindow({
+      title: `Context & Launch v${app.getVersion()}`,
       width: state.width,
       height: state.height,
       x: state.x,
@@ -68,6 +77,10 @@ if (!gotLock) {
         contextIsolation: true,
         webSecurity: true,
       },
+    });
+
+    mainWindow.on("page-title-updated", (event) => {
+      event.preventDefault();
     });
 
     if (state.maximized) mainWindow.maximize();
