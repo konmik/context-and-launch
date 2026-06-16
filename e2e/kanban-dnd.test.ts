@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll } from "vitest";
 import { type Browser, type Page } from "playwright";
 import {
@@ -112,5 +114,21 @@ describe("KanbanBoard drag-and-drop (e2e, real server)", () => {
     expect(ipAfter.some((id) => id.includes(movedFolder))).toBe(true);
     const status = readTicketStatus(testServer, project.projectSlug, movedFolder);
     expect(status?.status).toBe("in-progress");
+  }, 60000);
+
+  it("same position drop does not modify ticket-order.json", async () => {
+    await page.waitForSelector("[data-sortable-id]", { timeout: 10000 });
+
+    const orderFile = path.join(
+      testServer.dataDir, "projects", project.projectSlug, "tickets", "ticket-order.json",
+    );
+    const beforeContent = fs.readFileSync(orderFile, "utf-8");
+
+    await dragTo(page, "todo:t-1-alpha", "todo:t-1-alpha");
+    await page.mouse.up();
+    await page.waitForTimeout(2000);
+
+    const afterContent = fs.readFileSync(orderFile, "utf-8");
+    expect(afterContent).toBe(beforeContent);
   }, 60000);
 });
