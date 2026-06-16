@@ -1087,6 +1087,39 @@ describe('AgentWorktreeManager', () => {
 		expect(merged).toBe(true);
 	});
 
+	it('isBranchMerged detects squash-merged branch on remote when local main is behind', async () => {
+		const remoteDir = tmpDir('awm-remote-');
+		dirs.push(remoteDir);
+		initGitRepo(remoteDir);
+		execSync(`git clone "${remoteDir}" cloned`, { cwd: os.tmpdir(), timeout: 5000 });
+		const projectDir = path.join(os.tmpdir(), 'cloned');
+		dirs.push(projectDir);
+		execSync('git config user.email "test@test.com"', { cwd: projectDir, timeout: 5000 });
+		execSync('git config user.name "Test"', { cwd: projectDir, timeout: 5000 });
+
+		execSync('git checkout -b ai/st-remote-squash', { cwd: projectDir, timeout: 5000 });
+		fs.writeFileSync(path.join(projectDir, 'feat.txt'), 'feature');
+		execSync('git add .', { cwd: projectDir, timeout: 5000 });
+		execSync('git commit -m "feature"', { cwd: projectDir, timeout: 5000 });
+		execSync('git checkout main', { cwd: projectDir, timeout: 5000 });
+
+		execSync('git checkout main', { cwd: remoteDir, timeout: 5000 });
+		execSync(`git fetch "${projectDir}" ai/st-remote-squash`, { cwd: remoteDir, timeout: 5000 });
+		execSync('git merge --squash FETCH_HEAD', { cwd: remoteDir, timeout: 5000 });
+		execSync('git commit -m "squash: feature"', { cwd: remoteDir, timeout: 5000 });
+
+		const configDir = tmpDir('awm-config-rsq-');
+		dirs.push(configDir);
+		const paths = new ConfigPaths(configDir);
+		initializeDataDir(paths);
+		const lcm = new LauncherConfigManager(paths);
+		lcm.saveProjectConfig('my-proj', { templates: [], skills: [], worktreeRootPath: tmpDir('awm-wt-rsq-') });
+		const awm = new AgentWorktreeManager(lcm);
+
+		const merged = await awm.isBranchMerged(projectDir, 'ai/st-remote-squash');
+		expect(merged).toBe(true);
+	});
+
 	it('isBranchMerged returns false for unmerged branch', async () => {
 		const { projectDir, awm } = setup();
 

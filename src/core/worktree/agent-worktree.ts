@@ -209,9 +209,10 @@ export class AgentWorktreeManager {
 	async isBranchMerged(projectPath: string, branchName: string, configuredBranch?: string): Promise<boolean> {
 		const mainBranch = await this.getMainBranch(projectPath, configuredBranch);
 		if (await this.isAncestorOf(projectPath, branchName, mainBranch)) return true;
-		await this.fetchMainBranch(projectPath, mainBranch);
-		if (await this.isAncestorOf(projectPath, branchName, mainBranch)) return true;
-		return this.isBranchSquashMerged(projectPath, branchName, mainBranch);
+		const remoteRef = await this.fetchMainBranch(projectPath, mainBranch);
+		const ref = remoteRef ?? mainBranch;
+		if (remoteRef && await this.isAncestorOf(projectPath, branchName, remoteRef)) return true;
+		return this.isBranchSquashMerged(projectPath, branchName, ref);
 	}
 
 	private async isAncestorOf(projectPath: string, branchName: string, mainBranch: string): Promise<boolean> {
@@ -220,11 +221,12 @@ export class AgentWorktreeManager {
 		return result;
 	}
 
-	private async fetchMainBranch(projectPath: string, mainBranch: string): Promise<void> {
+	private async fetchMainBranch(projectPath: string, mainBranch: string): Promise<string | null> {
 		const hasRemote = await git(projectPath, 'remote').then(out => out.trim().length > 0, () => false);
-		if (!hasRemote) return;
+		if (!hasRemote) return null;
 		const remote = await this.resolveRemote(projectPath, mainBranch);
 		await git(projectPath, 'fetch', remote, mainBranch);
+		return `${remote}/${mainBranch}`;
 	}
 
 	private async isBranchSquashMerged(projectPath: string, branchName: string, mainBranch: string): Promise<boolean> {
