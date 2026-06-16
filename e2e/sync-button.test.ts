@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { execSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 import {
   createProject, uniqueSlug, gotoProject, dragSortable,
   setupE2E,
@@ -232,6 +234,36 @@ describe("Sync button (e2e, real server)", () => {
     await ctx.page.waitForTimeout(3000);
     const badgeCount = await ctx.page.locator('[data-testid="sync-button-pending-badge"]').count();
     expect(badgeCount).toBeLessThanOrEqual(1);
+  }, 60000);
+
+  it("pending badge disappears after sync when local is behind remote", async () => {
+    const project = await createProject(ctx.testServer, {
+      projectSlug: uniqueSlug("sb-behind-remote"),
+      withRemote: true,
+      withTickets: [{ number: "R-1", title: "Initial", status: "todo", folderName: "r-1-initial" }],
+    });
+    ctx.projects.push(project);
+
+    execSync("git push", { cwd: project.ticketsPath });
+
+    const tmpClone = project.remoteUrl + "-clone";
+    execSync(`git clone "${project.remoteUrl}" "${tmpClone}"`);
+    execSync("git checkout tickets", { cwd: tmpClone });
+    fs.writeFileSync(path.join(tmpClone, "r-1-initial", "to-do.md"), "updated remotely");
+    execSync("git add -A && git commit -m 'remote edit'", { cwd: tmpClone });
+    execSync("git push", { cwd: tmpClone });
+    fs.rmSync(tmpClone, { recursive: true, force: true });
+
+    execSync("git fetch", { cwd: project.ticketsPath });
+
+    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+    await ctx.page.waitForSelector('[data-testid="sync-button-pending-badge"]', {
+      state: "visible", timeout: 15000,
+    });
+    await ctx.page.click('[data-testid="sync-button-trigger"]');
+    await ctx.page.waitForSelector('[data-testid="sync-button-pending-badge"]', {
+      state: "detached", timeout: 20000,
+    });
   }, 60000);
 
   it("pending badge appears on fresh project due to order reconciliation", async () => {
