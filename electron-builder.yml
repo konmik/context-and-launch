@@ -29,7 +29,6 @@ mac:
   icon: build-resources/icon.icns
   category: public.app-category.developer-tools
   artifactName: context-launch-setup.${ext}
-  executableName: context-launch
 dmg:
   title: "Context & Launch"
   contents:
