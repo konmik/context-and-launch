@@ -139,8 +139,8 @@ export class TicketSyncManager {
 
 	private async commitAll(worktreeDir: string): Promise<void> {
 		await git(worktreeDir, 'add', '-A');
-		const porcelain = await git(worktreeDir, 'status', '--porcelain');
-		if (porcelain.trim()) {
+		const staged = await git(worktreeDir, 'diff', '--cached', '--name-only');
+		if (staged.trim()) {
 			await this.assertNoConflictMarkers(worktreeDir);
 			await git(worktreeDir, 'commit', '-m', 'sync: local changes');
 		}

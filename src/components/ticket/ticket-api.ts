@@ -1,7 +1,7 @@
 import {
   worktreeManager, boardConfigManager, projectRegistry,
   operationTracker, ticketSyncManager, syncPendingTracker,
-  launcherConfigManager, agentWorktreeManager,
+  launcherConfigManager, agentWorktreeManager, fileWatcher,
 } from "~/core/config/instances.js";
 import { TicketStore } from "~/core/ticket/ticket-store.js";
 import { WorktreeCleanupService } from "~/core/worktree/worktree-cleanup.js";
@@ -198,9 +198,14 @@ export async function syncTickets(projectSlug: string) {
   "use server";
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
-    const result = await operationTracker.track(ticketSyncManager.sync(worktreeDir));
-    syncPendingTracker.invalidate(worktreeDir);
-    return { ok: true as const, ...result };
+    fileWatcher.stop(worktreeDir);
+    try {
+      const result = await operationTracker.track(ticketSyncManager.sync(worktreeDir));
+      syncPendingTracker.invalidate(worktreeDir);
+      return { ok: true as const, ...result };
+    } finally {
+      fileWatcher.watch(worktreeDir);
+    }
   } catch (e) {
     return errorResult(e);
   }
