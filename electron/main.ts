@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, nativeTheme } from "electron";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -10,6 +10,8 @@ const windowStateFile = path.join(app.getPath("userData"), "window-state.json");
 
 const DEFAULT_WIDTH = 1400;
 const DEFAULT_HEIGHT = 900;
+const DARK_BG = "#17171a";
+const LIGHT_BG = "#ffffff";
 
 interface WindowState {
   width: number;
@@ -69,6 +71,7 @@ if (!gotLock) {
       height: state.height,
       x: state.x,
       y: state.y,
+      backgroundColor: nativeTheme.shouldUseDarkColors ? DARK_BG : LIGHT_BG,
       autoHideMenuBar: true,
       show: false,
       icon: path.join(appRoot, "build-resources", "icon.png"),
@@ -81,6 +84,12 @@ if (!gotLock) {
 
     mainWindow.on("page-title-updated", (event) => {
       event.preventDefault();
+    });
+
+    nativeTheme.on("updated", () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.setBackgroundColor(nativeTheme.shouldUseDarkColors ? DARK_BG : LIGHT_BG);
+      }
     });
 
     if (state.maximized) mainWindow.maximize();
