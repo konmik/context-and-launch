@@ -83,7 +83,7 @@ export class TicketSyncManager {
 			const aheadCount = await this.countAheadOf(worktreeDir, baseUpstream);
 
 			if (aheadCount === 0) {
-				if (baseUpstream !== newUpstream) {
+				if (headLocal !== newUpstream) {
 					await git(worktreeDir, 'merge', '--ff-only', newUpstream);
 				}
 				return { status: 'success' };

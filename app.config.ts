@@ -8,6 +8,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   middleware: "./src/middleware.ts",
   vite: {
+    build: { target: "esnext" },
+    optimizeDeps: { esbuildOptions: { target: "esnext" } },
     plugins: [tailwindcss()],
     resolve: {
       alias: {
