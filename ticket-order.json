@@ -1,5 +1,8 @@
 {
-  "todo": [],
+  "todo": [
+    "st-0031-absolute-tickets-path-setting",
+    "st-0032-open-a-project-in-a-separate-window"
+  ],
   "plan": [],
   "in-progress": [],
   "review": [],

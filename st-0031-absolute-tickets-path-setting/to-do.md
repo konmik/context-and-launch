@@ -1,0 +1,1 @@
+We currently let user edit "Agent worktree root path", but we also should be able to let it edit where tickets are.
