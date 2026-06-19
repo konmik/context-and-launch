@@ -6,20 +6,37 @@ export interface HoverTarget {
 export function computeDropIndex(
   cardRects: { top: number; height: number }[],
   cursorY: number,
-  skipIndex?: number,
+  draggedIndex?: number,
 ): number {
-  const filtered: { center: number; originalIndex: number }[] = [];
+  let cardsAboveCursor = 0;
   for (let i = 0; i < cardRects.length; i++) {
-    if (i === skipIndex) continue;
-    const r = cardRects[i];
-    filtered.push({ center: r.top + r.height / 2, originalIndex: i });
+    if (i === draggedIndex) continue;
+    const center = cardRects[i].top + cardRects[i].height / 2;
+    if (cursorY < center) break;
+    cardsAboveCursor++;
   }
-  for (let i = 0; i < filtered.length; i++) {
-    if (cursorY < filtered[i].center) {
-      return filtered[i].originalIndex;
-    }
-  }
-  return cardRects.length - (skipIndex !== undefined ? 1 : 0);
+  return cardsAboveCursor;
+}
+
+function compactedToFullIndex(compactedIndex: number, removedIndex: number): number {
+  return compactedIndex < removedIndex ? compactedIndex : compactedIndex + 1;
+}
+
+export function resolvePreviewInsertBefore(
+  hoverTarget: HoverTarget | null,
+  columnName: string,
+  sourceIndexInColumn: number | null,
+): number | null {
+  if (!hoverTarget || hoverTarget.column !== columnName) return null;
+
+  const dropIndex = hoverTarget.index;
+  const sourceIsInThisColumn = sourceIndexInColumn !== null;
+  if (!sourceIsInThisColumn) return dropIndex;
+
+  const dropsOntoOwnSlot = dropIndex === sourceIndexInColumn;
+  if (dropsOntoOwnSlot) return null;
+
+  return compactedToFullIndex(dropIndex, sourceIndexInColumn);
 }
 
 export function computeHoverTarget(
@@ -38,7 +55,7 @@ export function computeHoverTarget(
   if (!column) return null;
 
   const cardRects = cardRectsByColumn.get(column) ?? [];
-  const skipIndex = dragSource && dragSource.column === column ? dragSource.index : undefined;
-  const index = computeDropIndex(cardRects, cursor.y, skipIndex);
+  const draggedIndex = dragSource && dragSource.column === column ? dragSource.index : undefined;
+  const index = computeDropIndex(cardRects, cursor.y, draggedIndex);
   return { column, index };
 }

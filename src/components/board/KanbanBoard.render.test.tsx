@@ -117,6 +117,41 @@ describe("KanbanBoard rendering", () => {
   });
 });
 
+describe("KanbanBoard same-column drop preview", () => {
+  it("opens a slot at the top when dragging the lower ticket above the upper one", () => {
+    const tickets = [
+      makeTicket({ folderName: "t-1-alpha", number: "T-1", title: "Alpha", status: "todo" }),
+      makeTicket({ folderName: "t-2-bravo", number: "T-2", title: "Bravo", status: "todo" }),
+    ];
+    const board = makeBoard(tickets);
+    const dragState = () => ({
+      activeId: "todo:t-2-bravo",
+      hoverTarget: { column: "todo", index: 0 },
+    });
+    const activeTicket = () => tickets[1];
+    const { container } = render(() => (
+      <KanbanBoard
+        board={board}
+        projectSlug="test"
+        onEdit={noop}
+        onDelete={noop}
+        onViewDetail={noop}
+        onArchive={noop}
+        onReorder={noop}
+        dragState={dragState}
+        activeTicket={activeTicket}
+      />
+    ));
+    const indicators = container.querySelectorAll("[data-drop-indicator]");
+    expect(indicators.length).toBe(1);
+    const firstCard = container.querySelector("[data-sortable-id]")!;
+    const precedesFirstCard =
+      indicators[0].compareDocumentPosition(firstCard)
+      & Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(precedesFirstCard).toBeTruthy();
+  });
+});
+
 describe("KanbanBoard column descriptions", () => {
   it("renders description when present", () => {
     const board = makeBoard([], [{ name: "todo", description: "Work items" }, { name: "done" }]);
