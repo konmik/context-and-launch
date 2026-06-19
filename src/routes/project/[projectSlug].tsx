@@ -1,9 +1,10 @@
 import { useParams, useNavigate, createAsync, revalidate } from "@solidjs/router";
+import { clientOnly } from "@solidjs/start";
 import { Show, For, Switch, Match, createSignal, createEffect, onCleanup, onMount } from "solid-js";
 import { DialogRoot, DialogTitle } from "~/components/ui/dialog";
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "~/components/ui/menu";
-import type { TicketInfo } from "~/core/ticket/ticket-store.js";
-import KanbanBoard from "~/components/board/KanbanBoard";
+
+const KanbanBoard = clientOnly(() => import("~/components/board/KanbanBoard"));
 import CreateTicketDialog from "~/components/ticket/CreateTicketDialog";
 import EditTicketDialog from "~/components/ticket/EditTicketDialog";
 import DeleteTicketDialog from "~/components/ticket/DeleteTicketDialog";
