@@ -82,7 +82,7 @@ export function resolveDrop(
 			toColumn, currentOrder, ticketMap, orphanFolderNames,
 		);
 		const fromIdx = colTickets.findIndex(t => t.folderName === folderName);
-		if (fromIdx === newIndex || fromIdx + 1 === newIndex) return null;
+		if (fromIdx === newIndex) return null;
 	}
 
 	return { folderName, fromColumn, toColumn, newIndex };

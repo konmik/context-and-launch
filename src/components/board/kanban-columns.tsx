@@ -1,4 +1,4 @@
-import { For, Show, type JSX } from "solid-js";
+import { For, Show } from "solid-js";
 import {
 	SortableProvider,
 	createSortable,
@@ -7,7 +7,7 @@ import {
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { ColumnDefinition } from "~/core/project/board-config.js";
 import TicketCard from "../ticket/TicketCard";
-import type { HoverTarget } from "./drop-index.js";
+import { type HoverTarget, resolvePreviewInsertBefore } from "./drop-index.js";
 import { DragPreview, DND_ACTIVE_CLASS } from "./dnd-shared.js";
 import { parseId, makeId, COLUMN_PREFIX } from "./kanban-id.js";
 
@@ -28,10 +28,7 @@ function DropPreview(props: { ticket: TicketInfo }) {
 function SortableTicketCard(props: {
 	ticket: TicketInfo;
 	column: string;
-	index: number;
 	activeId: string | null;
-	activeTicket: TicketInfo | null;
-	hoverTarget: HoverTarget | null;
 	orphanedStatus?: string;
 	onEdit: (ticket: TicketInfo) => void;
 	onDelete: (ticket: TicketInfo) => void;
@@ -41,33 +38,14 @@ function SortableTicketCard(props: {
 	const id = makeId(props.column, props.ticket.folderName);
 	const sortable = createSortable(id);
 	const isActive = () => props.activeId === id;
-	const isCrossColumn = () => {
-		const aid = props.activeId;
-		return aid !== null && parseId(aid).column !== props.column;
-	};
-	const showIndicator = () =>
-		isCrossColumn() &&
-		!isActive() &&
-		props.hoverTarget !== null &&
-		props.hoverTarget.column === props.column &&
-		props.hoverTarget.index === props.index;
 
 	return (
 		<div
 			ref={sortable.ref}
 			data-sortable-id={id}
-			class="flex flex-col gap-2"
 			classList={{ [DND_ACTIVE_CLASS]: isActive() }}
-			style={{
-				...(sortable.transform ? {
-					transform: `translate3d(${sortable.transform.x}px, ${sortable.transform.y}px, 0)`,
-				} : {}),
-			}}
 			{...sortable.dragActivators}
 		>
-			<Show when={showIndicator() && props.activeTicket}>
-				{(t) => <DropPreview ticket={t()} />}
-			</Show>
 			<TicketCard
 				ticket={props.ticket}
 				orphanedStatus={props.orphanedStatus}
@@ -108,12 +86,18 @@ export function TicketColumn(props: TicketColumnProps & {
 	registerRef: (el: HTMLDivElement) => void;
 }) {
 	const ids = () => props.tickets.map((t) => makeId(props.column.name, t.folderName));
-	const tailPreview = () => {
-		const h = props.hoverTarget;
+	const sourceIndexInColumn = () => {
 		const aid = props.activeId;
-		if (!h || !aid || h.column !== props.column.name || h.index !== props.tickets.length) return false;
-		return parseId(aid).column !== props.column.name;
+		if (!aid) return null;
+		const { column, folderName } = parseId(aid);
+		if (column !== props.column.name) return null;
+		const idx = props.tickets.findIndex((t) => t.folderName === folderName);
+		return idx === -1 ? null : idx;
 	};
+	const previewAt = () =>
+		resolvePreviewInsertBefore(
+			props.hoverTarget, props.column.name, sourceIndexInColumn(),
+		);
 	return (
 		<div class="flex min-w-[250px] flex-1 flex-col rounded-lg bg-muted/50 p-3">
 			<h3
@@ -132,21 +116,23 @@ export function TicketColumn(props: TicketColumnProps & {
 				<div ref={(el) => props.registerRef(el)} class="flex flex-1 flex-col gap-2">
 					<For each={props.tickets}>
 						{(ticket, i) => (
-							<SortableTicketCard
-								ticket={ticket}
-								column={props.column.name}
-								index={i()}
-								activeId={props.activeId}
-								activeTicket={props.activeTicket}
-								hoverTarget={props.hoverTarget}
-								onEdit={props.onEdit}
-								onDelete={props.onDelete}
-								onArchive={props.onArchive}
-								onViewDetail={props.onViewDetail}
-							/>
+							<>
+								<Show when={previewAt() === i() && props.activeTicket}>
+									{(t) => <DropPreview ticket={t()} />}
+								</Show>
+								<SortableTicketCard
+									ticket={ticket}
+									column={props.column.name}
+									activeId={props.activeId}
+									onEdit={props.onEdit}
+									onDelete={props.onDelete}
+									onArchive={props.onArchive}
+									onViewDetail={props.onViewDetail}
+								/>
+							</>
 						)}
 					</For>
-					<Show when={tailPreview() && props.activeTicket}>
+					<Show when={previewAt() === props.tickets.length && props.activeTicket}>
 						{(t) => <DropPreview ticket={t()} />}
 					</Show>
 					<Show when={props.tickets.length === 0}>
@@ -177,14 +163,11 @@ export function OrphanColumn(props: TicketColumnProps & { tickets: TicketInfo[] 
 			<SortableProvider ids={props.tickets.map((t) => makeId("undefined", t.folderName))}>
 				<div class="flex flex-1 flex-col gap-2">
 					<For each={props.tickets}>
-						{(ticket, i) => (
+						{(ticket) => (
 							<SortableTicketCard
 								ticket={ticket}
 								column="undefined"
-								index={i()}
 								activeId={props.activeId}
-								activeTicket={props.activeTicket}
-								hoverTarget={props.hoverTarget}
 								onEdit={props.onEdit}
 								onDelete={props.onDelete}
 								onArchive={props.onArchive}
