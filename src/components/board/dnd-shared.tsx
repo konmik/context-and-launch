@@ -7,9 +7,9 @@ import { joinClass } from "~/lib/class-util";
 // but the look — faded source, tilted floating overlay, ghost drop preview —
 // is the same.
 
-// Applied to the source item while it is being dragged: fades it in place
-// instead of removing it from the layout.
-export const DND_ACTIVE_CLASS = "opacity-30";
+// Applied to the source item while it is being dragged: hides it in place
+// (fully transparent) while keeping its slot in the layout.
+export const DND_ACTIVE_CLASS = "opacity-0";
 
 // The floating card that follows the cursor inside a DragOverlay.
 export const DND_OVERLAY_CLASS = "rotate-2 scale-95 opacity-80 shadow-xl";
