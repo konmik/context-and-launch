@@ -1,4 +1,4 @@
-# Context & Launch
+**# Context & Launch
 
 A local kanban board with context engineering, automatic worktrees, and git ticket storage. Assemble a prompt and launch an AI agent in one click.
 
@@ -68,22 +68,17 @@ The Windows script requires [Windows Terminal](https://learn.microsoft.com/en-us
 - Anthropic will bill third-party interfaces separately from subscriptions starting 15 June 2026
 - The problem of agentic UI is already solved
 
-## Install and run
+### Run as a normal desktop app
 
-Prerequisites: Node.js >= 20.
+```
+npm run electron:dist
+```
 
-On Windows: [Windows Terminal](https://learn.microsoft.com/en-us/windows/terminal/install).
+On Windows this produces `dist-electron/context-launch-setup.exe` (NSIS installer).
+It requires (not mandatory, but default settings expect): [Windows Terminal](https://learn.microsoft.com/en-us/windows/terminal/install).
 
-### For users
-
-Clone or download the repo, then run the launch script:
-
-- Windows: `./run.ps1`
-- Linux / macOS: `./run.sh`
-
-The script installs dependencies if needed, builds the app, starts a background server, and opens the browser in app mode.
-
-The server shuts down automatically when the app window is closed (with a few seconds grace period for pending operations).
+On macOS this produces `dist-electron/context-launch-setup.dmg`. Open the DMG and drag the app to Applications.
+The build is unsigned. On first launch, right-click the app and choose Open (or go to System Settings > Privacy & Security > Open Anyway).
 
 ### First-time setup
 
@@ -97,18 +92,6 @@ Most templates accept placeholders like `{{ticketDir}}`, `{{ticketTitle}}`, `{{p
 
 Tickets can be added to the board right away, but expect to spend a few minutes tailoring prompts, skills, and launch commands before the one-click launch fits the workflow.
 
-### Desktop app (Electron)
-
-```
-npm run electron:dist
-```
-
-On Windows this produces `dist-electron/context-launch-setup.exe` (NSIS installer).
-
-On macOS this produces `dist-electron/context-launch-setup.dmg`. Open the DMG and drag the app to Applications.
-
-The macOS build is unsigned. On first launch, right-click the app and choose Open (or go to System Settings > Privacy & Security > Open Anyway).
-
 ### For contributors
 
 ```
@@ -116,4 +99,4 @@ npm install
 npm run dev
 ```
 
-If you wish to contribute, create an issue first. PRs from unknown contributors will be ignored.
+If you wish to contribute, please create an issue first. PRs from unknown contributors will be ignored.
