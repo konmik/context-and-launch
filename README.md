@@ -60,7 +60,7 @@ Because it is a regular git branch, ticket data can be synced with teammates via
 
 ## Integration with AI agents
 
-Currently supports **Claude Code**. Contributors are welcome to add integrations for other agents. Agent launch scripts are part of the app configuration; modify them as you like.
+Default settings include support for [Claude Code](https://code.claude.com/docs/en/overview). [Pi](https://pi.dev/) was tested and it worked fine.
 
 The Windows script requires [Windows Terminal](https://learn.microsoft.com/en-us/windows/terminal/install), but if a different terminal is preferred, just ask Claude to modify the script.
 
