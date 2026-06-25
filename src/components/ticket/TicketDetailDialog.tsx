@@ -101,9 +101,10 @@ function TicketDetailContent(props: {
         <FloatingPanelHeader>
           <FloatingPanelDragTrigger class="flex flex-col gap-3">
             <div class="flex items-start justify-between gap-4">
-              <div class="flex min-w-0 flex-1 items-center gap-1.5 text-lg font-semibold" data-no-drag>
+              <div class="flex min-w-0 flex-1 items-center gap-1.5 text-lg font-semibold">
                 <input
                   type="text"
+                  data-no-drag
                   data-testid="ticket-detail-number-input"
                   value={s.editedNumber()}
                   onInput={(e) => s.setEditedNumber(e.currentTarget.value)}
@@ -116,6 +117,7 @@ function TicketDetailContent(props: {
                 <span class="shrink-0">-</span>
                 <input
                   type="text"
+                  data-no-drag
                   data-testid="ticket-detail-title-input"
                   value={s.editedTitle()}
                   onInput={(e) => s.setEditedTitle(e.currentTarget.value)}
