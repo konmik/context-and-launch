@@ -195,10 +195,26 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
       return;
     }
     lastPushedValue = null;
-    if (view && view.state.doc.toString() !== val) {
-      view.dispatch({
-        changes: { from: 0, to: view.state.doc.length, insert: val },
-      });
+    if (view) {
+      const oldText = view.state.doc.toString();
+      if (oldText !== val) {
+        let prefixLen = 0;
+        const minLen = Math.min(oldText.length, val.length);
+        while (prefixLen < minLen && oldText.charCodeAt(prefixLen) === val.charCodeAt(prefixLen))
+          prefixLen++;
+        let oldEnd = oldText.length;
+        let newEnd = val.length;
+        while (
+          oldEnd > prefixLen && newEnd > prefixLen
+          && oldText.charCodeAt(oldEnd - 1) === val.charCodeAt(newEnd - 1)
+        ) {
+          oldEnd--;
+          newEnd--;
+        }
+        view.dispatch({
+          changes: { from: prefixLen, to: oldEnd, insert: val.slice(prefixLen, newEnd) },
+        });
+      }
     }
   });
 

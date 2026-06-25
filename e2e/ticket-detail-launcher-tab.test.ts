@@ -194,6 +194,48 @@ describe("Ticket detail Launcher tab (e2e, real server)", () => {
     expect(textReverted).toContain(project.projectPath);
   }, 60000);
 
+  it("cursor stays near original position when prompt updates externally", async () => {
+    await setup("cursor-preserve");
+    const cm = ctx.page.locator('.cm-content');
+    await cm.waitFor({ state: "visible", timeout: 15000 });
+
+    const docLen = await ctx.page.evaluate(() => {
+      const c = document.querySelector('.cm-content') as any;
+      const view = c?.cmTile?.root?.view;
+      return view ? view.state.doc.length : -1;
+    });
+    expect(docLen).toBeGreaterThan(20);
+
+    const middleOffset = Math.floor(docLen / 2);
+    await ctx.page.evaluate((offset) => {
+      const c = document.querySelector('.cm-content') as any;
+      const view = c?.cmTile?.root?.view;
+      if (!view) throw new Error("CM view not found");
+      view.focus();
+      view.dispatch({ selection: { anchor: offset } });
+    }, middleOffset);
+
+    const cursorBefore = await ctx.page.evaluate(() => {
+      const c = document.querySelector('.cm-content') as any;
+      return c?.cmTile?.root?.view?.state?.selection?.main?.anchor ?? -1;
+    });
+    expect(cursorBefore).toBe(middleOffset);
+
+    const cb = ctx.page.locator(
+      '[data-testid="ticket-detail-launcher-skill-checkbox"][data-skill-name="alpha-skill"]',
+    );
+    await cb.waitFor({ state: "visible", timeout: 15000 });
+    await cb.check();
+    await ctx.page.waitForTimeout(500);
+
+    const cursorAfter = await ctx.page.evaluate(() => {
+      const c = document.querySelector('.cm-content') as any;
+      return c?.cmTile?.root?.view?.state?.selection?.main?.anchor ?? -1;
+    });
+
+    expect(cursorAfter).toBe(middleOffset);
+  }, 60000);
+
   it("prompt preview interpolates {{launchDir}} placeholder", async () => {
     const project = await createProject(ctx.testServer, {
       projectSlug: uniqueSlug("tdl-dir-preview"),
