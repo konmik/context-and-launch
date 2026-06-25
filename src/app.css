@@ -242,7 +242,6 @@
 
 	[data-scope="floating-panel"][data-part="header"] {
 		flex-shrink: 0;
-		padding: 1rem;
 	}
 
 	[data-scope="floating-panel"][data-part="body"] {
@@ -262,6 +261,7 @@
 	[data-scope="floating-panel"][data-part="drag-trigger"] {
 		cursor: move;
 		user-select: none;
+		padding: 1rem;
 	}
 
 	[data-scope="floating-panel"][data-part="resize-trigger"] {
