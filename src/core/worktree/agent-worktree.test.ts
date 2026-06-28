@@ -257,25 +257,21 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it('behind-remote returns early when upstream is ahead without attempting worktree creation', async () => {
-		// 1. Create a bare repo as the "remote"
+	it('behind-remote proceeds with worktree creation and sets behindRemote flag', async () => {
 		const bareDir = tmpDir('awm-bare-');
 		dirs.push(bareDir);
 		execSync('git init --bare -b main', { cwd: bareDir, timeout: 5000 });
 
-		// 2. Clone it as the working repo (sets up tracking automatically)
 		const projectDir = tmpDir('awm-behind-');
 		dirs.push(projectDir);
 		execSync(`git clone "${bareDir}" "${projectDir}"`, { timeout: 5000 });
 		execSync('git config user.email "test@test.com"', { cwd: projectDir, timeout: 5000 });
 		execSync('git config user.name "Test"', { cwd: projectDir, timeout: 5000 });
-		// Need an initial commit so the branch exists
 		fs.writeFileSync(path.join(projectDir, 'README.md'), '# test');
 		execSync('git add .', { cwd: projectDir, timeout: 5000 });
 		execSync('git commit -m "init"', { cwd: projectDir, timeout: 5000 });
 		execSync('git push -u origin main', { cwd: projectDir, timeout: 5000 });
 
-		// 3. Clone bare again, add a commit, push -- now projectDir is behind by 1
 		const pusherDir = tmpDir('awm-pusher-');
 		dirs.push(pusherDir);
 		execSync(`git clone "${bareDir}" "${pusherDir}"`, { timeout: 5000 });
@@ -286,10 +282,8 @@ describe('AgentWorktreeManager', () => {
 		execSync('git commit -m "ahead commit"', { cwd: pusherDir, timeout: 5000 });
 		execSync('git push', { cwd: pusherDir, timeout: 5000 });
 
-		// 4. Fetch in projectDir so it knows about the new remote commit
 		execSync('git fetch', { cwd: projectDir, timeout: 5000 });
 
-		// Set up config
 		const configDir = tmpDir('awm-config-');
 		const worktreeRoot = tmpDir('awm-worktrees-');
 		dirs.push(configDir, worktreeRoot);
@@ -304,24 +298,11 @@ describe('AgentWorktreeManager', () => {
 
 		const awm = new AgentWorktreeManager(lcm);
 
-		// Spy on git to verify no worktree add is attempted
-		const originalGit = gitModule.git;
-		const gitSpy = vi.spyOn(gitModule, 'git').mockImplementation(
-			(workDir: string, ...args: string[]) => {
-				if (args[0] === 'worktree' && args[1] === 'add') {
-					throw new Error('worktree add should not be called when behind remote');
-				}
-				return originalGit(workDir, ...args);
-			}
-		);
-
-		try {
-			const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0005-behind');
-			expect(result).toEqual({ behindRemote: true });
-			// Verify no worktree was created on disk
-			expect(fs.existsSync(path.join(worktreeRoot, 'st-0005-behind'))).toBe(false);
-		} finally {
-			gitSpy.mockRestore();
+		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0005-behind');
+		expect('worktreePath' in result).toBe(true);
+		if ('worktreePath' in result) {
+			expect(result.behindRemote).toBe(true);
+			expect(fs.existsSync(result.worktreePath)).toBe(true);
 		}
 	});
 
@@ -377,18 +358,10 @@ describe('AgentWorktreeManager', () => {
 		const awm = new AgentWorktreeManager(lcm);
 		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-stale-main');
 
-		// BUG: behind-remote check uses HEAD..@{upstream} which is feature's upstream.
-		// Feature branch is up-to-date, so behind-remote passes.
-		// But main is 1 commit behind origin/main. The worktree is created from stale main.
-		// This should either return behindRemote or create from fresh origin/main.
+		expect('worktreePath' in result).toBe(true);
 		if ('worktreePath' in result) {
-			// Worktree was created -- check if it has the newer content
-			const hasNewerContent = fs.existsSync(path.join(result.worktreePath, 'new-on-main.txt'));
-			// This assertion documents the bug: worktree is created from stale main
-			expect(hasNewerContent).toBe(true);
-		} else {
-			// If behindRemote was returned, the bug is fixed
-			expect('behindRemote' in result).toBe(true);
+			expect(result.behindRemote).toBe(true);
+			expect(fs.existsSync(result.worktreePath)).toBe(true);
 		}
 	});
 
@@ -877,15 +850,9 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it('pull-and-retry still behind remote after pull:'
-		+ ' pull succeeds but ensureAgentWorktree returns behindRemote again', async () => {
+	it('behind-remote creates worktree with flag even when still behind after pull', async () => {
 		const { projectDir, awm } = setup();
 
-		// Mock git so that:
-		// 1. pull succeeds (returns normally) -- simulating a successful but no-op pull
-		//    (e.g., "Already up to date" when local is on the right commit but remote
-		//    was force-pushed to a different history)
-		// 2. rev-list HEAD..@{upstream} --count returns "3" -- still behind after pulling
 		const originalGit = gitModule.git;
 		const gitSpy = vi.spyOn(gitModule, 'git').mockImplementation(
 			(workDir: string, ...args: string[]) => {
@@ -900,36 +867,13 @@ describe('AgentWorktreeManager', () => {
 		);
 
 		try {
-			// Replicate the exact control flow from pull-and-retry.ts lines 17-31:
-			//   await agentWorktreeManager.pullMainBranch(project.path);       // line 17
-			//   ... readLaunchRequest ...                                      // lines 19-20
-			//   const worktreeResult = await agentWorktreeManager.ensureAgentWorktree(...)  // line 27
-			//   if ('behindRemote' in worktreeResult) {                        // line 28
-			//     return new Response("Still behind remote after pulling", { status: 500 }); // line 29
-			//   }
-
-			// Step 1: pullMainBranch succeeds (no throw)
 			await awm.pullMainBranch(projectDir);
-
-			// Step 2: ensureAgentWorktree returns behindRemote because rev-list still shows ahead commits
-			const worktreeResult = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-still-behind');
-
-			// Step 3: The route checks for behindRemote and returns 500
-			expect('behindRemote' in worktreeResult).toBe(true);
-			if ('behindRemote' in worktreeResult) {
-				expect(worktreeResult.behindRemote).toBe(true);
+			const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-still-behind');
+			expect('worktreePath' in result).toBe(true);
+			if ('worktreePath' in result) {
+				expect(result.behindRemote).toBe(true);
+				expect(fs.existsSync(result.worktreePath)).toBe(true);
 			}
-
-			// Step 4: Replicate the response construction from pull-and-retry.ts line 29
-			const status = 'behindRemote' in worktreeResult ? 500 : 200;
-			const body = 'behindRemote' in worktreeResult ? 'Still behind remote after pulling' : null;
-
-			expect(status).toBe(500);
-			expect(body).toBe('Still behind remote after pulling');
-
-			// Step 5: Verify no worktree was created (ensureAgentWorktree returned early)
-			const worktreeList = await originalGit(projectDir, 'worktree', 'list', '--porcelain');
-			expect(worktreeList).not.toContain('st-still-behind');
 		} finally {
 			gitSpy.mockRestore();
 		}

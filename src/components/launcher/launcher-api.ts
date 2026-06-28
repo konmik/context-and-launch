@@ -2,7 +2,7 @@ import { query } from "@solidjs/router";
 import path from "path";
 import {
   launcherConfigManager, projectRegistry, worktreeManager,
-  operationTracker, ticketSyncManager, agentWorktreeManager,
+  operationTracker, ticketSyncManager,
   syncPendingTracker,
 } from "~/core/config/instances.js";
 import {
@@ -189,39 +189,7 @@ export async function launchAgentAction(
       return { ok: false as const, type: resolved.type, message: resolved.message };
     }
     await launchAgentCore(projectSlug, ticket, launchRequest, launchRequest.launchDir);
-    return { ok: true as const };
-  } catch (e) {
-    return errorResult(e);
-  }
-}
-
-export async function pullAndRetryLaunch(
-  projectSlug: string, folderName: string, launchRequest: LaunchRequest,
-) {
-  "use server";
-  try {
-    if (!launchRequest.launchDir) {
-      throw new ValidationError("launchDir is required");
-    }
-    const { ticket, project } = resolveTicketAndProject(projectSlug, folderName);
-    if (agentRunning(projectSlug, folderName)) {
-      return { ok: false as const, type: "error" as const, message: "Already started" };
-    }
-    await agentWorktreeManager.pullMainBranch(project.path, project.mainBranch);
-    const worktreeResult = await agentWorktreeManager.ensureAgentWorktree(
-      project.path, projectSlug, folderName, undefined, project.mainBranch,
-    );
-    if ('dirtyWorktree' in worktreeResult) {
-      return {
-        ok: false as const, type: "dirtyWorktree" as const,
-        message: "Main branch has uncommitted changes. Launch anyway?",
-      };
-    }
-    if ('behindRemote' in worktreeResult) {
-      return { ok: false as const, type: "error" as const, message: "Still behind remote after pulling" };
-    }
-    await launchAgentCore(projectSlug, ticket, launchRequest, launchRequest.launchDir);
-    return { ok: true as const };
+    return { ok: true as const, warning: resolved.warning };
   } catch (e) {
     return errorResult(e);
   }

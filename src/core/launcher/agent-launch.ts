@@ -100,9 +100,8 @@ export function agentRunning(projectSlug: string, folderName: string): boolean {
 }
 
 export type ResolveLaunchDirResult =
-  | { ok: true; launchDir: string }
-  | { ok: false; type: "dirtyWorktree"; message: string }
-  | { ok: false; type: "behindRemote"; message: string };
+  | { ok: true; launchDir: string; warning?: string }
+  | { ok: false; type: "dirtyWorktree"; message: string };
 
 export async function resolveLaunchDir(
   projectSlug: string, folderName: string, useWorktree: boolean, projectPath: string,
@@ -118,13 +117,10 @@ export async function resolveLaunchDir(
       message: "Main branch has uncommitted changes. Launch anyway?",
     };
   }
-  if ('behindRemote' in result) {
-    return {
-      ok: false, type: "behindRemote",
-      message: "Main branch is behind remote. Pull latest changes before launching?",
-    };
-  }
-  return { ok: true, launchDir: result.worktreePath };
+  return {
+    ok: true, launchDir: result.worktreePath,
+    ...(result.behindRemote ? { warning: "Main branch is behind remote." } : {}),
+  };
 }
 
 export function resolveTicketAndProject(

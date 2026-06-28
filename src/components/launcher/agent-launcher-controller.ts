@@ -4,7 +4,7 @@ import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/core/launch
 import type { ErrorInfo } from "~/core/shared/errors.js";
 import { createListReorder, orderByNameList } from "../board/list-reorder.js";
 import { resolveDefaults } from "./agent-launcher-pure.js";
-import { launchAgentAction, pullAndRetryLaunch } from "./launcher-api.js";
+import { launchAgentAction } from "./launcher-api.js";
 import { createPromptPreviewController } from "./prompt-preview-controller.js";
 
 type MergedSkill = MergedLauncherConfig["skills"][number];
@@ -28,7 +28,7 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 	const [skillOrder, setSkillOrder] = createSignal<string[]>(initial.skillOrder);
 	const [launching, setLaunching] = createSignal(false);
 	const [errorInfo, setErrorInfo] = createSignal<ErrorInfo | null>(null);
-	const [behindRemoteMsg, setBehindRemoteMsg] = createSignal("");
+	const [warningMsg, setWarningMsg] = createSignal("");
 	const [dirtyWorktreeMsg, setDirtyWorktreeMsg] = createSignal("");
 
 	createEffect(on(
@@ -79,7 +79,7 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 	async function launchAgent(extra?: Record<string, unknown>) {
 		setLaunching(true);
 		setErrorInfo(null);
-		setBehindRemoteMsg("");
+		setWarningMsg("");
 		setDirtyWorktreeMsg("");
 		try {
 			const result = await launchAgentAction(
@@ -92,9 +92,11 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 					launchDir: props.launchDir(),
 				},
 			);
-			if (result.ok) return;
+			if (result.ok) {
+				if (result.warning) setWarningMsg(result.warning);
+				return;
+			}
 			switch (result.type) {
-				case "behindRemote": setBehindRemoteMsg(result.message); break;
 				case "dirtyWorktree": setDirtyWorktreeMsg(result.message); break;
 				default: setErrorInfo({ description: result.message }); break;
 			}
@@ -105,35 +107,12 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 		}
 	}
 
-	async function pullAndRetry() {
-		setLaunching(true);
-		setBehindRemoteMsg("");
-		setErrorInfo(null);
-		try {
-			const result = await pullAndRetryLaunch(
-				props.projectSlug, props.ticket().folderName,
-				{
-					initialPrompt: preview.currentPrompt(),
-					useWorktree: props.useWorktree,
-					profileName: selectedProfile(),
-					force: false,
-					launchDir: props.launchDir(),
-				},
-			);
-			if (!result.ok) setErrorInfo({ description: result.message });
-		} catch (e: unknown) {
-			setErrorInfo({ description: e instanceof Error ? e.message : "Network error" });
-		} finally {
-			setLaunching(false);
-		}
-	}
-
 	return {
 		selectedTemplate, selectedProfile, checkedSkills,
-		orderedSkills, launching, errorInfo, behindRemoteMsg, dirtyWorktreeMsg,
+		orderedSkills, launching, errorInfo, warningMsg, dirtyWorktreeMsg,
 		setSelectedTemplate, setSelectedProfile,
-		setErrorInfo, setBehindRemoteMsg, setDirtyWorktreeMsg,
-		toggleSkill, skillReorder, launchAgent, pullAndRetry,
+		setErrorInfo, setWarningMsg, setDirtyWorktreeMsg,
+		toggleSkill, skillReorder, launchAgent,
 		preview, launchDir: props.launchDir,
 	};
 }

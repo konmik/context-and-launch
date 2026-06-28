@@ -25,10 +25,7 @@ function canonicalize(p: string): string {
 
 export interface WorktreeResult {
 	worktreePath: string;
-}
-
-export interface BehindRemoteResult {
-	behindRemote: true;
+	behindRemote?: true;
 }
 
 export interface DirtyWorktreeResult {
@@ -52,7 +49,7 @@ export class AgentWorktreeManager {
 		folderName: string,
 		options?: { skipDirtyCheck?: boolean },
 		configuredBranch?: string,
-	): Promise<WorktreeResult | BehindRemoteResult | DirtyWorktreeResult> {
+	): Promise<WorktreeResult | DirtyWorktreeResult> {
 		const worktreeRootPath = this.launcherConfig.resolveAgentWorktreeRoot(projectSlug);
 
 		const branchName = worktreeBranchName(folderName);
@@ -66,16 +63,16 @@ export class AgentWorktreeManager {
 			}
 		}
 
+		let behindRemote = false;
 		try {
 			const behindCount = await git(
 				projectPath, 'rev-list',
 				`${mainBranch}..${mainBranch}@{upstream}`, '--count',
 			);
 			if (parseInt(behindCount.trim(), 10) > 0) {
-				return { behindRemote: true };
+				behindRemote = true;
 			}
 		} catch (e) {
-			// No upstream configured for main -- skip the behind-remote check
 			console.warn('Skipping upstream check:', e instanceof Error ? e.message : e);
 		}
 
@@ -89,7 +86,7 @@ export class AgentWorktreeManager {
 			);
 
 		if (alreadyExists) {
-			return { worktreePath };
+			return behindRemote ? { worktreePath, behindRemote } : { worktreePath };
 		}
 
 		const branchList = await git(projectPath, 'branch', '--list', branchName);
@@ -100,7 +97,7 @@ export class AgentWorktreeManager {
 			await git(projectPath, 'worktree', 'add', '-b', branchName, worktreePath, mainBranch);
 		}
 
-		return { worktreePath };
+		return behindRemote ? { worktreePath, behindRemote } : { worktreePath };
 	}
 
 	async pullMainBranch(projectPath: string, configuredBranch?: string): Promise<void> {
