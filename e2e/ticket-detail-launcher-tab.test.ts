@@ -82,9 +82,10 @@ describe("Ticket detail Launcher tab (e2e, real server)", () => {
     expect(aiRunRequest).toBe(true);
   }, 60000);
 
-  it("reference-only: warning and dirty-worktree dialog testids are absent on happy path", async () => {
+  it("reference-only: behind-remote and dirty-worktree dialog testids are absent on happy path", async () => {
     await setup("ref-only");
-    expect(await ctx.page.locator('[data-testid="ticket-detail-launcher-warning"]').count()).toBe(0);
+    expect(await ctx.page.locator('[data-testid="ticket-detail-launcher-behind-remote-cancel"]').count()).toBe(0);
+    expect(await ctx.page.locator('[data-testid="ticket-detail-launcher-behind-remote-proceed"]').count()).toBe(0);
     expect(await ctx.page.locator('[data-testid="ticket-detail-launcher-dirty-cancel"]').count()).toBe(0);
     expect(await ctx.page.locator('[data-testid="ticket-detail-launcher-dirty-launch-anyway"]').count()).toBe(0);
   }, 60000);

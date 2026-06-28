@@ -183,13 +183,14 @@ export async function launchAgentAction(
     }
     const resolved = await resolveLaunchDir(
       projectSlug, folderName, launchRequest.useWorktree, project.path,
-      launchRequest.force, project.mainBranch,
+      { skipDirtyCheck: launchRequest.force, skipBehindRemote: launchRequest.skipBehindRemote },
+      project.mainBranch,
     );
     if (!resolved.ok) {
       return { ok: false as const, type: resolved.type, message: resolved.message };
     }
     await launchAgentCore(projectSlug, ticket, launchRequest, launchRequest.launchDir);
-    return { ok: true as const, warning: resolved.warning };
+    return { ok: true as const };
   } catch (e) {
     return errorResult(e);
   }
@@ -207,7 +208,9 @@ export async function runShortcut(
     const shortcut = merged.shortcuts.find(s => s.name === name);
     if (!shortcut) throw new Error(`Shortcut "${name}" not found`);
     const resolved = await resolveLaunchDir(
-      projectSlug, folderName, useWorktree, project.path, force, project.mainBranch,
+      projectSlug, folderName, useWorktree, project.path,
+      { skipDirtyCheck: force, skipBehindRemote: force },
+      project.mainBranch,
     );
     if (!resolved.ok) {
       return { ok: false as const, type: resolved.type, message: resolved.message };
