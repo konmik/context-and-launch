@@ -42,7 +42,6 @@ vi.mock("../launcher/launcher-api.js", () => ({
   getMergedLauncherConfig: (...args: unknown[]) => mockGetMergedLauncherConfig(...args),
   saveColumnDefaults: vi.fn().mockResolvedValue({ ok: true }),
   launchAgentAction: vi.fn().mockResolvedValue({ ok: true }),
-  pullAndRetryLaunch: vi.fn().mockResolvedValue({ ok: true }),
   runShortcut: vi.fn().mockResolvedValue({ ok: true }),
   getLastUsedProfile: vi.fn().mockResolvedValue(null),
   saveLastUsedProfile: vi.fn().mockResolvedValue({ ok: true }),
