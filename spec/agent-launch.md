@@ -14,8 +14,8 @@
     - Root not configured: error
     - Main branch dirty: return dirty flag
       - User can force-retry, skipping dirty check
-    - Main branch behind remote: proceed, return warning flag
-      - UI shows non-blocking warning after launch
+    - Main branch behind remote: return behind-remote flag
+      - User can proceed or cancel
     - Create or reuse worktree on a per-ticket branch
       - Worktree folder and branch name use the ticket folder name truncated to 50 characters
         - Keeps Windows paths under the 260 character limit for repos with deep file trees
