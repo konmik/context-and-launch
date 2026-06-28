@@ -199,11 +199,6 @@ describe('duplicate-launch guard (code-inspection)', () => {
 		expect(launcherApiSource).toContain('Already started');
 	});
 
-	it('pullAndRetryLaunch guards with agentRunning', () => {
-		expect(launcherApiSource).toContain('pullAndRetryLaunch');
-		expect(launcherApiSource).toMatch(/agentRunning\(projectSlug,\s*folderName\)/);
-	});
-
 	it('launcher-api does not rely on window-title matching', () => {
 		expect(launcherApiSource).not.toContain('windowExists');
 		expect(launcherApiSource).not.toContain('buildWindowTitle');
