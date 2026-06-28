@@ -100,16 +100,18 @@ export function agentRunning(projectSlug: string, folderName: string): boolean {
 }
 
 export type ResolveLaunchDirResult =
-  | { ok: true; launchDir: string; warning?: string }
-  | { ok: false; type: "dirtyWorktree"; message: string };
+  | { ok: true; launchDir: string }
+  | { ok: false; type: "dirtyWorktree"; message: string }
+  | { ok: false; type: "behindRemote"; message: string };
 
 export async function resolveLaunchDir(
   projectSlug: string, folderName: string, useWorktree: boolean, projectPath: string,
-  force?: boolean, mainBranch?: string,
+  opts?: { skipDirtyCheck?: boolean; skipBehindRemote?: boolean },
+  mainBranch?: string,
 ): Promise<ResolveLaunchDirResult> {
   if (!useWorktree) return { ok: true, launchDir: projectPath };
   const result = await agentWorktreeManager.ensureAgentWorktree(
-    projectPath, projectSlug, folderName, { skipDirtyCheck: force }, mainBranch,
+    projectPath, projectSlug, folderName, { skipDirtyCheck: opts?.skipDirtyCheck }, mainBranch,
   );
   if ('dirtyWorktree' in result) {
     return {
@@ -117,10 +119,13 @@ export async function resolveLaunchDir(
       message: "Main branch has uncommitted changes. Launch anyway?",
     };
   }
-  return {
-    ok: true, launchDir: result.worktreePath,
-    ...(result.behindRemote ? { warning: "Main branch is behind remote." } : {}),
-  };
+  if (result.behindRemote && !opts?.skipBehindRemote) {
+    return {
+      ok: false, type: "behindRemote",
+      message: "Main branch is behind remote. Proceed with the worktree anyway?",
+    };
+  }
+  return { ok: true, launchDir: result.worktreePath };
 }
 
 export function resolveTicketAndProject(
@@ -142,12 +147,14 @@ export interface LaunchRequest {
   useWorktree: boolean;
   profileName: string;
   force: boolean;
+  skipBehindRemote: boolean;
   launchDir: string;
 }
 
 export function parseLaunchRequest(body: unknown): LaunchRequest {
   const result: LaunchRequest = {
-    initialPrompt: "", useWorktree: false, profileName: "", force: false, launchDir: "",
+    initialPrompt: "", useWorktree: false, profileName: "", force: false,
+    skipBehindRemote: false, launchDir: "",
   };
   if (body && typeof body === "object") {
     const b = body as Record<string, unknown>;
@@ -155,6 +162,7 @@ export function parseLaunchRequest(body: unknown): LaunchRequest {
     if (typeof b.useWorktree === "boolean") result.useWorktree = b.useWorktree;
     if (typeof b.profileName === "string") result.profileName = b.profileName;
     if (typeof b.force === "boolean") result.force = b.force;
+    if (typeof b.skipBehindRemote === "boolean") result.skipBehindRemote = b.skipBehindRemote;
     if (typeof b.launchDir === "string") result.launchDir = b.launchDir;
   }
   return result;

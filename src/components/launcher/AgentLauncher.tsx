@@ -151,19 +151,26 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 
 			<ErrorDialog error={c.errorInfo()} onClose={() => c.setErrorInfo(null)} />
 
-			<Show when={c.warningMsg()}>
-				<div
-					class="flex items-center justify-between rounded bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200"
-					data-testid="ticket-detail-launcher-warning"
-				>
-					<span>{c.warningMsg()}</span>
+			<DialogRoot open={!!c.behindRemoteMsg()} onOpenChange={() => c.setBehindRemoteMsg("")} class="max-w-sm">
+				<DialogTitle class="sr-only">Behind Remote</DialogTitle>
+				<p class="mb-4 text-sm">{c.behindRemoteMsg()}</p>
+				<div class="flex justify-end gap-2">
 					<button
-						onClick={() => c.setWarningMsg("")}
-						class="ml-2 shrink-0 text-yellow-200/60 hover:text-yellow-200"
-						data-testid="ticket-detail-launcher-warning-dismiss"
-					>&times;</button>
+						onClick={() => c.setBehindRemoteMsg("")}
+						class="btn-secondary"
+						data-testid="ticket-detail-launcher-behind-remote-cancel"
+					>Cancel</button>
+					<button
+						onClick={() => {
+							c.setBehindRemoteMsg("");
+							c.launchAgent({ skipBehindRemote: true });
+						}}
+						disabled={c.launching()}
+						class="btn-primary"
+						data-testid="ticket-detail-launcher-behind-remote-proceed"
+					>Proceed</button>
 				</div>
-			</Show>
+			</DialogRoot>
 
 			<DialogRoot open={!!c.dirtyWorktreeMsg()} onOpenChange={() => c.setDirtyWorktreeMsg("")} class="max-w-sm">
 				<DialogTitle class="sr-only">Uncommitted Changes</DialogTitle>

@@ -28,7 +28,7 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 	const [skillOrder, setSkillOrder] = createSignal<string[]>(initial.skillOrder);
 	const [launching, setLaunching] = createSignal(false);
 	const [errorInfo, setErrorInfo] = createSignal<ErrorInfo | null>(null);
-	const [warningMsg, setWarningMsg] = createSignal("");
+	const [behindRemoteMsg, setBehindRemoteMsg] = createSignal("");
 	const [dirtyWorktreeMsg, setDirtyWorktreeMsg] = createSignal("");
 
 	createEffect(on(
@@ -79,7 +79,7 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 	async function launchAgent(extra?: Record<string, unknown>) {
 		setLaunching(true);
 		setErrorInfo(null);
-		setWarningMsg("");
+		setBehindRemoteMsg("");
 		setDirtyWorktreeMsg("");
 		try {
 			const result = await launchAgentAction(
@@ -89,14 +89,13 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 					useWorktree: props.useWorktree,
 					profileName: selectedProfile(),
 					force: extra?.force === true,
+					skipBehindRemote: extra?.skipBehindRemote === true,
 					launchDir: props.launchDir(),
 				},
 			);
-			if (result.ok) {
-				if (result.warning) setWarningMsg(result.warning);
-				return;
-			}
+			if (result.ok) return;
 			switch (result.type) {
+				case "behindRemote": setBehindRemoteMsg(result.message); break;
 				case "dirtyWorktree": setDirtyWorktreeMsg(result.message); break;
 				default: setErrorInfo({ description: result.message }); break;
 			}
@@ -109,9 +108,9 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 
 	return {
 		selectedTemplate, selectedProfile, checkedSkills,
-		orderedSkills, launching, errorInfo, warningMsg, dirtyWorktreeMsg,
+		orderedSkills, launching, errorInfo, behindRemoteMsg, dirtyWorktreeMsg,
 		setSelectedTemplate, setSelectedProfile,
-		setErrorInfo, setWarningMsg, setDirtyWorktreeMsg,
+		setErrorInfo, setBehindRemoteMsg, setDirtyWorktreeMsg,
 		toggleSkill, skillReorder, launchAgent,
 		preview, launchDir: props.launchDir,
 	};
