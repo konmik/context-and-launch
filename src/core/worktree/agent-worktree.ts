@@ -4,7 +4,6 @@ import { rename } from 'fs/promises';
 import { exec } from 'child_process';
 import { git, detectMainBranch } from '../infra/git.js';
 import { worktreeBranchName, worktreeFolderName } from './worktree-naming.js';
-import { ProcessError } from '../shared/errors.js';
 import type { LauncherConfigManager } from '../launcher/launcher-config.js';
 
 
@@ -98,39 +97,6 @@ export class AgentWorktreeManager {
 		}
 
 		return behindRemote ? { worktreePath, behindRemote } : { worktreePath };
-	}
-
-	async pullMainBranch(projectPath: string, configuredBranch?: string): Promise<void> {
-		try {
-			const mainBranch = await this.getMainBranch(projectPath, configuredBranch);
-			const currentBranch = (await git(projectPath, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
-			if (currentBranch === mainBranch) {
-				await git(projectPath, 'pull', '--no-rebase');
-			} else {
-				const remote = await this.resolveRemote(projectPath, mainBranch);
-				await git(projectPath, 'fetch', remote, mainBranch);
-				const localRef = (await git(projectPath, 'rev-parse', mainBranch)).trim();
-				const remoteRef = (await git(projectPath, 'rev-parse', `${remote}/${mainBranch}`)).trim();
-				if (localRef !== remoteRef) {
-					const aheadCount = (await git(
-						projectPath, 'rev-list', `${remote}/${mainBranch}..${mainBranch}`, '--count',
-					)).trim();
-					if (parseInt(aheadCount, 10) > 0) {
-						const resetCmd = `git branch -f ${mainBranch} ${remote}/${mainBranch}`;
-						throw new Error(
-							`Local '${mainBranch}' has ${aheadCount} unpushed commit(s). `
-							+ `Push them (git push) or reset (${resetCmd}) first.`,
-						);
-					}
-				}
-				await git(projectPath, 'branch', '-f', mainBranch, `${remote}/${mainBranch}`);
-			}
-		} catch (e) {
-			if (e instanceof ProcessError) {
-				throw new ProcessError(e.command, e.exitCode, e.output, 'Failed to pull main branch');
-			}
-			throw new Error(`Failed to pull main branch: ${e instanceof Error ? e.message : String(e)}`);
-		}
 	}
 
 	async isWorktreeClean(worktreePath: string): Promise<boolean> {
