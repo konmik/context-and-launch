@@ -49,9 +49,9 @@ export class AgentWorktreeManager {
 		options?: { skipDirtyCheck?: boolean },
 		configuredBranch?: string,
 	): Promise<WorktreeResult | DirtyWorktreeResult> {
-		const worktreeRootPath = this.launcherConfig.resolveAgentWorktreeRoot(projectSlug);
+		const { worktreeRootPath, branchPrefix } = this.launcherConfig.resolveWorktreeSettings(projectSlug);
 
-		const branchName = worktreeBranchName(folderName);
+		const branchName = worktreeBranchName(folderName, branchPrefix);
 		const worktreePath = `${worktreeRootPath}/${worktreeFolderName(folderName)}`;
 		const mainBranch = await this.getMainBranch(projectPath, configuredBranch);
 

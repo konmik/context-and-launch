@@ -71,6 +71,17 @@ export async function saveWorktreeRootPath(projectSlug: string, worktreeRootPath
   }
 }
 
+export async function saveBranchPrefix(projectSlug: string, branchPrefix: string | undefined) {
+  "use server";
+  try {
+    const value = branchPrefix?.trim() || undefined;
+    launcherConfigManager.saveBranchPrefix(projectSlug, value);
+    return { ok: true as const };
+  } catch (e) {
+    return errorResult(e);
+  }
+}
+
 export async function saveConflictResolution(projectSlug: string, conflictResolutionPrompt: string) {
   "use server";
   try {

@@ -7,6 +7,7 @@ import {
   getMergedLauncherConfig, type MergedLauncherConfigWithMeta,
   addItem, updateItem, deleteItem as deleteItemAction,
   reorderSkill, saveWorktreeRootPath as saveWorktreeRootPathAction,
+  saveBranchPrefix as saveBranchPrefixAction,
   saveConflictResolution as saveConflictResolutionAction,
 } from "./launcher-api.js";
 import {
@@ -34,6 +35,7 @@ export function createLauncherSettingsState(props: {
 	const [form, setForm] = createSignal<ItemFormState | null>(null);
 	const [projectName, setProjectName] = createSignal("");
 	const [worktreeRootPath, setWorktreeRootPath] = createSignal("");
+	const [branchPrefix, setBranchPrefix] = createSignal<string | undefined>(undefined);
 	const [conflictPrompt, setConflictPrompt] = createSignal("");
 	const [activeTab, setActiveTab] = createSignal<string>("profiles");
 	const [boards, setBoards] = createSignal<BoardDefinition[]>([]);
@@ -87,6 +89,7 @@ export function createLauncherSettingsState(props: {
 			setProjectBoardId(data.projectBoardId ?? null);
 			setProjectName(data.projectName ?? "");
 			setWorktreeRootPath(data.worktreeRootPath ?? "");
+			setBranchPrefix(data.branchPrefix);
 			setConflictPrompt(data.conflictResolutionPrompt ?? "");
 		} catch (e) { setError(e instanceof Error ? e.message : "Failed to load config"); }
 		finally { setLoading(false); }
@@ -154,6 +157,15 @@ export function createLauncherSettingsState(props: {
 		setError("");
 		try {
 			const result = await saveWorktreeRootPathAction(props.projectSlug, worktreeRootPath());
+			if (!result.ok) { setError(result.message); return; }
+			await loadConfig();
+		} catch (e) { setError(e instanceof Error ? e.message : "Failed to save"); }
+	}
+
+	async function saveBranchPrefixFn() {
+		setError("");
+		try {
+			const result = await saveBranchPrefixAction(props.projectSlug, branchPrefix());
 			if (!result.ok) { setError(result.message); return; }
 			await loadConfig();
 		} catch (e) { setError(e instanceof Error ? e.message : "Failed to save"); }
@@ -331,13 +343,13 @@ export function createLauncherSettingsState(props: {
 	return {
 		config, loading, error, setError, form, setForm,
 		projectName, setProjectName, worktreeRootPath, setWorktreeRootPath,
-		conflictPrompt, setConflictPrompt, activeTab, setActiveTab,
+		branchPrefix, setBranchPrefix, conflictPrompt, setConflictPrompt, activeTab, setActiveTab,
 		boards, projectBoardId, boardOverride, setBoardOverride,
 		columnForm, setColumnForm, boardForm, setBoardForm, renameForm, setRenameForm,
 		deleteConfirm, setDeleteConfirm, projectBoardConfirm, setProjectBoardConfirm, columnError, setColumnError,
 		selectedBoardId, selectedBoard, startAdd, startEdit, submitForm, deleteItem: deleteItemFn,
 		saveProjectName: saveProjectNameFn, saveWorktreeRootPath: saveWorktreeRootPathFn,
-		saveConflictResolution: saveConflictResolutionFn,
+		saveBranchPrefix: saveBranchPrefixFn, saveConflictResolution: saveConflictResolutionFn,
 		handleCreateBoard, handleDeleteBoard, handleSaveColumn,
 		handleDeleteColumn, handleRenameColumn, handleSetProjectBoard,
 		columnNameValidation, columnReorder, skillReorder,
