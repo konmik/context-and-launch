@@ -11,6 +11,9 @@ export function MiscTab(props: {
 	worktreeRootPath: string;
 	setWorktreeRootPath: (v: string) => void;
 	saveWorktreeRootPath: () => void;
+	branchPrefix: string | undefined;
+	setBranchPrefix: (v: string | undefined) => void;
+	saveBranchPrefix: () => void;
 	conflictPrompt: string;
 	setConflictPrompt: (v: string) => void;
 	saveConflictResolution: () => void;
@@ -73,6 +76,21 @@ export function MiscTab(props: {
 							class="btn-secondary"
 						>Browse</button>
 					</div>
+				</section>
+				<section>
+					<h3 class="mb-2 text-sm font-semibold">Branch prefix <ScopeBadge scope="project" /></h3>
+					<input
+						type="text"
+						value={props.branchPrefix ?? ""}
+						onInput={(e) => props.setBranchPrefix(e.currentTarget.value || undefined)}
+						onBlur={props.saveBranchPrefix}
+						onKeyDown={(e) => {
+							if (e.key === "Enter") props.saveBranchPrefix();
+						}}
+						class="input input-sm"
+						placeholder="No prefix"
+						data-testid="launcher-settings-misc-branch-prefix-input"
+					/>
 				</section>
 				<section>
 					<h3 class="mb-2 text-sm font-semibold">

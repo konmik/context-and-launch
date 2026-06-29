@@ -39,6 +39,7 @@ export interface LauncherConfig {
 	shortcuts?: LauncherShortcut[];
 	columnDefaults?: Record<string, LauncherColumnDefaults>;
 	worktreeRootPath?: string;
+	branchPrefix?: string;
 	conflictResolutionPrompt?: string;
 }
 
@@ -49,6 +50,7 @@ export interface MergedLauncherConfig {
 	shortcuts: (LauncherShortcut & { scope: "app" | "project" })[];
 	columnDefaults: Record<string, LauncherColumnDefaults>;
 	worktreeRootPath: string | null;
+	branchPrefix?: string;
 	conflictResolutionPrompt: string;
 }
 
@@ -109,6 +111,7 @@ function parseConfig(raw: unknown): LauncherConfig {
 		shortcuts: (parsed.shortcuts as LauncherShortcut[]) ?? [],
 		columnDefaults: parsed.columnDefaults as Record<string, LauncherColumnDefaults> | undefined,
 		worktreeRootPath: parsed.worktreeRootPath as string | undefined,
+		branchPrefix: parsed.branchPrefix as string | undefined,
 		conflictResolutionPrompt: parsed.conflictResolutionPrompt as string | undefined,
 	};
 }
@@ -155,6 +158,7 @@ export function mergeLauncherConfigs(
 		shortcuts: mergeByName(app.shortcuts ?? [], project.shortcuts ?? []),
 		columnDefaults: project.columnDefaults ?? {},
 		worktreeRootPath: project.worktreeRootPath ?? null,
+		branchPrefix: project.branchPrefix,
 		conflictResolutionPrompt:
 			typeof project.conflictResolutionPrompt === 'string'
 			&& project.conflictResolutionPrompt
@@ -189,8 +193,15 @@ export class LauncherConfigManager {
 	}
 
 	resolveAgentWorktreeRoot(projectSlug: string): string {
+		return this.resolveWorktreeSettings(projectSlug).worktreeRootPath;
+	}
+
+	resolveWorktreeSettings(projectSlug: string): { worktreeRootPath: string; branchPrefix?: string } {
 		const config = this.loadProjectConfig(projectSlug);
-		return config.worktreeRootPath || this.paths.agentWorktreeDir(projectSlug);
+		return {
+			worktreeRootPath: config.worktreeRootPath || this.paths.agentWorktreeDir(projectSlug),
+			branchPrefix: config.branchPrefix,
+		};
 	}
 
 	private appLauncherPath(): string {
@@ -623,6 +634,15 @@ export class LauncherConfigManager {
 	): void {
 		const config = this.loadProjectConfig(projectSlug);
 		config.worktreeRootPath = worktreeRootPath;
+		this.saveProjectConfig(projectSlug, config);
+	}
+
+	saveBranchPrefix(
+		projectSlug: string,
+		branchPrefix: string | undefined,
+	): void {
+		const config = this.loadProjectConfig(projectSlug);
+		config.branchPrefix = branchPrefix;
 		this.saveProjectConfig(projectSlug, config);
 	}
 

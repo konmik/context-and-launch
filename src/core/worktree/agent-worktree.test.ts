@@ -88,7 +88,7 @@ describe('AgentWorktreeManager', () => {
 			const branch = execSync('git rev-parse --abbrev-ref HEAD', {
 				cwd: result.worktreePath, timeout: 5000,
 			}).toString().trim();
-			expect(branch).toBe(`ai/${folderName}`);
+			expect(branch).toBe(folderName);
 		}
 	});
 
@@ -206,14 +206,14 @@ describe('AgentWorktreeManager', () => {
 		const folderName = 'st-0003-readd';
 		const worktreePath = path.join(worktreeRoot, folderName);
 
-		// First call: creates worktree and branch ai/st-0003-readd
+		// First call: creates worktree and branch st-0003-readd
 		const result1 = await awm.ensureAgentWorktree(projectDir, 'my-proj', folderName);
 		expect('worktreePath' in result1).toBe(true);
 		expect(fs.existsSync(worktreePath)).toBe(true);
 
 		// Branch exists
 		const branchBefore = execSync(
-			'git branch --list ai/st-0003-readd', { cwd: projectDir, timeout: 5000 },
+			'git branch --list st-0003-readd', { cwd: projectDir, timeout: 5000 },
 		).toString();
 		expect(branchBefore.trim()).toBeTruthy();
 
@@ -225,7 +225,7 @@ describe('AgentWorktreeManager', () => {
 
 		// Branch still exists after worktree removal
 		const branchAfter = execSync(
-			'git branch --list ai/st-0003-readd', { cwd: projectDir, timeout: 5000 },
+			'git branch --list st-0003-readd', { cwd: projectDir, timeout: 5000 },
 		).toString();
 		expect(branchAfter.trim()).toBeTruthy();
 
@@ -647,9 +647,9 @@ describe('AgentWorktreeManager', () => {
 		expect('worktreePath' in result).toBe(true);
 		if ('worktreePath' in result) {
 			await awm.removeWorktree(projectDir, result.worktreePath);
-			await awm.deleteLocalBranch(projectDir, 'ai/st-delbranch');
+			await awm.deleteLocalBranch(projectDir, 'st-delbranch');
 			const branchList = execSync(
-				'git branch --list ai/st-delbranch', { cwd: projectDir, timeout: 5000 },
+				'git branch --list st-delbranch', { cwd: projectDir, timeout: 5000 },
 			).toString();
 			expect(branchList.trim()).toBe('');
 		}
@@ -664,24 +664,24 @@ describe('AgentWorktreeManager', () => {
 		execSync('git commit -m "diverge from main"', { cwd: projectDir, timeout: 5000 });
 		execSync('git checkout main', { cwd: projectDir, timeout: 5000 });
 
-		execSync('git checkout -b ai/st-merged-feat', { cwd: projectDir, timeout: 5000 });
+		execSync('git checkout -b st-merged-feat', { cwd: projectDir, timeout: 5000 });
 		fs.writeFileSync(path.join(projectDir, 'feat.txt'), 'feature work');
 		execSync('git add .', { cwd: projectDir, timeout: 5000 });
 		execSync('git commit -m "feature commit"', { cwd: projectDir, timeout: 5000 });
 		execSync('git checkout main', { cwd: projectDir, timeout: 5000 });
-		execSync('git merge ai/st-merged-feat', { cwd: projectDir, timeout: 5000 });
+		execSync('git merge st-merged-feat', { cwd: projectDir, timeout: 5000 });
 
-		const merged = await awm.isBranchMerged(projectDir, 'ai/st-merged-feat');
+		const merged = await awm.isBranchMerged(projectDir, 'st-merged-feat');
 		expect(merged).toBe(true);
 
 		execSync('git checkout other-branch', { cwd: projectDir, timeout: 5000 });
 		const head = execSync('git rev-parse --abbrev-ref HEAD', { cwd: projectDir, timeout: 5000 }).toString().trim();
 		expect(head).toBe('other-branch');
 
-		await awm.deleteLocalBranch(projectDir, 'ai/st-merged-feat');
+		await awm.deleteLocalBranch(projectDir, 'st-merged-feat');
 
 		const branchList = execSync(
-			'git branch --list ai/st-merged-feat', { cwd: projectDir, timeout: 5000 },
+			'git branch --list st-merged-feat', { cwd: projectDir, timeout: 5000 },
 		).toString();
 		expect(branchList.trim()).toBe('');
 	});
@@ -702,7 +702,7 @@ describe('AgentWorktreeManager', () => {
 	it('isBranchMerged detects squash-merged branch', async () => {
 		const { projectDir, awm } = setup();
 
-		execSync('git checkout -b ai/st-squash-feat', { cwd: projectDir, timeout: 5000 });
+		execSync('git checkout -b st-squash-feat', { cwd: projectDir, timeout: 5000 });
 		fs.writeFileSync(path.join(projectDir, 'feat1.txt'), 'part 1');
 		execSync('git add .', { cwd: projectDir, timeout: 5000 });
 		execSync('git commit -m "feat part 1"', { cwd: projectDir, timeout: 5000 });
@@ -711,30 +711,30 @@ describe('AgentWorktreeManager', () => {
 		execSync('git commit -m "feat part 2"', { cwd: projectDir, timeout: 5000 });
 
 		execSync('git checkout main', { cwd: projectDir, timeout: 5000 });
-		execSync('git merge --squash ai/st-squash-feat', { cwd: projectDir, timeout: 5000 });
+		execSync('git merge --squash st-squash-feat', { cwd: projectDir, timeout: 5000 });
 		execSync('git commit -m "squash: feat"', { cwd: projectDir, timeout: 5000 });
 
-		const merged = await awm.isBranchMerged(projectDir, 'ai/st-squash-feat');
+		const merged = await awm.isBranchMerged(projectDir, 'st-squash-feat');
 		expect(merged).toBe(true);
 	});
 
 	it('isBranchMerged detects squash-merged branch when main has moved forward', async () => {
 		const { projectDir, awm } = setup();
 
-		execSync('git checkout -b ai/st-squash-moved', { cwd: projectDir, timeout: 5000 });
+		execSync('git checkout -b st-squash-moved', { cwd: projectDir, timeout: 5000 });
 		fs.writeFileSync(path.join(projectDir, 'feat.txt'), 'feature');
 		execSync('git add .', { cwd: projectDir, timeout: 5000 });
 		execSync('git commit -m "feature commit"', { cwd: projectDir, timeout: 5000 });
 
 		execSync('git checkout main', { cwd: projectDir, timeout: 5000 });
-		execSync('git merge --squash ai/st-squash-moved', { cwd: projectDir, timeout: 5000 });
+		execSync('git merge --squash st-squash-moved', { cwd: projectDir, timeout: 5000 });
 		execSync('git commit -m "squash: feature"', { cwd: projectDir, timeout: 5000 });
 
 		fs.writeFileSync(path.join(projectDir, 'other.txt'), 'later work');
 		execSync('git add .', { cwd: projectDir, timeout: 5000 });
 		execSync('git commit -m "more work on main"', { cwd: projectDir, timeout: 5000 });
 
-		const merged = await awm.isBranchMerged(projectDir, 'ai/st-squash-moved');
+		const merged = await awm.isBranchMerged(projectDir, 'st-squash-moved');
 		expect(merged).toBe(true);
 	});
 
@@ -748,14 +748,14 @@ describe('AgentWorktreeManager', () => {
 		execSync('git config user.email "test@test.com"', { cwd: projectDir, timeout: 5000 });
 		execSync('git config user.name "Test"', { cwd: projectDir, timeout: 5000 });
 
-		execSync('git checkout -b ai/st-remote-squash', { cwd: projectDir, timeout: 5000 });
+		execSync('git checkout -b st-remote-squash', { cwd: projectDir, timeout: 5000 });
 		fs.writeFileSync(path.join(projectDir, 'feat.txt'), 'feature');
 		execSync('git add .', { cwd: projectDir, timeout: 5000 });
 		execSync('git commit -m "feature"', { cwd: projectDir, timeout: 5000 });
 		execSync('git checkout main', { cwd: projectDir, timeout: 5000 });
 
 		execSync('git checkout main', { cwd: remoteDir, timeout: 5000 });
-		execSync(`git fetch "${projectDir}" ai/st-remote-squash`, { cwd: remoteDir, timeout: 5000 });
+		execSync(`git fetch "${projectDir}" st-remote-squash`, { cwd: remoteDir, timeout: 5000 });
 		execSync('git merge --squash FETCH_HEAD', { cwd: remoteDir, timeout: 5000 });
 		execSync('git commit -m "squash: feature"', { cwd: remoteDir, timeout: 5000 });
 
@@ -767,20 +767,20 @@ describe('AgentWorktreeManager', () => {
 		lcm.saveProjectConfig('my-proj', { templates: [], skills: [], worktreeRootPath: tmpDir('awm-wt-rsq-') });
 		const awm = new AgentWorktreeManager(lcm);
 
-		const merged = await awm.isBranchMerged(projectDir, 'ai/st-remote-squash');
+		const merged = await awm.isBranchMerged(projectDir, 'st-remote-squash');
 		expect(merged).toBe(true);
 	});
 
 	it('isBranchMerged returns false for unmerged branch', async () => {
 		const { projectDir, awm } = setup();
 
-		execSync('git checkout -b ai/st-unmerged', { cwd: projectDir, timeout: 5000 });
+		execSync('git checkout -b st-unmerged', { cwd: projectDir, timeout: 5000 });
 		fs.writeFileSync(path.join(projectDir, 'unmerged.txt'), 'not merged');
 		execSync('git add .', { cwd: projectDir, timeout: 5000 });
 		execSync('git commit -m "unmerged work"', { cwd: projectDir, timeout: 5000 });
 		execSync('git checkout main', { cwd: projectDir, timeout: 5000 });
 
-		const merged = await awm.isBranchMerged(projectDir, 'ai/st-unmerged');
+		const merged = await awm.isBranchMerged(projectDir, 'st-unmerged');
 		expect(merged).toBe(false);
 	});
 
@@ -790,7 +790,7 @@ describe('AgentWorktreeManager', () => {
 			projectDir, 'my-proj', 'st-merged-develop', undefined, 'develop',
 		);
 		expect('worktreePath' in result).toBe(true);
-		const merged = await awm.isBranchMerged(projectDir, 'ai/st-merged-develop', 'develop');
+		const merged = await awm.isBranchMerged(projectDir, 'st-merged-develop', 'develop');
 		expect(merged).toBe(true);
 	});
 

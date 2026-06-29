@@ -24,9 +24,10 @@ export class WorktreeCleanupService {
 		folderName: string,
 		worktreePath: string,
 		options: CleanupOptions,
+		branchPrefix: string | undefined,
 		configuredBranch?: string,
 	): Promise<void> {
-		const branchName = worktreeBranchName(folderName);
+		const branchName = worktreeBranchName(folderName, branchPrefix);
 
 		if (options.deleteWorktree) {
 			const clean = await this.agentWorktreeManager.isWorktreeClean(worktreePath);
