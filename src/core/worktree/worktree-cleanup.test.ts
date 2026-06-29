@@ -72,11 +72,11 @@ describe('WorktreeCleanupService', () => {
 			deleteWorktree: true,
 			deleteLocalBranch: true,
 			deleteRemoteBranch: false,
-		});
+		}, undefined);
 
 		expect(fs.existsSync(result.worktreePath)).toBe(false);
 		const branchList = execSync(
-			'git branch --list ai/st-cleanup-both', { cwd: projectDir, timeout: 5000 },
+			'git branch --list st-cleanup-both', { cwd: projectDir, timeout: 5000 },
 		).toString();
 		expect(branchList.trim()).toBe('');
 	});
@@ -95,12 +95,12 @@ describe('WorktreeCleanupService', () => {
 				deleteWorktree: true,
 				deleteLocalBranch: true,
 				deleteRemoteBranch: false,
-			})
+			}, undefined)
 		).rejects.toThrow(/uncommitted changes/);
 
 		expect(fs.existsSync(result.worktreePath)).toBe(true);
 		const branchList = execSync(
-			`git branch --list ai/${folderName}`, { cwd: projectDir, timeout: 5000 },
+			`git branch --list ${folderName}`, { cwd: projectDir, timeout: 5000 },
 		).toString();
 		expect(branchList.trim()).toBeTruthy();
 	});
@@ -117,7 +117,7 @@ describe('WorktreeCleanupService', () => {
 				deleteWorktree: false,
 				deleteLocalBranch: false,
 				deleteRemoteBranch: true,
-			})
+			}, undefined)
 		).rejects.toThrow(/does not exist/);
 
 		expect(fs.existsSync(result.worktreePath)).toBe(true);
@@ -136,10 +136,10 @@ describe('WorktreeCleanupService', () => {
 			deleteWorktree: false,
 			deleteLocalBranch: true,
 			deleteRemoteBranch: false,
-		});
+		}, undefined);
 
 		const branchList = execSync(
-			`git branch --list ai/${folderName}`, { cwd: projectDir, timeout: 5000 },
+			`git branch --list ${folderName}`, { cwd: projectDir, timeout: 5000 },
 		).toString();
 		expect(branchList.trim()).toBe('');
 	});
@@ -155,11 +155,11 @@ describe('WorktreeCleanupService', () => {
 			deleteWorktree: false,
 			deleteLocalBranch: false,
 			deleteRemoteBranch: false,
-		});
+		}, undefined);
 
 		expect(fs.existsSync(result.worktreePath)).toBe(true);
 		const branchList = execSync(
-			`git branch --list ai/${folderName}`, { cwd: projectDir, timeout: 5000 },
+			`git branch --list ${folderName}`, { cwd: projectDir, timeout: 5000 },
 		).toString();
 		expect(branchList.trim()).toBeTruthy();
 	});
@@ -180,12 +180,12 @@ describe('WorktreeCleanupService', () => {
 				deleteWorktree: true,
 				deleteLocalBranch: true,
 				deleteRemoteBranch: false,
-			})
+			}, undefined)
 		).rejects.toThrow(/unmerged/i);
 
 		expect(fs.existsSync(result.worktreePath)).toBe(true);
 		const branchList = execSync(
-			`git branch --list ai/${folderName}`, { cwd: projectDir, timeout: 5000 },
+			`git branch --list ${folderName}`, { cwd: projectDir, timeout: 5000 },
 		).toString();
 		expect(branchList.trim()).toBeTruthy();
 	});
@@ -211,12 +211,12 @@ describe('WorktreeCleanupService', () => {
 					deleteWorktree: true,
 					deleteLocalBranch: true,
 					deleteRemoteBranch: false,
-				})
+				}, undefined)
 			).rejects.toThrow(/in use by another process/);
 
 			expect(fs.existsSync(result.worktreePath)).toBe(true);
 			const branchList = execSync(
-			`git branch --list ai/${folderName}`, { cwd: projectDir, timeout: 5000 },
+			`git branch --list ${folderName}`, { cwd: projectDir, timeout: 5000 },
 		).toString();
 			expect(branchList.trim()).toBeTruthy();
 		} finally {

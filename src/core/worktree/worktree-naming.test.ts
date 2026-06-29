@@ -25,12 +25,20 @@ describe('worktreeFolderName', () => {
 });
 
 describe('worktreeBranchName', () => {
-	it('prefixes the truncated folder name with ai/', () => {
-		expect(worktreeBranchName('st-0001-feature')).toBe('ai/st-0001-feature');
+	it('returns folder name unchanged when prefix is omitted', () => {
+		expect(worktreeBranchName('st-0001-feature')).toBe('st-0001-feature');
+	});
+
+	it('prefixes the folder name when prefix is set', () => {
+		expect(worktreeBranchName('st-0001-feature', 'ai')).toBe('ai/st-0001-feature');
 	});
 
 	it('uses the truncated folder name for long tickets', () => {
 		const name = 'x'.repeat(80);
-		expect(worktreeBranchName(name)).toBe(`ai/${'x'.repeat(50)}`);
+		expect(worktreeBranchName(name)).toBe('x'.repeat(50));
+	});
+
+	it('uses a custom prefix', () => {
+		expect(worktreeBranchName('st-0001-feature', 'bot')).toBe('bot/st-0001-feature');
 	});
 });

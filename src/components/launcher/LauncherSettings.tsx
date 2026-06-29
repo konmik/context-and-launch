@@ -141,6 +141,9 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 											worktreeRootPath={s.worktreeRootPath()}
 											setWorktreeRootPath={s.setWorktreeRootPath}
 											saveWorktreeRootPath={s.saveWorktreeRootPath}
+											branchPrefix={s.branchPrefix()}
+											setBranchPrefix={s.setBranchPrefix}
+											saveBranchPrefix={s.saveBranchPrefix}
 											conflictPrompt={s.conflictPrompt()}
 											setConflictPrompt={s.setConflictPrompt}
 											saveConflictResolution={s.saveConflictResolution}

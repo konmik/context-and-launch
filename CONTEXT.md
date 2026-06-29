@@ -104,7 +104,7 @@ The dialog for managing Launcher Config entries (Templates, Skills, Coding Agent
 Avoid: launcher settings, preferences
 
 Agent Worktree:
-A git worktree created from the project's main branch for an agent to work in isolation. Located under a user-configured worktree root path (defaults to `~/.context-launch/projects/{projectSlug}/worktrees/`). Branch named `ai/{folderName}`. Reused across runs.
+A git worktree created from the project's main branch for an agent to work in isolation. Located under a user-configured worktree root path (defaults to `~/.context-launch/projects/{projectSlug}/worktrees/`). Branch named `{folderName}`, or `{branchPrefix}/{folderName}` when a branch prefix is configured. Reused across runs.
 Avoid: sandbox, workspace
 
 ## Relationships
@@ -123,7 +123,7 @@ Avoid: sandbox, workspace
 - The Agent Launcher assembles a prompt from a Template and zero or more Skills
 - A Launcher Config exists at app scope and optionally at project scope; project merges into app
 - A Launcher Config contains zero or more Shortcuts
-- An Agent Worktree branches from the Project's main branch, named `ai/{folderName}`
+- An Agent Worktree branches from the Project's main branch, named `{folderName}` (optionally prefixed with a configurable branch prefix)
 - The Agent Launcher remembers the last-used Template, checked Skills, and Coding Agent Profile per Column
 
 ## Disk layout

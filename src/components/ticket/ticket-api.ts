@@ -229,7 +229,7 @@ export async function worktreeCleanup(
     if (!project) throw new NotFoundError("Project not found");
     const worktreePath = `${merged.worktreeRootPath}/${worktreeFolderName(folderName)}`;
     await new WorktreeCleanupService(agentWorktreeManager).cleanup(
-      project.path, folderName, worktreePath, options, project.mainBranch,
+      project.path, folderName, worktreePath, options, merged.branchPrefix, project.mainBranch,
     );
     return { ok: true as const };
   } catch (e) {
