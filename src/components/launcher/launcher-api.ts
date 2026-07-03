@@ -6,7 +6,7 @@ import {
   syncPendingTracker,
 } from "~/core/config/instances.js";
 import {
-  resolveTicketAndProject, resolveLaunchDir,
+  resolveTicketAndProject, ensureLaunchDir,
   launchAgent as launchAgentCore,
   agentRunning, agentMarkerPath, spawnProfile,
   type LaunchRequest,
@@ -185,15 +185,16 @@ export async function launchAgentAction(
 ) {
   "use server";
   try {
-    const { ticket, project } = resolveTicketAndProject(projectSlug, folderName);
+    const { ticket, project, worktreeDir } = resolveTicketAndProject(projectSlug, folderName);
     if (agentRunning(projectSlug, folderName)) {
       return { ok: false as const, type: "error" as const, message: "Already started" };
     }
     if (!launchRequest.launchDir) {
       throw new ValidationError("launchDir is required");
     }
-    const resolved = await resolveLaunchDir(
+    const resolved = await ensureLaunchDir(
       projectSlug, folderName, launchRequest.useWorktree, project.path,
+      ticket, worktreeDir,
       { skipDirtyCheck: launchRequest.force, skipBehindRemote: launchRequest.skipBehindRemote },
       project.mainBranch,
     );
@@ -218,8 +219,9 @@ export async function runShortcut(
     const merged = launcherConfigManager.getMergedConfig(projectSlug);
     const shortcut = merged.shortcuts.find(s => s.name === name);
     if (!shortcut) throw new Error(`Shortcut "${name}" not found`);
-    const resolved = await resolveLaunchDir(
+    const resolved = await ensureLaunchDir(
       projectSlug, folderName, useWorktree, project.path,
+      ticket, worktreeDir,
       { skipDirtyCheck: force, skipBehindRemote: force },
       project.mainBranch,
     );

@@ -72,7 +72,7 @@ describe('WorktreeCleanupService', () => {
 			deleteWorktree: true,
 			deleteLocalBranch: true,
 			deleteRemoteBranch: false,
-		}, undefined);
+		});
 
 		expect(fs.existsSync(result.worktreePath)).toBe(false);
 		const branchList = execSync(
@@ -95,7 +95,7 @@ describe('WorktreeCleanupService', () => {
 				deleteWorktree: true,
 				deleteLocalBranch: true,
 				deleteRemoteBranch: false,
-			}, undefined)
+			})
 		).rejects.toThrow(/uncommitted changes/);
 
 		expect(fs.existsSync(result.worktreePath)).toBe(true);
@@ -117,7 +117,7 @@ describe('WorktreeCleanupService', () => {
 				deleteWorktree: false,
 				deleteLocalBranch: false,
 				deleteRemoteBranch: true,
-			}, undefined)
+			})
 		).rejects.toThrow(/does not exist/);
 
 		expect(fs.existsSync(result.worktreePath)).toBe(true);
@@ -180,7 +180,7 @@ describe('WorktreeCleanupService', () => {
 				deleteWorktree: true,
 				deleteLocalBranch: true,
 				deleteRemoteBranch: false,
-			}, undefined)
+			})
 		).rejects.toThrow(/unmerged/i);
 
 		expect(fs.existsSync(result.worktreePath)).toBe(true);

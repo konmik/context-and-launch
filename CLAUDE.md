@@ -23,6 +23,7 @@
 - Never use ^ or ~ in package.json dependency versions. Always pin the exact version.
 - Do not use underscore or bold markdown formatting in md files.
 - Never use bare "slug" as a variable, parameter, property, or type field name. Always qualify it: `projectSlug`, `columnSlug`, `contextFileName`, etc. The only exception is generic slug utility functions like `requireSafeSlug` and `toSlugSegment`. See CONTEXT.md for the full glossary.
+- Prefer `undefined` over `null`. Use optional fields (`foo?: string`) instead of `foo: string | null`. Use `null` only when an external API requires it (DOM, Node-style callbacks).
 
 ## UI
 

@@ -866,4 +866,62 @@ describe('AgentWorktreeManager', () => {
 			child.kill();
 		}
 	});
+
+	it('returns branchName in the result', async () => {
+		const { projectDir, awm } = setup();
+		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0010-branch-result');
+		expect('worktreePath' in result).toBe(true);
+		if (!('worktreePath' in result)) return;
+		expect(result.branchName).toBe('st-0010-branch-result');
+	});
+
+	it('uses savedWorktreeInfo instead of deriving from folderName (ticket rename)', async () => {
+		const { projectDir, worktreeRoot, awm } = setup();
+		const originalFolder = 'st-0011-original-name';
+		const result1 = await awm.ensureAgentWorktree(projectDir, 'my-proj', originalFolder);
+		expect('worktreePath' in result1).toBe(true);
+		if (!('worktreePath' in result1)) return;
+
+		const renamedFolder = 'st-0011-renamed-ticket';
+		const result2 = await awm.ensureAgentWorktree(
+			projectDir, 'my-proj', renamedFolder,
+			undefined, undefined,
+			{ branchName: originalFolder, agentWorktreePath: result1.worktreePath },
+		);
+		expect('worktreePath' in result2).toBe(true);
+		if (!('worktreePath' in result2)) return;
+		expect(result2.worktreePath).toBe(result1.worktreePath);
+		expect(result2.branchName).toBe(originalFolder);
+		expect(fs.existsSync(result2.worktreePath)).toBe(true);
+	});
+
+	it('uses savedWorktreeInfo with changed branchPrefix', async () => {
+		const { projectDir, worktreeRoot, awm, lcm } = setup();
+		lcm.saveProjectConfig('my-proj', {
+			templates: [], skills: [],
+			worktreeRootPath: worktreeRoot,
+			branchPrefix: 'feature',
+		});
+		const folderName = 'st-0012-prefix-change';
+		const result1 = await awm.ensureAgentWorktree(projectDir, 'my-proj', folderName);
+		expect('worktreePath' in result1).toBe(true);
+		if (!('worktreePath' in result1)) return;
+		expect(result1.branchName).toBe('feature/st-0012-prefix-change');
+
+		lcm.saveProjectConfig('my-proj', {
+			templates: [], skills: [],
+			worktreeRootPath: worktreeRoot,
+			branchPrefix: 'dev',
+		});
+
+		const result2 = await awm.ensureAgentWorktree(
+			projectDir, 'my-proj', folderName,
+			undefined, undefined,
+			{ branchName: result1.branchName, agentWorktreePath: result1.worktreePath },
+		);
+		expect('worktreePath' in result2).toBe(true);
+		if (!('worktreePath' in result2)) return;
+		expect(result2.worktreePath).toBe(result1.worktreePath);
+		expect(result2.branchName).toBe('feature/st-0012-prefix-change');
+	});
 });

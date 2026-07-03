@@ -22,8 +22,23 @@ function canonicalize(p: string): string {
 	}
 }
 
+export interface SavedWorktreeInfo {
+	branchName: string;
+	agentWorktreePath: string;
+}
+
+export function toSavedWorktreeInfo(
+	ticket: { agentWorktreeBranchName?: string; agentWorktreeDir?: string },
+): SavedWorktreeInfo | undefined {
+	if (ticket.agentWorktreeBranchName && ticket.agentWorktreeDir) {
+		return { branchName: ticket.agentWorktreeBranchName, agentWorktreePath: ticket.agentWorktreeDir };
+	}
+	return undefined;
+}
+
 export interface WorktreeResult {
 	worktreePath: string;
+	branchName: string;
 	behindRemote?: true;
 }
 
@@ -48,11 +63,12 @@ export class AgentWorktreeManager {
 		folderName: string,
 		options?: { skipDirtyCheck?: boolean },
 		configuredBranch?: string,
+		savedWorktreeInfo?: SavedWorktreeInfo,
 	): Promise<WorktreeResult | DirtyWorktreeResult> {
 		const { worktreeRootPath, branchPrefix } = this.launcherConfig.resolveWorktreeSettings(projectSlug);
 
-		const branchName = worktreeBranchName(folderName, branchPrefix);
-		const worktreePath = `${worktreeRootPath}/${worktreeFolderName(folderName)}`;
+		const branchName = savedWorktreeInfo?.branchName ?? worktreeBranchName(folderName, branchPrefix);
+		const worktreePath = savedWorktreeInfo?.agentWorktreePath ?? `${worktreeRootPath}/${worktreeFolderName(folderName)}`;
 		const mainBranch = await this.getMainBranch(projectPath, configuredBranch);
 
 		if (!options?.skipDirtyCheck) {
@@ -85,7 +101,7 @@ export class AgentWorktreeManager {
 			);
 
 		if (alreadyExists) {
-			return behindRemote ? { worktreePath, behindRemote } : { worktreePath };
+			return behindRemote ? { worktreePath, branchName, behindRemote } : { worktreePath, branchName };
 		}
 
 		const branchList = await git(projectPath, 'branch', '--list', branchName);
@@ -96,7 +112,7 @@ export class AgentWorktreeManager {
 			await git(projectPath, 'worktree', 'add', '-b', branchName, worktreePath, mainBranch);
 		}
 
-		return behindRemote ? { worktreePath, behindRemote } : { worktreePath };
+		return behindRemote ? { worktreePath, branchName, behindRemote } : { worktreePath, branchName };
 	}
 
 	async isWorktreeClean(worktreePath: string): Promise<boolean> {
