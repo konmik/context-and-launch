@@ -215,7 +215,7 @@ describe('useWorktree=true with worktreeRootPath=null (code-inspection)', () => 
 		'utf-8'
 	);
 
-	it('resolveLaunchDir delegates to ensureAgentWorktree which falls back to agentWorktreeDir', () => {
+	it('ensureLaunchDir delegates to ensureAgentWorktree which falls back to agentWorktreeDir', () => {
 		expect(agentLaunchSource).toContain('ensureAgentWorktree');
 		expect(agentLaunchSource).not.toMatch(/!merged\.worktreeRootPath/);
 	});
@@ -368,13 +368,13 @@ describe('launchAgent uses initialPrompt directly (code-inspection)', () => {
 		expect(agentLaunchSource).toMatch(/spawnProfile\(profile,\s*commandVars,\s*launchDir\)/);
 	});
 
-	it('the launcher-api uses resolveLaunchDir and launchAgentCore', () => {
+	it('the launcher-api uses ensureLaunchDir and launchAgentCore', () => {
 		const launcherApiSource = fs.readFileSync(
 			path.resolve(__dirname, '../../components/launcher/launcher-api.ts'),
 			'utf-8'
 		);
 		expect(launcherApiSource).toMatch(/resolveTicketAndProject/);
-		expect(launcherApiSource).toContain('resolveLaunchDir');
+		expect(launcherApiSource).toContain('ensureLaunchDir');
 		expect(launcherApiSource).toMatch(/launchAgentCore\(/);
 	});
 });

@@ -28,8 +28,10 @@ export function computeLaunchDir(opts: {
 	worktreeRootPath: string | null;
 	agentWorktreeDir: string;
 	folderName: string;
+	savedAgentWorktreeDir?: string;
 }): string {
 	if (!opts.useWorktree) return opts.projectPath;
+	if (opts.savedAgentWorktreeDir) return opts.savedAgentWorktreeDir;
 	const root = opts.worktreeRootPath || opts.agentWorktreeDir;
 	return root.replace(/[\\/]+$/, "") + "/" + worktreeFolderName(opts.folderName);
 }

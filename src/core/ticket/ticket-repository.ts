@@ -9,6 +9,8 @@ export interface StatusJson {
 	useWorktree: boolean;
 	createdAt?: string;
 	references?: { path: string }[];
+	agentWorktreeBranchName?: string;
+	agentWorktreeDir?: string;
 }
 
 export class TicketRepository {

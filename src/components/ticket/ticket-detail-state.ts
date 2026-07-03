@@ -80,6 +80,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     worktreeRootPath: launcherConfig()?.worktreeRootPath ?? null,
     agentWorktreeDir: launcherConfig()?.agentWorktreeDir ?? "",
     folderName: header.savedFolderName(),
+    savedAgentWorktreeDir: props.ticket.agentWorktreeDir,
   }));
 
   const shortcuts = createShortcutState({

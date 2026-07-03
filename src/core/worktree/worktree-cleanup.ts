@@ -1,6 +1,5 @@
 import * as v from 'valibot';
 import type { AgentWorktreeManager } from './agent-worktree.js';
-import { worktreeBranchName } from './worktree-naming.js';
 
 const CleanupOptionsSchema = v.object({
 	deleteWorktree: v.boolean(),
@@ -21,14 +20,11 @@ export class WorktreeCleanupService {
 
 	async cleanup(
 		projectPath: string,
-		folderName: string,
+		branchName: string,
 		worktreePath: string,
 		options: CleanupOptions,
-		branchPrefix: string | undefined,
 		configuredBranch?: string,
 	): Promise<void> {
-		const branchName = worktreeBranchName(folderName, branchPrefix);
-
 		if (options.deleteWorktree) {
 			const clean = await this.agentWorktreeManager.isWorktreeClean(worktreePath);
 			if (!clean) {

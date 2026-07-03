@@ -5,7 +5,7 @@ import {
 } from "~/core/config/instances.js";
 import { TicketStore } from "~/core/ticket/ticket-store.js";
 import { WorktreeCleanupService } from "~/core/worktree/worktree-cleanup.js";
-import { worktreeFolderName } from "~/core/worktree/worktree-naming.js";
+import { worktreeBranchName, worktreeFolderName } from "~/core/worktree/worktree-naming.js";
 import { ValidationError, NotFoundError, errorMessage, errorPayload, errorResult } from "~/core/shared/errors.js";
 import type { ErrorInfo } from "~/core/shared/errors.js";
 
@@ -227,10 +227,20 @@ export async function worktreeCleanup(
     if (!merged.worktreeRootPath) throw new ValidationError("Worktree root path is not configured");
     const project = projectRegistry.listProjects().find((p) => p.projectSlug === projectSlug);
     if (!project) throw new NotFoundError("Project not found");
-    const worktreePath = `${merged.worktreeRootPath}/${worktreeFolderName(folderName)}`;
+    const ticketWorktreeDir = worktreeManager.getWorktreeDir(projectSlug);
+    const store = new TicketStore(ticketWorktreeDir);
+    const ticket = store.getTicket(folderName);
+    const worktreePath = ticket?.agentWorktreeDir
+      ?? `${merged.worktreeRootPath}/${worktreeFolderName(folderName)}`;
+    const resolvedBranchName = ticket?.agentWorktreeBranchName
+      ?? worktreeBranchName(folderName, merged.branchPrefix);
     await new WorktreeCleanupService(agentWorktreeManager).cleanup(
-      project.path, folderName, worktreePath, options, merged.branchPrefix, project.mainBranch,
+      project.path, resolvedBranchName, worktreePath, options, project.mainBranch,
     );
+    if (ticket?.agentWorktreeBranchName
+        && (options.deleteWorktree || options.deleteLocalBranch)) {
+      store.clearAgentWorktreeInfo(folderName);
+    }
     return { ok: true as const };
   } catch (e) {
     const payload = errorPayload(e);

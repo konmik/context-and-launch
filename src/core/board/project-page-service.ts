@@ -50,7 +50,8 @@ export class ProjectPageService {
 			);
 			const agentWorktreeRoot = this.launcherConfigManager.resolveAgentWorktreeRoot(projectSlug);
 			for (const ticket of tickets) {
-				const wtPath = path.join(agentWorktreeRoot, worktreeFolderName(ticket.folderName));
+				const wtPath = ticket.agentWorktreeDir
+					?? path.join(agentWorktreeRoot, worktreeFolderName(ticket.folderName));
 				ticket.hasAgentWorktree = fs.existsSync(wtPath);
 			}
 			const suggestedNextNumber = store.suggestNextNumber();

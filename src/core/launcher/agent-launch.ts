@@ -4,6 +4,7 @@ import path from "path";
 import {
   worktreeManager, projectRegistry, launcherConfigManager, agentWorktreeManager,
 } from "~/core/config/instances.js";
+import { toSavedWorktreeInfo } from "~/core/worktree/agent-worktree.js";
 import { TicketStore } from "~/core/ticket/ticket-store.js";
 import { NotFoundError, ValidationError } from "~/core/shared/errors.js";
 import { interpolateCommand } from "~/core/launcher/prompt-interpolation.js";
@@ -104,14 +105,18 @@ export type ResolveLaunchDirResult =
   | { ok: false; type: "dirtyWorktree"; message: string }
   | { ok: false; type: "behindRemote"; message: string };
 
-export async function resolveLaunchDir(
+export async function ensureLaunchDir(
   projectSlug: string, folderName: string, useWorktree: boolean, projectPath: string,
+  ticket: { agentWorktreeBranchName?: string; agentWorktreeDir?: string },
+  worktreeDir: string,
   opts?: { skipDirtyCheck?: boolean; skipBehindRemote?: boolean },
   mainBranch?: string,
 ): Promise<ResolveLaunchDirResult> {
   if (!useWorktree) return { ok: true, launchDir: projectPath };
+  const savedInfo = toSavedWorktreeInfo(ticket);
   const result = await agentWorktreeManager.ensureAgentWorktree(
-    projectPath, projectSlug, folderName, { skipDirtyCheck: opts?.skipDirtyCheck }, mainBranch,
+    projectPath, projectSlug, folderName, { skipDirtyCheck: opts?.skipDirtyCheck },
+    mainBranch, savedInfo,
   );
   if ('dirtyWorktree' in result) {
     return {
@@ -124,6 +129,11 @@ export async function resolveLaunchDir(
       ok: false, type: "behindRemote",
       message: "Main branch is behind remote. Proceed with the worktree anyway?",
     };
+  }
+  if (!ticket.agentWorktreeBranchName) {
+    new TicketStore(worktreeDir).saveAgentWorktreeInfo(
+      folderName, result.branchName, result.worktreePath,
+    );
   }
   return { ok: true, launchDir: result.worktreePath };
 }

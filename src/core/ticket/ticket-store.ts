@@ -19,6 +19,8 @@ export interface TicketInfo {
 	hasAgentWorktree: boolean;
 	fileNames: string[];
 	references: { path: string; exists: boolean }[];
+	agentWorktreeBranchName?: string;
+	agentWorktreeDir?: string;
 }
 
 export const CreateTicketBody = v.object({
@@ -190,6 +192,8 @@ export class TicketStore {
 			useWorktree: current.useWorktree,
 			createdAt: current.createdAt,
 			references: current.references,
+			agentWorktreeBranchName: current.agentWorktreeBranchName,
+			agentWorktreeDir: current.agentWorktreeDir,
 		};
 
 		const needsRename =
@@ -248,6 +252,21 @@ export class TicketStore {
 		const current = this.repo.readStatusJson(dir);
 		if (!current) throw new Error(`Ticket not found: ${folderName}`);
 		this.repo.writeStatusJson(dir, { ...current, useWorktree: value });
+	}
+
+	saveAgentWorktreeInfo(folderName: string, agentWorktreeBranchName: string, agentWorktreeDir: string): void {
+		const dir = this.resolveTicketDir(folderName);
+		const current = this.repo.readStatusJson(dir);
+		if (!current) throw new Error(`Ticket not found: ${folderName}`);
+		this.repo.writeStatusJson(dir, { ...current, agentWorktreeBranchName, agentWorktreeDir });
+	}
+
+	clearAgentWorktreeInfo(folderName: string): void {
+		const dir = this.resolveTicketDir(folderName);
+		const current = this.repo.readStatusJson(dir);
+		if (!current) throw new Error(`Ticket not found: ${folderName}`);
+		const { agentWorktreeBranchName, agentWorktreeDir, ...rest } = current;
+		this.repo.writeStatusJson(dir, rest as StatusJson);
 	}
 
 	getTicketContext(folderName: string, name: string): string | null {
@@ -336,6 +355,8 @@ export class TicketStore {
 			hasAgentWorktree: false,
 			fileNames,
 			references,
+			agentWorktreeBranchName: status.agentWorktreeBranchName,
+			agentWorktreeDir: status.agentWorktreeDir,
 		};
 	}
 
