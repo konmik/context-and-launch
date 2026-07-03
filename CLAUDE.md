@@ -65,3 +65,13 @@
 - Separate data from behavior. Data types contain only fields. Command types contain only functions. Never mix data and function references in the same type/interface/object.
 - Separate data types by update trigger. Group fields that change together into one type. Cross-cutting derivations are standalone accessors.
 - Treat state as immutable. Signal setters replace, never mutate in place.
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked using Context & Launch's own ticket system (ticket folders in a git worktree on an orphan branch). See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context repo with CONTEXT.md at the root. See `docs/agents/domain.md`.
