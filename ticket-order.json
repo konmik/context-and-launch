@@ -1,10 +1,15 @@
 {
   "todo": [
     "st-0031-absolute-tickets-path-setting",
-    "st-0032-open-a-project-in-a-separate-window"
+    "st-0033-save-edit-prompt-into-the-column-setting-together-with-other-launch-preferences",
+    "st-0032-open-a-project-in-a-separate-window",
+    "st-0035-user-filter-self-assigning-tickets",
+    "st-0036-fix-shows-shortcut-errors-inside-ticket-window-content"
   ],
   "plan": [],
   "in-progress": [],
-  "review": [],
+  "review": [
+    "st-0034-add-regenerate-ticket-number-button"
+  ],
   "done": []
 }

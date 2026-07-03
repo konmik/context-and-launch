@@ -2,6 +2,6 @@
   "number": "ST-0031",
   "title": "Absolute tickets path setting",
   "status": "todo",
-  "useWorktree": false,
+  "useWorktree": true,
   "createdAt": "2026-06-17T11:54:48.817Z"
 }
