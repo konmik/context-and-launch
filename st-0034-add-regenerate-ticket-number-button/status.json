@@ -1,7 +1,9 @@
 {
+  "useWorktree": true,
   "number": "ST-0034",
   "title": "Add regenerate ticket number button",
   "status": "review",
-  "useWorktree": true,
-  "createdAt": "2026-07-02T11:24:34.866Z"
+  "createdAt": "2026-07-02T11:24:34.866Z",
+  "agentWorktreeBranchName": "st-0034-add-regenerate-ticket-number-button",
+  "agentWorktreeDir": "C:\\Users\\elkmo\\.context-launch\\projects\\ai-stages\\worktrees/st-0034-add-regenerate-ticket-number-button"
 }
