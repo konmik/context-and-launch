@@ -51,6 +51,22 @@ Undefined Column:
 A virtual column rendered at the far right of the board when any ticket's status does not match a column in the active Board Definition. Not part of the Board Definition. Styled with red frame and red title. Shows each ticket's orphaned status in red. Disappears when empty. Users can drag tickets out into real columns.
 Avoid: orphan column, missing column
 
+Archive:
+A subdirectory (`archive/`) inside the worktree where tickets are moved when archived. Archived tickets are excluded from the board.
+Avoid: trash, deleted
+
+Ticket Order:
+A per-column ordered list of ticket folder names stored as `order.json` in the worktree, controlling the display order of tickets within each column.
+Avoid: sort order, ranking
+
+Reference:
+An absolute filesystem path stored in a ticket's `status.json`, pointing to an external file relevant to the ticket (e.g. a source file in the project repo).
+Avoid: link, attachment
+
+Ticket Detail Dialog:
+The modal that opens when a ticket is clicked, containing tabs for the editor, agent launcher, and shortcuts.
+Avoid: ticket modal, ticket view
+
 ### Git Infrastructure
 
 Worktree:
@@ -69,6 +85,10 @@ Avoid: push, pull, upload, download
 Conflict Resolution:
 The process of resolving git merge conflicts that arise during a Sync rebase. The app offers to launch Claude via a Coding Agent Profile with a user-configurable plain-text prompt. Claude resolves conflict markers, completes the rebase, and pushes.
 Avoid: merge, fix conflicts
+
+Sync Pending:
+A cached per-worktree flag indicating whether the local worktree has uncommitted changes or differs from upstream. Shown as a yellow dot on the sync button.
+Avoid: dirty state, needs sync
 
 ### Agent Launcher
 
@@ -94,6 +114,14 @@ Avoid: app, tool, quick launch
 
 Placeholder:
 A `{{variable}}` reference in a Template, Skill, or Shortcut that gets replaced with a runtime value at launch time. Available: `{{ticketDir}}`, `{{ticketSlug}}`, `{{ticketTitle}}`, `{{ticketNumber}}`, `{{ticketStatus}}`, `{{projectPath}}`, `{{projectSlug}}`, `{{skills}}`, `{{launchDir}}`.
+
+Agent Marker:
+A JSON file written by the launch script while an agent is running, containing the wrapper shell PID and start time. Used to detect whether an agent is already running for a ticket and to detect stale markers from crashed processes.
+Avoid: lock file, pid file
+
+Branch Prefix:
+An optional string prepended to agent worktree branch names (e.g. `agent/` yields `agent/fix-login`). Configured in Launcher Config.
+Avoid: namespace, prefix
 
 Launcher Config:
 A JSON file defining available Templates, Skills, Coding Agent Profiles, and launcher settings. Exists at two scopes: app-level (`~/.context-launch/config/launcher-config.json`) and project-level (`~/.context-launch/projects/{projectSlug}/config/launcher-config.json`). Project-level merges additively with app-level; project wins on name collision.
