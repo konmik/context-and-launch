@@ -54,4 +54,28 @@ describe("CreateTicketDialog (e2e, real server)", () => {
     expect(status?.number).toBe("ABC-1");
     expect(status?.title).toBe("First Ticket");
   }, 60000);
+
+  it("regenerate button suggests number for typed prefix", async () => {
+    const project = await createProject(ctx.testServer, {
+      projectSlug: uniqueSlug("ct-regen"),
+      withTickets: [
+        { number: "ST-0001", title: "First", status: "todo" },
+        { number: "ST-0002", title: "Second", status: "todo" },
+        { number: "BUG-0001", title: "Bug One", status: "todo" },
+      ],
+    });
+    ctx.projects.push(project);
+    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+    await openCreate();
+    await ctx.page.fill('[data-testid="create-ticket-number-input"]', "BUG");
+    await ctx.page.click('[data-testid="create-ticket-regenerate-button"]');
+    const sel = '[data-testid="create-ticket-number-input"]';
+    await ctx.page.waitForFunction(
+      (s) => (document.querySelector(s) as HTMLInputElement)?.value.startsWith("BUG-"),
+      sel,
+      { timeout: 10000 },
+    );
+    const value = await ctx.page.inputValue('[data-testid="create-ticket-number-input"]');
+    expect(value).toBe("BUG-0002");
+  }, 60000);
 });

@@ -3,6 +3,7 @@ import {
   parseTicketNumber,
   formatTicketNumber,
   suggestNextTicketNumber,
+  extractPrefixFromInput,
 } from './ticket-number.js';
 
 describe('parseTicketNumber', () => {
@@ -90,6 +91,44 @@ describe('formatTicketNumber', () => {
 
   it('formats with large padding', () => {
     expect(formatTicketNumber('A', 1, 6)).toBe('A-000001');
+  });
+});
+
+describe('extractPrefixFromInput', () => {
+  it('extracts uppercase prefix from "BUG"', () => {
+    expect(extractPrefixFromInput('BUG')).toBe('BUG');
+  });
+
+  it('strips trailing dash from "BUG-"', () => {
+    expect(extractPrefixFromInput('BUG-')).toBe('BUG');
+  });
+
+  it('strips trailing dash and digits from "BUG-7"', () => {
+    expect(extractPrefixFromInput('BUG-7')).toBe('BUG');
+  });
+
+  it('uppercases lowercase input "bug"', () => {
+    expect(extractPrefixFromInput('bug')).toBe('BUG');
+  });
+
+  it('uppercases lowercase with digits "bug-0012"', () => {
+    expect(extractPrefixFromInput('bug-0012')).toBe('BUG');
+  });
+
+  it('returns null for empty string', () => {
+    expect(extractPrefixFromInput('')).toBeNull();
+  });
+
+  it('returns null for digits-only "123"', () => {
+    expect(extractPrefixFromInput('123')).toBeNull();
+  });
+
+  it('returns null for leading dash "-BUG"', () => {
+    expect(extractPrefixFromInput('-BUG')).toBeNull();
+  });
+
+  it('returns null for leading space " BUG"', () => {
+    expect(extractPrefixFromInput(' BUG')).toBeNull();
   });
 });
 
@@ -208,5 +247,42 @@ describe('suggestNextTicketNumber', () => {
         { number: 'BUG-0010', createdAt: '2024-04-01T00:00:00Z' },
       ])
     ).toBe('BUG-0011');
+  });
+
+  it('with explicit prefix matching existing tickets returns highest+1', () => {
+    expect(
+      suggestNextTicketNumber([
+        { number: 'ST-0001', createdAt: '2024-01-01T00:00:00Z' },
+        { number: 'ST-0005', createdAt: '2024-02-01T00:00:00Z' },
+        { number: 'BUG-0001', createdAt: '2024-03-01T00:00:00Z' },
+      ], 'ST')
+    ).toBe('ST-0006');
+  });
+
+  it('with explicit prefix not matching any ticket returns PREFIX-0001', () => {
+    expect(
+      suggestNextTicketNumber([
+        { number: 'ST-0001', createdAt: '2024-01-01T00:00:00Z' },
+      ], 'FEAT')
+    ).toBe('FEAT-0001');
+  });
+
+  it('with explicit prefix where other-prefix tickets exist but not requested returns PREFIX-0001', () => {
+    expect(
+      suggestNextTicketNumber([
+        { number: 'ST-0010', createdAt: '2024-01-01T00:00:00Z' },
+        { number: 'BUG-0005', createdAt: '2024-02-01T00:00:00Z' },
+      ], 'FEAT')
+    ).toBe('FEAT-0001');
+  });
+
+  it('with explicit prefix and mixed tickets returns highest+1 across all', () => {
+    expect(
+      suggestNextTicketNumber([
+        { number: 'ST-0001', createdAt: '2024-01-01T00:00:00Z' },
+        { number: 'ST-0010', createdAt: '2024-02-01T00:00:00Z' },
+        { number: 'BUG-0001', createdAt: '2024-03-01T00:00:00Z' },
+      ], 'ST')
+    ).toBe('ST-0011');
   });
 });

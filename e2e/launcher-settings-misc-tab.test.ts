@@ -84,6 +84,18 @@ describe("Launcher Settings Misc tab (e2e, real server)", () => {
     expect(await ctx.page.locator('[data-testid="launcher-settings-misc-worktree-browse"]').count()).toBe(1);
   }, 60000);
 
+  it("branch prefix input persists on blur", async () => {
+    const project = await setup("bprefix");
+    const input = ctx.page.locator(
+      '[data-testid="launcher-settings-misc-branch-prefix-input"]',
+    );
+    await input.fill("feature/");
+    await input.blur();
+    await ctx.page.waitForTimeout(800);
+    const cfg = readProjectLauncherConfig(ctx.testServer, project.projectSlug);
+    expect(cfg?.branchPrefix).toBe("feature/");
+  }, 60000);
+
   it("launcher-settings-misc-conflict-prompt persists on blur", async () => {
     const project = await setup("cprompt");
     await ctx.page.fill(

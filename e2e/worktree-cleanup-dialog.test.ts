@@ -72,7 +72,7 @@ describe("WorktreeCleanupDialog (e2e, real server)", () => {
     const worktreeRoot = path.join(ctx.testServer.dataDir, "projects", projectSlug, "worktrees");
     const wtPath = path.join(worktreeRoot, "t-1-alpha");
     fs.mkdirSync(path.dirname(wtPath), { recursive: true });
-    execSync(`git worktree add "${wtPath}" -b "ai/t-1-alpha"`, { cwd: project.projectPath });
+    execSync(`git worktree add "${wtPath}" -b "t-1-alpha"`, { cwd: project.projectPath });
 
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await clickTicketMenuItem(ctx.page, "archive");

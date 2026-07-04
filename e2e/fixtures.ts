@@ -68,6 +68,7 @@ export interface SeedTicket {
   status: string;
   folderName?: string;
   body?: string;
+  createdAt?: string;
 }
 
 export interface SeedColumn {
@@ -255,6 +256,7 @@ export async function createProject(
           title: t.title,
           status: t.status,
           useWorktree: useWorktreeFolders.has(folderName),
+          ...(t.createdAt ? { createdAt: t.createdAt } : {}),
         }, null, 2),
       );
       fs.writeFileSync(path.join(folder, "to-do.md"), t.body ?? "");
@@ -266,7 +268,7 @@ export async function createProject(
   if (opts.withWorktrees && opts.withWorktrees.length > 0 && worktreeRootPath) {
     for (const w of opts.withWorktrees) {
       const wtPath = path.join(worktreeRootPath, w.folderName);
-      const wtBranch = `ai/${w.folderName}`;
+      const wtBranch = w.folderName;
       fs.mkdirSync(path.dirname(wtPath), { recursive: true });
       execSync(`git worktree add "${wtPath}" -b "${wtBranch}"`, { cwd: projectPath });
     }
@@ -472,6 +474,7 @@ export interface LauncherConfigShape {
     skillOrder?: string[];
   }>;
   worktreeRootPath?: string;
+  branchPrefix?: string;
   conflictResolutionPrompt?: string;
 }
 
