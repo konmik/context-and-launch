@@ -1327,6 +1327,40 @@ describe('TicketStore', () => {
 		expect(store.suggestNextNumber()).toBe('ST-0011');
 	});
 
+	it('suggestNextNumber with prefix returns next number for that prefix', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('ST-0001', 'First');
+		store.createTicket('ST-0005', 'Fifth');
+		store.createTicket('BUG-0001', 'Bug One');
+
+		expect(store.suggestNextNumber('ST')).toBe('ST-0006');
+	});
+
+	it('suggestNextNumber with unknown prefix returns PREFIX-0001', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('ST-0001', 'First');
+
+		expect(store.suggestNextNumber('FEAT')).toBe('FEAT-0001');
+	});
+
+	it('suggestNextNumber with prefix considers archived tickets', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('BUG-0001', 'Bug One');
+		store.createTicket('BUG-0005', 'Bug Five');
+		store.archiveTicket('bug-0005-bug-five');
+
+		expect(store.suggestNextNumber('BUG')).toBe('BUG-0006');
+	});
+
 	it('suggestNextNumber handles pre-existing tickets without createdAt', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);

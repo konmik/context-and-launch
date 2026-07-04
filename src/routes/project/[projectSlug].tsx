@@ -233,6 +233,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
             onOpenChange={commands.setCreateTicketOpen}
             onSubmit={commands.handleCreateTicket}
             suggestedNextNumber={ld()?.suggestedNextNumber ?? null}
+            projectSlug={d().projectSlug}
           />
           <EditTicketDialog
             open={dialogState().editTicketOpen}

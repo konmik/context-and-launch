@@ -4,6 +4,7 @@ import {
   launcherConfigManager, agentWorktreeManager, fileWatcher,
 } from "~/core/config/instances.js";
 import { TicketStore } from "~/core/ticket/ticket-store.js";
+import { extractPrefixFromInput } from "~/core/ticket/ticket-number.js";
 import { WorktreeCleanupService } from "~/core/worktree/worktree-cleanup.js";
 import { worktreeBranchName, worktreeFolderName } from "~/core/worktree/worktree-naming.js";
 import { ValidationError, NotFoundError, errorMessage, errorPayload, errorResult } from "~/core/shared/errors.js";
@@ -215,6 +216,17 @@ export async function getSyncPending(projectSlug: string): Promise<boolean> {
   "use server";
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
   return syncPendingTracker.hasPendingChanges(worktreeDir);
+}
+
+export async function suggestTicketNumber(
+  projectSlug: string,
+  numberInput: string,
+): Promise<string | null> {
+  "use server";
+  const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
+  const store = new TicketStore(worktreeDir);
+  const prefix = extractPrefixFromInput(numberInput);
+  return store.suggestNextNumber(prefix);
 }
 
 export async function worktreeCleanup(

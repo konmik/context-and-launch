@@ -17,8 +17,28 @@ export function formatTicketNumber(
   return `${prefix}-${String(num).padStart(paddingWidth, '0')}`;
 }
 
+export function extractPrefixFromInput(raw: string): string | null {
+  const match = raw.match(/^[A-Za-z]+/);
+  if (!match) return null;
+  return match[0].toUpperCase();
+}
+
+function nextNumberForPrefix(
+  parsed: Array<{ prefix: string; num: number; paddingWidth: number }>,
+  prefix: string,
+): string {
+  const samePrefix = parsed.filter((p) => p.prefix === prefix);
+  if (samePrefix.length === 0) return formatTicketNumber(prefix, 1, 4);
+  let highest = samePrefix[0];
+  for (const p of samePrefix) {
+    if (p.num > highest.num) highest = p;
+  }
+  return formatTicketNumber(prefix, highest.num + 1, highest.paddingWidth);
+}
+
 export function suggestNextTicketNumber(
-  tickets: Array<{ number: string; createdAt?: string }>
+  tickets: Array<{ number: string; createdAt?: string }>,
+  prefix?: string | null,
 ): string | null {
   const parsed = tickets
     .map((t) => {
@@ -27,9 +47,10 @@ export function suggestNextTicketNumber(
     })
     .filter((p): p is NonNullable<typeof p> => p != null);
 
+  if (prefix != null) return nextNumberForPrefix(parsed, prefix);
+
   if (parsed.length === 0) return null;
 
-  // Find the most recently created ticket (missing createdAt = oldest)
   parsed.sort((a, b) => {
     if (!a.createdAt && !b.createdAt) return 0;
     if (!a.createdAt) return -1;
@@ -37,14 +58,6 @@ export function suggestNextTicketNumber(
     return a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0;
   });
   const mostRecent = parsed[parsed.length - 1];
-  const prefix = mostRecent.prefix;
 
-  // Among all tickets with that prefix, find the highest num
-  const samePrefix = parsed.filter((p) => p.prefix === prefix);
-  let highest = samePrefix[0];
-  for (const p of samePrefix) {
-    if (p.num > highest.num) highest = p;
-  }
-
-  return formatTicketNumber(prefix, highest.num + 1, highest.paddingWidth);
+  return nextNumberForPrefix(parsed, mostRecent.prefix);
 }

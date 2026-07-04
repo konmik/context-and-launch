@@ -325,8 +325,8 @@ export class TicketStore {
 		return results;
 	}
 
-	suggestNextNumber(): string | null {
-		return suggestNextTicketNumber(this.listAllTicketNumbers());
+	suggestNextNumber(prefix?: string | null): string | null {
+		return suggestNextTicketNumber(this.listAllTicketNumbers(), prefix);
 	}
 
 	private readTicket(dir: string): TicketInfo | null {
