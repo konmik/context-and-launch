@@ -20,6 +20,7 @@ import { LauncherTab } from "./ticket-detail-launcher-tab.js";
 import { createAgentLauncherController } from "../launcher/agent-launcher-controller.js";
 import { ShortcutsTabPane } from "./ticket-detail-shortcuts-tab.js";
 import { createTicketDetailState, type Tab, type TicketDetailState } from "./ticket-detail-state.js";
+import ErrorDialog from "../shared/ErrorDialog.js";
 
 interface TicketDetailDialogProps {
   onClose: () => void;
@@ -163,10 +164,6 @@ function TicketDetailContent(props: {
 
         <FloatingPanelBody>
         <div class="flex h-full flex-col">
-          <Show when={s.error()}>
-            <div class="mx-6 mt-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{s.error()}</div>
-          </Show>
-
           <Show when={s.activeTab() === "editor"}>
             <EditorTab ctrl={s} />
           </Show>
@@ -364,6 +361,8 @@ function TicketDetailContent(props: {
         onCancel={s.cancelSizeConfirm}
         onConfirm={s.confirmSizeAndUpload}
       />
+
+      <ErrorDialog error={s.error()} onClose={() => s.setError(null)} />
 
       </Show>
 

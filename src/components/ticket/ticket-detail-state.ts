@@ -22,6 +22,7 @@ import {
 import { createFileUploadState } from "./ticket-detail-upload.js";
 import { createHeaderEditState } from "./ticket-detail-header.js";
 import { createShortcutState } from "./ticket-detail-shortcuts.js";
+import { errorPayload, type ErrorInfo } from "~/core/shared/errors.js";
 import { computeLaunchDir } from "../launcher/agent-launcher-pure.js";
 import {
   getContext, saveContext as saveContextAction,
@@ -53,7 +54,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   const [newFileDialogOpen, setNewFileDialogOpen] = createSignal(false);
   const [newFileName, setNewFileName] = createSignal("");
   const [confirmingDelete, setConfirmingDelete] = createSignal(false);
-  const [error, setError] = createSignal("");
+  const [error, setError] = createSignal<ErrorInfo | null>(null);
   const [dropdownOpen, setDropdownOpen] = createSignal(false);
   const [browsing, setBrowsing] = createSignal(false);
   const [imageUrl, setImageUrl] = createSignal("");
@@ -109,10 +110,10 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     setUseWorktree(value);
     setUseWorktreeAction(props.projectSlug, header.savedFolderName(), value)
       .then((result) => {
-        if (!result.ok) setError(result.message);
+        if (!result.ok) setError({ title: "Save failed", description: result.message });
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "Failed to persist worktree setting");
+        setError(errorPayload(err, "Save failed"));
       });
   }
 
@@ -167,7 +168,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
       else { setContent(""); setSavedContent(""); }
     } catch (e) {
       setContent(""); setSavedContent("");
-      setError(e instanceof Error ? e.message : "Failed to load file");
+      setError(errorPayload(e, "Load failed"));
     }
   }
 
@@ -185,7 +186,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
         } else { setContent(""); setSavedContent(""); }
       }).catch((e) => {
         setContent(""); setSavedContent("");
-        setError(e instanceof Error ? e.message : "Failed to load file");
+        setError(errorPayload(e, "Load failed"));
       });
     } else {
       setFileViewMode("unsupported"); setContent(""); setSavedContent("");
@@ -205,7 +206,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
           || defaults?.lastLayer === "shortcuts"
         ) setActiveTab(defaults.lastLayer);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load launcher config");
+        setError(errorPayload(e, "Load failed"));
       } finally {
         setInitialTabResolved(true);
       }
@@ -215,16 +216,16 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   function patchColumnDefaults(patch: Partial<LauncherColumnDefaults>) {
     saveColumnDefaults(props.projectSlug, props.ticket.status, patch)
       .then((result) => {
-        if (!result.ok) setError(result.message);
+        if (!result.ok) setError({ title: "Save failed", description: result.message });
       })
       .catch((e) => {
-        setError(e instanceof Error ? e.message : "Failed to save column defaults");
+        setError(errorPayload(e, "Save failed"));
       });
   }
 
   createEffect(on(activeFile, async (af) => {
     if (activeTab() !== "editor") return;
-    setError(""); setImageUrl("");
+    setError(null); setImageUrl("");
     if (af.type === "context") {
       await loadContextContent(af);
     } else if (af.type === "file") {
@@ -251,8 +252,8 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
         props.projectSlug, header.savedFolderName(), af.name, content(),
       );
       if (result.ok) setSavedContent(content());
-      else setError(result.message);
-    } catch (e) { setError(e instanceof Error ? e.message : "Failed to save file"); }
+      else setError({ title: "Save failed", description: result.message });
+    } catch (e) { setError(errorPayload(e, "Save failed")); }
     finally { setSaving(false); }
   }
 
@@ -320,25 +321,25 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
         const result = await removeReferenceAction(
           props.projectSlug, header.savedFolderName(), af.path,
         );
-        if (!result.ok) { setError(result.message); return; }
+        if (!result.ok) { setError({ title: "Delete failed", description: result.message }); return; }
         setTicketReferences((prev) => prev.filter((r) => r.path !== af.path));
       } else if (af.type === "file") {
         const result = await deleteFileAction(
           props.projectSlug, header.savedFolderName(), af.name,
         );
-        if (!result.ok) { setError(result.message); return; }
+        if (!result.ok) { setError({ title: "Delete failed", description: result.message }); return; }
         setTicketFileNames((prev) => prev.filter((n) => n !== af.name));
       } else {
         const result = await deleteContextAction(
           props.projectSlug, header.savedFolderName(), af.name,
         );
-        if (!result.ok) { setError(result.message); return; }
+        if (!result.ok) { setError({ title: "Delete failed", description: result.message }); return; }
         setExtraFiles((prev) => prev.filter((n) => n !== af.name));
       }
       revalidate("project-page");
       const remaining = allFileOptions().filter((f) => !isActiveFileMatch(f, af));
       setActiveFile(remaining[0] ?? { type: "context", name: "to-do" });
-    } catch (e) { setError(e instanceof Error ? e.message : "Failed to delete"); }
+    } catch (e) { setError(errorPayload(e, "Delete failed")); }
   }
 
   function handleTrashClick() {
@@ -353,7 +354,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   function forceClose() { setConfirmingClose(false); props.onClose(); }
 
   async function openNativeFileBrowser() {
-    setBrowsing(true); setError("");
+    setBrowsing(true); setError(null);
     try {
       const remembered = localStorage.getItem("picker:references:lastDir") ?? "";
       const refs = ticketReferences();
@@ -366,17 +367,17 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
       const pickedDir = lastPicked.replace(/\/[^/]*$/, "");
       if (pickedDir) localStorage.setItem("picker:references:lastDir", pickedDir);
       await handleReferencesSelected(paths);
-    } catch (e) { setError(e instanceof Error ? e.message : "Failed to open file dialog"); }
+    } catch (e) { setError(errorPayload(e, "Browse failed")); }
     finally { setBrowsing(false); }
   }
 
   async function handleReferencesSelected(paths: string[]) {
-    setError("");
+    setError(null);
     try {
       const result = await addReferencesAction(
         props.projectSlug, header.savedFolderName(), paths,
       );
-      if (!result.ok) { setError(result.message); return; }
+      if (!result.ok) { setError({ title: "Add reference failed", description: result.message }); return; }
       const newRefs = paths.map((p) => ({ path: p, exists: true }));
       setTicketReferences((prev) => {
         const existing = new Set(prev.map((r) => r.path));
@@ -384,7 +385,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
       });
       revalidate("project-page");
       if (paths.length > 0) requestFileSwitch({ type: "reference", path: paths[0] });
-    } catch (e) { setError(e instanceof Error ? e.message : "Failed to add references"); }
+    } catch (e) { setError(errorPayload(e, "Add reference failed")); }
   }
 
   async function saveAll() {
@@ -407,7 +408,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     hasUnsavedHeaderChanges: header.hasUnsavedHeaderChanges,
     hasAnyUnsavedChanges, saveAll,
     newFileDialogOpen, setNewFileDialogOpen, newFileName, setNewFileName,
-    confirmingDelete, setConfirmingDelete, error, dropdownOpen, setDropdownOpen,
+    confirmingDelete, setConfirmingDelete, error, setError, dropdownOpen, setDropdownOpen,
     browsing, imageUrl, fileViewMode,
     uploading: upload.uploading, dragging: upload.dragging,
     confirmOverwrite: upload.confirmOverwrite, confirmSize: upload.confirmSize,

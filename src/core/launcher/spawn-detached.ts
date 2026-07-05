@@ -27,11 +27,10 @@ function rejectMultilineCmdArgs(
   const parsed = crossSpawnParse(executable, args, { cwd });
   if (parsed.options.windowsVerbatimArguments !== true) return;
   throw new ProcessError(
-    fullCommand, undefined,
+    fullCommand, undefined, undefined,
     "This command runs through cmd.exe on Windows (it is not a .exe), and cmd.exe "
     + "cannot pass arguments containing newlines; the process would silently never start. "
     + "Point the command at a .exe or a PowerShell script (.ps1) instead.",
-    `${path.basename(executable)} cannot receive multiline arguments on Windows`,
   );
 }
 
@@ -66,7 +65,7 @@ export async function spawnDetached(
       takeStderr();
       if (settled) return;
       settled = true;
-      reject(new ProcessError(fullCommand, undefined, err.message, err.message));
+      reject(new ProcessError(fullCommand, undefined, undefined, err.message));
     });
 
     child.on("exit", (code) => {
@@ -77,12 +76,12 @@ export async function spawnDetached(
       settled = true;
       if (code !== 0 && code !== null) {
         reject(new ProcessError(
-          fullCommand, code, stderr.trim() || `Process exited with code ${code}`, `Failed (exit ${code})`,
+          fullCommand, code, stderr.trim() || undefined, `Failed (exit ${code})`,
         ));
       } else if (code === null) {
         reject(new ProcessError(
           fullCommand, undefined,
-          stderr.trim() || "Process terminated abnormally", "Process terminated abnormally",
+          stderr.trim() || undefined, "Process terminated abnormally",
         ));
       } else {
         resolve();

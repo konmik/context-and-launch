@@ -15,9 +15,10 @@ export default function ErrorDialog(props: ErrorDialogProps) {
       class="flex max-h-[80vh] max-w-lg flex-col p-0"
     >
       <div class="flex-none px-6 pt-6 pb-2">
-        <DialogTitle class="mb-0 text-sm">{props.error?.description}</DialogTitle>
+        <DialogTitle class="mb-0 text-sm">{props.error?.title ?? "Error"}</DialogTitle>
       </div>
       <div class="flex-1 overflow-y-auto px-6">
+        <p class="text-sm text-foreground">{props.error?.description}</p>
         <Show when={props.error?.command}>
           <div class="mt-2">
             <p class="mb-1 text-xs text-muted-foreground">Command</p>

@@ -3,6 +3,7 @@ import { TabsContent } from "../ui/tabs";
 import { ScopeBadge } from "./launcher-settings-rows.js";
 import DeleteProjectDialog from "../project/DeleteProjectDialog.js";
 import { pickDirectory } from "../shared/shared-api.js";
+import { errorPayload, type ErrorInfo } from "~/core/shared/errors.js";
 
 export function MiscTab(props: {
 	projectName: string;
@@ -17,7 +18,7 @@ export function MiscTab(props: {
 	conflictPrompt: string;
 	setConflictPrompt: (v: string) => void;
 	saveConflictResolution: () => void;
-	setError: (v: string) => void;
+	setError: (v: ErrorInfo | null) => void;
 	projectSlug?: string;
 	onDeleteProject?: (projectSlug: string) => Promise<{ error?: string }>;
 }) {
@@ -65,12 +66,10 @@ export function MiscTab(props: {
 										props.setWorktreeRootPath(result.path);
 										props.saveWorktreeRootPath();
 									} else if ("error" in result) {
-										props.setError(result.error);
+										props.setError({ title: "Browse failed", description: result.error });
 									}
 								} catch (e) {
-									props.setError(
-										e instanceof Error ? e.message : "Failed to pick directory",
-									);
+									props.setError(errorPayload(e, "Browse failed"));
 								}
 							}}
 							class="btn-secondary"

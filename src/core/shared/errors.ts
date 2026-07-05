@@ -1,4 +1,5 @@
 export interface ErrorInfo {
+	title?: string;
 	description: string;
 	command?: string;
 	output?: string;
@@ -24,7 +25,7 @@ export class ProcessError extends Error {
 	constructor(
 		public readonly command: string,
 		public readonly exitCode: number | undefined,
-		public readonly output: string,
+		public readonly output: string | undefined,
 		description?: string,
 	) {
 		const desc = description ?? `${command} failed${exitCode != null ? ` (exit ${exitCode})` : ''}`;
@@ -44,16 +45,17 @@ export function errorMessage(e: unknown): string {
 }
 
 export function errorResult(e: unknown) {
-	return { ok: false as const, type: "error" as const, message: errorMessage(e) };
+	return { ok: false as const, type: "error" as const, message: errorMessage(e), errorInfo: errorPayload(e) };
 }
 
-export function errorPayload(e: unknown): ErrorInfo {
+export function errorPayload(e: unknown, title?: string): ErrorInfo {
 	if (e instanceof ProcessError) {
 		return {
+			title,
 			description: e.shortDescription,
 			command: e.command,
 			output: e.output,
 		};
 	}
-	return { description: errorMessage(e) };
+	return { title, description: errorMessage(e) };
 }

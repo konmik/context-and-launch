@@ -1,10 +1,11 @@
 import { createSignal } from "solid-js";
 import { updateTicket } from "./ticket-api.js";
+import type { ErrorInfo } from "~/core/shared/errors.js";
 
 export interface HeaderEditDeps {
   projectSlug: string;
   ticket: { number: string; title: string; folderName: string };
-  setError: (msg: string) => void;
+  setError: (error: ErrorInfo | null) => void;
 }
 
 export function createHeaderEditState(deps: HeaderEditDeps) {
@@ -29,7 +30,7 @@ export function createHeaderEditState(deps: HeaderEditDeps) {
     const result = await updateTicket(
       deps.projectSlug, savedFolderName(), numberToSave, titleToSave, null,
     );
-    if (!result.ok) { deps.setError(result.message); return; }
+    if (!result.ok) { deps.setError({ title: "Save failed", description: result.message }); return; }
     if (numberToSave) setSavedNumber(numberToSave);
     if (titleToSave) setSavedTitle(titleToSave);
     if (result.folderName) setSavedFolderName(result.folderName);
