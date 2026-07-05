@@ -2,6 +2,7 @@ import { createSignal, createEffect, createMemo, onCleanup, on } from "solid-js"
 import { revalidate } from "@solidjs/router";
 import type { MergedLauncherConfig } from "~/core/launcher/launcher-config.js";
 import type { BoardDefinition, ColumnDefinition } from "~/core/project/board-config.js";
+import { errorPayload, errorMessage, type ErrorInfo } from "~/core/shared/errors.js";
 import { slugifyColumnName } from "~/lib/slugify.js";
 import {
   getMergedLauncherConfig, type MergedLauncherConfigWithMeta,
@@ -31,7 +32,7 @@ export function createLauncherSettingsState(props: {
 }) {
 	const [config, setConfig] = createSignal<MergedLauncherConfig | null>(null);
 	const [loading, setLoading] = createSignal(false);
-	const [error, setError] = createSignal("");
+	const [error, setError] = createSignal<ErrorInfo | null>(null);
 	const [form, setForm] = createSignal<ItemFormState | null>(null);
 	const [projectName, setProjectName] = createSignal("");
 	const [worktreeRootPath, setWorktreeRootPath] = createSignal("");
@@ -46,7 +47,7 @@ export function createLauncherSettingsState(props: {
 	const [renameForm, setRenameForm] = createSignal<RenameFormState | null>(null);
 	const [deleteConfirm, setDeleteConfirm] = createSignal<DeleteTarget | null>(null);
 	const [projectBoardConfirm, setProjectBoardConfirm] = createSignal<BoardRef | null>(null);
-	const [columnError, setColumnError] = createSignal("");
+	const [columnDialogError, setColumnDialogError] = createSignal("");
 
 	const selectedBoardId = createMemo(() => {
 		const list = boards();
@@ -61,6 +62,7 @@ export function createLauncherSettingsState(props: {
 			setBoardOverride(null); loadConfig(); setForm(null);
 			setColumnForm(null); setBoardForm(null); setRenameForm(null);
 			setDeleteConfirm(null); setProjectBoardConfirm(null);
+			setError(null); setColumnDialogError("");
 		}
 	}));
 
@@ -81,7 +83,7 @@ export function createLauncherSettingsState(props: {
 	});
 
 	async function loadConfig() {
-		setLoading(true); setError("");
+		setLoading(true); setError(null);
 		await Promise.all([revalidate("launcher-config"), revalidate("boards")]);
 		try {
 			const data: MergedLauncherConfigWithMeta = await getMergedLauncherConfig(props.projectSlug);
@@ -91,7 +93,7 @@ export function createLauncherSettingsState(props: {
 			setWorktreeRootPath(data.worktreeRootPath ?? "");
 			setBranchPrefix(data.branchPrefix);
 			setConflictPrompt(data.conflictResolutionPrompt ?? "");
-		} catch (e) { setError(e instanceof Error ? e.message : "Failed to load config"); }
+		} catch (e) { setError(errorPayload(e, "Load failed")); }
 		finally { setLoading(false); }
 		await loadBoards();
 	}
@@ -100,7 +102,7 @@ export function createLauncherSettingsState(props: {
 		try {
 			setBoards(await listBoards());
 		} catch (e) {
-			setError(e instanceof Error ? e.message : "Failed to load boards");
+			setError(errorPayload(e, "Load failed"));
 		}
 	}
 
@@ -116,7 +118,7 @@ export function createLauncherSettingsState(props: {
 	async function submitForm() {
 		const f = form();
 		if (!f || !f.name.trim()) return;
-		setError("");
+		setError(null);
 		try {
 			const payload = buildFormPayload(f);
 			const usesCommand = f.itemType === "profile" || f.itemType === "shortcut";
@@ -127,82 +129,81 @@ export function createLauncherSettingsState(props: {
 			};
 			if (f.mode === "add") {
 				const result = await addItem(props.projectSlug, f.itemType, f.scope, fields);
-				if (!result.ok) { setError(result.message); return; }
+				if (!result.ok) { setError({ title: "Save failed", description: result.message }); return; }
 			} else {
 				const result = await updateItem(props.projectSlug, f.itemType, f.scope, f.oldName!, fields);
-				if (!result.ok) { setError(result.message); return; }
+				if (!result.ok) { setError({ title: "Save failed", description: result.message }); return; }
 			}
 			setForm(null); await loadConfig();
-		} catch (e) { setError(e instanceof Error ? e.message : "Failed to save"); }
+		} catch (e) { setError(errorPayload(e, "Save failed")); }
 	}
 
 	async function deleteItemFn(itemType: ItemType, scope: Scope, name: string) {
-		setError("");
+		setError(null);
 		try {
 			const result = await deleteItemAction(props.projectSlug, itemType, scope, name);
-			if (!result.ok) { setError(result.message); return; }
+			if (!result.ok) { setError({ title: "Delete failed", description: result.message }); return; }
 			await loadConfig();
-		} catch (e) { setError(e instanceof Error ? e.message : "Failed to delete"); }
+		} catch (e) { setError(errorPayload(e, "Delete failed")); }
 	}
 
 	async function saveProjectNameFn() {
-		setError("");
+		setError(null);
 		try {
 			const result = await setProjectNameAction(props.projectSlug, projectName());
-			if (!result.ok) setError(result.message);
-		} catch (e) { setError(e instanceof Error ? e.message : "Failed to save"); }
+			if (!result.ok) setError({ title: "Save failed", description: result.message });
+		} catch (e) { setError(errorPayload(e, "Save failed")); }
 	}
 
 	async function saveWorktreeRootPathFn() {
-		setError("");
+		setError(null);
 		try {
 			const result = await saveWorktreeRootPathAction(props.projectSlug, worktreeRootPath());
-			if (!result.ok) { setError(result.message); return; }
+			if (!result.ok) { setError({ title: "Save failed", description: result.message }); return; }
 			await loadConfig();
-		} catch (e) { setError(e instanceof Error ? e.message : "Failed to save"); }
+		} catch (e) { setError(errorPayload(e, "Save failed")); }
 	}
 
 	async function saveBranchPrefixFn() {
-		setError("");
+		setError(null);
 		try {
 			const result = await saveBranchPrefixAction(props.projectSlug, branchPrefix());
-			if (!result.ok) { setError(result.message); return; }
+			if (!result.ok) { setError({ title: "Save failed", description: result.message }); return; }
 			await loadConfig();
-		} catch (e) { setError(e instanceof Error ? e.message : "Failed to save"); }
+		} catch (e) { setError(errorPayload(e, "Save failed")); }
 	}
 
 	async function saveConflictResolutionFn() {
-		setError("");
+		setError(null);
 		try {
 			const result = await saveConflictResolutionAction(props.projectSlug, conflictPrompt());
-			if (!result.ok) { setError(result.message); return; }
+			if (!result.ok) { setError({ title: "Save failed", description: result.message }); return; }
 			await loadConfig();
-		} catch (e) { setError(e instanceof Error ? e.message : "Failed to save"); }
+		} catch (e) { setError(errorPayload(e, "Save failed")); }
 	}
 
 	async function handleCreateBoard() {
 		const f = boardForm(); if (!f || !f.name.trim()) return;
-		setColumnError("");
+		setColumnDialogError("");
 		try {
 			const result = await createBoard(f.name);
-			if (!result.ok) { setColumnError(result.message); return; }
+			if (!result.ok) { setColumnDialogError(result.message); return; }
 			setBoardForm(null); await loadBoards(); setBoardOverride(result.id);
-		} catch (e) { setColumnError(e instanceof Error ? e.message : "Failed to create board"); }
+		} catch (e) { setColumnDialogError(errorMessage(e)); }
 	}
 
 	async function handleDeleteBoard() {
 		const dc = deleteConfirm(); if (!dc || dc.type !== "board") return;
-		setColumnError("");
 		try {
 			const result = await deleteBoard(dc.id);
-			if (!result.ok) { setColumnError(result.message); return; }
+			if (!result.ok) { setDeleteConfirm(null); setError({ title: "Delete failed", description: result.message }); return; }
 			setDeleteConfirm(null); await loadBoards();
-		} catch (e) { setColumnError(e instanceof Error ? e.message : "Failed to delete board"); }
+		} catch (e) { setDeleteConfirm(null); setError(errorPayload(e, "Delete failed")); }
 	}
 
 	async function handleSaveColumn() {
 		const cf = columnForm(); if (!cf || !cf.name.trim()) return;
-		setColumnError("");
+		setColumnDialogError("");
 		const boardId = selectedBoardId(); if (!boardId) return;
 		if (cf.mode === "edit" && cf.oldName) {
 			const columnSlug = slugifyColumnName(cf.name);
@@ -212,76 +213,75 @@ export function createLauncherSettingsState(props: {
 			}
 			try {
 				const result = await updateColumn(boardId, cf.oldName, cf.description);
-				if (!result.ok) { setColumnError(result.message); return; }
+				if (!result.ok) { setColumnDialogError(result.message); return; }
 				setColumnForm(null); await loadBoards();
-			} catch (e) { setColumnError(e instanceof Error ? e.message : "Failed to update column"); }
+			} catch (e) { setColumnDialogError(errorMessage(e)); }
 		} else {
 			try {
 				const result = await addColumn(boardId, cf.name, cf.description || undefined);
-				if (!result.ok) { setColumnError(result.message); return; }
+				if (!result.ok) { setColumnDialogError(result.message); return; }
 				setColumnForm(null); await loadBoards();
-			} catch (e) { setColumnError(e instanceof Error ? e.message : "Failed to add column"); }
+			} catch (e) { setColumnDialogError(errorMessage(e)); }
 		}
 	}
 
 	async function handleRenameColumn() {
 		const rf = renameForm(); if (!rf) return;
-		setColumnError("");
+		setColumnDialogError("");
 		const boardId = selectedBoardId(); if (!boardId) return;
 		try {
 			const result = await renameColumn(
 				boardId, rf.oldName, rf.newName, rf.scope, props.projectSlug,
 			);
-			if (!result.ok) { setColumnError(result.message); return; }
+			if (!result.ok) { setColumnDialogError(result.message); return; }
 			const newName = result.newName ?? slugifyColumnName(rf.newName);
 			const cf = columnForm();
 			if (cf && cf.description !== undefined) {
 				try {
 					const descResult = await updateColumn(boardId, newName, cf.description);
 					if (!descResult.ok) {
-						setColumnError(descResult.message);
+						setColumnDialogError(descResult.message);
 						setRenameForm(null);
 						setColumnForm({ ...cf, name: newName, oldName: newName });
 						await loadBoards(); return;
 					}
 				} catch (descErr) {
-					setColumnError(descErr instanceof Error ? descErr.message : "Failed to update description");
+					setColumnDialogError(errorMessage(descErr));
 					setRenameForm(null);
 					setColumnForm({ ...cf, name: newName, oldName: newName });
 					await loadBoards(); return;
 				}
 			}
 			setRenameForm(null); setColumnForm(null); await loadBoards();
-		} catch (e) { setColumnError(e instanceof Error ? e.message : "Failed to rename column"); }
+		} catch (e) { setColumnDialogError(errorMessage(e)); }
 	}
 
 	async function handleDeleteColumn() {
 		const dc = deleteConfirm(); if (!dc || dc.type !== "column") return;
-		setColumnError("");
 		const boardId = selectedBoardId(); if (!boardId) return;
 		try {
 			const result = await deleteColumn(boardId, dc.id);
-			if (!result.ok) { setColumnError(result.message); return; }
+			if (!result.ok) { setDeleteConfirm(null); setError({ title: "Delete failed", description: result.message }); return; }
 			setDeleteConfirm(null); await loadBoards();
-		} catch (e) { setColumnError(e instanceof Error ? e.message : "Failed to delete column"); }
+		} catch (e) { setDeleteConfirm(null); setError(errorPayload(e, "Delete failed")); }
 	}
 
 	async function handleReorderColumns(orderedNames: string[]) {
 		const boardId = selectedBoardId(); if (!boardId) return;
 		try {
 			const result = await reorderColumns(boardId, orderedNames);
-			if (!result.ok) { setColumnError(result.message); return; }
+			if (!result.ok) { setError({ title: "Reorder failed", description: result.message }); return; }
 			await loadBoards();
-		} catch (e) { setColumnError(e instanceof Error ? e.message : "Failed to reorder"); }
+		} catch (e) { setError(errorPayload(e, "Reorder failed")); }
 	}
 
 	async function handleBoardIdChange(boardId: string): Promise<boolean> {
-		setError("");
+		setError(null);
 		try {
 			const result = await setBoardIdAction(props.projectSlug, boardId);
-			if (!result.ok) { setError(result.message); return false; }
+			if (!result.ok) { setError({ title: "Save failed", description: result.message }); return false; }
 			await loadConfig(); return true;
-		} catch (e) { setError(e instanceof Error ? e.message : "Failed to save"); return false; }
+		} catch (e) { setError(errorPayload(e, "Save failed")); return false; }
 	}
 
 	async function handleSetProjectBoard() {
@@ -332,12 +332,12 @@ export function createLauncherSettingsState(props: {
 	});
 
 	async function saveSkillOrderFn(scope: Scope, name: string, order: number) {
-		setError("");
+		setError(null);
 		try {
 			const result = await reorderSkill(props.projectSlug, scope, name, order);
-			if (!result.ok) { setError(result.message); return; }
+			if (!result.ok) { setError({ title: "Reorder failed", description: result.message }); return; }
 			await loadConfig();
-		} catch (e) { setError(e instanceof Error ? e.message : "Failed to reorder"); }
+		} catch (e) { setError(errorPayload(e, "Reorder failed")); }
 	}
 
 	return {
@@ -346,7 +346,8 @@ export function createLauncherSettingsState(props: {
 		branchPrefix, setBranchPrefix, conflictPrompt, setConflictPrompt, activeTab, setActiveTab,
 		boards, projectBoardId, boardOverride, setBoardOverride,
 		columnForm, setColumnForm, boardForm, setBoardForm, renameForm, setRenameForm,
-		deleteConfirm, setDeleteConfirm, projectBoardConfirm, setProjectBoardConfirm, columnError, setColumnError,
+		deleteConfirm, setDeleteConfirm, projectBoardConfirm, setProjectBoardConfirm,
+		columnDialogError, setColumnDialogError,
 		selectedBoardId, selectedBoard, startAdd, startEdit, submitForm, deleteItem: deleteItemFn,
 		saveProjectName: saveProjectNameFn, saveWorktreeRootPath: saveWorktreeRootPathFn,
 		saveBranchPrefix: saveBranchPrefixFn, saveConflictResolution: saveConflictResolutionFn,

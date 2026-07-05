@@ -240,9 +240,7 @@ describe("Picker buttons (e2e, real server)", () => {
     input: (p) => p.locator(`[data-testid="${WORKTREE_BROWSE}"]`).locator(
       "xpath=preceding-sibling::input",
     ),
-    errorContainer: (p) => p.locator(
-      '[data-scope="floating-panel"][data-part="content"] div.text-destructive',
-    ),
+    errorContainer: (p) => p.locator('[data-testid="error-dialog-ok"]'),
   });
 
   // --- Ticket detail: file reference picker ---
@@ -305,7 +303,7 @@ describe("Picker buttons (e2e, real server)", () => {
     name: "Ticket Detail > Add file reference",
     setup: goToTicketDetail,
     button: (p) => p.locator('button:has-text("Add file reference")'),
-    errorContainer: (p) => p.locator('[data-scope="floating-panel"][data-part="content"] div.text-destructive'),
+    errorContainer: (p) => p.locator('[data-testid="error-dialog-ok"]'),
     assertFilesAdded: async (p) => {
       await expect.poll(
         async () => {

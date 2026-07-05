@@ -45,7 +45,7 @@ export function createWorktreeCleanupController(deps: WorktreeCleanupDeps) {
       if (result?.error) setErrorInfo(toErrorInfo(result.error));
       else close();
     } catch (err: any) {
-      setErrorInfo({ description: err?.message ?? "Unknown error" });
+      setErrorInfo({ title: "Cleanup failed", description: err?.message ?? "Unknown error" });
     } finally {
       setSubmitting(false);
     }

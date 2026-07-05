@@ -97,10 +97,10 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 			switch (result.type) {
 				case "behindRemote": setBehindRemoteMsg(result.message); break;
 				case "dirtyWorktree": setDirtyWorktreeMsg(result.message); break;
-				default: setErrorInfo({ description: result.message }); break;
+				default: setErrorInfo({ title: "Launch failed", description: result.message }); break;
 			}
 		} catch (e: unknown) {
-			setErrorInfo({ description: e instanceof Error ? e.message : "Network error" });
+			setErrorInfo({ title: "Launch failed", description: e instanceof Error ? e.message : "Network error" });
 		} finally {
 			setLaunching(false);
 		}

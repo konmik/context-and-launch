@@ -12,8 +12,6 @@ import type { ColumnFormState, DeleteTarget } from "./launcher-settings-dialogs.
 export function ColumnsTab(props: {
 	projectBoardId: string | null;
 	boards: BoardDefinition[];
-	columnError: string;
-	setColumnError: (v: string) => void;
 	selectedBoardId: string;
 	selectedBoard: BoardDefinition | undefined;
 	columnReorder: ListReorder<ColumnDefinition>;
@@ -22,15 +20,11 @@ export function ColumnsTab(props: {
 	setBoardForm: (v: { name: string } | null) => void;
 	setColumnForm: (v: ColumnFormState | null) => void;
 	setDeleteConfirm: (v: DeleteTarget | null) => void;
+	setColumnDialogError: (v: string) => void;
 }) {
 	return (
 		<TabsContent value="columns">
 			<div class="space-y-6">
-				<Show when={props.columnError}>
-					<div class="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-						{props.columnError}
-					</div>
-				</Show>
 				<section>
 					<div class="mb-2 flex items-center gap-2">
 						<BoardSelect
@@ -50,16 +44,19 @@ export function ColumnsTab(props: {
 							data-testid="launcher-settings-columns-set-project-board-btn"
 						>Set as project board</button>
 						<button
-							onClick={() => props.setBoardForm({ name: "" })}
+							onClick={() => { props.setColumnDialogError(""); props.setBoardForm({ name: "" }); }}
 							class="btn-primary btn-sm"
 							data-testid="launcher-settings-columns-add-board-btn"
 						>Add Board</button>
 						<button
 							onClick={() => {
 								const b = props.selectedBoard;
-								if (b) props.setDeleteConfirm({
-									type: "board", id: b.id, name: b.name,
-								});
+								if (b) {
+									props.setColumnDialogError("");
+									props.setDeleteConfirm({
+										type: "board", id: b.id, name: b.name,
+									});
+								}
 							}}
 							disabled={props.boards.length <= 1}
 							class={
@@ -75,7 +72,7 @@ export function ColumnsTab(props: {
 						<h3 class="text-sm font-semibold">Columns</h3>
 						<button
 							onClick={() => {
-								props.setColumnError("");
+								props.setColumnDialogError("");
 								props.setColumnForm({
 									mode: "add", name: "", description: "",
 								});
@@ -117,7 +114,7 @@ export function ColumnsTab(props: {
 															column={col}
 															isActive={props.columnReorder.activeId() === col.name}
 															onEdit={() => {
-																props.setColumnError("");
+																props.setColumnDialogError("");
 																props.setColumnForm({
 																	mode: "edit",
 																	name: col.name,
@@ -125,11 +122,14 @@ export function ColumnsTab(props: {
 																	oldName: col.name,
 																});
 															}}
-															onDelete={() => props.setDeleteConfirm({
+															onDelete={() => {
+															props.setColumnDialogError("");
+															props.setDeleteConfirm({
 																type: "column",
 																id: col.name,
 																name: col.name,
-															})}
+															});
+														}}
 														/>
 													</>
 												)}

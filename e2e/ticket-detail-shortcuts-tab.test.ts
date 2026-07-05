@@ -1,3 +1,4 @@
+import path from "node:path";
 import { describe, it, expect } from "vitest";
 import {
   createProject, uniqueSlug, gotoProject, openTicketDetail,
@@ -30,6 +31,67 @@ describe("Ticket detail Shortcuts tab (e2e, real server)", () => {
     });
     await ctx.page.click('[data-testid="ticket-detail-shortcuts-run-button"]');
     await expect.poll(() => serverRequests.length, { timeout: 10000 }).toBeGreaterThan(0);
+  }, 60000);
+
+  it("shortcut error opens ErrorDialog instead of inline banner", async () => {
+    const project = await createProject(ctx.testServer, {
+      projectSlug: uniqueSlug("tds-err"),
+      withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
+      appLauncherConfig: {
+        templates: [], skills: [], profiles: [],
+        shortcuts: [{ name: "Fail", command: "nonexistent-command-xyz" }],
+      },
+    });
+    ctx.projects.push(project);
+    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+    await openTicketDetail(ctx.page, "t-1-alpha");
+    await ctx.page.click('[data-testid="ticket-detail-tab-shortcuts"]');
+    await ctx.page.waitForSelector('[data-testid="ticket-detail-shortcuts-run-button"]', {
+      state: "visible", timeout: 15000,
+    });
+    await ctx.page.click('[data-testid="ticket-detail-shortcuts-run-button"]');
+    await ctx.page.waitForSelector('[data-testid="error-dialog-ok"]', {
+      state: "visible", timeout: 20000,
+    });
+    await ctx.page.click('[data-testid="error-dialog-ok"]');
+    await ctx.page.waitForSelector('[data-testid="error-dialog-ok"]', {
+      state: "detached", timeout: 15000,
+    });
+    await ctx.page.waitForSelector('[data-testid="ticket-detail-shortcuts-run-button"]', {
+      state: "visible", timeout: 5000,
+    });
+  }, 60000);
+
+  it("shortcut error dialog screenshot", async () => {
+    const project = await createProject(ctx.testServer, {
+      projectSlug: uniqueSlug("tds-screenshot"),
+      withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
+      appLauncherConfig: {
+        templates: [], skills: [], profiles: [],
+        shortcuts: [{ name: "Fail", command: "nonexistent-command-xyz" }],
+      },
+    });
+    ctx.projects.push(project);
+    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+    await openTicketDetail(ctx.page, "t-1-alpha");
+    await ctx.page.click('[data-testid="ticket-detail-tab-shortcuts"]');
+    await ctx.page.waitForSelector('[data-testid="ticket-detail-shortcuts-run-button"]', {
+      state: "visible", timeout: 15000,
+    });
+    await ctx.page.click('[data-testid="ticket-detail-shortcuts-run-button"]');
+    await ctx.page.waitForSelector('[data-testid="error-dialog-ok"]', {
+      state: "visible", timeout: 20000,
+    });
+    const ticketFolder = "C:\\Users\\elkmo\\.context-launch\\projects\\ai-stages\\tickets\\st-0036-fix-shows-shortcut-errors-inside-ticket-window-content";
+    const screenshotPath = path.join(ticketFolder, "error-dialog-screenshot.png");
+    await ctx.page.screenshot({ path: screenshotPath, fullPage: true });
+    await ctx.page.click('[data-testid="error-dialog-ok"]');
+    await ctx.page.waitForSelector('[data-testid="error-dialog-ok"]', {
+      state: "detached", timeout: 15000,
+    });
+    await ctx.page.waitForSelector('[data-testid="ticket-detail-shortcuts-run-button"]', {
+      state: "visible", timeout: 5000,
+    });
   }, 60000);
 
   it("dirty-worktree shortcut dialog testids are not present on the happy path", async () => {

@@ -23,6 +23,7 @@ import {
 	createLauncherSettingsState,
 	type LauncherSettingsController,
 } from "./launcher-settings-state.js";
+import ErrorDialog from "../shared/ErrorDialog.js";
 
 interface LauncherSettingsProps {
 	open: boolean;
@@ -123,11 +124,6 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 
 			<FloatingPanelBody>
 				<div class="flex-1 overflow-auto px-6 py-4">
-								<Show when={s.error()}>
-									<div class="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-										{s.error()}
-									</div>
-								</Show>
 								<Show when={s.loading() && !s.config()}>
 									<p class="text-sm text-muted-foreground">Loading...</p>
 								</Show>
@@ -167,8 +163,6 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 										<ColumnsTab
 											projectBoardId={s.projectBoardId()}
 											boards={s.boards()}
-											columnError={s.columnError()}
-											setColumnError={s.setColumnError}
 											selectedBoardId={s.selectedBoardId()}
 											selectedBoard={s.selectedBoard()}
 											columnReorder={s.columnReorder}
@@ -177,6 +171,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 											setBoardForm={s.setBoardForm}
 											setColumnForm={s.setColumnForm}
 											setDeleteConfirm={s.setDeleteConfirm}
+											setColumnDialogError={s.setColumnDialogError}
 										/>
 									</>)}
 								</Show>
@@ -213,20 +208,20 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 			columnForm={s.columnForm()}
 			setColumnForm={s.setColumnForm}
 			renameActive={!!s.renameForm()}
-			columnError={s.columnError()}
+			columnError={s.columnDialogError()}
 			validation={s.columnNameValidation()}
 			onSubmit={s.handleSaveColumn}
 		/>
 		<RenameColumnDialog
 			renameForm={s.renameForm()}
 			setRenameForm={s.setRenameForm}
-			columnError={s.columnError()}
+			columnError={s.columnDialogError()}
 			onRename={s.handleRenameColumn}
 		/>
 		<BoardFormDialog
 			boardForm={s.boardForm()}
 			setBoardForm={s.setBoardForm}
-			columnError={s.columnError()}
+			columnError={s.columnDialogError()}
 			onCreate={s.handleCreateBoard}
 		/>
 		<DeleteConfirmDialog
@@ -240,5 +235,6 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 			setProjectBoardConfirm={s.setProjectBoardConfirm}
 			onConfirm={s.handleSetProjectBoard}
 		/>
+		<ErrorDialog error={s.error()} onClose={() => s.setError(null)} />
 	</>);
 }

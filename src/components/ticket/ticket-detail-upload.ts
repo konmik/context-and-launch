@@ -2,11 +2,12 @@ import { createSignal } from "solid-js";
 import type { ActiveFile } from "./ticket-detail-pure.js";
 import { wouldOverwrite } from "./ticket-detail-pure.js";
 import { uploadFile as uploadFileAction } from "./ticket-api.js";
+import { errorPayload, type ErrorInfo } from "~/core/shared/errors.js";
 
 export interface FileUploadDeps {
   projectSlug: string;
   folderName: () => string;
-  setError: (msg: string) => void;
+  setError: (error: ErrorInfo | null) => void;
   ticketFileNames: () => string[];
   setTicketFileNames: (fn: string[] | ((prev: string[]) => string[])) => void;
   contextNames: string[];
@@ -50,7 +51,7 @@ export function createFileUploadState(deps: FileUploadDeps) {
   }
 
   async function processFileForUpload(file: File) {
-    if (file.name === "status.json") { deps.setError("Cannot overwrite status.json"); return; }
+    if (file.name === "status.json") { deps.setError({ title: "Upload failed", description: "Cannot overwrite status.json" }); return; }
     if (file.size > 10240) {
       const proceed = await awaitUploadConfirm(setConfirmSize, { fileName: file.name, file, size: file.size });
       setConfirmSize(null);
@@ -65,11 +66,11 @@ export function createFileUploadState(deps: FileUploadDeps) {
   }
 
   async function doUploadFile(file: File) {
-    setUploading(true); deps.setError("");
+    setUploading(true); deps.setError(null);
     try {
       const formData = new FormData(); formData.append("file", file);
       const result = await uploadFileAction(deps.projectSlug, deps.folderName(), formData);
-      if (!result.ok) { deps.setError(result.message); return; }
+      if (!result.ok) { deps.setError({ title: "Upload failed", description: result.message }); return; }
       let anySucceeded = false;
       for (const r of result.results) {
         if (r.ok) {
@@ -78,14 +79,14 @@ export function createFileUploadState(deps: FileUploadDeps) {
             prev.includes(r.name) ? prev : [...prev, r.name].sort(),
           );
         }
-        else { deps.setError(r.error || `Failed to upload ${r.name}`); }
+        else { deps.setError({ title: "Upload failed", description: r.error || `Failed to upload ${r.name}` }); }
       }
       if (anySucceeded) {
         if (file.name.endsWith(".md"))
           deps.requestFileSwitch({ type: "context", name: file.name.replace(/\.md$/, "") });
         else deps.requestFileSwitch({ type: "file", name: file.name });
       }
-    } catch (e) { deps.setError(e instanceof Error ? e.message : "Upload failed"); }
+    } catch (e) { deps.setError(errorPayload(e, "Upload failed")); }
     finally { setUploading(false); }
   }
 

@@ -47,7 +47,7 @@ export class TicketSyncManager {
 				upstream = (await git(worktreeDir, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}')).trim();
 			} catch (err) {
 				const isNoUpstream = err instanceof ProcessError
-					&& /no upstream configured/.test(err.output);
+					&& /no upstream configured/.test(err.output ?? "");
 				if (!isNoUpstream) throw err;
 				const branch = (await git(worktreeDir, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
 				try {
@@ -55,7 +55,7 @@ export class TicketSyncManager {
 					return { status: 'success' };
 				} catch (pushErr) {
 					const isNonFastForward = pushErr instanceof ProcessError
-						&& /non-fast-forward|fetch first/.test(pushErr.output);
+						&& /non-fast-forward|fetch first/.test(pushErr.output ?? "");
 					if (!isNonFastForward) throw pushErr;
 					await git(worktreeDir, 'fetch', 'origin');
 					await this.commitAll(worktreeDir);
@@ -108,7 +108,7 @@ export class TicketSyncManager {
 				// for genuine failures (stderr, no conflict listing); match the output so an
 				// error -- or a timeout, where exitCode is undefined -- is not read as a conflict.
 				if (mergeErr instanceof ProcessError && mergeErr.exitCode === 1
-					&& /^CONFLICT|Merge conflict/m.test(mergeErr.output)) {
+					&& /^CONFLICT|Merge conflict/m.test(mergeErr.output ?? "")) {
 					return { status: 'conflict' };
 				}
 				return { status: 'error', message: mergeErr instanceof Error ? mergeErr.message : String(mergeErr) };
@@ -169,7 +169,7 @@ export class TicketSyncManager {
 			if (!(err instanceof ProcessError)) throw err;
 			// `git diff --check` also fails on benign whitespace errors; only block on
 			// leftover conflict markers, which must never be committed.
-			if (/conflict marker/i.test(err.output)) {
+			if (/conflict marker/i.test(err.output ?? "")) {
 				throw new Error(
 					'Refusing to commit unresolved conflict markers. Resolve the conflict in the '
 					+ 'tickets repository, then sync again.',

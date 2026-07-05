@@ -10,8 +10,8 @@ export function git(workDir: string, ...args: string[]): Promise<string> {
 		const options = { cwd: workDir, timeout: 30000, encoding: 'utf-8' as const, env: gitEnv };
 		execFile('git', args, options, (error, stdout, stderr) => {
 			if (error) {
-				const output = (stderr || stdout || '').trim() || error.message;
-				console.log(`[git] FAIL ${command}  =>  ${output}`);
+				const output = (stderr || stdout || '').trim() || undefined;
+				console.log(`[git] FAIL ${command}  =>  ${output ?? error.message}`);
 				reject(new ProcessError(command, typeof error.code === 'number' ? error.code : undefined, output));
 				return;
 			}

@@ -46,7 +46,7 @@ describe("createFileUploadState", () => {
         target: { files: [file], value: "" },
         preventDefault: vi.fn(),
       } as any);
-      expect(deps.setError).toHaveBeenCalledWith("disk full");
+      expect(deps.setError).toHaveBeenCalledWith({ title: "Upload failed", description: "disk full" });
       expect(deps.requestFileSwitch).not.toHaveBeenCalled();
       dispose();
     });
@@ -66,7 +66,7 @@ describe("createFileUploadState", () => {
         target: { files: [file], value: "" },
         preventDefault: vi.fn(),
       } as any);
-      expect(deps.setError).toHaveBeenCalledWith("permission denied");
+      expect(deps.setError).toHaveBeenCalledWith({ title: "Upload failed", description: "permission denied" });
       expect(deps.requestFileSwitch).not.toHaveBeenCalled();
       dispose();
     });

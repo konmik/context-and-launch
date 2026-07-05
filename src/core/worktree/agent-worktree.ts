@@ -68,7 +68,8 @@ export class AgentWorktreeManager {
 		const { worktreeRootPath, branchPrefix } = this.launcherConfig.resolveWorktreeSettings(projectSlug);
 
 		const branchName = savedWorktreeInfo?.branchName ?? worktreeBranchName(folderName, branchPrefix);
-		const worktreePath = savedWorktreeInfo?.agentWorktreePath ?? `${worktreeRootPath}/${worktreeFolderName(folderName)}`;
+		const worktreePath = savedWorktreeInfo?.agentWorktreePath
+			?? `${worktreeRootPath}/${worktreeFolderName(folderName)}`;
 		const mainBranch = await this.getMainBranch(projectPath, configuredBranch);
 
 		if (!options?.skipDirtyCheck) {
