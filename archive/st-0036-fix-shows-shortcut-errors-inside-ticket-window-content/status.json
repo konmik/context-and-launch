@@ -1,8 +1,8 @@
 {
-  "useWorktree": false,
+  "useWorktree": true,
   "number": "ST-0036",
   "title": "Fix shows shortcut errors inside ticket window content",
-  "status": "todo",
+  "status": "done",
   "createdAt": "2026-07-03T10:36:25.353Z",
   "references": [
     {
