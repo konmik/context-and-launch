@@ -1,0 +1,8 @@
+{
+  "useWorktree": false,
+  "number": "ST-0038",
+  "title": "Don't check if main is fresh if not needed",
+  "status": "todo",
+  "createdAt": "2026-07-09T13:15:40.927Z",
+  "references": []
+}
