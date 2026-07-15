@@ -257,11 +257,6 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     finally { setSaving(false); }
   }
 
-  async function saveFile() {
-    await saveFileContent();
-    revalidate("project-page");
-  }
-
   function requestFileSwitch(file: ActiveFile) {
     if (isActiveFileMatch(file, activeFile()) && activeTab() === "editor") return;
     if (hasUnsavedFileChanges()) {
@@ -430,7 +425,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     openNativeFileBrowser,
     cancelSizeConfirm: upload.cancelSizeConfirm,
     cancelOverwriteConfirm: upload.cancelOverwriteConfirm,
-    saveFile, patchColumnDefaults,
+    patchColumnDefaults,
   };
 }
 
