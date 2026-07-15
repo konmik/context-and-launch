@@ -29,7 +29,7 @@ export function EditorTab(props: { ctrl: TicketDetailState }) {
           viewMode={s.fileViewMode()}
           content={s.content()}
           onChange={s.setContent}
-          onSave={s.activeFile().type === "context" ? s.saveFile : undefined}
+          onSave={s.activeFile().type === "context" ? s.saveAll : undefined}
           readOnly={isReadOnly(s.activeFile())}
           imageUrl={s.imageUrl()}
           label={activeFileLabel(s.activeFile())}
