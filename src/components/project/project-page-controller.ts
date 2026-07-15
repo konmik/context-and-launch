@@ -36,7 +36,11 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     const d = deps.data();
     if (!d || d.status !== "loaded") return;
     if (!d.hasRemote) {
-      setSyncError({ title: "Sync failed", description: "No remote tracking branch configured. Push the ticket branch to a remote first." });
+      setSyncError({
+        title: "Sync failed",
+        description: "No remote tracking branch configured."
+          + " Push the ticket branch to a remote first.",
+      });
       return;
     }
     setSyncing(true);

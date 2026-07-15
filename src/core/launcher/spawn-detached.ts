@@ -5,6 +5,7 @@ import { createRequire } from "module";
 import os from "os";
 import path from "path";
 import { ProcessError } from "../shared/errors.js";
+import { appLog } from "../infra/app-logger.js";
 
 const crossSpawnParse = createRequire(import.meta.url)("cross-spawn/lib/parse") as (
   command: string, args: string[], options: { cwd: string },
@@ -40,7 +41,7 @@ export async function spawnDetached(
   const fullCommand = `${executable} ${args.map(a => a.includes(" ") ? `"${a}"` : a).join(" ")}`;
   rejectMultilineCmdArgs(executable, args, cwd, fullCommand);
   const label = `${executable} ${args.map(a => a.length > 60 ? a.slice(0, 60) + "..." : a).join(" ")}`;
-  console.log(`spawn: ${label} (cwd: ${cwd})`);
+  appLog('spawn', `${label} (cwd: ${cwd})`);
 
   const stderrFile = path.join(os.tmpdir(), `context-launch-stderr-${crypto.randomUUID()}.log`);
   const stderrFd = fs.openSync(stderrFile, "w");
@@ -70,8 +71,8 @@ export async function spawnDetached(
 
     child.on("exit", (code) => {
       const stderr = takeStderr();
-      console.log(`exit ${code}: ${label}`);
-      if (stderr.trim()) console.error(`stderr: ${stderr.trim()}`);
+      appLog('spawn', `exit ${code}: ${label}`);
+      if (stderr.trim()) appLog('spawn', `stderr: ${stderr.trim()}`);
       if (settled) return;
       settled = true;
       if (code !== 0 && code !== null) {

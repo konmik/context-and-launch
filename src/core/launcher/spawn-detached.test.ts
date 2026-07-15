@@ -242,7 +242,7 @@ describe.runIf(process.platform === "win32")("spawnDetached windows .cmd shims",
     fs.writeFileSync(shimPath, "@echo off\r\necho ran> out.txt\r\n");
     const promise = spawnDetached(shimPath, ["line one\nline two"], cwd);
     await expect(promise).rejects.toBeInstanceOf(ProcessError);
-    await expect(promise).rejects.toThrow(/multiline/i);
+    await expect(promise).rejects.toThrow(/newline/i);
     expect(fs.existsSync(path.join(cwd, "out.txt"))).toBe(false);
   });
 

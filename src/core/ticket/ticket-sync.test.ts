@@ -5,6 +5,7 @@ import os from 'os';
 import { TicketSyncManager } from './ticket-sync.js';
 import { git } from '../infra/git.js';
 import { checkHasPendingChanges } from '../board/sync-pending.js';
+import { setAppLogListener } from '../infra/app-logger.js';
 import {
 	tmpDir, cleanup, createRepoWithRemote, conflictResolveDir, pushRemoteConflict,
 } from './sync-test-repos.js';
@@ -243,20 +244,18 @@ describe('TicketSyncManager', () => {
 		const { worktreeDir, remoteDir } = await createNoUpstreamRepoWithExistingRemoteBranch();
 
 		const manager = new TicketSyncManager();
-		const originalLog = console.log;
 		let injected = false;
-		console.log = (...args: unknown[]) => {
-			originalLog(...args);
-			if (!injected && typeof args[0] === 'string' && /fetch origin/.test(args[0])) {
+		setAppLogListener((_cat, msg) => {
+			if (!injected && /fetch origin/.test(msg)) {
 				injected = true;
 				fs.writeFileSync(path.join(worktreeDir, 'local-only.txt'), 'concurrent edit');
 			}
-		};
+		});
 		try {
 			const result = await manager.sync(worktreeDir);
 			expect(result.status).toBe('success');
 		} finally {
-			console.log = originalLog;
+			setAppLogListener(undefined);
 		}
 
 		expect(injected).toBe(true);
@@ -473,20 +472,18 @@ describe('TicketSyncManager', () => {
 		await pushRemoteConflict(remoteDir, dirs);
 
 		const manager = new TicketSyncManager();
-		const originalLog = console.log;
 		let injected = false;
-		console.log = (...args: unknown[]) => {
-			originalLog(...args);
-			if (!injected && typeof args[0] === 'string' && /reset --hard|merge --ff-only/.test(args[0])) {
+		setAppLogListener((_cat, msg) => {
+			if (!injected && /reset --hard|merge --ff-only/.test(msg)) {
 				injected = true;
 				fs.writeFileSync(path.join(worktreeDir, 'ticket.txt'), 'concurrent edit');
 			}
-		};
+		});
 		try {
 			const result = await manager.sync(worktreeDir);
 			expect(result.status).toBe('success');
 		} finally {
-			console.log = originalLog;
+			setAppLogListener(undefined);
 		}
 
 		expect(injected).toBe(true);

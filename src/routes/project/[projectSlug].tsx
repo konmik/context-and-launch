@@ -15,6 +15,7 @@ import ConflictDialog from "~/components/shared/ConflictDialog";
 import ErrorDialog from "~/components/shared/ErrorDialog";
 import AddProjectForm from "~/components/project/AddProjectForm";
 import ThemeToggle from "~/components/shared/ThemeToggle";
+import LogViewerDialog from "~/components/shared/LogViewerDialog";
 import LauncherSettings from "~/components/launcher/LauncherSettings";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 import { loadProjectPage, addProject } from "~/components/project/project-api.js";
@@ -42,6 +43,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   const { dialogState, syncState, selectionState, commands } =
     props?.ctrl ?? createProjectPageController({ projectSlug, data: data as any });
 
+  const [logViewerOpen, setLogViewerOpen] = createSignal(false);
   const [hasPendingChanges, setHasPendingChanges] = createSignal(false);
   createEffect(() => {
     const ps = projectSlug();
@@ -55,7 +57,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
       } catch { /* ignore poll failures */ }
     };
     void poll();
-    const timer = setInterval(() => void poll(), 2000);
+    const timer = setInterval(() => void poll(), 10000);
     onCleanup(() => { stopped = true; clearInterval(timer); });
   });
 
@@ -91,6 +93,21 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
             <h1 class="text-xl font-semibold">{currentProjectName()}</h1>
             <div class="flex flex-1 items-center justify-end gap-2">
               <ThemeToggle />
+              <button
+                onClick={() => setLogViewerOpen(true)}
+                class="btn-icon"
+                title="Application logs"
+                data-testid="project-header-logs-button"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round"
+                >
+                  <path d="M13 12h8"/><path d="M13 18h8"/><path d="M13 6h8"/>
+                  <path d="M3 12h1"/><path d="M3 18h1"/><path d="M3 6h1"/>
+                  <path d="M8 12h1"/><path d="M8 18h1"/><path d="M8 6h1"/>
+                </svg>
+              </button>
               <button
                 onClick={ld()?.hasConflict ? () => commands.setConflictDialogOpen(true) : commands.handleSync}
                 disabled={syncState().syncing}
@@ -291,6 +308,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
             hasConflict={!!ld()?.hasConflict}
           />
           <ErrorDialog error={syncState().syncError} onClose={() => commands.setSyncError(null)} />
+          <LogViewerDialog open={logViewerOpen()} onOpenChange={setLogViewerOpen} />
           <LauncherSettings
             open={dialogState().settingsOpen}
             onOpenChange={(open) => {

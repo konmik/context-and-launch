@@ -1,5 +1,6 @@
 import { execFile } from 'child_process';
 import { readFileSync } from 'fs';
+import { appLog } from './app-logger.js';
 
 export function openFileDialog(startDir?: string): Promise<string[]> {
 	const stubFile = process.env.CONTEXT_FILE_PICKER_STUB_FILE;
@@ -27,7 +28,7 @@ ${initialDir}$r = $d.ShowDialog($h)
 $h.Close()
 if ($r) { $d.FileNames -join [char]10 }
 `;
-			console.log('[exec] powershell OpenFileDialog');
+			appLog('exec', 'powershell OpenFileDialog');
 			execFile('powershell', ['-STA', '-NoProfile', '-Command', script], (err, stdout) => {
 				if (err) return reject(err);
 				resolve(parseOutput(stdout));
@@ -45,7 +46,7 @@ if ($r) { $d.FileNames -join [char]10 }
 				'end repeat',
 				'return output',
 			].join('\n');
-			console.log('[exec] osascript OpenFileDialog');
+			appLog('exec', 'osascript OpenFileDialog');
 			execFile('osascript', ['-e', script], (err, stdout) => {
 				if (err) {
 					if (err.code === 1) return resolve([]);
@@ -54,7 +55,7 @@ if ($r) { $d.FileNames -join [char]10 }
 				resolve(parseOutput(stdout));
 			});
 		} else {
-			console.log('[exec] zenity OpenFileDialog');
+			appLog('exec', 'zenity OpenFileDialog');
 			const args = ['--file-selection', '--multiple', '--separator=\n'];
 			if (startDir) args.push(`--filename=${startDir.replace(/\/?$/, "/")}`);
 			execFile('zenity', args, (err, stdout) => {

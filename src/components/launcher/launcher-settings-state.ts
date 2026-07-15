@@ -196,7 +196,11 @@ export function createLauncherSettingsState(props: {
 		const dc = deleteConfirm(); if (!dc || dc.type !== "board") return;
 		try {
 			const result = await deleteBoard(dc.id);
-			if (!result.ok) { setDeleteConfirm(null); setError({ title: "Delete failed", description: result.message }); return; }
+			if (!result.ok) {
+				setDeleteConfirm(null);
+				setError({ title: "Delete failed", description: result.message });
+				return;
+			}
 			setDeleteConfirm(null); await loadBoards();
 		} catch (e) { setDeleteConfirm(null); setError(errorPayload(e, "Delete failed")); }
 	}
@@ -261,7 +265,11 @@ export function createLauncherSettingsState(props: {
 		const boardId = selectedBoardId(); if (!boardId) return;
 		try {
 			const result = await deleteColumn(boardId, dc.id);
-			if (!result.ok) { setDeleteConfirm(null); setError({ title: "Delete failed", description: result.message }); return; }
+			if (!result.ok) {
+				setDeleteConfirm(null);
+				setError({ title: "Delete failed", description: result.message });
+				return;
+			}
 			setDeleteConfirm(null); await loadBoards();
 		} catch (e) { setDeleteConfirm(null); setError(errorPayload(e, "Delete failed")); }
 	}
