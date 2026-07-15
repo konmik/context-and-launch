@@ -1,12 +1,18 @@
 import { createMiddleware } from "@solidjs/start/middleware";
+import { appLog } from "~/core/infra/app-logger.js";
+
+function extractFnName(meta: { id: string }): string {
+  const functionId = meta.id.split("#")[0];
+  const match = functionId.match(/--(\w+)/);
+  return match ? match[1] : functionId;
+}
 
 export default createMiddleware({
-  onRequest: [
+  onBeforeResponse: [
     (event) => {
-      const url = new URL(event.request.url);
-      if (url.pathname.startsWith("/_server")) {
-        console.log(`${event.request.method} ${url.pathname}`);
-      }
+      const meta = event.locals.serverFunctionMeta as { id: string } | undefined;
+      if (!meta) return;
+      appLog('http', `${event.request.method} ${extractFnName(meta)}`);
     },
   ],
 });

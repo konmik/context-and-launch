@@ -1,17 +1,18 @@
 import { execFile, execFileSync } from 'child_process';
-import { ProcessError } from '../shared/errors.js';
+import { ProcessError, errorMessage } from '../shared/errors.js';
+import { appLog } from './app-logger.js';
 
 const gitEnv = { ...process.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' };
 
 export function git(workDir: string, ...args: string[]): Promise<string> {
 	const command = `git ${args.join(' ')}`;
-	console.log(`[git] ${command}  (cwd: ${workDir})`);
+	appLog('git', `${command}  (cwd: ${workDir})`);
 	return new Promise((resolve, reject) => {
 		const options = { cwd: workDir, timeout: 30000, encoding: 'utf-8' as const, env: gitEnv };
 		execFile('git', args, options, (error, stdout, stderr) => {
 			if (error) {
-				const output = (stderr || stdout || '').trim() || undefined;
-				console.log(`[git] FAIL ${command}  =>  ${output ?? error.message}`);
+				const output = (stderr || stdout || '').trim() || error.message;
+				appLog('git', `FAIL ${command}  =>  ${output}`);
 				reject(new ProcessError(command, typeof error.code === 'number' ? error.code : undefined, output));
 				return;
 			}
@@ -22,7 +23,7 @@ export function git(workDir: string, ...args: string[]): Promise<string> {
 
 export function gitSync(workDir: string, ...args: string[]): string {
 	const command = `git ${args.join(' ')}`;
-	console.log(`[git] ${command}  (cwd: ${workDir})`);
+	appLog('git', `${command}  (cwd: ${workDir})`);
 	return execFileSync('git', args, { cwd: workDir, timeout: 30000, encoding: 'utf-8', env: gitEnv });
 }
 
@@ -41,6 +42,6 @@ export function autoCommit(workDir: string, message: string): void {
 		if (!status.trim()) return;
 		gitSync(workDir, 'commit', '-m', message);
 	} catch (err) {
-		console.warn(`autoCommit failed (${message}):`, err);
+		appLog('git', `autoCommit failed (${message}): ${errorMessage(err)}`);
 	}
 }

@@ -51,7 +51,10 @@ export function createFileUploadState(deps: FileUploadDeps) {
   }
 
   async function processFileForUpload(file: File) {
-    if (file.name === "status.json") { deps.setError({ title: "Upload failed", description: "Cannot overwrite status.json" }); return; }
+    if (file.name === "status.json") {
+      deps.setError({ title: "Upload failed", description: "Cannot overwrite status.json" });
+      return;
+    }
     if (file.size > 10240) {
       const proceed = await awaitUploadConfirm(setConfirmSize, { fileName: file.name, file, size: file.size });
       setConfirmSize(null);

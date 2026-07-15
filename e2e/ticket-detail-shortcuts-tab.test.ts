@@ -82,7 +82,8 @@ describe("Ticket detail Shortcuts tab (e2e, real server)", () => {
     await ctx.page.waitForSelector('[data-testid="error-dialog-ok"]', {
       state: "visible", timeout: 20000,
     });
-    const ticketFolder = "C:\\Users\\elkmo\\.context-launch\\projects\\ai-stages\\tickets\\st-0036-fix-shows-shortcut-errors-inside-ticket-window-content";
+    const ticketFolder = "C:\\Users\\elkmo\\.context-launch\\projects\\ai-stages"
+      + "\\tickets\\st-0036-fix-shows-shortcut-errors-inside-ticket-window-content";
     const screenshotPath = path.join(ticketFolder, "error-dialog-screenshot.png");
     await ctx.page.screenshot({ path: screenshotPath, fullPage: true });
     await ctx.page.click('[data-testid="error-dialog-ok"]');
