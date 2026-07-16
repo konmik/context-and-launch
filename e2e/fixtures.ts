@@ -69,6 +69,8 @@ export interface SeedTicket {
   folderName?: string;
   body?: string;
   createdAt?: string;
+  dependsOn?: string[];
+  memberOf?: string;
 }
 
 export interface SeedColumn {
@@ -257,6 +259,8 @@ export async function createProject(
           status: t.status,
           useWorktree: useWorktreeFolders.has(folderName),
           ...(t.createdAt ? { createdAt: t.createdAt } : {}),
+          ...(t.dependsOn ? { dependsOn: t.dependsOn } : {}),
+          ...(t.memberOf ? { memberOf: t.memberOf } : {}),
         }, null, 2),
       );
       fs.writeFileSync(path.join(folder, "to-do.md"), t.body ?? "");
@@ -327,6 +331,10 @@ export async function gotoProject(page: Page, server: TestServer, projectSlug: s
     state: "attached",
     timeout: 15000,
   });
+  await page.waitForSelector(
+    '[data-testid="kanban-board-column-header"], [data-testid="forest-surface"]',
+    { state: "visible", timeout: 15000 },
+  );
 }
 
 export async function openConflictDialog(page: Page): Promise<void> {
@@ -509,6 +517,8 @@ export interface StatusJsonShape {
   title: string;
   status: string;
   useWorktree: boolean;
+  dependsOn?: string[];
+  memberOf?: string;
 }
 
 export function readTicketStatus(
@@ -518,6 +528,17 @@ export function readTicketStatus(
 ): StatusJsonShape | null {
   const file = path.join(
     server.dataDir, "projects", projectSlug, "tickets", folderName, "status.json",
+  );
+  if (!fs.existsSync(file)) return null;
+  return JSON.parse(fs.readFileSync(file, "utf-8"));
+}
+
+export function readForestLayout(
+  server: TestServer,
+  projectSlug: string,
+): Record<string, { x: number; y: number }> | null {
+  const file = path.join(
+    server.dataDir, "projects", projectSlug, "tickets", "forest-layout.json",
   );
   if (!fs.existsSync(file)) return null;
   return JSON.parse(fs.readFileSync(file, "utf-8"));

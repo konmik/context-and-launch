@@ -67,6 +67,28 @@ Ticket Detail Dialog:
 The modal that opens when a ticket is clicked, containing tabs for the editor, agent launcher, and shortcuts.
 Avoid: ticket modal, ticket view
 
+### Forest View & Dependencies
+
+Dependency:
+A directed relationship where one ticket depends on another, referenced by Ticket Number. Stored as a list (`dependsOn`) in the dependent ticket's `status.json`. The dependency graph is acyclic.
+Avoid: blocker, link, edge, relation
+
+Group:
+A ticket that contains other tickets. Membership is stored on each member as `memberOf` (the group's Ticket Number). Groups can be nested and participate in the dependency graph like any ticket. Grouping affects only the Forest View; the board treats a group as an ordinary ticket.
+Avoid: epic, container, folder
+
+Forest View:
+An alternative to the kanban board that renders a project's tickets as a dependency forest on a pannable, zoomable surface. Tickets with no dependencies sit on the bottom row; a ticket sits above every ticket it depends on. Toggled per project from the board toolbar.
+Avoid: tree view, map view, graph view
+
+Forest Layout:
+A per-worktree file (`forest-layout.json`) storing each ticket's dragged position on the Forest View, keyed by Ticket Number. Positions are relative to the containing Group's inner space. Tickets without an entry are placed automatically.
+Avoid: positions file, layout config
+
+Forest Viewport:
+The saved pan position (bottom-middle point) and zoom scale of the Forest View, per project per machine. Restored when the Forest View reopens.
+Avoid: camera, scroll position
+
 ### Git Infrastructure
 
 Worktree:
@@ -153,6 +175,9 @@ Avoid: sandbox, workspace
 - A Launcher Config contains zero or more Shortcuts
 - An Agent Worktree branches from the Project's main branch, named `{folderName}` (optionally prefixed with a configurable branch prefix)
 - The Agent Launcher remembers the last-used Template, checked Skills, and Coding Agent Profile per Column
+- A Ticket may depend on zero or more Tickets (a Dependency); the graph is acyclic
+- A Ticket may be a member of at most one Group; Groups nest acyclically
+- Editing a Ticket Number rewrites inbound Dependency and Group membership entries; deleting a ticket removes them; entries pointing at absent tickets are ignored when rendering
 
 ## Disk layout
 

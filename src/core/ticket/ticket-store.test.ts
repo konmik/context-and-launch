@@ -3,7 +3,9 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { TicketStore, toKebabCase } from './ticket-store.js';
+import { ForestLayoutStore } from './forest-layout-store.js';
 import { git, gitSync } from '../infra/git.js';
+import { ValidationError } from '../shared/errors.js';
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -145,7 +147,7 @@ describe('TicketStore', () => {
 
 		const store = new TicketStore(worktreeDir);
 		const first = store.createTicket('X-1', 'Same Name');
-		const second = store.createTicket('X-1', 'Same Name');
+		const second = store.createTicket('X 1', 'Same Name');
 
 		expect(first.folderName).toBe('x-1-same-name');
 		expect(second.folderName).toBe('x-1-same-name-2');
@@ -153,25 +155,34 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(path.join(worktreeDir, 'x-1-same-name-2'))).toBe(true);
 	});
 
-	it('H7.29 - two sequential createTicket calls with same number and title'
-		+ ' produce distinct folders via resolveUniqueFolderPath', async () => {
+	it('createTicket rejects a duplicate Ticket Number', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
 		const store = new TicketStore(worktreeDir);
-		const first = store.createTicket('DUP-1', 'Same Title');
-		const second = store.createTicket('DUP-1', 'Same Title');
+		store.createTicket('DUP-1', 'First Title');
 
-		expect(first.folderName).toBe('dup-1-same-title');
-		expect(second.folderName).toBe('dup-1-same-title-2');
-		expect(fs.existsSync(path.join(worktreeDir, 'dup-1-same-title'))).toBe(true);
-		expect(fs.existsSync(path.join(worktreeDir, 'dup-1-same-title-2'))).toBe(true);
+		expect(() => store.createTicket('dup-1', 'Second Title'))
+			.toThrow(/Ticket Number already exists: DUP-1/i);
+		expect(store.listTickets()).toHaveLength(1);
+	});
 
-		// Both tickets are independently readable with their own data
-		const tickets = store.listTickets();
-		expect(tickets.length).toBe(2);
-		const folderNames = tickets.map((t) => t.folderName).sort();
-		expect(folderNames).toEqual(['dup-1-same-title', 'dup-1-same-title-2']);
+	it('listTickets rejects legacy duplicate Ticket Numbers instead of collapsing graph identity', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+		const firstDir = path.join(worktreeDir, 'dup-1-first');
+		const secondDir = path.join(worktreeDir, 'dup-1-second');
+		fs.mkdirSync(firstDir);
+		fs.mkdirSync(secondDir);
+		fs.writeFileSync(path.join(firstDir, 'status.json'), JSON.stringify({
+			number: 'DUP-1', title: 'First', status: 'todo',
+		}));
+		fs.writeFileSync(path.join(secondDir, 'status.json'), JSON.stringify({
+			number: 'dup-1', title: 'Second', status: 'todo',
+		}));
+
+		const store = new TicketStore(worktreeDir);
+		expect(() => store.listTickets()).toThrow(/Duplicate Ticket Number: DUP-1/i);
 	});
 
 	it('updateTicket renames folder when number changes', async () => {
@@ -210,9 +221,9 @@ describe('TicketStore', () => {
 
 		const store = new TicketStore(worktreeDir);
 		store.createTicket('A-1', 'First');
-		store.createTicket('A-1', 'Second');
+		store.createTicket('A 1', 'Second');
 
-		expect(() => store.updateTicket('a-1-second', 'A-1', 'First', null)).toThrow();
+		expect(() => store.updateTicket('a-1-second', 'A 1', 'First', null)).toThrow();
 	});
 
 	it('saveTicketContext rejects path traversal in name', async () => {
@@ -772,42 +783,36 @@ describe('TicketStore', () => {
 		expect('sessionId' in ticket).toBe(false);
 	});
 
-	it('updateTicket on ticket with stale sessionId cleans it from status.json on disk', async () => {
+	it('updateTicket preserves unknown extra fields in status.json on disk', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
 		const store = new TicketStore(worktreeDir);
 
-		// Manually create a ticket with old-format status.json containing sessionId
-		const folderName = 'stale-1-session-cleanup';
+		const folderName = 'extra-1-preserve-fields';
 		const ticketDir = path.join(worktreeDir, folderName);
 		fs.mkdirSync(ticketDir, { recursive: true });
 		fs.writeFileSync(
 			path.join(ticketDir, 'status.json'),
 			JSON.stringify({
-				number: 'STALE-1',
-				title: 'Session Cleanup',
+				number: 'EXTRA-1',
+				title: 'Preserve Fields',
 				status: 'todo',
-				sessionId: 'sess_old_stale_value'
+				sessionId: 'sess_old_value'
 			}, null, 2)
 		);
 
-		// Update only the status -- this triggers readStatusJson then writeStatusJson
 		const updated = store.updateTicket(folderName, null, null, 'done');
-		expect(updated.number).toBe('STALE-1');
-		expect(updated.title).toBe('Session Cleanup');
+		expect(updated.number).toBe('EXTRA-1');
+		expect(updated.title).toBe('Preserve Fields');
 		expect(updated.status).toBe('done');
 
-		// Read the raw file on disk -- writeStatusJson writes only number/title/status
 		const raw = fs.readFileSync(path.join(ticketDir, 'status.json'), 'utf-8');
 		const onDisk = JSON.parse(raw);
-		expect(onDisk.number).toBe('STALE-1');
-		expect(onDisk.title).toBe('Session Cleanup');
+		expect(onDisk.number).toBe('EXTRA-1');
+		expect(onDisk.title).toBe('Preserve Fields');
 		expect(onDisk.status).toBe('done');
-
-		// The stale sessionId field should be gone from the file
-		expect('sessionId' in onDisk).toBe(false);
-		expect(Object.keys(onDisk).sort()).toEqual(['number', 'status', 'title', 'useWorktree']);
+		expect(onDisk.sessionId).toBe('sess_old_value');
 	});
 
 	it('listTickets with mixed old-format and new-format status.json files returns all correctly', async () => {
@@ -1020,8 +1025,7 @@ describe('TicketStore', () => {
 		expect(tickets[0].number).toBe('KEEP-1');
 	});
 
-	it('writeStatusJson throws after successful rename:'
-		+ ' error propagates, folder at new path with stale status.json', async () => {
+	it('updateTicket rolls back its folder rename when a status write fails', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1034,12 +1038,14 @@ describe('TicketStore', () => {
 		const originalData = JSON.parse(originalContent);
 		expect(originalData.title).toBe('Before Rename');
 
-		// Spy on writeFileSync so it throws when writing status.json
-		// (createTicket already ran, so the spy only intercepts the updateTicket write)
+		// Fail one write only: the storage layer must still be able to restore its
+		// before-image during rollback.
 		const originalWriteFileSync = fs.writeFileSync;
+		let failed = false;
 		const spy = vi.spyOn(fs, 'writeFileSync').mockImplementation((...args: any[]) => {
 			const filePath = String(args[0]);
-			if (filePath.endsWith('status.json')) {
+			if (!failed && filePath.includes('status.json')) {
+				failed = true;
 				throw new Error('Simulated disk full');
 			}
 			return originalWriteFileSync.apply(fs, args as any);
@@ -1051,17 +1057,16 @@ describe('TicketStore', () => {
 				'Simulated disk full'
 			);
 
-			// (b) Folder exists at the new path (rename succeeded before the throw)
+			// The whole mutation is rolled back to its before-image.
 			const newDir = path.join(worktreeDir, 'err-1-after-rename');
-			expect(fs.existsSync(newDir)).toBe(true);
-			expect(fs.existsSync(oldDir)).toBe(false);
+			expect(fs.existsSync(newDir)).toBe(false);
+			expect(fs.existsSync(oldDir)).toBe(true);
 
-			// (c) status.json at new path has stale content (the write that would
-			// update it was the one that threw, so it still has the old data)
-			const staleContent = fs.readFileSync(path.join(newDir, 'status.json'), 'utf-8');
-			const staleData = JSON.parse(staleContent);
-			expect(staleData.title).toBe('Before Rename');
-			expect(staleData.status).toBe('todo');
+			const restoredData = JSON.parse(
+				fs.readFileSync(path.join(oldDir, 'status.json'), 'utf-8')
+			);
+			expect(restoredData.title).toBe('Before Rename');
+			expect(restoredData.status).toBe('todo');
 		} finally {
 			spy.mockRestore();
 		}
@@ -1558,6 +1563,539 @@ describe('TicketStore', () => {
 
 		const tickets = store.listTickets();
 		expect(tickets[0].useWorktree).toBe(true);
+	});
+
+	it('updateTicket title-only change preserves references on disk', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+
+		const folderName = 'pres-1-has-refs';
+		const ticketDir = path.join(worktreeDir, folderName);
+		fs.mkdirSync(ticketDir, { recursive: true });
+		fs.writeFileSync(
+			path.join(ticketDir, 'status.json'),
+			JSON.stringify({
+				number: 'PRES-1',
+				title: 'Has Refs',
+				status: 'todo',
+				useWorktree: false,
+				references: [{ path: '/some/file.txt' }],
+			}, null, 2)
+		);
+
+		const updated = store.updateTicket(folderName, null, 'New Title', null);
+		expect(updated.title).toBe('New Title');
+
+		const raw = JSON.parse(
+			fs.readFileSync(path.join(worktreeDir, updated.folderName, 'status.json'), 'utf-8')
+		);
+		expect(raw.references).toEqual([{ path: '/some/file.txt' }]);
+	});
+
+	it('updateTicket title-only change preserves dependsOn and memberOf on disk', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+
+		const folderName = 'dep-1-has-deps';
+		const ticketDir = path.join(worktreeDir, folderName);
+		fs.mkdirSync(ticketDir, { recursive: true });
+		fs.writeFileSync(
+			path.join(ticketDir, 'status.json'),
+			JSON.stringify({
+				number: 'DEP-1',
+				title: 'Has Deps',
+				status: 'todo',
+				useWorktree: false,
+				dependsOn: ['X-1'],
+				memberOf: 'X-2',
+			}, null, 2)
+		);
+
+		const updated = store.updateTicket(folderName, null, 'New Title', null);
+		expect(updated.title).toBe('New Title');
+
+		const raw = JSON.parse(
+			fs.readFileSync(path.join(worktreeDir, updated.folderName, 'status.json'), 'utf-8')
+		);
+		expect(raw.dependsOn).toEqual(['X-1']);
+		expect(raw.memberOf).toBe('X-2');
+
+		const tickets = store.listTickets();
+		expect(tickets[0].dependsOn).toEqual(['X-1']);
+		expect(tickets[0].memberOf).toBe('X-2');
+	});
+
+	it('addDependency/removeDependency round-trip', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('A-1', 'Alpha');
+		store.createTicket('B-1', 'Beta');
+
+		store.addDependency('b-1-beta', 'A-1');
+
+		const raw = JSON.parse(
+			fs.readFileSync(path.join(worktreeDir, 'b-1-beta', 'status.json'), 'utf-8')
+		);
+		expect(raw.dependsOn).toEqual(['A-1']);
+
+		store.removeDependency('b-1-beta', 'A-1');
+
+		const raw2 = JSON.parse(
+			fs.readFileSync(path.join(worktreeDir, 'b-1-beta', 'status.json'), 'utf-8')
+		);
+		expect(raw2.dependsOn).toBeUndefined();
+	});
+
+	it('addDependency rejects direct cycle', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('A-1', 'Alpha');
+		store.createTicket('B-1', 'Beta');
+		store.addDependency('a-1-alpha', 'B-1');
+
+		expect(() => store.addDependency('b-1-beta', 'A-1')).toThrow(ValidationError);
+		expect(() => store.addDependency('b-1-beta', 'A-1')).toThrow(/cycle/);
+	});
+
+	it('addDependency rejects self-dependency', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('A-1', 'Alpha');
+
+		expect(() => store.addDependency('a-1-alpha', 'A-1')).toThrow(ValidationError);
+		expect(() => store.addDependency('a-1-alpha', 'A-1')).toThrow(/cycle/);
+	});
+
+	it('addDependency rejects nonexistent target', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('A-1', 'Alpha');
+
+		expect(() => store.addDependency('a-1-alpha', 'NOPE-99')).toThrow(ValidationError);
+		expect(() => store.addDependency('a-1-alpha', 'NOPE-99')).toThrow(/does not exist/);
+	});
+
+	it('addDependency is idempotent', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('A-1', 'Alpha');
+		store.createTicket('B-1', 'Beta');
+
+		store.addDependency('b-1-beta', 'A-1');
+		store.addDependency('b-1-beta', 'A-1');
+
+		const raw = JSON.parse(
+			fs.readFileSync(path.join(worktreeDir, 'b-1-beta', 'status.json'), 'utf-8')
+		);
+		expect(raw.dependsOn).toEqual(['A-1']);
+	});
+
+	it('createGroup writes memberOf on all members', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('A-1', 'Alpha');
+		store.createTicket('B-1', 'Beta');
+
+		const group = store.createGroup('G-1', 'Group One', 'todo', ['a-1-alpha', 'b-1-beta']);
+
+		expect(group.number).toBe('G-1');
+		expect(group.status).toBe('todo');
+
+		const rawA = JSON.parse(
+			fs.readFileSync(path.join(worktreeDir, 'a-1-alpha', 'status.json'), 'utf-8')
+		);
+		expect(rawA.memberOf).toBe('G-1');
+
+		const rawB = JSON.parse(
+			fs.readFileSync(path.join(worktreeDir, 'b-1-beta', 'status.json'), 'utf-8')
+		);
+		expect(rawB.memberOf).toBe('G-1');
+
+		const groupDir = path.join(worktreeDir, group.folderName);
+		expect(fs.existsSync(groupDir)).toBe(true);
+	});
+
+	it('createGroup with parentGroupNumber sets group own memberOf', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('A-1', 'Alpha');
+		store.createTicket('B-1', 'Beta');
+		store.createTicket('P-1', 'Parent');
+
+		const group = store.createGroup('G-1', 'Inner Group', 'todo', ['a-1-alpha', 'b-1-beta'], 'P-1');
+
+		const rawGroup = JSON.parse(
+			fs.readFileSync(path.join(worktreeDir, group.folderName, 'status.json'), 'utf-8')
+		);
+		expect(rawGroup.memberOf).toBe('P-1');
+
+		const rawA = JSON.parse(
+			fs.readFileSync(path.join(worktreeDir, 'a-1-alpha', 'status.json'), 'utf-8')
+		);
+		expect(rawA.memberOf).toBe('G-1');
+	});
+
+	it('createGroup with position saves to forest layout', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('A-1', 'Alpha');
+
+		store.createGroup('G-1', 'Group', 'todo', ['a-1-alpha'], undefined, { x: 100, y: 200 });
+
+		const layout = store.readForestLayoutStore().read();
+		expect(layout['G-1']).toEqual({ x: 100, y: 200 });
+	});
+
+	it('createGroup rejects membership cycle', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('A-1', 'Alpha');
+
+		store.createGroup('G-1', 'Outer', 'todo', ['a-1-alpha']);
+
+		expect(() =>
+			store.createGroup('G-2', 'Inner', 'todo', ['g-1-outer'], 'A-1')
+		).toThrow(ValidationError);
+		expect(() =>
+			store.createGroup('G-2', 'Inner', 'todo', ['g-1-outer'], 'A-1')
+		).toThrow(/membership cycle/);
+	});
+
+	it('createGroup validation before write prevents group folder creation', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('A-1', 'Alpha');
+
+		expect(() =>
+			store.createGroup('G-1', 'Group', 'todo', ['nonexistent-folder'])
+		).toThrow(/not found/i);
+
+		const tickets = store.listTickets();
+		const groupExists = tickets.some(t => t.number === 'G-1');
+		expect(groupExists).toBe(false);
+	});
+
+	it('ungroup at top level clears memberOf', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('A-1', 'Alpha');
+		store.createTicket('B-1', 'Beta');
+
+		const group = store.createGroup('G-1', 'Group', 'todo', ['a-1-alpha', 'b-1-beta']);
+
+		store.ungroup(group.folderName);
+
+		const rawA = JSON.parse(
+			fs.readFileSync(path.join(worktreeDir, 'a-1-alpha', 'status.json'), 'utf-8')
+		);
+		expect(rawA.memberOf).toBeUndefined();
+
+		const rawB = JSON.parse(
+			fs.readFileSync(path.join(worktreeDir, 'b-1-beta', 'status.json'), 'utf-8')
+		);
+		expect(rawB.memberOf).toBeUndefined();
+
+		expect(fs.existsSync(path.join(worktreeDir, group.folderName))).toBe(true);
+	});
+
+	it('ungroup reassigns members to parent group', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('A-1', 'Alpha');
+		store.createTicket('B-1', 'Beta');
+
+		const outer = store.createGroup('G-1', 'Outer', 'todo', ['a-1-alpha', 'b-1-beta']);
+		const inner = store.createGroup('G-2', 'Inner', 'todo', ['a-1-alpha'], 'G-1');
+
+		store.ungroup(inner.folderName);
+
+		const rawA = JSON.parse(
+			fs.readFileSync(path.join(worktreeDir, 'a-1-alpha', 'status.json'), 'utf-8')
+		);
+		expect(rawA.memberOf).toBe('G-1');
+	});
+
+	it('ungroup applies position rule: groupPos + memberPos', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('A-1', 'Alpha');
+		store.createTicket('B-1', 'Beta');
+
+		const group = store.createGroup('G-1', 'Group', 'todo', ['a-1-alpha', 'b-1-beta'],
+			undefined, { x: 100, y: 200 });
+
+		store.readForestLayoutStore().savePositions({
+			'A-1': { x: 50, y: 30 },
+		});
+
+		store.ungroup(group.folderName);
+
+		const layout = store.readForestLayoutStore().read();
+		expect(layout['A-1']).toEqual({ x: 150, y: 230 });
+	});
+
+	it('grouping then ungrouping preserves member positions', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('A-1', 'Alpha');
+		store.createTicket('B-1', 'Beta');
+		store.readForestLayoutStore().savePositions({
+			'A-1': { x: 130, y: 240 },
+			'B-1': { x: 180, y: 275 },
+		});
+
+		const group = store.createGroup(
+			'G-1',
+			'Group',
+			'todo',
+			['a-1-alpha', 'b-1-beta'],
+			undefined,
+			{ x: 100, y: 200 }
+		);
+
+		expect(store.readForestLayoutStore().read()).toMatchObject({
+			'A-1': { x: 30, y: 40 },
+			'B-1': { x: 80, y: 75 },
+			'G-1': { x: 100, y: 200 },
+		});
+
+		store.ungroup(group.folderName);
+
+		expect(store.readForestLayoutStore().read()).toMatchObject({
+			'A-1': { x: 130, y: 240 },
+			'B-1': { x: 180, y: 275 },
+		});
+	});
+
+	it('createGroup rolls back every member and the new group when a member write fails', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('A-1', 'Alpha');
+		store.createTicket('B-1', 'Beta');
+
+		const originalWriteFileSync = fs.writeFileSync;
+		let failed = false;
+		const spy = vi.spyOn(fs, 'writeFileSync').mockImplementation((...args: any[]) => {
+			const destination = String(args[0]);
+			if (!failed && destination.includes('b-1-beta') && destination.includes('status.json')) {
+				failed = true;
+				throw new Error('Simulated member write failure');
+			}
+			return originalWriteFileSync.apply(fs, args as any);
+		});
+
+		try {
+			expect(() => store.createGroup(
+				'G-1', 'Group', 'todo', ['a-1-alpha', 'b-1-beta'], undefined, { x: 100, y: 200 },
+			)).toThrow('Simulated member write failure');
+		} finally {
+			spy.mockRestore();
+		}
+
+		expect(store.listTickets().map(ticket => ticket.number)).toEqual(['A-1', 'B-1']);
+		expect(store.getTicket('a-1-alpha')?.memberOf).toBeUndefined();
+		expect(store.getTicket('b-1-beta')?.memberOf).toBeUndefined();
+		expect(store.readOrderStore().read().todo).toEqual(['a-1-alpha', 'b-1-beta']);
+	});
+
+	it('ungroup rolls back layout and memberships when a member write fails', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('A-1', 'Alpha');
+		store.createTicket('B-1', 'Beta');
+		store.readForestLayoutStore().savePositions({
+			'A-1': { x: 130, y: 240 },
+			'B-1': { x: 180, y: 275 },
+		});
+		const group = store.createGroup(
+			'G-1', 'Group', 'todo', ['a-1-alpha', 'b-1-beta'], undefined, { x: 100, y: 200 },
+		);
+		const groupedLayout = store.readForestLayoutStore().read();
+
+		const originalWriteFileSync = fs.writeFileSync;
+		let failed = false;
+		const spy = vi.spyOn(fs, 'writeFileSync').mockImplementation((...args: any[]) => {
+			const destination = String(args[0]);
+			if (!failed && destination.includes('b-1-beta') && destination.includes('status.json')) {
+				failed = true;
+				throw new Error('Simulated member write failure');
+			}
+			return originalWriteFileSync.apply(fs, args as any);
+		});
+
+		try {
+			expect(() => store.ungroup(group.folderName)).toThrow('Simulated member write failure');
+		} finally {
+			spy.mockRestore();
+		}
+
+		expect(store.getTicket('a-1-alpha')?.memberOf).toBe('G-1');
+		expect(store.getTicket('b-1-beta')?.memberOf).toBe('G-1');
+		expect(store.readForestLayoutStore().read()).toEqual(groupedLayout);
+	});
+
+	it('number edit rewrites inbound dependsOn and renames layout key', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('A-1', 'Alpha');
+		store.createTicket('B-1', 'Beta');
+		store.addDependency('b-1-beta', 'A-1');
+		store.readForestLayoutStore().savePositions({ 'A-1': { x: 10, y: 20 } });
+
+		store.updateTicket('a-1-alpha', 'A-99', null, null);
+
+		const rawB = JSON.parse(
+			fs.readFileSync(path.join(worktreeDir, 'b-1-beta', 'status.json'), 'utf-8')
+		);
+		expect(rawB.dependsOn).toEqual(['A-99']);
+
+		const layout = store.readForestLayoutStore().read();
+		expect(layout['A-99']).toEqual({ x: 10, y: 20 });
+		expect(layout['A-1']).toBeUndefined();
+	});
+
+	it('number edit rewrites inbound references in archive', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('A-1', 'Alpha');
+		store.createTicket('B-1', 'Beta');
+		store.addDependency('b-1-beta', 'A-1');
+		store.archiveTicket('b-1-beta');
+
+		store.updateTicket('a-1-alpha', 'A-99', null, null);
+
+		const rawB = JSON.parse(
+			fs.readFileSync(path.join(worktreeDir, 'archive', 'b-1-beta', 'status.json'), 'utf-8')
+		);
+		expect(rawB.dependsOn).toEqual(['A-99']);
+	});
+
+	it('delete removes inbound references and layout key', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('A-1', 'Alpha');
+		store.createTicket('B-1', 'Beta');
+		store.addDependency('b-1-beta', 'A-1');
+		store.readForestLayoutStore().savePositions({ 'A-1': { x: 10, y: 20 } });
+
+		store.deleteTicket('a-1-alpha');
+
+		const rawB = JSON.parse(
+			fs.readFileSync(path.join(worktreeDir, 'b-1-beta', 'status.json'), 'utf-8')
+		);
+		expect(rawB.dependsOn).toBeUndefined();
+
+		const layout = store.readForestLayoutStore().read();
+		expect(layout['A-1']).toBeUndefined();
+	});
+
+	it('delete rolls back the ticket, order, references, and layout when cleanup fails', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('A-1', 'Alpha');
+		store.createTicket('B-1', 'Beta');
+		store.addDependency('b-1-beta', 'A-1');
+		store.readForestLayoutStore().savePositions({ 'A-1': { x: 10, y: 20 } });
+
+		const originalWriteFileSync = fs.writeFileSync;
+		let failed = false;
+		const spy = vi.spyOn(fs, 'writeFileSync').mockImplementation((...args: any[]) => {
+			const destination = String(args[0]);
+			if (!failed && destination.includes('b-1-beta') && destination.includes('status.json')) {
+				failed = true;
+				throw new Error('Simulated reference cleanup failure');
+			}
+			return originalWriteFileSync.apply(fs, args as any);
+		});
+
+		try {
+			expect(() => store.deleteTicket('a-1-alpha')).toThrow(
+				'Simulated reference cleanup failure',
+			);
+		} finally {
+			spy.mockRestore();
+		}
+
+		expect(store.getTicket('a-1-alpha')?.number).toBe('A-1');
+		expect(store.getTicket('b-1-beta')?.dependsOn).toEqual(['A-1']);
+		expect(store.readOrderStore().read().todo).toEqual(['a-1-alpha', 'b-1-beta']);
+		expect(store.readForestLayoutStore().read()['A-1']).toEqual({ x: 10, y: 20 });
+	});
+
+	it('archive leaves dependsOn, memberOf, and layout untouched', async () => {
+		const worktreeDir = await createGitWorktree();
+		dirs.push(worktreeDir);
+
+		const store = new TicketStore(worktreeDir);
+		store.createTicket('A-1', 'Alpha');
+		store.createTicket('B-1', 'Beta');
+		store.addDependency('b-1-beta', 'A-1');
+
+		const bDir = path.join(worktreeDir, 'b-1-beta');
+		const bStatus = JSON.parse(fs.readFileSync(path.join(bDir, 'status.json'), 'utf-8'));
+		fs.writeFileSync(
+			path.join(bDir, 'status.json'),
+			JSON.stringify({ ...bStatus, memberOf: 'G-1' }, null, 2)
+		);
+
+		store.readForestLayoutStore().savePositions({ 'B-1': { x: 5, y: 10 } });
+
+		store.archiveTicket('b-1-beta');
+
+		const rawA = JSON.parse(
+			fs.readFileSync(path.join(worktreeDir, 'a-1-alpha', 'status.json'), 'utf-8')
+		);
+		expect(rawA.dependsOn).toBeUndefined();
+
+		const archivedB = JSON.parse(
+			fs.readFileSync(path.join(worktreeDir, 'archive', 'b-1-beta', 'status.json'), 'utf-8')
+		);
+		expect(archivedB.dependsOn).toEqual(['A-1']);
+		expect(archivedB.memberOf).toBe('G-1');
+
+		const layout = store.readForestLayoutStore().read();
+		expect(layout['B-1']).toEqual({ x: 5, y: 10 });
 	});
 
 });

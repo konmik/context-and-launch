@@ -22,9 +22,10 @@ function cleanup(...dirs: string[]) {
 
 function createTicketDir(worktreeDir: string, folderName: string, status: string) {
 	const dir = path.join(worktreeDir, folderName);
+	const [prefix, sequence] = folderName.split('-');
 	fs.mkdirSync(dir, { recursive: true });
 	fs.writeFileSync(path.join(dir, 'status.json'), JSON.stringify({
-		number: folderName.split('-')[0].toUpperCase(),
+		number: `${prefix}-${sequence}`.toUpperCase(),
 		title: folderName,
 		status,
 		useWorktree: false,

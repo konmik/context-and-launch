@@ -9,17 +9,14 @@ import { WorktreeCleanupService } from "~/core/worktree/worktree-cleanup.js";
 import { worktreeBranchName, worktreeFolderName } from "~/core/worktree/worktree-naming.js";
 import { ValidationError, NotFoundError, errorMessage, errorPayload, errorResult } from "~/core/shared/errors.js";
 import type { ErrorInfo } from "~/core/shared/errors.js";
+import { resolveInitialTicketStatus } from "~/core/board/initial-ticket-status.js";
 
 export async function createTicket(projectSlug: string, number: string, title: string) {
   "use server";
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
-    const boardId = projectRegistry.getBoardId(projectSlug);
-    const columns = boardConfigManager.getConfig(boardId).columns;
-    if (columns.length === 0) {
-      return { ok: false as const, type: "error" as const, message: "Board has no columns configured" };
-    }
-    new TicketStore(worktreeDir).createTicket(number, title, columns[0].name);
+    const initialStatus = resolveInitialTicketStatus(projectSlug, { projectRegistry, boardConfigManager });
+    new TicketStore(worktreeDir).createTicket(number, title, initialStatus);
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);

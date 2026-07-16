@@ -14,7 +14,7 @@ export class TicketOrderStore {
 	}
 
 	read(): TicketOrder {
-		const parsed = this.repo.readOrderJson(this.worktreeDir);
+		const parsed = this.repo.readWorktreeJson(this.worktreeDir, 'ticket-order.json');
 		if (parsed === null) return {};
 		if (typeof parsed !== 'object' || Array.isArray(parsed)) return {};
 		const record = parsed as Record<string, unknown>;
@@ -25,7 +25,7 @@ export class TicketOrderStore {
 	}
 
 	write(order: TicketOrder): void {
-		this.repo.writeOrderJson(this.worktreeDir, order);
+		this.repo.writeWorktreeJson(this.worktreeDir, 'ticket-order.json', order);
 	}
 
 	reconcile(tickets: TicketInfo[], columns: string[]): TicketOrder {

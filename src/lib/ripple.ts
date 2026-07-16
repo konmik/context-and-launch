@@ -1,12 +1,12 @@
 export function initRipple() {
   const onPointerDown = (e: PointerEvent) => {
     const target = (e.target as HTMLElement).closest(
-      "button, [role='button'], [data-ripple], .ripple"
+      ".btn-primary, .btn-secondary, .btn-destructive, .btn-icon, [data-ripple], .ripple"
     ) as HTMLElement | null;
     if (!target) return;
 
-    // Ark UI buttons carry [data-scope] and are excluded from the ripple
-    // container styles in CSS, so ensure the host clips and anchors the ripple.
+    // The host must clip and anchor the ripple; applied at fire time so the
+    // selector list is not duplicated in CSS.
     if (getComputedStyle(target).position === "static") target.style.position = "relative";
     target.style.overflow = "hidden";
 

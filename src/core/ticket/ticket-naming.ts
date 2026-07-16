@@ -6,6 +6,10 @@ export function toKebabCase(input: string): string {
 		.replace(/^-|-$/g, '');
 }
 
+export function normalizeTicketNumber(ticketNumber: string): string {
+	return ticketNumber.trim().toLowerCase();
+}
+
 export function requireNonBlank(value: string, label: string): string {
 	const trimmed = value.trim();
 	if (!trimmed) throw new Error(`${label} must not be blank`);
