@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { randomUUID } from 'node:crypto';
 
 export class ConfigRepository {
 	readJson(filePath: string): unknown | null {
@@ -15,8 +16,25 @@ export class ConfigRepository {
 	}
 
 	writeJson(filePath: string, data: unknown): void {
-		fs.mkdirSync(path.dirname(filePath), { recursive: true });
-		fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+		const parentDir = path.dirname(filePath);
+		fs.mkdirSync(parentDir, { recursive: true });
+		const temporaryPath = path.join(
+			parentDir,
+			`.${path.basename(filePath)}.${randomUUID()}.tmp`,
+		);
+		let descriptor: number | null = null;
+		try {
+			fs.writeFileSync(temporaryPath, JSON.stringify(data, null, 2), { flag: 'wx' });
+			descriptor = fs.openSync(temporaryPath, 'r+');
+			fs.fsyncSync(descriptor);
+			fs.closeSync(descriptor);
+			descriptor = null;
+			fs.renameSync(temporaryPath, filePath);
+		} catch (error) {
+			if (descriptor !== null) fs.closeSync(descriptor);
+			fs.rmSync(temporaryPath, { force: true });
+			throw error;
+		}
 	}
 
 	exists(filePath: string): boolean {

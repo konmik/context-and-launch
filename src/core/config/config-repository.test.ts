@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -70,5 +70,33 @@ describe('ConfigRepository', () => {
 		const repo = new ConfigRepository();
 		repo.writeJson(filePath, data);
 		expect(repo.readJson(filePath)).toEqual(data);
+	});
+
+	it('writeJson preserves the previous file when the replacement write fails', () => {
+		const dir = tmpDir('config-repo-');
+		dirs.push(dir);
+		const filePath = path.join(dir, 'data.json');
+		fs.writeFileSync(filePath, JSON.stringify({ version: 'before' }));
+		const repo = new ConfigRepository();
+		const originalWriteFileSync = fs.writeFileSync;
+		let failed = false;
+		const spy = vi.spyOn(fs, 'writeFileSync').mockImplementation((...args: any[]) => {
+			const destination = String(args[0]);
+			if (!failed && destination.includes('data.json')) {
+				failed = true;
+				originalWriteFileSync(destination, '{"partial"');
+				throw new Error('Simulated interrupted write');
+			}
+			return originalWriteFileSync.apply(fs, args as any);
+		});
+
+		try {
+			expect(() => repo.writeJson(filePath, { version: 'after' })).toThrow(
+				'Simulated interrupted write',
+			);
+			expect(repo.readJson(filePath)).toEqual({ version: 'before' });
+		} finally {
+			spy.mockRestore();
+		}
 	});
 });

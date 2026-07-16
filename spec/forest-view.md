@@ -1,0 +1,137 @@
+# Forest View
+
+- View toggle and persistence
+  - Icon button in the project header toggles between kanban and forest
+  - View mode persisted per project in localStorage
+  - Reload restores the saved mode
+  - Toggling swaps the main area without a page reload
+  - Kanban board props and internals are untouched
+
+- Surface interactions
+  - Pointer drag on empty surface pans the viewport
+    - Cursor shows a closed grabbing hand while panning
+  - Wheel zooms toward the cursor position
+    - Scale clamped between 0.2 and 2.5
+    - The world point under the cursor stays fixed
+  - Shift-drag draws a selection rectangle in world space
+    - Tickets whose card rect intersects the rectangle become selected
+    - Releasing the shift-drag finalizes the selection
+  - Viewport anchor persisted per project in localStorage
+    - Anchor is the world coordinates of the bottom-middle screen point plus scale
+    - Reload restores the saved viewport
+  - Center button centers the visible tickets horizontally
+    - Places the bottom of the visible tickets 120 pixels above the surface bottom
+    - Inside a Group, ignores tickets outside that Group
+
+- Layout rules
+  - Tickets with no dependencies sit in the bottom row at depth 0
+  - A ticket that depends on others sits above every one of them
+    - Depth equals one plus the maximum depth of its dependencies
+  - y position equals negative depth times the row gap
+  - Auto layout computes positions only for tickets without a saved entry
+  - Saved positions are respected and never overwritten by auto layout
+  - Rearrange button recomputes positions for all tickets in the current scope
+    - Overwrites saved positions for the visible scope only
+    - Button is disabled while a persist is in flight
+
+- Ticket card
+  - Positioned absolutely at its world coordinates
+  - Fixed width, minimum height
+  - Semi-transparent background with backdrop blur, readable in both themes
+  - Shows ticket number and title
+  - Click opens the ticket detail dialog
+  - Drag moves the card in world space
+    - Movement below a 5px threshold counts as a click, not a drag
+    - If the card is in the current selection, all selected cards move together
+    - On release, moved positions are saved to forest-layout.json
+
+- Dependency lines
+  - SVG cubic bezier from top-center of the depended-on card to bottom-center of the dependent
+  - Control points offset vertically for a smooth curve
+  - Connector handles appear at top-center and bottom-center when a card is hovered
+  - Clicking a handle activates connection edit mode
+    - The source handle stays highlighted
+    - If its ticket becomes hidden by closing a Group, the source reattaches to that Group's matching handle
+    - Opposite handles on other tickets stay visible as available targets
+    - Clicking an available target creates the dependency
+    - Other handles are hidden
+    - Clicking empty space exits connection edit mode
+    - Pressing Escape exits connection edit mode
+    - Completing a dependency exits connection edit mode
+  - Drag from bottom handle of A onto B means A depends on B
+  - Drag from top handle of B onto A means A depends on B
+  - A live bezier follows the pointer during a drag or persistent connection edit mode
+    - The preview renders above open Group overlays and follows the pointer across Forest surfaces
+    - Cross-surface previews enter or leave a Group at its top or bottom window boundary
+  - Releasing over empty space cancels
+  - Cycle rejection: if the dependency would create a cycle, show an error dialog
+  - Self-dependency counts as a cycle
+  - Click zone around each line is 32px in screen space
+    - Rendered as a transparent stroke that scales inversely with zoom
+  - Clicking the hit zone opens a popup at the click point
+    - Popup has one action: delete dependency
+    - Lines crossing an open Group boundary use the same hit zone and delete popup
+    - Projected lines retain their underlying dependencies; deleting one removes every dependency represented by that line
+    - Dismissed on outside click or Escape
+
+- Grouping
+  - Group button appears when two or more tickets are selected
+  - Positioned at the top edge of the selection bounding box
+  - Clicking opens the create ticket dialog with an auto-suggested number
+  - On submit, a group ticket is created with the first column status
+    - Each selected member gets memberOf set to the group number
+    - If grouping inside a sub-forest, the group gets memberOf set to the scope parent
+    - A position for the group is saved from the selection center
+  - Selection is cleared on success
+
+- Group card
+  - Clicking outside an open Group window closes the topmost Group
+  - Rendered with a dashed border and a stacked-rectangles icon
+  - Members are hidden from the current scope
+  - Dependency edges from or to hidden members re-route to the group card
+    - Edges are deduplicated after re-routing
+  - Click opens a sub-forest overlay
+    - Opening and closing preserve connection edit mode across Forest surfaces
+    - Overlay is a panel sized 90% of the forest view, centered
+    - Contains a close button and a nested forest surface scoped to the group
+    - Members are visible inside
+    - Interactions inside are identical to the root surface
+    - An active connection can target compatible handles inside the Group
+    - Rearrange inside recomputes only that scope
+    - Grouping inside assigns the new group as a child of the scope parent
+  - External edges show as dashed lines running off the sub-forest boundary
+    - Down direction when the in-scope member depends on an outside ticket
+    - Up direction when an outside ticket depends on the in-scope member
+    - Down edges end at the bottom window boundary; up edges end at the top window boundary
+  - Nesting: groups can contain other groups to arbitrary depth
+  - Overflow menu on group cards
+    - Ungroup: clears memberOf on all direct members
+      - Members reassigned to the group own parent or to top level
+      - Member positions translated to parent space when both positions are saved
+      - The group ticket itself survives with its number, status, and dependencies
+    - Open group ticket: opens the ticket detail dialog for the group
+
+- Integrity rules
+  - Dependencies form a directed acyclic graph
+    - Adding a dependency that would close a cycle is rejected with a visible error
+  - Membership forms a tree (no cycles in the memberOf chain)
+    - Creating a group that would close a membership cycle is rejected
+  - Number edit rewrites inbound references across the worktree
+    - dependsOn entries referencing the old number are updated to the new number
+    - memberOf entries referencing the old number are updated
+    - The forest-layout.json key is renamed
+    - Applies to both active and archived tickets
+  - Delete removes inbound references
+    - dependsOn entries referencing the deleted number are removed
+    - memberOf entries referencing the deleted number are cleared
+    - The forest-layout.json entry is removed
+  - Archive leaves all data intact
+    - Other tickets dependsOn and memberOf are untouched
+    - The archived ticket layout entry is untouched
+    - Unarchiving restores grouping and dependencies
+  - References to ticket numbers not present in the active list are ignored during rendering
+
+- Kanban group-unawareness
+  - The kanban board renders group tickets and member tickets as ordinary cards
+  - Each appears in its status column like any other ticket
+  - No grouping, nesting, or dependency visualization in kanban view

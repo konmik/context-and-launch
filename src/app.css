@@ -291,11 +291,6 @@
 	}
 }
 
-button:not([data-scope]), [role="button"]:not([data-scope]), .ripple {
-	position: relative;
-	overflow: hidden;
-}
-
 .ripple-effect {
 	position: absolute;
 	border-radius: 50%;
@@ -393,3 +388,6 @@ button:not([data-scope]), [role="button"]:not([data-scope]), .ripple {
 select.input { padding-right: 2rem; }
 
 .input-sm { height: 2.25rem; }
+
+.solid-flow__edge-interaction { vector-effect: non-scaling-stroke; }
+.solid-flow__pane.draggable:not(.dragging) { cursor: default; }

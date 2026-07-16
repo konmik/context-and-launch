@@ -5,6 +5,8 @@ import { DialogRoot, DialogTitle } from "~/components/ui/dialog";
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "~/components/ui/menu";
 
 const KanbanBoard = clientOnly(() => import("~/components/board/KanbanBoard"));
+const ForestView = clientOnly(() => import("~/components/forest/ForestView"));
+import { getViewMode, setViewMode } from "~/components/forest/forest-local-state.js";
 import CreateTicketDialog from "~/components/ticket/CreateTicketDialog";
 import EditTicketDialog from "~/components/ticket/EditTicketDialog";
 import DeleteTicketDialog from "~/components/ticket/DeleteTicketDialog";
@@ -39,6 +41,20 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   // at which event handlers are live and clicks will no longer be dropped.
   const [hydrated, setHydrated] = createSignal(false);
   onMount(() => setHydrated(true));
+
+  const [viewMode, setViewModeSignal] = createSignal<'kanban' | 'forest'>('kanban');
+  createEffect(() => {
+    const ps = projectSlug();
+    if (!ps) return;
+    setViewModeSignal(getViewMode(localStorage, ps));
+  });
+  function toggleViewMode() {
+    const ps = projectSlug();
+    if (!ps) return;
+    const next = viewMode() === 'kanban' ? 'forest' : 'kanban';
+    setViewMode(localStorage, ps, next);
+    setViewModeSignal(next);
+  }
 
   const { dialogState, syncState, selectionState, commands } =
     props?.ctrl ?? createProjectPageController({ projectSlug, data: data as any });
@@ -93,6 +109,21 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
             <h1 class="text-xl font-semibold">{currentProjectName()}</h1>
             <div class="flex flex-1 items-center justify-end gap-2">
               <ThemeToggle />
+              <button
+                onClick={toggleViewMode}
+                class="btn-icon"
+                title={viewMode() === 'kanban' ? 'Forest view' : 'Kanban view'}
+                data-testid="project-header-forest-toggle-button"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                >
+                  <path d="M6 16.5V12h12V7.5M6 12V7.5" />
+                  <rect x="3" y="3" width="6" height="5" />
+                  <rect x="15" y="3" width="6" height="5" />
+                  <rect x="3" y="16" width="6" height="5" />
+                </svg>
+              </button>
               <button
                 onClick={() => setLogViewerOpen(true)}
                 class="btn-icon"
@@ -231,15 +262,26 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
               </Match>
               <Match when={ld()}>
                 {(loaded) => (
-                  <KanbanBoard
-                    board={loaded().board}
-                    projectSlug={d().projectSlug}
-                    onEdit={commands.openEdit}
-                    onDelete={commands.openDelete}
-                    onArchive={commands.openArchive}
-                    onViewDetail={commands.openDetail}
-                    onReorder={commands.handleReorder}
-                  />
+                  <Show when={viewMode() === 'forest'} fallback={
+                    <KanbanBoard
+                      board={loaded().board}
+                      projectSlug={d().projectSlug}
+                      onEdit={commands.openEdit}
+                      onDelete={commands.openDelete}
+                      onArchive={commands.openArchive}
+                      onViewDetail={commands.openDetail}
+                      onReorder={commands.handleReorder}
+                    />
+                  }>
+                    <div class="h-[calc(100vh-60px)]">
+                      <ForestView
+                        board={loaded().board}
+                        projectSlug={d().projectSlug}
+                        onViewDetail={commands.openDetail}
+                        suggestedNextNumber={loaded().suggestedNextNumber}
+                      />
+                    </div>
+                  </Show>
                 )}
               </Match>
             </Switch>

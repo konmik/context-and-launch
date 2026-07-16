@@ -1,9 +1,18 @@
 import path from 'path';
 import * as v from 'valibot';
 import { TicketOrderStore } from './ticket-order.js';
+import { ForestLayoutStore } from './forest-layout-store.js';
 import { suggestNextTicketNumber } from './ticket-number.js';
-import { toKebabCase, requireNonBlank, requireSimpleName } from './ticket-naming.js';
+import { toKebabCase, normalizeTicketNumber, requireNonBlank, requireSimpleName } from './ticket-naming.js';
 import { TicketRepository } from './ticket-repository.js';
+import { ValidationError, NotFoundError } from '../shared/errors.js';
+import {
+	wouldCreateDependencyCycle,
+	wouldCreateMembershipCycle,
+	rewriteInboundReferences,
+	removeInboundReferences,
+	type TicketRelation,
+} from './ticket-relations.js';
 import type { StatusJson } from './ticket-repository.js';
 import type { TicketOrder } from './ticket-order.js';
 
@@ -21,6 +30,8 @@ export interface TicketInfo {
 	references: { path: string; exists: boolean }[];
 	agentWorktreeBranchName?: string;
 	agentWorktreeDir?: string;
+	dependsOn?: string[];
+	memberOf?: string;
 }
 
 export const CreateTicketBody = v.object({
@@ -67,12 +78,14 @@ export type ReorderTicketBody = v.InferOutput<typeof ReorderTicketBody>;
 export class TicketStore {
 	private worktreeDir: string;
 	private orderStore: TicketOrderStore;
+	private forestLayoutStore: ForestLayoutStore;
 	private repo: TicketRepository;
 
 	constructor(worktreeDir: string, repo?: TicketRepository) {
 		this.worktreeDir = worktreeDir;
 		this.repo = repo ?? new TicketRepository();
 		this.orderStore = new TicketOrderStore(worktreeDir, this.repo);
+		this.forestLayoutStore = new ForestLayoutStore(worktreeDir, this.repo);
 	}
 
 	private requireContained(filePath: string, label: string): void {
@@ -103,6 +116,10 @@ export class TicketStore {
 
 	readOrderStore(): TicketOrderStore {
 		return this.orderStore;
+	}
+
+	readForestLayoutStore(): ForestLayoutStore {
+		return this.forestLayoutStore;
 	}
 
 	moveTicket(folderName: string, fromColumn: string, toColumn: string, newIndex: number): void {
@@ -137,21 +154,27 @@ export class TicketStore {
 	}
 
 	listTickets(): TicketInfo[] {
-		if (!this.repo.exists(this.worktreeDir)) return [];
-		const entries = this.repo.listEntries(this.worktreeDir);
 		const tickets: TicketInfo[] = [];
-		for (const entry of entries) {
-			if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'archive') continue;
-			const ticket = this.readTicket(path.join(this.worktreeDir, entry.name));
-			if (ticket) tickets.push(ticket);
+		const numbers = new Map<string, string>();
+		for (const dir of this.ticketDirs(false)) {
+			const ticket = this.readTicket(dir);
+			if (!ticket) continue;
+			const normalizedNumber = normalizeTicketNumber(ticket.number);
+			const existingNumber = numbers.get(normalizedNumber);
+			if (existingNumber) {
+				throw new ValidationError(`Duplicate Ticket Number: ${existingNumber}`);
+			}
+			numbers.set(normalizedNumber, ticket.number);
+			tickets.push(ticket);
 		}
 		tickets.sort((a, b) => a.number.toLowerCase().localeCompare(b.number.toLowerCase()));
 		return tickets;
 	}
 
-	createTicket(number: string, title: string, initialStatus = 'todo'): TicketInfo {
+	createTicket(number: string, title: string, initialStatus = 'todo', memberOf?: string): TicketInfo {
 		if (!number.trim()) throw new Error('Ticket number must not be blank');
 		if (!title.trim()) throw new Error('Ticket title must not be blank');
+		this.assertTicketNumberAvailable(number);
 
 		const baseFolderName = toKebabCase(`${number} ${title}`);
 		const dir = this.resolveUniqueFolderPath(baseFolderName);
@@ -164,6 +187,7 @@ export class TicketStore {
 			useWorktree: false,
 			createdAt: new Date().toISOString(),
 		};
+		if (memberOf !== undefined) statusData.memberOf = memberOf;
 		this.repo.writeStatusJson(dir, statusData);
 
 		const ticket = this.readTicket(dir)!;
@@ -177,6 +201,7 @@ export class TicketStore {
 		title?: string | null,
 		status?: string | null
 	): TicketInfo {
+		return this.repo.runInTransaction(this.worktreeDir, () => {
 		const dir = this.resolveTicketDir(folderName);
 		const current = this.repo.readStatusJson(dir);
 		if (!current) throw new Error(`Malformed ticket: ${folderName}`);
@@ -185,20 +210,15 @@ export class TicketStore {
 		const updatedTitle = title != null ? requireNonBlank(title, 'Ticket title') : current.title;
 		const updatedStatus = status ?? current.status;
 
-		const updated: StatusJson = {
-			number: updatedNumber,
-			title: updatedTitle,
-			status: updatedStatus,
-			useWorktree: current.useWorktree,
-			createdAt: current.createdAt,
-			references: current.references,
-			agentWorktreeBranchName: current.agentWorktreeBranchName,
-			agentWorktreeDir: current.agentWorktreeDir,
-		};
+		const updated: StatusJson = { ...current, number: updatedNumber, title: updatedTitle, status: updatedStatus };
 
-		const needsRename =
-			(number != null && number.trim() !== current.number) ||
-			(title != null && title.trim() !== current.title);
+		const numberChanged = number != null && number.trim() !== current.number;
+		const numberIdentityChanged = number != null
+			&& normalizeTicketNumber(number) !== normalizeTicketNumber(current.number);
+		const needsRename = numberChanged || (title != null && title.trim() !== current.title);
+		if (numberIdentityChanged) {
+			this.assertTicketNumberAvailable(updatedNumber, dir);
+		}
 
 		let finalDir = dir;
 		if (needsRename) {
@@ -226,13 +246,40 @@ export class TicketStore {
 			this.orderStore.renameTicket(folderName, path.basename(finalDir));
 		}
 
+		if (numberChanged) {
+			const oldNumber = current.number;
+			const newNumber = updatedNumber;
+			for (const ticketDir of this.ticketDirs(true)) {
+				if (ticketDir === finalDir) continue;
+				const status = this.repo.readStatusJson(ticketDir);
+				if (!status) continue;
+				const rewritten = rewriteInboundReferences(status, oldNumber, newNumber);
+				if (rewritten) this.repo.writeStatusJson(ticketDir, rewritten);
+			}
+			this.forestLayoutStore.renameTicket(oldNumber, newNumber);
+		}
+
 		return this.readTicket(finalDir)!;
+		});
 	}
 
 	deleteTicket(folderName: string): void {
+		this.repo.runInTransaction(this.worktreeDir, () => {
 		const dir = this.resolveTicketDir(folderName);
+		const status = this.repo.readStatusJson(dir);
+		const ticketNumber = status?.number;
 		this.repo.removeDirectory(dir);
 		this.orderStore.removeTicket(folderName);
+		if (ticketNumber) {
+			for (const ticketDir of this.ticketDirs(true)) {
+				const s = this.repo.readStatusJson(ticketDir);
+				if (!s) continue;
+				const cleaned = removeInboundReferences(s, ticketNumber);
+				if (cleaned) this.repo.writeStatusJson(ticketDir, cleaned);
+			}
+			this.forestLayoutStore.removeTicket(ticketNumber);
+		}
+		});
 	}
 
 	archiveTicket(folderName: string): void {
@@ -306,22 +353,12 @@ export class TicketStore {
 
 	listAllTicketNumbers(): Array<{ number: string; createdAt?: string }> {
 		const results: Array<{ number: string; createdAt?: string }> = [];
-
-		const scanDir = (dir: string) => {
-			if (!this.repo.exists(dir)) return;
-			const entries = this.repo.listEntries(dir);
-			for (const entry of entries) {
-				if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'archive') continue;
-				const status = this.repo.readStatusJson(path.join(dir, entry.name));
-				if (status) {
-					results.push({ number: status.number, createdAt: status.createdAt });
-				}
+		for (const dir of this.ticketDirs(true)) {
+			const status = this.repo.readStatusJson(dir);
+			if (status) {
+				results.push({ number: status.number, createdAt: status.createdAt });
 			}
-		};
-
-		scanDir(this.worktreeDir);
-		scanDir(path.join(this.worktreeDir, 'archive'));
-
+		}
 		return results;
 	}
 
@@ -357,6 +394,8 @@ export class TicketStore {
 			references,
 			agentWorktreeBranchName: status.agentWorktreeBranchName,
 			agentWorktreeDir: status.agentWorktreeDir,
+			dependsOn: status.dependsOn,
+			memberOf: status.memberOf,
 		};
 	}
 
@@ -423,6 +462,82 @@ export class TicketStore {
 		this.repo.writeStatusJson(dir, { ...status, references: refs });
 	}
 
+	addDependency(folderName: string, dependencyNumber: string): void {
+		const dir = this.resolveTicketDir(folderName);
+		const status = this.repo.readStatusJson(dir);
+		if (!status) throw new Error(`Malformed ticket: ${folderName}`);
+		const tickets = this.listTickets();
+		if (!tickets.some(t => t.number === dependencyNumber)) {
+			throw new ValidationError(`Dependency target does not exist: ${dependencyNumber}`);
+		}
+		const existing = status.dependsOn ?? [];
+		if (existing.includes(dependencyNumber)) return;
+		if (wouldCreateDependencyCycle(tickets, status.number, dependencyNumber)) {
+			throw new ValidationError('Dependency would create a cycle');
+		}
+		this.repo.writeStatusJson(dir, { ...status, dependsOn: [...existing, dependencyNumber] });
+	}
+
+	removeDependency(folderName: string, dependencyNumber: string): void {
+		const dir = this.resolveTicketDir(folderName);
+		const status = this.repo.readStatusJson(dir);
+		if (!status) throw new Error(`Malformed ticket: ${folderName}`);
+		const filtered = (status.dependsOn ?? []).filter(n => n !== dependencyNumber);
+		const updated: StatusJson = { ...status, dependsOn: filtered.length > 0 ? filtered : undefined };
+		this.repo.writeStatusJson(dir, updated);
+	}
+
+	createGroup(
+		number: string,
+		title: string,
+		initialStatus: string,
+		memberFolderNames: string[],
+		parentGroupNumber?: string,
+		position?: { x: number; y: number },
+	): TicketInfo {
+		return this.repo.runInTransaction(this.worktreeDir, () => {
+		const memberInfos: Array<{ dir: string; status: StatusJson }> = [];
+		for (const fn of memberFolderNames) {
+			const dir = this.resolveTicketDir(fn);
+			const status = this.repo.readStatusJson(dir);
+			if (!status) throw new NotFoundError(`Member ticket not found: ${fn}`);
+			memberInfos.push({ dir, status });
+		}
+		const memberNumbers = memberInfos.map(m => m.status.number);
+		const allTickets: TicketRelation[] = this.listTickets();
+		if (parentGroupNumber !== undefined) {
+			allTickets.push({ number, memberOf: parentGroupNumber });
+		}
+		if (wouldCreateMembershipCycle(allTickets, memberNumbers, number)) {
+			throw new ValidationError('Grouping would create a membership cycle');
+		}
+		const groupTicket = this.createTicket(number, title, initialStatus, parentGroupNumber);
+		for (const member of memberInfos) {
+			this.repo.writeStatusJson(member.dir, { ...member.status, memberOf: number });
+		}
+		if (position) {
+			this.forestLayoutStore.translateIntoGroup(number, position, memberNumbers);
+		}
+		return groupTicket;
+		});
+	}
+
+	ungroup(folderName: string): void {
+		this.repo.runInTransaction(this.worktreeDir, () => {
+		const dir = this.resolveTicketDir(folderName);
+		const groupStatus = this.repo.readStatusJson(dir);
+		if (!groupStatus) throw new Error(`Malformed ticket: ${folderName}`);
+		const memberNumbers: string[] = [];
+		for (const ticketDir of this.ticketDirs(false)) {
+			const status = this.repo.readStatusJson(ticketDir);
+			if (!status || status.memberOf !== groupStatus.number) continue;
+			memberNumbers.push(status.number);
+			this.repo.writeStatusJson(ticketDir, { ...status, memberOf: groupStatus.memberOf });
+		}
+		this.forestLayoutStore.translateOutOfGroup(groupStatus.number, memberNumbers);
+		});
+	}
+
 	getReferencedFileContent(folderName: string, refPath: string): Buffer {
 		const dir = this.resolveTicketDir(folderName);
 		const status = this.repo.readStatusJson(dir);
@@ -435,6 +550,34 @@ export class TicketStore {
 			throw new Error(`Referenced file not found: ${refPath}`);
 		}
 		return this.repo.readFile(refPath);
+	}
+
+	private ticketDirs(includeArchive: boolean): string[] {
+		const dirs: string[] = [];
+		const scan = (parentDir: string) => {
+			if (!this.repo.exists(parentDir)) return;
+			const entries = this.repo.listEntries(parentDir);
+			for (const entry of entries) {
+				if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'archive') continue;
+				dirs.push(path.join(parentDir, entry.name));
+			}
+		};
+		scan(this.worktreeDir);
+		if (includeArchive) {
+			scan(path.join(this.worktreeDir, 'archive'));
+		}
+		return dirs;
+	}
+
+	private assertTicketNumberAvailable(number: string, excludedDir?: string): void {
+		const normalized = normalizeTicketNumber(number);
+		for (const ticketDir of this.ticketDirs(true)) {
+			if (ticketDir === excludedDir) continue;
+			const status = this.repo.readStatusJson(ticketDir);
+			if (status && normalizeTicketNumber(status.number) === normalized) {
+				throw new ValidationError(`Ticket Number already exists: ${status.number}`);
+			}
+		}
 	}
 
 	private resolveUniqueFolderPath(baseName: string): string {
