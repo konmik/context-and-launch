@@ -3,5 +3,8 @@
   "title": "User filter, self-assigning tickets",
   "status": "todo",
   "useWorktree": false,
-  "createdAt": "2026-07-02T23:06:01.019Z"
+  "createdAt": "2026-07-02T23:06:01.019Z",
+  "dependsOn": [
+    "ST-0041"
+  ]
 }

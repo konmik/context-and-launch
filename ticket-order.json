@@ -1,15 +1,16 @@
 {
   "todo": [
+    "st-0037-add-buttons-to-open-ticket-folder-and-worktree-from-the-ticket-window",
+    "st-0035-user-filter-self-assigning-tickets",
     "st-0031-absolute-tickets-path-setting",
     "st-0033-save-edit-prompt-into-the-column-setting-together-with-other-launch-preferences",
     "st-0032-open-a-project-in-a-separate-window",
-    "st-0035-user-filter-self-assigning-tickets",
     "st-0038-don-t-check-if-main-is-fresh-if-not-needed",
-    "st-0039-nested-forest-map-view"
+    "st-0040-show-color-status-rectangle-before-ticket-number",
+    "st-0041-agent-does-not-start-if-the-ticket-has-double-quote-in-its-title",
+    "st-0042-ticket-group"
   ],
-  "plan": [
-    "st-0037-add-buttons-to-open-ticket-folder-and-worktree-from-the-ticket-window"
-  ],
+  "plan": [],
   "in-progress": [],
   "review": [],
   "done": []
