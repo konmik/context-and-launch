@@ -55,10 +55,12 @@ describe('forest-local-state', () => {
     expect(() => getForestViewport(s, 'proj')).toThrow();
   });
 
-  it('getForestViewport rejects missing fields', () => {
+  it('getForestViewport ignores a stored viewport in an unrecognized shape', () => {
     const s = createStorage();
     s.setItem('forest-viewport:proj', JSON.stringify({ x: 1 }));
-    expect(() => getForestViewport(s, 'proj')).toThrow('Invalid Forest viewport for project proj');
+    expect(getForestViewport(s, 'proj')).toBeUndefined();
+    s.setItem('forest-viewport:proj', JSON.stringify({ x: 100, y: 200, scale: 1.5 }));
+    expect(getForestViewport(s, 'proj')).toBeUndefined();
   });
 
   it('setForestViewport surfaces storage errors', () => {

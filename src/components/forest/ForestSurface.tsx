@@ -261,6 +261,8 @@ export default function ForestSurface(props: ForestSurfaceProps) {
 
   useEscapeKey(() => setDependencyPopup(undefined));
 
+  const [boundaryGeometryVersion, setBoundaryGeometryVersion] = createSignal(0);
+
   onMount(() => {
     const element = requireSurface();
     const measure = () => setSize({ width: element.clientWidth, height: element.clientHeight });
@@ -268,6 +270,15 @@ export default function ForestSurface(props: ForestSurfaceProps) {
     const observer = new ResizeObserver(measure);
     observer.observe(element);
     onCleanup(() => observer.disconnect());
+
+    // The sub-forest overlay animates its panel with a CSS transform, which moves
+    // the boundary's screen rect without firing the ResizeObserver.
+    const boundary = element.closest("[data-forest-connection-boundary]");
+    if (boundary) {
+      const onTransitionEnd = () => setBoundaryGeometryVersion(version => version + 1);
+      boundary.addEventListener("transitionend", onTransitionEnd);
+      onCleanup(() => boundary.removeEventListener("transitionend", onTransitionEnd));
+    }
   });
 
   function FlowRuntime() {
@@ -333,25 +344,25 @@ export default function ForestSurface(props: ForestSurfaceProps) {
       props.commands.groupSelection(selectedIds, groupPosition(bounds));
     }
 
+    // Computed purely from reactive flow state (world positions + viewport + surface
+    // size), never from live DOM rects: the sub-forest panel animates with a CSS
+    // transform that moves screen rects outside reactivity, so any sampled rect is
+    // stale for the rest of the animation. Surface-local coordinates transform
+    // together with the cards on every animation frame.
     const externalPaths = createMemo(() => {
       if (model().externalDependencies.length === 0) return [];
-      viewport();
+      const currentViewport = viewport();
       flowNodes();
-      const surfaceBounds = requireSurface().getBoundingClientRect();
-      const boundaryBounds = surfaceInfo(requireSurface(), props.data.scopeGroupNumber).bounds;
+      const surfaceHeight = size().height;
       return model().externalDependencies.flatMap(dependency => {
         const node = flow.getInternalNode(dependency.memberNumber);
         if (!node) return [];
-        const clientPoint = flow.flowToScreenPosition(
-          nodeEndpointPoint(node, dependency.direction === "down" ? "bottom" : "top"),
-        );
+        const worldPoint = nodeEndpointPoint(node, dependency.direction === "down" ? "bottom" : "top");
         const start = {
-          x: clientPoint.x - surfaceBounds.left,
-          y: clientPoint.y - surfaceBounds.top,
+          x: worldPoint.x * currentViewport.zoom + currentViewport.x,
+          y: worldPoint.y * currentViewport.zoom + currentViewport.y,
         };
-        const targetY = dependency.direction === "down"
-          ? boundaryBounds.y + boundaryBounds.height - surfaceBounds.top
-          : boundaryBounds.y - surfaceBounds.top;
+        const targetY = dependency.direction === "down" ? surfaceHeight : 0;
         return [{
           ...dependency,
           d: externalDependencyPath(start, dependency.direction, targetY),
@@ -364,6 +375,7 @@ export default function ForestSurface(props: ForestSurfaceProps) {
       if (!connecting()) return;
       viewport();
       flowNodes();
+      boundaryGeometryVersion();
       queueMicrotask(refreshConnectionAnchor);
     });
 

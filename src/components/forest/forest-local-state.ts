@@ -31,7 +31,7 @@ export function getForestViewport(
   ) {
     return { x: parsed.x, y: parsed.y, zoom: parsed.zoom };
   }
-  throw new Error(`Invalid Forest viewport for project ${projectSlug}`);
+  return undefined;
 }
 
 export function setForestViewport(
