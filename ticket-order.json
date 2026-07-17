@@ -6,12 +6,17 @@
     "st-0033-save-edit-prompt-into-the-column-setting-together-with-other-launch-preferences",
     "st-0032-open-a-project-in-a-separate-window",
     "st-0038-don-t-check-if-main-is-fresh-if-not-needed",
-    "st-0040-show-color-status-rectangle-before-ticket-number",
-    "st-0041-agent-does-not-start-if-the-ticket-has-double-quote-in-its-title",
-    "st-0042-ticket-group"
+    "st-0040-show-color-status-rectangle-near-ticket-number",
+    "st-0043-all-cli-commands-as-templates",
+    "st-0045-does-not-start-a-shortcut-because-of-unknown-reason",
+    "st-0046-image-preview-in-st-0045-does-not-work"
   ],
-  "plan": [],
+  "plan": [
+    "st-0044-forest-view-refactoring"
+  ],
   "in-progress": [],
-  "review": [],
+  "review": [
+    "st-0041-agent-does-not-start-if-the-ticket-has-double-quote-in-its-title"
+  ],
   "done": []
 }

@@ -3,8 +3,5 @@
   "title": "Open a project in a separate window",
   "status": "todo",
   "useWorktree": true,
-  "createdAt": "2026-06-18T23:00:04.667Z",
-  "dependsOn": [
-    "ST-0033"
-  ]
+  "createdAt": "2026-06-18T23:00:04.667Z"
 }
