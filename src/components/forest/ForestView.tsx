@@ -28,7 +28,6 @@ import {
 } from "./forest-api.js";
 import { getForestViewport, setForestViewport } from "./forest-local-state.js";
 import type { DependencyRelation, ForestTicket } from "./forest-graph.js";
-import type { ViewportAnchor } from "./forest-viewport.js";
 import { useEscapeKey } from "~/lib/use-escape-key.js";
 import type { BoardState } from "~/core/board/board-types.js";
 import { errorPayload, type ErrorInfo } from "~/core/shared/errors.js";
@@ -204,7 +203,7 @@ export default function ForestView(props: ForestViewProps) {
       openTicket: ticketNumber => props.onViewDetail(findTicket(ticketNumber)),
       persistPositions,
       persistViewport: scopeGroupNumber === undefined
-        ? (anchor: ViewportAnchor) => setForestViewport(localStorage, props.projectSlug, anchor)
+        ? (viewport) => setForestViewport(localStorage, props.projectSlug, viewport)
         : undefined,
       registerSurface: api => registerSurface(scopeGroupNumber, api),
       removeDependencies: handleRemoveDependencies,
@@ -221,9 +220,7 @@ export default function ForestView(props: ForestViewProps) {
 
   useEscapeKey(() => connection.commands.cancel());
 
-  const rootViewportAnchor = createMemo(
-    (): ViewportAnchor | undefined => getForestViewport(localStorage, props.projectSlug),
-  );
+  const rootViewport = createMemo(() => getForestViewport(localStorage, props.projectSlug));
 
   return (
     <div ref={containerRef} class="relative h-full w-full">
@@ -234,7 +231,7 @@ export default function ForestView(props: ForestViewProps) {
               data={{
                 tickets: tickets(),
                 layout: loadedLayout(),
-                viewportAnchor: rootViewportAnchor(),
+                viewport: rootViewport(),
               } satisfies ForestSurfaceData}
               commands={surfaceCommands(undefined, 0)}
               connectionSession={connection.session}
