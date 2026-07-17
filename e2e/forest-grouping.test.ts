@@ -149,6 +149,98 @@ describe("Forest Grouping", () => {
     expect(externalEndpoints.start.y).toBeCloseTo(dependentBox.y, 1);
   }, 120000);
 
+  it("attaches pre-existing external lines to the Group window after opening", async () => {
+    await openForestProject(ctx, {
+      slugBase: "fg-open-down-line",
+      tickets: [
+        { number: "S-1", title: "Member", memberOf: "S-G", dependsOn: ["S-OUT"] },
+        { number: "S-G", title: "Group" },
+        { number: "S-OUT", title: "Outside" },
+      ],
+      layout: {
+        "S-1": { x: 0, y: 0 },
+        "S-G": { x: 0, y: -160 },
+        "S-OUT": { x: 248, y: 0 },
+      },
+    });
+
+    await openSubforest(ctx.page, "S-G");
+    await ctx.page.waitForTimeout(500);
+
+    const memberBox = await boxOf(forestCard(ctx.page, "S-1"));
+    const windowBox = await boxOf(subforestCloseButton(ctx.page).locator(".."));
+    const endpoints = await pathScreenEndpoints(
+      ctx.page.locator('[data-testid="forest-external-dependency"]'),
+    );
+    const top = Math.min(endpoints.start.y, endpoints.end.y);
+    const bottom = Math.max(endpoints.start.y, endpoints.end.y);
+    expect(Math.abs(top - (memberBox.y + memberBox.height))).toBeLessThan(4);
+    expect(Math.abs(bottom - (windowBox.y + windowBox.height))).toBeLessThan(4);
+  }, 120000);
+
+  it("keeps external lines attached to their member on every frame while the Group opens", async () => {
+    await openForestProject(ctx, {
+      slugBase: "fg-open-line-frames",
+      tickets: [
+        { number: "S-1", title: "Member", memberOf: "S-G", dependsOn: ["S-OUT"] },
+        { number: "S-G", title: "Group" },
+        { number: "S-OUT", title: "Outside" },
+      ],
+      layout: {
+        "S-1": { x: 0, y: 0 },
+        "S-G": { x: 0, y: -160 },
+        "S-OUT": { x: 248, y: 0 },
+      },
+    });
+
+    await ctx.page.evaluate(() => {
+      const samples: { dx: number; dy: number; dyEnd: number }[] = [];
+      (window as unknown as { __lineSamples: unknown }).__lineSamples = samples;
+      const deadline = performance.now() + 2000;
+      const sample = () => {
+        const path = document.querySelector<SVGPathElement>(
+          '[data-testid="forest-subforest-backdrop"] [data-testid="forest-external-dependency"]',
+        );
+        const card = document.querySelector(
+          '[data-testid="forest-subforest-backdrop"] [data-testid="forest-ticket-card"][data-ticket-number="S-1"]',
+        );
+        const boundary = document.querySelector("[data-forest-connection-boundary]");
+        const matrix = path?.getScreenCTM();
+        if (path && card && boundary && matrix) {
+          const toScreen = (p: DOMPoint) => ({
+            x: matrix.a * p.x + matrix.c * p.y + matrix.e,
+            y: matrix.b * p.x + matrix.d * p.y + matrix.f,
+          });
+          const start = toScreen(path.getPointAtLength(0));
+          const end = toScreen(path.getPointAtLength(path.getTotalLength()));
+          const rect = card.getBoundingClientRect();
+          const boundaryRect = boundary.getBoundingClientRect();
+          samples.push({
+            dx: start.x - (rect.x + rect.width / 2),
+            dy: start.y - rect.bottom,
+            dyEnd: end.y - boundaryRect.bottom,
+          });
+        }
+        if (performance.now() < deadline) requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    });
+    await forestGroupCard(ctx.page, "S-G").click();
+    await ctx.page.waitForTimeout(1200);
+    const samples = await ctx.page.evaluate(
+      () => (window as unknown as {
+        __lineSamples: { dx: number; dy: number; dyEnd: number }[];
+      }).__lineSamples,
+    );
+
+    expect(samples.length).toBeGreaterThan(5);
+    for (const sample of samples) {
+      expect(Math.abs(sample.dx)).toBeLessThan(5);
+      expect(Math.abs(sample.dy)).toBeLessThan(5);
+      expect(Math.abs(sample.dyEnd)).toBeLessThan(5);
+    }
+  }, 120000);
+
   it("clicking outside an open Group closes it", async () => {
     await openForestProject(ctx, {
       slugBase: "fg-outside-close",
