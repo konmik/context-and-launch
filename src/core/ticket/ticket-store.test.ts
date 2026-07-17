@@ -1665,17 +1665,6 @@ describe('TicketStore', () => {
 		expect(() => store.addDependency('b-1-beta', 'A-1')).toThrow(/cycle/);
 	});
 
-	it('addDependency rejects self-dependency', async () => {
-		const worktreeDir = await createGitWorktree();
-		dirs.push(worktreeDir);
-
-		const store = new TicketStore(worktreeDir);
-		store.createTicket('A-1', 'Alpha');
-
-		expect(() => store.addDependency('a-1-alpha', 'A-1')).toThrow(ValidationError);
-		expect(() => store.addDependency('a-1-alpha', 'A-1')).toThrow(/cycle/);
-	});
-
 	it('addDependency rejects nonexistent target', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);

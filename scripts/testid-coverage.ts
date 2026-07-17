@@ -61,9 +61,8 @@ const srcFiles = walk(
 
 const e2eFiles = walk(
   path.join(REPO, "e2e"),
-  (p) => p.endsWith(".test.ts"),
+  (p) => p.endsWith(".ts"),
 );
-const fixturesFile = path.join(REPO, "e2e", "fixtures.ts");
 
 const required = new Set<string>();
 for (const f of srcFiles) {
@@ -75,8 +74,7 @@ for (const f of srcFiles) {
 }
 
 const referenced = new Set<string>();
-for (const f of [...e2eFiles, fixturesFile]) {
-  if (!fs.existsSync(f)) continue;
+for (const f of e2eFiles) {
   for (const id of scanReferences(f)) referenced.add(id);
 }
 

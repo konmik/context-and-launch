@@ -86,7 +86,7 @@ A per-worktree file (`forest-layout.json`) storing each ticket's dragged positio
 Avoid: positions file, layout config
 
 Forest Viewport:
-The saved pan position (bottom-middle point) and zoom scale of the Forest View, per project per machine. Restored when the Forest View reopens.
+The saved pan position and zoom of the Forest View, per project per machine. Restored when the Forest View reopens.
 Avoid: camera, scroll position
 
 ### Git Infrastructure

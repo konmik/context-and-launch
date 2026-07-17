@@ -45,8 +45,8 @@ describe('forest-local-state', () => {
 
   it('getForestViewport/setForestViewport round-trip', () => {
     const s = createStorage();
-    setForestViewport(s, 'proj', { x: 100, y: 200, scale: 1.5 });
-    expect(getForestViewport(s, 'proj')).toEqual({ x: 100, y: 200, scale: 1.5 });
+    setForestViewport(s, 'proj', { x: 100, y: 200, zoom: 1.5 });
+    expect(getForestViewport(s, 'proj')).toEqual({ x: 100, y: 200, zoom: 1.5 });
   });
 
   it('getForestViewport rejects invalid JSON', () => {
@@ -62,7 +62,7 @@ describe('forest-local-state', () => {
   });
 
   it('setForestViewport surfaces storage errors', () => {
-    expect(() => setForestViewport(throwingStorage(), 'proj', { x: 0, y: 0, scale: 1 })).toThrow('denied');
+    expect(() => setForestViewport(throwingStorage(), 'proj', { x: 0, y: 0, zoom: 1 })).toThrow('denied');
   });
 
   it('view mode is scoped per project', () => {

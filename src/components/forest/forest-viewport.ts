@@ -2,36 +2,6 @@ import type { Viewport } from "@dschz/solid-flow";
 import { CARD_HEIGHT, CARD_WIDTH } from "./forest-graph.js";
 import type { ForestLayout } from "~/core/ticket/forest-layout-store.js";
 
-export interface ViewportAnchor {
-  x: number;
-  y: number;
-  scale: number;
-}
-
-export function viewportAnchor(
-  viewport: Viewport,
-  width: number,
-  height: number,
-): ViewportAnchor {
-  return {
-    x: (width / 2 - viewport.x) / viewport.zoom,
-    y: (height - viewport.y) / viewport.zoom,
-    scale: viewport.zoom,
-  };
-}
-
-export function viewportFromAnchor(
-  anchor: ViewportAnchor,
-  width: number,
-  height: number,
-): Viewport {
-  return {
-    x: width / 2 - anchor.x * anchor.scale,
-    y: height - anchor.y * anchor.scale,
-    zoom: anchor.scale,
-  };
-}
-
 export function viewportForLayout(
   positions: ForestLayout,
   width: number,

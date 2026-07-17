@@ -16,8 +16,7 @@
   - Shift-drag draws a selection rectangle in world space
     - Tickets whose card rect intersects the rectangle become selected
     - Releasing the shift-drag finalizes the selection
-  - Viewport anchor persisted per project in localStorage
-    - Anchor is the world coordinates of the bottom-middle screen point plus scale
+  - Viewport pan and zoom persisted per project in localStorage
     - Reload restores the saved viewport
   - Center button centers the visible tickets horizontally
     - Places the bottom of the visible tickets 120 pixels above the surface bottom
