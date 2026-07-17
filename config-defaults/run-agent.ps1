@@ -38,7 +38,8 @@ $env:CL_AGENT_MARKER = $markerPath
 $env:CL_AGENT_CMD = $agentCmd
 $scriptPath = $MyInvocation.MyCommand.Path
 
-Start-Process wt -ArgumentList "-d", "`"$PWD`"", "--title", "`"$windowTitle`"", "--suppressApplicationTitle", "--", "powershell", "-NoExit", "-File", "`"$scriptPath`"", "-selfLaunch"
+$safeTitle = ($windowTitle -replace '(\\*)"', '$1$1\"') -replace '(\\+)$', '$1$1'
+Start-Process wt -ArgumentList "-d", "`"$PWD`"", "--title", "`"$safeTitle`"", "--suppressApplicationTitle", "--", "powershell", "-NoExit", "-File", "`"$scriptPath`"", "-selfLaunch"
 
 # Deliver the initial prompt via SendKeys, splitting on <<ENTER>> markers
 $tokens = $initialPrompt -split '(<<ENTER>>)' | Where-Object { $_.Length -gt 0 }

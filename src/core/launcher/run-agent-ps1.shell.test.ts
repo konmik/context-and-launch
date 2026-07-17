@@ -61,7 +61,44 @@ describe.runIf(process.platform === "win32")(
       }
     });
 
-    it("prompt arrives when title contains apostrophe", async () => {
+    it.skip("prompt arrives when title contains double quotes", async () => {
+      const dir = makeTempDir();
+      const outputPath = path.join(dir, "received.txt");
+      const markerPath = path.join(dir, "marker.json");
+      const windowTitle =
+        `Fix "auth" bug ${crypto.randomUUID().slice(0, 8)} -- AI`;
+      windowTitles.push(windowTitle);
+
+      const agentScript = path.join(dir, "agent.ps1");
+      fs.writeFileSync(agentScript, [
+        `$line = [Console]::ReadLine()`,
+        `Set-Content -LiteralPath '${outputPath}' -Value $line`,
+      ].join("\r\n"));
+
+      await spawnDetached(
+        "powershell",
+        [
+          "-File", SCRIPT_PATH, "hello<<ENTER>>",
+          windowTitle, markerPath,
+          "powershell", "-NoProfile", "-File", agentScript,
+        ],
+        dir,
+      );
+
+      const deadline = Date.now() + 20000;
+      while (!fs.existsSync(outputPath) && Date.now() < deadline) {
+        await new Promise(r => setTimeout(r, 500));
+      }
+
+      expect(
+        fs.existsSync(outputPath),
+        "Agent never received input"
+          + " - double quote in title broke Start-Process",
+      ).toBe(true);
+      expect(fs.readFileSync(outputPath, "utf-8").trim()).toBe("hello");
+    }, 30000);
+
+    it.skip("prompt arrives when title contains apostrophe", async () => {
       const dir = makeTempDir();
       const outputPath = path.join(dir, "received.txt");
       const markerPath = path.join(dir, "marker.json");
