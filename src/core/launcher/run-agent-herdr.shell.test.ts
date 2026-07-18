@@ -105,7 +105,7 @@ function runHarness(mode: 'create' | 'reuse' | 'idle' | 'working'): {
 } {
 	const files = makeHarness();
 	const marker = path.join(files.dir, 'running', 'alpha', 'st-47.json');
-	const prompt = "<<ENTER>>hello\nmultiline 'world'<<ENTER>>";
+	const prompt = "hello\nmultiline 'world'";
 	const result = spawnSync('powershell', [
 		'-NoProfile', '-File', files.harness,
 		SCRIPT_PATH, files.report, mode, files.dir,

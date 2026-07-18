@@ -19,50 +19,31 @@ param(
 
 if ($selfLaunch) {
     if (-not $env:CL_AGENT_MARKER) { throw "CL_AGENT_MARKER is not set" }
-    if (-not $env:CL_AGENT_CMD) { throw "CL_AGENT_CMD is not set" }
+    if (-not $env:CL_AGENT_COMMAND_JSON) { throw "CL_AGENT_COMMAND_JSON is not set" }
     $m = $env:CL_AGENT_MARKER
     $d = Split-Path -Parent $m
     if ($d) { New-Item -ItemType Directory -Force -Path $d | Out-Null }
     $s = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
     Set-Content -LiteralPath $m -Value ("{""pid"":$PID,""startSec"":$s}")
-    try { Invoke-Expression $env:CL_AGENT_CMD } finally { Remove-Item -LiteralPath $m -ErrorAction SilentlyContinue }
+    $executable, $commandArgs = @(ConvertFrom-Json $env:CL_AGENT_COMMAND_JSON)
+    $commandArgs = @($commandArgs)
+    Remove-Item Env:CL_AGENT_COMMAND_JSON
+    try { & $executable @commandArgs } finally { Remove-Item -LiteralPath $m -ErrorAction SilentlyContinue }
     return
+}
+
+if ($args.Length -lt 4) {
+    throw 'Usage: run-agent.ps1 <prompt> <title> <marker> <agent command...>'
 }
 
 $initialPrompt = $args[0]
 $windowTitle = $args[1]
 $markerPath = $args[2]
-$agentCmd = ($args[3..($args.Length - 1)]) -join ' '
+$agentCommand = @($args[3..($args.Length - 1)] | ForEach-Object { [string]$_ }) + @([string]$initialPrompt)
 
 $env:CL_AGENT_MARKER = $markerPath
-$env:CL_AGENT_CMD = $agentCmd
+$env:CL_AGENT_COMMAND_JSON = ConvertTo-Json $agentCommand -Compress
 $scriptPath = $MyInvocation.MyCommand.Path
 
 $safeTitle = ($windowTitle -replace '(\\*)"', '$1$1\"') -replace '(\\+)$', '$1$1'
 Start-Process wt -ArgumentList "-d", "`"$PWD`"", "--title", "`"$safeTitle`"", "--suppressApplicationTitle", "--", "powershell", "-NoExit", "-File", "`"$scriptPath`"", "-selfLaunch"
-
-# Deliver the initial prompt via SendKeys, splitting on <<ENTER>> markers
-$tokens = $initialPrompt -split '(<<ENTER>>)' | Where-Object { $_.Length -gt 0 }
-$maxRetries = 20
-$retryCount = 0
-$ws = New-Object -ComObject WScript.Shell
-while ($retryCount -lt $maxRetries) {
-    Start-Sleep -Milliseconds 500
-    if ($ws.AppActivate($windowTitle)) { break }
-    $retryCount++
-}
-if ($retryCount -eq $maxRetries) { return }
-
-Start-Sleep -Seconds 1
-foreach ($token in $tokens) {
-    [void]$ws.AppActivate($windowTitle)
-    Start-Sleep -Milliseconds 200
-    if ($token -eq '<<ENTER>>') {
-        $ws.SendKeys("{ENTER}")
-        Start-Sleep -Seconds 2
-    } else {
-        $escaped = $token -replace '([+^%~(){}\[\]])', '{$1}'
-        $ws.SendKeys($escaped)
-        Start-Sleep -Milliseconds 300
-    }
-}
