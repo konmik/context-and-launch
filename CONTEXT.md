@@ -175,7 +175,7 @@ A project-level container in Herdr that Context & Launch associates with one Pro
 Avoid: Herdr environment, terminal environment
 
 Herdr Agent:
-A coding-agent session hosted in a Herdr Workspace and associated with one Ticket. An idle Herdr Agent may be replaced, but a Ticket never has concurrent Herdr Agents in the same Herdr Workspace.
+A coding-agent session hosted in a Herdr Workspace and associated with one Ticket. A later launch submits another prompt to the existing idle or done session, and a Ticket never has concurrent Herdr Agents in the same Herdr Workspace.
 Avoid: terminal, pane
 
 ## Relationships
