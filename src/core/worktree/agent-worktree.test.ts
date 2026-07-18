@@ -784,6 +784,14 @@ describe('AgentWorktreeManager', () => {
 		expect(merged).toBe(false);
 	});
 
+	it('isBranchMerged throws a clear error when the branch no longer exists', async () => {
+		const { projectDir, awm } = setup();
+
+		await expect(awm.isBranchMerged(projectDir, 'st-renamed-away')).rejects.toThrow(
+			/Branch 'st-renamed-away' no longer exists/,
+		);
+	});
+
 	it('isBranchMerged with configuredBranch "develop" succeeds in repo with only develop branch', async () => {
 		const { projectDir, awm } = setup('develop');
 		const result = await awm.ensureAgentWorktree(

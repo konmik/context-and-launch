@@ -3,6 +3,7 @@ import path from 'path';
 import { rename } from 'fs/promises';
 import { exec } from 'child_process';
 import { git, detectMainBranch } from '../infra/git.js';
+import { ValidationError } from '../shared/errors.js';
 import { worktreeBranchName, worktreeFolderName } from './worktree-naming.js';
 import type { LauncherConfigManager } from '../launcher/launcher-config.js';
 
@@ -186,7 +187,19 @@ export class AgentWorktreeManager {
 		return null;
 	}
 
+	async localBranchExists(projectPath: string, branchName: string): Promise<boolean> {
+		return git(projectPath, 'show-ref', '--verify', '--quiet', `refs/heads/${branchName}`)
+			.then(() => true, () => false);
+	}
+
 	async isBranchMerged(projectPath: string, branchName: string, configuredBranch?: string): Promise<boolean> {
+		if (!await this.localBranchExists(projectPath, branchName)) {
+			throw new ValidationError(
+				`Branch '${branchName}' no longer exists.`
+				+ ' It may have been renamed or deleted outside Context & Launch.'
+				+ ' Archive without deleting the branch, or update the ticket to point at the current branch.',
+			);
+		}
 		const mainBranch = await this.getMainBranch(projectPath, configuredBranch);
 		if (await this.isAncestorOf(projectPath, branchName, mainBranch)) return true;
 		const remoteRef = await this.fetchMainBranch(projectPath, mainBranch);
