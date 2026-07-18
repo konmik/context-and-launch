@@ -25,6 +25,7 @@ export interface ServerHandle {
   port: number;
   shutdown: () => void;
   waitForPendingOps: () => Promise<void>;
+  listProjectSlugs: () => string[];
 }
 
 export async function startServer(appRoot: string): Promise<ServerHandle> {
@@ -40,6 +41,7 @@ export async function startServer(appRoot: string): Promise<ServerHandle> {
     __aiStagesServices?: {
       fileWatcher: { stopAll(): void };
       operationTracker: { waitForAll(): Promise<void>; hasPending(): boolean };
+      projectRegistry: { listProjects(): { projectSlug: string }[] };
     };
   }
   const g = globalThis as unknown as ServiceGlobal;
@@ -52,5 +54,8 @@ export async function startServer(appRoot: string): Promise<ServerHandle> {
     await g.__aiStagesServices?.operationTracker.waitForAll();
   };
 
-  return { port, shutdown, waitForPendingOps };
+  const listProjectSlugs = () =>
+    g.__aiStagesServices?.projectRegistry.listProjects().map((p) => p.projectSlug) ?? [];
+
+  return { port, shutdown, waitForPendingOps, listProjectSlugs };
 }

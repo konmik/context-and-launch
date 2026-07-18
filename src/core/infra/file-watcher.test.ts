@@ -658,9 +658,9 @@ describe('FileWatcher', () => {
 		}
 	});
 
-	it('watchOnly for the same dir keeps the watcher alive so a write just before'
+	it('watching the same dir twice keeps the watcher alive so a write just before'
 		+ ' a board reload is still committed', async () => {
-		const dir = tmpDir('filewatcher-watchonly-reload-');
+		const dir = tmpDir('filewatcher-watch-reload-');
 		dirs.push(dir);
 
 		await git(dir, 'init');
@@ -673,11 +673,11 @@ describe('FileWatcher', () => {
 		const watcher = new FileWatcher();
 		try {
 			const debounceMs = 300;
-			watcher.watchOnly(dir, debounceMs);
+			watcher.watch(dir, debounceMs);
 			await delay(500);
 
 			fs.writeFileSync(path.join(dir, 'ticket-order.json'), '{}');
-			watcher.watchOnly(dir, debounceMs);
+			watcher.watch(dir, debounceMs);
 			await delay(debounceMs + 2000);
 
 			const log = await git(dir, 'log', '--oneline');
@@ -689,9 +689,41 @@ describe('FileWatcher', () => {
 		}
 	});
 
-	it('watchOnly stops watchers for other directories', async () => {
-		const dirA = tmpDir('filewatcher-watchonly-a-');
-		const dirB = tmpDir('filewatcher-watchonly-b-');
+	it('changes made while a directory is unwatched are committed on rewatch'
+		+ ' without any further fs event', async () => {
+		const dir = tmpDir('filewatcher-catchup-');
+		dirs.push(dir);
+
+		await git(dir, 'init');
+		await git(dir, 'config', 'user.email', 'test@test.com');
+		await git(dir, 'config', 'user.name', 'Test');
+		fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
+		await git(dir, 'add', '-A');
+		await git(dir, 'commit', '-m', 'initial commit');
+
+		const watcher = new FileWatcher();
+		try {
+			const debounceMs = 300;
+			watcher.watch(dir, debounceMs);
+			await delay(500);
+
+			watcher.stop(dir);
+			fs.writeFileSync(path.join(dir, 'written-while-unwatched.md'), 'external change');
+			watcher.watch(dir, debounceMs);
+			await delay(debounceMs + 2000);
+
+			const log = await git(dir, 'log', '--oneline');
+			const lines = log.trim().split('\n');
+			expect(lines.length).toBe(2);
+			expect(lines[0]).toContain('auto: external changes');
+		} finally {
+			watcher.stopAll();
+		}
+	});
+
+	it('watch is additive: watching a second directory keeps the first watcher active', async () => {
+		const dirA = tmpDir('filewatcher-watch-a-');
+		const dirB = tmpDir('filewatcher-watch-b-');
 		dirs.push(dirA, dirB);
 
 		for (const dir of [dirA, dirB]) {
@@ -706,17 +738,17 @@ describe('FileWatcher', () => {
 		const watcher = new FileWatcher();
 		try {
 			const debounceMs = 300;
-			watcher.watchOnly(dirA, debounceMs);
+			watcher.watch(dirA, debounceMs);
 			await delay(500);
-			watcher.watchOnly(dirB, debounceMs);
+			watcher.watch(dirB, debounceMs);
 			await delay(500);
 
-			fs.writeFileSync(path.join(dirA, 'ignored-after-switch.txt'), 'content');
-			fs.writeFileSync(path.join(dirB, 'observed.txt'), 'content');
+			fs.writeFileSync(path.join(dirA, 'observed-a.txt'), 'content');
+			fs.writeFileSync(path.join(dirB, 'observed-b.txt'), 'content');
 			await delay(debounceMs + 2000);
 
 			const logA = await git(dirA, 'log', '--oneline');
-			expect(logA.trim().split('\n').length).toBe(1);
+			expect(logA.trim().split('\n').length).toBe(2);
 			const logB = await git(dirB, 'log', '--oneline');
 			expect(logB.trim().split('\n').length).toBe(2);
 		} finally {

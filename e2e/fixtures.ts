@@ -608,11 +608,28 @@ export function ticketFileNames(
   return fs.readdirSync(dir).filter((n) => n !== "status.json" && !n.endsWith(".md"));
 }
 
+export async function poll<T>(
+  fn: () => T,
+  predicate: (value: T) => boolean,
+  timeoutMs: number,
+  intervalMs = 500,
+): Promise<T> {
+  const deadline = Date.now() + timeoutMs;
+  let last = fn();
+  while (!predicate(last)) {
+    if (Date.now() > deadline) return last;
+    await new Promise((r) => setTimeout(r, intervalMs));
+    last = fn();
+  }
+  return last;
+}
+
 export interface E2EContext {
   testServer: TestServer;
   testBrowser: TestBrowser;
   browser: Browser;
   page: Page;
+  newPage: () => Promise<Page>;
   projects: CreatedProject[];
 }
 
@@ -622,6 +639,7 @@ export function setupE2E(opts: {
 } = {}): E2EContext {
   const viewport = opts.viewport ?? { width: 1200, height: 800 };
   const ctx = { projects: [] as CreatedProject[] } as E2EContext;
+  const extraPages: Page[] = [];
   beforeAll(async () => {
     ctx.testServer = await createServer(opts.serverOpts);
     ctx.testBrowser = await launchBrowser();
@@ -630,7 +648,16 @@ export function setupE2E(opts: {
   beforeEach(async () => {
     ctx.page = await ctx.browser.newPage({ viewport });
   });
+  ctx.newPage = async () => {
+    const p = await ctx.browser.newPage({ viewport });
+    extraPages.push(p);
+    return p;
+  };
   afterEach(async () => {
+    for (const p of extraPages) {
+      try { await p.context().close(); } catch (err) { console.warn("newPage cleanup:", err); }
+    }
+    extraPages.length = 0;
     await ctx.page?.close();
   });
   afterAll(async () => {

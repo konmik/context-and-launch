@@ -35,13 +35,11 @@ export class ProjectPageService {
 			};
 		}
 
-		this.projectRegistry.setLastUsed(projectSlug);
-
 		try {
 			const worktreeDir = await this.worktreeManager.ensureWorktree(
 				project.path, projectSlug, project.branch,
 			);
-			this.fileWatcher.watchOnly(worktreeDir);
+			this.fileWatcher.watch(worktreeDir);
 			await this.ticketSyncManager.finalizeResolution(worktreeDir);
 			const config = this.boardConfigManager.getConfig(project.boardId);
 			const store = new TicketStore(worktreeDir);

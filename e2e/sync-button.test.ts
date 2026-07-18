@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   createProject, uniqueSlug, gotoProject, dragSortable,
-  setupE2E,
+  setupE2E, poll,
 } from "./fixtures.js";
 
 describe("Sync button (e2e, real server)", () => {
@@ -201,11 +201,10 @@ describe("Sync button (e2e, real server)", () => {
       '[data-sortable-id="in-progress:c-3-stay-progress"]',
       { releaseAt: "top" },
     );
-    const deadline = Date.now() + 10000;
-    while (aheadCount() === 0) {
-      if (Date.now() > deadline) throw new Error("auto-commit did not run within 10s");
-      await ctx.page.waitForTimeout(250);
-    }
+    expect(
+      await poll(aheadCount, (c) => c > 0, 10000, 250),
+      "auto-commit did not run within 10s",
+    ).toBeGreaterThan(0);
 
     await dragSortable(
       ctx.page,
