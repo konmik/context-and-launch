@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
 import {
   createProject, uniqueSlug, gotoProject, openTicketDetail,
   readContextFile, readTicketStatus, ticketFileNames,
@@ -94,6 +96,38 @@ describe("Ticket detail Editor tab (e2e, real server)", () => {
     ).toBeGreaterThan(0);
     await ctx.page.locator('[data-testid="ticket-detail-editor-file-dropdown-option"]').first().click();
     await ctx.page.waitForTimeout(300);
+  }, 60000);
+
+  it("displays a ticket image whose filename contains spaces", async () => {
+    const project = await createProject(ctx.testServer, {
+      projectSlug: uniqueSlug("tde-image-preview"),
+      withTickets: [{
+        number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha",
+      }],
+    });
+    ctx.projects.push(project);
+    const fileName = "Screenshot 2026-07-17 152851.png";
+    fs.writeFileSync(
+      path.join(project.ticketsPath, "t-1-alpha", fileName),
+      Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+        "base64",
+      ),
+    );
+
+    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+    await openTicketDetail(ctx.page, "t-1-alpha");
+    await ctx.page.click('[data-testid="ticket-detail-editor-file-dropdown-trigger"]');
+    await ctx.page
+      .locator('[data-testid="ticket-detail-editor-file-dropdown-option"]')
+      .filter({ hasText: fileName })
+      .click();
+
+    const image = ctx.page.locator(`img[alt="${fileName}"]`);
+    await image.waitFor({ state: "visible", timeout: 15000 });
+    await expect.poll(() => image.evaluate(
+      (element) => (element as HTMLImageElement).naturalWidth,
+    )).toBeGreaterThan(0);
   }, 60000);
 
   it("trash button opens delete file dialog", async () => {

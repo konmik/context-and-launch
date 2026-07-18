@@ -8,8 +8,9 @@ export async function GET({ params }: APIEvent): Promise<Response> {
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(params.projectSlug);
     const store = new TicketStore(worktreeDir);
-    const content = store.getFileContent(params.folderName, params.fileName);
-    const mimeType = getMimeType(params.fileName) ?? "application/octet-stream";
+    const fileName = decodeURIComponent(params.fileName);
+    const content = store.getFileContent(params.folderName, fileName);
+    const mimeType = getMimeType(fileName) ?? "application/octet-stream";
     return new Response(new Uint8Array(content), {
       headers: { "Content-Type": mimeType },
     });
