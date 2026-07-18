@@ -12,14 +12,17 @@
   - Worktree disabled: use project path
   - Worktree enabled
     - Root not configured: error
-    - Main branch dirty: return dirty flag
-      - User can force-retry, skipping dirty check
-    - Main branch behind remote: return behind-remote flag
-      - User can proceed or cancel
-    - Create or reuse worktree on a per-ticket branch
-      - Worktree folder and branch name use the ticket folder name truncated to 50 characters
-        - Keeps Windows paths under the 260 character limit for repos with deep file trees
-        - Trailing hyphens left by truncation are stripped
+    - Worktree for this ticket already exists: reuse it, no checks on main
+    - Branch for this ticket already exists: check it out into a new worktree, no checks on main
+    - Otherwise fork a new worktree from main
+      - Only now does main's state matter (main is the fork point)
+      - Main branch dirty: return dirty flag
+        - User can force-retry, skipping dirty check
+      - Main branch behind remote: return behind-remote flag
+        - User can proceed or cancel
+    - Worktree folder and branch name use the ticket folder name truncated to 50 characters
+      - Keeps Windows paths under the 260 character limit for repos with deep file trees
+      - Trailing hyphens left by truncation are stripped
 - Pass initial prompt through to the launch profile
 - Resolve profile by name, fall back to first available
   - No profile available: error
