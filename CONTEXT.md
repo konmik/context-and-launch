@@ -89,6 +89,15 @@ Forest Viewport:
 The saved pan position and zoom of the Forest View, per project per machine. Restored when the Forest View reopens.
 Avoid: camera, scroll position
 
+### Windows
+
+Project Window:
+An app window showing exactly one Project, addressed by its project page URL. Several Project Windows can be open at once, each on its own Project.
+Avoid: tab, instance
+
+Session Restore:
+Reopening the Project Windows that were open when the desktop app last quit, each with its saved size and position. Desktop app only. Closing a Project Window removes it from the next restore; the last window to close is kept.
+
 ### Git Infrastructure
 
 Worktree:
@@ -172,6 +181,7 @@ Avoid: terminal, pane
 ## Relationships
 
 - A Project has exactly one Worktree (created automatically on first board load)
+- A Project Window shows exactly one Project; a Project may be shown by more than one Project Window
 - A Worktree is checked out from the Project's Orphan Branch
 - A Worktree contains zero or more Ticket Folders
 - A Ticket Folder contains exactly one `status.json` and zero or more Context documents

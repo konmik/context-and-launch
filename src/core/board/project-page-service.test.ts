@@ -23,7 +23,6 @@ function stubDeps(overrides: {
 	const projects: ProjectInfo[] = overrides.projects ?? [];
 
 	const projectRegistry = {
-		setLastUsed: vi.fn(),
 		listProjects: vi.fn(() => projects),
 	} as unknown as ProjectRegistry;
 
@@ -38,7 +37,7 @@ function stubDeps(overrides: {
 			return overrides.worktreeDir;
 		}),
 	} as unknown as WorktreeManager;
-	const fileWatcher = { watchOnly: vi.fn() } as unknown as FileWatcher;
+	const fileWatcher = { watch: vi.fn() } as unknown as FileWatcher;
 	const ticketSyncManager = overrides.ticketSyncManager ?? ({} as TicketSyncManager);
 	const launcherConfigManager = {
 		resolveAgentWorktreeRoot: vi.fn(() =>
@@ -55,7 +54,7 @@ function stubDeps(overrides: {
 		launcherConfigManager,
 	);
 
-	return { service, projectRegistry };
+	return { service, projectRegistry, fileWatcher };
 }
 
 const statusJson = (ticketStatus: string) => JSON.stringify({
@@ -95,8 +94,8 @@ async function setupResolvedScratch(dirs: string[]) {
 }
 
 describe('ProjectPageService.loadProjectPage', () => {
-	it('does not persist lastUsed for a known-but-unavailable project', async () => {
-		const { service, projectRegistry } = stubDeps({
+	it('returns unavailable for a known-but-unavailable project', async () => {
+		const { service } = stubDeps({
 			projects: [
 				{ path: '/deleted/path', projectSlug: 'gone', name: 'gone', available: false },
 			],
@@ -105,16 +104,14 @@ describe('ProjectPageService.loadProjectPage', () => {
 		const result = await service.loadProjectPage('gone');
 
 		expect(result.status).toBe('unavailable');
-		expect(projectRegistry.setLastUsed).not.toHaveBeenCalled();
 	});
 
-	it('does not persist lastUsed for a not-found project', async () => {
-		const { service, projectRegistry } = stubDeps({ projects: [] });
+	it('returns not-found for a not-found project', async () => {
+		const { service } = stubDeps({ projects: [] });
 
 		const result = await service.loadProjectPage('unknown');
 
 		expect(result.status).toBe('not-found');
-		expect(projectRegistry.setLastUsed).not.toHaveBeenCalled();
 	});
 
 	describe('after the agent resolved a conflict in the scratch worktree', () => {
@@ -199,7 +196,7 @@ describe('ProjectPageService.loadProjectPage', () => {
 			dirs.push(agentWorktreeRoot);
 			fs.mkdirSync(path.join(agentWorktreeRoot, 'st-0001-feature'));
 
-			const { service } = stubDeps({
+			const { service, fileWatcher } = stubDeps({
 				projects: [{ path: worktreeDir, projectSlug: 'proj', name: 'proj', available: true }],
 				worktreeDir,
 				agentWorktreeRoot,
@@ -209,6 +206,7 @@ describe('ProjectPageService.loadProjectPage', () => {
 			const result = await service.loadProjectPage('proj');
 			expect(result.status).toBe('loaded');
 			if (result.status !== 'loaded') return;
+			expect(fileWatcher.watch).toHaveBeenCalledWith(worktreeDir);
 			const ticket = result.board.tickets.find(t => t.folderName === 'st-0001-feature');
 			expect(ticket?.hasAgentWorktree).toBe(true);
 		});

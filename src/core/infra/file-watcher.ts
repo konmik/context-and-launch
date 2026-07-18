@@ -60,18 +60,25 @@ export class FileWatcher {
 			debouncedCommit();
 		};
 
+		// Files written before the initial scan completes are treated as initial
+		// content by chokidar and never produce events; commit them on ready.
+		watcher.on('ready', () => {
+			try {
+				if (gitSync(worktreeDir, 'status', '--porcelain').trim()) {
+					debouncedCommit();
+				}
+			} catch (err) {
+				console.warn(`FileWatcher: catch-up check failed for ${worktreeDir}:`, err);
+			}
+		});
+		watcher.on('error', (err) => {
+			console.warn(`FileWatcher: watcher error for ${worktreeDir}:`, err);
+		});
 		watcher.on('add', handleEvent);
 		watcher.on('change', handleEvent);
 		watcher.on('unlink', handleEvent);
 		watcher.on('addDir', handleEvent);
 		watcher.on('unlinkDir', handleEvent);
-	}
-
-	watchOnly(worktreeDir: string, debounceMs = 2000): void {
-		for (const dir of [...this.watchers.keys()]) {
-			if (dir !== worktreeDir) this.stop(dir);
-		}
-		this.watch(worktreeDir, debounceMs);
 	}
 
 	stop(worktreeDir: string): void {

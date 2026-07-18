@@ -20,7 +20,7 @@ import ThemeToggle from "~/components/shared/ThemeToggle";
 import LogViewerDialog from "~/components/shared/LogViewerDialog";
 import LauncherSettings from "~/components/launcher/LauncherSettings";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
-import { loadProjectPage, addProject } from "~/components/project/project-api.js";
+import { loadProjectPage, addProject, recordProjectFocus } from "~/components/project/project-api.js";
 import {
   createProjectPageController,
   type ProjectPageController,
@@ -82,6 +82,29 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
     if (!v) return "";
     return v.projects.find((p) => p.projectSlug === v.projectSlug)?.name ?? v.projectSlug;
   };
+
+  let lastReportedProjectSlug: string | null = null;
+  createEffect(() => {
+    const v = data();
+    if (v?.status === "loaded" && v.projectSlug !== lastReportedProjectSlug) {
+      lastReportedProjectSlug = v.projectSlug;
+      void recordProjectFocus(v.projectSlug);
+    }
+  });
+
+  onMount(() => {
+    const handler = () => {
+      const v = data();
+      if (v?.status === "loaded") void recordProjectFocus(v.projectSlug);
+    };
+    window.addEventListener("focus", handler);
+    onCleanup(() => window.removeEventListener("focus", handler));
+  });
+
+  createEffect(() => {
+    const name = currentProjectName();
+    if (name) document.title = `${name} - Context & Launch`;
+  });
 
   let addProjectDialogRef: HTMLDivElement | undefined;
   useModEnterSubmit({
@@ -217,11 +240,33 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                       <MenuItem
                         value={`project-${project.projectSlug}`}
                         disabled={!project.available}
-                        class={project.projectSlug === d().projectSlug ? "font-semibold" : ""}
+                        class={`flex items-center justify-between gap-2 ${
+                          project.projectSlug === d().projectSlug ? "font-semibold" : ""
+                        }`}
                         onClick={() => navigate(`/project/${project.projectSlug}`)}
                         data-testid="project-header-project-item"
                       >
-                        {project.name}
+                        <span>{project.name}</span>
+                        <button
+                          class="btn-icon"
+                          disabled={!project.available}
+                          title="Open in new window"
+                          data-testid="project-header-open-window-button"
+                          onPointerDown={(e) => { e.stopPropagation(); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(`/project/${project.projectSlug}`, project.projectSlug);
+                          }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round"
+                          >
+                            <path d="M15 3h6v6" />
+                            <path d="M10 14 21 3" />
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                          </svg>
+                        </button>
                       </MenuItem>
                     )}
                   </For>

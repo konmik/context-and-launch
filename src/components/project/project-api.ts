@@ -1,7 +1,7 @@
 import { query } from "@solidjs/router";
 import {
   configPaths, projectRegistry, projectPageService, worktreeManager,
-  launcherConfigManager,
+  launcherConfigManager, fileWatcher,
 } from "~/core/config/instances.js";
 import { detectMainBranch } from "~/core/infra/git.js";
 import { errorResult } from "~/core/shared/errors.js";
@@ -17,6 +17,11 @@ export const loadProjectPage = query(async (projectSlug: string) => {
   "use server";
   return projectPageService.loadProjectPage(projectSlug);
 }, "project-page");
+
+export async function recordProjectFocus(projectSlug: string) {
+  "use server";
+  projectRegistry.setLastUsed(projectSlug);
+}
 
 export const previewProjectPath = query(async (pathValue: string) => {
   "use server";
@@ -60,7 +65,9 @@ export async function deleteProject(projectSlug: string) {
     if (!exists) {
       return { ok: false as const, type: "error" as const, message: `Project not found: ${projectSlug}` };
     }
+    const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
     projectRegistry.removeProject(projectSlug);
+    fileWatcher.stop(worktreeDir);
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
