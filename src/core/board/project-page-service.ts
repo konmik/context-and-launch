@@ -1,7 +1,6 @@
 import fs from "fs";
-import path from "path";
 import { TicketStore } from "~/core/ticket/ticket-store.js";
-import { worktreeFolderName } from "~/core/worktree/worktree-naming.js";
+import { resolveAgentWorktreeLocation } from "~/core/worktree/worktree-naming.js";
 import { errorMessage } from "~/core/shared/errors.js";
 import type { ProjectRegistry } from "~/core/project/project-registry.js";
 import type { BoardConfigManager } from "~/core/project/board-config.js";
@@ -46,11 +45,13 @@ export class ProjectPageService {
 			const { tickets, ticketOrder } = store.loadBoardState(
 				config.columns.map(c => c.name),
 			);
-			const agentWorktreeRoot = this.launcherConfigManager.resolveAgentWorktreeRoot(projectSlug);
+			const worktreeSettings = this.launcherConfigManager.resolveWorktreeSettings(projectSlug);
 			for (const ticket of tickets) {
-				const wtPath = ticket.agentWorktreeDir
-					?? path.join(agentWorktreeRoot, worktreeFolderName(ticket.folderName));
-				ticket.hasAgentWorktree = fs.existsSync(wtPath);
+				const { worktreePath } = resolveAgentWorktreeLocation(
+					ticket.folderName, worktreeSettings,
+					{ savedWorktreePath: ticket.agentWorktreeDir },
+				);
+				ticket.hasAgentWorktree = fs.existsSync(worktreePath);
 			}
 			const suggestedNextNumber = store.suggestNextNumber();
 			const hasRemote = await this.ticketSyncManager.hasRemote(worktreeDir);

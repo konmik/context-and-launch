@@ -192,10 +192,6 @@ export class LauncherConfigManager {
 		return this.paths.agentWorktreeDir(projectSlug);
 	}
 
-	resolveAgentWorktreeRoot(projectSlug: string): string {
-		return this.resolveWorktreeSettings(projectSlug).worktreeRootPath;
-	}
-
 	resolveWorktreeSettings(projectSlug: string): { worktreeRootPath: string; branchPrefix?: string } {
 		const config = this.loadProjectConfig(projectSlug);
 		return {

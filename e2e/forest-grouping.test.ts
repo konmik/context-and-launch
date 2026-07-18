@@ -612,10 +612,10 @@ describe("Forest Grouping", () => {
       const last = items[items.length - 1] as HTMLElement;
       if (last) last.click();
     });
-    await ctx.page.waitForSelector('[data-testid="archive-ticket-submit"]', {
+    await ctx.page.waitForSelector('[data-testid="ticket-cleanup-submit"]', {
       state: "visible", timeout: 15000,
     });
-    await ctx.page.click('[data-testid="archive-ticket-submit"]');
+    await ctx.page.click('[data-testid="ticket-cleanup-submit"]');
     await ctx.page.waitForTimeout(3000);
 
     expect(fs.existsSync(path.join(project.ticketsPath, "archive", "ar-2-archivable"))).toBe(true);

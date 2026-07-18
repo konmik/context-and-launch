@@ -1,14 +1,50 @@
 # Archive Ticket
 
-- User opens the ticket menu and clicks Archive
-- Ticket uses a worktree
-  - Show cleanup dialog (option to delete worktree, local branch, remote branch)
-  - Run selected cleanup steps first
-    - Any cleanup fails: return error, stop
-- Ticket does not use a worktree
-  - Show confirmation dialog
-- Create archive directory if it does not exist
-- Archive destination already exists: throw error
-- Move the ticket folder into archive
-- Remove ticket from the order store
-- Archived tickets are excluded from the board
+- User opens the ticket menu and clicks Archive or Delete
+  - The ticket cleanup dialog always opens, for every ticket
+- The dialog offers four cleanup items
+  - Stop the Herdr agent
+  - Delete worktree
+  - Delete local branch
+  - Delete remote branch
+- Checks start in parallel when the dialog opens
+  - A Herdr Agent belongs to the ticket when either its explicit name matches or it runs in the ticket's Agent Worktree
+  - Checks re-run every time the dialog is reopened
+  - Each item shows a checking indicator until its check settles
+  - A possible item enables its checkbox
+    - The checkbox is ticked automatically when the check settles
+    - User can untick it before submitting
+  - An impossible item stays disabled and unchecked
+    - The item shows the reason it is not possible
+      - Warnings are red: no worktree, worktree in use, and branch has unmerged commits
+      - Other blocked results are muted
+      - Herdr is not installed
+      - No Herdr agent
+      - No worktree
+      - Worktree has uncommitted changes
+      - Worktree is in use by another process
+        - When a Herdr agent is running in it, the reason says so
+      - No local branch
+      - Branch has unmerged commits
+      - No remote branch
+  - A failed check shows the error next to the item
+    - The error is red
+    - One failing check does not hide the other items
+- The submit button stays enabled while checks are running
+- User submits
+  - Run the selected steps in order
+    - Stop the Herdr agent
+    - Delete worktree
+    - Delete local branch
+    - Delete remote branch
+  - Any step fails
+    - Show the error
+    - Stop without archiving or deleting
+- Archiving the ticket
+  - Create the archive directory if it does not exist
+  - Archive destination already exists: throw error
+  - Move the ticket folder into archive
+  - Remove ticket from the order store
+  - Archived tickets are excluded from the board
+- Deleting the ticket
+  - Remove the ticket folder
