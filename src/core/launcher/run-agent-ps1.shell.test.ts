@@ -162,7 +162,10 @@ describe.runIf(process.platform === "win32")(
           env: {
             ...process.env,
             CL_AGENT_MARKER: markerPath,
-            CL_AGENT_COMMAND_JSON: JSON.stringify(command),
+            CL_AGENT_INVOCATION_JSON: JSON.stringify({
+              executable: command[0],
+              arguments: command.slice(1),
+            }),
           },
         },
       );
