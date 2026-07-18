@@ -17,17 +17,53 @@ param(
     [switch]$selfLaunch
 )
 
+function ConvertFrom-AgentInvocationJson {
+    param([string]$Json)
+
+    $invocation = ConvertFrom-Json $Json -ErrorAction Stop
+    if ($null -eq $invocation -or $invocation -is [array]) {
+        throw "CL_AGENT_INVOCATION_JSON must contain an invocation object"
+    }
+
+    $executableProperty = $invocation.PSObject.Properties['executable']
+    if ($null -eq $executableProperty -or $executableProperty.Value -isnot [string] -or
+        [string]::IsNullOrWhiteSpace($executableProperty.Value)) {
+        throw "CL_AGENT_INVOCATION_JSON executable is missing"
+    }
+
+    $argumentsProperty = $invocation.PSObject.Properties['arguments']
+    if ($null -eq $argumentsProperty -or $argumentsProperty.Value -isnot [array]) {
+        throw "CL_AGENT_INVOCATION_JSON arguments must be an array"
+    }
+
+    $arguments = @($argumentsProperty.Value)
+    if (@($arguments | Where-Object { $_ -isnot [string] }).Count -gt 0) {
+        throw "CL_AGENT_INVOCATION_JSON arguments must be strings"
+    }
+
+    return [pscustomobject]@{
+        Executable = [string]$executableProperty.Value
+        Arguments = [string[]]$arguments
+    }
+}
+
 if ($selfLaunch) {
     if (-not $env:CL_AGENT_MARKER) { throw "CL_AGENT_MARKER is not set" }
-    if (-not $env:CL_AGENT_COMMAND_JSON) { throw "CL_AGENT_COMMAND_JSON is not set" }
+    if (-not $env:CL_AGENT_INVOCATION_JSON) { throw "CL_AGENT_INVOCATION_JSON is not set" }
+
+    try {
+        $invocation = ConvertFrom-AgentInvocationJson $env:CL_AGENT_INVOCATION_JSON
+    } finally {
+        Remove-Item Env:CL_AGENT_INVOCATION_JSON -ErrorAction SilentlyContinue
+    }
+
+    $executable = $invocation.Executable
+    $commandArgs = @($invocation.Arguments)
     $m = $env:CL_AGENT_MARKER
     $d = Split-Path -Parent $m
     if ($d) { New-Item -ItemType Directory -Force -Path $d | Out-Null }
     $s = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
     Set-Content -LiteralPath $m -Value ("{""pid"":$PID,""startSec"":$s}")
-    $executable, $commandArgs = @(ConvertFrom-Json $env:CL_AGENT_COMMAND_JSON)
-    $commandArgs = @($commandArgs)
-    Remove-Item Env:CL_AGENT_COMMAND_JSON
     try { & $executable @commandArgs } finally { Remove-Item -LiteralPath $m -ErrorAction SilentlyContinue }
     return
 }
@@ -42,7 +78,11 @@ $markerPath = $args[2]
 $agentCommand = @($args[3..($args.Length - 1)] | ForEach-Object { [string]$_ }) + @([string]$initialPrompt)
 
 $env:CL_AGENT_MARKER = $markerPath
-$env:CL_AGENT_COMMAND_JSON = ConvertTo-Json $agentCommand -Compress
+$invocation = [ordered]@{
+    executable = [string]$agentCommand[0]
+    arguments = @($agentCommand[1..($agentCommand.Length - 1)])
+}
+$env:CL_AGENT_INVOCATION_JSON = ConvertTo-Json $invocation -Depth 3 -Compress
 $scriptPath = $MyInvocation.MyCommand.Path
 
 $safeTitle = ($windowTitle -replace '(\\*)"', '$1$1\"') -replace '(\\+)$', '$1$1'
