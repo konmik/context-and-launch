@@ -38,11 +38,12 @@
 - Launch script writes marker file with wrapper shell PID and start time
 - Launch script runs the agent
 - For the Herdr Launch Target
-  - A new Herdr Agent receives the initial prompt as one process argument through `agent start`
-  - An existing quiescent Herdr Agent (`idle` or `done`) receives the prompt in its current session and pane
+  - A Ticket pane is owned by a persistent shell, with the Herdr Agent as its foreground child process
+  - An existing quiescent Herdr Agent (`idle` or `done`) is stopped and replaced by a fresh process in the same pane
   - A new Ticket pane is created only when the Ticket has no existing agent
   - A working, blocked, or unknown existing Herdr Agent blocks the launch
-  - Existing-agent prompts use Herdr's bracketed-paste input, followed by Enter after the paste is accepted
+  - The multiline prompt is passed as the fresh agent process's positional CLI argument in the same `pane run` command
+  - A legacy pane without a persistent shell fails without closing the pane or creating another pane
 - On agent exit: delete marker
 
 # Prompt preview
