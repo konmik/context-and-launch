@@ -37,11 +37,12 @@
       - Processes it starts keep running after the app closes
 - Launch script writes marker file with wrapper shell PID and start time
 - Launch script runs the agent
-- Launch script delivers the initial prompt via keystroke injection
-  - Script splits prompt on <<ENTER>> markers
-  - Each text chunk is sent as keystrokes
-  - Each <<ENTER>> marker sends an Enter keystroke
-  - 2-second delay between chunks
+- For the Herdr Launch Target
+  - A new Herdr Agent receives the initial prompt as one process argument through `agent start`
+  - An existing quiescent Herdr Agent (`idle` or `done`) receives the prompt in its current session and pane
+  - A new Ticket pane is created only when the Ticket has no existing agent
+  - A working, blocked, or unknown existing Herdr Agent blocks the launch
+  - Existing-agent prompts use Herdr's bracketed-paste input, followed by Enter after the paste is accepted
 - On agent exit: delete marker
 
 # Prompt preview

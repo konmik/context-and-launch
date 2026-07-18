@@ -12,7 +12,7 @@ if (-not (Get-Command herdr -ErrorAction SilentlyContinue)) {
     throw 'Herdr is not installed or is not available on PATH.'
 }
 
-$initialPrompt = [string]$args[0]
+$initialPrompt = [string]$args[0] -replace '<<ENTER>>', ''
 $markerPath = [string]$args[2]
 $agentCommand = @($args[3..($args.Length - 1)] | ForEach-Object { [string]$_ })
 $launchDir = (Get-Location).Path
@@ -20,7 +20,7 @@ $projectSlug = Split-Path -Leaf (Split-Path -Parent $markerPath)
 $ticketFolder = [IO.Path]::GetFileNameWithoutExtension($markerPath)
 $agentName = "$projectSlug--$ticketFolder"
 
-function Invoke-HerdrJson {
+function Invoke-Herdr {
     param([string[]]$CommandArgs)
     $output = & herdr @CommandArgs 2>&1
     if ($LASTEXITCODE -ne 0) {
@@ -29,7 +29,7 @@ function Invoke-HerdrJson {
     return ($output -join [Environment]::NewLine) | ConvertFrom-Json
 }
 
-function Get-HerdrField {
+function Get-Field {
     param($Object, [string]$Name)
     if ($null -ne $Object -and $Object.PSObject.Properties[$Name]) {
         return $Object.PSObject.Properties[$Name].Value
@@ -37,74 +37,65 @@ function Get-HerdrField {
     return $null
 }
 
-$workspaceList = Invoke-HerdrJson @('workspace', 'list')
-$matchingWorkspaces = @(
-    $workspaceList.result.workspaces |
-        Where-Object { (Get-HerdrField $_ 'label') -ceq $projectSlug }
-)
-if ($matchingWorkspaces.Count -gt 1) {
-    throw "Multiple Herdr workspaces are labeled '$projectSlug'. Rename or close duplicates first."
+function Resolve-AgentCommand {
+    param([string[]]$Command)
+    $executable = Get-Command $Command[0] -ErrorAction Stop
+    $tail = if ($Command.Length -gt 1) { @($Command[1..($Command.Length - 1)]) } else { @() }
+    if ($executable.CommandType -eq 'ExternalScript') {
+        $powershell = (Get-Command powershell -ErrorAction Stop).Source
+        return @($powershell, '-NoProfile', '-File', $executable.Source) + $tail
+    }
+    return @($executable.Source) + $tail
 }
 
-if ($matchingWorkspaces.Count -eq 1) {
-    $workspaceId = [string]$matchingWorkspaces[0].workspace_id
-    $initialPaneId = ''
+$workspaceList = Invoke-Herdr @('workspace', 'list')
+$workspaces = @($workspaceList.result.workspaces | Where-Object {
+    (Get-Field $_ 'label') -ceq $projectSlug
+})
+if ($workspaces.Count -gt 1) {
+    throw "Multiple Herdr workspaces are labeled '$projectSlug'."
+}
+
+$rootPaneToClose = ''
+if ($workspaces.Count -eq 1) {
+    $workspaceId = [string]$workspaces[0].workspace_id
 } else {
-    $created = Invoke-HerdrJson @(
+    $created = Invoke-Herdr @(
         'workspace', 'create', '--cwd', $launchDir,
         '--label', $projectSlug, '--no-focus'
     )
     $workspaceId = [string]$created.result.workspace.workspace_id
-    $initialPaneId = [string]$created.result.root_pane.pane_id
-}
-if (-not $workspaceId) {
-    throw "Herdr did not return a workspace id for Project '$projectSlug'."
+    $rootPaneToClose = [string]$created.result.root_pane.pane_id
 }
 
-$panesToCloseAfterStart = @()
-if ($initialPaneId) {
-    $panesToCloseAfterStart += $initialPaneId
+$agentList = Invoke-Herdr @('agent', 'list')
+$agents = @($agentList.result.agents | Where-Object {
+    (Get-Field $_ 'workspace_id') -eq $workspaceId -and
+        (Get-Field $_ 'name') -ceq $agentName
+})
+if ($agents.Count -gt 1) {
+    throw "Ticket '$ticketFolder' has multiple Herdr agents."
 }
 
-$agentList = Invoke-HerdrJson @('agent', 'list')
-$matchingAgents = @(
-    $agentList.result.agents |
-        Where-Object {
-            (Get-HerdrField $_ 'workspace_id') -eq $workspaceId -and
-                (Get-HerdrField $_ 'name') -ceq $agentName
-        }
-)
-if ($matchingAgents.Count -gt 1) {
-    $states = ($matchingAgents | ForEach-Object { [string](Get-HerdrField $_ 'agent_status') }) -join ', '
-    throw "Ticket '$ticketFolder' has multiple Herdr agents ($states). Close them before launching again."
-}
-if ($matchingAgents.Count -eq 1) {
-    $existingAgent = $matchingAgents[0]
-    $existingStatus = [string](Get-HerdrField $existingAgent 'agent_status')
-    if ($existingStatus -cne 'idle') {
-        throw "Ticket '$ticketFolder' already has a Herdr agent ($existingStatus). Close it before launching again."
+if ($agents.Count -eq 1) {
+    $status = [string](Get-Field $agents[0] 'agent_status')
+    if ($status -cne 'idle' -and $status -cne 'done') {
+        throw "Ticket '$ticketFolder' already has a Herdr agent ($status)."
     }
-    $existingPaneId = [string](Get-HerdrField $existingAgent 'pane_id')
-    if (-not $existingPaneId) {
-        throw "Idle Herdr agent for Ticket '$ticketFolder' has no pane to close."
-    }
-    Invoke-HerdrJson @('agent', 'rename', $existingPaneId, '--clear') | Out-Null
-    $panesToCloseAfterStart += $existingPaneId
+    $paneId = [string](Get-Field $agents[0] 'pane_id')
+    Invoke-Herdr @('pane', 'run', $paneId, $initialPrompt) | Out-Null
+    Start-Sleep -Milliseconds 200
+    Invoke-Herdr @('pane', 'send-keys', $paneId, 'enter') | Out-Null
+    exit 0
 }
 
-$cleanPrompt = $initialPrompt -replace '<<ENTER>>', ''
-$startArgs = @(
+$argv = @(Resolve-AgentCommand $agentCommand) + @($initialPrompt)
+$started = Invoke-Herdr (@(
     'agent', 'start', $agentName,
-    '--cwd', $launchDir,
-    '--workspace', $workspaceId,
-    '--no-focus', '--'
-) + $agentCommand + @($cleanPrompt)
+    '--cwd', $launchDir, '--workspace', $workspaceId, '--no-focus', '--'
+) + $argv)
 
-$startOutput = & herdr @startArgs 2>&1
-if ($LASTEXITCODE -ne 0) {
-    throw "herdr agent start failed: $($startOutput -join [Environment]::NewLine)"
+if ($rootPaneToClose) {
+    Invoke-Herdr @('pane', 'close', $rootPaneToClose) | Out-Null
 }
-foreach ($paneId in $panesToCloseAfterStart) {
-    Invoke-HerdrJson @('pane', 'close', $paneId) | Out-Null
-}
-$startOutput | Write-Output
+$started | ConvertTo-Json -Depth 10 | Write-Output
