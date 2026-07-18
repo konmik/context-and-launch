@@ -31,6 +31,10 @@
     {
       "name": "Claude macOS",
       "command": "bash {{configDefaultsDir}}/run-agent.sh {{initialPrompt}} {{windowTitle}} {{markerPath}} claude --dangerously-skip-permissions"
+    },
+    {
+      "name": "Claude Herdr",
+      "command": "powershell -File {{configDefaultsDir}}/run-agent-herdr.ps1 {{initialPrompt}} {{windowTitle}} {{markerPath}} claude --dangerously-skip-permissions"
     }
   ],
   "shortcuts": [

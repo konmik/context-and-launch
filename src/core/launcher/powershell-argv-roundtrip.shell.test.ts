@@ -1,22 +1,10 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import fs from "fs";
-import os from "os";
 import path from "path";
 import { spawnDetached } from "./spawn-detached.js";
+import { useTempDirs } from "./spawn-detached.test-utils.js";
 
-const tempDirs: string[] = [];
-
-function makeTempDir(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ps-argv-roundtrip-"));
-  tempDirs.push(dir);
-  return dir;
-}
-
-afterEach(() => {
-  while (tempDirs.length > 0) {
-    fs.rmSync(tempDirs.pop()!, { recursive: true, force: true });
-  }
-});
+const makeTempDir = useTempDirs("ps-argv-roundtrip-");
 
 describe.runIf(process.platform === "win32")(
   "powershell -File argv round-trip (agent-launch quoting)",

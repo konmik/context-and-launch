@@ -917,13 +917,13 @@ describe('LauncherConfigManager', () => {
 		expect(config.skills).toEqual([]);
 	});
 
-	it('initializeDataDir creates app config with two profiles', () => {
+	it('initializeDataDir creates app config with Direct Terminal and Herdr profiles', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		initializeDataDir(new ConfigPaths(configDir));
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		const config = mgr.loadAppConfig();
-		expect(config.profiles).toHaveLength(2);
+		expect(config.profiles).toHaveLength(3);
 		expect(config.profiles![0].name).toBe('Claude Windows');
 		const winCmd = config.profiles![0].command;
 		expect(winCmd).toContain('powershell -File {{configDefaultsDir}}/run-agent.ps1');
@@ -932,6 +932,10 @@ describe('LauncherConfigManager', () => {
 		const macCmd = config.profiles![1].command;
 		expect(macCmd).toContain('bash {{configDefaultsDir}}/run-agent.sh');
 		expect(macCmd).toContain('claude --dangerously-skip-permissions');
+		expect(config.profiles![2].name).toBe('Claude Herdr');
+		const herdrCmd = config.profiles![2].command;
+		expect(herdrCmd).toContain('powershell -File {{configDefaultsDir}}/run-agent-herdr.ps1');
+		expect(herdrCmd).toContain('claude --dangerously-skip-permissions');
 	});
 
 	it('addProfile to app scope, verify file on disk', () => {

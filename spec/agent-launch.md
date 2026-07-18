@@ -25,7 +25,9 @@
   - No profile available: error
 - Parse profile command, interpolate prompt and marker path into arguments
 - Spawn detached process, wait up to 10 seconds
-  - Exits with non-zero code before timeout: error
+  - Exits with code 64 and stderr text before timeout: user error
+    - Stderr is shown as the error message, without command or output details
+  - Exits with any other non-zero code before timeout: error with command and output details
   - Spawned process is detached from the app, so it keeps running after the app closes
     - Windows exception: PowerShell cannot run detached, so it runs attached with a hidden console
       - The PowerShell process itself ends when the app closes

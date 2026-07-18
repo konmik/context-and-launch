@@ -4,7 +4,7 @@ import fs from "fs";
 import { createRequire } from "module";
 import os from "os";
 import path from "path";
-import { ProcessError } from "../shared/errors.js";
+import { AppError, ProcessError } from "../shared/errors.js";
 import { appLog } from "../infra/app-logger.js";
 
 const crossSpawnParse = createRequire(import.meta.url)("cross-spawn/lib/parse") as (
@@ -12,6 +12,13 @@ const crossSpawnParse = createRequire(import.meta.url)("cross-spawn/lib/parse") 
 ) => { options: { windowsVerbatimArguments?: boolean } };
 
 const DETACH_DELAY_MS = 10000;
+
+/**
+ * Contract with launch scripts: exiting with this code means stderr contains a
+ * complete, user-facing error message that is shown as-is, without command or
+ * output diagnostics.
+ */
+export const USER_ERROR_EXIT_CODE = 64;
 
 const WINDOWS_CONSOLE_HOSTS = new Set(["powershell", "powershell.exe", "pwsh", "pwsh.exe"]);
 
@@ -75,7 +82,9 @@ export async function spawnDetached(
       if (stderr.trim()) appLog('spawn', `stderr: ${stderr.trim()}`);
       if (settled) return;
       settled = true;
-      if (code !== 0 && code !== null) {
+      if (code === USER_ERROR_EXIT_CODE && stderr.trim()) {
+        reject(new AppError(stderr.trim()));
+      } else if (code !== 0 && code !== null) {
         reject(new ProcessError(
           fullCommand, code, stderr.trim() || undefined, `Failed (exit ${code})`,
         ));

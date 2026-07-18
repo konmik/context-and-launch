@@ -119,8 +119,12 @@ A tab inside the Ticket Detail Dialog that assembles a prompt from a Template an
 Avoid: AI console, terminal, shell, CLI
 
 Coding Agent Profile:
-A named command string that controls how Claude is launched from the Agent Launcher. Contains a name and a command. The server executes the command with parameters appended (initialPrompt, ticketTitle). The app ships default profiles for Windows and macOS backed by user-editable platform scripts in `~/.context-launch/config/`.
+A named agent command and Launch Target used by the Agent Launcher. Existing profiles use the Direct Terminal target; Herdr profiles run as Herdr Agents.
 Avoid: claude config, claude instance, agent config
+
+Launch Target:
+The destination in which a Coding Agent Profile starts its agent. The supported targets are Direct Terminal and Herdr.
+Avoid: launch mode, launch environment, backend
 
 Template:
 A named prompt string with placeholders (e.g. `{{ticketDir}}`, `{{ticketTitle}}`). One template is selected as the base prompt in the Agent Launcher. Interpolated after skill text is appended.
@@ -157,6 +161,14 @@ Agent Worktree:
 A git worktree created from the project's main branch for an agent to work in isolation. Located under a user-configured worktree root path (defaults to `~/.context-launch/projects/{projectSlug}/worktrees/`). Branch named `{folderName}`, or `{branchPrefix}/{folderName}` when a branch prefix is configured. Reused across runs.
 Avoid: sandbox, workspace
 
+Herdr Workspace:
+A project-level container in Herdr that Context & Launch associates with one Project and uses to host Herdr Agents. It is distinct from an Agent Worktree.
+Avoid: Herdr environment, terminal environment
+
+Herdr Agent:
+A coding-agent session hosted in a Herdr Workspace and associated with one Ticket. An idle Herdr Agent may be replaced, but a Ticket never has concurrent Herdr Agents in the same Herdr Workspace.
+Avoid: terminal, pane
+
 ## Relationships
 
 - A Project has exactly one Worktree (created automatically on first board load)
@@ -171,9 +183,12 @@ Avoid: sandbox, workspace
 - When a Column is renamed, ticket statuses and column defaults may be migrated (scoped to all projects, current project, or none)
 - When a Column is deleted, affected tickets appear in the Undefined Column
 - The Agent Launcher assembles a prompt from a Template and zero or more Skills
+- A Coding Agent Profile selects exactly one Launch Target
 - A Launcher Config exists at app scope and optionally at project scope; project merges into app
 - A Launcher Config contains zero or more Shortcuts
 - An Agent Worktree branches from the Project's main branch, named `{folderName}` (optionally prefixed with a configurable branch prefix)
+- A Project has at most one Herdr Workspace
+- A Herdr Workspace contains at most one Herdr Agent for each Ticket Folder
 - The Agent Launcher remembers the last-used Template, checked Skills, and Coding Agent Profile per Column
 - A Ticket may depend on zero or more Tickets (a Dependency); the graph is acyclic
 - A Ticket may be a member of at most one Group; Groups nest acyclically
