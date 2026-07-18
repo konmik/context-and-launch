@@ -63,6 +63,47 @@ describe('AgentWorktreeManager', () => {
 		return { configDir, projectDir, worktreeRoot, lcm, awm, paths };
 	}
 
+	// Sets up a project whose local main is one commit behind its upstream.
+	function setupBehindRemote() {
+		const bareDir = tmpDir('awm-bare-');
+		const projectDir = tmpDir('awm-behind-');
+		const pusherDir = tmpDir('awm-pusher-');
+		const configDir = tmpDir('awm-config-');
+		const worktreeRoot = tmpDir('awm-worktrees-');
+		dirs.push(bareDir, projectDir, pusherDir, configDir, worktreeRoot);
+
+		execSync('git init --bare -b main', { cwd: bareDir, timeout: 5000 });
+
+		execSync(`git clone "${bareDir}" "${projectDir}"`, { timeout: 5000 });
+		execSync('git config user.email "test@test.com"', { cwd: projectDir, timeout: 5000 });
+		execSync('git config user.name "Test"', { cwd: projectDir, timeout: 5000 });
+		fs.writeFileSync(path.join(projectDir, 'README.md'), '# test');
+		execSync('git add .', { cwd: projectDir, timeout: 5000 });
+		execSync('git commit -m "init"', { cwd: projectDir, timeout: 5000 });
+		execSync('git push -u origin main', { cwd: projectDir, timeout: 5000 });
+
+		execSync(`git clone "${bareDir}" "${pusherDir}"`, { timeout: 5000 });
+		execSync('git config user.email "test@test.com"', { cwd: pusherDir, timeout: 5000 });
+		execSync('git config user.name "Test"', { cwd: pusherDir, timeout: 5000 });
+		fs.writeFileSync(path.join(pusherDir, 'ahead.txt'), 'ahead');
+		execSync('git add .', { cwd: pusherDir, timeout: 5000 });
+		execSync('git commit -m "ahead commit"', { cwd: pusherDir, timeout: 5000 });
+		execSync('git push', { cwd: pusherDir, timeout: 5000 });
+
+		execSync('git fetch', { cwd: projectDir, timeout: 5000 });
+
+		const paths = new ConfigPaths(configDir);
+		const lcm = new LauncherConfigManager(paths);
+		lcm.saveProjectConfig('my-proj', {
+			templates: [],
+			skills: [],
+			worktreeRootPath: worktreeRoot,
+		});
+
+		const awm = new AgentWorktreeManager(lcm);
+		return { projectDir, awm };
+	}
+
 	it('creates worktree at the correct path with correct branch name', async () => {
 		const { projectDir, worktreeRoot, awm } = setup();
 		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0001-feature');
@@ -363,6 +404,37 @@ describe('AgentWorktreeManager', () => {
 			expect(result.behindRemote).toBe(true);
 			expect(fs.existsSync(result.worktreePath)).toBe(true);
 		}
+	});
+
+	it('reusing an existing worktree does not re-check main freshness (no behind-remote warning)', async () => {
+		const { projectDir, awm } = setupBehindRemote();
+
+		// First call forks a new worktree from stale main -> warns once.
+		const first = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0038-reuse');
+		expect('worktreePath' in first).toBe(true);
+		if ('worktreePath' in first) expect(first.behindRemote).toBe(true);
+
+		// Second call reuses the existing worktree -> must not warn again.
+		const second = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0038-reuse');
+		expect('worktreePath' in second).toBe(true);
+		if ('worktreePath' in second) expect(second.behindRemote).toBeUndefined();
+	});
+
+	it('reusing an existing branch does not re-check main freshness (no behind-remote warning)', async () => {
+		const { projectDir, awm } = setupBehindRemote();
+
+		const first = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0038-branch');
+		expect('worktreePath' in first).toBe(true);
+		if (!('worktreePath' in first)) throw new Error('expected worktreePath');
+		expect(first.behindRemote).toBe(true);
+
+		// Remove the worktree but keep the branch.
+		execSync(`git worktree remove "${first.worktreePath}"`, { cwd: projectDir, timeout: 5000 });
+
+		// Re-adding from the existing branch does not fork from main -> must not warn.
+		const second = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0038-branch');
+		expect('worktreePath' in second).toBe(true);
+		if ('worktreePath' in second) expect(second.behindRemote).toBeUndefined();
 	});
 
 	it('getMainBranch does not falsely match a branch named main-v2 for the main check', async () => {

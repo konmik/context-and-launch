@@ -73,6 +73,29 @@ export class AgentWorktreeManager {
 			?? `${worktreeRootPath}/${worktreeFolderName(folderName)}`;
 		const mainBranch = await this.getMainBranch(projectPath, configuredBranch);
 
+		const worktreeListOutput = await git(projectPath, 'worktree', 'list', '--porcelain');
+		const normalizedTarget = canonicalize(worktreePath);
+		const alreadyExists = worktreeListOutput
+			.split('\n')
+			.some(line =>
+				line.startsWith('worktree ') &&
+				canonicalize(line.slice('worktree '.length).trim()) === normalizedTarget
+			);
+
+		// Reusing an existing worktree does not touch main, so main's state is irrelevant.
+		if (alreadyExists) {
+			return { worktreePath, branchName };
+		}
+
+		// Reusing an existing branch checks it out without forking from main.
+		const branchList = await git(projectPath, 'branch', '--list', branchName);
+		if (branchList.trim()) {
+			await this.releaseBranchFromOtherWorktree(projectPath, worktreePath, branchName);
+			await git(projectPath, 'worktree', 'add', worktreePath, branchName);
+			return { worktreePath, branchName };
+		}
+
+		// Forking a new worktree from main: only now does main's state matter.
 		if (!options?.skipDirtyCheck) {
 			const status = await git(projectPath, 'status', '--porcelain');
 			if (status.trim()) {
@@ -93,26 +116,7 @@ export class AgentWorktreeManager {
 			console.warn('Skipping upstream check:', e instanceof Error ? e.message : e);
 		}
 
-		const worktreeListOutput = await git(projectPath, 'worktree', 'list', '--porcelain');
-		const normalizedTarget = canonicalize(worktreePath);
-		const alreadyExists = worktreeListOutput
-			.split('\n')
-			.some(line =>
-				line.startsWith('worktree ') &&
-				canonicalize(line.slice('worktree '.length).trim()) === normalizedTarget
-			);
-
-		if (alreadyExists) {
-			return behindRemote ? { worktreePath, branchName, behindRemote } : { worktreePath, branchName };
-		}
-
-		const branchList = await git(projectPath, 'branch', '--list', branchName);
-		if (branchList.trim()) {
-			await this.releaseBranchFromOtherWorktree(projectPath, worktreePath, branchName);
-			await git(projectPath, 'worktree', 'add', worktreePath, branchName);
-		} else {
-			await git(projectPath, 'worktree', 'add', '-b', branchName, worktreePath, mainBranch);
-		}
+		await git(projectPath, 'worktree', 'add', '-b', branchName, worktreePath, mainBranch);
 
 		return behindRemote ? { worktreePath, branchName, behindRemote } : { worktreePath, branchName };
 	}
