@@ -10,11 +10,15 @@ export interface ShortcutDeps {
   setError: (error: ErrorInfo | null) => void;
 }
 
+export interface ShortcutConfirmation {
+  name: string;
+  message: string;
+  type: "dirtyWorktree" | "behindRemote";
+}
+
 export function createShortcutState(deps: ShortcutDeps) {
   const [runningShortcut, setRunningShortcut] = createSignal("");
-  const [dirtyWorktreeShortcut, setDirtyWorktreeShortcut] = createSignal<
-    { name: string; message: string } | null
-  >(null);
+  const [shortcutConfirmation, setShortcutConfirmation] = createSignal<ShortcutConfirmation>();
 
   async function runShortcut(name: string, force?: boolean) {
     setRunningShortcut(name);
@@ -24,8 +28,8 @@ export function createShortcutState(deps: ShortcutDeps) {
         deps.projectSlug, deps.folderName(), name, deps.useWorktree(), force ?? false, deps.launchDir(),
       );
       if (!result.ok) {
-        if (result.type === "dirtyWorktree") {
-          setDirtyWorktreeShortcut({ name, message: result.message });
+        if (result.type === "dirtyWorktree" || result.type === "behindRemote") {
+          setShortcutConfirmation({ name, message: result.message, type: result.type });
           return;
         }
         if (result.type === "error") {
@@ -42,7 +46,7 @@ export function createShortcutState(deps: ShortcutDeps) {
   }
 
   return {
-    runningShortcut, dirtyWorktreeShortcut, setDirtyWorktreeShortcut,
+    runningShortcut, shortcutConfirmation, setShortcutConfirmation,
     runShortcut,
   };
 }

@@ -12,7 +12,7 @@ import {
   NewFileDialog,
   DeleteFileDialog,
   ConfirmUploadDialog,
-  DirtyWorktreeShortcutDialog,
+  ShortcutConfirmationDialog,
   activeFileLabel,
 } from "./ticket-detail-parts.js";
 import { EditorTab } from "./ticket-detail-editor-tab.js";
@@ -316,11 +316,11 @@ function TicketDetailContent(props: {
         onDiscard={s.proceedFileSwitch}
       />
 
-      <DirtyWorktreeShortcutDialog
-        info={s.dirtyWorktreeShortcut()}
+      <ShortcutConfirmationDialog
+        info={s.shortcutConfirmation()}
         running={s.runningShortcut() !== ""}
-        onCancel={() => s.setDirtyWorktreeShortcut(null)}
-        onRunAnyway={(n) => { s.setDirtyWorktreeShortcut(null); s.runShortcut(n, true); }}
+        onCancel={() => s.setShortcutConfirmation(undefined)}
+        onProceed={(n) => { s.setShortcutConfirmation(undefined); s.runShortcut(n, true); }}
       />
 
       <NewFileDialog

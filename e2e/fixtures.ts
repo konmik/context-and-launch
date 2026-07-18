@@ -66,6 +66,7 @@ export interface SeedTicket {
   number: string;
   title: string;
   status: string;
+  useWorktree?: boolean;
   folderName?: string;
   body?: string;
   createdAt?: string;
@@ -257,7 +258,7 @@ export async function createProject(
           number: t.number,
           title: t.title,
           status: t.status,
-          useWorktree: useWorktreeFolders.has(folderName),
+          useWorktree: t.useWorktree ?? useWorktreeFolders.has(folderName),
           ...(t.createdAt ? { createdAt: t.createdAt } : {}),
           ...(t.dependsOn ? { dependsOn: t.dependsOn } : {}),
           ...(t.memberOf ? { memberOf: t.memberOf } : {}),
@@ -379,13 +380,16 @@ export type LauncherSettingsTab = "misc" | "prompts" | "launch" | "columns";
 
 export async function openLauncherSettingsTab(page: Page, name: LauncherSettingsTab): Promise<void> {
   await page.click(`[data-testid="launcher-settings-tab-${name}"]`);
-  await page.waitForTimeout(150);
-  if (name === "columns") {
-    await page.waitForSelector('[data-testid="launcher-settings-columns-board-selector"]', {
-      state: "visible",
-      timeout: 15000,
-    });
-  }
+  const contentTestId: Record<LauncherSettingsTab, string> = {
+    launch: "launcher-settings-launch-add-profile-button",
+    prompts: "launcher-settings-skills-add-button",
+    misc: "launcher-settings-misc-project-name-input",
+    columns: "launcher-settings-columns-board-selector",
+  };
+  await page.waitForSelector(`[data-testid="${contentTestId[name]}"]`, {
+    state: "visible",
+    timeout: 15000,
+  });
 }
 
 export interface DragSortableOptions {

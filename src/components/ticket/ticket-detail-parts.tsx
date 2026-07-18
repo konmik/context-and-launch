@@ -5,6 +5,7 @@ import MarkdownEditor from "../shared/MarkdownEditor";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 import type { MergedLauncherConfig } from "~/core/launcher/launcher-config.js";
 import { type ActiveFile, activeFileLabel, isActiveFileMatch } from "./ticket-detail-pure.js";
+import type { ShortcutConfirmation } from "./ticket-detail-shortcuts.js";
 
 export type { ActiveFile } from "./ticket-detail-pure.js";
 export { activeFileLabel, isActiveFileMatch } from "./ticket-detail-pure.js";
@@ -464,11 +465,11 @@ export function ConfirmUploadDialog(props: {
   );
 }
 
-export function DirtyWorktreeShortcutDialog(props: {
-  info: { name: string; message: string } | null;
+export function ShortcutConfirmationDialog(props: {
+  info: ShortcutConfirmation | undefined;
   running: boolean;
   onCancel: () => void;
-  onRunAnyway: (name: string) => void;
+  onProceed: (name: string) => void;
 }) {
   return (
     <DialogRoot
@@ -476,22 +477,24 @@ export function DirtyWorktreeShortcutDialog(props: {
       onOpenChange={props.onCancel}
       class="max-w-sm"
     >
-      <DialogTitle class="sr-only">Uncommitted Changes</DialogTitle>
+      <DialogTitle class="sr-only">
+        {props.info?.type === "behindRemote" ? "Main Branch Behind Remote" : "Uncommitted Changes"}
+      </DialogTitle>
       <p class="mb-4 text-sm">{props.info?.message}</p>
       <div class="flex justify-end gap-2">
         <button
           onClick={props.onCancel}
           class="btn-secondary"
-          data-testid="ticket-detail-dirty-worktree-cancel"
+          data-testid="ticket-detail-shortcut-confirmation-cancel"
         >
           Cancel
         </button>
         <button
-          onClick={() => props.onRunAnyway(props.info!.name)}
+          onClick={() => props.onProceed(props.info!.name)}
           disabled={props.running}
           class="btn-primary"
-          data-testid="ticket-detail-dirty-worktree-run-anyway"
-        >Run Anyway</button>
+          data-testid="ticket-detail-shortcut-confirmation-proceed"
+        >{props.info?.type === "behindRemote" ? "Proceed" : "Run Anyway"}</button>
       </div>
     </DialogRoot>
   );
