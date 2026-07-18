@@ -3,7 +3,7 @@ import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/core/launcher/launcher-config.js";
 import type { ErrorInfo } from "~/core/shared/errors.js";
 import { createListReorder, orderByNameList } from "../board/list-reorder.js";
-import { resolveDefaults } from "./agent-launcher-pure.js";
+import { launchErrorInfo, resolveDefaults } from "./agent-launcher-pure.js";
 import { launchAgentAction } from "./launcher-api.js";
 import { createPromptPreviewController } from "./prompt-preview-controller.js";
 
@@ -97,7 +97,7 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 			switch (result.type) {
 				case "behindRemote": setBehindRemoteMsg(result.message); break;
 				case "dirtyWorktree": setDirtyWorktreeMsg(result.message); break;
-				default: setErrorInfo({ title: "Launch failed", description: result.message }); break;
+				default: setErrorInfo(launchErrorInfo(result)); break;
 			}
 		} catch (e: unknown) {
 			setErrorInfo({ title: "Launch failed", description: e instanceof Error ? e.message : "Network error" });

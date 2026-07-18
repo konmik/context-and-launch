@@ -1,6 +1,30 @@
 import { describe, it, expect } from "vitest";
-import { resolveDefaults, computeLaunchDir } from "./agent-launcher-pure.js";
+import { resolveDefaults, computeLaunchDir, launchErrorInfo } from "./agent-launcher-pure.js";
 import type { MergedLauncherConfig } from "~/core/launcher/launcher-config.js";
+
+describe("launchErrorInfo", () => {
+	it("keeps the structured error's description, command, and output", () => {
+		const result = launchErrorInfo({
+			message: "Failed (exit 1): Ticket 'st-47' already has a Herdr agent (idle).",
+			errorInfo: {
+				description: "Failed (exit 1)",
+				command: "powershell -File run-agent-herdr.ps1",
+				output: "Ticket 'st-47' already has a Herdr agent (idle).",
+			},
+		});
+		expect(result).toEqual({
+			title: "Launch failed",
+			description: "Failed (exit 1)",
+			command: "powershell -File run-agent-herdr.ps1",
+			output: "Ticket 'st-47' already has a Herdr agent (idle).",
+		});
+	});
+
+	it("falls back to the message when no structured error is present", () => {
+		const result = launchErrorInfo({ message: "Already started" });
+		expect(result).toEqual({ title: "Launch failed", description: "Already started" });
+	});
+});
 
 describe("resolveDefaults", () => {
 	const config = {

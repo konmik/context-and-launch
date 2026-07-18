@@ -40,6 +40,8 @@
 
 - Run dev server: `npm run dev`.
 - Run all tests: `npm run test:all` (tsc + unit + build + e2e). Never skip e2e.
+- Never run shell tests unless the user explicitly asks you to run them.
+- Any test that launches a terminal or console-host process (powershell, cmd, wt) is a shell test. Name it *.shell.test.ts so it runs only via `npm run test:shell`, never in test or test:all.
 - Write UI tests with playwright.
 - e2e tests run the real server against a sandboxed CONTEXT_LAUNCH_DATA_DIR temp dir and a scratch git repo, drive the UI with playwright, and assert on real side effects (config.json contents, git branches/worktrees). Use the e2e/real-server.ts harness. Never stub the app's own server functions; mock only true external boundaries.
 - e2e/mock-server.ts is a fixture for pure-UI rendering tests that need no real backend behavior.
