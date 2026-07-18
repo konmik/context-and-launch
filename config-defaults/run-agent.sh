@@ -13,7 +13,7 @@
 # Invocations:
 #   "$0" <prompt> <title> <marker> <cmd>  launcher entry. Stash args, open self in Terminal.
 #   "$0"                            Terminal opened the script (no argv passes through). Re-exec with flag.
-#   "$0" --self-launch              In Terminal. Read stashed args, run claude under expect.
+#   "$0" --self-launch              In Terminal. Read stashed args and run the agent.
 
 if [ "$1" = "--self-launch" ]; then
   PROMPT="$(launchctl getenv CL_AGENT_PROMPT)"
@@ -26,9 +26,6 @@ if [ "$1" = "--self-launch" ]; then
   launchctl unsetenv CL_AGENT_CWD
   launchctl unsetenv CL_AGENT_MARKER
   launchctl unsetenv CL_AGENT_CMD
-  export CL_AGENT_PROMPT="$PROMPT"
-  export CL_AGENT_TITLE="$TITLE"
-  export CL_AGENT_CMD="$AGENT_CMD"
   [ -n "$CWD" ] && [ -d "$CWD" ] && cd "$CWD"
   [ -z "$MARKER" ] && { echo "CL_AGENT_MARKER is not set" >&2; exit 1; }
   [ -z "$AGENT_CMD" ] && { echo "CL_AGENT_CMD is not set" >&2; exit 1; }
@@ -40,38 +37,10 @@ if [ "$1" = "--self-launch" ]; then
   # claude won't be found. Re-import PATH from an interactive shell.
   PATH="$("${SHELL:-/bin/zsh}" -ic 'printf %s "$PATH"' 2>/dev/null)" || true
   export PATH
-  # Write title escapes directly to /dev/tty so they aren't lost to any stdout
-  # buffering when we exec into expect.
+  # Write title escapes directly to /dev/tty so they are not lost to buffering.
   printf '\033]0;%s\007\033]2;%s\007' "$TITLE" "$TITLE" > /dev/tty 2>/dev/null || true
-  # -c keeps expect's stdin connected to the real tty so `interact` can forward
-  # the user's keystrokes to claude. Using a heredoc closes stdin and breaks
-  # the user-to-claude direction.
-  # `expect timeout {}` is used instead of `sleep N` so claude output streams
-  # to the user in real time during the scripted-keystroke phase.
-  # Not exec'd, so the EXIT trap above can remove the marker once claude ends.
-  /usr/bin/expect -c '
-set prompt $env(CL_AGENT_PROMPT)
-set title  $env(CL_AGENT_TITLE)
-eval spawn $env(CL_AGENT_CMD)
-send_user "\033]0;$title\007\033]2;$title\007"
-set timeout 3
-expect timeout {}
-regsub -all {<<ENTER>>} $prompt "\x1F\x1E\x1F" promptPrepped
-set tokens [split $promptPrepped \x1F]
-foreach token $tokens {
-    if {$token eq "\x1E"} {
-        send "\r"
-        set timeout 2
-        expect timeout {}
-    } elseif {[string length $token] > 0} {
-        send -- "\x1b\[200~$token\x1b\[201~"
-    }
-}
-send_user "\033]0;$title\007\033]2;$title\007"
-set timeout -1
-interact
-'
-  exit 0
+  eval "$AGENT_CMD \"\$PROMPT\""
+  exit $?
 fi
 
 if [ $# -ge 2 ]; then

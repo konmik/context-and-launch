@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { execFileSync } from "child_process";
+import { execFileSync, spawnSync } from "child_process";
 import crypto from "crypto";
 import fs from "fs";
 import os from "os";
@@ -70,15 +70,15 @@ describe.runIf(process.platform === "win32")(
       windowTitles.push(windowTitle);
 
       const agentScript = path.join(dir, "agent.ps1");
-      fs.writeFileSync(agentScript, [
-        `$line = [Console]::ReadLine()`,
-        `Set-Content -LiteralPath '${outputPath}' -Value $line`,
-      ].join("\r\n"));
+      fs.writeFileSync(
+        agentScript,
+        `Set-Content -LiteralPath '${outputPath}' -Value $args[0]`,
+      );
 
       await spawnDetached(
         "powershell",
         [
-          "-File", SCRIPT_PATH, "hello<<ENTER>>",
+          "-File", SCRIPT_PATH, "hello",
           windowTitle, markerPath,
           "powershell", "-NoProfile", "-File", agentScript,
         ],
@@ -107,15 +107,15 @@ describe.runIf(process.platform === "win32")(
       windowTitles.push(windowTitle);
 
       const agentScript = path.join(dir, "agent.ps1");
-      fs.writeFileSync(agentScript, [
-        `$line = [Console]::ReadLine()`,
-        `Set-Content -LiteralPath '${outputPath}' -Value $line`,
-      ].join("\r\n"));
+      fs.writeFileSync(
+        agentScript,
+        `Set-Content -LiteralPath '${outputPath}' -Value $args[0]`,
+      );
 
       await spawnDetached(
         "powershell",
         [
-          "-File", SCRIPT_PATH, "hello<<ENTER>>",
+          "-File", SCRIPT_PATH, "hello",
           windowTitle, markerPath,
           "powershell", "-NoProfile", "-File", agentScript,
         ],
@@ -134,5 +134,49 @@ describe.runIf(process.platform === "win32")(
       ).toBe(true);
       expect(fs.readFileSync(outputPath, "utf-8").trim()).toBe("hello");
     }, 30000);
+  },
+);
+
+describe.runIf(process.platform === "win32")(
+  "run-agent.ps1 agent command",
+  () => {
+    it("passes a multiline prompt as one positional argument", () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "run-agent-ps1-argv-"));
+      const markerPath = path.join(dir, "marker.json");
+      const outputPath = path.join(dir, "received.json");
+      const agentScript = path.join(dir, "agent.ps1");
+      const prompt = "first line\nsecond line with 'quotes' and $variables";
+      fs.writeFileSync(
+        agentScript,
+        `($args | ConvertTo-Json -Compress) | Set-Content -LiteralPath $args[0]`,
+      );
+      const command = [
+        "powershell", "-NoProfile", "-File", agentScript, outputPath, prompt,
+      ];
+
+      const result = spawnSync(
+        "powershell",
+        ["-NoProfile", "-File", SCRIPT_PATH, "-selfLaunch"],
+        {
+          encoding: "utf-8",
+          env: {
+            ...process.env,
+            CL_AGENT_MARKER: markerPath,
+            CL_AGENT_COMMAND_JSON: JSON.stringify(command),
+          },
+        },
+      );
+
+      try {
+        expect(result.status, result.stderr).toBe(0);
+        expect(JSON.parse(fs.readFileSync(outputPath, "utf-8"))).toEqual([
+          outputPath,
+          prompt,
+        ]);
+        expect(fs.existsSync(markerPath)).toBe(false);
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
   },
 );

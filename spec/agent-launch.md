@@ -36,7 +36,7 @@
       - The PowerShell process itself ends when the app closes
       - Processes it starts keep running after the app closes
 - Launch script writes marker file with wrapper shell PID and start time
-- Launch script runs the agent
+- Launch script runs the agent with the initial prompt as one positional argument
 - For the Herdr Launch Target
   - A Ticket pane is owned by a persistent shell, with the Herdr Agent as its foreground child process
   - An existing quiescent Herdr Agent (`idle` or `done`) is stopped and replaced by a fresh process in the same pane

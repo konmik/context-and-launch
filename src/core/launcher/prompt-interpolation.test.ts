@@ -86,36 +86,29 @@ describe('interpolatePrompt', () => {
 
 describe('{{skills}} interpolation', () => {
 	it('expands {{skills}} with joined skill texts', () => {
-		const template = 'Do the work.\n\n{{skills}}\n<<ENTER>>';
+		const template = 'Do the work.\n\n{{skills}}';
 		const result = interpolatePrompt(template, { skills: 'skill1\nskill2' });
-		expect(result).toBe('Do the work.\n\nskill1\nskill2\n<<ENTER>>');
+		expect(result).toBe('Do the work.\n\nskill1\nskill2');
 	});
 
 	it('expands {{skills}} to empty string when no skills checked', () => {
-		const template = 'Do the work.\n\n{{skills}}\n<<ENTER>>';
+		const template = 'Do the work.\n\n{{skills}}';
 		const result = interpolatePrompt(template, { skills: '' });
-		expect(result).toBe('Do the work.\n\n\n<<ENTER>>');
+		expect(result).toBe('Do the work.\n\n');
 	});
 
 	it('template without {{skills}} ignores skill texts', () => {
-		const template = 'Just do the thing.\n<<ENTER>>';
+		const template = 'Just do the thing.';
 		const result = interpolatePrompt(template, { skills: 'skill1\nskill2' });
-		expect(result).toBe('Just do the thing.\n<<ENTER>>');
+		expect(result).toBe('Just do the thing.');
 	});
 
 	it('{{skills}} and other variables expand in a single pass', () => {
-		const template = 'Work in {{ticketDir}}.\n\n{{skills}}\n<<ENTER>>';
+		const template = 'Work in {{ticketDir}}.\n\n{{skills}}';
 		const result = interpolatePrompt(template, {
 			ticketDir: 'C:\\projects\\t-0001',
 			skills: '/simplify',
 		});
-		expect(result).toBe('Work in C:\\projects\\t-0001.\n\n/simplify\n<<ENTER>>');
-	});
-
-	it('preserves <<ENTER>> markers in template alongside {{skills}}', () => {
-		const template = '<<ENTER>>\nDo the thing.\n\n{{skills}}\n<<ENTER>>';
-		const result = interpolatePrompt(template, { skills: 'check it' });
-		expect(result).toBe('<<ENTER>>\nDo the thing.\n\ncheck it\n<<ENTER>>');
+		expect(result).toBe('Work in C:\\projects\\t-0001.\n\n/simplify');
 	});
 });
-

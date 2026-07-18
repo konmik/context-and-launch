@@ -7,8 +7,8 @@ import {
 
 const APP_LAUNCHER = {
   templates: [
-    { name: "Default", text: "<<ENTER>>\ndo it in {{ticketDir}}\n\n{{skills}}\n<<ENTER>>" },
-    { name: "Other", text: "other {{ticketDir}}\n<<ENTER>>" },
+    { name: "Default", text: "do it in {{ticketDir}}\n\n{{skills}}" },
+    { name: "Other", text: "other {{ticketDir}}" },
   ],
   profiles: [
     { name: "Claude", command: "echo claude" },
@@ -157,14 +157,6 @@ describe("Ticket detail Launcher tab (e2e, real server)", () => {
     const revertedText = await cm.textContent();
     expect(revertedText).not.toContain("EXTRA TEXT");
     expect(revertedText).toBe(originalText);
-  }, 60000);
-
-  it("prompt preview shows <<ENTER>> markers", async () => {
-    await setup("enter-markers");
-    const cm = ctx.page.locator('.cm-content');
-    await cm.waitFor({ state: "visible", timeout: 15000 });
-    const text = await cm.textContent();
-    expect(text).toContain("<<ENTER>>");
   }, 60000);
 
   it("launch dir display shows project path when worktree is off", async () => {

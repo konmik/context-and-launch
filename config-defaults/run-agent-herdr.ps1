@@ -12,7 +12,7 @@ if (-not (Get-Command herdr -ErrorAction SilentlyContinue)) {
     throw 'Herdr is not installed or is not available on PATH.'
 }
 
-$initialPrompt = [string]$args[0] -replace '<<ENTER>>', ''
+$initialPrompt = [string]$args[0]
 $markerPath = [string]$args[2]
 $agentCommand = @($args[3..($args.Length - 1)] | ForEach-Object { [string]$_ })
 $launchDir = (Get-Location).Path
