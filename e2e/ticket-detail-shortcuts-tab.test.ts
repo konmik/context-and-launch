@@ -1,3 +1,5 @@
+import { execSync } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import { describe, it, expect } from "vitest";
 import {
@@ -62,6 +64,52 @@ describe("Ticket detail Shortcuts tab (e2e, real server)", () => {
     });
   }, 60000);
 
+  it("a shortcut can proceed when main is behind remote", async () => {
+    const folderName = "t-1-alpha";
+    const markerName = "shortcut-launched.txt";
+    const markerScript = `require('node:fs').writeFileSync('${markerName}', 'launched')`;
+    const project = await createProject(ctx.testServer, {
+      projectSlug: uniqueSlug("tds-behind-remote"),
+      withRemote: true,
+      withTickets: [{
+        number: "T-1", title: "Alpha", status: "todo", folderName, useWorktree: true,
+      }],
+      appLauncherConfig: {
+        shortcuts: [{
+          name: "Launch",
+          command: `${JSON.stringify(process.execPath)} -e ${JSON.stringify(markerScript)}`,
+        }],
+      },
+    });
+    ctx.projects.push(project);
+
+    const pusherDir = path.join(ctx.testServer.reposParentDir, uniqueSlug("tds-pusher"));
+    execSync(`git clone --branch main "${project.remoteUrl}" "${pusherDir}"`);
+    execSync("git config user.email test@test.com", { cwd: pusherDir });
+    execSync("git config user.name Test", { cwd: pusherDir });
+    fs.writeFileSync(path.join(pusherDir, "remote-change.txt"), "remote change");
+    execSync("git add remote-change.txt", { cwd: pusherDir });
+    execSync("git commit -m remote-change", { cwd: pusherDir });
+    execSync("git push", { cwd: pusherDir });
+    execSync("git fetch origin", { cwd: project.projectPath });
+
+    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+    await openTicketDetail(ctx.page, folderName);
+    await ctx.page.click('[data-testid="ticket-detail-tab-shortcuts"]');
+    await ctx.page.click('[data-testid="ticket-detail-shortcuts-run-button"]');
+    await ctx.page.waitForSelector('[data-testid="ticket-detail-shortcut-confirmation-proceed"]', {
+      state: "visible", timeout: 20000,
+    });
+    expect(await ctx.page.getByText("Main branch is behind remote.").isVisible()).toBe(true);
+    expect(await ctx.page.locator('[data-testid="error-dialog-ok"]').count()).toBe(0);
+
+    await ctx.page.click('[data-testid="ticket-detail-shortcut-confirmation-proceed"]');
+    const markerPath = path.join(
+      ctx.testServer.dataDir, "projects", project.projectSlug, "worktrees", folderName, markerName,
+    );
+    await expect.poll(() => fs.existsSync(markerPath), { timeout: 20000 }).toBe(true);
+  }, 60000);
+
   it("shortcut error dialog screenshot", async () => {
     const project = await createProject(ctx.testServer, {
       projectSlug: uniqueSlug("tds-screenshot"),
@@ -95,7 +143,7 @@ describe("Ticket detail Shortcuts tab (e2e, real server)", () => {
     });
   }, 60000);
 
-  it("dirty-worktree shortcut dialog testids are not present on the happy path", async () => {
+  it("shortcut confirmation testids are not present on the happy path", async () => {
     const project = await createProject(ctx.testServer, {
       projectSlug: uniqueSlug("tds-ref"),
       withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
@@ -107,7 +155,7 @@ describe("Ticket detail Shortcuts tab (e2e, real server)", () => {
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await openTicketDetail(ctx.page, "t-1-alpha");
     await ctx.page.click('[data-testid="ticket-detail-tab-shortcuts"]');
-    expect(await ctx.page.locator('[data-testid="ticket-detail-dirty-worktree-cancel"]').count()).toBe(0);
-    expect(await ctx.page.locator('[data-testid="ticket-detail-dirty-worktree-run-anyway"]').count()).toBe(0);
+    expect(await ctx.page.locator('[data-testid="ticket-detail-shortcut-confirmation-cancel"]').count()).toBe(0);
+    expect(await ctx.page.locator('[data-testid="ticket-detail-shortcut-confirmation-proceed"]').count()).toBe(0);
   }, 60000);
 });

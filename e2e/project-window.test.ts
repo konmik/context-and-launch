@@ -18,8 +18,8 @@ describe("Project window (e2e, real server)", () => {
 
     await gotoProject(ctx.page, ctx.testServer, a.projectSlug);
     await ctx.page.click('[data-testid="sync-button-trigger"]');
-    await ctx.page.waitForSelector('[data-testid="sync-button-pending-badge"]', {
-      state: "detached", timeout: 20000,
+    await ctx.page.waitForSelector('[data-testid="sync-button-check-icon"]', {
+      state: "visible", timeout: 20000,
     });
 
     const page2 = await ctx.newPage();
