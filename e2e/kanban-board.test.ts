@@ -81,7 +81,7 @@ describe("Kanban board (e2e, real server)", () => {
     ctx.projects.push(project);
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await clickTicketMenuItem(ctx.page, "archive");
-    await ctx.page.waitForSelector('[data-testid="archive-ticket-submit"]', { state: "visible", timeout: 15000 });
+    await ctx.page.waitForSelector('[data-testid="ticket-cleanup-submit"]', { state: "visible", timeout: 15000 });
   }, 60000);
 
   it("kanban-board-ticket-menu-delete opens Delete Ticket dialog", async () => {
@@ -92,7 +92,7 @@ describe("Kanban board (e2e, real server)", () => {
     ctx.projects.push(project);
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await clickTicketMenuItem(ctx.page, "delete");
-    await ctx.page.waitForSelector('[data-testid="delete-ticket-submit"]', { state: "visible", timeout: 15000 });
+    await ctx.page.waitForSelector('[data-testid="ticket-cleanup-submit"]', { state: "visible", timeout: 15000 });
   }, 60000);
 
   it("kanban-board-undefined-column and related testids render for orphan-status tickets", async () => {

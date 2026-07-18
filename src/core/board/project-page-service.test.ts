@@ -40,9 +40,9 @@ function stubDeps(overrides: {
 	const fileWatcher = { watch: vi.fn() } as unknown as FileWatcher;
 	const ticketSyncManager = overrides.ticketSyncManager ?? ({} as TicketSyncManager);
 	const launcherConfigManager = {
-		resolveAgentWorktreeRoot: vi.fn(() =>
-			overrides.agentWorktreeRoot ?? '/nonexistent-agent-worktree-root',
-		),
+		resolveWorktreeSettings: vi.fn(() => ({
+			worktreeRootPath: overrides.agentWorktreeRoot ?? '/nonexistent-agent-worktree-root',
+		})),
 	} as unknown as LauncherConfigManager;
 
 	const service = new ProjectPageService(

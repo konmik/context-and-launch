@@ -30,6 +30,7 @@ export async function createServer(opts: CreateServerOptions = {}): Promise<Test
     CONTEXT_PICKER_STUB: "__cancel__",
     CONTEXT_FILE_PICKER_STUB: "__cancel__",
     CONTEXT_OPEN_IN_OS_STUB: "__noop__",
+    CONTEXT_HERDR_COMMAND: "herdr-e2e-not-installed",
     ...(opts.env ?? {}),
   };
   const server = await startRealServer(startPort, dataDir, safeEnv);

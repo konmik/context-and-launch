@@ -4,7 +4,7 @@ import { rename } from 'fs/promises';
 import { exec } from 'child_process';
 import { git, detectMainBranch } from '../infra/git.js';
 import { ValidationError } from '../shared/errors.js';
-import { worktreeBranchName, worktreeFolderName } from './worktree-naming.js';
+import { resolveAgentWorktreeLocation } from './worktree-naming.js';
 import type { LauncherConfigManager } from '../launcher/launcher-config.js';
 
 
@@ -68,9 +68,14 @@ export class AgentWorktreeManager {
 	): Promise<WorktreeResult | DirtyWorktreeResult> {
 		const { worktreeRootPath, branchPrefix } = this.launcherConfig.resolveWorktreeSettings(projectSlug);
 
-		const branchName = savedWorktreeInfo?.branchName ?? worktreeBranchName(folderName, branchPrefix);
-		const worktreePath = savedWorktreeInfo?.agentWorktreePath
-			?? `${worktreeRootPath}/${worktreeFolderName(folderName)}`;
+		const { worktreePath, branchName } = resolveAgentWorktreeLocation(
+			folderName,
+			{ worktreeRootPath, branchPrefix },
+			savedWorktreeInfo && {
+				savedWorktreePath: savedWorktreeInfo.agentWorktreePath,
+				savedBranchName: savedWorktreeInfo.branchName,
+			},
+		);
 		const mainBranch = await this.getMainBranch(projectPath, configuredBranch);
 
 		const worktreeListOutput = await git(projectPath, 'worktree', 'list', '--porcelain');

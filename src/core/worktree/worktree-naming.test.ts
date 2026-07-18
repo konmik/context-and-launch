@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { worktreeFolderName, worktreeBranchName } from './worktree-naming.js';
+import {
+	worktreeFolderName, worktreeBranchName, resolveAgentWorktreeLocation,
+} from './worktree-naming.js';
 
 describe('worktreeFolderName', () => {
 	it('returns short names unchanged', () => {
@@ -40,5 +42,65 @@ describe('worktreeBranchName', () => {
 
 	it('uses a custom prefix', () => {
 		expect(worktreeBranchName('st-0001-feature', 'bot')).toBe('bot/st-0001-feature');
+	});
+});
+
+describe('resolveAgentWorktreeLocation', () => {
+	it('computes path and branch from settings without a prefix', () => {
+		const loc = resolveAgentWorktreeLocation('st-0001-feature', { worktreeRootPath: '/root' });
+		expect(loc).toEqual({
+			worktreePath: '/root/st-0001-feature',
+			branchName: 'st-0001-feature',
+		});
+	});
+
+	it('applies the branch prefix to the computed branch', () => {
+		const loc = resolveAgentWorktreeLocation(
+			'st-0001-feature', { worktreeRootPath: '/root', branchPrefix: 'ai' },
+		);
+		expect(loc).toEqual({
+			worktreePath: '/root/st-0001-feature',
+			branchName: 'ai/st-0001-feature',
+		});
+	});
+
+	it('prefers a saved worktree path but still computes the branch', () => {
+		const loc = resolveAgentWorktreeLocation(
+			'st-0001-feature', { worktreeRootPath: '/root', branchPrefix: 'ai' },
+			{ savedWorktreePath: '/custom/wt' },
+		);
+		expect(loc).toEqual({
+			worktreePath: '/custom/wt',
+			branchName: 'ai/st-0001-feature',
+		});
+	});
+
+	it('prefers a saved branch name but still computes the path', () => {
+		const loc = resolveAgentWorktreeLocation(
+			'st-0001-feature', { worktreeRootPath: '/root' },
+			{ savedBranchName: 'saved-branch' },
+		);
+		expect(loc).toEqual({
+			worktreePath: '/root/st-0001-feature',
+			branchName: 'saved-branch',
+		});
+	});
+
+	it('uses both saved values when provided', () => {
+		const loc = resolveAgentWorktreeLocation(
+			'st-0001-feature', { worktreeRootPath: '/root' },
+			{ savedWorktreePath: '/custom/wt', savedBranchName: 'saved-branch' },
+		);
+		expect(loc).toEqual({
+			worktreePath: '/custom/wt',
+			branchName: 'saved-branch',
+		});
+	});
+
+	it('truncates long folder names through worktreeFolderName for the computed path', () => {
+		const name = 'x'.repeat(80);
+		const loc = resolveAgentWorktreeLocation(name, { worktreeRootPath: '/root' });
+		expect(loc.worktreePath).toBe(`/root/${'x'.repeat(50)}`);
+		expect(loc.branchName).toBe('x'.repeat(50));
 	});
 });

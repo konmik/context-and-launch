@@ -1,3 +1,4 @@
+import fs from "fs";
 import {
   worktreeManager, boardConfigManager, projectRegistry,
   operationTracker, ticketSyncManager, syncPendingTracker,
@@ -6,7 +7,10 @@ import {
 import { TicketStore } from "~/core/ticket/ticket-store.js";
 import { extractPrefixFromInput } from "~/core/ticket/ticket-number.js";
 import { WorktreeCleanupService } from "~/core/worktree/worktree-cleanup.js";
-import { worktreeBranchName, worktreeFolderName } from "~/core/worktree/worktree-naming.js";
+import { resolveAgentWorktreeLocation } from "~/core/worktree/worktree-naming.js";
+import { runTicketCleanupChecks } from "~/core/worktree/ticket-cleanup-checks.js";
+import type { TicketCleanupStatus, TicketCleanupOptions } from "~/core/worktree/ticket-cleanup-checks.js";
+import { findHerdrAgent, stopHerdrAgent } from "~/core/launcher/herdr-control.js";
 import { ValidationError, NotFoundError, errorMessage, errorPayload, errorResult } from "~/core/shared/errors.js";
 import type { ErrorInfo } from "~/core/shared/errors.js";
 import { resolveInitialTicketStatus } from "~/core/board/initial-ticket-status.js";
@@ -226,25 +230,75 @@ export async function suggestTicketNumber(
   return store.suggestNextNumber(prefix);
 }
 
+function resolveTicketCleanupTarget(projectSlug: string, folderName: string) {
+  const project = projectRegistry.listProjects().find((p) => p.projectSlug === projectSlug);
+  if (!project) throw new NotFoundError("Project not found");
+  const store = new TicketStore(worktreeManager.getWorktreeDir(projectSlug));
+  const ticket = store.getTicket(folderName);
+  const { worktreePath, branchName } = resolveAgentWorktreeLocation(
+    folderName,
+    launcherConfigManager.resolveWorktreeSettings(projectSlug),
+    {
+      savedWorktreePath: ticket?.agentWorktreeDir ?? undefined,
+      savedBranchName: ticket?.agentWorktreeBranchName ?? undefined,
+    },
+  );
+  return { project, store, ticket, worktreePath, branchName };
+}
+
+export async function getCleanupStatus(
+  projectSlug: string, folderName: string,
+): Promise<TicketCleanupStatus> {
+  "use server";
+  const { project, worktreePath, branchName } = resolveTicketCleanupTarget(projectSlug, folderName);
+  return runTicketCleanupChecks(
+    {
+      projectSlug, folderName, projectPath: project.path,
+      worktreePath, branchName, configuredMainBranch: project.mainBranch,
+    },
+    {
+      worktreeExists: (worktreePath) => fs.existsSync(worktreePath),
+      isWorktreeClean: (worktreePath) => agentWorktreeManager.isWorktreeClean(worktreePath),
+      isWorktreeBusy: (worktreePath) => agentWorktreeManager.isWorktreeBusy(worktreePath),
+      localBranchExists: (projectPath, branchName) =>
+        agentWorktreeManager.localBranchExists(projectPath, branchName),
+      isBranchMerged: (projectPath, branchName, mainBranch) =>
+        agentWorktreeManager.isBranchMerged(projectPath, branchName, mainBranch),
+      hasRemoteBranch: (projectPath, branchName) =>
+        agentWorktreeManager.hasRemoteBranch(projectPath, branchName),
+      findHerdrAgent,
+    },
+  );
+}
+
 export async function worktreeCleanup(
   projectSlug: string, folderName: string,
-  options: { deleteWorktree: boolean; deleteLocalBranch: boolean; deleteRemoteBranch: boolean },
+  options: TicketCleanupOptions,
 ) {
   "use server";
   try {
-    const merged = launcherConfigManager.getMergedConfig(projectSlug);
-    if (!merged.worktreeRootPath) throw new ValidationError("Worktree root path is not configured");
-    const project = projectRegistry.listProjects().find((p) => p.projectSlug === projectSlug);
-    if (!project) throw new NotFoundError("Project not found");
-    const ticketWorktreeDir = worktreeManager.getWorktreeDir(projectSlug);
-    const store = new TicketStore(ticketWorktreeDir);
-    const ticket = store.getTicket(folderName);
-    const worktreePath = ticket?.agentWorktreeDir
-      ?? `${merged.worktreeRootPath}/${worktreeFolderName(folderName)}`;
-    const resolvedBranchName = ticket?.agentWorktreeBranchName
-      ?? worktreeBranchName(folderName, merged.branchPrefix);
+    const { project, store, ticket, worktreePath, branchName } =
+      resolveTicketCleanupTarget(projectSlug, folderName);
+    if (options.stopHerdrAgent) {
+      const found = await findHerdrAgent({
+        projectSlug, folderName, agentWorktreePath: worktreePath,
+      });
+      if (found.kind === "herdr-missing") {
+        throw new ValidationError("Herdr is not installed or is not available on PATH.");
+      }
+      if (found.kind === "no-agent") {
+        throw new ValidationError(`No Herdr agent found for ticket '${folderName}'.`);
+      }
+      await stopHerdrAgent(found.paneId);
+    }
     await new WorktreeCleanupService(agentWorktreeManager).cleanup(
-      project.path, resolvedBranchName, worktreePath, options, project.mainBranch,
+      project.path, branchName, worktreePath,
+      {
+        deleteWorktree: options.deleteWorktree,
+        deleteLocalBranch: options.deleteLocalBranch,
+        deleteRemoteBranch: options.deleteRemoteBranch,
+      },
+      project.mainBranch,
     );
     if (ticket?.agentWorktreeBranchName
         && (options.deleteWorktree || options.deleteLocalBranch)) {

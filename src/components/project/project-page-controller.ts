@@ -9,6 +9,7 @@ import {
 import { deleteProject } from "./project-api.js";
 import { resolveConflicts, abortRebase } from "../launcher/launcher-api.js";
 import { parseSyncResult } from "./project-page-pure.js";
+import type { TicketCleanupOptions } from "../shared/ticket-cleanup-pure.js";
 
 export interface ProjectPageDeps {
   projectSlug: () => string;
@@ -20,8 +21,6 @@ export function createProjectPageController(deps: ProjectPageDeps) {
   const [settingsOpen, setSettingsOpen] = createSignal(false);
   const [createTicketOpen, setCreateTicketOpen] = createSignal(false);
   const [editTicketOpen, setEditTicketOpen] = createSignal(false);
-  const [deleteTicketOpen, setDeleteTicketOpen] = createSignal(false);
-  const [archiveTicketOpen, setArchiveTicketOpen] = createSignal(false);
   const [cleanupDialogOpen, setCleanupDialogOpen] = createSignal(false);
   const [cleanupAction, setCleanupAction] = createSignal<"archive" | "delete">("archive");
   const [selectedTicket, setSelectedTicket] = createSignal<TicketInfo | null>(null);
@@ -88,22 +87,14 @@ export function createProjectPageController(deps: ProjectPageDeps) {
 
   function openDelete(ticket: TicketInfo) {
     setSelectedTicket(ticket);
-    if (ticket.hasAgentWorktree) {
-      setCleanupAction("delete");
-      setCleanupDialogOpen(true);
-    } else {
-      setDeleteTicketOpen(true);
-    }
+    setCleanupAction("delete");
+    setCleanupDialogOpen(true);
   }
 
   function openArchive(ticket: TicketInfo) {
     setSelectedTicket(ticket);
-    if (ticket.hasAgentWorktree) {
-      setCleanupAction("archive");
-      setCleanupDialogOpen(true);
-    } else {
-      setArchiveTicketOpen(true);
-    }
+    setCleanupAction("archive");
+    setCleanupDialogOpen(true);
   }
 
   async function openDetail(ticket: TicketInfo) {
@@ -155,17 +146,17 @@ export function createProjectPageController(deps: ProjectPageDeps) {
 
   async function handleCleanupSubmit(
     folderName: string,
-    options: { deleteWorktree: boolean; deleteLocalBranch: boolean; deleteRemoteBranch: boolean },
+    options: TicketCleanupOptions,
   ) {
-    if (options.deleteWorktree || options.deleteLocalBranch || options.deleteRemoteBranch) {
+    if (options.stopHerdrAgent || options.deleteWorktree
+        || options.deleteLocalBranch || options.deleteRemoteBranch) {
       const cleanupResult = await worktreeCleanup(deps.projectSlug(), folderName, options);
       if (!cleanupResult.ok) {
         const info = 'errorInfo' in cleanupResult ? cleanupResult.errorInfo : undefined;
         return { error: info ?? cleanupResult.message };
       }
     }
-    const action = cleanupAction();
-    return action === "archive"
+    return cleanupAction() === "archive"
       ? await handleArchiveTicket(folderName)
       : await handleDeleteTicket(folderName);
   }
@@ -173,8 +164,6 @@ export function createProjectPageController(deps: ProjectPageDeps) {
   const dialogState = () => ({
     createTicketOpen: createTicketOpen(),
     editTicketOpen: editTicketOpen(),
-    deleteTicketOpen: deleteTicketOpen(),
-    archiveTicketOpen: archiveTicketOpen(),
     cleanupDialogOpen: cleanupDialogOpen(),
     cleanupAction: cleanupAction(),
     settingsOpen: settingsOpen(),
@@ -206,8 +195,6 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     handleReorder,
     handleCreateTicket,
     handleEditTicket,
-    handleArchiveTicket,
-    handleDeleteTicket,
     handleCleanupSubmit,
     openSettings: () => setSettingsOpen(true),
     closeSettings: () => setSettingsOpen(false),
@@ -216,8 +203,6 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     handleDeleteProject,
     setCreateTicketOpen,
     setEditTicketOpen,
-    setDeleteTicketOpen,
-    setArchiveTicketOpen,
     setCleanupDialogOpen,
     setConflictDialogOpen,
     setSyncError,

@@ -9,9 +9,7 @@ const ForestView = clientOnly(() => import("~/components/forest/ForestView"));
 import { getViewMode, setViewMode } from "~/components/forest/forest-local-state.js";
 import CreateTicketDialog from "~/components/ticket/CreateTicketDialog";
 import EditTicketDialog from "~/components/ticket/EditTicketDialog";
-import DeleteTicketDialog from "~/components/ticket/DeleteTicketDialog";
-import ArchiveTicketDialog from "~/components/ticket/ArchiveTicketDialog";
-import WorktreeCleanupDialog from "~/components/shared/WorktreeCleanupDialog";
+import TicketCleanupDialog from "~/components/shared/TicketCleanupDialog";
 import TicketDetailDialog from "~/components/ticket/TicketDetailDialog";
 import ConflictDialog from "~/components/shared/ConflictDialog";
 import ErrorDialog from "~/components/shared/ErrorDialog";
@@ -345,21 +343,10 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
             ticket={selectionState().selectedTicket}
             onSubmit={commands.handleEditTicket}
           />
-          <DeleteTicketDialog
-            open={dialogState().deleteTicketOpen}
-            onOpenChange={commands.setDeleteTicketOpen}
-            ticket={selectionState().selectedTicket}
-            onSubmit={commands.handleDeleteTicket}
-          />
-          <ArchiveTicketDialog
-            open={dialogState().archiveTicketOpen}
-            onOpenChange={commands.setArchiveTicketOpen}
-            ticket={selectionState().selectedTicket}
-            onSubmit={commands.handleArchiveTicket}
-          />
-          <WorktreeCleanupDialog
+          <TicketCleanupDialog
             open={dialogState().cleanupDialogOpen}
             onOpenChange={commands.setCleanupDialogOpen}
+            projectSlug={d().projectSlug}
             ticket={selectionState().selectedTicket}
             action={dialogState().cleanupAction}
             onSubmit={commands.handleCleanupSubmit}
