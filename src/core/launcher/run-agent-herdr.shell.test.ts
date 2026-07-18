@@ -31,7 +31,11 @@ param(
   [Parameter(ValueFromRemainingArguments=$true)][string[]]$AgentCommand
 )
 $global:Calls = @()
+$global:Stopped = $false
 function global:Start-Sleep {}
+function global:Get-CimInstance {
+  return [pscustomobject]@{ Name = 'powershell.exe'; CommandLine = 'powershell.exe -NoExit' }
+}
 function global:herdr {
   $callArgs = @($args | ForEach-Object { [string]$_ })
   $global:Calls += ,([pscustomobject]@{ args = $callArgs })
@@ -61,10 +65,17 @@ function global:herdr {
   if ($verb -eq 'agent start') {
     return '{"id":"test","result":{"agent":{"pane_id":"w1:p2"}}}'
   }
+  if ($verb -eq 'pane process-info') {
+    $foregroundPid = if ($global:Stopped) { $PID } else { 999999 }
+    return (@{ id = 'test'; result = @{ process_info = @{
+      shell_pid = $PID; foreground_processes = @(@{ pid = $foregroundPid })
+    } } } | ConvertTo-Json -Depth 8 -Compress)
+  }
   if ($verb -eq 'pane run') {
     return '{"id":"test","result":{"type":"ok"}}'
   }
   if ($verb -eq 'pane send-keys') {
+    if ($callArgs[3] -eq 'ctrl+c') { $global:Stopped = $true }
     return '{"id":"test","result":{"type":"ok"}}'
   }
   if ($verb -eq 'pane close') {
@@ -114,7 +125,7 @@ afterEach(() => {
 });
 
 describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
-	it('starts a new agent with the multiline prompt as one argv value', () => {
+	it('creates a persistent pane and starts the agent as its child', () => {
 		const result = runHarness('create');
 		expect(result.status, result.stderr).toBe(0);
 		const calls = result.report.calls.map(call => call.args);
@@ -122,10 +133,15 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
 			'agent', 'start', 'alpha--st-47', '--cwd', expect.any(String),
 			'--workspace', 'w1', '--no-focus', '--',
 			expect.stringMatching(/powershell(?:\.exe)?$/i),
-			'-NoProfile', '-File', expect.stringMatching(/[\\/]probe-agent\.ps1$/), '--flag',
-			"hello\nmultiline 'world'",
+			'-NoLogo', '-NoProfile', '-NoExit',
 		]);
-		expect(calls.some(call => call[0] === 'pane' && call[1] === 'run')).toBe(false);
+		expect(calls).toContainEqual([
+			'pane', 'run', 'w1:p2', expect.stringMatching(
+				/\[string\]::Join\([^)]*'hello', 'multiline ''world'''\)\)/,
+			),
+		]);
+		expect(calls.find(call => call[0] === 'pane' && call[1] === 'run')?.[3])
+			.not.toContain('\n');
 		expect(calls.at(-1)?.slice(0, 3)).toEqual(['pane', 'close', 'w1:p1']);
 	});
 
@@ -136,15 +152,20 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
 			.not.toContain('workspace create');
 	});
 
-	it('submits the multiline prompt to an idle agent without restarting it', () => {
+	it('restarts an idle agent process inside the same pane', () => {
 		const result = runHarness('idle');
 		expect(result.status, result.stderr).toBe(0);
 		const calls = result.report.calls.map(call => call.args);
-		expect(calls).toContainEqual([
-			'pane', 'run', 'w1:p9', "hello\nmultiline 'world'",
-		]);
-		expect(calls).toContainEqual(['pane', 'send-keys', 'w1:p9', 'enter']);
+		expect(calls).toContainEqual(['pane', 'send-keys', 'w1:p9', 'ctrl+c']);
 		expect(calls.some(call => call[0] === 'agent' && call[1] === 'start')).toBe(false);
+		expect(calls.some(call => call[0] === 'pane' && call[1] === 'close')).toBe(false);
+		const restart = calls.find(call =>
+			call[0] === 'pane' && call[1] === 'run' && call[3].includes('probe-agent.ps1'));
+		expect(restart?.[2]).toBe('w1:p9');
+		expect(restart?.[3]).toMatch(
+			/\[string\]::Join\([^)]*'hello', 'multiline ''world'''\)\)/,
+		);
+		expect(restart?.[3]).not.toContain('\n');
 	});
 
 	it('rejects a working agent', () => {

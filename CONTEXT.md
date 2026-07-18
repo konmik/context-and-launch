@@ -174,8 +174,12 @@ Herdr Workspace:
 A project-level container in Herdr that Context & Launch associates with one Project and uses to host Herdr Agents. It is distinct from an Agent Worktree.
 Avoid: Herdr environment, terminal environment
 
+Herdr Ticket Pane:
+A persistent pane in a Herdr Workspace associated with one Ticket. It retains its identity when its Herdr Agent is replaced.
+Avoid: agent panel, agent instance
+
 Herdr Agent:
-A coding-agent session hosted in a Herdr Workspace and associated with one Ticket. A later launch submits another prompt to the existing idle or done session, and a Ticket never has concurrent Herdr Agents in the same Herdr Workspace.
+A coding-agent process hosted by a Herdr Ticket Pane. A later launch replaces the finished or waiting process, and a Herdr Ticket Pane never hosts concurrent Herdr Agents.
 Avoid: terminal, pane
 
 ## Relationships
@@ -198,7 +202,8 @@ Avoid: terminal, pane
 - A Launcher Config contains zero or more Shortcuts
 - An Agent Worktree branches from the Project's main branch, named `{folderName}` (optionally prefixed with a configurable branch prefix)
 - A Project has at most one Herdr Workspace
-- A Herdr Workspace contains at most one Herdr Agent for each Ticket Folder
+- A Herdr Workspace contains at most one Herdr Ticket Pane for each Ticket Folder
+- A Herdr Ticket Pane hosts at most one Herdr Agent at a time
 - The Agent Launcher remembers the last-used Template, checked Skills, and Coding Agent Profile per Column
 - A Ticket may depend on zero or more Tickets (a Dependency); the graph is acyclic
 - A Ticket may be a member of at most one Group; Groups nest acyclically
