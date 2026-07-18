@@ -29,10 +29,18 @@ function Invoke-HerdrJson {
     return ($output -join [Environment]::NewLine) | ConvertFrom-Json
 }
 
+function Get-HerdrField {
+    param($Object, [string]$Name)
+    if ($null -ne $Object -and $Object.PSObject.Properties[$Name]) {
+        return $Object.PSObject.Properties[$Name].Value
+    }
+    return $null
+}
+
 $workspaceList = Invoke-HerdrJson @('workspace', 'list')
 $matchingWorkspaces = @(
     $workspaceList.result.workspaces |
-        Where-Object { $_.label -ceq $projectSlug }
+        Where-Object { (Get-HerdrField $_ 'label') -ceq $projectSlug }
 )
 if ($matchingWorkspaces.Count -gt 1) {
     throw "Multiple Herdr workspaces are labeled '$projectSlug'. Rename or close duplicates first."
@@ -62,20 +70,21 @@ $agentList = Invoke-HerdrJson @('agent', 'list')
 $matchingAgents = @(
     $agentList.result.agents |
         Where-Object {
-            $_.workspace_id -eq $workspaceId -and $_.name -ceq $agentName
+            (Get-HerdrField $_ 'workspace_id') -eq $workspaceId -and
+                (Get-HerdrField $_ 'name') -ceq $agentName
         }
 )
 if ($matchingAgents.Count -gt 1) {
-    $states = ($matchingAgents | ForEach-Object { [string]$_.agent_status }) -join ', '
+    $states = ($matchingAgents | ForEach-Object { [string](Get-HerdrField $_ 'agent_status') }) -join ', '
     throw "Ticket '$ticketFolder' has multiple Herdr agents ($states). Close them before launching again."
 }
 if ($matchingAgents.Count -eq 1) {
     $existingAgent = $matchingAgents[0]
-    $existingStatus = [string]$existingAgent.agent_status
+    $existingStatus = [string](Get-HerdrField $existingAgent 'agent_status')
     if ($existingStatus -cne 'idle') {
         throw "Ticket '$ticketFolder' already has a Herdr agent ($existingStatus). Close it before launching again."
     }
-    $existingPaneId = [string]$existingAgent.pane_id
+    $existingPaneId = [string](Get-HerdrField $existingAgent 'pane_id')
     if (-not $existingPaneId) {
         throw "Idle Herdr agent for Ticket '$ticketFolder' has no pane to close."
     }

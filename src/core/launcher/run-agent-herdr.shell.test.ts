@@ -53,6 +53,10 @@ function global:herdr {
         '[{"workspace_id":"w1","pane_id":"w1:p2","name":' +
         '"alpha--st-47-herdr","agent_status":"working"}]}}'
     }
+    if ($Mode -eq 'unnamed') {
+      return '{"id":"test","result":{"type":"agent_list","agents":' +
+        '[{"workspace_id":"w1","pane_id":"w1:p2","agent_status":"working"}]}}'
+    }
     if ($Mode -eq 'idle') {
       return '{"id":"test","result":{"type":"agent_list","agents":' +
         '[{"workspace_id":"w1","pane_id":"w1:p9","name":' +
@@ -83,7 +87,7 @@ exit $exitCode
 	return { dir, harness, report };
 }
 
-function runHarness(mode: 'create' | 'reuse' | 'duplicate' | 'idle'): {
+function runHarness(mode: 'create' | 'reuse' | 'duplicate' | 'idle' | 'unnamed'): {
 	status: number | null;
 	stderr: string;
 	report: HarnessReport;
@@ -144,6 +148,14 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
 				'agent rename w1:p9', 'agent start alpha--st-47-herdr',
 				'pane close w1:p9',
 			]);
+	});
+
+	it('ignores an unnamed agent under strict mode and starts the ticket agent', () => {
+		const result = runHarness('unnamed');
+		expect(result.status, result.stderr).toBe(0);
+		expect(result.stderr.trim()).toBe('');
+		expect(result.report.calls.map(call => call.args.slice(0, 2).join(' ')))
+			.toEqual(['workspace list', 'agent list', 'agent start']);
 	});
 
 	it('rejects an existing matching Ticket agent with a clean single-line stderr message', () => {
