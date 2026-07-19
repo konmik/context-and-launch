@@ -17,26 +17,27 @@ interface TicketCleanupDialogProps {
   projectSlug: string;
   ticket: TicketInfo | null;
   action: "archive" | "delete";
-  onSubmit: (
+  onCleanup: (
     folderName: string, cleanup: TicketCleanupOptions,
   ) => Promise<{ error?: string | ErrorInfo }>;
+  onSubmit: (folderName: string) => Promise<{ error?: string | ErrorInfo }>;
   ctrl?: TicketCleanupController;
 }
 
 const rows: {
-  key: CleanupItemKey; label: string; checkboxTestId: string; statusTestId: string;
+  key: CleanupItemKey; label: string; buttonTestId: string; statusTestId: string;
 }[] = [
   { key: "stopHerdrAgent", label: "Stop the Herdr agent",
-    checkboxTestId: "ticket-cleanup-stop-herdr-checkbox",
+    buttonTestId: "ticket-cleanup-stop-herdr-button",
     statusTestId: "ticket-cleanup-stop-herdr-status" },
   { key: "deleteWorktree", label: "Delete worktree",
-    checkboxTestId: "ticket-cleanup-delete-worktree-checkbox",
+    buttonTestId: "ticket-cleanup-delete-worktree-button",
     statusTestId: "ticket-cleanup-delete-worktree-status" },
   { key: "deleteLocalBranch", label: "Delete local branch",
-    checkboxTestId: "ticket-cleanup-delete-local-checkbox",
+    buttonTestId: "ticket-cleanup-delete-local-button",
     statusTestId: "ticket-cleanup-delete-local-status" },
   { key: "deleteRemoteBranch", label: "Delete remote branch",
-    checkboxTestId: "ticket-cleanup-delete-remote-checkbox",
+    buttonTestId: "ticket-cleanup-delete-remote-button",
     statusTestId: "ticket-cleanup-delete-remote-status" },
 ];
 
@@ -46,6 +47,7 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps) {
     ticket: () => props.ticket,
     action: () => props.action,
     loadStatus: getCleanupStatus,
+    onCleanup: props.onCleanup,
     onSubmit: props.onSubmit,
     onOpenChange: props.onOpenChange,
   });
@@ -56,7 +58,7 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps) {
 
   useModEnterSubmit({
     onSubmit: () => void s.doSubmit(),
-    disabled: () => s.submitting(),
+    disabled: s.busy,
     active: () => props.open && !!props.ticket,
   });
 
@@ -70,35 +72,42 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps) {
         <For each={rows}>
           {(row) => {
             const item = () => s.items()[row.key];
+            const running = () => s.runningItem() === row.key;
             return (
-              <div class="text-sm">
-                <label class="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={s.isChecked(row.key)}
-                    disabled={item().state !== "ready"}
-                    onChange={(e) => s.updateOption(row.key, e.currentTarget.checked)}
-                    data-testid={row.checkboxTestId}
-                  />
-                  {row.label}
-                </label>
-                <span
-                  class="block break-words pl-6 text-xs"
-                  data-testid={row.statusTestId}
-                  data-state={item().state}
+              <div class="flex min-h-10 items-center gap-3 text-sm">
+                <button
+                  type="button"
+                  disabled={item().state !== "ready" || s.busy()}
+                  onClick={() => void s.runCleanup(row.key)}
+                  class="btn-secondary w-48 shrink-0 justify-start"
+                  data-testid={row.buttonTestId}
                 >
-                  <Show when={item().state === "checking"}>
-                    <span class="animate-pulse text-muted-foreground">Checking...</span>
-                  </Show>
-                  <Show when={item().state === "blocked"}>
-                    <span class={"warning" in item() ? "text-destructive" : "text-muted-foreground"}>
-                      {(item() as { reason: string }).reason}
-                    </span>
-                  </Show>
-                  <Show when={item().state === "error"}>
-                    <span class="text-destructive">
-                      {(item() as { error: ErrorInfo }).error.description}
-                    </span>
+                  {row.label}
+                </button>
+                <span
+                  class="min-w-0 flex-1 break-words text-left text-xs"
+                  data-testid={row.statusTestId}
+                  data-state={running() ? "running" : item().state}
+                  aria-live="polite"
+                >
+                  <Show when={running()} fallback={
+                    <>
+                      <Show when={item().state === "checking"}>
+                        <span class="animate-pulse text-muted-foreground">Checking...</span>
+                      </Show>
+                      <Show when={item().state === "blocked"}>
+                        <span class={"warning" in item() ? "text-destructive" : "text-muted-foreground"}>
+                          {(item() as { reason: string }).reason}
+                        </span>
+                      </Show>
+                      <Show when={item().state === "error"}>
+                        <span class="text-destructive">
+                          {(item() as { error: ErrorInfo }).error.description}
+                        </span>
+                      </Show>
+                    </>
+                  }>
+                    <span class="animate-pulse text-muted-foreground">Working...</span>
                   </Show>
                 </span>
               </div>
@@ -135,7 +144,7 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps) {
           >Cancel</button>
           <button
             type="submit"
-            disabled={s.submitting()}
+            disabled={s.busy()}
             title={modEnterHint()}
             class={props.action === "delete" ? "btn-destructive" : "btn-primary"}
             data-testid="ticket-cleanup-submit"

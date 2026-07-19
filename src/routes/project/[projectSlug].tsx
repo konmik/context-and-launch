@@ -367,6 +367,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
             projectSlug={d().projectSlug}
             ticket={selectionState().selectedTicket}
             action={dialogState().cleanupAction}
+            onCleanup={commands.handleCleanupAction}
             onSubmit={commands.handleCleanupSubmit}
           />
           <TicketDetailDialog

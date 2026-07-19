@@ -28,14 +28,8 @@ export function noCleanupOptions(): TicketCleanupOptions {
   return buildOptions(() => false);
 }
 
-export function possibleCleanupOptions(items: TicketCleanupItemStates): TicketCleanupOptions {
-  return buildOptions((key) => items[key].state === "ready");
-}
-
-export function effectiveCleanupOptions(
-  options: TicketCleanupOptions, items: TicketCleanupItemStates,
-): TicketCleanupOptions {
-  return buildOptions((key) => options[key] && items[key].state === "ready");
+export function singleCleanupOption(key: CleanupItemKey): TicketCleanupOptions {
+  return buildOptions((candidate) => candidate === key);
 }
 
 function buildStates(make: () => CleanupItemClientState): TicketCleanupItemStates {

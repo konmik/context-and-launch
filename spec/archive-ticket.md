@@ -11,10 +11,14 @@
   - A Herdr Agent belongs to the ticket when either its explicit name matches or it runs in the ticket's Agent Worktree
   - Checks re-run every time the dialog is reopened
   - Each item shows a checking indicator until its check settles
-  - A possible item enables its checkbox
-    - The checkbox is ticked automatically when the check settles
-    - User can untick it before submitting
-  - An impossible item stays disabled and unchecked
+  - Each cleanup item is a button with its status on the right
+  - A possible item enables its button
+    - User clicks the button
+      - Run only that cleanup action
+      - Show a working indicator
+      - Disable the other actions and the submit button until it finishes
+      - Refresh all cleanup statuses after it finishes
+  - An impossible item stays disabled
     - The item shows the reason it is not possible
       - Warnings are red: no worktree, worktree in use, and branch has unmerged commits
       - Other blocked results are muted
@@ -31,15 +35,12 @@
     - The error is red
     - One failing check does not hide the other items
 - The submit button stays enabled while checks are running
+- A cleanup action fails
+  - Show the error
+  - Refresh all cleanup statuses
+  - Do not archive or delete the ticket
 - User submits
-  - Run the selected steps in order
-    - Stop the Herdr agent
-    - Delete worktree
-    - Delete local branch
-    - Delete remote branch
-  - Any step fails
-    - Show the error
-    - Stop without archiving or deleting
+  - Archive or delete the ticket without running cleanup actions
 - Archiving the ticket
   - Create the archive directory if it does not exist
   - Archive destination already exists: throw error

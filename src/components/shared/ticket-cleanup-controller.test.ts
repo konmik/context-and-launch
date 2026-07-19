@@ -27,6 +27,7 @@ function makeDeps(overrides?: Partial<TicketCleanupDeps>): TicketCleanupDeps {
     ticket: () => makeTicket("t-1-alpha"),
     action: () => "delete",
     loadStatus: async () => allReady,
+    onCleanup: async () => ({}),
     onSubmit: async () => ({}),
     onOpenChange: () => {},
     ...overrides,
@@ -52,7 +53,7 @@ describe("createTicketCleanupController", () => {
     });
   });
 
-  it("auto-ticks ready items after checks and keeps blocked items unticked", async () => {
+  it("loads ready and blocked action states", async () => {
     await createRoot(async (dispose) => {
       try {
         const status: TicketCleanupStatus = {
@@ -60,14 +61,11 @@ describe("createTicketCleanupController", () => {
           deleteRemoteBranch: { state: "blocked", reason: "No remote branch" },
         };
         const ctrl = createTicketCleanupController(makeDeps({ loadStatus: async () => status }));
-        expect(ctrl.isChecked("deleteWorktree")).toBe(false);
         await ctrl.startChecks();
         expect(ctrl.items().deleteRemoteBranch).toEqual({ state: "blocked", reason: "No remote branch" });
-        expect(ctrl.isChecked("stopHerdrAgent")).toBe(true);
-        expect(ctrl.isChecked("deleteWorktree")).toBe(true);
-        expect(ctrl.isChecked("deleteLocalBranch")).toBe(true);
-        ctrl.updateOption("deleteRemoteBranch", true);
-        expect(ctrl.isChecked("deleteRemoteBranch")).toBe(false);
+        expect(ctrl.items().stopHerdrAgent).toEqual({ state: "ready" });
+        expect(ctrl.items().deleteWorktree).toEqual({ state: "ready" });
+        expect(ctrl.items().deleteLocalBranch).toEqual({ state: "ready" });
       } finally {
         dispose();
       }
@@ -119,42 +117,45 @@ describe("createTicketCleanupController", () => {
     });
   });
 
-  it("lets updateOption untick a ready item", async () => {
+  it("runs one cleanup action and refreshes all statuses", async () => {
     await createRoot(async (dispose) => {
       try {
-        const ctrl = createTicketCleanupController(makeDeps());
+        let submitted: any;
+        let checks = 0;
+        const refreshed: TicketCleanupStatus = {
+          ...allReady,
+          deleteWorktree: { state: "blocked", reason: "No worktree" },
+        };
+        const ctrl = createTicketCleanupController(makeDeps({
+          loadStatus: async () => ++checks === 1 ? allReady : refreshed,
+          onCleanup: async (_folderName, cleanup) => { submitted = cleanup; return {}; },
+        }));
         await ctrl.startChecks();
-        expect(ctrl.isChecked("deleteWorktree")).toBe(true);
-        ctrl.updateOption("deleteWorktree", false);
-        expect(ctrl.isChecked("deleteWorktree")).toBe(false);
+        await ctrl.runCleanup("deleteWorktree");
+        expect(submitted).toEqual({
+          stopHerdrAgent: false,
+          deleteWorktree: true,
+          deleteLocalBranch: false,
+          deleteRemoteBranch: false,
+        });
+        expect(checks).toBe(2);
+        expect(ctrl.items()).toEqual(refreshed);
       } finally {
         dispose();
       }
     });
   });
 
-  it("submits effective options, dropping non-ready keys", async () => {
+  it("submits the final ticket action without cleanup options", async () => {
     await createRoot(async (dispose) => {
       try {
-        let submitted: any;
-        const status: TicketCleanupStatus = {
-          stopHerdrAgent: { state: "blocked", reason: "No Herdr agent" },
-          deleteWorktree: { state: "ready" },
-          deleteLocalBranch: { state: "blocked", reason: "No local branch" },
-          deleteRemoteBranch: { state: "ready" },
-        };
+        let submittedFolderName: string | undefined;
         const ctrl = createTicketCleanupController(makeDeps({
-          loadStatus: async () => status,
-          onSubmit: async (_folder, cleanup) => { submitted = cleanup; return {}; },
+          onSubmit: async (folderName) => { submittedFolderName = folderName; return {}; },
         }));
         await ctrl.startChecks();
         await ctrl.doSubmit();
-        expect(submitted).toEqual({
-          stopHerdrAgent: false,
-          deleteWorktree: true,
-          deleteLocalBranch: false,
-          deleteRemoteBranch: true,
-        });
+        expect(submittedFolderName).toBe("t-1-alpha");
       } finally {
         dispose();
       }
@@ -190,7 +191,6 @@ describe("createTicketCleanupController", () => {
         await ctrl.doSubmit();
         expect(closedWith).toBe(false);
         expect(ctrl.items().deleteWorktree.state).toBe("checking");
-        expect(ctrl.isChecked("deleteWorktree")).toBe(false);
       } finally {
         dispose();
       }
@@ -210,6 +210,45 @@ describe("createTicketCleanupController", () => {
         resolve({});
         await p;
         expect(ctrl.submitting()).toBe(false);
+      } finally {
+        dispose();
+      }
+    });
+  });
+
+  it("tracks a running cleanup and refreshes after it settles", async () => {
+    await createRoot(async (dispose) => {
+      try {
+        let resolve!: (v: { error?: string }) => void;
+        const ctrl = createTicketCleanupController(makeDeps({
+          onCleanup: () => new Promise((r) => { resolve = r; }),
+        }));
+        await ctrl.startChecks();
+        const p = ctrl.runCleanup("deleteWorktree");
+        expect(ctrl.runningItem()).toBe("deleteWorktree");
+        expect(ctrl.busy()).toBe(true);
+        resolve({});
+        await p;
+        expect(ctrl.runningItem()).toBeUndefined();
+        expect(ctrl.busy()).toBe(false);
+      } finally {
+        dispose();
+      }
+    });
+  });
+
+  it("refreshes statuses and surfaces a cleanup action error", async () => {
+    await createRoot(async (dispose) => {
+      try {
+        let checks = 0;
+        const ctrl = createTicketCleanupController(makeDeps({
+          loadStatus: async () => { checks++; return allReady; },
+          onCleanup: async () => ({ error: "action failed" }),
+        }));
+        await ctrl.startChecks();
+        await ctrl.runCleanup("deleteWorktree");
+        expect(checks).toBe(2);
+        expect(ctrl.errorInfo()).toEqual({ description: "action failed" });
       } finally {
         dispose();
       }
