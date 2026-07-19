@@ -79,7 +79,7 @@ describe("runTicketCleanupChecks", () => {
 		const status = await runTicketCleanupChecks(target, makeDeps({ isWorktreeBusy: async () => true }));
 		expect(status.deleteWorktree).toEqual({
 			state: "blocked",
-			reason: "Worktree is in use by another process (a Herdr agent is running in it)",
+			reason: "Worktree is in use by another process\n(a Herdr agent is running in it)",
 			warning: true,
 		});
 	});

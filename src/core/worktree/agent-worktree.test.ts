@@ -856,6 +856,23 @@ describe('AgentWorktreeManager', () => {
 		expect(merged).toBe(false);
 	});
 
+	it('isBranchMerged returns false when an unmerged branch conflicts with main', async () => {
+		const { projectDir, awm } = setup();
+
+		execSync('git checkout -b st-conflicting', { cwd: projectDir, timeout: 5000 });
+		fs.writeFileSync(path.join(projectDir, 'README.md'), '# branch');
+		execSync('git add .', { cwd: projectDir, timeout: 5000 });
+		execSync('git commit -m "branch change"', { cwd: projectDir, timeout: 5000 });
+
+		execSync('git checkout main', { cwd: projectDir, timeout: 5000 });
+		fs.writeFileSync(path.join(projectDir, 'README.md'), '# main');
+		execSync('git add .', { cwd: projectDir, timeout: 5000 });
+		execSync('git commit -m "main change"', { cwd: projectDir, timeout: 5000 });
+
+		const merged = await awm.isBranchMerged(projectDir, 'st-conflicting');
+		expect(merged).toBe(false);
+	});
+
 	it('isBranchMerged throws a clear error when the branch no longer exists', async () => {
 		const { projectDir, awm } = setup();
 
