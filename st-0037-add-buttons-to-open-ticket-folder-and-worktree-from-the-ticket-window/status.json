@@ -5,7 +5,7 @@
   "useWorktree": false,
   "createdAt": "2026-07-06T15:59:44.845Z",
   "dependsOn": [
-    "ST-0035",
-    "ST-0041"
+    "ST-0041",
+    "ST-0043"
   ]
 }
