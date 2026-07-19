@@ -14,3 +14,4 @@ skills-lock.json
 dist-electron/
 electron/main.js
 test-results/
+.DS_Store
