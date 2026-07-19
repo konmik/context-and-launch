@@ -4,13 +4,12 @@
     "st-0035-user-filter-self-assigning-tickets",
     "st-0031-absolute-tickets-path-setting",
     "st-0033-save-edit-prompt-into-the-column-setting-together-with-other-launch-preferences",
-    "st-0050-herdr-launch-abandons-a-renamed-workspace-and-creates-a-new-one"
+    "st-0050-herdr-launch-abandons-a-renamed-workspace-and-creates-a-new-one",
+    "st-0043-all-cli-commands-as-templates",
+    "st-0048-test-test"
   ],
   "plan": [],
   "in-progress": [],
   "review": [],
-  "done": [
-    "st-0048-test-test",
-    "st-0043-all-cli-commands-as-templates"
-  ]
+  "merge": []
 }
