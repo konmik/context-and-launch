@@ -91,6 +91,16 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
     return result?.kind === "available" ? result.statusesByFolderName : {};
   };
 
+  const conflictActive = createMemo(() => {
+    const v = data();
+    return v?.status === "loaded" && v.hasConflict;
+  });
+  createEffect(() => {
+    if (!conflictActive()) return;
+    const timer = setInterval(() => void revalidate("project-page"), 5000);
+    onCleanup(() => clearInterval(timer));
+  });
+
   const currentProjectName = () => {
     const v = data();
     if (!v) return "";
