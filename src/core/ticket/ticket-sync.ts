@@ -262,9 +262,15 @@ export class TicketSyncManager {
 		return true;
 	}
 
-	/** True while a conflict resolution is pending in the scratch worktree. */
+	/**
+	 * True while an unresolved conflict is pending in the scratch worktree, i.e. its
+	 * rebase is still in progress. Once the rebase is resolved the scratch lingers until
+	 * finalize removes it, but the conflict is gone, so a bare directory check would keep
+	 * reporting a conflict that no longer exists.
+	 */
 	isResolving(worktreeDir: string): boolean {
-		return fs.existsSync(this.conflictResolveDir(worktreeDir));
+		const scratch = this.conflictResolveDir(worktreeDir);
+		return fs.existsSync(scratch) && this.gitRepo.hasActiveRebase(scratch);
 	}
 
 	async abort(worktreeDir: string): Promise<void> {
