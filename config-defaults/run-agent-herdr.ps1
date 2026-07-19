@@ -84,14 +84,16 @@ function Test-PersistentPane {
 
 function Stop-AgentChild {
     param([string]$PaneId)
-    Invoke-Herdr @('pane', 'send-keys', $PaneId, 'ctrl+c') | Out-Null
+    Invoke-Herdr @('pane', 'run', $PaneId, '/quit') | Out-Null
+    Start-Sleep -Milliseconds 250
+    if (@(Get-ForegroundChildren (Get-PaneProcesses $PaneId)).Count -eq 0) {
+        return
+    }
+    Invoke-Herdr @('pane', 'send-keys', $PaneId, 'enter') | Out-Null
     for ($attempt = 0; $attempt -lt 20; $attempt++) {
         Start-Sleep -Milliseconds 250
         if (@(Get-ForegroundChildren (Get-PaneProcesses $PaneId)).Count -eq 0) {
             return
-        }
-        if ($attempt -eq 3) {
-            Invoke-Herdr @('pane', 'send-keys', $PaneId, 'ctrl+c') | Out-Null
         }
     }
     throw "Agent in pane '$PaneId' did not stop."
@@ -135,15 +137,18 @@ if ($agents.Count -gt 1) {
 
 if ($agents.Count -eq 1) {
     $status = [string](Get-Field $agents[0] 'agent_status')
-    if ($status -cne 'idle' -and $status -cne 'done') {
-        throw "Ticket '$ticketFolder' already has a Herdr agent ($status)."
-    }
     $paneId = [string](Get-Field $agents[0] 'pane_id')
     $processes = Get-PaneProcesses $paneId
     if (-not (Test-PersistentPane $processes)) {
         throw "Herdr pane '$paneId' cannot restart in place because it has no persistent shell."
     }
-    Stop-AgentChild $paneId
+    $children = @(Get-ForegroundChildren $processes)
+    if ($children.Count -gt 0) {
+        if ($status -cne 'idle' -and $status -cne 'done') {
+            throw "Ticket '$ticketFolder' already has a Herdr agent ($status)."
+        }
+        Stop-AgentChild $paneId
+    }
     Start-AgentChild $paneId (Resolve-AgentCommand $agentCommand) $initialPrompt
     exit 0
 }

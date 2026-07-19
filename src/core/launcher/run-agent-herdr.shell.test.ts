@@ -32,6 +32,7 @@ param(
 )
 $global:Calls = @()
 $global:Stopped = $false
+$global:QuitPending = $false
 function global:Start-Sleep {}
 function global:Get-CimInstance {
   return [pscustomobject]@{ Name = 'powershell.exe'; CommandLine = 'powershell.exe -NoExit' }
@@ -60,22 +61,27 @@ function global:herdr {
       return '{"id":"test","result":{"agents":[{"workspace_id":"w1",' +
         '"pane_id":"w1:p9","name":"alpha--st-47","agent_status":"idle"}]}}'
     }
+    if ($Mode -eq 'empty') {
+      return '{"id":"test","result":{"agents":[{"workspace_id":"w1",' +
+        '"pane_id":"w1:p9","name":"alpha--st-47","agent_status":"unknown"}]}}'
+    }
     return '{"id":"test","result":{"agents":[]}}'
   }
   if ($verb -eq 'agent start') {
     return '{"id":"test","result":{"agent":{"pane_id":"w1:p2"}}}'
   }
   if ($verb -eq 'pane process-info') {
-    $foregroundPid = if ($global:Stopped) { $PID } else { 999999 }
+    $foregroundPid = if ($global:Stopped -or $Mode -eq 'empty') { $PID } else { 999999 }
     return (@{ id = 'test'; result = @{ process_info = @{
-      shell_pid = $PID; foreground_processes = @(@{ pid = $foregroundPid })
+      shell_pid = $PID; foreground_processes = @(@{ pid = $foregroundPid; name = 'custom-agent.exe' })
     } } } | ConvertTo-Json -Depth 8 -Compress)
   }
   if ($verb -eq 'pane run') {
+    if ($callArgs[3] -eq '/quit') { $global:QuitPending = $true }
     return '{"id":"test","result":{"type":"ok"}}'
   }
   if ($verb -eq 'pane send-keys') {
-    if ($callArgs[3] -eq 'ctrl+c') { $global:Stopped = $true }
+    if ($callArgs[3] -eq 'enter' -and $global:QuitPending) { $global:Stopped = $true }
     return '{"id":"test","result":{"type":"ok"}}'
   }
   if ($verb -eq 'pane close') {
@@ -98,7 +104,7 @@ exit $exitCode
 	return { dir, harness, report, agent };
 }
 
-function runHarness(mode: 'create' | 'reuse' | 'idle' | 'working'): {
+function runHarness(mode: 'create' | 'reuse' | 'idle' | 'empty' | 'working'): {
 	status: number | null;
 	stderr: string;
 	report: HarnessReport;
@@ -156,7 +162,9 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
 		const result = runHarness('idle');
 		expect(result.status, result.stderr).toBe(0);
 		const calls = result.report.calls.map(call => call.args);
-		expect(calls).toContainEqual(['pane', 'send-keys', 'w1:p9', 'ctrl+c']);
+		expect(calls).toContainEqual(['pane', 'run', 'w1:p9', '/quit']);
+		expect(calls).toContainEqual(['pane', 'send-keys', 'w1:p9', 'enter']);
+		expect(calls).not.toContainEqual(['pane', 'send-keys', 'w1:p9', 'ctrl+c']);
 		expect(calls.some(call => call[0] === 'agent' && call[1] === 'start')).toBe(false);
 		expect(calls.some(call => call[0] === 'pane' && call[1] === 'close')).toBe(false);
 		const restart = calls.find(call =>
@@ -166,6 +174,15 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
 			/\[string\]::Join\([^)]*'hello', 'multiline ''world'''\)\)/,
 		);
 		expect(restart?.[3]).not.toContain('\n');
+	});
+
+	it('restarts an empty persistent pane even when Herdr reports unknown', () => {
+		const result = runHarness('empty');
+		expect(result.status, result.stderr).toBe(0);
+		const calls = result.report.calls.map(call => call.args);
+		expect(calls.some(call =>
+			call[0] === 'pane' && call[1] === 'run' && call[2] === 'w1:p9',
+		)).toBe(true);
 	});
 
 	it('rejects a working agent', () => {
