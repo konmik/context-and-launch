@@ -1,15 +1,7 @@
 {
-  "todo": [
-    "st-0008-improve-the-codebase",
-    "st-0016-rewrite-in-portal-from-solid-js-web-instead-of-z-index"
-  ],
-  "prd": [
-    "st-0014-readme-update",
-    "st-0007-edit-columns"
-  ],
+  "todo": [],
+  "plan": [],
   "in-progress": [],
-  "review": [
-    "st-0009-ticket-branch-conflict-resolution"
-  ],
+  "review": [],
   "done": []
 }

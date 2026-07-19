@@ -1,6 +1,6 @@
 # ST-0014 Readme Update
 
-## Problem Statement
+## Problem Statement!
 
 The current README describes a Kotlin Multiplatform / Compose for Web / Ktor tech stack that no longer exists. The project was rewritten in SolidStart with TypeScript and Tailwind CSS. A developer discovering the project sees incorrect information about the stack, wrong build commands, and a project structure that doesn't match reality. Additionally, the launch scripts only exist for Windows (`run.ps1`, `kill-server.ps1`), leaving Linux and macOS users without a one-click way to run the app.
 

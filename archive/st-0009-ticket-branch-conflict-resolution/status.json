@@ -1,6 +1,6 @@
 {
   "number": "ST-0009",
   "title": "Ticket branch conflict resolution",
-  "status": "review",
+  "status": "done",
   "useWorktree": true
 }

@@ -1,0 +1,3 @@
+I want to be able to preview and edit the prompt that will be sent to the agent. Agent Launcher tab should be split horizontally in two: shift the current content to the left and show a preview of the prompt on the left with all templates resolved. Add "edit" toggle to make the user be able to edit the prompt. When the toggle turned off, disable editing mode and keep reacting to the input on the left. 
+
+Also, add <<ENTER>> keyword that run-agent script would recognize in the initial prompt, it must send Enter key into the agent. 

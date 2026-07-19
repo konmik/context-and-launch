@@ -1,0 +1,7 @@
+{
+  "number": "ST-0024",
+  "title": "Fix IDE closing when started from the app and the app closes",
+  "status": "done",
+  "useWorktree": true,
+  "createdAt": "2026-06-09T23:14:53.302Z"
+}
