@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { validateColumnName, buildFormPayload } from "./launcher-settings-pure.js";
+import {
+	validateColumnName, buildFormPayload, usesWindowsBatchCommand,
+} from "./launcher-settings-pure.js";
 import type { ColumnDefinition } from "~/core/project/board-config.js";
 import type { ItemFormState } from "./launcher-settings-dialogs.js";
 
@@ -45,5 +47,30 @@ describe("buildFormPayload", () => {
 		expect(buildFormPayload(form)).toEqual({
 			oldName: "old", name: "fast", command: "claude -f",
 		});
+	});
+});
+
+describe("usesWindowsBatchCommand", () => {
+	it.each([
+		"run-agent.cmd --prompt {{initialPrompt}}",
+		'"C:\\Program Files\\Agent\\RUN.BAT" {{initialPrompt}}',
+		"cmd /c run-agent",
+		"CMD.EXE /c run-agent",
+	])("detects a Windows batch command: %s", (command) => {
+		expect(usesWindowsBatchCommand(command)).toBe(true);
+	});
+
+	it("detects a batch file passed through a PowerShell launch wrapper", () => {
+		const command = "powershell -File {{configDefaultsDir}}/run-agent.ps1 "
+			+ "{{initialPrompt}} {{windowTitle}} {{markerPath}} claude1.cmd --dangerously-skip-permissions";
+		expect(usesWindowsBatchCommand(command)).toBe(true);
+	});
+
+	it.each([
+		"run-agent.exe {{initialPrompt}}",
+		"powershell -File run-agent.ps1 {{initialPrompt}}",
+		"",
+	])("does not flag a non-batch command: %s", (command) => {
+		expect(usesWindowsBatchCommand(command)).toBe(false);
 	});
 });

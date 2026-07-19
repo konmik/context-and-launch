@@ -4,6 +4,7 @@ import { modEnterHint } from "~/lib/use-mod-enter-submit";
 import { slugifyColumnName } from "~/lib/slugify.js";
 import { COLUMN_COLOR_PALETTE } from "~/core/project/column-color-palette.js";
 import type { BoardRef } from "../board/board-api.js";
+import { usesWindowsBatchCommand } from "./launcher-settings-pure.js";
 
 export type ItemType = "template" | "skill" | "profile" | "shortcut";
 export type Scope = "app" | "project";
@@ -147,6 +148,19 @@ export function ItemFormDialog(props: {
 										"{{projectSlug}}",
 									].join(" ")}
 							</p>
+							<Show when={
+								(f().itemType === "profile" || f().itemType === "shortcut")
+								&& usesWindowsBatchCommand(f().text)
+							}>
+								<p
+									class={"mt-2 rounded-md border border-amber-500/40 bg-amber-500/10 "
+										+ "px-3 py-2 text-xs text-amber-600"}
+									data-testid="launcher-settings-item-form-batch-warning"
+								>
+									Windows CMD (.cmd) and batch (.bat) files cannot receive multi-line arguments.
+									 Use an .exe or PowerShell script (.ps1) instead.
+								</p>
+							</Show>
 						</div>
 						<Show when={f().mode === "add"}>
 							<div>

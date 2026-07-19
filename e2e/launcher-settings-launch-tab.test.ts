@@ -47,6 +47,25 @@ describe("Launcher Settings Launch tab (e2e, real server)", () => {
     expect(app?.profiles?.map((p) => p.name)).toContain("GPT");
   }, 60000);
 
+  it("warns when a command uses a CMD or batch file", async () => {
+    await setup("batch-warning");
+    await ctx.page.click('[data-testid="launcher-settings-launch-add-profile-button"]');
+    const command = ctx.page.locator('[data-testid="launcher-settings-item-form-text-input"]');
+    const warning = ctx.page.locator('[data-testid="launcher-settings-item-form-batch-warning"]');
+
+    await command.fill(
+      "powershell -File {{configDefaultsDir}}/run-agent.ps1 "
+      + "{{initialPrompt}} {{windowTitle}} {{markerPath}} claude1.cmd --dangerously-skip-permissions",
+    );
+    expect(await warning.count()).toBe(1);
+    expect(await warning.textContent()).toContain(
+      "Use an .exe or PowerShell script (.ps1) instead.",
+    );
+
+    await command.fill("powershell -File run-agent.ps1 {{initialPrompt}}");
+    expect(await warning.count()).toBe(0);
+  }, 60000);
+
   it("add-shortcut opens form and submit adds a shortcut", async () => {
     await setup("add-shortcut");
     await ctx.page.click('[data-testid="launcher-settings-launch-add-shortcut-button"]');
