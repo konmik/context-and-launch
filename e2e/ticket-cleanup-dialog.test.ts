@@ -23,7 +23,10 @@ describe("TicketCleanupDialog (e2e, real server)", () => {
       const nodes = Array.from(
         document.querySelectorAll('[data-testid^="ticket-cleanup-"][data-testid$="-status"]'),
       );
-      return nodes.length === 4 && nodes.every((n) => n.getAttribute("data-state") !== "checking");
+      return nodes.length === 4 && nodes.every((n) => {
+        const state = n.getAttribute("data-state");
+        return state !== "checking" && state !== "running";
+      });
     }, undefined, { timeout: 15000 });
   }
 
@@ -38,12 +41,11 @@ describe("TicketCleanupDialog (e2e, real server)", () => {
     await waitForChecksSettled(ctx.page);
 
     for (const id of [
-      "ticket-cleanup-stop-herdr-checkbox", "ticket-cleanup-delete-worktree-checkbox",
-      "ticket-cleanup-delete-local-checkbox", "ticket-cleanup-delete-remote-checkbox",
+      "ticket-cleanup-stop-herdr-button", "ticket-cleanup-delete-worktree-button",
+      "ticket-cleanup-delete-local-button", "ticket-cleanup-delete-remote-button",
     ]) {
-      const box = ctx.page.locator(`[data-testid="${id}"]`);
-      expect(await box.isDisabled()).toBe(true);
-      expect(await box.isChecked()).toBe(false);
+      const button = ctx.page.locator(`[data-testid="${id}"]`);
+      expect(await button.isDisabled()).toBe(true);
     }
 
     const herdrStatus = ctx.page.locator('[data-testid="ticket-cleanup-stop-herdr-status"]');
@@ -107,16 +109,29 @@ describe("TicketCleanupDialog (e2e, real server)", () => {
     }
 
     await waitForChecksSettled(ctx.page);
-    expect(await ctx.page.locator('[data-testid="ticket-cleanup-delete-worktree-checkbox"]').isDisabled())
+    expect(await ctx.page.locator('[data-testid="ticket-cleanup-delete-worktree-button"]').isDisabled())
       .toBe(false);
-    expect(await ctx.page.locator('[data-testid="ticket-cleanup-delete-local-checkbox"]').isDisabled())
+    expect(await ctx.page.locator('[data-testid="ticket-cleanup-delete-local-button"]').isDisabled())
       .toBe(false);
-    expect(await ctx.page.locator('[data-testid="ticket-cleanup-delete-remote-checkbox"]').isDisabled())
+    expect(await ctx.page.locator('[data-testid="ticket-cleanup-delete-remote-button"]').isDisabled())
       .toBe(true);
-    expect(await ctx.page.locator('[data-testid="ticket-cleanup-delete-remote-status"]').textContent())
+    const remoteButton = ctx.page.locator('[data-testid="ticket-cleanup-delete-remote-button"]');
+    const remoteStatus = ctx.page.locator('[data-testid="ticket-cleanup-delete-remote-status"]');
+    expect(await remoteStatus.textContent())
       .toContain("No remote branch");
+    const [buttonBox, statusBox] = await Promise.all([
+      remoteButton.boundingBox(), remoteStatus.boundingBox(),
+    ]);
+    expect(buttonBox).not.toBeNull();
+    expect(statusBox).not.toBeNull();
+    expect(statusBox!.x).toBeGreaterThan(buttonBox!.x + buttonBox!.width);
 
-    await ctx.page.check('[data-testid="ticket-cleanup-delete-worktree-checkbox"]');
+    await ctx.page.click('[data-testid="ticket-cleanup-delete-worktree-button"]');
+    await waitForChecksSettled(ctx.page);
+    expect(await ctx.page.locator('[data-testid="ticket-cleanup-delete-worktree-status"]').textContent())
+      .toContain("No worktree");
+    expect(worktreeExists(ctx.testServer, project.projectSlug, "t-1-alpha")).toBe(false);
+
     await ctx.page.click('[data-testid="ticket-cleanup-submit"]');
     await ctx.page.waitForSelector('[data-testid="ticket-cleanup-submit"]', {
       state: "detached", timeout: 15000,
@@ -142,7 +157,7 @@ describe("TicketCleanupDialog (e2e, real server)", () => {
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await openCleanup("archive");
     await waitForChecksSettled(ctx.page);
-    expect(await ctx.page.locator('[data-testid="ticket-cleanup-delete-worktree-checkbox"]').isDisabled())
+    expect(await ctx.page.locator('[data-testid="ticket-cleanup-delete-worktree-button"]').isDisabled())
       .toBe(false);
     await ctx.page.click('[data-testid="ticket-cleanup-cancel"]');
     await ctx.page.waitForSelector('[data-testid="ticket-cleanup-submit"]', {
@@ -165,7 +180,10 @@ describe("TicketCleanupDialog (e2e, real server)", () => {
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await openCleanup("delete");
     await waitForChecksSettled(ctx.page);
-    await ctx.page.check('[data-testid="ticket-cleanup-delete-worktree-checkbox"]');
+    await ctx.page.click('[data-testid="ticket-cleanup-delete-worktree-button"]');
+    await waitForChecksSettled(ctx.page);
+    expect(await ctx.page.locator('[data-testid="ticket-cleanup-delete-worktree-status"]').textContent())
+      .toContain("No worktree");
     await ctx.page.click('[data-testid="ticket-cleanup-submit"]');
     await ctx.page.waitForSelector('[data-testid="ticket-cleanup-submit"]', {
       state: "detached", timeout: 15000,
@@ -174,7 +192,7 @@ describe("TicketCleanupDialog (e2e, real server)", () => {
     expect(worktreeExists(ctx.testServer, project.projectSlug, "t-1-alpha")).toBe(false);
   }, 60000);
 
-  it("auto-ticks possible items after checks and re-ticks on reopen", async () => {
+  it("keeps completed cleanup status when the dialog is reopened", async () => {
     const project = await createProject(ctx.testServer, {
       projectSlug: uniqueSlug("tc-autotick"),
       withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
@@ -185,14 +203,10 @@ describe("TicketCleanupDialog (e2e, real server)", () => {
 
     await openCleanup("delete");
     await waitForChecksSettled(ctx.page);
-    expect(await ctx.page.locator('[data-testid="ticket-cleanup-delete-worktree-checkbox"]').isChecked())
-      .toBe(true);
-    expect(await ctx.page.locator('[data-testid="ticket-cleanup-delete-local-checkbox"]').isChecked())
-      .toBe(true);
-    expect(await ctx.page.locator('[data-testid="ticket-cleanup-delete-remote-checkbox"]').isChecked())
-      .toBe(false);
-
-    await ctx.page.uncheck('[data-testid="ticket-cleanup-delete-local-checkbox"]');
+    await ctx.page.click('[data-testid="ticket-cleanup-delete-worktree-button"]');
+    await waitForChecksSettled(ctx.page);
+    expect(await ctx.page.locator('[data-testid="ticket-cleanup-delete-worktree-status"]').textContent())
+      .toContain("No worktree");
     await ctx.page.click('[data-testid="ticket-cleanup-cancel"]');
     await ctx.page.waitForSelector('[data-testid="ticket-cleanup-submit"]', {
       state: "detached", timeout: 15000,
@@ -200,7 +214,9 @@ describe("TicketCleanupDialog (e2e, real server)", () => {
 
     await openCleanup("delete");
     await waitForChecksSettled(ctx.page);
-    expect(await ctx.page.locator('[data-testid="ticket-cleanup-delete-local-checkbox"]').isChecked())
+    expect(await ctx.page.locator('[data-testid="ticket-cleanup-delete-worktree-button"]').isDisabled())
       .toBe(true);
+    expect(await ctx.page.locator('[data-testid="ticket-cleanup-delete-worktree-status"]').textContent())
+      .toContain("No worktree");
   }, 60000);
 });

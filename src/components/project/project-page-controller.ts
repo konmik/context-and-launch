@@ -146,19 +146,22 @@ export function createProjectPageController(deps: ProjectPageDeps) {
 
   async function handleCleanupSubmit(
     folderName: string,
-    options: TicketCleanupOptions,
   ) {
-    if (options.stopHerdrAgent || options.deleteWorktree
-        || options.deleteLocalBranch || options.deleteRemoteBranch) {
-      const cleanupResult = await worktreeCleanup(deps.projectSlug(), folderName, options);
-      if (!cleanupResult.ok) {
-        const info = 'errorInfo' in cleanupResult ? cleanupResult.errorInfo : undefined;
-        return { error: info ?? cleanupResult.message };
-      }
-    }
     return cleanupAction() === "archive"
       ? await handleArchiveTicket(folderName)
       : await handleDeleteTicket(folderName);
+  }
+
+  async function handleCleanupAction(
+    folderName: string,
+    options: TicketCleanupOptions,
+  ) {
+    const cleanupResult = await worktreeCleanup(deps.projectSlug(), folderName, options);
+    if (!cleanupResult.ok) {
+      const info = 'errorInfo' in cleanupResult ? cleanupResult.errorInfo : undefined;
+      return { error: info ?? cleanupResult.message };
+    }
+    return {};
   }
 
   const dialogState = () => ({
@@ -195,6 +198,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     handleReorder,
     handleCreateTicket,
     handleEditTicket,
+    handleCleanupAction,
     handleCleanupSubmit,
     openSettings: () => setSettingsOpen(true),
     closeSettings: () => setSettingsOpen(false),
