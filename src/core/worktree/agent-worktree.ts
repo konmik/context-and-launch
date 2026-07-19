@@ -3,6 +3,7 @@ import path from 'path';
 import { rename } from 'fs/promises';
 import { exec } from 'child_process';
 import { git, detectMainBranch } from '../infra/git.js';
+import { writeMergeTree } from '../infra/git-merge-tree.js';
 import { ValidationError } from '../shared/errors.js';
 import { resolveAgentWorktreeLocation } from './worktree-naming.js';
 import type { LauncherConfigManager } from '../launcher/launcher-config.js';
@@ -232,9 +233,10 @@ export class AgentWorktreeManager {
 	}
 
 	private async isBranchSquashMerged(projectPath: string, branchName: string, mainBranch: string): Promise<boolean> {
-		const mergeTree = (await git(projectPath, 'merge-tree', '--write-tree', mainBranch, branchName)).trim();
+		const result = await writeMergeTree(projectPath, mainBranch, branchName);
+		if (result.status === 'conflicted') return false;
 		const mainTree = (await git(projectPath, 'rev-parse', `${mainBranch}^{tree}`)).trim();
-		return mergeTree === mainTree;
+		return result.tree === mainTree;
 	}
 
 	async removeWorktree(projectPath: string, worktreePath: string): Promise<void> {

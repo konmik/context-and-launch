@@ -69,7 +69,7 @@ export async function runTicketCleanupChecks(
 				state: "blocked",
 				warning: true,
 				reason: herdr.state === "ready"
-					? "Worktree is in use by another process (a Herdr agent is running in it)"
+					? "Worktree is in use by another process\n(a Herdr agent is running in it)"
 					: "Worktree is in use by another process",
 			};
 		}

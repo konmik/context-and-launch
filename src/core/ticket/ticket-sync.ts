@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { ProcessError } from '../shared/errors.js';
 import { git } from '../infra/git.js';
+import { writeMergeTree } from '../infra/git-merge-tree.js';
 import { GitRepository } from '../infra/git-repository.js';
 
 export type SyncResult =
@@ -99,20 +100,9 @@ export class TicketSyncManager {
 				return { status: 'success' };
 			}
 
-			let mergedTree: string;
-			try {
-				mergedTree = (await git(worktreeDir, 'merge-tree', '--write-tree', 'HEAD', newUpstream))
-					.trim().split('\n')[0];
-			} catch (mergeErr) {
-				// merge-tree exits 1 both for a real conflict (CONFLICT lines on stdout) and
-				// for genuine failures (stderr, no conflict listing); match the output so an
-				// error -- or a timeout, where exitCode is undefined -- is not read as a conflict.
-				if (mergeErr instanceof ProcessError && mergeErr.exitCode === 1
-					&& /^CONFLICT|Merge conflict/m.test(mergeErr.output ?? "")) {
-					return { status: 'conflict' };
-				}
-				return { status: 'error', message: mergeErr instanceof Error ? mergeErr.message : String(mergeErr) };
-			}
+			const mergeTree = await writeMergeTree(worktreeDir, 'HEAD', newUpstream);
+			if (mergeTree.status === 'conflicted') return { status: 'conflict' };
+			const mergedTree = mergeTree.tree;
 
 			const signArgs = await this.commitTreeArgs(worktreeDir);
 			const newCommit = (await git(

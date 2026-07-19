@@ -65,7 +65,7 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps) {
   return (
     <DialogRoot open={props.open && !!props.ticket} onOpenChange={s.close} class="max-w-[35rem]">
       <DialogTitle>{s.actionLabel()} Ticket</DialogTitle>
-      <DialogDescription>{s.actionLabel()} ticket {props.ticket?.number} - {props.ticket?.title}?</DialogDescription>
+      <DialogDescription>{props.ticket?.number} - {props.ticket?.title}</DialogDescription>
 
       <div class="mb-4 space-y-2">
         <p class="text-sm font-medium">Cleanup</p>
@@ -85,7 +85,7 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps) {
                   {row.label}
                 </button>
                 <span
-                  class="min-w-0 flex-1 break-words text-left text-xs"
+                  class="min-w-0 flex-1 whitespace-pre-line break-words text-left text-xs"
                   data-testid={row.statusTestId}
                   data-state={running() ? "running" : item().state}
                   aria-live="polite"
