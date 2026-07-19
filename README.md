@@ -2,6 +2,8 @@
 
 A local kanban board with context engineering, automatic worktrees, and git ticket storage. Assemble a prompt and launch an AI agent in one click.
 
+See the [CHANGELOG](CHANGELOG.md) for recent updates.
+
 ## Overview
 
 There is no fixed workflow, no rules, and no standard.
