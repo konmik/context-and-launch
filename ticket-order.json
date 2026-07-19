@@ -9,8 +9,8 @@
   "plan": [],
   "in-progress": [],
   "review": [],
-  "done": [
-    "st-0043-all-cli-commands-as-templates",
-    "st-0048-test-test"
+  "merge": [
+    "st-0048-test-test",
+    "st-0043-all-cli-commands-as-templates"
   ]
 }
