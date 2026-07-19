@@ -1,0 +1,11 @@
+{
+  "number": "ST-0041",
+  "title": "Agent does not start if the ticket has double quote in its title",
+  "status": "done",
+  "useWorktree": true,
+  "createdAt": "2026-07-16T12:13:10.118Z",
+  "dependsOn": [
+    "ST-0040"
+  ],
+  "memberOf": "ST-0048"
+}

@@ -1,0 +1,1 @@
+We are currently check if main has change very often for no reason and scary the user with unnecessary warnings. Instead we only need to check for changes in main if we need to fork a worktree.

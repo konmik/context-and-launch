@@ -1,0 +1,1 @@
+Currently on new ticket screen it only suggests the number once, and after editing the prefix the number is absent. We need a button to generate a number for the currently entered prefix.
