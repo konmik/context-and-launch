@@ -58,7 +58,7 @@ export async function runTicketCleanupChecks(
 
 	const deleteWorktree = guard(async () => {
 		if (!deps.worktreeExists(target.worktreePath)) {
-			return { state: "blocked", reason: "No worktree", warning: true };
+			return { state: "blocked", reason: "No worktree" };
 		}
 		if (!await deps.isWorktreeClean(target.worktreePath)) {
 			return { state: "blocked", reason: "Worktree has uncommitted changes" };
