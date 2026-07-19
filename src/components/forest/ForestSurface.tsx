@@ -27,9 +27,12 @@ import { createStore, reconcile } from "solid-js/store";
 import type { OverlayRect } from "../shared/ExpandingOverlay";
 import ForestCard, {
   ForestCardCommandsContext,
+  ForestCardStatusContext,
   ForestConnectionSessionContext,
   type ForestCardCommands,
 } from "./ForestCard.js";
+import type { SwatchColumn } from "~/core/board/status-swatch.js";
+import type { HerdrAgentStatus } from "~/core/herdr/herdr-client.js";
 import ForestDependencyEdge from "./ForestDependencyEdge.js";
 import {
   dependencyFromEndpoints,
@@ -81,6 +84,8 @@ const edgeTypes = { "forest-dependency": ForestDependencyEdgeAdapter } satisfies
 export interface ForestSurfaceData {
   tickets: ForestTicket[];
   layout: ForestLayout;
+  columns: SwatchColumn[];
+  herdrStatuses: Record<string, HerdrAgentStatus>;
   scopeGroupNumber?: string;
   viewport?: Viewport;
 }
@@ -464,6 +469,11 @@ export default function ForestSurface(props: ForestSurfaceProps) {
     );
   }
 
+  const cardStatusData = createMemo(() => ({
+    columns: props.data.columns,
+    herdrStatuses: props.data.herdrStatuses,
+  }));
+
   return (
     <div
       ref={surfaceRef}
@@ -481,131 +491,133 @@ export default function ForestSurface(props: ForestSurfaceProps) {
     >
       <Show when={measured()}>
         <ForestConnectionSessionContext.Provider value={props.connectionSession}>
-          <ForestCardCommandsContext.Provider value={cardCommands}>
-            <SolidFlow<ForestFlowNode, ForestFlowEdge>
-              id={`forest-${props.data.scopeGroupNumber ?? "root"}`}
-              nodes={nodes}
-              edges={edges}
-              nodeTypes={nodeTypes}
-              edgeTypes={edgeTypes}
-              initialViewport={initialViewport()}
-              minZoom={0.2}
-              maxZoom={2.5}
-              nodeDragThreshold={5}
-              nodeClickDistance={5}
-              connectionDragThreshold={5}
-              connectionRadius={100}
-              connectionMode="strict"
-              connectionLineComponent={() => null}
-              selectionKey="Shift"
-              selectionMode="partial"
-              panOnDrag
-              nodesConnectable
-              clickConnect={false}
-              deleteKey={null}
-              proOptions={{ hideAttribution: true }}
-              class="h-full w-full"
-              onPaneClick={() => {
-                props.connectionCommands.cancel();
-                setDependencyPopup(undefined);
-              }}
-              onMoveEnd={(_event, viewport) => {
-                props.commands.persistViewport?.(viewport);
-              }}
-              onNodeClick={({ node, event }) => {
-                if (node.data.group) {
-                  const card = event.currentTarget instanceof Element
-                    ? event.currentTarget.querySelector<HTMLElement>("[data-forest-card]")
-                    : undefined;
-                  const bounds = card?.getBoundingClientRect();
-                  if (!bounds) throw new Error(`Forest card ${node.id} is unavailable`);
-                  props.commands.openGroup(node.id, {
-                    x: bounds.x,
-                    y: bounds.y,
-                    width: bounds.width,
-                    height: bounds.height,
-                  });
-                  return;
-                }
-                const session = props.connectionSession();
-                if (session.kind === "connecting") {
-                  const target = {
-                    ticketNumber: node.id,
-                    end: session.source.end === "bottom" ? "top" as const : "bottom" as const,
-                  };
-                  if (isConnectionTarget(session.source, target)) {
-                    submitConnection(session.source, target);
-                  } else {
-                    props.connectionCommands.cancel();
+          <ForestCardStatusContext.Provider value={cardStatusData}>
+            <ForestCardCommandsContext.Provider value={cardCommands}>
+              <SolidFlow<ForestFlowNode, ForestFlowEdge>
+                id={`forest-${props.data.scopeGroupNumber ?? "root"}`}
+                nodes={nodes}
+                edges={edges}
+                nodeTypes={nodeTypes}
+                edgeTypes={edgeTypes}
+                initialViewport={initialViewport()}
+                minZoom={0.2}
+                maxZoom={2.5}
+                nodeDragThreshold={5}
+                nodeClickDistance={5}
+                connectionDragThreshold={5}
+                connectionRadius={100}
+                connectionMode="strict"
+                connectionLineComponent={() => null}
+                selectionKey="Shift"
+                selectionMode="partial"
+                panOnDrag
+                nodesConnectable
+                clickConnect={false}
+                deleteKey={null}
+                proOptions={{ hideAttribution: true }}
+                class="h-full w-full"
+                onPaneClick={() => {
+                  props.connectionCommands.cancel();
+                  setDependencyPopup(undefined);
+                }}
+                onMoveEnd={(_event, viewport) => {
+                  props.commands.persistViewport?.(viewport);
+                }}
+                onNodeClick={({ node, event }) => {
+                  if (node.data.group) {
+                    const card = event.currentTarget instanceof Element
+                      ? event.currentTarget.querySelector<HTMLElement>("[data-forest-card]")
+                      : undefined;
+                    const bounds = card?.getBoundingClientRect();
+                    if (!bounds) throw new Error(`Forest card ${node.id} is unavailable`);
+                    props.commands.openGroup(node.id, {
+                      x: bounds.x,
+                      y: bounds.y,
+                      width: bounds.width,
+                      height: bounds.height,
+                    });
+                    return;
                   }
-                  return;
+                  const session = props.connectionSession();
+                  if (session.kind === "connecting") {
+                    const target = {
+                      ticketNumber: node.id,
+                      end: session.source.end === "bottom" ? "top" as const : "bottom" as const,
+                    };
+                    if (isConnectionTarget(session.source, target)) {
+                      submitConnection(session.source, target);
+                    } else {
+                      props.connectionCommands.cancel();
+                    }
+                    return;
+                  }
+                  props.commands.openTicket(node.id);
+                }}
+                onNodeDragStop={({ nodes: movedNodes }) => {
+                  const positions = positionsFromNodes(movedNodes);
+                  void persistPositions(positions);
+                }}
+                isValidConnection={connection =>
+                  connection.source !== connection.target
+                  && !(dependsOnByNumber().get(connection.source) ?? []).includes(connection.target)
                 }
-                props.commands.openTicket(node.id);
-              }}
-              onNodeDragStop={({ nodes: movedNodes }) => {
-                const positions = positionsFromNodes(movedNodes);
-                void persistPositions(positions);
-              }}
-              isValidConnection={connection =>
-                connection.source !== connection.target
-                && !(dependsOnByNumber().get(connection.source) ?? []).includes(connection.target)
-              }
-              onBeforeConnect={connection => ({
-                ...connection,
-                type: "forest-dependency",
-                data: {
-                  relations: [{ fromNumber: connection.source, toNumber: connection.target }],
-                },
-              })}
-              onConnect={connection => {
-                nativeConnectionCompleted = true;
-                submitConnection(
-                  { ticketNumber: connection.source, end: "bottom" },
-                  { ticketNumber: connection.target, end: "top" },
-                  connection.id,
-                );
-              }}
-              onConnectStart={(_event, connection) => {
-                if (!connection.nodeId) throw new Error("Forest connection source is unavailable");
-                beginNativeConnection(
-                  connection.nodeId,
-                  connection.handleType as "source" | "target",
-                );
-              }}
-              onConnectEnd={() => {
-                if (!nativeConnectionCompleted) props.connectionCommands.cancel();
-                nativeConnectionCompleted = false;
-              }}
-              onEdgeClick={({ edge, event }) => {
-                if (!edge.data) throw new Error(`Forest dependency ${edge.id} has no data`);
-                showDependencyPopup(edge.data.relations, event);
-              }}
-            >
-              <FlowRuntime />
-            </SolidFlow>
+                onBeforeConnect={connection => ({
+                  ...connection,
+                  type: "forest-dependency",
+                  data: {
+                    relations: [{ fromNumber: connection.source, toNumber: connection.target }],
+                  },
+                })}
+                onConnect={connection => {
+                  nativeConnectionCompleted = true;
+                  submitConnection(
+                    { ticketNumber: connection.source, end: "bottom" },
+                    { ticketNumber: connection.target, end: "top" },
+                    connection.id,
+                  );
+                }}
+                onConnectStart={(_event, connection) => {
+                  if (!connection.nodeId) throw new Error("Forest connection source is unavailable");
+                  beginNativeConnection(
+                    connection.nodeId,
+                    connection.handleType as "source" | "target",
+                  );
+                }}
+                onConnectEnd={() => {
+                  if (!nativeConnectionCompleted) props.connectionCommands.cancel();
+                  nativeConnectionCompleted = false;
+                }}
+                onEdgeClick={({ edge, event }) => {
+                  if (!edge.data) throw new Error(`Forest dependency ${edge.id} has no data`);
+                  showDependencyPopup(edge.data.relations, event);
+                }}
+              >
+                <FlowRuntime />
+              </SolidFlow>
 
-            <Show when={dependencyPopup()}>
-              {(popup) => (
-                <Portal>
-                  <div class="fixed inset-0" onClick={() => setDependencyPopup(undefined)} />
-                  <div
-                    class="fixed rounded-md border border-border bg-popover p-1 shadow-md"
-                    style={{
-                      left: `${popup().screenX}px`,
-                      top: `${popup().screenY}px`,
-                      transform: "translate(-50%, -50%)",
-                    }}
-                  >
-                    <button
-                      class="btn-destructive px-3 py-1 text-sm"
-                      onClick={() => void deleteDependency()}
-                      data-testid="forest-dependency-delete"
-                    >Delete dependency</button>
-                  </div>
-                </Portal>
-              )}
-            </Show>
-          </ForestCardCommandsContext.Provider>
+              <Show when={dependencyPopup()}>
+                {(popup) => (
+                  <Portal>
+                    <div class="fixed inset-0" onClick={() => setDependencyPopup(undefined)} />
+                    <div
+                      class="fixed rounded-md border border-border bg-popover p-1 shadow-md"
+                      style={{
+                        left: `${popup().screenX}px`,
+                        top: `${popup().screenY}px`,
+                        transform: "translate(-50%, -50%)",
+                      }}
+                    >
+                      <button
+                        class="btn-destructive px-3 py-1 text-sm"
+                        onClick={() => void deleteDependency()}
+                        data-testid="forest-dependency-delete"
+                      >Delete dependency</button>
+                    </div>
+                  </Portal>
+                )}
+              </Show>
+            </ForestCardCommandsContext.Provider>
+          </ForestCardStatusContext.Provider>
         </ForestConnectionSessionContext.Provider>
       </Show>
     </div>

@@ -74,7 +74,7 @@ export function ColumnsTab(props: {
 							onClick={() => {
 								props.setColumnDialogError("");
 								props.setColumnForm({
-									mode: "add", name: "", description: "",
+									mode: "add", name: "", description: "", color: "",
 								});
 							}}
 							class="btn-primary btn-sm"
@@ -119,6 +119,7 @@ export function ColumnsTab(props: {
 																	mode: "edit",
 																	name: col.name,
 																	description: col.description ?? "",
+																	color: col.color ?? "",
 																	oldName: col.name,
 																});
 															}}

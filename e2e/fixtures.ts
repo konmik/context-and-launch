@@ -78,6 +78,7 @@ export interface SeedTicket {
 export interface SeedColumn {
   name: string;
   description?: string;
+  color?: string;
 }
 
 export interface SeedBoard {
@@ -508,7 +509,7 @@ export function readProjectLauncherConfig(
 export interface BoardDefinitionShape {
   id: string;
   name: string;
-  columns: { name: string; description?: string }[];
+  columns: { name: string; description?: string; color?: string }[];
 }
 
 export function readBoardDefinitions(server: TestServer): BoardDefinitionShape[] {

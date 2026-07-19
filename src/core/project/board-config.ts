@@ -1,12 +1,28 @@
 import type { ConfigPaths } from '../config/config-paths.js';
 import { ConfigRepository } from '../config/config-repository.js';
 import { slugifyColumnName } from '../../lib/slugify.js';
+import { requireColumnColor } from './column-color-palette.js';
 
 export { slugifyColumnName };
 
 export interface ColumnDefinition {
 	name: string;
 	description?: string;
+	color?: string;
+}
+
+export interface ColumnContentPatch {
+	description?: string;
+	color?: string;
+}
+
+function applyColumnContent(column: ColumnDefinition, patch: ColumnContentPatch): void {
+	if (patch.description != null) {
+		column.description = patch.description.trim() || undefined;
+	}
+	if (patch.color != null) {
+		column.color = patch.color === '' ? undefined : requireColumnColor(patch.color);
+	}
 }
 
 export interface BoardDefinition {
@@ -134,14 +150,12 @@ export class BoardConfigManager {
 		this.saveAll(boards);
 	}
 
-	addColumn(boardId: string, name: string, description?: string): ColumnDefinition {
+	addColumn(boardId: string, name: string, patch: ColumnContentPatch = {}): ColumnDefinition {
 		const { boards, board } = this.findBoard(boardId);
 		const existingNames = board.columns.map(c => c.name);
 		const slugified = validateColumnName(name, existingNames);
 		const column: ColumnDefinition = { name: slugified };
-		if (description != null && description.trim()) {
-			column.description = description.trim();
-		}
+		applyColumnContent(column, patch);
 		board.columns.push(column);
 		this.saveAll(boards);
 		return column;
@@ -155,13 +169,11 @@ export class BoardConfigManager {
 		this.saveAll(boards);
 	}
 
-	updateColumn(boardId: string, columnName: string, patch: { description?: string }): void {
+	updateColumn(boardId: string, columnName: string, patch: ColumnContentPatch): void {
 		const { boards, board } = this.findBoard(boardId);
 		const column = board.columns.find(c => c.name === columnName);
 		if (!column) throw new Error(`Column not found: ${columnName}`);
-		if (patch.description != null) {
-			column.description = patch.description.trim() || undefined;
-		}
+		applyColumnContent(column, patch);
 		this.saveAll(boards);
 	}
 

@@ -7,6 +7,7 @@ import {
 } from "@thisbeyond/solid-dnd";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { BoardState } from "~/components/project/project-api.js";
+import type { HerdrAgentStatus } from "~/core/herdr/herdr-client.js";
 import TicketCard from "../ticket/TicketCard";
 import { DragOverlayCard } from "./dnd-shared.js";
 import { TicketColumn, OrphanColumn } from "./kanban-columns.js";
@@ -31,6 +32,7 @@ interface KanbanBoardProps {
 	currentOrder?: Accessor<Record<string, string[]>>;
 	activeTicket?: Accessor<TicketInfo | null>;
 	commands?: BoardCommands;
+	herdrStatuses?: Record<string, HerdrAgentStatus>;
 }
 
 export default function KanbanBoard(props: KanbanBoardProps) {
@@ -40,6 +42,7 @@ export default function KanbanBoard(props: KanbanBoardProps) {
 	const currentOrder = props.currentOrder ?? dnd.currentOrder;
 	const activeTicket = props.activeTicket ?? dnd.activeTicket;
 	const commands = props.commands ?? dnd.commands;
+	const herdrStatuses = () => props.herdrStatuses ?? {};
 
 	return (
 		<DragDropProvider
@@ -80,6 +83,8 @@ export default function KanbanBoard(props: KanbanBoardProps) {
 							activeId={drag().activeId}
 							activeTicket={activeTicket()}
 							hoverTarget={drag().hoverTarget}
+							columns={props.board.columns}
+							herdrStatuses={herdrStatuses()}
 							onEdit={props.onEdit}
 							onDelete={props.onDelete}
 							onArchive={props.onArchive}
@@ -93,6 +98,8 @@ export default function KanbanBoard(props: KanbanBoardProps) {
 						activeId={drag().activeId}
 						activeTicket={activeTicket()}
 						hoverTarget={drag().hoverTarget}
+						columns={props.board.columns}
+						herdrStatuses={herdrStatuses()}
 						onEdit={props.onEdit}
 						onDelete={props.onDelete}
 						onArchive={props.onArchive}
@@ -109,6 +116,8 @@ export default function KanbanBoard(props: KanbanBoardProps) {
 							>
 								<TicketCard
 									ticket={t()}
+									columns={props.board.columns}
+									herdrStatus={herdrStatuses()[t().folderName]}
 									onEdit={() => {}}
 									onDelete={() => {}}
 									onArchive={() => {}}

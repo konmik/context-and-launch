@@ -19,6 +19,7 @@ function ticket(number: string, opts?: { dependsOn?: string[]; memberOf?: string
   return {
     number,
     title: number,
+    status: 'todo',
     folderName: number.toLowerCase(),
     dependsOn: opts?.dependsOn,
     memberOf: opts?.memberOf,

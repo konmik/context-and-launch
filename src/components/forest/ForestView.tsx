@@ -33,12 +33,14 @@ import type { BoardState } from "~/core/board/board-types.js";
 import { errorPayload, type ErrorInfo } from "~/core/shared/errors.js";
 import type { ForestLayout } from "~/core/ticket/forest-layout-store.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
+import type { HerdrAgentStatus } from "~/core/herdr/herdr-client.js";
 
 interface ForestViewProps {
   board: BoardState;
   projectSlug: string;
   onViewDetail: (ticket: TicketInfo) => void;
   suggestedNextNumber?: string | null;
+  herdrStatuses?: Record<string, HerdrAgentStatus>;
 }
 
 interface GroupingDraft {
@@ -56,11 +58,13 @@ export default function ForestView(props: ForestViewProps) {
   const [createDialogOpen, setCreateDialogOpen] = createSignal(false);
   const connection = createForestConnection();
   const surfaceApis = new Map<string, ForestSurfaceApi>();
+  const herdrStatuses = () => props.herdrStatuses ?? {};
   let containerRef: HTMLDivElement | undefined;
 
   const tickets = createMemo<ForestTicket[]>(() => props.board.tickets.map(ticket => ({
     number: ticket.number,
     title: ticket.title,
+    status: ticket.status,
     folderName: ticket.folderName,
     dependsOn: ticket.dependsOn,
     memberOf: ticket.memberOf,
@@ -222,6 +226,13 @@ export default function ForestView(props: ForestViewProps) {
 
   const rootViewport = createMemo(() => getForestViewport(localStorage, props.projectSlug));
 
+  const baseSurfaceData = (loadedLayout: ForestLayout) => ({
+    tickets: tickets(),
+    layout: loadedLayout,
+    columns: props.board.columns,
+    herdrStatuses: herdrStatuses(),
+  });
+
   return (
     <div ref={containerRef} class="relative h-full w-full">
       <Show when={layout()}>
@@ -229,8 +240,7 @@ export default function ForestView(props: ForestViewProps) {
           <>
             <ForestSurface
               data={{
-                tickets: tickets(),
-                layout: loadedLayout(),
+                ...baseSurfaceData(loadedLayout()),
                 viewport: rootViewport(),
               } satisfies ForestSurfaceData}
               commands={surfaceCommands(undefined, 0)}
@@ -250,8 +260,7 @@ export default function ForestView(props: ForestViewProps) {
                   <div class="h-full w-full">
                     <ForestSurface
                       data={{
-                        tickets: tickets(),
-                        layout: loadedLayout(),
+                        ...baseSurfaceData(loadedLayout()),
                         scopeGroupNumber: groupNumber,
                       } satisfies ForestSurfaceData}
                       commands={surfaceCommands(groupNumber, index() + 1)}

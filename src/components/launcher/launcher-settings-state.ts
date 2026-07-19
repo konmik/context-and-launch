@@ -25,6 +25,10 @@ import type {
 import { validateColumnName, buildFormPayload } from "./launcher-settings-pure.js";
 import type { BoardRef } from "../board/board-api.js";
 
+function columnContentPatch(cf: ColumnFormState) {
+	return { description: cf.description, color: cf.color };
+}
+
 export function createLauncherSettingsState(props: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
@@ -216,13 +220,13 @@ export function createLauncherSettingsState(props: {
 				return;
 			}
 			try {
-				const result = await updateColumn(boardId, cf.oldName, cf.description);
+				const result = await updateColumn(boardId, cf.oldName, columnContentPatch(cf));
 				if (!result.ok) { setColumnDialogError(result.message); return; }
 				setColumnForm(null); await loadBoards();
 			} catch (e) { setColumnDialogError(errorMessage(e)); }
 		} else {
 			try {
-				const result = await addColumn(boardId, cf.name, cf.description || undefined);
+				const result = await addColumn(boardId, cf.name, columnContentPatch(cf));
 				if (!result.ok) { setColumnDialogError(result.message); return; }
 				setColumnForm(null); await loadBoards();
 			} catch (e) { setColumnDialogError(errorMessage(e)); }
@@ -242,15 +246,15 @@ export function createLauncherSettingsState(props: {
 			const cf = columnForm();
 			if (cf && cf.description !== undefined) {
 				try {
-					const descResult = await updateColumn(boardId, newName, cf.description);
-					if (!descResult.ok) {
-						setColumnDialogError(descResult.message);
+					const updateResult = await updateColumn(boardId, newName, columnContentPatch(cf));
+					if (!updateResult.ok) {
+						setColumnDialogError(updateResult.message);
 						setRenameForm(null);
 						setColumnForm({ ...cf, name: newName, oldName: newName });
 						await loadBoards(); return;
 					}
-				} catch (descErr) {
-					setColumnDialogError(errorMessage(descErr));
+				} catch (updateErr) {
+					setColumnDialogError(errorMessage(updateErr));
 					setRenameForm(null);
 					setColumnForm({ ...cf, name: newName, oldName: newName });
 					await loadBoards(); return;

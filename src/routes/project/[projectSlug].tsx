@@ -1,6 +1,6 @@
 import { useParams, useNavigate, createAsync, revalidate } from "@solidjs/router";
 import { clientOnly } from "@solidjs/start";
-import { Show, For, Switch, Match, createSignal, createEffect, onCleanup, onMount } from "solid-js";
+import { Show, For, Switch, Match, createSignal, createEffect, createMemo, onCleanup, onMount } from "solid-js";
 import { DialogRoot, DialogTitle } from "~/components/ui/dialog";
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "~/components/ui/menu";
 
@@ -24,6 +24,7 @@ import {
   type ProjectPageController,
 } from "~/components/project/project-page-controller.js";
 import { getSyncPending } from "~/components/ticket/ticket-api.js";
+import { getHerdrAgentStatuses } from "~/components/board/herdr-status-api.js";
 
 export const route = {
   load: ({ params }: { params: { projectSlug: string } }) => loadProjectPage(params.projectSlug),
@@ -74,6 +75,21 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
     const timer = setInterval(() => void poll(), 10000);
     onCleanup(() => { stopped = true; clearInterval(timer); });
   });
+
+  const herdrStatusesResult = createAsync(() => getHerdrAgentStatuses(projectSlug()));
+  const herdrPollingActive = createMemo(() => {
+    const result = herdrStatusesResult();
+    return !!result && result.kind !== "disabled";
+  });
+  createEffect(() => {
+    if (!herdrPollingActive()) return;
+    const timer = setInterval(() => void revalidate("herdr-agent-statuses"), 5000);
+    onCleanup(() => clearInterval(timer));
+  });
+  const herdrTicketStatuses = () => {
+    const result = herdrStatusesResult();
+    return result?.kind === "available" ? result.statusesByFolderName : {};
+  };
 
   const currentProjectName = () => {
     const v = data();
@@ -314,6 +330,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                       onArchive={commands.openArchive}
                       onViewDetail={commands.openDetail}
                       onReorder={commands.handleReorder}
+                      herdrStatuses={herdrTicketStatuses()}
                     />
                   }>
                     <div class="h-[calc(100vh-60px)]">
@@ -322,6 +339,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                         projectSlug={d().projectSlug}
                         onViewDetail={commands.openDetail}
                         suggestedNextNumber={loaded().suggestedNextNumber}
+                        herdrStatuses={herdrTicketStatuses()}
                       />
                     </div>
                   </Show>
@@ -389,7 +407,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
               if (open) commands.openSettings();
               else {
                 commands.closeSettings();
-                revalidate("project-page");
+                revalidate(["project-page", "herdr-agent-statuses"]);
               }
             }}
             projectSlug={d().projectSlug}
