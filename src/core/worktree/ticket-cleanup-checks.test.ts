@@ -64,7 +64,7 @@ describe("runTicketCleanupChecks", () => {
 	it("blocks deleteWorktree with 'No worktree' when the worktree is missing", async () => {
 		const status = await runTicketCleanupChecks(target, makeDeps({ worktreeExists: () => false }));
 		expect(status.deleteWorktree).toEqual({
-			state: "blocked", reason: "No worktree", warning: true,
+			state: "blocked", reason: "No worktree",
 		});
 	});
 
