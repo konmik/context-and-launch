@@ -2,6 +2,16 @@ import type { ColumnDefinition } from "~/core/project/board-config.js";
 import type { ItemFormState } from "./launcher-settings-dialogs.js";
 import { slugifyColumnName } from "~/lib/slugify.js";
 
+export function usesWindowsBatchCommand(command: string): boolean {
+	const tokens = command.match(/"[^"]*"|'[^']*'|\S+/g) ?? [];
+	return tokens.some((token) => {
+		const value = token.replace(/^["']|["']$/g, "").toLowerCase();
+		const basename = value.split(/[\\/]/).at(-1);
+		return basename === "cmd" || basename === "cmd.exe"
+			|| value.endsWith(".cmd") || value.endsWith(".bat");
+	});
+}
+
 export function validateColumnName(
 	name: string,
 	mode: "add" | "edit",
