@@ -3,10 +3,6 @@ import { ProcessError } from '../shared/errors.js';
 
 export type HerdrAgentStatus = 'idle' | 'working' | 'blocked' | 'done' | 'unknown';
 
-const HERDR_AGENT_STATUSES: ReadonlySet<string> = new Set<HerdrAgentStatus>([
-	'idle', 'working', 'blocked', 'done', 'unknown',
-]);
-
 export function usesHerdrLaunchTarget(command: string): boolean {
 	return command.includes('run-agent-herdr');
 }
@@ -30,14 +26,16 @@ export function parseHerdrAgentList(stdout: string): ParsedHerdrAgent[] {
 	if (!Array.isArray(agents)) {
 		throw new Error(`Unexpected herdr agent list output: ${stdout.slice(0, 500)}`);
 	}
-	return agents.map((raw): ParsedHerdrAgent => {
+	const parsedAgents: ParsedHerdrAgent[] = [];
+	for (const raw of agents) {
 		const agent = raw as { name?: unknown; agent_status?: unknown };
-		const name = typeof agent.name === 'string' ? agent.name : undefined;
-		const status = typeof agent.agent_status === 'string' && HERDR_AGENT_STATUSES.has(agent.agent_status)
-			? agent.agent_status as HerdrAgentStatus
-			: 'unknown';
-		return { name, agentStatus: status };
-	});
+		if (typeof agent.agent_status !== 'string') continue;
+		parsedAgents.push({
+			name: typeof agent.name === 'string' ? agent.name : undefined,
+			agentStatus: agent.agent_status as HerdrAgentStatus,
+		});
+	}
+	return parsedAgents;
 }
 
 export function ticketStatusesFromAgents(

@@ -41,9 +41,9 @@ export default function HerdrStatusIcon(props: { status: HerdrAgentStatus }) {
           </IconSvg>
         </Match>
         <Match when={props.status === "done"}>
-          <IconSvg class="text-green-600">
+          <IconSvg class="text-muted-foreground">
             <circle cx="12" cy="12" r="10"/>
-            <path d="m9 12 2 2 4-4"/>
+            <circle cx="12" cy="12" r="1"/>
           </IconSvg>
         </Match>
         <Match when={props.status === "unknown"}>

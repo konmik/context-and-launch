@@ -43,10 +43,10 @@ describe('fetchHerdrTicketStatuses', () => {
 		expect(statuses).toEqual({ 'st-2': 'done' });
 	});
 
-	it('maps an out-of-vocabulary status to unknown', async () => {
+	it('passes an out-of-vocabulary status through verbatim', async () => {
 		const json = '{"result":{"agents":[{"name":"alpha--st-1","agent_status":"frobnicating"}]}}';
 		const statuses = await fetchHerdrTicketStatuses('alpha', runner({ stdout: json }));
-		expect(statuses).toEqual({ 'st-1': 'unknown' });
+		expect(statuses).toEqual({ 'st-1': 'frobnicating' });
 	});
 
 	it('throws on non-JSON stdout', async () => {

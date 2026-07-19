@@ -37,12 +37,16 @@ describe("HerdrStatusIcon", () => {
     expect(icon.querySelector("svg")!.getAttribute("class")).toContain("text-muted-foreground");
   });
 
-  it("renders the done icon in green", () => {
+  it("renders the done circle-dot icon in muted gray, never a completion check", () => {
     const { container } = renderIcon("done");
     const icon = container.querySelector('[data-testid="herdr-status-icon"]') as HTMLElement;
     expect(icon.getAttribute("data-herdr-status")).toBe("done");
     expect(icon.getAttribute("title")).toBe("done");
-    expect(icon.querySelector("svg")!.getAttribute("class")).toContain("text-green-600");
+    const svg = icon.querySelector("svg")!;
+    expect(svg.getAttribute("class")).toContain("text-muted-foreground");
+    expect(svg.getAttribute("class")).not.toContain("text-green-600");
+    expect(svg.querySelector('circle[r="1"]')).toBeTruthy();
+    expect(svg.querySelector("line")).toBeNull();
   });
 
   it("renders the unknown icon in muted gray", () => {

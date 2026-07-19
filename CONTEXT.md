@@ -56,7 +56,7 @@ A small colored rectangle rendered after the Ticket Number on kanban and Forest 
 Avoid: status rectangle, color badge, color dot
 
 Herdr Agent Status:
-The live state of the Herdr Agent associated with a Ticket: working, blocked, idle, or unknown. Shown as an icon after the Status Swatch on kanban and Forest View cards. Absent when the Ticket has no Herdr Agent.
+The live state of the Herdr Agent associated with a Ticket, exactly as Herdr reports it: working, blocked, idle, done, or unknown. Herdr's done means idle with a result not yet seen in Herdr, not work completion, so it is rendered as a muted circle-dot rather than a completion check. Each status has its own icon. Shown as an icon after the Status Swatch on kanban and Forest View cards. Absent when the Ticket has no Herdr Agent.
 Avoid: agent state, terminal status
 
 Undefined Column:
