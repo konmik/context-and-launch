@@ -138,7 +138,7 @@ describe('ProjectPageService.loadProjectPage', () => {
 			expect(result.board.ticketOrder['done']).toContain('st-0001-fix-login');
 		});
 
-		it('still loads the board with the conflict badge when the remote is unreachable', async () => {
+		it('loads the board without a conflict badge once resolved, even when the remote is unreachable', async () => {
 			const { worktreeDir, remoteDir, manager } = await setupResolvedScratch(dirs);
 			await git(worktreeDir, 'remote', 'set-url', 'origin', `${remoteDir}-missing`);
 			const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -154,7 +154,9 @@ describe('ProjectPageService.loadProjectPage', () => {
 
 				expect(result.status).toBe('loaded');
 				if (result.status !== 'loaded') return;
-				expect(result.hasConflict).toBe(true);
+				// The rebase is resolved, so there is no conflict to badge even though the
+				// unreachable remote left the scratch worktree unfinalized on disk.
+				expect(result.hasConflict).toBe(false);
 				const ticket = result.board.tickets.find(t => t.folderName === 'st-0001-fix-login');
 				expect(ticket?.status).toBe('todo');
 				expect(warnSpy).toHaveBeenCalledWith(

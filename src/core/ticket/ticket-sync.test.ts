@@ -392,6 +392,28 @@ describe('TicketSyncManager', () => {
 		expect(second.status).toBe('success');
 	});
 
+	it('isResolving reports false once the scratch rebase is resolved, even before the dir is removed', async () => {
+		const { worktreeDir, remoteDir } = await createRepoWithRemote();
+		dirs.push(worktreeDir, remoteDir, conflictResolveDir(worktreeDir));
+
+		await pushRemoteConflict(remoteDir, dirs);
+		fs.writeFileSync(path.join(worktreeDir, 'conflict.txt'), 'local content');
+
+		const manager = new TicketSyncManager();
+		await manager.sync(worktreeDir);
+		const plan = await manager.prepareResolution(worktreeDir);
+		expect(manager.isResolving(worktreeDir)).toBe(true);
+
+		// Agent resolves the rebase but the scratch worktree is not yet finalized/removed.
+		fs.writeFileSync(path.join(plan.scratchDir, 'conflict.txt'), 'merged content');
+		await git(plan.scratchDir, 'add', '-A');
+		await git(plan.scratchDir, 'rebase', '--continue');
+
+		expect(manager.hasActiveRebase(plan.scratchDir)).toBe(false);
+		expect(fs.existsSync(plan.scratchDir)).toBe(true);
+		expect(manager.isResolving(worktreeDir)).toBe(false);
+	});
+
 	it('sync returns conflict while a resolution is pending in the scratch worktree', async () => {
 		const { worktreeDir, remoteDir } = await createRepoWithRemote();
 		dirs.push(worktreeDir, remoteDir, conflictResolveDir(worktreeDir));
