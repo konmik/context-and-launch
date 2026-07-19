@@ -28,11 +28,13 @@ export type RenameBoardBody = v.InferOutput<typeof RenameBoardBody>;
 export const AddColumnBody = v.object({
   name: v.pipe(v.string(), v.nonEmpty("Missing required field: name")),
   description: v.optional(v.string()),
+  color: v.optional(v.string()),
 });
 export type AddColumnBody = v.InferOutput<typeof AddColumnBody>;
 
 export const UpdateColumnBody = v.object({
   description: v.optional(v.string()),
+  color: v.optional(v.string()),
 });
 export type UpdateColumnBody = v.InferOutput<typeof UpdateColumnBody>;
 

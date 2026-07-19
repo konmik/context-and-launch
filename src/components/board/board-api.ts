@@ -5,7 +5,7 @@ import {
 import { cascadeClearBoardId } from "~/core/project/board-delete-cascade.js";
 import { renameColumnWithMigration } from "~/core/project/column-rename-migration.js";
 import { ValidationError, errorResult } from "~/core/shared/errors.js";
-import type { BoardDefinition } from "~/core/project/board-config.js";
+import type { BoardDefinition, ColumnContentPatch } from "~/core/project/board-config.js";
 
 export type BoardRef = Pick<BoardDefinition, "id" | "name">;
 
@@ -45,20 +45,20 @@ export async function renameBoard(boardId: string, name: string) {
   }
 }
 
-export async function addColumn(boardId: string, name: string, description?: string) {
+export async function addColumn(boardId: string, name: string, patch: ColumnContentPatch) {
   "use server";
   try {
-    boardConfigManager.addColumn(boardId, name, description);
+    boardConfigManager.addColumn(boardId, name, patch);
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
   }
 }
 
-export async function updateColumn(boardId: string, columnName: string, description?: string) {
+export async function updateColumn(boardId: string, columnName: string, patch: ColumnContentPatch) {
   "use server";
   try {
-    boardConfigManager.updateColumn(boardId, columnName, { description });
+    boardConfigManager.updateColumn(boardId, columnName, patch);
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);

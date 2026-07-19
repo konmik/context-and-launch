@@ -6,17 +6,20 @@ const tickets: ForestTicket[] = [
   {
     number: "A-1",
     title: "Member",
+    status: "todo",
     folderName: "a-1-member",
     memberOf: "G-1",
   },
   {
     number: "G-1",
     title: "Group",
+    status: "todo",
     folderName: "g-1-group",
   },
   {
     number: "O-1",
     title: "Outside",
+    status: "todo",
     folderName: "o-1-outside",
     dependsOn: ["A-1"],
   },
@@ -50,9 +53,9 @@ describe("forest flow model", () => {
 
   it("dragging one ticket does not move the others", () => {
     const loose: ForestTicket[] = [
-      { number: "L-1", title: "One", folderName: "l-1-one" },
-      { number: "L-2", title: "Two", folderName: "l-2-two" },
-      { number: "L-3", title: "Three", folderName: "l-3-three" },
+      { number: "L-1", title: "One", status: "todo", folderName: "l-1-one" },
+      { number: "L-2", title: "Two", status: "todo", folderName: "l-2-two" },
+      { number: "L-3", title: "Three", status: "todo", folderName: "l-3-three" },
     ];
     const canonical = positionsFromNodes(buildForestFlowModel(loose, undefined, {}).nodes);
     const afterDrag = positionsFromNodes(

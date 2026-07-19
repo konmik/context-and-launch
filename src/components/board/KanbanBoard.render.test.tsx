@@ -4,6 +4,7 @@ import KanbanBoard from "./KanbanBoard";
 import type { BoardState } from "~/components/project/project-api.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { ColumnDefinition } from "~/core/project/board-config.js";
+import type { HerdrAgentStatus } from "~/core/herdr/herdr-client.js";
 
 afterEach(() => cleanup());
 
@@ -34,6 +35,21 @@ function makeBoard(tickets: TicketInfo[], columns: string[] | ColumnDefinition[]
 }
 
 const noop = () => {};
+
+function renderBoard(board: BoardState, herdrStatuses?: Record<string, HerdrAgentStatus>) {
+  return render(() => (
+    <KanbanBoard
+      board={board}
+      projectSlug="test"
+      onEdit={noop}
+      onDelete={noop}
+      onViewDetail={noop}
+      onArchive={noop}
+      onReorder={noop}
+      herdrStatuses={herdrStatuses}
+    />
+  ));
+}
 
 describe("KanbanBoard rendering", () => {
   it("renders column headers", () => {
@@ -268,5 +284,52 @@ describe("KanbanBoard undefined column", () => {
       />
     ));
     expect(container.querySelector('[data-testid="kanban-board-undefined-column"]')).toBeNull();
+  });
+});
+
+describe("KanbanBoard status swatches", () => {
+  it("renders exactly one swatch on the colored column's card", () => {
+    const tickets = [
+      makeTicket({ folderName: "t-1-alpha", number: "T-1", title: "Alpha", status: "todo" }),
+      makeTicket({ folderName: "t-2-bravo", number: "T-2", title: "Bravo", status: "done" }),
+    ];
+    const board = makeBoard(tickets, [{ name: "todo", color: "#0969da" }, { name: "done" }]);
+    const { container } = renderBoard(board);
+    const swatches = container.querySelectorAll('[data-testid="status-swatch"]');
+    expect(swatches.length).toBe(1);
+    expect(swatches[0].getAttribute("data-status")).toBe("todo");
+  });
+
+  it("renders a destructive swatch on an orphaned ticket card", () => {
+    const tickets = [
+      makeTicket({ folderName: "t-1-alpha", number: "T-1", title: "Alpha", status: "vanished" }),
+    ];
+    const board = makeBoard(tickets, [{ name: "todo", color: "#0969da" }]);
+    const { container } = renderBoard(board);
+    const swatch = container.querySelector('[data-testid="status-swatch"]') as HTMLElement;
+    expect(swatch).toBeTruthy();
+    expect(swatch.classList).toContain("bg-destructive");
+  });
+});
+
+describe("KanbanBoard herdr icons", () => {
+  it("renders one icon for a ticket with a herdr status", () => {
+    const tickets = [
+      makeTicket({ folderName: "t-1-alpha", number: "T-1", title: "Alpha", status: "todo" }),
+    ];
+    const board = makeBoard(tickets, ["todo", "done"]);
+    const { container } = renderBoard(board, { "t-1-alpha": "blocked" });
+    const icons = container.querySelectorAll('[data-testid="herdr-status-icon"]');
+    expect(icons.length).toBe(1);
+    expect(icons[0].getAttribute("data-herdr-status")).toBe("blocked");
+  });
+
+  it("renders no icons when herdrStatuses is omitted", () => {
+    const tickets = [
+      makeTicket({ folderName: "t-1-alpha", number: "T-1", title: "Alpha", status: "todo" }),
+    ];
+    const board = makeBoard(tickets, ["todo", "done"]);
+    const { container } = renderBoard(board);
+    expect(container.querySelectorAll('[data-testid="herdr-status-icon"]').length).toBe(0);
   });
 });

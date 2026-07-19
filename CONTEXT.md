@@ -44,8 +44,20 @@ A named board layout with an id, name, and ordered list of columns. All board de
 Avoid: column config, workflow, board config
 
 Column:
-A named stage in a Board Definition representing a ticket status (e.g. `todo`, `prd`, `in-progress`, `review`, `done`). Has a name (auto-slugified into a Column Slug, filesystem-safe, unique within its board) and an optional plain-text description displayed below the column header on the board.
+A named stage in a Board Definition representing a ticket status (e.g. `todo`, `prd`, `in-progress`, `review`, `done`). Has a name (auto-slugified into a Column Slug, filesystem-safe, unique within its board), an optional plain-text description displayed below the column header on the board, and an optional Column Color.
 Avoid: lane, swimlane, stage
+
+Column Color:
+An optional color assigned to a Column in a Board Definition, chosen from a fixed preset palette in Settings. Displayed on tickets of that status as a Status Swatch.
+Avoid: status color, label color
+
+Status Swatch:
+A small colored rectangle rendered after the Ticket Number on kanban and Forest View cards, showing the Column Color of the Column matching the ticket's status. Red when the status matches no Column. Absent when the matching Column has no Column Color.
+Avoid: status rectangle, color badge, color dot
+
+Herdr Agent Status:
+The live state of the Herdr Agent associated with a Ticket: working, blocked, idle, or unknown. Shown as an icon after the Status Swatch on kanban and Forest View cards. Absent when the Ticket has no Herdr Agent.
+Avoid: agent state, terminal status
 
 Undefined Column:
 A virtual column rendered at the far right of the board when any ticket's status does not match a column in the active Board Definition. Not part of the Board Definition. Styled with red frame and red title. Shows each ticket's orphaned status in red. Disappears when empty. Users can drag tickets out into real columns.
@@ -190,7 +202,7 @@ Avoid: terminal, pane
 - A Worktree contains zero or more Ticket Folders
 - A Ticket Folder contains exactly one `status.json` and zero or more Context documents
 - A Board Definition defines the set of Columns available to a Project
-- A Column has a name and an optional description
+- A Column has a name, an optional description, and an optional Column Color
 - A Context name is chosen freely; by convention it often mirrors a Column name (e.g. `review.md`) but the two are not linked
 - A Column name is auto-slugified into a Column Slug and must be unique within its Board Definition
 - The reserved name "undefined" cannot be used for a Column

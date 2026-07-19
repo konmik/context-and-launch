@@ -309,7 +309,7 @@ describe('BoardConfigManager CRUD', () => {
 	describe('addColumn', () => {
 		it('adds a column with name and description', () => {
 			const mgr = createManager();
-			const col = mgr.addColumn('standard', 'Blocked', 'Stuck tickets');
+			const col = mgr.addColumn('standard', 'Blocked', { description: 'Stuck tickets' });
 			expect(col.name).toBe('blocked');
 			expect(col.description).toBe('Stuck tickets');
 			const board = mgr.getBoard('standard')!;
@@ -340,6 +340,23 @@ describe('BoardConfigManager CRUD', () => {
 		it('rejects collision after slugification', () => {
 			const mgr = createManager();
 			expect(() => mgr.addColumn('standard', 'In Progress')).toThrow('already exists');
+		});
+
+		it('stores a palette color and round-trips it', () => {
+			const mgr = createManager();
+			const col = mgr.addColumn('standard', 'Blocked', { color: '#0969da' });
+			expect(col.color).toBe('#0969da');
+			const reloaded = mgr.getBoard('standard')!.columns.find(c => c.name === 'blocked')!;
+			expect(reloaded.color).toBe('#0969da');
+		});
+
+		it('rejects a non-palette color and writes nothing', () => {
+			const mgr = createManager();
+			const before = mgr.getBoard('standard')!.columns.length;
+			expect(() => mgr.addColumn('standard', 'Blocked', { color: '#123456' }))
+				.toThrow('not in the preset palette');
+			expect(mgr.getBoard('standard')!.columns.length).toBe(before);
+			expect(mgr.getBoard('standard')!.columns.find(c => c.name === 'blocked')).toBeUndefined();
 		});
 	});
 
@@ -372,6 +389,27 @@ describe('BoardConfigManager CRUD', () => {
 			const col = mgr.getBoard('standard')!.columns.find(c => c.name === 'todo')!;
 			expect(col.description).toBeUndefined();
 		});
+
+		it('sets a palette color', () => {
+			const mgr = createManager();
+			mgr.updateColumn('standard', 'todo', { color: '#1a7f37' });
+			const col = mgr.getBoard('standard')!.columns.find(c => c.name === 'todo')!;
+			expect(col.color).toBe('#1a7f37');
+		});
+
+		it('clears color with empty string', () => {
+			const mgr = createManager();
+			mgr.updateColumn('standard', 'todo', { color: '#1a7f37' });
+			mgr.updateColumn('standard', 'todo', { color: '' });
+			const col = mgr.getBoard('standard')!.columns.find(c => c.name === 'todo')!;
+			expect(col.color).toBeUndefined();
+		});
+
+		it('rejects a non-palette color', () => {
+			const mgr = createManager();
+			expect(() => mgr.updateColumn('standard', 'todo', { color: '#123456' }))
+				.toThrow('not in the preset palette');
+		});
 	});
 
 	describe('renameColumn', () => {
@@ -393,6 +431,14 @@ describe('BoardConfigManager CRUD', () => {
 			const mgr = createManager();
 			expect(() => mgr.renameColumn('standard', 'nope', 'x')).toThrow('Column not found');
 		});
+
+		it('preserves the column color across a rename', () => {
+			const mgr = createManager();
+			mgr.updateColumn('standard', 'todo', { color: '#0969da' });
+			mgr.renameColumn('standard', 'todo', 'backlog');
+			const col = mgr.getBoard('standard')!.columns.find(c => c.name === 'backlog')!;
+			expect(col.color).toBe('#0969da');
+		});
 	});
 
 	describe('reorderColumns', () => {
@@ -408,6 +454,15 @@ describe('BoardConfigManager CRUD', () => {
 		it('rejects mismatched names', () => {
 			const mgr = createManager();
 			expect(() => mgr.reorderColumns('simple', ['todo', 'nope'])).toThrow('must match');
+		});
+
+		it('preserves column colors across a reorder', () => {
+			const mgr = createManager();
+			mgr.updateColumn('simple', 'todo', { color: '#1a7f37' });
+			const originalNames = mgr.getBoard('simple')!.columns.map(c => c.name);
+			mgr.reorderColumns('simple', [...originalNames].reverse());
+			const col = mgr.getBoard('simple')!.columns.find(c => c.name === 'todo')!;
+			expect(col.color).toBe('#1a7f37');
 		});
 	});
 });

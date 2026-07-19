@@ -1,7 +1,8 @@
-import { Show, type JSX } from "solid-js";
+import { For, Show, type JSX } from "solid-js";
 import { DialogRoot, DialogTitle, DialogCloseTrigger } from "../ui/dialog";
 import { modEnterHint } from "~/lib/use-mod-enter-submit";
 import { slugifyColumnName } from "~/lib/slugify.js";
+import { COLUMN_COLOR_PALETTE } from "~/core/project/column-color-palette.js";
 import type { BoardRef } from "../board/board-api.js";
 
 export type ItemType = "template" | "skill" | "profile" | "shortcut";
@@ -20,6 +21,7 @@ export interface ColumnFormState {
 	mode: "add" | "edit";
 	name: string;
 	description: string;
+	color: string;
 	oldName?: string;
 }
 
@@ -249,6 +251,48 @@ export function ColumnFormDialog(props: {
 								data-testid="launcher-settings-columns-desc-input"
 								placeholder="Brief description of this column"
 							/>
+						</div>
+						<div>
+							<label class="mb-1 block text-sm text-muted-foreground">Color (optional)</label>
+							<div class="flex flex-wrap items-center gap-1.5">
+								<button
+									type="button"
+									onClick={() => props.setColumnForm({ ...cf(), color: "" })}
+									class={"flex h-6 w-6 items-center justify-center rounded-md "
+										+ "border border-border text-muted-foreground"}
+									classList={{
+										"ring-2 ring-primary ring-offset-2 ring-offset-background": cf().color === "",
+									}}
+									data-testid="launcher-settings-columns-color-none"
+									title="None"
+									aria-label="No color"
+								>
+									<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+										viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+										stroke-linecap="round" stroke-linejoin="round"
+									>
+										<line x1="18" y1="6" x2="6" y2="18"/>
+									</svg>
+								</button>
+								<For each={COLUMN_COLOR_PALETTE}>
+									{(option) => (
+										<button
+											type="button"
+											onClick={() => props.setColumnForm({ ...cf(), color: option.hex })}
+											class="h-6 w-6 rounded-md border border-border"
+											classList={{
+												"ring-2 ring-primary ring-offset-2 ring-offset-background":
+													cf().color === option.hex,
+											}}
+											style={{ "background-color": option.hex }}
+											data-testid="launcher-settings-columns-color-option"
+											data-color-hex={option.hex}
+											title={option.name}
+											aria-label={option.name}
+										/>
+									)}
+								</For>
+							</div>
 						</div>
 					</div>
 					<DialogFooter>

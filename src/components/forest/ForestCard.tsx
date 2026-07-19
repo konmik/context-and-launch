@@ -8,6 +8,10 @@ import {
 } from "./forest-connections.js";
 import { CARD_WIDTH } from "./forest-graph.js";
 import type { ForestNodeData } from "./forest-flow-model.js";
+import type { SwatchColumn } from "~/core/board/status-swatch.js";
+import type { HerdrAgentStatus } from "~/core/herdr/herdr-client.js";
+import StatusSwatch from "../ticket/StatusSwatch";
+import HerdrStatusIcon from "../ticket/HerdrStatusIcon";
 
 export interface ForestCardCommands {
   activateConnection: (endpoint: ConnectionEndpoint) => void;
@@ -15,8 +19,14 @@ export interface ForestCardCommands {
   ungroup: (ticketNumber: string) => void;
 }
 
+export interface ForestCardStatusData {
+  columns: SwatchColumn[];
+  herdrStatuses: Record<string, HerdrAgentStatus>;
+}
+
 export const ForestCardCommandsContext = createContext<ForestCardCommands>();
 export const ForestConnectionSessionContext = createContext<() => ForestConnectionSession>();
+export const ForestCardStatusContext = createContext<() => ForestCardStatusData>();
 
 function requireCardCommands(): ForestCardCommands {
   const commands = useContext(ForestCardCommandsContext);
@@ -30,11 +40,18 @@ function requireConnectionSession(): () => ForestConnectionSession {
   return session;
 }
 
+function requireCardStatusData(): () => ForestCardStatusData {
+  const statusData = useContext(ForestCardStatusContext);
+  if (!statusData) throw new Error("Forest card status data is unavailable");
+  return statusData;
+}
+
 export default function ForestCard(
   props: NodeProps<ForestNodeData, "forest-ticket">,
 ) {
   const commands = requireCardCommands();
   const connectionSession = requireConnectionSession();
+  const statusData = requireCardStatusData();
   const [hovered, setHovered] = createSignal(false);
   const ticketNumber = () => props.data.ticket.number;
 
@@ -110,6 +127,10 @@ export default function ForestCard(
                 </svg>
               </Show>
               <span class="truncate text-sm font-medium text-primary">{ticketNumber()}</span>
+              <StatusSwatch status={props.data.ticket.status} columns={statusData().columns} />
+              <Show when={statusData().herdrStatuses[props.data.ticket.folderName]}>
+                {(s) => <HerdrStatusIcon status={s()} />}
+              </Show>
             </div>
             <p class="line-clamp-2 text-sm">{props.data.ticket.title}</p>
           </div>

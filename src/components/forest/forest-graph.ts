@@ -1,7 +1,7 @@
 import type { TicketInfo } from '~/core/ticket/ticket-store.js';
 import type { ForestLayout } from '~/core/ticket/forest-layout-store.js';
 
-export type ForestTicket = Pick<TicketInfo, 'number' | 'title' | 'folderName' | 'dependsOn' | 'memberOf'>;
+export type ForestTicket = Pick<TicketInfo, 'number' | 'title' | 'status' | 'folderName' | 'dependsOn' | 'memberOf'>;
 
 export const CARD_WIDTH = 208;
 export const CARD_HEIGHT = 72;
