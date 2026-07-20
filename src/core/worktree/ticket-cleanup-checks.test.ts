@@ -4,7 +4,7 @@ import {
 	type TicketCleanupCheckDeps,
 	type TicketCleanupCheckTarget,
 } from "./ticket-cleanup-checks.js";
-import type { FindHerdrAgentResult } from "../launcher/herdr-control.js";
+import type { FindHerdrAgentResult } from "../herdr/herdr-control.js";
 
 const target: TicketCleanupCheckTarget = {
 	projectSlug: "alpha",

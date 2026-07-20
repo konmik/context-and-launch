@@ -1,6 +1,6 @@
 import { errorPayload } from "../shared/errors.js";
 import type { ErrorInfo } from "../shared/errors.js";
-import type { FindHerdrAgentResult, HerdrAgentTarget } from "../launcher/herdr-control.js";
+import type { FindHerdrAgentResult, HerdrAgentTarget } from "../herdr/herdr-control.js";
 
 export type CleanupItemKey =
 	"stopHerdrAgent" | "deleteWorktree" | "deleteLocalBranch" | "deleteRemoteBranch";
