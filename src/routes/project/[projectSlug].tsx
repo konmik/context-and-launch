@@ -25,6 +25,7 @@ import {
 } from "~/components/project/project-page-controller.js";
 import { getSyncPending } from "~/components/ticket/ticket-api.js";
 import { getHerdrAgentStatuses } from "~/components/board/herdr-status-api.js";
+import { HerdrStatusesContext } from "~/components/ticket/herdr-statuses-context.js";
 
 export const route = {
   load: ({ params }: { params: { projectSlug: string } }) => loadProjectPage(params.projectSlug),
@@ -306,56 +307,58 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
           </header>
 
           <main class="flex-1">
-            <Switch>
-              <Match when={d().status === 'not-found'}>
-                <div class="flex h-64 items-center justify-center">
-                  <p class="text-muted-foreground">Project not found</p>
-                </div>
-              </Match>
-              <Match when={unavail()}>
-                {(u) => (
-                  <div class="flex h-64 flex-col items-center justify-center gap-2">
-                    <p class="text-lg font-medium">Project unavailable</p>
-                    <p class="text-sm text-muted-foreground">{u().projectPath}</p>
+            <HerdrStatusesContext.Provider
+              value={(folderName) => herdrTicketStatuses()[folderName]}
+            >
+              <Switch>
+                <Match when={d().status === 'not-found'}>
+                  <div class="flex h-64 items-center justify-center">
+                    <p class="text-muted-foreground">Project not found</p>
                   </div>
-                )}
-              </Match>
-              <Match when={pageErr()}>
-                {(e) => (
-                  <DialogRoot open onOpenChange={() => revalidate("project-page")}>
-                    <DialogTitle>Error</DialogTitle>
-                    <p class="mb-4 text-sm text-destructive">{e().error}</p>
-                    <button class="btn-primary w-full" onClick={() => revalidate("project-page")}>Retry</button>
-                  </DialogRoot>
-                )}
-              </Match>
-              <Match when={ld()}>
-                {(loaded) => (
-                  <Show when={viewMode() === 'forest'} fallback={
-                    <KanbanBoard
-                      board={loaded().board}
-                      projectSlug={d().projectSlug}
-                      onEdit={commands.openEdit}
-                      onDelete={commands.openDelete}
-                      onArchive={commands.openArchive}
-                      onViewDetail={commands.openDetail}
-                      onReorder={commands.handleReorder}
-                      herdrStatuses={herdrTicketStatuses()}
-                    />
-                  }>
-                    <div class="h-[calc(100vh-60px)]">
-                      <ForestView
+                </Match>
+                <Match when={unavail()}>
+                  {(u) => (
+                    <div class="flex h-64 flex-col items-center justify-center gap-2">
+                      <p class="text-lg font-medium">Project unavailable</p>
+                      <p class="text-sm text-muted-foreground">{u().projectPath}</p>
+                    </div>
+                  )}
+                </Match>
+                <Match when={pageErr()}>
+                  {(e) => (
+                    <DialogRoot open onOpenChange={() => revalidate("project-page")}>
+                      <DialogTitle>Error</DialogTitle>
+                      <p class="mb-4 text-sm text-destructive">{e().error}</p>
+                      <button class="btn-primary w-full" onClick={() => revalidate("project-page")}>Retry</button>
+                    </DialogRoot>
+                  )}
+                </Match>
+                <Match when={ld()}>
+                  {(loaded) => (
+                    <Show when={viewMode() === 'forest'} fallback={
+                      <KanbanBoard
                         board={loaded().board}
                         projectSlug={d().projectSlug}
+                        onEdit={commands.openEdit}
+                        onDelete={commands.openDelete}
+                        onArchive={commands.openArchive}
                         onViewDetail={commands.openDetail}
-                        suggestedNextNumber={loaded().suggestedNextNumber}
-                        herdrStatuses={herdrTicketStatuses()}
+                        onReorder={commands.handleReorder}
                       />
-                    </div>
-                  </Show>
-                )}
-              </Match>
-            </Switch>
+                    }>
+                      <div class="h-[calc(100vh-60px)]">
+                        <ForestView
+                          board={loaded().board}
+                          projectSlug={d().projectSlug}
+                          onViewDetail={commands.openDetail}
+                          suggestedNextNumber={loaded().suggestedNextNumber}
+                        />
+                      </div>
+                    </Show>
+                  )}
+                </Match>
+              </Switch>
+            </HerdrStatusesContext.Provider>
           </main>
 
           <CreateTicketDialog

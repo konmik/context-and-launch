@@ -6,7 +6,6 @@ import {
 } from "@thisbeyond/solid-dnd";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { ColumnDefinition } from "~/core/project/board-config.js";
-import type { HerdrAgentStatus } from "~/core/herdr/herdr-client.js";
 import TicketCard from "../ticket/TicketCard";
 import { type HoverTarget, resolvePreviewInsertBefore } from "./drop-index.js";
 import { DragPreview, DND_ACTIVE_CLASS } from "./dnd-shared.js";
@@ -15,14 +14,12 @@ import { parseId, makeId, COLUMN_PREFIX } from "./kanban-id.js";
 function DropPreview(props: {
 	ticket: TicketInfo;
 	columns: ColumnDefinition[];
-	herdrStatuses: Record<string, HerdrAgentStatus>;
 }) {
 	return (
 		<DragPreview>
 			<TicketCard
 				ticket={props.ticket}
 				columns={props.columns}
-				herdrStatus={props.herdrStatuses[props.ticket.folderName]}
 				onEdit={() => {}}
 				onDelete={() => {}}
 				onArchive={() => {}}
@@ -38,7 +35,6 @@ function SortableTicketCard(props: {
 	activeId: string | null;
 	orphanedStatus?: string;
 	columns: ColumnDefinition[];
-	herdrStatuses: Record<string, HerdrAgentStatus>;
 	onEdit: (ticket: TicketInfo) => void;
 	onDelete: (ticket: TicketInfo) => void;
 	onArchive: (ticket: TicketInfo) => void;
@@ -59,7 +55,6 @@ function SortableTicketCard(props: {
 				ticket={props.ticket}
 				orphanedStatus={props.orphanedStatus}
 				columns={props.columns}
-				herdrStatus={props.herdrStatuses[props.ticket.folderName]}
 				onEdit={props.onEdit}
 				onDelete={props.onDelete}
 				onArchive={props.onArchive}
@@ -86,7 +81,6 @@ export interface TicketColumnProps {
 	activeTicket: TicketInfo | null;
 	hoverTarget: HoverTarget | null;
 	columns: ColumnDefinition[];
-	herdrStatuses: Record<string, HerdrAgentStatus>;
 	onEdit: (ticket: TicketInfo) => void;
 	onDelete: (ticket: TicketInfo) => void;
 	onArchive: (ticket: TicketInfo) => void;
@@ -135,7 +129,6 @@ export function TicketColumn(props: TicketColumnProps & {
 										<DropPreview
 											ticket={t()}
 											columns={props.columns}
-											herdrStatuses={props.herdrStatuses}
 										/>
 									)}
 								</Show>
@@ -144,7 +137,6 @@ export function TicketColumn(props: TicketColumnProps & {
 									column={props.column.name}
 									activeId={props.activeId}
 									columns={props.columns}
-									herdrStatuses={props.herdrStatuses}
 									onEdit={props.onEdit}
 									onDelete={props.onDelete}
 									onArchive={props.onArchive}
@@ -158,7 +150,6 @@ export function TicketColumn(props: TicketColumnProps & {
 							<DropPreview
 								ticket={t()}
 								columns={props.columns}
-								herdrStatuses={props.herdrStatuses}
 							/>
 						)}
 					</Show>
@@ -196,7 +187,6 @@ export function OrphanColumn(props: TicketColumnProps & { tickets: TicketInfo[] 
 								column="undefined"
 								activeId={props.activeId}
 								columns={props.columns}
-								herdrStatuses={props.herdrStatuses}
 								onEdit={props.onEdit}
 								onDelete={props.onDelete}
 								onArchive={props.onArchive}

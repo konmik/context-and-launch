@@ -27,12 +27,11 @@ import { createStore, reconcile } from "solid-js/store";
 import type { OverlayRect } from "../shared/ExpandingOverlay";
 import ForestCard, {
   ForestCardCommandsContext,
-  ForestCardStatusContext,
+  ForestCardColumnsContext,
   ForestConnectionSessionContext,
   type ForestCardCommands,
 } from "./ForestCard.js";
 import type { SwatchColumn } from "~/core/board/status-swatch.js";
-import type { HerdrAgentStatus } from "~/core/herdr/herdr-client.js";
 import ForestDependencyEdge from "./ForestDependencyEdge.js";
 import {
   dependencyFromEndpoints,
@@ -85,7 +84,6 @@ export interface ForestSurfaceData {
   tickets: ForestTicket[];
   layout: ForestLayout;
   columns: SwatchColumn[];
-  herdrStatuses: Record<string, HerdrAgentStatus>;
   scopeGroupNumber?: string;
   viewport?: Viewport;
 }
@@ -469,11 +467,6 @@ export default function ForestSurface(props: ForestSurfaceProps) {
     );
   }
 
-  const cardStatusData = createMemo(() => ({
-    columns: props.data.columns,
-    herdrStatuses: props.data.herdrStatuses,
-  }));
-
   return (
     <div
       ref={surfaceRef}
@@ -491,7 +484,7 @@ export default function ForestSurface(props: ForestSurfaceProps) {
     >
       <Show when={measured()}>
         <ForestConnectionSessionContext.Provider value={props.connectionSession}>
-          <ForestCardStatusContext.Provider value={cardStatusData}>
+          <ForestCardColumnsContext.Provider value={() => props.data.columns}>
             <ForestCardCommandsContext.Provider value={cardCommands}>
               <SolidFlow<ForestFlowNode, ForestFlowEdge>
                 id={`forest-${props.data.scopeGroupNumber ?? "root"}`}
@@ -617,7 +610,7 @@ export default function ForestSurface(props: ForestSurfaceProps) {
                 )}
               </Show>
             </ForestCardCommandsContext.Provider>
-          </ForestCardStatusContext.Provider>
+          </ForestCardColumnsContext.Provider>
         </ForestConnectionSessionContext.Provider>
       </Show>
     </div>

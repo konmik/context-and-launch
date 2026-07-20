@@ -1,10 +1,12 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@solidjs/testing-library";
+import type { ComponentProps } from "solid-js";
 import KanbanBoard from "./KanbanBoard";
 import type { BoardState } from "~/components/project/project-api.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { ColumnDefinition } from "~/core/project/board-config.js";
 import type { HerdrAgentStatus } from "~/core/herdr/herdr-client.js";
+import { HerdrStatusesContext } from "~/components/ticket/herdr-statuses-context.js";
 
 afterEach(() => cleanup());
 
@@ -36,25 +38,13 @@ function makeBoard(tickets: TicketInfo[], columns: string[] | ColumnDefinition[]
 
 const noop = () => {};
 
-function renderBoard(board: BoardState, herdrStatuses?: Record<string, HerdrAgentStatus>) {
+function renderBoard(board: BoardState, opts: {
+  herdrStatuses?: Record<string, HerdrAgentStatus>;
+  dragState?: ComponentProps<typeof KanbanBoard>["dragState"];
+  activeTicket?: ComponentProps<typeof KanbanBoard>["activeTicket"];
+} = {}) {
   return render(() => (
-    <KanbanBoard
-      board={board}
-      projectSlug="test"
-      onEdit={noop}
-      onDelete={noop}
-      onViewDetail={noop}
-      onArchive={noop}
-      onReorder={noop}
-      herdrStatuses={herdrStatuses}
-    />
-  ));
-}
-
-describe("KanbanBoard rendering", () => {
-  it("renders column headers", () => {
-    const board = makeBoard([], ["todo", "in-progress", "done"]);
-    render(() => (
+    <HerdrStatusesContext.Provider value={(folderName) => opts.herdrStatuses?.[folderName]}>
       <KanbanBoard
         board={board}
         projectSlug="test"
@@ -63,8 +53,17 @@ describe("KanbanBoard rendering", () => {
         onViewDetail={noop}
         onArchive={noop}
         onReorder={noop}
+        dragState={opts.dragState}
+        activeTicket={opts.activeTicket}
       />
-    ));
+    </HerdrStatusesContext.Provider>
+  ));
+}
+
+describe("KanbanBoard rendering", () => {
+  it("renders column headers", () => {
+    const board = makeBoard([], ["todo", "in-progress", "done"]);
+    renderBoard(board);
     expect(screen.getByText("todo")).toBeTruthy();
     expect(screen.getByText("in-progress")).toBeTruthy();
     expect(screen.getByText("done")).toBeTruthy();
@@ -76,17 +75,7 @@ describe("KanbanBoard rendering", () => {
       makeTicket({ folderName: "t-2-bravo", number: "T-2", title: "Bravo", status: "done" }),
     ];
     const board = makeBoard(tickets);
-    render(() => (
-      <KanbanBoard
-        board={board}
-        projectSlug="test"
-        onEdit={noop}
-        onDelete={noop}
-        onViewDetail={noop}
-        onArchive={noop}
-        onReorder={noop}
-      />
-    ));
+    renderBoard(board);
     expect(screen.getByText("T-1")).toBeTruthy();
     expect(screen.getByText("Alpha")).toBeTruthy();
     expect(screen.getByText("T-2")).toBeTruthy();
@@ -95,17 +84,7 @@ describe("KanbanBoard rendering", () => {
 
   it("hides drop preview in empty columns when not dragging", () => {
     const board = makeBoard([], ["todo", "done"]);
-    const { container } = render(() => (
-      <KanbanBoard
-        board={board}
-        projectSlug="test"
-        onEdit={noop}
-        onDelete={noop}
-        onViewDetail={noop}
-        onArchive={noop}
-        onReorder={noop}
-      />
-    ));
+    const { container } = renderBoard(board);
     expect(container.querySelectorAll("[data-drop-indicator]").length).toBe(0);
   });
 
@@ -115,17 +94,7 @@ describe("KanbanBoard rendering", () => {
       makeTicket({ folderName: "t-2-bravo", number: "T-2", title: "Bravo", status: "todo" }),
     ];
     const board = makeBoard(tickets);
-    const { container } = render(() => (
-      <KanbanBoard
-        board={board}
-        projectSlug="test"
-        onEdit={noop}
-        onDelete={noop}
-        onViewDetail={noop}
-        onArchive={noop}
-        onReorder={noop}
-      />
-    ));
+    const { container } = renderBoard(board);
     const sortables = container.querySelectorAll("[data-sortable-id]");
     expect(sortables.length).toBe(2);
     expect(sortables[0].getAttribute("data-sortable-id")).toBe("todo:t-1-alpha");
@@ -145,19 +114,7 @@ describe("KanbanBoard same-column drop preview", () => {
       hoverTarget: { column: "todo", index: 0 },
     });
     const activeTicket = () => tickets[1];
-    const { container } = render(() => (
-      <KanbanBoard
-        board={board}
-        projectSlug="test"
-        onEdit={noop}
-        onDelete={noop}
-        onViewDetail={noop}
-        onArchive={noop}
-        onReorder={noop}
-        dragState={dragState}
-        activeTicket={activeTicket}
-      />
-    ));
+    const { container } = renderBoard(board, { dragState, activeTicket });
     const indicators = container.querySelectorAll("[data-drop-indicator]");
     expect(indicators.length).toBe(1);
     const firstCard = container.querySelector("[data-sortable-id]")!;
@@ -171,17 +128,7 @@ describe("KanbanBoard same-column drop preview", () => {
 describe("KanbanBoard column descriptions", () => {
   it("renders description when present", () => {
     const board = makeBoard([], [{ name: "todo", description: "Work items" }, { name: "done" }]);
-    const { container } = render(() => (
-      <KanbanBoard
-        board={board}
-        projectSlug="test"
-        onEdit={noop}
-        onDelete={noop}
-        onViewDetail={noop}
-        onArchive={noop}
-        onReorder={noop}
-      />
-    ));
+    const { container } = renderBoard(board);
     const desc = container.querySelector('[data-testid="kanban-board-column-description"]');
     expect(desc).toBeTruthy();
     expect(desc!.textContent).toBe("Work items");
@@ -189,17 +136,7 @@ describe("KanbanBoard column descriptions", () => {
 
   it("does not render description when absent", () => {
     const board = makeBoard([], ["todo", "done"]);
-    const { container } = render(() => (
-      <KanbanBoard
-        board={board}
-        projectSlug="test"
-        onEdit={noop}
-        onDelete={noop}
-        onViewDetail={noop}
-        onArchive={noop}
-        onReorder={noop}
-      />
-    ));
+    const { container } = renderBoard(board);
     expect(container.querySelectorAll('[data-testid="kanban-board-column-description"]').length).toBe(0);
   });
 });
@@ -210,17 +147,7 @@ describe("KanbanBoard undefined column", () => {
       makeTicket({ folderName: "t-1-alpha", number: "T-1", title: "Alpha", status: "deleted-col" }),
     ];
     const board = makeBoard(tickets, ["todo", "done"]);
-    const { container } = render(() => (
-      <KanbanBoard
-        board={board}
-        projectSlug="test"
-        onEdit={noop}
-        onDelete={noop}
-        onViewDetail={noop}
-        onArchive={noop}
-        onReorder={noop}
-      />
-    ));
+    const { container } = renderBoard(board);
     const undefinedCol = container.querySelector('[data-testid="kanban-board-undefined-column"]');
     expect(undefinedCol).toBeTruthy();
     expect(undefinedCol!.textContent).toContain("undefined");
@@ -231,17 +158,7 @@ describe("KanbanBoard undefined column", () => {
       makeTicket({ folderName: "t-1-alpha", number: "T-1", title: "Alpha", status: "gone" }),
     ];
     const board = makeBoard(tickets, ["todo"]);
-    const { container } = render(() => (
-      <KanbanBoard
-        board={board}
-        projectSlug="test"
-        onEdit={noop}
-        onDelete={noop}
-        onViewDetail={noop}
-        onArchive={noop}
-        onReorder={noop}
-      />
-    ));
+    const { container } = renderBoard(board);
     const undefinedCol = container.querySelector('[data-testid="kanban-board-undefined-column"]');
     expect(undefinedCol!.className).toContain("border-destructive");
   });
@@ -251,17 +168,7 @@ describe("KanbanBoard undefined column", () => {
       makeTicket({ folderName: "t-1-alpha", number: "T-1", title: "Alpha", status: "vanished" }),
     ];
     const board = makeBoard(tickets, ["todo"]);
-    const { container } = render(() => (
-      <KanbanBoard
-        board={board}
-        projectSlug="test"
-        onEdit={noop}
-        onDelete={noop}
-        onViewDetail={noop}
-        onArchive={noop}
-        onReorder={noop}
-      />
-    ));
+    const { container } = renderBoard(board);
     const orphanedStatus = container.querySelector('[data-testid="kanban-board-ticket-orphaned-status"]');
     expect(orphanedStatus).toBeTruthy();
     expect(orphanedStatus!.textContent).toBe("vanished");
@@ -272,17 +179,7 @@ describe("KanbanBoard undefined column", () => {
       makeTicket({ folderName: "t-1-alpha", number: "T-1", title: "Alpha", status: "todo" }),
     ];
     const board = makeBoard(tickets, ["todo", "done"]);
-    const { container } = render(() => (
-      <KanbanBoard
-        board={board}
-        projectSlug="test"
-        onEdit={noop}
-        onDelete={noop}
-        onViewDetail={noop}
-        onArchive={noop}
-        onReorder={noop}
-      />
-    ));
+    const { container } = renderBoard(board);
     expect(container.querySelector('[data-testid="kanban-board-undefined-column"]')).toBeNull();
   });
 });
@@ -318,7 +215,7 @@ describe("KanbanBoard herdr icons", () => {
       makeTicket({ folderName: "t-1-alpha", number: "T-1", title: "Alpha", status: "todo" }),
     ];
     const board = makeBoard(tickets, ["todo", "done"]);
-    const { container } = renderBoard(board, { "t-1-alpha": "blocked" });
+    const { container } = renderBoard(board, { herdrStatuses: { "t-1-alpha": "blocked" } });
     const icons = container.querySelectorAll('[data-testid="herdr-status-icon"]');
     expect(icons.length).toBe(1);
     expect(icons[0].getAttribute("data-herdr-status")).toBe("blocked");
