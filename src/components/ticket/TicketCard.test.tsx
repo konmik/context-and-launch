@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, fireEvent, cleanup } from "@solidjs/testing-library";
 import TicketCard from "./TicketCard";
+import { HerdrStatusesContext } from "./herdr-statuses-context.js";
+import type { HerdrAgentStatus } from "~/core/herdr/herdr-client.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 
 function makeTicket(overrides?: Partial<TicketInfo>): TicketInfo {
@@ -18,21 +20,34 @@ function makeTicket(overrides?: Partial<TicketInfo>): TicketInfo {
   };
 }
 
+function renderCard(props: {
+  ticket?: Partial<TicketInfo>;
+  columns?: { name: string; color?: string }[];
+  herdrStatuses?: Record<string, HerdrAgentStatus>;
+  onEdit?: (ticket: TicketInfo) => void;
+  onDelete?: (ticket: TicketInfo) => void;
+  onArchive?: (ticket: TicketInfo) => void;
+}) {
+  return render(() => (
+    <HerdrStatusesContext.Provider value={(folderName) => props.herdrStatuses?.[folderName]}>
+      <TicketCard
+        ticket={makeTicket(props.ticket)}
+        columns={props.columns ?? []}
+        onEdit={props.onEdit ?? (() => {})}
+        onDelete={props.onDelete ?? (() => {})}
+        onArchive={props.onArchive ?? (() => {})}
+        onViewDetail={() => {}}
+      />
+    </HerdrStatusesContext.Provider>
+  ));
+}
+
 describe("TicketCard overflow menu", () => {
   afterEach(() => cleanup());
 
   it("shows Archive option in the overflow menu", async () => {
     const onArchive = vi.fn();
-    const { container } = render(() => (
-      <TicketCard
-        ticket={makeTicket()}
-        columns={[]}
-        onEdit={() => {}}
-        onDelete={() => {}}
-        onArchive={onArchive}
-        onViewDetail={() => {}}
-      />
-    ));
+    const { container } = renderCard({ onArchive });
 
     const menuBtn = container.querySelector("[aria-label='Ticket actions']") as HTMLElement;
     await fireEvent.click(menuBtn);
@@ -42,18 +57,8 @@ describe("TicketCard overflow menu", () => {
   });
 
   it("calls onArchive when Archive is clicked", async () => {
-    const ticket = makeTicket();
     const onArchive = vi.fn();
-    const { container } = render(() => (
-      <TicketCard
-        ticket={ticket}
-        columns={[]}
-        onEdit={() => {}}
-        onDelete={() => {}}
-        onArchive={onArchive}
-        onViewDetail={() => {}}
-      />
-    ));
+    const { container } = renderCard({ onArchive });
 
     const menuBtn = container.querySelector("[aria-label='Ticket actions']") as HTMLElement;
     await fireEvent.click(menuBtn);
@@ -63,21 +68,12 @@ describe("TicketCard overflow menu", () => {
     ) as HTMLElement;
     await fireEvent.click(archiveItem);
 
-    expect(onArchive).toHaveBeenCalledWith(ticket);
+    expect(onArchive).toHaveBeenCalledWith(makeTicket());
   });
 
   it("shows all three menu options", async () => {
     cleanup();
-    const { container } = render(() => (
-      <TicketCard
-        ticket={makeTicket()}
-        columns={[]}
-        onEdit={() => {}}
-        onDelete={() => {}}
-        onArchive={() => {}}
-        onViewDetail={() => {}}
-      />
-    ));
+    const { container } = renderCard({});
 
     const menuBtn = container.querySelector("[aria-label='Ticket actions']") as HTMLElement;
     await fireEvent.click(menuBtn);
@@ -91,24 +87,6 @@ describe("TicketCard overflow menu", () => {
 
 describe("TicketCard status swatch and herdr icon", () => {
   afterEach(() => cleanup());
-
-  function renderCard(props: {
-    ticket?: Partial<TicketInfo>;
-    columns?: { name: string; color?: string }[];
-    herdrStatus?: "idle" | "working" | "blocked" | "unknown";
-  }) {
-    return render(() => (
-      <TicketCard
-        ticket={makeTicket(props.ticket)}
-        columns={props.columns ?? []}
-        herdrStatus={props.herdrStatus}
-        onEdit={() => {}}
-        onDelete={() => {}}
-        onArchive={() => {}}
-        onViewDetail={() => {}}
-      />
-    ));
-  }
 
   it("renders the swatch with the column color", () => {
     const { container } = renderCard({
@@ -139,8 +117,10 @@ describe("TicketCard status swatch and herdr icon", () => {
     expect(swatch.classList).toContain("bg-destructive");
   });
 
-  it("renders the herdr icon when a status is provided", () => {
-    const { container } = renderCard({ herdrStatus: "working" });
+  it("renders the herdr icon when the ticket has a status", () => {
+    const { container } = renderCard({
+      herdrStatuses: { "t-1-test-ticket": "working" },
+    });
     const icon = container.querySelector('[data-testid="herdr-status-icon"]') as HTMLElement;
     expect(icon).toBeTruthy();
     expect(icon.getAttribute("data-herdr-status")).toBe("working");

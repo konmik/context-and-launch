@@ -33,14 +33,12 @@ import type { BoardState } from "~/core/board/board-types.js";
 import { errorPayload, type ErrorInfo } from "~/core/shared/errors.js";
 import type { ForestLayout } from "~/core/ticket/forest-layout-store.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
-import type { HerdrAgentStatus } from "~/core/herdr/herdr-client.js";
 
 interface ForestViewProps {
   board: BoardState;
   projectSlug: string;
   onViewDetail: (ticket: TicketInfo) => void;
   suggestedNextNumber?: string | null;
-  herdrStatuses?: Record<string, HerdrAgentStatus>;
 }
 
 interface GroupingDraft {
@@ -58,7 +56,6 @@ export default function ForestView(props: ForestViewProps) {
   const [createDialogOpen, setCreateDialogOpen] = createSignal(false);
   const connection = createForestConnection();
   const surfaceApis = new Map<string, ForestSurfaceApi>();
-  const herdrStatuses = () => props.herdrStatuses ?? {};
   let containerRef: HTMLDivElement | undefined;
 
   const tickets = createMemo<ForestTicket[]>(() => props.board.tickets.map(ticket => ({
@@ -230,7 +227,6 @@ export default function ForestView(props: ForestViewProps) {
     tickets: tickets(),
     layout: loadedLayout,
     columns: props.board.columns,
-    herdrStatuses: herdrStatuses(),
   });
 
   return (

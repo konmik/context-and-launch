@@ -2,15 +2,14 @@ import { Show } from "solid-js";
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem } from "../ui/menu";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { SwatchColumn } from "~/core/board/status-swatch.js";
-import type { HerdrAgentStatus } from "~/core/herdr/herdr-client.js";
 import StatusSwatch from "./StatusSwatch";
 import HerdrStatusIcon from "./HerdrStatusIcon";
+import { useHerdrStatuses } from "./herdr-statuses-context.js";
 
 interface TicketCardProps {
   ticket: TicketInfo;
   orphanedStatus?: string;
   columns: SwatchColumn[];
-  herdrStatus?: HerdrAgentStatus;
   onEdit: (ticket: TicketInfo) => void;
   onDelete: (ticket: TicketInfo) => void;
   onArchive: (ticket: TicketInfo) => void;
@@ -18,6 +17,7 @@ interface TicketCardProps {
 }
 
 export default function TicketCard(props: TicketCardProps) {
+  const herdrStatus = useHerdrStatuses();
   function handleCardClick(e: MouseEvent) {
     if ((e.target as HTMLElement).closest("[data-menu]")) return;
     props.onViewDetail(props.ticket);
@@ -38,7 +38,7 @@ export default function TicketCard(props: TicketCardProps) {
         <div class="flex min-w-0 items-center gap-1.5">
           <span class="text-sm font-medium text-primary">{props.ticket.number}</span>
           <StatusSwatch status={props.ticket.status} columns={props.columns} />
-          <Show when={props.herdrStatus}>
+          <Show when={herdrStatus(props.ticket.folderName)}>
             {(s) => <HerdrStatusIcon status={s()} />}
           </Show>
         </div>
