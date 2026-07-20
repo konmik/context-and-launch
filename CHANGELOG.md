@@ -5,15 +5,19 @@
 ### Highlights
 
 - Added Forest View, a pannable and zoomable dependency map with persistent ticket positions, dependency editing, grouping, nested sub-forests, selection, and automatic layout.
+
 ![ticket-tree-view.png](.github/ticket-tree-view.png)
 
 - Added Herdr integration, including agent launching, persistent ticket panes, agent restarts, live status indicators, and agent shutdown during ticket cleanup.
+
 ![herdr-integration.png](.github/herdr-integration.png)
 
 - Added multi-window support so projects can open in separate Electron windows and active project windows can be restored between sessions.
+
 ![multi-window.png](.github/multi-window.png)
 
 - Added ticket status color swatches and Herdr agent status icons to Kanban and Forest cards.
+
 ![card-with-statuses.png](.github/card-with-statuses.png)
 
 ### More
