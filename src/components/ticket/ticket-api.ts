@@ -10,7 +10,7 @@ import { WorktreeCleanupService } from "~/core/worktree/worktree-cleanup.js";
 import { resolveAgentWorktreeLocation } from "~/core/worktree/worktree-naming.js";
 import { runTicketCleanupChecks } from "~/core/worktree/ticket-cleanup-checks.js";
 import type { TicketCleanupStatus, TicketCleanupOptions } from "~/core/worktree/ticket-cleanup-checks.js";
-import { findHerdrAgent, stopHerdrAgent } from "~/core/launcher/herdr-control.js";
+import { findHerdrAgent, stopHerdrAgent } from "~/core/herdr/herdr-control.js";
 import { ValidationError, NotFoundError, errorMessage, errorPayload, errorResult } from "~/core/shared/errors.js";
 import type { ErrorInfo } from "~/core/shared/errors.js";
 import { resolveInitialTicketStatus } from "~/core/board/initial-ticket-status.js";
