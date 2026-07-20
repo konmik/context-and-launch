@@ -1,7 +1,7 @@
 {
   "number": "ST-0043",
   "title": "All CLI commands as templates",
-  "status": "done",
+  "status": "review",
   "useWorktree": true,
   "createdAt": "2026-07-16T22:02:56.248Z",
   "agentWorktreeBranchName": "st-0043-all-cli-commands-as-templates",

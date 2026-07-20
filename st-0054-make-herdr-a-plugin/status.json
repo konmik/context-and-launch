@@ -1,0 +1,10 @@
+{
+  "number": "ST-0054",
+  "title": "Make herdr a plugin",
+  "status": "todo",
+  "useWorktree": false,
+  "createdAt": "2026-07-20T01:48:47.582Z",
+  "dependsOn": [
+    "ST-0055"
+  ]
+}

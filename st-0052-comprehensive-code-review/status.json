@@ -1,0 +1,12 @@
+{
+  "number": "ST-0052",
+  "title": "Comprehensive code review",
+  "status": "todo",
+  "useWorktree": false,
+  "createdAt": "2026-07-20T01:43:58.573Z",
+  "dependsOn": [
+    "ST-0051",
+    "ST-0033",
+    "ST-0043"
+  ]
+}

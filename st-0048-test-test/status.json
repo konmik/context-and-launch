@@ -5,8 +5,5 @@
   "useWorktree": false,
   "createdAt": "2026-07-17T22:19:01.813Z",
   "agentWorktreeBranchName": "st-0048-test-test",
-  "agentWorktreeDir": "C:\\Users\\elkmo\\.context-launch\\projects\\ai-stages\\worktrees/st-0048-test-test",
-  "dependsOn": [
-    "ST-0033"
-  ]
+  "agentWorktreeDir": "C:\\Users\\elkmo\\.context-launch\\projects\\ai-stages\\worktrees/st-0048-test-test"
 }

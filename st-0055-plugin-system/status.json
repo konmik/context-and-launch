@@ -1,0 +1,10 @@
+{
+  "number": "ST-0055",
+  "title": "Plugin system",
+  "status": "todo",
+  "useWorktree": false,
+  "createdAt": "2026-07-20T01:49:02.685Z",
+  "dependsOn": [
+    "ST-0031"
+  ]
+}
