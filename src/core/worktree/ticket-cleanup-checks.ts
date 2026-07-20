@@ -25,6 +25,7 @@ export interface TicketCleanupCheckTarget {
 
 export interface TicketCleanupCheckDeps {
 	worktreeExists(worktreePath: string): boolean;
+	isGitWorktree(worktreePath: string): boolean;
 	isWorktreeClean(worktreePath: string): Promise<boolean>;
 	isWorktreeBusy(worktreePath: string): Promise<boolean>;
 	localBranchExists(projectPath: string, branchName: string): Promise<boolean>;
@@ -60,7 +61,8 @@ export async function runTicketCleanupChecks(
 		if (!deps.worktreeExists(target.worktreePath)) {
 			return { state: "blocked", reason: "No worktree" };
 		}
-		if (!await deps.isWorktreeClean(target.worktreePath)) {
+		if (deps.isGitWorktree(target.worktreePath)
+			&& !await deps.isWorktreeClean(target.worktreePath)) {
 			return { state: "blocked", reason: "Worktree has uncommitted changes" };
 		}
 		if (await deps.isWorktreeBusy(target.worktreePath)) {

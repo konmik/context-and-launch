@@ -1,5 +1,5 @@
 import fs from "fs";
-import { spawnDetached } from "./spawn-detached.js";
+import { runDetachedProcess } from "./platform-shell-runner.test-utils.js";
 
 const pidFile = process.argv[2];
 const mode = process.argv[3] ?? "idle";
@@ -25,7 +25,7 @@ if (mode === "powershell-grandchild") {
     `$p = Start-Process -FilePath '${process.execPath}' ` +
     "-ArgumentList '-e','setTimeout(function(){},30000)' -PassThru; " +
     `Set-Content -LiteralPath '${pidFile}' -Value $p.Id`;
-  await spawnDetached("powershell", ["-NoProfile", "-Command", psCommand], process.cwd(), detachDelayMs);
+  await runDetachedProcess("powershell", ["-NoProfile", "-Command", psCommand], process.cwd(), detachDelayMs);
   const deadline = Date.now() + 15000;
   while (!fs.existsSync(pidFile)) {
     if (Date.now() > deadline) throw new Error("powershell never wrote the grandchild pid file");
@@ -33,8 +33,8 @@ if (mode === "powershell-grandchild") {
   }
 } else if (mode === "writing") {
   if (!doneFile) throw new Error("doneFile argument is required for writing mode");
-  await spawnDetached(process.execPath, ["-e", writingScript, pidFile, doneFile], process.cwd(), detachDelayMs);
+  await runDetachedProcess(process.execPath, ["-e", writingScript, pidFile, doneFile], process.cwd(), detachDelayMs);
 } else {
-  await spawnDetached(process.execPath, ["-e", idleScript, pidFile], process.cwd(), detachDelayMs);
+  await runDetachedProcess(process.execPath, ["-e", idleScript, pidFile], process.cwd(), detachDelayMs);
 }
 process.exit(0);

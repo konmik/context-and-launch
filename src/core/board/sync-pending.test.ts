@@ -4,7 +4,8 @@ import path from 'path';
 import os from 'os';
 import { execSync } from 'child_process';
 import { checkHasPendingChanges, SyncPendingTracker } from './sync-pending.js';
-import { git } from '../infra/git.js';
+import { git } from '~/test-git.js';
+import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js';
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -29,6 +30,7 @@ async function addUpstream(dir: string): Promise<string> {
 
 describe('checkHasPendingChanges', () => {
 	const dirs: string[] = [];
+	const commands = createTestCommandTemplateService();
 
 	afterEach(() => {
 		for (const d of dirs) {
@@ -47,7 +49,7 @@ describe('checkHasPendingChanges', () => {
 		await initRepo(dir);
 		dirs.push(await addUpstream(dir));
 
-		expect(checkHasPendingChanges(dir)).toBe(false);
+		expect(checkHasPendingChanges(dir, commands)).toBe(false);
 	});
 
 	it('returns true when the tree has uncommitted changes', async () => {
@@ -57,7 +59,7 @@ describe('checkHasPendingChanges', () => {
 		dirs.push(await addUpstream(dir));
 		fs.writeFileSync(path.join(dir, 'dirty.txt'), 'uncommitted');
 
-		expect(checkHasPendingChanges(dir)).toBe(true);
+		expect(checkHasPendingChanges(dir, commands)).toBe(true);
 	});
 
 	it('returns true when a commit has not been pushed', async () => {
@@ -69,7 +71,7 @@ describe('checkHasPendingChanges', () => {
 		await git(dir, 'add', '-A');
 		await git(dir, 'commit', '-m', 'unpushed');
 
-		expect(checkHasPendingChanges(dir)).toBe(true);
+		expect(checkHasPendingChanges(dir, commands)).toBe(true);
 	});
 
 	it('returns false when unpushed commits net to zero against upstream', async () => {
@@ -85,7 +87,7 @@ describe('checkHasPendingChanges', () => {
 		await git(dir, 'add', '-A');
 		await git(dir, 'commit', '-m', 'revert');
 
-		expect(checkHasPendingChanges(dir)).toBe(false);
+		expect(checkHasPendingChanges(dir, commands)).toBe(false);
 	});
 
 	it('returns true when no upstream is configured', async () => {
@@ -93,7 +95,7 @@ describe('checkHasPendingChanges', () => {
 		dirs.push(dir);
 		await initRepo(dir);
 
-		expect(checkHasPendingChanges(dir)).toBe(true);
+		expect(checkHasPendingChanges(dir, commands)).toBe(true);
 	});
 });
 

@@ -1,4 +1,4 @@
-import { gitSync } from "../infra/git.js";
+import type { CommandTemplateExecutor } from '../command-template/command-template-types.js';
 
 export class SyncPendingTracker {
 	private versions = new Map<string, number>();
@@ -24,15 +24,18 @@ export class SyncPendingTracker {
 	}
 }
 
-export function checkHasPendingChanges(worktreeDir: string): boolean {
+export function checkHasPendingChanges(
+	worktreeDir: string,
+	commands: CommandTemplateExecutor,
+): boolean {
 	try {
-		gitSync(worktreeDir, "diff", "--quiet", "@{u}");
+		commands.executeSync('git.sync-pending.tracked-probe', worktreeDir);
 	} catch {
 		return true;
 	}
 
 	try {
-		const untracked = gitSync(worktreeDir, "ls-files", "--others", "--exclude-standard").trim();
+		const untracked = commands.executeSync('git.sync-pending.untracked', worktreeDir).trim();
 		return untracked.length > 0;
 	} catch {
 		return true;

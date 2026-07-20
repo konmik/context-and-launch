@@ -1,6 +1,6 @@
 import path from 'path';
 import chokidar, { type FSWatcher } from 'chokidar';
-import { gitSync } from './git.js';
+import type { CommandTemplateExecutor } from '../command-template/command-template-types.js';
 
 function isDotPathInside(worktreeDir: string, filePath: string): boolean {
 	const relative = path.relative(worktreeDir, filePath);
@@ -15,7 +15,10 @@ interface WatcherState {
 export class FileWatcher {
 	private watchers = new Map<string, WatcherState>();
 
-	constructor(private readonly onWorktreeChange?: (worktreeDir: string) => void) {}
+	constructor(
+		private readonly commands: CommandTemplateExecutor,
+		private readonly onWorktreeChange?: (worktreeDir: string) => void,
+	) {}
 
 	watch(worktreeDir: string, debounceMs = 2000): void {
 		if (this.watchers.has(worktreeDir)) return;
@@ -43,10 +46,10 @@ export class FileWatcher {
 			current.timer = setTimeout(() => {
 				if (!this.watchers.has(worktreeDir)) return;
 				try {
-					gitSync(worktreeDir, 'add', '-A');
-					const status = gitSync(worktreeDir, 'status', '--porcelain');
+					this.commands.executeSync('git.stage-all', worktreeDir);
+					const status = this.commands.executeSync('git.status', worktreeDir);
 					if (status.trim()) {
-						gitSync(worktreeDir, 'commit', '-m', 'auto: external changes');
+						this.commands.executeSync('git.commit', worktreeDir, { message: 'auto: external changes' });
 					}
 				} catch (err) {
 					console.warn(`FileWatcher: auto-commit failed for ${worktreeDir}:`, err);
@@ -64,7 +67,7 @@ export class FileWatcher {
 		// content by chokidar and never produce events; commit them on ready.
 		watcher.on('ready', () => {
 			try {
-				if (gitSync(worktreeDir, 'status', '--porcelain').trim()) {
+				if (this.commands.executeSync('git.status', worktreeDir).trim()) {
 					debouncedCommit();
 				}
 			} catch (err) {

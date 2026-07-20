@@ -6,6 +6,7 @@ import { execSync, spawn, type ChildProcess } from 'child_process';
 import { AgentWorktreeManager } from './agent-worktree.js';
 import { LauncherConfigManager } from '../launcher/launcher-config.js';
 import { ConfigPaths } from '../config/config-paths.js';
+import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js';
 import { WorktreeCleanupService } from './worktree-cleanup.js';
 
 function tmpDir(prefix: string): string {
@@ -56,7 +57,7 @@ describe('WorktreeCleanupService', () => {
 			worktreeRootPath: worktreeRoot,
 		});
 
-		const awm = new AgentWorktreeManager(lcm);
+		const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService());
 		const service = new WorktreeCleanupService(awm);
 		return { configDir, projectDir, worktreeRoot, lcm, awm, service };
 	}
@@ -79,6 +80,24 @@ describe('WorktreeCleanupService', () => {
 			'git branch --list st-cleanup-both', { cwd: projectDir, timeout: 5000 },
 		).toString();
 		expect(branchList.trim()).toBe('');
+	});
+
+	it('cleanup removes a folder that is no longer a git worktree', async () => {
+		const { projectDir, awm, service } = setup();
+		const folderName = 'st-cleanup-notgit';
+		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', folderName);
+		expect('worktreePath' in result).toBe(true);
+		if (!('worktreePath' in result)) return;
+
+		fs.rmSync(path.join(result.worktreePath, '.git'));
+
+		await service.cleanup(projectDir, folderName, result.worktreePath, {
+			deleteWorktree: true,
+			deleteLocalBranch: false,
+			deleteRemoteBranch: false,
+		});
+
+		expect(fs.existsSync(result.worktreePath)).toBe(false);
 	});
 
 	it('cleanup with dirty worktree throws and changes nothing', async () => {

@@ -4,7 +4,8 @@ import path from 'path';
 import os from 'os';
 import { WorktreeManager } from './worktree-manager.js';
 import { ConfigPaths } from '../config/config-paths.js';
-import { git } from '../infra/git.js';
+import { git } from '~/test-git.js';
+import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js';
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -49,7 +50,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'init');
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
-		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const manager = new WorktreeManager(new ConfigPaths(configDir), createTestCommandTemplateService());
 		const worktreeDir = await manager.ensureWorktree(projectDir, 'test-project');
 		worktreeCleanups.push([projectDir, worktreeDir]);
 
@@ -71,7 +72,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'init');
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
-		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const manager = new WorktreeManager(new ConfigPaths(configDir), createTestCommandTemplateService());
 		const worktreeDir = await manager.ensureWorktree(projectDir, 'custom-project', 'tickets');
 		worktreeCleanups.push([projectDir, worktreeDir]);
 
@@ -89,7 +90,9 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'init');
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
-		const manager = new WorktreeManager(new ConfigPaths(configDir), () => customDir);
+		const manager = new WorktreeManager(
+			new ConfigPaths(configDir), createTestCommandTemplateService(), () => customDir,
+		);
 		expect(manager.getWorktreeDir('any-project')).toBe(customDir);
 
 		const worktreeDir = await manager.ensureWorktree(projectDir, 'any-project', 'tickets');
@@ -117,7 +120,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 		await git(projectDir, 'remote', 'add', 'origin', remoteDir);
 
-		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const manager = new WorktreeManager(new ConfigPaths(configDir), createTestCommandTemplateService());
 		const worktreeDir = await manager.ensureWorktree(projectDir, 'remote-project', 'tickets');
 		worktreeCleanups.push([projectDir, worktreeDir]);
 
@@ -140,7 +143,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 		await git(projectDir, 'remote', 'add', 'origin', path.join(projectDir, 'does-not-exist'));
 
-		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const manager = new WorktreeManager(new ConfigPaths(configDir), createTestCommandTemplateService());
 		const worktreeDir = await manager.ensureWorktree(projectDir, 'unreachable-project', 'tickets');
 		worktreeCleanups.push([projectDir, worktreeDir]);
 
@@ -161,7 +164,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 		await git(projectDir, 'remote', 'add', 'origin', remoteDir);
 
-		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const manager = new WorktreeManager(new ConfigPaths(configDir), createTestCommandTemplateService());
 		const worktreeDir = await manager.ensureWorktree(projectDir, 'no-remote-project', 'tickets');
 		worktreeCleanups.push([projectDir, worktreeDir]);
 
@@ -179,7 +182,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'init');
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
-		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const manager = new WorktreeManager(new ConfigPaths(configDir), createTestCommandTemplateService());
 		const first = await manager.ensureWorktree(projectDir, 'test-project');
 		worktreeCleanups.push([projectDir, first]);
 		const second = await manager.ensureWorktree(projectDir, 'test-project');
@@ -199,7 +202,7 @@ describe('WorktreeManager', () => {
 
 		const branchBefore = (await git(projectDir, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
 
-		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const manager = new WorktreeManager(new ConfigPaths(configDir), createTestCommandTemplateService());
 		const wt = await manager.ensureWorktree(projectDir, 'safe-project');
 		worktreeCleanups.push([projectDir, wt]);
 
@@ -220,7 +223,7 @@ describe('WorktreeManager', () => {
 		const commitHash = (await git(projectDir, 'rev-parse', 'HEAD')).trim();
 		await git(projectDir, 'checkout', '--detach');
 
-		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const manager = new WorktreeManager(new ConfigPaths(configDir), createTestCommandTemplateService());
 		const wt = await manager.ensureWorktree(projectDir, 'detach-project');
 		worktreeCleanups.push([projectDir, wt]);
 
@@ -240,12 +243,12 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'init');
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
-		const staleManager = new WorktreeManager(new ConfigPaths(staleConfigDir));
+		const staleManager = new WorktreeManager(new ConfigPaths(staleConfigDir), createTestCommandTemplateService());
 		const staleWt = await staleManager.ensureWorktree(projectDir, 'ai-stages', 'tickets');
 		worktreeCleanups.push([projectDir, staleWt]);
 		expect(fs.existsSync(staleWt)).toBe(true);
 
-		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const manager = new WorktreeManager(new ConfigPaths(configDir), createTestCommandTemplateService());
 		await expect(
 			manager.ensureWorktree(projectDir, 'ai-stages', 'tickets')
 		).rejects.toThrow(/already checked out at/);
@@ -261,7 +264,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'init');
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
-		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const manager = new WorktreeManager(new ConfigPaths(configDir), createTestCommandTemplateService());
 		const worktreeDir = await manager.ensureWorktree(projectDir, 'stale-project');
 		worktreeCleanups.push([projectDir, worktreeDir]);
 		expect(fs.existsSync(worktreeDir)).toBe(true);
@@ -295,7 +298,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'init');
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
-		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const manager = new WorktreeManager(new ConfigPaths(configDir), createTestCommandTemplateService());
 		const [a, b] = await Promise.all([
 			manager.ensureWorktree(projectDir, 'concurrent-project'),
 			manager.ensureWorktree(projectDir, 'concurrent-project')
@@ -315,7 +318,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'init');
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
-		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const manager = new WorktreeManager(new ConfigPaths(configDir), createTestCommandTemplateService());
 		const projectsDir = path.join(configDir, 'projects', 'partial-project');
 		const worktreeDir = path.join(projectsDir, 'tickets');
 
@@ -343,7 +346,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'init');
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
-		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const manager = new WorktreeManager(new ConfigPaths(configDir), createTestCommandTemplateService());
 		const worktreeDir = await manager.ensureWorktree(projectDir, 'dotgit-missing-project');
 		worktreeCleanups.push([projectDir, worktreeDir]);
 		expect(fs.existsSync(path.join(worktreeDir, '.git'))).toBe(true);
@@ -361,7 +364,7 @@ describe('WorktreeManager', () => {
 		const configDir = tmpDir('wt-config-');
 		dirs.push(configDir);
 
-		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const manager = new WorktreeManager(new ConfigPaths(configDir), createTestCommandTemplateService());
 		await expect(
 			manager.ensureWorktree('/nonexistent/path/that/does/not/exist', 'bad-project')
 		).rejects.toThrow('Project path does not exist');
@@ -371,7 +374,7 @@ describe('WorktreeManager', () => {
 		const configDir = tmpDir('wt-config-');
 		dirs.push(configDir);
 
-		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const manager = new WorktreeManager(new ConfigPaths(configDir), createTestCommandTemplateService());
 		const projectSlug = 'nonexistent-project';
 
 		let result: string | undefined;
@@ -389,7 +392,7 @@ describe('WorktreeManager', () => {
 		const configDir = tmpDir('wt-config-');
 		dirs.push(configDir);
 
-		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const manager = new WorktreeManager(new ConfigPaths(configDir), createTestCommandTemplateService());
 
 		// All of these projectSlugs contain path traversal or separators and must be rejected
 		const maliciousProjectSlugs = [
@@ -420,7 +423,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'init');
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
-		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const manager = new WorktreeManager(new ConfigPaths(configDir), createTestCommandTemplateService());
 		const projectsDir = path.join(configDir, 'projects', 'broken-project');
 		const worktreeDir = path.join(projectsDir, 'tickets');
 
@@ -442,7 +445,7 @@ describe('WorktreeManager', () => {
 		await git(projectDir, 'init');
 		await git(projectDir, 'commit', '--allow-empty', '-m', 'init');
 
-		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const manager = new WorktreeManager(new ConfigPaths(configDir), createTestCommandTemplateService());
 		const worktreeDir = await manager.ensureWorktree(projectDir, 'prune-fail-project');
 		worktreeCleanups.push([projectDir, worktreeDir]);
 
@@ -464,7 +467,7 @@ describe('WorktreeManager', () => {
 
 		// projectDir exists but is NOT a git repo, so doEnsureWorktree will fail
 		// when it tries to run `git branch --list`.
-		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const manager = new WorktreeManager(new ConfigPaths(configDir), createTestCommandTemplateService());
 
 		const DEADLOCK_MS = 5000;
 
@@ -516,7 +519,7 @@ describe('WorktreeManager', () => {
 		await git(projectB, 'init');
 		await git(projectB, 'commit', '--allow-empty', '-m', 'init B');
 
-		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const manager = new WorktreeManager(new ConfigPaths(configDir), createTestCommandTemplateService());
 		const projectSlug = 'colliding-project';
 
 		// Call ensureWorktree concurrently from two different projects with the same projectSlug.

@@ -24,6 +24,8 @@ import {
 	type LauncherSettingsController,
 } from "./launcher-settings-state.js";
 import ErrorDialog from "../shared/ErrorDialog.js";
+import { createCommandTemplateSettingsState } from './command-template-settings-state.js';
+import { CommandTemplatesTab } from './launcher-settings-command-templates-tab.js';
 
 interface LauncherSettingsProps {
 	open: boolean;
@@ -35,6 +37,7 @@ interface LauncherSettingsProps {
 
 export default function LauncherSettings(props: LauncherSettingsProps) {
 	const s = props.ctrl ?? createLauncherSettingsState(props);
+	const commandTemplates = createCommandTemplateSettingsState(props);
 
 	useModEnterSubmit({
 		onSubmit: s.submitForm,
@@ -110,6 +113,10 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 								data-testid="launcher-settings-tab-prompts"
 							>Prompt Templates</TabsTrigger>
 							<TabsTrigger
+								value="command-templates"
+								data-testid="launcher-settings-tab-command-templates"
+							>Command Templates</TabsTrigger>
+							<TabsTrigger
 								value="misc"
 								data-testid="launcher-settings-tab-misc"
 							>Misc</TabsTrigger>
@@ -175,6 +182,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 										/>
 									</>)}
 								</Show>
+								<CommandTemplatesTab controller={commandTemplates} />
 							</div>
 			</FloatingPanelBody>
 		</TabsRoot>
@@ -236,5 +244,9 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 			onConfirm={s.handleSetProjectBoard}
 		/>
 		<ErrorDialog error={s.error()} onClose={() => s.setError(null)} />
+		<ErrorDialog
+			error={commandTemplates.error()}
+			onClose={() => commandTemplates.setError(null)}
+		/>
 	</>);
 }

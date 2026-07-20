@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { git } from '../infra/git.js';
+import { git } from '~/test-git.js';
 
 export function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));

@@ -2,7 +2,7 @@ import fs from "fs";
 import {
   worktreeManager, boardConfigManager, projectRegistry,
   operationTracker, ticketSyncManager, syncPendingTracker,
-  launcherConfigManager, agentWorktreeManager, fileWatcher,
+  launcherConfigManager, agentWorktreeManager, fileWatcher, herdrExec,
 } from "~/core/config/instances.js";
 import { TicketStore } from "~/core/ticket/ticket-store.js";
 import { extractPrefixFromInput } from "~/core/ticket/ticket-number.js";
@@ -258,6 +258,7 @@ export async function getCleanupStatus(
     },
     {
       worktreeExists: (worktreePath) => fs.existsSync(worktreePath),
+      isGitWorktree: (worktreePath) => agentWorktreeManager.isGitWorktree(worktreePath),
       isWorktreeClean: (worktreePath) => agentWorktreeManager.isWorktreeClean(worktreePath),
       isWorktreeBusy: (worktreePath) => agentWorktreeManager.isWorktreeBusy(worktreePath),
       localBranchExists: (projectPath, branchName) =>
@@ -266,7 +267,7 @@ export async function getCleanupStatus(
         agentWorktreeManager.isBranchMerged(projectPath, branchName, mainBranch),
       hasRemoteBranch: (projectPath, branchName) =>
         agentWorktreeManager.hasRemoteBranch(projectPath, branchName),
-      findHerdrAgent,
+      findHerdrAgent: (target) => findHerdrAgent(target, herdrExec),
     },
   );
 }
@@ -282,14 +283,14 @@ export async function worktreeCleanup(
     if (options.stopHerdrAgent) {
       const found = await findHerdrAgent({
         projectSlug, folderName, agentWorktreePath: worktreePath,
-      });
+      }, herdrExec);
       if (found.kind === "herdr-missing") {
         throw new ValidationError("Herdr is not installed or is not available on PATH.");
       }
       if (found.kind === "no-agent") {
         throw new ValidationError(`No Herdr agent found for ticket '${folderName}'.`);
       }
-      await stopHerdrAgent(found.paneId);
+      await stopHerdrAgent(found.paneId, herdrExec);
     }
     await new WorktreeCleanupService(agentWorktreeManager).cleanup(
       project.path, branchName, worktreePath,

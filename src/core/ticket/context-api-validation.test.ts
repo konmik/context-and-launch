@@ -4,7 +4,7 @@ import path from 'path';
 import os from 'os';
 import { errorMessage } from '../shared/errors.js';
 import { TicketStore } from './ticket-store.js';
-import { git } from '../infra/git.js';
+import { git } from '~/test-git.js';
 
 /**
  * Tests that non-JSON request bodies to the context PUT endpoint produce

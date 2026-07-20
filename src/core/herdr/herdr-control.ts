@@ -1,6 +1,7 @@
 import path from "path";
+import { ProcessError } from "../shared/errors.js";
 import {
-	execHerdr, listHerdrAgents, listHerdrWorkspaces,
+	listHerdrAgents, listHerdrWorkspaces,
 	type HerdrAgent, type HerdrExecFn,
 } from "./herdr-exec.js";
 
@@ -17,9 +18,8 @@ export interface HerdrAgentTarget {
 	agentWorktreePath: string;
 }
 
-function hasEnoentCode(err: unknown): boolean {
-	return typeof err === "object" && err !== null
-		&& (err as { code?: unknown }).code === "ENOENT";
+function isHerdrMissing(err: unknown): boolean {
+	return err instanceof ProcessError && err.kind === "command-not-found";
 }
 
 function normalizePath(value: string): string {
@@ -39,13 +39,13 @@ function agentBelongsToTarget(agent: HerdrAgent, target: HerdrAgentTarget): bool
 
 export async function findHerdrAgent(
 	target: HerdrAgentTarget,
-	exec: HerdrExecFn = execHerdr,
+	exec: HerdrExecFn,
 ): Promise<FindHerdrAgentResult> {
 	let workspaces;
 	try {
 		workspaces = await listHerdrWorkspaces(exec);
 	} catch (err) {
-		if (hasEnoentCode(err)) return { kind: "herdr-missing" };
+		if (isHerdrMissing(err)) return { kind: "herdr-missing" };
 		throw err;
 	}
 
@@ -78,6 +78,6 @@ export async function findHerdrAgent(
 	return { kind: "agent", paneId: agent.pane_id, agentStatus: agent.agent_status ?? "unknown" };
 }
 
-export async function stopHerdrAgent(paneId: string, exec: HerdrExecFn = execHerdr): Promise<void> {
-	await exec(["pane", "close", paneId]);
+export async function stopHerdrAgent(paneId: string, exec: HerdrExecFn): Promise<void> {
+	await exec('herdr.agent.stop', { paneId });
 }

@@ -3,7 +3,9 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { TicketSyncManager } from './ticket-sync.js';
-import { git } from '../infra/git.js';
+import { GitRepository } from '../infra/git-repository.js';
+import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js';
+import { git } from '~/test-git.js';
 import { checkHasPendingChanges } from '../board/sync-pending.js';
 import { setAppLogListener } from '../infra/app-logger.js';
 import {
@@ -14,6 +16,11 @@ describe('TicketSyncManager', () => {
 	const dirs: string[] = [];
 	afterEach(() => { cleanup(...dirs); dirs.length = 0; });
 
+	function createTicketSyncManager(): TicketSyncManager {
+		const commands = createTestCommandTemplateService();
+		return new TicketSyncManager(commands, new GitRepository(commands));
+	}
+
 	it('hasRemote returns false when no remote is configured', async () => {
 		const dir = tmpDir('sync-noremote-');
 		dirs.push(dir);
@@ -22,7 +29,7 @@ describe('TicketSyncManager', () => {
 		await git(dir, 'config', 'user.name', 'Test');
 		await git(dir, 'commit', '--allow-empty', '-m', 'init');
 
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		expect(await manager.hasRemote(dir)).toBe(false);
 	});
 
@@ -38,7 +45,7 @@ describe('TicketSyncManager', () => {
 		await git(dir, 'commit', '--allow-empty', '-m', 'init');
 		await git(dir, 'remote', 'add', 'origin', remoteDir);
 
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		expect(await manager.hasRemote(dir)).toBe(true);
 	});
 
@@ -46,7 +53,7 @@ describe('TicketSyncManager', () => {
 		const { worktreeDir, remoteDir } = await createRepoWithRemote();
 		dirs.push(worktreeDir, remoteDir);
 
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		expect(await manager.hasRemote(worktreeDir)).toBe(true);
 	});
 
@@ -57,7 +64,7 @@ describe('TicketSyncManager', () => {
 		// Create local changes
 		fs.writeFileSync(path.join(worktreeDir, 'local.txt'), 'local content');
 
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		const result = await manager.sync(worktreeDir);
 
 		expect(result.status).toBe('success');
@@ -85,7 +92,7 @@ describe('TicketSyncManager', () => {
 
 		fs.writeFileSync(path.join(worktreeDir, 'c.txt'), 'c');
 
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		const result = await manager.sync(worktreeDir);
 		expect(result.status).toBe('success');
 
@@ -109,7 +116,7 @@ describe('TicketSyncManager', () => {
 		await git(worktreeDir, 'add', '-A');
 		await git(worktreeDir, 'commit', '-m', 'auto: external changes');
 
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		const result = await manager.sync(worktreeDir);
 
 		expect(result).toEqual({ status: 'success' });
@@ -122,7 +129,7 @@ describe('TicketSyncManager', () => {
 		const { worktreeDir, remoteDir } = await createRepoWithRemote();
 		dirs.push(worktreeDir, remoteDir);
 
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		const result = await manager.sync(worktreeDir);
 
 		expect(result.status).toBe('success');
@@ -137,7 +144,7 @@ describe('TicketSyncManager', () => {
 
 		const baseCommit = (await git(worktreeDir, 'rev-parse', 'HEAD')).trim();
 
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		const result = await manager.sync(worktreeDir);
 
 		expect(result.status).toBe('conflict');
@@ -166,7 +173,7 @@ describe('TicketSyncManager', () => {
 			'{\n<<<<<<< HEAD\n  "status": "done"\n=======\n  "status": "in-progress"\n>>>>>>> other\n}\n',
 		);
 
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		const result = await manager.sync(worktreeDir);
 
 		expect(result.status).toBe('error');
@@ -215,7 +222,7 @@ describe('TicketSyncManager', () => {
 	it('sync with no upstream adopts remote history and preserves remote-only files', async () => {
 		const { worktreeDir } = await createNoUpstreamRepoWithExistingRemoteBranch();
 
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		const result = await manager.sync(worktreeDir);
 		expect(result.status).toBe('success');
 
@@ -228,7 +235,7 @@ describe('TicketSyncManager', () => {
 	it('sync with no upstream against an existing remote branch pushes local changes and clears pending', async () => {
 		const { worktreeDir, remoteDir } = await createNoUpstreamRepoWithExistingRemoteBranch();
 
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		const result = await manager.sync(worktreeDir);
 		expect(result).toEqual({ status: 'success' });
 
@@ -237,16 +244,16 @@ describe('TicketSyncManager', () => {
 		expect((await git(worktreeDir, 'rev-parse', 'HEAD')).trim()).toBe(remoteHead);
 		expect(await git(remoteDir, 'show', 'master:local-only.txt')).toBe('from local');
 		expect(await git(remoteDir, 'show', 'master:remote-only.txt')).toBe('from remote');
-		expect(checkHasPendingChanges(worktreeDir)).toBe(false);
+		expect(checkHasPendingChanges(worktreeDir, createTestCommandTemplateService())).toBe(false);
 	});
 
 	it('sync with no upstream preserves an edit written while the rejected push round-trips', async () => {
 		const { worktreeDir, remoteDir } = await createNoUpstreamRepoWithExistingRemoteBranch();
 
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		let injected = false;
-		setAppLogListener((_cat, msg) => {
-			if (!injected && /fetch origin/.test(msg)) {
+		setAppLogListener((_cat, _msg, context) => {
+			if (!injected && context?.commandTemplateKey === 'ticket-sync.fetch-origin') {
 				injected = true;
 				fs.writeFileSync(path.join(worktreeDir, 'local-only.txt'), 'concurrent edit');
 			}
@@ -269,7 +276,7 @@ describe('TicketSyncManager', () => {
 	});
 
 	it('hasRemote with non-existent directory throws instead of silently returning false', async () => {
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		const bogusDir = path.join(os.tmpdir(), 'does-not-exist-' + Date.now());
 
 		await expect(manager.hasRemote(bogusDir)).rejects.toThrow();
@@ -285,7 +292,7 @@ describe('TicketSyncManager', () => {
 		await git(worktreeDir, 'commit', '-m', 'local change');
 		await git(worktreeDir, 'fetch');
 
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		await expect(git(worktreeDir, 'rebase', 'origin/master')).rejects.toThrow();
 		expect(manager.hasActiveRebase(worktreeDir)).toBe(true);
 
@@ -299,7 +306,7 @@ describe('TicketSyncManager', () => {
 		const { worktreeDir, remoteDir } = await createRepoWithRemote();
 		dirs.push(worktreeDir, remoteDir);
 
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		expect(manager.hasActiveRebase(worktreeDir)).toBe(false);
 		await expect(manager.abort(worktreeDir)).resolves.toBeUndefined();
 		expect(manager.hasActiveRebase(worktreeDir)).toBe(false);
@@ -312,7 +319,7 @@ describe('TicketSyncManager', () => {
 		await pushRemoteConflict(remoteDir, dirs);
 		fs.writeFileSync(path.join(worktreeDir, 'conflict.txt'), 'local content');
 
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		expect((await manager.sync(worktreeDir)).status).toBe('conflict');
 		const liveHead = (await git(worktreeDir, 'rev-parse', 'HEAD')).trim();
 
@@ -335,7 +342,7 @@ describe('TicketSyncManager', () => {
 		await pushRemoteConflict(remoteDir, dirs);
 		fs.writeFileSync(path.join(worktreeDir, 'conflict.txt'), 'local content');
 
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		await manager.sync(worktreeDir);
 		const plan = await manager.prepareResolution(worktreeDir);
 
@@ -369,7 +376,7 @@ describe('TicketSyncManager', () => {
 		await pushRemoteConflict(remoteDir, dirs);
 		fs.writeFileSync(path.join(worktreeDir, 'conflict.txt'), 'local content');
 
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		await manager.sync(worktreeDir);
 		const plan = await manager.prepareResolution(worktreeDir);
 
@@ -399,7 +406,7 @@ describe('TicketSyncManager', () => {
 		await pushRemoteConflict(remoteDir, dirs);
 		fs.writeFileSync(path.join(worktreeDir, 'conflict.txt'), 'local content');
 
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		await manager.sync(worktreeDir);
 		const plan = await manager.prepareResolution(worktreeDir);
 		expect(manager.isResolving(worktreeDir)).toBe(true);
@@ -421,7 +428,7 @@ describe('TicketSyncManager', () => {
 		await pushRemoteConflict(remoteDir, dirs);
 		fs.writeFileSync(path.join(worktreeDir, 'conflict.txt'), 'local content');
 
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		await manager.sync(worktreeDir);
 		await manager.prepareResolution(worktreeDir);
 
@@ -435,7 +442,7 @@ describe('TicketSyncManager', () => {
 		await pushRemoteConflict(remoteDir, dirs);
 		fs.writeFileSync(path.join(worktreeDir, 'conflict.txt'), 'local content');
 
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		await manager.sync(worktreeDir);
 		const liveHead = (await git(worktreeDir, 'rev-parse', 'HEAD')).trim();
 		const plan = await manager.prepareResolution(worktreeDir);
@@ -468,7 +475,7 @@ describe('TicketSyncManager', () => {
 		);
 		fs.chmodSync(hookPath, 0o755);
 
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		const result = await manager.sync(worktreeDir);
 
 		expect(fs.existsSync(path.join(remoteDir, 'hook-ran'))).toBe(true);
@@ -493,10 +500,13 @@ describe('TicketSyncManager', () => {
 
 		await pushRemoteConflict(remoteDir, dirs);
 
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		let injected = false;
-		setAppLogListener((_cat, msg) => {
-			if (!injected && /reset --hard|merge --ff-only/.test(msg)) {
+		setAppLogListener((_cat, _msg, context) => {
+			if (!injected && (
+				context?.commandTemplateKey === 'ticket-sync.reset-hard'
+				|| context?.commandTemplateKey === 'ticket-sync.fast-forward'
+			)) {
 				injected = true;
 				fs.writeFileSync(path.join(worktreeDir, 'ticket.txt'), 'concurrent edit');
 			}
@@ -537,7 +547,7 @@ describe('TicketSyncManager', () => {
 		await git(clone2, 'commit', '-m', 'remote change');
 		await git(clone2, 'push');
 
-		const manager = new TicketSyncManager();
+		const manager = createTicketSyncManager();
 		const plan = await manager.prepareResolution(worktreeDir);
 
 		expect(plan.needsAgent).toBe(false);

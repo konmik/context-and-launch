@@ -18,6 +18,7 @@ const target: TicketCleanupCheckTarget = {
 function makeDeps(overrides: Partial<TicketCleanupCheckDeps> = {}): TicketCleanupCheckDeps {
 	return {
 		worktreeExists: () => true,
+		isGitWorktree: () => true,
 		isWorktreeClean: async () => true,
 		isWorktreeBusy: async () => false,
 		localBranchExists: async () => true,
@@ -73,6 +74,16 @@ describe("runTicketCleanupChecks", () => {
 		expect(status.deleteWorktree).toEqual({
 			state: "blocked", reason: "Worktree has uncommitted changes",
 		});
+	});
+
+	it("keeps deleteWorktree ready when the folder is no longer a git worktree", async () => {
+		const isWorktreeClean = vi.fn(async () => true);
+		const status = await runTicketCleanupChecks(target, makeDeps({
+			isGitWorktree: () => false,
+			isWorktreeClean,
+		}));
+		expect(status.deleteWorktree).toEqual({ state: "ready" });
+		expect(isWorktreeClean).not.toHaveBeenCalled();
 	});
 
 	it("mentions the running agent when a busy worktree also has an agent", async () => {

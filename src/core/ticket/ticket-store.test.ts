@@ -4,7 +4,7 @@ import path from 'path';
 import os from 'os';
 import { TicketStore, toKebabCase } from './ticket-store.js';
 import { ForestLayoutStore } from './forest-layout-store.js';
-import { git, gitSync } from '../infra/git.js';
+import { git, gitSync } from '~/test-git.js';
 import { ValidationError } from '../shared/errors.js';
 
 function tmpDir(prefix: string): string {

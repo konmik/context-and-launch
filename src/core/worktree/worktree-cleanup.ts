@@ -26,9 +26,11 @@ export class WorktreeCleanupService {
 		configuredBranch?: string,
 	): Promise<void> {
 		if (options.deleteWorktree) {
-			const clean = await this.agentWorktreeManager.isWorktreeClean(worktreePath);
-			if (!clean) {
-				throw new Error('Worktree has uncommitted changes. Commit or discard them before cleanup.');
+			if (this.agentWorktreeManager.isGitWorktree(worktreePath)) {
+				const clean = await this.agentWorktreeManager.isWorktreeClean(worktreePath);
+				if (!clean) {
+					throw new Error('Worktree has uncommitted changes. Commit or discard them before cleanup.');
+				}
 			}
 			const busy = await this.agentWorktreeManager.isWorktreeBusy(worktreePath);
 			if (busy) {

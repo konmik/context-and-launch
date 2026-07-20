@@ -26,11 +26,19 @@ export async function createServer(opts: CreateServerOptions = {}): Promise<Test
   const startPort = pickPort();
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), opts.dataDirPrefix ?? "cl-e2e-data-"));
   const reposParentDir = fs.mkdtempSync(path.join(os.tmpdir(), "cl-e2e-repos-"));
+  fs.mkdirSync(path.join(dataDir, "config"), { recursive: true });
+  fs.writeFileSync(
+    path.join(dataDir, "config", "command-templates.json"),
+    JSON.stringify({
+      "herdr.workspace.list": "herdr-e2e-not-installed workspace list",
+      "herdr.agent.list": "herdr-e2e-not-installed agent list",
+      "herdr.agent.stop": "herdr-e2e-not-installed pane close {{paneId}}",
+    }, null, 2),
+  );
   const safeEnv: NodeJS.ProcessEnv = {
     CONTEXT_PICKER_STUB: "__cancel__",
     CONTEXT_FILE_PICKER_STUB: "__cancel__",
     CONTEXT_OPEN_IN_OS_STUB: "__noop__",
-    CONTEXT_HERDR_COMMAND: "herdr-e2e-not-installed",
     ...(opts.env ?? {}),
   };
   const server = await startRealServer(startPort, dataDir, safeEnv);
@@ -378,7 +386,8 @@ export async function openLauncherSettings(page: Page): Promise<void> {
   });
 }
 
-export type LauncherSettingsTab = "misc" | "prompts" | "launch" | "columns";
+export type LauncherSettingsTab =
+  | "misc" | "prompts" | "launch" | "columns" | "command-templates";
 
 export async function openLauncherSettingsTab(page: Page, name: LauncherSettingsTab): Promise<void> {
   await page.click(`[data-testid="launcher-settings-tab-${name}"]`);
@@ -387,6 +396,7 @@ export async function openLauncherSettingsTab(page: Page, name: LauncherSettings
     prompts: "launcher-settings-skills-add-button",
     misc: "launcher-settings-misc-project-name-input",
     columns: "launcher-settings-columns-board-selector",
+    "command-templates": "command-template-list",
   };
   await page.waitForSelector(`[data-testid="${contentTestId[name]}"]`, {
     state: "visible",

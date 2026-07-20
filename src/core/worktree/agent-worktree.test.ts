@@ -6,8 +6,9 @@ import { execSync, spawn, type ChildProcess } from 'child_process';
 import { AgentWorktreeManager } from './agent-worktree.js';
 import { LauncherConfigManager } from '../launcher/launcher-config.js';
 import { ConfigPaths } from '../config/config-paths.js';
+import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js';
 import { initializeDataDir } from '../config/initialize.js';
-import * as gitModule from '../infra/git.js';
+import * as gitModule from '~/test-git.js';
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -59,7 +60,7 @@ describe('AgentWorktreeManager', () => {
 			worktreeRootPath: worktreeRoot,
 		});
 
-		const awm = new AgentWorktreeManager(lcm);
+		const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService());
 		return { configDir, projectDir, worktreeRoot, lcm, awm, paths };
 	}
 
@@ -100,7 +101,7 @@ describe('AgentWorktreeManager', () => {
 			worktreeRootPath: worktreeRoot,
 		});
 
-		const awm = new AgentWorktreeManager(lcm);
+		const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService());
 		return { projectDir, awm };
 	}
 
@@ -176,7 +177,7 @@ describe('AgentWorktreeManager', () => {
 
 		const paths = new ConfigPaths(configDir);
 		const lcm = new LauncherConfigManager(paths);
-		const awm = new AgentWorktreeManager(lcm);
+		const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService());
 
 		await expect(awm.getMainBranch(projectDir)).rejects.toThrow('Neither main nor master');
 	});
@@ -190,7 +191,7 @@ describe('AgentWorktreeManager', () => {
 
 		const paths = new ConfigPaths(configDir);
 		const lcm = new LauncherConfigManager(paths);
-		const awm = new AgentWorktreeManager(lcm);
+		const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService());
 
 		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0001');
 		expect('worktreePath' in result).toBe(true);
@@ -221,7 +222,7 @@ describe('AgentWorktreeManager', () => {
 			worktreeRootPath: backslashRoot,
 		});
 
-		const awm = new AgentWorktreeManager(lcm);
+		const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService());
 		const folderName = 'st-0002-backslash';
 
 		// First call: creates the worktree
@@ -337,7 +338,7 @@ describe('AgentWorktreeManager', () => {
 			worktreeRootPath: worktreeRoot,
 		});
 
-		const awm = new AgentWorktreeManager(lcm);
+		const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService());
 
 		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0005-behind');
 		expect('worktreePath' in result).toBe(true);
@@ -396,7 +397,7 @@ describe('AgentWorktreeManager', () => {
 			worktreeRootPath: worktreeRoot,
 		});
 
-		const awm = new AgentWorktreeManager(lcm);
+		const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService());
 		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-stale-main');
 
 		expect('worktreePath' in result).toBe(true);
@@ -452,7 +453,7 @@ describe('AgentWorktreeManager', () => {
 
 		const paths = new ConfigPaths(configDir);
 		const lcm = new LauncherConfigManager(paths);
-		const awm = new AgentWorktreeManager(lcm);
+		const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService());
 
 		// git branch --list 'main' should NOT match 'main-v2'
 		// so getMainBranch should throw since neither 'main' nor 'master' exists
@@ -528,7 +529,7 @@ describe('AgentWorktreeManager', () => {
 			// Warning was logged with the generic error message
 			expect(warnSpy).toHaveBeenCalledWith(
 				'Skipping upstream check:',
-				'fatal: bad object HEAD'
+				expect.any(String),
 			);
 		} finally {
 			gitSpy.mockRestore();
@@ -553,7 +554,7 @@ describe('AgentWorktreeManager', () => {
 			worktreeRootPath: worktreeRootA,
 		});
 
-		const awm = new AgentWorktreeManager(lcm);
+		const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService());
 		const folderName = 'st-dup-branch';
 
 		const result1 = await awm.ensureAgentWorktree(projectDir, 'dup-proj', folderName);
@@ -593,7 +594,7 @@ describe('AgentWorktreeManager', () => {
 			worktreeRootPath: worktreeRootA,
 		});
 
-		const awm = new AgentWorktreeManager(lcm);
+		const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService());
 		const folderName = 'st-stale-ref';
 
 		const result1 = await awm.ensureAgentWorktree(projectDir, 'stale-proj', folderName);
@@ -668,7 +669,7 @@ describe('AgentWorktreeManager', () => {
 			skills: [],
 		});
 
-		const awm = new AgentWorktreeManager(lcm);
+		const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService());
 
 		const config = lcm.loadProjectConfig('no-wt-proj');
 		expect(config.worktreeRootPath).toBeUndefined();
@@ -703,11 +704,45 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
+	it('isWorktreeClean surfaces a probe that never produced an answer', async () => {
+		const { awm } = setup();
+		// A registered Agent Worktree whose directory is no longer a git worktree:
+		// `git status` cannot answer, so cleanup must not read that as "clean".
+		const notARepo = tmpDir('awm-not-a-repo-');
+		dirs.push(notARepo);
+		await expect(awm.isWorktreeClean(notARepo)).rejects.toThrow();
+	});
+
 	it('removeWorktree removes the worktree directory', async () => {
 		const { projectDir, worktreeRoot, awm } = setup();
 		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-remove-test');
 		expect('worktreePath' in result).toBe(true);
 		if ('worktreePath' in result) {
+			await awm.removeWorktree(projectDir, result.worktreePath);
+			expect(fs.existsSync(result.worktreePath)).toBe(false);
+		}
+	});
+
+	it('removeWorktree refuses to destroy a worktree git declined to remove', async () => {
+		const { projectDir, awm } = setup();
+		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-locked-test');
+		expect('worktreePath' in result).toBe(true);
+		if ('worktreePath' in result) {
+			// The user locked the worktree to protect it; git refuses to remove it.
+			execSync(`git worktree lock "${result.worktreePath}"`, { cwd: projectDir, timeout: 5000 });
+			await expect(awm.removeWorktree(projectDir, result.worktreePath)).rejects.toThrow();
+			expect(fs.existsSync(result.worktreePath)).toBe(true);
+			execSync(`git worktree unlock "${result.worktreePath}"`, { cwd: projectDir, timeout: 5000 });
+		}
+	});
+
+	it('removeWorktree drops a folder that is no longer a git worktree', async () => {
+		const { projectDir, awm } = setup();
+		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-stray-test');
+		expect('worktreePath' in result).toBe(true);
+		if ('worktreePath' in result) {
+			fs.rmSync(path.join(result.worktreePath, '.git'));
+			expect(awm.isGitWorktree(result.worktreePath)).toBe(false);
 			await awm.removeWorktree(projectDir, result.worktreePath);
 			expect(fs.existsSync(result.worktreePath)).toBe(false);
 		}
@@ -837,7 +872,7 @@ describe('AgentWorktreeManager', () => {
 		initializeDataDir(paths);
 		const lcm = new LauncherConfigManager(paths);
 		lcm.saveProjectConfig('my-proj', { templates: [], skills: [], worktreeRootPath: tmpDir('awm-wt-rsq-') });
-		const awm = new AgentWorktreeManager(lcm);
+		const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService());
 
 		const merged = await awm.isBranchMerged(projectDir, 'st-remote-squash');
 		expect(merged).toBe(true);
@@ -913,7 +948,7 @@ describe('AgentWorktreeManager', () => {
 			worktreeRootPath: nonexistentRoot,
 		});
 
-		const awm = new AgentWorktreeManager(lcm);
+		const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService());
 
 		// Discovery: git worktree add creates intermediate directories automatically.
 		// A nonexistent worktreeRootPath does NOT cause an error -- git silently

@@ -7,6 +7,7 @@ import { ConfigPaths } from '../config/config-paths.js';
 import { TicketStore } from '../ticket/ticket-store.js';
 import { errorMessage } from '../shared/errors.js';
 import { escapeBatchTitle } from '../shared/batch-escape.js';
+import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js';
 // parseLaunchRequest cannot be imported directly because agent-launch.ts pulls in
 // singleton instances via the ~ alias which vitest cannot resolve without the
 // SvelteKit build pipeline. Instead, replicate the pure function here and verify
@@ -69,7 +70,7 @@ describe('ai/run.ts endpoint logic', () => {
 		const configDir = tmpDir('run-config-');
 		dirs.push(configDir);
 
-		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const manager = new WorktreeManager(new ConfigPaths(configDir), createTestCommandTemplateService());
 		const projectSlug = 'does-not-exist';
 
 		// This mirrors the POST handler logic: getWorktreeDir then TicketStore.listTickets
@@ -105,7 +106,7 @@ describe('ai/run.ts endpoint logic', () => {
 		const configDir = tmpDir('run-config-');
 		dirs.push(configDir);
 
-		const manager = new WorktreeManager(new ConfigPaths(configDir));
+		const manager = new WorktreeManager(new ConfigPaths(configDir), createTestCommandTemplateService());
 
 		// Simulate the POST handler: getWorktreeDir is the first call inside the try block.
 		// A traversal projectSlug like ".." should throw from requireSafeSlug.

@@ -151,6 +151,10 @@ Template:
 A named prompt string with placeholders (e.g. `{{ticketDir}}`, `{{ticketTitle}}`). One template is selected as the base prompt in the Agent Launcher. Interpolated after skill text is appended.
 Avoid: prompt, instruction
 
+Command Template:
+A fixed, application-owned catalog entry for a trusted, editable platform-shell action used by shipped runtime behavior. Command Templates are global sparse overrides and are not prompt Templates or Project Launcher Config data.
+Avoid: Template, profile, shortcut, project command
+
 Skill:
 A named template string that appends to the base Template when checked in the Agent Launcher. Uses the same placeholder syntax as Templates.
 Avoid: addon, plugin, extension

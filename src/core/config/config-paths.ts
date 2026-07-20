@@ -42,6 +42,10 @@ export class ConfigPaths {
 		return path.join(this.baseDir, 'config', 'boards.json');
 	}
 
+	commandTemplateOverridesFile(): string {
+		return path.join(this.baseDir, 'config', 'command-templates.json');
+	}
+
 	projectDir(projectSlug: string): string {
 		requireSafeSlug(projectSlug);
 		return path.join(this.baseDir, 'projects', projectSlug);

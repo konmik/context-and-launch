@@ -6,12 +6,17 @@ import path from "path";
 // agentRunning resolves the marker path from the app config dir, so mock the
 // instances module to point it at a per-test temp dir. The other singletons are
 // imported by agent-launch.ts at load time but unused by these tests.
+//
+// The process start-time probe is stubbed with a fixed timestamp so PID-reuse
+// detection is deterministic and no real shell runs: any marker whose startSec
+// differs from that timestamp describes a different process.
 const h = vi.hoisted(() => ({ appDir: "" }));
 vi.mock("~/core/config/instances.js", () => ({
 	worktreeManager: {},
 	projectRegistry: {},
 	agentWorktreeManager: {},
 	launcherConfigManager: { getAppConfigDir: () => h.appDir },
+	commandTemplateService: { executeSync: () => "2020-01-01T00:00:00.000Z" },
 }));
 
 import { agentRunning, agentMarkerPath } from "~/core/launcher/agent-launch.js";

@@ -87,16 +87,20 @@ function getLogger(): RollingLogger {
 	return instance;
 }
 
-type LogListener = (category: string, message: string) => void;
+export type AppLogContext = Readonly<Record<string, string | number | boolean | undefined>>;
+type LogListener = (category: string, message: string, context?: AppLogContext) => void;
 let listener: LogListener | undefined;
 
 export function setAppLogListener(fn: LogListener | undefined): void {
 	listener = fn;
 }
 
-export function appLog(category: string, message: string): void {
-	listener?.(category, message);
-	getLogger().log(category, message);
+export function appLog(category: string, message: string, context?: AppLogContext): void {
+	listener?.(category, message, context);
+	const suffix = context
+		? ` ${JSON.stringify(Object.fromEntries(Object.entries(context).filter(([, value]) => value !== undefined)))}`
+		: '';
+	getLogger().log(category, `${message}${suffix}`);
 }
 
 export function readAppLogs(): string {

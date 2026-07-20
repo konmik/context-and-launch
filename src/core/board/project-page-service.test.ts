@@ -3,7 +3,9 @@ import fs from 'fs';
 import path from 'path';
 import { ProjectPageService } from './project-page-service.js';
 import { TicketSyncManager } from '~/core/ticket/ticket-sync.js';
-import { git } from '~/core/infra/git.js';
+import { git } from '~/test-git.js';
+import { GitRepository } from '~/core/infra/git-repository.js';
+import { createTestCommandTemplateService } from '~/core/command-template/command-template.test-utils.js';
 import {
 	cleanup, createRepoWithRemote, conflictResolveDir, pushRemoteConflict,
 	tmpDir,
@@ -81,7 +83,8 @@ async function setupResolvedScratch(dirs: string[]) {
 	});
 	fs.writeFileSync(path.join(worktreeDir, 'conflict.txt'), 'local content');
 
-	const manager = new TicketSyncManager();
+	const commands = createTestCommandTemplateService();
+	const manager = new TicketSyncManager(commands, new GitRepository(commands));
 	expect((await manager.sync(worktreeDir)).status).toBe('conflict');
 	const plan = await manager.prepareResolution(worktreeDir);
 	expect(plan.needsAgent).toBe(true);
