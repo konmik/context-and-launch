@@ -9,6 +9,7 @@ import { LauncherConfigManager } from '../launcher/launcher-config.js';
 import { ProjectRegistry } from './project-registry.js';
 import { BoardConfigManager } from './board-config.js';
 import { WorktreeManager } from '../worktree/worktree-manager.js';
+import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js';
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -37,7 +38,7 @@ function makeDeps(configDir: string) {
 	return {
 		projectRegistry: new ProjectRegistry(paths),
 		launcherConfigManager: new LauncherConfigManager(paths),
-		worktreeManager: new WorktreeManager(paths),
+		worktreeManager: new WorktreeManager(paths, createTestCommandTemplateService()),
 		boardConfigManager: new BoardConfigManager(paths),
 	};
 }

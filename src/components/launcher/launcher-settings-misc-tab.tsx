@@ -100,7 +100,6 @@ export function MiscTab(props: {
 						onInput={(e) => props.setConflictPrompt(e.currentTarget.value)}
 						onBlur={props.saveConflictResolution}
 						class="input min-h-[80px]"
-						style={{ height: "auto" }}
 						placeholder="Prompt for resolving merge conflicts..."
 						data-testid="launcher-settings-misc-conflict-prompt"
 					/>

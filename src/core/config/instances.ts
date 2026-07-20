@@ -19,6 +19,9 @@ const services = loadServices();
 
 export const configPaths = services.configPaths;
 export const configRepo = services.configRepo;
+export const commandTemplateStore = services.commandTemplateStore;
+export const commandTemplateService = services.commandTemplateService;
+export const herdrExec = services.herdrExec;
 export const projectRegistry = services.projectRegistry;
 export const boardConfigManager = services.boardConfigManager;
 export const worktreeManager = services.worktreeManager;

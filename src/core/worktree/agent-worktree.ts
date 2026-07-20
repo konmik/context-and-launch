@@ -1,12 +1,12 @@
 import fs from 'fs';
 import path from 'path';
 import { rename } from 'fs/promises';
-import { exec } from 'child_process';
-import { git, detectMainBranch } from '../infra/git.js';
 import { writeMergeTree } from '../infra/git-merge-tree.js';
-import { ValidationError } from '../shared/errors.js';
+import { ProcessError, ValidationError, errorMessage } from '../shared/errors.js';
+import { appLog } from '../infra/app-logger.js';
 import { resolveAgentWorktreeLocation } from './worktree-naming.js';
 import type { LauncherConfigManager } from '../launcher/launcher-config.js';
+import type { CommandTemplateExecutor } from '../command-template/command-template-types.js';
 
 
 function canonicalize(p: string): string {
@@ -51,12 +51,17 @@ export interface DirtyWorktreeResult {
 export class AgentWorktreeManager {
 	constructor(
 		private launcherConfig: LauncherConfigManager,
+		private readonly commands: CommandTemplateExecutor,
 	) {}
 
 	async getMainBranch(projectPath: string, configuredBranch?: string): Promise<string> {
 		const trimmed = configuredBranch?.trim();
 		if (trimmed) return trimmed;
-		return detectMainBranch(projectPath);
+		for (const branch of ['main', 'master']) {
+			const result = await this.commands.execute('git.main-branch.probe', projectPath, { branch });
+			if (result.trim()) return branch;
+		}
+		throw new Error('Neither main nor master branch exists');
 	}
 
 	async ensureAgentWorktree(
@@ -79,7 +84,7 @@ export class AgentWorktreeManager {
 		);
 		const mainBranch = await this.getMainBranch(projectPath, configuredBranch);
 
-		const worktreeListOutput = await git(projectPath, 'worktree', 'list', '--porcelain');
+		const worktreeListOutput = await this.commands.execute('agent-worktree.list', projectPath);
 		const normalizedTarget = canonicalize(worktreePath);
 		const alreadyExists = worktreeListOutput
 			.split('\n')
@@ -94,16 +99,20 @@ export class AgentWorktreeManager {
 		}
 
 		// Reusing an existing branch checks it out without forking from main.
-		const branchList = await git(projectPath, 'branch', '--list', branchName);
+		const branchList = await this.commands.execute('agent-worktree.branch.local-list', projectPath,
+			{ branch: branchName },
+		);
 		if (branchList.trim()) {
 			await this.releaseBranchFromOtherWorktree(projectPath, worktreePath, branchName);
-			await git(projectPath, 'worktree', 'add', worktreePath, branchName);
+			await this.commands.execute(
+				'agent-worktree.add-existing', projectPath, { worktreePath, branch: branchName },
+			);
 			return { worktreePath, branchName };
 		}
 
 		// Forking a new worktree from main: only now does main's state matter.
 		if (!options?.skipDirtyCheck) {
-			const status = await git(projectPath, 'status', '--porcelain');
+			const status = await this.commands.execute('agent-worktree.main.status', projectPath);
 			if (status.trim()) {
 				return { dirtyWorktree: true };
 			}
@@ -111,9 +120,8 @@ export class AgentWorktreeManager {
 
 		let behindRemote = false;
 		try {
-			const behindCount = await git(
-				projectPath, 'rev-list',
-				`${mainBranch}..${mainBranch}@{upstream}`, '--count',
+			const behindCount = await this.commands.execute('agent-worktree.behind-upstream.count', projectPath,
+				{ range: `${mainBranch}..${mainBranch}@{upstream}` },
 			);
 			if (parseInt(behindCount.trim(), 10) > 0) {
 				behindRemote = true;
@@ -122,23 +130,33 @@ export class AgentWorktreeManager {
 			console.warn('Skipping upstream check:', e instanceof Error ? e.message : e);
 		}
 
-		await git(projectPath, 'worktree', 'add', '-b', branchName, worktreePath, mainBranch);
+		await this.commands.execute(
+			'agent-worktree.create', projectPath, { branch: branchName, worktreePath, mainBranch },
+		);
 
 		return behindRemote ? { worktreePath, branchName, behindRemote } : { worktreePath, branchName };
 	}
 
+	/**
+	 * `git status --porcelain` reports the answer on stdout and exits 0 whether the
+	 * worktree is clean or dirty, so a non-zero exit means no verdict at all. This
+	 * guards worktree deletion, so a failed probe must surface rather than resolve
+	 * to "clean" and let cleanup destroy uncommitted work.
+	 */
 	async isWorktreeClean(worktreePath: string): Promise<boolean> {
-		try {
-			const status = await git(worktreePath, 'status', '--porcelain');
-			return !status.trim();
-		} catch {
-			return true;
-		}
+		const status = await this.commands.execute('agent-worktree.status', worktreePath);
+		return !status.trim();
+	}
+
+	isGitWorktree(worktreePath: string): boolean {
+		return fs.existsSync(path.join(worktreePath, '.git'));
 	}
 
 	async hasRemoteBranch(projectPath: string, branchName: string): Promise<boolean> {
 		try {
-			const output = await git(projectPath, 'ls-remote', '--heads', 'origin', branchName);
+			const output = await this.commands.execute('agent-worktree.remote-branch.probe', projectPath,
+				{ branch: branchName },
+			);
 			return output.trim().length > 0;
 		} catch {
 			return false;
@@ -157,17 +175,29 @@ export class AgentWorktreeManager {
 				return true;
 			}
 		}
-		return new Promise((resolve) => {
-			exec(`lsof +D "${worktreePath}"`, { timeout: 5000 }, (_error, stdout) => {
-				const lines = stdout.split('\n').filter(l => l.trim() && !l.startsWith('COMMAND'));
-				resolve(lines.length > 0);
-			});
-		});
+		const key = process.platform === 'darwin'
+			? 'agent-worktree.busy.probe.macos'
+			: 'agent-worktree.busy.probe.linux';
+		try {
+			const stdout = await this.commands.execute(key, worktreePath, { worktreePath });
+			const lines = stdout.split('\n').filter((line) => line.trim() && !line.startsWith('COMMAND'));
+			return lines.length > 0;
+		} catch (error) {
+			// lsof exits non-zero when it finds nothing open, which is the answer
+			// "not busy". A probe that never ran is not an answer, so say so rather
+			// than reporting a directory as free because the tool was missing.
+			if (!(error instanceof ProcessError && error.kind === 'exited')) {
+				appLog('worktree', `busy probe unavailable for ${worktreePath}: ${errorMessage(error)}`);
+			}
+			return false;
+		}
 	}
 
 	private async resolveRemote(projectPath: string, branchName: string): Promise<string> {
 		try {
-			const remote = (await git(projectPath, 'config', `branch.${branchName}.remote`)).trim();
+			const remote = (await this.commands.execute('agent-worktree.branch.remote', projectPath,
+				{ configKey: `branch.${branchName}.remote` },
+			)).trim();
 			if (remote) return remote;
 		} catch {
 		}
@@ -177,7 +207,7 @@ export class AgentWorktreeManager {
 	private async releaseBranchFromOtherWorktree(
 		projectPath: string, targetWorktreePath: string, branchName: string,
 	): Promise<void> {
-		await git(projectPath, 'worktree', 'prune');
+		await this.commands.execute('agent-worktree.prune', projectPath);
 		const existing = await this.worktreePathForBranch(projectPath, branchName);
 		if (existing && canonicalize(existing) !== canonicalize(targetWorktreePath)) {
 			throw new Error(
@@ -188,7 +218,7 @@ export class AgentWorktreeManager {
 	}
 
 	private async worktreePathForBranch(projectPath: string, branchName: string): Promise<string | null> {
-		const out = await git(projectPath, 'worktree', 'list', '--porcelain');
+		const out = await this.commands.execute('agent-worktree.list', projectPath);
 		let currentPath: string | null = null;
 		for (const line of out.split('\n')) {
 			if (line.startsWith('worktree ')) currentPath = line.slice('worktree '.length).trim();
@@ -198,7 +228,8 @@ export class AgentWorktreeManager {
 	}
 
 	async localBranchExists(projectPath: string, branchName: string): Promise<boolean> {
-		return git(projectPath, 'show-ref', '--verify', '--quiet', `refs/heads/${branchName}`)
+		return this.commands
+			.execute('agent-worktree.local-branch.probe', projectPath, { ref: `refs/heads/${branchName}` })
 			.then(() => true, () => false);
 	}
 
@@ -219,33 +250,49 @@ export class AgentWorktreeManager {
 	}
 
 	private async isAncestorOf(projectPath: string, branchName: string, mainBranch: string): Promise<boolean> {
-		const result = await git(projectPath, 'merge-base', '--is-ancestor', branchName, mainBranch)
+		const result = await this.commands.execute('agent-worktree.merged.probe', projectPath,
+			{ branch: branchName, mainBranch },
+		)
 			.then(() => true, () => false);
 		return result;
 	}
 
 	private async fetchMainBranch(projectPath: string, mainBranch: string): Promise<string | null> {
-		const hasRemote = await git(projectPath, 'remote').then(out => out.trim().length > 0, () => false);
+		const hasRemote = await this.commands.execute('agent-worktree.remote.list', projectPath)
+			.then((out) => out.trim().length > 0, () => false);
 		if (!hasRemote) return null;
 		const remote = await this.resolveRemote(projectPath, mainBranch);
-		await git(projectPath, 'fetch', remote, mainBranch);
+		await this.commands.execute('agent-worktree.main.fetch', projectPath, { remote, mainBranch });
 		return `${remote}/${mainBranch}`;
 	}
 
 	private async isBranchSquashMerged(projectPath: string, branchName: string, mainBranch: string): Promise<boolean> {
-		const result = await writeMergeTree(projectPath, mainBranch, branchName);
+		const result = await writeMergeTree(this.commands, 'agent-worktree.merge-tree', projectPath, {
+			mainBranch, branch: branchName,
+		});
 		if (result.status === 'conflicted') return false;
-		const mainTree = (await git(projectPath, 'rev-parse', `${mainBranch}^{tree}`)).trim();
+		const mainTree = (await this.commands.execute('agent-worktree.main-tree', projectPath,
+			{ treeRef: `${mainBranch}^{tree}` },
+		)).trim();
 		return result.tree === mainTree;
 	}
 
 	async removeWorktree(projectPath: string, worktreePath: string): Promise<void> {
-		try {
-			await git(projectPath, 'worktree', 'remove', worktreePath);
-		} catch {
-			if (!fs.existsSync(worktreePath)) return;
+		if (fs.existsSync(worktreePath) && !this.isGitWorktree(worktreePath)) {
 			fs.rmSync(worktreePath, { recursive: true, force: true });
-			await git(projectPath, 'worktree', 'prune');
+			await this.commands.execute('agent-worktree.prune', projectPath);
+			return;
+		}
+		try {
+			await this.commands.execute('agent-worktree.remove', projectPath, { worktreePath });
+		} catch (error) {
+			// A worktree whose directory is already gone leaves only a stale
+			// registration, and pruning completes the removal. When the directory is
+			// still on disk git refused for a reason -- a lock, open files, or
+			// uncommitted state -- so deleting it anyway would destroy work the user
+			// can still recover. Report why instead.
+			if (fs.existsSync(worktreePath)) throw error;
+			await this.commands.execute('agent-worktree.prune', projectPath);
 		}
 	}
 
@@ -257,10 +304,10 @@ export class AgentWorktreeManager {
 				+ ' Merge or force-delete the branch before cleanup.',
 			);
 		}
-		await git(projectPath, 'branch', '-D', branchName);
+		await this.commands.execute('agent-worktree.branch.delete-local', projectPath, { branch: branchName });
 	}
 
 	async deleteRemoteBranch(projectPath: string, branchName: string): Promise<void> {
-		await git(projectPath, 'push', 'origin', '--delete', branchName);
+		await this.commands.execute('agent-worktree.branch.delete-remote', projectPath, { branch: branchName });
 	}
 }

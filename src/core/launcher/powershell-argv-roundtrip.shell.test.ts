@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
-import { spawnDetached } from "./spawn-detached.js";
-import { useTempDirs } from "./spawn-detached.test-utils.js";
+import { runDetachedProcess } from "../command-template/platform-shell-runner.test-utils.js";
+import { useTempDirs } from "../command-template/platform-shell-fixture.test-utils.js";
 
 const makeTempDir = useTempDirs("ps-argv-roundtrip-");
 
@@ -28,7 +28,7 @@ describe.runIf(process.platform === "win32")(
         + `"-NoProfile", "-File", "\`"$innerPath\`"", "\`"$safe\`"", "\`"$outPath\`""\r\n`,
       );
       const title = 'Fix "auth" bug -- AI';
-      await spawnDetached(
+      await runDetachedProcess(
         "powershell", ["-NoProfile", "-File", outerScript, title, innerScript, outPath], dir,
       );
       const deadline = Date.now() + 15000;
@@ -60,7 +60,7 @@ describe.runIf(process.platform === "win32")(
         'trailing backslash\\',
         'backslash before quote \\" inside',
       ];
-      await spawnDetached("powershell", ["-File", probePath, ...sent, outPath], dir);
+      await runDetachedProcess("powershell", ["-File", probePath, ...sent, outPath], dir);
       const deadline = Date.now() + 10000;
       while (!fs.existsSync(outPath)) {
         if (Date.now() > deadline) {

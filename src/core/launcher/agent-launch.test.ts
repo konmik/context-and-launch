@@ -2,18 +2,22 @@ import { describe, it, expect, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 
+const { executeTrustedScript } = vi.hoisted(() => ({
+	executeTrustedScript: vi.fn().mockResolvedValue(''),
+}));
 vi.mock('~/core/config/instances.js', () => ({
 	worktreeManager: {},
 	projectRegistry: {},
 	launcherConfigManager: {},
 	agentWorktreeManager: {},
-}));
-vi.mock('~/core/launcher/spawn-detached.js', () => ({
-	spawnDetached: vi.fn().mockResolvedValue(undefined),
+	commandTemplateService: {
+		executeTrustedScript,
+		execute: vi.fn().mockResolvedValue(''),
+		executeSync: vi.fn().mockReturnValue(''),
+	},
 }));
 
 import { spawnProfile } from '~/core/launcher/agent-launch.js';
-import { spawnDetached } from '~/core/launcher/spawn-detached.js';
 
 describe('parseLaunchRequest (code-inspection)', () => {
 	const source = fs.readFileSync(
@@ -89,12 +93,13 @@ describe('launchAgent profile-based spawn (code-inspection)', () => {
 		expect(source).toMatch(/spawnProfile\(profile,\s*commandVars,\s*launchDir\)/);
 	});
 
-	it('spawnProfile delegates to spawnDetached', () => {
-		expect(source).toMatch(/spawnDetached\(parts\[0\],\s*parts\.slice\(1\),\s*cwd\)/);
+	it('spawnProfile delegates custom bodies to the trusted fixed-shell runner', () => {
+		expect(source).toContain('executeTrustedScript');
 	});
 
-	it('spawnProfile uses interpolateCommand for parsing', () => {
-		expect(source).toMatch(/interpolateCommand\(profile\.command,\s*commandVars\)/);
+	it('spawnProfile preserves custom script bodies without tokenization', () => {
+		expect(source).not.toContain('interpolateCommand(');
+		expect(source).toMatch(/script:\s*profile\.command/);
 	});
 
 	it('launchAgent passes initialPrompt from launchRequest directly', () => {
@@ -112,15 +117,27 @@ describe('launchAgent profile-based spawn (code-inspection)', () => {
 	});
 });
 
-describe('spawnProfile command interpolation', () => {
-	it('interpolates template variables in the executable token', async () => {
+describe('spawnProfile trusted script execution', () => {
+	it('passes the complete custom body and values to the fixed shell service', async () => {
 		await spawnProfile(
-			{ name: 'Custom', command: '{{configDefaultsDir}}/run-agent.sh {{initialPrompt}}' },
+			{ name: 'Custom', command: 'my-agent --flag {{initialPrompt}}' },
 			{ configDefaultsDir: '/fake/config-defaults', initialPrompt: 'do the thing' },
 			'/fake/cwd',
 		);
-		expect(spawnDetached).toHaveBeenCalledWith(
-			'/fake/config-defaults/run-agent.sh', ['do the thing'], '/fake/cwd',
-		);
+		expect(executeTrustedScript).toHaveBeenCalledWith(expect.objectContaining({
+			source: { kind: 'profile', profileName: 'Custom' },
+			script: 'my-agent --flag {{initialPrompt}}',
+			values: { configDefaultsDir: '/fake/config-defaults', initialPrompt: 'do the thing' },
+			cwd: '/fake/cwd',
+		}));
+	});
+});
+
+describe('agent-launch holds no command text', () => {
+	const source = fs.readFileSync(path.resolve(__dirname, 'agent-launch.ts'), 'utf-8');
+
+	it('never names an executable or escapes shell values itself', () => {
+		expect(source).not.toMatch(/\b(?:claude|powershell|pwsh|osascript|wt|mkdir|printf)\b/);
+		expect(source).not.toContain('shellLiteral');
 	});
 });

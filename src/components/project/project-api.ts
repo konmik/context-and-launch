@@ -1,7 +1,7 @@
 import { query } from "@solidjs/router";
 import {
   configPaths, projectRegistry, projectPageService, worktreeManager,
-  launcherConfigManager, fileWatcher,
+  launcherConfigManager, fileWatcher, commandTemplateService,
 } from "~/core/config/instances.js";
 import { detectMainBranch } from "~/core/infra/git.js";
 import { errorResult } from "~/core/shared/errors.js";
@@ -28,7 +28,7 @@ export const previewProjectPath = query(async (pathValue: string) => {
   const projectSlug = projectRegistry.previewSlug(pathValue);
   let mainBranch: string | undefined;
   try {
-    mainBranch = await detectMainBranch(pathValue);
+    mainBranch = await detectMainBranch(pathValue, commandTemplateService);
   } catch (err) {
     console.warn("detectMainBranch failed for preview:", err instanceof Error ? err.message : err);
   }

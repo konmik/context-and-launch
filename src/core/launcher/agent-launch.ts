@@ -1,14 +1,12 @@
-import { execFileSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import {
   worktreeManager, projectRegistry, launcherConfigManager, agentWorktreeManager,
+  commandTemplateService,
 } from "~/core/config/instances.js";
 import { toSavedWorktreeInfo } from "~/core/worktree/agent-worktree.js";
 import { TicketStore } from "~/core/ticket/ticket-store.js";
-import { NotFoundError, ValidationError } from "~/core/shared/errors.js";
-import { interpolateCommand } from "~/core/launcher/prompt-interpolation.js";
-import { spawnDetached } from "./spawn-detached.js";
+import { NotFoundError } from "~/core/shared/errors.js";
 import { isAlive } from "./process-utils.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { ProjectInfo } from "~/core/project/project-registry.js";
@@ -47,19 +45,15 @@ function processStartSec(pid: number): number | null {
       return bootSec + Math.floor(startTicks / 100);
     }
     if (process.platform === "darwin") {
-      const out = execFileSync(
-        "ps", ["-o", "lstart=", "-p", String(pid)],
-        { timeout: 2000 },
-      ).toString().trim();
+      const out = commandTemplateService.executeSync('agent-launch.process-start.macos', process.cwd(),
+      	{ pid: String(pid) },
+      ).trim();
       return Math.floor(new Date(out).getTime() / 1000);
     }
     if (process.platform === "win32") {
-      const cmd =
-        `(Get-Process -Id ${pid}).StartTime.ToString("o")`;
-      const out = execFileSync(
-        "powershell", ["-NoProfile", "-Command", cmd],
-        { timeout: 5000 },
-      ).toString().trim();
+      const out = commandTemplateService.executeSync('agent-launch.process-start.windows', process.cwd(),
+      	{ pid: String(pid) },
+      ).trim();
       return Math.floor(new Date(out).getTime() / 1000);
     }
     return null;
@@ -192,18 +186,19 @@ export function buildWindowTitle(ticket: TicketInfo): string {
   return ticket.title + TITLE_SUFFIX;
 }
 
-/**
- * Parse a profile command, interpolate variables, spawn the process, and
- * detach after a short delay. Rejects if the process fails to spawn or
- * exits with a non-zero code before the detach timeout.
- */
 export async function spawnProfile(
   profile: LauncherProfile,
   commandVars: Record<string, string>,
   cwd: string,
 ): Promise<void> {
-  const parts = interpolateCommand(profile.command, commandVars);
-  await spawnDetached(parts[0], parts.slice(1), cwd);
+  await commandTemplateService.executeTrustedScript({
+    source: { kind: 'profile', profileName: profile.name },
+    script: profile.command,
+    values: commandVars,
+    knownScalarPlaceholders: Object.keys(commandVars),
+    cwd,
+    mode: 'detached',
+  });
 }
 
 export async function launchAgent(

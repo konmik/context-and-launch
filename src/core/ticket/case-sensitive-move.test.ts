@@ -4,7 +4,7 @@ import path from 'path';
 import os from 'os';
 import { TicketStore } from './ticket-store.js';
 import { TicketOrderStore } from './ticket-order.js';
-import { git } from '../infra/git.js';
+import { git } from '~/test-git.js';
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));

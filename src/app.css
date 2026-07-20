@@ -386,6 +386,7 @@
 }
 .input::placeholder { color: var(--muted-foreground); }
 select.input { padding-right: 2rem; }
+textarea.input { display: block; height: auto; }
 
 .input-sm { height: 2.25rem; }
 

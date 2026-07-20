@@ -33,7 +33,7 @@ export function useTempDirs(prefix: string): () => string {
 
 export async function runSurvivalFixture(fixtureArgs: string[]): Promise<string> {
   const repoRoot = path.resolve(__dirname, "../../..");
-  const fixturePath = path.join(__dirname, "spawn-detached.survival-fixture.ts");
+  const fixturePath = path.join(__dirname, "platform-shell-runner.survival-fixture.ts");
   const tsxCliPath = createRequire(import.meta.url).resolve("tsx/cli");
   const parent = spawn(process.execPath, [tsxCliPath, fixturePath, ...fixtureArgs], {
     cwd: repoRoot,

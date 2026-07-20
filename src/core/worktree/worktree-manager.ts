@@ -1,14 +1,18 @@
 import fs from 'fs';
 import path from 'path';
-import { git } from '../infra/git.js';
 import type { ConfigPaths } from '../config/config-paths.js';
+import type { CommandTemplateExecutor } from '../command-template/command-template-types.js';
 
 export class WorktreeManager {
 	private paths: ConfigPaths;
 	private ticketsDirResolver?: (projectSlug: string) => string | undefined;
 	private locks = new Map<string, Promise<unknown>>();
 
-	constructor(paths: ConfigPaths, ticketsDirResolver?: (projectSlug: string) => string | undefined) {
+	constructor(
+		paths: ConfigPaths,
+		private readonly commands: CommandTemplateExecutor,
+		ticketsDirResolver?: (projectSlug: string) => string | undefined,
+	) {
 		this.paths = paths;
 		this.ticketsDirResolver = ticketsDirResolver;
 	}
@@ -51,10 +55,10 @@ export class WorktreeManager {
 
 		fs.mkdirSync(path.dirname(worktreeDir), { recursive: true });
 
-		const localList = await git(projectPath, 'branch', '--list', branch);
+		const localList = await this.commands.execute('worktree.branch.local-list', projectPath, { branch });
 		if (localList.trim().length > 0) {
 			await this.releaseBranchWorktree(projectPath, worktreeDir, branch);
-			await git(projectPath, 'worktree', 'add', worktreeDir, branch);
+			await this.commands.execute('worktree.add-existing', projectPath, { worktreeDir, branch });
 			return worktreeDir;
 		}
 
@@ -62,8 +66,9 @@ export class WorktreeManager {
 			return worktreeDir;
 		}
 
-		await git(projectPath, 'worktree', 'add', '--orphan', '-b', branch, worktreeDir);
-		await git(worktreeDir, 'commit', '--allow-empty', '-m', `init ${branch}`);
+		await this.commands.execute('worktree.create-orphan', projectPath,
+			{ worktreeDir, branch, message: `init ${branch}` },
+		);
 		return worktreeDir;
 	}
 
@@ -71,10 +76,13 @@ export class WorktreeManager {
 		const remote = await this.defaultRemote(projectPath);
 		if (!remote) return false;
 		try {
-			const remoteHeads = await git(projectPath, 'ls-remote', '--heads', remote, branch);
+			const remoteHeads = await this.commands.execute(
+				'worktree.remote-branch.probe', projectPath, { remote, branch },
+			);
 			if (remoteHeads.trim().length === 0) return false;
-			await git(projectPath, 'fetch', remote, branch);
-			await git(projectPath, 'worktree', 'add', '--track', '-b', branch, worktreeDir, `${remote}/${branch}`);
+			await this.commands.execute('worktree.adopt-remote', projectPath,
+				{ remote, branch, worktreeDir, remoteBranch: `${remote}/${branch}` },
+			);
 			return true;
 		} catch (err) {
 			console.warn(`Could not adopt ${remote}/${branch}; creating a local orphan branch instead:`, err);
@@ -83,7 +91,7 @@ export class WorktreeManager {
 	}
 
 	private async releaseBranchWorktree(projectPath: string, worktreeDir: string, branch: string): Promise<void> {
-		await git(projectPath, 'worktree', 'prune');
+		await this.commands.execute('worktree.prune', projectPath);
 		const existing = await this.worktreePathForBranch(projectPath, branch);
 		if (existing && path.resolve(existing) !== path.resolve(worktreeDir)) {
 			throw new Error(
@@ -94,7 +102,7 @@ export class WorktreeManager {
 	}
 
 	private async worktreePathForBranch(projectPath: string, branch: string): Promise<string | null> {
-		const out = await git(projectPath, 'worktree', 'list', '--porcelain');
+		const out = await this.commands.execute('worktree.list', projectPath);
 		let currentPath: string | null = null;
 		for (const line of out.split('\n')) {
 			if (line.startsWith('worktree ')) currentPath = line.slice('worktree '.length).trim();
@@ -104,7 +112,7 @@ export class WorktreeManager {
 	}
 
 	private async defaultRemote(projectPath: string): Promise<string | null> {
-		const out = await git(projectPath, 'remote');
+		const out = await this.commands.execute('worktree.remote.list', projectPath);
 		const remotes = out.split('\n').map((r) => r.trim()).filter(Boolean);
 		if (remotes.includes('origin')) return 'origin';
 		return remotes[0] ?? null;

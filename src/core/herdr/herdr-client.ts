@@ -1,10 +1,6 @@
-import { execHerdr, listHerdrAgents, type HerdrAgent, type HerdrExecFn } from './herdr-exec.js';
+import { listHerdrAgents, type HerdrAgent, type HerdrExecFn } from './herdr-exec.js';
 
 export type HerdrAgentStatus = 'idle' | 'working' | 'blocked' | 'done' | 'unknown';
-
-export function usesHerdrLaunchTarget(command: string): boolean {
-	return command.includes('run-agent-herdr');
-}
 
 export function ticketStatusesFromAgents(
 	agents: HerdrAgent[], projectSlug: string,
@@ -21,7 +17,7 @@ export function ticketStatusesFromAgents(
 }
 
 export async function fetchHerdrTicketStatuses(
-	projectSlug: string, exec: HerdrExecFn = execHerdr,
+	projectSlug: string, exec: HerdrExecFn,
 ): Promise<Record<string, HerdrAgentStatus>> {
 	return ticketStatusesFromAgents(await listHerdrAgents(exec), projectSlug);
 }

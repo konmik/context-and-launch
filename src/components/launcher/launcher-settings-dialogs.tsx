@@ -113,7 +113,6 @@ export function ItemFormDialog(props: {
 									...f(), text: e.currentTarget.value,
 								})}
 								class="input min-h-[280px]"
-								style={{ height: "auto" }}
 								data-testid="launcher-settings-item-form-text-input"
 								placeholder={
 									f().itemType === "profile"
@@ -261,7 +260,6 @@ export function ColumnFormDialog(props: {
 								value={cf().description}
 								onInput={(e) => props.setColumnForm({ ...cf(), description: e.currentTarget.value })}
 								class="input min-h-[60px]"
-								style={{ height: "auto" }}
 								data-testid="launcher-settings-columns-desc-input"
 								placeholder="Brief description of this column"
 							/>

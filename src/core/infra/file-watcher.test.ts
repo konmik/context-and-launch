@@ -4,7 +4,8 @@ import path from 'path';
 import os from 'os';
 import { FileWatcher } from './file-watcher.js';
 import { TicketStore } from '../ticket/ticket-store.js';
-import { git, gitSync } from './git.js';
+import { git, gitSync } from '~/test-git.js';
+import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js';
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -36,7 +37,7 @@ describe('FileWatcher', () => {
 		const dir = tmpDir('filewatcher-idempotent-test-');
 		dirs.push(dir);
 
-		const watcher = new FileWatcher();
+		const watcher = new FileWatcher(createTestCommandTemplateService());
 		try {
 			watcher.watch(dir);
 			await delay(50);
@@ -52,7 +53,7 @@ describe('FileWatcher', () => {
 		const dir = tmpDir('filewatcher-stop-cancel-test-');
 		dirs.push(dir);
 
-		const watcher = new FileWatcher();
+		const watcher = new FileWatcher(createTestCommandTemplateService());
 		try {
 			await git(dir, 'init');
 			await git(dir, 'config', 'user.email', 'test@test.com');
@@ -84,7 +85,7 @@ describe('FileWatcher', () => {
 		const dirB = tmpDir('filewatcher-stopall-b-');
 		dirs.push(dirA, dirB);
 
-		const watcher = new FileWatcher();
+		const watcher = new FileWatcher(createTestCommandTemplateService());
 		try {
 			for (const dir of [dirA, dirB]) {
 				await git(dir, 'init');
@@ -130,7 +131,7 @@ describe('FileWatcher', () => {
 		await git(dir, 'commit', '--allow-empty', '-m', 'initial commit');
 
 		const store = new TicketStore(dir);
-		const watcher = new FileWatcher();
+		const watcher = new FileWatcher(createTestCommandTemplateService());
 		try {
 			const debounceMs = 500;
 			watcher.watch(dir, debounceMs);
@@ -164,7 +165,7 @@ describe('FileWatcher', () => {
 		const dir = tmpDir('filewatcher-interleave-test-');
 		dirs.push(dir);
 
-		const { gitSync } = await import('./git.js');
+		const { gitSync } = await import('~/test-git.js');
 
 		// Set up a git repo with an initial commit
 		await git(dir, 'init');
@@ -273,7 +274,7 @@ describe('FileWatcher', () => {
 			await git(dir, 'commit', '-m', 'initial commit');
 		}
 
-		const watcher = new FileWatcher();
+		const watcher = new FileWatcher(createTestCommandTemplateService());
 		try {
 			// Start watching dirA with a long debounce (simulates normal operation)
 			const debounceMs = 5000;
@@ -324,7 +325,7 @@ describe('FileWatcher', () => {
 		await git(dir, 'add', '-A');
 		await git(dir, 'commit', '-m', 'initial commit');
 
-		const watcher = new FileWatcher();
+		const watcher = new FileWatcher(createTestCommandTemplateService());
 		const debounceMs = 200;
 		try {
 			// First watch
@@ -366,7 +367,7 @@ describe('FileWatcher', () => {
 		await git(dir, 'add', '-A');
 		await git(dir, 'commit', '-m', 'initial commit');
 
-		const watcher = new FileWatcher();
+		const watcher = new FileWatcher(createTestCommandTemplateService());
 		try {
 			const debounceMs = 200;
 			watcher.watch(dir, debounceMs);
@@ -413,7 +414,7 @@ describe('FileWatcher', () => {
 		expect(statusBefore.trim()).not.toBe('');
 
 		// Start FileWatcher to pick up the uncommitted changes
-		const watcher = new FileWatcher();
+		const watcher = new FileWatcher(createTestCommandTemplateService());
 		try {
 			const debounceMs = 300;
 			watcher.watch(dir, debounceMs);
@@ -506,7 +507,7 @@ describe('FileWatcher', () => {
 		await git(dir, 'add', '-A');
 		await git(dir, 'commit', '-m', 'initial commit');
 
-		const watcher = new FileWatcher();
+		const watcher = new FileWatcher(createTestCommandTemplateService());
 		try {
 			// Use a very short debounce so the timer fires quickly
 			const debounceMs = 50;
@@ -547,7 +548,7 @@ describe('FileWatcher', () => {
 			await git(dir, 'add', '-A');
 			await git(dir, 'commit', '-m', 'initial commit');
 
-			const watcher = new FileWatcher();
+			const watcher = new FileWatcher(createTestCommandTemplateService());
 			watcher.watch(dir, 5000);
 			await delay(200);
 
@@ -577,7 +578,7 @@ describe('FileWatcher', () => {
 		await git(dir, 'commit', '-m', 'initial commit');
 
 		const onWorktreeChange = vi.fn();
-		const watcher = new FileWatcher(onWorktreeChange);
+		const watcher = new FileWatcher(createTestCommandTemplateService(), onWorktreeChange);
 		try {
 			const debounceMs = 2000;
 			watcher.watch(dir, debounceMs);
@@ -609,7 +610,7 @@ describe('FileWatcher', () => {
 		await git(dir, 'add', '-A');
 		await git(dir, 'commit', '-m', 'initial commit');
 
-		const watcher = new FileWatcher();
+		const watcher = new FileWatcher(createTestCommandTemplateService());
 		try {
 			const debounceMs = 300;
 			watcher.watch(dir, debounceMs);
@@ -640,7 +641,7 @@ describe('FileWatcher', () => {
 		await git(dir, 'add', '-A');
 		await git(dir, 'commit', '-m', 'initial commit');
 
-		const watcher = new FileWatcher();
+		const watcher = new FileWatcher(createTestCommandTemplateService());
 		try {
 			const debounceMs = 300;
 			watcher.watch(dir, debounceMs);
@@ -670,7 +671,7 @@ describe('FileWatcher', () => {
 		await git(dir, 'add', '-A');
 		await git(dir, 'commit', '-m', 'initial commit');
 
-		const watcher = new FileWatcher();
+		const watcher = new FileWatcher(createTestCommandTemplateService());
 		try {
 			const debounceMs = 300;
 			watcher.watch(dir, debounceMs);
@@ -701,7 +702,7 @@ describe('FileWatcher', () => {
 		await git(dir, 'add', '-A');
 		await git(dir, 'commit', '-m', 'initial commit');
 
-		const watcher = new FileWatcher();
+		const watcher = new FileWatcher(createTestCommandTemplateService());
 		try {
 			const debounceMs = 300;
 			watcher.watch(dir, debounceMs);
@@ -735,7 +736,7 @@ describe('FileWatcher', () => {
 			await git(dir, 'commit', '-m', 'initial commit');
 		}
 
-		const watcher = new FileWatcher();
+		const watcher = new FileWatcher(createTestCommandTemplateService());
 		try {
 			const debounceMs = 300;
 			watcher.watch(dirA, debounceMs);

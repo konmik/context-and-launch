@@ -11,10 +11,18 @@ import { GitRepository } from '../infra/git-repository.js';
 import { ProjectPageService } from '../board/project-page-service.js';
 import { OperationTracker } from '../infra/operation-tracker.js';
 import { SyncPendingTracker, checkHasPendingChanges } from '../board/sync-pending.js';
+import { CommandTemplateStore } from '../command-template/command-template-store.js';
+import { CommandTemplateService } from '../command-template/command-template-service.js';
+import { FixedPlatformShellRunner } from '../command-template/platform-shell-runner.js';
+import { createHerdrExec } from '../herdr/herdr-exec.js';
+import type { HerdrExecFn } from '../herdr/herdr-exec.js';
 
 export interface ServiceContainer {
 	configPaths: ConfigPaths;
 	configRepo: ConfigRepository;
+	commandTemplateStore: CommandTemplateStore;
+	commandTemplateService: CommandTemplateService;
+	herdrExec: HerdrExecFn;
 	gitRepo: GitRepository;
 	projectRegistry: ProjectRegistry;
 	boardConfigManager: BoardConfigManager;
@@ -31,18 +39,27 @@ export interface ServiceContainer {
 export function createServices(baseDir?: string, configDefaultsDir?: string): ServiceContainer {
 	const configPaths = new ConfigPaths(baseDir, configDefaultsDir);
 	const configRepo = new ConfigRepository();
-	const gitRepo = new GitRepository();
+	const commandTemplateStore = new CommandTemplateStore(configPaths, configRepo);
+	const commandTemplateService = new CommandTemplateService(
+		commandTemplateStore, new FixedPlatformShellRunner(),
+	);
+	const herdrExec = createHerdrExec(commandTemplateService);
+	const gitRepo = new GitRepository(commandTemplateService);
 
 	const projectRegistry = new ProjectRegistry(configPaths, configRepo);
 	const boardConfigManager = new BoardConfigManager(configPaths, configRepo);
 	const worktreeManager = new WorktreeManager(
-		configPaths, (projectSlug) => projectRegistry.getTicketsPath(projectSlug),
+		configPaths, commandTemplateService, (projectSlug) => projectRegistry.getTicketsPath(projectSlug),
 	);
-	const syncPendingTracker = new SyncPendingTracker(checkHasPendingChanges);
-	const fileWatcher = new FileWatcher((worktreeDir) => syncPendingTracker.invalidate(worktreeDir));
+	const syncPendingTracker = new SyncPendingTracker(
+		(worktreeDir) => checkHasPendingChanges(worktreeDir, commandTemplateService),
+	);
+	const fileWatcher = new FileWatcher(
+		commandTemplateService, (worktreeDir) => syncPendingTracker.invalidate(worktreeDir),
+	);
 	const launcherConfigManager = new LauncherConfigManager(configPaths, configRepo);
-	const agentWorktreeManager = new AgentWorktreeManager(launcherConfigManager);
-	const ticketSyncManager = new TicketSyncManager(gitRepo);
+	const agentWorktreeManager = new AgentWorktreeManager(launcherConfigManager, commandTemplateService);
+	const ticketSyncManager = new TicketSyncManager(commandTemplateService, gitRepo);
 	const operationTracker = new OperationTracker();
 	const projectPageService = new ProjectPageService(
 		projectRegistry, boardConfigManager, worktreeManager,
@@ -52,6 +69,9 @@ export function createServices(baseDir?: string, configDefaultsDir?: string): Se
 	return {
 		configPaths,
 		configRepo,
+		commandTemplateStore,
+		commandTemplateService,
+		herdrExec,
 		gitRepo,
 		projectRegistry,
 		boardConfigManager,

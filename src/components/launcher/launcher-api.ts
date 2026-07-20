@@ -3,7 +3,7 @@ import path from "path";
 import {
   launcherConfigManager, projectRegistry, worktreeManager,
   operationTracker, ticketSyncManager,
-  syncPendingTracker,
+  syncPendingTracker, commandTemplateService,
 } from "~/core/config/instances.js";
 import {
   resolveTicketAndProject, ensureLaunchDir,
@@ -11,8 +11,6 @@ import {
   agentRunning, agentMarkerPath, spawnProfile,
   type LaunchRequest,
 } from "~/core/launcher/agent-launch.js";
-import { spawnDetached } from "~/core/launcher/spawn-detached.js";
-import { interpolateCommand } from "~/core/launcher/prompt-interpolation.js";
 import { ValidationError, errorResult } from "~/core/shared/errors.js";
 import type { MergedLauncherConfig } from "~/core/launcher/launcher-config.js";
 
@@ -228,13 +226,20 @@ export async function runShortcut(
     if (!resolved.ok) {
       return { ok: false as const, type: resolved.type, message: resolved.message };
     }
-    const args = interpolateCommand(shortcut.command, {
+    const commandVars = {
       ticketDir: path.resolve(worktreeDir, ticket.folderName),
       ticketSlug: ticket.folderName, ticketTitle: ticket.title,
       ticketNumber: ticket.number, ticketStatus: ticket.status,
       projectPath: project.path, projectSlug, launchDir,
+    };
+    await commandTemplateService.executeTrustedScript({
+      source: { kind: 'shortcut', shortcutName: shortcut.name },
+      script: shortcut.command,
+      values: commandVars,
+      knownScalarPlaceholders: Object.keys(commandVars),
+      cwd: launchDir,
+      mode: 'detached',
     });
-    await spawnDetached(args[0], args.slice(1), launchDir);
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-	fetchHerdrTicketStatuses, ticketStatusesFromAgents, usesHerdrLaunchTarget,
+	fetchHerdrTicketStatuses, ticketStatusesFromAgents,
 } from './herdr-client.js';
 import type { HerdrExecFn } from './herdr-exec.js';
 import { ProcessError } from '../shared/errors.js';
@@ -47,12 +47,12 @@ describe('fetchHerdrTicketStatuses', () => {
 
 	it('throws on non-JSON output', async () => {
 		await expect(fetchHerdrTicketStatuses('alpha', execReturning('not json')))
-			.rejects.toThrow("Could not parse JSON output from 'herdr agent list'.");
+			.rejects.toThrow("Could not parse JSON output from 'herdr.agent.list'.");
 	});
 
 	it('throws on missing result.agents', async () => {
 		await expect(fetchHerdrTicketStatuses('alpha', execReturning('{"result":{}}')))
-			.rejects.toThrow("Missing agents array in output from 'herdr agent list'.");
+			.rejects.toThrow("Missing agents array in output from 'herdr.agent.list'.");
 	});
 
 	it('propagates a nonzero-exit ProcessError from exec', async () => {
@@ -77,18 +77,5 @@ describe('ticketStatusesFromAgents', () => {
 	it('skips agents without a string agent_status', () => {
 		const statuses = ticketStatusesFromAgents([{ name: 'alpha--st-1' }], 'alpha');
 		expect(statuses).toEqual({});
-	});
-});
-
-describe('usesHerdrLaunchTarget', () => {
-	it('is true for the default Herdr profile command', () => {
-		expect(usesHerdrLaunchTarget(
-			'powershell -File {{configDefaultsDir}}/run-agent-herdr.ps1 ...',
-		)).toBe(true);
-	});
-
-	it('is false for non-Herdr commands', () => {
-		expect(usesHerdrLaunchTarget('powershell -File run-agent.ps1')).toBe(false);
-		expect(usesHerdrLaunchTarget('bash run-agent.sh')).toBe(false);
 	});
 });

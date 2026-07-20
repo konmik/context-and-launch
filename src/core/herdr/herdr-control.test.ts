@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import path from "path";
-import { findHerdrAgent, stopHerdrAgent, type HerdrExecFn } from "./herdr-control.js";
+import {
+	findHerdrAgent, stopHerdrAgent, type HerdrExecFn,
+} from "./herdr-control.js";
 import { ProcessError } from "../shared/errors.js";
 
 const TARGET = {
@@ -24,37 +26,45 @@ interface FakeExecOptions {
 	workspaceListError?: unknown;
 }
 
-function fakeExec(opts: FakeExecOptions): { exec: HerdrExecFn; calls: string[][] } {
-	const calls: string[][] = [];
-	const exec: HerdrExecFn = async (commandArgs) => {
-		calls.push(commandArgs);
-		const verb = commandArgs.join(" ");
-		if (verb === "workspace list") {
+function fakeExec(opts: FakeExecOptions): { exec: HerdrExecFn; calls: string[] } {
+	const calls: string[] = [];
+	const exec: HerdrExecFn = async (key) => {
+		calls.push(key);
+		if (key === "herdr.workspace.list") {
 			if (opts.workspaceListError) throw opts.workspaceListError;
 			if (opts.workspaceListRaw !== undefined) return opts.workspaceListRaw;
 			return JSON.stringify({ result: { workspaces: opts.workspaces ?? [] } });
 		}
-		if (verb === "agent list") {
+		if (key === "herdr.agent.list") {
 			if (opts.agentListRaw !== undefined) return opts.agentListRaw;
 			return JSON.stringify({ result: { agents: opts.agents ?? [] } });
 		}
-		throw new Error(`unexpected call: ${verb}`);
+		throw new Error(`unexpected call: ${key}`);
 	};
 	return { exec, calls };
 }
 
 describe("findHerdrAgent", () => {
-	it("returns herdr-missing when exec rejects with ENOENT", async () => {
+	// Availability is decided by the classified failure kind, not by matching the
+	// shell's wording, so this holds regardless of platform or locale.
+	it("returns herdr-missing when the command could not be resolved", async () => {
 		const exec: HerdrExecFn = async () => {
-			throw Object.assign(new Error("spawn herdr ENOENT"), { code: "ENOENT" });
+			throw new ProcessError("herdr", 127, "not found", undefined, "command-not-found");
 		};
 		expect(await findHerdrAgent(TARGET, exec)).toEqual({ kind: "herdr-missing" });
+	});
+
+	it("does not treat a herdr that ran and failed as missing", async () => {
+		const exec: HerdrExecFn = async () => {
+			throw new ProcessError("herdr", 1, "'herdr' is not recognized", undefined, "exited");
+		};
+		await expect(findHerdrAgent(TARGET, exec)).rejects.toBeInstanceOf(ProcessError);
 	});
 
 	it("returns no-agent for an empty workspace list without calling agent list", async () => {
 		const { exec, calls } = fakeExec({ workspaces: [] });
 		expect(await findHerdrAgent(TARGET, exec)).toEqual({ kind: "no-agent" });
-		expect(calls).toEqual([["workspace", "list"]]);
+		expect(calls).toEqual(["herdr.workspace.list"]);
 	});
 
 	it("returns no-agent when the workspace matches but no agent matches", async () => {
@@ -63,7 +73,7 @@ describe("findHerdrAgent", () => {
 			agents: [],
 		});
 		expect(await findHerdrAgent(TARGET, exec)).toEqual({ kind: "no-agent" });
-		expect(calls).toEqual([["workspace", "list"], ["agent", "list"]]);
+		expect(calls).toEqual(["herdr.workspace.list", "herdr.agent.list"]);
 	});
 
 	it("returns the matched agent with paneId and agentStatus", async () => {
@@ -152,17 +162,17 @@ describe("findHerdrAgent", () => {
 	it("rejects on malformed JSON", async () => {
 		const { exec } = fakeExec({ workspaceListRaw: "not json" });
 		await expect(findHerdrAgent(TARGET, exec)).rejects.toThrow(
-			"Could not parse JSON output from 'herdr workspace list'.",
+			"Could not parse JSON output from 'herdr.workspace.list'.",
 		);
 	});
 });
 
 describe("stopHerdrAgent", () => {
-	it("invokes exec with pane close and the pane id", async () => {
-		const calls: string[][] = [];
-		const exec: HerdrExecFn = async (args) => { calls.push(args); return ""; };
+	it("invokes the stop action with the pane id", async () => {
+		const calls: [string, unknown][] = [];
+		const exec: HerdrExecFn = async (key, values) => { calls.push([key, values]); return ""; };
 		await stopHerdrAgent("w1:p2", exec);
-		expect(calls).toEqual([["pane", "close", "w1:p2"]]);
+		expect(calls).toEqual([["herdr.agent.stop", { paneId: "w1:p2" }]]);
 	});
 
 	it("propagates exec failure", async () => {

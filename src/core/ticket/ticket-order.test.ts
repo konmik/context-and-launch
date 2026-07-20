@@ -4,7 +4,7 @@ import path from 'path';
 import os from 'os';
 import { TicketOrderStore } from './ticket-order.js';
 import { TicketStore } from './ticket-store.js';
-import { git } from '../infra/git.js';
+import { git } from '~/test-git.js';
 import type { TicketInfo } from './ticket-store.js';
 
 function tmpDir(prefix: string): string {

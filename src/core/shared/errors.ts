@@ -19,6 +19,22 @@ export class NotFoundError extends AppError {
 	constructor(message: string) { super(message); }
 }
 
+/**
+ * Why a command failed, as classified at the shell boundary.
+ *
+ * `exited` is the only kind whose `exitCode` was chosen by the command itself,
+ * so it is the only kind a caller may interpret as a probe answer. Every other
+ * kind means the command never produced a verdict. Without this distinction a
+ * caller cannot tell "git says these commits are unrelated" from "git is not
+ * installed", because both surface as a non-zero exit.
+ */
+export type ProcessFailureKind =
+	| 'exited'
+	| 'command-not-found'
+	| 'interpreter-failure'
+	| 'timeout'
+	| 'spawn-error';
+
 export class ProcessError extends Error {
 	readonly shortDescription: string;
 
@@ -27,10 +43,16 @@ export class ProcessError extends Error {
 		public readonly exitCode: number | undefined,
 		public readonly output: string | undefined,
 		description?: string,
+		public readonly kind: ProcessFailureKind = 'exited',
 	) {
 		const desc = description ?? `${command} failed${exitCode != null ? ` (exit ${exitCode})` : ''}`;
 		super(output ? `${desc}: ${output}` : desc);
 		this.shortDescription = desc;
+	}
+
+	/** True when the command ran to completion and chose `code` itself. */
+	exitedWith(code: number): boolean {
+		return this.kind === 'exited' && this.exitCode === code;
 	}
 }
 

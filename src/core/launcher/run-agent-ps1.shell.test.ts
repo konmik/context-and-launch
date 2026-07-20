@@ -4,7 +4,7 @@ import crypto from "crypto";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { spawnDetached } from "./spawn-detached.js";
+import { runDetachedProcess } from "../command-template/platform-shell-runner.test-utils.js";
 
 const SCRIPT_PATH = path.resolve(
   __dirname, "../../../config-defaults/run-agent.ps1",
@@ -75,7 +75,7 @@ describe.runIf(process.platform === "win32")(
         `Set-Content -LiteralPath '${outputPath}' -Value $args[0]`,
       );
 
-      await spawnDetached(
+      await runDetachedProcess(
         "powershell",
         [
           "-File", SCRIPT_PATH, "hello",
@@ -112,7 +112,7 @@ describe.runIf(process.platform === "win32")(
         `Set-Content -LiteralPath '${outputPath}' -Value $args[0]`,
       );
 
-      await spawnDetached(
+      await runDetachedProcess(
         "powershell",
         [
           "-File", SCRIPT_PATH, "hello",

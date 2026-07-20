@@ -18,19 +18,13 @@ export default defineConfig({
       {
         resolve: { alias },
         test: {
-          name: "shell",
-          include: ["src/**/*.shell.test.ts"],
-          testTimeout: 30000,
-        },
-      },
-      {
-        resolve: { alias },
-        test: {
           name: "e2e",
           include: ["e2e/**/*.test.ts"],
           testTimeout: 60000,
           hookTimeout: 60000,
           maxConcurrency: 1,
+          maxWorkers: 1,
+          minWorkers: 1,
           fileParallelism: false,
         },
       },

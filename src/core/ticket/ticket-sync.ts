@@ -1,9 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import { ProcessError } from '../shared/errors.js';
-import { git } from '../infra/git.js';
 import { writeMergeTree } from '../infra/git-merge-tree.js';
 import { GitRepository } from '../infra/git-repository.js';
+import type { CommandTemplateExecutor } from '../command-template/command-template-types.js';
 
 export type SyncResult =
 	| { status: 'success' }
@@ -20,14 +20,13 @@ export interface ResolutionPlan {
 }
 
 export class TicketSyncManager {
-	private gitRepo: GitRepository;
-
-	constructor(gitRepo?: GitRepository) {
-		this.gitRepo = gitRepo ?? new GitRepository();
-	}
+	constructor(
+		private readonly commands: CommandTemplateExecutor,
+		private readonly gitRepo: GitRepository,
+	) {}
 
 	async hasRemote(worktreeDir: string): Promise<boolean> {
-		const remotes = (await git(worktreeDir, 'remote')).trim();
+		const remotes = (await this.commands.execute('ticket-sync.remote.list', worktreeDir)).trim();
 		return remotes.length > 0;
 	}
 
@@ -45,47 +44,52 @@ export class TicketSyncManager {
 
 			let upstream: string;
 			try {
-				upstream = (await git(worktreeDir, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}')).trim();
+				upstream = (await this.commands.execute('ticket-sync.upstream.resolve', worktreeDir)).trim();
 			} catch (err) {
 				const isNoUpstream = err instanceof ProcessError
 					&& /no upstream configured/.test(err.output ?? "");
 				if (!isNoUpstream) throw err;
-				const branch = (await git(worktreeDir, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
+				const branch = (await this.commands.execute('ticket-sync.branch.current', worktreeDir)).trim();
 				try {
-					await git(worktreeDir, 'push', '-u', 'origin', branch);
+					await this.commands.execute(
+						'ticket-sync.push.set-upstream', worktreeDir, { remote: 'origin', branch },
+					);
 					return { status: 'success' };
 				} catch (pushErr) {
 					const isNonFastForward = pushErr instanceof ProcessError
 						&& /non-fast-forward|fetch first/.test(pushErr.output ?? "");
 					if (!isNonFastForward) throw pushErr;
-					await git(worktreeDir, 'fetch', 'origin');
+					await this.commands.execute('ticket-sync.fetch-origin', worktreeDir);
 					await this.commitAll(worktreeDir);
-					const localHead = (await git(worktreeDir, 'rev-parse', 'HEAD')).trim();
-					await git(worktreeDir, 'reset', '--hard', `origin/${branch}`);
-					await git(worktreeDir, 'checkout', localHead, '--', '.');
+					const localHead = (await this.commands.execute(
+						'ticket-sync.head.resolve', worktreeDir)).trim();
 					upstream = `origin/${branch}`;
-					await git(worktreeDir, 'branch', '--set-upstream-to', upstream);
+					await this.commands.execute('ticket-sync.upstream.repair', worktreeDir,
+						{ remoteBranch: upstream, localHead, upstream },
+					);
 				}
 			}
 
 			await this.gitRepo.assertSupportsMergeTree(worktreeDir);
 
-			const baseUpstream = (await git(worktreeDir, 'rev-parse', upstream)).trim();
-			const squashBase = (await git(worktreeDir, 'merge-base', 'HEAD', baseUpstream)).trim();
+			const baseUpstream = (await this.resolveRef(worktreeDir, upstream)).trim();
+			const squashBase = (await this.commands.execute('ticket-sync.merge-base', worktreeDir,
+				{ left: 'HEAD', right: baseUpstream },
+			)).trim();
 			if (await this.countAheadOf(worktreeDir, squashBase) > 1) {
-				await git(worktreeDir, 'reset', '--soft', squashBase);
+				await this.commands.execute('ticket-sync.reset-soft', worktreeDir, { ref: squashBase });
 				await this.commitAll(worktreeDir);
 			}
 
-			await git(worktreeDir, 'fetch');
+			await this.commands.execute('ticket-sync.fetch', worktreeDir);
 			await this.commitAll(worktreeDir);
-			const headLocal = (await git(worktreeDir, 'rev-parse', 'HEAD')).trim();
-			const newUpstream = (await git(worktreeDir, 'rev-parse', upstream)).trim();
+			const headLocal = (await this.commands.execute('ticket-sync.head.resolve', worktreeDir)).trim();
+			const newUpstream = (await this.resolveRef(worktreeDir, upstream)).trim();
 			const aheadCount = await this.countAheadOf(worktreeDir, baseUpstream);
 
 			if (aheadCount === 0) {
 				if (headLocal !== newUpstream) {
-					await git(worktreeDir, 'merge', '--ff-only', newUpstream);
+					await this.commands.execute('ticket-sync.fast-forward', worktreeDir, { ref: newUpstream });
 				}
 				return { status: 'success' };
 			}
@@ -93,34 +97,39 @@ export class TicketSyncManager {
 			const { remote, branch } = this.parseUpstream(upstream);
 			if (await this.isAncestor(worktreeDir, newUpstream, 'HEAD')) {
 				try {
-					await git(worktreeDir, 'push', remote, `HEAD:${branch}`);
+					await this.commands.execute('ticket-sync.push', worktreeDir, { remote, refspec: `HEAD:${branch}` });
 				} catch (pushErr) {
 					return { status: 'error', message: pushErr instanceof Error ? pushErr.message : String(pushErr) };
 				}
 				return { status: 'success' };
 			}
 
-			const mergeTree = await writeMergeTree(worktreeDir, 'HEAD', newUpstream);
+			const mergeTree = await writeMergeTree(this.commands, 'ticket-sync.merge-tree', worktreeDir, {
+				left: 'HEAD', right: newUpstream,
+			});
 			if (mergeTree.status === 'conflicted') return { status: 'conflict' };
 			const mergedTree = mergeTree.tree;
 
 			const signArgs = await this.commitTreeArgs(worktreeDir);
-			const newCommit = (await git(
-				worktreeDir, 'commit-tree', ...signArgs, mergedTree, '-p', newUpstream, '-m', 'sync: local changes',
+			const newCommit = (await this.commands.execute('ticket-sync.commit-tree', worktreeDir,
+				{ signArgs, tree: mergedTree, parent: newUpstream, message: 'sync: local changes' },
 			)).trim();
 
 			try {
-				await git(worktreeDir, 'push', remote, `${newCommit}:${branch}`);
+				await this.commands.execute(
+					'ticket-sync.push', worktreeDir, { remote, refspec: `${newCommit}:${branch}` },
+				);
 			} catch (pushErr) {
 				return { status: 'error', message: pushErr instanceof Error ? pushErr.message : String(pushErr) };
 			}
 
 			await this.commitAll(worktreeDir);
-			const headAfterPush = (await git(worktreeDir, 'rev-parse', 'HEAD')).trim();
+			const headAfterPush = (await this.commands.execute(
+				'ticket-sync.head.resolve', worktreeDir)).trim();
 			if (headAfterPush !== headLocal) {
 				return { status: 'conflict' };
 			}
-			await git(worktreeDir, 'reset', '--hard', newCommit);
+			await this.commands.execute('ticket-sync.reset-hard', worktreeDir, { ref: newCommit });
 			return { status: 'success' };
 		} catch (err) {
 			return { status: 'error', message: err instanceof Error ? err.message : String(err) };
@@ -128,33 +137,35 @@ export class TicketSyncManager {
 	}
 
 	private async commitAll(worktreeDir: string): Promise<void> {
-		await git(worktreeDir, 'add', '-A');
-		const staged = await git(worktreeDir, 'diff', '--cached', '--name-only');
+		await this.commands.execute('git.stage-all', worktreeDir);
+		const staged = await this.commands.execute('ticket-sync.staged-files', worktreeDir);
 		if (staged.trim()) {
 			await this.assertNoConflictMarkers(worktreeDir);
-			await git(worktreeDir, 'commit', '-m', 'sync: local changes');
+			await this.commands.execute('git.commit', worktreeDir, { message: 'sync: local changes' });
 		}
 	}
 
 	private async isAncestor(worktreeDir: string, ancestor: string, descendant: string): Promise<boolean> {
 		try {
-			await git(worktreeDir, 'merge-base', '--is-ancestor', ancestor, descendant);
+			await this.commands.execute('ticket-sync.ancestor.probe', worktreeDir, { ancestor, descendant });
 			return true;
 		} catch (err) {
-			if (err instanceof ProcessError && err.exitCode === 1) return false;
+			if (err instanceof ProcessError && err.exitedWith(1)) return false;
 			throw err;
 		}
 	}
 
 	private async countAheadOf(worktreeDir: string, baseCommit: string): Promise<number> {
 		return parseInt(
-			(await git(worktreeDir, 'rev-list', '--count', `${baseCommit}..HEAD`)).trim(), 10,
+			(await this.commands.execute(
+				'ticket-sync.ahead-count', worktreeDir, { range: `${baseCommit}..HEAD` },
+			)).trim(), 10,
 		);
 	}
 
 	private async assertNoConflictMarkers(worktreeDir: string): Promise<void> {
 		try {
-			await git(worktreeDir, 'diff', '--cached', '--check');
+			await this.commands.execute('ticket-sync.conflict-marker.probe', worktreeDir);
 		} catch (err) {
 			if (!(err instanceof ProcessError)) throw err;
 			// `git diff --check` also fails on benign whitespace errors; only block on
@@ -176,20 +187,19 @@ export class TicketSyncManager {
 	 */
 	async prepareResolution(worktreeDir: string): Promise<ResolutionPlan> {
 		const scratch = this.conflictResolveDir(worktreeDir);
-		const upstream = (await git(
-			worktreeDir, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}',
-		)).trim();
+		const upstream = (await this.commands.execute(
+			'conflict-resolution.upstream.resolve', worktreeDir)).trim();
 		const { remote, branch } = this.parseUpstream(upstream);
-		const pushCommand = `git push ${remote} HEAD:${branch}`;
+		const pushCommand = this.commands.render('conflict-resolution.push', { remote, refspec: `HEAD:${branch}` });
 
 		if (!fs.existsSync(scratch)) {
-			await git(worktreeDir, 'worktree', 'add', '--detach', scratch, 'HEAD');
+			await this.commands.execute('conflict-resolution.scratch.create', worktreeDir, { scratch, ref: 'HEAD' });
 		}
-		await git(worktreeDir, 'fetch');
+		await this.commands.execute('conflict-resolution.fetch', worktreeDir);
 
 		if (!this.gitRepo.hasActiveRebase(scratch)) {
 			try {
-				await git(scratch, 'rebase', upstream);
+				await this.commands.execute('conflict-resolution.rebase', scratch, { upstream });
 			} catch (err) {
 				// A conflict leaves a rebase in progress; anything else is a real failure.
 				if (!this.gitRepo.hasActiveRebase(scratch)) {
@@ -200,7 +210,7 @@ export class TicketSyncManager {
 		}
 
 		if (!this.gitRepo.hasActiveRebase(scratch)) {
-			await git(scratch, 'push', remote, `HEAD:${branch}`);
+			await this.commands.execute('conflict-resolution.push', scratch, { remote, refspec: `HEAD:${branch}` });
 			await this.finalizeResolution(worktreeDir);
 			return { needsAgent: false, scratchDir: scratch, pushCommand };
 		}
@@ -222,11 +232,10 @@ export class TicketSyncManager {
 		if (!fs.existsSync(scratch)) return false;
 		if (this.gitRepo.hasActiveRebase(scratch)) return false;
 
-		const upstream = (await git(
-			worktreeDir, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}',
-		)).trim();
+		const upstream = (await this.commands.execute(
+			'conflict-resolution.upstream.resolve', worktreeDir)).trim();
 		try {
-			await git(worktreeDir, 'fetch');
+			await this.commands.execute('conflict-resolution.fetch', worktreeDir);
 		} catch (err) {
 			console.warn(
 				'Skipping conflict finalize check: fetch failed:',
@@ -234,30 +243,37 @@ export class TicketSyncManager {
 			);
 			return false;
 		}
-		const scratchHead = (await git(scratch, 'rev-parse', 'HEAD')).trim();
-		let upstreamHead = (await git(worktreeDir, 'rev-parse', upstream)).trim();
+		const scratchHead = (await this.commands.execute('conflict-resolution.head.resolve', scratch)).trim();
+		let upstreamHead = (await this.resolveRef(worktreeDir, upstream)).trim();
 		if (scratchHead !== upstreamHead) return false;
 
 		await this.commitAll(worktreeDir);
-		const headLocal = (await git(worktreeDir, 'rev-parse', 'HEAD')).trim();
+		const headLocal = (await this.commands.execute(
+			'conflict-resolution.head.resolve', worktreeDir)).trim();
 		if (headLocal !== upstreamHead) {
-			const snapshotBase = (await git(scratch, 'rev-parse', 'ORIG_HEAD')).trim();
+			const snapshotBase = (await this.commands.execute(
+				'conflict-resolution.snapshot-base.resolve', scratch)).trim();
 			if (headLocal !== snapshotBase) {
 				try {
-					await git(scratch, 'rebase', '--onto', upstreamHead, snapshotBase, headLocal);
+					await this.commands.execute('conflict-resolution.local-changes.rebase', scratch,
+						{ upstream: upstreamHead, snapshotBase, localHead: headLocal },
+					);
 				} catch (err) {
 					if (!this.gitRepo.hasActiveRebase(scratch)) throw err;
 					return false;
 				}
 				const { remote, branch } = this.parseUpstream(upstream);
-				await git(scratch, 'push', remote, `HEAD:${branch}`);
-				upstreamHead = (await git(scratch, 'rev-parse', 'HEAD')).trim();
+				await this.commands.execute('conflict-resolution.push', scratch, { remote, refspec: `HEAD:${branch}` });
+				upstreamHead = (await this.commands.execute(
+					'conflict-resolution.head.resolve', scratch)).trim();
 			}
 		}
 
 		await this.commitAll(worktreeDir);
-		if ((await git(worktreeDir, 'rev-parse', 'HEAD')).trim() !== headLocal) return false;
-		await git(worktreeDir, 'reset', '--hard', upstreamHead);
+		const currentHead = await this.commands.execute(
+			'conflict-resolution.head.resolve', worktreeDir);
+		if (currentHead.trim() !== headLocal) return false;
+		await this.commands.execute('ticket-sync.reset-hard', worktreeDir, { ref: upstreamHead });
 		await this.removeResolveWorktree(worktreeDir, scratch);
 		return true;
 	}
@@ -277,14 +293,14 @@ export class TicketSyncManager {
 		const scratch = this.conflictResolveDir(worktreeDir);
 		if (fs.existsSync(scratch)) {
 			if (this.gitRepo.hasActiveRebase(scratch)) {
-				await git(scratch, 'rebase', '--abort');
+				await this.commands.execute('conflict-resolution.rebase.abort', scratch);
 			}
 			await this.removeResolveWorktree(worktreeDir, scratch);
 			return;
 		}
 		// Recover a stuck legacy rebase left directly in the live tree.
 		if (this.gitRepo.hasActiveRebase(worktreeDir)) {
-			await git(worktreeDir, 'rebase', '--abort');
+			await this.commands.execute('conflict-resolution.rebase.abort', worktreeDir);
 		}
 	}
 
@@ -294,7 +310,8 @@ export class TicketSyncManager {
 
 	private async commitTreeArgs(worktreeDir: string): Promise<string[]> {
 		try {
-			const val = (await git(worktreeDir, 'config', '--get', 'commit.gpgsign')).trim();
+			const val = (await this.commands.execute(
+				'ticket-sync.gpg-signing.read', worktreeDir)).trim();
 			return val === 'true' ? ['-S'] : [];
 		} catch {
 			return [];
@@ -312,7 +329,11 @@ export class TicketSyncManager {
 		return path.join(path.dirname(normalized), `${path.basename(normalized)}-conflict-resolve`);
 	}
 
+	private resolveRef(worktreeDir: string, ref: string): Promise<string> {
+		return this.commands.execute('ticket-sync.ref.resolve', worktreeDir, { ref });
+	}
+
 	private async removeResolveWorktree(worktreeDir: string, scratch: string): Promise<void> {
-		await git(worktreeDir, 'worktree', 'remove', scratch);
+		await this.commands.execute('conflict-resolution.scratch.remove', worktreeDir, { scratch });
 	}
 }
