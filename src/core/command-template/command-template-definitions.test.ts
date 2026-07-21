@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	COMMAND_TEMPLATE_DEFINITION_BY_KEY,
 	COMMAND_TEMPLATE_DEFINITIONS,
+	gitEnvironment,
 } from './command-template-definitions.js';
 import { COMMAND_TEMPLATE_GROUP_ORDER } from './command-template-types.js';
 
@@ -26,6 +27,21 @@ describe('Command Template catalog', () => {
 				expect(definition.key.endsWith(`.${definition.platforms[0]}`)).toBe(true);
 			}
 		}
+	});
+
+	it('shares one git environment so every git command inherits long-path support', () => {
+		const gitCommands = COMMAND_TEMPLATE_DEFINITIONS.filter(
+			(definition) => Object.keys(definition.environment).length > 0,
+		);
+		expect(gitCommands.length).toBeGreaterThan(0);
+		for (const definition of gitCommands) {
+			expect(definition.environment).toBe(gitEnvironment);
+		}
+		expect(gitEnvironment).toMatchObject({
+			GIT_CONFIG_COUNT: '1',
+			GIT_CONFIG_KEY_0: 'core.longpaths',
+			GIT_CONFIG_VALUE_0: 'true',
+		});
 	});
 
 	it('returns operating-system open actions as soon as the shell spawns', () => {

@@ -5,7 +5,13 @@ import type {
 } from './command-template-types.js';
 
 const ALL_PLATFORMS: readonly CommandTemplatePlatform[] = ['windows', 'macos', 'linux'];
-const gitEnvironment = { GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' } as const;
+export const gitEnvironment = {
+	GIT_TERMINAL_PROMPT: '0',
+	GCM_INTERACTIVE: 'never',
+	GIT_CONFIG_COUNT: '1',
+	GIT_CONFIG_KEY_0: 'core.longpaths',
+	GIT_CONFIG_VALUE_0: 'true',
+} as const;
 
 interface DefinitionOptions {
 	platforms?: readonly CommandTemplatePlatform[];
