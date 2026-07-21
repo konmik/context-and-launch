@@ -66,8 +66,10 @@ describe("Project page header toolbar (e2e, real server)", () => {
     ctx.projects.push(project);
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await ctx.page.click('[data-testid="project-header-project-dropdown-trigger"]');
-    await ctx.page.locator('[role="menuitem"]').first().waitFor({ state: "visible", timeout: 10000 });
-    expect(await ctx.page.locator('[role="menuitem"]').count()).toBeGreaterThan(0);
+    await ctx.page.locator('[data-testid="project-header-project-item"]').first().waitFor({
+      state: "visible", timeout: 10000,
+    });
+    expect(await ctx.page.locator('[data-testid="project-header-project-item"]').count()).toBeGreaterThan(0);
   }, 60000);
 
   it("project-header-project-item navigates to that project", async () => {

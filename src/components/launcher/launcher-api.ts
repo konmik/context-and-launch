@@ -8,10 +8,12 @@ import {
 import {
   resolveTicketAndProject, ensureLaunchDir,
   launchAgent as launchAgentCore,
+  launchProjectAgent as launchProjectAgentCore,
   agentRunning, agentMarkerPath, spawnProfile,
+  PROJECT_LAUNCH_KEY,
   type LaunchRequest,
 } from "~/core/launcher/agent-launch.js";
-import { ValidationError, errorResult } from "~/core/shared/errors.js";
+import { NotFoundError, ValidationError, errorResult } from "~/core/shared/errors.js";
 import type { MergedLauncherConfig } from "~/core/launcher/launcher-config.js";
 
 export interface MergedLauncherConfigWithMeta extends MergedLauncherConfig {
@@ -200,6 +202,25 @@ export async function launchAgentAction(
       return { ok: false as const, type: resolved.type, message: resolved.message };
     }
     await launchAgentCore(projectSlug, ticket, launchRequest, launchRequest.launchDir);
+    return { ok: true as const };
+  } catch (e) {
+    return errorResult(e);
+  }
+}
+
+export async function launchProjectAgentAction(
+  projectSlug: string, launchRequest: LaunchRequest,
+) {
+  "use server";
+  try {
+    const project = projectRegistry.listProjects().find(p => p.projectSlug === projectSlug);
+    if (!project) throw new NotFoundError(`Project not found: ${projectSlug}`);
+    if (agentRunning(projectSlug, PROJECT_LAUNCH_KEY)) {
+      return { ok: false as const, type: "error" as const, message: "Already started" };
+    }
+    await launchProjectAgentCore(
+      projectSlug, projectRegistry.getName(projectSlug), launchRequest, project.path,
+    );
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);

@@ -8,7 +8,9 @@ export interface PromptPreviewDeps {
 	checkedSkills: () => Set<string>;
 	orderedSkills: () => { name: string; text: string }[];
 	config: () => MergedLauncherConfig | null;
-	ticket: () => TicketInfo;
+	/** Omitted for a project-level launch: ticket placeholders are then unavailable. */
+	ticket?: () => TicketInfo;
+	resetKey: () => string;
 	projectPath: () => string;
 	worktreeDir: () => string;
 	projectSlug: string;
@@ -28,20 +30,21 @@ export function createPromptPreviewController(deps: PromptPreviewDeps) {
 		const skillTexts = deps.orderedSkills()
 			.filter(s => checked.has(s.name))
 			.map(s => s.text);
-		const wd = deps.worktreeDir();
-		const t = deps.ticket();
-		const ticketDir = wd.replace(/[\\/]$/, '') + "/" + t.folderName;
 		const variables: Record<string, string> = {
-			ticketDir,
-			ticketSlug: t.folderName,
-			ticketTitle: t.title,
-			ticketNumber: t.number,
-			ticketStatus: t.status,
 			projectPath: deps.projectPath(),
 			projectSlug: deps.projectSlug,
 			skills: skillTexts.join('\n'),
 			launchDir: deps.launchDir(),
 		};
+		const t = deps.ticket?.();
+		if (t) {
+			const ticketDir = deps.worktreeDir().replace(/[\\/]$/, '') + "/" + t.folderName;
+			variables.ticketDir = ticketDir;
+			variables.ticketSlug = t.folderName;
+			variables.ticketTitle = t.title;
+			variables.ticketNumber = t.number;
+			variables.ticketStatus = t.status;
+		}
 		return interpolatePrompt(templateText, variables);
 	});
 
@@ -57,7 +60,7 @@ export function createPromptPreviewController(deps: PromptPreviewDeps) {
 	}
 
 	createEffect(on(
-		() => deps.ticket().folderName,
+		() => deps.resetKey(),
 		() => setEditModeRaw(false),
 		{ defer: true },
 	));

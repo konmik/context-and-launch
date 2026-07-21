@@ -18,6 +18,7 @@ import {
 import { EditorTab } from "./ticket-detail-editor-tab.js";
 import { LauncherTab } from "./ticket-detail-launcher-tab.js";
 import { createAgentLauncherController } from "../launcher/agent-launcher-controller.js";
+import { launchAgentAction } from "../launcher/launcher-api.js";
 import { ShortcutsTabPane } from "./ticket-detail-shortcuts-tab.js";
 import { createTicketDetailState, type Tab, type TicketDetailState } from "./ticket-detail-state.js";
 import ErrorDialog from "../shared/ErrorDialog.js";
@@ -50,20 +51,23 @@ function TicketDetailContent(props: {
 }) {
   const s = props.ctrl ?? createTicketDetailState(props);
 
+  const ticketAccessor = () => ({
+    ...props.ticket,
+    folderName: s.savedFolderName(),
+    number: s.savedNumber(),
+    title: s.savedTitle(),
+  });
   const launcherDeps = {
     projectSlug: props.projectSlug,
-    ticket: () => ({
-      ...props.ticket,
-      folderName: s.savedFolderName(),
-      number: s.savedNumber(),
-      title: s.savedTitle(),
-    }),
+    ticket: ticketAccessor,
     get config() { return s.launcherConfig(); },
     onDefaultsChange: s.patchColumnDefaults,
     get useWorktree() { return s.useWorktree(); },
     get projectPath() { return s.launcherConfig()?.projectPath ?? ""; },
     get worktreeDir() { return s.launcherConfig()?.worktreeDir ?? ""; },
     launchDir: s.launchDir,
+    launch: (args: Parameters<typeof launchAgentAction>[2]) =>
+      launchAgentAction(props.projectSlug, ticketAccessor().folderName, args),
   };
   const launcherCtrl = createAgentLauncherController(launcherDeps);
 
