@@ -17,3 +17,7 @@
   - A sync or sync-abort completes
 - Browser shows a yellow dot on the sync button when pending
   - A conflict badge takes precedence over the dot
+- Server derives the conflict badge from Git state on every project load
+  - An active conflict-resolution rebase is a conflict
+  - A diverged local and upstream history is a conflict when `git merge-tree` reports one
+  - Equal, ahead-only, behind-only, and cleanly mergeable histories are not conflicts

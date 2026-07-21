@@ -5,6 +5,22 @@ import type { CommandTemplateExecutor } from '../command-template/command-templa
 export class GitRepository {
 	constructor(private readonly commands: CommandTemplateExecutor) {}
 
+	isWorktree(worktreeDir: string): boolean {
+		const dotGit = path.join(worktreeDir, '.git');
+		try {
+			const stat = fs.statSync(dotGit);
+			if (stat.isDirectory()) return true;
+			if (!stat.isFile()) return false;
+			const content = fs.readFileSync(dotGit, 'utf-8').trim();
+			const match = content.match(/^gitdir:\s*(.+)$/);
+			return match !== null && fs.existsSync(path.resolve(worktreeDir, match[1]));
+		} catch (err: unknown) {
+			if (err instanceof Error && 'code' in err
+				&& (err as NodeJS.ErrnoException).code === 'ENOENT') return false;
+			throw err;
+		}
+	}
+
 	resolveGitDir(worktreeDir: string): string {
 		const dotGit = path.join(worktreeDir, '.git');
 		try {

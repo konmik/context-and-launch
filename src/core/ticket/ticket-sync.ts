@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { ProcessError } from '../shared/errors.js';
+import { AppError, ProcessError } from '../shared/errors.js';
 import { writeMergeTree } from '../infra/git-merge-tree.js';
 import { GitRepository } from '../infra/git-repository.js';
 import type { CommandTemplateExecutor } from '../command-template/command-template-types.js';
@@ -19,6 +19,8 @@ export interface ResolutionPlan {
 	pushCommand: string;
 }
 
+type ResolutionScratchState = 'absent' | 'linked' | 'orphaned';
+
 export class TicketSyncManager {
 	constructor(
 		private readonly commands: CommandTemplateExecutor,
@@ -30,12 +32,61 @@ export class TicketSyncManager {
 		return remotes.length > 0;
 	}
 
+	/**
+	 * Derive whether syncing the current local and upstream commits would conflict.
+	 * This is intentionally computed from Git state so it survives page reloads and
+	 * application restarts without a separate conflict flag that can become stale.
+	 */
+	async detectConflict(worktreeDir: string): Promise<boolean> {
+		const scratch = this.conflictResolveDir(worktreeDir);
+		const scratchState = this.resolutionScratchState(scratch);
+		if (scratchState === 'linked') {
+			return this.gitRepo.hasActiveRebase(scratch);
+		}
+		if (scratchState === 'orphaned') this.discardOrphanedResolutionScratch(scratch);
+		if (this.gitRepo.hasActiveRebase(worktreeDir)) return true;
+
+		let upstream: string;
+		try {
+			upstream = (await this.commands.execute(
+				'ticket-sync.upstream.resolve', worktreeDir,
+			)).trim();
+		} catch (error) {
+			const hasNoUpstream = error instanceof ProcessError
+				&& /no upstream configured/.test(error.output ?? '');
+			if (hasNoUpstream) return false;
+			throw error;
+		}
+
+		const localHead = (await this.commands.execute(
+			'ticket-sync.head.resolve', worktreeDir,
+		)).trim();
+		const upstreamHead = (await this.resolveRef(worktreeDir, upstream)).trim();
+		if (localHead === upstreamHead) return false;
+		if (await this.isAncestor(worktreeDir, localHead, upstreamHead)) return false;
+		if (await this.isAncestor(worktreeDir, upstreamHead, localHead)) return false;
+
+		await this.gitRepo.assertSupportsMergeTree(worktreeDir);
+		const mergeTree = await writeMergeTree(
+			this.commands,
+			'ticket-sync.merge-tree',
+			worktreeDir,
+			{ left: localHead, right: upstreamHead },
+		);
+		return mergeTree.status === 'conflicted';
+	}
+
 	async sync(worktreeDir: string): Promise<SyncResult> {
 		try {
 			const scratch = this.conflictResolveDir(worktreeDir);
-			if (fs.existsSync(scratch)) {
-				await this.finalizeResolution(worktreeDir);
-				if (fs.existsSync(scratch)) return { status: 'conflict' };
+			const scratchState = this.resolutionScratchState(scratch);
+			if (scratchState === 'linked') {
+				const finalized = await this.finalizeResolution(worktreeDir);
+				if (!finalized && this.resolutionScratchState(scratch) === 'linked') {
+					return { status: 'conflict' };
+				}
+			} else if (scratchState === 'orphaned') {
+				this.discardOrphanedResolutionScratch(scratch);
 			}
 			if (this.gitRepo.hasActiveRebase(worktreeDir)) {
 				return { status: 'conflict' };
@@ -192,7 +243,17 @@ export class TicketSyncManager {
 		const { remote, branch } = this.parseUpstream(upstream);
 		const pushCommand = this.commands.render('conflict-resolution.push', { remote, refspec: `HEAD:${branch}` });
 
-		if (!fs.existsSync(scratch)) {
+		let scratchState = this.resolutionScratchState(scratch);
+		if (scratchState === 'orphaned') {
+			if (!this.discardOrphanedResolutionScratch(scratch)) {
+				throw new AppError(
+					`Cannot prepare conflict resolution while ${scratch} is in use. `
+					+ 'Close the previous conflict-resolution terminal and try again.',
+				);
+			}
+			scratchState = 'absent';
+		}
+		if (scratchState === 'absent') {
 			await this.commands.execute('conflict-resolution.scratch.create', worktreeDir, { scratch, ref: 'HEAD' });
 		}
 		await this.commands.execute('conflict-resolution.fetch', worktreeDir);
@@ -229,7 +290,12 @@ export class TicketSyncManager {
 	 */
 	async finalizeResolution(worktreeDir: string): Promise<boolean> {
 		const scratch = this.conflictResolveDir(worktreeDir);
-		if (!fs.existsSync(scratch)) return false;
+		const scratchState = this.resolutionScratchState(scratch);
+		if (scratchState === 'absent') return false;
+		if (scratchState === 'orphaned') {
+			this.discardOrphanedResolutionScratch(scratch);
+			return false;
+		}
 		if (this.gitRepo.hasActiveRebase(scratch)) return false;
 
 		const upstream = (await this.commands.execute(
@@ -274,7 +340,23 @@ export class TicketSyncManager {
 			'conflict-resolution.head.resolve', worktreeDir);
 		if (currentHead.trim() !== headLocal) return false;
 		await this.commands.execute('ticket-sync.reset-hard', worktreeDir, { ref: upstreamHead });
-		await this.removeResolveWorktree(worktreeDir, scratch);
+		try {
+			await this.removeResolveWorktree(worktreeDir, scratch);
+		} catch (error) {
+			// The live Worktree already points at the pushed resolution. Scratch
+			// cleanup is a disposable follow-up and must not roll that successful
+			// state transition back into a page-load failure. Git for Windows can
+			// unregister and empty the scratch before failing to delete its locked
+			// directory; repair that partial result when possible and retry later
+			// otherwise.
+			if (this.resolutionScratchState(scratch) === 'orphaned') {
+				this.discardOrphanedResolutionScratch(scratch);
+			}
+			console.warn(
+				`Conflict resolution restored; scratch cleanup deferred for ${scratch}:`,
+				error instanceof Error ? error.message : error,
+			);
+		}
 		return true;
 	}
 
@@ -286,12 +368,23 @@ export class TicketSyncManager {
 	 */
 	isResolving(worktreeDir: string): boolean {
 		const scratch = this.conflictResolveDir(worktreeDir);
-		return fs.existsSync(scratch) && this.gitRepo.hasActiveRebase(scratch);
+		return this.resolutionScratchState(scratch) === 'linked'
+			&& this.gitRepo.hasActiveRebase(scratch);
 	}
 
 	async abort(worktreeDir: string): Promise<void> {
 		const scratch = this.conflictResolveDir(worktreeDir);
-		if (fs.existsSync(scratch)) {
+		const scratchState = this.resolutionScratchState(scratch);
+		if (scratchState === 'orphaned') {
+			if (!this.discardOrphanedResolutionScratch(scratch)) {
+				throw new AppError(
+					`Cannot clean up conflict resolution while ${scratch} is in use. `
+					+ 'Close the conflict-resolution terminal and try again.',
+				);
+			}
+			return;
+		}
+		if (scratchState === 'linked') {
 			if (this.gitRepo.hasActiveRebase(scratch)) {
 				await this.commands.execute('conflict-resolution.rebase.abort', scratch);
 			}
@@ -327,6 +420,29 @@ export class TicketSyncManager {
 	private conflictResolveDir(worktreeDir: string): string {
 		const normalized = worktreeDir.replace(/[\\/]+$/, '');
 		return path.join(path.dirname(normalized), `${path.basename(normalized)}-conflict-resolve`);
+	}
+
+	private resolutionScratchState(scratch: string): ResolutionScratchState {
+		if (!fs.existsSync(scratch)) return 'absent';
+		return this.gitRepo.isWorktree(scratch) ? 'linked' : 'orphaned';
+	}
+
+	private discardOrphanedResolutionScratch(scratch: string): boolean {
+		try {
+			fs.rmSync(scratch, {
+				recursive: true,
+				force: true,
+				maxRetries: 3,
+				retryDelay: 100,
+			});
+			return !fs.existsSync(scratch);
+		} catch (error) {
+			console.warn(
+				`Could not remove orphaned conflict-resolution directory ${scratch}:`,
+				error instanceof Error ? error.message : error,
+			);
+			return false;
+		}
 	}
 
 	private resolveRef(worktreeDir: string, ref: string): Promise<string> {

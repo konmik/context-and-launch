@@ -55,7 +55,7 @@ export class ProjectPageService {
 			}
 			const suggestedNextNumber = store.suggestNextNumber();
 			const hasRemote = await this.ticketSyncManager.hasRemote(worktreeDir);
-			const hasConflict = this.ticketSyncManager.isResolving(worktreeDir);
+			const hasConflict = await this.ticketSyncManager.detectConflict(worktreeDir);
 			return {
 				status: 'loaded' as const,
 				projects,
