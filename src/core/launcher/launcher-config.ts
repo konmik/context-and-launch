@@ -30,6 +30,7 @@ export interface LauncherColumnDefaults {
 	profileName: string | null;
 	lastLayer?: "editor" | "launcher" | "shortcuts";
 	skillOrder?: string[];
+	editedPrompt?: string;
 }
 
 export interface LauncherConfig {
@@ -81,6 +82,7 @@ export const ColumnDefaultsBody = v.object({
 	profileName: v.optional(v.nullable(v.string())),
 	lastLayer: v.optional(v.picklist(["editor", "launcher", "shortcuts"])),
 	skillOrder: v.optional(v.array(v.string())),
+	editedPrompt: v.optional(v.string()),
 });
 export type ColumnDefaultsBody = v.InferOutput<typeof ColumnDefaultsBody>;
 

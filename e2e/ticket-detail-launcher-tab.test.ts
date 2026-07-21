@@ -159,6 +159,61 @@ describe("Ticket detail Launcher tab (e2e, real server)", () => {
     expect(revertedText).toBe(originalText);
   }, 60000);
 
+  it("edited prompt persists to project launcher config", async () => {
+    const project = await setup("edit-persist");
+    const cm = ctx.page.locator('.cm-content');
+    await cm.waitFor({ state: "visible", timeout: 15000 });
+    const toggle = ctx.page.locator('[data-testid="prompt-preview-edit-toggle"]');
+    await toggle.check();
+    await ctx.page.waitForTimeout(200);
+    await cm.click();
+    await ctx.page.keyboard.type("PERSISTED EDIT");
+    await ctx.page.waitForTimeout(800);
+    const cfg = readProjectLauncherConfig(ctx.testServer, project.projectSlug);
+    expect(cfg?.columnDefaults?.["todo"]?.editedPrompt).toContain("PERSISTED EDIT");
+  }, 60000);
+
+  it("edited prompt is restored after reopening the ticket", async () => {
+    const project = await setup("edit-restore");
+    const cm = ctx.page.locator('.cm-content');
+    await cm.waitFor({ state: "visible", timeout: 15000 });
+    const toggle = ctx.page.locator('[data-testid="prompt-preview-edit-toggle"]');
+    await toggle.check();
+    await ctx.page.waitForTimeout(200);
+    await cm.click();
+    await ctx.page.keyboard.type("RESTORED EDIT");
+    await ctx.page.waitForTimeout(800);
+
+    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+    await openLauncher();
+
+    const cmReopened = ctx.page.locator('.cm-content');
+    await cmReopened.waitFor({ state: "visible", timeout: 15000 });
+    const toggleReopened = ctx.page.locator('[data-testid="prompt-preview-edit-toggle"]');
+    expect(await toggleReopened.isChecked()).toBe(true);
+    const text = await cmReopened.textContent();
+    expect(text).toContain("RESTORED EDIT");
+
+    const cfg = readProjectLauncherConfig(ctx.testServer, project.projectSlug);
+    expect(cfg?.columnDefaults?.["todo"]?.editedPrompt).toContain("RESTORED EDIT");
+  }, 60000);
+
+  it("turning edit off clears the persisted edited prompt", async () => {
+    const project = await setup("edit-clear");
+    const cm = ctx.page.locator('.cm-content');
+    await cm.waitFor({ state: "visible", timeout: 15000 });
+    const toggle = ctx.page.locator('[data-testid="prompt-preview-edit-toggle"]');
+    await toggle.check();
+    await ctx.page.waitForTimeout(200);
+    await cm.click();
+    await ctx.page.keyboard.type("TEMP EDIT");
+    await ctx.page.waitForTimeout(800);
+    await toggle.uncheck();
+    await ctx.page.waitForTimeout(800);
+    const cfg = readProjectLauncherConfig(ctx.testServer, project.projectSlug);
+    expect(cfg?.columnDefaults?.["todo"]?.editedPrompt).toBeUndefined();
+  }, 60000);
+
   it("launch dir display shows project path when worktree is off", async () => {
     const project = await setup("dir-off");
     const display = ctx.page.locator('[data-testid="launch-dir-display"]');

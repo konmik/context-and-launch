@@ -496,6 +496,7 @@ export interface LauncherConfigShape {
     checkedSkills: string[];
     profileName: string | null;
     skillOrder?: string[];
+    editedPrompt?: string;
   }>;
   worktreeRootPath?: string;
   branchPrefix?: string;

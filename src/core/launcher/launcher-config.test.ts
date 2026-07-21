@@ -1069,6 +1069,39 @@ describe('LauncherConfigManager', () => {
 		expect(config.columnDefaults?.['todo']?.profileName).toBe('Claude Win');
 	});
 
+	it('saveColumnDefaults with editedPrompt persists through roundtrip', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		mgr.saveColumnDefaults('test-project', 'todo', {
+			editedPrompt: 'hand edited prompt',
+		});
+		const config = mgr.loadProjectConfig('test-project');
+		expect(config.columnDefaults?.['todo']?.editedPrompt).toBe('hand edited prompt');
+	});
+
+	it('saveColumnDefaults persists an empty edited prompt as an empty string', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		mgr.saveColumnDefaults('test-project', 'todo', { editedPrompt: '' });
+		const config = mgr.loadProjectConfig('test-project');
+		expect(config.columnDefaults?.['todo']?.editedPrompt).toBe('');
+	});
+
+	it('saveColumnDefaults clears editedPrompt when patched with undefined', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		initializeDataDir(new ConfigPaths(configDir));
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		mgr.saveColumnDefaults('test-project', 'todo', { editedPrompt: 'edited' });
+		mgr.saveColumnDefaults('test-project', 'todo', { editedPrompt: undefined });
+		const config = mgr.loadProjectConfig('test-project');
+		expect(config.columnDefaults?.['todo']?.editedPrompt).toBeUndefined();
+	});
+
 	it('getMergedConfig includes profileName in columnDefaults', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
