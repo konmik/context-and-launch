@@ -3,8 +3,6 @@
     "st-0037-add-buttons-to-open-ticket-folder-and-worktree-from-the-ticket-window",
     "st-0035-user-filter-self-assigning-tickets",
     "st-0031-absolute-tickets-path-setting",
-    "st-0033-save-edited-prompt-into-the-column-setting-together-with-other-launch-preferences",
-    "st-0051-launch-in-the-project-folder-without-a-ticket",
     "st-0052-comprehensive-code-review",
     "st-0053-make-tickets-storage-system-as-a-plugin",
     "st-0054-make-herdr-a-plugin",
@@ -13,7 +11,7 @@
   "plan": [],
   "in-progress": [],
   "review": [
-    "st-0043-all-cli-commands-as-templates"
+    "st-0033-save-edited-prompt-into-the-column-setting-together-with-other-launch-preferences"
   ],
   "done": [
     "st-0048-test-test"

@@ -1,7 +1,7 @@
 {
   "number": "ST-0051",
   "title": "Launch in the project folder without a ticket",
-  "status": "todo",
-  "useWorktree": false,
+  "status": "done",
+  "useWorktree": true,
   "createdAt": "2026-07-20T00:11:49.537Z"
 }

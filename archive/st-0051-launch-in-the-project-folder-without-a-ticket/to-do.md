@@ -1,0 +1,1 @@
+Add a three-dots button to the right of the title. Make a popup menu open from it. Add "Launch an agent" item. the item would open an agent launcher dialog with content the same as agent launcher in ticket.
