@@ -49,6 +49,7 @@ describe("resolveDefaults", () => {
 			profileName: "slow",
 			checkedSkills: ["lint"],
 			skillOrder: ["lint", "test"],
+			editedPrompt: undefined,
 		});
 	});
 
@@ -59,6 +60,7 @@ describe("resolveDefaults", () => {
 			profileName: "fast",
 			checkedSkills: [],
 			skillOrder: [],
+			editedPrompt: undefined,
 		});
 	});
 
@@ -69,6 +71,7 @@ describe("resolveDefaults", () => {
 			profileName: "",
 			checkedSkills: [],
 			skillOrder: [],
+			editedPrompt: undefined,
 		});
 	});
 });

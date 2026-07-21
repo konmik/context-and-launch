@@ -49,6 +49,7 @@ export async function saveColumnDefaults(
     profileName?: string | null;
     lastLayer?: "editor" | "launcher" | "shortcuts";
     skillOrder?: string[];
+    editedPrompt?: string;
   },
 ) {
   "use server";

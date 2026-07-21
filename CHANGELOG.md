@@ -26,6 +26,7 @@
 - Added a button for regenerating the next available ticket number from the entered prefix.
 - Added configurable branch prefixes for agent worktrees in project settings.
 - Added warnings when launch commands use `.cmd` or `.bat` files, which cannot safely receive multiline prompts.
+- Added persistence of a hand-edited launch prompt into the column's launch preferences, so it is restored when the ticket is reopened.
 
 ### Changed
 

@@ -51,6 +51,24 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 	const [behindRemoteMsg, setBehindRemoteMsg] = createSignal("");
 	const [dirtyWorktreeMsg, setDirtyWorktreeMsg] = createSignal("");
 
+	const orderedSkills = createMemo(() =>
+		orderByNameList(props.config?.skills ?? [], skillOrder()),
+	);
+
+	const preview = createPromptPreviewController({
+		selectedTemplate,
+		checkedSkills,
+		orderedSkills,
+		config: () => props.config,
+		ticket: props.ticket,
+		projectPath: () => props.projectPath,
+		worktreeDir: () => props.worktreeDir,
+		projectSlug: props.projectSlug,
+		launchDir: props.launchDir,
+		initialEditedPrompt: initial.editedPrompt,
+		onEditedPromptChange: (editedPrompt) => props.onDefaultsChange({ editedPrompt }),
+	});
+
 	createEffect(on(
 		() => [props.config, resetKey()] as const,
 		([cfg]) => {
@@ -59,13 +77,10 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 			setSelectedProfile(defaults.profileName);
 			setCheckedSkills(new Set(defaults.checkedSkills));
 			setSkillOrder(defaults.skillOrder);
+			preview.resetFromSaved(defaults.editedPrompt);
 		},
 		{ defer: true },
 	));
-
-	const orderedSkills = createMemo(() =>
-		orderByNameList(props.config?.skills ?? [], skillOrder()),
-	);
 
 	function toggleSkill(name: string) {
 		const next = new Set(checkedSkills());
@@ -82,19 +97,6 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 			setSkillOrder(orderedNames);
 			props.onDefaultsChange({ skillOrder: orderedNames });
 		},
-	});
-
-	const preview = createPromptPreviewController({
-		selectedTemplate,
-		checkedSkills,
-		orderedSkills,
-		config: () => props.config,
-		ticket: props.ticket,
-		resetKey,
-		projectPath: () => props.projectPath,
-		worktreeDir: () => props.worktreeDir,
-		projectSlug: props.projectSlug,
-		launchDir: props.launchDir,
 	});
 
 	async function launchAgent(extra?: Record<string, unknown>) {
