@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
 import {
   createProject, uniqueSlug, gotoProject, getLocalStorageItem,
   setupE2E,
@@ -20,6 +22,32 @@ describe("Project page header toolbar (e2e, real server)", () => {
     );
     const theme = await getLocalStorageItem(ctx.page, "theme");
     expect(theme === "light" || theme === "dark").toBe(true);
+  }, 60000);
+
+  it("keeps the project shell visible without a modal backdrop when tickets fail to load", async () => {
+    const project = await createProject(ctx.testServer, {
+      projectSlug: uniqueSlug("hdr-load-error"),
+      withTickets: [{ number: "ST-0001", title: "Test", status: "todo" }],
+    });
+    ctx.projects.push(project);
+
+    const dotGit = path.join(project.ticketsPath, ".git");
+    const heldDotGit = path.join(project.ticketsPath, ".git-held-for-test");
+    fs.renameSync(dotGit, heldDotGit);
+    try {
+      await ctx.page.goto(`${ctx.testServer.baseUrl}/project/${project.projectSlug}`);
+      await ctx.page.waitForSelector('[data-testid="project-header-settings-button"]', {
+        state: "visible", timeout: 15000,
+      });
+
+      await ctx.page.waitForSelector('[data-testid="project-load-error"]', {
+        state: "visible", timeout: 15000,
+      });
+      expect(await ctx.page.locator('[data-testid="project-header-settings-button"]').count()).toBe(1);
+      expect(await ctx.page.locator('[data-scope="dialog"][data-part="backdrop"]').count()).toBe(0);
+    } finally {
+      fs.renameSync(heldDotGit, dotGit);
+    }
   }, 60000);
 
   it("project-header-settings-button opens the settings panel", async () => {

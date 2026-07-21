@@ -164,6 +164,23 @@ describe('TicketSyncManager', () => {
 		expect(fs.readFileSync(path.join(worktreeDir, 'conflict.txt'), 'utf-8')).toBe('local content');
 	});
 
+	it('detectConflict ignores an orphaned resolution directory and checks Git state', async () => {
+		const { worktreeDir, remoteDir } = await createRepoWithRemote();
+		const scratch = conflictResolveDir(worktreeDir);
+		dirs.push(worktreeDir, remoteDir, scratch);
+
+		await pushRemoteConflict(remoteDir, dirs);
+		fs.writeFileSync(path.join(worktreeDir, 'conflict.txt'), 'local content');
+		await git(worktreeDir, 'add', '-A');
+		await git(worktreeDir, 'commit', '-m', 'local change');
+		await git(worktreeDir, 'fetch');
+		fs.mkdirSync(scratch);
+
+		const manager = createTicketSyncManager();
+
+		expect(await manager.detectConflict(worktreeDir)).toBe(true);
+	});
+
 	it('sync refuses to commit a working tree containing conflict markers', async () => {
 		const { worktreeDir, remoteDir } = await createRepoWithRemote();
 		dirs.push(worktreeDir, remoteDir);

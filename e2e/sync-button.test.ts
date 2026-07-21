@@ -314,7 +314,7 @@ describe("Sync button (e2e, real server)", () => {
     });
   }, 60000);
 
-  it("diverged with conflict: conflict dialog opens", async () => {
+  it("diverged with conflict: conflict badge remains after reloading", async () => {
     const project = await createProject(ctx.testServer, {
       projectSlug: uniqueSlug("sb-conflict"),
       withRemote: true,
@@ -342,6 +342,12 @@ describe("Sync button (e2e, real server)", () => {
     await ctx.page.waitForSelector('[data-testid="conflict-dialog-close"]', {
       state: "visible", timeout: 20000,
     });
+    await ctx.page.click('[data-testid="conflict-dialog-close"]');
+    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+    await ctx.page.waitForSelector('[data-testid="sync-button-conflict-badge"]', {
+      state: "visible", timeout: 5000,
+    });
+    expect(await ctx.page.locator('[data-testid="sync-button-pending-badge"]').count()).toBe(0);
   }, 60000);
 
   it("diverged without conflict: sync merges and pushes", async () => {

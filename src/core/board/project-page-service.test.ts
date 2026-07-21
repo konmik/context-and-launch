@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
+import { spawn } from 'node:child_process';
 import { ProjectPageService } from './project-page-service.js';
 import { TicketSyncManager } from '~/core/ticket/ticket-sync.js';
 import { git } from '~/test-git.js';
@@ -141,6 +142,69 @@ describe('ProjectPageService.loadProjectPage', () => {
 			expect(result.board.ticketOrder['done']).toContain('st-0001-fix-login');
 		});
 
+		it('loads the restored board when scratch cleanup left an orphaned directory', async () => {
+			const { worktreeDir, manager, plan } = await setupResolvedScratch(dirs);
+			await git(plan.scratchDir, 'push', 'origin', 'HEAD:master');
+
+			// Model Git for Windows partially completing `git worktree remove`: the
+			// live tree was restored, then the scratch worktree was unregistered and
+			// emptied, but its locked directory remained.
+			await git(worktreeDir, 'reset', '--hard', 'origin/master');
+			await git(worktreeDir, 'worktree', 'remove', plan.scratchDir);
+			fs.mkdirSync(plan.scratchDir);
+
+			const { service } = stubDeps({
+				projects: [{ path: worktreeDir, projectSlug: 'proj', name: 'proj', available: true }],
+				worktreeDir,
+				ticketSyncManager: manager,
+			});
+
+			const result = await service.loadProjectPage('proj');
+
+			expect(result.status).toBe('loaded');
+			if (result.status !== 'loaded') return;
+			const ticket = result.board.tickets.find(t => t.folderName === 'st-0001-fix-login');
+			expect(ticket?.status).toBe('done');
+		});
+
+		it.runIf(process.platform === 'win32')(
+			'loads the restored board while the resolver still holds the scratch directory open',
+			async () => {
+				const { worktreeDir, manager, plan } = await setupResolvedScratch(dirs);
+				await git(plan.scratchDir, 'push', 'origin', 'HEAD:master');
+
+				const holder = spawn(
+					process.execPath,
+					['-e', "console.log('ready'); setInterval(() => {}, 1000)"],
+					{ cwd: plan.scratchDir, stdio: ['ignore', 'pipe', 'ignore'] },
+				);
+				await new Promise<void>((resolve, reject) => {
+					holder.once('error', reject);
+					holder.stdout.once('data', () => resolve());
+				});
+
+				const { service } = stubDeps({
+					projects: [{ path: worktreeDir, projectSlug: 'proj', name: 'proj', available: true }],
+					worktreeDir,
+					ticketSyncManager: manager,
+				});
+
+				try {
+					const result = await service.loadProjectPage('proj');
+
+					expect(result.status).toBe('loaded');
+					if (result.status !== 'loaded') return;
+					const ticket = result.board.tickets.find(
+						t => t.folderName === 'st-0001-fix-login',
+					);
+					expect(ticket?.status).toBe('done');
+				} finally {
+					holder.kill();
+					await new Promise<void>(resolve => holder.once('exit', () => resolve()));
+				}
+			},
+		);
+
 		it('loads the board without a conflict badge once resolved, even when the remote is unreachable', async () => {
 			const { worktreeDir, remoteDir, manager } = await setupResolvedScratch(dirs);
 			await git(worktreeDir, 'remote', 'set-url', 'origin', `${remoteDir}-missing`);
@@ -191,7 +255,7 @@ describe('ProjectPageService.loadProjectPage', () => {
 			return {
 				finalizeResolution: vi.fn(),
 				hasRemote: vi.fn(async () => false),
-				isResolving: vi.fn(() => false),
+				detectConflict: vi.fn(async () => false),
 			} as unknown as TicketSyncManager;
 		}
 

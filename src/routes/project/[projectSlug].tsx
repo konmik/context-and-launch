@@ -326,11 +326,15 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                 </Match>
                 <Match when={pageErr()}>
                   {(e) => (
-                    <DialogRoot open onOpenChange={() => revalidate("project-page")}>
-                      <DialogTitle>Error</DialogTitle>
-                      <p class="mb-4 text-sm text-destructive">{e().error}</p>
-                      <button class="btn-primary w-full" onClick={() => revalidate("project-page")}>Retry</button>
-                    </DialogRoot>
+                    <div
+                      class="mx-auto mt-10 max-w-2xl rounded-lg border border-destructive/40 bg-card p-6 shadow-sm"
+                      role="alert"
+                      data-testid="project-load-error"
+                    >
+                      <h2 class="mb-2 text-lg font-semibold">Tickets could not be loaded</h2>
+                      <p class="mb-4 whitespace-pre-wrap text-sm text-destructive">{e().error}</p>
+                      <button class="btn-primary" onClick={() => revalidate("project-page")}>Retry</button>
+                    </div>
                   )}
                 </Match>
                 <Match when={ld()}>
