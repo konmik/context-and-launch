@@ -11,6 +11,7 @@ import CreateTicketDialog from "~/components/ticket/CreateTicketDialog";
 import EditTicketDialog from "~/components/ticket/EditTicketDialog";
 import TicketCleanupDialog from "~/components/shared/TicketCleanupDialog";
 import TicketDetailDialog from "~/components/ticket/TicketDetailDialog";
+import ProjectLauncherDialog from "~/components/launcher/ProjectLauncherDialog";
 import ConflictDialog from "~/components/shared/ConflictDialog";
 import ErrorDialog from "~/components/shared/ErrorDialog";
 import AddProjectForm from "~/components/project/AddProjectForm";
@@ -60,6 +61,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
     props?.ctrl ?? createProjectPageController({ projectSlug, data: data as any });
 
   const [logViewerOpen, setLogViewerOpen] = createSignal(false);
+  const [projectLauncherOpen, setProjectLauncherOpen] = createSignal(false);
   const [hasPendingChanges, setHasPendingChanges] = createSignal(false);
   createEffect(() => {
     const ps = projectSlug();
@@ -154,7 +156,35 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                 data-testid="project-header-new-ticket-button"
               >+ New Ticket</button>
             </div>
-            <h1 class="text-xl font-semibold">{currentProjectName()}</h1>
+            <div class="flex items-center gap-1.5">
+              <h1 class="text-xl font-semibold">{currentProjectName()}</h1>
+              <MenuRoot
+                trigger={
+                  <MenuTrigger
+                    class="btn-icon"
+                    aria-label="Project actions"
+                    data-testid="project-header-title-menu-trigger"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round"
+                    >
+                      <circle cx="12" cy="12" r="1" />
+                      <circle cx="12" cy="5" r="1" />
+                      <circle cx="12" cy="19" r="1" />
+                    </svg>
+                  </MenuTrigger>
+                }
+              >
+                <MenuContent class="min-w-[180px]">
+                  <MenuItem
+                    value="launch-agent"
+                    onClick={() => setProjectLauncherOpen(true)}
+                    data-testid="project-header-launch-agent-menuitem"
+                  >Launch an agent</MenuItem>
+                </MenuContent>
+              </MenuRoot>
+            </div>
             <div class="flex flex-1 items-center justify-end gap-2">
               <ThemeToggle />
               <button
@@ -391,6 +421,11 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
             onClose={commands.closeDetail}
             projectSlug={d().projectSlug}
             ticket={selectionState().detailTicket}
+          />
+          <ProjectLauncherDialog
+            open={projectLauncherOpen()}
+            onOpenChange={setProjectLauncherOpen}
+            projectSlug={d().projectSlug}
           />
 
           <DialogRoot

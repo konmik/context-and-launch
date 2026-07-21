@@ -139,10 +139,12 @@ describe("Status swatch (e2e, real server)", () => {
     expect(todo?.color).toBeUndefined();
 
     await ctx.page.click('[data-testid="launcher-settings-close-button"]');
-    await ctx.page.waitForTimeout(500);
     const card = ctx.page.locator('[data-testid="kanban-board-ticket-card"]');
     await card.waitFor({ state: "visible", timeout: 15000 });
-    expect(await card.locator('[data-testid="status-swatch"]').count()).toBe(0);
+    await expect.poll(
+      () => card.locator('[data-testid="status-swatch"]').count(),
+      { timeout: 15000 },
+    ).toBe(0);
   }, 120000);
 
   it("shows no Herdr icons without a Herdr profile", async () => {

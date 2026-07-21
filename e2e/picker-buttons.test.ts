@@ -11,6 +11,25 @@ function tmpDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
 
+function sleepSync(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+// The running server's FileWatcher auto-commits the tickets worktree, so a raw
+// git command here can collide on index.lock. Retry until the watcher releases it.
+function gitWithLockRetry(command: string, cwd: string): void {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      execSync(command, { cwd });
+      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (attempt >= 20 || !message.includes("index.lock")) throw error;
+      sleepSync(50);
+    }
+  }
+}
+
 const PORT = pickPort();
 const PICKED_DIR = path.join(os.tmpdir(), "e2e-picked-dir");
 const PICKED_FILES = [
@@ -256,8 +275,8 @@ describe("Picker buttons (e2e, real server)", () => {
       JSON.stringify({ number: "T-1", title: "Picker test", status: "todo" }, null, 2),
     );
     fs.writeFileSync(path.join(ticketDir, "to-do.md"), "");
-    execSync("git add -A", { cwd: ticketsDir });
-    execSync('git commit -m "seed ticket"', { cwd: ticketsDir });
+    gitWithLockRetry("git add -A", ticketsDir);
+    gitWithLockRetry('git commit -m "seed ticket"', ticketsDir);
   }
 
   async function goToTicketDetail(page: Page) {

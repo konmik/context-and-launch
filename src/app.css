@@ -392,3 +392,4 @@ textarea.input { display: block; height: auto; }
 
 .solid-flow__edge-interaction { vector-effect: non-scaling-stroke; }
 .solid-flow__pane.draggable:not(.dragging) { cursor: default; }
+.solid-flow__nodes { z-index: 1; }

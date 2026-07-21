@@ -2,26 +2,46 @@ import { createSignal, createEffect, createMemo, on } from "solid-js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/core/launcher/launcher-config.js";
 import type { ErrorInfo } from "~/core/shared/errors.js";
+import { PROJECT_LAUNCH_KEY } from "~/core/launcher/launch-keys.js";
 import { createListReorder, orderByNameList } from "../board/list-reorder.js";
 import { launchErrorInfo, resolveDefaults } from "./agent-launcher-pure.js";
-import { launchAgentAction } from "./launcher-api.js";
 import { createPromptPreviewController } from "./prompt-preview-controller.js";
 
 type MergedSkill = MergedLauncherConfig["skills"][number];
 
+export interface LaunchArgs {
+	initialPrompt: string;
+	profileName: string;
+	useWorktree: boolean;
+	force: boolean;
+	skipBehindRemote: boolean;
+	launchDir: string;
+}
+
+export type LaunchOutcome =
+	| { ok: true }
+	| { ok: false; type: "behindRemote" | "dirtyWorktree" | "error"; message: string; errorInfo?: ErrorInfo };
+
+export type LaunchInvoker = (args: LaunchArgs) => Promise<LaunchOutcome>;
+
 export interface AgentLauncherDeps {
 	projectSlug: string;
-	ticket: () => TicketInfo;
+	/** Omitted for a project-level launch that runs without a ticket. */
+	ticket?: () => TicketInfo;
 	config: MergedLauncherConfig | null;
 	onDefaultsChange: (patch: Partial<LauncherColumnDefaults>) => void;
 	useWorktree: boolean;
 	projectPath: string;
 	worktreeDir: string;
 	launchDir: () => string;
+	launch: LaunchInvoker;
 }
 
 export function createAgentLauncherController(props: AgentLauncherDeps) {
-	const initial = resolveDefaults(props.config, props.ticket().status);
+	const defaultsKey = () => props.ticket ? props.ticket().status : PROJECT_LAUNCH_KEY;
+	const resetKey = () => props.ticket ? props.ticket().folderName : PROJECT_LAUNCH_KEY;
+
+	const initial = resolveDefaults(props.config, defaultsKey());
 	const [selectedTemplate, setSelectedTemplate] = createSignal(initial.templateName);
 	const [selectedProfile, setSelectedProfile] = createSignal(initial.profileName);
 	const [checkedSkills, setCheckedSkills] = createSignal<Set<string>>(new Set(initial.checkedSkills));
@@ -32,9 +52,9 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 	const [dirtyWorktreeMsg, setDirtyWorktreeMsg] = createSignal("");
 
 	createEffect(on(
-		() => [props.config, props.ticket().folderName] as const,
+		() => [props.config, resetKey()] as const,
 		([cfg]) => {
-			const defaults = resolveDefaults(cfg, props.ticket().status);
+			const defaults = resolveDefaults(cfg, defaultsKey());
 			setSelectedTemplate(defaults.templateName);
 			setSelectedProfile(defaults.profileName);
 			setCheckedSkills(new Set(defaults.checkedSkills));
@@ -70,6 +90,7 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 		orderedSkills,
 		config: () => props.config,
 		ticket: props.ticket,
+		resetKey,
 		projectPath: () => props.projectPath,
 		worktreeDir: () => props.worktreeDir,
 		projectSlug: props.projectSlug,
@@ -82,17 +103,14 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 		setBehindRemoteMsg("");
 		setDirtyWorktreeMsg("");
 		try {
-			const result = await launchAgentAction(
-				props.projectSlug, props.ticket().folderName,
-				{
-					initialPrompt: preview.currentPrompt(),
-					useWorktree: props.useWorktree,
-					profileName: selectedProfile(),
-					force: extra?.force === true,
-					skipBehindRemote: extra?.skipBehindRemote === true,
-					launchDir: props.launchDir(),
-				},
-			);
+			const result = await props.launch({
+				initialPrompt: preview.currentPrompt(),
+				useWorktree: props.useWorktree,
+				profileName: selectedProfile(),
+				force: extra?.force === true,
+				skipBehindRemote: extra?.skipBehindRemote === true,
+				launchDir: props.launchDir(),
+			});
 			if (result.ok) return;
 			switch (result.type) {
 				case "behindRemote": setBehindRemoteMsg(result.message); break;

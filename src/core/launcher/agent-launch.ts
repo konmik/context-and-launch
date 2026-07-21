@@ -11,6 +11,9 @@ import { isAlive } from "./process-utils.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { ProjectInfo } from "~/core/project/project-registry.js";
 import type { LauncherProfile } from "~/core/launcher/launcher-config.js";
+import { PROJECT_LAUNCH_KEY } from "./launch-keys.js";
+
+export { PROJECT_LAUNCH_KEY };
 
 const TITLE_SUFFIX = " -- AI";
 
@@ -201,14 +204,14 @@ export async function spawnProfile(
   });
 }
 
-export async function launchAgent(
+async function spawnAgent(
   projectSlug: string,
-  ticket: TicketInfo,
+  markerKey: string,
+  windowTitle: string,
   launchRequest: LaunchRequest,
   launchDir: string,
 ): Promise<void> {
   const merged = launcherConfigManager.getMergedConfig(projectSlug);
-  const windowTitle = buildWindowTitle(ticket);
 
   const profile =
     merged.profiles.find(p => p.name === launchRequest.profileName)
@@ -220,9 +223,31 @@ export async function launchAgent(
 
   const commandVars: Record<string, string> = {
     initialPrompt: launchRequest.initialPrompt, windowTitle,
-    markerPath: agentMarkerPath(projectSlug, ticket.folderName),
+    markerPath: agentMarkerPath(projectSlug, markerKey),
     appConfigDir: launcherConfigManager.getAppConfigDir(),
     configDefaultsDir: launcherConfigManager.getConfigDefaultsDir(),
   };
   await spawnProfile(profile, commandVars, launchDir);
+}
+
+export async function launchAgent(
+  projectSlug: string,
+  ticket: TicketInfo,
+  launchRequest: LaunchRequest,
+  launchDir: string,
+): Promise<void> {
+  await spawnAgent(
+    projectSlug, ticket.folderName, buildWindowTitle(ticket), launchRequest, launchDir,
+  );
+}
+
+export async function launchProjectAgent(
+  projectSlug: string,
+  projectName: string,
+  launchRequest: LaunchRequest,
+  launchDir: string,
+): Promise<void> {
+  await spawnAgent(
+    projectSlug, PROJECT_LAUNCH_KEY, projectName + TITLE_SUFFIX, launchRequest, launchDir,
+  );
 }

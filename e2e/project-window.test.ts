@@ -82,9 +82,9 @@ describe("Project window (e2e, real server)", () => {
 
     const openRowButton = async () => {
       await ctx.page.bringToFront();
-      if (await ctx.page.locator('[role="menuitem"]').first().isVisible()) {
+      if (await ctx.page.locator('[data-testid="project-header-project-item"]').first().isVisible()) {
         await ctx.page.keyboard.press("Escape");
-        await ctx.page.locator('[role="menuitem"]').first().waitFor({
+        await ctx.page.locator('[data-testid="project-header-project-item"]').first().waitFor({
           state: "hidden", timeout: 5000,
         });
       }
