@@ -77,8 +77,13 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 			setSelectedProfile(defaults.profileName);
 			setCheckedSkills(new Set(defaults.checkedSkills));
 			setSkillOrder(defaults.skillOrder);
-			preview.resetFromSaved(defaults.editedPrompt);
 		},
+		{ defer: true },
+	));
+
+	createEffect(on(
+		resetKey,
+		() => preview.resetFromSaved(resolveDefaults(props.config, defaultsKey()).editedPrompt),
 		{ defer: true },
 	));
 
