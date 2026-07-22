@@ -116,15 +116,21 @@ function isExecutableFile(file: string, platform: ShellExecutionRequest['platfor
 	return platform === 'windows' || (stats.mode & 0o111) !== 0;
 }
 
-function searchExecutableOnPath(
-	program: string, platform: ShellExecutionRequest['platform'],
-): string | undefined {
+function isPathQualified(program: string): boolean {
+	return program.includes('/') || program.includes('\\');
+}
+
+function executableCandidates(program: string, extensions: string[]): string[] {
 	const lowered = program.toLowerCase();
-	const candidates = platform === 'windows'
-		? WINDOWS_DIRECT_EXECUTABLE_EXTENSIONS.some((extension) => lowered.endsWith(extension))
-			? [program]
-			: WINDOWS_DIRECT_EXECUTABLE_EXTENSIONS.map((extension) => `${program}${extension}`)
-		: [program];
+	if (extensions.length === 0) return [program];
+	if (extensions.some((extension) => lowered.endsWith(extension))) return [program];
+	return extensions.map((extension) => `${program}${extension}`);
+}
+
+function searchExecutableOnPath(
+	program: string, platform: ShellExecutionRequest['platform'], extensions: string[],
+): string | undefined {
+	const candidates = executableCandidates(program, extensions);
 	for (const directory of (process.env.PATH ?? '').split(path.delimiter)) {
 		if (!directory) continue;
 		for (const candidate of candidates) {
@@ -138,27 +144,34 @@ function searchExecutableOnPath(
 function resolveDirectExecutable(
 	program: string, platform: ShellExecutionRequest['platform'],
 ): string | undefined {
-	if (program.includes('/') || program.includes('\\')) return undefined;
+	if (isPathQualified(program)) return undefined;
 	const cacheKey = `${platform}\n${program}\n${process.env.PATH ?? ''}`;
 	if (!directExecutableCache.has(cacheKey)) {
-		directExecutableCache.set(cacheKey, searchExecutableOnPath(program, platform));
+		directExecutableCache.set(cacheKey, searchExecutableOnPath(
+			program, platform,
+			platform === 'windows' ? WINDOWS_DIRECT_EXECUTABLE_EXTENSIONS : [],
+		));
 	}
 	return directExecutableCache.get(cacheKey);
 }
 
 const WINDOWS_BATCH_EXTENSIONS = ['.cmd', '.bat'];
 
-function windowsBatchTarget(program: string): boolean {
+// The shell resolves an extensionless program via PATHEXT, where .com/.exe win
+// over .bat/.cmd, so a batch script is the target only when no direct
+// executable shadows it.
+function isWindowsBatchTarget(program: string): boolean {
 	const lowered = program.toLowerCase();
 	if (WINDOWS_BATCH_EXTENSIONS.some((extension) => lowered.endsWith(extension))) return true;
-	if (program.includes('/') || program.includes('\\')) return false;
-	for (const directory of (process.env.PATH ?? '').split(path.delimiter)) {
-		if (!directory) continue;
-		for (const extension of WINDOWS_BATCH_EXTENSIONS) {
-			if (isExecutableFile(path.join(directory, `${program}${extension}`), 'windows')) return true;
-		}
+	if (WINDOWS_DIRECT_EXECUTABLE_EXTENSIONS.some((extension) => lowered.endsWith(extension))) return false;
+	if (isPathQualified(program)) {
+		const shadowed = WINDOWS_DIRECT_EXECUTABLE_EXTENSIONS
+			.some((extension) => isExecutableFile(`${program}${extension}`, 'windows'));
+		if (shadowed) return false;
+		return WINDOWS_BATCH_EXTENSIONS
+			.some((extension) => isExecutableFile(`${program}${extension}`, 'windows'));
 	}
-	return false;
+	return searchExecutableOnPath(program, 'windows', WINDOWS_BATCH_EXTENSIONS) !== undefined;
 }
 
 function buildInvocation(request: ShellExecutionRequest): { executable: string; args: string[] } {
@@ -168,11 +181,12 @@ function buildInvocation(request: ShellExecutionRequest): { executable: string; 
 		if (
 			request.platform === 'windows'
 			&& request.argv.some((value) => /[\r\n]/.test(value))
-			&& windowsBatchTarget(request.argv[0])
+			&& isWindowsBatchTarget(request.argv[0])
 		) {
 			throw createProcessError(
 				request, undefined, '', '',
-				`${request.argv[0]} is a cmd.exe batch script and cannot receive arguments containing newlines`,
+				`${request.argv[0]} resolves to a cmd.exe batch script`
+					+ ' and cannot receive arguments containing newlines',
 				'spawn-error',
 			);
 		}

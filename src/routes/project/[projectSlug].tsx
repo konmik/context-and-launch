@@ -1,6 +1,9 @@
 import { useParams, useNavigate, createAsync, revalidate } from "@solidjs/router";
 import { clientOnly } from "@solidjs/start";
-import { Show, For, Switch, Match, createSignal, createEffect, createMemo, onCleanup, onMount } from "solid-js";
+import {
+  Show, For, Switch, Match, ErrorBoundary,
+  createSignal, createEffect, createMemo, onCleanup, onMount,
+} from "solid-js";
 import { DialogRoot, DialogTitle } from "~/components/ui/dialog";
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "~/components/ui/menu";
 
@@ -93,7 +96,6 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   };
 
   const [hasConflict, setHasConflict] = createSignal(false);
-  createEffect(() => setHasConflict(syncStatus()?.hasConflict ?? false));
   createEffect(() => {
     if (!hasConflict()) return;
     const timer = setInterval(
@@ -130,6 +132,81 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
     const name = currentProjectName();
     if (name) document.title = `${name} - Context & Launch`;
   });
+
+  function SyncButton() {
+    createEffect(() => setHasConflict(syncStatus()?.hasConflict ?? false));
+    return (
+      <button
+        onClick={hasConflict() ? () => commands.setConflictDialogOpen(true) : commands.handleSync}
+        disabled={syncState().syncing}
+        class={`btn-icon relative ${
+          hasConflict() ? "border-destructive text-destructive hover:bg-destructive/10" : ""
+        }`}
+        title={hasConflict() ? "Resolve conflicts" : "Sync tickets"}
+        data-testid="sync-button-trigger"
+      >
+        <Show when={syncState().syncSuccess} fallback={
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"
+          >
+            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+            <path d="M16 16h5v5"/>
+          </svg>
+        }>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" data-testid="sync-button-check-icon"
+          >
+            <path d="M20 6 9 17l-5-5"/>
+          </svg>
+        </Show>
+        <Show when={hasConflict()}>
+          <span
+            class={
+              "absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center"
+              + " rounded-full bg-destructive text-[8px] font-bold leading-none"
+              + " text-destructive-foreground"
+            }
+            data-testid="sync-button-conflict-badge"
+          >!</span>
+        </Show>
+        <Show when={hasPendingChanges() && !hasConflict()}>
+          <span
+            class="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-yellow-400"
+            data-testid="sync-button-pending-badge"
+          />
+        </Show>
+      </button>
+    );
+  }
+
+  function SyncStatusErrorButton(props: { error: unknown }) {
+    const message = () =>
+      props.error instanceof Error ? props.error.message : String(props.error);
+    return (
+      <button
+        class="btn-icon border-destructive text-destructive hover:bg-destructive/10"
+        title={message()}
+        data-testid="sync-status-error-button"
+        onClick={() => commands.setSyncError({
+          title: "Sync status unavailable",
+          description: message(),
+        })}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round"
+        >
+          <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/>
+          <path d="M12 9v4"/>
+          <path d="M12 17h.01"/>
+        </svg>
+      </button>
+    );
+  }
 
   let addProjectDialogRef: HTMLDivElement | undefined;
   useModEnterSubmit({
@@ -215,50 +292,9 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                   <path d="M8 12h1"/><path d="M8 18h1"/><path d="M8 6h1"/>
                 </svg>
               </button>
-              <button
-                onClick={hasConflict() ? () => commands.setConflictDialogOpen(true) : commands.handleSync}
-                disabled={syncState().syncing}
-                class={`btn-icon relative ${
-                  hasConflict() ? "border-destructive text-destructive hover:bg-destructive/10" : ""
-                }`}
-                title={hasConflict() ? "Resolve conflicts" : "Sync tickets"}
-                data-testid="sync-button-trigger"
-              >
-                <Show when={syncState().syncSuccess} fallback={
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round"
-                  >
-                    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                    <path d="M3 3v5h5"/>
-                    <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
-                    <path d="M16 16h5v5"/>
-                  </svg>
-                }>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round" data-testid="sync-button-check-icon"
-                  >
-                    <path d="M20 6 9 17l-5-5"/>
-                  </svg>
-                </Show>
-                <Show when={hasConflict()}>
-                  <span
-                    class={
-                      "absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center"
-                      + " rounded-full bg-destructive text-[8px] font-bold leading-none"
-                      + " text-destructive-foreground"
-                    }
-                    data-testid="sync-button-conflict-badge"
-                  >!</span>
-                </Show>
-                <Show when={hasPendingChanges() && !hasConflict()}>
-                  <span
-                    class="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-yellow-400"
-                    data-testid="sync-button-pending-badge"
-                  />
-                </Show>
-              </button>
+              <ErrorBoundary fallback={(error) => <SyncStatusErrorButton error={error} />}>
+                <SyncButton />
+              </ErrorBoundary>
               <button
                 onClick={commands.openSettings}
                 class="btn-icon"

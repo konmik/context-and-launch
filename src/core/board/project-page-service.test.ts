@@ -303,22 +303,61 @@ describe('ProjectPageService.loadProjectPage', () => {
 });
 
 describe('ProjectPageService.loadSyncStatus', () => {
-	it('returns a degraded status with a warning when git state cannot be derived', async () => {
-		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+	it('rejects when git state cannot be derived', async () => {
+		const { service } = stubDeps({
+			projects: [{ path: '/broken', projectSlug: 'proj', name: 'proj', available: true }],
+		});
+
+		await expect(service.loadSyncStatus('proj')).rejects.toThrow(
+			'no worktreeDir configured in stub',
+		);
+	});
+
+	it('waits for an in-flight page load of the same project before touching git state', async () => {
+		const dirs: string[] = [];
+		const worktreeDir = tmpDir('pps-serial-');
+		dirs.push(worktreeDir);
+		const ticketDir = path.join(worktreeDir, 'st-0001-fix-login');
+		fs.mkdirSync(ticketDir);
+		fs.writeFileSync(path.join(ticketDir, 'status.json'), statusJson('todo'));
+
+		const events: string[] = [];
+		let releaseFinalize!: () => void;
+		const finalizeGate = new Promise<void>((resolve) => { releaseFinalize = resolve; });
+		let finalizeStarted!: () => void;
+		const finalizeStartedGate = new Promise<void>((resolve) => { finalizeStarted = resolve; });
+		const ticketSyncManager = {
+			finalizeResolution: vi.fn(async () => {
+				finalizeStarted();
+				await finalizeGate;
+				events.push('finalize-end');
+			}),
+			hasRemote: vi.fn(async () => {
+				events.push('hasRemote');
+				return false;
+			}),
+			detectConflict: vi.fn(async () => false),
+		} as unknown as TicketSyncManager;
+
+		const { service } = stubDeps({
+			projects: [{ path: worktreeDir, projectSlug: 'proj', name: 'proj', available: true }],
+			worktreeDir,
+			ticketSyncManager,
+		});
+
 		try {
-			const { service } = stubDeps({
-				projects: [{ path: '/broken', projectSlug: 'proj', name: 'proj', available: true }],
-			});
+			const pageLoad = service.loadProjectPage('proj');
+			await finalizeStartedGate;
+			const syncStatus = service.loadSyncStatus('proj');
+			await new Promise((resolve) => setTimeout(resolve, 25));
+			expect(events).toEqual([]);
 
-			const status = await service.loadSyncStatus('proj');
-
-			expect(status).toEqual({ hasRemote: false, hasConflict: false });
-			expect(warnSpy).toHaveBeenCalledWith(
-				expect.stringContaining('Skipping sync status'),
-				expect.anything(),
-			);
+			releaseFinalize();
+			expect((await pageLoad).status).toBe('loaded');
+			await syncStatus;
+			expect(events).toEqual(['finalize-end', 'hasRemote']);
 		} finally {
-			warnSpy.mockRestore();
+			cleanup(...dirs);
 		}
 	});
 });
