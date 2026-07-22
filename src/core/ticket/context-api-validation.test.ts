@@ -1,4 +1,4 @@
-import { describe, it, expect, afterAll } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -31,7 +31,7 @@ describe('PUT /context/:name non-JSON body handling', () => {
 		}
 	}
 
-	it.concurrent('plain text body: error message has no stack trace or file paths', async () => {
+	it('plain text body: error message has no stack trace or file paths', async () => {
 		const err = await getJsonParseError('this is not json');
 		const msg = errorMessage(err);
 
@@ -44,7 +44,7 @@ describe('PUT /context/:name non-JSON body handling', () => {
 		expect(msg).not.toContain('.js:');
 	});
 
-	it.concurrent('empty string body: error message is safe', async () => {
+	it('empty string body: error message is safe', async () => {
 		const err = await getJsonParseError('');
 		const msg = errorMessage(err);
 
@@ -55,7 +55,7 @@ describe('PUT /context/:name non-JSON body handling', () => {
 		expect(msg).not.toContain('at ');
 	});
 
-	it.concurrent('binary-like body: error message is safe', async () => {
+	it('binary-like body: error message is safe', async () => {
 		const binary = new Uint8Array([0x00, 0x01, 0xFF, 0xFE]);
 		const err = await getJsonParseError(binary);
 		const msg = errorMessage(err);
@@ -67,7 +67,7 @@ describe('PUT /context/:name non-JSON body handling', () => {
 		expect(msg).not.toContain('at ');
 	});
 
-	it.concurrent('HTML body: error message is safe', async () => {
+	it('HTML body: error message is safe', async () => {
 		const err = await getJsonParseError('<html><body>hi</body></html>');
 		const msg = errorMessage(err);
 
@@ -77,7 +77,7 @@ describe('PUT /context/:name non-JSON body handling', () => {
 		expect(msg).not.toContain('at ');
 	});
 
-	it.concurrent('simulated route returns 400 with safe body for non-JSON', async () => {
+	it('simulated route returns 400 with safe body for non-JSON', async () => {
 		// Simulate the exact logic in the PUT handler's catch block
 		const request = new Request('http://localhost/test', {
 			method: 'PUT',
@@ -106,7 +106,7 @@ describe('PUT /context/:name non-JSON body handling', () => {
 describe('saveTicketContext rejects non-string content', () => {
 	const dirs: string[] = [];
 
-	afterAll(() => {
+	afterEach(() => {
 		for (const d of dirs) {
 			try { fs.rmSync(d, { recursive: true, force: true }); } catch (e) { console.warn('cleanup failed', e); }
 		}
@@ -123,7 +123,7 @@ describe('saveTicketContext rejects non-string content', () => {
 	];
 
 	for (const [label, value] of badValues) {
-		it.concurrent(`throws TypeError for content=${label}`, async () => {
+		it(`throws TypeError for content=${label}`, async () => {
 			const worktreeDir = await createGitWorktree();
 			dirs.push(worktreeDir);
 			const store = new TicketStore(worktreeDir);
@@ -134,7 +134,7 @@ describe('saveTicketContext rejects non-string content', () => {
 			).toThrow(TypeError);
 		});
 
-		it.concurrent(`error message for content=${label} mentions "content" and "string"`, async () => {
+		it(`error message for content=${label} mentions "content" and "string"`, async () => {
 			const worktreeDir = await createGitWorktree();
 			dirs.push(worktreeDir);
 			const store = new TicketStore(worktreeDir);
@@ -166,7 +166,7 @@ async function createGitWorktree(): Promise<string> {
 describe('GET/DELETE with path-traversal name param', () => {
 	const dirs: string[] = [];
 
-	afterAll(() => {
+	afterEach(() => {
 		for (const d of dirs) {
 			try { fs.rmSync(d, { recursive: true, force: true }); } catch (e) { console.warn('cleanup failed', e); }
 		}
@@ -176,7 +176,7 @@ describe('GET/DELETE with path-traversal name param', () => {
 	const traversalNames = ['../secret', '..\\secret', 'foo/../../bar', '..', '.'];
 
 	for (const badName of traversalNames) {
-		it.concurrent(`getTicketContext rejects name="${badName}"`, async () => {
+		it(`getTicketContext rejects name="${badName}"`, async () => {
 			const worktreeDir = await createGitWorktree();
 			dirs.push(worktreeDir);
 			const store = new TicketStore(worktreeDir);
@@ -185,7 +185,7 @@ describe('GET/DELETE with path-traversal name param', () => {
 			expect(() => store.getTicketContext('t-1-test-ticket', badName)).toThrow();
 		});
 
-		it.concurrent(`getTicketContext error for name="${badName}" is user-safe`, async () => {
+		it(`getTicketContext error for name="${badName}" is user-safe`, async () => {
 			const worktreeDir = await createGitWorktree();
 			dirs.push(worktreeDir);
 			const store = new TicketStore(worktreeDir);
@@ -203,7 +203,7 @@ describe('GET/DELETE with path-traversal name param', () => {
 			expect(msg).not.toContain('.ts:');
 		});
 
-		it.concurrent(`deleteTicketContext rejects name="${badName}"`, async () => {
+		it(`deleteTicketContext rejects name="${badName}"`, async () => {
 			const worktreeDir = await createGitWorktree();
 			dirs.push(worktreeDir);
 			const store = new TicketStore(worktreeDir);
@@ -212,7 +212,7 @@ describe('GET/DELETE with path-traversal name param', () => {
 			expect(() => store.deleteTicketContext('t-1-test-ticket', badName)).toThrow();
 		});
 
-		it.concurrent(`deleteTicketContext error for name="${badName}" is user-safe`, async () => {
+		it(`deleteTicketContext error for name="${badName}" is user-safe`, async () => {
 			const worktreeDir = await createGitWorktree();
 			dirs.push(worktreeDir);
 			const store = new TicketStore(worktreeDir);

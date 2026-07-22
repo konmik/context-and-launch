@@ -6,7 +6,7 @@ import {
 import { detectMainBranch } from "~/core/infra/git.js";
 import { errorResult } from "~/core/shared/errors.js";
 
-export type { BoardState, ProjectPageData, SyncStatus } from "~/core/board/board-types.js";
+export type { BoardState, ProjectPageData } from "~/core/board/board-types.js";
 
 export const getDefaultProjectSlug = query(async (): Promise<string | null> => {
   "use server";
@@ -17,11 +17,6 @@ export const loadProjectPage = query(async (projectSlug: string) => {
   "use server";
   return projectPageService.loadProjectPage(projectSlug);
 }, "project-page");
-
-export const getSyncStatus = query(async (projectSlug: string) => {
-  "use server";
-  return projectPageService.loadSyncStatus(projectSlug);
-}, "project-sync-status");
 
 export async function recordProjectFocus(projectSlug: string) {
   "use server";

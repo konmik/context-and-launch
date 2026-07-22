@@ -21,7 +21,7 @@ export default function BoardSelector(props: BoardSelectorProps) {
   return (
     <Show when={boards().length > 1}>
       <div class="mb-4">
-        <label for="project-board" class="mb-2 block text-sm font-medium">Board Definition</label>
+        <label for="project-board" class="field-label">Board Definition</label>
         <BoardSelect
           boards={boards()}
           value={props.boardId()}

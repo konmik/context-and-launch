@@ -24,6 +24,7 @@ import {
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import { createStore, reconcile } from "solid-js/store";
+import { X } from "lucide-solid";
 import type { OverlayRect } from "../shared/ExpandingOverlay";
 import ForestCard, {
   ForestCardCommandsContext,
@@ -99,6 +100,7 @@ export interface ForestSurfaceCommands {
     position: { x: number; y: number },
   ) => void;
   openGroup: (ticketNumber: string, cardRect: OverlayRect) => void;
+  onClose?: () => void;
   openTicket: (ticketNumber: string) => void;
   persistPositions: (positions: ForestLayout) => Promise<void>;
   persistViewport?: (viewport: Viewport) => void;
@@ -398,7 +400,11 @@ export default function ForestSurface(props: ForestSurfaceProps) {
 
     return (
       <>
-        <Panel position="top-left" class="flex gap-4 nopan nodrag" style={{ margin: "12px" }}>
+        <Panel
+          position={props.data.scopeGroupNumber === undefined ? "top-right" : "top-left"}
+          class="flex gap-2 nopan nodrag"
+          style={{ margin: "12px" }}
+        >
           <button
             class="btn-secondary"
             on:pointerdown={(event: PointerEvent) => event.stopPropagation()}
@@ -412,7 +418,33 @@ export default function ForestSurface(props: ForestSurfaceProps) {
             onClick={() => void center()}
             data-testid="forest-center-button"
           >Center</button>
+          <Show when={props.commands.onClose}>
+            {(onClose) => (
+              <button
+                class="btn-icon"
+                style={{ height: "2.5rem", width: "2.5rem" }}
+                on:pointerdown={(event: PointerEvent) => event.stopPropagation()}
+                onClick={() => onClose()()}
+                title="Close forest view"
+                data-testid="forest-close-button"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </Show>
         </Panel>
+
+        <Show when={props.data.scopeGroupNumber === undefined}>
+          <Panel
+            position="bottom-left"
+            class="nopan nodrag pointer-events-none"
+            style={{ margin: "12px" }}
+          >
+            <span class="text-xs text-muted-foreground" data-testid="forest-select-hint">
+              Shift+mouse to select
+            </span>
+          </Panel>
+        </Show>
 
         <Show when={selectedNodeIds().length >= 2}>
           <NodeToolbar
@@ -593,7 +625,7 @@ export default function ForestSurface(props: ForestSurfaceProps) {
                   <Portal>
                     <div class="fixed inset-0" onClick={() => setDependencyPopup(undefined)} />
                     <div
-                      class="fixed rounded-md border border-border bg-popover p-1 shadow-md"
+                      class="fixed rounded-md border border-border bg-popover p-1"
                       style={{
                         left: `${popup().screenX}px`,
                         top: `${popup().screenY}px`,

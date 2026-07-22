@@ -1,5 +1,6 @@
 import { Handle, Position, type NodeProps } from "@dschz/solid-flow";
 import { createContext, createSignal, Show, useContext } from "solid-js";
+import { Group, EllipsisVertical } from "lucide-solid";
 import { MenuContent, MenuItem, MenuRoot, MenuTrigger } from "../ui/menu";
 import {
   isConnectionTarget,
@@ -106,21 +107,15 @@ export default function ForestCard(
       data-ticket-number={ticketNumber()}
     >
       <div
-        class={`min-h-[72px] rounded-md bg-card/75 shadow-sm backdrop-blur-[2px] ${
-          props.data.group ? "border-2 border-dashed border-border" : "border border-border"
+        class={`forest-card-surface min-h-[72px] rounded-md bg-card/75 backdrop-blur-[2px] ${
+          props.data.group ? "border-2 border-dashed" : "border"
         }${props.selected ? " ring-2 ring-primary" : ""}`}
       >
         <div class="flex items-start gap-1 p-2">
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-1">
               <Show when={props.data.group}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12"
-                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-muted-foreground"
-                >
-                  <rect x="2" y="4" width="14" height="12" rx="2"/>
-                  <rect x="8" y="8" width="14" height="12" rx="2"/>
-                </svg>
+                <Group size={12} class="shrink-0 text-muted-foreground" />
               </Show>
               <span class="truncate text-sm font-medium text-primary">{ticketNumber()}</span>
               <StatusSwatch status={props.data.ticket.status} columns={columns()} />
@@ -142,12 +137,7 @@ export default function ForestCard(
                     class="btn-icon h-6 w-6 shrink-0"
                     data-testid="forest-group-menu-trigger"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
-                      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                      stroke-linecap="round" stroke-linejoin="round"
-                    >
-                      <circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>
-                    </svg>
+                    <EllipsisVertical size={14} />
                   </MenuTrigger>
                 }
               >

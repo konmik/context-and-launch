@@ -20,7 +20,6 @@ function DropPreview(props: {
 			<TicketCard
 				ticket={props.ticket}
 				columns={props.columns}
-				onEdit={() => {}}
 				onDelete={() => {}}
 				onArchive={() => {}}
 				onViewDetail={() => {}}
@@ -35,7 +34,6 @@ function SortableTicketCard(props: {
 	activeId: string | null;
 	orphanedStatus?: string;
 	columns: ColumnDefinition[];
-	onEdit: (ticket: TicketInfo) => void;
 	onDelete: (ticket: TicketInfo) => void;
 	onArchive: (ticket: TicketInfo) => void;
 	onViewDetail: (ticket: TicketInfo) => void;
@@ -55,7 +53,6 @@ function SortableTicketCard(props: {
 				ticket={props.ticket}
 				orphanedStatus={props.orphanedStatus}
 				columns={props.columns}
-				onEdit={props.onEdit}
 				onDelete={props.onDelete}
 				onArchive={props.onArchive}
 				onViewDetail={props.onViewDetail}
@@ -81,7 +78,6 @@ export interface TicketColumnProps {
 	activeTicket: TicketInfo | null;
 	hoverTarget: HoverTarget | null;
 	columns: ColumnDefinition[];
-	onEdit: (ticket: TicketInfo) => void;
 	onDelete: (ticket: TicketInfo) => void;
 	onArchive: (ticket: TicketInfo) => void;
 	onViewDetail: (ticket: TicketInfo) => void;
@@ -91,6 +87,8 @@ export function TicketColumn(props: TicketColumnProps & {
 	column: ColumnDefinition;
 	tickets: TicketInfo[];
 	registerRef: (el: HTMLDivElement) => void;
+	edgeLeft?: boolean;
+	edgeRight?: boolean;
 }) {
 	const ids = () => props.tickets.map((t) => makeId(props.column.name, t.folderName));
 	const sourceIndexInColumn = () => {
@@ -106,21 +104,38 @@ export function TicketColumn(props: TicketColumnProps & {
 			props.hoverTarget, props.column.name, sourceIndexInColumn(),
 		);
 	return (
-		<div class="flex min-w-[250px] flex-1 flex-col rounded-lg bg-muted/50 p-3">
-			<h3
-				class="mb-3 text-sm font-semibold uppercase text-muted-foreground"
-				data-testid="kanban-board-column-header"
-				data-column-name={props.column.name}
-			>
-				{props.column.name}
-			</h3>
-			<Show when={props.column.description}>
-				<p class="mb-2 text-xs text-muted-foreground" data-testid="kanban-board-column-description">
-					{props.column.description}
-				</p>
-			</Show>
+		<div class="flex min-w-[250px] flex-1 flex-col px-4">
+			<div class="sticky top-0 bg-background">
+				<div
+					classList={{
+						"mb-3 h-2": true,
+						"-ml-8": props.edgeLeft,
+						"-ml-4": !props.edgeLeft,
+						"-mr-8": props.edgeRight,
+						"-mr-4": !props.edgeRight,
+					}}
+					style={{ "background-color": props.column.color ?? "transparent" }}
+					data-testid="kanban-board-column-color-line"
+					data-column-name={props.column.name}
+				/>
+				<div class="mb-3 flex items-center gap-2">
+					<h3
+						class="label-mono text-sm font-semibold text-foreground"
+						data-testid="kanban-board-column-header"
+						data-column-name={props.column.name}
+					>
+						{props.column.name}
+					</h3>
+					<span class="label-mono text-xs text-muted-foreground">[{props.tickets.length}]</span>
+				</div>
+				<Show when={props.column.description}>
+					<p class="-mt-3 mb-5 text-xs text-muted-foreground" data-testid="kanban-board-column-description">
+						{props.column.description}
+					</p>
+				</Show>
+			</div>
 			<SortableProvider ids={ids()}>
-				<div ref={(el) => props.registerRef(el)} class="flex flex-1 flex-col gap-2">
+				<div ref={(el) => props.registerRef(el)} class="flex flex-1 flex-col gap-2 pb-4">
 					<For each={props.tickets}>
 						{(ticket, i) => (
 							<>
@@ -137,7 +152,6 @@ export function TicketColumn(props: TicketColumnProps & {
 									column={props.column.name}
 									activeId={props.activeId}
 									columns={props.columns}
-									onEdit={props.onEdit}
 									onDelete={props.onDelete}
 									onArchive={props.onArchive}
 									onViewDetail={props.onViewDetail}
@@ -166,12 +180,12 @@ export function OrphanColumn(props: TicketColumnProps & { tickets: TicketInfo[] 
 	return (
 		<div
 			class={
-				"flex min-w-[250px] flex-1 flex-col rounded-lg "
-				+ "border-2 border-destructive bg-muted/50 p-3"
+				"flex min-w-[250px] flex-1 flex-col rounded-md "
+				+ "border border-destructive p-3"
 			}
 			data-testid="kanban-board-undefined-column"
 		>
-			<h3 class="mb-1 text-sm font-semibold uppercase text-destructive">
+			<h3 class="label-mono mb-1 text-sm font-semibold text-destructive">
 				undefined
 			</h3>
 			<p
@@ -187,7 +201,6 @@ export function OrphanColumn(props: TicketColumnProps & { tickets: TicketInfo[] 
 								column="undefined"
 								activeId={props.activeId}
 								columns={props.columns}
-								onEdit={props.onEdit}
 								onDelete={props.onDelete}
 								onArchive={props.onArchive}
 								onViewDetail={props.onViewDetail}

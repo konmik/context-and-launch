@@ -35,7 +35,7 @@ describe('TicketSyncManager resolution', () => {
 		expect(fs.readFileSync(path.join(worktreeDir, 'conflict.txt'), 'utf-8')).toBe('local content');
 	});
 
-	it('finalizeResolution advances the live tree to the pushed result and removes the scratch',
+	it.concurrent('finalizeResolution advances the live tree to the pushed result and removes the scratch',
 		async () => {
 		const { worktreeDir, remoteDir } = await createRepoWithRemote();
 		dirs.push(worktreeDir, remoteDir, conflictResolveDir(worktreeDir));
@@ -65,7 +65,7 @@ describe('TicketSyncManager resolution', () => {
 		expect((await git(worktreeDir, 'status', '--porcelain')).trim()).toBe('');
 	});
 
-	it('finalizeResolution preserves a ticket edit made in the live tree during resolution', async () => {
+	it.concurrent('finalizeResolution preserves a ticket edit made in the live tree during resolution', async () => {
 		const { worktreeDir, remoteDir } = await createRepoWithRemote();
 		dirs.push(worktreeDir, remoteDir, conflictResolveDir(worktreeDir));
 

@@ -1,9 +1,9 @@
 import { Show, For } from "solid-js";
 import { Portal } from "solid-js/web";
+import { ChevronDown, TriangleAlert, Trash2, Plus, Upload, Folder } from "lucide-solid";
 import { DialogRoot, DialogTitle, DialogDescription } from "../ui/dialog";
 import MarkdownEditor from "../shared/MarkdownEditor";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
-import type { MergedLauncherConfig } from "~/core/launcher/launcher-config.js";
 import { type ActiveFile, activeFileLabel, isActiveFileMatch } from "./ticket-detail-pure.js";
 import type { ShortcutConfirmation } from "./ticket-detail-shortcuts.js";
 
@@ -49,7 +49,8 @@ export function DiscardConfirmation(props: {
   );
 }
 
-export const TAB_PANE_CLASS = "flex-1 overflow-hidden px-6 pb-4";
+export const TAB_PANE_CLASS = "flex-1 overflow-hidden pb-4";
+export const TAB_CONTENT_CLASS = `${TAB_PANE_CLASS} px-4`;
 
 export function FileToolbar(props: {
   activeFile: ActiveFile;
@@ -74,7 +75,7 @@ export function FileToolbar(props: {
 
   return (
     <>
-      <div class="flex items-center gap-2 px-6 py-2">
+      <div class="flex items-center gap-2 pt-4 pb-2">
         <div class="min-w-0 flex-1">
           <button
             ref={(el) => (dropdownBtnRef = el)}
@@ -92,20 +93,13 @@ export function FileToolbar(props: {
                 <span class="ml-1 text-xs text-muted-foreground">REFERENCE</span>
               )}
             </span>
-            <svg
-              xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-              viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-              class="ml-2 shrink-0"
-            >
-              <path d="m6 9 6 6 6-6"/>
-            </svg>
+            <ChevronDown size={16} class="ml-2 shrink-0" />
           </button>
           <Show when={props.dropdownOpen}>
             <Portal>
               <div class="fixed inset-0" onClick={() => props.setDropdownOpen(false)} />
               <div
-                class="fixed max-h-60 overflow-auto rounded-md border border-border bg-popover py-1 shadow-md"
+                class="fixed max-h-60 overflow-auto rounded-md border border-border bg-popover py-1"
                 style={{
                   top: `${(dropdownBtnRef?.getBoundingClientRect().bottom ?? 0) + 4}px`,
                   left: `${dropdownBtnRef?.getBoundingClientRect().left ?? 0}px`,
@@ -133,22 +127,7 @@ export function FileToolbar(props: {
                       </span>
                           {props.isStale(option.path) && (
                             <span class="shrink-0" title="File not found on disk">
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="14" height="14"
-                                viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                class="text-yellow-500"
-                              >
-                                <path d={
-                                  "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14"
-                                  + "A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"
-                                }/>
-                                <line x1="12" y1="9" x2="12" y2="13"/>
-                                <line x1="12" y1="17" x2="12.01" y2="17"/>
-                              </svg>
+                              <TriangleAlert size={14} class="text-warning" />
                             </span>
                           )}
                         </>
@@ -171,33 +150,18 @@ export function FileToolbar(props: {
               : "Delete file"
           }
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-            viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-          >
-            <path d="M3 6h18"/>
-            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
-            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
-          </svg>
+          <Trash2 size={16} />
         </button>
       </div>
 
-      <div class="flex flex-wrap items-center gap-2 px-6 pb-2">
+      <div class="flex flex-wrap items-center gap-2 pb-2">
         <button
           type="button"
           data-testid="ticket-detail-editor-new-file-button"
           onClick={props.onNewFile}
           class="btn-secondary btn-sm gap-1.5"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg" width="14" height="14"
-            viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-          >
-            <line x1="12" y1="5" x2="12" y2="19"/>
-            <line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
+          <Plus size={14} />
           New markdown file
         </button>
         <button
@@ -210,15 +174,7 @@ export function FileToolbar(props: {
           disabled={props.uploading}
           class={`btn-secondary btn-sm gap-1.5 ${props.dragging ? "border-primary bg-primary/10 text-primary" : ""}`}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg" width="14" height="14"
-            viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-          >
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
+          <Upload size={14} />
           Drop a file to copy
         </button>
         <input
@@ -235,17 +191,7 @@ export function FileToolbar(props: {
           disabled={props.browsing}
           class="btn-secondary btn-sm gap-1.5"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg" width="14" height="14"
-            viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-          >
-            <path d={
-              "M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93"
-              + "a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4"
-              + "a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"
-            }/>
-          </svg>
+          <Folder size={14} />
           Add file reference
         </button>
       </div>
@@ -292,55 +238,6 @@ export function EditorPane(props: {
   );
 }
 
-export function ShortcutsTab(props: {
-  config: MergedLauncherConfig | null;
-  running: string;
-  onRun: (name: string) => void;
-}) {
-  return (
-    <div class="flex h-full flex-col gap-3 overflow-auto py-4">
-      <Show
-        when={props.config}
-        fallback={
-          <p class="text-sm text-muted-foreground">Loading config...</p>
-        }
-      >
-        {(cfg) => (
-          <Show
-            when={cfg().shortcuts.length > 0}
-            fallback={
-              <p class="text-sm text-muted-foreground">
-                No shortcuts configured
-              </p>
-            }
-          >
-            <For each={cfg().shortcuts}>
-              {(shortcut) => (
-                <div class={
-                  "flex items-center justify-between gap-3 "
-                  + "rounded-md border border-border p-3"
-                }>
-                  <div class="min-w-0 flex-1">
-                    <div class="text-sm font-medium">{shortcut.name}</div>
-                    <div class="truncate font-mono text-xs text-muted-foreground">{shortcut.command}</div>
-                  </div>
-                  <button
-                    data-testid="ticket-detail-shortcuts-run-button"
-                    data-shortcut-name={shortcut.name}
-                    onClick={() => props.onRun(shortcut.name)}
-                    disabled={props.running !== ""}
-                    class="btn-primary btn-sm"
-                  >Run</button>
-                </div>
-              )}
-            </For>
-          </Show>
-        )}
-      </Show>
-    </div>
-  );
-}
-
 export function NewFileDialog(props: {
   open: boolean;
   name: string;
@@ -357,7 +254,7 @@ export function NewFileDialog(props: {
       }}
     >
       <DialogTitle>New Markdown File</DialogTitle>
-      <label class="mb-1 block text-sm text-muted-foreground">
+      <label class="field-label">
         File name (without .md extension)
       </label>
       <input

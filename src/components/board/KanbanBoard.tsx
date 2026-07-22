@@ -18,7 +18,6 @@ import type { BoardView, DragState } from "./board-state.js";
 interface KanbanBoardProps {
 	board: BoardState;
 	projectSlug: string;
-	onEdit: (ticket: TicketInfo) => void;
 	onDelete: (ticket: TicketInfo) => void;
 	onArchive: (ticket: TicketInfo) => void;
 	onViewDetail: (ticket: TicketInfo) => void;
@@ -60,47 +59,52 @@ export default function KanbanBoard(props: KanbanBoardProps) {
 		>
 			<DragDropSensors />
 			<div
-				class="flex gap-4 overflow-x-auto p-4"
-				style={{ "min-height": "calc(100vh - 80px)" }}
+				class="min-h-0 flex-1 overflow-auto px-4"
+				style={{ "scrollbar-gutter": "stable" }}
 			>
-				<For each={props.board.columns}>
-					{(column) => (
-						<TicketColumn
-							column={column}
-							tickets={resolveTicketsForColumn(
-								column.name, currentOrder(),
-								board().ticketMap,
-								board().orphanFolderNames,
-							)}
-							registerRef={(el) =>
-								commands.registerColumnRef(
-									column.name, el,
-								)
-							}
+				<div class="flex min-h-full divide-x divide-border">
+					<For each={props.board.columns}>
+						{(column, i) => (
+							<TicketColumn
+								column={column}
+								edgeLeft={i() === 0}
+								edgeRight={
+									i() === props.board.columns.length - 1
+									&& board().orphanedTickets.length === 0
+								}
+								tickets={resolveTicketsForColumn(
+									column.name, currentOrder(),
+									board().ticketMap,
+									board().orphanFolderNames,
+								)}
+								registerRef={(el) =>
+									commands.registerColumnRef(
+										column.name, el,
+									)
+								}
+								activeId={drag().activeId}
+								activeTicket={activeTicket()}
+								hoverTarget={drag().hoverTarget}
+								columns={props.board.columns}
+								onDelete={props.onDelete}
+								onArchive={props.onArchive}
+								onViewDetail={props.onViewDetail}
+							/>
+						)}
+					</For>
+					<Show when={board().orphanedTickets.length > 0}>
+						<OrphanColumn
+							tickets={board().orphanedTickets}
 							activeId={drag().activeId}
 							activeTicket={activeTicket()}
 							hoverTarget={drag().hoverTarget}
 							columns={props.board.columns}
-							onEdit={props.onEdit}
 							onDelete={props.onDelete}
 							onArchive={props.onArchive}
 							onViewDetail={props.onViewDetail}
 						/>
-					)}
-				</For>
-				<Show when={board().orphanedTickets.length > 0}>
-					<OrphanColumn
-						tickets={board().orphanedTickets}
-						activeId={drag().activeId}
-						activeTicket={activeTicket()}
-						hoverTarget={drag().hoverTarget}
-						columns={props.board.columns}
-						onEdit={props.onEdit}
-						onDelete={props.onDelete}
-						onArchive={props.onArchive}
-						onViewDetail={props.onViewDetail}
-					/>
-				</Show>
+					</Show>
+				</div>
 			</div>
 			<DragOverlay>
 				{() => (
@@ -112,7 +116,6 @@ export default function KanbanBoard(props: KanbanBoardProps) {
 								<TicketCard
 									ticket={t()}
 									columns={props.board.columns}
-									onEdit={() => {}}
 									onDelete={() => {}}
 									onArchive={() => {}}
 									onViewDetail={() => {}}

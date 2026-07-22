@@ -1,13 +1,16 @@
 import { createSignal, createEffect, createMemo, onCleanup, on } from "solid-js";
 import { revalidate } from "@solidjs/router";
-import type { MergedLauncherConfig } from "~/core/launcher/launcher-config.js";
+import type {
+  LauncherItemType,
+  MergedLauncherConfig,
+} from "~/core/launcher/launcher-config.js";
 import type { BoardDefinition, ColumnDefinition } from "~/core/project/board-config.js";
 import { errorPayload, errorMessage, type ErrorInfo } from "~/core/shared/errors.js";
 import { slugifyColumnName } from "~/lib/slugify.js";
 import {
   getMergedLauncherConfig, type MergedLauncherConfigWithMeta,
   addItem, updateItem, deleteItem as deleteItemAction,
-  reorderSkill, saveWorktreeRootPath as saveWorktreeRootPathAction,
+  reorderItem, saveWorktreeRootPath as saveWorktreeRootPathAction,
   saveBranchPrefix as saveBranchPrefixAction,
   saveConflictResolution as saveConflictResolutionAction,
 } from "./launcher-api.js";
@@ -17,7 +20,6 @@ import {
 } from "../board/board-api.js";
 import { setProjectName as setProjectNameAction, setBoardId as setBoardIdAction } from "../project/project-api.js";
 import { createListReorder, midpointOrder } from "../board/list-reorder.js";
-import type { MergedSkill } from "./launcher-settings-rows.js";
 import type {
   ItemType, Scope, ItemFormState, ColumnFormState,
   RenameFormState, DeleteTarget,
@@ -320,33 +322,52 @@ export function createLauncherSettingsState(props: {
 		},
 	});
 
-	const skillReorder = createListReorder<MergedSkill>({
-		items: () => config()?.skills ?? [],
-		idOf: (s) => s.name,
-		onReorder: (orderedNames, dragged) => {
-			const cfg = config(); if (!cfg) return;
-			const orderOf = (name: string) =>
-				cfg.skills.find(s => s.name === name)?.order;
-			const newIndex = orderedNames.indexOf(dragged.name);
-			const before = newIndex > 0
-				? orderOf(orderedNames[newIndex - 1]) : undefined;
-			const after = newIndex < orderedNames.length - 1
-				? orderOf(orderedNames[newIndex + 1]) : undefined;
-			const newOrder = midpointOrder(before, after);
-			const skillMap = new Map(cfg.skills.map(s => [s.name, s]));
-			const newSkills = orderedNames.map(n => {
-				const s = skillMap.get(n)!;
-				return n === dragged.name ? { ...s, order: newOrder } : s;
-			});
-			setConfig({ ...cfg, skills: newSkills });
-			saveSkillOrderFn(dragged.scope, dragged.name, newOrder);
-		},
-	});
+	type OrderedConfigKey = "templates" | "skills" | "profiles" | "shortcuts";
+	type ItemFor<K extends OrderedConfigKey> = MergedLauncherConfig[K][number];
 
-	async function saveSkillOrderFn(scope: Scope, name: string, order: number) {
+	function createItemReorder<K extends OrderedConfigKey>(
+		itemType: LauncherItemType,
+		collection: K,
+	) {
+		return createListReorder<ItemFor<K>>({
+			items: () => config()?.[collection] ?? [],
+			idOf: (item) => item.name,
+			onReorder: (orderedNames, dragged) => {
+				const cfg = config(); if (!cfg) return;
+				const items = cfg[collection];
+				const orderOf = (name: string) =>
+					items.find(item => item.name === name)?.order;
+				const newIndex = orderedNames.indexOf(dragged.name);
+				const before = newIndex > 0
+					? orderOf(orderedNames[newIndex - 1]) : undefined;
+				const after = newIndex < orderedNames.length - 1
+					? orderOf(orderedNames[newIndex + 1]) : undefined;
+				const newOrder = midpointOrder(before, after);
+				const itemMap = new Map(items.map(item => [item.name, item]));
+				const reorderedItems = orderedNames.map(name => {
+					const item = itemMap.get(name)!;
+					return name === dragged.name ? { ...item, order: newOrder } : item;
+				});
+				setConfig({ ...cfg, [collection]: reorderedItems } as MergedLauncherConfig);
+				saveItemOrderFn(itemType, dragged.scope, dragged.name, newOrder);
+			},
+		});
+	}
+
+	const templateReorder = createItemReorder("template", "templates");
+	const skillReorder = createItemReorder("skill", "skills");
+	const profileReorder = createItemReorder("profile", "profiles");
+	const shortcutReorder = createItemReorder("shortcut", "shortcuts");
+
+	async function saveItemOrderFn(
+		itemType: LauncherItemType,
+		scope: Scope,
+		name: string,
+		order: number,
+	) {
 		setError(null);
 		try {
-			const result = await reorderSkill(props.projectSlug, scope, name, order);
+			const result = await reorderItem(props.projectSlug, itemType, scope, name, order);
 			if (!result.ok) { setError({ title: "Reorder failed", description: result.message }); return; }
 			await loadConfig();
 		} catch (e) { setError(errorPayload(e, "Reorder failed")); }
@@ -365,7 +386,8 @@ export function createLauncherSettingsState(props: {
 		saveBranchPrefix: saveBranchPrefixFn, saveConflictResolution: saveConflictResolutionFn,
 		handleCreateBoard, handleDeleteBoard, handleSaveColumn,
 		handleDeleteColumn, handleRenameColumn, handleSetProjectBoard,
-		columnNameValidation, columnReorder, skillReorder,
+		columnNameValidation, columnReorder,
+		templateReorder, skillReorder, profileReorder, shortcutReorder,
 	};
 }
 

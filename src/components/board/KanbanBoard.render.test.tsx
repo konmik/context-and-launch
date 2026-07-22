@@ -48,7 +48,6 @@ function renderBoard(board: BoardState, opts: {
       <KanbanBoard
         board={board}
         projectSlug="test"
-        onEdit={noop}
         onDelete={noop}
         onViewDetail={noop}
         onArchive={noop}
@@ -184,28 +183,23 @@ describe("KanbanBoard undefined column", () => {
   });
 });
 
-describe("KanbanBoard status swatches", () => {
-  it("renders exactly one swatch on the colored column's card", () => {
+describe("KanbanBoard column color lines", () => {
+  it("draws a color line per column (transparent when uncolored) and no card swatches", () => {
     const tickets = [
       makeTicket({ folderName: "t-1-alpha", number: "T-1", title: "Alpha", status: "todo" }),
       makeTicket({ folderName: "t-2-bravo", number: "T-2", title: "Bravo", status: "done" }),
     ];
     const board = makeBoard(tickets, [{ name: "todo", color: "#0969da" }, { name: "done" }]);
     const { container } = renderBoard(board);
-    const swatches = container.querySelectorAll('[data-testid="status-swatch"]');
-    expect(swatches.length).toBe(1);
-    expect(swatches[0].getAttribute("data-status")).toBe("todo");
-  });
 
-  it("renders a destructive swatch on an orphaned ticket card", () => {
-    const tickets = [
-      makeTicket({ folderName: "t-1-alpha", number: "T-1", title: "Alpha", status: "vanished" }),
-    ];
-    const board = makeBoard(tickets, [{ name: "todo", color: "#0969da" }]);
-    const { container } = renderBoard(board);
-    const swatch = container.querySelector('[data-testid="status-swatch"]') as HTMLElement;
-    expect(swatch).toBeTruthy();
-    expect(swatch.classList).toContain("bg-destructive");
+    expect(container.querySelectorAll('[data-testid="status-swatch"]').length).toBe(0);
+
+    const line = (name: string) =>
+      container.querySelector(
+        `[data-testid="kanban-board-column-color-line"][data-column-name="${name}"]`,
+      ) as HTMLElement;
+    expect(line("todo").style.backgroundColor).toBe("rgb(9, 105, 218)");
+    expect(line("done").style.backgroundColor).toBe("transparent");
   });
 });
 

@@ -1,17 +1,20 @@
 import { useParams, useNavigate, createAsync, revalidate } from "@solidjs/router";
 import { clientOnly } from "@solidjs/start";
+import { Show, For, Switch, Match, createSignal, createEffect, createMemo, onCleanup, onMount } from "solid-js";
 import {
-  Show, For, Switch, Match, ErrorBoundary,
-  createSignal, createEffect, createMemo, onCleanup, onMount,
-} from "solid-js";
-import { DialogRoot, DialogTitle } from "~/components/ui/dialog";
+  EllipsisVertical, Network, ScrollText, RefreshCw, Check, Settings,
+  ChevronDown, ExternalLink, X,
+} from "lucide-solid";
+import {
+  FloatingWindow, FloatingWindowHeader, FloatingPanelBody,
+  FloatingPanelCloseTrigger, FloatingPanelTitle,
+} from "~/components/ui/floating-panel";
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "~/components/ui/menu";
 
 const KanbanBoard = clientOnly(() => import("~/components/board/KanbanBoard"));
 const ForestView = clientOnly(() => import("~/components/forest/ForestView"));
 import { getViewMode, setViewMode } from "~/components/forest/forest-local-state.js";
 import CreateTicketDialog from "~/components/ticket/CreateTicketDialog";
-import EditTicketDialog from "~/components/ticket/EditTicketDialog";
 import TicketCleanupDialog from "~/components/shared/TicketCleanupDialog";
 import TicketDetailDialog from "~/components/ticket/TicketDetailDialog";
 import ProjectLauncherDialog from "~/components/launcher/ProjectLauncherDialog";
@@ -19,17 +22,22 @@ import ConflictDialog from "~/components/shared/ConflictDialog";
 import ErrorDialog from "~/components/shared/ErrorDialog";
 import AddProjectForm from "~/components/project/AddProjectForm";
 import ThemeToggle from "~/components/shared/ThemeToggle";
+import PalettePicker from "~/components/shared/PalettePicker";
 import LogViewerDialog from "~/components/shared/LogViewerDialog";
 import LauncherSettings from "~/components/launcher/LauncherSettings";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
-import { loadProjectPage, getSyncStatus, addProject, recordProjectFocus } from "~/components/project/project-api.js";
+import { loadProjectPage, addProject, recordProjectFocus } from "~/components/project/project-api.js";
 import {
   createProjectPageController,
   type ProjectPageController,
 } from "~/components/project/project-page-controller.js";
 import { getSyncPending } from "~/components/ticket/ticket-api.js";
+import { getMergedLauncherConfig } from "~/components/launcher/launcher-api.js";
 import { getHerdrAgentStatuses } from "~/components/board/herdr-status-api.js";
 import { HerdrStatusesContext } from "~/components/ticket/herdr-statuses-context.js";
+import { ShortcutRunnerContext } from "~/components/board/shortcut-runner-context.js";
+import { createBoardShortcutRunner } from "~/components/board/board-shortcut-runner.js";
+import { ShortcutConfirmationDialog } from "~/components/ticket/ticket-detail-parts.js";
 
 export const route = {
   load: ({ params }: { params: { projectSlug: string } }) => loadProjectPage(params.projectSlug),
@@ -40,7 +48,11 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   const navigate = useNavigate();
   const projectSlug = () => params.projectSlug ?? "";
   const data = createAsync(() => loadProjectPage(projectSlug()));
-  const syncStatus = createAsync(() => getSyncStatus(projectSlug()));
+
+  // onMount runs only after client hydration, so this attribute marks the point
+  // at which event handlers are live and clicks will no longer be dropped.
+  const [hydrated, setHydrated] = createSignal(false);
+  onMount(() => setHydrated(true));
 
   const [viewMode, setViewModeSignal] = createSignal<'kanban' | 'forest'>('kanban');
   createEffect(() => {
@@ -57,9 +69,14 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   }
 
   const { dialogState, syncState, selectionState, commands } =
-    props?.ctrl ?? createProjectPageController({
-      projectSlug, data: data as any, syncStatus: () => syncStatus(),
-    });
+    props?.ctrl ?? createProjectPageController({ projectSlug, data: data as any });
+
+  const launcherConfig = createAsync(async () => {
+    const page = data();
+    if (page?.status !== "loaded") return undefined;
+    return getMergedLauncherConfig(page.projectSlug);
+  });
+  const shortcutRunner = createBoardShortcutRunner({ projectSlug, config: launcherConfig });
 
   const [logViewerOpen, setLogViewerOpen] = createSignal(false);
   const [projectLauncherOpen, setProjectLauncherOpen] = createSignal(false);
@@ -95,12 +112,13 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
     return result?.kind === "available" ? result.statusesByFolderName : {};
   };
 
-  const [hasConflict, setHasConflict] = createSignal(false);
+  const conflictActive = createMemo(() => {
+    const v = data();
+    return v?.status === "loaded" && v.hasConflict;
+  });
   createEffect(() => {
-    if (!hasConflict()) return;
-    const timer = setInterval(
-      () => void revalidate(["project-page", "project-sync-status"]), 5000,
-    );
+    if (!conflictActive()) return;
+    const timer = setInterval(() => void revalidate("project-page"), 5000);
     onCleanup(() => clearInterval(timer));
   });
 
@@ -133,81 +151,6 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
     if (name) document.title = `${name} - Context & Launch`;
   });
 
-  function SyncButton() {
-    createEffect(() => setHasConflict(syncStatus()?.hasConflict ?? false));
-    return (
-      <button
-        onClick={hasConflict() ? () => commands.setConflictDialogOpen(true) : commands.handleSync}
-        disabled={syncState().syncing}
-        class={`btn-icon relative ${
-          hasConflict() ? "border-destructive text-destructive hover:bg-destructive/10" : ""
-        }`}
-        title={hasConflict() ? "Resolve conflicts" : "Sync tickets"}
-        data-testid="sync-button-trigger"
-      >
-        <Show when={syncState().syncSuccess} fallback={
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round"
-          >
-            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-            <path d="M3 3v5h5"/>
-            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
-            <path d="M16 16h5v5"/>
-          </svg>
-        }>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round" data-testid="sync-button-check-icon"
-          >
-            <path d="M20 6 9 17l-5-5"/>
-          </svg>
-        </Show>
-        <Show when={hasConflict()}>
-          <span
-            class={
-              "absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center"
-              + " rounded-full bg-destructive text-[8px] font-bold leading-none"
-              + " text-destructive-foreground"
-            }
-            data-testid="sync-button-conflict-badge"
-          >!</span>
-        </Show>
-        <Show when={hasPendingChanges() && !hasConflict()}>
-          <span
-            class="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-yellow-400"
-            data-testid="sync-button-pending-badge"
-          />
-        </Show>
-      </button>
-    );
-  }
-
-  function SyncStatusErrorButton(props: { error: unknown }) {
-    const message = () =>
-      props.error instanceof Error ? props.error.message : String(props.error);
-    return (
-      <button
-        class="btn-icon border-destructive text-destructive hover:bg-destructive/10"
-        title={message()}
-        data-testid="sync-status-error-button"
-        onClick={() => commands.setSyncError({
-          title: "Sync status unavailable",
-          description: message(),
-        })}
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round"
-        >
-          <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/>
-          <path d="M12 9v4"/>
-          <path d="M12 17h.01"/>
-        </svg>
-      </button>
-    );
-  }
-
   let addProjectDialogRef: HTMLDivElement | undefined;
   useModEnterSubmit({
     onSubmit: () => { addProjectDialogRef?.querySelector("form")?.requestSubmit(); },
@@ -222,16 +165,17 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
         const unavail = () => { const v = d(); return v.status === 'unavailable' ? v : undefined; };
         const pageErr = () => { const v = d(); return v.status === 'error' ? v : undefined; };
         return (
-        <div class="flex min-h-screen flex-col">
-          <header class="flex items-center justify-between px-4 py-3">
-            <div class="flex flex-1 items-center justify-start">
+        <div class="flex h-screen flex-col overflow-hidden" data-hydrated={hydrated() ? "true" : undefined}>
+          <header class="flex shrink-0 items-center justify-between border-b border-border px-4 py-5">
+            <div class="flex items-center justify-start">
               <button
                 class="btn-primary"
+                style={{ height: "2.25rem" }}
                 onClick={commands.openCreate}
                 data-testid="project-header-new-ticket-button"
               >+ New Ticket</button>
             </div>
-            <div class="flex items-center gap-1.5">
+            <div class="flex flex-1 items-center justify-center gap-3">
               <h1 class="text-xl font-semibold">{currentProjectName()}</h1>
               <MenuRoot
                 trigger={
@@ -240,14 +184,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                     aria-label="Project actions"
                     data-testid="project-header-title-menu-trigger"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                      stroke-linecap="round" stroke-linejoin="round"
-                    >
-                      <circle cx="12" cy="12" r="1" />
-                      <circle cx="12" cy="5" r="1" />
-                      <circle cx="12" cy="19" r="1" />
-                    </svg>
+                    <EllipsisVertical size={16} />
                   </MenuTrigger>
                 }
               >
@@ -260,7 +197,8 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                 </MenuContent>
               </MenuRoot>
             </div>
-            <div class="flex flex-1 items-center justify-end gap-2">
+            <div class="flex items-center justify-end gap-2">
+              <PalettePicker />
               <ThemeToggle />
               <button
                 onClick={toggleViewMode}
@@ -268,14 +206,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                 title={viewMode() === 'kanban' ? 'Forest view' : 'Kanban view'}
                 data-testid="project-header-forest-toggle-button"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                >
-                  <path d="M6 16.5V12h12V7.5M6 12V7.5" />
-                  <rect x="3" y="3" width="6" height="5" />
-                  <rect x="15" y="3" width="6" height="5" />
-                  <rect x="3" y="16" width="6" height="5" />
-                </svg>
+                <Network size={16} />
               </button>
               <button
                 onClick={() => setLogViewerOpen(true)}
@@ -283,43 +214,50 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                 title="Application logs"
                 data-testid="project-header-logs-button"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round"
-                >
-                  <path d="M13 12h8"/><path d="M13 18h8"/><path d="M13 6h8"/>
-                  <path d="M3 12h1"/><path d="M3 18h1"/><path d="M3 6h1"/>
-                  <path d="M8 12h1"/><path d="M8 18h1"/><path d="M8 6h1"/>
-                </svg>
+                <ScrollText size={16} />
               </button>
-              <ErrorBoundary fallback={(error) => <SyncStatusErrorButton error={error} />}>
-                <SyncButton />
-              </ErrorBoundary>
+              <button
+                onClick={ld()?.hasConflict ? () => commands.setConflictDialogOpen(true) : commands.handleSync}
+                disabled={syncState().syncing}
+                class={`btn-icon relative ${
+                  ld()?.hasConflict ? "border-destructive text-destructive hover:bg-destructive/10" : ""
+                }`}
+                title={ld()?.hasConflict ? "Resolve conflicts" : "Sync tickets"}
+                data-testid="sync-button-trigger"
+              >
+                <Show when={syncState().syncSuccess} fallback={<RefreshCw size={16} />}>
+                  <Check size={16} data-testid="sync-button-check-icon" />
+                </Show>
+                <Show when={ld()?.hasConflict}>
+                  <span
+                    class={
+                      "absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center"
+                      + " rounded-full bg-destructive text-[8px] font-bold leading-none"
+                      + " text-destructive-foreground"
+                    }
+                    data-testid="sync-button-conflict-badge"
+                  >!</span>
+                </Show>
+                <Show when={hasPendingChanges() && !ld()?.hasConflict}>
+                  <span
+                    class="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-warning"
+                    data-testid="sync-button-pending-badge"
+                  />
+                </Show>
+              </button>
               <button
                 onClick={commands.openSettings}
                 class="btn-icon"
                 title="Settings"
                 data-testid="project-header-settings-button"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round"
-                >
-                  {/* eslint-disable-next-line max-len */}
-                  <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
+                <Settings size={16} />
               </button>
               <MenuRoot
                 trigger={
-                  <MenuTrigger class="ripple btn-secondary" data-testid="project-header-project-dropdown-trigger">
+                  <MenuTrigger class="btn-secondary" data-testid="project-header-project-dropdown-trigger">
                     {currentProjectName()}
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                      stroke-linecap="round" stroke-linejoin="round" class="ml-2"
-                    >
-                      <path d="m6 9 6 6 6-6" />
-                    </svg>
+                    <ChevronDown size={16} class="ml-2" />
                   </MenuTrigger>
                 }
               >
@@ -335,7 +273,13 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                         onClick={() => navigate(`/project/${project.projectSlug}`)}
                         data-testid="project-header-project-item"
                       >
-                        <span>{project.name}</span>
+                        <span class="flex min-w-0 items-center gap-1.5">
+                          <span
+                            class="w-2 shrink-0 text-center font-mono text-muted-foreground"
+                            aria-hidden="true"
+                          >{project.projectSlug === d().projectSlug ? "#" : ""}</span>
+                          <span class="truncate">{project.name}</span>
+                        </span>
                         <button
                           class="btn-icon"
                           disabled={!project.available}
@@ -347,14 +291,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                             window.open(`/project/${project.projectSlug}`, project.projectSlug);
                           }}
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
-                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round"
-                          >
-                            <path d="M15 3h6v6" />
-                            <path d="M10 14 21 3" />
-                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                          </svg>
+                          <ExternalLink size={14} />
                         </button>
                       </MenuItem>
                     )}
@@ -370,7 +307,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
             </div>
           </header>
 
-          <main class="flex-1">
+          <main class="flex flex-1 flex-col min-h-0">
             <HerdrStatusesContext.Provider
               value={(folderName) => herdrTicketStatuses()[folderName]}
             >
@@ -391,7 +328,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                 <Match when={pageErr()}>
                   {(e) => (
                     <div
-                      class="mx-auto mt-10 max-w-2xl rounded-lg border border-destructive/40 bg-card p-6 shadow-sm"
+                      class="mx-auto mt-10 max-w-2xl rounded-lg border border-destructive/40 bg-card p-6"
                       role="alert"
                       data-testid="project-load-error"
                     >
@@ -404,21 +341,23 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                 <Match when={ld()}>
                   {(loaded) => (
                     <Show when={viewMode() === 'forest'} fallback={
-                      <KanbanBoard
-                        board={loaded().board}
-                        projectSlug={d().projectSlug}
-                        onEdit={commands.openEdit}
-                        onDelete={commands.openDelete}
-                        onArchive={commands.openArchive}
-                        onViewDetail={commands.openDetail}
-                        onReorder={commands.handleReorder}
-                      />
+                      <ShortcutRunnerContext.Provider value={shortcutRunner}>
+                        <KanbanBoard
+                          board={loaded().board}
+                          projectSlug={d().projectSlug}
+                          onDelete={commands.openDelete}
+                          onArchive={commands.openArchive}
+                          onViewDetail={commands.openDetail}
+                          onReorder={commands.handleReorder}
+                        />
+                      </ShortcutRunnerContext.Provider>
                     }>
-                      <div class="h-[calc(100vh-60px)]">
+                      <div class="min-h-0 flex-1">
                         <ForestView
                           board={loaded().board}
                           projectSlug={d().projectSlug}
                           onViewDetail={commands.openDetail}
+                          onClose={toggleViewMode}
                           suggestedNextNumber={loaded().suggestedNextNumber}
                         />
                       </div>
@@ -435,12 +374,6 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
             onSubmit={commands.handleCreateTicket}
             suggestedNextNumber={ld()?.suggestedNextNumber ?? null}
             projectSlug={d().projectSlug}
-          />
-          <EditTicketDialog
-            open={dialogState().editTicketOpen}
-            onOpenChange={commands.setEditTicketOpen}
-            ticket={selectionState().selectedTicket}
-            onSubmit={commands.handleEditTicket}
           />
           <TicketCleanupDialog
             open={dialogState().cleanupDialogOpen}
@@ -462,21 +395,35 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
             projectSlug={d().projectSlug}
           />
 
-          <DialogRoot
+          <FloatingWindow
             open={dialogState().addProjectDialogOpen}
-            onOpenChange={commands.closeAddProject}
-            ref={addProjectDialogRef}
+            onOpenChange={(d) => { if (!d.open) commands.closeAddProject(); }}
+            defaultSize={{ width: 480, height: 560 }}
+            minSize={{ width: 360, height: 320 }}
+            persistRect
+            fitContent
           >
-            <DialogTitle>Add Project</DialogTitle>
-            <AddProjectForm
-              action={addProject}
-              onSuccess={(s) => {
-                commands.closeAddProject();
-                navigate(`/project/${s}`);
-              }}
-              submitTitle={modEnterHint()}
+            <FloatingWindowHeader
+              title={<FloatingPanelTitle>Add Project</FloatingPanelTitle>}
+              actions={
+                <FloatingPanelCloseTrigger aria-label="Close">
+                  <X size={16} />
+                </FloatingPanelCloseTrigger>
+              }
             />
-          </DialogRoot>
+            <FloatingPanelBody>
+              <div ref={addProjectDialogRef} class="px-6 py-4">
+                <AddProjectForm
+                  action={addProject}
+                  onSuccess={(s) => {
+                    commands.closeAddProject();
+                    navigate(`/project/${s}`);
+                  }}
+                  submitTitle={modEnterHint()}
+                />
+              </div>
+            </FloatingPanelBody>
+          </FloatingWindow>
 
           <ConflictDialog
             open={dialogState().conflictDialogOpen}
@@ -484,8 +431,15 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
             onResolve={commands.handleConflictResolve}
             onAbort={commands.handleConflictAbort}
             projectSlug={d().projectSlug}
-            hasConflict={hasConflict()}
+            hasConflict={!!ld()?.hasConflict}
           />
+          <ShortcutConfirmationDialog
+            info={shortcutRunner.confirmation()}
+            running={shortcutRunner.running() !== ""}
+            onCancel={() => shortcutRunner.setConfirmation(undefined)}
+            onProceed={(n) => { shortcutRunner.setConfirmation(undefined); shortcutRunner.proceed(n); }}
+          />
+          <ErrorDialog error={shortcutRunner.error()} onClose={() => shortcutRunner.setError(null)} />
           <ErrorDialog error={syncState().syncError} onClose={() => commands.setSyncError(null)} />
           <LogViewerDialog open={logViewerOpen()} onOpenChange={setLogViewerOpen} />
           <LauncherSettings

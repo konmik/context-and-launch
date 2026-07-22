@@ -3,7 +3,7 @@ import { runShortcut as runShortcutAction } from "../launcher/launcher-api.js";
 import { errorPayload, type ErrorInfo } from "~/core/shared/errors.js";
 
 export interface ShortcutDeps {
-  projectSlug: string;
+  projectSlug: () => string;
   folderName: () => string;
   useWorktree: () => boolean;
   launchDir: () => string;
@@ -25,7 +25,7 @@ export function createShortcutState(deps: ShortcutDeps) {
     deps.setError(null);
     try {
       const result = await runShortcutAction(
-        deps.projectSlug, deps.folderName(), name, deps.useWorktree(), force ?? false, deps.launchDir(),
+        deps.projectSlug(), deps.folderName(), name, deps.useWorktree(), force ?? false, deps.launchDir(),
       );
       if (!result.ok) {
         if (result.type === "dirtyWorktree" || result.type === "behindRemote") {

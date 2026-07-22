@@ -21,6 +21,3 @@
   - An active conflict-resolution rebase is a conflict
   - A diverged local and upstream history is a conflict when `git merge-tree` reports one
   - Equal, ahead-only, behind-only, and cleanly mergeable histories are not conflicts
-  - Git state cannot be derived
-    - The request fails and the error is shown to the user
-- Page load and sync status for the same project run their Git work one at a time

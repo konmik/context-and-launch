@@ -11,14 +11,14 @@ import {
 describe("Forest View", () => {
   const ctx = setupE2E();
 
-  it("uses the logs stroke width with square integer-grid rectangles", async () => {
+  it("renders the forest toggle and logs icons with consistent lucide styling", async () => {
     await openForestProject(ctx, {
       slugBase: "fv-icon-stroke",
       tickets: [{ number: "A-1", title: "First" }],
       view: "kanban",
     });
 
-    const readStrokeStyle = (testId: string) => ctx.page.locator(
+    const readIcon = (testId: string) => ctx.page.locator(
       `[data-testid="${testId}"] svg`,
     ).evaluate((svg) => {
       const style = getComputedStyle(svg);
@@ -26,29 +26,39 @@ describe("Forest View", () => {
         fill: style.fill,
         stroke: style.stroke,
         strokeWidth: style.strokeWidth,
+        isLucide: svg.classList.contains("lucide"),
+        width: svg.getAttribute("width"),
+        height: svg.getAttribute("height"),
       };
     });
 
-    expect(await readStrokeStyle("project-header-forest-toggle-button"))
-      .toEqual(await readStrokeStyle("project-header-logs-button"));
-    const rectangles = await ctx.page.locator(
-      '[data-testid="project-header-forest-toggle-button"] svg',
-    ).evaluate((svg) => {
-      return Array.from(svg.querySelectorAll("rect"), rect => ({
-        x: rect.x.baseVal.value,
-        y: rect.y.baseVal.value,
-        width: rect.width.baseVal.value,
-        height: rect.height.baseVal.value,
-        rounded: rect.hasAttribute("rx") || rect.hasAttribute("ry"),
-      }));
+    const forestIcon = await readIcon("project-header-forest-toggle-button");
+    const logsIcon = await readIcon("project-header-logs-button");
+    expect(forestIcon).toEqual(logsIcon);
+    expect(forestIcon.isLucide).toBe(true);
+    expect(forestIcon.width).toBe("16");
+    expect(forestIcon.height).toBe("16");
+  }, 120000);
+
+  it("fills the viewport so the surface, controls, and cards render", async () => {
+    await openForestProject(ctx, {
+      slugBase: "fv-height",
+      tickets: [{ number: "A-1", title: "First", folderName: "a-1-first" }],
     });
 
-    expect(rectangles).toHaveLength(3);
-    for (const rectangle of rectangles) {
-      expect(rectangle.rounded).toBe(false);
-      expect([rectangle.x, rectangle.y, rectangle.width, rectangle.height]
-        .every(Number.isInteger)).toBe(true);
-    }
+    await ctx.page.waitForSelector('[data-testid="forest-rearrange-button"]', { state: "visible", timeout: 15000 });
+
+    const viewport = ctx.page.viewportSize();
+    expect(viewport).toBeTruthy();
+    const surfaceBox = await boxOf(forestSurface(ctx.page));
+    expect(surfaceBox.height).toBeGreaterThan(viewport!.height / 2);
+
+    await ctx.page.locator('[data-testid="forest-close-button"]')
+      .waitFor({ state: "visible", timeout: 15000 });
+    const selectHint = ctx.page.locator('[data-testid="forest-select-hint"]');
+    await selectHint.waitFor({ state: "visible", timeout: 15000 });
+    expect(await selectHint.textContent()).toBe("Shift+mouse to select");
+    expect(await ctx.page.locator('[data-testid="forest-ticket-card"]').count()).toBe(1);
   }, 120000);
 
   it("toggle + persistence", async () => {

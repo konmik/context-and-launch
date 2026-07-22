@@ -24,7 +24,6 @@ function renderCard(props: {
   ticket?: Partial<TicketInfo>;
   columns?: { name: string; color?: string }[];
   herdrStatuses?: Record<string, HerdrAgentStatus>;
-  onEdit?: (ticket: TicketInfo) => void;
   onDelete?: (ticket: TicketInfo) => void;
   onArchive?: (ticket: TicketInfo) => void;
 }) {
@@ -33,7 +32,6 @@ function renderCard(props: {
       <TicketCard
         ticket={makeTicket(props.ticket)}
         columns={props.columns ?? []}
-        onEdit={props.onEdit ?? (() => {})}
         onDelete={props.onDelete ?? (() => {})}
         onArchive={props.onArchive ?? (() => {})}
         onViewDetail={() => {}}
@@ -71,7 +69,7 @@ describe("TicketCard overflow menu", () => {
     expect(onArchive).toHaveBeenCalledWith(makeTicket());
   });
 
-  it("shows all three menu options", async () => {
+  it("shows both menu options", async () => {
     cleanup();
     const { container } = renderCard({});
 
@@ -79,7 +77,7 @@ describe("TicketCard overflow menu", () => {
     await fireEvent.click(menuBtn);
 
     const items = [...document.querySelectorAll("[role='menuitem']")].map(el => el.textContent?.trim());
-    expect(items).toContain("Edit");
+    expect(items).not.toContain("Edit");
     expect(items).toContain("Archive");
     expect(items).toContain("Delete");
   });
@@ -88,33 +86,12 @@ describe("TicketCard overflow menu", () => {
 describe("TicketCard status swatch and herdr icon", () => {
   afterEach(() => cleanup());
 
-  it("renders the swatch with the column color", () => {
+  it("renders no status swatch", () => {
     const { container } = renderCard({
       ticket: { status: "todo" },
       columns: [{ name: "todo", color: "#1a7f37" }],
-    });
-    const swatch = container.querySelector('[data-testid="status-swatch"]') as HTMLElement;
-    expect(swatch).toBeTruthy();
-    expect(swatch.getAttribute("title")).toBe("todo");
-    expect(swatch.style.backgroundColor).toBe("rgb(26, 127, 55)");
-  });
-
-  it("renders no swatch when the matching column has no color", () => {
-    const { container } = renderCard({
-      ticket: { status: "todo" },
-      columns: [{ name: "todo" }],
     });
     expect(container.querySelector('[data-testid="status-swatch"]')).toBeNull();
-  });
-
-  it("renders a destructive swatch when the status matches no column", () => {
-    const { container } = renderCard({
-      ticket: { status: "vanished" },
-      columns: [{ name: "todo", color: "#1a7f37" }],
-    });
-    const swatch = container.querySelector('[data-testid="status-swatch"]') as HTMLElement;
-    expect(swatch).toBeTruthy();
-    expect(swatch.classList).toContain("bg-destructive");
   });
 
   it("renders the herdr icon when the ticket has a status", () => {

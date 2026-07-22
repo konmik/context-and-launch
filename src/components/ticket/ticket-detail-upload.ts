@@ -9,8 +9,8 @@ export interface FileUploadDeps {
   folderName: () => string;
   setError: (error: ErrorInfo | null) => void;
   ticketFileNames: () => string[];
-  contextNames: () => string[];
-  refreshFiles: () => Promise<void>;
+  setTicketFileNames: (fn: string[] | ((prev: string[]) => string[])) => void;
+  contextNames: string[];
   requestFileSwitch: (file: ActiveFile) => void;
 }
 
@@ -60,7 +60,7 @@ export function createFileUploadState(deps: FileUploadDeps) {
       setConfirmSize(null);
       if (!proceed) return;
     }
-    if (wouldOverwrite(file.name, deps.ticketFileNames(), deps.contextNames())) {
+    if (wouldOverwrite(file.name, deps.ticketFileNames(), deps.contextNames)) {
       const proceed = await awaitUploadConfirm(setConfirmOverwrite, { fileName: file.name, file });
       setConfirmOverwrite(null);
       if (!proceed) return;
@@ -76,11 +76,15 @@ export function createFileUploadState(deps: FileUploadDeps) {
       if (!result.ok) { deps.setError({ title: "Upload failed", description: result.message }); return; }
       let anySucceeded = false;
       for (const r of result.results) {
-        if (r.ok) anySucceeded = true;
+        if (r.ok) {
+          anySucceeded = true;
+          deps.setTicketFileNames((prev: string[]) =>
+            prev.includes(r.name) ? prev : [...prev, r.name].sort(),
+          );
+        }
         else { deps.setError({ title: "Upload failed", description: r.error || `Failed to upload ${r.name}` }); }
       }
       if (anySucceeded) {
-        await deps.refreshFiles();
         if (file.name.endsWith(".md"))
           deps.requestFileSwitch({ type: "context", name: file.name.replace(/\.md$/, "") });
         else deps.requestFileSwitch({ type: "file", name: file.name });

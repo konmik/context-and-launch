@@ -37,7 +37,7 @@ describe("Status swatch (e2e, real server)", () => {
     return project;
   }
 
-  it("assigns a Column Color in Settings, persists to boards.json, and shows the swatch", async () => {
+  it("assigns a Column Color in Settings, persists to boards.json, and shows the column line", async () => {
     await setup(
       "assign",
       [{ id: "kanban", name: "Kanban", columns: [{ name: "todo" }, { name: "done" }] }],
@@ -62,12 +62,17 @@ describe("Status swatch (e2e, real server)", () => {
     await ctx.page.click('[data-testid="launcher-settings-close-button"]');
     await ctx.page.waitForTimeout(500);
 
-    const kanbanSwatch = ctx.page.locator(
-      '[data-testid="kanban-board-ticket-card"] [data-testid="status-swatch"]',
+    const kanbanLine = ctx.page.locator(
+      '[data-testid="kanban-board-column-color-line"][data-column-name="todo"]',
     );
-    await kanbanSwatch.waitFor({ state: "visible", timeout: 15000 });
-    expect(await kanbanSwatch.getAttribute("title")).toBe("todo");
-    expect(await backgroundColor(kanbanSwatch)).toBe("rgb(9, 105, 218)");
+    await kanbanLine.waitFor({ state: "visible", timeout: 15000 });
+    await expect.poll(
+      () => backgroundColor(kanbanLine),
+      { timeout: 15000 },
+    ).toBe("rgb(9, 105, 218)");
+    expect(
+      await ctx.page.locator('[data-testid="kanban-board-ticket-card"] [data-testid="status-swatch"]').count(),
+    ).toBe(0);
 
     await toggleToForest(ctx.page);
     const forestSwatch = forestCard(ctx.page, "T-1").locator('[data-testid="status-swatch"]');
@@ -75,7 +80,7 @@ describe("Status swatch (e2e, real server)", () => {
     expect(await backgroundColor(forestSwatch)).toBe("rgb(9, 105, 218)");
   }, 120000);
 
-  it("shows no swatch when the column has no color", async () => {
+  it("renders a transparent color line and no swatch when the column has no color", async () => {
     await setup(
       "no-color",
       [{ id: "kanban", name: "Kanban", columns: [{ name: "todo" }, { name: "done" }] }],
@@ -84,19 +89,26 @@ describe("Status swatch (e2e, real server)", () => {
     const card = ctx.page.locator('[data-testid="kanban-board-ticket-card"]');
     await card.waitFor({ state: "visible", timeout: 15000 });
     expect(await card.locator('[data-testid="status-swatch"]').count()).toBe(0);
+    const line = ctx.page.locator(
+      '[data-testid="kanban-board-column-color-line"][data-column-name="done"]',
+    );
+    expect(await backgroundColor(line)).toBe("rgba(0, 0, 0, 0)");
   }, 120000);
 
-  it("renders the destructive swatch for an orphaned status on kanban and forest", async () => {
+  it("shows the orphaned status on the kanban card and a destructive swatch on forest", async () => {
     await setup(
       "orphan",
       [{ id: "kanban", name: "Kanban", columns: [{ name: "todo", color: "#0969da" }, { name: "done" }] }],
       [{ number: "T-1", title: "Alpha", status: "vanished" }],
     );
-    const kanbanSwatch = ctx.page.locator(
-      '[data-testid="kanban-board-undefined-column"] [data-testid="status-swatch"]',
+    const orphanedStatus = ctx.page.locator(
+      '[data-testid="kanban-board-undefined-column"] [data-testid="kanban-board-ticket-orphaned-status"]',
     );
-    await kanbanSwatch.waitFor({ state: "visible", timeout: 15000 });
-    expect(await kanbanSwatch.getAttribute("class")).toContain("bg-destructive");
+    await orphanedStatus.waitFor({ state: "visible", timeout: 15000 });
+    expect(await orphanedStatus.textContent()).toBe("vanished");
+    expect(
+      await ctx.page.locator('[data-testid="kanban-board-undefined-column"] [data-testid="status-swatch"]').count(),
+    ).toBe(0);
 
     await toggleToForest(ctx.page);
     const forestSwatch = forestCard(ctx.page, "T-1").locator('[data-testid="status-swatch"]');
@@ -147,10 +159,13 @@ describe("Status swatch (e2e, real server)", () => {
     await ctx.page.click('[data-testid="launcher-settings-close-button"]');
     const card = ctx.page.locator('[data-testid="kanban-board-ticket-card"]');
     await card.waitFor({ state: "visible", timeout: 15000 });
+    const line = ctx.page.locator(
+      '[data-testid="kanban-board-column-color-line"][data-column-name="todo"]',
+    );
     await expect.poll(
-      () => card.locator('[data-testid="status-swatch"]').count(),
+      () => backgroundColor(line),
       { timeout: 15000 },
-    ).toBe(0);
+    ).toBe("rgba(0, 0, 0, 0)");
   }, 120000);
 
   it("shows no Herdr icons without a Herdr profile", async () => {

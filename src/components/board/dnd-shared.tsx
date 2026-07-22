@@ -1,4 +1,5 @@
 import { Show, type JSX } from "solid-js";
+import { GripVertical } from "lucide-solid";
 import { DragOverlay } from "@thisbeyond/solid-dnd";
 import { joinClass } from "~/lib/class-util";
 
@@ -12,7 +13,7 @@ import { joinClass } from "~/lib/class-util";
 export const DND_ACTIVE_CLASS = "opacity-0";
 
 // The floating card that follows the cursor inside a DragOverlay.
-export const DND_OVERLAY_CLASS = "rotate-2 scale-95 opacity-80 shadow-xl";
+export const DND_OVERLAY_CLASS = "rotate-2 scale-95 opacity-80";
 
 // The ghost preview rendered at the drop target slot.
 export const DND_PREVIEW_CLASS = "pointer-events-none opacity-40";
@@ -38,16 +39,10 @@ export function DragOverlayCard(props: { class?: string; style?: JSX.CSSProperti
 	);
 }
 
-function GripIcon() {
-	return (
-		<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="5" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="19" r="1"/></svg>
-	);
-}
-
 export function DragGrip(props: { gripProps?: Record<string, unknown>; testId: string }) {
 	return (
 		<span {...(props.gripProps ?? {})} class="cursor-grab text-muted-foreground" data-testid={props.testId}>
-			<GripIcon />
+			<GripVertical size={14} />
 		</span>
 	);
 }
@@ -62,7 +57,7 @@ export function NameDragOverlay(props: { nameOf: (id: string) => string | undefi
 				return (
 					<Show when={name}>
 						{(n) => (
-							<DragOverlayCard class="rounded-md border border-border bg-card px-3 py-2">
+							<DragOverlayCard class="rounded-md border border-border bg-card p-3">
 								<span class="text-sm font-medium">{n()}</span>
 							</DragOverlayCard>
 						)}

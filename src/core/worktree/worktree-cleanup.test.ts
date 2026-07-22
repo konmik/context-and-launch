@@ -1,35 +1,35 @@
-import { describe, it, expect, afterAll } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { git } from '~/test-git.js';
+import { execSync } from 'child_process';
 import { makeCleanupEnv } from './worktree-cleanup.test-utils.js';
 
 describe('WorktreeCleanupService', () => {
 	const { setup, cleanupAll } = makeCleanupEnv();
 
-	afterAll(cleanupAll);
+	afterEach(cleanupAll);
 
-	it.concurrent(
-		'cleanup with deleteWorktree and deleteLocalBranch removes both',
-		async () => {
-			const { projectDir, awm, service } = setup();
-			const folderName = 'st-cleanup-both';
-			const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', folderName);
-			expect('worktreePath' in result).toBe(true);
-			if (!('worktreePath' in result)) return;
+	it('cleanup with deleteWorktree and deleteLocalBranch removes both', async () => {
+		const { projectDir, awm, service } = setup();
+		const folderName = 'st-cleanup-both';
+		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', folderName);
+		expect('worktreePath' in result).toBe(true);
+		if (!('worktreePath' in result)) return;
 
-			await service.cleanup(projectDir, folderName, result.worktreePath, {
-				deleteWorktree: true,
-				deleteLocalBranch: true,
-				deleteRemoteBranch: false,
-			});
-
-			expect(fs.existsSync(result.worktreePath)).toBe(false);
-			const branchList = await git(projectDir, 'branch', '--list', 'st-cleanup-both');
-			expect(branchList.trim()).toBe('');
+		await service.cleanup(projectDir, folderName, result.worktreePath, {
+			deleteWorktree: true,
+			deleteLocalBranch: true,
+			deleteRemoteBranch: false,
 		});
 
-	it.concurrent('cleanup removes a folder that is no longer a git worktree', async () => {
+		expect(fs.existsSync(result.worktreePath)).toBe(false);
+		const branchList = execSync(
+			'git branch --list st-cleanup-both', { cwd: projectDir, timeout: 5000 },
+		).toString();
+		expect(branchList.trim()).toBe('');
+	});
+
+	it('cleanup removes a folder that is no longer a git worktree', async () => {
 		const { projectDir, awm, service } = setup();
 		const folderName = 'st-cleanup-notgit';
 		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', folderName);
@@ -47,7 +47,7 @@ describe('WorktreeCleanupService', () => {
 		expect(fs.existsSync(result.worktreePath)).toBe(false);
 	});
 
-	it.concurrent('cleanup with only deleteLocalBranch skips worktree removal', async () => {
+	it('cleanup with only deleteLocalBranch skips worktree removal', async () => {
 		const { projectDir, awm, service } = setup();
 		const folderName = 'st-cleanup-branchonly';
 		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', folderName);
@@ -62,11 +62,13 @@ describe('WorktreeCleanupService', () => {
 			deleteRemoteBranch: false,
 		}, undefined);
 
-		const branchList = await git(projectDir, 'branch', '--list', folderName);
+		const branchList = execSync(
+			`git branch --list ${folderName}`, { cwd: projectDir, timeout: 5000 },
+		).toString();
 		expect(branchList.trim()).toBe('');
 	});
 
-	it.concurrent('cleanup with all options false is a no-op', async () => {
+	it('cleanup with all options false is a no-op', async () => {
 		const { projectDir, awm, service } = setup();
 		const folderName = 'st-cleanup-noop';
 		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', folderName);
@@ -80,7 +82,9 @@ describe('WorktreeCleanupService', () => {
 		}, undefined);
 
 		expect(fs.existsSync(result.worktreePath)).toBe(true);
-		const branchList = await git(projectDir, 'branch', '--list', folderName);
+		const branchList = execSync(
+			`git branch --list ${folderName}`, { cwd: projectDir, timeout: 5000 },
+		).toString();
 		expect(branchList.trim()).toBeTruthy();
 	});
 });

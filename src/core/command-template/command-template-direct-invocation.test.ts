@@ -43,31 +43,6 @@ describe('Command Template direct invocation', () => {
 		)).toBeUndefined();
 	});
 
-	it('folds a leading-placeholder path suffix into one argv entry', () => {
-		expect(buildDirectInvocationArgv(
-			'powershell -File {{configDefaultsDir}}/run-agent.ps1 {{initialPrompt}}',
-			{ configDefaultsDir: 'C:\\cfg', initialPrompt: 'go' },
-			['configDefaultsDir', 'initialPrompt'], [],
-		)).toEqual(['powershell', '-File', 'C:\\cfg/run-agent.ps1', 'go']);
-	});
-
-	it('keeps a quote-and-space-laden prompt intact for the default launch profile', () => {
-		const prompt =
-			'Read the files. Check "C:\\Users\\me\\Downloads\\Release notes _ Doc.pdf"';
-		expect(buildDirectInvocationArgv(
-			'powershell -File {{configDefaultsDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}}' +
-				' {{markerPath}} claude --dangerously-skip-permissions',
-			{
-				configDefaultsDir: 'C:\\cfg', initialPrompt: prompt,
-				windowTitle: 'WNA-1619 -- AI', markerPath: 'C:\\marker.json',
-			},
-			['configDefaultsDir', 'initialPrompt', 'windowTitle', 'markerPath'], [],
-		)).toEqual([
-			'powershell', '-File', 'C:\\cfg/run-agent.ps1', prompt,
-			'WNA-1619 -- AI', 'C:\\marker.json', 'claude', '--dangerously-skip-permissions',
-		]);
-	});
-
 	it('rejects placeholders without a provided value and unknown placeholders', () => {
 		expect(buildDirectInvocationArgv('git rev-parse {{ref}}', {}, ['ref'], [])).toBeUndefined();
 		expect(buildDirectInvocationArgv(

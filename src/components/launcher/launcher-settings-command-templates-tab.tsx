@@ -9,7 +9,7 @@ export function CommandTemplatesTab(props: { controller: CommandTemplateSettings
 			<Show when={props.controller.loading()}>
 				<p class="text-sm text-muted-foreground">Loading Command Templates...</p>
 			</Show>
-			<p class="mb-4 rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
+			<p class="mb-4 rounded border border-warning/40 bg-warning/10 px-3 py-2 text-xs">
 				Trusted local code: these scripts run with your user permissions in the platform shell.
 			</p>
 			<div class="space-y-3" data-testid="command-template-list">

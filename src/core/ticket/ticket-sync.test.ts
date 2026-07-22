@@ -68,7 +68,7 @@ describe('TicketSyncManager', () => {
 		expect(status.trim()).toBe('');
 	});
 
-	it('sync squashes multiple unpushed commits into one before pushing', async () => {
+	it.concurrent('sync squashes multiple unpushed commits into one before pushing', async () => {
 		const { worktreeDir, remoteDir } = await createRepoWithRemote();
 		dirs.push(worktreeDir, remoteDir);
 

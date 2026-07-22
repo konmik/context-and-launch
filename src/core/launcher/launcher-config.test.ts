@@ -361,6 +361,29 @@ describe('LauncherConfigManager', () => {
 		expect(() => mgr.setSkillOrder('project', 'test-project', 'A', NaN)).toThrow('finite number');
 	});
 
+	it('setItemOrder persists ordering for every launcher item type', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		mgr.saveProjectConfig('test-project', {
+			templates: [{ name: 'Template', text: 'prompt' }],
+			skills: [{ name: 'Skill', text: 'skill' }],
+			profiles: [{ name: 'Agent', command: 'agent' }],
+			shortcuts: [{ name: 'Shortcut', command: 'shortcut' }],
+		});
+
+		mgr.setItemOrder('project', 'test-project', 'template', 'Template', 0.25);
+		mgr.setItemOrder('project', 'test-project', 'skill', 'Skill', 0.5);
+		mgr.setItemOrder('project', 'test-project', 'profile', 'Agent', 0.75);
+		mgr.setItemOrder('project', 'test-project', 'shortcut', 'Shortcut', 1.25);
+
+		const config = mgr.loadProjectConfig('test-project');
+		expect(config.templates[0].order).toBe(0.25);
+		expect(config.skills[0].order).toBe(0.5);
+		expect(config.profiles?.[0].order).toBe(0.75);
+		expect(config.shortcuts?.[0].order).toBe(1.25);
+	});
+
 	it('getMergedConfig sorts skills by order, falling back to canonical index', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
@@ -1628,6 +1651,27 @@ describe('mergeLauncherConfigs', () => {
 			{ templates: [], skills: [{ name: 'C', text: 'c' }] },
 		);
 		expect(merged.skills.map(s => s.name)).toEqual(['A', 'C', 'B']);
+	});
+
+	it('sorts templates, profiles, and shortcuts by the same order model as skills', () => {
+		const merged = mergeLauncherConfigs(
+			{
+				templates: [{ name: 'T1', text: '1', order: 5 }, { name: 'T2', text: '2' }],
+				skills: [],
+				profiles: [{ name: 'A1', command: '1', order: 5 }, { name: 'A2', command: '2' }],
+				shortcuts: [{ name: 'S1', command: '1', order: 5 }, { name: 'S2', command: '2' }],
+			},
+			{
+				templates: [{ name: 'T3', text: '3' }],
+				skills: [],
+				profiles: [{ name: 'A3', command: '3' }],
+				shortcuts: [{ name: 'S3', command: '3' }],
+			},
+		);
+
+		expect(merged.templates.map(item => item.name)).toEqual(['T2', 'T3', 'T1']);
+		expect(merged.profiles.map(item => item.name)).toEqual(['A2', 'A3', 'A1']);
+		expect(merged.shortcuts.map(item => item.name)).toEqual(['S2', 'S3', 'S1']);
 	});
 
 	it('uses project conflictResolutionPrompt when available', () => {

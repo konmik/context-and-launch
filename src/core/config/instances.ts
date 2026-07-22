@@ -3,7 +3,7 @@ import { initializeDataDir } from './initialize.js';
 
 interface ServiceGlobal { __aiStagesServices?: ServiceContainer }
 
-export function initializeServices(): ServiceContainer {
+function loadServices(): ServiceContainer {
 	const g = globalThis as unknown as ServiceGlobal;
 	if (g.__aiStagesServices) return g.__aiStagesServices;
 	const s = createServices(
@@ -15,7 +15,7 @@ export function initializeServices(): ServiceContainer {
 	return s;
 }
 
-const services = initializeServices();
+const services = loadServices();
 
 export const configPaths = services.configPaths;
 export const configRepo = services.configRepo;

@@ -1,5 +1,9 @@
 import { Show, For, createEffect } from "solid-js";
-import { DialogRoot, DialogTitle, DialogDescription } from "../ui/dialog";
+import { X } from "lucide-solid";
+import {
+  FloatingWindow, FloatingWindowHeader, FloatingPanelBody,
+  FloatingPanelCloseTrigger, FloatingPanelTitle,
+} from "../ui/floating-panel";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { ErrorInfo } from "~/core/shared/errors.js";
 import type { CleanupItemKey } from "~/core/worktree/ticket-cleanup-checks.js";
@@ -63,94 +67,113 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps) {
   });
 
   return (
-    <DialogRoot open={props.open && !!props.ticket} onOpenChange={s.close} class="max-w-[35rem]">
-      <DialogTitle>{s.actionLabel()} Ticket</DialogTitle>
-      <DialogDescription>{props.ticket?.number} - {props.ticket?.title}</DialogDescription>
+    <FloatingWindow
+      open={props.open && !!props.ticket}
+      onOpenChange={(d) => { if (!d.open) s.close(); }}
+      defaultSize={{ width: 560, height: 460 }}
+      minSize={{ width: 380, height: 300 }}
+      persistRect
+    >
+      <FloatingWindowHeader
+        title={<FloatingPanelTitle>{s.actionLabel()} Ticket</FloatingPanelTitle>}
+        actions={
+          <FloatingPanelCloseTrigger aria-label="Close">
+            <X size={16} />
+          </FloatingPanelCloseTrigger>
+        }
+      />
+      <FloatingPanelBody>
+        <div class="flex-1 overflow-auto px-6 py-4">
+          <p class="mb-4 text-sm text-muted-foreground">
+            {props.ticket?.number} - {props.ticket?.title}
+          </p>
 
-      <div class="mb-4 space-y-2">
-        <p class="text-sm font-medium">Cleanup</p>
-        <For each={rows}>
-          {(row) => {
-            const item = () => s.items()[row.key];
-            const running = () => s.runningItem() === row.key;
-            return (
-              <div class="flex min-h-10 items-center gap-3 text-sm">
-                <button
-                  type="button"
-                  disabled={item().state !== "ready" || s.busy()}
-                  onClick={() => void s.runCleanup(row.key)}
-                  class="btn-secondary w-48 shrink-0 justify-start"
-                  data-testid={row.buttonTestId}
-                >
-                  {row.label}
-                </button>
-                <span
-                  class="min-w-0 flex-1 whitespace-pre-line break-words text-left text-xs"
-                  data-testid={row.statusTestId}
-                  data-state={running() ? "running" : item().state}
-                  aria-live="polite"
-                >
-                  <Show when={running()} fallback={
-                    <>
-                      <Show when={item().state === "checking"}>
-                        <span class="animate-pulse text-muted-foreground">Checking...</span>
+          <div class="mb-4 space-y-2">
+            <p class="text-sm font-medium">Cleanup</p>
+            <For each={rows}>
+              {(row) => {
+                const item = () => s.items()[row.key];
+                const running = () => s.runningItem() === row.key;
+                return (
+                  <div class="flex min-h-10 items-center gap-3 text-sm">
+                    <button
+                      type="button"
+                      disabled={item().state !== "ready" || s.busy()}
+                      onClick={() => void s.runCleanup(row.key)}
+                      class="btn-secondary w-48 shrink-0 justify-start"
+                      data-testid={row.buttonTestId}
+                    >
+                      {row.label}
+                    </button>
+                    <span
+                      class="min-w-0 flex-1 whitespace-pre-line break-words text-left text-xs"
+                      data-testid={row.statusTestId}
+                      data-state={running() ? "running" : item().state}
+                      aria-live="polite"
+                    >
+                      <Show when={running()} fallback={
+                        <>
+                          <Show when={item().state === "checking"}>
+                            <span class="animate-pulse text-muted-foreground">Checking...</span>
+                          </Show>
+                          <Show when={item().state === "blocked"}>
+                            <span class={"warning" in item() ? "text-destructive" : "text-muted-foreground"}>
+                              {(item() as { reason: string }).reason}
+                            </span>
+                          </Show>
+                          <Show when={item().state === "error"}>
+                            <span class="text-destructive">
+                              {(item() as { error: ErrorInfo }).error.description}
+                            </span>
+                          </Show>
+                        </>
+                      }>
+                        <span class="animate-pulse text-muted-foreground">Working...</span>
                       </Show>
-                      <Show when={item().state === "blocked"}>
-                        <span class={"warning" in item() ? "text-destructive" : "text-muted-foreground"}>
-                          {(item() as { reason: string }).reason}
-                        </span>
-                      </Show>
-                      <Show when={item().state === "error"}>
-                        <span class="text-destructive">
-                          {(item() as { error: ErrorInfo }).error.description}
-                        </span>
-                      </Show>
-                    </>
-                  }>
-                    <span class="animate-pulse text-muted-foreground">Working...</span>
-                  </Show>
-                </span>
-              </div>
-            );
-          }}
-        </For>
-      </div>
-
-      <Show when={s.errorInfo()}>
-        {(err) => (
-          <div class="mb-4 rounded-md bg-destructive/10 px-3 py-2">
-            <p class="text-sm text-destructive">{err().description}</p>
-            <Show when={err().command}>
-              <p class="mt-1 text-xs text-muted-foreground">
-                Command: <code>{err().command}</code>
-              </p>
-            </Show>
-            <Show when={err().output}>
-              <pre class="mt-1 max-h-32 overflow-y-auto whitespace-pre-wrap text-xs">
-                {err().output}
-              </pre>
-            </Show>
+                    </span>
+                  </div>
+                );
+              }}
+            </For>
           </div>
-        )}
-      </Show>
 
-      <form onSubmit={s.handleSubmit}>
-        <div class="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={s.close}
-            class="btn-secondary"
-            data-testid="ticket-cleanup-cancel"
-          >Cancel</button>
-          <button
-            type="submit"
-            disabled={s.busy()}
-            title={modEnterHint()}
-            class={props.action === "delete" ? "btn-destructive" : "btn-primary"}
-            data-testid="ticket-cleanup-submit"
-          >{s.actionLabel()}</button>
+          <Show when={s.errorInfo()}>
+            {(err) => (
+              <div class="mb-4 rounded-md bg-destructive/10 px-3 py-2">
+                <p class="text-sm text-destructive">{err().description}</p>
+                <Show when={err().command}>
+                  <p class="mt-1 text-xs text-muted-foreground">
+                    Command: <code>{err().command}</code>
+                  </p>
+                </Show>
+                <Show when={err().output}>
+                  <pre class="mt-1 max-h-32 overflow-y-auto whitespace-pre-wrap text-xs">
+                    {err().output}
+                  </pre>
+                </Show>
+              </div>
+            )}
+          </Show>
         </div>
-      </form>
-    </DialogRoot>
+
+        <form onSubmit={s.handleSubmit} class="border-t border-border px-6 py-3">
+          <div class="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={s.close}
+              class="btn-secondary"
+              data-testid="ticket-cleanup-cancel"
+            >Cancel</button>
+            <button
+              type="submit"
+              disabled={s.busy()}
+              title={modEnterHint()}
+              class={props.action === "delete" ? "btn-destructive" : "btn-primary"}
+              data-testid="ticket-cleanup-submit"
+            >{s.actionLabel()}</button>
+          </div>
+        </form>
+      </FloatingPanelBody>
+    </FloatingWindow>
   );
 }

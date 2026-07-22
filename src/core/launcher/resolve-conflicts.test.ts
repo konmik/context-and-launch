@@ -25,7 +25,9 @@ import { spawnProfile } from "~/core/launcher/agent-launch.js";
 import type { MergedLauncherConfig, LauncherProfile } from "~/core/launcher/launcher-config.js";
 
 function makeMerged(
-	overrides: Partial<MergedLauncherConfig> & { profiles: (LauncherProfile & { scope: "app" | "project" })[] },
+	overrides: Partial<MergedLauncherConfig> & {
+		profiles: (LauncherProfile & { scope: "app" | "project"; order: number })[];
+	},
 ): MergedLauncherConfig {
 	return {
 		templates: [],
@@ -44,8 +46,8 @@ describe("resolve-conflicts profile lookup", () => {
 	});
 
 	it("getMergedConfig returns profiles for testing", () => {
-		const profiles: (LauncherProfile & { scope: "app" | "project" })[] = [
-			{ name: "Claude Win", command: "cmd /c claude", scope: "app" },
+		const profiles: (LauncherProfile & { scope: "app" | "project"; order: number })[] = [
+			{ name: "Claude Win", command: "cmd /c claude", scope: "app", order: 0 },
 		];
 		vi.mocked(launcherConfigManager.getMergedConfig).mockReturnValue(
 			makeMerged({ profiles }),
@@ -56,8 +58,8 @@ describe("resolve-conflicts profile lookup", () => {
 	});
 
 	it("spawnProfile is callable with correct arguments", async () => {
-		const profiles: (LauncherProfile & { scope: "app" | "project" })[] = [
-			{ name: "Claude Win", command: "cmd /c claude", scope: "app" },
+		const profiles: (LauncherProfile & { scope: "app" | "project"; order: number })[] = [
+			{ name: "Claude Win", command: "cmd /c claude", scope: "app", order: 0 },
 		];
 		await spawnProfile(
 			profiles[0],

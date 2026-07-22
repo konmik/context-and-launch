@@ -1,8 +1,14 @@
-import { app, BrowserWindow, nativeTheme, screen } from "electron";
+import { app, BrowserWindow, ipcMain, nativeTheme, screen } from "electron";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { startServer, type ServerHandle } from "./server-adapter.js";
+import {
+  paletteBackground,
+  isPaletteName,
+  DEFAULT_PALETTE,
+  type PaletteName,
+} from "./palette-backgrounds.js";
 import {
   migrateWindowState,
   restoreEntries,
@@ -22,12 +28,12 @@ import {
   type SessionWindow,
 } from "./window-bookkeeping.js";
 
-const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const electronDir = path.dirname(fileURLToPath(import.meta.url));
+const appRoot = path.resolve(electronDir, "..");
+const preloadPath = path.join(electronDir, "preload.cjs");
 process.env.CONTEXT_LAUNCH_CONFIG_DEFAULTS_DIR = path.join(process.resourcesPath, "config-defaults");
 const windowStateFile = path.join(app.getPath("userData"), "window-state.json");
 
-const DARK_BG = "#17171a";
-const LIGHT_BG = "#ffffff";
 const SYNC_WINDOW_DELAY_MS = 5000;
 
 const windowsById = new Map<number, BrowserWindow>();
@@ -35,16 +41,26 @@ let sessionWindows: SessionWindow[] = [];
 let focusOrder: number[] = [];
 let quitting = false;
 let serverHandle: ServerHandle | null = null;
+let currentPalette: PaletteName = DEFAULT_PALETTE;
 
 function backgroundColor(): string {
-  return nativeTheme.shouldUseDarkColors ? DARK_BG : LIGHT_BG;
+  return paletteBackground(currentPalette, nativeTheme.shouldUseDarkColors);
 }
 
 function writeWindowState(): void {
   fs.writeFileSync(
     windowStateFile,
-    JSON.stringify({ windows: toWindowStateEntries(sessionWindows) }),
+    JSON.stringify({ windows: toWindowStateEntries(sessionWindows), palette: currentPalette }),
   );
+}
+
+function applyPalette(palette: PaletteName): void {
+  currentPalette = palette;
+  const bg = backgroundColor();
+  for (const win of windowsById.values()) {
+    if (!win.isDestroyed()) win.setBackgroundColor(bg);
+  }
+  writeWindowState();
 }
 
 function currentBounds(win: BrowserWindow): { bounds: WindowBounds; maximized: boolean } {
@@ -79,6 +95,7 @@ function createProjectWindow(opts: {
     show: false,
     icon: path.join(appRoot, "build-resources", "icon.png"),
     webPreferences: {
+      preload: preloadPath,
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: true,
@@ -194,6 +211,10 @@ if (!gotLock) {
     } catch {
       raw = null;
     }
+    if (raw !== null && typeof raw === "object") {
+      const storedPalette = (raw as Record<string, unknown>).palette;
+      if (isPaletteName(storedPalette)) currentPalette = storedPalette;
+    }
     let entries = migrateWindowState(raw);
     entries = restoreEntries(
       entries,
@@ -212,6 +233,10 @@ if (!gotLock) {
       for (const win of windowsById.values()) {
         if (!win.isDestroyed()) win.setBackgroundColor(backgroundColor());
       }
+    });
+
+    ipcMain.on("context-launch:set-palette", (_event, name: unknown) => {
+      if (isPaletteName(name) && name !== currentPalette) applyPalette(name);
     });
 
     for (const entry of entries) {
