@@ -3,7 +3,7 @@ import type { Locator } from "playwright";
 import {
   createProject, uniqueSlug, gotoProject,
   openLauncherSettings, openLauncherSettingsTab,
-  readBoardDefinitions, setupE2E,
+  readBoardDefinitions, poll, setupE2E,
   type SeedBoard, type SeedTicket, type SeedAppLauncherConfig,
 } from "./fixtures.js";
 import { toggleToForest, forestCard, forestGroupCard } from "./forest-helpers.js";
@@ -50,9 +50,12 @@ describe("Status swatch (e2e, real server)", () => {
     await ctx.page.waitForSelector('[data-testid="launcher-settings-columns-name-input"]', { timeout: 15000 });
     await ctx.page.click('[data-testid="launcher-settings-columns-color-option"][data-color-hex="#0969da"]');
     await ctx.page.click('[data-testid="launcher-settings-columns-form-submit"]');
-    await ctx.page.waitForTimeout(1000);
 
-    const boards = readBoardDefinitions(ctx.testServer);
+    const boards = await poll(
+      () => readBoardDefinitions(ctx.testServer),
+      (b) => b.find((x) => x.id === "kanban")?.columns.find((c) => c.name === "todo")?.color === "#0969da",
+      5000,
+    );
     const todo = boards.find((b) => b.id === "kanban")?.columns.find((c) => c.name === "todo");
     expect(todo?.color).toBe("#0969da");
 
@@ -132,9 +135,12 @@ describe("Status swatch (e2e, real server)", () => {
     await ctx.page.waitForSelector('[data-testid="launcher-settings-columns-name-input"]', { timeout: 15000 });
     await ctx.page.click('[data-testid="launcher-settings-columns-color-none"]');
     await ctx.page.click('[data-testid="launcher-settings-columns-form-submit"]');
-    await ctx.page.waitForTimeout(1000);
 
-    const boards = readBoardDefinitions(ctx.testServer);
+    const boards = await poll(
+      () => readBoardDefinitions(ctx.testServer),
+      (b) => b.find((x) => x.id === "kanban")?.columns.find((c) => c.name === "todo")?.color === undefined,
+      5000,
+    );
     const todo = boards.find((b) => b.id === "kanban")?.columns.find((c) => c.name === "todo");
     expect(todo?.color).toBeUndefined();
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   createProject, uniqueSlug, gotoProject,
-  readProjectLauncherConfig,
+  readProjectLauncherConfig, poll,
   setupE2E,
 } from "./fixtures.js";
 
@@ -50,6 +50,14 @@ describe("Project launcher dialog (e2e, real server)", () => {
     await openDialog();
     const display = ctx.page.locator('[data-testid="project-launcher-dir-display"]');
     await display.waitFor({ state: "visible", timeout: 15000 });
+    await ctx.page.waitForFunction(
+      (expected) => {
+        const el = document.querySelector('[data-testid="project-launcher-dir-display"]');
+        return (el?.textContent ?? "").includes(expected);
+      },
+      project.projectPath,
+      { timeout: 15000 },
+    );
     expect(await display.textContent()).toContain(project.projectPath);
   }, 60000);
 
@@ -57,8 +65,11 @@ describe("Project launcher dialog (e2e, real server)", () => {
     const project = await setup("profile");
     await openDialog();
     await ctx.page.selectOption('[data-testid="ticket-detail-launcher-profile-select"]', "GPT");
-    await ctx.page.waitForTimeout(500);
-    const cfg = readProjectLauncherConfig(ctx.testServer, project.projectSlug);
+    const cfg = await poll(
+      () => readProjectLauncherConfig(ctx.testServer, project.projectSlug),
+      (c) => c?.columnDefaults?.[PROJECT_KEY]?.profileName === "GPT",
+      5000,
+    );
     expect(cfg?.columnDefaults?.[PROJECT_KEY]?.profileName).toBe("GPT");
   }, 60000);
 

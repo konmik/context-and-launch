@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   createProject, uniqueSlug, gotoProject,
   openLauncherSettings, openLauncherSettingsTab,
-  readBoardDefinitions, readProjectRegistry,
+  readBoardDefinitions, readProjectRegistry, poll,
   setupE2E,
 } from "./fixtures.js";
 
@@ -42,8 +42,11 @@ describe("Launcher Settings Columns tab (e2e, real server)", () => {
     await ctx.page.waitForSelector('[data-testid="launcher-settings-columns-board-name-input"]', { timeout: 15000 });
     await ctx.page.fill('[data-testid="launcher-settings-columns-board-name-input"]', "Sprint Board");
     await ctx.page.click('[data-testid="launcher-settings-columns-board-form-submit"]');
-    await ctx.page.waitForTimeout(1000);
-    const boards = readBoardDefinitions(ctx.testServer);
+    const boards = await poll(
+      () => readBoardDefinitions(ctx.testServer),
+      (b) => b.map((x) => x.name).includes("Sprint Board"),
+      5000,
+    );
     expect(boards.map((b) => b.name)).toContain("Sprint Board");
   }, 60000);
 
@@ -68,8 +71,11 @@ describe("Launcher Settings Columns tab (e2e, real server)", () => {
       await ctx.page.textContent('[data-testid="launcher-settings-columns-delete-confirm-message"]'),
     ).toContain("Delete board");
     await ctx.page.click('[data-testid="launcher-settings-columns-delete-confirm-btn"]');
-    await ctx.page.waitForTimeout(1000);
-    const boards = readBoardDefinitions(ctx.testServer);
+    const boards = await poll(
+      () => readBoardDefinitions(ctx.testServer),
+      (b) => !b.map((x) => x.id).includes("simple"),
+      5000,
+    );
     expect(boards.map((b) => b.id)).not.toContain("simple");
   }, 60000);
 
@@ -94,8 +100,11 @@ describe("Launcher Settings Columns tab (e2e, real server)", () => {
     ).toContain("code-review");
     await ctx.page.fill('[data-testid="launcher-settings-columns-desc-input"]', "Awaiting review");
     await ctx.page.click('[data-testid="launcher-settings-columns-form-submit"]');
-    await ctx.page.waitForTimeout(1000);
-    const boards = readBoardDefinitions(ctx.testServer);
+    const boards = await poll(
+      () => readBoardDefinitions(ctx.testServer),
+      (b) => b.find((x) => x.id === "kanban")?.columns.map((c) => c.name).includes("code-review") ?? false,
+      5000,
+    );
     const kanban = boards.find((b) => b.id === "kanban");
     expect(kanban?.columns.map((c) => c.name)).toContain("code-review");
   }, 60000);
@@ -137,8 +146,11 @@ describe("Launcher Settings Columns tab (e2e, real server)", () => {
     ).toBe(1);
     await ctx.page.click('[data-testid="launcher-settings-columns-rename-scope-none"]');
     await ctx.page.click('[data-testid="launcher-settings-columns-rename-confirm"]');
-    await ctx.page.waitForTimeout(1000);
-    const boards = readBoardDefinitions(ctx.testServer);
+    const boards = await poll(
+      () => readBoardDefinitions(ctx.testServer),
+      (b) => b.find((x) => x.id === "kanban")?.columns.map((c) => c.name).includes("backlog") ?? false,
+      5000,
+    );
     const kanban = boards.find((b) => b.id === "kanban");
     expect(kanban?.columns.map((c) => c.name)).toContain("backlog");
     void project;
@@ -166,8 +178,11 @@ describe("Launcher Settings Columns tab (e2e, real server)", () => {
     await ctx.page.locator('[data-testid="launcher-settings-columns-delete-button"]').first().click();
     await ctx.page.waitForSelector('[data-testid="launcher-settings-columns-delete-confirm-btn"]', { timeout: 15000 });
     await ctx.page.click('[data-testid="launcher-settings-columns-delete-confirm-btn"]');
-    await ctx.page.waitForTimeout(1000);
-    const after = readBoardDefinitions(ctx.testServer);
+    const after = await poll(
+      () => readBoardDefinitions(ctx.testServer),
+      (b) => (b.find((x) => x.id === "kanban")?.columns.length ?? -1) === initialCount - 1,
+      5000,
+    );
     const kanbanAfter = after.find((b) => b.id === "kanban");
     expect(kanbanAfter?.columns.length).toBe(initialCount - 1);
   }, 60000);
@@ -193,8 +208,11 @@ describe("Launcher Settings Columns tab (e2e, real server)", () => {
       timeout: 15000,
     });
     await ctx.page.click('[data-testid="launcher-settings-columns-set-project-board-confirm-btn"]');
-    await ctx.page.waitForTimeout(800);
-    const registryAfter = readProjectRegistry(ctx.testServer);
+    const registryAfter = await poll(
+      () => readProjectRegistry(ctx.testServer),
+      (r) => r.projects.find((p) => p.projectSlug === project.projectSlug)?.boardId === "simple",
+      5000,
+    );
     const entryAfter = registryAfter.projects.find((p) => p.projectSlug === project.projectSlug);
     expect(entryAfter?.boardId).toBe("simple");
   }, 60000);

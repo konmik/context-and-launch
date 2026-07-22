@@ -1,111 +1,21 @@
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterAll, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { execSync, spawn, type ChildProcess } from 'child_process';
 import { AgentWorktreeManager } from './agent-worktree.js';
 import { LauncherConfigManager } from '../launcher/launcher-config.js';
 import { ConfigPaths } from '../config/config-paths.js';
 import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js';
-import { initializeDataDir } from '../config/initialize.js';
 import * as gitModule from '~/test-git.js';
-
-function tmpDir(prefix: string): string {
-	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
-}
-
-function cleanup(...dirs: string[]) {
-	for (const d of dirs) {
-		try {
-			// Prune worktrees before deleting to avoid git lock issues
-			try { execSync('git worktree prune', { cwd: d, timeout: 5000 }); } catch { /* ok */ }
-			fs.rmSync(d, { recursive: true, force: true });
-		} catch {
-			// cleanup best-effort
-		}
-	}
-}
-
-function initGitRepo(dir: string, branch = 'main'): void {
-	execSync(`git init -b ${branch}`, { cwd: dir, timeout: 5000 });
-	execSync('git config user.email "test@test.com"', { cwd: dir, timeout: 5000 });
-	execSync('git config user.name "Test"', { cwd: dir, timeout: 5000 });
-	fs.writeFileSync(path.join(dir, 'README.md'), '# test');
-	execSync('git add .', { cwd: dir, timeout: 5000 });
-	execSync('git commit -m "init"', { cwd: dir, timeout: 5000 });
-}
+import { git } from '~/test-git.js';
+import { makeWorktreeEnv, initGitRepo, tmpDir } from './agent-worktree.test-utils.js';
 
 describe('AgentWorktreeManager', () => {
-	const dirs: string[] = [];
+	const { dirs, setup, setupBehindRemote, cleanupAll } = makeWorktreeEnv();
 
-	afterEach(() => {
-		cleanup(...dirs);
-		dirs.length = 0;
-	});
+	afterAll(cleanupAll);
 
-	function setup(branch = 'main') {
-		const configDir = tmpDir('awm-config-');
-		const projectDir = tmpDir('awm-project-');
-		const worktreeRoot = tmpDir('awm-worktrees-');
-		dirs.push(configDir, projectDir, worktreeRoot);
-
-		initGitRepo(projectDir, branch);
-
-		const paths = new ConfigPaths(configDir);
-		initializeDataDir(paths);
-		const lcm = new LauncherConfigManager(paths);
-		lcm.saveProjectConfig('my-proj', {
-			templates: [],
-			skills: [],
-			worktreeRootPath: worktreeRoot,
-		});
-
-		const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService());
-		return { configDir, projectDir, worktreeRoot, lcm, awm, paths };
-	}
-
-	// Sets up a project whose local main is one commit behind its upstream.
-	function setupBehindRemote() {
-		const bareDir = tmpDir('awm-bare-');
-		const projectDir = tmpDir('awm-behind-');
-		const pusherDir = tmpDir('awm-pusher-');
-		const configDir = tmpDir('awm-config-');
-		const worktreeRoot = tmpDir('awm-worktrees-');
-		dirs.push(bareDir, projectDir, pusherDir, configDir, worktreeRoot);
-
-		execSync('git init --bare -b main', { cwd: bareDir, timeout: 5000 });
-
-		execSync(`git clone "${bareDir}" "${projectDir}"`, { timeout: 5000 });
-		execSync('git config user.email "test@test.com"', { cwd: projectDir, timeout: 5000 });
-		execSync('git config user.name "Test"', { cwd: projectDir, timeout: 5000 });
-		fs.writeFileSync(path.join(projectDir, 'README.md'), '# test');
-		execSync('git add .', { cwd: projectDir, timeout: 5000 });
-		execSync('git commit -m "init"', { cwd: projectDir, timeout: 5000 });
-		execSync('git push -u origin main', { cwd: projectDir, timeout: 5000 });
-
-		execSync(`git clone "${bareDir}" "${pusherDir}"`, { timeout: 5000 });
-		execSync('git config user.email "test@test.com"', { cwd: pusherDir, timeout: 5000 });
-		execSync('git config user.name "Test"', { cwd: pusherDir, timeout: 5000 });
-		fs.writeFileSync(path.join(pusherDir, 'ahead.txt'), 'ahead');
-		execSync('git add .', { cwd: pusherDir, timeout: 5000 });
-		execSync('git commit -m "ahead commit"', { cwd: pusherDir, timeout: 5000 });
-		execSync('git push', { cwd: pusherDir, timeout: 5000 });
-
-		execSync('git fetch', { cwd: projectDir, timeout: 5000 });
-
-		const paths = new ConfigPaths(configDir);
-		const lcm = new LauncherConfigManager(paths);
-		lcm.saveProjectConfig('my-proj', {
-			templates: [],
-			skills: [],
-			worktreeRootPath: worktreeRoot,
-		});
-
-		const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService());
-		return { projectDir, awm };
-	}
-
-	it('creates worktree at the correct path with correct branch name', async () => {
+	it.concurrent('creates worktree at the correct path with correct branch name', async () => {
 		const { projectDir, worktreeRoot, awm } = setup();
 		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0001-feature');
 		expect('worktreePath' in result).toBe(true);
@@ -116,7 +26,7 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it('truncates long ticket folder names for worktree path and branch', async () => {
+	it.concurrent('truncates long ticket folder names for worktree path and branch', async () => {
 		const { projectDir, worktreeRoot, awm } = setup();
 		const longName = 'wna-1533-opening-customer-support-from-login-error-alert'
 			+ '-error-is-dimissed-after-opening-customer-support-page';
@@ -127,14 +37,12 @@ describe('AgentWorktreeManager', () => {
 			expect(folderName.length).toBeLessThanOrEqual(50);
 			expect(longName.startsWith(folderName)).toBe(true);
 			expect(fs.existsSync(result.worktreePath)).toBe(true);
-			const branch = execSync('git rev-parse --abbrev-ref HEAD', {
-				cwd: result.worktreePath, timeout: 5000,
-			}).toString().trim();
+			const branch = (await git(result.worktreePath, 'rev-parse', '--abbrev-ref', 'HEAD')).trim();
 			expect(branch).toBe(folderName);
 		}
 	});
 
-	it('reuses existing worktree', async () => {
+	it.concurrent('reuses existing worktree', async () => {
 		const { projectDir, awm } = setup();
 		const result1 = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0001-feature');
 		expect('worktreePath' in result1).toBe(true);
@@ -146,34 +54,32 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it('detects uncommitted changes and returns dirtyWorktree', async () => {
+	it.concurrent('detects uncommitted changes and returns dirtyWorktree', async () => {
 		const { projectDir, awm } = setup();
 		// Create an uncommitted file
 		fs.writeFileSync(path.join(projectDir, 'dirty.txt'), 'uncommitted');
-		execSync('git add dirty.txt', { cwd: projectDir });
+		await git(projectDir, 'add', 'dirty.txt');
 
 		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0001-feature');
 		expect(result).toEqual({ dirtyWorktree: true });
 	});
 
-	it('falls back from main to master', async () => {
+	it.concurrent('falls back from main to master', async () => {
 		const { projectDir, awm } = setup('master');
 		const mainBranch = await awm.getMainBranch(projectDir);
 		expect(mainBranch).toBe('master');
 	});
 
-	it('throws when neither main nor master exists', async () => {
+	it.concurrent('throws when neither main nor master exists', async () => {
 		const configDir = tmpDir('awm-config-');
 		const projectDir = tmpDir('awm-project-');
 		dirs.push(configDir, projectDir);
 
 		// Init with a different branch name
-		execSync('git init -b develop', { cwd: projectDir, timeout: 5000 });
-		execSync('git config user.email "test@test.com"', { cwd: projectDir, timeout: 5000 });
-		execSync('git config user.name "Test"', { cwd: projectDir, timeout: 5000 });
+		await git(projectDir, 'init', '-b', 'develop');
 		fs.writeFileSync(path.join(projectDir, 'README.md'), '# test');
-		execSync('git add .', { cwd: projectDir, timeout: 5000 });
-		execSync('git commit -m "init"', { cwd: projectDir, timeout: 5000 });
+		await git(projectDir, 'add', '.');
+		await git(projectDir, 'commit', '-m', 'init');
 
 		const paths = new ConfigPaths(configDir);
 		const lcm = new LauncherConfigManager(paths);
@@ -182,7 +88,7 @@ describe('AgentWorktreeManager', () => {
 		await expect(awm.getMainBranch(projectDir)).rejects.toThrow('Neither main nor master');
 	});
 
-	it('uses default worktree path when worktreeRootPath is not configured', async () => {
+	it.concurrent('uses default worktree path when worktreeRootPath is not configured', async () => {
 		const configDir = tmpDir('awm-config-');
 		const projectDir = tmpDir('awm-project-');
 		dirs.push(configDir, projectDir);
@@ -201,7 +107,7 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it.skipIf(process.platform !== 'win32')('Windows backslash worktreeRootPath:'
+	it.skipIf(process.platform !== 'win32').concurrent('Windows backslash worktreeRootPath:'
 		+ ' worktree created, existence check matches on re-call,'
 		+ ' returned path uses mixed separators', async () => {
 		const configDir = tmpDir('awm-config-');
@@ -243,7 +149,9 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it('re-adds worktree with existing branch after worktree removal (no -b, no "branch already exists")', async () => {
+	it.concurrent(
+		're-adds worktree with existing branch after worktree removal (no -b, no "branch already exists")',
+		async () => {
 		const { projectDir, worktreeRoot, awm } = setup();
 		const folderName = 'st-0003-readd';
 		const worktreePath = path.join(worktreeRoot, folderName);
@@ -254,21 +162,15 @@ describe('AgentWorktreeManager', () => {
 		expect(fs.existsSync(worktreePath)).toBe(true);
 
 		// Branch exists
-		const branchBefore = execSync(
-			'git branch --list st-0003-readd', { cwd: projectDir, timeout: 5000 },
-		).toString();
+		const branchBefore = await git(projectDir, 'branch', '--list', 'st-0003-readd');
 		expect(branchBefore.trim()).toBeTruthy();
 
 		// Remove the worktree via git (branch stays)
-		execSync(
-			`git worktree remove "${worktreePath}"`, { cwd: projectDir, timeout: 5000 },
-		);
+		await git(projectDir, 'worktree', 'remove', worktreePath);
 		expect(fs.existsSync(worktreePath)).toBe(false);
 
 		// Branch still exists after worktree removal
-		const branchAfter = execSync(
-			'git branch --list st-0003-readd', { cwd: projectDir, timeout: 5000 },
-		).toString();
+		const branchAfter = await git(projectDir, 'branch', '--list', 'st-0003-readd');
 		expect(branchAfter.trim()).toBeTruthy();
 
 		// Second call: should re-add worktree using existing branch, not throw
@@ -277,7 +179,7 @@ describe('AgentWorktreeManager', () => {
 		expect(fs.existsSync(worktreePath)).toBe(true);
 	});
 
-	it('TOCTOU: config deleted between getMergedConfig guard and ensureAgentWorktree'
+	it.concurrent('TOCTOU: config deleted between getMergedConfig guard and ensureAgentWorktree'
 		+ ' falls back to default path', async () => {
 		const { projectDir, lcm, awm, configDir, paths } = setup();
 
@@ -299,46 +201,8 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it('behind-remote proceeds with worktree creation and sets behindRemote flag', async () => {
-		const bareDir = tmpDir('awm-bare-');
-		dirs.push(bareDir);
-		execSync('git init --bare -b main', { cwd: bareDir, timeout: 5000 });
-
-		const projectDir = tmpDir('awm-behind-');
-		dirs.push(projectDir);
-		execSync(`git clone "${bareDir}" "${projectDir}"`, { timeout: 5000 });
-		execSync('git config user.email "test@test.com"', { cwd: projectDir, timeout: 5000 });
-		execSync('git config user.name "Test"', { cwd: projectDir, timeout: 5000 });
-		fs.writeFileSync(path.join(projectDir, 'README.md'), '# test');
-		execSync('git add .', { cwd: projectDir, timeout: 5000 });
-		execSync('git commit -m "init"', { cwd: projectDir, timeout: 5000 });
-		execSync('git push -u origin main', { cwd: projectDir, timeout: 5000 });
-
-		const pusherDir = tmpDir('awm-pusher-');
-		dirs.push(pusherDir);
-		execSync(`git clone "${bareDir}" "${pusherDir}"`, { timeout: 5000 });
-		execSync('git config user.email "test@test.com"', { cwd: pusherDir, timeout: 5000 });
-		execSync('git config user.name "Test"', { cwd: pusherDir, timeout: 5000 });
-		fs.writeFileSync(path.join(pusherDir, 'ahead.txt'), 'ahead');
-		execSync('git add .', { cwd: pusherDir, timeout: 5000 });
-		execSync('git commit -m "ahead commit"', { cwd: pusherDir, timeout: 5000 });
-		execSync('git push', { cwd: pusherDir, timeout: 5000 });
-
-		execSync('git fetch', { cwd: projectDir, timeout: 5000 });
-
-		const configDir = tmpDir('awm-config-');
-		const worktreeRoot = tmpDir('awm-worktrees-');
-		dirs.push(configDir, worktreeRoot);
-
-		const paths = new ConfigPaths(configDir);
-		const lcm = new LauncherConfigManager(paths);
-		lcm.saveProjectConfig('my-proj', {
-			templates: [],
-			skills: [],
-			worktreeRootPath: worktreeRoot,
-		});
-
-		const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService());
+	it.concurrent('behind-remote proceeds with worktree creation and sets behindRemote flag', async () => {
+		const { projectDir, awm } = await setupBehindRemote();
 
 		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0005-behind');
 		expect('worktreePath' in result).toBe(true);
@@ -352,38 +216,34 @@ describe('AgentWorktreeManager', () => {
 		+ ' worktree created from outdated main without warning', async () => {
 		const bareDir = tmpDir('awm-bare-');
 		dirs.push(bareDir);
-		execSync('git init --bare -b main', { cwd: bareDir, timeout: 5000 });
+		await git(bareDir, 'init', '--bare', '-b', 'main');
 
 		const projectDir = tmpDir('awm-stale-main-');
 		dirs.push(projectDir);
-		execSync(`git clone "${bareDir}" "${projectDir}"`, { timeout: 5000 });
-		execSync('git config user.email "test@test.com"', { cwd: projectDir, timeout: 5000 });
-		execSync('git config user.name "Test"', { cwd: projectDir, timeout: 5000 });
+		await git(os.tmpdir(), 'clone', bareDir, projectDir);
 		fs.writeFileSync(path.join(projectDir, 'README.md'), '# test');
-		execSync('git add .', { cwd: projectDir, timeout: 5000 });
-		execSync('git commit -m "init"', { cwd: projectDir, timeout: 5000 });
-		execSync('git push -u origin main', { cwd: projectDir, timeout: 5000 });
+		await git(projectDir, 'add', '.');
+		await git(projectDir, 'commit', '-m', 'init');
+		await git(projectDir, 'push', '-u', 'origin', 'main');
 
 		// Create a feature branch and push it (user works here)
-		execSync('git checkout -b feature', { cwd: projectDir, timeout: 5000 });
+		await git(projectDir, 'checkout', '-b', 'feature');
 		fs.writeFileSync(path.join(projectDir, 'feature.txt'), 'feature work');
-		execSync('git add .', { cwd: projectDir, timeout: 5000 });
-		execSync('git commit -m "feature commit"', { cwd: projectDir, timeout: 5000 });
-		execSync('git push -u origin feature', { cwd: projectDir, timeout: 5000 });
+		await git(projectDir, 'add', '.');
+		await git(projectDir, 'commit', '-m', 'feature commit');
+		await git(projectDir, 'push', '-u', 'origin', 'feature');
 
 		// Push a new commit to main from another clone (main becomes stale in projectDir)
 		const pusherDir = tmpDir('awm-pusher-');
 		dirs.push(pusherDir);
-		execSync(`git clone "${bareDir}" "${pusherDir}"`, { timeout: 5000 });
-		execSync('git config user.email "test@test.com"', { cwd: pusherDir, timeout: 5000 });
-		execSync('git config user.name "Test"', { cwd: pusherDir, timeout: 5000 });
+		await git(os.tmpdir(), 'clone', bareDir, pusherDir);
 		fs.writeFileSync(path.join(pusherDir, 'new-on-main.txt'), 'newer content');
-		execSync('git add .', { cwd: pusherDir, timeout: 5000 });
-		execSync('git commit -m "newer main commit"', { cwd: pusherDir, timeout: 5000 });
-		execSync('git push', { cwd: pusherDir, timeout: 5000 });
+		await git(pusherDir, 'add', '.');
+		await git(pusherDir, 'commit', '-m', 'newer main commit');
+		await git(pusherDir, 'push');
 
 		// Fetch so projectDir knows about new remote commits (feature branch is up-to-date, main is behind)
-		execSync('git fetch', { cwd: projectDir, timeout: 5000 });
+		await git(projectDir, 'fetch');
 
 		const configDir = tmpDir('awm-config-');
 		const worktreeRoot = tmpDir('awm-worktrees-');
@@ -407,8 +267,9 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it('reusing an existing worktree does not re-check main freshness (no behind-remote warning)', async () => {
-		const { projectDir, awm } = setupBehindRemote();
+	it.concurrent(
+		'reusing an existing worktree does not re-check main freshness (no behind-remote warning)', async () => {
+		const { projectDir, awm } = await setupBehindRemote();
 
 		// First call forks a new worktree from stale main -> warns once.
 		const first = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0038-reuse');
@@ -421,8 +282,9 @@ describe('AgentWorktreeManager', () => {
 		if ('worktreePath' in second) expect(second.behindRemote).toBeUndefined();
 	});
 
-	it('reusing an existing branch does not re-check main freshness (no behind-remote warning)', async () => {
-		const { projectDir, awm } = setupBehindRemote();
+	it.concurrent(
+		'reusing an existing branch does not re-check main freshness (no behind-remote warning)', async () => {
+		const { projectDir, awm } = await setupBehindRemote();
 
 		const first = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0038-branch');
 		expect('worktreePath' in first).toBe(true);
@@ -430,7 +292,7 @@ describe('AgentWorktreeManager', () => {
 		expect(first.behindRemote).toBe(true);
 
 		// Remove the worktree but keep the branch.
-		execSync(`git worktree remove "${first.worktreePath}"`, { cwd: projectDir, timeout: 5000 });
+		await git(projectDir, 'worktree', 'remove', first.worktreePath);
 
 		// Re-adding from the existing branch does not fork from main -> must not warn.
 		const second = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0038-branch');
@@ -438,18 +300,16 @@ describe('AgentWorktreeManager', () => {
 		if ('worktreePath' in second) expect(second.behindRemote).toBeUndefined();
 	});
 
-	it('getMainBranch does not falsely match a branch named main-v2 for the main check', async () => {
+	it.concurrent('getMainBranch does not falsely match a branch named main-v2 for the main check', async () => {
 		const configDir = tmpDir('awm-config-');
 		const projectDir = tmpDir('awm-project-');
 		dirs.push(configDir, projectDir);
 
 		// Init with branch named 'main-v2' -- no 'main' or 'master' exists
-		execSync('git init -b main-v2', { cwd: projectDir, timeout: 5000 });
-		execSync('git config user.email "test@test.com"', { cwd: projectDir, timeout: 5000 });
-		execSync('git config user.name "Test"', { cwd: projectDir, timeout: 5000 });
+		await git(projectDir, 'init', '-b', 'main-v2');
 		fs.writeFileSync(path.join(projectDir, 'README.md'), '# test');
-		execSync('git add .', { cwd: projectDir, timeout: 5000 });
-		execSync('git commit -m "init"', { cwd: projectDir, timeout: 5000 });
+		await git(projectDir, 'add', '.');
+		await git(projectDir, 'commit', '-m', 'init');
 
 		const paths = new ConfigPaths(configDir);
 		const lcm = new LauncherConfigManager(paths);
@@ -460,7 +320,7 @@ describe('AgentWorktreeManager', () => {
 		await expect(awm.getMainBranch(projectDir)).rejects.toThrow('Neither main nor master');
 	});
 
-	it('concurrent ensureAgentWorktree for same folderName: at least one succeeds,'
+	it.concurrent('concurrent ensureAgentWorktree for same folderName: at least one succeeds,'
 		+ ' the other succeeds or gets a clean error', async () => {
 		const { projectDir, worktreeRoot, awm } = setup();
 		const folderName = 'st-concurrent-race';
@@ -537,7 +397,8 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it('branch checked out in existing worktree at different path: returns error instead of data loss', async () => {
+	it.concurrent(
+		'branch checked out in existing worktree at different path: returns error instead of data loss', async () => {
 		const configDir = tmpDir('awm-config-dup-');
 		const projectDir = tmpDir('awm-project-dup-');
 		const worktreeRootA = tmpDir('awm-wt-A-');
@@ -577,7 +438,7 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it('stale worktree reference is pruned when old directory no longer exists', async () => {
+	it.concurrent('stale worktree reference is pruned when old directory no longer exists', async () => {
 		const configDir = tmpDir('awm-config-stale-');
 		const projectDir = tmpDir('awm-project-stale-');
 		const worktreeRootA = tmpDir('awm-wt-A-');
@@ -655,7 +516,7 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it('defaults to projects/{projectSlug}/worktrees/ when worktreeRootPath is not configured', async () => {
+	it.concurrent('defaults to projects/{projectSlug}/worktrees/ when worktreeRootPath is not configured', async () => {
 		const configDir = tmpDir('awm-config-pullretry-');
 		const projectDir = tmpDir('awm-project-pullretry-');
 		dirs.push(configDir, projectDir);
@@ -681,379 +542,5 @@ describe('AgentWorktreeManager', () => {
 			expect(path.resolve(result.worktreePath)).toBe(path.resolve(expected));
 			expect(fs.existsSync(result.worktreePath)).toBe(true);
 		}
-	});
-
-	it('isWorktreeClean returns true for clean worktree', async () => {
-		const { projectDir, awm } = setup();
-		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-clean-test');
-		expect('worktreePath' in result).toBe(true);
-		if ('worktreePath' in result) {
-			const clean = await awm.isWorktreeClean(result.worktreePath);
-			expect(clean).toBe(true);
-		}
-	});
-
-	it('isWorktreeClean returns false for dirty worktree', async () => {
-		const { projectDir, awm } = setup();
-		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-dirty-test');
-		expect('worktreePath' in result).toBe(true);
-		if ('worktreePath' in result) {
-			fs.writeFileSync(path.join(result.worktreePath, 'dirty.txt'), 'dirty');
-			const clean = await awm.isWorktreeClean(result.worktreePath);
-			expect(clean).toBe(false);
-		}
-	});
-
-	it('isWorktreeClean surfaces a probe that never produced an answer', async () => {
-		const { awm } = setup();
-		// A registered Agent Worktree whose directory is no longer a git worktree:
-		// `git status` cannot answer, so cleanup must not read that as "clean".
-		const notARepo = tmpDir('awm-not-a-repo-');
-		dirs.push(notARepo);
-		await expect(awm.isWorktreeClean(notARepo)).rejects.toThrow();
-	});
-
-	it('removeWorktree removes the worktree directory', async () => {
-		const { projectDir, worktreeRoot, awm } = setup();
-		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-remove-test');
-		expect('worktreePath' in result).toBe(true);
-		if ('worktreePath' in result) {
-			await awm.removeWorktree(projectDir, result.worktreePath);
-			expect(fs.existsSync(result.worktreePath)).toBe(false);
-		}
-	});
-
-	it('removeWorktree refuses to destroy a worktree git declined to remove', async () => {
-		const { projectDir, awm } = setup();
-		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-locked-test');
-		expect('worktreePath' in result).toBe(true);
-		if ('worktreePath' in result) {
-			// The user locked the worktree to protect it; git refuses to remove it.
-			execSync(`git worktree lock "${result.worktreePath}"`, { cwd: projectDir, timeout: 5000 });
-			await expect(awm.removeWorktree(projectDir, result.worktreePath)).rejects.toThrow();
-			expect(fs.existsSync(result.worktreePath)).toBe(true);
-			execSync(`git worktree unlock "${result.worktreePath}"`, { cwd: projectDir, timeout: 5000 });
-		}
-	});
-
-	it('removeWorktree drops a folder that is no longer a git worktree', async () => {
-		const { projectDir, awm } = setup();
-		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-stray-test');
-		expect('worktreePath' in result).toBe(true);
-		if ('worktreePath' in result) {
-			fs.rmSync(path.join(result.worktreePath, '.git'));
-			expect(awm.isGitWorktree(result.worktreePath)).toBe(false);
-			await awm.removeWorktree(projectDir, result.worktreePath);
-			expect(fs.existsSync(result.worktreePath)).toBe(false);
-		}
-	});
-
-	it('deleteLocalBranch removes the branch', async () => {
-		const { projectDir, awm } = setup();
-		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-delbranch');
-		expect('worktreePath' in result).toBe(true);
-		if ('worktreePath' in result) {
-			await awm.removeWorktree(projectDir, result.worktreePath);
-			await awm.deleteLocalBranch(projectDir, 'st-delbranch');
-			const branchList = execSync(
-				'git branch --list st-delbranch', { cwd: projectDir, timeout: 5000 },
-			).toString();
-			expect(branchList.trim()).toBe('');
-		}
-	});
-
-	it('deleteLocalBranch succeeds when HEAD is not on mainBranch but branch is merged into main', async () => {
-		const { projectDir, worktreeRoot, awm } = setup();
-
-		execSync('git checkout -b other-branch', { cwd: projectDir, timeout: 5000 });
-		fs.writeFileSync(path.join(projectDir, 'other.txt'), 'diverged work');
-		execSync('git add .', { cwd: projectDir, timeout: 5000 });
-		execSync('git commit -m "diverge from main"', { cwd: projectDir, timeout: 5000 });
-		execSync('git checkout main', { cwd: projectDir, timeout: 5000 });
-
-		execSync('git checkout -b st-merged-feat', { cwd: projectDir, timeout: 5000 });
-		fs.writeFileSync(path.join(projectDir, 'feat.txt'), 'feature work');
-		execSync('git add .', { cwd: projectDir, timeout: 5000 });
-		execSync('git commit -m "feature commit"', { cwd: projectDir, timeout: 5000 });
-		execSync('git checkout main', { cwd: projectDir, timeout: 5000 });
-		execSync('git merge st-merged-feat', { cwd: projectDir, timeout: 5000 });
-
-		const merged = await awm.isBranchMerged(projectDir, 'st-merged-feat');
-		expect(merged).toBe(true);
-
-		execSync('git checkout other-branch', { cwd: projectDir, timeout: 5000 });
-		const head = execSync('git rev-parse --abbrev-ref HEAD', { cwd: projectDir, timeout: 5000 }).toString().trim();
-		expect(head).toBe('other-branch');
-
-		await awm.deleteLocalBranch(projectDir, 'st-merged-feat');
-
-		const branchList = execSync(
-			'git branch --list st-merged-feat', { cwd: projectDir, timeout: 5000 },
-		).toString();
-		expect(branchList.trim()).toBe('');
-	});
-
-	it('ensureAgentWorktree with configuredBranch "develop" succeeds in repo with only develop branch', async () => {
-		const { projectDir, worktreeRoot, awm } = setup('develop');
-		const result = await awm.ensureAgentWorktree(
-			projectDir, 'my-proj', 'st-develop-test', undefined, 'develop',
-		);
-		expect('worktreePath' in result).toBe(true);
-		if ('worktreePath' in result) {
-			const expected = `${worktreeRoot}/st-develop-test`;
-			expect(result.worktreePath.replace(/\\/g, '/')).toBe(expected.replace(/\\/g, '/'));
-			expect(fs.existsSync(result.worktreePath)).toBe(true);
-		}
-	});
-
-	it('isBranchMerged detects squash-merged branch', async () => {
-		const { projectDir, awm } = setup();
-
-		execSync('git checkout -b st-squash-feat', { cwd: projectDir, timeout: 5000 });
-		fs.writeFileSync(path.join(projectDir, 'feat1.txt'), 'part 1');
-		execSync('git add .', { cwd: projectDir, timeout: 5000 });
-		execSync('git commit -m "feat part 1"', { cwd: projectDir, timeout: 5000 });
-		fs.writeFileSync(path.join(projectDir, 'feat2.txt'), 'part 2');
-		execSync('git add .', { cwd: projectDir, timeout: 5000 });
-		execSync('git commit -m "feat part 2"', { cwd: projectDir, timeout: 5000 });
-
-		execSync('git checkout main', { cwd: projectDir, timeout: 5000 });
-		execSync('git merge --squash st-squash-feat', { cwd: projectDir, timeout: 5000 });
-		execSync('git commit -m "squash: feat"', { cwd: projectDir, timeout: 5000 });
-
-		const merged = await awm.isBranchMerged(projectDir, 'st-squash-feat');
-		expect(merged).toBe(true);
-	});
-
-	it('isBranchMerged detects squash-merged branch when main has moved forward', async () => {
-		const { projectDir, awm } = setup();
-
-		execSync('git checkout -b st-squash-moved', { cwd: projectDir, timeout: 5000 });
-		fs.writeFileSync(path.join(projectDir, 'feat.txt'), 'feature');
-		execSync('git add .', { cwd: projectDir, timeout: 5000 });
-		execSync('git commit -m "feature commit"', { cwd: projectDir, timeout: 5000 });
-
-		execSync('git checkout main', { cwd: projectDir, timeout: 5000 });
-		execSync('git merge --squash st-squash-moved', { cwd: projectDir, timeout: 5000 });
-		execSync('git commit -m "squash: feature"', { cwd: projectDir, timeout: 5000 });
-
-		fs.writeFileSync(path.join(projectDir, 'other.txt'), 'later work');
-		execSync('git add .', { cwd: projectDir, timeout: 5000 });
-		execSync('git commit -m "more work on main"', { cwd: projectDir, timeout: 5000 });
-
-		const merged = await awm.isBranchMerged(projectDir, 'st-squash-moved');
-		expect(merged).toBe(true);
-	});
-
-	it('isBranchMerged detects squash-merged branch on remote when local main is behind', async () => {
-		const remoteDir = tmpDir('awm-remote-');
-		dirs.push(remoteDir);
-		initGitRepo(remoteDir);
-		execSync(`git clone "${remoteDir}" cloned`, { cwd: os.tmpdir(), timeout: 5000 });
-		const projectDir = path.join(os.tmpdir(), 'cloned');
-		dirs.push(projectDir);
-		execSync('git config user.email "test@test.com"', { cwd: projectDir, timeout: 5000 });
-		execSync('git config user.name "Test"', { cwd: projectDir, timeout: 5000 });
-
-		execSync('git checkout -b st-remote-squash', { cwd: projectDir, timeout: 5000 });
-		fs.writeFileSync(path.join(projectDir, 'feat.txt'), 'feature');
-		execSync('git add .', { cwd: projectDir, timeout: 5000 });
-		execSync('git commit -m "feature"', { cwd: projectDir, timeout: 5000 });
-		execSync('git checkout main', { cwd: projectDir, timeout: 5000 });
-
-		execSync('git checkout main', { cwd: remoteDir, timeout: 5000 });
-		execSync(`git fetch "${projectDir}" st-remote-squash`, { cwd: remoteDir, timeout: 5000 });
-		execSync('git merge --squash FETCH_HEAD', { cwd: remoteDir, timeout: 5000 });
-		execSync('git commit -m "squash: feature"', { cwd: remoteDir, timeout: 5000 });
-
-		const configDir = tmpDir('awm-config-rsq-');
-		dirs.push(configDir);
-		const paths = new ConfigPaths(configDir);
-		initializeDataDir(paths);
-		const lcm = new LauncherConfigManager(paths);
-		lcm.saveProjectConfig('my-proj', { templates: [], skills: [], worktreeRootPath: tmpDir('awm-wt-rsq-') });
-		const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService());
-
-		const merged = await awm.isBranchMerged(projectDir, 'st-remote-squash');
-		expect(merged).toBe(true);
-	});
-
-	it('isBranchMerged returns false for unmerged branch', async () => {
-		const { projectDir, awm } = setup();
-
-		execSync('git checkout -b st-unmerged', { cwd: projectDir, timeout: 5000 });
-		fs.writeFileSync(path.join(projectDir, 'unmerged.txt'), 'not merged');
-		execSync('git add .', { cwd: projectDir, timeout: 5000 });
-		execSync('git commit -m "unmerged work"', { cwd: projectDir, timeout: 5000 });
-		execSync('git checkout main', { cwd: projectDir, timeout: 5000 });
-
-		const merged = await awm.isBranchMerged(projectDir, 'st-unmerged');
-		expect(merged).toBe(false);
-	});
-
-	it('isBranchMerged returns false when an unmerged branch conflicts with main', async () => {
-		const { projectDir, awm } = setup();
-
-		execSync('git checkout -b st-conflicting', { cwd: projectDir, timeout: 5000 });
-		fs.writeFileSync(path.join(projectDir, 'README.md'), '# branch');
-		execSync('git add .', { cwd: projectDir, timeout: 5000 });
-		execSync('git commit -m "branch change"', { cwd: projectDir, timeout: 5000 });
-
-		execSync('git checkout main', { cwd: projectDir, timeout: 5000 });
-		fs.writeFileSync(path.join(projectDir, 'README.md'), '# main');
-		execSync('git add .', { cwd: projectDir, timeout: 5000 });
-		execSync('git commit -m "main change"', { cwd: projectDir, timeout: 5000 });
-
-		const merged = await awm.isBranchMerged(projectDir, 'st-conflicting');
-		expect(merged).toBe(false);
-	});
-
-	it('isBranchMerged throws a clear error when the branch no longer exists', async () => {
-		const { projectDir, awm } = setup();
-
-		await expect(awm.isBranchMerged(projectDir, 'st-renamed-away')).rejects.toThrow(
-			/Branch 'st-renamed-away' no longer exists/,
-		);
-	});
-
-	it('isBranchMerged with configuredBranch "develop" succeeds in repo with only develop branch', async () => {
-		const { projectDir, awm } = setup('develop');
-		const result = await awm.ensureAgentWorktree(
-			projectDir, 'my-proj', 'st-merged-develop', undefined, 'develop',
-		);
-		expect('worktreePath' in result).toBe(true);
-		const merged = await awm.isBranchMerged(projectDir, 'st-merged-develop', 'develop');
-		expect(merged).toBe(true);
-	});
-
-	it('worktreeRootPath directory does not exist on disk: git worktree add creates it automatically', async () => {
-		const configDir = tmpDir('awm-config-nodir-');
-		const projectDir = tmpDir('awm-project-nodir-');
-		dirs.push(configDir, projectDir);
-
-		initGitRepo(projectDir);
-
-		// Point worktreeRootPath to a directory that does not exist on disk
-		const nonexistentRoot = path.join(os.tmpdir(), 'awm-nonexistent-' + Date.now());
-		// Do NOT create this directory -- that's the whole point of the test
-		dirs.push(nonexistentRoot); // ensure cleanup
-
-		expect(fs.existsSync(nonexistentRoot)).toBe(false);
-
-		const paths = new ConfigPaths(configDir);
-		const lcm = new LauncherConfigManager(paths);
-		lcm.saveProjectConfig('nodir-proj', {
-			templates: [],
-			skills: [],
-			worktreeRootPath: nonexistentRoot,
-		});
-
-		const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService());
-
-		// Discovery: git worktree add creates intermediate directories automatically.
-		// A nonexistent worktreeRootPath does NOT cause an error -- git silently
-		// creates the parent directory and the worktree inside it.
-		const result = await awm.ensureAgentWorktree(projectDir, 'nodir-proj', 'st-nodir-test');
-		expect('worktreePath' in result).toBe(true);
-		if ('worktreePath' in result) {
-			expect(fs.existsSync(result.worktreePath)).toBe(true);
-			// The parent directory (nonexistentRoot) was created by git
-			expect(fs.existsSync(nonexistentRoot)).toBe(true);
-		}
-	});
-
-	it('isWorktreeBusy returns false for an unoccupied directory', async () => {
-		const { projectDir, awm } = setup();
-		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-busy-free');
-		expect('worktreePath' in result).toBe(true);
-		if ('worktreePath' in result) {
-			const busy = await awm.isWorktreeBusy(result.worktreePath);
-			expect(busy).toBe(false);
-		}
-	});
-
-	it('isWorktreeBusy returns false for a nonexistent path', async () => {
-		const { awm } = setup();
-		const busy = await awm.isWorktreeBusy(path.join(os.tmpdir(), 'does-not-exist-' + Date.now()));
-		expect(busy).toBe(false);
-	});
-
-	it('isWorktreeBusy returns true when a process occupies the directory', async () => {
-		const { projectDir, awm } = setup();
-		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-busy-occupied');
-		expect('worktreePath' in result).toBe(true);
-		if (!('worktreePath' in result)) return;
-
-		const child: ChildProcess = spawn(
-			process.execPath,
-			['-e', 'setTimeout(() => {}, 60000)'],
-			{ cwd: result.worktreePath, stdio: 'pipe' }
-		);
-
-		try {
-			await new Promise(r => setTimeout(r, 200));
-			const busy = await awm.isWorktreeBusy(result.worktreePath);
-			expect(busy).toBe(true);
-		} finally {
-			child.kill();
-		}
-	});
-
-	it('returns branchName in the result', async () => {
-		const { projectDir, awm } = setup();
-		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0010-branch-result');
-		expect('worktreePath' in result).toBe(true);
-		if (!('worktreePath' in result)) return;
-		expect(result.branchName).toBe('st-0010-branch-result');
-	});
-
-	it('uses savedWorktreeInfo instead of deriving from folderName (ticket rename)', async () => {
-		const { projectDir, worktreeRoot, awm } = setup();
-		const originalFolder = 'st-0011-original-name';
-		const result1 = await awm.ensureAgentWorktree(projectDir, 'my-proj', originalFolder);
-		expect('worktreePath' in result1).toBe(true);
-		if (!('worktreePath' in result1)) return;
-
-		const renamedFolder = 'st-0011-renamed-ticket';
-		const result2 = await awm.ensureAgentWorktree(
-			projectDir, 'my-proj', renamedFolder,
-			undefined, undefined,
-			{ branchName: originalFolder, agentWorktreePath: result1.worktreePath },
-		);
-		expect('worktreePath' in result2).toBe(true);
-		if (!('worktreePath' in result2)) return;
-		expect(result2.worktreePath).toBe(result1.worktreePath);
-		expect(result2.branchName).toBe(originalFolder);
-		expect(fs.existsSync(result2.worktreePath)).toBe(true);
-	});
-
-	it('uses savedWorktreeInfo with changed branchPrefix', async () => {
-		const { projectDir, worktreeRoot, awm, lcm } = setup();
-		lcm.saveProjectConfig('my-proj', {
-			templates: [], skills: [],
-			worktreeRootPath: worktreeRoot,
-			branchPrefix: 'feature',
-		});
-		const folderName = 'st-0012-prefix-change';
-		const result1 = await awm.ensureAgentWorktree(projectDir, 'my-proj', folderName);
-		expect('worktreePath' in result1).toBe(true);
-		if (!('worktreePath' in result1)) return;
-		expect(result1.branchName).toBe('feature/st-0012-prefix-change');
-
-		lcm.saveProjectConfig('my-proj', {
-			templates: [], skills: [],
-			worktreeRootPath: worktreeRoot,
-			branchPrefix: 'dev',
-		});
-
-		const result2 = await awm.ensureAgentWorktree(
-			projectDir, 'my-proj', folderName,
-			undefined, undefined,
-			{ branchName: result1.branchName, agentWorktreePath: result1.worktreePath },
-		);
-		expect('worktreePath' in result2).toBe(true);
-		if (!('worktreePath' in result2)) return;
-		expect(result2.worktreePath).toBe(result1.worktreePath);
-		expect(result2.branchName).toBe('feature/st-0012-prefix-change');
 	});
 });

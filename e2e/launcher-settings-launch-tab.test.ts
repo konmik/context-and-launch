@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   createProject, uniqueSlug, gotoProject,
   openLauncherSettings, openLauncherSettingsTab,
-  readAppLauncherConfig,
+  readAppLauncherConfig, poll,
   setupE2E,
 } from "./fixtures.js";
 
@@ -42,8 +42,11 @@ describe("Launcher Settings Launch tab (e2e, real server)", () => {
     await ctx.page.fill('[data-testid="launcher-settings-item-form-text-input"]', "echo gpt");
     await ctx.page.click('[data-testid="launcher-settings-item-form-scope-app"]');
     await ctx.page.click('[data-testid="launcher-settings-item-form-submit"]');
-    await ctx.page.waitForTimeout(1000);
-    const app = readAppLauncherConfig(ctx.testServer);
+    const app = await poll(
+      () => readAppLauncherConfig(ctx.testServer),
+      (a) => a?.profiles?.map((p) => p.name).includes("GPT") ?? false,
+      5000,
+    );
     expect(app?.profiles?.map((p) => p.name)).toContain("GPT");
   }, 60000);
 
@@ -74,24 +77,33 @@ describe("Launcher Settings Launch tab (e2e, real server)", () => {
     await ctx.page.fill('[data-testid="launcher-settings-item-form-text-input"]', "echo browse");
     await ctx.page.click('[data-testid="launcher-settings-item-form-scope-app"]');
     await ctx.page.click('[data-testid="launcher-settings-item-form-submit"]');
-    await ctx.page.waitForTimeout(1000);
-    const app = readAppLauncherConfig(ctx.testServer);
+    const app = await poll(
+      () => readAppLauncherConfig(ctx.testServer),
+      (a) => a?.shortcuts?.map((s) => s.name).includes("Browse") ?? false,
+      5000,
+    );
     expect(app?.shortcuts?.map((s) => s.name)).toContain("Browse");
   }, 60000);
 
   it("delete-profile removes profile from config", async () => {
     await setup("delete-profile");
     await ctx.page.click('[data-testid="launcher-settings-launch-profile-delete-button"]');
-    await ctx.page.waitForTimeout(1000);
-    const app = readAppLauncherConfig(ctx.testServer);
+    const app = await poll(
+      () => readAppLauncherConfig(ctx.testServer),
+      (a) => !(a?.profiles?.map((p) => p.name).includes("Claude") ?? false),
+      5000,
+    );
     expect(app?.profiles?.map((p) => p.name)).not.toContain("Claude");
   }, 60000);
 
   it("delete-shortcut removes shortcut from config", async () => {
     await setup("delete-shortcut");
     await ctx.page.click('[data-testid="launcher-settings-launch-shortcut-delete-button"]');
-    await ctx.page.waitForTimeout(1000);
-    const app = readAppLauncherConfig(ctx.testServer);
+    const app = await poll(
+      () => readAppLauncherConfig(ctx.testServer),
+      (a) => !(a?.shortcuts?.map((s) => s.name).includes("Editor") ?? false),
+      5000,
+    );
     expect(app?.shortcuts?.map((s) => s.name)).not.toContain("Editor");
   }, 60000);
 

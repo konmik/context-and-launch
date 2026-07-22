@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   createProject, uniqueSlug, gotoProject,
   openLauncherSettings, openLauncherSettingsTab,
-  readAppLauncherConfig,
+  readAppLauncherConfig, poll,
   setupE2E,
 } from "./fixtures.js";
 
@@ -40,8 +40,11 @@ describe("Launcher Settings Skills tab (e2e, real server)", () => {
     await ctx.page.fill('[data-testid="launcher-settings-item-form-text-input"]', "delta");
     await ctx.page.click('[data-testid="launcher-settings-item-form-scope-app"]');
     await ctx.page.click('[data-testid="launcher-settings-item-form-submit"]');
-    await ctx.page.waitForTimeout(1000);
-    const app = readAppLauncherConfig(ctx.testServer);
+    const app = await poll(
+      () => readAppLauncherConfig(ctx.testServer),
+      (a) => a?.skills?.map((s) => s.name).includes("delta-skill") ?? false,
+      5000,
+    );
     expect(app?.skills?.map((s) => s.name)).toContain("delta-skill");
   }, 60000);
 
@@ -57,8 +60,11 @@ describe("Launcher Settings Skills tab (e2e, real server)", () => {
   it("delete removes the skill from app config", async () => {
     await setup("delete");
     await ctx.page.click('[data-testid="launcher-settings-skills-delete-button"]');
-    await ctx.page.waitForTimeout(1000);
-    const app = readAppLauncherConfig(ctx.testServer);
+    const app = await poll(
+      () => readAppLauncherConfig(ctx.testServer),
+      (a) => !(a?.skills?.map((s) => s.name).includes("alpha-skill") ?? false),
+      5000,
+    );
     expect(app?.skills?.map((s) => s.name)).not.toContain("alpha-skill");
   }, 60000);
 

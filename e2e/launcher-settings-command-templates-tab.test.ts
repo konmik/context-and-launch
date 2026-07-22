@@ -3,7 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
 	createProject, gotoProject, openLauncherSettings, openLauncherSettingsTab,
-	setupE2E, uniqueSlug,
+	poll, setupE2E, uniqueSlug,
 } from './fixtures.js';
 
 describe('Command Templates Settings tab (e2e, real server)', () => {
@@ -45,8 +45,14 @@ describe('Command Templates Settings tab (e2e, real server)', () => {
 		const grownHeight = (await scriptField.boundingBox())!.height;
 		expect(grownHeight).toBeGreaterThan(oneLineHeight);
 		await row.locator('[data-testid="command-template-editor-save"]').click();
-		await ctx.page.waitForTimeout(500);
-		expect(JSON.parse(fs.readFileSync(overrideFile, 'utf8'))).toEqual({
+		const saved = await poll(
+			() => (fs.existsSync(overrideFile)
+				? JSON.parse(fs.readFileSync(overrideFile, 'utf8'))
+				: null) as Record<string, string> | null,
+			(o) => o?.['git.version'] === 'git version\n--build-options\n--no-pager\n--paginate',
+			5000,
+		);
+		expect(saved).toEqual({
 			'git.version': 'git version\n--build-options\n--no-pager\n--paginate',
 		});
 		expect(await row.locator('[data-testid="command-template-override-state"]').textContent())
@@ -63,7 +69,13 @@ describe('Command Templates Settings tab (e2e, real server)', () => {
 		expect(await reloaded.locator('[data-testid="command-template-editor-script"]').inputValue())
 			.toContain('build-options');
 		await reloaded.locator('[data-testid="command-template-reset"]').click();
-		await ctx.page.waitForTimeout(500);
-		expect(JSON.parse(fs.readFileSync(overrideFile, 'utf8'))).toEqual({});
+		const afterReset = await poll(
+			() => (fs.existsSync(overrideFile)
+				? JSON.parse(fs.readFileSync(overrideFile, 'utf8'))
+				: {}) as Record<string, string>,
+			(o) => Object.keys(o).length === 0,
+			5000,
+		);
+		expect(afterReset).toEqual({});
 	}, 60_000);
 });

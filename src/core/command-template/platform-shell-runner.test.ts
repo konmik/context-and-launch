@@ -11,7 +11,7 @@ import {
   killIfAlive, runSurvivalFixture, useTempDirs, waitForFile,
 } from "./platform-shell-fixture.test-utils.js";
 
-const makeTempDir = useTempDirs("platform-shell-runner-test-");
+const makeTempDir = useTempDirs("platform-shell-runner-test-", { cleanupAfterAll: true });
 
 const platform = currentCommandTemplatePlatform();
 
@@ -26,14 +26,14 @@ describe("platform shell runner failure classification", () => {
   // non-zero exit to 1, so these two cases were indistinguishable. Callers such
   // as merge-tree conflict detection and Herdr availability depend on telling
   // them apart, so assert the distinction directly against the real shell.
-  it("reports a command the shell cannot resolve as command-not-found", async () => {
+  it.concurrent("reports a command the shell cannot resolve as command-not-found", async () => {
     const cwd = makeTempDir();
     const promise = runCapturedScript("definitely-not-a-real-executable-xyz", cwd);
     await expect(promise).rejects.toBeInstanceOf(ProcessError);
     await expect(promise).rejects.toMatchObject({ kind: "command-not-found" });
   });
 
-  it("reports a command that chose its own non-zero exit as exited", async () => {
+  it.concurrent("reports a command that chose its own non-zero exit as exited", async () => {
     const cwd = makeTempDir();
     const script = `${quoted(process.execPath)} -e "process.exit(1)"`;
     const promise = runCapturedScript(script, cwd);
@@ -41,7 +41,7 @@ describe("platform shell runner failure classification", () => {
     await expect(promise).rejects.toMatchObject({ kind: "exited", exitCode: 1 });
   });
 
-  it("preserves a command's own exit code rather than collapsing it to 1", async () => {
+  it.concurrent("preserves a command's own exit code rather than collapsing it to 1", async () => {
     const cwd = makeTempDir();
     const script = `${quoted(process.execPath)} -e "process.exit(42)"`;
     await expect(runCapturedScript(script, cwd))
@@ -51,7 +51,7 @@ describe("platform shell runner failure classification", () => {
   // A program supplied through a placeholder renders as a quoted literal. On
   // PowerShell that would be a parse error -- an untrappable exit 1 -- so the
   // runner adds the call operator and the missing program stays classifiable.
-  it("classifies a quoted missing executable as command-not-found", async () => {
+  it.concurrent("classifies a quoted missing executable as command-not-found", async () => {
     const cwd = makeTempDir();
     const script = `${shellLiteral("definitely-not-a-real-executable-xyz", platform)} --version`;
     const promise = runCapturedScript(script, cwd);
@@ -59,13 +59,13 @@ describe("platform shell runner failure classification", () => {
     await expect(promise).rejects.toMatchObject({ kind: "command-not-found" });
   });
 
-  it("runs a quoted executable path that does exist", async () => {
+  it.concurrent("runs a quoted executable path that does exist", async () => {
     const cwd = makeTempDir();
     const script = `${shellLiteral(process.execPath, platform)} -e "process.stdout.write('ok')"`;
     await expect(runCapturedScript(script, cwd)).resolves.toContain("ok");
   });
 
-  it("only answers exitedWith for a code the command itself chose", async () => {
+  it.concurrent("only answers exitedWith for a code the command itself chose", async () => {
     const cwd = makeTempDir();
     const missing = await runCapturedScript("definitely-not-a-real-executable-xyz", cwd)
       .then(() => { throw new Error("expected a failure"); }, (error: unknown) => error as ProcessError);
@@ -77,14 +77,14 @@ describe("platform shell runner failure classification", () => {
 });
 
 describe("platform shell runner error/success contract", () => {
-  it("resolves when the process exits 0 before the detach delay", async () => {
+  it.concurrent("resolves when the process exits 0 before the detach delay", async () => {
     const cwd = makeTempDir();
     await expect(
       runDetachedProcess(process.execPath, ["-e", "process.exit(0)"], cwd),
     ).resolves.toBeUndefined();
   });
 
-  it("rejects with ProcessError when the process exits non-zero", async () => {
+  it.concurrent("rejects with ProcessError when the process exits non-zero", async () => {
     const cwd = makeTempDir();
     const promise = runDetachedProcess(
       process.execPath, ["-e", "console.error('boom'); process.exit(3)"], cwd,
@@ -93,14 +93,15 @@ describe("platform shell runner error/success contract", () => {
     await expect(promise).rejects.toThrow(/boom/);
   });
 
-  it("rejects with ProcessError when the executable does not exist", async () => {
+  it.concurrent("rejects with ProcessError when the executable does not exist", async () => {
     const cwd = makeTempDir();
     await expect(
       runDetachedProcess("definitely-not-a-real-executable-xyz", [], cwd),
     ).rejects.toBeInstanceOf(ProcessError);
   });
 
-  it("rejects with AppError carrying stderr as the message on the user-error exit code", async () => {
+  it.concurrent(
+    "rejects with AppError carrying stderr as the message on the user-error exit code", async () => {
     const cwd = makeTempDir();
     const script = `console.error('Ticket is busy.'); process.exit(${USER_ERROR_EXIT_CODE})`;
     const promise = runDetachedProcess(process.execPath, ["-e", script], cwd);
@@ -108,7 +109,7 @@ describe("platform shell runner error/success contract", () => {
     await expect(promise).rejects.toThrow("Ticket is busy.");
   });
 
-  it("rejects with ProcessError on the user-error exit code when stderr is empty", async () => {
+  it.concurrent("rejects with ProcessError on the user-error exit code when stderr is empty", async () => {
     const cwd = makeTempDir();
     const promise = runDetachedProcess(
       process.execPath, ["-e", `process.exit(${USER_ERROR_EXIT_CODE})`], cwd,
@@ -138,6 +139,8 @@ describe("platform shell runner stderr temp file cleanup", () => {
         if (value === undefined) delete process.env[key];
         else process.env[key] = value;
       }
+      await waitForFile(pidFile, () =>
+        `child pid file never appeared under load, cannot clean up child: ${pidFile}`);
       const childPid = Number(fs.readFileSync(pidFile, "utf-8").trim());
       killIfAlive(childPid);
       const deadline = Date.now() + 5000;
@@ -149,7 +152,7 @@ describe("platform shell runner stderr temp file cleanup", () => {
 });
 
 describe("platform shell runner parent-exit survival", () => {
-  it("child keeps running after its parent process exits", async () => {
+  it.concurrent("child keeps running after its parent process exits", async () => {
     const pidFile = path.join(makeTempDir(), "grandchild.pid");
     const parentStderr = await runSurvivalFixture([pidFile]);
     await waitForFile(pidFile, () => `pid file never appeared, parent stderr: ${parentStderr}`);
@@ -164,7 +167,7 @@ describe("platform shell runner parent-exit survival", () => {
     }
   }, 30000);
 
-  it("child writing to stdout/stderr after parent exit stays alive", async () => {
+  it.concurrent("child writing to stdout/stderr after parent exit stays alive", async () => {
     const dir = makeTempDir();
     const pidFile = path.join(dir, "grandchild.pid");
     const doneFile = path.join(dir, "grandchild.done");

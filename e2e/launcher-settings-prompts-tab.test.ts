@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   createProject, uniqueSlug, gotoProject,
   openLauncherSettings, openLauncherSettingsTab,
-  readAppLauncherConfig, readProjectLauncherConfig,
+  readAppLauncherConfig, readProjectLauncherConfig, poll,
   setupE2E,
 } from "./fixtures.js";
 
@@ -65,8 +65,11 @@ describe("Launcher Settings Prompts tab (e2e, real server)", () => {
     await ctx.page.waitForSelector('[data-testid="launcher-settings-item-form-name-input"]', {
       state: "detached", timeout: 15000,
     });
-    await ctx.page.waitForTimeout(300);
-    const app = readAppLauncherConfig(ctx.testServer);
+    const app = await poll(
+      () => readAppLauncherConfig(ctx.testServer),
+      (a) => a?.templates?.map((t) => t.name).includes("Brand New") ?? false,
+      5000,
+    );
     expect(app?.templates?.map((t) => t.name)).toContain("Brand New");
   }, 60000);
 
@@ -78,8 +81,11 @@ describe("Launcher Settings Prompts tab (e2e, real server)", () => {
     await ctx.page.fill('[data-testid="launcher-settings-item-form-text-input"]', "for this project");
     await ctx.page.click('[data-testid="launcher-settings-item-form-scope-project"]');
     await ctx.page.click('[data-testid="launcher-settings-item-form-submit"]');
-    await ctx.page.waitForTimeout(1000);
-    const proj = readProjectLauncherConfig(ctx.testServer, project.projectSlug);
+    const proj = await poll(
+      () => readProjectLauncherConfig(ctx.testServer, project.projectSlug),
+      (p) => p?.templates?.map((t) => t.name).includes("Project Prompt") ?? false,
+      5000,
+    );
     expect(proj?.templates?.map((t) => t.name)).toContain("Project Prompt");
   }, 60000);
 
@@ -95,8 +101,11 @@ describe("Launcher Settings Prompts tab (e2e, real server)", () => {
   it("delete button removes template from app config", async () => {
     await setup("delete");
     await ctx.page.click('[data-testid="launcher-settings-prompts-delete-button"]');
-    await ctx.page.waitForTimeout(1000);
-    const app = readAppLauncherConfig(ctx.testServer);
+    const app = await poll(
+      () => readAppLauncherConfig(ctx.testServer),
+      (a) => !(a?.templates?.map((t) => t.name).includes("Existing") ?? false),
+      5000,
+    );
     expect(app?.templates?.map((t) => t.name)).not.toContain("Existing");
   }, 60000);
 });

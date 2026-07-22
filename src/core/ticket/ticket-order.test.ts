@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterAll } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -24,8 +24,6 @@ function cleanup(...dirs: string[]) {
 async function createGitWorktree(): Promise<string> {
 	const dir = tmpDir('ticket-order-test-');
 	await git(dir, 'init');
-	await git(dir, 'config', 'user.email', 'test@test.com');
-	await git(dir, 'config', 'user.name', 'Test');
 	await git(dir, 'commit', '--allow-empty', '-m', 'init');
 	return dir;
 }
@@ -39,14 +37,14 @@ function ticket(folderName: string, status: string): TicketInfo {
 
 describe('TicketOrderStore', () => {
 	const dirs: string[] = [];
-	afterEach(() => { cleanup(...dirs); dirs.length = 0; });
+	afterAll(() => { cleanup(...dirs); dirs.length = 0; });
 
-	it('read returns empty object when file is missing', async () => {
+	it.concurrent('read returns empty object when file is missing', async () => {
 		const dir = await createGitWorktree(); dirs.push(dir);
 		expect(new TicketOrderStore(dir).read()).toEqual({});
 	});
 
-	it('write persists to disk without committing', async () => {
+	it.concurrent('write persists to disk without committing', async () => {
 		const dir = await createGitWorktree(); dirs.push(dir);
 		const store = new TicketOrderStore(dir);
 		store.write({ todo: ['a', 'b'], done: ['c'] });
@@ -57,7 +55,7 @@ describe('TicketOrderStore', () => {
 		expect(status.trim()).not.toBe('');
 	});
 
-	it('reconcile groups by status, preserves order, appends new, removes stale', async () => {
+	it.concurrent('reconcile groups by status, preserves order, appends new, removes stale', async () => {
 		const dir = await createGitWorktree(); dirs.push(dir);
 		const store = new TicketOrderStore(dir);
 		store.write({ todo: ['c', 'a', 'deleted'] });
@@ -73,7 +71,7 @@ describe('TicketOrderStore', () => {
 		expect(result['done']).toEqual(['d']);
 	});
 
-	it('reconcile moves ticket when status disagrees with order', async () => {
+	it.concurrent('reconcile moves ticket when status disagrees with order', async () => {
 		const dir = await createGitWorktree(); dirs.push(dir);
 		const store = new TicketOrderStore(dir);
 		store.write({ todo: ['a'], done: [] });
@@ -83,7 +81,7 @@ describe('TicketOrderStore', () => {
 		expect(result['done']).toEqual(['a']);
 	});
 
-	it('moveTicket within same column', async () => {
+	it.concurrent('moveTicket within same column', async () => {
 		const dir = await createGitWorktree(); dirs.push(dir);
 		const store = new TicketOrderStore(dir);
 		store.write({ todo: ['a', 'b', 'c'] });
@@ -91,7 +89,7 @@ describe('TicketOrderStore', () => {
 		expect(store.read()['todo']).toEqual(['b', 'c', 'a']);
 	});
 
-	it('moveTicket between columns', async () => {
+	it.concurrent('moveTicket between columns', async () => {
 		const dir = await createGitWorktree(); dirs.push(dir);
 		const store = new TicketOrderStore(dir);
 		store.write({ todo: ['a', 'b'], done: ['c'] });
@@ -101,7 +99,7 @@ describe('TicketOrderStore', () => {
 		expect(result['done']).toEqual(['a', 'c']);
 	});
 
-	it('appendTicket adds to end', async () => {
+	it.concurrent('appendTicket adds to end', async () => {
 		const dir = await createGitWorktree(); dirs.push(dir);
 		const store = new TicketOrderStore(dir);
 		store.write({ todo: ['a'] });
@@ -109,7 +107,7 @@ describe('TicketOrderStore', () => {
 		expect(store.read()['todo']).toEqual(['a', 'b']);
 	});
 
-	it('removeTicket removes from all columns', async () => {
+	it.concurrent('removeTicket removes from all columns', async () => {
 		const dir = await createGitWorktree(); dirs.push(dir);
 		const store = new TicketOrderStore(dir);
 		store.write({ todo: ['a', 'b'], done: ['a', 'c'] });
@@ -118,7 +116,7 @@ describe('TicketOrderStore', () => {
 		expect(store.read()['done']).toEqual(['c']);
 	});
 
-	it('renameTicket updates folder name in place', async () => {
+	it.concurrent('renameTicket updates folder name in place', async () => {
 		const dir = await createGitWorktree(); dirs.push(dir);
 		const store = new TicketOrderStore(dir);
 		store.write({ todo: ['old', 'b'] });
@@ -126,7 +124,7 @@ describe('TicketOrderStore', () => {
 		expect(store.read()['todo']).toEqual(['new', 'b']);
 	});
 
-	it('reconcile with empty columns and one ticket returns empty order without crashing', async () => {
+	it.concurrent('reconcile with empty columns and one ticket returns empty order without crashing', async () => {
 		const dir = await createGitWorktree(); dirs.push(dir);
 		const store = new TicketOrderStore(dir);
 		const result = store.reconcile([ticket('a', 'todo')], []);
@@ -136,9 +134,9 @@ describe('TicketOrderStore', () => {
 
 describe('TicketStore + TicketOrderStore integration', () => {
 	const dirs: string[] = [];
-	afterEach(() => { cleanup(...dirs); dirs.length = 0; });
+	afterAll(() => { cleanup(...dirs); dirs.length = 0; });
 
-	it('createTicket appends to order', async () => {
+	it.concurrent('createTicket appends to order', async () => {
 		const dir = await createGitWorktree(); dirs.push(dir);
 		const store = new TicketStore(dir);
 		store.createTicket('A-1', 'First', 'todo');
@@ -148,7 +146,7 @@ describe('TicketStore + TicketOrderStore integration', () => {
 		expect(order['done']).toEqual(['b-2-second']);
 	});
 
-	it('deleteTicket removes from order', async () => {
+	it.concurrent('deleteTicket removes from order', async () => {
 		const dir = await createGitWorktree(); dirs.push(dir);
 		const store = new TicketStore(dir);
 		store.createTicket('A-1', 'First', 'todo');
@@ -157,7 +155,7 @@ describe('TicketStore + TicketOrderStore integration', () => {
 		expect(store.readOrderStore().read()['todo']).toEqual(['b-2-second']);
 	});
 
-	it('updateTicket with rename updates order', async () => {
+	it.concurrent('updateTicket with rename updates order', async () => {
 		const dir = await createGitWorktree(); dirs.push(dir);
 		const store = new TicketStore(dir);
 		store.createTicket('A-1', 'Old Title', 'todo');
@@ -170,9 +168,9 @@ describe('TicketStore + TicketOrderStore integration', () => {
 
 describe('TicketStore.moveTicket (deepened interface)', () => {
 	const dirs: string[] = [];
-	afterEach(() => { cleanup(...dirs); dirs.length = 0; });
+	afterAll(() => { cleanup(...dirs); dirs.length = 0; });
 
-	it('cross-column move updates both status and order', async () => {
+	it.concurrent('cross-column move updates both status and order', async () => {
 		const dir = await createGitWorktree(); dirs.push(dir);
 		const store = new TicketStore(dir);
 		store.createTicket('X-1', 'Cross', 'todo');
@@ -187,7 +185,7 @@ describe('TicketStore.moveTicket (deepened interface)', () => {
 		expect(order['done']).toEqual(['x-1-cross', 'y-2-stays']);
 	});
 
-	it('same-column reorder updates order without touching status', async () => {
+	it.concurrent('same-column reorder updates order without touching status', async () => {
 		const dir = await createGitWorktree(); dirs.push(dir);
 		const store = new TicketStore(dir);
 		store.createTicket('A-1', 'Alpha', 'todo');
@@ -200,7 +198,7 @@ describe('TicketStore.moveTicket (deepened interface)', () => {
 		expect(fs.readFileSync(path.join(dir, 'a-1-alpha', 'status.json'), 'utf-8')).toBe(statusBefore);
 	});
 
-	it('loadBoardState returns tickets and reconciled order', async () => {
+	it.concurrent('loadBoardState returns tickets and reconciled order', async () => {
 		const dir = await createGitWorktree(); dirs.push(dir);
 		const store = new TicketStore(dir);
 		store.createTicket('L-1', 'First', 'todo');

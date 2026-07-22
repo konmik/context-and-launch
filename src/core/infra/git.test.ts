@@ -22,8 +22,6 @@ async function createRepo(dirs: string[]): Promise<string> {
 	const dir = tmpDir('git-wrapper-');
 	dirs.push(dir);
 	await git(dir, 'init');
-	await git(dir, 'config', 'user.email', 'test@test.com');
-	await git(dir, 'config', 'user.name', 'Test');
 	return dir;
 }
 

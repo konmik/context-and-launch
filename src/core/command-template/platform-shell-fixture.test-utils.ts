@@ -1,13 +1,16 @@
-import { afterEach } from "vitest";
+import { afterAll, afterEach } from "vitest";
 import { spawn } from "child_process";
 import { createRequire } from "module";
 import fs from "fs";
 import os from "os";
 import path from "path";
 
-export function useTempDirs(prefix: string): () => string {
+export function useTempDirs(
+  prefix: string,
+  options: { cleanupAfterAll?: boolean } = {},
+): () => string {
   const tempDirs: string[] = [];
-  afterEach(async () => {
+  const cleanupAll = async () => {
     while (tempDirs.length > 0) {
       const dir = tempDirs.pop()!;
       const deadline = Date.now() + 5000;
@@ -23,7 +26,9 @@ export function useTempDirs(prefix: string): () => string {
         }
       }
     }
-  });
+  };
+  if (options.cleanupAfterAll) afterAll(cleanupAll);
+  else afterEach(cleanupAll);
   return () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
     tempDirs.push(dir);

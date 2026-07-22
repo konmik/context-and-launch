@@ -1,78 +1,52 @@
 import { describe, it, expect } from "vitest";
 import {
   createProject, uniqueSlug, gotoProject, openTicketDetail,
-  readProjectLauncherConfig,
+  readProjectLauncherConfig, poll,
   setupE2E,
 } from "./fixtures.js";
-
-const APP_LAUNCHER = {
-  templates: [
-    { name: "Default", text: "do it in {{ticketDir}}\n\n{{skills}}" },
-    { name: "Other", text: "other {{ticketDir}}" },
-  ],
-  profiles: [
-    { name: "Claude", command: "echo claude" },
-    { name: "GPT", command: "echo gpt" },
-  ],
-  skills: [
-    { name: "alpha-skill", text: "a" },
-    { name: "bravo-skill", text: "b" },
-  ],
-};
+import { APP_LAUNCHER, openLauncher, setupLauncherTicket } from "./ticket-detail-launcher-shared.js";
 
 describe("Ticket detail Launcher tab (e2e, real server)", () => {
   const ctx = setupE2E();
-
-  async function openLauncher() {
-    await openTicketDetail(ctx.page, "t-1-alpha");
-    await ctx.page.click('[data-testid="ticket-detail-tab-launcher"]');
-    await ctx.page.waitForSelector('[data-testid="ticket-detail-launcher-run-button"]', {
-      state: "visible", timeout: 15000,
-    });
-  }
-
-  async function setup(suffix: string) {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug(`tdl-${suffix}`),
-      withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
-      appLauncherConfig: APP_LAUNCHER,
-    });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await openLauncher();
-    return project;
-  }
-
   it("profile select persists selection to project launcher config", async () => {
-    const project = await setup("profile");
+    const project = await setupLauncherTicket(ctx, "profile");
     await ctx.page.selectOption('[data-testid="ticket-detail-launcher-profile-select"]', "GPT");
-    await ctx.page.waitForTimeout(500);
-    const cfg = readProjectLauncherConfig(ctx.testServer, project.projectSlug);
+    const cfg = await poll(
+      () => readProjectLauncherConfig(ctx.testServer, project.projectSlug),
+      (c) => c?.columnDefaults?.["todo"]?.profileName === "GPT",
+      5000,
+    );
     expect(cfg?.columnDefaults?.["todo"]?.profileName).toBe("GPT");
   }, 60000);
 
   it("template select persists selection to project launcher config", async () => {
-    const project = await setup("template");
+    const project = await setupLauncherTicket(ctx, "template");
     await ctx.page.selectOption('[data-testid="ticket-detail-launcher-template-select"]', "Other");
-    await ctx.page.waitForTimeout(500);
-    const cfg = readProjectLauncherConfig(ctx.testServer, project.projectSlug);
+    const cfg = await poll(
+      () => readProjectLauncherConfig(ctx.testServer, project.projectSlug),
+      (c) => c?.columnDefaults?.["todo"]?.templateName === "Other",
+      5000,
+    );
     expect(cfg?.columnDefaults?.["todo"]?.templateName).toBe("Other");
   }, 60000);
 
   it("skill checkbox toggle persists to project launcher config", async () => {
-    const project = await setup("skill-toggle");
+    const project = await setupLauncherTicket(ctx, "skill-toggle");
     const cb = ctx.page.locator(
       '[data-testid="ticket-detail-launcher-skill-checkbox"][data-skill-name="alpha-skill"]',
     );
     await cb.waitFor({ state: "visible", timeout: 15000 });
     await cb.check();
-    await ctx.page.waitForTimeout(500);
-    const cfg = readProjectLauncherConfig(ctx.testServer, project.projectSlug);
+    const cfg = await poll(
+      () => readProjectLauncherConfig(ctx.testServer, project.projectSlug),
+      (c) => c?.columnDefaults?.["todo"]?.checkedSkills?.includes("alpha-skill") ?? false,
+      5000,
+    );
     expect(cfg?.columnDefaults?.["todo"]?.checkedSkills).toContain("alpha-skill");
   }, 60000);
 
   it("run button is clickable and triggers an HTTP request", async () => {
-    await setup("run");
+    await setupLauncherTicket(ctx, "run");
     let aiRunRequest = false;
     ctx.page.on("request", (req) => {
       if (req.url().includes("/_server")) aiRunRequest = true;
@@ -83,7 +57,7 @@ describe("Ticket detail Launcher tab (e2e, real server)", () => {
   }, 60000);
 
   it("reference-only: behind-remote and dirty-worktree dialog testids are absent on happy path", async () => {
-    await setup("ref-only");
+    await setupLauncherTicket(ctx, "ref-only");
     expect(await ctx.page.locator('[data-testid="ticket-detail-launcher-behind-remote-cancel"]').count()).toBe(0);
     expect(await ctx.page.locator('[data-testid="ticket-detail-launcher-behind-remote-proceed"]').count()).toBe(0);
     expect(await ctx.page.locator('[data-testid="ticket-detail-launcher-dirty-cancel"]').count()).toBe(0);
@@ -91,7 +65,7 @@ describe("Ticket detail Launcher tab (e2e, real server)", () => {
   }, 60000);
 
   it("prompt preview shows interpolated template text", async () => {
-    const project = await setup("preview-text");
+    const project = await setupLauncherTicket(ctx, "preview-text");
     const cm = ctx.page.locator('.cm-content');
     await cm.waitFor({ state: "visible", timeout: 15000 });
     const text = await cm.textContent();
@@ -101,7 +75,7 @@ describe("Ticket detail Launcher tab (e2e, real server)", () => {
   }, 60000);
 
   it("prompt preview updates when template selection changes", async () => {
-    await setup("preview-change");
+    await setupLauncherTicket(ctx, "preview-change");
     const cm = ctx.page.locator('.cm-content');
     await cm.waitFor({ state: "visible", timeout: 15000 });
     const textBefore = await cm.textContent();
@@ -113,7 +87,7 @@ describe("Ticket detail Launcher tab (e2e, real server)", () => {
   }, 60000);
 
   it("prompt preview includes checked skill text", async () => {
-    await setup("preview-skill");
+    await setupLauncherTicket(ctx, "preview-skill");
     const cb = ctx.page.locator(
       '[data-testid="ticket-detail-launcher-skill-checkbox"][data-skill-name="alpha-skill"]',
     );
@@ -126,7 +100,7 @@ describe("Ticket detail Launcher tab (e2e, real server)", () => {
   }, 60000);
 
   it("edit toggle freezes preview", async () => {
-    await setup("edit-freeze");
+    await setupLauncherTicket(ctx, "edit-freeze");
     const cm = ctx.page.locator('.cm-content');
     await cm.waitFor({ state: "visible", timeout: 15000 });
     const toggle = ctx.page.locator('[data-testid="prompt-preview-edit-toggle"]');
@@ -137,170 +111,5 @@ describe("Ticket detail Launcher tab (e2e, real server)", () => {
     await ctx.page.waitForTimeout(500);
     const textAfter = await cm.textContent();
     expect(textAfter).toBe(textBefore);
-  }, 60000);
-
-  it("edit toggle off discards edits", async () => {
-    await setup("edit-discard");
-    const cm = ctx.page.locator('.cm-content');
-    await cm.waitFor({ state: "visible", timeout: 15000 });
-    const originalText = await cm.textContent();
-    const toggle = ctx.page.locator('[data-testid="prompt-preview-edit-toggle"]');
-    await toggle.check();
-    await ctx.page.waitForTimeout(200);
-    await cm.click();
-    await ctx.page.keyboard.type("EXTRA TEXT");
-    await ctx.page.waitForTimeout(200);
-    const editedText = await cm.textContent();
-    expect(editedText).toContain("EXTRA TEXT");
-    await toggle.uncheck();
-    await ctx.page.waitForTimeout(200);
-    const revertedText = await cm.textContent();
-    expect(revertedText).not.toContain("EXTRA TEXT");
-    expect(revertedText).toBe(originalText);
-  }, 60000);
-
-  it("edited prompt persists to project launcher config", async () => {
-    const project = await setup("edit-persist");
-    const cm = ctx.page.locator('.cm-content');
-    await cm.waitFor({ state: "visible", timeout: 15000 });
-    const toggle = ctx.page.locator('[data-testid="prompt-preview-edit-toggle"]');
-    await toggle.check();
-    await ctx.page.waitForTimeout(200);
-    await cm.click();
-    await ctx.page.keyboard.type("PERSISTED EDIT");
-    await ctx.page.waitForTimeout(800);
-    const cfg = readProjectLauncherConfig(ctx.testServer, project.projectSlug);
-    expect(cfg?.columnDefaults?.["todo"]?.editedPrompt).toContain("PERSISTED EDIT");
-  }, 60000);
-
-  it("edited prompt is restored after reopening the ticket", async () => {
-    const project = await setup("edit-restore");
-    const cm = ctx.page.locator('.cm-content');
-    await cm.waitFor({ state: "visible", timeout: 15000 });
-    const toggle = ctx.page.locator('[data-testid="prompt-preview-edit-toggle"]');
-    await toggle.check();
-    await ctx.page.waitForTimeout(200);
-    await cm.click();
-    await ctx.page.keyboard.type("RESTORED EDIT");
-    await ctx.page.waitForTimeout(800);
-
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await openLauncher();
-
-    const cmReopened = ctx.page.locator('.cm-content');
-    await cmReopened.waitFor({ state: "visible", timeout: 15000 });
-    const toggleReopened = ctx.page.locator('[data-testid="prompt-preview-edit-toggle"]');
-    expect(await toggleReopened.isChecked()).toBe(true);
-    const text = await cmReopened.textContent();
-    expect(text).toContain("RESTORED EDIT");
-
-    const cfg = readProjectLauncherConfig(ctx.testServer, project.projectSlug);
-    expect(cfg?.columnDefaults?.["todo"]?.editedPrompt).toContain("RESTORED EDIT");
-  }, 60000);
-
-  it("turning edit off clears the persisted edited prompt", async () => {
-    const project = await setup("edit-clear");
-    const cm = ctx.page.locator('.cm-content');
-    await cm.waitFor({ state: "visible", timeout: 15000 });
-    const toggle = ctx.page.locator('[data-testid="prompt-preview-edit-toggle"]');
-    await toggle.check();
-    await ctx.page.waitForTimeout(200);
-    await cm.click();
-    await ctx.page.keyboard.type("TEMP EDIT");
-    await ctx.page.waitForTimeout(800);
-    await toggle.uncheck();
-    await ctx.page.waitForTimeout(800);
-    const cfg = readProjectLauncherConfig(ctx.testServer, project.projectSlug);
-    expect(cfg?.columnDefaults?.["todo"]?.editedPrompt).toBeUndefined();
-  }, 60000);
-
-  it("launch dir display shows project path when worktree is off", async () => {
-    const project = await setup("dir-off");
-    const display = ctx.page.locator('[data-testid="launch-dir-display"]');
-    await display.waitFor({ state: "visible", timeout: 15000 });
-    const text = await display.textContent();
-    expect(text).toContain(project.projectPath);
-    expect(await ctx.page.locator('[data-testid="launch-dir-copy-button"]').count()).toBe(1);
-  }, 60000);
-
-  it("launch dir display updates when worktree toggle changes", async () => {
-    const project = await setup("dir-toggle");
-    const display = ctx.page.locator('[data-testid="launch-dir-display"]');
-    await display.waitFor({ state: "visible", timeout: 15000 });
-    const textBefore = await display.textContent();
-    expect(textBefore).toContain(project.projectPath);
-    const cb = ctx.page.locator('[data-testid="ticket-detail-use-worktree-checkbox"]');
-    await cb.check();
-    await ctx.page.waitForTimeout(500);
-    const textAfter = await display.textContent();
-    expect(textAfter).toContain("t-1-alpha");
-    expect(textAfter).not.toContain(project.projectPath);
-    await cb.uncheck();
-    await ctx.page.waitForTimeout(500);
-    const textReverted = await display.textContent();
-    expect(textReverted).toContain(project.projectPath);
-  }, 60000);
-
-  it("cursor stays near original position when prompt updates externally", async () => {
-    await setup("cursor-preserve");
-    const cm = ctx.page.locator('.cm-content');
-    await cm.waitFor({ state: "visible", timeout: 15000 });
-
-    const docLen = await ctx.page.evaluate(() => {
-      const c = document.querySelector('.cm-content') as any;
-      const view = c?.cmTile?.root?.view;
-      return view ? view.state.doc.length : -1;
-    });
-    expect(docLen).toBeGreaterThan(20);
-
-    const middleOffset = Math.floor(docLen / 2);
-    await ctx.page.evaluate((offset) => {
-      const c = document.querySelector('.cm-content') as any;
-      const view = c?.cmTile?.root?.view;
-      if (!view) throw new Error("CM view not found");
-      view.focus();
-      view.dispatch({ selection: { anchor: offset } });
-    }, middleOffset);
-
-    const cursorBefore = await ctx.page.evaluate(() => {
-      const c = document.querySelector('.cm-content') as any;
-      return c?.cmTile?.root?.view?.state?.selection?.main?.anchor ?? -1;
-    });
-    expect(cursorBefore).toBe(middleOffset);
-
-    const cb = ctx.page.locator(
-      '[data-testid="ticket-detail-launcher-skill-checkbox"][data-skill-name="alpha-skill"]',
-    );
-    await cb.waitFor({ state: "visible", timeout: 15000 });
-    await cb.check();
-    await ctx.page.waitForTimeout(500);
-
-    const cursorAfter = await ctx.page.evaluate(() => {
-      const c = document.querySelector('.cm-content') as any;
-      return c?.cmTile?.root?.view?.state?.selection?.main?.anchor ?? -1;
-    });
-
-    expect(cursorAfter).toBe(middleOffset);
-  }, 60000);
-
-  it("prompt preview interpolates {{launchDir}} placeholder", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("tdl-dir-preview"),
-      withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
-      appLauncherConfig: {
-        ...APP_LAUNCHER,
-        templates: [
-          { name: "Default", text: "launch in {{launchDir}}" },
-        ],
-      },
-    });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await openLauncher();
-    const cm = ctx.page.locator('.cm-content');
-    await cm.waitFor({ state: "visible", timeout: 15000 });
-    const text = await cm.textContent();
-    expect(text).toContain(project.projectPath);
-    expect(text).not.toContain("{{launchDir}}");
   }, 60000);
 });

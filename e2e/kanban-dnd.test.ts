@@ -5,7 +5,7 @@ import { type Browser, type Page } from "playwright";
 import {
   createServer, launchBrowser, createProject, uniqueSlug, gotoProject,
   type TestServer, type TestBrowser, type CreatedProject,
-  readTicketStatus,
+  readTicketStatus, poll,
 } from "./fixtures.js";
 
 let testServer: TestServer;
@@ -107,12 +107,15 @@ describe("KanbanBoard drag-and-drop (e2e, real server)", () => {
 
     await dragTo(page, todo[0], inProgress[0]);
     await page.mouse.up();
-    await page.waitForTimeout(2000);
+    const status = await poll(
+      () => readTicketStatus(testServer, project.projectSlug, movedFolder),
+      (s) => s?.status === "in-progress",
+      5000,
+    );
 
     const after = await getSortablesByColumn(page);
     const ipAfter = after.get("in-progress") ?? [];
     expect(ipAfter.some((id) => id.includes(movedFolder))).toBe(true);
-    const status = readTicketStatus(testServer, project.projectSlug, movedFolder);
     expect(status?.status).toBe("in-progress");
   }, 60000);
 
