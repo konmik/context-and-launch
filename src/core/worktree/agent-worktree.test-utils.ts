@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { execSync } from 'child_process';
+import { execFile, execSync } from 'child_process';
 import { gitSync, setGitOriginUrl } from '~/test-git.js';
 import { AgentWorktreeManager } from './agent-worktree.js';
 import { LauncherConfigManager } from '../launcher/launcher-config.js';
@@ -13,16 +13,25 @@ export function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
 
-export function cleanup(...dirs: string[]) {
-	for (const d of dirs) {
+export function cleanup(...dirs: string[]): Promise<void> {
+	return Promise.all(dirs.map(async (dir) => {
+		await pruneWorktreeRegistrations(dir);
 		try {
-			// Prune worktrees before deleting to avoid git lock issues
-			try { execSync('git worktree prune', { cwd: d, timeout: 5000 }); } catch { /* ok */ }
-			fs.rmSync(d, { recursive: true, force: true });
-		} catch {
-			// cleanup best-effort
+			await fs.promises.rm(dir, { recursive: true, force: true });
+		} catch (err) {
+			console.warn(`cleanup ${dir}: ${err instanceof Error ? err.message : String(err)}`);
 		}
-	}
+	})).then(() => undefined);
+}
+
+function pruneWorktreeRegistrations(dir: string): Promise<void> {
+	if (!fs.existsSync(path.join(dir, '.git', 'worktrees'))) return Promise.resolve();
+	return new Promise((resolve) => {
+		execFile('git', ['worktree', 'prune'], { cwd: dir, timeout: 5000 }, (error) => {
+			if (error) console.warn(`worktree prune ${dir}: ${error.message}`);
+			resolve();
+		});
+	});
 }
 
 const templateCache = new Map<string, string>();
@@ -120,9 +129,10 @@ export function makeWorktreeEnv() {
 		return { projectDir, awm };
 	}
 
-	function cleanupAll() {
-		cleanup(...dirs);
+	function cleanupAll(): Promise<void> {
+		const pending = [...dirs];
 		dirs.length = 0;
+		return cleanup(...pending);
 	}
 
 	return { dirs, setup, setupBehindRemote, cleanupAll };

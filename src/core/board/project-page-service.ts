@@ -11,6 +11,8 @@ import type { TicketSyncManager } from "~/core/ticket/ticket-sync.js";
 import type { ProjectPageData, SyncStatus } from "./board-types.js";
 
 export class ProjectPageService {
+	private readonly projectGitQueue = new Map<string, Promise<unknown>>();
+
 	constructor(
 		private projectRegistry: ProjectRegistry,
 		private boardConfigManager: BoardConfigManager,
@@ -19,6 +21,13 @@ export class ProjectPageService {
 		private ticketSyncManager: TicketSyncManager,
 		private launcherConfigManager: LauncherConfigManager,
 	) {}
+
+	private runSequentially<T>(projectSlug: string, task: () => Promise<T>): Promise<T> {
+		const previous = this.projectGitQueue.get(projectSlug) ?? Promise.resolve();
+		const run = previous.then(task, task);
+		this.projectGitQueue.set(projectSlug, run.then(() => undefined, () => undefined));
+		return run;
+	}
 
 	async loadProjectPage(projectSlug: string): Promise<ProjectPageData> {
 		const projects = this.projectRegistry.listProjects();
@@ -35,33 +44,35 @@ export class ProjectPageService {
 		}
 
 		try {
-			const worktreeDir = await this.worktreeManager.ensureWorktree(
-				project.path, projectSlug, project.branch,
-			);
-			this.fileWatcher.watch(worktreeDir);
-			await this.ticketSyncManager.finalizeResolution(worktreeDir);
-			const config = this.boardConfigManager.getConfig(project.boardId);
-			const store = new TicketStore(worktreeDir);
-			const { tickets, ticketOrder } = store.loadBoardState(
-				config.columns.map(c => c.name),
-			);
-			const worktreeSettings = this.launcherConfigManager.resolveWorktreeSettings(projectSlug);
-			for (const ticket of tickets) {
-				const { worktreePath } = resolveAgentWorktreeLocation(
-					ticket.folderName, worktreeSettings,
-					{ savedWorktreePath: ticket.agentWorktreeDir },
+			return await this.runSequentially(projectSlug, async () => {
+				const worktreeDir = await this.worktreeManager.ensureWorktree(
+					project.path, projectSlug, project.branch,
 				);
-				ticket.hasAgentWorktree = fs.existsSync(worktreePath);
-			}
-			const suggestedNextNumber = store.suggestNextNumber();
-			return {
-				status: 'loaded' as const,
-				projects,
-				projectSlug,
-				board: { columns: config.columns, tickets, ticketOrder },
-				projectPath: project.path,
-				suggestedNextNumber,
-			};
+				this.fileWatcher.watch(worktreeDir);
+				await this.ticketSyncManager.finalizeResolution(worktreeDir);
+				const config = this.boardConfigManager.getConfig(project.boardId);
+				const store = new TicketStore(worktreeDir);
+				const { tickets, ticketOrder } = store.loadBoardState(
+					config.columns.map(c => c.name),
+				);
+				const worktreeSettings = this.launcherConfigManager.resolveWorktreeSettings(projectSlug);
+				for (const ticket of tickets) {
+					const { worktreePath } = resolveAgentWorktreeLocation(
+						ticket.folderName, worktreeSettings,
+						{ savedWorktreePath: ticket.agentWorktreeDir },
+					);
+					ticket.hasAgentWorktree = fs.existsSync(worktreePath);
+				}
+				const suggestedNextNumber = store.suggestNextNumber();
+				return {
+					status: 'loaded' as const,
+					projects,
+					projectSlug,
+					board: { columns: config.columns, tickets, ticketOrder },
+					projectPath: project.path,
+					suggestedNextNumber,
+				};
+			});
 		} catch (e) {
 			return {
 				status: 'error' as const,
@@ -79,16 +90,13 @@ export class ProjectPageService {
 		if (!project || !project.available) {
 			return { hasRemote: false, hasConflict: false };
 		}
-		try {
+		return this.runSequentially(projectSlug, async () => {
 			const worktreeDir = await this.worktreeManager.ensureWorktree(
 				project.path, projectSlug, project.branch,
 			);
 			const hasRemote = await this.ticketSyncManager.hasRemote(worktreeDir);
 			const hasConflict = await this.ticketSyncManager.detectConflict(worktreeDir);
 			return { hasRemote, hasConflict };
-		} catch (e) {
-			console.warn('Skipping sync status: git state unavailable:', errorMessage(e));
-			return { hasRemote: false, hasConflict: false };
-		}
+		});
 	}
 }

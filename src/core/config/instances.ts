@@ -15,7 +15,11 @@ function loadServices(): ServiceContainer {
 	return s;
 }
 
-const services = loadServices();
+export function initializeServices(): ServiceContainer {
+	return loadServices();
+}
+
+const services = initializeServices();
 
 export const configPaths = services.configPaths;
 export const configRepo = services.configRepo;

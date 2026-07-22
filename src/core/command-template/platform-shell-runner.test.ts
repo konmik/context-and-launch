@@ -85,6 +85,17 @@ describe.runIf(process.platform === "win32")("platform shell runner windows batc
     await expect(promise).rejects.toBeInstanceOf(ProcessError);
     await expect(promise).rejects.toThrow(/newline/i);
   });
+
+  it.concurrent(
+    "rejects a newline argv value for an extensionless path resolving to a .cmd target",
+    async () => {
+      const cwd = makeTempDir();
+      fs.writeFileSync(path.join(cwd, "tool.cmd"), "@echo off\r\n");
+      const promise = runDetachedProcess(path.join(cwd, "tool"), ["line one\nline two"], cwd);
+      await expect(promise).rejects.toBeInstanceOf(ProcessError);
+      await expect(promise).rejects.toThrow(/newline/i);
+    },
+  );
 });
 
 describe("platform shell runner error/success contract", () => {

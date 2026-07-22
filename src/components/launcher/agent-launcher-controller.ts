@@ -69,17 +69,17 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 		onEditedPromptChange: (editedPrompt) => props.onDefaultsChange({ editedPrompt }),
 	});
 
-	let hadConfig = !!props.config;
+	const configAtCreation = props.config;
 	createEffect(on(
 		() => [props.config, resetKey()] as const,
-		([cfg]) => {
+		([cfg], previous) => {
 			const defaults = resolveDefaults(cfg, defaultsKey());
 			setSelectedTemplate(defaults.templateName);
 			setSelectedProfile(defaults.profileName);
 			setCheckedSkills(new Set(defaults.checkedSkills));
 			setSkillOrder(defaults.skillOrder);
-			if (!hadConfig && cfg) preview.resetFromSaved(defaults.editedPrompt);
-			hadConfig = !!cfg;
+			const previousConfig = previous ? previous[0] : configAtCreation;
+			if (!previousConfig && cfg) preview.resetFromSaved(defaults.editedPrompt);
 		},
 		{ defer: true },
 	));
