@@ -76,6 +76,17 @@ describe("platform shell runner failure classification", () => {
   });
 });
 
+describe.runIf(process.platform === "win32")("platform shell runner windows batch newline guard", () => {
+  it.concurrent("rejects a newline argv value for a .cmd target without spawning", async () => {
+    const cwd = makeTempDir();
+    const shimPath = path.join(cwd, "tool.cmd");
+    fs.writeFileSync(shimPath, "@echo off\r\n");
+    const promise = runDetachedProcess(shimPath, ["line one\nline two"], cwd);
+    await expect(promise).rejects.toBeInstanceOf(ProcessError);
+    await expect(promise).rejects.toThrow(/newline/i);
+  });
+});
+
 describe("platform shell runner error/success contract", () => {
   it.concurrent("resolves when the process exits 0 before the detach delay", async () => {
     const cwd = makeTempDir();

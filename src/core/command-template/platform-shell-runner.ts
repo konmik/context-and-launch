@@ -146,10 +146,36 @@ function resolveDirectExecutable(
 	return directExecutableCache.get(cacheKey);
 }
 
+const WINDOWS_BATCH_EXTENSIONS = ['.cmd', '.bat'];
+
+function windowsBatchTarget(program: string): boolean {
+	const lowered = program.toLowerCase();
+	if (WINDOWS_BATCH_EXTENSIONS.some((extension) => lowered.endsWith(extension))) return true;
+	if (program.includes('/') || program.includes('\\')) return false;
+	for (const directory of (process.env.PATH ?? '').split(path.delimiter)) {
+		if (!directory) continue;
+		for (const extension of WINDOWS_BATCH_EXTENSIONS) {
+			if (isExecutableFile(path.join(directory, `${program}${extension}`), 'windows')) return true;
+		}
+	}
+	return false;
+}
+
 function buildInvocation(request: ShellExecutionRequest): { executable: string; args: string[] } {
 	if (request.argv && request.argv.length > 0) {
 		const executable = resolveDirectExecutable(request.argv[0], request.platform);
 		if (executable) return { executable, args: request.argv.slice(1) };
+		if (
+			request.platform === 'windows'
+			&& request.argv.some((value) => /[\r\n]/.test(value))
+			&& windowsBatchTarget(request.argv[0])
+		) {
+			throw createProcessError(
+				request, undefined, '', '',
+				`${request.argv[0]} is a cmd.exe batch script and cannot receive arguments containing newlines`,
+				'spawn-error',
+			);
+		}
 	}
 	return buildShellInvocation(request);
 }
