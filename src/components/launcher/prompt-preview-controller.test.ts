@@ -20,7 +20,7 @@ function makeTicket(overrides: Partial<TicketInfo> & { folderName: string }): Ti
 
 function makeConfig(templateText: string): MergedLauncherConfig {
 	return {
-		templates: [{ name: "default", text: templateText, scope: "project" }],
+		templates: [{ name: "default", text: templateText, scope: "project", order: 0 }],
 		skills: [],
 		profiles: [],
 		shortcuts: [],

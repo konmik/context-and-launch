@@ -96,10 +96,10 @@ export interface SeedBoard {
 }
 
 export interface SeedAppLauncherConfig {
-  templates?: { name: string; text: string }[];
+  templates?: { name: string; text: string; order?: number }[];
   skills?: { name: string; text: string; order?: number }[];
-  profiles?: { name: string; command: string }[];
-  shortcuts?: { name: string; command: string }[];
+  profiles?: { name: string; command: string; order?: number }[];
+  shortcuts?: { name: string; command: string; order?: number }[];
   conflictResolutionPrompt?: string;
 }
 
@@ -336,6 +336,12 @@ export async function gotoProject(page: Page, server: TestServer, projectSlug: s
     state: "visible",
     timeout: 15000,
   });
+  // Wait for client hydration to finish so event handlers are live; a click fired
+  // before this point is dropped (SSR markup is interactive-looking but inert).
+  await page.waitForSelector('[data-hydrated="true"]', {
+    state: "attached",
+    timeout: 15000,
+  });
   await page.waitForSelector(
     '[data-testid="kanban-board-column-header"], [data-testid="forest-surface"]',
     { state: "visible", timeout: 15000 },
@@ -354,6 +360,10 @@ export async function openTicketDetail(page: Page, folderName: string): Promise<
   const card = page.locator(`[data-testid="kanban-board-ticket-card"][data-folder-name="${folderName}"]`);
   await card.waitFor({ state: "visible", timeout: 15000 });
   await card.click();
+  await page.waitForSelector(
+    '[data-testid="ticket-detail-loading"], [data-testid="ticket-detail-tab-editor"]',
+    { state: "visible", timeout: 15000 },
+  );
   try {
     await page.waitForSelector('[data-testid="ticket-detail-tab-editor"]', {
       state: "visible",
@@ -481,10 +491,10 @@ export function readProjectRegistry(server: TestServer): ProjectRegistry {
 }
 
 export interface LauncherConfigShape {
-  templates?: { name: string; text: string }[];
+  templates?: { name: string; text: string; order?: number }[];
   skills?: { name: string; text: string; order?: number }[];
-  profiles?: { name: string; command: string }[];
-  shortcuts?: { name: string; command: string }[];
+  profiles?: { name: string; command: string; order?: number }[];
+  shortcuts?: { name: string; command: string; order?: number }[];
   columnDefaults?: Record<string, {
     templateName: string | null;
     checkedSkills: string[];

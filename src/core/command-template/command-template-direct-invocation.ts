@@ -1,10 +1,6 @@
 import type { CommandTemplateValues } from './command-template-types.js';
 
 const placeholderToken = /^\{\{([^{}]+)\}\}$/;
-// A scalar placeholder at the start of a token followed by a static path suffix,
-// mirroring the interpolation grammar so {{configDefaultsDir}}/run-agent.ps1
-// folds into one argv entry instead of forcing the shell-string fallback.
-const placeholderWithPathSuffixToken = /^\{\{([^{}]+)\}\}([\\/][^\s"'`|;&(){}\[\]]*)$/;
 const plainToken = /^[A-Za-z0-9_\-./:=@+\\]+$/;
 const singleQuotedToken = /^'([^']*)'$/;
 
@@ -35,14 +31,6 @@ export function buildDirectInvocationArgv(
 			} else {
 				return undefined;
 			}
-			continue;
-		}
-		const suffixed = placeholderWithPathSuffixToken.exec(token);
-		if (suffixed) {
-			const [, name, pathSuffix] = suffixed;
-			const value = Object.hasOwn(values, name) ? values[name] : undefined;
-			if (!scalarNames.has(name) || typeof value !== 'string') return undefined;
-			argv.push(`${value}${pathSuffix}`);
 			continue;
 		}
 		const quoted = singleQuotedToken.exec(token);

@@ -34,18 +34,23 @@ describe("Kanban board (e2e, real server)", () => {
     expect(await ctx.page.locator('[data-testid="kanban-board-empty-dropzone"]').count()).toBeGreaterThan(0);
   }, 60000);
 
-  it("kanban-board-ticket-card click opens ticket detail dialog", async () => {
+  it("kanban-board-ticket-card click opens ticket detail dialog within 500ms", async () => {
     const project = await createProject(ctx.testServer, {
       projectSlug: uniqueSlug("kb-click"),
       withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
     });
     ctx.projects.push(project);
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+    const startedAt = performance.now();
     await ctx.page.locator('[data-testid="kanban-board-ticket-card"]').first().click();
-    await ctx.page.waitForSelector('[data-testid="ticket-detail-tab-editor"]', { state: "visible", timeout: 15000 });
+    await ctx.page.waitForSelector('[data-testid="ticket-detail-number-input"]', {
+      state: "visible",
+      timeout: 500,
+    });
+    expect(performance.now() - startedAt).toBeLessThan(500);
   }, 60000);
 
-  it("kanban-board-ticket-menu-trigger opens menu with edit/archive/delete items", async () => {
+  it("kanban-board-ticket-menu-trigger opens menu with archive/delete items", async () => {
     const project = await createProject(ctx.testServer, {
       projectSlug: uniqueSlug("kb-menu"),
       withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
@@ -54,23 +59,12 @@ describe("Kanban board (e2e, real server)", () => {
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     const trigger = ctx.page.locator('[data-testid="kanban-board-ticket-menu-trigger"]').first();
     await trigger.click();
-    await ctx.page.locator('[data-testid="kanban-board-ticket-menu-edit"]').waitFor({
+    await ctx.page.locator('[data-testid="kanban-board-ticket-menu-archive"]').waitFor({
       state: "visible", timeout: 10000,
     });
-    expect(await ctx.page.locator('[data-testid="kanban-board-ticket-menu-edit"]').count()).toBe(1);
+    expect(await ctx.page.locator('[data-testid="kanban-board-ticket-menu-edit"]').count()).toBe(0);
     expect(await ctx.page.locator('[data-testid="kanban-board-ticket-menu-archive"]').count()).toBe(1);
     expect(await ctx.page.locator('[data-testid="kanban-board-ticket-menu-delete"]').count()).toBe(1);
-  }, 60000);
-
-  it("kanban-board-ticket-menu-edit opens Edit Ticket dialog", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("kb-edit-menu"),
-      withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
-    });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await clickTicketMenuItem(ctx.page, "edit");
-    await ctx.page.waitForSelector('[data-testid="edit-ticket-title-input"]', { state: "visible", timeout: 15000 });
   }, 60000);
 
   it("kanban-board-ticket-menu-archive opens Archive Ticket dialog", async () => {

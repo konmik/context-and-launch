@@ -39,23 +39,25 @@ describe("Ticket detail window dragging (e2e, real server)", () => {
 
     const afterBox = await positioner.boundingBox();
     expect(afterBox).toBeTruthy();
-    expect(afterBox!.x).not.toBeCloseTo(beforeBox!.x, 0);
+    return afterBox!.x - beforeBox!.x;
   }
 
-  it("area above title inputs initiates drag", async () => {
-    await setup("above-title");
+  it("the top strip initiates drag", async () => {
+    await setup("strip");
     const page = ctx.page;
 
     const dragTrigger = page.locator('[data-scope="floating-panel"][data-part="drag-trigger"]');
     await dragTrigger.waitFor({ state: "visible", timeout: 15000 });
     const triggerBox = await dragTrigger.boundingBox();
     expect(triggerBox).toBeTruthy();
+    expect(triggerBox!.height).toBeCloseTo(24, 0);
 
-    await dragFrom(page, triggerBox!.x + triggerBox!.width / 2, triggerBox!.y + 5);
+    const dx = await dragFrom(page, triggerBox!.x + triggerBox!.width / 2, triggerBox!.y + 12);
+    expect(Math.abs(dx)).toBeGreaterThan(10);
   }, 60000);
 
-  it("gap between title inputs initiates drag", async () => {
-    await setup("between-inputs");
+  it("the title input row does not initiate drag", async () => {
+    await setup("title-row");
     const page = ctx.page;
 
     const numBox = await page.locator('[data-testid="ticket-detail-number-input"]').boundingBox();
@@ -63,6 +65,7 @@ describe("Ticket detail window dragging (e2e, real server)", () => {
     expect(numBox).toBeTruthy();
     expect(titleBox).toBeTruthy();
 
-    await dragFrom(page, (numBox!.x + numBox!.width + titleBox!.x) / 2, numBox!.y + numBox!.height / 2);
+    const dx = await dragFrom(page, (numBox!.x + numBox!.width + titleBox!.x) / 2, numBox!.y + numBox!.height / 2);
+    expect(Math.abs(dx)).toBeLessThan(1);
   }, 60000);
 }, 120000);

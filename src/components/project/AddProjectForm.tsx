@@ -24,7 +24,7 @@ export default function AddProjectForm(props: AddProjectFormProps) {
   return (
     <form onSubmit={s.handleSubmit}>
       <div class="mb-4">
-        <label for="project-name" class="mb-2 block text-sm font-medium">Project name</label>
+        <label for="project-name" class="field-label">Project name</label>
         <input
           id="project-name"
           type="text"
@@ -36,7 +36,7 @@ export default function AddProjectForm(props: AddProjectFormProps) {
         />
       </div>
       <div class="mb-4">
-        <label for="project-path" class="mb-2 block text-sm font-medium">Git Repository Path</label>
+        <label for="project-path" class="field-label">Git Repository Path</label>
         <div class="flex gap-2">
           <input
             id="project-path"
@@ -61,7 +61,7 @@ export default function AddProjectForm(props: AddProjectFormProps) {
         onError={s.setLocalError}
       />
       <div class="mb-4">
-        <label for="project-main-branch" class="mb-2 block text-sm font-medium">Main branch</label>
+        <label for="project-main-branch" class="field-label">Main branch</label>
         <input
           id="project-main-branch"
           type="text"
@@ -73,7 +73,7 @@ export default function AddProjectForm(props: AddProjectFormProps) {
         />
       </div>
       <div class="mb-4">
-        <label for="project-branch" class="mb-2 block text-sm font-medium">Tickets branch name</label>
+        <label for="project-branch" class="field-label">Tickets branch name</label>
         <input
           id="project-branch"
           type="text"

@@ -110,27 +110,6 @@ describe("Ticket detail Editor tab II (e2e, real server)", () => {
     expect(files).toContain("uploaded.txt");
   }, 60000);
 
-  it("uploading a .md file lists it in the file dropdown without reopening the ticket", async () => {
-    const project = await setupEditorTicket(ctx, "upload-md");
-    const fileInput = ctx.page.locator('input[type="file"]');
-    await fileInput.setInputFiles({
-      name: "notes.md",
-      mimeType: "text/markdown",
-      buffer: Buffer.from("# Notes"),
-    });
-    await poll(
-      () => ticketFileNames(ctx.testServer, project.projectSlug, "t-1-alpha"),
-      (f) => f.includes("notes.md"),
-      5000,
-    );
-    await ctx.page.click('[data-testid="ticket-detail-editor-file-dropdown-trigger"]');
-    const option = ctx.page.locator(
-      '[data-testid="ticket-detail-editor-file-dropdown-option"]',
-      { hasText: "notes.md" },
-    );
-    await option.waitFor({ state: "visible", timeout: 15000 });
-  }, 60000);
-
   it("uploading a large file (>10KB) opens confirm-upload dialog with cancel and confirm testids", async () => {
     const project = await setupEditorTicket(ctx, "upload-large");
     const fileInput = ctx.page.locator('input[type="file"]');

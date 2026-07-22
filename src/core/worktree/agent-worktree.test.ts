@@ -202,7 +202,41 @@ describe('AgentWorktreeManager', () => {
 	});
 
 	it.concurrent('behind-remote proceeds with worktree creation and sets behindRemote flag', async () => {
-		const { projectDir, awm } = await setupBehindRemote();
+		const bareDir = tmpDir('awm-bare-');
+		dirs.push(bareDir);
+		await git(bareDir, 'init', '--bare', '-b', 'main');
+
+		const projectDir = tmpDir('awm-behind-');
+		dirs.push(projectDir);
+		await git(os.tmpdir(), 'clone', bareDir, projectDir);
+		fs.writeFileSync(path.join(projectDir, 'README.md'), '# test');
+		await git(projectDir, 'add', '.');
+		await git(projectDir, 'commit', '-m', 'init');
+		await git(projectDir, 'push', '-u', 'origin', 'main');
+
+		const pusherDir = tmpDir('awm-pusher-');
+		dirs.push(pusherDir);
+		await git(os.tmpdir(), 'clone', bareDir, pusherDir);
+		fs.writeFileSync(path.join(pusherDir, 'ahead.txt'), 'ahead');
+		await git(pusherDir, 'add', '.');
+		await git(pusherDir, 'commit', '-m', 'ahead commit');
+		await git(pusherDir, 'push');
+
+		await git(projectDir, 'fetch');
+
+		const configDir = tmpDir('awm-config-');
+		const worktreeRoot = tmpDir('awm-worktrees-');
+		dirs.push(configDir, worktreeRoot);
+
+		const paths = new ConfigPaths(configDir);
+		const lcm = new LauncherConfigManager(paths);
+		lcm.saveProjectConfig('my-proj', {
+			templates: [],
+			skills: [],
+			worktreeRootPath: worktreeRoot,
+		});
+
+		const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService());
 
 		const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0005-behind');
 		expect('worktreePath' in result).toBe(true);
@@ -212,7 +246,7 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 
-	it('behind-remote check passes on feature branch while main is stale:'
+	it.concurrent('behind-remote check passes on feature branch while main is stale:'
 		+ ' worktree created from outdated main without warning', async () => {
 		const bareDir = tmpDir('awm-bare-');
 		dirs.push(bareDir);

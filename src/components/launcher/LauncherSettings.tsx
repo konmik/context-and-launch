@@ -1,7 +1,7 @@
 import { Show } from "solid-js";
+import { X } from "lucide-solid";
 import {
-	FloatingPanelRoot, FloatingPanelHeader, FloatingPanelBody,
-	FloatingPanelDragTrigger, FloatingPanelResizeTrigger,
+	FloatingWindow, FloatingWindowHeader, FloatingPanelBody,
 	FloatingPanelCloseTrigger, FloatingPanelTitle,
 } from "../ui/floating-panel";
 import { TabsRoot, TabsList, TabsTrigger } from "../ui/tabs";
@@ -61,7 +61,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 	});
 
 	return (<>
-		<FloatingPanelRoot
+		<FloatingWindow
 			open={props.open}
 			onOpenChange={(d) => { if (!d.open) props.onOpenChange(false); }}
 			defaultSize={{ width: 672, height: Math.floor((globalThis.window?.innerHeight ?? 800) * 0.8) }}
@@ -69,65 +69,51 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 			persistRect
 		>
 		<TabsRoot value={s.activeTab()} onValueChange={(d) => s.setActiveTab(d.value)}>
-			<FloatingPanelHeader>
-				<FloatingPanelDragTrigger class="flex flex-col gap-3">
-					<div class="flex items-start justify-between">
-						<FloatingPanelTitle>Settings</FloatingPanelTitle>
-						<div class="flex items-center gap-1">
-							<button
-								data-no-drag
-								data-testid="launcher-settings-open-user-config"
-								onClick={() => openConfigDir("app")}
-								class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
-								title="Open user config directory"
-							>User&#8599;</button>
-							<button
-								data-no-drag
-								data-testid="launcher-settings-open-project-config"
-								onClick={() => openConfigDir("project", props.projectSlug)}
-								class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
-								title="Open project config directory"
-							>Project&#8599;</button>
-							<FloatingPanelCloseTrigger data-testid="launcher-settings-close-button">
-								<svg
-								xmlns="http://www.w3.org/2000/svg"
-								width="16" height="16"
-								viewBox="0 0 24 24" fill="none"
-								stroke="currentColor" stroke-width="2"
-								stroke-linecap="round" stroke-linejoin="round"
-							>
-								<path d="M18 6 6 18"/>
-								<path d="m6 6 12 12"/>
-							</svg>
-							</FloatingPanelCloseTrigger>
-						</div>
-					</div>
-					<div data-no-drag class="-mx-4 -mb-4">
-						<TabsList>
-							<TabsTrigger
-								value="profiles"
-								data-testid="launcher-settings-tab-launch"
-							>Launch</TabsTrigger>
-							<TabsTrigger
-								value="templates"
-								data-testid="launcher-settings-tab-prompts"
-							>Prompt Templates</TabsTrigger>
-							<TabsTrigger
-								value="command-templates"
-								data-testid="launcher-settings-tab-command-templates"
-							>Command Templates</TabsTrigger>
-							<TabsTrigger
-								value="misc"
-								data-testid="launcher-settings-tab-misc"
-							>Misc</TabsTrigger>
-							<TabsTrigger
-								value="columns"
-								data-testid="launcher-settings-tab-columns"
-							>Columns</TabsTrigger>
-						</TabsList>
-					</div>
-				</FloatingPanelDragTrigger>
-			</FloatingPanelHeader>
+			<FloatingWindowHeader
+				title={<FloatingPanelTitle>Settings</FloatingPanelTitle>}
+				actions={<>
+					<button
+						data-testid="launcher-settings-open-user-config"
+						onClick={() => openConfigDir("app")}
+						class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+						title="Open user config directory"
+					>User&#8599;</button>
+					<button
+						data-testid="launcher-settings-open-project-config"
+						onClick={() => openConfigDir("project", props.projectSlug)}
+						class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+						title="Open project config directory"
+					>Project&#8599;</button>
+					<FloatingPanelCloseTrigger data-testid="launcher-settings-close-button">
+						<X size={16} />
+					</FloatingPanelCloseTrigger>
+				</>}
+			>
+				<div class="-mx-4 -mb-4">
+					<TabsList>
+						<TabsTrigger
+							value="profiles"
+							data-testid="launcher-settings-tab-launch"
+						>Launch</TabsTrigger>
+						<TabsTrigger
+							value="templates"
+							data-testid="launcher-settings-tab-prompts"
+						>Prompt Templates</TabsTrigger>
+						<TabsTrigger
+							value="command-templates"
+							data-testid="launcher-settings-tab-command-templates"
+						>Command Templates</TabsTrigger>
+						<TabsTrigger
+							value="misc"
+							data-testid="launcher-settings-tab-misc"
+						>Misc</TabsTrigger>
+						<TabsTrigger
+							value="columns"
+							data-testid="launcher-settings-tab-columns"
+						>Columns</TabsTrigger>
+					</TabsList>
+				</div>
+			</FloatingWindowHeader>
 
 			<FloatingPanelBody>
 				<div class="flex-1 overflow-auto px-6 py-4">
@@ -156,6 +142,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 										/>
 										<PromptsTab
 											config={cfg()}
+											templateReorder={s.templateReorder}
 											skillReorder={s.skillReorder}
 											startAdd={s.startAdd}
 											startEdit={s.startEdit}
@@ -163,6 +150,8 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 										/>
 										<LaunchTab
 											config={cfg()}
+											profileReorder={s.profileReorder}
+											shortcutReorder={s.shortcutReorder}
 											startAdd={s.startAdd}
 											startEdit={s.startEdit}
 											deleteItem={s.deleteItem}
@@ -186,26 +175,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 							</div>
 			</FloatingPanelBody>
 		</TabsRoot>
-
-			<FloatingPanelResizeTrigger axis="s" />
-			<FloatingPanelResizeTrigger axis="w" />
-			<FloatingPanelResizeTrigger axis="e" />
-			<FloatingPanelResizeTrigger axis="n" />
-			<FloatingPanelResizeTrigger axis="ne" />
-			<FloatingPanelResizeTrigger axis="nw" />
-			<FloatingPanelResizeTrigger axis="sw" />
-			<FloatingPanelResizeTrigger axis="se">
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="20" height="20" viewBox="0 0 12 12"
-				>
-					<path
-						d="M10 2v8H2" fill="none" stroke="currentColor"
-						stroke-width="1.5" stroke-linecap="round"
-					/>
-				</svg>
-			</FloatingPanelResizeTrigger>
-		</FloatingPanelRoot>
+		</FloatingWindow>
 
 		<ItemFormDialog
 			form={s.form()}

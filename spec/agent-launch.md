@@ -54,9 +54,5 @@
 - Preview panel shows the fully interpolated prompt
 - Edit toggle freezes preview from left-side control changes
 - Edit toggle off discards edits and snaps back to auto-generated prompt
-- Edited prompt is saved with the column's launch defaults
-- Navigating between tickets restores the saved edited prompt for the target ticket's column
-  - Saved edit exists: edit mode on with the saved text
-  - No saved edit: edit mode off with the generated prompt
-- Launcher config arriving after the launcher opens restores the saved edited prompt the same way
+- Edit mode resets to off when navigating between tickets
 - Launch sends the final prompt (auto-generated or edited) as initialPrompt

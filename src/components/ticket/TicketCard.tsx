@@ -1,16 +1,16 @@
-import { Show } from "solid-js";
-import { MenuRoot, MenuTrigger, MenuContent, MenuItem } from "../ui/menu";
+import { Show, For } from "solid-js";
+import { EllipsisVertical } from "lucide-solid";
+import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "../ui/menu";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { SwatchColumn } from "~/core/board/status-swatch.js";
-import StatusSwatch from "./StatusSwatch";
 import HerdrStatusIcon from "./HerdrStatusIcon";
 import { useHerdrStatuses } from "./herdr-statuses-context.js";
+import { useShortcutRunner } from "../board/shortcut-runner-context.js";
 
 interface TicketCardProps {
   ticket: TicketInfo;
   orphanedStatus?: string;
   columns: SwatchColumn[];
-  onEdit: (ticket: TicketInfo) => void;
   onDelete: (ticket: TicketInfo) => void;
   onArchive: (ticket: TicketInfo) => void;
   onViewDetail: (ticket: TicketInfo) => void;
@@ -18,6 +18,7 @@ interface TicketCardProps {
 
 export default function TicketCard(props: TicketCardProps) {
   const herdrStatus = useHerdrStatuses();
+  const shortcutRunner = useShortcutRunner();
   function handleCardClick(e: MouseEvent) {
     if ((e.target as HTMLElement).closest("[data-menu]")) return;
     props.onViewDetail(props.ticket);
@@ -28,16 +29,12 @@ export default function TicketCard(props: TicketCardProps) {
       data-drag-source
       data-testid="kanban-board-ticket-card"
       data-folder-name={props.ticket.folderName}
-      class={
-        "ripple cursor-pointer rounded-md border border-border bg-card "
-        + "p-3 shadow-sm transition-shadow hover:shadow-md"
-      }
+      class="ticket-card cursor-pointer rounded-md bg-card p-3 transition-colors hover:bg-accent"
       onClick={handleCardClick}
     >
       <div class="mb-1 flex items-start justify-between">
         <div class="flex min-w-0 items-center gap-1.5">
-          <span class="text-sm font-medium text-primary">{props.ticket.number}</span>
-          <StatusSwatch status={props.ticket.status} columns={props.columns} />
+          <span class="label-mono font-medium text-primary">{props.ticket.number}</span>
           <Show when={herdrStatus(props.ticket.folderName)}>
             {(s) => <HerdrStatusIcon status={s()} />}
           </Show>
@@ -46,34 +43,16 @@ export default function TicketCard(props: TicketCardProps) {
           <MenuRoot
             trigger={
               <MenuTrigger
-                class={
-                  "inline-flex size-8 items-center justify-center rounded-md "
-                  + "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                }
+                class="btn-ghost-icon size-8"
                 aria-label="Ticket actions"
                 data-testid="kanban-board-ticket-menu-trigger"
                 onClick={(e: MouseEvent) => e.stopPropagation()}
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg" width="20" height="20"
-                  viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                >
-                  <circle cx="12" cy="12" r="1" />
-                  <circle cx="12" cy="5" r="1" />
-                  <circle cx="12" cy="19" r="1" />
-                </svg>
+                <EllipsisVertical size={20} />
               </MenuTrigger>
             }
           >
             <MenuContent>
-              <MenuItem
-                value="edit"
-                data-testid="kanban-board-ticket-menu-edit"
-                onClick={(e: MouseEvent) => {
-                  e.stopPropagation(); props.onEdit(props.ticket);
-                }}
-              >Edit</MenuItem>
               <MenuItem
                 value="archive"
                 data-testid="kanban-board-ticket-menu-archive"
@@ -89,6 +68,23 @@ export default function TicketCard(props: TicketCardProps) {
                   e.stopPropagation(); props.onDelete(props.ticket);
                 }}
               >Delete</MenuItem>
+              <Show when={(shortcutRunner?.shortcuts().length ?? 0) > 0}>
+                <MenuSeparator />
+                <For each={shortcutRunner!.shortcuts()}>
+                  {(shortcut) => (
+                    <MenuItem
+                      value={`shortcut-${shortcut.name}`}
+                      data-testid="kanban-board-ticket-menu-shortcut"
+                      data-shortcut-name={shortcut.name}
+                      disabled={shortcutRunner!.running() !== ""}
+                      onClick={(e: MouseEvent) => {
+                        e.stopPropagation();
+                        shortcutRunner!.run(props.ticket, shortcut.name);
+                      }}
+                    >{shortcut.name}</MenuItem>
+                  )}
+                </For>
+              </Show>
             </MenuContent>
           </MenuRoot>
         </div>

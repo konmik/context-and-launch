@@ -14,7 +14,7 @@ describe("Ticket detail Editor tab (e2e, real server)", () => {
     await setupEditorTicket(ctx, "default");
     expect(await ctx.page.locator('[data-testid="ticket-detail-tab-editor"]').count()).toBe(1);
     expect(await ctx.page.locator('[data-testid="ticket-detail-tab-launcher"]').count()).toBe(1);
-    expect(await ctx.page.locator('[data-testid="ticket-detail-tab-shortcuts"]').count()).toBe(1);
+    expect(await ctx.page.locator('[data-testid="ticket-detail-tab-shortcuts"]').count()).toBe(0);
   }, 60000);
 
   it("ticket-detail-close-window-button closes the panel when no unsaved changes", async () => {

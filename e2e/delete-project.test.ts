@@ -29,10 +29,7 @@ describe("Delete project (e2e, real server)", () => {
 
     await ctx.page.goto(`${ctx.testServer.baseUrl}/`);
     await ctx.page.waitForURL("**/project/**", { timeout: 15000 });
-    await ctx.page.waitForSelector('[data-testid="project-header-settings-button"]', {
-      state: "visible",
-      timeout: 15000,
-    });
+    await ctx.page.waitForSelector('[data-hydrated="true"]', { state: "attached", timeout: 15000 });
     await ctx.page.waitForURL(`**/project/${b.projectSlug}`, { timeout: 15000 });
 
     await deleteCurrentProject(ctx.page);

@@ -67,7 +67,7 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 					<div class="flex w-full flex-col gap-4">
 						<div class="flex flex-col gap-4">
 							<div>
-								<label class="mb-1 block text-sm text-muted-foreground">Agent</label>
+								<label class="field-label">Agent</label>
 								<select
 									value={c.selectedProfile()}
 									onChange={(e) => {
@@ -83,7 +83,7 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 								</select>
 							</div>
 							<div>
-								<label class="mb-1 block text-sm text-muted-foreground">Prompt Template</label>
+								<label class="field-label">Prompt Template</label>
 								<select
 									value={c.selectedTemplate()}
 									onChange={(e) => {
@@ -100,7 +100,7 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 							</div>
 							<Show when={cfg().skills.length > 0}>
 								<div>
-									<label class="mb-1 block text-sm text-muted-foreground">Skills</label>
+									<label class="field-label">Skills</label>
 									<DragDropProvider
 										onDragStart={c.skillReorder.onDragStart}
 										onDragOver={c.skillReorder.onDragOver}
@@ -109,7 +109,7 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 									>
 										<DragDropSensors />
 										<SortableProvider ids={c.orderedSkills().map(s => s.name)}>
-											<div class="flex flex-col gap-1">
+											<div class="flex flex-col gap-1 pl-2">
 												<For each={c.orderedSkills()}>
 													{(skill, i) => (
 														<>

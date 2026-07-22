@@ -1,5 +1,10 @@
 import { createSignal, createEffect, on } from "solid-js";
-import { DialogRoot, DialogTitle } from "../ui/dialog";
+import { X } from "lucide-solid";
+import {
+  FloatingWindow, FloatingWindowHeader, FloatingPanelBody,
+  FloatingPanelCloseTrigger, FloatingPanelTitle,
+  FLOATING_WINDOW_MIN_SIZE, tallWindowDefaultSize,
+} from "../ui/floating-panel";
 import { LauncherTab } from "../ticket/ticket-detail-launcher-tab.js";
 import { createAgentLauncherController } from "./agent-launcher-controller.js";
 import {
@@ -57,13 +62,22 @@ export default function ProjectLauncherDialog(props: {
 
   return (
     <>
-      <DialogRoot
+      <FloatingWindow
         open={props.open}
-        onOpenChange={props.onOpenChange}
-        class="flex h-[85vh] w-[90vw] max-w-5xl flex-col overflow-hidden p-0"
+        onOpenChange={(d) => { if (!d.open) props.onOpenChange(false); }}
+        defaultSize={tallWindowDefaultSize()}
+        minSize={FLOATING_WINDOW_MIN_SIZE}
+        persistRect
       >
-        <DialogTitle class="px-6 pb-0 pt-4 text-lg font-semibold">Launch an agent</DialogTitle>
-        <div class="flex min-h-0 flex-1 flex-col">
+        <FloatingWindowHeader
+          title={<FloatingPanelTitle>Launch an agent</FloatingPanelTitle>}
+          actions={
+            <FloatingPanelCloseTrigger aria-label="Close">
+              <X size={16} />
+            </FloatingPanelCloseTrigger>
+          }
+        />
+        <FloatingPanelBody>
           <LauncherTab
             config={config()}
             onDefaultsChange={patchDefaults}
@@ -92,8 +106,8 @@ export default function ProjectLauncherDialog(props: {
               data-testid="project-launcher-close-button"
             >Close</button>
           </div>
-        </div>
-      </DialogRoot>
+        </FloatingPanelBody>
+      </FloatingWindow>
 
       <ErrorDialog error={error()} onClose={() => setError(null)} />
     </>

@@ -1,12 +1,14 @@
 import { For, Show, type JSX } from "solid-js";
+import { X } from "lucide-solid";
 import { DialogRoot, DialogTitle, DialogCloseTrigger } from "../ui/dialog";
 import { modEnterHint } from "~/lib/use-mod-enter-submit";
 import { slugifyColumnName } from "~/lib/slugify.js";
 import { COLUMN_COLOR_PALETTE } from "~/core/project/column-color-palette.js";
 import type { BoardRef } from "../board/board-api.js";
 import { usesWindowsBatchCommand } from "./launcher-settings-pure.js";
+import type { LauncherItemType } from "~/core/launcher/launcher-config.js";
 
-export type ItemType = "template" | "skill" | "profile" | "shortcut";
+export type ItemType = LauncherItemType;
 export type Scope = "app" | "project";
 
 export interface ItemFormState {
@@ -43,13 +45,7 @@ function DialogHeader(props: { title: string }) {
 		<div class="flex items-center justify-between border-b border-border px-6 py-4">
 			<DialogTitle class="mb-0">{props.title}</DialogTitle>
 			<DialogCloseTrigger>
-				<svg
-			xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-			viewBox="0 0 24 24" fill="none" stroke="currentColor"
-			stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-		>
-			<path d="M18 6 6 18"/><path d="m6 6 12 12"/>
-		</svg>
+				<X size={16} />
 			</DialogCloseTrigger>
 		</div>
 	);
@@ -85,7 +81,7 @@ export function ItemFormDialog(props: {
 					<DialogHeader title={`${f().mode === "add" ? "Add" : "Edit"} ${itemTypeLabel[f().itemType]}`} />
 					<div class="space-y-3 px-6 py-4">
 						<div>
-							<label class="mb-1 block text-sm text-muted-foreground">Name</label>
+							<label class="field-label">Name</label>
 							<input
 								type="text"
 								value={f().name}
@@ -103,7 +99,7 @@ export function ItemFormDialog(props: {
 							/>
 						</div>
 						<div>
-							<label class="mb-1 block text-sm text-muted-foreground">
+							<label class="field-label">
 								{f().itemType === "shortcut" || f().itemType === "profile"
 									? "Command" : "Prompt"}
 							</label>
@@ -152,8 +148,8 @@ export function ItemFormDialog(props: {
 								&& usesWindowsBatchCommand(f().text)
 							}>
 								<p
-									class={"mt-2 rounded-md border border-amber-500/40 bg-amber-500/10 "
-										+ "px-3 py-2 text-xs text-amber-600"}
+									class={"mt-2 rounded-md border border-warning/40 bg-warning/10 "
+										+ "px-3 py-2 text-xs"}
 									data-testid="launcher-settings-item-form-batch-warning"
 								>
 									Windows CMD (.cmd) and batch (.bat) files cannot receive multi-line arguments.
@@ -163,7 +159,7 @@ export function ItemFormDialog(props: {
 						</div>
 						<Show when={f().mode === "add"}>
 							<div>
-								<label class="mb-1 block text-sm text-muted-foreground">Scope</label>
+								<label class="field-label">Scope</label>
 								<div class="flex gap-4">
 									<label class="flex items-center gap-1.5 text-sm">
 										<input
@@ -229,7 +225,7 @@ export function ColumnFormDialog(props: {
 					<div class="space-y-3 px-6 py-4">
 						<ErrorBanner message={props.columnError} />
 						<div>
-							<label class="mb-1 block text-sm text-muted-foreground">Name</label>
+							<label class="field-label">Name</label>
 							<input
 								ref={(el) => setTimeout(() => el.focus())}
 								type="text"
@@ -255,7 +251,7 @@ export function ColumnFormDialog(props: {
 							</Show>
 						</div>
 						<div>
-							<label class="mb-1 block text-sm text-muted-foreground">Description (optional)</label>
+							<label class="field-label">Description (optional)</label>
 							<textarea
 								value={cf().description}
 								onInput={(e) => props.setColumnForm({ ...cf(), description: e.currentTarget.value })}
@@ -265,7 +261,7 @@ export function ColumnFormDialog(props: {
 							/>
 						</div>
 						<div>
-							<label class="mb-1 block text-sm text-muted-foreground">Color (optional)</label>
+							<label class="field-label">Color (optional)</label>
 							<div class="flex flex-wrap items-center gap-1.5">
 								<button
 									type="button"
@@ -279,12 +275,7 @@ export function ColumnFormDialog(props: {
 									title="None"
 									aria-label="No color"
 								>
-									<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
-										viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-										stroke-linecap="round" stroke-linejoin="round"
-									>
-										<line x1="18" y1="6" x2="6" y2="18"/>
-									</svg>
+									<X size={14} />
 								</button>
 								<For each={COLUMN_COLOR_PALETTE}>
 									{(option) => (
@@ -415,7 +406,7 @@ export function BoardFormDialog(props: {
 					<div class="space-y-3 px-6 py-4">
 						<ErrorBanner message={props.columnError} />
 						<div>
-							<label class="mb-1 block text-sm text-muted-foreground">Board name</label>
+							<label class="field-label">Board name</label>
 							<input
 								type="text"
 								value={bf().name}

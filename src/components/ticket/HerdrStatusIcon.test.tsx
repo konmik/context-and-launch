@@ -21,12 +21,12 @@ describe("HerdrStatusIcon", () => {
     expect(svg.getAttribute("class")).toContain("text-primary");
   });
 
-  it("renders the blocked icon in amber", () => {
+  it("renders the blocked icon in the warning color", () => {
     const { container } = renderIcon("blocked");
     const icon = container.querySelector('[data-testid="herdr-status-icon"]') as HTMLElement;
     expect(icon.getAttribute("data-herdr-status")).toBe("blocked");
     expect(icon.getAttribute("title")).toBe("blocked");
-    expect(icon.querySelector("svg")!.getAttribute("class")).toContain("text-amber-500");
+    expect(icon.querySelector("svg")!.getAttribute("class")).toContain("text-warning");
   });
 
   it("renders the idle icon in muted gray", () => {

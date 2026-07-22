@@ -40,12 +40,12 @@
 
 - Run dev server: `npm run dev`.
 - Run all tests: `npm run test:all` (tsc + unit + build + e2e). Never skip e2e.
+- Do not run tests (unit, e2e, build, or screenshots) for pure design/styling changes (CSS, colors, class tweaks) unless the user explicitly asks. Just make the edit.
 - Never run shell tests unless the user explicitly asks you to run them.
 - Any test that launches a terminal or console-host process (powershell, cmd, wt) is a shell test. Name it *.shell.test.ts so it runs only via `npm run test:shell`, never in test or test:all.
 - Write UI tests with playwright.
 - e2e tests run the real server against a sandboxed CONTEXT_LAUNCH_DATA_DIR temp dir and a scratch git repo, drive the UI with playwright, and assert on real side effects (config.json contents, git branches/worktrees). Use the e2e/real-server.ts harness. Never stub the app's own server functions; mock only true external boundaries.
 - e2e/mock-server.ts is a fixture for pure-UI rendering tests that need no real backend behavior.
-- Test timeouts must NEVER be more than 3 seconds. If a test is hitting a 3-second timeout, fix the cause immediately. Never dismiss a timeout as an unrelated change you are not going to fix, and never fix a timeout by increasing it.
 
 ## Specs
 

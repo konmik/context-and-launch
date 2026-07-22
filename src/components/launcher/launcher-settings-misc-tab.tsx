@@ -28,7 +28,7 @@ export function MiscTab(props: {
 		<TabsContent value="misc">
 			<div class="space-y-6">
 				<section>
-					<h3 class="mb-2 text-sm font-semibold">Project name <ScopeBadge scope="project" /></h3>
+					<label class="field-label">Project name <ScopeBadge scope="project" /></label>
 					<input
 						type="text"
 						value={props.projectName}
@@ -42,7 +42,7 @@ export function MiscTab(props: {
 					/>
 				</section>
 				<section>
-					<h3 class="mb-2 text-sm font-semibold">Agent worktree root path <ScopeBadge scope="project" /></h3>
+					<label class="field-label">Agent worktree root path <ScopeBadge scope="project" /></label>
 					<div class="flex gap-2">
 						<input
 							type="text"
@@ -77,7 +77,7 @@ export function MiscTab(props: {
 					</div>
 				</section>
 				<section>
-					<h3 class="mb-2 text-sm font-semibold">Branch prefix <ScopeBadge scope="project" /></h3>
+					<label class="field-label">Branch prefix <ScopeBadge scope="project" /></label>
 					<input
 						type="text"
 						value={props.branchPrefix ?? ""}
@@ -92,9 +92,9 @@ export function MiscTab(props: {
 					/>
 				</section>
 				<section>
-					<h3 class="mb-2 text-sm font-semibold">
+					<label class="field-label">
 						Conflict resolution prompt <ScopeBadge scope="project" />
-					</h3>
+					</label>
 					<textarea
 						value={props.conflictPrompt}
 						onInput={(e) => props.setConflictPrompt(e.currentTarget.value)}

@@ -5,6 +5,7 @@ import {
   For,
   Show,
 } from "solid-js";
+import { X } from "lucide-solid";
 import CreateTicketDialog from "../ticket/CreateTicketDialog";
 import ErrorDialog from "../shared/ErrorDialog";
 import ExpandingOverlay, { type ExpandingOverlayOrigin, type OverlayRect } from "../shared/ExpandingOverlay";
@@ -38,6 +39,7 @@ interface ForestViewProps {
   board: BoardState;
   projectSlug: string;
   onViewDetail: (ticket: TicketInfo) => void;
+  onClose: () => void;
   suggestedNextNumber?: string | null;
 }
 
@@ -200,6 +202,7 @@ export default function ForestView(props: ForestViewProps) {
         setGroupingDraft({ ownerGroupNumber: scopeGroupNumber, memberNumbers, position });
         setCreateDialogOpen(true);
       },
+      onClose: scopeGroupNumber === undefined ? props.onClose : undefined,
       openGroup: (ticketNumber, cardRect) => openGroup(ticketNumber, cardRect, depth),
       openTicket: ticketNumber => props.onViewDetail(findTicket(ticketNumber)),
       persistPositions,
@@ -251,7 +254,7 @@ export default function ForestView(props: ForestViewProps) {
                   onClose={() => closeGroup(index())}
                   backdropAttributes={{ "data-testid": "forest-subforest-backdrop" }}
                   panelAttributes={{ "data-forest-connection-boundary": "" }}
-                  panelClass="absolute rounded-lg border border-border bg-background shadow-lg"
+                  panelClass="absolute rounded-lg border border-border bg-background"
                 >
                   <div class="h-full w-full">
                     <ForestSurface
@@ -269,12 +272,7 @@ export default function ForestView(props: ForestViewProps) {
                     onClick={() => closeGroup(index())}
                     data-testid="forest-subforest-close"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                      stroke-linecap="round" stroke-linejoin="round"
-                    >
-                      <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
-                    </svg>
+                    <X size={16} />
                   </button>
                 </ExpandingOverlay>
               )}

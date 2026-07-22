@@ -101,6 +101,16 @@ Forest Viewport:
 The saved pan position and zoom of the Forest View, per project per machine. Restored when the Forest View reopens.
 Avoid: camera, scroll position
 
+### Appearance
+
+Palette:
+A named color scheme family based on a popular editor theme (Catppuccin, Tokyo Night, Dracula, Nord, Gruvbox). Each Palette supplies a complete color set for both Modes. Selected globally from the app header; one Palette is active at a time across all Project Windows, per machine.
+Avoid: theme, color scheme, skin
+
+Mode:
+The light or dark axis of the app's appearance, orthogonal to Palette. Follows the OS preference until the user toggles it explicitly.
+Avoid: theme, dark mode
+
 ### Windows
 
 Project Window:
@@ -202,6 +212,7 @@ Avoid: terminal, pane
 
 - A Project has exactly one Worktree (created automatically on first board load)
 - A Project Window shows exactly one Project; a Project may be shown by more than one Project Window
+- The app renders exactly one Palette in exactly one Mode at a time; every Palette defines both Modes
 - A Worktree is checked out from the Project's Orphan Branch
 - A Worktree contains zero or more Ticket Folders
 - A Ticket Folder contains exactly one `status.json` and zero or more Context documents

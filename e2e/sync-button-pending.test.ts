@@ -72,6 +72,7 @@ describe("Sync button pending states (e2e, real server)", () => {
 
     await ctx.page.goto(`${ctx.testServer.baseUrl}/project/${unknownSlug}`);
     await ctx.page.waitForSelector("text=Project not found", { state: "visible", timeout: 15000 });
+    await ctx.page.waitForSelector('[data-hydrated="true"]', { state: "attached", timeout: 15000 });
     await ctx.page.waitForTimeout(3000);
     const badgeCount = await ctx.page.locator('[data-testid="sync-button-pending-badge"]').count();
     expect(badgeCount).toBeLessThanOrEqual(1);

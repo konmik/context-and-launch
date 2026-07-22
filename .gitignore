@@ -13,5 +13,6 @@ app.config.timestamp_*.js
 skills-lock.json
 dist-electron/
 electron/main.js
+electron/preload.cjs
 test-results/
 .DS_Store

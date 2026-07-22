@@ -3,7 +3,7 @@ import { revalidate } from "@solidjs/router";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { ErrorInfo } from "~/core/shared/errors.js";
 import {
-  createTicket, updateTicket, deleteTicket, archiveTicket,
+  createTicket, deleteTicket, archiveTicket,
   reorderTicket, syncTickets, worktreeCleanup,
 } from "../ticket/ticket-api.js";
 import { deleteProject } from "./project-api.js";
@@ -13,15 +13,13 @@ import type { TicketCleanupOptions } from "../shared/ticket-cleanup-pure.js";
 
 export interface ProjectPageDeps {
   projectSlug: () => string;
-  data: () => { status: string; board?: { tickets: TicketInfo[] } } | undefined;
-  syncStatus: () => { hasRemote: boolean } | undefined;
+  data: () => { status: string; hasRemote?: boolean; board?: { tickets: TicketInfo[] } } | undefined;
 }
 
 export function createProjectPageController(deps: ProjectPageDeps) {
   const [addProjectDialogOpen, setAddProjectDialogOpen] = createSignal(false);
   const [settingsOpen, setSettingsOpen] = createSignal(false);
   const [createTicketOpen, setCreateTicketOpen] = createSignal(false);
-  const [editTicketOpen, setEditTicketOpen] = createSignal(false);
   const [cleanupDialogOpen, setCleanupDialogOpen] = createSignal(false);
   const [cleanupAction, setCleanupAction] = createSignal<"archive" | "delete">("archive");
   const [selectedTicket, setSelectedTicket] = createSignal<TicketInfo | null>(null);
@@ -35,8 +33,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     if (syncing()) return;
     const d = deps.data();
     if (!d || d.status !== "loaded") return;
-    const ss = deps.syncStatus();
-    if (ss && !ss.hasRemote) {
+    if (!d.hasRemote) {
       setSyncError({
         title: "Sync failed",
         description: "No remote tracking branch configured."
@@ -55,9 +52,9 @@ export function createProjectPageController(deps: ProjectPageDeps) {
         if (parsed.type === "success") {
           setSyncSuccess(true);
           setTimeout(() => setSyncSuccess(false), 2000);
-          await revalidate(["project-page", "project-sync-status"]);
+          await revalidate("project-page");
         } else if (parsed.type === "conflict") {
-          await revalidate(["project-page", "project-sync-status"]);
+          await revalidate("project-page");
           setConflictDialogOpen(true);
         } else {
           setSyncError({ title: "Sync failed", description: parsed.message });
@@ -73,18 +70,13 @@ export function createProjectPageController(deps: ProjectPageDeps) {
   async function handleConflictResolve(profileName: string) {
     const result = await resolveConflicts(deps.projectSlug(), profileName);
     if (!result.ok) throw new Error(result.message);
-    await revalidate(["project-page", "project-sync-status"]);
+    await revalidate("project-page");
   }
 
   async function handleConflictAbort() {
     const result = await abortRebase(deps.projectSlug());
     if (!result.ok) throw new Error(result.message);
-    await revalidate(["project-page", "project-sync-status"]);
-  }
-
-  function openEdit(ticket: TicketInfo) {
-    setSelectedTicket(ticket);
-    setEditTicketOpen(true);
+    await revalidate("project-page");
   }
 
   function openDelete(ticket: TicketInfo) {
@@ -99,26 +91,14 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     setCleanupDialogOpen(true);
   }
 
-  async function openDetail(ticket: TicketInfo) {
-    await revalidate("project-page");
-    const d = deps.data();
-    const board = d?.status === "loaded" ? (d as any).board : undefined;
-    const fresh = board?.tickets.find((t: TicketInfo) => t.folderName === ticket.folderName);
-    setDetailTicket(fresh ?? ticket);
+  function openDetail(ticket: TicketInfo) {
+    setDetailTicket(ticket);
   }
 
   async function handleCreateTicket(number: string, title: string) {
     const result = await createTicket(deps.projectSlug(), number, title);
     if (result.ok) revalidate("project-page");
     return result.ok ? {} : { error: result.message };
-  }
-
-  async function handleEditTicket(folderName: string, number: string, title: string) {
-    const result = await updateTicket(
-      deps.projectSlug(), folderName, number || null, title || null, null,
-    );
-    if (result.ok) revalidate("project-page");
-    return result.ok ? { folderName: result.folderName } : { error: result.message };
   }
 
   async function handleArchiveTicket(folderName: string) {
@@ -168,7 +148,6 @@ export function createProjectPageController(deps: ProjectPageDeps) {
 
   const dialogState = () => ({
     createTicketOpen: createTicketOpen(),
-    editTicketOpen: editTicketOpen(),
     cleanupDialogOpen: cleanupDialogOpen(),
     cleanupAction: cleanupAction(),
     settingsOpen: settingsOpen(),
@@ -189,7 +168,6 @@ export function createProjectPageController(deps: ProjectPageDeps) {
 
   const commands = {
     openCreate: () => setCreateTicketOpen(true),
-    openEdit,
     openDelete,
     openArchive,
     openDetail,
@@ -199,7 +177,6 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     handleConflictAbort,
     handleReorder,
     handleCreateTicket,
-    handleEditTicket,
     handleCleanupAction,
     handleCleanupSubmit,
     openSettings: () => setSettingsOpen(true),
@@ -208,7 +185,6 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     closeAddProject: () => setAddProjectDialogOpen(false),
     handleDeleteProject,
     setCreateTicketOpen,
-    setEditTicketOpen,
     setCleanupDialogOpen,
     setConflictDialogOpen,
     setSyncError,

@@ -1,4 +1,5 @@
 import { createHandler, StartServer } from "@solidjs/start/server";
+import { PALETTES } from "./components/shared/palette-pure.js";
 
 export default createHandler(() => (
   <StartServer
@@ -14,12 +15,15 @@ export default createHandler(() => (
             'var t=localStorage.getItem("theme");',
             'if(t==="dark"||',
             '(t!=="light"&&matchMedia("(prefers-color-scheme:dark)").matches))',
-            'document.documentElement.classList.add("dark")',
+            'document.documentElement.classList.add("dark");',
+            'var p=localStorage.getItem("palette");',
+            `if(${JSON.stringify([...PALETTES])}.indexOf(p)!==-1)`,
+            'document.documentElement.dataset.palette=p',
             "}catch(e){}})()",
           ].join("")}</script>
           {assets}
         </head>
-        <body>
+        <body spellcheck="false">
           <div id="app">{children}</div>
           {scripts}
         </body>

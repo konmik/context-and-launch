@@ -50,7 +50,7 @@ describe("Forest View II", () => {
 
     const rearrangeBox = await boxOf(rearrangeButton);
     const centerBox = await boxOf(centerButton);
-    expect(centerBox.x - rearrangeBox.x - rearrangeBox.width).toBeCloseTo(16, 0);
+    expect(centerBox.x - rearrangeBox.x - rearrangeBox.width).toBeCloseTo(8, 0);
   }, 120000);
 
   it("viewport persistence across reload", async () => {

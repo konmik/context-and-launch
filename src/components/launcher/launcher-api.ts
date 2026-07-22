@@ -14,7 +14,10 @@ import {
   type LaunchRequest,
 } from "~/core/launcher/agent-launch.js";
 import { NotFoundError, ValidationError, errorResult } from "~/core/shared/errors.js";
-import type { MergedLauncherConfig } from "~/core/launcher/launcher-config.js";
+import type {
+  LauncherItemType,
+  MergedLauncherConfig,
+} from "~/core/launcher/launcher-config.js";
 
 export interface MergedLauncherConfigWithMeta extends MergedLauncherConfig {
   projectBoardId: string | null;
@@ -94,7 +97,6 @@ export async function saveConflictResolution(projectSlug: string, conflictResolu
   }
 }
 
-type ItemType = "template" | "skill" | "profile" | "shortcut";
 type Scope = "app" | "project";
 
 interface ItemFields {
@@ -103,7 +105,7 @@ interface ItemFields {
   command?: string;
 }
 
-const ITEM_METHODS: Record<ItemType, { add: string; update: string; remove: string }> = {
+const ITEM_METHODS: Record<LauncherItemType, { add: string; update: string; remove: string }> = {
   template: { add: "addTemplate", update: "updateTemplate", remove: "removeTemplate" },
   skill:    { add: "addSkill",    update: "updateSkill",    remove: "removeSkill" },
   profile:  { add: "addProfile",  update: "updateProfile",  remove: "removeProfile" },
@@ -117,7 +119,7 @@ function callItemMethod(
 }
 
 export async function addItem(
-  projectSlug: string, itemType: ItemType, scope: Scope, fields: ItemFields,
+  projectSlug: string, itemType: LauncherItemType, scope: Scope, fields: ItemFields,
 ) {
   "use server";
   try {
@@ -129,7 +131,7 @@ export async function addItem(
 }
 
 export async function updateItem(
-  projectSlug: string, itemType: ItemType, scope: Scope,
+  projectSlug: string, itemType: LauncherItemType, scope: Scope,
   oldName: string, fields: ItemFields,
 ) {
   "use server";
@@ -142,7 +144,7 @@ export async function updateItem(
 }
 
 export async function deleteItem(
-  projectSlug: string, itemType: ItemType, scope: Scope, name: string,
+  projectSlug: string, itemType: LauncherItemType, scope: Scope, name: string,
 ) {
   "use server";
   try {
@@ -153,12 +155,13 @@ export async function deleteItem(
   }
 }
 
-export async function reorderSkill(
-  projectSlug: string, scope: Scope, name: string, order: number,
+export async function reorderItem(
+  projectSlug: string, itemType: LauncherItemType, scope: Scope,
+  name: string, order: number,
 ) {
   "use server";
   try {
-    launcherConfigManager.setSkillOrder(scope, projectSlug, name, order);
+    launcherConfigManager.setItemOrder(scope, projectSlug, itemType, name, order);
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);

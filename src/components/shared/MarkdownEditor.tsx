@@ -1,5 +1,3 @@
-import "@fontsource/jetbrains-mono/400.css";
-import "@fontsource/jetbrains-mono/700.css";
 import { onMount, onCleanup, createEffect } from "solid-js";
 import {
   EditorView, ViewPlugin, Decoration, type DecorationSet,
@@ -17,6 +15,8 @@ import { tags } from "@lezer/highlight";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
 
+const MONO_FONT = "var(--font-mono)";
+
 const theme = EditorView.theme({
   "&": {
     height: "100%",
@@ -33,10 +33,10 @@ const theme = EditorView.theme({
   },
   ".cm-content": {
     padding: "0.75rem",
-    caretColor: "var(--foreground)",
+    caretColor: "var(--primary)",
   },
   ".cm-cursor, .cm-dropCursor": {
-    borderLeftColor: "var(--foreground)",
+    borderLeftColor: "var(--primary)",
   },
   ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": {
     backgroundColor: "var(--accent)",
@@ -57,25 +57,27 @@ const theme = EditorView.theme({
   },
   ".cm-codeblock": {
     backgroundColor: "var(--muted)",
-    fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+    color: "var(--muted-foreground)",
+    fontFamily: MONO_FONT,
   },
 });
 
 const markdownStyle = HighlightStyle.define([
-  { tag: tags.heading1, fontSize: "1.6em", fontWeight: "700" },
-  { tag: tags.heading2, fontSize: "1.4em", fontWeight: "700" },
-  { tag: tags.heading3, fontSize: "1.2em", fontWeight: "600" },
-  { tag: tags.heading4, fontSize: "1.1em", fontWeight: "600" },
+  { tag: tags.heading1, fontFamily: MONO_FONT, fontSize: "1.6em", fontWeight: "700", color: "var(--primary)" },
+  { tag: tags.heading2, fontFamily: MONO_FONT, fontSize: "1.4em", fontWeight: "700", color: "var(--primary)" },
+  { tag: tags.heading3, fontFamily: MONO_FONT, fontSize: "1.2em", fontWeight: "700", color: "var(--primary)" },
+  { tag: tags.heading4, fontFamily: MONO_FONT, fontSize: "1.1em", fontWeight: "700", color: "var(--primary)" },
   { tag: tags.emphasis, fontStyle: "italic" },
   { tag: tags.strong, fontWeight: "700" },
   { tag: tags.strikethrough, textDecoration: "line-through" },
   {
     tag: tags.monospace,
-    fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+    fontFamily: MONO_FONT,
+    color: "var(--muted-foreground)",
     backgroundColor: "var(--muted)", borderRadius: "3px", padding: "1px 3px",
   },
-  { tag: tags.link, color: "oklch(0.55 0.15 250)", textDecoration: "underline" },
-  { tag: tags.url, color: "oklch(0.55 0.15 250)" },
+  { tag: tags.link, color: "var(--ring)", textDecoration: "underline" },
+  { tag: tags.url, color: "var(--ring)" },
   { tag: tags.quote, color: "var(--muted-foreground)", fontStyle: "italic" },
   { tag: tags.list, color: "var(--muted-foreground)" },
   { tag: tags.processingInstruction, fontWeight: "700", color: "var(--muted-foreground)" },
@@ -155,6 +157,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
           codeBlockPlugin,
         ]),
         EditorView.lineWrapping,
+        EditorView.contentAttributes.of({ spellcheck: props.plain ? "false" : "true" }),
         theme,
         cmPlaceholder(props.placeholder ?? ""),
         EditorView.updateListener.of((update) => {

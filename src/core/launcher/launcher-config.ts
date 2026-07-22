@@ -3,23 +3,29 @@ import * as v from 'valibot';
 import type { ConfigPaths } from '../config/config-paths.js';
 import { ConfigRepository } from '../config/config-repository.js';
 
-export interface LauncherTemplate {
+export interface OrderedLauncherItem {
 	name: string;
-	text: string;
-}
-
-export interface LauncherSkill {
-	name: string;
-	text: string;
 	order?: number;
 }
 
-export interface LauncherProfile {
+export type LauncherItemType = "template" | "skill" | "profile" | "shortcut";
+
+export interface LauncherTemplate extends OrderedLauncherItem {
+	name: string;
+	text: string;
+}
+
+export interface LauncherSkill extends OrderedLauncherItem {
+	name: string;
+	text: string;
+}
+
+export interface LauncherProfile extends OrderedLauncherItem {
 	name: string;
 	command: string;
 }
 
-export interface LauncherShortcut {
+export interface LauncherShortcut extends OrderedLauncherItem {
 	name: string;
 	command: string;
 }
@@ -45,10 +51,10 @@ export interface LauncherConfig {
 }
 
 export interface MergedLauncherConfig {
-	templates: (LauncherTemplate & { scope: "app" | "project" })[];
+	templates: (LauncherTemplate & { scope: "app" | "project"; order: number })[];
 	skills: (LauncherSkill & { scope: "app" | "project"; order: number })[];
-	profiles: (LauncherProfile & { scope: "app" | "project" })[];
-	shortcuts: (LauncherShortcut & { scope: "app" | "project" })[];
+	profiles: (LauncherProfile & { scope: "app" | "project"; order: number })[];
+	shortcuts: (LauncherShortcut & { scope: "app" | "project"; order: number })[];
 	columnDefaults: Record<string, LauncherColumnDefaults>;
 	worktreeRootPath: string | null;
 	branchPrefix?: string;
@@ -132,21 +138,31 @@ function mergeByName<T extends { name: string }>(
 	return [...map.values()];
 }
 
+function mergeOrderedByName<T extends OrderedLauncherItem>(
+	appItems: T[],
+	projectItems: T[],
+): (T & { scope: "app" | "project"; order: number })[] {
+	return mergeByName(appItems, projectItems)
+		.map((item, canonicalIndex) => ({
+			...item,
+			order:
+				typeof item.order === "number" && Number.isFinite(item.order)
+					? item.order
+					: canonicalIndex,
+		}))
+		.sort((a, b) => a.order - b.order);
+}
+
+function preserveOrder<T extends OrderedLauncherItem>(existing: T, replacement: T): T {
+	return existing.order === undefined
+		? replacement
+		: { ...replacement, order: existing.order };
+}
+
 export function mergeLauncherConfigs(
 	app: LauncherConfig,
 	project: LauncherConfig,
 ): MergedLauncherConfig {
-	const mergedSkills = mergeByName(app.skills, project.skills);
-	const sortedSkills = mergedSkills
-		.map((s, i) => ({
-			...s,
-			order:
-				typeof s.order === "number" && Number.isFinite(s.order)
-					? s.order
-					: i,
-		}))
-		.sort((a, b) => a.order - b.order);
-
 	const appPrompt =
 		typeof app.conflictResolutionPrompt === 'string'
 		&& app.conflictResolutionPrompt
@@ -154,10 +170,10 @@ export function mergeLauncherConfigs(
 			: '';
 
 	return {
-		templates: mergeByName(app.templates, project.templates),
-		skills: sortedSkills,
-		profiles: mergeByName(app.profiles ?? [], project.profiles ?? []),
-		shortcuts: mergeByName(app.shortcuts ?? [], project.shortcuts ?? []),
+		templates: mergeOrderedByName(app.templates, project.templates),
+		skills: mergeOrderedByName(app.skills, project.skills),
+		profiles: mergeOrderedByName(app.profiles ?? [], project.profiles ?? []),
+		shortcuts: mergeOrderedByName(app.shortcuts ?? [], project.shortcuts ?? []),
 		columnDefaults: project.columnDefaults ?? {},
 		worktreeRootPath: project.worktreeRootPath ?? null,
 		branchPrefix: project.branchPrefix,
@@ -419,10 +435,10 @@ export class LauncherConfigManager {
 					`Template with name "${template.name}" already exists`,
 				);
 			}
-			config.templates[index] = {
+			config.templates[index] = preserveOrder(config.templates[index], {
 				name: template.name,
 				text: template.text,
-			};
+			});
 			if (oldName !== template.name) {
 				this.forEachColumnDefault(config, (cd) => {
 					if (cd.templateName === oldName) {
@@ -454,11 +470,10 @@ export class LauncherConfigManager {
 					`Skill with name "${skill.name}" already exists`,
 				);
 			}
-			const order = config.skills[index].order;
-			config.skills[index] =
-				order === undefined
-					? { name: skill.name, text: skill.text }
-					: { name: skill.name, text: skill.text, order };
+			config.skills[index] = preserveOrder(config.skills[index], {
+				name: skill.name,
+				text: skill.text,
+			});
 			if (oldName !== skill.name) {
 				this.forEachColumnDefault(config, (cd) => {
 					if (cd.checkedSkills) {
@@ -482,13 +497,34 @@ export class LauncherConfigManager {
 		name: string,
 		order: number,
 	): void {
+		this.setItemOrder(scope, projectSlug, "skill", name, order);
+	}
+
+	setItemOrder(
+		scope: "app" | "project",
+		projectSlug: string,
+		itemType: LauncherItemType,
+		name: string,
+		order: number,
+	): void {
 		if (typeof order !== "number" || !Number.isFinite(order)) {
 			throw new Error("order must be a finite number");
 		}
 		this.withConfig(scope, projectSlug, (config) => {
-			const skill = config.skills.find((s) => s.name === name);
-			if (!skill) throw new Error(`Skill "${name}" not found`);
-			skill.order = order;
+			const collections: Record<LauncherItemType, OrderedLauncherItem[]> = {
+				template: config.templates,
+				skill: config.skills,
+				profile: config.profiles ?? [],
+				shortcut: config.shortcuts ?? [],
+			};
+			const item = collections[itemType].find((entry) => entry.name === name);
+			if (!item) {
+				const label = itemType === "profile"
+					? "Profile"
+					: itemType[0].toUpperCase() + itemType.slice(1);
+				throw new Error(`${label} "${name}" not found`);
+			}
+			item.order = order;
 		});
 	}
 
@@ -549,10 +585,10 @@ export class LauncherConfigManager {
 					`Profile with name "${profile.name}" already exists`,
 				);
 			}
-			config.profiles[index] = {
+			config.profiles[index] = preserveOrder(config.profiles[index], {
 				name: profile.name,
 				command: profile.command,
-			};
+			});
 			if (oldName !== profile.name) {
 				this.forEachColumnDefault(config, (cd) => {
 					if (cd.profileName === oldName) {
@@ -619,10 +655,10 @@ export class LauncherConfigManager {
 					`Shortcut with name "${shortcut.name}" already exists`,
 				);
 			}
-			config.shortcuts[index] = {
+			config.shortcuts[index] = preserveOrder(config.shortcuts[index], {
 				name: shortcut.name,
 				command: shortcut.command,
-			};
+			});
 		});
 	}
 

@@ -1,11 +1,11 @@
-import { FileToolbar, EditorPane, TAB_PANE_CLASS } from "./ticket-detail-parts.js";
+import { FileToolbar, EditorPane, TAB_CONTENT_CLASS } from "./ticket-detail-parts.js";
 import { activeFileLabel, isReadOnly } from "./ticket-detail-pure.js";
 import type { TicketDetailState } from "./ticket-detail-state.js";
 
 export function EditorTab(props: { ctrl: TicketDetailState }) {
   const s = props.ctrl;
   return (
-    <>
+    <div class={`${TAB_CONTENT_CLASS} flex flex-col`}>
       <FileToolbar
         activeFile={s.activeFile()}
         options={s.allFileOptions()}
@@ -24,7 +24,7 @@ export function EditorTab(props: { ctrl: TicketDetailState }) {
         onDrop={s.handleDrop}
         onFileInputChange={s.handleFileInputChange}
       />
-      <div class={TAB_PANE_CLASS}>
+      <div class="min-h-0 flex-1">
         <EditorPane
           viewMode={s.fileViewMode()}
           content={s.content()}
@@ -35,6 +35,6 @@ export function EditorTab(props: { ctrl: TicketDetailState }) {
           label={activeFileLabel(s.activeFile())}
         />
       </div>
-    </>
+    </div>
   );
 }

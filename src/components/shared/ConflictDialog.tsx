@@ -35,7 +35,7 @@ export default function ConflictDialog(props: ConflictDialogProps) {
       </DialogDescription>
 
       <div class="mb-4">
-        <label class="mb-1 block text-sm font-medium">Profile</label>
+        <label class="field-label">Profile</label>
         <select
           value={s.selectedProfile()}
           onChange={(e) => s.selectProfile(e.currentTarget.value)}
