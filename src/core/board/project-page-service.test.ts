@@ -301,3 +301,24 @@ describe('ProjectPageService.loadProjectPage', () => {
 		});
 	});
 });
+
+describe('ProjectPageService.loadSyncStatus', () => {
+	it('returns a degraded status with a warning when git state cannot be derived', async () => {
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		try {
+			const { service } = stubDeps({
+				projects: [{ path: '/broken', projectSlug: 'proj', name: 'proj', available: true }],
+			});
+
+			const status = await service.loadSyncStatus('proj');
+
+			expect(status).toEqual({ hasRemote: false, hasConflict: false });
+			expect(warnSpy).toHaveBeenCalledWith(
+				expect.stringContaining('Skipping sync status'),
+				expect.anything(),
+			);
+		} finally {
+			warnSpy.mockRestore();
+		}
+	});
+});

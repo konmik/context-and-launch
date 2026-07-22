@@ -32,7 +32,7 @@ function makeConfig(editedPrompt: string | undefined): MergedLauncherConfig {
 
 function setup(initial: {
 	ticket: TicketInfo;
-	config: MergedLauncherConfig;
+	config: MergedLauncherConfig | null;
 }): {
 	ctrl: AgentLauncherController;
 	setTicket: (t: TicketInfo) => void;
@@ -47,7 +47,7 @@ function setup(initial: {
 	};
 	createRoot((dispose) => {
 		const [ticket, setTicket] = createSignal(initial.ticket);
-		const [config, setConfig] = createSignal(initial.config);
+		const [config, setConfig] = createSignal<MergedLauncherConfig | null>(initial.config);
 		const ctrl = createAgentLauncherController({
 			projectSlug: "p",
 			ticket: ticket as Accessor<TicketInfo>,
@@ -78,6 +78,35 @@ describe("createAgentLauncherController prompt reset", () => {
 		setConfig(makeConfig("hello"));
 
 		expect(ctrl.preview.currentPrompt()).toBe("hello world");
+
+		dispose();
+	});
+
+	it("restores the saved edited prompt when the config arrives after the controller is created", () => {
+		const { ctrl, setConfig, dispose } = setup({
+			ticket: makeTicket({ folderName: "t-1-alpha", status: "todo" }),
+			config: null,
+		});
+
+		expect(ctrl.preview.editMode()).toBe(false);
+
+		setConfig(makeConfig("saved edit"));
+
+		expect(ctrl.preview.editMode()).toBe(true);
+		expect(ctrl.preview.currentPrompt()).toBe("saved edit");
+
+		dispose();
+	});
+
+	it("stays on the generated prompt when the late-arriving config has no saved edit", () => {
+		const { ctrl, setConfig, dispose } = setup({
+			ticket: makeTicket({ folderName: "t-1-alpha", status: "todo" }),
+			config: null,
+		});
+
+		setConfig(makeConfig(undefined));
+
+		expect(ctrl.preview.editMode()).toBe(false);
 
 		dispose();
 	});

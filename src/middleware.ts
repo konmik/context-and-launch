@@ -1,4 +1,5 @@
 import { createMiddleware } from "@solidjs/start/middleware";
+import "~/core/config/instances.js";
 import { appLog } from "~/core/infra/app-logger.js";
 
 function extractFnName(meta: { id: string }): string {

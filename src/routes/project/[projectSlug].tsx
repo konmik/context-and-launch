@@ -39,11 +39,6 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   const data = createAsync(() => loadProjectPage(projectSlug()));
   const syncStatus = createAsync(() => getSyncStatus(projectSlug()));
 
-  // onMount runs only after client hydration, so this attribute marks the point
-  // at which event handlers are live and clicks will no longer be dropped.
-  const [hydrated, setHydrated] = createSignal(false);
-  onMount(() => setHydrated(true));
-
   const [viewMode, setViewModeSignal] = createSignal<'kanban' | 'forest'>('kanban');
   createEffect(() => {
     const ps = projectSlug();
@@ -150,7 +145,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
         const unavail = () => { const v = d(); return v.status === 'unavailable' ? v : undefined; };
         const pageErr = () => { const v = d(); return v.status === 'error' ? v : undefined; };
         return (
-        <div class="flex min-h-screen flex-col" data-hydrated={hydrated() ? "true" : undefined}>
+        <div class="flex min-h-screen flex-col">
           <header class="flex items-center justify-between px-4 py-3">
             <div class="flex flex-1 items-center justify-start">
               <button
