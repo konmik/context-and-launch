@@ -19,7 +19,7 @@ import ThemeToggle from "~/components/shared/ThemeToggle";
 import LogViewerDialog from "~/components/shared/LogViewerDialog";
 import LauncherSettings from "~/components/launcher/LauncherSettings";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
-import { loadProjectPage, addProject, recordProjectFocus } from "~/components/project/project-api.js";
+import { loadProjectPage, getSyncStatus, addProject, recordProjectFocus } from "~/components/project/project-api.js";
 import {
   createProjectPageController,
   type ProjectPageController,
@@ -37,6 +37,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   const navigate = useNavigate();
   const projectSlug = () => params.projectSlug ?? "";
   const data = createAsync(() => loadProjectPage(projectSlug()));
+  const syncStatus = createAsync(() => getSyncStatus(projectSlug()));
 
   // onMount runs only after client hydration, so this attribute marks the point
   // at which event handlers are live and clicks will no longer be dropped.
@@ -58,7 +59,9 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   }
 
   const { dialogState, syncState, selectionState, commands } =
-    props?.ctrl ?? createProjectPageController({ projectSlug, data: data as any });
+    props?.ctrl ?? createProjectPageController({
+      projectSlug, data: data as any, syncStatus: () => syncStatus(),
+    });
 
   const [logViewerOpen, setLogViewerOpen] = createSignal(false);
   const [projectLauncherOpen, setProjectLauncherOpen] = createSignal(false);
@@ -94,13 +97,13 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
     return result?.kind === "available" ? result.statusesByFolderName : {};
   };
 
-  const conflictActive = createMemo(() => {
-    const v = data();
-    return v?.status === "loaded" && v.hasConflict;
-  });
+  const [hasConflict, setHasConflict] = createSignal(false);
+  createEffect(() => setHasConflict(syncStatus()?.hasConflict ?? false));
   createEffect(() => {
-    if (!conflictActive()) return;
-    const timer = setInterval(() => void revalidate("project-page"), 5000);
+    if (!hasConflict()) return;
+    const timer = setInterval(
+      () => void revalidate(["project-page", "project-sync-status"]), 5000,
+    );
     onCleanup(() => clearInterval(timer));
   });
 
@@ -218,12 +221,12 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                 </svg>
               </button>
               <button
-                onClick={ld()?.hasConflict ? () => commands.setConflictDialogOpen(true) : commands.handleSync}
+                onClick={hasConflict() ? () => commands.setConflictDialogOpen(true) : commands.handleSync}
                 disabled={syncState().syncing}
                 class={`btn-icon relative ${
-                  ld()?.hasConflict ? "border-destructive text-destructive hover:bg-destructive/10" : ""
+                  hasConflict() ? "border-destructive text-destructive hover:bg-destructive/10" : ""
                 }`}
-                title={ld()?.hasConflict ? "Resolve conflicts" : "Sync tickets"}
+                title={hasConflict() ? "Resolve conflicts" : "Sync tickets"}
                 data-testid="sync-button-trigger"
               >
                 <Show when={syncState().syncSuccess} fallback={
@@ -244,7 +247,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                     <path d="M20 6 9 17l-5-5"/>
                   </svg>
                 </Show>
-                <Show when={ld()?.hasConflict}>
+                <Show when={hasConflict()}>
                   <span
                     class={
                       "absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center"
@@ -254,7 +257,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                     data-testid="sync-button-conflict-badge"
                   >!</span>
                 </Show>
-                <Show when={hasPendingChanges() && !ld()?.hasConflict}>
+                <Show when={hasPendingChanges() && !hasConflict()}>
                   <span
                     class="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-yellow-400"
                     data-testid="sync-button-pending-badge"
@@ -450,7 +453,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
             onResolve={commands.handleConflictResolve}
             onAbort={commands.handleConflictAbort}
             projectSlug={d().projectSlug}
-            hasConflict={!!ld()?.hasConflict}
+            hasConflict={hasConflict()}
           />
           <ErrorDialog error={syncState().syncError} onClose={() => commands.setSyncError(null)} />
           <LogViewerDialog open={logViewerOpen()} onOpenChange={setLogViewerOpen} />

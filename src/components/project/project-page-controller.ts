@@ -13,7 +13,8 @@ import type { TicketCleanupOptions } from "../shared/ticket-cleanup-pure.js";
 
 export interface ProjectPageDeps {
   projectSlug: () => string;
-  data: () => { status: string; hasRemote?: boolean; board?: { tickets: TicketInfo[] } } | undefined;
+  data: () => { status: string; board?: { tickets: TicketInfo[] } } | undefined;
+  syncStatus: () => { hasRemote: boolean } | undefined;
 }
 
 export function createProjectPageController(deps: ProjectPageDeps) {
@@ -34,7 +35,8 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     if (syncing()) return;
     const d = deps.data();
     if (!d || d.status !== "loaded") return;
-    if (!d.hasRemote) {
+    const ss = deps.syncStatus();
+    if (ss && !ss.hasRemote) {
       setSyncError({
         title: "Sync failed",
         description: "No remote tracking branch configured."
@@ -53,9 +55,9 @@ export function createProjectPageController(deps: ProjectPageDeps) {
         if (parsed.type === "success") {
           setSyncSuccess(true);
           setTimeout(() => setSyncSuccess(false), 2000);
-          await revalidate("project-page");
+          await revalidate(["project-page", "project-sync-status"]);
         } else if (parsed.type === "conflict") {
-          await revalidate("project-page");
+          await revalidate(["project-page", "project-sync-status"]);
           setConflictDialogOpen(true);
         } else {
           setSyncError({ title: "Sync failed", description: parsed.message });
@@ -71,13 +73,13 @@ export function createProjectPageController(deps: ProjectPageDeps) {
   async function handleConflictResolve(profileName: string) {
     const result = await resolveConflicts(deps.projectSlug(), profileName);
     if (!result.ok) throw new Error(result.message);
-    await revalidate("project-page");
+    await revalidate(["project-page", "project-sync-status"]);
   }
 
   async function handleConflictAbort() {
     const result = await abortRebase(deps.projectSlug());
     if (!result.ok) throw new Error(result.message);
-    await revalidate("project-page");
+    await revalidate(["project-page", "project-sync-status"]);
   }
 
   function openEdit(ticket: TicketInfo) {
