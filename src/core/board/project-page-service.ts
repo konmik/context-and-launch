@@ -22,7 +22,7 @@ export class ProjectPageService {
 		private launcherConfigManager: LauncherConfigManager,
 	) {}
 
-	private runSequentially<T>(projectSlug: string, task: () => Promise<T>): Promise<T> {
+	private runOnProjectGitQueue<T>(projectSlug: string, task: () => Promise<T>): Promise<T> {
 		const previous = this.projectGitQueue.get(projectSlug) ?? Promise.resolve();
 		const run = previous.then(task, task);
 		this.projectGitQueue.set(projectSlug, run.then(() => undefined, () => undefined));
@@ -44,7 +44,7 @@ export class ProjectPageService {
 		}
 
 		try {
-			return await this.runSequentially(projectSlug, async () => {
+			return await this.runOnProjectGitQueue(projectSlug, async () => {
 				const worktreeDir = await this.worktreeManager.ensureWorktree(
 					project.path, projectSlug, project.branch,
 				);
@@ -90,7 +90,7 @@ export class ProjectPageService {
 		if (!project || !project.available) {
 			return { hasRemote: false, hasConflict: false };
 		}
-		return this.runSequentially(projectSlug, async () => {
+		return this.runOnProjectGitQueue(projectSlug, async () => {
 			const worktreeDir = await this.worktreeManager.ensureWorktree(
 				project.path, projectSlug, project.branch,
 			);
