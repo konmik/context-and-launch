@@ -56,10 +56,41 @@ function invocableScript(script: string, platform: ShellExecutionRequest['platfo
 	return script;
 }
 
+/**
+ * A GUI-launched process inherits the PATH snapshot of the explorer session that
+ * started it, which can predate a PowerShell 7 install even though a fresh
+ * terminal resolves `pwsh` fine. Probe PATH first, then fall back to the known
+ * install locations so a stale PATH no longer breaks every PowerShell template.
+ * Returns the bare name as a last resort, preserving the command-not-found error
+ * when pwsh is genuinely absent.
+ */
+function knownWindowsPowerShellLocations(): string[] {
+	const locations: string[] = [];
+	for (const root of [process.env.ProgramW6432, process.env.ProgramFiles, process.env['ProgramFiles(x86)']]) {
+		if (root) locations.push(path.join(root, 'PowerShell', '7', 'pwsh.exe'));
+	}
+	if (process.env.LOCALAPPDATA) {
+		locations.push(path.join(process.env.LOCALAPPDATA, 'Microsoft', 'WindowsApps', 'pwsh.exe'));
+	}
+	return locations;
+}
+
+export function windowsPowerShellExecutable(): string {
+	const onPath = resolveDirectExecutable('pwsh', 'windows');
+	if (onPath) return onPath;
+	for (const file of knownWindowsPowerShellLocations()) {
+		if (fs.existsSync(file)) return file;
+	}
+	return 'pwsh';
+}
+
 function buildShellInvocation(request: ShellExecutionRequest): { executable: string; args: string[] } {
 	if (request.platform === 'windows') {
 		const wrapper = `${WINDOWS_WRAPPER_PROLOGUE}\n${invocableScript(request.script, 'windows')}`;
-		return { executable: 'pwsh', args: ['-NoLogo', '-NoProfile', '-NonInteractive', '-STA', '-Command', wrapper] };
+		return {
+			executable: windowsPowerShellExecutable(),
+			args: ['-NoLogo', '-NoProfile', '-NonInteractive', '-STA', '-Command', wrapper],
+		};
 	}
 	// Bash already exits 127 for an unresolvable command and propagates a failing
 	// command's own code under errexit, so only pipefail needs adding.
