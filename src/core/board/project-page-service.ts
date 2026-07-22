@@ -79,11 +79,16 @@ export class ProjectPageService {
 		if (!project || !project.available) {
 			return { hasRemote: false, hasConflict: false };
 		}
-		const worktreeDir = await this.worktreeManager.ensureWorktree(
-			project.path, projectSlug, project.branch,
-		);
-		const hasRemote = await this.ticketSyncManager.hasRemote(worktreeDir);
-		const hasConflict = await this.ticketSyncManager.detectConflict(worktreeDir);
-		return { hasRemote, hasConflict };
+		try {
+			const worktreeDir = await this.worktreeManager.ensureWorktree(
+				project.path, projectSlug, project.branch,
+			);
+			const hasRemote = await this.ticketSyncManager.hasRemote(worktreeDir);
+			const hasConflict = await this.ticketSyncManager.detectConflict(worktreeDir);
+			return { hasRemote, hasConflict };
+		} catch (e) {
+			console.warn('Skipping sync status: git state unavailable:', errorMessage(e));
+			return { hasRemote: false, hasConflict: false };
+		}
 	}
 }
