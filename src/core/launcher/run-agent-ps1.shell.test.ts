@@ -61,7 +61,7 @@ describe.runIf(process.platform === "win32")(
       }
     });
 
-    it.skip("prompt arrives when title contains double quotes", async () => {
+    it("prompt arrives when title contains double quotes", async () => {
       const dir = makeTempDir();
       const outputPath = path.join(dir, "received.txt");
       const markerPath = path.join(dir, "marker.json");
@@ -98,7 +98,7 @@ describe.runIf(process.platform === "win32")(
       expect(fs.readFileSync(outputPath, "utf-8").trim()).toBe("hello");
     }, 30000);
 
-    it.skip("prompt arrives when title contains apostrophe", async () => {
+    it("prompt arrives when title contains apostrophe", async () => {
       const dir = makeTempDir();
       const outputPath = path.join(dir, "received.txt");
       const markerPath = path.join(dir, "marker.json");
