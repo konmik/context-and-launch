@@ -1,16 +1,47 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@solidjs/testing-library";
 
-vi.mock("@solidjs/router", () => ({
-  revalidate: vi.fn(),
-  action: (fn: Function) => fn,
-  query: (fn: Function) => fn,
-}));
+vi.mock("@solidjs/router", async () => {
+  const { createSignal, createEffect } = await import("solid-js");
+  const queryVersions = new Map<string, { track: () => number; bump: () => void }>();
+  function versionFor(queryKey: string) {
+    let entry = queryVersions.get(queryKey);
+    if (!entry) {
+      const [track, setVersion] = createSignal(0);
+      entry = { track, bump: () => setVersion((v) => v + 1) };
+      queryVersions.set(queryKey, entry);
+    }
+    return entry;
+  }
+  return {
+    revalidate: vi.fn(async (keyOrKeys: string | string[]) => {
+      const keys = Array.isArray(keyOrKeys) ? keyOrKeys : [keyOrKeys];
+      for (const queryKey of keys) queryVersions.get(queryKey)?.bump();
+    }),
+    action: (fn: Function) => fn,
+    query: (fn: Function, queryKey: string) => (...args: unknown[]) => {
+      versionFor(queryKey).track();
+      return fn(...args);
+    },
+    createAsync: (
+      fn: () => Promise<unknown>,
+      options?: { initialValue?: unknown },
+    ) => {
+      const [value, setValue] = createSignal(options?.initialValue);
+      createEffect(() => {
+        Promise.resolve(fn()).then((v) => setValue(() => v));
+      });
+      return value;
+    },
+  };
+});
 
 const mockGetContext = vi.fn().mockResolvedValue({ content: "" });
 const mockUpdateTicket = vi.fn().mockResolvedValue({ ok: true, folderName: "test" });
 const mockDeleteContext = vi.fn().mockResolvedValue({ ok: true });
 const mockUploadFile = vi.fn().mockResolvedValue({ ok: true, results: [] });
+const emptyTicketFiles = { contextNames: [], fileNames: [], references: [] };
+const mockGetTicketFiles = vi.fn().mockResolvedValue(emptyTicketFiles);
 const mockGetMergedLauncherConfig = vi.fn().mockResolvedValue({
   templates: [], skills: [], profiles: [], shortcuts: [],
   columnDefaults: {}, worktreeRootPath: null,
@@ -19,24 +50,30 @@ const mockGetMergedLauncherConfig = vi.fn().mockResolvedValue({
   projectPath: "", worktreeDir: "", agentWorktreeDir: "",
 });
 
-vi.mock("./ticket-api.js", () => ({
-  getContext: (...args: unknown[]) => mockGetContext(...args),
-  saveContext: vi.fn().mockResolvedValue({ ok: true }),
-  deleteContext: (...args: unknown[]) => mockDeleteContext(...args),
-  deleteFile: vi.fn().mockResolvedValue({ ok: true }),
-  removeReference: vi.fn().mockResolvedValue({ ok: true }),
-  setUseWorktree: vi.fn().mockResolvedValue({ ok: true }),
-  addReferences: vi.fn().mockResolvedValue({ ok: true }),
-  uploadFile: (...args: unknown[]) => mockUploadFile(...args),
-  createTicket: vi.fn().mockResolvedValue({ ok: true }),
-  updateTicket: (...args: unknown[]) => mockUpdateTicket(...args),
-  deleteTicket: vi.fn().mockResolvedValue({ ok: true }),
-  archiveTicket: vi.fn().mockResolvedValue({ ok: true }),
-  reorderTicket: vi.fn().mockResolvedValue({ ok: true }),
-  syncTickets: vi.fn().mockResolvedValue({ ok: true }),
-  getSyncPending: vi.fn().mockResolvedValue(false),
-  worktreeCleanup: vi.fn().mockResolvedValue({ ok: true }),
-}));
+vi.mock("./ticket-api.js", async () => {
+  const { query } = await import("@solidjs/router");
+  return {
+    getTicketFiles: query(
+      (...args: unknown[]) => mockGetTicketFiles(...args), "ticket-files",
+    ),
+    getContext: (...args: unknown[]) => mockGetContext(...args),
+    saveContext: vi.fn().mockResolvedValue({ ok: true }),
+    deleteContext: (...args: unknown[]) => mockDeleteContext(...args),
+    deleteFile: vi.fn().mockResolvedValue({ ok: true }),
+    removeReference: vi.fn().mockResolvedValue({ ok: true }),
+    setUseWorktree: vi.fn().mockResolvedValue({ ok: true }),
+    addReferences: vi.fn().mockResolvedValue({ ok: true }),
+    uploadFile: (...args: unknown[]) => mockUploadFile(...args),
+    createTicket: vi.fn().mockResolvedValue({ ok: true }),
+    updateTicket: (...args: unknown[]) => mockUpdateTicket(...args),
+    deleteTicket: vi.fn().mockResolvedValue({ ok: true }),
+    archiveTicket: vi.fn().mockResolvedValue({ ok: true }),
+    reorderTicket: vi.fn().mockResolvedValue({ ok: true }),
+    syncTickets: vi.fn().mockResolvedValue({ ok: true }),
+    getSyncPending: vi.fn().mockResolvedValue(false),
+    worktreeCleanup: vi.fn().mockResolvedValue({ ok: true }),
+  };
+});
 
 vi.mock("../launcher/launcher-api.js", () => ({
   getMergedLauncherConfig: (...args: unknown[]) => mockGetMergedLauncherConfig(...args),
@@ -164,6 +201,8 @@ describe("TicketDetailDialog multi-file upload confirmation", () => {
 
   afterEach(() => {
     cleanup();
+    mockGetTicketFiles.mockReset();
+    mockGetTicketFiles.mockResolvedValue(emptyTicketFiles);
   });
 
   function makeLargeFile(name: string, sizeBytes: number): File {
@@ -255,6 +294,9 @@ describe("TicketDetailDialog multi-file upload confirmation", () => {
 
     const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
     ticket.fileNames = ["exist1.txt", "exist2.txt"];
+    mockGetTicketFiles.mockResolvedValue({
+      contextNames: [], fileNames: ["exist1.txt", "exist2.txt"], references: [],
+    });
 
     render(() => (
       <TicketDetailDialog
@@ -290,6 +332,74 @@ describe("TicketDetailDialog multi-file upload confirmation", () => {
 
     expect(screen.getByText(/exist2\.txt/)).toBeTruthy();
     expect(screen.getByText("Overwrite File")).toBeTruthy();
+  });
+});
+
+describe("TicketDetailDialog file list refresh after upload", () => {
+  beforeEach(() => {
+    mockUploadFile.mockClear();
+  });
+
+  afterEach(() => {
+    cleanup();
+    mockGetTicketFiles.mockReset();
+    mockGetTicketFiles.mockResolvedValue(emptyTicketFiles);
+  });
+
+  async function renderAndDrop(file: File) {
+    render(() => (
+      <TicketDetailDialog
+        onClose={() => {}}
+        projectSlug="test-project"
+        ticket={makeTicket("t-1-alpha", "T-1", "Alpha")}
+      />
+    ));
+    await flush();
+    await flush();
+
+    fireEvent.drop(screen.getByText("Drop a file to copy"), {
+      dataTransfer: { files: [file], length: 1 },
+    });
+    await flush();
+    await flush();
+  }
+
+  async function dropdownOptionLabels(): Promise<(string | null)[]> {
+    fireEvent.click(screen.getByTestId("ticket-detail-editor-file-dropdown-trigger"));
+    await flush();
+    return screen
+      .getAllByTestId("ticket-detail-editor-file-dropdown-option")
+      .map((el) => el.textContent);
+  }
+
+  it("a dropped .md file appears in the file dropdown immediately", async () => {
+    mockGetTicketFiles.mockResolvedValue(emptyTicketFiles);
+    mockUploadFile.mockImplementation(async () => {
+      mockGetTicketFiles.mockResolvedValue({
+        contextNames: ["notes"], fileNames: ["notes.md"], references: [],
+      });
+      return { ok: true, results: [{ ok: true, name: "notes.md" }] };
+    });
+
+    await renderAndDrop(new File(["# Notes"], "notes.md", { type: "text/markdown" }));
+
+    const options = await dropdownOptionLabels();
+    expect(options.some((t) => t?.includes("notes.md"))).toBe(true);
+  });
+
+  it("a dropped non-markdown file appears in the file dropdown immediately", async () => {
+    mockGetTicketFiles.mockResolvedValue(emptyTicketFiles);
+    mockUploadFile.mockImplementation(async () => {
+      mockGetTicketFiles.mockResolvedValue({
+        contextNames: [], fileNames: ["report.txt"], references: [],
+      });
+      return { ok: true, results: [{ ok: true, name: "report.txt" }] };
+    });
+
+    await renderAndDrop(new File(["data"], "report.txt", { type: "text/plain" }));
+
+    const options = await dropdownOptionLabels();
+    expect(options.some((t) => t?.includes("report.txt"))).toBe(true);
   });
 });
 
