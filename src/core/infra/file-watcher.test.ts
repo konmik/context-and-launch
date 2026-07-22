@@ -1,4 +1,5 @@
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterAll, vi } from 'vitest';
+import type { Mock } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -25,15 +26,37 @@ function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Poll the git log until it reaches the expected commit count instead of
+// sleeping a fixed slack window. Returns as soon as the commit lands; on
+// timeout it returns whatever it has so the caller's assertion reports the
+// real mismatch rather than a generic timeout.
+async function waitForCommitCount(dir: string, expected: number, timeoutMs = 8000): Promise<void> {
+	const start = Date.now();
+	for (;;) {
+		const lines = (await git(dir, 'log', '--oneline')).trim().split('\n').filter(Boolean);
+		if (lines.length >= expected) return;
+		if (Date.now() - start > timeoutMs) return;
+		await delay(25);
+	}
+}
+
+async function waitForCall(mock: Mock, timeoutMs = 4000): Promise<void> {
+	const start = Date.now();
+	while (mock.mock.calls.length === 0) {
+		if (Date.now() - start > timeoutMs) return;
+		await delay(25);
+	}
+}
+
 describe('FileWatcher', () => {
 	const dirs: string[] = [];
 
-	afterEach(() => {
+	afterAll(() => {
 		cleanup(...dirs);
 		dirs.length = 0;
 	});
 
-	it('watch is idempotent -- second call for same directory does not error', async () => {
+	it.concurrent('watch is idempotent -- second call for same directory does not error', async () => {
 		const dir = tmpDir('filewatcher-idempotent-test-');
 		dirs.push(dir);
 
@@ -49,15 +72,13 @@ describe('FileWatcher', () => {
 		}
 	});
 
-	it('stop cancels a pending debounced commit before it executes', async () => {
+	it.concurrent('stop cancels a pending debounced commit before it executes', async () => {
 		const dir = tmpDir('filewatcher-stop-cancel-test-');
 		dirs.push(dir);
 
 		const watcher = new FileWatcher(createTestCommandTemplateService());
 		try {
 			await git(dir, 'init');
-			await git(dir, 'config', 'user.email', 'test@test.com');
-			await git(dir, 'config', 'user.name', 'Test');
 			fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
 			await git(dir, 'add', '-A');
 			await git(dir, 'commit', '-m', 'initial commit');
@@ -80,7 +101,7 @@ describe('FileWatcher', () => {
 		}
 	});
 
-	it('stopAll stops all active watchers', async () => {
+	it.concurrent('stopAll stops all active watchers', async () => {
 		const dirA = tmpDir('filewatcher-stopall-a-');
 		const dirB = tmpDir('filewatcher-stopall-b-');
 		dirs.push(dirA, dirB);
@@ -89,8 +110,6 @@ describe('FileWatcher', () => {
 		try {
 			for (const dir of [dirA, dirB]) {
 				await git(dir, 'init');
-				await git(dir, 'config', 'user.email', 'test@test.com');
-				await git(dir, 'config', 'user.name', 'Test');
 				fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
 				await git(dir, 'add', '-A');
 				await git(dir, 'commit', '-m', 'initial commit');
@@ -121,13 +140,11 @@ describe('FileWatcher', () => {
 		}
 	});
 
-	it('FileWatcher commits TicketStore changes since autoCommit is removed', async () => {
+	it.concurrent('FileWatcher commits TicketStore changes since autoCommit is removed', async () => {
 		const dir = tmpDir('filewatcher-no-redundant-test-');
 		dirs.push(dir);
 
 		await git(dir, 'init');
-		await git(dir, 'config', 'user.email', 'test@test.com');
-		await git(dir, 'config', 'user.name', 'Test');
 		await git(dir, 'commit', '--allow-empty', '-m', 'initial commit');
 
 		const store = new TicketStore(dir);
@@ -142,8 +159,8 @@ describe('FileWatcher', () => {
 			// Create a ticket -- no autoCommit, changes stay uncommitted
 			store.createTicket('RED-1', 'Test ticket');
 
-			// Wait long enough for the FileWatcher debounce to fire
-			await delay(debounceMs + 2000);
+			// Wait for the FileWatcher debounce to commit
+			await waitForCommitCount(dir, 2);
 
 			watcher.stop(dir);
 
@@ -160,7 +177,7 @@ describe('FileWatcher', () => {
 		}
 	});
 
-	it('interleaving: FileWatcher add -A then TicketStore autoCommit then FileWatcher status'
+	it.concurrent('interleaving: FileWatcher add -A then TicketStore autoCommit then FileWatcher status'
 		+ ' -- no redundant commit', async () => {
 		const dir = tmpDir('filewatcher-interleave-test-');
 		dirs.push(dir);
@@ -169,8 +186,6 @@ describe('FileWatcher', () => {
 
 		// Set up a git repo with an initial commit
 		await git(dir, 'init');
-		await git(dir, 'config', 'user.email', 'test@test.com');
-		await git(dir, 'config', 'user.name', 'Test');
 		await git(dir, 'commit', '--allow-empty', '-m', 'initial commit');
 
 		// Simulate an external file change
@@ -207,8 +222,6 @@ describe('FileWatcher', () => {
 		try {
 			// Set up a git repo with an initial commit
 			await git(dir, 'init');
-			await git(dir, 'config', 'user.email', 'test@test.com');
-			await git(dir, 'config', 'user.name', 'Test');
 			await git(dir, 'commit', '--allow-empty', '-m', 'initial commit');
 
 			// Create a file change that FileWatcher's debouncedCommit would pick up
@@ -259,7 +272,7 @@ describe('FileWatcher', () => {
 		}
 	});
 
-	it('rapid board switch cancels pending commit -- data loss on stopAll during debounce', async () => {
+	it.concurrent('rapid board switch cancels pending commit -- data loss on stopAll during debounce', async () => {
 		const dirA = tmpDir('filewatcher-rapid-switch-a-');
 		const dirB = tmpDir('filewatcher-rapid-switch-b-');
 		dirs.push(dirA, dirB);
@@ -267,8 +280,6 @@ describe('FileWatcher', () => {
 		// Set up two git repos with initial commits
 		for (const dir of [dirA, dirB]) {
 			await git(dir, 'init');
-			await git(dir, 'config', 'user.email', 'test@test.com');
-			await git(dir, 'config', 'user.name', 'Test');
 			fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
 			await git(dir, 'add', '-A');
 			await git(dir, 'commit', '-m', 'initial commit');
@@ -312,15 +323,13 @@ describe('FileWatcher', () => {
 		}
 	});
 
-	it('reload same board: stopAll then watch same dir creates a fresh watcher'
+	it.concurrent('reload same board: stopAll then watch same dir creates a fresh watcher'
 		+ ' that responds to fs events', async () => {
 		const dir = tmpDir('filewatcher-reload-same-board-');
 		dirs.push(dir);
 
 		// Set up a git repo with an initial commit
 		await git(dir, 'init');
-		await git(dir, 'config', 'user.email', 'test@test.com');
-		await git(dir, 'config', 'user.name', 'Test');
 		fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
 		await git(dir, 'add', '-A');
 		await git(dir, 'commit', '-m', 'initial commit');
@@ -341,7 +350,7 @@ describe('FileWatcher', () => {
 			fs.writeFileSync(path.join(dir, 'after-reload.txt'), 'new content');
 
 			// Wait for debounce to fire and commit
-			await delay(debounceMs + 2000);
+			await waitForCommitCount(dir, 2);
 
 			watcher.stop(dir);
 
@@ -356,13 +365,11 @@ describe('FileWatcher', () => {
 		}
 	});
 
-	it('stopAll during active debounce timer: clearTimeout prevents the commit from firing', async () => {
+	it.concurrent('stopAll during active debounce timer: clearTimeout prevents the commit from firing', async () => {
 		const dir = tmpDir('filewatcher-stopall-debounce-leak-');
 		dirs.push(dir);
 
 		await git(dir, 'init');
-		await git(dir, 'config', 'user.email', 'test@test.com');
-		await git(dir, 'config', 'user.name', 'Test');
 		fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
 		await git(dir, 'add', '-A');
 		await git(dir, 'commit', '-m', 'initial commit');
@@ -396,13 +403,11 @@ describe('FileWatcher', () => {
 		}
 	});
 
-	it('FileWatcher picks up TicketStore changes with generic commit message', async () => {
+	it.concurrent('FileWatcher picks up TicketStore changes with generic commit message', async () => {
 		const dir = tmpDir('filewatcher-wrong-msg-test-');
 		dirs.push(dir);
 
 		await git(dir, 'init');
-		await git(dir, 'config', 'user.email', 'test@test.com');
-		await git(dir, 'config', 'user.name', 'Test');
 		await git(dir, 'commit', '--allow-empty', '-m', 'initial commit');
 
 		const store = new TicketStore(dir);
@@ -424,7 +429,7 @@ describe('FileWatcher', () => {
 
 			// Trigger chokidar by touching a non-dotfile
 			fs.writeFileSync(path.join(dir, 'base-1-setup', 'trigger.txt'), 'nudge');
-			await delay(debounceMs + 2000);
+			await waitForCommitCount(dir, 2);
 
 			watcher.stop(dir);
 
@@ -439,13 +444,11 @@ describe('FileWatcher', () => {
 		}
 	});
 
-	it('rapid TicketStore operations produce no commits (changes stay uncommitted)', async () => {
+	it.concurrent('rapid TicketStore operations produce no commits (changes stay uncommitted)', async () => {
 		const dir = tmpDir('filewatcher-rapid-ticketstore-');
 		dirs.push(dir);
 
 		await git(dir, 'init');
-		await git(dir, 'config', 'user.email', 'test@test.com');
-		await git(dir, 'config', 'user.name', 'Test');
 		await git(dir, 'commit', '--allow-empty', '-m', 'initial commit');
 
 		const store = new TicketStore(dir);
@@ -467,14 +470,12 @@ describe('FileWatcher', () => {
 		expect(status).toContain('rapid-3-third');
 	});
 
-	it('TicketStore operations write files without committing even when index.lock exists', async () => {
+	it.concurrent('TicketStore operations write files without committing even when index.lock exists', async () => {
 		const dir = tmpDir('filewatcher-partial-fail-');
 		dirs.push(dir);
 
 		try {
 			await git(dir, 'init');
-			await git(dir, 'config', 'user.email', 'test@test.com');
-			await git(dir, 'config', 'user.name', 'Test');
 			await git(dir, 'commit', '--allow-empty', '-m', 'initial commit');
 
 			const store = new TicketStore(dir);
@@ -496,13 +497,11 @@ describe('FileWatcher', () => {
 		}
 	});
 
-	it('defense-in-depth: timer callback does not commit after watcher is removed from map', async () => {
+	it.concurrent('defense-in-depth: timer callback does not commit after watcher is removed from map', async () => {
 		const dir = tmpDir('filewatcher-defense-timer-');
 		dirs.push(dir);
 
 		await git(dir, 'init');
-		await git(dir, 'config', 'user.email', 'test@test.com');
-		await git(dir, 'config', 'user.name', 'Test');
 		fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
 		await git(dir, 'add', '-A');
 		await git(dir, 'commit', '-m', 'initial commit');
@@ -542,8 +541,6 @@ describe('FileWatcher', () => {
 
 		try {
 			await git(dir, 'init');
-			await git(dir, 'config', 'user.email', 'test@test.com');
-			await git(dir, 'config', 'user.name', 'Test');
 			fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
 			await git(dir, 'add', '-A');
 			await git(dir, 'commit', '-m', 'initial commit');
@@ -566,13 +563,11 @@ describe('FileWatcher', () => {
 		}
 	});
 
-	it('onWorktreeChange fires on file events and again after the auto-commit', async () => {
+	it.concurrent('onWorktreeChange fires on file events and again after the auto-commit', async () => {
 		const dir = tmpDir('filewatcher-onchange-');
 		dirs.push(dir);
 
 		await git(dir, 'init');
-		await git(dir, 'config', 'user.email', 'test@test.com');
-		await git(dir, 'config', 'user.name', 'Test');
 		fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
 		await git(dir, 'add', '-A');
 		await git(dir, 'commit', '-m', 'initial commit');
@@ -585,27 +580,25 @@ describe('FileWatcher', () => {
 			await delay(500);
 
 			fs.writeFileSync(path.join(dir, 'trigger.txt'), 'content');
-			await delay(500);
+			await waitForCall(onWorktreeChange);
 			// Within the debounce window: only the raw file event has fired
 			expect(onWorktreeChange).toHaveBeenCalledWith(dir);
 			const callsBeforeCommit = onWorktreeChange.mock.calls.length;
 
-			await delay(debounceMs + 2000);
+			await waitForCommitCount(dir, 2);
 			expect(onWorktreeChange.mock.calls.length).toBeGreaterThan(callsBeforeCommit);
 		} finally {
 			watcher.stopAll();
 		}
 	});
 
-	it('auto-commit fires for a worktree nested under a dot-directory (default data dir)', async () => {
+	it.concurrent('auto-commit fires for a worktree nested under a dot-directory (default data dir)', async () => {
 		const base = tmpDir('filewatcher-dot-parent-');
 		dirs.push(base);
 		const dir = path.join(base, '.context-launch', 'projects', 'demo', 'tickets');
 		fs.mkdirSync(dir, { recursive: true });
 
 		await git(dir, 'init');
-		await git(dir, 'config', 'user.email', 'test@test.com');
-		await git(dir, 'config', 'user.name', 'Test');
 		fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
 		await git(dir, 'add', '-A');
 		await git(dir, 'commit', '-m', 'initial commit');
@@ -617,7 +610,7 @@ describe('FileWatcher', () => {
 			await delay(500);
 
 			fs.writeFileSync(path.join(dir, 'ticket-order.json'), '{}');
-			await delay(debounceMs + 2000);
+			await waitForCommitCount(dir, 2);
 
 			const log = await git(dir, 'log', '--oneline');
 			const lines = log.trim().split('\n');
@@ -628,15 +621,13 @@ describe('FileWatcher', () => {
 		}
 	});
 
-	it('dotfiles inside the worktree do not trigger an auto-commit', async () => {
+	it.concurrent('dotfiles inside the worktree do not trigger an auto-commit', async () => {
 		const base = tmpDir('filewatcher-dot-inside-');
 		dirs.push(base);
 		const dir = path.join(base, '.context-launch', 'projects', 'demo', 'tickets');
 		fs.mkdirSync(dir, { recursive: true });
 
 		await git(dir, 'init');
-		await git(dir, 'config', 'user.email', 'test@test.com');
-		await git(dir, 'config', 'user.name', 'Test');
 		fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
 		await git(dir, 'add', '-A');
 		await git(dir, 'commit', '-m', 'initial commit');
@@ -659,14 +650,12 @@ describe('FileWatcher', () => {
 		}
 	});
 
-	it('watching the same dir twice keeps the watcher alive so a write just before'
+	it.concurrent('watching the same dir twice keeps the watcher alive so a write just before'
 		+ ' a board reload is still committed', async () => {
 		const dir = tmpDir('filewatcher-watch-reload-');
 		dirs.push(dir);
 
 		await git(dir, 'init');
-		await git(dir, 'config', 'user.email', 'test@test.com');
-		await git(dir, 'config', 'user.name', 'Test');
 		fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
 		await git(dir, 'add', '-A');
 		await git(dir, 'commit', '-m', 'initial commit');
@@ -679,7 +668,7 @@ describe('FileWatcher', () => {
 
 			fs.writeFileSync(path.join(dir, 'ticket-order.json'), '{}');
 			watcher.watch(dir, debounceMs);
-			await delay(debounceMs + 2000);
+			await waitForCommitCount(dir, 2);
 
 			const log = await git(dir, 'log', '--oneline');
 			const lines = log.trim().split('\n');
@@ -690,14 +679,12 @@ describe('FileWatcher', () => {
 		}
 	});
 
-	it('changes made while a directory is unwatched are committed on rewatch'
+	it.concurrent('changes made while a directory is unwatched are committed on rewatch'
 		+ ' without any further fs event', async () => {
 		const dir = tmpDir('filewatcher-catchup-');
 		dirs.push(dir);
 
 		await git(dir, 'init');
-		await git(dir, 'config', 'user.email', 'test@test.com');
-		await git(dir, 'config', 'user.name', 'Test');
 		fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
 		await git(dir, 'add', '-A');
 		await git(dir, 'commit', '-m', 'initial commit');
@@ -711,7 +698,7 @@ describe('FileWatcher', () => {
 			watcher.stop(dir);
 			fs.writeFileSync(path.join(dir, 'written-while-unwatched.md'), 'external change');
 			watcher.watch(dir, debounceMs);
-			await delay(debounceMs + 2000);
+			await waitForCommitCount(dir, 2);
 
 			const log = await git(dir, 'log', '--oneline');
 			const lines = log.trim().split('\n');
@@ -722,15 +709,13 @@ describe('FileWatcher', () => {
 		}
 	});
 
-	it('watch is additive: watching a second directory keeps the first watcher active', async () => {
+	it.concurrent('watch is additive: watching a second directory keeps the first watcher active', async () => {
 		const dirA = tmpDir('filewatcher-watch-a-');
 		const dirB = tmpDir('filewatcher-watch-b-');
 		dirs.push(dirA, dirB);
 
 		for (const dir of [dirA, dirB]) {
 			await git(dir, 'init');
-			await git(dir, 'config', 'user.email', 'test@test.com');
-			await git(dir, 'config', 'user.name', 'Test');
 			fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
 			await git(dir, 'add', '-A');
 			await git(dir, 'commit', '-m', 'initial commit');
@@ -746,7 +731,8 @@ describe('FileWatcher', () => {
 
 			fs.writeFileSync(path.join(dirA, 'observed-a.txt'), 'content');
 			fs.writeFileSync(path.join(dirB, 'observed-b.txt'), 'content');
-			await delay(debounceMs + 2000);
+			await waitForCommitCount(dirA, 2);
+			await waitForCommitCount(dirB, 2);
 
 			const logA = await git(dirA, 'log', '--oneline');
 			expect(logA.trim().split('\n').length).toBe(2);
@@ -757,14 +743,12 @@ describe('FileWatcher', () => {
 		}
 	});
 
-	it('TicketStore creates ticket folders even when index.lock exists (no autoCommit)', async () => {
+	it.concurrent('TicketStore creates ticket folders even when index.lock exists (no autoCommit)', async () => {
 		const dir = tmpDir('filewatcher-autocommit-lock-');
 		dirs.push(dir);
 
 		try {
 			await git(dir, 'init');
-			await git(dir, 'config', 'user.email', 'test@test.com');
-			await git(dir, 'config', 'user.name', 'Test');
 			await git(dir, 'commit', '--allow-empty', '-m', 'initial commit');
 
 			const store = new TicketStore(dir);

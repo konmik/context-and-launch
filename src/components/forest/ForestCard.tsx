@@ -73,15 +73,15 @@ export default function ForestCard(
         isConnectableStart={connectionSession().kind === "idle"}
         isConnectableEnd={connectionSession().kind === "idle" || state() === "available"}
         class={`rounded-full border border-background bg-primary cursor-crosshair
-          transition-[opacity,transform,box-shadow] ${visible()
-            ? "opacity-100 pointer-events-auto"
-            : "opacity-0 pointer-events-none"}${state() === "source"
+          transition-[opacity,transform,box-shadow] pointer-events-auto ${visible()
+            ? "opacity-100"
+            : "opacity-0"}${state() === "source"
             ? " ring-4 ring-primary/30 scale-125"
             : ""}`}
         style={{
           width: "12px",
           height: "12px",
-          "pointer-events": visible() ? "all" : "none",
+          "pointer-events": "all",
         }}
         onClick={(event: MouseEvent) => {
           event.stopPropagation();

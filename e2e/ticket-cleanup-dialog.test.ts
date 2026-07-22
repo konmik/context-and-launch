@@ -5,7 +5,7 @@ import { execSync } from "node:child_process";
 import type { Page } from "playwright";
 import {
   createProject, uniqueSlug, gotoProject, clickTicketMenuItem,
-  listTicketFolders, worktreeExists, setupE2E,
+  listTicketFolders, worktreeExists, poll, setupE2E,
 } from "./fixtures.js";
 
 describe("TicketCleanupDialog (e2e, real server)", () => {
@@ -58,13 +58,20 @@ describe("TicketCleanupDialog (e2e, real server)", () => {
     await ctx.page.waitForSelector('[data-testid="ticket-cleanup-submit"]', {
       state: "detached", timeout: 15000,
     });
-    await ctx.page.waitForTimeout(1000);
+    await poll(
+      () => listTicketFolders(ctx.testServer, project.projectSlug),
+      (f) => !f.includes("t-1-alpha"),
+      5000,
+    );
     expect(listTicketFolders(ctx.testServer, project.projectSlug)).not.toContain("t-1-alpha");
     const archived = path.join(
       ctx.testServer.dataDir, "projects", project.projectSlug, "tickets", "archive", "t-1-alpha",
     );
     expect(fs.existsSync(archived)).toBe(true);
-    expect(await ctx.page.locator('[data-testid="kanban-board-ticket-card"]').count()).toBe(0);
+    await expect.poll(
+      () => ctx.page.locator('[data-testid="kanban-board-ticket-card"]').count(),
+      { timeout: 15000 },
+    ).toBe(0);
   }, 60000);
 
   it("deletes a ticket without a worktree after cancel then submit", async () => {
@@ -88,7 +95,11 @@ describe("TicketCleanupDialog (e2e, real server)", () => {
     await ctx.page.waitForSelector('[data-testid="ticket-cleanup-submit"]', {
       state: "detached", timeout: 15000,
     });
-    await ctx.page.waitForTimeout(1000);
+    await poll(
+      () => listTicketFolders(ctx.testServer, project.projectSlug),
+      (f) => !f.includes("t-1-alpha"),
+      5000,
+    );
     expect(listTicketFolders(ctx.testServer, project.projectSlug)).not.toContain("t-1-alpha");
   }, 60000);
 
@@ -136,7 +147,11 @@ describe("TicketCleanupDialog (e2e, real server)", () => {
     await ctx.page.waitForSelector('[data-testid="ticket-cleanup-submit"]', {
       state: "detached", timeout: 15000,
     });
-    await ctx.page.waitForTimeout(1000);
+    await poll(
+      () => listTicketFolders(ctx.testServer, project.projectSlug),
+      (f) => !f.includes("t-1-alpha"),
+      5000,
+    );
     expect(worktreeExists(ctx.testServer, project.projectSlug, "t-1-alpha")).toBe(false);
     expect(listTicketFolders(ctx.testServer, project.projectSlug)).not.toContain("t-1-alpha");
   }, 60000);
@@ -188,7 +203,11 @@ describe("TicketCleanupDialog (e2e, real server)", () => {
     await ctx.page.waitForSelector('[data-testid="ticket-cleanup-submit"]', {
       state: "detached", timeout: 15000,
     });
-    await ctx.page.waitForTimeout(1000);
+    await poll(
+      () => worktreeExists(ctx.testServer, project.projectSlug, "t-1-alpha"),
+      (exists) => exists === false,
+      5000,
+    );
     expect(worktreeExists(ctx.testServer, project.projectSlug, "t-1-alpha")).toBe(false);
   }, 60000);
 

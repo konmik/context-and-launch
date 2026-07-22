@@ -12,8 +12,9 @@ const solidVite = { plugins, resolve: { alias, conditions: ["browser", "developm
 export default defineConfig({
   ...solidVite,
   test: {
+    poolOptions: { forks: { maxForks: 12 } },
     projects: [
-      { ...solidVite, test: { name: "unit-ts", include: ["src/**/*.test.ts", "electron/**/*.test.ts"], exclude: ["**/*.shell.test.ts"], testTimeout: 20000 } },
+      { ...solidVite, test: { name: "unit-ts", isolate: false, include: ["src/**/*.test.ts", "electron/**/*.test.ts"], exclude: ["**/*.shell.test.ts"], testTimeout: 20000, setupFiles: ["src/test-git-env.ts"] } },
       { ...solidVite, test: { name: "unit-tsx", include: ["src/**/*.test.tsx"], environment: "jsdom", setupFiles: ["src/test-setup.ts"] } },
       {
         resolve: { alias },
@@ -23,9 +24,6 @@ export default defineConfig({
           testTimeout: 60000,
           hookTimeout: 60000,
           maxConcurrency: 1,
-          maxWorkers: 1,
-          minWorkers: 1,
-          fileParallelism: false,
         },
       },
     ],

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   createProject, uniqueSlug, gotoProject,
   openLauncherSettings, expectOpenConfigDirRequest,
-  readProjectLauncherConfig, readProjectRegistry,
+  readProjectLauncherConfig, readProjectRegistry, poll,
   setupE2E,
 } from "./fixtures.js";
 
@@ -36,8 +36,13 @@ describe("Launcher Settings Misc tab (e2e, real server)", () => {
     const input = ctx.page.locator('[data-testid="launcher-settings-misc-project-name-input"]');
     await input.fill("Custom Name");
     await input.blur();
-    await ctx.page.waitForTimeout(800);
-    const registry = readProjectRegistry(ctx.testServer);
+    const registry = await poll(
+      () => readProjectRegistry(ctx.testServer),
+      (r) => r.projects.find(
+        (p: { projectSlug: string }) => p.projectSlug === project.projectSlug,
+      )?.name === "Custom Name",
+      5000,
+    );
     const entry = registry.projects.find(
       (p: { projectSlug: string }) => p.projectSlug === project.projectSlug,
     );
@@ -71,8 +76,11 @@ describe("Launcher Settings Misc tab (e2e, real server)", () => {
       "/tmp/some-wt-path-for-test",
     );
     await ctx.page.locator('[data-testid="launcher-settings-misc-worktree-input"]').press("Enter");
-    await ctx.page.waitForTimeout(800);
-    const cfg = readProjectLauncherConfig(ctx.testServer, project.projectSlug);
+    const cfg = await poll(
+      () => readProjectLauncherConfig(ctx.testServer, project.projectSlug),
+      (c) => c?.worktreeRootPath === "/tmp/some-wt-path-for-test",
+      5000,
+    );
     expect(cfg?.worktreeRootPath).toBe("/tmp/some-wt-path-for-test");
   }, 60000);
 
@@ -91,8 +99,11 @@ describe("Launcher Settings Misc tab (e2e, real server)", () => {
     );
     await input.fill("feature/");
     await input.blur();
-    await ctx.page.waitForTimeout(800);
-    const cfg = readProjectLauncherConfig(ctx.testServer, project.projectSlug);
+    const cfg = await poll(
+      () => readProjectLauncherConfig(ctx.testServer, project.projectSlug),
+      (c) => c?.branchPrefix === "feature/",
+      5000,
+    );
     expect(cfg?.branchPrefix).toBe("feature/");
   }, 60000);
 
@@ -103,8 +114,11 @@ describe("Launcher Settings Misc tab (e2e, real server)", () => {
       "my custom prompt",
     );
     await ctx.page.locator('[data-testid="launcher-settings-misc-conflict-prompt"]').blur();
-    await ctx.page.waitForTimeout(800);
-    const cfg = readProjectLauncherConfig(ctx.testServer, project.projectSlug);
+    const cfg = await poll(
+      () => readProjectLauncherConfig(ctx.testServer, project.projectSlug),
+      (c) => c?.conflictResolutionPrompt === "my custom prompt",
+      5000,
+    );
     expect(cfg?.conflictResolutionPrompt).toBe("my custom prompt");
   }, 60000);
 });

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   createProject, uniqueSlug, gotoProject, clickTicketMenuItem, setupE2E,
-  readTicketStatus, listTicketFolders,
+  readTicketStatus, listTicketFolders, poll,
 } from "./fixtures.js";
 
 describe("EditTicketDialog (e2e, real server)", () => {
@@ -53,11 +53,16 @@ describe("EditTicketDialog (e2e, real server)", () => {
     await openEdit();
     await ctx.page.fill('[data-testid="edit-ticket-title-input"]', "Edited Title");
     await ctx.page.click('[data-testid="edit-ticket-submit"]');
-    await ctx.page.waitForTimeout(2000);
-    const folders = listTicketFolders(ctx.testServer, project.projectSlug);
-    const renamed = folders.find((f) => f.includes("edited") || f.includes("Edited"));
-    const targetFolder = renamed ?? "t-1-alpha";
-    const status = readTicketStatus(ctx.testServer, project.projectSlug, targetFolder);
+    const status = await poll(
+      () => {
+        const folders = listTicketFolders(ctx.testServer, project.projectSlug);
+        const renamed = folders.find((f) => f.includes("edited") || f.includes("Edited"));
+        const targetFolder = renamed ?? "t-1-alpha";
+        return readTicketStatus(ctx.testServer, project.projectSlug, targetFolder);
+      },
+      (s) => s?.title === "Edited Title",
+      5000,
+    );
     expect(status?.title).toBe("Edited Title");
   }, 60000);
 });

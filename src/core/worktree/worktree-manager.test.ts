@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterAll } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -33,7 +33,7 @@ describe('WorktreeManager', () => {
 	const dirs: string[] = [];
 	const worktreeCleanups: Array<[string, string]> = [];
 
-	afterEach(async () => {
+	afterAll(async () => {
 		for (const [proj, wt] of worktreeCleanups) {
 			await cleanupWorktree(proj, wt);
 		}
@@ -42,7 +42,7 @@ describe('WorktreeManager', () => {
 		dirs.length = 0;
 	});
 
-	it('creates orphan branch and worktree in a fresh repo', async () => {
+	it.concurrent('creates orphan branch and worktree in a fresh repo', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		dirs.push(configDir, projectDir);
@@ -64,7 +64,7 @@ describe('WorktreeManager', () => {
 		expect(files.length).toBe(0);
 	});
 
-	it('uses a custom branch name when provided', async () => {
+	it.concurrent('uses a custom branch name when provided', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		dirs.push(configDir, projectDir);
@@ -80,7 +80,7 @@ describe('WorktreeManager', () => {
 		expect(branch).toBe('tickets');
 	});
 
-	it('creates the worktree at the resolver-provided tickets dir', async () => {
+	it.concurrent('creates the worktree at the resolver-provided tickets dir', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		const customParent = tmpDir('wt-tickets-');
@@ -103,7 +103,7 @@ describe('WorktreeManager', () => {
 		expect(head).toBe('tickets');
 	});
 
-	it('adopts an existing remote branch matching the chosen name', async () => {
+	it.concurrent('adopts an existing remote branch matching the chosen name', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		const remoteDir = tmpDir('wt-remote-');
@@ -134,7 +134,7 @@ describe('WorktreeManager', () => {
 		expect(upstream).toBe('origin/tickets');
 	});
 
-	it('falls back to a local orphan when the remote is unreachable', async () => {
+	it.concurrent('falls back to a local orphan when the remote is unreachable', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		dirs.push(configDir, projectDir);
@@ -151,7 +151,7 @@ describe('WorktreeManager', () => {
 		expect(head).toBe('tickets');
 	});
 
-	it('creates a new orphan branch when the remote lacks the chosen name', async () => {
+	it.concurrent('creates a new orphan branch when the remote lacks the chosen name', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		const remoteDir = tmpDir('wt-remote-');
@@ -174,7 +174,7 @@ describe('WorktreeManager', () => {
 		expect(files.length).toBe(0);
 	});
 
-	it('second call is idempotent', async () => {
+	it.concurrent('second call is idempotent', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		dirs.push(configDir, projectDir);
@@ -190,7 +190,7 @@ describe('WorktreeManager', () => {
 		expect(first).toBe(second);
 	});
 
-	it('does not modify project working directory during worktree creation', async () => {
+	it.concurrent('does not modify project working directory during worktree creation', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		dirs.push(configDir, projectDir);
@@ -213,7 +213,7 @@ describe('WorktreeManager', () => {
 		);
 	});
 
-	it('detached HEAD is not disrupted by worktree creation', async () => {
+	it.concurrent('detached HEAD is not disrupted by worktree creation', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		dirs.push(configDir, projectDir);
@@ -234,7 +234,7 @@ describe('WorktreeManager', () => {
 		expect(currentCommit).toBe(commitHash);
 	});
 
-	it('errors when ticket branch is checked out at a different worktree location', async () => {
+	it.concurrent('errors when ticket branch is checked out at a different worktree location', async () => {
 		const configDir = tmpDir('wt-config-');
 		const staleConfigDir = tmpDir('wt-stale-');
 		const projectDir = tmpDir('wt-project-');
@@ -256,7 +256,7 @@ describe('WorktreeManager', () => {
 		expect(fs.existsSync(staleWt)).toBe(true);
 	});
 
-	it('errors when worktree directory exists but gitdir target is missing', async () => {
+	it.concurrent('errors when worktree directory exists but gitdir target is missing', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		dirs.push(configDir, projectDir);
@@ -281,7 +281,7 @@ describe('WorktreeManager', () => {
 		expect(fs.existsSync(worktreeDir)).toBe(true);
 	});
 
-	it('git with non-zero exit code includes stderr in exception message', async () => {
+	it.concurrent('git with non-zero exit code includes stderr in exception message', async () => {
 		const projectDir = tmpDir('wt-stderr-');
 		dirs.push(projectDir);
 
@@ -290,7 +290,8 @@ describe('WorktreeManager', () => {
 		await expect(git(projectDir, 'log')).rejects.toThrow(/does not have any commits/);
 	});
 
-	it('concurrent ensureWorktree with same projectSlug and same project returns same directory', async () => {
+	it.concurrent(
+		'concurrent ensureWorktree with same projectSlug and same project returns same directory', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		dirs.push(configDir, projectDir);
@@ -310,7 +311,7 @@ describe('WorktreeManager', () => {
 		expect(fs.existsSync(path.join(a, '.git'))).toBe(true);
 	});
 
-	it('errors when partial orphan creation left invalid worktree directory', async () => {
+	it.concurrent('errors when partial orphan creation left invalid worktree directory', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		dirs.push(configDir, projectDir);
@@ -338,7 +339,7 @@ describe('WorktreeManager', () => {
 		expect(fs.existsSync(worktreeDir)).toBe(true);
 	});
 
-	it('errors when worktree directory exists but .git file is missing', async () => {
+	it.concurrent('errors when worktree directory exists but .git file is missing', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		dirs.push(configDir, projectDir);
@@ -360,7 +361,7 @@ describe('WorktreeManager', () => {
 		expect(fs.existsSync(worktreeDir)).toBe(true);
 	});
 
-	it('handles missing project path', async () => {
+	it.concurrent('handles missing project path', async () => {
 		const configDir = tmpDir('wt-config-');
 		dirs.push(configDir);
 
@@ -370,7 +371,8 @@ describe('WorktreeManager', () => {
 		).rejects.toThrow('Project path does not exist');
 	});
 
-	it('getWorktreeDir returns a path for an unregistered projectSlug without error (pure path computation)', () => {
+	it.concurrent(
+		'getWorktreeDir returns a path for an unregistered projectSlug without error (pure path computation)', () => {
 		const configDir = tmpDir('wt-config-');
 		dirs.push(configDir);
 
@@ -388,7 +390,7 @@ describe('WorktreeManager', () => {
 		expect(fs.existsSync(result!)).toBe(false);
 	});
 
-	it('getWorktreeDir rejects projectSlugs containing path traversal', () => {
+	it.concurrent('getWorktreeDir rejects projectSlugs containing path traversal', () => {
 		const configDir = tmpDir('wt-config-');
 		dirs.push(configDir);
 
@@ -415,7 +417,7 @@ describe('WorktreeManager', () => {
 		expect(() => manager.getWorktreeDir('project-123')).not.toThrow();
 	});
 
-	it('errors when worktree has valid .git but unresolvable HEAD (born branch)', async () => {
+	it.concurrent('errors when worktree has valid .git but unresolvable HEAD (born branch)', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		dirs.push(configDir, projectDir);
@@ -437,7 +439,7 @@ describe('WorktreeManager', () => {
 		expect(fs.existsSync(worktreeDir)).toBe(true);
 	});
 
-	it('preserves worktree directory when erroring on invalid metadata', async () => {
+	it.concurrent('preserves worktree directory when erroring on invalid metadata', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		dirs.push(configDir, projectDir);
@@ -460,7 +462,8 @@ describe('WorktreeManager', () => {
 		expect(fs.existsSync(worktreeDir)).toBe(true);
 	});
 
-	it('three sequential calls to same projectSlug after first fails: lock chain does not deadlock', async () => {
+	it.concurrent(
+		'three sequential calls to same projectSlug after first fails: lock chain does not deadlock', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectDir = tmpDir('wt-project-');
 		dirs.push(configDir, projectDir);
@@ -507,7 +510,7 @@ describe('WorktreeManager', () => {
 		expect(third).toBe(second);
 	});
 
-	it('same projectSlug from two different project paths races without corruption', async () => {
+	it.concurrent('same projectSlug from two different project paths races without corruption', async () => {
 		const configDir = tmpDir('wt-config-');
 		const projectA = tmpDir('wt-projectA-');
 		const projectB = tmpDir('wt-projectB-');

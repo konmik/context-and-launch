@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, afterAll, beforeAll } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { spawn } from 'node:child_process';
@@ -120,7 +120,11 @@ describe('ProjectPageService.loadProjectPage', () => {
 
 	describe('after the agent resolved a conflict in the scratch worktree', () => {
 		const dirs: string[] = [];
-		afterEach(() => { cleanup(...dirs); dirs.length = 0; });
+		afterAll(() => { cleanup(...dirs); dirs.length = 0; });
+
+		beforeAll(async () => {
+			await setupResolvedScratch(dirs);
+		}, 60000);
 
 		it('returns the post-resolution board on the first page load', async () => {
 			const { worktreeDir, manager, plan } = await setupResolvedScratch(dirs);

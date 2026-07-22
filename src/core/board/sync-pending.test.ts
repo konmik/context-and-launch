@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterAll, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -13,8 +13,6 @@ function tmpDir(prefix: string): string {
 
 async function initRepo(dir: string): Promise<void> {
 	await git(dir, 'init', '-b', 'main');
-	await git(dir, 'config', 'user.email', 'test@test.com');
-	await git(dir, 'config', 'user.name', 'Test');
 	fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
 	await git(dir, 'add', '-A');
 	await git(dir, 'commit', '-m', 'initial commit');
@@ -32,7 +30,7 @@ describe('checkHasPendingChanges', () => {
 	const dirs: string[] = [];
 	const commands = createTestCommandTemplateService();
 
-	afterEach(() => {
+	afterAll(() => {
 		for (const d of dirs) {
 			try {
 				fs.rmSync(d, { recursive: true, force: true });
@@ -43,7 +41,7 @@ describe('checkHasPendingChanges', () => {
 		dirs.length = 0;
 	});
 
-	it('returns false for a clean tree pushed to upstream', async () => {
+	it.concurrent('returns false for a clean tree pushed to upstream', async () => {
 		const dir = tmpDir('sync-pending-clean-');
 		dirs.push(dir);
 		await initRepo(dir);
@@ -52,7 +50,7 @@ describe('checkHasPendingChanges', () => {
 		expect(checkHasPendingChanges(dir, commands)).toBe(false);
 	});
 
-	it('returns true when the tree has uncommitted changes', async () => {
+	it.concurrent('returns true when the tree has uncommitted changes', async () => {
 		const dir = tmpDir('sync-pending-dirty-');
 		dirs.push(dir);
 		await initRepo(dir);
@@ -62,7 +60,7 @@ describe('checkHasPendingChanges', () => {
 		expect(checkHasPendingChanges(dir, commands)).toBe(true);
 	});
 
-	it('returns true when a commit has not been pushed', async () => {
+	it.concurrent('returns true when a commit has not been pushed', async () => {
 		const dir = tmpDir('sync-pending-unpushed-');
 		dirs.push(dir);
 		await initRepo(dir);
@@ -74,7 +72,7 @@ describe('checkHasPendingChanges', () => {
 		expect(checkHasPendingChanges(dir, commands)).toBe(true);
 	});
 
-	it('returns false when unpushed commits net to zero against upstream', async () => {
+	it.concurrent('returns false when unpushed commits net to zero against upstream', async () => {
 		const dir = tmpDir('sync-pending-netzero-');
 		dirs.push(dir);
 		await initRepo(dir);
@@ -90,7 +88,7 @@ describe('checkHasPendingChanges', () => {
 		expect(checkHasPendingChanges(dir, commands)).toBe(false);
 	});
 
-	it('returns true when no upstream is configured', async () => {
+	it.concurrent('returns true when no upstream is configured', async () => {
 		const dir = tmpDir('sync-pending-noupstream-');
 		dirs.push(dir);
 		await initRepo(dir);

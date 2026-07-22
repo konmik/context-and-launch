@@ -4,7 +4,7 @@ import {
   createServer, launchBrowser, createProject, uniqueSlug, gotoProject, openTicketDetail,
   dragSortable,
   type TestServer, type TestBrowser, type CreatedProject,
-  readProjectLauncherConfig,
+  readProjectLauncherConfig, poll,
 } from "./fixtures.js";
 
 let testServer: TestServer;
@@ -78,11 +78,17 @@ describe("Agent launcher skill reorder (e2e, real server)", () => {
   it("drag reorders skills and persists to project-level column defaults", async () => {
     await openLauncher(page);
     await dragSkill(page, "alpha-skill", "charlie-skill");
-    await page.waitForTimeout(500);
+    const cfg = await poll(
+      () => readProjectLauncherConfig(testServer, project.projectSlug),
+      (c) => {
+        const order = c?.columnDefaults?.["todo"]?.skillOrder;
+        return !!order && order.includes("alpha-skill") && order[0] !== "alpha-skill";
+      },
+      5000,
+    );
     const after = await skillNames(page);
     expect(after).toContain("alpha-skill");
     expect(after[0]).not.toBe("alpha-skill");
-    const cfg = readProjectLauncherConfig(testServer, project.projectSlug);
     expect(cfg?.columnDefaults?.["todo"]?.skillOrder).toEqual(after);
   }, 60000);
 });

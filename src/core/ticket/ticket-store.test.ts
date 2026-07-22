@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterAll, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -31,19 +31,19 @@ async function createGitWorktree(): Promise<string> {
 describe('TicketStore', () => {
 	const dirs: string[] = [];
 
-	afterEach(() => {
+	afterAll(() => {
 		cleanup(...dirs);
 		dirs.length = 0;
 	});
 
-	it('toKebabCase produces correct folder names', () => {
+	it.concurrent('toKebabCase produces correct folder names', () => {
 		expect(toKebabCase('ABC-1 Fix Login')).toBe('abc-1-fix-login');
 		expect(toKebabCase('DEF-2  Hello  World')).toBe('def-2-hello-world');
 		expect(toKebabCase('  X-1 Test  ')).toBe('x-1-test');
 		expect(toKebabCase('a/b/c')).toBe('a-b-c');
 	});
 
-	it('createTicket creates folder and status json', async () => {
+	it.concurrent('createTicket creates folder and status json', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -57,7 +57,7 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(path.join(worktreeDir, 'abc-1-fix-login', 'status.json'))).toBe(true);
 	});
 
-	it('listTickets returns sorted results', async () => {
+	it.concurrent('listTickets returns sorted results', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -73,7 +73,7 @@ describe('TicketStore', () => {
 		expect(tickets[2].number).toBe('C-3');
 	});
 
-	it('listTickets skips malformed entries', async () => {
+	it.concurrent('listTickets skips malformed entries', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -89,7 +89,7 @@ describe('TicketStore', () => {
 		expect(tickets[0].number).toBe('OK-1');
 	});
 
-	it('updateTicket renames folder when title changes', async () => {
+	it.concurrent('updateTicket renames folder when title changes', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -103,7 +103,7 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(path.join(worktreeDir, 'abc-1-new-title'))).toBe(true);
 	});
 
-	it('deleteTicket removes folder', async () => {
+	it.concurrent('deleteTicket removes folder', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -115,7 +115,7 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(path.join(worktreeDir, 'del-1-to-delete'))).toBe(false);
 	});
 
-	it('ticket context read write roundtrip', async () => {
+	it.concurrent('ticket context read write roundtrip', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -132,7 +132,7 @@ describe('TicketStore', () => {
 		expect(ticket.contextNames).toContain('todo');
 	});
 
-	it('createTicket rejects blank number or title', async () => {
+	it.concurrent('createTicket rejects blank number or title', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -141,7 +141,7 @@ describe('TicketStore', () => {
 		expect(() => store.createTicket('NUM', '')).toThrow();
 	});
 
-	it('createTicket appends suffix on folder name collision', async () => {
+	it.concurrent('createTicket appends suffix on folder name collision', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -155,7 +155,7 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(path.join(worktreeDir, 'x-1-same-name-2'))).toBe(true);
 	});
 
-	it('createTicket rejects a duplicate Ticket Number', async () => {
+	it.concurrent('createTicket rejects a duplicate Ticket Number', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -167,7 +167,9 @@ describe('TicketStore', () => {
 		expect(store.listTickets()).toHaveLength(1);
 	});
 
-	it('listTickets rejects legacy duplicate Ticket Numbers instead of collapsing graph identity', async () => {
+	it.concurrent(
+		'listTickets rejects legacy duplicate Ticket Numbers instead of collapsing graph identity',
+		async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 		const firstDir = path.join(worktreeDir, 'dup-1-first');
@@ -185,7 +187,7 @@ describe('TicketStore', () => {
 		expect(() => store.listTickets()).toThrow(/Duplicate Ticket Number: DUP-1/i);
 	});
 
-	it('updateTicket renames folder when number changes', async () => {
+	it.concurrent('updateTicket renames folder when number changes', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -199,7 +201,7 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(path.join(worktreeDir, 'new-1-my-title'))).toBe(true);
 	});
 
-	it('updateTicket on nonexistent folder throws', async () => {
+	it.concurrent('updateTicket on nonexistent folder throws', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -207,7 +209,7 @@ describe('TicketStore', () => {
 		expect(() => store.updateTicket('no-such-folder', null, null, 'done')).toThrow();
 	});
 
-	it('deleteTicket on nonexistent folder throws', async () => {
+	it.concurrent('deleteTicket on nonexistent folder throws', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -215,7 +217,7 @@ describe('TicketStore', () => {
 		expect(() => store.deleteTicket('no-such-folder')).toThrow();
 	});
 
-	it('updateTicket rejects rename collision', async () => {
+	it.concurrent('updateTicket rejects rename collision', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -226,7 +228,7 @@ describe('TicketStore', () => {
 		expect(() => store.updateTicket('a-1-second', 'A 1', 'First', null)).toThrow();
 	});
 
-	it('saveTicketContext rejects path traversal in name', async () => {
+	it.concurrent('saveTicketContext rejects path traversal in name', async () => {
 		const parentDir = tmpDir('save-traversal-test-');
 		dirs.push(parentDir);
 
@@ -244,7 +246,7 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(escaped)).toBe(false);
 	});
 
-	it('getTicketContext rejects path traversal in folderName', async () => {
+	it.concurrent('getTicketContext rejects path traversal in folderName', async () => {
 		const parentDir = tmpDir('folder-traversal-test-');
 		dirs.push(parentDir);
 
@@ -260,7 +262,7 @@ describe('TicketStore', () => {
 		expect(() => store.getTicketContext('..', 'todo')).toThrow();
 	});
 
-	it('getTicketContext rejects path traversal in name', async () => {
+	it.concurrent('getTicketContext rejects path traversal in name', async () => {
 		const parentDir = tmpDir('traversal-test-');
 		dirs.push(parentDir);
 
@@ -278,7 +280,7 @@ describe('TicketStore', () => {
 		expect(() => store.getTicketContext('t-1-test', '../../secret')).toThrow();
 	});
 
-	it('updateTicket rejects path traversal in folderName', async () => {
+	it.concurrent('updateTicket rejects path traversal in folderName', async () => {
 		const parentDir = tmpDir('update-traversal-test-');
 		dirs.push(parentDir);
 
@@ -296,7 +298,7 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(path.join(outsideDir, 'status.json'))).toBe(false);
 	});
 
-	it('saveTicketContext rejects name containing path separators', async () => {
+	it.concurrent('saveTicketContext rejects name containing path separators', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -309,7 +311,7 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(subDir)).toBe(false);
 	});
 
-	it('deleteTicket rejects path traversal in folderName', async () => {
+	it.concurrent('deleteTicket rejects path traversal in folderName', async () => {
 		const parentDir = tmpDir('delete-traversal-test-');
 		dirs.push(parentDir);
 
@@ -329,7 +331,7 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(path.join(outsideDir, 'precious.txt'))).toBe(true);
 	});
 
-	it('ticket mutations leave changes uncommitted in worktree', async () => {
+	it.concurrent('ticket mutations leave changes uncommitted in worktree', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -353,7 +355,7 @@ describe('TicketStore', () => {
 		expect(lines[0]).toContain('init');
 	});
 
-	it('multiple ticket operations produce no git commits (changes remain uncommitted)', async () => {
+	it.concurrent('multiple ticket operations produce no git commits (changes remain uncommitted)', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -378,7 +380,7 @@ describe('TicketStore', () => {
 		expect(lines.length).toBe(1);
 	});
 
-	it('combined rename + status change writes correct status.json on disk', async () => {
+	it.concurrent('combined rename + status change writes correct status.json on disk', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -407,7 +409,7 @@ describe('TicketStore', () => {
 		expect(onDisk.status).toBe('in-progress');
 	});
 
-	it('status-only change writes updated status.json without renaming folder', async () => {
+	it.concurrent('status-only change writes updated status.json without renaming folder', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -434,7 +436,7 @@ describe('TicketStore', () => {
 		expect(onDisk.status).toBe('in-progress');
 	});
 
-	it('number + title change writes both new values to status.json and renames folder', async () => {
+	it.concurrent('number + title change writes both new values to status.json and renames folder', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -462,7 +464,7 @@ describe('TicketStore', () => {
 		expect(onDisk.status).toBe('todo');
 	});
 
-	it('updateTicket rejects ../sibling folderName traversal and leaves sibling untouched', async () => {
+	it.concurrent('updateTicket rejects ../sibling folderName traversal and leaves sibling untouched', async () => {
 		const parentDir = tmpDir('update-sibling-traversal-');
 		dirs.push(parentDir);
 
@@ -490,7 +492,7 @@ describe('TicketStore', () => {
 		expect(onDisk.status).toBe('todo');
 	});
 
-	it('deleteTicket rejects ../../outside folderName and preserves outside directory', async () => {
+	it.concurrent('deleteTicket rejects ../../outside folderName and preserves outside directory', async () => {
 		const parentDir = tmpDir('delete-outside-traversal-');
 		dirs.push(parentDir);
 
@@ -521,7 +523,9 @@ describe('TicketStore', () => {
 		expect(onDisk.number).toBe('SECRET-1');
 	});
 
-	it('saveTicketContext with a folderName renamed away by updateTicket throws Ticket not found', async () => {
+	it.concurrent(
+		'saveTicketContext with a folderName renamed away by updateTicket throws Ticket not found',
+		async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -541,7 +545,9 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(path.join(worktreeDir, oldFolder, 'todo.md'))).toBe(false);
 	});
 
-	it('saveTicketContext to a recycled folderName writes to the wrong ticket (data corruption)', async () => {
+	it.concurrent(
+		'saveTicketContext to a recycled folderName writes to the wrong ticket (data corruption)',
+		async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -574,7 +580,7 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(docInA)).toBe(false);
 	});
 
-	it('getTicketContext with a folderName that no longer exists returns null silently', async () => {
+	it.concurrent('getTicketContext with a folderName that no longer exists returns null silently', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -601,7 +607,7 @@ describe('TicketStore', () => {
 		expect(store.getTicketContext(newFolder, 'todo')).toBe('# Important notes');
 	});
 
-	it('saveTicketContext with undefined content throws TypeError from fs.writeFileSync', async () => {
+	it.concurrent('saveTicketContext with undefined content throws TypeError from fs.writeFileSync', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -617,7 +623,7 @@ describe('TicketStore', () => {
 		).toThrow(TypeError);
 	});
 
-	it('saveTicketContext with null content throws TypeError from fs.writeFileSync', async () => {
+	it.concurrent('saveTicketContext with null content throws TypeError from fs.writeFileSync', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -633,7 +639,7 @@ describe('TicketStore', () => {
 		).toThrow(TypeError);
 	});
 
-	it('saveTicketContext with numeric content rejects non-string input', async () => {
+	it.concurrent('saveTicketContext with numeric content rejects non-string input', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -648,7 +654,7 @@ describe('TicketStore', () => {
 		).toThrow(TypeError);
 	});
 
-	it('createTicket with undefined initialStatus defaults to todo', async () => {
+	it.concurrent('createTicket with undefined initialStatus defaults to todo', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -674,7 +680,7 @@ describe('TicketStore', () => {
 		expect(tickets[0].status).toBe('todo');
 	});
 
-	it('listTickets on a nonexistent worktreeDir returns empty array', () => {
+	it.concurrent('listTickets on a nonexistent worktreeDir returns empty array', () => {
 		// Use a path inside a temp dir that was never created
 		const base = tmpDir('nonexistent-parent-');
 		dirs.push(base);
@@ -689,7 +695,7 @@ describe('TicketStore', () => {
 		expect(result).toEqual([]);
 	});
 
-	it('saveTicketContext on a nonexistent worktreeDir throws about the missing directory', () => {
+	it.concurrent('saveTicketContext on a nonexistent worktreeDir throws about the missing directory', () => {
 		const base = tmpDir('nonexistent-save-');
 		dirs.push(base);
 		const missing = path.join(base, 'does-not-exist');
@@ -704,7 +710,7 @@ describe('TicketStore', () => {
 		);
 	});
 
-	it('getTicketContext on a nonexistent worktreeDir throws about the missing directory', () => {
+	it.concurrent('getTicketContext on a nonexistent worktreeDir throws about the missing directory', () => {
 		const base = tmpDir('nonexistent-get-');
 		dirs.push(base);
 		const missing = path.join(base, 'does-not-exist');
@@ -719,7 +725,7 @@ describe('TicketStore', () => {
 		);
 	});
 
-	it('deleteTicket on a nonexistent worktreeDir throws about the missing directory', () => {
+	it.concurrent('deleteTicket on a nonexistent worktreeDir throws about the missing directory', () => {
 		const base = tmpDir('nonexistent-delete-');
 		dirs.push(base);
 		const missing = path.join(base, 'does-not-exist');
@@ -734,7 +740,7 @@ describe('TicketStore', () => {
 		);
 	});
 
-	it('updateTicket case-only title change on case-insensitive filesystem', async () => {
+	it.concurrent('updateTicket case-only title change on case-insensitive filesystem', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -747,7 +753,9 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(path.join(worktreeDir, 'abc-1-my-title'))).toBe(true);
 	});
 
-	it('readStatusJson with extra sessionId field: returned TicketInfo has only number/title/status', async () => {
+	it.concurrent(
+		'readStatusJson with extra sessionId field: returned TicketInfo has only number/title/status',
+		async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -783,7 +791,7 @@ describe('TicketStore', () => {
 		expect('sessionId' in ticket).toBe(false);
 	});
 
-	it('updateTicket preserves unknown extra fields in status.json on disk', async () => {
+	it.concurrent('updateTicket preserves unknown extra fields in status.json on disk', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -815,7 +823,9 @@ describe('TicketStore', () => {
 		expect(onDisk.sessionId).toBe('sess_old_value');
 	});
 
-	it('listTickets with mixed old-format and new-format status.json files returns all correctly', async () => {
+	it.concurrent(
+		'listTickets with mixed old-format and new-format status.json files returns all correctly',
+		async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -870,7 +880,9 @@ describe('TicketStore', () => {
 		expect('sessionId' in tickets[2]).toBe(false);
 	});
 
-	it('two concurrent updateTicket calls on same ticket with different titles: second fails clearly', async () => {
+	it.concurrent(
+		'two concurrent updateTicket calls on same ticket with different titles: second fails clearly',
+		async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -912,7 +924,7 @@ describe('TicketStore', () => {
 		expect(tickets[0].folderName).toBe(winner.folderName);
 	});
 
-	it('rename where old dir contains context files: .md files survive at the new path', async () => {
+	it.concurrent('rename where old dir contains context files: .md files survive at the new path', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -948,7 +960,7 @@ describe('TicketStore', () => {
 		expect(tickets[0].contextNames.length).toBe(3);
 	});
 
-	it('setUseWorktree persists to status.json and survives a re-read via listTickets', async () => {
+	it.concurrent('setUseWorktree persists to status.json and survives a re-read via listTickets', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -978,7 +990,7 @@ describe('TicketStore', () => {
 		expect(tickets[0].useWorktree).toBe(false);
 	});
 
-	it('setUseWorktree does not clobber other status.json fields', async () => {
+	it.concurrent('setUseWorktree does not clobber other status.json fields', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -996,7 +1008,7 @@ describe('TicketStore', () => {
 		expect(raw.useWorktree).toBe(true);
 	});
 
-	it('archiveTicket moves folder into archive subdirectory', async () => {
+	it.concurrent('archiveTicket moves folder into archive subdirectory', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1011,7 +1023,7 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(path.join(worktreeDir, 'archive', 'arc-1-to-archive'))).toBe(true);
 	});
 
-	it('listTickets excludes tickets in the archive folder', async () => {
+	it.concurrent('listTickets excludes tickets in the archive folder', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1072,7 +1084,7 @@ describe('TicketStore', () => {
 		}
 	});
 
-	it('archiveTicket on nonexistent folder throws', async () => {
+	it.concurrent('archiveTicket on nonexistent folder throws', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1080,7 +1092,7 @@ describe('TicketStore', () => {
 		expect(() => store.archiveTicket('no-such-folder')).toThrow(/Ticket not found/);
 	});
 
-	it('archiveTicket throws when archive destination already exists', async () => {
+	it.concurrent('archiveTicket throws when archive destination already exists', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1094,7 +1106,7 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(path.join(worktreeDir, 'dup-a-first-archive'))).toBe(true);
 	});
 
-	it('archiveTicket moves folder without committing', async () => {
+	it.concurrent('archiveTicket moves folder without committing', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1117,7 +1129,7 @@ describe('TicketStore', () => {
 		expect(lines.length).toBe(1);
 	});
 
-	it('archiveTicket preserves context files', async () => {
+	it.concurrent('archiveTicket preserves context files', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1134,7 +1146,7 @@ describe('TicketStore', () => {
 		expect(fs.readFileSync(path.join(archiveDir, 'design.md'), 'utf-8')).toBe('# Design notes');
 	});
 
-	it('archiveTicket called twice throws on second call', async () => {
+	it.concurrent('archiveTicket called twice throws on second call', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1145,7 +1157,7 @@ describe('TicketStore', () => {
 		expect(() => store.archiveTicket('dub-1-double-archive')).toThrow(/Ticket not found/);
 	});
 
-	it('deleteTicket on already-archived ticket throws', async () => {
+	it.concurrent('deleteTicket on already-archived ticket throws', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1156,7 +1168,7 @@ describe('TicketStore', () => {
 		expect(() => store.deleteTicket('del-a-archived-then-delete')).toThrow(/Ticket not found/);
 	});
 
-	it('ticket with folderName exactly "archive" is hidden by listTickets', async () => {
+	it.concurrent('ticket with folderName exactly "archive" is hidden by listTickets', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1171,7 +1183,9 @@ describe('TicketStore', () => {
 		expect(tickets.length).toBe(0);
 	});
 
-	it('setUseWorktree(true) then updateTicket with status-only change -- useWorktree survives', async () => {
+	it.concurrent(
+		'setUseWorktree(true) then updateTicket with status-only change -- useWorktree survives',
+		async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1196,7 +1210,7 @@ describe('TicketStore', () => {
 		expect(tickets[0].useWorktree).toBe(true);
 	});
 
-	it('createTicket writes createdAt to status.json', async () => {
+	it.concurrent('createTicket writes createdAt to status.json', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1213,7 +1227,7 @@ describe('TicketStore', () => {
 		expect(raw.createdAt <= after).toBe(true);
 	});
 
-	it('updateTicket preserves createdAt', async () => {
+	it.concurrent('updateTicket preserves createdAt', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1233,7 +1247,7 @@ describe('TicketStore', () => {
 		expect(rawAfter.createdAt).toBe(originalCreatedAt);
 	});
 
-	it('listAllTicketNumbers returns active tickets', async () => {
+	it.concurrent('listAllTicketNumbers returns active tickets', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1248,7 +1262,7 @@ describe('TicketStore', () => {
 		expect(numbers[0].createdAt).toBeDefined();
 	});
 
-	it('listAllTicketNumbers includes archived tickets', async () => {
+	it.concurrent('listAllTicketNumbers includes archived tickets', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1263,7 +1277,7 @@ describe('TicketStore', () => {
 		expect(nums).toEqual(['AR-1', 'AR-2']);
 	});
 
-	it('listAllTicketNumbers with empty archive', async () => {
+	it.concurrent('listAllTicketNumbers with empty archive', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1278,7 +1292,7 @@ describe('TicketStore', () => {
 		expect(numbers[0].number).toBe('EA-1');
 	});
 
-	it('listAllTicketNumbers with no tickets', async () => {
+	it.concurrent('listAllTicketNumbers with no tickets', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1287,7 +1301,7 @@ describe('TicketStore', () => {
 		expect(numbers.length).toBe(0);
 	});
 
-	it('suggestNextNumber returns null with no tickets', async () => {
+	it.concurrent('suggestNextNumber returns null with no tickets', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1295,7 +1309,7 @@ describe('TicketStore', () => {
 		expect(store.suggestNextNumber()).toBeNull();
 	});
 
-	it('suggestNextNumber returns next number for one ticket', async () => {
+	it.concurrent('suggestNextNumber returns next number for one ticket', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1305,7 +1319,7 @@ describe('TicketStore', () => {
 		expect(store.suggestNextNumber()).toBe('ST-0002');
 	});
 
-	it('suggestNextNumber considers archived tickets', async () => {
+	it.concurrent('suggestNextNumber considers archived tickets', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1318,7 +1332,7 @@ describe('TicketStore', () => {
 		expect(store.suggestNextNumber()).toBe('ST-0006');
 	});
 
-	it('suggestNextNumber uses highest across active and archived', async () => {
+	it.concurrent('suggestNextNumber uses highest across active and archived', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1332,7 +1346,7 @@ describe('TicketStore', () => {
 		expect(store.suggestNextNumber()).toBe('ST-0011');
 	});
 
-	it('suggestNextNumber with prefix returns next number for that prefix', async () => {
+	it.concurrent('suggestNextNumber with prefix returns next number for that prefix', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1344,7 +1358,7 @@ describe('TicketStore', () => {
 		expect(store.suggestNextNumber('ST')).toBe('ST-0006');
 	});
 
-	it('suggestNextNumber with unknown prefix returns PREFIX-0001', async () => {
+	it.concurrent('suggestNextNumber with unknown prefix returns PREFIX-0001', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1354,7 +1368,7 @@ describe('TicketStore', () => {
 		expect(store.suggestNextNumber('FEAT')).toBe('FEAT-0001');
 	});
 
-	it('suggestNextNumber with prefix considers archived tickets', async () => {
+	it.concurrent('suggestNextNumber with prefix considers archived tickets', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1366,7 +1380,7 @@ describe('TicketStore', () => {
 		expect(store.suggestNextNumber('BUG')).toBe('BUG-0006');
 	});
 
-	it('suggestNextNumber handles pre-existing tickets without createdAt', async () => {
+	it.concurrent('suggestNextNumber handles pre-existing tickets without createdAt', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1390,7 +1404,7 @@ describe('TicketStore', () => {
 		expect(store.suggestNextNumber()).toBe('ST-0004');
 	});
 
-	it('listAllTicketNumbers returns entries without createdAt for old tickets', async () => {
+	it.concurrent('listAllTicketNumbers returns entries without createdAt for old tickets', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1411,7 +1425,7 @@ describe('TicketStore', () => {
 		expect(numbers[0].createdAt).toBeUndefined();
 	});
 
-	it('T3: suggestNextNumber does not crash when status.json has numeric "number" field', async () => {
+	it.concurrent('T3: suggestNextNumber does not crash when status.json has numeric "number" field', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1432,7 +1446,7 @@ describe('TicketStore', () => {
 		expect(store.suggestNextNumber()).toBe('ST-0002');
 	});
 
-	it('copying a file writes it to the ticket folder and the file can be read back', async () => {
+	it.concurrent('copying a file writes it to the ticket folder and the file can be read back', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1449,7 +1463,7 @@ describe('TicketStore', () => {
 		expect(files).toContain('notes.txt');
 	});
 
-	it('adding a reference persists it in status.json and removing it clears it', async () => {
+	it.concurrent('adding a reference persists it in status.json and removing it clears it', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1474,7 +1488,7 @@ describe('TicketStore', () => {
 		expect(statusAfter.references).toEqual([]);
 	});
 
-	it('copyFileToTicket rejects status.json as filename', async () => {
+	it.concurrent('copyFileToTicket rejects status.json as filename', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1486,7 +1500,7 @@ describe('TicketStore', () => {
 		);
 	});
 
-	it('H1: getReferencedFileContent rejects paths not in the ticket references array', async () => {
+	it.concurrent('H1: getReferencedFileContent rejects paths not in the ticket references array', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1508,7 +1522,7 @@ describe('TicketStore', () => {
 		expect(content.toString()).toBe('SENSITIVE DATA');
 	});
 
-	it('H6.1: addReference with duplicate path does not produce a spurious write or commit', async () => {
+	it.concurrent('H6.1: addReference with duplicate path does not produce a spurious write or commit', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1538,7 +1552,7 @@ describe('TicketStore', () => {
 		expect(mtimeAfter).toBe(mtimeBefore);
 	});
 
-	it('H2: setUseWorktree(true) then updateTicket with title rename'
+	it.concurrent('H2: setUseWorktree(true) then updateTicket with title rename'
 		+ ' -- useWorktree survives after folder rename', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
@@ -1565,7 +1579,7 @@ describe('TicketStore', () => {
 		expect(tickets[0].useWorktree).toBe(true);
 	});
 
-	it('updateTicket title-only change preserves references on disk', async () => {
+	it.concurrent('updateTicket title-only change preserves references on disk', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1594,7 +1608,7 @@ describe('TicketStore', () => {
 		expect(raw.references).toEqual([{ path: '/some/file.txt' }]);
 	});
 
-	it('updateTicket title-only change preserves dependsOn and memberOf on disk', async () => {
+	it.concurrent('updateTicket title-only change preserves dependsOn and memberOf on disk', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1629,7 +1643,7 @@ describe('TicketStore', () => {
 		expect(tickets[0].memberOf).toBe('X-2');
 	});
 
-	it('addDependency/removeDependency round-trip', async () => {
+	it.concurrent('addDependency/removeDependency round-trip', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1652,7 +1666,7 @@ describe('TicketStore', () => {
 		expect(raw2.dependsOn).toBeUndefined();
 	});
 
-	it('addDependency rejects direct cycle', async () => {
+	it.concurrent('addDependency rejects direct cycle', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1665,7 +1679,7 @@ describe('TicketStore', () => {
 		expect(() => store.addDependency('b-1-beta', 'A-1')).toThrow(/cycle/);
 	});
 
-	it('addDependency rejects nonexistent target', async () => {
+	it.concurrent('addDependency rejects nonexistent target', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1676,7 +1690,7 @@ describe('TicketStore', () => {
 		expect(() => store.addDependency('a-1-alpha', 'NOPE-99')).toThrow(/does not exist/);
 	});
 
-	it('addDependency is idempotent', async () => {
+	it.concurrent('addDependency is idempotent', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1693,7 +1707,7 @@ describe('TicketStore', () => {
 		expect(raw.dependsOn).toEqual(['A-1']);
 	});
 
-	it('createGroup writes memberOf on all members', async () => {
+	it.concurrent('createGroup writes memberOf on all members', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1720,7 +1734,7 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(groupDir)).toBe(true);
 	});
 
-	it('createGroup with parentGroupNumber sets group own memberOf', async () => {
+	it.concurrent('createGroup with parentGroupNumber sets group own memberOf', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1742,7 +1756,7 @@ describe('TicketStore', () => {
 		expect(rawA.memberOf).toBe('G-1');
 	});
 
-	it('createGroup with position saves to forest layout', async () => {
+	it.concurrent('createGroup with position saves to forest layout', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1755,7 +1769,7 @@ describe('TicketStore', () => {
 		expect(layout['G-1']).toEqual({ x: 100, y: 200 });
 	});
 
-	it('createGroup rejects membership cycle', async () => {
+	it.concurrent('createGroup rejects membership cycle', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1772,7 +1786,7 @@ describe('TicketStore', () => {
 		).toThrow(/membership cycle/);
 	});
 
-	it('createGroup validation before write prevents group folder creation', async () => {
+	it.concurrent('createGroup validation before write prevents group folder creation', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1788,7 +1802,7 @@ describe('TicketStore', () => {
 		expect(groupExists).toBe(false);
 	});
 
-	it('ungroup at top level clears memberOf', async () => {
+	it.concurrent('ungroup at top level clears memberOf', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1813,7 +1827,7 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(path.join(worktreeDir, group.folderName))).toBe(true);
 	});
 
-	it('ungroup reassigns members to parent group', async () => {
+	it.concurrent('ungroup reassigns members to parent group', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1832,7 +1846,7 @@ describe('TicketStore', () => {
 		expect(rawA.memberOf).toBe('G-1');
 	});
 
-	it('ungroup applies position rule: groupPos + memberPos', async () => {
+	it.concurrent('ungroup applies position rule: groupPos + memberPos', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1853,7 +1867,7 @@ describe('TicketStore', () => {
 		expect(layout['A-1']).toEqual({ x: 150, y: 230 });
 	});
 
-	it('grouping then ungrouping preserves member positions', async () => {
+	it.concurrent('grouping then ungrouping preserves member positions', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1957,7 +1971,7 @@ describe('TicketStore', () => {
 		expect(store.readForestLayoutStore().read()).toEqual(groupedLayout);
 	});
 
-	it('number edit rewrites inbound dependsOn and renames layout key', async () => {
+	it.concurrent('number edit rewrites inbound dependsOn and renames layout key', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1979,7 +1993,7 @@ describe('TicketStore', () => {
 		expect(layout['A-1']).toBeUndefined();
 	});
 
-	it('number edit rewrites inbound references in archive', async () => {
+	it.concurrent('number edit rewrites inbound references in archive', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -1997,7 +2011,7 @@ describe('TicketStore', () => {
 		expect(rawB.dependsOn).toEqual(['A-99']);
 	});
 
-	it('delete removes inbound references and layout key', async () => {
+	it.concurrent('delete removes inbound references and layout key', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
@@ -2052,7 +2066,7 @@ describe('TicketStore', () => {
 		expect(store.readForestLayoutStore().read()['A-1']).toEqual({ x: 10, y: 20 });
 	});
 
-	it('archive leaves dependsOn, memberOf, and layout untouched', async () => {
+	it.concurrent('archive leaves dependsOn, memberOf, and layout untouched', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);
 
