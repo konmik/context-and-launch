@@ -53,7 +53,8 @@ describe('CommandTemplateService', () => {
 		await service.executeTrustedScript({
 			source: { kind: 'profile', profileName: 'Claude Windows' },
 			script:
-				'powershell -File {{configDefaultsDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}} {{markerPath}} claude --dangerously-skip-permissions',
+				'powershell -File {{configDefaultsDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}}' +
+					' {{markerPath}} claude --dangerously-skip-permissions',
 			values: {
 				configDefaultsDir: 'C:\\cfg', initialPrompt: prompt,
 				windowTitle: 'T -- AI', markerPath: 'C:\\marker.json',

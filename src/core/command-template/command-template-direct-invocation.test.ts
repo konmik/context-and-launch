@@ -55,7 +55,8 @@ describe('Command Template direct invocation', () => {
 		const prompt =
 			'Read the files. Check "C:\\Users\\me\\Downloads\\Release notes _ Doc.pdf"';
 		expect(buildDirectInvocationArgv(
-			'powershell -File {{configDefaultsDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}} {{markerPath}} claude --dangerously-skip-permissions',
+			'powershell -File {{configDefaultsDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}}' +
+				' {{markerPath}} claude --dangerously-skip-permissions',
 			{
 				configDefaultsDir: 'C:\\cfg', initialPrompt: prompt,
 				windowTitle: 'WNA-1619 -- AI', markerPath: 'C:\\marker.json',
