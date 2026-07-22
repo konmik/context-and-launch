@@ -50,10 +50,15 @@ export const RenameColumnBody = v.object({
 });
 export type RenameColumnBody = v.InferOutput<typeof RenameColumnBody>;
 
+export interface SyncStatus {
+  hasRemote: boolean;
+  hasConflict: boolean;
+}
+
 export type ProjectPageData =
   | (BoardPageBase & {
       status: 'loaded'; board: BoardState; projectPath: string;
-      suggestedNextNumber: string | null; hasRemote: boolean; hasConflict: boolean;
+      suggestedNextNumber: string | null;
     })
   | (BoardPageBase & { status: 'not-found' })
   | (BoardPageBase & { status: 'unavailable'; projectPath: string })

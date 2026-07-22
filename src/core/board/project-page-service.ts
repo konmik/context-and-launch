@@ -8,7 +8,7 @@ import type { WorktreeManager } from "~/core/worktree/worktree-manager.js";
 import type { LauncherConfigManager } from "~/core/launcher/launcher-config.js";
 import type { FileWatcher } from "~/core/infra/file-watcher.js";
 import type { TicketSyncManager } from "~/core/ticket/ticket-sync.js";
-import type { ProjectPageData } from "./board-types.js";
+import type { ProjectPageData, SyncStatus } from "./board-types.js";
 
 export class ProjectPageService {
 	constructor(
@@ -54,8 +54,6 @@ export class ProjectPageService {
 				ticket.hasAgentWorktree = fs.existsSync(worktreePath);
 			}
 			const suggestedNextNumber = store.suggestNextNumber();
-			const hasRemote = await this.ticketSyncManager.hasRemote(worktreeDir);
-			const hasConflict = await this.ticketSyncManager.detectConflict(worktreeDir);
 			return {
 				status: 'loaded' as const,
 				projects,
@@ -63,8 +61,6 @@ export class ProjectPageService {
 				board: { columns: config.columns, tickets, ticketOrder },
 				projectPath: project.path,
 				suggestedNextNumber,
-				hasRemote,
-				hasConflict,
 			};
 		} catch (e) {
 			return {
@@ -75,5 +71,19 @@ export class ProjectPageService {
 				error: errorMessage(e),
 			};
 		}
+	}
+
+	async loadSyncStatus(projectSlug: string): Promise<SyncStatus> {
+		const project = this.projectRegistry.listProjects()
+			.find((p) => p.projectSlug === projectSlug);
+		if (!project || !project.available) {
+			return { hasRemote: false, hasConflict: false };
+		}
+		const worktreeDir = await this.worktreeManager.ensureWorktree(
+			project.path, projectSlug, project.branch,
+		);
+		const hasRemote = await this.ticketSyncManager.hasRemote(worktreeDir);
+		const hasConflict = await this.ticketSyncManager.detectConflict(worktreeDir);
+		return { hasRemote, hasConflict };
 	}
 }

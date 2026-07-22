@@ -140,7 +140,7 @@ describe('ProjectPageService.loadProjectPage', () => {
 
 			expect(result.status).toBe('loaded');
 			if (result.status !== 'loaded') return;
-			expect(result.hasConflict).toBe(false);
+			expect((await service.loadSyncStatus('proj')).hasConflict).toBe(false);
 			const ticket = result.board.tickets.find(t => t.folderName === 'st-0001-fix-login');
 			expect(ticket?.status).toBe('done');
 			expect(result.board.ticketOrder['done']).toContain('st-0001-fix-login');
@@ -227,7 +227,7 @@ describe('ProjectPageService.loadProjectPage', () => {
 				if (result.status !== 'loaded') return;
 				// The rebase is resolved, so there is no conflict to badge even though the
 				// unreachable remote left the scratch worktree unfinalized on disk.
-				expect(result.hasConflict).toBe(false);
+				expect((await service.loadSyncStatus('proj')).hasConflict).toBe(false);
 				const ticket = result.board.tickets.find(t => t.folderName === 'st-0001-fix-login');
 				expect(ticket?.status).toBe('todo');
 				expect(warnSpy).toHaveBeenCalledWith(
