@@ -20,8 +20,8 @@ function makeDeps(overrides?: Partial<FileUploadDeps>): FileUploadDeps {
     folderName: () => "t-1-test",
     setError: vi.fn(),
     ticketFileNames: () => [],
-    setTicketFileNames: vi.fn(),
-    contextNames: [],
+    contextNames: () => [],
+    refreshFiles: vi.fn().mockResolvedValue(undefined),
     requestFileSwitch: vi.fn(),
     ...overrides,
   };
@@ -90,6 +90,52 @@ describe("createFileUploadState", () => {
         type: "file",
         name: "report.txt",
       });
+      dispose();
+    });
+  });
+
+  it("refreshes the file lists before switching after a successful upload", async () => {
+    mockUploadFile.mockResolvedValue({
+      ok: true,
+      results: [{ name: "notes.md", ok: true }],
+    });
+
+    const calls: string[] = [];
+    const deps = makeDeps({
+      refreshFiles: vi.fn(async () => { calls.push("refresh"); }),
+      requestFileSwitch: vi.fn(() => { calls.push("switch"); }),
+    });
+    await createRoot(async (dispose) => {
+      const state = createFileUploadState(deps);
+      const file = new File(["# Notes"], "notes.md", { type: "text/markdown" });
+      await state.handleFileInputChange({
+        target: { files: [file], value: "" },
+        preventDefault: vi.fn(),
+      } as any);
+      expect(calls).toEqual(["refresh", "switch"]);
+      expect(deps.requestFileSwitch).toHaveBeenCalledWith({
+        type: "context",
+        name: "notes",
+      });
+      dispose();
+    });
+  });
+
+  it("does not refresh the file lists when every file fails", async () => {
+    mockUploadFile.mockResolvedValue({
+      ok: true,
+      results: [{ name: "report.txt", ok: false, error: "disk full" }],
+    });
+
+    const deps = makeDeps();
+    await createRoot(async (dispose) => {
+      const state = createFileUploadState(deps);
+      const file = new File(["content"], "report.txt", { type: "text/plain" });
+      await state.handleFileInputChange({
+        target: { files: [file], value: "" },
+        preventDefault: vi.fn(),
+      } as any);
+      expect(deps.refreshFiles).not.toHaveBeenCalled();
       dispose();
     });
   });
