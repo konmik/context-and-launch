@@ -81,8 +81,10 @@ export class FileWatcher {
 			try {
 				const hasNonDotChange = this.commands.executeSync('git.status', worktreeDir)
 					.split('\n')
-					.map(statusEntryPath)
-					.some((entry) => entry !== undefined && !hasDotSegment(entry));
+					.some((line) => {
+						const entry = statusEntryPath(line);
+						return entry !== undefined && !hasDotSegment(entry);
+					});
 				if (hasNonDotChange) {
 					debouncedCommit();
 				}
