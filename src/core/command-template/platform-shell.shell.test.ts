@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ProcessError } from '../shared/errors.js';
 import { interpolateCommandTemplate, shellLiteral } from './command-template-interpolation.js';
 import { currentCommandTemplatePlatform } from './command-template-types.js';
-import { FixedPlatformShellRunner } from './platform-shell-runner.js';
+import { COMMAND_NOT_FOUND_EXIT_CODE, FixedPlatformShellRunner } from './platform-shell-runner.js';
 
 describe('fixed platform shell', () => {
 	const platform = currentCommandTemplatePlatform();
@@ -54,7 +54,7 @@ describe('fixed platform shell', () => {
 			cwd: process.cwd(), environment: {}, mode: 'capture',
 			timeoutMs: 10_000,
 		})).rejects.toMatchObject({
-			exitCode: 1,
+			exitCode: COMMAND_NOT_FOUND_EXIT_CODE,
 			output: expect.stringMatching(/not recognized/i),
 		});
 	});

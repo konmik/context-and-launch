@@ -30,6 +30,7 @@ export async function runDetachedProcess(
 		key: 'test.detached-probe',
 		platform,
 		script: platform === 'windows' ? `& ${invocation}` : invocation,
+		argv: [executable, ...args],
 		cwd,
 		environment: {},
 		mode: 'detached',
