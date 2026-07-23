@@ -7,53 +7,52 @@ function renderIcon(status: HerdrAgentStatus) {
   return render(() => <HerdrStatusIcon status={status} />);
 }
 
+function iconRoot(container: HTMLElement) {
+  return container.querySelector('[data-testid="herdr-status-icon"]') as HTMLElement;
+}
+
 describe("HerdrStatusIcon", () => {
   afterEach(() => cleanup());
 
-  it("renders the working icon with a pulsing primary activity line", () => {
+  it("renders the working state as a classic braille spinner in the herdr yellow", () => {
     const { container } = renderIcon("working");
-    const icon = container.querySelector('[data-testid="herdr-status-icon"]') as HTMLElement;
-    expect(icon).toBeTruthy();
+    const icon = iconRoot(container);
     expect(icon.getAttribute("data-herdr-status")).toBe("working");
     expect(icon.getAttribute("title")).toBe("working");
-    const svg = icon.querySelector("svg")!;
-    expect(svg.getAttribute("class")).toContain("animate-pulse");
-    expect(svg.getAttribute("class")).toContain("text-primary");
+    const spinner = icon.querySelector('[data-testid="herdr-classic-spinner"]') as HTMLElement;
+    expect(spinner).toBeTruthy();
+    expect(spinner.style.color).toBe("rgb(249, 226, 175)");
+    expect(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]).toContain(spinner.textContent);
   });
 
-  it("renders the blocked icon in the warning color", () => {
+  it("renders the blocked icon in the herdr red", () => {
     const { container } = renderIcon("blocked");
-    const icon = container.querySelector('[data-testid="herdr-status-icon"]') as HTMLElement;
+    const icon = iconRoot(container);
     expect(icon.getAttribute("data-herdr-status")).toBe("blocked");
-    expect(icon.getAttribute("title")).toBe("blocked");
-    expect(icon.querySelector("svg")!.getAttribute("class")).toContain("text-warning");
+    expect(icon.querySelector("svg")!.style.color).toBe("rgb(243, 139, 168)");
   });
 
-  it("renders the idle icon in muted gray", () => {
+  it("renders the idle icon in the herdr green", () => {
     const { container } = renderIcon("idle");
-    const icon = container.querySelector('[data-testid="herdr-status-icon"]') as HTMLElement;
+    const icon = iconRoot(container);
     expect(icon.getAttribute("data-herdr-status")).toBe("idle");
-    expect(icon.getAttribute("title")).toBe("idle");
-    expect(icon.querySelector("svg")!.getAttribute("class")).toContain("text-muted-foreground");
+    expect(icon.querySelector("svg")!.style.color).toBe("rgb(166, 227, 161)");
   });
 
-  it("renders the done circle-dot icon in muted gray, never a completion check", () => {
+  it("renders the done circle-dot icon in the herdr teal, never a completion check", () => {
     const { container } = renderIcon("done");
-    const icon = container.querySelector('[data-testid="herdr-status-icon"]') as HTMLElement;
+    const icon = iconRoot(container);
     expect(icon.getAttribute("data-herdr-status")).toBe("done");
-    expect(icon.getAttribute("title")).toBe("done");
     const svg = icon.querySelector("svg")!;
-    expect(svg.getAttribute("class")).toContain("text-muted-foreground");
-    expect(svg.getAttribute("class")).not.toContain("text-green-600");
+    expect(svg.style.color).toBe("rgb(148, 226, 213)");
     expect(svg.querySelector('circle[r="1"]')).toBeTruthy();
     expect(svg.querySelector("line")).toBeNull();
   });
 
-  it("renders the unknown icon in muted gray", () => {
+  it("renders the unknown icon in the herdr overlay gray", () => {
     const { container } = renderIcon("unknown");
-    const icon = container.querySelector('[data-testid="herdr-status-icon"]') as HTMLElement;
+    const icon = iconRoot(container);
     expect(icon.getAttribute("data-herdr-status")).toBe("unknown");
-    expect(icon.getAttribute("title")).toBe("unknown");
-    expect(icon.querySelector("svg")!.getAttribute("class")).toContain("text-muted-foreground");
+    expect(icon.querySelector("svg")!.style.color).toBe("rgb(108, 112, 134)");
   });
 });
