@@ -1,6 +1,30 @@
 import path from 'path';
-import chokidar, { type FSWatcher } from 'chokidar';
+import chokidar from 'chokidar';
 import type { CommandTemplateExecutor } from '../command-template/command-template-types.js';
+
+type WatcherEvent = 'ready' | 'error' | 'add' | 'change' | 'unlink' | 'addDir' | 'unlinkDir';
+
+export interface FileWatcherHandle {
+	on(event: 'ready', callback: () => void): FileWatcherHandle;
+	on(event: 'error', callback: (error: unknown) => void): FileWatcherHandle;
+	on(event: Exclude<WatcherEvent, 'ready' | 'error'>, callback: () => void): FileWatcherHandle;
+	close(): Promise<void>;
+}
+
+export interface FileWatcherAdapters {
+	createWatcher(
+		worktreeDir: string,
+		options: Parameters<typeof chokidar.watch>[1],
+	): FileWatcherHandle;
+	setTimer(callback: () => void, delayMs: number): ReturnType<typeof setTimeout>;
+	clearTimer(timer: ReturnType<typeof setTimeout>): void;
+}
+
+const DEFAULT_ADAPTERS: FileWatcherAdapters = {
+	createWatcher: (worktreeDir, options) => chokidar.watch(worktreeDir, options),
+	setTimer: (callback, delayMs) => setTimeout(callback, delayMs),
+	clearTimer: (timer) => clearTimeout(timer),
+};
 
 function hasDotSegment(relativePath: string): boolean {
 	return relativePath.split(/[/\\]/).some((segment) => segment.startsWith('.'));
@@ -18,7 +42,7 @@ function statusEntryPath(statusLine: string): string | undefined {
 }
 
 interface WatcherState {
-	watcher: FSWatcher;
+	watcher: FileWatcherHandle;
 	timer: ReturnType<typeof setTimeout> | null;
 }
 
@@ -28,14 +52,15 @@ export class FileWatcher {
 	constructor(
 		private readonly commands: CommandTemplateExecutor,
 		private readonly onWorktreeChange?: (worktreeDir: string) => void,
+		private readonly adapters: FileWatcherAdapters = DEFAULT_ADAPTERS,
 	) {}
 
 	watch(worktreeDir: string, debounceMs = 2000): void {
 		if (this.watchers.has(worktreeDir)) return;
 
-		let watcher: FSWatcher;
+		let watcher: FileWatcherHandle;
 		try {
-			watcher = chokidar.watch(worktreeDir, {
+			watcher = this.adapters.createWatcher(worktreeDir, {
 				ignoreInitial: true,
 				ignored: (filePath: string) => isDotPathInside(worktreeDir, filePath),
 				persistent: true,
@@ -52,8 +77,8 @@ export class FileWatcher {
 		const debouncedCommit = () => {
 			const current = this.watchers.get(worktreeDir);
 			if (!current) return;
-			if (current.timer) clearTimeout(current.timer);
-			current.timer = setTimeout(() => {
+			if (current.timer) this.adapters.clearTimer(current.timer);
+			current.timer = this.adapters.setTimer(() => {
 				if (!this.watchers.has(worktreeDir)) return;
 				try {
 					this.commands.executeSync('git.stage-all', worktreeDir);
@@ -117,7 +142,7 @@ export class FileWatcher {
 	}
 
 	private tearDown(state: WatcherState): void {
-		if (state.timer) clearTimeout(state.timer);
+		if (state.timer) this.adapters.clearTimer(state.timer);
 		state.watcher.close().catch((err) => {
 			console.warn('FileWatcher: failed to close watcher:', err);
 		});

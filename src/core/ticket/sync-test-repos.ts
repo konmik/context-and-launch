@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { git, gitSync, setGitOriginUrl } from '~/test-git.js';
+import { gitFastImport, gitSync, setGitOriginUrl } from '~/test-git.js';
 import {
 	makeTempDir, removeTempDirOrWarn, lazyTemplate, cloneFromTemplate,
 } from '~/test-temp.js';
@@ -79,19 +79,24 @@ export function conflictResolveDir(worktreeDir: string): string {
 
 export async function pushRemoteConflict(
 	remoteDir: string,
-	dirs: string[],
+	_dirs: string[],
 	extraFiles: Record<string, string> = {},
 ): Promise<void> {
-	const clone2 = makeTempDir('sync-clone2-');
-	dirs.push(clone2);
-	await git(clone2, 'clone', remoteDir, '.');
-	fs.writeFileSync(path.join(clone2, 'conflict.txt'), 'remote content');
-	for (const [relPath, content] of Object.entries(extraFiles)) {
-		const filePath = path.join(clone2, relPath);
-		fs.mkdirSync(path.dirname(filePath), { recursive: true });
-		fs.writeFileSync(filePath, content);
+	const files = { 'conflict.txt': 'remote content', ...extraFiles };
+	const chunks = [
+		'feature done\n',
+		'commit refs/heads/master\n',
+		'committer Test <test@test.com> 0 +0000\n',
+		'data 13\nremote change\n',
+		'from refs/heads/master^0\n',
+	];
+	for (const [relativePath, content] of Object.entries(files)) {
+		chunks.push(
+			`M 100644 inline ${JSON.stringify(relativePath.replace(/\\/g, '/'))}\n`,
+			`data ${Buffer.byteLength(content)}\n${content}\n`,
+		);
 	}
-	await git(clone2, 'add', '-A');
-	await git(clone2, 'commit', '-m', 'remote change');
-	await git(clone2, 'push');
+	chunks.push('done\n');
+
+	await gitFastImport(remoteDir, chunks.join(''));
 }

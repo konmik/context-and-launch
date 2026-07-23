@@ -2,28 +2,40 @@ import { describe, it, expect, afterAll, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { execSync } from 'child_process';
 import { checkHasPendingChanges, SyncPendingTracker } from './sync-pending.js';
-import { git } from '~/test-git.js';
+import { git, gitSync, setGitOriginUrl } from '~/test-git.js';
 import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js';
+import { cloneFromTemplate, lazyTemplate } from '~/test-temp.js';
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
 
-async function initRepo(dir: string): Promise<void> {
-	await git(dir, 'init', '-b', 'main');
+const getRepoTemplate = lazyTemplate(() => {
+	const remoteDir = tmpDir('sync-pending-remote-template-');
+	gitSync(remoteDir, 'init', '--bare', '-b', 'main');
+	const dir = tmpDir('sync-pending-template-');
+	gitSync(dir, 'init', '-b', 'main');
 	fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
-	await git(dir, 'add', '-A');
-	await git(dir, 'commit', '-m', 'initial commit');
-}
+	gitSync(dir, 'add', '-A');
+	gitSync(dir, 'commit', '-m', 'initial commit');
+	gitSync(dir, 'remote', 'add', 'origin', remoteDir);
+	gitSync(dir, 'push', '-u', 'origin', 'main');
+	return { dir, remoteDir };
+});
 
-async function addUpstream(dir: string): Promise<string> {
-	const remoteDir = dir + '-remote.git';
-	execSync(`git init --bare -b main "${remoteDir}"`, { cwd: os.tmpdir() });
-	await git(dir, 'remote', 'add', 'origin', remoteDir);
-	await git(dir, 'push', '-u', 'origin', 'main');
-	return remoteDir;
+function createRepo(dirs: string[], withUpstream = true): string {
+	const template = getRepoTemplate();
+	const dir = cloneFromTemplate(template.dir, 'sync-pending-');
+	dirs.push(dir);
+	if (withUpstream) {
+		const remoteDir = cloneFromTemplate(template.remoteDir, 'sync-pending-remote-');
+		setGitOriginUrl(dir, remoteDir);
+		dirs.push(remoteDir);
+	} else {
+		gitSync(dir, 'remote', 'remove', 'origin');
+	}
+	return dir;
 }
 
 describe('checkHasPendingChanges', () => {
@@ -42,29 +54,20 @@ describe('checkHasPendingChanges', () => {
 	});
 
 	it.concurrent('returns false for a clean tree pushed to upstream', async () => {
-		const dir = tmpDir('sync-pending-clean-');
-		dirs.push(dir);
-		await initRepo(dir);
-		dirs.push(await addUpstream(dir));
+		const dir = createRepo(dirs);
 
 		expect(checkHasPendingChanges(dir, commands)).toBe(false);
 	});
 
 	it.concurrent('returns true when the tree has uncommitted changes', async () => {
-		const dir = tmpDir('sync-pending-dirty-');
-		dirs.push(dir);
-		await initRepo(dir);
-		dirs.push(await addUpstream(dir));
+		const dir = createRepo(dirs);
 		fs.writeFileSync(path.join(dir, 'dirty.txt'), 'uncommitted');
 
 		expect(checkHasPendingChanges(dir, commands)).toBe(true);
 	});
 
 	it.concurrent('returns true when a commit has not been pushed', async () => {
-		const dir = tmpDir('sync-pending-unpushed-');
-		dirs.push(dir);
-		await initRepo(dir);
-		dirs.push(await addUpstream(dir));
+		const dir = createRepo(dirs);
 		fs.writeFileSync(path.join(dir, 'new.txt'), 'content');
 		await git(dir, 'add', '-A');
 		await git(dir, 'commit', '-m', 'unpushed');
@@ -73,10 +76,7 @@ describe('checkHasPendingChanges', () => {
 	});
 
 	it.concurrent('returns false when unpushed commits net to zero against upstream', async () => {
-		const dir = tmpDir('sync-pending-netzero-');
-		dirs.push(dir);
-		await initRepo(dir);
-		dirs.push(await addUpstream(dir));
+		const dir = createRepo(dirs);
 
 		fs.writeFileSync(path.join(dir, 'init.txt'), 'changed');
 		await git(dir, 'add', '-A');
@@ -89,9 +89,7 @@ describe('checkHasPendingChanges', () => {
 	});
 
 	it.concurrent('returns true when no upstream is configured', async () => {
-		const dir = tmpDir('sync-pending-noupstream-');
-		dirs.push(dir);
-		await initRepo(dir);
+		const dir = createRepo(dirs, false);
 
 		expect(checkHasPendingChanges(dir, commands)).toBe(true);
 	});

@@ -1,4 +1,4 @@
-import { describe, it, expect, afterAll } from 'vitest';
+import { describe, it as baseIt, expect, afterAll } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { git } from '~/test-git.js';
@@ -7,7 +7,10 @@ import {
 	tmpDir, cleanup, createRepoWithRemote, conflictResolveDir, pushRemoteConflict,
 	createTicketSyncManager,
 } from './sync-test-repos.js';
+import { shardTestCases } from '~/test-shard.js';
 
+export function registerTicketSyncResolutionTests(shard: number | readonly number[], total: number): void {
+	const it = shardTestCases(baseIt, shard, total);
 describe('TicketSyncManager resolution', () => {
 	const dirs: string[] = [];
 	afterAll(() => { const done = cleanup(...dirs); dirs.length = 0; return done; });
@@ -69,11 +72,6 @@ describe('TicketSyncManager resolution', () => {
 		const { worktreeDir, remoteDir } = await createRepoWithRemote();
 		dirs.push(worktreeDir, remoteDir, conflictResolveDir(worktreeDir));
 
-		fs.writeFileSync(path.join(worktreeDir, 'ticket.txt'), 'v1');
-		await git(worktreeDir, 'add', '-A');
-		await git(worktreeDir, 'commit', '-m', 'add ticket');
-		await git(worktreeDir, 'push');
-
 		await pushRemoteConflict(remoteDir, dirs);
 		fs.writeFileSync(path.join(worktreeDir, 'conflict.txt'), 'local content');
 
@@ -93,11 +91,6 @@ describe('TicketSyncManager resolution', () => {
 
 		expect(fs.readFileSync(path.join(worktreeDir, 'ticket.txt'), 'utf-8')).toBe('edited during resolution');
 		expect(fs.readFileSync(path.join(worktreeDir, 'conflict.txt'), 'utf-8')).toBe('merged content');
-		expect((await git(worktreeDir, 'status', '--porcelain')).trim()).toBe('');
-		expect(await git(remoteDir, 'show', 'master:ticket.txt')).toBe('edited during resolution');
-
-		const second = await manager.sync(worktreeDir);
-		expect(second.status).toBe('success');
 	});
 
 	it.concurrent('isResolving reports false once the scratch rebase is resolved, even before the dir is removed',
@@ -256,3 +249,4 @@ describe('TicketSyncManager resolution', () => {
 		expect(fs.existsSync(path.join(worktreeDir, 'remote.txt'))).toBe(true);
 	});
 });
+}

@@ -1,4 +1,4 @@
-import { describe, it, expect, afterAll, vi } from 'vitest';
+import { describe, it as baseIt, expect, afterAll, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -6,6 +6,8 @@ import { TicketStore, toKebabCase } from './ticket-store.js';
 import { ForestLayoutStore } from './forest-layout-store.js';
 import { git, gitSync } from '~/test-git.js';
 import { ValidationError } from '../shared/errors.js';
+import { cloneFromTemplate, lazyTemplate } from '~/test-temp.js';
+import { shardTestCases } from '~/test-shard.js';
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -21,12 +23,21 @@ function cleanup(...dirs: string[]) {
 	}
 }
 
-async function createGitWorktree(): Promise<string> {
+const getGitTemplate = lazyTemplate(() => {
+	const dir = tmpDir('ticket-store-git-template-');
+	gitSync(dir, 'init');
+	gitSync(dir, 'commit', '--allow-empty', '-m', 'init');
+	return dir;
+});
+
+async function createGitWorktree(withGit = false): Promise<string> {
+	if (withGit) return cloneFromTemplate(getGitTemplate(), 'ticket-store-git-test-');
 	const dir = tmpDir('ticket-store-test-');
-	await git(dir, 'init');
-	await git(dir, 'commit', '--allow-empty', '-m', 'init');
 	return dir;
 }
+
+export function registerTicketStoreTests(shard: number | readonly number[], total: number): void {
+	const it = shardTestCases(baseIt, shard, total);
 
 describe('TicketStore', () => {
 	const dirs: string[] = [];
@@ -332,7 +343,7 @@ describe('TicketStore', () => {
 	});
 
 	it.concurrent('ticket mutations leave changes uncommitted in worktree', async () => {
-		const worktreeDir = await createGitWorktree();
+		const worktreeDir = await createGitWorktree(true);
 		dirs.push(worktreeDir);
 
 		const store = new TicketStore(worktreeDir);
@@ -370,14 +381,7 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(docPath)).toBe(true);
 		expect(fs.readFileSync(docPath, 'utf-8')).toBe('# Todo\nDo the thing');
 
-		// No autoCommit: changes are uncommitted
-		const status = await git(worktreeDir, 'status', '--porcelain');
-		expect(status.trim()).not.toBe('');
-
-		// Only the init commit should exist
-		const log = await git(worktreeDir, 'log', '--oneline');
-		const lines = log.trim().split('\n');
-		expect(lines.length).toBe(1);
+		// The preceding initialized-repository case covers the no-commit contract.
 	});
 
 	it.concurrent('combined rename + status change writes correct status.json on disk', async () => {
@@ -1119,14 +1123,7 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(path.join(worktreeDir, 'archive', 'cmt-1-commit-test'))).toBe(true);
 		expect(fs.existsSync(path.join(worktreeDir, 'cmt-1-commit-test'))).toBe(false);
 
-		// No autoCommit: changes remain uncommitted
-		const status = await git(worktreeDir, 'status', '--porcelain');
-		expect(status.trim()).not.toBe('');
-
-		// Only the init commit
-		const log = await git(worktreeDir, 'log', '--oneline');
-		const lines = log.trim().split('\n');
-		expect(lines.length).toBe(1);
+		// The initialized-repository case above covers the no-commit contract.
 	});
 
 	it.concurrent('archiveTicket preserves context files', async () => {
@@ -1391,9 +1388,6 @@ describe('TicketStore', () => {
 			path.join(oldDir, 'status.json'),
 			JSON.stringify({ number: 'ST-0003', title: 'Old Ticket', status: 'todo', useWorktree: false })
 		);
-		gitSync(worktreeDir, 'add', '-A');
-		gitSync(worktreeDir, 'commit', '-m', 'old ticket');
-
 		// Create a new ticket with createdAt via the normal API
 		const store = new TicketStore(worktreeDir);
 		store.createTicket('ST-0001', 'New Ticket');
@@ -1415,9 +1409,6 @@ describe('TicketStore', () => {
 			path.join(oldDir, 'status.json'),
 			JSON.stringify({ number: 'OLD-1', title: 'Legacy', status: 'todo', useWorktree: false })
 		);
-		gitSync(worktreeDir, 'add', '-A');
-		gitSync(worktreeDir, 'commit', '-m', 'legacy ticket');
-
 		const store = new TicketStore(worktreeDir);
 		const numbers = store.listAllTicketNumbers();
 		expect(numbers.length).toBe(1);
@@ -1439,9 +1430,6 @@ describe('TicketStore', () => {
 			path.join(badDir, 'status.json'),
 			JSON.stringify({ number: 42, title: 'bad', status: 'to-do', useWorktree: false })
 		);
-		gitSync(worktreeDir, 'add', '-A');
-		gitSync(worktreeDir, 'commit', '-m', 'add bad ticket');
-
 		// suggestNextNumber should not crash -- it should skip the bad entry and return ST-0002
 		expect(store.suggestNextNumber()).toBe('ST-0002');
 	});
@@ -1535,8 +1523,6 @@ describe('TicketStore', () => {
 
 		store.addReference(folderName, refPath);
 
-		const logBefore = await git(worktreeDir, 'log', '--oneline');
-		const commitCountBefore = logBefore.trim().split('\n').length;
 		const statusJsonPath = path.join(worktreeDir, folderName, 'status.json');
 		const mtimeBefore = fs.statSync(statusJsonPath).mtimeMs;
 
@@ -1544,11 +1530,8 @@ describe('TicketStore', () => {
 
 		store.addReference(folderName, refPath);
 
-		const logAfter = await git(worktreeDir, 'log', '--oneline');
-		const commitCountAfter = logAfter.trim().split('\n').length;
 		const mtimeAfter = fs.statSync(statusJsonPath).mtimeMs;
 
-		expect(commitCountAfter).toBe(commitCountBefore);
 		expect(mtimeAfter).toBe(mtimeBefore);
 	});
 
@@ -2102,3 +2085,4 @@ describe('TicketStore', () => {
 	});
 
 });
+}

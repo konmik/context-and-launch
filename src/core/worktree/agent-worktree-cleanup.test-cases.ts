@@ -1,4 +1,4 @@
-import { describe, it, expect, afterAll } from 'vitest';
+import { describe, it as baseIt, expect, afterAll } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -10,7 +10,10 @@ import { createTestCommandTemplateService } from '../command-template/command-te
 import { initializeDataDir } from '../config/initialize.js';
 import { git } from '~/test-git.js';
 import { makeWorktreeEnv, initGitRepo, tmpDir } from './agent-worktree.test-utils.js';
+import { shardTestCases } from '~/test-shard.js';
 
+export function registerAgentWorktreeCleanupTests(shard: number | readonly number[], total: number): void {
+	const it = shardTestCases(baseIt, shard, total);
 describe('AgentWorktreeManager cleanup', () => {
 	const { dirs, setup, cleanupAll } = makeWorktreeEnv();
 
@@ -391,3 +394,4 @@ describe('AgentWorktreeManager cleanup', () => {
 		expect(result2.branchName).toBe('feature/st-0012-prefix-change');
 	});
 });
+}

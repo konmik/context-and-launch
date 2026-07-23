@@ -18,11 +18,14 @@ function codeWithoutComments(file: string): string {
 		.join('\n');
 }
 
+const isTestInfrastructure = (file: string): boolean =>
+	/\.test\.|\.test-cases\.|\.shell\.test\.|test-git\.ts$|test-utils\.ts$|survival-fixture/.test(file);
+
 describe('Command Template architecture boundary', () => {
 	it('isolates child-process imports to the fixed runner and test infrastructure', () => {
 		const offenders = filesBelow(path.resolve('src'))
 			.filter((file) => /\.(ts|tsx)$/.test(file))
-			.filter((file) => !/\.test\.|\.shell\.test\.|test-git\.ts$|test-utils\.ts$|survival-fixture/.test(file))
+			.filter((file) => !isTestInfrastructure(file))
 			.filter((file) => /(?:node:)?child_process|cross-spawn/.test(fs.readFileSync(file, 'utf8')))
 			.filter((file) => !file.endsWith(path.join('command-template', 'platform-shell-runner.ts')));
 		expect(offenders).toEqual([]);
@@ -36,7 +39,7 @@ describe('Command Template architecture boundary', () => {
 		const interpolatedKey = /\.execute(?:Sync)?\(\s*`/;
 		const offenders = filesBelow(path.resolve('src'))
 			.filter((file) => /\.(ts|tsx)$/.test(file))
-			.filter((file) => !/\.test\.|\.shell\.test\./.test(file))
+			.filter((file) => !isTestInfrastructure(file))
 			.filter((file) => interpolatedKey.test(fs.readFileSync(file, 'utf8')));
 		expect(offenders).toEqual([]);
 	});
@@ -44,7 +47,8 @@ describe('Command Template architecture boundary', () => {
 	it('has a production consumer for every catalog action', () => {
 		const production = filesBelow(path.resolve('src'))
 			.filter((file) => /\.(ts|tsx)$/.test(file))
-			.filter((file) => !/\.test\.|\.shell\.test\.|command-template-definitions\.ts$/.test(file))
+			.filter((file) => !isTestInfrastructure(file))
+			.filter((file) => !file.endsWith('command-template-definitions.ts'))
 			.map((file) => fs.readFileSync(file, 'utf8'))
 			.join('\n');
 		// Platform-suffixed actions are consumed through platformCommandTemplateKey,
@@ -70,7 +74,7 @@ describe('Command Template architecture boundary', () => {
 		);
 		const offenders = filesBelow(path.resolve('src'))
 			.filter((file) => /\.(ts|tsx)$/.test(file))
-			.filter((file) => !/\.test\.|\.shell\.test\.|test-git\.ts$|test-utils\.ts$|survival-fixture/.test(file))
+			.filter((file) => !isTestInfrastructure(file))
 			.filter((file) => !file.includes(`${path.sep}command-template${path.sep}`))
 			.filter((file) => {
 				const code = codeWithoutComments(file);
@@ -83,7 +87,7 @@ describe('Command Template architecture boundary', () => {
 	it('keeps shell escaping out of production feature code', () => {
 		const offenders = filesBelow(path.resolve('src'))
 			.filter((file) => /\.(ts|tsx)$/.test(file))
-			.filter((file) => !/\.test\.|\.shell\.test\.|test-utils\.ts$|survival-fixture/.test(file))
+			.filter((file) => !isTestInfrastructure(file))
 			.filter((file) => !file.includes(`${path.sep}command-template${path.sep}`))
 			.filter((file) => /\bshellLiteral\b/.test(fs.readFileSync(file, 'utf8')));
 		expect(offenders).toEqual([]);
@@ -101,7 +105,7 @@ describe('Command Template architecture boundary', () => {
 		);
 		const offenders = filesBelow(path.resolve('src'))
 			.filter((file) => /\.(ts|tsx)$/.test(file))
-			.filter((file) => !/\.test\.|\.shell\.test\./.test(file))
+			.filter((file) => !isTestInfrastructure(file))
 			.filter((file) => !file.endsWith(path.join('command-template', 'command-template-service.ts')))
 			.filter((file) => inspection.test(fs.readFileSync(file, 'utf8')));
 		expect(offenders).toEqual([]);
@@ -113,7 +117,7 @@ describe('Command Template architecture boundary', () => {
 		const errorTextMatched = /\b(?:not recognized|CommandNotFoundException|timed out|cancell?ed|-128)\b/i;
 		const offenders = filesBelow(path.resolve('src'))
 			.filter((file) => /\.(ts|tsx)$/.test(file))
-			.filter((file) => !/\.test\.|\.shell\.test\./.test(file))
+			.filter((file) => !isTestInfrastructure(file))
 			.filter((file) => {
 				const code = codeWithoutComments(file);
 				return [...code.matchAll(/\/(?:[^/\\\n]|\\.)+\/[gimsuy]*/g)]

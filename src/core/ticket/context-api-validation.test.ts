@@ -4,7 +4,6 @@ import path from 'path';
 import os from 'os';
 import { errorMessage } from '../shared/errors.js';
 import { TicketStore } from './ticket-store.js';
-import { git } from '~/test-git.js';
 
 /**
  * Tests that non-JSON request bodies to the context PUT endpoint produce
@@ -157,10 +156,7 @@ function tmpDir(prefix: string): string {
 }
 
 async function createGitWorktree(): Promise<string> {
-	const dir = tmpDir('context-traversal-test-');
-	await git(dir, 'init');
-	await git(dir, 'commit', '--allow-empty', '-m', 'init');
-	return dir;
+	return tmpDir('context-traversal-test-');
 }
 
 describe('GET/DELETE with path-traversal name param', () => {

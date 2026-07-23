@@ -58,6 +58,14 @@ export async function toggleToKanban(page: Page): Promise<void> {
   });
 }
 
+export async function waitForForestTicketCount(page: Page, expected: number): Promise<void> {
+  await page.waitForFunction(
+    count => document.querySelectorAll('[data-testid="forest-ticket-card"]').length === count,
+    expected,
+    { timeout: 15000 },
+  );
+}
+
 export function forestSurface(page: Page): Locator {
   return page.locator('[data-testid="forest-surface"]');
 }

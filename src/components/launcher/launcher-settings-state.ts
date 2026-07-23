@@ -384,8 +384,10 @@ export function createLauncherSettingsState(props: {
 		setError(null);
 		try {
 			const result = await reorderItem(props.projectSlug, itemType, scope, name, order);
-			if (!result.ok) { setError({ title: "Reorder failed", description: result.message }); return; }
-			await loadConfig();
+			if (!result.ok) {
+				setError({ title: "Reorder failed", description: result.message });
+				await loadConfig();
+			}
 		} catch (e) { setError(errorPayload(e, "Reorder failed")); }
 	}
 

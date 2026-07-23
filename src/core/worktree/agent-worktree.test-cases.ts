@@ -1,4 +1,4 @@
-import { describe, it, expect, afterAll, vi } from 'vitest';
+import { describe, it as baseIt, expect, afterAll, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -9,7 +9,10 @@ import { createTestCommandTemplateService } from '../command-template/command-te
 import * as gitModule from '~/test-git.js';
 import { git } from '~/test-git.js';
 import { makeWorktreeEnv, initGitRepo, tmpDir } from './agent-worktree.test-utils.js';
+import { shardTestCases } from '~/test-shard.js';
 
+export function registerAgentWorktreeTests(shard: number | readonly number[], total: number): void {
+	const it = shardTestCases(baseIt, shard, total);
 describe('AgentWorktreeManager', () => {
 	const { dirs, setup, setupBehindRemote, cleanupAll } = makeWorktreeEnv();
 
@@ -544,3 +547,4 @@ describe('AgentWorktreeManager', () => {
 		}
 	});
 });
+}

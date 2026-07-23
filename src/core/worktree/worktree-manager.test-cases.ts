@@ -1,4 +1,4 @@
-import { describe, it, expect, afterAll } from 'vitest';
+import { describe, it as baseIt, expect, afterAll } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -6,6 +6,7 @@ import { WorktreeManager } from './worktree-manager.js';
 import { ConfigPaths } from '../config/config-paths.js';
 import { git } from '~/test-git.js';
 import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js';
+import { shardTestCases } from '~/test-shard.js';
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -29,6 +30,8 @@ async function cleanupWorktree(projectDir: string, wtPath: string) {
 	}
 }
 
+export function registerWorktreeManagerTests(shard: number | readonly number[], total: number): void {
+	const it = shardTestCases(baseIt, shard, total);
 describe('WorktreeManager', () => {
 	const dirs: string[] = [];
 	const worktreeCleanups: Array<[string, string]> = [];
@@ -560,3 +563,4 @@ describe('WorktreeManager', () => {
 		}
 	});
 });
+}
