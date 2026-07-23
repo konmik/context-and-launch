@@ -67,22 +67,21 @@ export class ProjectPageService {
 						throw e;
 					}
 				}
-				for (const ticket of tickets) {
-					const { worktreePath } = resolveAgentWorktreeLocation(
+				const ticketsWithWorktrees = tickets.map((ticket) => {
+					const { worktreePath, isDefaultLocation } = resolveAgentWorktreeLocation(
 						ticket.folderName, worktreeSettings,
 						{ savedWorktreePath: ticket.agentWorktreeDir },
 					);
-					const folderName = worktreeFolderName(ticket.folderName);
-					const expected = `${worktreeRootPath}/${folderName}`;
-					ticket.hasAgentWorktree = worktreePath === expected
-						? worktreeNames.has(folderName)
+					const hasAgentWorktree = isDefaultLocation
+						? worktreeNames.has(worktreeFolderName(ticket.folderName))
 						: fs.existsSync(worktreePath);
-				}
+					return { ...ticket, hasAgentWorktree };
+				});
 				return {
 					status: 'loaded' as const,
 					projects,
 					projectSlug,
-					board: { columns: config.columns, tickets, ticketOrder },
+					board: { columns: config.columns, tickets: ticketsWithWorktrees, ticketOrder },
 					projectPath: project.path,
 					suggestedNextNumber,
 				};

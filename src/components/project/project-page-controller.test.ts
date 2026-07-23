@@ -42,7 +42,14 @@ describe("ProjectPageController ticket detail", () => {
 		const clicked = ticket();
 		const controller = createProjectPageController({
 			projectSlug: () => "test-project",
-			data: () => ({ status: "loaded", board: { tickets: [clicked] } }),
+			data: () => ({
+				status: "loaded",
+				projects: [],
+				projectSlug: "test-project",
+				projectPath: "/repo",
+				suggestedNextNumber: null,
+				board: { columns: [], tickets: [clicked], ticketOrder: {} },
+			}),
 			syncStatus: () => undefined,
 		});
 

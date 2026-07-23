@@ -7,7 +7,7 @@ import {
   setupE2E, poll,
 } from "./fixtures.js";
 
-describe("Sync button pending states (e2e, real server)", () => {
+describe("Sync button pending badge (e2e, real server)", () => {
   const ctx = setupE2E({ serverOpts: { dataDirPrefix: ".cl-e2e-data-" } });
 
   it("pending badge clears after drag there and back when auto-commit runs in between", async () => {
@@ -104,6 +104,19 @@ describe("Sync button pending states (e2e, real server)", () => {
     await ctx.page.click('[data-testid="sync-button-trigger"]');
     await ctx.page.waitForSelector('[data-testid="sync-button-pending-badge"]', {
       state: "detached", timeout: 20000,
+    });
+  }, 60000);
+
+  it("pending badge appears on fresh project due to order reconciliation", async () => {
+    const project = await createProject(ctx.testServer, {
+      projectSlug: uniqueSlug("sb-pending-absent"),
+      withRemote: true,
+    });
+    ctx.projects.push(project);
+    execSync("git push -u origin tickets", { cwd: project.ticketsPath });
+    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+    await ctx.page.waitForSelector('[data-testid="sync-button-pending-badge"]', {
+      state: "visible", timeout: 15000,
     });
   }, 60000);
 });

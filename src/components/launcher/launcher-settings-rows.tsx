@@ -24,15 +24,9 @@ export function ScopeBadge(props: { scope: string }) {
 	);
 }
 
-// Shared card layout for every settings element (columns, skills, agents,
-// shortcuts, prompts): border, uniform padding, and flex. Drag-reorderable rows
-// add a grip via DragGrip. The `settings-card` hook lets palettes restyle the
-// surface (graphite drops the border and reads elevation as a lighter fill).
 export const CARD_CLASS =
 	"settings-card flex items-center justify-between gap-2 rounded-md border border-border p-3";
 
-// Reusable card wrapper applied to each settings element. Forwards ref, data
-// attributes, and classList so drag-reorderable rows can layer their own state.
 export function SettingsCard(props: JSX.HTMLAttributes<HTMLDivElement>) {
 	const [local, rest] = splitProps(props, ["class", "children"]);
 	return (
@@ -42,10 +36,6 @@ export function SettingsCard(props: JSX.HTMLAttributes<HTMLDivElement>) {
 	);
 }
 
-// Shared body for every settings card: optional drag grip, a name with an
-// optional scope badge, an optional detail line, and edit/delete actions.
-// Keeping column, skill, and item rows structurally identical makes them render
-// at the same height.
 function CardRowBody(props: {
 	name: string;
 	detail?: string;

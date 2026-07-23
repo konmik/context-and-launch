@@ -7,7 +7,7 @@ import {
   setupE2E,
 } from "./fixtures.js";
 
-describe("Sync button diverged states (e2e, real server)", () => {
+describe("Sync button push behavior (e2e, real server)", () => {
   const ctx = setupE2E({ serverOpts: { dataDirPrefix: ".cl-e2e-data-" } });
 
   it("diverged without conflict: sync merges and pushes", async () => {
@@ -102,5 +102,31 @@ describe("Sync button diverged states (e2e, real server)", () => {
       cwd: project.ticketsPath, encoding: "utf-8",
     }).trim();
     expect(tracking).toContain("origin/");
+  }, 60000);
+
+  it("net-zero unpushed commits: sync succeeds and flip.txt does not exist", async () => {
+    const project = await createProject(ctx.testServer, {
+      projectSlug: uniqueSlug("sb-netzero"),
+      withRemote: true,
+    });
+    ctx.projects.push(project);
+    execSync("git push -u origin tickets", { cwd: project.ticketsPath });
+
+    fs.writeFileSync(path.join(project.ticketsPath, "flip.txt"), "changed");
+    execSync('git add -A && git commit -m "auto: change"', { cwd: project.ticketsPath });
+    fs.unlinkSync(path.join(project.ticketsPath, "flip.txt"));
+    execSync('git add -A && git commit -m "auto: revert"', { cwd: project.ticketsPath });
+
+    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+    await ctx.page.click('[data-testid="sync-button-trigger"]');
+    await ctx.page.waitForSelector('[data-testid="sync-button-check-icon"]', {
+      state: "visible", timeout: 20000,
+    });
+
+    expect(fs.existsSync(path.join(project.ticketsPath, "flip.txt"))).toBe(false);
+    const status = execSync("git status --porcelain", {
+      cwd: project.ticketsPath, encoding: "utf-8",
+    }).trim();
+    expect(status).toBe("");
   }, 60000);
 });

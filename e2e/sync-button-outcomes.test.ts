@@ -3,25 +3,12 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  createProject, uniqueSlug, gotoProject, dragSortable,
-  setupE2E, poll,
+  createProject, uniqueSlug, gotoProject,
+  setupE2E,
 } from "./fixtures.js";
 
-describe("Sync button pending states II (e2e, real server)", () => {
+describe("Sync button outcomes (e2e, real server)", () => {
   const ctx = setupE2E({ serverOpts: { dataDirPrefix: ".cl-e2e-data-" } });
-
-  it("pending badge appears on fresh project due to order reconciliation", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("sb-pending-absent"),
-      withRemote: true,
-    });
-    ctx.projects.push(project);
-    execSync("git push -u origin tickets", { cwd: project.ticketsPath });
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await ctx.page.waitForSelector('[data-testid="sync-button-pending-badge"]', {
-      state: "visible", timeout: 15000,
-    });
-  }, 60000);
 
   it("no-remote: sync shows error dialog", async () => {
     const project = await createProject(ctx.testServer, {

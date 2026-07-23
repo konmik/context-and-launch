@@ -10,7 +10,7 @@ import {
 
 describe('TicketSyncManager resolution', () => {
 	const dirs: string[] = [];
-	afterAll(() => { cleanup(...dirs); dirs.length = 0; });
+	afterAll(() => { const done = cleanup(...dirs); dirs.length = 0; return done; });
 
 	it.concurrent('prepareResolution rebases in a scratch worktree, never touching the live tree', async () => {
 		const { worktreeDir, remoteDir } = await createRepoWithRemote();

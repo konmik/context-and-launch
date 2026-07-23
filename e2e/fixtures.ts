@@ -7,13 +7,16 @@ import { chromium, type Browser, type Page } from "playwright";
 import { pickPort } from "./test-port.js";
 import { startRealServer, stopRealServer, type RealServer } from "./real-server.js";
 
-export interface TestServer {
-  server: RealServer;
-  baseUrl: string;
+export interface ProjectDirs {
   dataDir: string;
-  port: number;
   /** Parent directory under which each project's tmp git repo is created. */
   reposParentDir: string;
+}
+
+export interface TestServer extends ProjectDirs {
+  server: RealServer;
+  baseUrl: string;
+  port: number;
   stop: () => Promise<void>;
 }
 
@@ -187,7 +190,7 @@ function setupBareRemote(repoPath: string, branch: string): string {
 }
 
 export async function createProject(
-  server: TestServer,
+  server: ProjectDirs,
   opts: CreateProjectOptions,
 ): Promise<CreatedProject> {
   const branch = opts.branch ?? "tickets";

@@ -8,6 +8,8 @@ import { errorResult } from "~/core/shared/errors.js";
 
 export type { BoardState, ProjectPageData, SyncStatus } from "~/core/board/board-types.js";
 
+export const projectSyncRevalidateKeys = ["project-page", "project-sync-status"];
+
 export const getDefaultProjectSlug = query(async (): Promise<string | null> => {
   "use server";
   return projectRegistry.getDefaultProjectSlug();

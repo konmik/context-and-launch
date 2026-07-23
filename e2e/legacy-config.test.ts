@@ -53,8 +53,8 @@ describe("Legacy config with 'slug' property names (sandboxed e2e)", () => {
   afterAll(async () => {
     await browser?.close();
     if (server) await stopRealServer(server);
-    if (dataDir) rmTemp(dataDir, "legacy-config dataDir");
-    if (repoDir) rmTemp(repoDir, "legacy-config repoDir");
+    if (dataDir) await rmTemp(dataDir, "legacy-config dataDir");
+    if (repoDir) await rmTemp(repoDir, "legacy-config repoDir");
   }, 20000);
 
   it("navigates past loading screen when config uses old 'slug' property names", async () => {

@@ -2,8 +2,8 @@ import { afterAll, afterEach } from "vitest";
 import { spawn } from "child_process";
 import { createRequire } from "module";
 import fs from "fs";
-import os from "os";
 import path from "path";
+import { makeTempDir, removeTempDir } from "~/test-temp.js";
 
 export function useTempDirs(
   prefix: string,
@@ -12,25 +12,13 @@ export function useTempDirs(
   const tempDirs: string[] = [];
   const cleanupAll = async () => {
     while (tempDirs.length > 0) {
-      const dir = tempDirs.pop()!;
-      const deadline = Date.now() + 5000;
-      for (;;) {
-        try {
-          fs.rmSync(dir, { recursive: true, force: true });
-          break;
-        } catch (e) {
-          const code = (e as NodeJS.ErrnoException).code;
-          if ((code !== "EBUSY" && code !== "ENOTEMPTY" && code !== "EPERM") ||
-              Date.now() > deadline) throw e;
-          await new Promise(r => setTimeout(r, 100));
-        }
-      }
+      await removeTempDir(tempDirs.pop()!);
     }
   };
   if (options.cleanupAfterAll) afterAll(cleanupAll);
   else afterEach(cleanupAll);
   return () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+    const dir = makeTempDir(prefix);
     tempDirs.push(dir);
     return dir;
   };

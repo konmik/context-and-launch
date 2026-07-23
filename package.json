@@ -14,6 +14,7 @@
     "test": "tsc --noEmit && eslint . --cache --cache-strategy content --cache-location node_modules/.cache/eslint/.eslintcache && vitest run --exclude 'e2e/**' --exclude '**/*.shell.test.ts'",
     "test:gate": "tsx scripts/testid-coverage.ts",
     "test:e2e": "vinxi build && vitest run --project e2e",
+    "bench": "vitest run --project bench",
     "test:shell": "vitest run -c vitest.shell.config.ts",
     "test:all": "tsc --noEmit && eslint . --cache --cache-strategy content --cache-location node_modules/.cache/eslint/.eslintcache && vitest run --exclude 'e2e/**' --exclude '**/*.shell.test.ts' && vinxi build && tsx scripts/testid-coverage.ts && vitest run --project e2e",
     "test:watch": "vitest",

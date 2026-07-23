@@ -5,7 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { _electron } from "playwright";
-import { createProject, uniqueSlug, type CreatedProject, type TestServer } from "./fixtures.js";
+import { createProject, uniqueSlug, type CreatedProject } from "./fixtures.js";
+import { rmTemp } from "./real-server.js";
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PROJECT_COUNT = 3;
@@ -78,13 +79,9 @@ describe("Startup benchmark (real Electron app)", () => {
     }
 
     try {
-      const fakeServer = {
-        dataDir, reposParentDir, baseUrl: "unused", port: 0,
-      } as unknown as TestServer;
-
       const projects: CreatedProject[] = [];
       for (let p = 0; p < PROJECT_COUNT; p++) {
-        projects.push(await createProject(fakeServer, {
+        projects.push(await createProject({ dataDir, reposParentDir }, {
           projectSlug: uniqueSlug(`bench-app-${p}`),
           withRemote: true,
           withBoards: [{
@@ -137,9 +134,9 @@ describe("Startup benchmark (real Electron app)", () => {
       expect(first.allBoardsMs).toBeLessThan(60000);
       expect(second.allBoardsMs).toBeLessThan(60000);
     } finally {
-      try { fs.rmSync(dataDir, { recursive: true, force: true }); } catch { /* temp dir */ }
-      try { fs.rmSync(reposParentDir, { recursive: true, force: true }); } catch { /* temp dir */ }
-      try { fs.rmSync(appDataDir, { recursive: true, force: true }); } catch { /* temp dir */ }
+      await rmTemp(dataDir, "startup bench dataDir");
+      await rmTemp(reposParentDir, "startup bench reposParentDir");
+      await rmTemp(appDataDir, "startup bench appDataDir");
     }
   }, 300000);
 });

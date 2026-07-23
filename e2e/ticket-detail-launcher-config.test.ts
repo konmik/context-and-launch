@@ -1,12 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
-  createProject, uniqueSlug, gotoProject, openTicketDetail,
   readProjectLauncherConfig, poll,
   setupE2E,
 } from "./fixtures.js";
-import { APP_LAUNCHER, openLauncher, setupLauncherTicket } from "./ticket-detail-launcher-shared.js";
+import { setupLauncherTicket } from "./ticket-detail-launcher-shared.js";
 
-describe("Ticket detail Launcher tab (e2e, real server)", () => {
+describe("Ticket detail launcher config and run (e2e, real server)", () => {
   const ctx = setupE2E();
   it("profile select persists selection to project launcher config", async () => {
     const project = await setupLauncherTicket(ctx, "profile");
@@ -64,52 +63,30 @@ describe("Ticket detail Launcher tab (e2e, real server)", () => {
     expect(await ctx.page.locator('[data-testid="ticket-detail-launcher-dirty-launch-anyway"]').count()).toBe(0);
   }, 60000);
 
-  it("prompt preview shows interpolated template text", async () => {
-    const project = await setupLauncherTicket(ctx, "preview-text");
-    const cm = ctx.page.locator('.cm-content');
-    await cm.waitFor({ state: "visible", timeout: 15000 });
-    const text = await cm.textContent();
-    expect(text).toContain("do it in");
-    expect(text).not.toContain("{{ticketDir}}");
-    expect(text).toContain(project.projectSlug);
+  it("launch dir display shows project path when worktree is off", async () => {
+    const project = await setupLauncherTicket(ctx, "dir-off");
+    const display = ctx.page.locator('[data-testid="launch-dir-display"]');
+    await display.waitFor({ state: "visible", timeout: 15000 });
+    const text = await display.textContent();
+    expect(text).toContain(project.projectPath);
+    expect(await ctx.page.locator('[data-testid="launch-dir-copy-button"]').count()).toBe(1);
   }, 60000);
 
-  it("prompt preview updates when template selection changes", async () => {
-    await setupLauncherTicket(ctx, "preview-change");
-    const cm = ctx.page.locator('.cm-content');
-    await cm.waitFor({ state: "visible", timeout: 15000 });
-    const textBefore = await cm.textContent();
-    expect(textBefore).toContain("do it in");
-    await ctx.page.selectOption('[data-testid="ticket-detail-launcher-template-select"]', "Other");
-    await ctx.page.waitForTimeout(500);
-    const textAfter = await cm.textContent();
-    expect(textAfter).toContain("other");
-  }, 60000);
-
-  it("prompt preview includes checked skill text", async () => {
-    await setupLauncherTicket(ctx, "preview-skill");
-    const cb = ctx.page.locator(
-      '[data-testid="ticket-detail-launcher-skill-checkbox"][data-skill-name="alpha-skill"]',
-    );
-    await cb.waitFor({ state: "visible", timeout: 15000 });
+  it("launch dir display updates when worktree toggle changes", async () => {
+    const project = await setupLauncherTicket(ctx, "dir-toggle");
+    const display = ctx.page.locator('[data-testid="launch-dir-display"]');
+    await display.waitFor({ state: "visible", timeout: 15000 });
+    const textBefore = await display.textContent();
+    expect(textBefore).toContain(project.projectPath);
+    const cb = ctx.page.locator('[data-testid="ticket-detail-use-worktree-checkbox"]');
     await cb.check();
     await ctx.page.waitForTimeout(500);
-    const cm = ctx.page.locator('.cm-content');
-    const text = await cm.textContent();
-    expect(text).toContain("a");
-  }, 60000);
-
-  it("edit toggle freezes preview", async () => {
-    await setupLauncherTicket(ctx, "edit-freeze");
-    const cm = ctx.page.locator('.cm-content');
-    await cm.waitFor({ state: "visible", timeout: 15000 });
-    const toggle = ctx.page.locator('[data-testid="prompt-preview-edit-toggle"]');
-    await toggle.check();
-    await ctx.page.waitForTimeout(200);
-    const textBefore = await cm.textContent();
-    await ctx.page.selectOption('[data-testid="ticket-detail-launcher-template-select"]', "Other");
+    const textAfter = await display.textContent();
+    expect(textAfter).toContain("t-1-alpha");
+    expect(textAfter).not.toContain(project.projectPath);
+    await cb.uncheck();
     await ctx.page.waitForTimeout(500);
-    const textAfter = await cm.textContent();
-    expect(textAfter).toBe(textBefore);
+    const textReverted = await display.textContent();
+    expect(textReverted).toContain(project.projectPath);
   }, 60000);
 });

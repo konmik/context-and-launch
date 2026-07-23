@@ -1,4 +1,4 @@
-import { For, Show, onMount } from "solid-js";
+import { For, Show } from "solid-js";
 import {
 	DragDropProvider,
 	DragDropSensors,
@@ -30,11 +30,9 @@ interface KanbanBoardProps {
 	currentOrder?: Accessor<Record<string, string[]>>;
 	activeTicket?: Accessor<TicketInfo | null>;
 	commands?: BoardCommands;
-	onReady?: () => void;
 }
 
 export default function KanbanBoard(props: KanbanBoardProps) {
-	onMount(() => props.onReady?.());
 	const dnd = createBoardDnd(() => props.board);
 	const board = props.boardView ?? dnd.board;
 	const drag = props.dragState ?? dnd.drag;
@@ -87,7 +85,6 @@ export default function KanbanBoard(props: KanbanBoardProps) {
 								activeId={drag().activeId}
 								activeTicket={activeTicket()}
 								hoverTarget={drag().hoverTarget}
-								columns={props.board.columns}
 								onDelete={props.onDelete}
 								onArchive={props.onArchive}
 								onViewDetail={props.onViewDetail}
@@ -100,7 +97,6 @@ export default function KanbanBoard(props: KanbanBoardProps) {
 							activeId={drag().activeId}
 							activeTicket={activeTicket()}
 							hoverTarget={drag().hoverTarget}
-							columns={props.board.columns}
 							onDelete={props.onDelete}
 							onArchive={props.onArchive}
 							onViewDetail={props.onViewDetail}
@@ -117,7 +113,6 @@ export default function KanbanBoard(props: KanbanBoardProps) {
 							>
 								<TicketCard
 									ticket={t()}
-									columns={props.board.columns}
 									onDelete={() => {}}
 									onArchive={() => {}}
 									onViewDetail={() => {}}

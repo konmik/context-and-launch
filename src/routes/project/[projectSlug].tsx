@@ -35,7 +35,9 @@ import PalettePicker from "~/components/shared/PalettePicker";
 import LogViewerDialog from "~/components/shared/LogViewerDialog";
 import LauncherSettings from "~/components/launcher/LauncherSettings";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
-import { loadProjectPage, getSyncStatus, addProject, recordProjectFocus } from "~/components/project/project-api.js";
+import {
+  loadProjectPage, getSyncStatus, addProject, recordProjectFocus, projectSyncRevalidateKeys,
+} from "~/components/project/project-api.js";
 import {
   createProjectPageController,
   type ProjectPageController,
@@ -52,6 +54,12 @@ export const route = {
   load: ({ params }: { params: { projectSlug: string } }) => loadProjectPage(params.projectSlug),
 };
 
+function createDeferredAsync<T>(ready: () => boolean, load: () => Promise<T>, placeholder: T) {
+  return createAsync(() => (ready() ? load() : Promise.resolve(placeholder)), {
+    initialValue: placeholder,
+  });
+}
+
 export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   const params = useParams();
   const navigate = useNavigate();
@@ -59,14 +67,15 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   const data = createAsync(() => loadProjectPage(projectSlug()));
 
   const [deferredPollsReady, setDeferredPollsReady] = createSignal(false);
-
-  const syncStatus = createAsync(() =>
-    deferredPollsReady() ? getSyncStatus(projectSlug()) : Promise.resolve(undefined),
-  );
   createEffect(() => {
-    const page = data();
-    if (page && page.status !== "loaded") setDeferredPollsReady(true);
+    if (!data()) return;
+    const handle = requestIdleCallback(() => setDeferredPollsReady(true));
+    onCleanup(() => cancelIdleCallback(handle));
   });
+
+  const syncStatus = createDeferredAsync(
+    deferredPollsReady, () => getSyncStatus(projectSlug()), undefined,
+  );
 
   const [viewMode, setViewModeSignal] = createSignal<'kanban' | 'forest'>('kanban');
   createEffect(() => {
@@ -83,9 +92,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   }
 
   const { dialogState, syncState, selectionState, commands } =
-    props?.ctrl ?? createProjectPageController({
-      projectSlug, data: data as any, syncStatus: () => syncStatus(),
-    });
+    props?.ctrl ?? createProjectPageController({ projectSlug, data, syncStatus });
 
   const launcherConfig = createAsync(async () => {
     const page = data();
@@ -114,11 +121,10 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
     onCleanup(() => { stopped = true; clearInterval(timer); });
   });
 
-  const herdrStatusesResult = createAsync(
-    () => deferredPollsReady() && projectSlug()
-      ? getHerdrAgentStatuses(projectSlug())
-      : Promise.resolve({ kind: "disabled" as const }),
-    { initialValue: { kind: "disabled" } as const },
+  const herdrStatusesResult = createDeferredAsync(
+    () => deferredPollsReady() && projectSlug() !== "",
+    () => getHerdrAgentStatuses(projectSlug()),
+    { kind: "disabled" as const },
   );
   const herdrPollingActive = createMemo(() => {
     const result = herdrStatusesResult();
@@ -133,15 +139,6 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
     const result = herdrStatusesResult();
     return result?.kind === "available" ? result.statusesByFolderName : {};
   };
-
-  const [hasConflict, setHasConflict] = createSignal(false);
-  createEffect(() => {
-    if (!hasConflict()) return;
-    const timer = setInterval(
-      () => void revalidate(["project-page", "project-sync-status"]), 5000,
-    );
-    onCleanup(() => clearInterval(timer));
-  });
 
   const currentProjectName = () => {
     const v = data();
@@ -172,38 +169,53 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
     if (name) document.title = `${name} - Context & Launch`;
   });
 
-  function SyncButton() {
-    createEffect(() => setHasConflict(syncStatus()?.hasConflict ?? false));
+  function SyncControls() {
+    const hasConflict = createMemo(() => syncStatus()?.hasConflict ?? false);
+    createEffect(() => {
+      if (!hasConflict()) return;
+      const timer = setInterval(() => void revalidate(projectSyncRevalidateKeys), 5000);
+      onCleanup(() => clearInterval(timer));
+    });
     return (
-      <button
-        onClick={hasConflict() ? () => commands.setConflictDialogOpen(true) : commands.handleSync}
-        disabled={syncState().syncing}
-        class={`btn-icon relative ${
-          hasConflict() ? "border-destructive text-destructive hover:bg-destructive/10" : ""
-        }`}
-        title={hasConflict() ? "Resolve conflicts" : "Sync tickets"}
-        data-testid="sync-button-trigger"
-      >
-        <Show when={syncState().syncSuccess} fallback={<RefreshCw size={16} />}>
-          <Check size={16} data-testid="sync-button-check-icon" />
-        </Show>
-        <Show when={hasConflict()}>
-          <span
-            class={
-              "absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center"
-              + " rounded-full bg-destructive text-[8px] font-bold leading-none"
-              + " text-destructive-foreground"
-            }
-            data-testid="sync-button-conflict-badge"
-          >!</span>
-        </Show>
-        <Show when={hasPendingChanges() && !hasConflict()}>
-          <span
-            class="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-warning"
-            data-testid="sync-button-pending-badge"
-          />
-        </Show>
-      </button>
+      <>
+        <button
+          onClick={hasConflict() ? () => commands.setConflictDialogOpen(true) : commands.handleSync}
+          disabled={syncState().syncing}
+          class={`btn-icon relative ${
+            hasConflict() ? "border-destructive text-destructive hover:bg-destructive/10" : ""
+          }`}
+          title={hasConflict() ? "Resolve conflicts" : "Sync tickets"}
+          data-testid="sync-button-trigger"
+        >
+          <Show when={syncState().syncSuccess} fallback={<RefreshCw size={16} />}>
+            <Check size={16} data-testid="sync-button-check-icon" />
+          </Show>
+          <Show when={hasConflict()}>
+            <span
+              class={
+                "absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center"
+                + " rounded-full bg-destructive text-[8px] font-bold leading-none"
+                + " text-destructive-foreground"
+              }
+              data-testid="sync-button-conflict-badge"
+            >!</span>
+          </Show>
+          <Show when={hasPendingChanges() && !hasConflict()}>
+            <span
+              class="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-warning"
+              data-testid="sync-button-pending-badge"
+            />
+          </Show>
+        </button>
+        <ConflictDialog
+          open={dialogState().conflictDialogOpen}
+          onOpenChange={commands.setConflictDialogOpen}
+          onResolve={commands.handleConflictResolve}
+          onAbort={commands.handleConflictAbort}
+          projectSlug={projectSlug()}
+          hasConflict={hasConflict()}
+        />
+      </>
     );
   }
 
@@ -291,7 +303,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                 <ScrollText size={16} />
               </button>
               <ErrorBoundary fallback={(error) => <SyncStatusErrorButton error={error} />}>
-                <SyncButton />
+                <SyncControls />
               </ErrorBoundary>
               <button
                 onClick={commands.openSettings}
@@ -397,7 +409,6 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                           onArchive={commands.openArchive}
                           onViewDetail={commands.openDetail}
                           onReorder={commands.handleReorder}
-                          onReady={() => setDeferredPollsReady(true)}
                         />
                       </ShortcutRunnerContext.Provider>
                     }>
@@ -408,7 +419,6 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                           onViewDetail={commands.openDetail}
                           onClose={toggleViewMode}
                           suggestedNextNumber={loaded().suggestedNextNumber}
-                          onReady={() => setDeferredPollsReady(true)}
                         />
                       </div>
                     </Show>
@@ -475,14 +485,6 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
             </FloatingPanelBody>
           </FloatingWindow>
 
-          <ConflictDialog
-            open={dialogState().conflictDialogOpen}
-            onOpenChange={commands.setConflictDialogOpen}
-            onResolve={commands.handleConflictResolve}
-            onAbort={commands.handleConflictAbort}
-            projectSlug={d().projectSlug}
-            hasConflict={hasConflict()}
-          />
           <ShortcutConfirmationDialog
             info={shortcutRunner.confirmation()}
             running={shortcutRunner.running() !== ""}

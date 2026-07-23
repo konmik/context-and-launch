@@ -198,13 +198,13 @@ describe('TicketStore.moveTicket (deepened interface)', () => {
 		expect(fs.readFileSync(path.join(dir, 'a-1-alpha', 'status.json'), 'utf-8')).toBe(statusBefore);
 	});
 
-	it.concurrent('loadBoardState returns tickets and reconciled order', async () => {
+	it.concurrent('loadBoardSnapshot returns tickets and reconciled order', async () => {
 		const dir = await createGitWorktree(); dirs.push(dir);
 		const store = new TicketStore(dir);
 		store.createTicket('L-1', 'First', 'todo');
 		store.createTicket('L-2', 'Second', 'done');
 
-		const { tickets, ticketOrder } = store.loadBoardState(['todo', 'done']);
+		const { tickets, ticketOrder } = await store.loadBoardSnapshot(['todo', 'done']);
 		expect(tickets.length).toBe(2);
 		expect(ticketOrder['todo']).toEqual(['l-1-first']);
 		expect(ticketOrder['done']).toEqual(['l-2-second']);

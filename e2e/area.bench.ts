@@ -6,8 +6,8 @@ import {
 } from "./fixtures.js";
 
 // Ranks the slowest user-facing areas against a real server + real browser and
-// decomposes board load (server SSR vs client hydration/paint). Re-run after a
-// change to compare: `npx vitest run --project e2e e2e/area-benchmark.test.ts`.
+// splits board load into time-to-first-column-header vs time-to-all-cards.
+// Re-run after a change to compare: `npm run bench`.
 
 const COLUMNS = ["todo", "in-progress", "review", "blocked", "qa", "done"];
 const TICKET_COUNT = Number(process.env.BENCH_TICKETS ?? 300);
@@ -130,7 +130,7 @@ describe("Area benchmark (real server + real browser)", () => {
         const c = summarize("all-cards", cardSamples, 0);
         console.log(
           `[area-benchmark] board-load split | first-header ${h.median.toFixed(0)} ms `
-          + `| all-cards ${c.median.toFixed(0)} ms | client-render delta ~${(c.median - h.median).toFixed(0)} ms`,
+          + `| all-cards ${c.median.toFixed(0)} ms | header-to-cards delta ~${(c.median - h.median).toFixed(0)} ms`,
         );
       }
 

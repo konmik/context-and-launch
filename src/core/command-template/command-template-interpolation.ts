@@ -2,8 +2,13 @@ import type {
 	CommandTemplatePlatform, CommandTemplateValue, CommandTemplateValues,
 } from './command-template-types.js';
 
-const PLACEHOLDER_PATTERN = /\{\{([^{}]+)\}\}/g;
-const PLACEHOLDER_WITH_PATH_SUFFIX_PATTERN = /\{\{([^{}]+)\}\}([\\/][^\s"'`|;&(){}\[\]]*)?/g;
+export const PLACEHOLDER_SOURCE = '\\{\\{([^{}]+)\\}\\}';
+export const PATH_SUFFIX_SOURCE = '[\\\\/][^\\s"\'`|;&(){}\\[\\]]*';
+
+const PLACEHOLDER_PATTERN = new RegExp(PLACEHOLDER_SOURCE, 'g');
+const PLACEHOLDER_WITH_PATH_SUFFIX_PATTERN = new RegExp(
+	`${PLACEHOLDER_SOURCE}(${PATH_SUFFIX_SOURCE})?`, 'g',
+);
 
 /**
  * Names a script references that the action does not declare. A template body is
