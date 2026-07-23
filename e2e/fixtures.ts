@@ -336,12 +336,6 @@ export async function gotoProject(page: Page, server: TestServer, projectSlug: s
     state: "visible",
     timeout: 15000,
   });
-  // Wait for client hydration to finish so event handlers are live; a click fired
-  // before this point is dropped (SSR markup is interactive-looking but inert).
-  await page.waitForSelector('[data-hydrated="true"]', {
-    state: "attached",
-    timeout: 15000,
-  });
   await page.waitForSelector(
     '[data-testid="kanban-board-column-header"], [data-testid="forest-surface"]',
     { state: "visible", timeout: 15000 },

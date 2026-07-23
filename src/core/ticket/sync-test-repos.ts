@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { git, gitSync } from '~/test-git.js';
+import { git, gitSync, setGitOriginUrl } from '~/test-git.js';
 import { TicketSyncManager } from './ticket-sync.js';
 import { GitRepository } from '../infra/git-repository.js';
 import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js';
@@ -15,32 +15,45 @@ export function createTicketSyncManager(): TicketSyncManager {
 	return new TicketSyncManager(commands, new GitRepository(commands));
 }
 
-export async function createNoUpstreamRepoWithExistingRemoteBranch(
+let noUpstreamTemplate: { bareDir: string; worktreeDir: string } | undefined;
+
+function getNoUpstreamTemplate(): { bareDir: string; worktreeDir: string } {
+	if (!noUpstreamTemplate) {
+		const bareDir = tmpDir('sync-orphan-bare-tpl-');
+		gitSync(bareDir, 'init', '--bare');
+
+		const seedDir = tmpDir('sync-orphan-seed-tpl-');
+		gitSync(seedDir, 'init');
+		fs.writeFileSync(path.join(seedDir, 'remote-only.txt'), 'from remote');
+		fs.writeFileSync(path.join(seedDir, 'shared.txt'), 'shared');
+		gitSync(seedDir, 'add', '-A');
+		gitSync(seedDir, 'commit', '-m', 'seed');
+		gitSync(seedDir, 'remote', 'add', 'origin', bareDir);
+		gitSync(seedDir, 'push', '-u', 'origin', 'master');
+
+		const worktreeDir = tmpDir('sync-orphan-worktree-tpl-');
+		gitSync(worktreeDir, 'init');
+		fs.writeFileSync(path.join(worktreeDir, 'shared.txt'), 'shared');
+		fs.writeFileSync(path.join(worktreeDir, 'local-only.txt'), 'from local');
+		gitSync(worktreeDir, 'add', '-A');
+		gitSync(worktreeDir, 'commit', '-m', 'local init');
+		gitSync(worktreeDir, 'remote', 'add', 'origin', bareDir);
+
+		noUpstreamTemplate = { bareDir, worktreeDir };
+	}
+	return noUpstreamTemplate;
+}
+
+export function createNoUpstreamRepoWithExistingRemoteBranch(
 	dirs: string[],
-): Promise<{ worktreeDir: string; remoteDir: string }> {
+): { worktreeDir: string; remoteDir: string } {
+	const template = getNoUpstreamTemplate();
 	const remoteDir = tmpDir('sync-remote-orphan-');
-	dirs.push(remoteDir);
-	await git(remoteDir, 'init', '--bare');
-
-	const seedDir = tmpDir('sync-seed-');
-	dirs.push(seedDir);
-	await git(seedDir, 'init');
-	fs.writeFileSync(path.join(seedDir, 'remote-only.txt'), 'from remote');
-	fs.writeFileSync(path.join(seedDir, 'shared.txt'), 'shared');
-	await git(seedDir, 'add', '-A');
-	await git(seedDir, 'commit', '-m', 'seed');
-	await git(seedDir, 'remote', 'add', 'origin', remoteDir);
-	await git(seedDir, 'push', '-u', 'origin', 'master');
-
+	fs.cpSync(template.bareDir, remoteDir, { recursive: true });
 	const worktreeDir = tmpDir('sync-orphan-');
-	dirs.push(worktreeDir);
-	await git(worktreeDir, 'init');
-	fs.writeFileSync(path.join(worktreeDir, 'shared.txt'), 'shared');
-	fs.writeFileSync(path.join(worktreeDir, 'local-only.txt'), 'from local');
-	await git(worktreeDir, 'add', '-A');
-	await git(worktreeDir, 'commit', '-m', 'local init');
-	await git(worktreeDir, 'remote', 'add', 'origin', remoteDir);
-
+	fs.cpSync(template.worktreeDir, worktreeDir, { recursive: true });
+	setGitOriginUrl(worktreeDir, remoteDir);
+	dirs.push(remoteDir, worktreeDir);
 	return { worktreeDir, remoteDir };
 }
 
@@ -70,22 +83,13 @@ function getRemoteRepoTemplate(): { bareDir: string; worktreeDir: string } {
 	return remoteRepoTemplate;
 }
 
-function setOriginUrl(worktreeDir: string, bareDir: string): void {
-	const configPath = path.join(worktreeDir, '.git', 'config');
-	const escaped = bareDir.replace(/\\/g, '\\\\');
-	const config = fs
-		.readFileSync(configPath, 'utf8')
-		.replace(/(\[remote "origin"\][\s\S]*?url = ).*/, `$1${escaped}`);
-	fs.writeFileSync(configPath, config);
-}
-
 export function createRepoWithRemote(): { worktreeDir: string; remoteDir: string } {
 	const template = getRemoteRepoTemplate();
 	const remoteDir = tmpDir('sync-remote-');
 	fs.cpSync(template.bareDir, remoteDir, { recursive: true });
 	const worktreeDir = tmpDir('sync-worktree-');
 	fs.cpSync(template.worktreeDir, worktreeDir, { recursive: true });
-	setOriginUrl(worktreeDir, remoteDir);
+	setGitOriginUrl(worktreeDir, remoteDir);
 	return { worktreeDir, remoteDir };
 }
 

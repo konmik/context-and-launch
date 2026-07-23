@@ -1,4 +1,5 @@
 import fs from "fs";
+import { query } from "@solidjs/router";
 import {
   worktreeManager, boardConfigManager, projectRegistry,
   operationTracker, ticketSyncManager, syncPendingTracker,
@@ -77,6 +78,26 @@ export async function reorderTicket(
     return errorResult(e);
   }
 }
+
+export interface TicketFiles {
+  contextNames: string[];
+  fileNames: string[];
+  references: { path: string; exists: boolean }[];
+}
+
+export const getTicketFiles = query(async (
+  projectSlug: string, folderName: string,
+): Promise<TicketFiles> => {
+  "use server";
+  const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
+  const ticket = new TicketStore(worktreeDir).getTicket(folderName);
+  if (!ticket) throw new NotFoundError(`Ticket not found: ${folderName}`);
+  return {
+    contextNames: ticket.contextNames,
+    fileNames: ticket.fileNames,
+    references: ticket.references,
+  };
+}, "ticket-files");
 
 export async function getContext(
   projectSlug: string, folderName: string, contextFileName: string,

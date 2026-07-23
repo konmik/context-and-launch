@@ -31,9 +31,10 @@ export function makeCleanupEnv() {
 		return { configDir, projectDir, worktreeRoot, lcm, awm, service };
 	}
 
-	function cleanupAll() {
-		cleanup(...dirs);
+	function cleanupAll(): Promise<void> {
+		const pending = [...dirs];
 		dirs.length = 0;
+		return cleanup(...pending);
 	}
 
 	return { dirs, setup, cleanupAll };

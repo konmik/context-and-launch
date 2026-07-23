@@ -37,4 +37,37 @@ describe('CommandTemplateService', () => {
 		);
 	});
 
+	it('routes a tokenizable trusted profile through direct argv, not a shell string', async () => {
+		const requests: ShellExecutionRequest[] = [];
+		const runner: PlatformShellRunner = {
+			execute: async (request) => {
+				requests.push(request);
+				return '';
+			},
+			executeSync: vi.fn(),
+		};
+		const service = new CommandTemplateService(
+			{} as unknown as CommandTemplateStore, runner, 'windows', vi.fn(),
+		);
+		const prompt = 'Check "C:\\Users\\me\\Downloads\\Release notes _ Doc.pdf"';
+		await service.executeTrustedScript({
+			source: { kind: 'profile', profileName: 'Claude Windows' },
+			script:
+				'powershell -File {{configDefaultsDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}}' +
+					' {{markerPath}} claude --dangerously-skip-permissions',
+			values: {
+				configDefaultsDir: 'C:\\cfg', initialPrompt: prompt,
+				windowTitle: 'T -- AI', markerPath: 'C:\\marker.json',
+			},
+			knownScalarPlaceholders: [
+				'configDefaultsDir', 'initialPrompt', 'windowTitle', 'markerPath',
+			],
+			cwd: '.',
+		});
+		expect(requests[0].argv).toEqual([
+			'powershell', '-File', 'C:\\cfg/run-agent.ps1', prompt,
+			'T -- AI', 'C:\\marker.json', 'claude', '--dangerously-skip-permissions',
+		]);
+	});
+
 });

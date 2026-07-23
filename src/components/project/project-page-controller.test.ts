@@ -43,6 +43,7 @@ describe("ProjectPageController ticket detail", () => {
 		const controller = createProjectPageController({
 			projectSlug: () => "test-project",
 			data: () => ({ status: "loaded", board: { tickets: [clicked] } }),
+			syncStatus: () => undefined,
 		});
 
 		void controller.commands.openDetail(clicked);

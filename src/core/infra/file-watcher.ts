@@ -2,9 +2,19 @@ import path from 'path';
 import chokidar, { type FSWatcher } from 'chokidar';
 import type { CommandTemplateExecutor } from '../command-template/command-template-types.js';
 
+function hasDotSegment(relativePath: string): boolean {
+	return relativePath.split(/[/\\]/).some((segment) => segment.startsWith('.'));
+}
+
 function isDotPathInside(worktreeDir: string, filePath: string): boolean {
-	const relative = path.relative(worktreeDir, filePath);
-	return relative.split(/[/\\]/).some((segment) => segment.startsWith('.'));
+	return hasDotSegment(path.relative(worktreeDir, filePath));
+}
+
+function statusEntryPath(statusLine: string): string | undefined {
+	const entry = statusLine.slice(3);
+	if (!entry) return undefined;
+	const renameParts = entry.split(' -> ');
+	return renameParts[renameParts.length - 1].replace(/^"(.*)"$/, '$1');
 }
 
 interface WatcherState {
@@ -65,9 +75,17 @@ export class FileWatcher {
 
 		// Files written before the initial scan completes are treated as initial
 		// content by chokidar and never produce events; commit them on ready.
+		// Dot paths are filtered like the event stream filters them, so a
+		// dotfile-only change never triggers the catch-up commit.
 		watcher.on('ready', () => {
 			try {
-				if (this.commands.executeSync('git.status', worktreeDir).trim()) {
+				const hasNonDotChange = this.commands.executeSync('git.status', worktreeDir)
+					.split('\n')
+					.some((line) => {
+						const entry = statusEntryPath(line);
+						return entry !== undefined && !hasDotSegment(entry);
+					});
+				if (hasNonDotChange) {
 					debouncedCommit();
 				}
 			} catch (err) {

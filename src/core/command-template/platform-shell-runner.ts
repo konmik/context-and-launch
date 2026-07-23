@@ -56,10 +56,41 @@ function invocableScript(script: string, platform: ShellExecutionRequest['platfo
 	return script;
 }
 
+/**
+ * A GUI-launched process inherits the PATH snapshot of the explorer session that
+ * started it, which can predate a PowerShell 7 install even though a fresh
+ * terminal resolves `pwsh` fine. Probe PATH first, then fall back to the known
+ * install locations so a stale PATH no longer breaks every PowerShell template.
+ * Returns the bare name as a last resort, preserving the command-not-found error
+ * when pwsh is genuinely absent.
+ */
+function knownWindowsPowerShellLocations(): string[] {
+	const locations: string[] = [];
+	for (const root of [process.env.ProgramW6432, process.env.ProgramFiles, process.env['ProgramFiles(x86)']]) {
+		if (root) locations.push(path.join(root, 'PowerShell', '7', 'pwsh.exe'));
+	}
+	if (process.env.LOCALAPPDATA) {
+		locations.push(path.join(process.env.LOCALAPPDATA, 'Microsoft', 'WindowsApps', 'pwsh.exe'));
+	}
+	return locations;
+}
+
+export function windowsPowerShellExecutable(): string {
+	const onPath = resolveDirectExecutable('pwsh', 'windows');
+	if (onPath) return onPath;
+	for (const file of knownWindowsPowerShellLocations()) {
+		if (fs.existsSync(file)) return file;
+	}
+	return 'pwsh';
+}
+
 function buildShellInvocation(request: ShellExecutionRequest): { executable: string; args: string[] } {
 	if (request.platform === 'windows') {
 		const wrapper = `${WINDOWS_WRAPPER_PROLOGUE}\n${invocableScript(request.script, 'windows')}`;
-		return { executable: 'pwsh', args: ['-NoLogo', '-NoProfile', '-NonInteractive', '-STA', '-Command', wrapper] };
+		return {
+			executable: windowsPowerShellExecutable(),
+			args: ['-NoLogo', '-NoProfile', '-NonInteractive', '-STA', '-Command', wrapper],
+		};
 	}
 	// Bash already exits 127 for an unresolvable command and propagates a failing
 	// command's own code under errexit, so only pipefail needs adding.
@@ -85,15 +116,21 @@ function isExecutableFile(file: string, platform: ShellExecutionRequest['platfor
 	return platform === 'windows' || (stats.mode & 0o111) !== 0;
 }
 
-function searchExecutableOnPath(
-	program: string, platform: ShellExecutionRequest['platform'],
-): string | undefined {
+function isPathQualified(program: string): boolean {
+	return program.includes('/') || program.includes('\\');
+}
+
+function executableCandidates(program: string, extensions: string[]): string[] {
 	const lowered = program.toLowerCase();
-	const candidates = platform === 'windows'
-		? WINDOWS_DIRECT_EXECUTABLE_EXTENSIONS.some((extension) => lowered.endsWith(extension))
-			? [program]
-			: WINDOWS_DIRECT_EXECUTABLE_EXTENSIONS.map((extension) => `${program}${extension}`)
-		: [program];
+	if (extensions.length === 0) return [program];
+	if (extensions.some((extension) => lowered.endsWith(extension))) return [program];
+	return extensions.map((extension) => `${program}${extension}`);
+}
+
+function searchExecutableOnPath(
+	program: string, platform: ShellExecutionRequest['platform'], extensions: string[],
+): string | undefined {
+	const candidates = executableCandidates(program, extensions);
 	for (const directory of (process.env.PATH ?? '').split(path.delimiter)) {
 		if (!directory) continue;
 		for (const candidate of candidates) {
@@ -107,27 +144,34 @@ function searchExecutableOnPath(
 function resolveDirectExecutable(
 	program: string, platform: ShellExecutionRequest['platform'],
 ): string | undefined {
-	if (program.includes('/') || program.includes('\\')) return undefined;
+	if (isPathQualified(program)) return undefined;
 	const cacheKey = `${platform}\n${program}\n${process.env.PATH ?? ''}`;
 	if (!directExecutableCache.has(cacheKey)) {
-		directExecutableCache.set(cacheKey, searchExecutableOnPath(program, platform));
+		directExecutableCache.set(cacheKey, searchExecutableOnPath(
+			program, platform,
+			platform === 'windows' ? WINDOWS_DIRECT_EXECUTABLE_EXTENSIONS : [],
+		));
 	}
 	return directExecutableCache.get(cacheKey);
 }
 
 const WINDOWS_BATCH_EXTENSIONS = ['.cmd', '.bat'];
 
-function windowsBatchTarget(program: string): boolean {
+// The shell resolves an extensionless program via PATHEXT, where .com/.exe win
+// over .bat/.cmd, so a batch script is the target only when no direct
+// executable shadows it.
+function isWindowsBatchTarget(program: string): boolean {
 	const lowered = program.toLowerCase();
 	if (WINDOWS_BATCH_EXTENSIONS.some((extension) => lowered.endsWith(extension))) return true;
-	if (program.includes('/') || program.includes('\\')) return false;
-	for (const directory of (process.env.PATH ?? '').split(path.delimiter)) {
-		if (!directory) continue;
-		for (const extension of WINDOWS_BATCH_EXTENSIONS) {
-			if (isExecutableFile(path.join(directory, `${program}${extension}`), 'windows')) return true;
-		}
+	if (WINDOWS_DIRECT_EXECUTABLE_EXTENSIONS.some((extension) => lowered.endsWith(extension))) return false;
+	if (isPathQualified(program)) {
+		const shadowed = WINDOWS_DIRECT_EXECUTABLE_EXTENSIONS
+			.some((extension) => isExecutableFile(`${program}${extension}`, 'windows'));
+		if (shadowed) return false;
+		return WINDOWS_BATCH_EXTENSIONS
+			.some((extension) => isExecutableFile(`${program}${extension}`, 'windows'));
 	}
-	return false;
+	return searchExecutableOnPath(program, 'windows', WINDOWS_BATCH_EXTENSIONS) !== undefined;
 }
 
 function buildInvocation(request: ShellExecutionRequest): { executable: string; args: string[] } {
@@ -137,11 +181,12 @@ function buildInvocation(request: ShellExecutionRequest): { executable: string; 
 		if (
 			request.platform === 'windows'
 			&& request.argv.some((value) => /[\r\n]/.test(value))
-			&& windowsBatchTarget(request.argv[0])
+			&& isWindowsBatchTarget(request.argv[0])
 		) {
 			throw createProcessError(
 				request, undefined, '', '',
-				`${request.argv[0]} is a cmd.exe batch script and cannot receive arguments containing newlines`,
+				`${request.argv[0]} resolves to a cmd.exe batch script`
+					+ ' and cannot receive arguments containing newlines',
 				'spawn-error',
 			);
 		}

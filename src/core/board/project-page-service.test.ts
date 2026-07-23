@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach, afterAll } from 'vitest';
+import { describe, it, expect, vi, afterEach, afterAll, beforeAll } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { spawn } from 'node:child_process';
@@ -122,7 +122,11 @@ describe('ProjectPageService.loadProjectPage', () => {
 		const dirs: string[] = [];
 		afterAll(() => { cleanup(...dirs); dirs.length = 0; });
 
-		it.concurrent('returns the post-resolution board on the first page load', async () => {
+		beforeAll(async () => {
+			await setupResolvedScratch(dirs);
+		}, 60000);
+
+		it('returns the post-resolution board on the first page load', async () => {
 			const { worktreeDir, manager, plan } = await setupResolvedScratch(dirs);
 			await git(plan.scratchDir, 'push', 'origin', 'HEAD:master');
 
@@ -136,13 +140,13 @@ describe('ProjectPageService.loadProjectPage', () => {
 
 			expect(result.status).toBe('loaded');
 			if (result.status !== 'loaded') return;
-			expect(result.hasConflict).toBe(false);
+			expect((await service.loadSyncStatus('proj')).hasConflict).toBe(false);
 			const ticket = result.board.tickets.find(t => t.folderName === 'st-0001-fix-login');
 			expect(ticket?.status).toBe('done');
 			expect(result.board.ticketOrder['done']).toContain('st-0001-fix-login');
 		});
 
-		it.concurrent('loads the restored board when scratch cleanup left an orphaned directory', async () => {
+		it('loads the restored board when scratch cleanup left an orphaned directory', async () => {
 			const { worktreeDir, manager, plan } = await setupResolvedScratch(dirs);
 			await git(plan.scratchDir, 'push', 'origin', 'HEAD:master');
 
@@ -167,7 +171,7 @@ describe('ProjectPageService.loadProjectPage', () => {
 			expect(ticket?.status).toBe('done');
 		});
 
-		it.runIf(process.platform === 'win32').concurrent(
+		it.runIf(process.platform === 'win32')(
 			'loads the restored board while the resolver still holds the scratch directory open',
 			async () => {
 				const { worktreeDir, manager, plan } = await setupResolvedScratch(dirs);
@@ -223,7 +227,7 @@ describe('ProjectPageService.loadProjectPage', () => {
 				if (result.status !== 'loaded') return;
 				// The rebase is resolved, so there is no conflict to badge even though the
 				// unreachable remote left the scratch worktree unfinalized on disk.
-				expect(result.hasConflict).toBe(false);
+				expect((await service.loadSyncStatus('proj')).hasConflict).toBe(false);
 				const ticket = result.board.tickets.find(t => t.folderName === 'st-0001-fix-login');
 				expect(ticket?.status).toBe('todo');
 				expect(warnSpy).toHaveBeenCalledWith(
@@ -295,5 +299,65 @@ describe('ProjectPageService.loadProjectPage', () => {
 			const ticket = result.board.tickets.find(t => t.folderName === 'st-0001-feature');
 			expect(ticket?.hasAgentWorktree).toBe(false);
 		});
+	});
+});
+
+describe('ProjectPageService.loadSyncStatus', () => {
+	it('rejects when git state cannot be derived', async () => {
+		const { service } = stubDeps({
+			projects: [{ path: '/broken', projectSlug: 'proj', name: 'proj', available: true }],
+		});
+
+		await expect(service.loadSyncStatus('proj')).rejects.toThrow(
+			'no worktreeDir configured in stub',
+		);
+	});
+
+	it('waits for an in-flight page load of the same project before touching git state', async () => {
+		const dirs: string[] = [];
+		const worktreeDir = tmpDir('pps-serial-');
+		dirs.push(worktreeDir);
+		const ticketDir = path.join(worktreeDir, 'st-0001-fix-login');
+		fs.mkdirSync(ticketDir);
+		fs.writeFileSync(path.join(ticketDir, 'status.json'), statusJson('todo'));
+
+		const events: string[] = [];
+		let releaseFinalize!: () => void;
+		const finalizeGate = new Promise<void>((resolve) => { releaseFinalize = resolve; });
+		let finalizeStarted!: () => void;
+		const finalizeStartedGate = new Promise<void>((resolve) => { finalizeStarted = resolve; });
+		const ticketSyncManager = {
+			finalizeResolution: vi.fn(async () => {
+				finalizeStarted();
+				await finalizeGate;
+				events.push('finalize-end');
+			}),
+			hasRemote: vi.fn(async () => {
+				events.push('hasRemote');
+				return false;
+			}),
+			detectConflict: vi.fn(async () => false),
+		} as unknown as TicketSyncManager;
+
+		const { service } = stubDeps({
+			projects: [{ path: worktreeDir, projectSlug: 'proj', name: 'proj', available: true }],
+			worktreeDir,
+			ticketSyncManager,
+		});
+
+		try {
+			const pageLoad = service.loadProjectPage('proj');
+			await finalizeStartedGate;
+			const syncStatus = service.loadSyncStatus('proj');
+			await new Promise((resolve) => setTimeout(resolve, 25));
+			expect(events).toEqual([]);
+
+			releaseFinalize();
+			expect((await pageLoad).status).toBe('loaded');
+			await syncStatus;
+			expect(events).toEqual(['finalize-end', 'hasRemote']);
+		} finally {
+			cleanup(...dirs);
+		}
 	});
 });
