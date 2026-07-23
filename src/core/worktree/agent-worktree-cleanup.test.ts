@@ -179,7 +179,7 @@ describe('AgentWorktreeManager cleanup', () => {
 		expect(merged).toBe(true);
 	});
 
-	it.concurrent('isBranchMerged detects squash-merged branch on remote when local main is behind', async () => {
+	it('isBranchMerged detects squash-merged branch on remote when local main is behind', async () => {
 		const remoteDir = tmpDir('awm-remote-');
 		dirs.push(remoteDir);
 		initGitRepo(remoteDir);

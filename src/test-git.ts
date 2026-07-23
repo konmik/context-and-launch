@@ -1,4 +1,6 @@
 import { execFile, execFileSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 import { ProcessError } from './core/shared/errors.js';
 
 const environment = { ...process.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' };
@@ -26,4 +28,13 @@ export function gitSync(workDir: string, ...args: string[]): string {
 	return execFileSync('git', args, {
 		cwd: workDir, timeout: 30_000, encoding: 'utf8', env: environment,
 	});
+}
+
+export function setGitOriginUrl(repoDir: string, url: string): void {
+	const configPath = path.join(repoDir, '.git', 'config');
+	const escaped = url.replace(/\\/g, '\\\\');
+	const config = fs
+		.readFileSync(configPath, 'utf8')
+		.replace(/(\[remote "origin"\][\s\S]*?url = ).*/, `$1${escaped}`);
+	fs.writeFileSync(configPath, config);
 }

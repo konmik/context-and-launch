@@ -1,5 +1,5 @@
 import { createSignal, createEffect, createMemo, on, onCleanup } from "solid-js";
-import { revalidate } from "@solidjs/router";
+import { revalidate, createAsync } from "@solidjs/router";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/core/launcher/launcher-config.js";
 import {
@@ -25,7 +25,7 @@ import { createShortcutState } from "./ticket-detail-shortcuts.js";
 import { errorPayload, type ErrorInfo } from "~/core/shared/errors.js";
 import { computeLaunchDir } from "../launcher/agent-launcher-pure.js";
 import {
-  getContext, saveContext as saveContextAction,
+  getContext, getTicketFiles, saveContext as saveContextAction,
   deleteContext as deleteContextAction, deleteFile as deleteFileAction,
   removeReference as removeReferenceAction, setUseWorktree as setUseWorktreeAction,
   addReferences as addReferencesAction,
@@ -60,16 +60,27 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   const [imageUrl, setImageUrl] = createSignal("");
   const [fileViewMode, setFileViewMode] = createSignal<"editor" | "image" | "unsupported">("editor");
   const [useWorktree, setUseWorktree] = createSignal(props.ticket.useWorktree);
-  const [ticketFileNames, setTicketFileNames] = createSignal<string[]>(props.ticket.fileNames ?? []);
-  const [ticketReferences, setTicketReferences] = createSignal<
-    { path: string; exists: boolean }[]
-  >(props.ticket.references ?? []);
 
   const header = createHeaderEditState({
     projectSlug: props.projectSlug,
     ticket: props.ticket,
     setError,
   });
+
+  const ticketFiles = createAsync(
+    () => getTicketFiles(props.projectSlug, header.savedFolderName()),
+    {
+      initialValue: {
+        contextNames: props.ticket.contextNames ?? [],
+        fileNames: props.ticket.fileNames ?? [],
+        references: props.ticket.references ?? [],
+      },
+    },
+  );
+
+  async function refreshTicketFiles() {
+    await revalidate(["ticket-files", "project-page"]);
+  }
 
   function ticketUrl(suffix: string): string {
     return ticketApiUrl(props.projectSlug, header.savedFolderName(), suffix);
@@ -96,8 +107,9 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     projectSlug: props.projectSlug,
     folderName: header.savedFolderName,
     setError,
-    ticketFileNames, setTicketFileNames,
-    contextNames: props.ticket.contextNames ?? [],
+    ticketFileNames: () => ticketFiles().fileNames,
+    contextNames: () => ticketFiles().contextNames,
+    refreshFiles: refreshTicketFiles,
     requestFileSwitch,
   });
 
@@ -120,15 +132,15 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   const contextOptions = (): ActiveFile[] =>
     buildContextOptions(
       ["to-do", "product-requirement-document"],
-      props.ticket.contextNames ?? [],
+      ticketFiles().contextNames,
       extraFiles(),
     );
 
   const fileEntryOptions = (): ActiveFile[] =>
-    buildFileEntryOptions(ticketFileNames());
+    buildFileEntryOptions(ticketFiles().fileNames);
 
   const referenceOptions = (): ActiveFile[] =>
-    buildReferenceOptions(ticketReferences());
+    buildReferenceOptions(ticketFiles().references);
 
   const allFileOptions = () =>
     buildAllFileOptions(contextOptions(), fileEntryOptions(), referenceOptions());
@@ -138,7 +150,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   }
 
   function isReferenceStale(refPath: string): boolean {
-    return checkReferenceStale(ticketReferences(), refPath);
+    return checkReferenceStale(ticketFiles().references, refPath);
   }
 
   const hasUnsavedFileChanges = () =>
@@ -312,13 +324,11 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
           props.projectSlug, header.savedFolderName(), af.path,
         );
         if (!result.ok) { setError({ title: "Delete failed", description: result.message }); return; }
-        setTicketReferences((prev) => prev.filter((r) => r.path !== af.path));
       } else if (af.type === "file") {
         const result = await deleteFileAction(
           props.projectSlug, header.savedFolderName(), af.name,
         );
         if (!result.ok) { setError({ title: "Delete failed", description: result.message }); return; }
-        setTicketFileNames((prev) => prev.filter((n) => n !== af.name));
       } else {
         const result = await deleteContextAction(
           props.projectSlug, header.savedFolderName(), af.name,
@@ -326,9 +336,9 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
         if (!result.ok) { setError({ title: "Delete failed", description: result.message }); return; }
         setExtraFiles((prev) => prev.filter((n) => n !== af.name));
       }
-      revalidate("project-page");
       const remaining = allFileOptions().filter((f) => !isActiveFileMatch(f, af));
       setActiveFile(remaining[0] ?? { type: "context", name: "to-do" });
+      await refreshTicketFiles();
     } catch (e) { setError(errorPayload(e, "Delete failed")); }
   }
 
@@ -347,7 +357,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     setBrowsing(true); setError(null);
     try {
       const remembered = localStorage.getItem("picker:references:lastDir") ?? "";
-      const refs = ticketReferences();
+      const refs = ticketFiles().references;
       const lastRef = refs[refs.length - 1]?.path;
       const fallback = lastRef ? lastRef.replace(/\/[^/]*$/, "") : "";
       const startDir = remembered || fallback;
@@ -368,12 +378,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
         props.projectSlug, header.savedFolderName(), paths,
       );
       if (!result.ok) { setError({ title: "Add reference failed", description: result.message }); return; }
-      const newRefs = paths.map((p) => ({ path: p, exists: true }));
-      setTicketReferences((prev) => {
-        const existing = new Set(prev.map((r) => r.path));
-        return [...prev, ...newRefs.filter((r) => !existing.has(r.path))];
-      });
-      revalidate("project-page");
+      await refreshTicketFiles();
       if (paths.length > 0) requestFileSwitch({ type: "reference", path: paths[0] });
     } catch (e) { setError(errorPayload(e, "Add reference failed")); }
   }
@@ -383,7 +388,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
       header.hasUnsavedHeaderChanges() ? header.saveTicketHeader() : undefined,
       hasUnsavedFileChanges() ? saveFileContent() : undefined,
     ]);
-    revalidate("project-page");
+    await refreshTicketFiles();
   }
 
   const showSaveButton = () => showSaveButtonPure(activeTab(), activeFile().type);

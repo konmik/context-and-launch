@@ -128,6 +128,12 @@ export class CommandTemplateService implements CommandTemplateExecutor {
 			key: TRUSTED_SCRIPT_IDENTITY[options.source.kind],
 			platform: this.platform,
 			script: renderedScript,
+			argv: buildDirectInvocationArgv(
+				options.script,
+				options.values,
+				options.knownScalarPlaceholders,
+				options.knownListPlaceholders ?? [],
+			),
 			cwd: options.cwd,
 			environment: {},
 			mode: options.mode ?? 'detached',

@@ -1,9 +1,12 @@
 import { useParams, useNavigate, createAsync, revalidate } from "@solidjs/router";
 import { clientOnly } from "@solidjs/start";
-import { Show, For, Switch, Match, createSignal, createEffect, createMemo, onCleanup, onMount } from "solid-js";
+import {
+  Show, For, Switch, Match, ErrorBoundary,
+  createSignal, createEffect, createMemo, onCleanup, onMount,
+} from "solid-js";
 import {
   EllipsisVertical, Network, ScrollText, RefreshCw, Check, Settings,
-  ChevronDown, ExternalLink, X,
+  ChevronDown, ExternalLink, X, TriangleAlert,
 } from "lucide-solid";
 import {
   FloatingWindow, FloatingWindowHeader, FloatingPanelBody,
@@ -26,7 +29,7 @@ import PalettePicker from "~/components/shared/PalettePicker";
 import LogViewerDialog from "~/components/shared/LogViewerDialog";
 import LauncherSettings from "~/components/launcher/LauncherSettings";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
-import { loadProjectPage, addProject, recordProjectFocus } from "~/components/project/project-api.js";
+import { loadProjectPage, getSyncStatus, addProject, recordProjectFocus } from "~/components/project/project-api.js";
 import {
   createProjectPageController,
   type ProjectPageController,
@@ -48,11 +51,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   const navigate = useNavigate();
   const projectSlug = () => params.projectSlug ?? "";
   const data = createAsync(() => loadProjectPage(projectSlug()));
-
-  // onMount runs only after client hydration, so this attribute marks the point
-  // at which event handlers are live and clicks will no longer be dropped.
-  const [hydrated, setHydrated] = createSignal(false);
-  onMount(() => setHydrated(true));
+  const syncStatus = createAsync(() => getSyncStatus(projectSlug()));
 
   const [viewMode, setViewModeSignal] = createSignal<'kanban' | 'forest'>('kanban');
   createEffect(() => {
@@ -69,7 +68,9 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   }
 
   const { dialogState, syncState, selectionState, commands } =
-    props?.ctrl ?? createProjectPageController({ projectSlug, data: data as any });
+    props?.ctrl ?? createProjectPageController({
+      projectSlug, data: data as any, syncStatus: () => syncStatus(),
+    });
 
   const launcherConfig = createAsync(async () => {
     const page = data();
@@ -112,13 +113,12 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
     return result?.kind === "available" ? result.statusesByFolderName : {};
   };
 
-  const conflictActive = createMemo(() => {
-    const v = data();
-    return v?.status === "loaded" && v.hasConflict;
-  });
+  const [hasConflict, setHasConflict] = createSignal(false);
   createEffect(() => {
-    if (!conflictActive()) return;
-    const timer = setInterval(() => void revalidate("project-page"), 5000);
+    if (!hasConflict()) return;
+    const timer = setInterval(
+      () => void revalidate(["project-page", "project-sync-status"]), 5000,
+    );
     onCleanup(() => clearInterval(timer));
   });
 
@@ -151,6 +151,59 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
     if (name) document.title = `${name} - Context & Launch`;
   });
 
+  function SyncButton() {
+    createEffect(() => setHasConflict(syncStatus()?.hasConflict ?? false));
+    return (
+      <button
+        onClick={hasConflict() ? () => commands.setConflictDialogOpen(true) : commands.handleSync}
+        disabled={syncState().syncing}
+        class={`btn-icon relative ${
+          hasConflict() ? "border-destructive text-destructive hover:bg-destructive/10" : ""
+        }`}
+        title={hasConflict() ? "Resolve conflicts" : "Sync tickets"}
+        data-testid="sync-button-trigger"
+      >
+        <Show when={syncState().syncSuccess} fallback={<RefreshCw size={16} />}>
+          <Check size={16} data-testid="sync-button-check-icon" />
+        </Show>
+        <Show when={hasConflict()}>
+          <span
+            class={
+              "absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center"
+              + " rounded-full bg-destructive text-[8px] font-bold leading-none"
+              + " text-destructive-foreground"
+            }
+            data-testid="sync-button-conflict-badge"
+          >!</span>
+        </Show>
+        <Show when={hasPendingChanges() && !hasConflict()}>
+          <span
+            class="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-warning"
+            data-testid="sync-button-pending-badge"
+          />
+        </Show>
+      </button>
+    );
+  }
+
+  function SyncStatusErrorButton(props: { error: unknown }) {
+    const message = () =>
+      props.error instanceof Error ? props.error.message : String(props.error);
+    return (
+      <button
+        class="btn-icon border-destructive text-destructive hover:bg-destructive/10"
+        title={message()}
+        data-testid="sync-status-error-button"
+        onClick={() => commands.setSyncError({
+          title: "Sync status unavailable",
+          description: message(),
+        })}
+      >
+        <TriangleAlert size={16} />
+      </button>
+    );
+  }
+
   let addProjectDialogRef: HTMLDivElement | undefined;
   useModEnterSubmit({
     onSubmit: () => { addProjectDialogRef?.querySelector("form")?.requestSubmit(); },
@@ -165,7 +218,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
         const unavail = () => { const v = d(); return v.status === 'unavailable' ? v : undefined; };
         const pageErr = () => { const v = d(); return v.status === 'error' ? v : undefined; };
         return (
-        <div class="flex h-screen flex-col overflow-hidden" data-hydrated={hydrated() ? "true" : undefined}>
+        <div class="flex h-screen flex-col overflow-hidden">
           <header class="flex shrink-0 items-center justify-between border-b border-border px-4 py-5">
             <div class="flex items-center justify-start">
               <button
@@ -216,35 +269,9 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
               >
                 <ScrollText size={16} />
               </button>
-              <button
-                onClick={ld()?.hasConflict ? () => commands.setConflictDialogOpen(true) : commands.handleSync}
-                disabled={syncState().syncing}
-                class={`btn-icon relative ${
-                  ld()?.hasConflict ? "border-destructive text-destructive hover:bg-destructive/10" : ""
-                }`}
-                title={ld()?.hasConflict ? "Resolve conflicts" : "Sync tickets"}
-                data-testid="sync-button-trigger"
-              >
-                <Show when={syncState().syncSuccess} fallback={<RefreshCw size={16} />}>
-                  <Check size={16} data-testid="sync-button-check-icon" />
-                </Show>
-                <Show when={ld()?.hasConflict}>
-                  <span
-                    class={
-                      "absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center"
-                      + " rounded-full bg-destructive text-[8px] font-bold leading-none"
-                      + " text-destructive-foreground"
-                    }
-                    data-testid="sync-button-conflict-badge"
-                  >!</span>
-                </Show>
-                <Show when={hasPendingChanges() && !ld()?.hasConflict}>
-                  <span
-                    class="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-warning"
-                    data-testid="sync-button-pending-badge"
-                  />
-                </Show>
-              </button>
+              <ErrorBoundary fallback={(error) => <SyncStatusErrorButton error={error} />}>
+                <SyncButton />
+              </ErrorBoundary>
               <button
                 onClick={commands.openSettings}
                 class="btn-icon"
@@ -431,7 +458,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
             onResolve={commands.handleConflictResolve}
             onAbort={commands.handleConflictAbort}
             projectSlug={d().projectSlug}
-            hasConflict={!!ld()?.hasConflict}
+            hasConflict={hasConflict()}
           />
           <ShortcutConfirmationDialog
             info={shortcutRunner.confirmation()}

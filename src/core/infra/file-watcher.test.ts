@@ -650,6 +650,35 @@ describe('FileWatcher', () => {
 		}
 	});
 
+	it.concurrent('dotfiles already present when the watcher starts do not trigger'
+		+ ' the catch-up commit', async () => {
+		const base = tmpDir('filewatcher-dot-catchup-');
+		dirs.push(base);
+		const dir = path.join(base, '.context-launch', 'projects', 'demo', 'tickets');
+		fs.mkdirSync(dir, { recursive: true });
+
+		await git(dir, 'init');
+		fs.writeFileSync(path.join(dir, 'init.txt'), 'initial');
+		await git(dir, 'add', '-A');
+		await git(dir, 'commit', '-m', 'initial commit');
+
+		fs.writeFileSync(path.join(dir, '.hidden'), 'dotfile');
+		fs.mkdirSync(path.join(dir, '.cache'));
+		fs.writeFileSync(path.join(dir, '.cache', 'entry.txt'), 'inside dot dir');
+
+		const watcher = new FileWatcher(createTestCommandTemplateService());
+		try {
+			const debounceMs = 300;
+			watcher.watch(dir, debounceMs);
+			await delay(debounceMs + 2000);
+
+			const log = await git(dir, 'log', '--oneline');
+			expect(log.trim().split('\n').length).toBe(1);
+		} finally {
+			watcher.stopAll();
+		}
+	});
+
 	it.concurrent('watching the same dir twice keeps the watcher alive so a write just before'
 		+ ' a board reload is still committed', async () => {
 		const dir = tmpDir('filewatcher-watch-reload-');
