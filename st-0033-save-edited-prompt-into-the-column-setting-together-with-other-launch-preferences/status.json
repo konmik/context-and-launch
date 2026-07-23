@@ -1,9 +1,0 @@
-{
-  "number": "ST-0033",
-  "title": "Save edited prompt into the column setting together with other launch preferences",
-  "status": "review",
-  "useWorktree": true,
-  "createdAt": "2026-06-19T10:50:38.448Z",
-  "agentWorktreeBranchName": "st-0033-save-edited-prompt-into-the-column-setting",
-  "agentWorktreeDir": "C:\\Users\\elkmo\\.context-launch\\projects\\ai-stages\\worktrees/st-0033-save-edited-prompt-into-the-column-setting"
-}

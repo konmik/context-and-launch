@@ -1,0 +1,9 @@
+{
+  "number": "ST-0060",
+  "title": "Test suite optimization",
+  "status": "done",
+  "useWorktree": true,
+  "createdAt": "2026-07-23T09:37:24.976Z",
+  "agentWorktreeBranchName": "st-0060-test-suite-optimization",
+  "agentWorktreeDir": "C:\\Users\\elkmo\\.context-launch\\projects\\ai-stages\\worktrees/st-0060-test-suite-optimization"
+}

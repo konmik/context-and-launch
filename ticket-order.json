@@ -6,13 +6,14 @@
     "st-0052-comprehensive-code-review",
     "st-0053-make-tickets-storage-system-as-a-plugin",
     "st-0054-make-herdr-a-plugin",
-    "st-0055-plugin-system"
+    "st-0055-plugin-system",
+    "st-0057-skills-not-triggered-in-initial-prompt",
+    "st-0058-while-logs-are-loading-do-not-show-no-logs-yet-status",
+    "st-0059-decouple-project-loading-from-git-sync-status"
   ],
   "plan": [],
   "in-progress": [],
-  "review": [
-    "st-0033-save-edited-prompt-into-the-column-setting-together-with-other-launch-preferences"
-  ],
+  "review": [],
   "done": [
     "st-0048-test-test"
   ]

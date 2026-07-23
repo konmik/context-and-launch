@@ -1,0 +1,7 @@
+{
+  "number": "ST-0059",
+  "title": "Decouple project loading from Git sync status",
+  "status": "todo",
+  "useWorktree": false,
+  "createdAt": "2026-07-22T23:23:34.149Z"
+}
