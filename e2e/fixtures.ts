@@ -496,6 +496,7 @@ export interface LauncherConfigShape {
     templateName: string | null;
     checkedSkills: string[];
     profileName: string | null;
+    lastLayer?: "editor" | "launcher" | "shortcuts";
     skillOrder?: string[];
     editedPrompt?: string;
   }>;

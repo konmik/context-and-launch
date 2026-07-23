@@ -80,6 +80,7 @@ vi.mock("./ticket-api.js", async () => {
 vi.mock("../launcher/launcher-api.js", () => ({
   getMergedLauncherConfig: (...args: unknown[]) => mockGetMergedLauncherConfig(...args),
   saveColumnDefaults: vi.fn().mockResolvedValue({ ok: true }),
+  cacheMergedLauncherConfig: vi.fn(),
   launchAgentAction: vi.fn().mockResolvedValue({ ok: true }),
   runShortcut: vi.fn().mockResolvedValue({ ok: true }),
   getLastUsedProfile: vi.fn().mockResolvedValue(null),
