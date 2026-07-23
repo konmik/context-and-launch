@@ -56,9 +56,10 @@
 
 ## Data access
 
-- Use SolidStart query()/action()/createAsync for all data access.
+- Use SolidStart query()/action() for all data access.
 - Server functions use "use server" and are colocated with features in *-api.ts files under src/components/.
-- Reads use query() + createAsync. Server functions throw on error; ErrorBoundary catches.
+- Reads use query() + createNonSuspendingAsync (src/lib/create-non-suspending-async.ts). Never use plain createAsync: reading it collapses the root Suspense boundary and blanks the whole screen. ESLint enforces this. Server functions throw on error; ErrorBoundary catches.
+- Loading states are rendered explicitly by consumers (Show fallbacks, initial values).
 - Mutations use action(). Server functions return typed discriminated results (never throw).
 - Fire-and-forget side effects use plain "use server" functions without action().
 - Server functions import from src/core/ to call stores and managers directly.

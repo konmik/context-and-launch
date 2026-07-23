@@ -3,6 +3,12 @@ export type ActiveFile =
   | { type: "file"; name: string }
   | { type: "reference"; path: string };
 
+export type FileView =
+  | { kind: "loading" }
+  | { kind: "editor" }
+  | { kind: "image"; url: string }
+  | { kind: "unsupported" };
+
 const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"]);
 const TEXT_EXTENSIONS = new Set([".txt", ".md"]);
 
@@ -91,14 +97,14 @@ export function normalizeLineEndings(text: string): string {
 
 export function hasUnsavedEditorChanges(
   activeTab: string,
-  fileViewMode: string,
+  fileViewKind: FileView["kind"],
   readOnly: boolean,
   content: string,
   savedContent: string,
 ): boolean {
   return (
     activeTab === "editor"
-    && fileViewMode === "editor"
+    && fileViewKind === "editor"
     && !readOnly
     && content !== savedContent
   );

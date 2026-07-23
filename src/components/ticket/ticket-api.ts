@@ -236,8 +236,6 @@ export async function syncTickets(projectSlug: string) {
   }
 }
 
-export const ticketMutationRevalidateKeys = ["project-page", "sync-pending"];
-
 export const getSyncPending = query(async (projectSlug: string): Promise<boolean> => {
   "use server";
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);

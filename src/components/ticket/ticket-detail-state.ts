@@ -5,6 +5,7 @@ import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/core/launcher/launcher-config.js";
 import {
   type ActiveFile,
+  type FileView,
   activeFileLabel,
   isActiveFileMatch,
   buildContextOptions,
@@ -30,8 +31,8 @@ import {
   deleteContext as deleteContextAction, deleteFile as deleteFileAction,
   removeReference as removeReferenceAction, setUseWorktree as setUseWorktreeAction,
   addReferences as addReferencesAction, openTicketWorktree,
-  ticketMutationRevalidateKeys,
 } from "./ticket-api.js";
+import { ticketMutationRevalidateKeys } from "../shared/revalidate-keys.js";
 import {
   getMergedLauncherConfig, saveColumnDefaults,
   type MergedLauncherConfigWithMeta,
@@ -67,9 +68,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   const [error, setError] = createSignal<ErrorInfo | null>(null);
   const [dropdownOpen, setDropdownOpen] = createSignal(false);
   const [browsing, setBrowsing] = createSignal(false);
-  const [imageUrl, setImageUrl] = createSignal("");
-  const [fileViewMode, setFileViewMode] = createSignal<"editor" | "image" | "unsupported">("editor");
-  const [contentLoading, setContentLoading] = createSignal(true);
+  const [fileView, setFileView] = createSignal<FileView>({ kind: "loading" });
   const [useWorktree, setUseWorktree] = createSignal(props.ticket.useWorktree);
 
   const header = createHeaderEditState({
@@ -176,7 +175,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
 
   const hasUnsavedFileChanges = () =>
     hasUnsavedEditorChanges(
-      activeTab(), fileViewMode(), isCurrentReadOnly(), content(), savedContent(),
+      activeTab(), fileView().kind, isCurrentReadOnly(), content(), savedContent(),
     );
 
   const hasAnyUnsavedChanges = () =>
@@ -190,47 +189,48 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     onCleanup(() => window.removeEventListener("beforeunload", handleBeforeUnload));
   }
 
+  // Only the newest load may touch the view state: a slow response for a file
+  // the user has already navigated away from must not clobber the current view
+  // or content.
+  let loadSeq = 0;
+
   async function loadContextContent(af: ActiveFile & { type: "context" }): Promise<void> {
-    setFileViewMode("editor");
-    setContentLoading(true);
+    const seq = ++loadSeq;
+    setFileView({ kind: "loading" });
     try {
       const data = await getContext(props.projectSlug, header.savedFolderName(), af.name);
-      if (data) {
-        const normalized = normalizeLineEndings(data.content);
-        setContent(normalized); setSavedContent(normalized);
-      }
-      else { setContent(""); setSavedContent(""); }
+      if (seq !== loadSeq) return;
+      const normalized = data ? normalizeLineEndings(data.content) : "";
+      setContent(normalized); setSavedContent(normalized);
     } catch (e) {
+      if (seq !== loadSeq) return;
       setContent(""); setSavedContent("");
       setError(errorPayload(e, "Load failed"));
     } finally {
-      setContentLoading(false);
+      if (seq === loadSeq) setFileView({ kind: "editor" });
     }
   }
 
   function loadFileByName(fileName: string, url: string): void {
+    const seq = ++loadSeq;
     const mode = resolveFileViewMode(fileName);
+    setContent(""); setSavedContent("");
     if (mode === "image") {
-      setFileViewMode("image"); setImageUrl(url);
-      setContent(""); setSavedContent("");
-      setContentLoading(false);
+      setFileView({ kind: "image", url });
     } else if (mode === "editor") {
-      setFileViewMode("editor");
-      setContentLoading(true);
+      setFileView({ kind: "loading" });
       fetch(url).then(async (res) => {
-        if (res.ok) {
-          const text = normalizeLineEndings(await res.text());
-          setContent(text); setSavedContent(text);
-        } else { setContent(""); setSavedContent(""); }
+        const text = res.ok ? normalizeLineEndings(await res.text()) : "";
+        if (seq !== loadSeq) return;
+        setContent(text); setSavedContent(text);
       }).catch((e) => {
-        setContent(""); setSavedContent("");
+        if (seq !== loadSeq) return;
         setError(errorPayload(e, "Load failed"));
       }).finally(() => {
-        setContentLoading(false);
+        if (seq === loadSeq) setFileView({ kind: "editor" });
       });
     } else {
-      setFileViewMode("unsupported"); setContent(""); setSavedContent("");
-      setContentLoading(false);
+      setFileView({ kind: "unsupported" });
     }
   }
 
@@ -271,7 +271,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
 
   createEffect(on(activeFile, async (af) => {
     if (activeTab() !== "editor") return;
-    setError(null); setImageUrl("");
+    setError(null);
     if (af.type === "context") {
       await loadContextContent(af);
     } else if (af.type === "file") {
@@ -441,7 +441,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     hasAnyUnsavedChanges, saveAll,
     newFileDialogOpen, setNewFileDialogOpen, newFileName, setNewFileName,
     confirmingDelete, setConfirmingDelete, error, setError, dropdownOpen, setDropdownOpen,
-    browsing, imageUrl, fileViewMode, contentLoading,
+    browsing, fileView,
     uploading: upload.uploading, dragging: upload.dragging,
     confirmOverwrite: upload.confirmOverwrite, confirmSize: upload.confirmSize,
     runningShortcut: shortcuts.runningShortcut,

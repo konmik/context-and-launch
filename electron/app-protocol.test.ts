@@ -4,6 +4,7 @@ import {
   toServerUrl,
   toServerHeaders,
   rewriteLocation,
+  rewriteRedirect,
   appearanceArgs,
   seedAppearance,
 } from "./app-protocol.js";
@@ -61,6 +62,34 @@ describe("rewriteLocation", () => {
 
   it("leaves local-server URLs on a different port unchanged", () => {
     expect(rewriteLocation("http://127.0.0.1:9999/x", 5173)).toBe("http://127.0.0.1:9999/x");
+  });
+});
+
+describe("rewriteRedirect", () => {
+  it("returns the response unchanged when there is no location header", () => {
+    const response = new Response("body", { status: 200 });
+    expect(rewriteRedirect(response, 5173)).toBe(response);
+  });
+
+  it("rewrites a local-server location to the app origin, preserving status and other headers", () => {
+    const response = new Response(null, {
+      status: 302,
+      statusText: "Found",
+      headers: { location: "http://127.0.0.1:5173/project/my-repo", "set-cookie": "a=1" },
+    });
+    const rewritten = rewriteRedirect(response, 5173);
+    expect(rewritten.status).toBe(302);
+    expect(rewritten.statusText).toBe("Found");
+    expect(rewritten.headers.get("location")).toBe(`${APP_ORIGIN}/project/my-repo`);
+    expect(rewritten.headers.get("set-cookie")).toBe("a=1");
+  });
+
+  it("leaves an external location unchanged", () => {
+    const response = new Response(null, {
+      status: 302,
+      headers: { location: "https://example.com/page" },
+    });
+    expect(rewriteRedirect(response, 5173).headers.get("location")).toBe("https://example.com/page");
   });
 });
 

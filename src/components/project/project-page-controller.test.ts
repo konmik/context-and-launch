@@ -13,12 +13,10 @@ vi.mock("../ticket/ticket-api.js", () => ({
 	reorderTicket: vi.fn(),
 	syncTickets: vi.fn(),
 	worktreeCleanup: vi.fn(),
-	ticketMutationRevalidateKeys: ["project-page", "sync-pending"],
 }));
 vi.mock("./project-api.js", () => ({
 	deleteProject: vi.fn(),
 	getSyncStatus: vi.fn(),
-	projectSyncRevalidateKeys: ["project-page", "project-sync-status", "sync-pending"],
 }));
 vi.mock("../launcher/launcher-api.js", () => ({
 	resolveConflicts: vi.fn(),
