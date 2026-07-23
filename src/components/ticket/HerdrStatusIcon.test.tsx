@@ -14,7 +14,7 @@ function iconRoot(container: HTMLElement) {
 describe("HerdrStatusIcon", () => {
   afterEach(() => cleanup());
 
-  it("renders the working state as a classic braille spinner in the herdr yellow", () => {
+  it("renders the working state as herdr's braille spinner in the herdr yellow", () => {
     const { container } = renderIcon("working");
     const icon = iconRoot(container);
     expect(icon.getAttribute("data-herdr-status")).toBe("working");
@@ -25,34 +25,39 @@ describe("HerdrStatusIcon", () => {
     expect(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]).toContain(spinner.textContent);
   });
 
-  it("renders the blocked icon in the herdr red", () => {
+  it("renders the blocked glyph as herdr's filled ring in the herdr red", () => {
     const { container } = renderIcon("blocked");
     const icon = iconRoot(container);
     expect(icon.getAttribute("data-herdr-status")).toBe("blocked");
-    expect(icon.querySelector("svg")!.style.color).toBe("rgb(243, 139, 168)");
+    const glyph = icon.firstElementChild as HTMLElement;
+    expect(glyph.textContent).toBe("◉");
+    expect(glyph.style.color).toBe("rgb(243, 139, 168)");
   });
 
-  it("renders the idle icon in the herdr green", () => {
+  it("renders the idle glyph as herdr's check in the herdr green", () => {
     const { container } = renderIcon("idle");
     const icon = iconRoot(container);
     expect(icon.getAttribute("data-herdr-status")).toBe("idle");
-    expect(icon.querySelector("svg")!.style.color).toBe("rgb(166, 227, 161)");
+    const glyph = icon.firstElementChild as HTMLElement;
+    expect(glyph.textContent).toBe("✓");
+    expect(glyph.style.color).toBe("rgb(166, 227, 161)");
   });
 
-  it("renders the done circle-dot icon in the herdr teal, never a completion check", () => {
+  it("renders the done glyph as herdr's filled dot in the herdr teal", () => {
     const { container } = renderIcon("done");
     const icon = iconRoot(container);
     expect(icon.getAttribute("data-herdr-status")).toBe("done");
-    const svg = icon.querySelector("svg")!;
-    expect(svg.style.color).toBe("rgb(148, 226, 213)");
-    expect(svg.querySelector('circle[r="1"]')).toBeTruthy();
-    expect(svg.querySelector("line")).toBeNull();
+    const glyph = icon.firstElementChild as HTMLElement;
+    expect(glyph.textContent).toBe("●");
+    expect(glyph.style.color).toBe("rgb(148, 226, 213)");
   });
 
-  it("renders the unknown icon in the herdr overlay gray", () => {
+  it("renders the unknown glyph as herdr's hollow ring in the herdr overlay gray", () => {
     const { container } = renderIcon("unknown");
     const icon = iconRoot(container);
     expect(icon.getAttribute("data-herdr-status")).toBe("unknown");
-    expect(icon.querySelector("svg")!.style.color).toBe("rgb(108, 112, 134)");
+    const glyph = icon.firstElementChild as HTMLElement;
+    expect(glyph.textContent).toBe("○");
+    expect(glyph.style.color).toBe("rgb(108, 112, 134)");
   });
 });
