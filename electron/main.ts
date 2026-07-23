@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, nativeTheme, screen } from "electron";
+import { app, BrowserWindow, ipcMain, nativeTheme, net, protocol, screen } from "electron";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -14,6 +14,14 @@ import {
   parseMode,
   type AppMode,
 } from "../src/components/shared/theme-toggle-pure.js";
+import {
+  APP_SCHEME,
+  APP_ORIGIN,
+  toServerUrl,
+  toServerHeaders,
+  rewriteLocation,
+  appearanceArgs,
+} from "./app-protocol.js";
 import {
   migrateWindowState,
   restoreEntries,
@@ -41,6 +49,13 @@ if (process.env.CONTEXT_LAUNCH_USER_DATA_DIR) {
   app.setPath("userData", process.env.CONTEXT_LAUNCH_USER_DATA_DIR);
 }
 const windowStateFile = path.join(app.getPath("userData"), "window-state.json");
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: APP_SCHEME,
+    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true },
+  },
+]);
 
 const SYNC_WINDOW_DELAY_MS = 5000;
 
@@ -112,6 +127,7 @@ function createProjectWindow(opts: {
     icon: path.join(appRoot, "build-resources", "icon.png"),
     webPreferences: {
       preload: preloadPath,
+      additionalArguments: appearanceArgs(currentPalette, currentMode),
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: true,
@@ -219,7 +235,30 @@ if (!gotLock) {
 
   app.on("ready", async () => {
     serverHandle = await startServer(appRoot);
-    const base = `http://127.0.0.1:${serverHandle.port}`;
+    const serverPort = serverHandle.port;
+    const base = APP_ORIGIN;
+
+    protocol.handle(APP_SCHEME, async (request) => {
+      const response = await net.fetch(toServerUrl(request.url, serverPort), {
+        method: request.method,
+        headers: toServerHeaders(request.headers, serverPort),
+        body: request.body,
+        redirect: "manual",
+        ...(request.body ? { duplex: "half" } : {}),
+      } as RequestInit).catch((err: unknown) => {
+        console.error("app protocol proxy failed:", request.method, request.url, err);
+        throw err;
+      });
+      const location = response.headers.get("location");
+      if (location === null) return response;
+      const headers = new Headers(response.headers);
+      headers.set("location", rewriteLocation(location, serverPort));
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      });
+    });
 
     let raw: unknown = null;
     try {
