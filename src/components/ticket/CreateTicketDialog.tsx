@@ -1,5 +1,5 @@
 import { Show } from "solid-js";
-import { RefreshCw } from "lucide-solid";
+import RefreshCw from "lucide-solid/icons/refresh-cw";
 import { DialogRoot, DialogTitle } from "../ui/dialog";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 import {

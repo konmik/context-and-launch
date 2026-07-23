@@ -1,5 +1,5 @@
 import { Show, type JSX } from "solid-js";
-import { GripVertical } from "lucide-solid";
+import GripVertical from "lucide-solid/icons/grip-vertical";
 import { DragOverlay } from "@thisbeyond/solid-dnd";
 import { joinClass } from "~/lib/class-util";
 

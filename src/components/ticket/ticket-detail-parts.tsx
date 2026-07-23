@@ -1,6 +1,11 @@
 import { Show, For } from "solid-js";
 import { Portal } from "solid-js/web";
-import { ChevronDown, TriangleAlert, Trash2, Plus, Upload, Folder } from "lucide-solid";
+import ChevronDown from "lucide-solid/icons/chevron-down";
+import TriangleAlert from "lucide-solid/icons/triangle-alert";
+import Trash2 from "lucide-solid/icons/trash-2";
+import Plus from "lucide-solid/icons/plus";
+import Upload from "lucide-solid/icons/upload";
+import Folder from "lucide-solid/icons/folder";
 import { DialogRoot, DialogTitle, DialogDescription } from "../ui/dialog";
 import MarkdownEditor from "../shared/MarkdownEditor";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";

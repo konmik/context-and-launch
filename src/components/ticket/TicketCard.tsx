@@ -1,5 +1,5 @@
 import { Show, For } from "solid-js";
-import { EllipsisVertical } from "lucide-solid";
+import EllipsisVertical from "lucide-solid/icons/ellipsis-vertical";
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "../ui/menu";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { SwatchColumn } from "~/core/board/status-swatch.js";

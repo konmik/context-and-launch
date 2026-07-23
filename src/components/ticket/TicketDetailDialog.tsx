@@ -1,5 +1,7 @@
 import { Show, For } from "solid-js";
-import { X, Copy, Zap } from "lucide-solid";
+import X from "lucide-solid/icons/x";
+import Copy from "lucide-solid/icons/copy";
+import Zap from "lucide-solid/icons/zap";
 import {
   FloatingWindow, FloatingWindowHeader, FloatingPanelBody,
   FLOATING_WINDOW_MIN_SIZE, tallWindowDefaultSize,

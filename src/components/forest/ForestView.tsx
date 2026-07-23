@@ -5,7 +5,7 @@ import {
   For,
   Show,
 } from "solid-js";
-import { X } from "lucide-solid";
+import X from "lucide-solid/icons/x";
 import CreateTicketDialog from "../ticket/CreateTicketDialog";
 import ErrorDialog from "../shared/ErrorDialog";
 import ExpandingOverlay, { type ExpandingOverlayOrigin, type OverlayRect } from "../shared/ExpandingOverlay";

@@ -1,6 +1,7 @@
 import { Handle, Position, type NodeProps } from "@dschz/solid-flow";
 import { createContext, createSignal, Show, useContext } from "solid-js";
-import { Group, EllipsisVertical } from "lucide-solid";
+import Group from "lucide-solid/icons/group";
+import EllipsisVertical from "lucide-solid/icons/ellipsis-vertical";
 import { MenuContent, MenuItem, MenuRoot, MenuTrigger } from "../ui/menu";
 import {
   isConnectionTarget,

@@ -1,5 +1,5 @@
 import { For, Show, type JSX } from "solid-js";
-import { X } from "lucide-solid";
+import X from "lucide-solid/icons/x";
 import { DialogRoot, DialogTitle, DialogCloseTrigger } from "../ui/dialog";
 import { modEnterHint } from "~/lib/use-mod-enter-submit";
 import { slugifyColumnName } from "~/lib/slugify.js";

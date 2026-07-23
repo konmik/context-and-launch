@@ -1,5 +1,9 @@
 import { Switch, Match } from "solid-js";
-import { Activity, CircleAlert, CirclePause, CircleDot, CircleHelp } from "lucide-solid";
+import Activity from "lucide-solid/icons/activity";
+import CircleAlert from "lucide-solid/icons/circle-alert";
+import CirclePause from "lucide-solid/icons/circle-pause";
+import CircleDot from "lucide-solid/icons/circle-dot";
+import CircleHelp from "lucide-solid/icons/circle-question-mark";
 import type { HerdrAgentStatus } from "~/core/herdr/herdr-client.js";
 
 export default function HerdrStatusIcon(props: { status: HerdrAgentStatus }) {
