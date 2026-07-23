@@ -1,8 +1,4 @@
 import { Switch, Match, createSignal, onCleanup } from "solid-js";
-import CircleAlert from "lucide-solid/icons/circle-alert";
-import CirclePause from "lucide-solid/icons/circle-pause";
-import CircleDot from "lucide-solid/icons/circle-dot";
-import CircleHelp from "lucide-solid/icons/circle-question-mark";
 import type { HerdrAgentStatus } from "~/core/herdr/herdr-client.js";
 
 export const HERDR_STATUS_COLORS: Record<HerdrAgentStatus, string> = {
@@ -15,18 +11,28 @@ export const HERDR_STATUS_COLORS: Record<HerdrAgentStatus, string> = {
 
 const CLASSIC_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
+function StatusGlyph(props: { glyph: string; color: string; testId?: string }) {
+  return (
+    <span
+      data-testid={props.testId}
+      class="inline-block shrink-0 font-mono leading-none tabular-nums"
+      style={{ "font-size": "12px", width: "12px", "text-align": "center", color: props.color }}
+    >
+      {props.glyph}
+    </span>
+  );
+}
+
 function ClassicSpinner(props: { color: string }) {
   const [frame, setFrame] = createSignal(0);
   const timer = setInterval(() => setFrame((f) => (f + 1) % CLASSIC_FRAMES.length), 80);
   onCleanup(() => clearInterval(timer));
   return (
-    <span
-      data-testid="herdr-classic-spinner"
-      class="inline-block shrink-0 font-mono leading-none tabular-nums"
-      style={{ "font-size": "12px", width: "12px", "text-align": "center", color: props.color }}
-    >
-      {CLASSIC_FRAMES[frame()]}
-    </span>
+    <StatusGlyph
+      glyph={CLASSIC_FRAMES[frame()]}
+      color={props.color}
+      testId="herdr-classic-spinner"
+    />
   );
 }
 
@@ -44,16 +50,16 @@ export default function HerdrStatusIcon(props: { status: HerdrAgentStatus }) {
           <ClassicSpinner color={color()} />
         </Match>
         <Match when={props.status === "blocked"}>
-          <CircleAlert size={12} class="shrink-0" style={{ color: color() }} />
+          <StatusGlyph glyph="◉" color={color()} />
         </Match>
         <Match when={props.status === "idle"}>
-          <CirclePause size={12} class="shrink-0" style={{ color: color() }} />
+          <StatusGlyph glyph="✓" color={color()} />
         </Match>
         <Match when={props.status === "done"}>
-          <CircleDot size={12} class="shrink-0" style={{ color: color() }} />
+          <StatusGlyph glyph="●" color={color()} />
         </Match>
         <Match when={props.status === "unknown"}>
-          <CircleHelp size={12} class="shrink-0" style={{ color: color() }} />
+          <StatusGlyph glyph="○" color={color()} />
         </Match>
       </Switch>
     </span>
