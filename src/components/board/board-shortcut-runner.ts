@@ -1,9 +1,10 @@
 import { createSignal, createMemo } from "solid-js";
 import { createShortcutState } from "../ticket/ticket-detail-shortcuts.js";
+import { openTicketWorktree } from "../ticket/ticket-api.js";
 import { computeLaunchDir } from "../launcher/agent-launcher-pure.js";
 import type { MergedLauncherConfigWithMeta } from "../launcher/launcher-api.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
-import type { ErrorInfo } from "~/core/shared/errors.js";
+import { errorPayload, type ErrorInfo } from "~/core/shared/errors.js";
 
 export function createBoardShortcutRunner(deps: {
   projectSlug: () => string;
@@ -39,6 +40,16 @@ export function createBoardShortcutRunner(deps: {
     void shortcutState.runShortcut(name);
   }
 
+  async function openWorktree(ticket: TicketInfo) {
+    setError(null);
+    try {
+      const result = await openTicketWorktree(deps.projectSlug(), ticket.folderName);
+      if (!result.ok) setError(result.errorInfo);
+    } catch (e) {
+      setError(errorPayload(e, "Open failed"));
+    }
+  }
+
   return {
     shortcuts: () => deps.config()?.shortcuts ?? [],
     running: shortcutState.runningShortcut,
@@ -48,5 +59,6 @@ export function createBoardShortcutRunner(deps: {
     error,
     setError,
     run,
+    openWorktree: (ticket: TicketInfo) => void openWorktree(ticket),
   };
 }

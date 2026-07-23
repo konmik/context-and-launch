@@ -8,6 +8,7 @@ export interface ShortcutRunner {
   shortcuts: () => BoardShortcut[];
   running: () => string;
   run: (ticket: TicketInfo, name: string) => void;
+  openWorktree: (ticket: TicketInfo) => void;
 }
 
 export const ShortcutRunnerContext = createContext<ShortcutRunner>();

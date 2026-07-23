@@ -28,7 +28,7 @@ import {
   getContext, getTicketFiles, saveContext as saveContextAction,
   deleteContext as deleteContextAction, deleteFile as deleteFileAction,
   removeReference as removeReferenceAction, setUseWorktree as setUseWorktreeAction,
-  addReferences as addReferencesAction,
+  addReferences as addReferencesAction, openTicketWorktree,
 } from "./ticket-api.js";
 import {
   getMergedLauncherConfig, saveColumnDefaults,
@@ -125,6 +125,16 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     () => props.ticket.folderName,
     () => setUseWorktree(props.ticket.useWorktree),
   ));
+
+  async function openWorktree() {
+    setError(null);
+    try {
+      const result = await openTicketWorktree(props.projectSlug, header.savedFolderName());
+      if (!result.ok) setError(result.errorInfo);
+    } catch (e) {
+      setError(errorPayload(e, "Open failed"));
+    }
+  }
 
   function persistWorktree(value: boolean) {
     setUseWorktree(value);
@@ -428,7 +438,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     setShortcutConfirmation: shortcuts.setShortcutConfirmation,
     runShortcut: shortcuts.runShortcut,
     useWorktree, launchDir, allFileOptions, isReferenceStale, hasUnsavedFileChanges, isCurrentReadOnly,
-    showSaveButton, persistWorktree,
+    showSaveButton, persistWorktree, openWorktree,
     switchTab, selectFile, openNewFileDialog,
     submitNewFile, deleteOrRemoveFile, handleTrashClick, close, forceClose,
     proceedFileSwitch,

@@ -70,7 +70,7 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps) {
     <FloatingWindow
       open={props.open && !!props.ticket}
       onOpenChange={(d) => { if (!d.open) s.close(); }}
-      defaultSize={{ width: 560, height: 460 }}
+      defaultSize={{ width: 480, height: 460 }}
       minSize={{ width: 380, height: 300 }}
       persistRect
     >
@@ -90,51 +90,53 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps) {
 
           <div class="mb-4 space-y-2">
             <p class="text-sm font-medium">Cleanup</p>
-            <For each={rows}>
-              {(row) => {
-                const item = () => s.items()[row.key];
-                const running = () => s.runningItem() === row.key;
-                return (
-                  <div class="flex min-h-10 items-center gap-3 text-sm">
-                    <button
-                      type="button"
-                      disabled={item().state !== "ready" || s.busy()}
-                      onClick={() => void s.runCleanup(row.key)}
-                      class="btn-secondary w-48 shrink-0 justify-start"
-                      data-testid={row.buttonTestId}
-                    >
-                      {row.label}
-                    </button>
-                    <span
-                      class="min-w-0 flex-1 whitespace-pre-line break-words text-left text-xs"
-                      data-testid={row.statusTestId}
-                      data-state={running() ? "running" : item().state}
-                      aria-live="polite"
-                    >
-                      <Show when={running()} fallback={
-                        <>
-                          <Show when={item().state === "checking"}>
-                            <span class="animate-pulse text-muted-foreground">Checking...</span>
-                          </Show>
-                          <Show when={item().state === "blocked"}>
-                            <span class={"warning" in item() ? "text-destructive" : "text-muted-foreground"}>
-                              {(item() as { reason: string }).reason}
-                            </span>
-                          </Show>
-                          <Show when={item().state === "error"}>
-                            <span class="text-destructive">
-                              {(item() as { error: ErrorInfo }).error.description}
-                            </span>
-                          </Show>
-                        </>
-                      }>
-                        <span class="animate-pulse text-muted-foreground">Working...</span>
-                      </Show>
-                    </span>
-                  </div>
-                );
-              }}
-            </For>
+            <div class="grid grid-cols-[max-content_1fr] items-center gap-x-3 gap-y-2 text-sm">
+              <For each={rows}>
+                {(row) => {
+                  const item = () => s.items()[row.key];
+                  const running = () => s.runningItem() === row.key;
+                  return (
+                    <>
+                      <button
+                        type="button"
+                        disabled={item().state !== "ready" || s.busy()}
+                        onClick={() => void s.runCleanup(row.key)}
+                        class="btn-secondary justify-start whitespace-nowrap"
+                        data-testid={row.buttonTestId}
+                      >
+                        {row.label}
+                      </button>
+                      <span
+                        class="min-w-0 whitespace-pre-line break-words text-left text-xs"
+                        data-testid={row.statusTestId}
+                        data-state={running() ? "running" : item().state}
+                        aria-live="polite"
+                      >
+                        <Show when={running()} fallback={
+                          <>
+                            <Show when={item().state === "checking"}>
+                              <span class="animate-pulse text-muted-foreground">Checking...</span>
+                            </Show>
+                            <Show when={item().state === "blocked"}>
+                              <span class={"warning" in item() ? "text-destructive" : "text-muted-foreground"}>
+                                {(item() as { reason: string }).reason}
+                              </span>
+                            </Show>
+                            <Show when={item().state === "error"}>
+                              <span class="text-destructive">
+                                {(item() as { error: ErrorInfo }).error.description}
+                              </span>
+                            </Show>
+                          </>
+                        }>
+                          <span class="animate-pulse text-muted-foreground">Working...</span>
+                        </Show>
+                      </span>
+                    </>
+                  );
+                }}
+              </For>
+            </div>
           </div>
 
           <Show when={s.errorInfo()}>

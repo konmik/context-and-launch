@@ -648,8 +648,8 @@
 	}
 	[data-scope="floating-panel"][data-part="resize-trigger"][data-axis="se"] {
 		cursor: se-resize;
-		width: 24px;
-		height: 24px;
+		width: 20px;
+		height: 20px;
 		background: linear-gradient(
 			135deg,
 			transparent 50%,

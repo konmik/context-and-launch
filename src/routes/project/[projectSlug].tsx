@@ -43,6 +43,7 @@ import {
   type ProjectPageController,
 } from "~/components/project/project-page-controller.js";
 import { getSyncPending } from "~/components/ticket/ticket-api.js";
+import { openConfigDir } from "~/components/shared/shared-api.js";
 import { getMergedLauncherConfig } from "~/components/launcher/launcher-api.js";
 import { getHerdrAgentStatuses } from "~/components/board/herdr-status-api.js";
 import { HerdrStatusesContext } from "~/components/ticket/herdr-statuses-context.js";
@@ -280,6 +281,16 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                     onClick={() => setProjectLauncherOpen(true)}
                     data-testid="project-header-launch-agent-menuitem"
                   >Launch an agent</MenuItem>
+                  <MenuItem
+                    value="open-tickets-folder"
+                    onClick={() => openConfigDir("tickets", d().projectSlug)}
+                    data-testid="project-header-open-tickets-folder-menuitem"
+                  >Open tickets folder</MenuItem>
+                  <MenuItem
+                    value="open-project-folder"
+                    onClick={() => openConfigDir("repo", d().projectSlug)}
+                    data-testid="project-header-open-project-folder-menuitem"
+                  >Open project folder</MenuItem>
                 </MenuContent>
               </MenuRoot>
             </div>
