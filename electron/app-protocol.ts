@@ -48,6 +48,18 @@ export function rewriteLocation(location: string, port: number): string {
   return location;
 }
 
+export function rewriteRedirect(response: Response, port: number): Response {
+  const location = response.headers.get("location");
+  if (location === null) return response;
+  const headers = new Headers(response.headers);
+  headers.set("location", rewriteLocation(location, port));
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 // One-time migration of the appearance persisted by the main process
 // (window-state.json) into the app-origin localStorage: the main process
 // passes its stored palette and mode to the preload script via

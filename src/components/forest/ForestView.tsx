@@ -31,7 +31,7 @@ import { getForestViewport, setForestViewport } from "./forest-local-state.js";
 import type { DependencyRelation, ForestTicket } from "./forest-graph.js";
 import { useEscapeKey } from "~/lib/use-escape-key.js";
 import { createNonSuspendingAsync } from "~/lib/create-non-suspending-async.js";
-import { ticketMutationRevalidateKeys } from "../ticket/ticket-api.js";
+import { ticketMutationRevalidateKeys } from "../shared/revalidate-keys.js";
 import type { BoardState } from "~/core/board/board-types.js";
 import { errorPayload, type ErrorInfo } from "~/core/shared/errors.js";
 import type { ForestLayout } from "~/core/ticket/forest-layout-store.js";

@@ -37,8 +37,9 @@ import LauncherSettings from "~/components/launcher/LauncherSettings";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 import { createNonSuspendingAsync } from "~/lib/create-non-suspending-async.js";
 import {
-  loadProjectPage, getSyncStatus, addProject, recordProjectFocus, projectSyncRevalidateKeys,
+  loadProjectPage, getSyncStatus, addProject, recordProjectFocus,
 } from "~/components/project/project-api.js";
+import { projectSyncRevalidateKeys } from "~/components/shared/revalidate-keys.js";
 import {
   createProjectPageController,
   type ProjectPageController,

@@ -4,9 +4,12 @@ import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { ErrorInfo } from "~/core/shared/errors.js";
 import {
   createTicket, deleteTicket, archiveTicket,
-  reorderTicket, syncTickets, worktreeCleanup, ticketMutationRevalidateKeys,
+  reorderTicket, syncTickets, worktreeCleanup,
 } from "../ticket/ticket-api.js";
-import { deleteProject, getSyncStatus, projectSyncRevalidateKeys } from "./project-api.js";
+import { deleteProject, getSyncStatus } from "./project-api.js";
+import {
+  ticketMutationRevalidateKeys, projectSyncRevalidateKeys,
+} from "../shared/revalidate-keys.js";
 import type { ProjectPageData } from "./project-api.js";
 import { resolveConflicts, abortRebase } from "../launcher/launcher-api.js";
 import { parseSyncResult } from "./project-page-pure.js";

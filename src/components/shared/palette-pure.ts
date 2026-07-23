@@ -53,3 +53,21 @@ export function criticalBackgroundCss(): string {
   }
   return rules.join("");
 }
+
+// Blocking inline script that applies the stored appearance to <html> before
+// first paint. It restates getStoredMode/isDarkMode and the palette check as a
+// string because it must run before any module loads; parity with those
+// functions is enforced by palette-pure.test.ts.
+export function criticalAppearanceScript(): string {
+  return [
+    "(function(){try{",
+    'var t=localStorage.getItem("theme");',
+    'if(t==="dark"||',
+    '(t!=="light"&&matchMedia("(prefers-color-scheme:dark)").matches))',
+    'document.documentElement.classList.add("dark");',
+    'var p=localStorage.getItem("palette");',
+    `if(${JSON.stringify([...PALETTES])}.indexOf(p)!==-1)`,
+    'document.documentElement.dataset.palette=p',
+    "}catch(e){}})()",
+  ].join("");
+}

@@ -9,6 +9,20 @@ export default tseslint.config(
     },
     rules: {
       "max-len": ["error", { code: 120, ignoreUrls: true }],
+      "no-restricted-imports": ["error", {
+        paths: [{
+          name: "@solidjs/router",
+          importNames: ["createAsync"],
+          message: "Use createNonSuspendingAsync from ~/lib/create-non-suspending-async.js;"
+            + " a plain createAsync read collapses the root Suspense boundary and blanks the screen.",
+        }],
+      }],
+    },
+  },
+  {
+    files: ["src/lib/create-non-suspending-async.ts"],
+    rules: {
+      "no-restricted-imports": "off",
     },
   },
 );

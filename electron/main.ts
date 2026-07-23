@@ -19,7 +19,7 @@ import {
   APP_ORIGIN,
   toServerUrl,
   toServerHeaders,
-  rewriteLocation,
+  rewriteRedirect,
   appearanceArgs,
 } from "./app-protocol.js";
 import {
@@ -249,15 +249,7 @@ if (!gotLock) {
         console.error("app protocol proxy failed:", request.method, request.url, err);
         throw err;
       });
-      const location = response.headers.get("location");
-      if (location === null) return response;
-      const headers = new Headers(response.headers);
-      headers.set("location", rewriteLocation(location, serverPort));
-      return new Response(response.body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers,
-      });
+      return rewriteRedirect(response, serverPort);
     });
 
     let raw: unknown = null;

@@ -27,7 +27,7 @@ export function EditorTab(props: { ctrl: TicketDetailState }) {
       />
       <div class="min-h-0 flex-1">
         <Show
-          when={!s.contentLoading()}
+          when={s.fileView().kind !== "loading"}
           fallback={
             <div class="flex h-full items-center justify-center text-sm text-muted-foreground">
               Loading...
@@ -35,12 +35,11 @@ export function EditorTab(props: { ctrl: TicketDetailState }) {
           }
         >
           <EditorPane
-            viewMode={s.fileViewMode()}
+            view={s.fileView()}
             content={s.content()}
             onChange={s.setContent}
             onSave={s.activeFile().type === "context" ? s.saveAll : undefined}
             readOnly={isReadOnly(s.activeFile())}
-            imageUrl={s.imageUrl()}
             label={activeFileLabel(s.activeFile())}
           />
         </Show>

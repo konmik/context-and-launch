@@ -55,7 +55,6 @@ const mockGetMergedLauncherConfig = vi.fn().mockResolvedValue({
 vi.mock("./ticket-api.js", async () => {
   const { query } = await import("@solidjs/router");
   return {
-    ticketMutationRevalidateKeys: ["project-page", "sync-pending"],
     getTicketFiles: query(
       (...args: unknown[]) => mockGetTicketFiles(...args), "ticket-files",
     ),
@@ -112,8 +111,9 @@ vi.mock("../ui/floating-panel", () => ({
 }));
 
 
-import { createSignal } from "solid-js";
+import { createSignal, createRoot } from "solid-js";
 import TicketDetailDialog from "./TicketDetailDialog";
+import { createTicketDetailState } from "./ticket-detail-state.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 
 function makeTicket(folder: string, number: string, title: string): TicketInfo {
@@ -192,6 +192,31 @@ describe("TicketDetailDialog content loading", () => {
     await flush();
     await flush();
     expect(screen.getByTestId("editor-content").textContent).toBe("Hello World");
+  });
+
+  it("a slow context load does not clobber a newer image selection", async () => {
+    let resolveContext!: (value: { content: string }) => void;
+    mockGetContext.mockImplementation(
+      () => new Promise((resolve) => { resolveContext = resolve; }),
+    );
+    const ticket = { ...makeTicket("t-1-alpha", "T-1", "Alpha"), fileNames: ["shot.png"] };
+
+    const { state, dispose } = createRoot((disposeRoot) => ({
+      state: createTicketDetailState({ ticket, projectSlug: "test-project", onClose: () => {} }),
+      dispose: disposeRoot,
+    }));
+    try {
+      expect(state.fileView().kind).toBe("loading");
+      state.selectFile({ type: "file", name: "shot.png" });
+      await flush();
+      expect(state.fileView().kind).toBe("image");
+      resolveContext({ content: "to-do text" });
+      await flush();
+      expect(state.fileView().kind).toBe("image");
+      expect(state.content()).toBe("");
+    } finally {
+      dispose();
+    }
   });
 });
 
