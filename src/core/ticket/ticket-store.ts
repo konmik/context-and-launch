@@ -1,4 +1,5 @@
 import path from 'path';
+import type { Dirent } from 'fs';
 import * as v from 'valibot';
 import { TicketOrderStore } from './ticket-order.js';
 import { ForestLayoutStore } from './forest-layout-store.js';
@@ -17,6 +18,27 @@ import type { StatusJson } from './ticket-repository.js';
 import type { TicketOrder } from './ticket-order.js';
 
 export { toKebabCase } from './ticket-naming.js';
+
+const READ_CONCURRENCY = 32;
+
+async function mapConcurrent<T, R>(
+	items: T[],
+	limit: number,
+	fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+	const results = new Array<R>(items.length);
+	let next = 0;
+	const worker = async (): Promise<void> => {
+		while (true) {
+			const index = next++;
+			if (index >= items.length) return;
+			results[index] = await fn(items[index]);
+		}
+	};
+	const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker());
+	await Promise.all(workers);
+	return results;
+}
 
 export interface TicketInfo {
 	number: string;
@@ -80,6 +102,7 @@ export class TicketStore {
 	private orderStore: TicketOrderStore;
 	private forestLayoutStore: ForestLayoutStore;
 	private repo: TicketRepository;
+	private worktreeRootWithSep?: string;
 
 	constructor(worktreeDir: string, repo?: TicketRepository) {
 		this.worktreeDir = worktreeDir;
@@ -105,13 +128,26 @@ export class TicketStore {
 				canonical = path.resolve(filePath);
 			}
 		}
-		if (!this.repo.exists(parent)) {
-			throw new Error(`Worktree directory does not exist: ${parent}`);
-		}
-		const root = this.repo.realpathSync(parent) + path.sep;
+		const root = parent === this.worktreeDir
+			? this.cachedWorktreeRootWithSep()
+			: this.resolveRootWithSep(parent);
 		if (!canonical.startsWith(root)) {
 			throw new Error(`${label} escapes allowed directory: ${canonical}`);
 		}
+	}
+
+	private resolveRootWithSep(parent: string): string {
+		if (!this.repo.exists(parent)) {
+			throw new Error(`Worktree directory does not exist: ${parent}`);
+		}
+		return this.repo.realpathSync(parent) + path.sep;
+	}
+
+	private cachedWorktreeRootWithSep(): string {
+		if (this.worktreeRootWithSep === undefined) {
+			this.worktreeRootWithSep = this.resolveRootWithSep(this.worktreeDir);
+		}
+		return this.worktreeRootWithSep;
 	}
 
 	readOrderStore(): TicketOrderStore {
@@ -155,17 +191,22 @@ export class TicketStore {
 
 	listTickets(): TicketInfo[] {
 		const tickets: TicketInfo[] = [];
-		const numbers = new Map<string, string>();
 		for (const dir of this.ticketDirs(false)) {
 			const ticket = this.readTicket(dir);
-			if (!ticket) continue;
+			if (ticket) tickets.push(ticket);
+		}
+		return this.dedupeAndSortTickets(tickets);
+	}
+
+	private dedupeAndSortTickets(tickets: TicketInfo[]): TicketInfo[] {
+		const numbers = new Map<string, string>();
+		for (const ticket of tickets) {
 			const normalizedNumber = normalizeTicketNumber(ticket.number);
 			const existingNumber = numbers.get(normalizedNumber);
 			if (existingNumber) {
 				throw new ValidationError(`Duplicate Ticket Number: ${existingNumber}`);
 			}
 			numbers.set(normalizedNumber, ticket.number);
-			tickets.push(ticket);
 		}
 		tickets.sort((a, b) => a.number.toLowerCase().localeCompare(b.number.toLowerCase()));
 		return tickets;
@@ -370,6 +411,19 @@ export class TicketStore {
 		const status = this.repo.readStatusJson(dir);
 		if (!status) return null;
 		const entries = this.repo.listEntries(dir);
+		const references = (status.references ?? []).map((ref) => ({
+			path: ref.path,
+			exists: this.repo.exists(ref.path),
+		}));
+		return this.buildTicketInfo(dir, status, entries, references);
+	}
+
+	private buildTicketInfo(
+		dir: string,
+		status: StatusJson,
+		entries: Dirent[],
+		references: { path: string; exists: boolean }[],
+	): TicketInfo {
 		const contextNames = entries
 			.filter((e) => e.isFile() && e.name.endsWith('.md'))
 			.map((e) => e.name.replace(/\.md$/, ''))
@@ -378,10 +432,6 @@ export class TicketStore {
 			.filter((e) => e.isFile() && e.name !== 'status.json')
 			.map((e) => e.name)
 			.sort();
-		const references = (status.references ?? []).map((ref) => ({
-			path: ref.path,
-			exists: this.repo.exists(ref.path),
-		}));
 		return {
 			number: status.number,
 			title: status.title,
@@ -397,6 +447,46 @@ export class TicketStore {
 			dependsOn: status.dependsOn,
 			memberOf: status.memberOf,
 		};
+	}
+
+	async loadBoardSnapshot(
+		columns: string[],
+	): Promise<{ tickets: TicketInfo[]; ticketOrder: TicketOrder; suggestedNextNumber: string | null }> {
+		const activeDirs = await this.ticketDirsIn(this.worktreeDir);
+		const parsed = (
+			await mapConcurrent(activeDirs, READ_CONCURRENCY, (dir) => this.readTicketAsync(dir))
+		).filter((r): r is NonNullable<typeof r> => r !== null);
+
+		const tickets = this.dedupeAndSortTickets(parsed.map((r) => r.info));
+		const ticketOrder = this.orderStore.reconcile(tickets, columns);
+
+		const activeNumbers = parsed.map((r) => ({ number: r.status.number, createdAt: r.status.createdAt }));
+		const archiveDirs = await this.ticketDirsIn(path.join(this.worktreeDir, 'archive'));
+		const archiveStatuses = (
+			await mapConcurrent(archiveDirs, READ_CONCURRENCY, (dir) => this.repo.readStatusJsonAsync(dir))
+		).filter((s): s is StatusJson => s !== null);
+		const archiveNumbers = archiveStatuses.map((s) => ({ number: s.number, createdAt: s.createdAt }));
+
+		const suggestedNextNumber = suggestNextTicketNumber([...activeNumbers, ...archiveNumbers]);
+		return { tickets, ticketOrder, suggestedNextNumber };
+	}
+
+	private async ticketDirsIn(parentDir: string): Promise<string[]> {
+		const entries = await this.repo.listEntriesAsync(parentDir);
+		return entries
+			.filter((e) => e.isDirectory() && !e.name.startsWith('.') && e.name !== 'archive')
+			.map((e) => path.join(parentDir, e.name));
+	}
+
+	private async readTicketAsync(dir: string): Promise<{ info: TicketInfo; status: StatusJson } | null> {
+		const status = await this.repo.readStatusJsonAsync(dir);
+		if (!status) return null;
+		const entries = await this.repo.listEntriesAsync(dir);
+		const references = (status.references ?? []).map((ref) => ({
+			path: ref.path,
+			exists: this.repo.exists(ref.path),
+		}));
+		return { info: this.buildTicketInfo(dir, status, entries, references), status };
 	}
 
 	listTicketFiles(folderName: string): string[] {

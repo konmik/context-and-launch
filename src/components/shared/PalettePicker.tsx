@@ -12,8 +12,10 @@ declare global {
 
 function applyPalette(name: PaletteName) {
   document.documentElement.dataset.palette = name;
-  localStorage.setItem("palette", name);
-  window.contextLaunch?.setPalette(name);
+  queueMicrotask(() => {
+    localStorage.setItem("palette", name);
+    window.contextLaunch?.setPalette(name);
+  });
 }
 
 // The pre-hydration inline script in entry-server sets data-palette before
@@ -32,12 +34,12 @@ export default function PalettePicker() {
   onMount(() => {
     const stored = getStoredPalette(localStorage);
     setActive(stored);
-    applyPalette(stored);
+    if (document.documentElement.dataset.palette !== stored) applyPalette(stored);
   });
 
   function select(name: PaletteName) {
-    setActive(name);
     applyPalette(name);
+    setActive(name);
   }
 
   return (

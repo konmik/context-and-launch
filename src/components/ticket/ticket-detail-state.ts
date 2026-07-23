@@ -1,5 +1,5 @@
 import { createSignal, createEffect, createMemo, on, onCleanup } from "solid-js";
-import { revalidate, createAsync } from "@solidjs/router";
+import { revalidate, createAsync, query } from "@solidjs/router";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/core/launcher/launcher-config.js";
 import {
@@ -37,6 +37,14 @@ import {
 import { openNativeFileBrowser as openNativeFileBrowserServer } from "../shared/shared-api.js";
 
 export type Tab = "editor" | "launcher";
+
+function peekCachedLauncherConfig(projectSlug: string): MergedLauncherConfigWithMeta | undefined {
+  try {
+    return query.get(getMergedLauncherConfig.keyFor(projectSlug)) as MergedLauncherConfigWithMeta | undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug: string; onClose: () => void }) {
   const [activeFile, setActiveFile] = createSignal<ActiveFile>({ type: "context", name: "to-do" });
@@ -142,8 +150,8 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   const referenceOptions = (): ActiveFile[] =>
     buildReferenceOptions(ticketFiles().references);
 
-  const allFileOptions = () =>
-    buildAllFileOptions(contextOptions(), fileEntryOptions(), referenceOptions());
+  const allFileOptions = createMemo(() =>
+    buildAllFileOptions(contextOptions(), fileEntryOptions(), referenceOptions()));
 
   function isCurrentReadOnly(): boolean {
     return isReadOnly(activeFile());
@@ -205,18 +213,24 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     }
   }
 
+  function applyInitialTab(data: MergedLauncherConfigWithMeta) {
+    setLauncherConfig(data);
+    const defaults = data.columnDefaults[props.ticket.status];
+    if (defaults?.lastLayer === "launcher") setActiveTab("launcher");
+    setInitialTabResolved(true);
+  }
+
+  const cachedConfig = peekCachedLauncherConfig(props.projectSlug);
+  if (cachedConfig) applyInitialTab(cachedConfig);
+
   createEffect(on(
     () => [props.projectSlug, props.ticket.folderName] as const,
     async ([projectSlug]) => {
-      if (!projectSlug) return;
+      if (!projectSlug || initialTabResolved()) return;
       try {
-        const data = await getMergedLauncherConfig(projectSlug);
-        setLauncherConfig(data);
-        const defaults = data.columnDefaults[props.ticket.status];
-        if (defaults?.lastLayer === "launcher") setActiveTab("launcher");
+        applyInitialTab(await getMergedLauncherConfig(projectSlug));
       } catch (e) {
         setError(errorPayload(e, "Load failed"));
-      } finally {
         setInitialTabResolved(true);
       }
     }
@@ -231,6 +245,8 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
         setError(errorPayload(e, "Save failed"));
       });
   }
+
+  void loadContextContent({ type: "context", name: "to-do" });
 
   createEffect(on(activeFile, async (af) => {
     if (activeTab() !== "editor") return;
@@ -250,7 +266,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
         ),
       );
     }
-  }));
+  }, { defer: true }));
 
   async function saveFileContent() {
     const af = activeFile();

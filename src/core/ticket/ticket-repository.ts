@@ -18,6 +18,10 @@ export const StatusJsonSchema = v.looseObject({
 });
 export type StatusJson = v.InferOutput<typeof StatusJsonSchema>;
 
+function isEnoent(err: unknown): boolean {
+	return (err as NodeJS.ErrnoException | null)?.code === 'ENOENT';
+}
+
 interface TransactionState {
 	root: string;
 	undo: Array<() => void>;
@@ -86,6 +90,30 @@ export class TicketRepository {
 		return parsed.output;
 	}
 
+	async readStatusJsonAsync(dir: string): Promise<StatusJson | null> {
+		const file = path.join(dir, 'status.json');
+		let text: string;
+		try {
+			text = await fs.promises.readFile(file, 'utf-8');
+		} catch (err) {
+			if (isEnoent(err)) return null;
+			throw err;
+		}
+		let raw: unknown;
+		try {
+			raw = JSON.parse(text);
+		} catch (err) {
+			console.warn(`Malformed status.json in ${dir}:`, err);
+			return null;
+		}
+		const parsed = v.safeParse(StatusJsonSchema, raw);
+		if (!parsed.success) {
+			console.warn(`Malformed status.json in ${dir}:`, parsed.issues);
+			return null;
+		}
+		return parsed.output;
+	}
+
 	writeStatusJson(dir: string, status: StatusJson): void {
 		this.writeJson(path.join(dir, 'status.json'), status);
 	}
@@ -105,8 +133,21 @@ export class TicketRepository {
 	}
 
 	listEntries(parentDir: string): fs.Dirent[] {
-		if (!fs.existsSync(parentDir)) return [];
-		return fs.readdirSync(parentDir, { withFileTypes: true });
+		try {
+			return fs.readdirSync(parentDir, { withFileTypes: true });
+		} catch (err) {
+			if (isEnoent(err)) return [];
+			throw err;
+		}
+	}
+
+	async listEntriesAsync(parentDir: string): Promise<fs.Dirent[]> {
+		try {
+			return await fs.promises.readdir(parentDir, { withFileTypes: true });
+		} catch (err) {
+			if (isEnoent(err)) return [];
+			throw err;
+		}
 	}
 
 	createDirectory(dir: string): void {
@@ -168,7 +209,12 @@ export class TicketRepository {
 	}
 
 	isDirectory(filePath: string): boolean {
-		return fs.existsSync(filePath) && fs.statSync(filePath).isDirectory();
+		try {
+			return fs.statSync(filePath).isDirectory();
+		} catch (err) {
+			if (isEnoent(err)) return false;
+			throw err;
+		}
 	}
 
 	realpathSync(filePath: string): string {

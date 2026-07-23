@@ -1,6 +1,6 @@
 import fs from "fs";
 import { TicketStore } from "~/core/ticket/ticket-store.js";
-import { resolveAgentWorktreeLocation } from "~/core/worktree/worktree-naming.js";
+import { resolveAgentWorktreeLocation, worktreeFolderName } from "~/core/worktree/worktree-naming.js";
 import { errorMessage } from "~/core/shared/errors.js";
 import type { ProjectRegistry } from "~/core/project/project-registry.js";
 import type { BoardConfigManager } from "~/core/project/board-config.js";
@@ -52,18 +52,32 @@ export class ProjectPageService {
 				await this.ticketSyncManager.finalizeResolution(worktreeDir);
 				const config = this.boardConfigManager.getConfig(project.boardId);
 				const store = new TicketStore(worktreeDir);
-				const { tickets, ticketOrder } = store.loadBoardState(
+				const { tickets, ticketOrder, suggestedNextNumber } = await store.loadBoardSnapshot(
 					config.columns.map(c => c.name),
 				);
 				const worktreeSettings = this.launcherConfigManager.resolveWorktreeSettings(projectSlug);
+				const worktreeRootPath = worktreeSettings.worktreeRootPath;
+				let worktreeNames: Set<string>;
+				try {
+					worktreeNames = new Set(await fs.promises.readdir(worktreeRootPath));
+				} catch (e) {
+					if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
+						worktreeNames = new Set();
+					} else {
+						throw e;
+					}
+				}
 				for (const ticket of tickets) {
 					const { worktreePath } = resolveAgentWorktreeLocation(
 						ticket.folderName, worktreeSettings,
 						{ savedWorktreePath: ticket.agentWorktreeDir },
 					);
-					ticket.hasAgentWorktree = fs.existsSync(worktreePath);
+					const folderName = worktreeFolderName(ticket.folderName);
+					const expected = `${worktreeRootPath}/${folderName}`;
+					ticket.hasAgentWorktree = worktreePath === expected
+						? worktreeNames.has(folderName)
+						: fs.existsSync(worktreePath);
 				}
-				const suggestedNextNumber = store.suggestNextNumber();
 				return {
 					status: 'loaded' as const,
 					projects,

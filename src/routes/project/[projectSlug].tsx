@@ -57,7 +57,16 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   const navigate = useNavigate();
   const projectSlug = () => params.projectSlug ?? "";
   const data = createAsync(() => loadProjectPage(projectSlug()));
-  const syncStatus = createAsync(() => getSyncStatus(projectSlug()));
+
+  const [deferredPollsReady, setDeferredPollsReady] = createSignal(false);
+
+  const syncStatus = createAsync(() =>
+    deferredPollsReady() ? getSyncStatus(projectSlug()) : Promise.resolve(undefined),
+  );
+  createEffect(() => {
+    const page = data();
+    if (page && page.status !== "loaded") setDeferredPollsReady(true);
+  });
 
   const [viewMode, setViewModeSignal] = createSignal<'kanban' | 'forest'>('kanban');
   createEffect(() => {
@@ -92,6 +101,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
     const ps = projectSlug();
     if (!ps) return;
     setHasPendingChanges(false);
+    if (!deferredPollsReady()) return;
     let stopped = false;
     const poll = async () => {
       try {
@@ -104,7 +114,12 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
     onCleanup(() => { stopped = true; clearInterval(timer); });
   });
 
-  const herdrStatusesResult = createAsync(() => getHerdrAgentStatuses(projectSlug()));
+  const herdrStatusesResult = createAsync(
+    () => deferredPollsReady() && projectSlug()
+      ? getHerdrAgentStatuses(projectSlug())
+      : Promise.resolve({ kind: "disabled" as const }),
+    { initialValue: { kind: "disabled" } as const },
+  );
   const herdrPollingActive = createMemo(() => {
     const result = herdrStatusesResult();
     return !!result && result.kind !== "disabled";
@@ -382,6 +397,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                           onArchive={commands.openArchive}
                           onViewDetail={commands.openDetail}
                           onReorder={commands.handleReorder}
+                          onReady={() => setDeferredPollsReady(true)}
                         />
                       </ShortcutRunnerContext.Provider>
                     }>
@@ -392,6 +408,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                           onViewDetail={commands.openDetail}
                           onClose={toggleViewMode}
                           suggestedNextNumber={loaded().suggestedNextNumber}
+                          onReady={() => setDeferredPollsReady(true)}
                         />
                       </div>
                     </Show>

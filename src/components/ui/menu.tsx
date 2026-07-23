@@ -7,7 +7,7 @@ export function MenuRoot(props: {
   trigger: JSX.Element;
 }) {
   return (
-    <ArkMenu.Root>
+    <ArkMenu.Root lazyMount unmountOnExit>
       {props.trigger}
       <Portal>
         <ArkMenu.Positioner>

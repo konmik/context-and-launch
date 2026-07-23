@@ -1,4 +1,4 @@
-import { Show } from "solid-js";
+import { Show, createSignal, createEffect } from "solid-js";
 import X from "lucide-solid/icons/x";
 import {
 	FloatingWindow, FloatingWindowHeader, FloatingPanelBody,
@@ -39,6 +39,18 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 	const s = props.ctrl ?? createLauncherSettingsState(props);
 	const commandTemplates = createCommandTemplateSettingsState(props);
 
+	const [visitedTabs, setVisitedTabs] = createSignal<Set<string>>(new Set([s.activeTab()]));
+	createEffect(() => {
+		const tab = s.activeTab();
+		setVisitedTabs((prev) => prev.has(tab) ? prev : new Set(prev).add(tab));
+	});
+	const visited = (tab: string) => visitedTabs().has(tab);
+
+	const defaultSize = {
+		width: 672,
+		height: Math.floor((globalThis.window?.innerHeight ?? 800) * 0.8),
+	};
+
 	useModEnterSubmit({
 		onSubmit: s.submitForm,
 		disabled: () => !s.form()?.name.trim(),
@@ -64,7 +76,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 		<FloatingWindow
 			open={props.open}
 			onOpenChange={(d) => { if (!d.open) props.onOpenChange(false); }}
-			defaultSize={{ width: 672, height: Math.floor((globalThis.window?.innerHeight ?? 800) * 0.8) }}
+			defaultSize={defaultSize}
 			minSize={{ width: 400, height: 300 }}
 			persistRect
 		>
@@ -123,55 +135,65 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 
 								<Show when={s.config()}>
 									{(cfg) => (<>
-										<MiscTab
-											projectName={s.projectName()}
-											setProjectName={s.setProjectName}
-											saveProjectName={s.saveProjectName}
-											worktreeRootPath={s.worktreeRootPath()}
-											setWorktreeRootPath={s.setWorktreeRootPath}
-											saveWorktreeRootPath={s.saveWorktreeRootPath}
-											branchPrefix={s.branchPrefix()}
-											setBranchPrefix={s.setBranchPrefix}
-											saveBranchPrefix={s.saveBranchPrefix}
-											conflictPrompt={s.conflictPrompt()}
-											setConflictPrompt={s.setConflictPrompt}
-											saveConflictResolution={s.saveConflictResolution}
-											setError={s.setError}
-											projectSlug={props.projectSlug}
-											onDeleteProject={props.onDeleteProject}
-										/>
-										<PromptsTab
-											config={cfg()}
-											templateReorder={s.templateReorder}
-											skillReorder={s.skillReorder}
-											startAdd={s.startAdd}
-											startEdit={s.startEdit}
-											deleteItem={s.deleteItem}
-										/>
-										<LaunchTab
-											config={cfg()}
-											profileReorder={s.profileReorder}
-											shortcutReorder={s.shortcutReorder}
-											startAdd={s.startAdd}
-											startEdit={s.startEdit}
-											deleteItem={s.deleteItem}
-										/>
-										<ColumnsTab
-											projectBoardId={s.projectBoardId()}
-											boards={s.boards()}
-											selectedBoardId={s.selectedBoardId()}
-											selectedBoard={s.selectedBoard()}
-											columnReorder={s.columnReorder}
-											setBoardOverride={s.setBoardOverride}
-											onProjectBoard={s.setProjectBoardConfirm}
-											setBoardForm={s.setBoardForm}
-											setColumnForm={s.setColumnForm}
-											setDeleteConfirm={s.setDeleteConfirm}
-											setColumnDialogError={s.setColumnDialogError}
-										/>
+										<Show when={visited("misc")}>
+											<MiscTab
+												projectName={s.projectName()}
+												setProjectName={s.setProjectName}
+												saveProjectName={s.saveProjectName}
+												worktreeRootPath={s.worktreeRootPath()}
+												setWorktreeRootPath={s.setWorktreeRootPath}
+												saveWorktreeRootPath={s.saveWorktreeRootPath}
+												branchPrefix={s.branchPrefix()}
+												setBranchPrefix={s.setBranchPrefix}
+												saveBranchPrefix={s.saveBranchPrefix}
+												conflictPrompt={s.conflictPrompt()}
+												setConflictPrompt={s.setConflictPrompt}
+												saveConflictResolution={s.saveConflictResolution}
+												setError={s.setError}
+												projectSlug={props.projectSlug}
+												onDeleteProject={props.onDeleteProject}
+											/>
+										</Show>
+										<Show when={visited("templates")}>
+											<PromptsTab
+												config={cfg()}
+												templateReorder={s.templateReorder}
+												skillReorder={s.skillReorder}
+												startAdd={s.startAdd}
+												startEdit={s.startEdit}
+												deleteItem={s.deleteItem}
+											/>
+										</Show>
+										<Show when={visited("profiles")}>
+											<LaunchTab
+												config={cfg()}
+												profileReorder={s.profileReorder}
+												shortcutReorder={s.shortcutReorder}
+												startAdd={s.startAdd}
+												startEdit={s.startEdit}
+												deleteItem={s.deleteItem}
+											/>
+										</Show>
+										<Show when={visited("columns")}>
+											<ColumnsTab
+												projectBoardId={s.projectBoardId()}
+												boards={s.boards()}
+												selectedBoardId={s.selectedBoardId()}
+												selectedBoard={s.selectedBoard()}
+												columnReorder={s.columnReorder}
+												setBoardOverride={s.setBoardOverride}
+												onProjectBoard={s.setProjectBoardConfirm}
+												setBoardForm={s.setBoardForm}
+												setColumnForm={s.setColumnForm}
+												setDeleteConfirm={s.setDeleteConfirm}
+												setColumnDialogError={s.setColumnDialogError}
+											/>
+										</Show>
 									</>)}
 								</Show>
-								<CommandTemplatesTab controller={commandTemplates} />
+								<Show when={visited("command-templates")}>
+									<CommandTemplatesTab controller={commandTemplates} />
+								</Show>
 							</div>
 			</FloatingPanelBody>
 		</TabsRoot>
