@@ -39,7 +39,8 @@ describe("Palette picker (e2e, real server)", () => {
       await page.evaluate(() => document.documentElement.dataset.palette),
     ).toBe("dracula");
 
-    await page.click('[data-testid="theme-toggle-button"]');
+    await page.click('[data-testid="palette-picker-trigger"]');
+    await page.click('[data-testid="palette-picker-mode-toggle"]');
     await page.waitForFunction(
       () => document.documentElement.classList.contains("dark"),
       undefined, { timeout: 5000 },

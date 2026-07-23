@@ -30,7 +30,6 @@ import ProjectLauncherDialog from "~/components/launcher/ProjectLauncherDialog";
 import ConflictDialog from "~/components/shared/ConflictDialog";
 import ErrorDialog from "~/components/shared/ErrorDialog";
 import AddProjectForm from "~/components/project/AddProjectForm";
-import ThemeToggle from "~/components/shared/ThemeToggle";
 import PalettePicker from "~/components/shared/PalettePicker";
 import LogViewerDialog from "~/components/shared/LogViewerDialog";
 import LauncherSettings from "~/components/launcher/LauncherSettings";
@@ -291,7 +290,6 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
             </div>
             <div class="flex items-center justify-end gap-2">
               <PalettePicker />
-              <ThemeToggle />
               <button
                 onClick={toggleViewMode}
                 class="btn-icon"

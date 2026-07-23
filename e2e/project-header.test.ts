@@ -9,13 +9,14 @@ import {
 describe("Project page header toolbar (e2e, real server)", () => {
   const ctx = setupE2E();
 
-  it("theme-toggle-button toggles dark class and writes localStorage", async () => {
+  it("palette-picker mode toggle switches dark class and writes localStorage", async () => {
     const project = await createProject(ctx.testServer, { projectSlug: uniqueSlug("hdr-theme") });
     ctx.projects.push(project);
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await ctx.page.waitForSelector('[data-testid="theme-toggle-button"]', { state: "visible", timeout: 15000 });
+    await ctx.page.waitForSelector('[data-testid="palette-picker-trigger"]', { state: "visible", timeout: 15000 });
     const before = await ctx.page.evaluate(() => document.documentElement.classList.contains("dark"));
-    await ctx.page.click('[data-testid="theme-toggle-button"]');
+    await ctx.page.click('[data-testid="palette-picker-trigger"]');
+    await ctx.page.click('[data-testid="palette-picker-mode-toggle"]');
     await ctx.page.waitForFunction(
       (was) => document.documentElement.classList.contains("dark") !== was,
       before, { timeout: 3000 },
