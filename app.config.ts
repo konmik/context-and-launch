@@ -27,6 +27,11 @@ export default defineConfig({
   middleware: "./src/middleware.ts",
   vite: {
     build: { target: "esnext" },
+    server: {
+      watch: {
+        ignored: ["**/dist-electron/**"],
+      },
+    },
     optimizeDeps: {
       esbuildOptions: { target: "esnext" },
       // Deps discovered after dev-server startup trigger "new dependencies

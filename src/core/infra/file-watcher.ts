@@ -127,24 +127,35 @@ export class FileWatcher {
 		watcher.on('unlinkDir', handleEvent);
 	}
 
-	stop(worktreeDir: string): void {
+	async stop(worktreeDir: string): Promise<void> {
 		const state = this.watchers.get(worktreeDir);
 		if (!state) return;
-		this.tearDown(state);
 		this.watchers.delete(worktreeDir);
+		await this.tearDown(state);
 	}
 
-	stopAll(): void {
-		for (const state of this.watchers.values()) {
-			this.tearDown(state);
-		}
+	async stopAll(): Promise<void> {
+		const states = [...this.watchers.values()];
 		this.watchers.clear();
+		await Promise.all(states.map((state) => this.tearDown(state)));
 	}
 
-	private tearDown(state: WatcherState): void {
+	async runWithWatchPaused<T>(worktreeDir: string, task: () => T | Promise<T>): Promise<T> {
+		const wasWatching = this.watchers.has(worktreeDir);
+		if (wasWatching) await this.stop(worktreeDir);
+		try {
+			return await task();
+		} finally {
+			if (wasWatching) this.watch(worktreeDir);
+		}
+	}
+
+	private async tearDown(state: WatcherState): Promise<void> {
 		if (state.timer) this.adapters.clearTimer(state.timer);
-		state.watcher.close().catch((err) => {
+		try {
+			await state.watcher.close();
+		} catch (err) {
 			console.warn('FileWatcher: failed to close watcher:', err);
-		});
+		}
 	}
 }

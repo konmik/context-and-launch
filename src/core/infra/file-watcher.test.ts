@@ -183,8 +183,7 @@ describe('FileWatcher', () => {
 		});
 		vi.runAllTimers();
 		harness.handles[0].close.mockRejectedValueOnce(new Error('close failed'));
-		watcher.stop('/repo');
-		await Promise.resolve();
+		await watcher.stop('/repo');
 
 		expect(warn.mock.calls.map((call) => String(call[0]))).toEqual(expect.arrayContaining([
 			expect.stringContaining('failed to watch'),
@@ -193,6 +192,50 @@ describe('FileWatcher', () => {
 			expect.stringContaining('auto-commit failed'),
 			expect.stringContaining('failed to close watcher'),
 		]));
+	});
+
+	it('closes the watcher before an exclusive task runs and re-watches afterward', async () => {
+		const harness = createHarness();
+		const watcher = new FileWatcher(harness.commands, undefined, harness.adapters);
+		watcher.watch('/repo', 10);
+		const order: string[] = [];
+		harness.handles[0].close.mockImplementation(async () => {
+			order.push('close');
+		});
+
+		const result = await watcher.runWithWatchPaused('/repo', () => {
+			order.push('task');
+			expect(harness.adapters.createWatcher).toHaveBeenCalledTimes(1);
+			return 'done';
+		});
+
+		expect(result).toBe('done');
+		expect(order).toEqual(['close', 'task']);
+		expect(harness.adapters.createWatcher).toHaveBeenCalledTimes(2);
+	});
+
+	it('re-watches even when the exclusive task throws', async () => {
+		const harness = createHarness();
+		const watcher = new FileWatcher(harness.commands, undefined, harness.adapters);
+		watcher.watch('/repo', 10);
+
+		await expect(
+			watcher.runWithWatchPaused('/repo', () => {
+				throw new Error('boom');
+			}),
+		).rejects.toThrow('boom');
+
+		expect(harness.adapters.createWatcher).toHaveBeenCalledTimes(2);
+	});
+
+	it('runs an exclusive task without touching watchers when nothing is watched', async () => {
+		const harness = createHarness();
+		const watcher = new FileWatcher(harness.commands, undefined, harness.adapters);
+
+		const result = await watcher.runWithWatchPaused('/repo', () => 'ok');
+
+		expect(result).toBe('ok');
+		expect(harness.adapters.createWatcher).not.toHaveBeenCalled();
 	});
 
 	it('does not run a queued callback after its watcher is removed', () => {
