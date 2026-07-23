@@ -139,6 +139,10 @@ Conflict Resolution:
 The process of resolving git merge conflicts that arise during a Sync rebase. The app offers to launch Claude via a Coding Agent Profile with a user-configurable plain-text prompt. Claude resolves conflict markers, completes the rebase, and pushes.
 Avoid: merge, fix conflicts
 
+Conflict Resolution Reconciliation:
+The step that applies a completed Conflict Resolution to the live Worktree and makes the resolved ticket data visible to the Project Window. It is separate from determining whether a conflict exists.
+Avoid: conflict finalization, conflict cleanup
+
 Sync Pending:
 A cached per-worktree flag indicating whether the local worktree has uncommitted changes or differs from upstream. Shown as a yellow dot on the sync button.
 Avoid: dirty state, needs sync
