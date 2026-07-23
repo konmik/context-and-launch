@@ -1,16 +1,5 @@
 export type AppMode = "light" | "dark" | "system";
 
-export function getStoredTheme(
-  storage: { getItem(key: string): string | null },
-  matchesDark: boolean,
-): "light" | "dark" {
-  try {
-    const stored = storage.getItem("theme");
-    if (stored === "dark" || stored === "light") return stored;
-  } catch { /* localStorage may throw in some environments */ }
-  return matchesDark ? "dark" : "light";
-}
-
 export function parseMode(value: unknown): AppMode | undefined {
   return value === "light" || value === "dark" || value === "system" ? value : undefined;
 }

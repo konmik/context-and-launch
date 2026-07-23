@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it, expect } from "vitest";
-import { PALETTES, DEFAULT_PALETTE } from "../src/components/shared/palette-pure.js";
-import { PALETTE_BACKGROUNDS, isPaletteName, paletteBackground } from "./palette-backgrounds.js";
+import {
+  PALETTES, DEFAULT_PALETTE, PALETTE_BACKGROUNDS, isPaletteName, paletteBackground,
+} from "./palette-pure.js";
 
 const appCss = readFileSync(path.join(process.cwd(), "src", "app.css"), "utf8");
 

@@ -8,7 +8,7 @@ import {
   isPaletteName,
   DEFAULT_PALETTE,
   type PaletteName,
-} from "./palette-backgrounds.js";
+} from "../src/components/shared/palette-pure.js";
 import {
   isDarkMode,
   parseMode,
@@ -74,14 +74,7 @@ function applyWindowBackgrounds(): void {
   }
 }
 
-function applyPalette(palette: PaletteName): void {
-  currentPalette = palette;
-  applyWindowBackgrounds();
-  writeWindowState();
-}
-
-function applyMode(mode: AppMode): void {
-  currentMode = mode;
+function applyAppearance(): void {
   applyWindowBackgrounds();
   writeWindowState();
 }
@@ -235,9 +228,9 @@ if (!gotLock) {
       raw = null;
     }
     if (raw !== null && typeof raw === "object") {
-      const storedPalette = (raw as Record<string, unknown>).palette;
-      if (isPaletteName(storedPalette)) currentPalette = storedPalette;
-      const storedMode = parseMode((raw as Record<string, unknown>).mode);
+      const state = raw as Record<string, unknown>;
+      if (isPaletteName(state.palette)) currentPalette = state.palette;
+      const storedMode = parseMode(state.mode);
       if (storedMode) currentMode = storedMode;
     }
     let entries = migrateWindowState(raw);
@@ -259,12 +252,18 @@ if (!gotLock) {
     });
 
     ipcMain.on("context-launch:set-palette", (_event, name: unknown) => {
-      if (isPaletteName(name) && name !== currentPalette) applyPalette(name);
+      if (isPaletteName(name) && name !== currentPalette) {
+        currentPalette = name;
+        applyAppearance();
+      }
     });
 
     ipcMain.on("context-launch:set-mode", (_event, mode: unknown) => {
       const parsed = parseMode(mode);
-      if (parsed && parsed !== currentMode) applyMode(parsed);
+      if (parsed && parsed !== currentMode) {
+        currentMode = parsed;
+        applyAppearance();
+      }
     });
 
     for (const entry of entries) {

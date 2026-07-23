@@ -29,6 +29,12 @@ export default defineConfig({
     build: { target: "esnext" },
     optimizeDeps: {
       esbuildOptions: { target: "esnext" },
+      // Dep discovery after dev-server startup triggers "new dependencies
+      // optimized: reloading", a full-page reload. noDiscovery turns discovery
+      // off entirely, so every lazily-imported CJS dep must be pinned in
+      // include; the entries below are @solidjs/start's lazy dev-mode deps.
+      // A newly added client dependency that misbehaves in dev likely needs an
+      // entry here too.
       noDiscovery: true,
       include: [
         "@solidjs/start > source-map-js",
