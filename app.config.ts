@@ -27,7 +27,14 @@ export default defineConfig({
   middleware: "./src/middleware.ts",
   vite: {
     build: { target: "esnext" },
-    optimizeDeps: { esbuildOptions: { target: "esnext" } },
+    optimizeDeps: {
+      esbuildOptions: { target: "esnext" },
+      noDiscovery: true,
+      include: [
+        "@solidjs/start > source-map-js",
+        "@solidjs/start > error-stack-parser",
+      ],
+    },
     plugins: [stubLanguageDataOnServer(), tailwindcss()],
     resolve: {
       alias: {

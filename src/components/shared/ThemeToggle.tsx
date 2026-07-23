@@ -1,11 +1,12 @@
 import { createSignal, onMount } from "solid-js";
 import Sun from "lucide-solid/icons/sun";
 import Moon from "lucide-solid/icons/moon";
-import { getStoredTheme } from "./theme-toggle-pure.js";
+import { getStoredTheme, getStoredMode } from "./theme-toggle-pure.js";
 
 function applyTheme(theme: "light" | "dark") {
   document.documentElement.classList.toggle("dark", theme === "dark");
   localStorage.setItem("theme", theme);
+  window.contextLaunch?.setMode(theme);
 }
 
 export default function ThemeToggle() {
@@ -14,6 +15,7 @@ export default function ThemeToggle() {
   onMount(() => {
     const matchesDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     setTheme(getStoredTheme(localStorage, matchesDark));
+    window.contextLaunch?.setMode(getStoredMode(localStorage));
   });
 
   function toggle() {
