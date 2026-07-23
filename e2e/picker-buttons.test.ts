@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { pickPort } from "./test-port.js";
-import { startRealServer, stopRealServer, type RealServer } from "./real-server.js";
+import { startRealServer, stopRealServer, rmTemp, type RealServer } from "./real-server.js";
 
 function tmpDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -220,8 +220,8 @@ describe("Picker buttons (e2e, real server)", () => {
       const wtPath = path.join(dataDir, "projects", projectSlug, "tickets");
       try { execSync(`git worktree remove --force "${wtPath}"`, { cwd: repoDir }); } catch { /* ignore */ }
     }
-    if (dataDir) fs.rmSync(dataDir, { recursive: true, force: true });
-    if (repoDir) fs.rmSync(repoDir, { recursive: true, force: true });
+    if (dataDir) rmTemp(dataDir, "picker-buttons dataDir");
+    if (repoDir) rmTemp(repoDir, "picker-buttons repoDir");
   }, 20000);
 
   // --- Add Project page: project path directory picker ---
