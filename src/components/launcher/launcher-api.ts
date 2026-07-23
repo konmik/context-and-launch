@@ -27,10 +27,7 @@ export interface MergedLauncherConfigWithMeta extends MergedLauncherConfig {
   agentWorktreeDir: string;
 }
 
-export const getMergedLauncherConfig = query(async (
-  projectSlug: string,
-): Promise<MergedLauncherConfigWithMeta> => {
-  "use server";
+function buildMergedLauncherConfig(projectSlug: string): MergedLauncherConfigWithMeta {
   const merged = launcherConfigManager.getMergedConfig(projectSlug);
   const project = projectRegistry.listProjects().find(p => p.projectSlug === projectSlug);
   if (!project) throw new Error(`Project not found: ${projectSlug}`);
@@ -42,7 +39,20 @@ export const getMergedLauncherConfig = query(async (
     worktreeDir: worktreeManager.getWorktreeDir(projectSlug),
     agentWorktreeDir: launcherConfigManager.getAgentWorktreeDir(projectSlug),
   };
+}
+
+export const getMergedLauncherConfig = query(async (
+  projectSlug: string,
+): Promise<MergedLauncherConfigWithMeta> => {
+  "use server";
+  return buildMergedLauncherConfig(projectSlug);
 }, "launcher-config");
+
+export function cacheMergedLauncherConfig(
+  projectSlug: string, config: MergedLauncherConfigWithMeta,
+): void {
+  query.set(getMergedLauncherConfig.keyFor(projectSlug), config);
+}
 
 export async function saveColumnDefaults(
   projectSlug: string, column: string,
@@ -58,7 +68,7 @@ export async function saveColumnDefaults(
   "use server";
   try {
     launcherConfigManager.saveColumnDefaults(projectSlug, column, patch);
-    return { ok: true as const };
+    return { ok: true as const, config: buildMergedLauncherConfig(projectSlug) };
   } catch (e) {
     return errorResult(e);
   }

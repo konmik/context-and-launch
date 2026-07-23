@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  readProjectLauncherConfig, poll,
+  readProjectLauncherConfig, poll, openTicketDetail,
   setupE2E,
 } from "./fixtures.js";
 import { setupLauncherTicket } from "./ticket-detail-launcher-shared.js";
@@ -61,6 +61,23 @@ describe("Ticket detail launcher config and run (e2e, real server)", () => {
     expect(await ctx.page.locator('[data-testid="ticket-detail-launcher-behind-remote-proceed"]').count()).toBe(0);
     expect(await ctx.page.locator('[data-testid="ticket-detail-launcher-dirty-cancel"]').count()).toBe(0);
     expect(await ctx.page.locator('[data-testid="ticket-detail-launcher-dirty-launch-anyway"]').count()).toBe(0);
+  }, 60000);
+
+  it("keeps the launcher tab active after closing and reopening without reload", async () => {
+    const project = await setupLauncherTicket(ctx, "tab-persist");
+    await poll(
+      () => readProjectLauncherConfig(ctx.testServer, project.projectSlug),
+      (c) => c?.columnDefaults?.["todo"]?.lastLayer === "launcher",
+      5000,
+    );
+    await ctx.page.click('[data-testid="ticket-detail-close-window-button"]');
+    await ctx.page.waitForSelector('[data-testid="ticket-detail-tab-editor"]', {
+      state: "detached", timeout: 15000,
+    });
+    await openTicketDetail(ctx.page, "t-1-alpha");
+    await ctx.page.waitForSelector('[data-testid="ticket-detail-launcher-run-button"]', {
+      state: "visible", timeout: 15000,
+    });
   }, 60000);
 
   it("launch dir display shows project path when worktree is off", async () => {

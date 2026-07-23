@@ -34,7 +34,7 @@ import {
 } from "./ticket-api.js";
 import { ticketMutationRevalidateKeys } from "../shared/revalidate-keys.js";
 import {
-  getMergedLauncherConfig, saveColumnDefaults,
+  getMergedLauncherConfig, saveColumnDefaults, cacheMergedLauncherConfig,
   type MergedLauncherConfigWithMeta,
 } from "../launcher/launcher-api.js";
 import { openNativeFileBrowser as openNativeFileBrowserServer } from "../shared/shared-api.js";
@@ -260,7 +260,8 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   function patchColumnDefaults(patch: Partial<LauncherColumnDefaults>) {
     saveColumnDefaults(props.projectSlug, props.ticket.status, patch)
       .then((result) => {
-        if (!result.ok) setError({ title: "Save failed", description: result.message });
+        if (!result.ok) { setError({ title: "Save failed", description: result.message }); return; }
+        cacheMergedLauncherConfig(props.projectSlug, result.config);
       })
       .catch((e) => {
         setError(errorPayload(e, "Save failed"));
