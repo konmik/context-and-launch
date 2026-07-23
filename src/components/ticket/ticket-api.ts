@@ -4,7 +4,9 @@ import {
   worktreeManager, boardConfigManager, projectRegistry,
   operationTracker, ticketSyncManager, syncPendingTracker,
   launcherConfigManager, agentWorktreeManager, fileWatcher, herdrExec,
+  commandTemplateService,
 } from "~/core/config/instances.js";
+import { openInOs } from "~/core/infra/open-in-os.js";
 import { TicketStore } from "~/core/ticket/ticket-store.js";
 import { extractPrefixFromInput } from "~/core/ticket/ticket-number.js";
 import { WorktreeCleanupService } from "~/core/worktree/worktree-cleanup.js";
@@ -265,6 +267,20 @@ function resolveTicketCleanupTarget(projectSlug: string, folderName: string) {
     },
   );
   return { project, store, ticket, worktreePath, branchName };
+}
+
+export async function openTicketWorktree(projectSlug: string, folderName: string) {
+  "use server";
+  try {
+    const { worktreePath } = resolveTicketCleanupTarget(projectSlug, folderName);
+    if (!fs.existsSync(worktreePath)) {
+      throw new NotFoundError(`Worktree does not exist: ${worktreePath}`);
+    }
+    await openInOs(worktreePath, commandTemplateService);
+    return { ok: true as const };
+  } catch (e) {
+    return errorResult(e);
+  }
 }
 
 export async function getCleanupStatus(

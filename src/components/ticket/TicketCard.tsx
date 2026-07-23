@@ -51,6 +51,16 @@ export default function TicketCard(props: TicketCardProps) {
             }
           >
             <MenuContent>
+              <Show when={props.ticket.hasAgentWorktree && shortcutRunner}>
+                <MenuItem
+                  value="open-worktree"
+                  data-testid="kanban-board-ticket-menu-open-worktree"
+                  onClick={(e: MouseEvent) => {
+                    e.stopPropagation(); shortcutRunner!.openWorktree(props.ticket);
+                  }}
+                >Open worktree</MenuItem>
+                <MenuSeparator />
+              </Show>
               <MenuItem
                 value="archive"
                 data-testid="kanban-board-ticket-menu-archive"

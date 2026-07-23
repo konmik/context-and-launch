@@ -98,7 +98,7 @@ export default function ProjectLauncherDialog(props: {
               disabled={ctrl.launching()}
               class="btn-primary"
               data-testid="project-launcher-run-button"
-            >Run</button>
+            >Launch</button>
             <button
               type="button"
               onClick={() => props.onOpenChange(false)}

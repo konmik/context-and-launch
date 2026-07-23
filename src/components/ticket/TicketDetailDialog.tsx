@@ -7,7 +7,7 @@ import {
   FLOATING_WINDOW_MIN_SIZE, tallWindowDefaultSize,
 } from "../ui/floating-panel";
 import { TabsRoot, TabsList, TabsTrigger } from "../ui/tabs";
-import { MenuRoot, MenuTrigger, MenuContent, MenuItem } from "../ui/menu";
+import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "../ui/menu";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 import {
@@ -131,12 +131,12 @@ function TicketDetailContent(props: {
           </>}
           actions={
             <div class="flex items-center gap-1">
-              <Show when={(s.launcherConfig()?.shortcuts.length ?? 0) > 0}>
+              <Show when={props.ticket.hasAgentWorktree || (s.launcherConfig()?.shortcuts.length ?? 0) > 0}>
                 <MenuRoot
                   trigger={
                     <MenuTrigger
                       class="btn-ghost-icon h-8 w-8"
-                      aria-label="Shortcuts"
+                      aria-label="Ticket actions"
                       data-testid="ticket-detail-shortcuts-menu-trigger"
                     >
                       <Zap size={16} />
@@ -144,7 +144,17 @@ function TicketDetailContent(props: {
                   }
                 >
                   <MenuContent>
-                    <For each={s.launcherConfig()!.shortcuts}>
+                    <Show when={props.ticket.hasAgentWorktree}>
+                      <MenuItem
+                        value="open-worktree"
+                        data-testid="ticket-detail-open-worktree-menu-item"
+                        onClick={() => s.openWorktree()}
+                      >Open worktree</MenuItem>
+                      <Show when={(s.launcherConfig()?.shortcuts.length ?? 0) > 0}>
+                        <MenuSeparator />
+                      </Show>
+                    </Show>
+                    <For each={s.launcherConfig()?.shortcuts ?? []}>
                       {(shortcut) => (
                         <MenuItem
                           value={`shortcut-${shortcut.name}`}
@@ -264,7 +274,7 @@ function TicketDetailContent(props: {
                       disabled={launcherCtrl.launching()}
                       class="btn-primary"
                       data-testid="ticket-detail-launcher-run-button"
-                    >Run</button>
+                    >Launch</button>
                   </Show>
                   <Show when={s.showSaveButton() || s.hasUnsavedHeaderChanges()}>
                     <button

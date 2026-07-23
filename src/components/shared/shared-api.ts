@@ -1,6 +1,6 @@
 import fs from "fs";
 import {
-  commandTemplateService, launcherConfigManager, worktreeManager,
+  commandTemplateService, launcherConfigManager, worktreeManager, projectRegistry,
 } from "~/core/config/instances.js";
 import { openInOs } from "~/core/infra/open-in-os.js";
 import { openDirectoryDialog, openFileDialog } from "~/core/infra/native-file-dialog.js";
@@ -13,6 +13,11 @@ export async function openConfigDir(
   let dir: string;
   if (scope === "tickets" && projectSlug) dir = worktreeManager.getWorktreeDir(projectSlug);
   else if (scope === "project" && projectSlug) dir = launcherConfigManager.getProjectDir(projectSlug);
+  else if (scope === "repo" && projectSlug) {
+    const project = projectRegistry.listProjects().find((p) => p.projectSlug === projectSlug);
+    if (!project) throw new NotFoundError(`Project not found: ${projectSlug}`);
+    dir = project.path;
+  }
   else dir = launcherConfigManager.getAppConfigDir();
   if (!fs.existsSync(dir)) throw new NotFoundError(`Directory does not exist: ${dir}`);
   await openInOs(dir, commandTemplateService);
