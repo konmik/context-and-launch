@@ -29,16 +29,24 @@ export default defineConfig({
     build: { target: "esnext" },
     optimizeDeps: {
       esbuildOptions: { target: "esnext" },
-      // Dep discovery after dev-server startup triggers "new dependencies
-      // optimized: reloading", a full-page reload. noDiscovery turns discovery
-      // off entirely, so every lazily-imported CJS dep must be pinned in
-      // include; the entries below are @solidjs/start's lazy dev-mode deps.
-      // A newly added client dependency that misbehaves in dev likely needs an
-      // entry here too.
-      noDiscovery: true,
+      // Deps discovered after dev-server startup trigger "new dependencies
+      // optimized: reloading", a full-page reload. The entries below are
+      // lazily-imported deps (via @solidjs/start dev mode and the clientOnly
+      // MarkdownEditor), pinned so they are pre-bundled at startup instead of
+      // discovered late. If dev logs that message for another dep, add it
+      // here too.
       include: [
         "@solidjs/start > source-map-js",
         "@solidjs/start > error-stack-parser",
+        "@codemirror/view",
+        "@codemirror/state",
+        "@codemirror/lang-markdown",
+        "@codemirror/language-data",
+        "@codemirror/commands",
+        "@codemirror/language",
+        "@codemirror/autocomplete",
+        "@codemirror/search",
+        "@lezer/highlight",
       ],
     },
     plugins: [stubLanguageDataOnServer(), tailwindcss()],
