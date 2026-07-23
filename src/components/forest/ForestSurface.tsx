@@ -24,7 +24,7 @@ import {
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import { createStore, reconcile } from "solid-js/store";
-import { X } from "lucide-solid";
+import X from "lucide-solid/icons/x";
 import type { OverlayRect } from "../shared/ExpandingOverlay";
 import ForestCard, {
   ForestCardCommandsContext,

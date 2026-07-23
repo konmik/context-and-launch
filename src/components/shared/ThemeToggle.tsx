@@ -1,5 +1,6 @@
 import { createSignal, onMount } from "solid-js";
-import { Sun, Moon } from "lucide-solid";
+import Sun from "lucide-solid/icons/sun";
+import Moon from "lucide-solid/icons/moon";
 import { getStoredTheme } from "./theme-toggle-pure.js";
 
 function applyTheme(theme: "light" | "dark") {

@@ -4,10 +4,16 @@ import {
   Show, For, Switch, Match, ErrorBoundary,
   createSignal, createEffect, createMemo, onCleanup, onMount,
 } from "solid-js";
-import {
-  EllipsisVertical, Network, ScrollText, RefreshCw, Check, Settings,
-  ChevronDown, ExternalLink, X, TriangleAlert,
-} from "lucide-solid";
+import EllipsisVertical from "lucide-solid/icons/ellipsis-vertical";
+import Network from "lucide-solid/icons/network";
+import ScrollText from "lucide-solid/icons/scroll-text";
+import RefreshCw from "lucide-solid/icons/refresh-cw";
+import Check from "lucide-solid/icons/check";
+import Settings from "lucide-solid/icons/settings";
+import ChevronDown from "lucide-solid/icons/chevron-down";
+import ExternalLink from "lucide-solid/icons/external-link";
+import X from "lucide-solid/icons/x";
+import TriangleAlert from "lucide-solid/icons/triangle-alert";
 import {
   FloatingWindow, FloatingWindowHeader, FloatingPanelBody,
   FloatingPanelCloseTrigger, FloatingPanelTitle,

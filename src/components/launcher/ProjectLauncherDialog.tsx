@@ -1,5 +1,5 @@
 import { createSignal, createEffect, on } from "solid-js";
-import { X } from "lucide-solid";
+import X from "lucide-solid/icons/x";
 import {
   FloatingWindow, FloatingWindowHeader, FloatingPanelBody,
   FloatingPanelCloseTrigger, FloatingPanelTitle,

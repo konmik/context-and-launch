@@ -1,6 +1,6 @@
 import { createSignal, onMount, For } from "solid-js";
 import { isServer } from "solid-js/web";
-import { Palette } from "lucide-solid";
+import Palette from "lucide-solid/icons/palette";
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem } from "~/components/ui/menu";
 import { PALETTES, DEFAULT_PALETTE, getStoredPalette, isPaletteName, type PaletteName } from "./palette-pure.js";
 
