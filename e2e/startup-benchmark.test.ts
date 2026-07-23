@@ -1,63 +1,145 @@
 import { describe, it, expect } from "vitest";
-import {
-  createProject, createServer, launchBrowser, uniqueSlug,
-} from "./fixtures.js";
+import { execSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { _electron } from "playwright";
+import { createProject, uniqueSlug, type CreatedProject, type TestServer } from "./fixtures.js";
 
-describe("Startup benchmark (e2e, real server)", () => {
-  it("reports server boot and board render timings", async () => {
-    const bootStart = performance.now();
-    const testServer = await createServer({ dataDirPrefix: "cl-bench-data-" });
-    const serverBootMs = performance.now() - bootStart;
+const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const PROJECT_COUNT = 3;
+const TICKETS_PER_PROJECT = 20;
+const STATUSES = ["todo", "in-progress", "done"];
+
+interface LaunchTimings {
+  windowMs: number;
+  allBoardsMs: number;
+}
+
+async function launchAppAndMeasure(
+  env: NodeJS.ProcessEnv,
+  projects: CreatedProject[],
+): Promise<LaunchTimings> {
+  const start = performance.now();
+  const app = await _electron.launch({
+    args: [path.join(PROJECT_ROOT, "electron", "main.js")],
+    cwd: PROJECT_ROOT,
+    env: env as { [key: string]: string },
+  });
+  let stderr = "";
+  app.process().stderr?.on("data", (b: Buffer) => { stderr += b.toString(); });
+  try {
+    const firstPage = await app.firstWindow();
+    const windowMs = performance.now() - start;
+
+    const pagesDeadline = performance.now() + 30000;
+    const trackedPages = () => {
+      const set = new Set([firstPage, ...app.windows(), ...app.context().pages()]);
+      return [...set];
+    };
+    while (trackedPages().length < projects.length) {
+      if (performance.now() > pagesDeadline) {
+        const urls = trackedPages().map((w) => w.url()).join(", ");
+        throw new Error(
+          `waited for ${projects.length} windows, got ${trackedPages().length} [${urls}]\n`
+          + `main process stderr:\n${stderr}`,
+        );
+      }
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    const pages = trackedPages();
+    await Promise.all(pages.map((page) =>
+      page.waitForSelector(
+        '[data-testid="kanban-board-ticket-card"]',
+        { state: "visible", timeout: 60000 },
+      ),
+    ));
+    const allBoardsMs = performance.now() - start;
+    return { windowMs, allBoardsMs };
+  } finally {
+    await app.close();
+  }
+}
+
+describe("Startup benchmark (real Electron app)", () => {
+  it("reports launch-to-window and launch-to-boards timings", async () => {
+    execSync("npm run electron:build-main", { cwd: PROJECT_ROOT, stdio: "ignore" });
+
+    const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "cl-bench-app-data-"));
+    const reposParentDir = fs.mkdtempSync(path.join(os.tmpdir(), "cl-bench-app-repos-"));
+    const appDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "cl-bench-app-appdata-"));
+    fs.mkdirSync(path.join(dataDir, "config"), { recursive: true });
+    for (const file of fs.readdirSync(path.join(PROJECT_ROOT, "config-defaults"))) {
+      fs.copyFileSync(
+        path.join(PROJECT_ROOT, "config-defaults", file),
+        path.join(dataDir, "config", file),
+      );
+    }
 
     try {
-      const project = await createProject(testServer, {
-        projectSlug: uniqueSlug("bench"),
-        withBoards: [{
-          id: "kanban", name: "Kanban",
-          columns: [{ name: "todo" }, { name: "in-progress" }, { name: "done" }],
-        }],
-        withTickets: [
-          { number: "B-1", title: "First", folderName: "b-1-first", status: "todo" },
-          { number: "B-2", title: "Second", folderName: "b-2-second", status: "in-progress" },
-          { number: "B-3", title: "Third", folderName: "b-3-third", status: "done" },
-        ],
-      });
-      const tb = await launchBrowser();
+      const fakeServer = {
+        dataDir, reposParentDir, baseUrl: "unused", port: 0,
+      } as unknown as TestServer;
 
-      try {
-        const page = await tb.browser.newPage();
-        const url = `${testServer.baseUrl}/project/${project.projectSlug}`;
-        const boardReady = () =>
-          page.waitForSelector(
-            '[data-testid="kanban-board-ticket-card"][data-folder-name="b-1-first"]',
-            { state: "visible", timeout: 30000 },
-          );
-
-        const coldStart = performance.now();
-        await page.goto(url);
-        await boardReady();
-        const coldLoadMs = performance.now() - coldStart;
-
-        const warmLoadsMs: number[] = [];
-        for (let i = 0; i < 3; i++) {
-          const warmStart = performance.now();
-          await page.reload();
-          await boardReady();
-          warmLoadsMs.push(performance.now() - warmStart);
-        }
-
-        console.log(
-          `[startup-benchmark] server boot: ${serverBootMs.toFixed(0)} ms | `
-          + `cold board load: ${coldLoadMs.toFixed(0)} ms | `
-          + `warm reloads: ${warmLoadsMs.map((m) => m.toFixed(0)).join(" / ")} ms`,
-        );
-
-        expect(coldLoadMs).toBeLessThan(30000);
-      } finally {
-        await tb.stop();
+      const projects: CreatedProject[] = [];
+      for (let p = 0; p < PROJECT_COUNT; p++) {
+        projects.push(await createProject(fakeServer, {
+          projectSlug: uniqueSlug(`bench-app-${p}`),
+          withRemote: true,
+          withBoards: [{
+            id: "kanban", name: "Kanban",
+            columns: [{ name: "todo" }, { name: "in-progress" }, { name: "done" }],
+          }],
+          withTickets: Array.from({ length: TICKETS_PER_PROJECT }, (_, i) => ({
+            number: `B-${i + 1}`,
+            title: `Benchmark ticket ${i + 1}`,
+            folderName: `b-${i + 1}-benchmark-ticket-${i + 1}`,
+            status: STATUSES[i % STATUSES.length],
+            body: `# Benchmark ticket ${i + 1}\n\nSome body text for ticket ${i + 1}.\n`,
+          })),
+        }));
       }
+
+      const userDataDir = path.join(appDataDir, "user-data");
+      fs.mkdirSync(userDataDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(userDataDir, "window-state.json"),
+        JSON.stringify({
+          windows: projects.map((project, i) => ({
+            projectSlug: project.projectSlug,
+            bounds: { x: 40 * i, y: 40 * i, width: 1280, height: 800 },
+            maximized: false,
+          })),
+        }),
+      );
+
+      const env: NodeJS.ProcessEnv = {
+        ...process.env,
+        CONTEXT_LAUNCH_USER_DATA_DIR: userDataDir,
+        CONTEXT_LAUNCH_DATA_DIR: dataDir,
+        CONTEXT_PICKER_STUB: "__cancel__",
+        CONTEXT_FILE_PICKER_STUB: "__cancel__",
+        CONTEXT_OPEN_IN_OS_STUB: "__noop__",
+      };
+
+      const first = await launchAppAndMeasure(env, projects);
+      const second = await launchAppAndMeasure(env, projects);
+
+      console.log(
+        `[startup-benchmark] ${PROJECT_COUNT} windows, ${TICKETS_PER_PROJECT} tickets each | `
+        + `first launch: window ${first.windowMs.toFixed(0)} ms, `
+        + `all boards ${first.allBoardsMs.toFixed(0)} ms | `
+        + `second launch: window ${second.windowMs.toFixed(0)} ms, `
+        + `all boards ${second.allBoardsMs.toFixed(0)} ms`,
+      );
+
+      expect(first.allBoardsMs).toBeLessThan(60000);
+      expect(second.allBoardsMs).toBeLessThan(60000);
     } finally {
-      await testServer.stop();
+      try { fs.rmSync(dataDir, { recursive: true, force: true }); } catch { /* temp dir */ }
+      try { fs.rmSync(reposParentDir, { recursive: true, force: true }); } catch { /* temp dir */ }
+      try { fs.rmSync(appDataDir, { recursive: true, force: true }); } catch { /* temp dir */ }
     }
-  }, 120000);
+  }, 300000);
 });

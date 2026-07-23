@@ -32,6 +32,9 @@ const electronDir = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(electronDir, "..");
 const preloadPath = path.join(electronDir, "preload.cjs");
 process.env.CONTEXT_LAUNCH_CONFIG_DEFAULTS_DIR = path.join(process.resourcesPath, "config-defaults");
+if (process.env.CONTEXT_LAUNCH_USER_DATA_DIR) {
+  app.setPath("userData", process.env.CONTEXT_LAUNCH_USER_DATA_DIR);
+}
 const windowStateFile = path.join(app.getPath("userData"), "window-state.json");
 
 const SYNC_WINDOW_DELAY_MS = 5000;
