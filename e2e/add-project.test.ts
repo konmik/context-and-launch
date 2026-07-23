@@ -47,11 +47,12 @@ describe("Add project welcome screen (e2e, real server)", () => {
     if (repoDir) fs.rmSync(repoDir, { recursive: true, force: true });
   }, 20000);
 
-  it("theme-toggle-button toggles class and writes localStorage", async () => {
+  it("palette-picker mode toggle switches class and writes localStorage", async () => {
     await page.goto(`${testServer.baseUrl}/add-project`);
-    await page.waitForSelector('[data-testid="theme-toggle-button"]', { state: "visible", timeout: 10000 });
+    await page.waitForSelector('[data-testid="palette-picker-trigger"]', { state: "visible", timeout: 10000 });
     const before = await page.evaluate(() => document.documentElement.classList.contains("dark"));
-    await page.click('[data-testid="theme-toggle-button"]');
+    await page.click('[data-testid="palette-picker-trigger"]');
+    await page.click('[data-testid="palette-picker-mode-toggle"]');
     await page.waitForFunction(
       (was) => document.documentElement.classList.contains("dark") !== was,
       before, { timeout: 3000 },
