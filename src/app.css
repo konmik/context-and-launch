@@ -808,6 +808,7 @@ textarea.input { display: block; height: auto; }
 .ticket-card {
 	border-width: 1px;
 	border-style: solid;
+	contain: content;
 }
 .ticket-card:hover {
 	border-color: var(--ticket-border-color-hover, var(--muted-foreground));

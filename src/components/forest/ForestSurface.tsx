@@ -17,6 +17,7 @@ import {
   createMemo,
   createSignal,
   For,
+  on,
   onCleanup,
   onMount,
   Show,
@@ -54,7 +55,6 @@ import {
   type ForestNodeData,
 } from "./forest-flow-model.js";
 import {
-  buildLookup,
   representativeInScope,
   type DependencyRelation,
   type ForestTicket,
@@ -162,16 +162,12 @@ export default function ForestSurface(props: ForestSurfaceProps) {
 
   const [nodes, setNodes] = createStore<ForestFlowNode[]>(model().nodes);
   const [edges, setEdges] = createStore<ForestFlowEdge[]>(model().edges);
-  createEffect(() => setNodes(reconcile(model().nodes, { key: "id" })));
-  createEffect(() => setEdges(reconcile(model().edges, { key: "id" })));
+  createEffect(on(model, current => setNodes(reconcile(current.nodes, { key: "id" })), { defer: true }));
+  createEffect(on(model, current => setEdges(reconcile(current.edges, { key: "id" })), { defer: true }));
   const [selectedNodeIds, setSelectedNodeIds] = createSignal<string[]>([]);
   const [pendingPositionWrites, setPendingPositionWrites] = createSignal(0);
   const isPersistingPositions = () => pendingPositionWrites() > 0;
   const [dependencyPopup, setDependencyPopup] = createSignal<DependencyPopup>();
-  const ticketLookup = createMemo(() => buildLookup(props.data.tickets));
-  const dependsOnByNumber = createMemo(
-    () => new Map(props.data.tickets.map(ticket => [ticket.number, ticket.dependsOn ?? []])),
-  );
   let surfaceApi: ForestSurfaceApi | undefined;
   let nativeConnectionCompleted = false;
 
@@ -293,7 +289,7 @@ export default function ForestSurface(props: ForestSurfaceProps) {
 
     function connectionAnchor(endpoint: ConnectionEndpoint): ConnectionAnchor | undefined {
       const representative = representativeInScope(
-        ticketLookup(),
+        model().lookup,
         endpoint.ticketNumber,
         props.data.scopeGroupNumber,
       );
@@ -584,7 +580,7 @@ export default function ForestSurface(props: ForestSurfaceProps) {
                 }}
                 isValidConnection={connection =>
                   connection.source !== connection.target
-                  && !(dependsOnByNumber().get(connection.source) ?? []).includes(connection.target)
+                  && !(model().dependsOnByNumber.get(connection.source) ?? []).includes(connection.target)
                 }
                 onBeforeConnect={connection => ({
                   ...connection,

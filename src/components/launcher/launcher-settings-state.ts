@@ -1,4 +1,4 @@
-import { createSignal, createEffect, createMemo, onCleanup, on } from "solid-js";
+import { createSignal, createEffect, createMemo, onCleanup, on, batch } from "solid-js";
 import { revalidate } from "@solidjs/router";
 import type {
   LauncherItemType,
@@ -64,12 +64,14 @@ export function createLauncherSettingsState(props: {
 	const selectedBoard = () => boards().find(b => b.id === selectedBoardId());
 
 	createEffect(on(() => props.open, (open) => {
-		if (open) {
-			setBoardOverride(null); loadConfig(); setForm(null);
+		if (!open) return;
+		batch(() => {
+			setBoardOverride(null); setForm(null);
 			setColumnForm(null); setBoardForm(null); setRenameForm(null);
 			setDeleteConfirm(null); setProjectBoardConfirm(null);
 			setError(null); setColumnDialogError("");
-		}
+		});
+		loadConfig();
 	}));
 
 	const anyDialogOpen = () =>
@@ -88,20 +90,34 @@ export function createLauncherSettingsState(props: {
 		onCleanup(() => document.removeEventListener("keydown", handler));
 	});
 
-	async function loadConfig() {
-		setLoading(true); setError(null);
-		await Promise.all([revalidate("launcher-config"), revalidate("boards")]);
-		try {
-			const data: MergedLauncherConfigWithMeta = await getMergedLauncherConfig(props.projectSlug);
+	function applyConfig(data: MergedLauncherConfigWithMeta) {
+		batch(() => {
 			setConfig(data);
 			setProjectBoardId(data.projectBoardId ?? null);
 			setProjectName(data.projectName ?? "");
 			setWorktreeRootPath(data.worktreeRootPath ?? "");
 			setBranchPrefix(data.branchPrefix);
 			setConflictPrompt(data.conflictResolutionPrompt ?? "");
-		} catch (e) { setError(errorPayload(e, "Load failed")); }
-		finally { setLoading(false); }
-		await loadBoards();
+		});
+	}
+
+	async function loadConfig() {
+		setLoading(true); setError(null);
+		const [configResult, boardsResult] = await Promise.allSettled([
+			(async () => {
+				await revalidate("launcher-config");
+				return getMergedLauncherConfig(props.projectSlug);
+			})(),
+			(async () => {
+				await revalidate("boards");
+				return listBoards();
+			})(),
+		]);
+		if (configResult.status === "fulfilled") applyConfig(configResult.value);
+		else setError(errorPayload(configResult.reason, "Load failed"));
+		if (boardsResult.status === "fulfilled") setBoards(boardsResult.value);
+		else setError(errorPayload(boardsResult.reason, "Load failed"));
+		setLoading(false);
 	}
 
 	async function loadBoards() {

@@ -59,19 +59,28 @@ export function representativeInScope(
   lookup: ForestLookup,
   ticketNumber: string,
   scopeGroupNumber: string | undefined,
+  cache?: Map<string, string | undefined>,
 ): string | undefined {
+  const cached = cache?.get(ticketNumber);
+  if (cached !== undefined || cache?.has(ticketNumber)) return cached;
   const visited = new Set<string>();
   let current = ticketNumber;
+  let result: string | undefined;
   while (true) {
-    if (visited.has(current)) return undefined;
+    if (visited.has(current)) break;
     visited.add(current);
     const ticket = lookup.byNumber.get(current);
-    if (!ticket) return undefined;
+    if (!ticket) break;
     const parent = effectiveParent(ticket, lookup.allNumbers);
-    if (parent === scopeGroupNumber) return current;
-    if (parent === undefined) return undefined;
+    if (parent === scopeGroupNumber) {
+      result = current;
+      break;
+    }
+    if (parent === undefined) break;
     current = parent;
   }
+  cache?.set(ticketNumber, result);
+  return result;
 }
 
 function upsert<K, V>(map: Map<K, V>, key: K, create: () => V): V {
@@ -92,14 +101,15 @@ export function projectDependencies(
   tickets: ForestTicket[],
   scopeGroupNumber: string | undefined,
   lookup: ForestLookup = buildLookup(tickets),
+  representativeCache?: Map<string, string | undefined>,
 ): DependencyProjections {
   const internal = new Map<string, InternalDependencyProjection>();
   const external = new Map<string, ExternalDependencyProjection>();
   for (const ticket of tickets) {
     if (!ticket.dependsOn) continue;
-    const fromRep = representativeInScope(lookup, ticket.number, scopeGroupNumber);
+    const fromRep = representativeInScope(lookup, ticket.number, scopeGroupNumber, representativeCache);
     for (const dep of ticket.dependsOn) {
-      const toRep = representativeInScope(lookup, dep, scopeGroupNumber);
+      const toRep = representativeInScope(lookup, dep, scopeGroupNumber, representativeCache);
       const relation = { fromNumber: ticket.number, toNumber: dep };
       if (fromRep && toRep && fromRep !== toRep) {
         upsert(internal, `${fromRep}->${toRep}`, () => ({
@@ -184,6 +194,28 @@ export function computeDepths(
   return depths;
 }
 
+function firstOccupiedAbove(sorted: number[], threshold: number): number {
+  let lo = 0;
+  let hi = sorted.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (sorted[mid] > threshold) hi = mid;
+    else lo = mid + 1;
+  }
+  return lo < sorted.length ? sorted[lo] : Number.POSITIVE_INFINITY;
+}
+
+function insertSorted(sorted: number[], value: number): void {
+  let lo = 0;
+  let hi = sorted.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (sorted[mid] < value) lo = mid + 1;
+    else hi = mid;
+  }
+  sorted.splice(lo, 0, value);
+}
+
 export function autoLayoutPositions(
   nodes: ForestTicket[],
   dependencies: DependencyRelation[],
@@ -206,9 +238,10 @@ export function autoLayoutPositions(
     const y = d > 0 ? -d * ROW_GAP : 0;
 
     const occupiedInRow: number[] = [];
+    let runningMax = 0;
     for (const node of row) {
       const deps = outgoing.get(node);
-      let candidateX = occupiedInRow.length > 0 ? Math.max(...occupiedInRow) + H_GAP : 0;
+      let candidateX = occupiedInRow.length > 0 ? runningMax + H_GAP : 0;
 
       if (deps?.length) {
         const depPositions = deps
@@ -220,12 +253,13 @@ export function autoLayoutPositions(
         }
       }
 
-      while (occupiedInRow.some(ox => Math.abs(ox - candidateX) < H_GAP)) {
+      while (firstOccupiedAbove(occupiedInRow, candidateX - H_GAP) < candidateX + H_GAP) {
         candidateX += H_GAP;
       }
 
       result[node] = { x: candidateX, y };
-      occupiedInRow.push(candidateX);
+      insertSorted(occupiedInRow, candidateX);
+      if (candidateX > runningMax) runningMax = candidateX;
     }
   }
 

@@ -1,4 +1,4 @@
-import { For, Show } from "solid-js";
+import { For, Show, onMount } from "solid-js";
 import {
 	DragDropProvider,
 	DragDropSensors,
@@ -30,9 +30,11 @@ interface KanbanBoardProps {
 	currentOrder?: Accessor<Record<string, string[]>>;
 	activeTicket?: Accessor<TicketInfo | null>;
 	commands?: BoardCommands;
+	onReady?: () => void;
 }
 
 export default function KanbanBoard(props: KanbanBoardProps) {
+	onMount(() => props.onReady?.());
 	const dnd = createBoardDnd(() => props.board);
 	const board = props.boardView ?? dnd.board;
 	const drag = props.dragState ?? dnd.drag;

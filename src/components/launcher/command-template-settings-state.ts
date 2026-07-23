@@ -22,7 +22,7 @@ export function createCommandTemplateSettingsState(props: { open: boolean }) {
 		setLoading(true);
 		setError(null);
 		try {
-			await revalidate('command-templates');
+			void revalidate('command-templates');
 			setEntries(await getCommandTemplates());
 			setDrafts({});
 		} catch (cause) {

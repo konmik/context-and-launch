@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, fireEvent, cleanup } from "@solidjs/testing-library";
+import { render, fireEvent, cleanup, waitFor } from "@solidjs/testing-library";
 import TicketCard from "./TicketCard";
 import { HerdrStatusesContext } from "./herdr-statuses-context.js";
 import type { HerdrAgentStatus } from "~/core/herdr/herdr-client.js";
@@ -50,8 +50,10 @@ describe("TicketCard overflow menu", () => {
     const menuBtn = container.querySelector("[aria-label='Ticket actions']") as HTMLElement;
     await fireEvent.click(menuBtn);
 
-    const items = [...document.querySelectorAll("[role='menuitem']")].map(el => el.textContent?.trim());
-    expect(items).toContain("Archive");
+    await waitFor(() => {
+      const items = [...document.querySelectorAll("[role='menuitem']")].map(el => el.textContent?.trim());
+      expect(items).toContain("Archive");
+    });
   });
 
   it("calls onArchive when Archive is clicked", async () => {
@@ -61,9 +63,13 @@ describe("TicketCard overflow menu", () => {
     const menuBtn = container.querySelector("[aria-label='Ticket actions']") as HTMLElement;
     await fireEvent.click(menuBtn);
 
-    const archiveItem = [...document.querySelectorAll("[role='menuitem']")].find(
-      el => el.textContent?.trim() === "Archive"
-    ) as HTMLElement;
+    const archiveItem = await waitFor(() => {
+      const el = [...document.querySelectorAll("[role='menuitem']")].find(
+        el => el.textContent?.trim() === "Archive"
+      );
+      if (!el) throw new Error("Archive item not yet rendered");
+      return el as HTMLElement;
+    });
     await fireEvent.click(archiveItem);
 
     expect(onArchive).toHaveBeenCalledWith(makeTicket());
@@ -76,10 +82,12 @@ describe("TicketCard overflow menu", () => {
     const menuBtn = container.querySelector("[aria-label='Ticket actions']") as HTMLElement;
     await fireEvent.click(menuBtn);
 
-    const items = [...document.querySelectorAll("[role='menuitem']")].map(el => el.textContent?.trim());
-    expect(items).not.toContain("Edit");
-    expect(items).toContain("Archive");
-    expect(items).toContain("Delete");
+    await waitFor(() => {
+      const items = [...document.querySelectorAll("[role='menuitem']")].map(el => el.textContent?.trim());
+      expect(items).not.toContain("Edit");
+      expect(items).toContain("Archive");
+      expect(items).toContain("Delete");
+    });
   });
 });
 

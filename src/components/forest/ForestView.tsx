@@ -3,6 +3,7 @@ import {
   createMemo,
   createSignal,
   For,
+  onMount,
   Show,
 } from "solid-js";
 import X from "lucide-solid/icons/x";
@@ -41,6 +42,7 @@ interface ForestViewProps {
   onViewDetail: (ticket: TicketInfo) => void;
   onClose: () => void;
   suggestedNextNumber?: string | null;
+  onReady?: () => void;
 }
 
 interface GroupingDraft {
@@ -50,6 +52,7 @@ interface GroupingDraft {
 }
 
 export default function ForestView(props: ForestViewProps) {
+  onMount(() => props.onReady?.());
   const layout = createAsync(() => getForestLayout(props.projectSlug));
   const [error, setError] = createSignal<ErrorInfo>();
   const [openGroups, setOpenGroups] = createSignal<string[]>([]);
