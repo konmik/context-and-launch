@@ -1,4 +1,4 @@
-import { describe, it, expect, afterAll } from 'vitest';
+import { describe, it as baseIt, expect, afterAll } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -10,7 +10,10 @@ import {
 	tmpDir, cleanup, createRepoWithRemote, conflictResolveDir, pushRemoteConflict,
 	createTicketSyncManager, createNoUpstreamRepoWithExistingRemoteBranch,
 } from './sync-test-repos.js';
+import { shardTestCases } from '~/test-shard.js';
 
+export function registerTicketSyncTests(shard: number | readonly number[], total: number): void {
+	const it = shardTestCases(baseIt, shard, total);
 describe('TicketSyncManager', () => {
 	const dirs: string[] = [];
 	afterAll(() => { const done = cleanup(...dirs); dirs.length = 0; return done; });
@@ -287,3 +290,4 @@ describe('TicketSyncManager', () => {
 		expect(manager.hasActiveRebase(worktreeDir)).toBe(false);
 	});
 });
+}

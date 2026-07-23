@@ -112,6 +112,8 @@ export interface CreateProjectOptions {
   withRemote?: boolean;
   withBoards?: SeedBoard[];
   withTickets?: SeedTicket[];
+  withTicketOrder?: Record<string, string[]>;
+  seedRemoteBaseline?: boolean;
   withWorktrees?: { folderName: string }[];
   worktreeRootPath?: string;
   branch?: string;
@@ -181,11 +183,13 @@ function gitInitRepo(repoPath: string): void {
   execSync("git commit --allow-empty -m init", { cwd: repoPath });
 }
 
-function setupBareRemote(repoPath: string, branch: string): string {
+function setupBareRemote(repoPath: string, branch: string, pushMain = true): string {
   const remoteDir = repoPath + "-remote.git";
   execSync(`git init --bare -b ${branch} "${remoteDir}"`, { cwd: os.tmpdir() });
   execSync(`git remote add origin "${remoteDir}"`, { cwd: repoPath });
-  execSync("git push -u origin main", { cwd: repoPath });
+  if (pushMain) {
+    execSync("git push -u origin main", { cwd: repoPath });
+  }
   return remoteDir;
 }
 
@@ -201,7 +205,7 @@ export async function createProject(
 
   let remoteUrl: string | null = null;
   if (opts.withRemote) {
-    remoteUrl = setupBareRemote(projectPath, branch);
+    remoteUrl = setupBareRemote(projectPath, branch, !opts.seedRemoteBaseline);
   }
 
   const ticketsPath = path.join(server.dataDir, "projects", opts.projectSlug, "tickets");
@@ -252,15 +256,17 @@ export async function createProject(
 
   if (opts.withRemote) {
     ensureTicketsWorktree();
-    execSync(`git push -u origin "${branch}"`, { cwd: ticketsPath });
+    if (!opts.seedRemoteBaseline) {
+      execSync(`git push -u origin "${branch}"`, { cwd: ticketsPath });
+    }
   }
 
-  if (opts.withTickets && opts.withTickets.length > 0) {
+  if ((opts.withTickets && opts.withTickets.length > 0) || opts.withTicketOrder) {
     ensureTicketsWorktree();
     const useWorktreeFolders = new Set(
       (opts.withWorktrees ?? []).map((w) => w.folderName),
     );
-    for (const t of opts.withTickets) {
+    for (const t of opts.withTickets ?? []) {
       const folderName = t.folderName
         ?? toKebab(`${t.number}-${t.title}`);
       const folder = path.join(ticketsPath, folderName);
@@ -279,8 +285,18 @@ export async function createProject(
       );
       fs.writeFileSync(path.join(folder, "to-do.md"), t.body ?? "");
     }
+    if (opts.withTicketOrder) {
+      fs.writeFileSync(
+        path.join(ticketsPath, "ticket-order.json"),
+        JSON.stringify(opts.withTicketOrder, null, 2),
+      );
+    }
     execSync("git add -A", { cwd: ticketsPath });
     execSync("git commit -m seed", { cwd: ticketsPath });
+  }
+
+  if (opts.withRemote && opts.seedRemoteBaseline) {
+    execSync(`git push -u origin "${branch}"`, { cwd: ticketsPath });
   }
 
   if (opts.withWorktrees && opts.withWorktrees.length > 0 && worktreeRootPath) {
@@ -429,14 +445,8 @@ export async function dragSortable(
 
   await page.mouse.move(sx, sy);
   await page.mouse.down();
-  await page.waitForTimeout(150);
-  for (let i = 1; i <= 20; i++) {
-    await page.mouse.move(sx + (tx - sx) * (i / 20), sy + (ty - sy) * (i / 20));
-    await page.waitForTimeout(30);
-  }
-  await page.waitForTimeout(200);
+  await page.mouse.move(tx, ty, { steps: 5 });
   await page.mouse.up();
-  await page.waitForTimeout(300);
 }
 
 export async function selectMenuItem(

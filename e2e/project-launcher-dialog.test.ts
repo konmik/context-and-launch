@@ -76,13 +76,12 @@ describe("Project launcher dialog (e2e, real server)", () => {
   it("run button triggers a server request and closes the dialog", async () => {
     await setup("run");
     await openDialog();
-    let serverRequest = false;
-    ctx.page.on("request", (req) => {
-      if (req.url().includes("/_server")) serverRequest = true;
-    });
+    const serverRequest = ctx.page.waitForRequest(req => req.url().includes("/_server"));
     await ctx.page.click('[data-testid="project-launcher-run-button"]');
-    await ctx.page.waitForTimeout(2000);
-    expect(serverRequest).toBe(true);
+    await serverRequest;
+    await ctx.page.waitForSelector('[data-testid="project-launcher-run-button"]', {
+      state: "detached", timeout: 15000,
+    });
     expect(await ctx.page.locator('[data-testid="project-launcher-run-button"]').count()).toBe(0);
   }, 60000);
 

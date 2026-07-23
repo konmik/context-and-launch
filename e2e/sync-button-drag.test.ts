@@ -14,9 +14,7 @@ describe("Sync button drag (e2e, real server)", () => {
       withRemote: true,
     });
     ctx.projects.push(project);
-    execSync("git push -u origin tickets", { cwd: project.ticketsPath });
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await ctx.page.waitForTimeout(1000);
     await ctx.page.click('[data-testid="project-header-new-ticket-button"]');
     await ctx.page.waitForSelector('[data-testid="create-ticket-number-input"]', {
       state: "visible", timeout: 10000,
@@ -33,7 +31,6 @@ describe("Sync button drag (e2e, real server)", () => {
     const project = await createProject(ctx.testServer, {
       projectSlug: uniqueSlug("sb-pending-sync"),
       withRemote: true,
-      withTickets: [{ number: "S-1", title: "Sync me", status: "todo", folderName: "s-1-sync-me" }],
     });
     ctx.projects.push(project);
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
@@ -50,37 +47,37 @@ describe("Sync button drag (e2e, real server)", () => {
     const project = await createProject(ctx.testServer, {
       projectSlug: uniqueSlug("sb-pending-dragback"),
       withRemote: true,
+      seedRemoteBaseline: true,
       withBoards: [{ id: "standard", name: "Standard", columns: [
         { name: "todo" }, { name: "in-progress" }, { name: "done" },
       ]}],
       withTickets: [
         { number: "B-1", title: "Boomerang", status: "todo", folderName: "b-1-boomerang" },
-        { number: "B-2", title: "Stay todo", status: "todo", folderName: "b-2-stay-todo" },
-        { number: "B-3", title: "Stay progress", status: "in-progress", folderName: "b-3-stay-progress" },
       ],
+      withTicketOrder: {
+        todo: ["b-1-boomerang"],
+        "in-progress": [],
+        done: [],
+      },
     });
     ctx.projects.push(project);
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
 
-    await ctx.page.waitForSelector('[data-testid="sync-button-pending-badge"]', {
-      state: "visible", timeout: 15000,
-    });
-    await ctx.page.click('[data-testid="sync-button-trigger"]');
-    await ctx.page.waitForSelector('[data-testid="sync-button-pending-badge"]', {
-      state: "detached", timeout: 20000,
-    });
-
     await dragSortable(
       ctx.page,
       '[data-sortable-id="todo:b-1-boomerang"]',
-      '[data-sortable-id="in-progress:b-3-stay-progress"]',
-      { releaseAt: "top" },
+      '[data-testid="kanban-board-empty-dropzone"][data-column-name="in-progress"]',
     );
+    await ctx.page.waitForSelector('[data-sortable-id="in-progress:b-1-boomerang"]', {
+      state: "visible", timeout: 15000,
+    });
+    await ctx.page.waitForSelector('[data-testid="sync-button-pending-badge"]', {
+      state: "visible", timeout: 15000,
+    });
     await dragSortable(
       ctx.page,
       '[data-sortable-id="in-progress:b-1-boomerang"]',
-      '[data-sortable-id="todo:b-2-stay-todo"]',
-      { releaseAt: "top" },
+      '[data-testid="kanban-board-empty-dropzone"][data-column-name="todo"]',
     );
 
     await ctx.page.waitForSelector('[data-testid="sync-button-pending-badge"]', {

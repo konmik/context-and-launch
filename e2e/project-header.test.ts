@@ -37,11 +37,10 @@ describe("Project page header toolbar (e2e, real server)", () => {
     fs.renameSync(dotGit, heldDotGit);
     try {
       await ctx.page.goto(`${ctx.testServer.baseUrl}/project/${project.projectSlug}`);
-      await ctx.page.waitForSelector('[data-testid="project-header-settings-button"]', {
+      await ctx.page.waitForSelector('[data-testid="project-load-error"]', {
         state: "visible", timeout: 15000,
       });
-
-      await ctx.page.waitForSelector('[data-testid="project-load-error"]', {
+      await ctx.page.waitForSelector('[data-testid="project-header-settings-button"]', {
         state: "visible", timeout: 15000,
       });
       expect(await ctx.page.locator('[data-testid="project-header-settings-button"]').count()).toBe(1);

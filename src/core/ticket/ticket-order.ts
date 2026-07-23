@@ -39,10 +39,11 @@ export class TicketOrderStore {
 
 	moveTicket(folderName: string, fromColumn: string, toColumn: string, newIndex: number): void {
 		const order = this.read();
+		const targetExisted = Object.hasOwn(order, toColumn);
 
 		if (order[fromColumn]) {
 			order[fromColumn] = order[fromColumn].filter(fn => fn !== folderName);
-			if (order[fromColumn].length === 0 && fromColumn !== toColumn) {
+			if (order[fromColumn].length === 0 && fromColumn !== toColumn && !targetExisted) {
 				delete order[fromColumn];
 			}
 		}

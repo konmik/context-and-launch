@@ -21,10 +21,12 @@ function cleanup(...dirs: string[]) {
 	}
 }
 
-async function createGitWorktree(): Promise<string> {
+async function createGitWorktree(withGit = false): Promise<string> {
 	const dir = tmpDir('ticket-order-test-');
-	await git(dir, 'init');
-	await git(dir, 'commit', '--allow-empty', '-m', 'init');
+	if (withGit) {
+		await git(dir, 'init');
+		await git(dir, 'commit', '--allow-empty', '-m', 'init');
+	}
 	return dir;
 }
 
@@ -45,7 +47,7 @@ describe('TicketOrderStore', () => {
 	});
 
 	it.concurrent('write persists to disk without committing', async () => {
-		const dir = await createGitWorktree(); dirs.push(dir);
+		const dir = await createGitWorktree(true); dirs.push(dir);
 		const store = new TicketOrderStore(dir);
 		store.write({ todo: ['a', 'b'], done: ['c'] });
 		expect(JSON.parse(fs.readFileSync(path.join(dir, 'ticket-order.json'), 'utf-8')))
@@ -97,6 +99,18 @@ describe('TicketOrderStore', () => {
 		const result = store.read();
 		expect(result['todo']).toEqual(['b']);
 		expect(result['done']).toEqual(['a', 'c']);
+	});
+
+	it.concurrent('round trip preserves configured empty columns and serialized order', async () => {
+		const dir = await createGitWorktree(); dirs.push(dir);
+		const store = new TicketOrderStore(dir);
+		store.write({ todo: ['a'], 'in-progress': [], done: [] });
+		const before = fs.readFileSync(path.join(dir, 'ticket-order.json'), 'utf-8');
+
+		store.moveTicket('a', 'todo', 'in-progress', 0);
+		store.moveTicket('a', 'in-progress', 'todo', 0);
+
+		expect(fs.readFileSync(path.join(dir, 'ticket-order.json'), 'utf-8')).toBe(before);
 	});
 
 	it.concurrent('appendTicket adds to end', async () => {

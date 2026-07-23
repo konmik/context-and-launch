@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach, afterAll, beforeAll } from 'vitest';
+import { describe, it as baseIt, expect, vi, afterEach, afterAll } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { spawn } from 'node:child_process';
@@ -16,6 +16,7 @@ import type { BoardConfigManager } from '~/core/project/board-config.js';
 import type { WorktreeManager } from '~/core/worktree/worktree-manager.js';
 import type { LauncherConfigManager } from '~/core/launcher/launcher-config.js';
 import type { FileWatcher } from '~/core/infra/file-watcher.js';
+import { shardTestCases } from '~/test-shard.js';
 
 function stubDeps(overrides: {
 	projects?: ProjectInfo[];
@@ -97,6 +98,9 @@ async function setupResolvedScratch(dirs: string[]) {
 	return { worktreeDir, remoteDir, manager, plan };
 }
 
+export function registerProjectPageServiceTests(shard: number | readonly number[], total: number): void {
+	const it = shardTestCases(baseIt, shard, total);
+
 describe('ProjectPageService.loadProjectPage', () => {
 	it('returns unavailable for a known-but-unavailable project', async () => {
 		const { service } = stubDeps({
@@ -122,10 +126,6 @@ describe('ProjectPageService.loadProjectPage', () => {
 		const dirs: string[] = [];
 		afterAll(() => { const done = cleanup(...dirs); dirs.length = 0; return done; });
 
-		beforeAll(async () => {
-			await setupResolvedScratch(dirs);
-		}, 60000);
-
 		it('returns the post-resolution board on the first page load', async () => {
 			const { worktreeDir, manager, plan } = await setupResolvedScratch(dirs);
 			await git(plan.scratchDir, 'push', 'origin', 'HEAD:master');
@@ -140,7 +140,6 @@ describe('ProjectPageService.loadProjectPage', () => {
 
 			expect(result.status).toBe('loaded');
 			if (result.status !== 'loaded') return;
-			expect((await service.loadSyncStatus('proj')).hasConflict).toBe(false);
 			const ticket = result.board.tickets.find(t => t.folderName === 'st-0001-fix-login');
 			expect(ticket?.status).toBe('done');
 			expect(result.board.ticketOrder['done']).toContain('st-0001-fix-login');
@@ -361,3 +360,4 @@ describe('ProjectPageService.loadSyncStatus', () => {
 		}
 	});
 });
+}

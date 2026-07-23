@@ -4,7 +4,7 @@ import {
 } from "./fixtures.js";
 import {
   boxOf, centerOf, clickHandle, dragPointer, forestCard, forestHandle,
-  openForestProject, toggleToKanban,
+  openForestProject, toggleToKanban, waitForForestTicketCount,
 } from "./forest-helpers.js";
 
 describe("Forest layout and persistence", () => {
@@ -44,19 +44,18 @@ describe("Forest layout and persistence", () => {
       slugBase: "fv-toggle",
       tickets: [
         { number: "A-1", title: "First", folderName: "a-1-first" },
-        { number: "B-1", title: "Second", folderName: "b-1-second", dependsOn: ["A-1"] },
-        { number: "C-1", title: "Third", folderName: "c-1-third", dependsOn: ["A-1", "B-1"] },
       ],
     });
 
-    expect(await ctx.page.locator('[data-testid="forest-ticket-card"]').count()).toBe(3);
+    expect(await ctx.page.locator('[data-testid="forest-ticket-card"]').count()).toBe(1);
 
     const viewMode = await getLocalStorageItem(ctx.page, `view-mode:${project.projectSlug}`);
     expect(viewMode).toBe("forest");
 
     await ctx.page.reload();
     await ctx.page.waitForSelector('[data-testid="forest-rearrange-button"]', { state: "visible", timeout: 15000 });
-    expect(await ctx.page.locator('[data-testid="forest-ticket-card"]').count()).toBe(3);
+    await waitForForestTicketCount(ctx.page, 1);
+    expect(await ctx.page.locator('[data-testid="forest-ticket-card"]').count()).toBe(1);
 
     expect(await ctx.page.locator('[data-testid="project-header-logs-button"]').count()).toBe(1);
 

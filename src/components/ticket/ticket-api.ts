@@ -18,12 +18,20 @@ import { ValidationError, NotFoundError, errorMessage, errorPayload, errorResult
 import type { ErrorInfo } from "~/core/shared/errors.js";
 import { resolveInitialTicketStatus } from "~/core/board/initial-ticket-status.js";
 
+function mutateTickets<T>(projectSlug: string, mutation: (store: TicketStore) => T): T {
+  const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
+  try {
+    return mutation(new TicketStore(worktreeDir));
+  } finally {
+    syncPendingTracker.invalidate(worktreeDir);
+  }
+}
+
 export async function createTicket(projectSlug: string, number: string, title: string) {
   "use server";
   try {
-    const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
     const initialStatus = resolveInitialTicketStatus(projectSlug, { projectRegistry, boardConfigManager });
-    new TicketStore(worktreeDir).createTicket(number, title, initialStatus);
+    mutateTickets(projectSlug, store => store.createTicket(number, title, initialStatus));
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
@@ -36,9 +44,10 @@ export async function updateTicket(
 ) {
   "use server";
   try {
-    const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
-    const store = new TicketStore(worktreeDir);
-    const updated = store.updateTicket(folderName, number, title, status);
+    const updated = mutateTickets(
+      projectSlug,
+      store => store.updateTicket(folderName, number, title, status),
+    );
     return { ok: true as const, folderName: updated.folderName };
   } catch (e) {
     return errorResult(e);
@@ -48,8 +57,7 @@ export async function updateTicket(
 export async function deleteTicket(projectSlug: string, folderName: string) {
   "use server";
   try {
-    const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
-    new TicketStore(worktreeDir).deleteTicket(folderName);
+    mutateTickets(projectSlug, store => store.deleteTicket(folderName));
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
@@ -59,8 +67,7 @@ export async function deleteTicket(projectSlug: string, folderName: string) {
 export async function archiveTicket(projectSlug: string, folderName: string) {
   "use server";
   try {
-    const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
-    new TicketStore(worktreeDir).archiveTicket(folderName);
+    mutateTickets(projectSlug, store => store.archiveTicket(folderName));
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
@@ -73,8 +80,10 @@ export async function reorderTicket(
 ) {
   "use server";
   try {
-    const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
-    new TicketStore(worktreeDir).moveTicket(folderName, fromColumn, toColumn, newIndex);
+    mutateTickets(
+      projectSlug,
+      store => store.moveTicket(folderName, fromColumn, toColumn, newIndex),
+    );
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
@@ -117,8 +126,10 @@ export async function saveContext(
 ) {
   "use server";
   try {
-    const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
-    new TicketStore(worktreeDir).saveTicketContext(folderName, contextFileName, content);
+    mutateTickets(
+      projectSlug,
+      store => store.saveTicketContext(folderName, contextFileName, content),
+    );
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
@@ -130,8 +141,10 @@ export async function deleteContext(
 ) {
   "use server";
   try {
-    const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
-    new TicketStore(worktreeDir).deleteTicketContext(folderName, contextFileName);
+    mutateTickets(
+      projectSlug,
+      store => store.deleteTicketContext(folderName, contextFileName),
+    );
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
@@ -143,8 +156,7 @@ export async function deleteFile(
 ) {
   "use server";
   try {
-    const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
-    new TicketStore(worktreeDir).deleteTicketFile(folderName, fileName);
+    mutateTickets(projectSlug, store => store.deleteTicketFile(folderName, fileName));
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
@@ -157,21 +169,25 @@ export async function uploadFile(
   "use server";
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
-    const store = new TicketStore(worktreeDir);
-    const results: { name: string; ok: boolean; error?: string }[] = [];
-    for (const [, value] of formData.entries()) {
-      if (!(value instanceof File)) continue;
-      const fileName = value.name;
-      try {
-        const arrayBuffer = await value.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        store.copyFileToTicket(folderName, fileName, buffer);
-        results.push({ name: fileName, ok: true });
-      } catch (e) {
-        results.push({ name: fileName, ok: false, error: errorMessage(e) });
+    try {
+      const store = new TicketStore(worktreeDir);
+      const results: { name: string; ok: boolean; error?: string }[] = [];
+      for (const [, value] of formData.entries()) {
+        if (!(value instanceof File)) continue;
+        const fileName = value.name;
+        try {
+          const arrayBuffer = await value.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          store.copyFileToTicket(folderName, fileName, buffer);
+          results.push({ name: fileName, ok: true });
+        } catch (e) {
+          results.push({ name: fileName, ok: false, error: errorMessage(e) });
+        }
       }
+      return { ok: true as const, results };
+    } finally {
+      syncPendingTracker.invalidate(worktreeDir);
     }
-    return { ok: true as const, results };
   } catch (e) {
     return errorResult(e);
   }
@@ -182,11 +198,9 @@ export async function addReferences(
 ) {
   "use server";
   try {
-    const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
-    const store = new TicketStore(worktreeDir);
-    for (const p of paths) {
-      store.addReference(folderName, p);
-    }
+    mutateTickets(projectSlug, store => {
+      for (const p of paths) store.addReference(folderName, p);
+    });
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
@@ -198,8 +212,7 @@ export async function removeReference(
 ) {
   "use server";
   try {
-    const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
-    new TicketStore(worktreeDir).removeReference(folderName, refPath);
+    mutateTickets(projectSlug, store => store.removeReference(folderName, refPath));
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
@@ -211,8 +224,7 @@ export async function setUseWorktree(
 ) {
   "use server";
   try {
-    const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
-    new TicketStore(worktreeDir).setUseWorktree(folderName, useWorktree);
+    mutateTickets(projectSlug, store => store.setUseWorktree(folderName, useWorktree));
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
