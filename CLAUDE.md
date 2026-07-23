@@ -48,6 +48,7 @@
 - e2e/mock-server.ts is a fixture for pure-UI rendering tests that need no real backend behavior.
 - A test must complete within 3 seconds when run in isolation without multithreading. Under the full parallel suite tests may run slower; timeout ceilings (suite testTimeout/hookTimeout, helper wait deadlines) are crash backstops for that contention, not targets. If a test takes longer than 3 seconds in isolation, fix the cause immediately. Never dismiss a timeout as an unrelated change you are not going to fix, and never fix a slow test by increasing a timeout.
 - A flaky test is a real failure. Never dismiss a failing test as flaky, and never re-run a test to get a green result. Fix the cause: a test that passes in isolation but fails under the full suite is a real ordering, resource, or concurrency bug in the test or the code.
+- Profile per-file test timings: `npx tsx scripts/test-timings.ts`. Runs the unit-ts and unit-tsx projects once in a single warm, single-threaded vitest process, reads per-file durations from the JSON reporter, and writes a sorted summary to `temp/timings.txt`.
 
 ## Specs
 
