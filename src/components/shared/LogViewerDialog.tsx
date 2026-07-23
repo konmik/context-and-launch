@@ -6,43 +6,38 @@ import {
 	FloatingPanelTitle,
 } from "~/components/ui/floating-panel";
 import { getAppLogs, serverClearAppLogs } from "./log-api.js";
+import LogTextView from "./LogTextView.js";
 
 export default function LogViewerDialog(props: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 }) {
-	const [logs, setLogs] = createSignal("");
-	let preRef: HTMLPreElement | undefined;
+	const [logText, setLogText] = createSignal<string>();
+	let loadVersion = 0;
 
 	createEffect(() => {
 		if (!props.open) return;
+		setLogText(undefined);
 		let stopped = false;
-		let firstLoad = true;
 		const load = async () => {
-			const wasNearBottom = preRef
-				? preRef.scrollHeight - preRef.scrollTop - preRef.clientHeight < 40
-				: true;
+			const version = ++loadVersion;
 			const text = await getAppLogs();
-			if (!stopped) {
-				setLogs(text);
-				if (firstLoad || wasNearBottom) {
-					requestAnimationFrame(() => {
-						if (preRef) preRef.scrollTop = preRef.scrollHeight;
-					});
-				}
-				firstLoad = false;
-			}
+			if (stopped || version !== loadVersion) return;
+			setLogText(text);
 		};
 		void load();
 		const timer = setInterval(() => void load(), 10000);
-		onCleanup(() => { stopped = true; clearInterval(timer); });
+		onCleanup(() => {
+			stopped = true;
+			clearInterval(timer);
+		});
 	});
 
 	return (
 		<FloatingWindow
 			open={props.open}
 			onOpenChange={(d) => { if (!d.open) props.onOpenChange(false); }}
-			defaultSize={{ width: 640, height: 480 }}
+			defaultSize={{ width: 960, height: 720 }}
 			minSize={{ width: 320, height: 200 }}
 			persistRect
 		>
@@ -53,8 +48,9 @@ export default function LogViewerDialog(props: {
 						type="button"
 						aria-label="Clear logs"
 						onClick={async () => {
+							loadVersion += 1;
 							await serverClearAppLogs();
-							setLogs("");
+							setLogText("");
 						}}
 						class="btn-icon"
 					>
@@ -72,15 +68,23 @@ export default function LogViewerDialog(props: {
 			/>
 
 			<FloatingPanelBody>
-				<Show when={logs()} fallback={<p class="text-sm text-muted-foreground">No logs yet.</p>}>
-					<pre
-						ref={preRef}
-						class={
-							"flex-1 overflow-auto rounded-md border border-border"
-							+ " bg-background p-3 text-xs font-mono whitespace-pre leading-relaxed"
-						}
-					>{logs()}</pre>
-				</Show>
+				<div class="flex min-h-0 flex-1 p-4">
+					<Show
+						when={logText()}
+						fallback={logText() === undefined
+							? (
+								<p
+									data-testid="log-viewer-loading"
+									class="text-sm text-muted-foreground"
+								>
+									Loading...
+								</p>
+							)
+							: <p class="text-sm text-muted-foreground">No logs yet.</p>}
+					>
+						{(text) => <LogTextView text={text()} />}
+					</Show>
+				</div>
 			</FloatingPanelBody>
 		</FloatingWindow>
 	);

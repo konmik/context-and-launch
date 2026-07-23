@@ -36,6 +36,12 @@
 - On Windows this produces `dist-electron/context-launch-setup.exe` (NSIS installer).
 - On macOS this produces `dist-electron/context-launch-setup.dmg`.
 
+## To start a dev run when the user asks
+
+- Run `powershell -ExecutionPolicy Bypass -File .\scripts\run-open-3003.ps1`.
+- The script stops any existing listener on port 3003, starts the dev server, and opens
+  `http://localhost:3003` in Google Chrome.
+
 ## Testing
 
 - Run dev server: `npm run dev`.
