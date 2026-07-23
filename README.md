@@ -4,13 +4,25 @@ A local kanban board with context engineering, automatic worktrees, and git tick
 
 See the [CHANGELOG](CHANGELOG.md) for recent updates.
 
+- [Overview](#overview)
+- [Why it exists](#why-it-exists)
+- [Key features](#key-features)
+- [Example workflow](#example-workflow)
+- [Ticket storage](#ticket-storage)
+- [Integration with AI agents](#integration-with-ai-agents)
+  - [Run as a normal desktop app](#run-as-a-normal-desktop-app)
+  - [First-time setup](#first-time-setup)
+  - [For contributors](#for-contributors)
+
 ## Overview
 
 There is no fixed workflow, no rules, and no standard.
-Think of this app as a todo+notepad with CLI shortcuts that is especially suited for AI-assisted workflow.
+Think of this app as a highly configurable todo+notepad with CLI shortcuts that is especially suited for AI-assisted workflow.
 It has a convenient kanban board for all notes, so the developer won't forget where each task is, and can easily pick up from where they left off.
 
 ![readme-example.png](.github/readme-example.png)
+
+![agent-launcher.png](.github/agent-launcher.png)
 
 ## Why it exists
 
