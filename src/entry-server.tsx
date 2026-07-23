@@ -1,5 +1,5 @@
 import { createHandler, StartServer } from "@solidjs/start/server";
-import { PALETTES } from "./components/shared/palette-pure.js";
+import { PALETTES, criticalBackgroundCss } from "./components/shared/palette-pure.js";
 
 export default createHandler(() => (
   <StartServer
@@ -10,6 +10,7 @@ export default createHandler(() => (
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=4" />
           <title>Context & Launch</title>
+          <style>{criticalBackgroundCss()}</style>
           <script>{[
             "(function(){try{",
             'var t=localStorage.getItem("theme");',

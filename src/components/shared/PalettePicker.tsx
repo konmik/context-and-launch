@@ -3,12 +3,6 @@ import Palette from "lucide-solid/icons/palette";
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem } from "~/components/ui/menu";
 import { PALETTES, getStoredPalette, isPaletteName, type PaletteName } from "./palette-pure.js";
 
-declare global {
-  interface Window {
-    contextLaunch?: { setPalette(name: string): void };
-  }
-}
-
 function applyPalette(name: PaletteName) {
   document.documentElement.dataset.palette = name;
   queueMicrotask(() => {

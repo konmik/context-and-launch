@@ -10,6 +10,11 @@ import {
   type PaletteName,
 } from "./palette-backgrounds.js";
 import {
+  isDarkMode,
+  parseMode,
+  type AppMode,
+} from "../src/components/shared/theme-toggle-pure.js";
+import {
   migrateWindowState,
   restoreEntries,
   cascadeFrom,
@@ -45,24 +50,39 @@ let focusOrder: number[] = [];
 let quitting = false;
 let serverHandle: ServerHandle | null = null;
 let currentPalette: PaletteName = DEFAULT_PALETTE;
+let currentMode: AppMode = "system";
 
 function backgroundColor(): string {
-  return paletteBackground(currentPalette, nativeTheme.shouldUseDarkColors);
+  return paletteBackground(currentPalette, isDarkMode(currentMode, nativeTheme.shouldUseDarkColors));
 }
 
 function writeWindowState(): void {
   fs.writeFileSync(
     windowStateFile,
-    JSON.stringify({ windows: toWindowStateEntries(sessionWindows), palette: currentPalette }),
+    JSON.stringify({
+      windows: toWindowStateEntries(sessionWindows),
+      palette: currentPalette,
+      mode: currentMode,
+    }),
   );
 }
 
-function applyPalette(palette: PaletteName): void {
-  currentPalette = palette;
+function applyWindowBackgrounds(): void {
   const bg = backgroundColor();
   for (const win of windowsById.values()) {
     if (!win.isDestroyed()) win.setBackgroundColor(bg);
   }
+}
+
+function applyPalette(palette: PaletteName): void {
+  currentPalette = palette;
+  applyWindowBackgrounds();
+  writeWindowState();
+}
+
+function applyMode(mode: AppMode): void {
+  currentMode = mode;
+  applyWindowBackgrounds();
   writeWindowState();
 }
 
@@ -217,6 +237,8 @@ if (!gotLock) {
     if (raw !== null && typeof raw === "object") {
       const storedPalette = (raw as Record<string, unknown>).palette;
       if (isPaletteName(storedPalette)) currentPalette = storedPalette;
+      const storedMode = parseMode((raw as Record<string, unknown>).mode);
+      if (storedMode) currentMode = storedMode;
     }
     let entries = migrateWindowState(raw);
     entries = restoreEntries(
@@ -233,13 +255,16 @@ if (!gotLock) {
     }
 
     nativeTheme.on("updated", () => {
-      for (const win of windowsById.values()) {
-        if (!win.isDestroyed()) win.setBackgroundColor(backgroundColor());
-      }
+      applyWindowBackgrounds();
     });
 
     ipcMain.on("context-launch:set-palette", (_event, name: unknown) => {
       if (isPaletteName(name) && name !== currentPalette) applyPalette(name);
+    });
+
+    ipcMain.on("context-launch:set-mode", (_event, mode: unknown) => {
+      const parsed = parseMode(mode);
+      if (parsed && parsed !== currentMode) applyMode(parsed);
     });
 
     for (const entry of entries) {
