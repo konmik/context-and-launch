@@ -81,13 +81,7 @@ export class TicketRepository {
 			console.warn(`Malformed status.json in ${dir}:`, err);
 			return null;
 		}
-		if (raw === null) return null;
-		const parsed = v.safeParse(StatusJsonSchema, raw);
-		if (!parsed.success) {
-			console.warn(`Malformed status.json in ${dir}:`, parsed.issues);
-			return null;
-		}
-		return parsed.output;
+		return this.validateStatusJson(raw, dir);
 	}
 
 	async readStatusJsonAsync(dir: string): Promise<StatusJson | null> {
@@ -106,6 +100,11 @@ export class TicketRepository {
 			console.warn(`Malformed status.json in ${dir}:`, err);
 			return null;
 		}
+		return this.validateStatusJson(raw, dir);
+	}
+
+	private validateStatusJson(raw: unknown, dir: string): StatusJson | null {
+		if (raw === null) return null;
 		const parsed = v.safeParse(StatusJsonSchema, raw);
 		if (!parsed.success) {
 			console.warn(`Malformed status.json in ${dir}:`, parsed.issues);

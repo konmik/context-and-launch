@@ -3,7 +3,7 @@ import { initializeDataDir } from './initialize.js';
 
 interface ServiceGlobal { __aiStagesServices?: ServiceContainer }
 
-export function initializeServices(): ServiceContainer {
+function initializeServices(): ServiceContainer {
 	const g = globalThis as unknown as ServiceGlobal;
 	if (g.__aiStagesServices) return g.__aiStagesServices;
 	const s = createServices(

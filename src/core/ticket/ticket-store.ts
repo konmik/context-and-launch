@@ -7,6 +7,7 @@ import { suggestNextTicketNumber } from './ticket-number.js';
 import { toKebabCase, normalizeTicketNumber, requireNonBlank, requireSimpleName } from './ticket-naming.js';
 import { TicketRepository } from './ticket-repository.js';
 import { ValidationError, NotFoundError } from '../shared/errors.js';
+import { mapConcurrent } from '../shared/concurrency.js';
 import {
 	wouldCreateDependencyCycle,
 	wouldCreateMembershipCycle,
@@ -21,24 +22,8 @@ export { toKebabCase } from './ticket-naming.js';
 
 const READ_CONCURRENCY = 32;
 
-async function mapConcurrent<T, R>(
-	items: T[],
-	limit: number,
-	fn: (item: T) => Promise<R>,
-): Promise<R[]> {
-	const results = new Array<R>(items.length);
-	let next = 0;
-	const worker = async (): Promise<void> => {
-		while (true) {
-			const index = next++;
-			if (index >= items.length) return;
-			results[index] = await fn(items[index]);
-		}
-	};
-	const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker());
-	await Promise.all(workers);
-	return results;
-}
+const isTicketDirEntry = (entry: Dirent): boolean =>
+	entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'archive';
 
 export interface TicketInfo {
 	number: string;
@@ -54,6 +39,7 @@ export interface TicketInfo {
 	agentWorktreeDir?: string;
 	dependsOn?: string[];
 	memberOf?: string;
+	createdAt?: string;
 }
 
 export const CreateTicketBody = v.object({
@@ -163,12 +149,6 @@ export class TicketStore {
 			this.updateTicket(folderName, null, null, toColumn);
 		}
 		this.orderStore.moveTicket(folderName, fromColumn, toColumn, newIndex);
-	}
-
-	loadBoardState(columns: string[]): { tickets: TicketInfo[]; ticketOrder: TicketOrder } {
-		const tickets = this.listTickets();
-		const ticketOrder = this.orderStore.reconcile(tickets, columns);
-		return { tickets, ticketOrder };
 	}
 
 	private resolveTicketDir(folderName: string): string {
@@ -446,6 +426,7 @@ export class TicketStore {
 			agentWorktreeDir: status.agentWorktreeDir,
 			dependsOn: status.dependsOn,
 			memberOf: status.memberOf,
+			createdAt: status.createdAt,
 		};
 	}
 
@@ -453,32 +434,27 @@ export class TicketStore {
 		columns: string[],
 	): Promise<{ tickets: TicketInfo[]; ticketOrder: TicketOrder; suggestedNextNumber: string | null }> {
 		const activeDirs = await this.ticketDirsIn(this.worktreeDir);
-		const parsed = (
-			await mapConcurrent(activeDirs, READ_CONCURRENCY, (dir) => this.readTicketAsync(dir))
-		).filter((r): r is NonNullable<typeof r> => r !== null);
-
-		const tickets = this.dedupeAndSortTickets(parsed.map((r) => r.info));
+		const tickets = this.dedupeAndSortTickets(
+			(await mapConcurrent(activeDirs, READ_CONCURRENCY, (dir) => this.readTicketAsync(dir)))
+				.filter((t): t is TicketInfo => t !== null),
+		);
 		const ticketOrder = this.orderStore.reconcile(tickets, columns);
 
-		const activeNumbers = parsed.map((r) => ({ number: r.status.number, createdAt: r.status.createdAt }));
 		const archiveDirs = await this.ticketDirsIn(path.join(this.worktreeDir, 'archive'));
 		const archiveStatuses = (
 			await mapConcurrent(archiveDirs, READ_CONCURRENCY, (dir) => this.repo.readStatusJsonAsync(dir))
 		).filter((s): s is StatusJson => s !== null);
-		const archiveNumbers = archiveStatuses.map((s) => ({ number: s.number, createdAt: s.createdAt }));
 
-		const suggestedNextNumber = suggestNextTicketNumber([...activeNumbers, ...archiveNumbers]);
+		const suggestedNextNumber = suggestNextTicketNumber([...tickets, ...archiveStatuses]);
 		return { tickets, ticketOrder, suggestedNextNumber };
 	}
 
 	private async ticketDirsIn(parentDir: string): Promise<string[]> {
 		const entries = await this.repo.listEntriesAsync(parentDir);
-		return entries
-			.filter((e) => e.isDirectory() && !e.name.startsWith('.') && e.name !== 'archive')
-			.map((e) => path.join(parentDir, e.name));
+		return entries.filter(isTicketDirEntry).map((e) => path.join(parentDir, e.name));
 	}
 
-	private async readTicketAsync(dir: string): Promise<{ info: TicketInfo; status: StatusJson } | null> {
+	private async readTicketAsync(dir: string): Promise<TicketInfo | null> {
 		const status = await this.repo.readStatusJsonAsync(dir);
 		if (!status) return null;
 		const entries = await this.repo.listEntriesAsync(dir);
@@ -486,7 +462,7 @@ export class TicketStore {
 			path: ref.path,
 			exists: this.repo.exists(ref.path),
 		}));
-		return { info: this.buildTicketInfo(dir, status, entries, references), status };
+		return this.buildTicketInfo(dir, status, entries, references);
 	}
 
 	listTicketFiles(folderName: string): string[] {
@@ -648,7 +624,7 @@ export class TicketStore {
 			if (!this.repo.exists(parentDir)) return;
 			const entries = this.repo.listEntries(parentDir);
 			for (const entry of entries) {
-				if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'archive') continue;
+				if (!isTicketDirEntry(entry)) continue;
 				dirs.push(path.join(parentDir, entry.name));
 			}
 		};

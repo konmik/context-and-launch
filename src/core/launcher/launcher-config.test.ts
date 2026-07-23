@@ -330,7 +330,7 @@ describe('LauncherConfigManager', () => {
 		expect(config.skills.find(s => s.name === 'S1')?.text).toBe('new');
 	});
 
-	it('setSkillOrder sets the order on the named skill in the correct scope', () => {
+	it('setItemOrder sets the order on the named skill in the correct scope', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
@@ -338,27 +338,27 @@ describe('LauncherConfigManager', () => {
 			templates: [],
 			skills: [{ name: 'A', text: 'a' }, { name: 'B', text: 'b' }],
 		});
-		mgr.setSkillOrder('project', 'test-project', 'B', 0.5);
+		mgr.setItemOrder('project', 'test-project', 'skill', 'B', 0.5);
 		const config = mgr.loadProjectConfig('test-project');
 		expect(config.skills.find(s => s.name === 'B')?.order).toBe(0.5);
 		expect(config.skills.find(s => s.name === 'A')?.order).toBeUndefined();
 	});
 
-	it('setSkillOrder throws for an unknown skill', () => {
+	it('setItemOrder throws for an unknown skill', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		mgr.saveProjectConfig('test-project', { templates: [], skills: [{ name: 'A', text: 'a' }] });
-		expect(() => mgr.setSkillOrder('project', 'test-project', 'Nope', 1)).toThrow('not found');
+		expect(() => mgr.setItemOrder('project', 'test-project', 'skill', 'Nope', 1)).toThrow('not found');
 	});
 
-	it('setSkillOrder rejects a non-finite order', () => {
+	it('setItemOrder rejects a non-finite order', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
 		mgr.saveProjectConfig('test-project', { templates: [], skills: [{ name: 'A', text: 'a' }] });
-		expect(() => mgr.setSkillOrder('project', 'test-project', 'A', Infinity)).toThrow('finite number');
-		expect(() => mgr.setSkillOrder('project', 'test-project', 'A', NaN)).toThrow('finite number');
+		expect(() => mgr.setItemOrder('project', 'test-project', 'skill', 'A', Infinity)).toThrow('finite number');
+		expect(() => mgr.setItemOrder('project', 'test-project', 'skill', 'A', NaN)).toThrow('finite number');
 	});
 
 	it('setItemOrder persists ordering for every launcher item type', () => {

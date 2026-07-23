@@ -120,7 +120,7 @@ describe('ProjectPageService.loadProjectPage', () => {
 
 	describe('after the agent resolved a conflict in the scratch worktree', () => {
 		const dirs: string[] = [];
-		afterAll(() => { cleanup(...dirs); dirs.length = 0; });
+		afterAll(() => { const done = cleanup(...dirs); dirs.length = 0; return done; });
 
 		beforeAll(async () => {
 			await setupResolvedScratch(dirs);
@@ -242,7 +242,7 @@ describe('ProjectPageService.loadProjectPage', () => {
 
 	describe('hasAgentWorktree enrichment', () => {
 		const dirs: string[] = [];
-		afterEach(() => { cleanup(...dirs); dirs.length = 0; });
+		afterEach(() => { const done = cleanup(...dirs); dirs.length = 0; return done; });
 
 		function setupTicketDir(folderName: string, useWorktree: boolean) {
 			const worktreeDir = tmpDir('pps-wt-');
@@ -357,7 +357,7 @@ describe('ProjectPageService.loadSyncStatus', () => {
 			await syncStatus;
 			expect(events).toEqual(['finalize-end', 'hasRemote']);
 		} finally {
-			cleanup(...dirs);
+			await cleanup(...dirs);
 		}
 	});
 });

@@ -51,6 +51,7 @@ describe('resolveAgentWorktreeLocation', () => {
 		expect(loc).toEqual({
 			worktreePath: '/root/st-0001-feature',
 			branchName: 'st-0001-feature',
+			isDefaultLocation: true,
 		});
 	});
 
@@ -61,6 +62,7 @@ describe('resolveAgentWorktreeLocation', () => {
 		expect(loc).toEqual({
 			worktreePath: '/root/st-0001-feature',
 			branchName: 'ai/st-0001-feature',
+			isDefaultLocation: true,
 		});
 	});
 
@@ -72,6 +74,7 @@ describe('resolveAgentWorktreeLocation', () => {
 		expect(loc).toEqual({
 			worktreePath: '/custom/wt',
 			branchName: 'ai/st-0001-feature',
+			isDefaultLocation: false,
 		});
 	});
 
@@ -83,6 +86,7 @@ describe('resolveAgentWorktreeLocation', () => {
 		expect(loc).toEqual({
 			worktreePath: '/root/st-0001-feature',
 			branchName: 'saved-branch',
+			isDefaultLocation: true,
 		});
 	});
 
@@ -94,6 +98,7 @@ describe('resolveAgentWorktreeLocation', () => {
 		expect(loc).toEqual({
 			worktreePath: '/custom/wt',
 			branchName: 'saved-branch',
+			isDefaultLocation: false,
 		});
 	});
 

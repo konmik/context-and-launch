@@ -11,15 +11,11 @@ import { type HoverTarget, resolvePreviewInsertBefore } from "./drop-index.js";
 import { DragPreview, DND_ACTIVE_CLASS } from "./dnd-shared.js";
 import { parseId, makeId, COLUMN_PREFIX } from "./kanban-id.js";
 
-function DropPreview(props: {
-	ticket: TicketInfo;
-	columns: ColumnDefinition[];
-}) {
+function DropPreview(props: { ticket: TicketInfo }) {
 	return (
 		<DragPreview>
 			<TicketCard
 				ticket={props.ticket}
-				columns={props.columns}
 				onDelete={() => {}}
 				onArchive={() => {}}
 				onViewDetail={() => {}}
@@ -33,7 +29,6 @@ function SortableTicketCard(props: {
 	column: string;
 	activeId: string | null;
 	orphanedStatus?: string;
-	columns: ColumnDefinition[];
 	onDelete: (ticket: TicketInfo) => void;
 	onArchive: (ticket: TicketInfo) => void;
 	onViewDetail: (ticket: TicketInfo) => void;
@@ -52,7 +47,6 @@ function SortableTicketCard(props: {
 			<TicketCard
 				ticket={props.ticket}
 				orphanedStatus={props.orphanedStatus}
-				columns={props.columns}
 				onDelete={props.onDelete}
 				onArchive={props.onArchive}
 				onViewDetail={props.onViewDetail}
@@ -77,7 +71,6 @@ export interface TicketColumnProps {
 	activeId: string | null;
 	activeTicket: TicketInfo | null;
 	hoverTarget: HoverTarget | null;
-	columns: ColumnDefinition[];
 	onDelete: (ticket: TicketInfo) => void;
 	onArchive: (ticket: TicketInfo) => void;
 	onViewDetail: (ticket: TicketInfo) => void;
@@ -140,18 +133,12 @@ export function TicketColumn(props: TicketColumnProps & {
 						{(ticket, i) => (
 							<>
 								<Show when={previewAt() === i() && props.activeTicket}>
-									{(t) => (
-										<DropPreview
-											ticket={t()}
-											columns={props.columns}
-										/>
-									)}
+									{(t) => <DropPreview ticket={t()} />}
 								</Show>
 								<SortableTicketCard
 									ticket={ticket}
 									column={props.column.name}
 									activeId={props.activeId}
-									columns={props.columns}
 									onDelete={props.onDelete}
 									onArchive={props.onArchive}
 									onViewDetail={props.onViewDetail}
@@ -160,12 +147,7 @@ export function TicketColumn(props: TicketColumnProps & {
 						)}
 					</For>
 					<Show when={previewAt() === props.tickets.length && props.activeTicket}>
-						{(t) => (
-							<DropPreview
-								ticket={t()}
-								columns={props.columns}
-							/>
-						)}
+						{(t) => <DropPreview ticket={t()} />}
 					</Show>
 					<Show when={props.tickets.length === 0}>
 						<EmptyColumnDropzone column={props.column.name} />
@@ -200,7 +182,6 @@ export function OrphanColumn(props: TicketColumnProps & { tickets: TicketInfo[] 
 								ticket={ticket}
 								column="undefined"
 								activeId={props.activeId}
-								columns={props.columns}
 								onDelete={props.onDelete}
 								onArchive={props.onArchive}
 								onViewDetail={props.onViewDetail}

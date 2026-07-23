@@ -13,7 +13,7 @@ import {
 
 describe('TicketSyncManager', () => {
 	const dirs: string[] = [];
-	afterAll(() => { cleanup(...dirs); dirs.length = 0; });
+	afterAll(() => { const done = cleanup(...dirs); dirs.length = 0; return done; });
 
 	it.concurrent('hasRemote returns false when no remote is configured', async () => {
 		const dir = tmpDir('sync-noremote-');

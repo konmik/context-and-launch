@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
 import path from "node:path";
 import {
-  createProject, uniqueSlug, gotoProject, setupE2E, expectOpenConfigDirRequest,
-  openConflictDialog, readProjectRegistry,
+  createProject, uniqueSlug, gotoProject, setupE2E,
+  openConflictDialog,
 } from "./fixtures.js";
 import { createActiveRebaseConflict } from "./conflict-dialog-shared.js";
 
-describe("Conflict dialog (e2e, real server)", () => {
+describe("Conflict dialog display (e2e, real server)", () => {
   const ctx = setupE2E();
   it("conflict dialog elements render when sync returns conflict (intercepted)", async () => {
     const project = await createProject(ctx.testServer, {
@@ -37,6 +37,25 @@ describe("Conflict dialog (e2e, real server)", () => {
     });
   }, 60000);
 
+  it("sync during active rebase conflict shows conflict dialog (regression: HEAD-detached error)", async () => {
+    const project = await createProject(ctx.testServer, {
+      projectSlug: uniqueSlug("conflict-active-rebase"),
+      withRemote: true,
+      appLauncherConfig: {
+        profiles: [{ name: "Claude", command: "echo claude" }],
+      },
+    });
+    ctx.projects.push(project);
+
+    const ticketsPath = path.join(
+      ctx.testServer.dataDir, "projects", project.projectSlug, "tickets",
+    );
+    createActiveRebaseConflict(ticketsPath, project.remoteUrl);
+
+    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+    await openConflictDialog(ctx.page);
+  }, 60000);
+
   it("abort dismisses the dialog during an active rebase", async () => {
     const project = await createProject(ctx.testServer, {
       projectSlug: uniqueSlug("conflict-abort"),
@@ -59,33 +78,6 @@ describe("Conflict dialog (e2e, real server)", () => {
     await ctx.page.waitForSelector('[data-testid="conflict-dialog-abort"]', {
       state: "detached", timeout: 15000,
     });
-  }, 60000);
-
-  it("launch button fires resolve-conflicts request", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("conflict-launch"),
-      withRemote: true,
-      appLauncherConfig: {
-        profiles: [{ name: "Claude", command: "echo claude" }],
-      },
-    });
-    ctx.projects.push(project);
-
-    const ticketsPath = path.join(
-      ctx.testServer.dataDir, "projects", project.projectSlug, "tickets",
-    );
-    createActiveRebaseConflict(ticketsPath, project.remoteUrl);
-
-    let serverCalled = false;
-    ctx.page.on("request", (r) => {
-      if (r.url().includes("/_server")) serverCalled = true;
-    });
-
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await openConflictDialog(ctx.page);
-    await ctx.page.click('[data-testid="conflict-dialog-launch"]');
-    await ctx.page.waitForTimeout(1500);
-    expect(serverCalled).toBe(true);
   }, 60000);
 
   it("conflict badge appears after dismissing a mid-session sync conflict", async () => {

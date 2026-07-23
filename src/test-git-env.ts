@@ -4,6 +4,8 @@ const gitConfig: Record<string, string> = {
 	'init.defaultBranch': 'master',
 	'commit.gpgsign': 'false',
 	'gc.auto': '0',
+	'maintenance.auto': 'false',
+	'core.fsmonitor': 'false',
 	'core.editor': 'true',
 };
 

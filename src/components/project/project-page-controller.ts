@@ -6,15 +6,16 @@ import {
   createTicket, deleteTicket, archiveTicket,
   reorderTicket, syncTickets, worktreeCleanup,
 } from "../ticket/ticket-api.js";
-import { deleteProject } from "./project-api.js";
+import { deleteProject, projectSyncRevalidateKeys } from "./project-api.js";
+import type { ProjectPageData, SyncStatus } from "./project-api.js";
 import { resolveConflicts, abortRebase } from "../launcher/launcher-api.js";
 import { parseSyncResult } from "./project-page-pure.js";
 import type { TicketCleanupOptions } from "../shared/ticket-cleanup-pure.js";
 
 export interface ProjectPageDeps {
   projectSlug: () => string;
-  data: () => { status: string; board?: { tickets: TicketInfo[] } } | undefined;
-  syncStatus: () => { hasRemote: boolean } | undefined;
+  data: () => ProjectPageData | undefined;
+  syncStatus: () => SyncStatus | undefined;
 }
 
 export function createProjectPageController(deps: ProjectPageDeps) {
@@ -54,9 +55,9 @@ export function createProjectPageController(deps: ProjectPageDeps) {
         if (parsed.type === "success") {
           setSyncSuccess(true);
           setTimeout(() => setSyncSuccess(false), 2000);
-          await revalidate(["project-page", "project-sync-status"]);
+          await revalidate(projectSyncRevalidateKeys);
         } else if (parsed.type === "conflict") {
-          await revalidate(["project-page", "project-sync-status"]);
+          await revalidate(projectSyncRevalidateKeys);
           setConflictDialogOpen(true);
         } else {
           setSyncError({ title: "Sync failed", description: parsed.message });
@@ -72,13 +73,13 @@ export function createProjectPageController(deps: ProjectPageDeps) {
   async function handleConflictResolve(profileName: string) {
     const result = await resolveConflicts(deps.projectSlug(), profileName);
     if (!result.ok) throw new Error(result.message);
-    await revalidate(["project-page", "project-sync-status"]);
+    await revalidate(projectSyncRevalidateKeys);
   }
 
   async function handleConflictAbort() {
     const result = await abortRebase(deps.projectSlug());
     if (!result.ok) throw new Error(result.message);
-    await revalidate(["project-page", "project-sync-status"]);
+    await revalidate(projectSyncRevalidateKeys);
   }
 
   function openDelete(ticket: TicketInfo) {

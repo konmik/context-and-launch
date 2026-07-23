@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { removeTempDir } from "../src/test-temp.js";
 import { pickPort } from "./test-port.js";
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -70,9 +70,9 @@ export async function startRealServer(
   );
 }
 
-export function rmTemp(dir: string, label: string): void {
+export async function rmTemp(dir: string, label: string): Promise<void> {
   try {
-    fs.rmSync(dir, { recursive: true, force: true });
+    await removeTempDir(dir);
   } catch (err) {
     console.warn(`temp cleanup failed for ${label}:`, err);
   }

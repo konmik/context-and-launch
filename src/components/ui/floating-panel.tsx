@@ -83,11 +83,6 @@ export function FloatingPanelResizeHandles() {
   );
 }
 
-/**
- * A draggable, resizable floating window. Provides the frame: the top drag
- * strip and the resize handles. Compose a FloatingWindowHeader and a
- * FloatingPanelBody (optionally wrapped, e.g. in a TabsRoot) as children.
- */
 export function FloatingWindow(props: {
   open: RootProps["open"];
   onOpenChange?: RootProps["onOpenChange"];
@@ -121,11 +116,6 @@ export function FloatingWindow(props: {
   );
 }
 
-/**
- * Window header row: a title area (window title font is applied) and an
- * actions area for buttons. `children` renders below the title row, e.g. a
- * TabsList that bleeds to the header edges.
- */
 export function FloatingWindowHeader(props: {
   title?: JSX.Element;
   actions?: JSX.Element;

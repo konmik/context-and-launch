@@ -1,55 +1,12 @@
 import { describe, it, expect } from "vitest";
-import fs from "node:fs";
-import path from "node:path";
+import { setupE2E } from "./fixtures.js";
 import {
-  setupE2E, readTicketStatus, listTicketFolders, poll,
-} from "./fixtures.js";
-import {
-  boxOf, centerOf, clickHandle, deleteDependencyViaPopup, forestCard, forestGroupCard,
-  forestHandle, forestSurface, groupViaDialog, openForestProject, openSubforest,
-  closeSubforest, pathScreenEndpoints, pathScreenPoint, shiftDragSelection,
-  subforestCloseButton, toggleToForest,
+  boxOf, closeSubforest, forestCard, forestGroupCard, openForestProject,
+  openSubforest, pathScreenEndpoints, subforestCloseButton,
 } from "./forest-helpers.js";
 
-describe("Forest Grouping", () => {
+describe("Forest sub-forest window", () => {
   const ctx = setupE2E();
-
-  it("rectangle selection + grouping creates group and hides members", async () => {
-    const project = await openForestProject(ctx, {
-      slugBase: "fg-select",
-      tickets: [
-        { number: "A-1", title: "First" },
-        { number: "A-2", title: "Second" },
-      ],
-    });
-
-    await ctx.page.waitForSelector('[data-testid="forest-ticket-card"]', {
-      state: "visible", timeout: 15000,
-    });
-    expect(await ctx.page.locator('[data-testid="forest-ticket-card"]').count()).toBe(2);
-
-    const surfaceBox = await boxOf(forestSurface(ctx.page));
-    await shiftDragSelection(
-      ctx.page,
-      { x: surfaceBox.x + 10, y: surfaceBox.y + 10 },
-      { x: surfaceBox.x + surfaceBox.width - 10, y: surfaceBox.y + surfaceBox.height - 10 },
-    );
-
-    await ctx.page.locator('[data-testid="forest-group-button"]')
-      .waitFor({ state: "visible", timeout: 10000 });
-    await groupViaDialog(ctx.page, "G-1", "My Group");
-
-    const folders = listTicketFolders(ctx.testServer, project.projectSlug);
-    expect(folders.find((f) => f.startsWith("g-1-"))).toBeDefined();
-
-    const s1 = readTicketStatus(ctx.testServer, project.projectSlug, "a-1-first");
-    const s2 = readTicketStatus(ctx.testServer, project.projectSlug, "a-2-second");
-    expect(s1?.memberOf).toBe("G-1");
-    expect(s2?.memberOf).toBe("G-1");
-
-    await ctx.page.waitForTimeout(500);
-    expect(await forestGroupCard(ctx.page).count()).toBeGreaterThanOrEqual(1);
-  }, 120000);
 
   it("sub-forest opens and closes", async () => {
     await openForestProject(ctx, {
@@ -256,71 +213,5 @@ describe("Forest Grouping", () => {
     await ctx.page.mouse.click(backdropBox.x + 10, backdropBox.y + 10);
 
     await subforestCloseButton(ctx.page).waitFor({ state: "detached", timeout: 10000 });
-  }, 120000);
-
-  it("opening and closing a Group preserves connection mode", async () => {
-    await openForestProject(ctx, {
-      slugBase: "fg-close-connection",
-      tickets: [
-        { number: "S-1", title: "Member", memberOf: "S-G" },
-        { number: "S-G", title: "Group" },
-      ],
-    });
-
-    await clickHandle(ctx.page, "S-G", "bottom");
-    const rootSurface = forestSurface(ctx.page).first();
-    expect(await rootSurface.getAttribute("data-connection-edit-mode")).toBe("active");
-
-    await openSubforest(ctx.page, "S-G");
-    expect(await rootSurface.getAttribute("data-connection-edit-mode")).toBe("active");
-    await closeSubforest(ctx.page);
-
-    expect(await rootSurface.getAttribute("data-connection-edit-mode")).toBe("active");
-    const preview = ctx.page.locator('[data-testid="forest-connection-preview"]');
-    expect(await preview.count()).toBe(1);
-    const surfaceBox = await boxOf(rootSurface);
-    const pointer = {
-      x: surfaceBox.x + surfaceBox.width * 0.25,
-      y: surfaceBox.y + surfaceBox.height * 0.25,
-    };
-    await ctx.page.mouse.move(pointer.x, pointer.y);
-    const endpoint = await pathScreenPoint(preview, "end");
-    expect(Math.hypot(endpoint.x - pointer.x, endpoint.y - pointer.y)).toBeLessThan(4);
-  }, 120000);
-
-  it("reattaches an active member connector after closing its Group", async () => {
-    await openForestProject(ctx, {
-      slugBase: "fg-close-member-connection",
-      tickets: [
-        { number: "S-1", title: "Member", memberOf: "S-G" },
-        { number: "S-G", title: "Group" },
-      ],
-    });
-
-    await openSubforest(ctx.page, "S-G");
-    await forestCard(ctx.page, "S-1").hover();
-    const memberHandleCenter = await centerOf(forestHandle(ctx.page, "S-1", "bottom"));
-    await ctx.page.mouse.click(memberHandleCenter.x, memberHandleCenter.y);
-
-    await closeSubforest(ctx.page);
-    const surfaceBox = await boxOf(forestSurface(ctx.page).first());
-    const pointer = {
-      x: surfaceBox.x + surfaceBox.width * 0.25,
-      y: surfaceBox.y + surfaceBox.height * 0.25,
-    };
-    await ctx.page.mouse.move(pointer.x, pointer.y);
-
-    const endpoints = await pathScreenEndpoints(
-      ctx.page.locator('[data-testid="forest-connection-preview"]'),
-    );
-    const groupHandle = forestHandle(ctx.page, "S-G", "bottom");
-    expect(await groupHandle.getAttribute("data-connection-handle-state")).toBe("source");
-    const expectedStart = await centerOf(groupHandle);
-
-    expect(Math.hypot(endpoints.end.x - pointer.x, endpoints.end.y - pointer.y)).toBeLessThan(4);
-    expect(Math.hypot(
-      endpoints.start.x - expectedStart.x,
-      endpoints.start.y - expectedStart.y,
-    )).toBeLessThan(4);
   }, 120000);
 }, 120000);

@@ -1,10 +1,11 @@
+import { PATH_SUFFIX_SOURCE, PLACEHOLDER_SOURCE } from './command-template-interpolation.js';
 import type { CommandTemplateValues } from './command-template-types.js';
 
-const placeholderToken = /^\{\{([^{}]+)\}\}$/;
+const placeholderToken = new RegExp(`^${PLACEHOLDER_SOURCE}$`);
 // A scalar placeholder at the start of a token followed by a static path suffix,
-// mirroring the interpolation grammar so {{configDefaultsDir}}/run-agent.ps1
+// composed from the interpolation grammar so {{configDefaultsDir}}/run-agent.ps1
 // folds into one argv entry instead of forcing the shell-string fallback.
-const placeholderWithPathSuffixToken = /^\{\{([^{}]+)\}\}([\\/][^\s"'`|;&(){}\[\]]*)$/;
+const placeholderWithPathSuffixToken = new RegExp(`^${PLACEHOLDER_SOURCE}(${PATH_SUFFIX_SOURCE})$`);
 const plainToken = /^[A-Za-z0-9_\-./:=@+\\]+$/;
 const singleQuotedToken = /^'([^']*)'$/;
 

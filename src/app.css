@@ -89,6 +89,11 @@
 	--ring: oklch(0.693 0.165 254);
 }
 
+[data-palette="terminal"] {
+	--chrome-strip-bg: transparent;
+	--chrome-resize-corner: transparent;
+}
+
 [data-palette="graphite"] {
 	--background: oklch(1 0 89.9);
 	--foreground: oklch(0.145 0 89.9);
@@ -111,6 +116,10 @@
 	--border: oklch(0.8 0 89.9);
 	--input: oklch(0.8 0 89.9);
 	--ring: oklch(0.505 0 89.9);
+	--ticket-border-color: transparent;
+	--ticket-border-color-hover: transparent;
+	--settings-card-border: transparent;
+	--settings-card-bg: var(--card-elevated);
 }
 
 [data-palette="graphite"].dark {
@@ -631,10 +640,7 @@
 		border-top-left-radius: calc(var(--radius-lg) - 1px);
 		border-top-right-radius: calc(var(--radius-lg) - 1px);
 		border-bottom: 1px solid var(--border);
-		background: var(--accent);
-	}
-	[data-palette="terminal"] [data-scope="floating-panel"][data-part="drag-trigger"].drag-strip {
-		background: transparent;
+		background: var(--chrome-strip-bg, var(--accent));
 	}
 
 	[data-scope="floating-panel"][data-part="resize-trigger"] {
@@ -649,18 +655,9 @@
 			transparent 50%,
 			var(--border) 50%,
 			var(--border) calc(50% + 1px),
-			var(--accent) calc(50% + 1px)
+			var(--chrome-resize-corner, var(--accent)) calc(50% + 1px)
 		);
 		border-bottom-right-radius: calc(var(--radius-lg) - 1px);
-	}
-	[data-palette="terminal"] [data-scope="floating-panel"][data-part="resize-trigger"][data-axis="se"] {
-		background: linear-gradient(
-			135deg,
-			transparent 50%,
-			var(--border) 50%,
-			var(--border) calc(50% + 1px),
-			transparent calc(50% + 1px)
-		);
 	}
 
 	[data-scope="floating-panel"][data-part="close-trigger"] {
@@ -814,14 +811,9 @@ textarea.input { display: block; height: auto; }
 	border-color: var(--ticket-border-color-hover, var(--muted-foreground));
 }
 
-[data-palette="graphite"] {
-	--ticket-border-color: transparent;
-	--ticket-border-color-hover: transparent;
-}
-
-[data-palette="graphite"] .settings-card {
-	border-color: transparent;
-	background: var(--card-elevated);
+.settings-card {
+	border-color: var(--settings-card-border, var(--border));
+	background: var(--settings-card-bg, transparent);
 }
 
 .solid-flow__edge-interaction { vector-effect: non-scaling-stroke; }

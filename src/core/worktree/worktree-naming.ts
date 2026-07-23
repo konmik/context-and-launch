@@ -13,6 +13,7 @@ export function worktreeBranchName(ticketFolderName: string, branchPrefix?: stri
 export interface AgentWorktreeLocation {
 	worktreePath: string;
 	branchName: string;
+	isDefaultLocation: boolean;
 }
 
 export function resolveAgentWorktreeLocation(
@@ -20,9 +21,11 @@ export function resolveAgentWorktreeLocation(
 	settings: { worktreeRootPath: string; branchPrefix?: string },
 	saved?: { savedWorktreePath?: string; savedBranchName?: string },
 ): AgentWorktreeLocation {
+	const defaultPath = `${settings.worktreeRootPath}/${worktreeFolderName(ticketFolderName)}`;
+	const worktreePath = saved?.savedWorktreePath ?? defaultPath;
 	return {
-		worktreePath: saved?.savedWorktreePath
-			?? `${settings.worktreeRootPath}/${worktreeFolderName(ticketFolderName)}`,
+		worktreePath,
+		isDefaultLocation: worktreePath === defaultPath,
 		branchName: saved?.savedBranchName
 			?? worktreeBranchName(ticketFolderName, settings.branchPrefix),
 	};

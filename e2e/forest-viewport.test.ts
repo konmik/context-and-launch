@@ -1,15 +1,33 @@
 import { describe, it, expect } from "vitest";
+import { setupE2E, getLocalStorageItem } from "./fixtures.js";
 import {
-  setupE2E, readTicketStatus, readForestLayout, getLocalStorageItem, poll,
-} from "./fixtures.js";
-import {
-  boxCenter, boxOf, centerOf, clickHandle, deleteDependencyViaPopup, dragPointer,
-  forestCard, forestHandle, forestSurface, openForestProject, pathScreenEndpoints,
-  pathScreenPoint, toggleToForest, toggleToKanban,
+  boxOf, dragPointer, forestCard, forestSurface, openForestProject,
+  toggleToForest, toggleToKanban,
 } from "./forest-helpers.js";
 
-describe("Forest View II", () => {
+describe("Forest viewport", () => {
   const ctx = setupE2E();
+
+  it("fills the viewport so the surface, controls, and cards render", async () => {
+    await openForestProject(ctx, {
+      slugBase: "fv-height",
+      tickets: [{ number: "A-1", title: "First", folderName: "a-1-first" }],
+    });
+
+    await ctx.page.waitForSelector('[data-testid="forest-rearrange-button"]', { state: "visible", timeout: 15000 });
+
+    const viewport = ctx.page.viewportSize();
+    expect(viewport).toBeTruthy();
+    const surfaceBox = await boxOf(forestSurface(ctx.page));
+    expect(surfaceBox.height).toBeGreaterThan(viewport!.height / 2);
+
+    await ctx.page.locator('[data-testid="forest-close-button"]')
+      .waitFor({ state: "visible", timeout: 15000 });
+    const selectHint = ctx.page.locator('[data-testid="forest-select-hint"]');
+    await selectHint.waitFor({ state: "visible", timeout: 15000 });
+    expect(await selectHint.textContent()).toBe("Shift+mouse to select");
+    expect(await ctx.page.locator('[data-testid="forest-ticket-card"]').count()).toBe(1);
+  }, 120000);
 
   it("centers the full forest horizontally at the bottom-middle of the surface", async () => {
     await openForestProject(ctx, {
@@ -151,123 +169,5 @@ describe("Forest View II", () => {
 
     await ctx.page.mouse.up();
     await ctx.page.keyboard.up("Shift");
-  }, 120000);
-
-  it("places both connector handles on the hovered card edges", async () => {
-    await openForestProject(ctx, {
-      slugBase: "fv-htop",
-      tickets: [{ number: "H-1", title: "HandleTop", folderName: "h-1-handletop" }],
-    });
-
-    const card = forestCard(ctx.page, "H-1");
-    await card.waitFor({ state: "visible", timeout: 15000 });
-    const center = await centerOf(card);
-    await ctx.page.mouse.move(center.x, center.y);
-    await ctx.page.waitForTimeout(200);
-
-    const geometry = await card.evaluate((element) => {
-      const cardRect = element.getBoundingClientRect();
-      const handles = Array.from(
-        element.querySelectorAll<HTMLElement>("[data-connection-handle-end]"),
-        handle => {
-          const rect = handle.getBoundingClientRect();
-          return {
-            end: handle.dataset.connectionHandleEnd,
-            centerY: rect.top + rect.height / 2,
-          };
-        },
-      );
-      return {
-        edges: { top: cardRect.top, bottom: cardRect.bottom },
-        handles,
-      };
-    });
-
-    expect(geometry.handles).toHaveLength(2);
-    for (const handle of geometry.handles) {
-      expect(handle.end === "top" || handle.end === "bottom").toBe(true);
-      expect(handle.centerY).toBeCloseTo(geometry.edges[handle.end as "top" | "bottom"], 0);
-    }
-  }, 120000);
-
-  it("clicking blank surface content exits connection mode", async () => {
-    await openForestProject(ctx, {
-      slugBase: "fv-cancel-connection",
-      tickets: [{ number: "A-1", title: "Alpha", folderName: "a-1-alpha" }],
-    });
-
-    await clickHandle(ctx.page, "A-1", "bottom");
-
-    const surface = forestSurface(ctx.page);
-    expect(await surface.getAttribute("data-connection-edit-mode")).toBe("active");
-    const cardGutter = await boxOf(forestCard(ctx.page, "A-1").locator(".."));
-    await ctx.page.mouse.click(cardGutter.x + 12, cardGutter.y + 2);
-
-    expect(await surface.getAttribute("data-connection-edit-mode")).toBeNull();
-    expect(await ctx.page.locator('[data-testid="forest-connection-preview"]').count()).toBe(0);
-  }, 120000);
-
-  it("Escape exits connection mode", async () => {
-    await openForestProject(ctx, {
-      slugBase: "fv-escape-connection",
-      tickets: [{ number: "A-1", title: "Alpha", folderName: "a-1-alpha" }],
-    });
-
-    await clickHandle(ctx.page, "A-1", "bottom");
-    const surface = forestSurface(ctx.page);
-    expect(await surface.getAttribute("data-connection-edit-mode")).toBe("active");
-
-    await ctx.page.keyboard.press("Escape");
-
-    expect(await surface.getAttribute("data-connection-edit-mode")).toBeNull();
-    expect(await ctx.page.locator('[data-testid="forest-connection-preview"]').count()).toBe(0);
-  }, 120000);
-
-  it("exits connection mode after connecting or clicking empty space", async () => {
-    const project = await openForestProject(ctx, {
-      slugBase: "fv-connection-mode",
-      tickets: [
-        { number: "A-1", title: "Alpha", folderName: "a-1-alpha" },
-        { number: "B-1", title: "Beta", folderName: "b-1-beta" },
-      ],
-    });
-
-    await clickHandle(ctx.page, "A-1", "bottom");
-    const sourceHandle = forestHandle(ctx.page, "A-1", "bottom");
-    const targetHandle = forestHandle(ctx.page, "B-1", "top");
-    expect(await sourceHandle.getAttribute("data-connection-handle-state")).toBe("source");
-    expect(await targetHandle.getAttribute("data-connection-handle-state")).toBe("available");
-    expect(await forestHandle(ctx.page, "A-1", "top")
-      .getAttribute("data-connection-handle-state")).toBe("hidden");
-    expect(await forestHandle(ctx.page, "B-1", "bottom")
-      .getAttribute("data-connection-handle-state")).toBe("hidden");
-    const preview = ctx.page.locator('[data-testid="forest-connection-preview"]');
-    expect(await preview.count()).toBe(1);
-    const initialPreviewPath = await preview.getAttribute("d");
-    const sourceBox = await boxOf(forestCard(ctx.page, "A-1"));
-    await ctx.page.mouse.move(sourceBox.x + sourceBox.width + 40, sourceBox.y + sourceBox.height / 2);
-    await expect.poll(() => preview.getAttribute("d")).not.toBe(initialPreviewPath);
-
-    await targetHandle.click();
-    await expect.poll(
-      () => readTicketStatus(ctx.testServer, project.projectSlug, "a-1-alpha")?.dependsOn,
-      { timeout: 10000 },
-    ).toContain("B-1");
-
-    const surface = forestSurface(ctx.page);
-    await expect.poll(
-      () => surface.getAttribute("data-connection-edit-mode"),
-      { timeout: 10000 },
-    ).toBeNull();
-    expect(await sourceHandle.getAttribute("data-connection-handle-state")).toBe("hidden");
-    expect(await ctx.page.locator('[data-testid="forest-connection-preview"]').count()).toBe(0);
-
-    await clickHandle(ctx.page, "A-1", "bottom");
-    expect(await surface.getAttribute("data-connection-edit-mode")).toBe("active");
-
-    const surfaceBox = await boxOf(surface);
-    await ctx.page.mouse.click(surfaceBox.x + surfaceBox.width - 24, surfaceBox.y + surfaceBox.height - 24);
-
-    expect(await sourceHandle.getAttribute("data-connection-handle-state")).toBe("hidden");
   }, 120000);
 }, 120000);

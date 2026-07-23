@@ -1,8 +1,7 @@
 import { createSignal, onMount, For } from "solid-js";
-import { isServer } from "solid-js/web";
 import Palette from "lucide-solid/icons/palette";
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem } from "~/components/ui/menu";
-import { PALETTES, DEFAULT_PALETTE, getStoredPalette, isPaletteName, type PaletteName } from "./palette-pure.js";
+import { PALETTES, getStoredPalette, isPaletteName, type PaletteName } from "./palette-pure.js";
 
 declare global {
   interface Window {
@@ -18,11 +17,7 @@ function applyPalette(name: PaletteName) {
   });
 }
 
-// The pre-hydration inline script in entry-server sets data-palette before
-// paint. Read it here so the trigger shows the right name from the first
-// client render instead of flashing the default and reflowing.
 function initialPalette(): PaletteName {
-  if (isServer) return DEFAULT_PALETTE;
   const applied = document.documentElement.dataset.palette;
   if (isPaletteName(applied)) return applied;
   return getStoredPalette(localStorage);

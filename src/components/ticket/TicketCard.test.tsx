@@ -22,7 +22,6 @@ function makeTicket(overrides?: Partial<TicketInfo>): TicketInfo {
 
 function renderCard(props: {
   ticket?: Partial<TicketInfo>;
-  columns?: { name: string; color?: string }[];
   herdrStatuses?: Record<string, HerdrAgentStatus>;
   onDelete?: (ticket: TicketInfo) => void;
   onArchive?: (ticket: TicketInfo) => void;
@@ -31,7 +30,6 @@ function renderCard(props: {
     <HerdrStatusesContext.Provider value={(folderName) => props.herdrStatuses?.[folderName]}>
       <TicketCard
         ticket={makeTicket(props.ticket)}
-        columns={props.columns ?? []}
         onDelete={props.onDelete ?? (() => {})}
         onArchive={props.onArchive ?? (() => {})}
         onViewDetail={() => {}}
@@ -95,10 +93,7 @@ describe("TicketCard status swatch and herdr icon", () => {
   afterEach(() => cleanup());
 
   it("renders no status swatch", () => {
-    const { container } = renderCard({
-      ticket: { status: "todo" },
-      columns: [{ name: "todo", color: "#1a7f37" }],
-    });
+    const { container } = renderCard({ ticket: { status: "todo" } });
     expect(container.querySelector('[data-testid="status-swatch"]')).toBeNull();
   });
 

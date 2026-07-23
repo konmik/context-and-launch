@@ -491,15 +491,6 @@ export class LauncherConfigManager {
 		});
 	}
 
-	setSkillOrder(
-		scope: "app" | "project",
-		projectSlug: string,
-		name: string,
-		order: number,
-	): void {
-		this.setItemOrder(scope, projectSlug, "skill", name, order);
-	}
-
 	setItemOrder(
 		scope: "app" | "project",
 		projectSlug: string,
@@ -519,9 +510,7 @@ export class LauncherConfigManager {
 			};
 			const item = collections[itemType].find((entry) => entry.name === name);
 			if (!item) {
-				const label = itemType === "profile"
-					? "Profile"
-					: itemType[0].toUpperCase() + itemType.slice(1);
+				const label = itemType[0].toUpperCase() + itemType.slice(1);
 				throw new Error(`${label} "${name}" not found`);
 			}
 			item.order = order;

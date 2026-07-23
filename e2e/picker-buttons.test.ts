@@ -220,8 +220,8 @@ describe("Picker buttons (e2e, real server)", () => {
       const wtPath = path.join(dataDir, "projects", projectSlug, "tickets");
       try { execSync(`git worktree remove --force "${wtPath}"`, { cwd: repoDir }); } catch { /* ignore */ }
     }
-    if (dataDir) rmTemp(dataDir, "picker-buttons dataDir");
-    if (repoDir) rmTemp(repoDir, "picker-buttons repoDir");
+    if (dataDir) await rmTemp(dataDir, "picker-buttons dataDir");
+    if (repoDir) await rmTemp(repoDir, "picker-buttons repoDir");
   }, 20000);
 
   // --- Add Project page: project path directory picker ---

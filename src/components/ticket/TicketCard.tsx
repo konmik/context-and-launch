@@ -2,7 +2,6 @@ import { Show, For } from "solid-js";
 import EllipsisVertical from "lucide-solid/icons/ellipsis-vertical";
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "../ui/menu";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
-import type { SwatchColumn } from "~/core/board/status-swatch.js";
 import HerdrStatusIcon from "./HerdrStatusIcon";
 import { useHerdrStatuses } from "./herdr-statuses-context.js";
 import { useShortcutRunner } from "../board/shortcut-runner-context.js";
@@ -10,7 +9,6 @@ import { useShortcutRunner } from "../board/shortcut-runner-context.js";
 interface TicketCardProps {
   ticket: TicketInfo;
   orphanedStatus?: string;
-  columns: SwatchColumn[];
   onDelete: (ticket: TicketInfo) => void;
   onArchive: (ticket: TicketInfo) => void;
   onViewDetail: (ticket: TicketInfo) => void;
