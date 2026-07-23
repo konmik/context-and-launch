@@ -1,3 +1,4 @@
+import { Show } from "solid-js";
 import { FileToolbar, EditorPane, TAB_CONTENT_CLASS } from "./ticket-detail-parts.js";
 import { activeFileLabel, isReadOnly } from "./ticket-detail-pure.js";
 import type { TicketDetailState } from "./ticket-detail-state.js";
@@ -25,15 +26,24 @@ export function EditorTab(props: { ctrl: TicketDetailState }) {
         onFileInputChange={s.handleFileInputChange}
       />
       <div class="min-h-0 flex-1">
-        <EditorPane
-          viewMode={s.fileViewMode()}
-          content={s.content()}
-          onChange={s.setContent}
-          onSave={s.activeFile().type === "context" ? s.saveAll : undefined}
-          readOnly={isReadOnly(s.activeFile())}
-          imageUrl={s.imageUrl()}
-          label={activeFileLabel(s.activeFile())}
-        />
+        <Show
+          when={!s.contentLoading()}
+          fallback={
+            <div class="flex h-full items-center justify-center text-sm text-muted-foreground">
+              Loading...
+            </div>
+          }
+        >
+          <EditorPane
+            viewMode={s.fileViewMode()}
+            content={s.content()}
+            onChange={s.setContent}
+            onSave={s.activeFile().type === "context" ? s.saveAll : undefined}
+            readOnly={isReadOnly(s.activeFile())}
+            imageUrl={s.imageUrl()}
+            label={activeFileLabel(s.activeFile())}
+          />
+        </Show>
       </div>
     </div>
   );

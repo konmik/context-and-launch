@@ -4,10 +4,10 @@ import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { ErrorInfo } from "~/core/shared/errors.js";
 import {
   createTicket, deleteTicket, archiveTicket,
-  reorderTicket, syncTickets, worktreeCleanup,
+  reorderTicket, syncTickets, worktreeCleanup, ticketMutationRevalidateKeys,
 } from "../ticket/ticket-api.js";
-import { deleteProject, projectSyncRevalidateKeys } from "./project-api.js";
-import type { ProjectPageData, SyncStatus } from "./project-api.js";
+import { deleteProject, getSyncStatus, projectSyncRevalidateKeys } from "./project-api.js";
+import type { ProjectPageData } from "./project-api.js";
 import { resolveConflicts, abortRebase } from "../launcher/launcher-api.js";
 import { parseSyncResult } from "./project-page-pure.js";
 import type { TicketCleanupOptions } from "../shared/ticket-cleanup-pure.js";
@@ -15,7 +15,6 @@ import type { TicketCleanupOptions } from "../shared/ticket-cleanup-pure.js";
 export interface ProjectPageDeps {
   projectSlug: () => string;
   data: () => ProjectPageData | undefined;
-  syncStatus: () => SyncStatus | undefined;
 }
 
 export function createProjectPageController(deps: ProjectPageDeps) {
@@ -35,18 +34,23 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     if (syncing()) return;
     const d = deps.data();
     if (!d || d.status !== "loaded") return;
-    const ss = deps.syncStatus();
-    if (ss && !ss.hasRemote) {
-      setSyncError({
-        title: "Sync failed",
-        description: "No remote tracking branch configured."
-          + " Push the ticket branch to a remote first.",
-      });
-      return;
-    }
     setSyncing(true);
     setSyncError(null);
     try {
+      const ss = await getSyncStatus(deps.projectSlug());
+      if (ss.hasConflict) {
+        await revalidate(projectSyncRevalidateKeys);
+        setConflictDialogOpen(true);
+        return;
+      }
+      if (!ss.hasRemote) {
+        setSyncError({
+          title: "Sync failed",
+          description: "No remote tracking branch configured."
+            + " Push the ticket branch to a remote first.",
+        });
+        return;
+      }
       const result = await syncTickets(deps.projectSlug());
       if (!result.ok) {
         setSyncError({ title: "Sync failed", description: result.message });
@@ -100,19 +104,19 @@ export function createProjectPageController(deps: ProjectPageDeps) {
 
   async function handleCreateTicket(number: string, title: string) {
     const result = await createTicket(deps.projectSlug(), number, title);
-    if (result.ok) revalidate("project-page");
+    if (result.ok) revalidate(ticketMutationRevalidateKeys);
     return result.ok ? {} : { error: result.message };
   }
 
   async function handleArchiveTicket(folderName: string) {
     const result = await archiveTicket(deps.projectSlug(), folderName);
-    if (result.ok) revalidate("project-page");
+    if (result.ok) revalidate(ticketMutationRevalidateKeys);
     return result.ok ? {} : { error: result.message };
   }
 
   async function handleDeleteTicket(folderName: string) {
     const result = await deleteTicket(deps.projectSlug(), folderName);
-    if (result.ok) revalidate("project-page");
+    if (result.ok) revalidate(ticketMutationRevalidateKeys);
     return result.ok ? {} : { error: result.message };
   }
 
@@ -126,7 +130,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     folderName: string, fromColumn: string, toColumn: string, newIndex: number,
   ) {
     const result = await reorderTicket(deps.projectSlug(), folderName, fromColumn, toColumn, newIndex);
-    if (result.ok) revalidate("project-page");
+    if (result.ok) revalidate(ticketMutationRevalidateKeys);
   }
 
   async function handleCleanupSubmit(

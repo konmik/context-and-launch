@@ -1,4 +1,4 @@
-import { createAsync, revalidate } from "@solidjs/router";
+import { revalidate } from "@solidjs/router";
 import {
   createMemo,
   createSignal,
@@ -30,6 +30,8 @@ import {
 import { getForestViewport, setForestViewport } from "./forest-local-state.js";
 import type { DependencyRelation, ForestTicket } from "./forest-graph.js";
 import { useEscapeKey } from "~/lib/use-escape-key.js";
+import { createNonSuspendingAsync } from "~/lib/create-non-suspending-async.js";
+import { ticketMutationRevalidateKeys } from "../ticket/ticket-api.js";
 import type { BoardState } from "~/core/board/board-types.js";
 import { errorPayload, type ErrorInfo } from "~/core/shared/errors.js";
 import type { ForestLayout } from "~/core/ticket/forest-layout-store.js";
@@ -50,7 +52,7 @@ interface GroupingDraft {
 }
 
 export default function ForestView(props: ForestViewProps) {
-  const layout = createAsync(() => getForestLayout(props.projectSlug));
+  const layout = createNonSuspendingAsync(() => getForestLayout(props.projectSlug));
   const [error, setError] = createSignal<ErrorInfo>();
   const [openGroups, setOpenGroups] = createSignal<string[]>([]);
   const [openGroupOrigin, setOpenGroupOrigin] = createSignal<ExpandingOverlayOrigin>();
@@ -111,7 +113,7 @@ export default function ForestView(props: ForestViewProps) {
     const dependent = findTicket(dependentNumber);
     return runMutation(
       () => addDependency(props.projectSlug, dependent.folderName, dependencyNumber),
-      ["project-page"],
+      ticketMutationRevalidateKeys,
     );
   }
 
@@ -130,7 +132,7 @@ export default function ForestView(props: ForestViewProps) {
         }
       }
     } finally {
-      await revalidate("project-page");
+      await revalidate(ticketMutationRevalidateKeys);
     }
   }
 
@@ -138,7 +140,7 @@ export default function ForestView(props: ForestViewProps) {
     const group = findTicket(ticketNumber);
     await runMutation(
       () => ungroupTicket(props.projectSlug, group.folderName),
-      ["project-page", "forest-layout"],
+      [...ticketMutationRevalidateKeys, "forest-layout"],
     );
   }
 
@@ -188,7 +190,7 @@ export default function ForestView(props: ForestViewProps) {
     );
     if (!result.ok) return { error: result.message };
     setGroupingDraft(undefined);
-    await Promise.all([revalidate("project-page"), revalidate("forest-layout")]);
+    await revalidate([...ticketMutationRevalidateKeys, "forest-layout"]);
     return {};
   }
 

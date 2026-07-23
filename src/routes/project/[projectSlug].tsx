@@ -1,4 +1,4 @@
-import { useParams, useNavigate, createAsync, revalidate } from "@solidjs/router";
+import { useParams, useNavigate, revalidate } from "@solidjs/router";
 import { clientOnly } from "@solidjs/start";
 import {
   Show, For, Switch, Match, ErrorBoundary,
@@ -35,6 +35,7 @@ import PalettePicker from "~/components/shared/PalettePicker";
 import LogViewerDialog from "~/components/shared/LogViewerDialog";
 import LauncherSettings from "~/components/launcher/LauncherSettings";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
+import { createNonSuspendingAsync } from "~/lib/create-non-suspending-async.js";
 import {
   loadProjectPage, getSyncStatus, addProject, recordProjectFocus, projectSyncRevalidateKeys,
 } from "~/components/project/project-api.js";
@@ -56,7 +57,7 @@ export const route = {
 };
 
 function createDeferredAsync<T>(ready: () => boolean, load: () => Promise<T>, placeholder: T) {
-  return createAsync(() => (ready() ? load() : Promise.resolve(placeholder)), {
+  return createNonSuspendingAsync(() => (ready() ? load() : Promise.resolve(placeholder)), {
     initialValue: placeholder,
   });
 }
@@ -65,7 +66,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   const params = useParams();
   const navigate = useNavigate();
   const projectSlug = () => params.projectSlug ?? "";
-  const data = createAsync(() => loadProjectPage(projectSlug()));
+  const data = createNonSuspendingAsync(() => loadProjectPage(projectSlug()));
 
   const [deferredPollsReady, setDeferredPollsReady] = createSignal(false);
   createEffect(() => {
@@ -93,9 +94,9 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   }
 
   const { dialogState, syncState, selectionState, commands } =
-    props?.ctrl ?? createProjectPageController({ projectSlug, data, syncStatus });
+    props?.ctrl ?? createProjectPageController({ projectSlug, data });
 
-  const launcherConfig = createAsync(async () => {
+  const launcherConfig = createNonSuspendingAsync(async () => {
     const page = data();
     if (page?.status !== "loaded") return undefined;
     return getMergedLauncherConfig(page.projectSlug);
@@ -104,22 +105,15 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
 
   const [logViewerOpen, setLogViewerOpen] = createSignal(false);
   const [projectLauncherOpen, setProjectLauncherOpen] = createSignal(false);
-  const [hasPendingChanges, setHasPendingChanges] = createSignal(false);
+  const hasPendingChanges = createDeferredAsync(
+    () => deferredPollsReady() && projectSlug() !== "",
+    () => getSyncPending(projectSlug()),
+    false,
+  );
   createEffect(() => {
-    const ps = projectSlug();
-    if (!ps) return;
-    setHasPendingChanges(false);
     if (!deferredPollsReady()) return;
-    let stopped = false;
-    const poll = async () => {
-      try {
-        const result = await getSyncPending(ps);
-        if (!stopped) setHasPendingChanges(result);
-      } catch { /* ignore poll failures */ }
-    };
-    void poll();
-    const timer = setInterval(() => void poll(), 10000);
-    onCleanup(() => { stopped = true; clearInterval(timer); });
+    const timer = setInterval(() => void revalidate("sync-pending"), 10000);
+    onCleanup(() => clearInterval(timer));
   });
 
   const herdrStatusesResult = createDeferredAsync(

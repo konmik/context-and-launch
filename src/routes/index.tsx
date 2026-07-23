@@ -1,6 +1,7 @@
-import { useNavigate, createAsync } from "@solidjs/router";
+import { useNavigate } from "@solidjs/router";
 import { createEffect } from "solid-js";
 import { getDefaultProjectSlug } from "~/components/project/project-api.js";
+import { createNonSuspendingAsync } from "~/lib/create-non-suspending-async.js";
 
 export const route = {
   load: () => getDefaultProjectSlug(),
@@ -8,7 +9,7 @@ export const route = {
 
 export default function Home() {
   const navigate = useNavigate();
-  const defaultProjectSlug = createAsync(() => getDefaultProjectSlug());
+  const defaultProjectSlug = createNonSuspendingAsync(() => getDefaultProjectSlug());
 
   createEffect(() => {
     const s = defaultProjectSlug();
