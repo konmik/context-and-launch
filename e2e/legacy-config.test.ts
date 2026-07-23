@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { pickPort } from "./test-port.js";
-import { startRealServer, stopRealServer, type RealServer } from "./real-server.js";
+import { startRealServer, stopRealServer, rmTemp, type RealServer } from "./real-server.js";
 
 const PORT = pickPort();
 
@@ -53,8 +53,8 @@ describe("Legacy config with 'slug' property names (sandboxed e2e)", () => {
   afterAll(async () => {
     await browser?.close();
     if (server) await stopRealServer(server);
-    if (dataDir) fs.rmSync(dataDir, { recursive: true, force: true });
-    if (repoDir) fs.rmSync(repoDir, { recursive: true, force: true });
+    if (dataDir) rmTemp(dataDir, "legacy-config dataDir");
+    if (repoDir) rmTemp(repoDir, "legacy-config repoDir");
   }, 20000);
 
   it("navigates past loading screen when config uses old 'slug' property names", async () => {

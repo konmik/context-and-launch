@@ -47,6 +47,7 @@
 - e2e tests run the real server against a sandboxed CONTEXT_LAUNCH_DATA_DIR temp dir and a scratch git repo, drive the UI with playwright, and assert on real side effects (config.json contents, git branches/worktrees). Use the e2e/real-server.ts harness. Never stub the app's own server functions; mock only true external boundaries.
 - e2e/mock-server.ts is a fixture for pure-UI rendering tests that need no real backend behavior.
 - Test timeouts must NEVER be more than 3 seconds. If a test is hitting a 3-second timeout, fix the cause immediately. Never dismiss a timeout as an unrelated change you are not going to fix, and never fix a timeout by increasing it.
+- A flaky test is a real failure. Never dismiss a failing test as flaky, and never re-run a test to get a green result. Fix the cause: a test that passes in isolation but fails under the full suite is a real ordering, resource, or concurrency bug in the test or the code.
 
 ## Specs
 

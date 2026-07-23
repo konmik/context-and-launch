@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { pickPort } from "./test-port.js";
@@ -67,6 +68,14 @@ export async function startRealServer(
   throw new Error(
     `Real server could not bind a port after ${maxAttempts} attempts. Last stderr:\n${lastStderr}`,
   );
+}
+
+export function rmTemp(dir: string, label: string): void {
+  try {
+    fs.rmSync(dir, { recursive: true, force: true });
+  } catch (err) {
+    console.warn(`temp cleanup failed for ${label}:`, err);
+  }
 }
 
 export function stopRealServer(server: RealServer): Promise<void> {
