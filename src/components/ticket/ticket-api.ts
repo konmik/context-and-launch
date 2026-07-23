@@ -27,6 +27,21 @@ function mutateTickets<T>(projectSlug: string, mutation: (store: TicketStore) =>
   }
 }
 
+async function mutateTicketsExclusive<T>(
+  projectSlug: string,
+  mutation: (store: TicketStore) => T,
+): Promise<T> {
+  const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
+  try {
+    return await fileWatcher.runWithWatchPaused(
+      worktreeDir,
+      () => mutation(new TicketStore(worktreeDir)),
+    );
+  } finally {
+    syncPendingTracker.invalidate(worktreeDir);
+  }
+}
+
 export async function createTicket(projectSlug: string, number: string, title: string) {
   "use server";
   try {
@@ -44,7 +59,7 @@ export async function updateTicket(
 ) {
   "use server";
   try {
-    const updated = mutateTickets(
+    const updated = await mutateTicketsExclusive(
       projectSlug,
       store => store.updateTicket(folderName, number, title, status),
     );
@@ -57,7 +72,7 @@ export async function updateTicket(
 export async function deleteTicket(projectSlug: string, folderName: string) {
   "use server";
   try {
-    mutateTickets(projectSlug, store => store.deleteTicket(folderName));
+    await mutateTicketsExclusive(projectSlug, store => store.deleteTicket(folderName));
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
@@ -67,7 +82,7 @@ export async function deleteTicket(projectSlug: string, folderName: string) {
 export async function archiveTicket(projectSlug: string, folderName: string) {
   "use server";
   try {
-    mutateTickets(projectSlug, store => store.archiveTicket(folderName));
+    await mutateTicketsExclusive(projectSlug, store => store.archiveTicket(folderName));
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
@@ -235,14 +250,11 @@ export async function syncTickets(projectSlug: string) {
   "use server";
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
-    fileWatcher.stop(worktreeDir);
-    try {
+    return await fileWatcher.runWithWatchPaused(worktreeDir, async () => {
       const result = await operationTracker.track(ticketSyncManager.sync(worktreeDir));
       syncPendingTracker.invalidate(worktreeDir);
       return { ok: true as const, ...result };
-    } finally {
-      fileWatcher.watch(worktreeDir);
-    }
+    });
   } catch (e) {
     return errorResult(e);
   }

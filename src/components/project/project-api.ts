@@ -72,7 +72,7 @@ export async function deleteProject(projectSlug: string) {
     }
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
     projectRegistry.removeProject(projectSlug);
-    fileWatcher.stop(worktreeDir);
+    await fileWatcher.stop(worktreeDir);
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
