@@ -1,5 +1,6 @@
 import { createSignal, createEffect, createMemo, on, onCleanup } from "solid-js";
-import { revalidate, createAsync, query } from "@solidjs/router";
+import { revalidate, query } from "@solidjs/router";
+import { createNonSuspendingAsync } from "~/lib/create-non-suspending-async.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/core/launcher/launcher-config.js";
 import {
@@ -29,6 +30,7 @@ import {
   deleteContext as deleteContextAction, deleteFile as deleteFileAction,
   removeReference as removeReferenceAction, setUseWorktree as setUseWorktreeAction,
   addReferences as addReferencesAction, openTicketWorktree,
+  ticketMutationRevalidateKeys,
 } from "./ticket-api.js";
 import {
   getMergedLauncherConfig, saveColumnDefaults,
@@ -67,6 +69,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   const [browsing, setBrowsing] = createSignal(false);
   const [imageUrl, setImageUrl] = createSignal("");
   const [fileViewMode, setFileViewMode] = createSignal<"editor" | "image" | "unsupported">("editor");
+  const [contentLoading, setContentLoading] = createSignal(true);
   const [useWorktree, setUseWorktree] = createSignal(props.ticket.useWorktree);
 
   const header = createHeaderEditState({
@@ -75,7 +78,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     setError,
   });
 
-  const ticketFiles = createAsync(
+  const ticketFiles = createNonSuspendingAsync(
     () => getTicketFiles(props.projectSlug, header.savedFolderName()),
     {
       initialValue: {
@@ -87,7 +90,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   );
 
   async function refreshTicketFiles() {
-    await revalidate(["ticket-files", "project-page"]);
+    await revalidate(["ticket-files", ...ticketMutationRevalidateKeys]);
   }
 
   function ticketUrl(suffix: string): string {
@@ -189,6 +192,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
 
   async function loadContextContent(af: ActiveFile & { type: "context" }): Promise<void> {
     setFileViewMode("editor");
+    setContentLoading(true);
     try {
       const data = await getContext(props.projectSlug, header.savedFolderName(), af.name);
       if (data) {
@@ -199,6 +203,8 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     } catch (e) {
       setContent(""); setSavedContent("");
       setError(errorPayload(e, "Load failed"));
+    } finally {
+      setContentLoading(false);
     }
   }
 
@@ -207,8 +213,10 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     if (mode === "image") {
       setFileViewMode("image"); setImageUrl(url);
       setContent(""); setSavedContent("");
+      setContentLoading(false);
     } else if (mode === "editor") {
       setFileViewMode("editor");
+      setContentLoading(true);
       fetch(url).then(async (res) => {
         if (res.ok) {
           const text = normalizeLineEndings(await res.text());
@@ -217,9 +225,12 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
       }).catch((e) => {
         setContent(""); setSavedContent("");
         setError(errorPayload(e, "Load failed"));
+      }).finally(() => {
+        setContentLoading(false);
       });
     } else {
       setFileViewMode("unsupported"); setContent(""); setSavedContent("");
+      setContentLoading(false);
     }
   }
 
@@ -430,7 +441,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     hasAnyUnsavedChanges, saveAll,
     newFileDialogOpen, setNewFileDialogOpen, newFileName, setNewFileName,
     confirmingDelete, setConfirmingDelete, error, setError, dropdownOpen, setDropdownOpen,
-    browsing, imageUrl, fileViewMode,
+    browsing, imageUrl, fileViewMode, contentLoading,
     uploading: upload.uploading, dragging: upload.dragging,
     confirmOverwrite: upload.confirmOverwrite, confirmSize: upload.confirmSize,
     runningShortcut: shortcuts.runningShortcut,

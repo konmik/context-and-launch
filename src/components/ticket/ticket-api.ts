@@ -236,11 +236,13 @@ export async function syncTickets(projectSlug: string) {
   }
 }
 
-export async function getSyncPending(projectSlug: string): Promise<boolean> {
+export const ticketMutationRevalidateKeys = ["project-page", "sync-pending"];
+
+export const getSyncPending = query(async (projectSlug: string): Promise<boolean> => {
   "use server";
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
   return syncPendingTracker.hasPendingChanges(worktreeDir);
-}
+}, "sync-pending");
 
 export async function suggestTicketNumber(
   projectSlug: string,

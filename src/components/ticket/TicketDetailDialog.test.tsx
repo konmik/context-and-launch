@@ -31,7 +31,9 @@ vi.mock("@solidjs/router", async () => {
       createEffect(() => {
         Promise.resolve(fn()).then((v) => setValue(() => v));
       });
-      return value;
+      const accessor = () => value();
+      Object.defineProperty(accessor, "latest", { get: () => value() });
+      return accessor;
     },
   };
 });
@@ -53,6 +55,7 @@ const mockGetMergedLauncherConfig = vi.fn().mockResolvedValue({
 vi.mock("./ticket-api.js", async () => {
   const { query } = await import("@solidjs/router");
   return {
+    ticketMutationRevalidateKeys: ["project-page", "sync-pending"],
     getTicketFiles: query(
       (...args: unknown[]) => mockGetTicketFiles(...args), "ticket-files",
     ),
