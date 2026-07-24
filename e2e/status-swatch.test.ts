@@ -102,12 +102,16 @@ describe("Status swatch (e2e, real server)", () => {
       [{ number: "T-1", title: "Alpha", status: "vanished" }],
     );
     const orphanedStatus = ctx.page.locator(
-      '[data-testid="kanban-board-undefined-column"] [data-testid="kanban-board-ticket-orphaned-status"]',
+      '[data-testid="kanban-board-column-body"][data-column-name="undefined"]'
+      + ' [data-testid="kanban-board-ticket-orphaned-status"]',
     );
     await orphanedStatus.waitFor({ state: "visible", timeout: 15000 });
     expect(await orphanedStatus.textContent()).toBe("vanished");
     expect(
-      await ctx.page.locator('[data-testid="kanban-board-undefined-column"] [data-testid="status-swatch"]').count(),
+      await ctx.page.locator(
+        '[data-testid="kanban-board-column-body"][data-column-name="undefined"]'
+        + ' [data-testid="status-swatch"]',
+      ).count(),
     ).toBe(0);
 
     await toggleToForest(ctx.page);

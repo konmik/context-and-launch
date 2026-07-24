@@ -9,7 +9,7 @@ import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { BoardState } from "~/components/project/project-api.js";
 import TicketCard from "../ticket/TicketCard";
 import { DragOverlayCard } from "./dnd-shared.js";
-import { TicketColumn, OrphanColumn } from "./kanban-columns.js";
+import { ColumnHeader, ColumnBody, OrphanHeader, OrphanBody } from "./kanban-columns.js";
 import { resolveTicketsForColumn } from "./board-logic.js";
 import { createBoardDnd, type BoardCommands } from "./board-state.js";
 import type { Accessor } from "solid-js";
@@ -40,6 +40,16 @@ export default function KanbanBoard(props: KanbanBoardProps) {
 	const activeTicket = props.activeTicket ?? dnd.activeTicket;
 	const commands = props.commands ?? dnd.commands;
 
+	const ticketsFor = (column: string) => resolveTicketsForColumn(
+		column, currentOrder(), board().ticketMap, board().orphanFolderNames,
+	);
+
+	let headerRow!: HTMLDivElement;
+	let scrollBody!: HTMLDivElement;
+	const syncHeaderScroll = () => {
+		headerRow.scrollLeft = scrollBody.scrollLeft;
+	};
+
 	return (
 		<DragDropProvider
 			onDragStart={(e) =>
@@ -58,30 +68,61 @@ export default function KanbanBoard(props: KanbanBoardProps) {
 			collisionDetector={closestCenter}
 		>
 			<DragDropSensors />
-			<div
-				class="min-h-0 flex-1 overflow-auto px-4"
-				style={{ "scrollbar-gutter": "stable" }}
-			>
-				<div class="flex min-h-full divide-x divide-border">
-					<For each={props.board.columns}>
-						{(column, i) => (
-							<TicketColumn
-								column={column}
-								edgeLeft={i() === 0}
-								edgeRight={
-									i() === props.board.columns.length - 1
-									&& board().orphanedTickets.length === 0
-								}
-								tickets={resolveTicketsForColumn(
-									column.name, currentOrder(),
-									board().ticketMap,
-									board().orphanFolderNames,
-								)}
-								registerRef={(el) =>
-									commands.registerColumnRef(
-										column.name, el,
-									)
-								}
+			<div class="flex min-h-0 flex-1 flex-col">
+				<div
+					ref={headerRow}
+					class="shrink-0 overflow-hidden px-4"
+					style={{ "scrollbar-gutter": "stable" }}
+				>
+					<div class="flex divide-x divide-border">
+						<For each={props.board.columns}>
+							{(column, i) => (
+								<ColumnHeader
+									column={column}
+									count={ticketsFor(column.name).length}
+									edgeLeft={i() === 0}
+									edgeRight={
+										i() === props.board.columns.length - 1
+										&& board().orphanedTickets.length === 0
+									}
+								/>
+							)}
+						</For>
+						<Show when={board().orphanedTickets.length > 0}>
+							<OrphanHeader />
+						</Show>
+					</div>
+				</div>
+				<div
+					ref={scrollBody}
+					class="min-h-0 flex-1 overflow-auto px-4"
+					style={{ "scrollbar-gutter": "stable" }}
+					data-testid="kanban-board-scroll"
+					onScroll={syncHeaderScroll}
+				>
+					<div class="flex min-h-full divide-x divide-border">
+						<For each={props.board.columns}>
+							{(column) => (
+								<ColumnBody
+									column={column}
+									tickets={ticketsFor(column.name)}
+									registerRef={(el) =>
+										commands.registerColumnRef(
+											column.name, el,
+										)
+									}
+									activeId={drag().activeId}
+									activeTicket={activeTicket()}
+									hoverTarget={drag().hoverTarget}
+									onDelete={props.onDelete}
+									onArchive={props.onArchive}
+									onViewDetail={props.onViewDetail}
+								/>
+							)}
+						</For>
+						<Show when={board().orphanedTickets.length > 0}>
+							<OrphanBody
+								tickets={board().orphanedTickets}
 								activeId={drag().activeId}
 								activeTicket={activeTicket()}
 								hoverTarget={drag().hoverTarget}
@@ -89,19 +130,8 @@ export default function KanbanBoard(props: KanbanBoardProps) {
 								onArchive={props.onArchive}
 								onViewDetail={props.onViewDetail}
 							/>
-						)}
-					</For>
-					<Show when={board().orphanedTickets.length > 0}>
-						<OrphanColumn
-							tickets={board().orphanedTickets}
-							activeId={drag().activeId}
-							activeTicket={activeTicket()}
-							hoverTarget={drag().hoverTarget}
-							onDelete={props.onDelete}
-							onArchive={props.onArchive}
-							onViewDetail={props.onViewDetail}
-						/>
-					</Show>
+						</Show>
+					</div>
 				</div>
 			</div>
 			<DragOverlay>
