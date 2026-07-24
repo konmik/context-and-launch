@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { getStoredMode, isDarkMode, parseMode } from "./theme-toggle-pure.js";
+import {
+  getStoredMode, setStoredMode, isDarkMode, parseMode,
+} from "./theme-toggle-pure.js";
 import { paletteBackground } from "./palette-pure.js";
 
 describe("isDarkMode", () => {
@@ -42,6 +44,31 @@ describe("getStoredMode", () => {
 
   it("returns system when storage throws", () => {
     expect(getStoredMode({ getItem: () => { throw new Error("denied"); } })).toBe("system");
+  });
+
+  it("prefers the project's own mode over the app-level one", () => {
+    const stored: Record<string, string> = { "theme": "light", "theme:proj": "dark" };
+    expect(getStoredMode({ getItem: (k) => stored[k] ?? null }, "proj")).toBe("dark");
+  });
+
+  it("follows the app-level mode for a project that has none", () => {
+    const stored: Record<string, string> = { "theme": "dark" };
+    expect(getStoredMode({ getItem: (k) => stored[k] ?? null }, "proj")).toBe("dark");
+  });
+
+  it("ignores another project's mode", () => {
+    const stored: Record<string, string> = { "theme:other": "dark" };
+    expect(getStoredMode({ getItem: (k) => stored[k] ?? null }, "proj")).toBe("system");
+  });
+});
+
+describe("setStoredMode", () => {
+  it("writes the project's own key, leaving the app-level one alone", () => {
+    const written: Record<string, string> = {};
+    const storage = { setItem: (k: string, v: string) => { written[k] = v; } };
+    setStoredMode(storage, "proj", "dark");
+    setStoredMode(storage, undefined, "light");
+    expect(written).toEqual({ "theme:proj": "dark", "theme": "light" });
   });
 });
 

@@ -21,8 +21,9 @@ describe("Project page header toolbar (e2e, real server)", () => {
       (was) => document.documentElement.classList.contains("dark") !== was,
       before, { timeout: 3000 },
     );
-    const theme = await getLocalStorageItem(ctx.page, "theme");
+    const theme = await getLocalStorageItem(ctx.page, `theme:${project.projectSlug}`);
     expect(theme === "light" || theme === "dark").toBe(true);
+    expect(await getLocalStorageItem(ctx.page, "theme")).toBeNull();
   }, 60000);
 
   it("keeps the project shell visible without a modal backdrop when tickets fail to load", async () => {

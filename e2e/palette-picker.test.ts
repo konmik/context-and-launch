@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { setupE2E, getLocalStorageItem } from "./fixtures.js";
+import {
+  setupE2E, getLocalStorageItem, createProject, gotoProject, uniqueSlug,
+} from "./fixtures.js";
 
 const ctx = setupE2E();
 
@@ -54,5 +56,32 @@ describe("Palette picker (e2e, real server)", () => {
 
     const draculaDarkBg = await bodyBg(page);
     expect(draculaDarkBg).not.toBe(draculaBg);
+  }, 60000);
+
+  it("keeps one project's palette out of another project", async () => {
+    const { page, testServer } = ctx;
+    const first = await createProject(testServer, { projectSlug: uniqueSlug("pal-first") });
+    const second = await createProject(testServer, { projectSlug: uniqueSlug("pal-second") });
+    ctx.projects.push(first, second);
+
+    await gotoProject(page, testServer, first.projectSlug);
+    await page.click('[data-testid="palette-picker-trigger"]');
+    await page.click('[data-testid="palette-picker-item-dracula"]');
+    await page.waitForFunction(
+      () => document.documentElement.dataset.palette === "dracula",
+      undefined, { timeout: 5000 },
+    );
+    expect(await getLocalStorageItem(page, `palette:${first.projectSlug}`)).toBe("dracula");
+
+    await gotoProject(page, testServer, second.projectSlug);
+    expect(
+      await page.evaluate(() => document.documentElement.dataset.palette),
+    ).not.toBe("dracula");
+    expect(await getLocalStorageItem(page, `palette:${second.projectSlug}`)).toBeNull();
+
+    await gotoProject(page, testServer, first.projectSlug);
+    expect(
+      await page.evaluate(() => document.documentElement.dataset.palette),
+    ).toBe("dracula");
   }, 60000);
 });

@@ -1,3 +1,12 @@
+import { modeStorageKey } from "./theme-toggle-pure.js";
+
+const PROJECT_PATH_PATTERN = /^\/project\/([^/]+)$/;
+
+export function projectSlugFromPath(pathname: string): string | undefined {
+  const match = PROJECT_PATH_PATTERN.exec(pathname);
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
+
 export const PALETTES = ["terminal", "graphite", "tokyo-night", "catppuccin", "dracula", "nord", "gruvbox"] as const;
 export type PaletteName = (typeof PALETTES)[number];
 export const DEFAULT_PALETTE: PaletteName = "terminal";
@@ -6,14 +15,30 @@ export function isPaletteName(value: unknown): value is PaletteName {
   return typeof value === "string" && (PALETTES as readonly string[]).includes(value);
 }
 
+export function paletteStorageKey(projectSlug?: string): string {
+  return projectSlug === undefined ? "palette" : `palette:${projectSlug}`;
+}
+
 export function getStoredPalette(
   storage: { getItem(key: string): string | null },
+  projectSlug?: string,
 ): PaletteName {
   try {
-    const stored = storage.getItem("palette");
+    const scoped = projectSlug === undefined
+      ? null
+      : storage.getItem(paletteStorageKey(projectSlug));
+    const stored = scoped ?? storage.getItem(paletteStorageKey());
     if (stored !== null && isPaletteName(stored)) return stored;
   } catch { /* localStorage may throw in some environments */ }
   return DEFAULT_PALETTE;
+}
+
+export function setStoredPalette(
+  storage: { setItem(key: string, value: string): void },
+  projectSlug: string | undefined,
+  palette: PaletteName,
+): void {
+  storage.setItem(paletteStorageKey(projectSlug), palette);
 }
 
 // Hex form of the --background oklch tokens in src/app.css; parity is enforced by palette-backgrounds.test.ts.
@@ -61,11 +86,14 @@ export function criticalBackgroundCss(): string {
 export function criticalAppearanceScript(): string {
   return [
     "(function(){try{",
-    'var t=localStorage.getItem("theme");',
+    `var m=new RegExp(${JSON.stringify(PROJECT_PATH_PATTERN.source)}).exec(location.pathname);`,
+    'var s=m?":"+decodeURIComponent(m[1]):"";',
+    "var g=function(k){var v=localStorage.getItem(k+s);return v===null?localStorage.getItem(k):v};",
+    `var t=g(${JSON.stringify(modeStorageKey())});`,
     'if(t==="dark"||',
     '(t!=="light"&&matchMedia("(prefers-color-scheme:dark)").matches))',
     'document.documentElement.classList.add("dark");',
-    'var p=localStorage.getItem("palette");',
+    `var p=g(${JSON.stringify(paletteStorageKey())});`,
     `if(${JSON.stringify([...PALETTES])}.indexOf(p)!==-1)`,
     'document.documentElement.dataset.palette=p',
     "}catch(e){}})()",

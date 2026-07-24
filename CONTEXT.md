@@ -104,11 +104,11 @@ Avoid: camera, scroll position
 ### Appearance
 
 Palette:
-A named color scheme family based on a popular editor theme (Catppuccin, Tokyo Night, Dracula, Nord, Gruvbox). Each Palette supplies a complete color set for both Modes. Selected globally from the app header; one Palette is active at a time across all Project Windows, per machine.
+A named color scheme family based on a popular editor theme (Catppuccin, Tokyo Night, Dracula, Nord, Gruvbox). Each Palette supplies a complete color set for both Modes. Selected from the app header, per project per machine. A project with no Palette of its own follows the one selected outside a project, on the welcome screen.
 Avoid: theme, color scheme, skin
 
 Mode:
-The light or dark axis of the app's appearance, orthogonal to Palette. Follows the OS preference until the user toggles it explicitly.
+The light or dark axis of the app's appearance, orthogonal to Palette. Selected per project per machine, alongside the Palette. Follows the OS preference until the user toggles it explicitly.
 Avoid: theme, dark mode
 
 ### Windows
@@ -216,7 +216,7 @@ Avoid: terminal, pane
 
 - A Project has exactly one Worktree (created automatically on first board load)
 - A Project Window shows exactly one Project; a Project may be shown by more than one Project Window
-- The app renders exactly one Palette in exactly one Mode at a time; every Palette defines both Modes
+- A Project Window renders exactly one Palette in exactly one Mode at a time; every Palette defines both Modes
 - A Worktree is checked out from the Project's Orphan Branch
 - A Worktree contains zero or more Ticket Folders
 - A Ticket Folder contains exactly one `status.json` and zero or more Context documents

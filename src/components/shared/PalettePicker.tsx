@@ -1,55 +1,61 @@
-import { createSignal, onMount, For } from "solid-js";
+import { createSignal, createEffect, For } from "solid-js";
+import { useLocation } from "@solidjs/router";
 import Palette from "lucide-solid/icons/palette";
 import Sun from "lucide-solid/icons/sun";
 import Moon from "lucide-solid/icons/moon";
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "~/components/ui/menu";
-import { PALETTES, getStoredPalette, isPaletteName, type PaletteName } from "./palette-pure.js";
-import { getStoredMode, isDarkMode } from "./theme-toggle-pure.js";
+import {
+  PALETTES, getStoredPalette, setStoredPalette, projectSlugFromPath,
+  isPaletteName, type PaletteName,
+} from "./palette-pure.js";
+import { getStoredMode, setStoredMode, isDarkMode } from "./theme-toggle-pure.js";
 
-function applyPalette(name: PaletteName) {
+function showPalette(name: PaletteName) {
   document.documentElement.dataset.palette = name;
-  queueMicrotask(() => {
-    localStorage.setItem("palette", name);
-    window.contextLaunch?.setPalette(name);
-  });
+  queueMicrotask(() => window.contextLaunch?.setPalette(name));
 }
 
-function applyMode(mode: "light" | "dark") {
-  document.documentElement.classList.toggle("dark", mode === "dark");
-  localStorage.setItem("theme", mode);
-  window.contextLaunch?.setMode(mode);
+function showMode(dark: boolean) {
+  document.documentElement.classList.toggle("dark", dark);
 }
 
-function initialPalette(): PaletteName {
+function initialPalette(projectSlug: string | undefined): PaletteName {
   const applied = document.documentElement.dataset.palette;
   if (isPaletteName(applied)) return applied;
-  return getStoredPalette(localStorage);
+  return getStoredPalette(localStorage, projectSlug);
 }
 
 export default function PalettePicker() {
-  const [active, setActive] = createSignal<PaletteName>(initialPalette());
+  const location = useLocation();
+  const projectSlug = () => projectSlugFromPath(location.pathname);
+  const [active, setActive] = createSignal<PaletteName>(initialPalette(projectSlug()));
   const [theme, setTheme] = createSignal<"light" | "dark">("light");
 
-  onMount(() => {
-    const stored = getStoredPalette(localStorage);
+  createEffect(() => {
+    const stored = getStoredPalette(localStorage, projectSlug());
     setActive(stored);
-    if (document.documentElement.dataset.palette !== stored) applyPalette(stored);
+    if (document.documentElement.dataset.palette !== stored) showPalette(stored);
 
-    const mode = getStoredMode(localStorage);
+    const mode = getStoredMode(localStorage, projectSlug());
     const matchesDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    setTheme(isDarkMode(mode, matchesDark) ? "dark" : "light");
+    const dark = isDarkMode(mode, matchesDark);
+    setTheme(dark ? "dark" : "light");
+    showMode(dark);
     window.contextLaunch?.setMode(mode);
   });
 
   function select(name: PaletteName) {
-    applyPalette(name);
+    setStoredPalette(localStorage, projectSlug(), name);
+    showPalette(name);
     setActive(name);
   }
 
   function toggleMode() {
     const next = theme() === "dark" ? "light" : "dark";
+    setStoredMode(localStorage, projectSlug(), next);
     setTheme(next);
-    applyMode(next);
+    showMode(next === "dark");
+    window.contextLaunch?.setMode(next);
   }
 
   return (
