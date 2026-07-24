@@ -20,6 +20,7 @@ export interface TicketCleanupDeps {
   onOpenChange: (open: boolean) => void;
   loadLockingProcesses: (projectSlug: string, folderName: string) => Promise<LockingProcessInfo[]>;
   killLockingProcesses: (projectSlug: string, folderName: string, pids: number[]) => Promise<{ error?: string }>;
+  forceDeleteLocalBranch: (projectSlug: string, folderName: string) => Promise<{ error?: string }>;
 }
 
 export function createTicketCleanupController(deps: TicketCleanupDeps) {
@@ -30,6 +31,8 @@ export function createTicketCleanupController(deps: TicketCleanupDeps) {
   const [killDialogOpen, setKillDialogOpen] = createSignal(false);
   const [lockingProcesses, setLockingProcesses] = createSignal<LockingProcessInfo[] | undefined>();
   const [killingProcesses, setKillingProcesses] = createSignal(false);
+  const [forceDeleteDialogOpen, setForceDeleteDialogOpen] = createSignal(false);
+  const [forceDeleting, setForceDeleting] = createSignal(false);
 
   let requestToken = 0;
   let lifecycleToken = 0;
@@ -76,7 +79,7 @@ export function createTicketCleanupController(deps: TicketCleanupDeps) {
   }
 
   const actionLabel = () => deps.action() === "archive" ? "Archive" : "Delete";
-  const busy = () => submitting() || runningItem() !== undefined || killingProcesses();
+  const busy = () => submitting() || runningItem() !== undefined || killingProcesses() || forceDeleting();
 
   async function doSubmit() {
     const ticket = deps.ticket();
@@ -131,6 +134,30 @@ export function createTicketCleanupController(deps: TicketCleanupDeps) {
     }
   }
 
+  function openForceDeleteDialog(): void {
+    setForceDeleteDialogOpen(true);
+  }
+
+  async function confirmForceDelete(): Promise<void> {
+    const ticket = deps.ticket();
+    if (!ticket) return;
+    setForceDeleting(true);
+    try {
+      const result = await deps.forceDeleteLocalBranch(deps.projectSlug(), ticket.folderName);
+      if (result.error) setErrorInfo(toErrorInfo(result.error));
+    } catch (err: any) {
+      setErrorInfo({ description: err?.message ?? 'Failed to force-delete branch' });
+    } finally {
+      setForceDeleting(false);
+      closeForceDeleteDialog();
+      await startChecks();
+    }
+  }
+
+  function closeForceDeleteDialog(): void {
+    setForceDeleteDialogOpen(false);
+  }
+
   function closeKillDialog(): void {
     setKillDialogOpen(false);
     setLockingProcesses(undefined);
@@ -144,6 +171,7 @@ export function createTicketCleanupController(deps: TicketCleanupDeps) {
     setItems(allChecking());
     setRunningItem(undefined);
     closeKillDialog();
+    closeForceDeleteDialog();
   }
 
   return {
@@ -151,6 +179,8 @@ export function createTicketCleanupController(deps: TicketCleanupDeps) {
     runCleanup, startChecks, doSubmit, handleSubmit, close,
     killDialogOpen, lockingProcesses, killingProcesses,
     openKillDialog, confirmKill, closeKillDialog,
+    forceDeleteDialogOpen, forceDeleting,
+    openForceDeleteDialog, confirmForceDelete, closeForceDeleteDialog,
   };
 }
 

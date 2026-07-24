@@ -124,7 +124,7 @@ describe("runTicketCleanupChecks", () => {
 	it("blocks deleteLocalBranch when the branch has unmerged commits", async () => {
 		const status = await runTicketCleanupChecks(target, makeDeps({ isBranchMerged: async () => false }));
 		expect(status.deleteLocalBranch).toEqual({
-			state: "blocked", reason: "Branch has unmerged commits", warning: true,
+			state: "blocked", reason: "Branch has unmerged commits", warning: true, forceDeleteable: true,
 		});
 	});
 

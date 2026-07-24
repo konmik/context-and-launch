@@ -12,6 +12,7 @@ import type { LockingProcessInfo } from "~/core/worktree/agent-worktree.js";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 import {
   getCleanupStatus, getWorktreeLockingProcesses, killWorktreeLockingProcesses,
+  forceDeleteLocalBranch,
 } from "~/components/ticket/ticket-api.js";
 import type { TicketCleanupOptions } from "./ticket-cleanup-pure.js";
 import {
@@ -60,6 +61,7 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps) {
     onOpenChange: props.onOpenChange,
     loadLockingProcesses: getWorktreeLockingProcesses,
     killLockingProcesses: killWorktreeLockingProcesses,
+    forceDeleteLocalBranch,
   });
 
   createEffect(() => {
@@ -140,6 +142,18 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps) {
                                   Kill processes
                                 </button>
                               </Show>
+                              <Show when={(item() as any).forceDeleteable}>
+                                {" "}
+                                <button
+                                  type="button"
+                                  onClick={() => s.openForceDeleteDialog()}
+                                  disabled={s.busy()}
+                                  class="text-xs underline text-destructive hover:text-destructive/80"
+                                  data-testid="ticket-cleanup-force-delete-branch"
+                                >
+                                  Force delete
+                                </button>
+                              </Show>
                             </Show>
                             <Show when={item().state === "error"}>
                               <span class="text-destructive">
@@ -203,6 +217,12 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps) {
       onConfirm={() => void s.confirmKill()}
       onClose={s.closeKillDialog}
     />
+    <ForceDeleteBranchDialog
+      open={s.forceDeleteDialogOpen()}
+      deleting={s.forceDeleting()}
+      onConfirm={() => void s.confirmForceDelete()}
+      onClose={s.closeForceDeleteDialog}
+    />
     </>
   );
 }
@@ -254,6 +274,35 @@ function KillProcessesConfirmDialog(props: {
             data-testid="kill-processes-confirm"
           >Kill All</button>
         </Show>
+      </div>
+    </DialogRoot>
+  );
+}
+
+function ForceDeleteBranchDialog(props: {
+  open: boolean;
+  deleting: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <DialogRoot open={props.open} onOpenChange={(open) => { if (!open) props.onClose(); }}>
+      <DialogTitle>Force Delete Branch</DialogTitle>
+      <DialogDescription>
+        This branch has unmerged commits that will be permanently lost.
+      </DialogDescription>
+      <div class="flex justify-end gap-2">
+        <button type="button" onClick={props.onClose} class="btn-secondary"
+          data-testid="force-delete-branch-cancel">
+          Cancel
+        </button>
+        <button
+          type="button"
+          disabled={props.deleting}
+          onClick={props.onConfirm}
+          class="btn-destructive"
+          data-testid="force-delete-branch-confirm"
+        >Force Delete</button>
       </div>
     </DialogRoot>
   );

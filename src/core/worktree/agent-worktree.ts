@@ -370,6 +370,10 @@ export class AgentWorktreeManager {
 		await this.commands.execute('agent-worktree.branch.delete-local', projectPath, { branch: branchName });
 	}
 
+	async forceDeleteLocalBranch(projectPath: string, branchName: string): Promise<void> {
+		await this.commands.execute('agent-worktree.branch.delete-local', projectPath, { branch: branchName });
+	}
+
 	async deleteRemoteBranch(projectPath: string, branchName: string): Promise<void> {
 		await this.commands.execute('agent-worktree.branch.delete-remote', projectPath, { branch: branchName });
 	}

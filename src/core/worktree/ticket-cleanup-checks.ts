@@ -7,7 +7,7 @@ export type CleanupItemKey =
 
 export type CleanupCheckItem =
 	| { state: "ready" }
-	| { state: "blocked"; reason: string; warning?: true; killable?: true }
+	| { state: "blocked"; reason: string; warning?: true; killable?: true; forceDeleteable?: true }
 	| { state: "error"; error: ErrorInfo };
 
 export type TicketCleanupStatus = Record<CleanupItemKey, CleanupCheckItem>;
@@ -84,7 +84,7 @@ export async function runTicketCleanupChecks(
 			return { state: "blocked", reason: "No local branch" };
 		}
 		if (!await deps.isBranchMerged(target.projectPath, target.branchName, target.configuredMainBranch)) {
-			return { state: "blocked", reason: "Branch has unmerged commits", warning: true };
+			return { state: "blocked", reason: "Branch has unmerged commits", warning: true, forceDeleteable: true };
 		}
 		return { state: "ready" };
 	});

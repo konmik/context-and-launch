@@ -42,6 +42,15 @@
               - Close the dialog
       - No local branch
       - Branch has unmerged commits
+        - A "Force delete" link appears next to the reason
+          - User clicks it
+            - A confirmation dialog opens warning about permanent data loss
+            - User confirms
+              - Force-delete the local branch
+              - Close the dialog
+              - Refresh all cleanup statuses
+            - User cancels
+              - Close the dialog
       - No remote branch
   - A failed check shows the error next to the item
     - The error is red

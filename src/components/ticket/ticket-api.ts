@@ -404,3 +404,20 @@ export async function killWorktreeLockingProcesses(
   await new Promise(resolve => setTimeout(resolve, 500));
   return {};
 }
+
+export async function forceDeleteLocalBranch(
+  projectSlug: string, folderName: string,
+): Promise<{ error?: string }> {
+  "use server";
+  try {
+    const { project, store, ticket, branchName } =
+      resolveTicketCleanupTarget(projectSlug, folderName);
+    await agentWorktreeManager.forceDeleteLocalBranch(project.path, branchName);
+    if (ticket?.agentWorktreeBranchName) {
+      store.clearAgentWorktreeInfo(folderName);
+    }
+    return {};
+  } catch (e: any) {
+    return { error: e?.message ?? 'Failed to force-delete branch' };
+  }
+}

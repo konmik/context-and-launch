@@ -32,6 +32,7 @@ function makeDeps(overrides?: Partial<TicketCleanupDeps>): TicketCleanupDeps {
     onOpenChange: () => {},
     loadLockingProcesses: async () => [],
     killLockingProcesses: async () => ({}),
+    forceDeleteLocalBranch: async () => ({}),
     ...overrides,
   };
 }
