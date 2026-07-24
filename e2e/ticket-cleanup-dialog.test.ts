@@ -1,12 +1,31 @@
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { execSync } from "node:child_process";
+import { execSync, spawn } from "node:child_process";
 import type { Page } from "playwright";
 import {
   createProject, uniqueSlug, gotoProject, clickTicketMenuItem,
   listTicketFolders, worktreeExists, poll, setupE2E,
+  setCommandTemplateOverride,
 } from "./fixtures.js";
+
+function processAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function localBranchExists(repoPath: string, branch: string): boolean {
+  try {
+    execSync(`git rev-parse --verify refs/heads/${branch}`, { cwd: repoPath, stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 describe("TicketCleanupDialog (e2e, real server)", () => {
   const ctx = setupE2E();
@@ -210,6 +229,95 @@ describe("TicketCleanupDialog (e2e, real server)", () => {
     );
     expect(worktreeExists(ctx.testServer, project.projectSlug, "t-1-alpha")).toBe(false);
   }, 60000);
+
+  it("force deletes a branch with unmerged commits after cancel then confirm", async () => {
+    const project = await createProject(ctx.testServer, {
+      projectSlug: uniqueSlug("tc-force-delete"),
+      withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
+      withWorktrees: [{ folderName: "t-1-alpha" }],
+    });
+    ctx.projects.push(project);
+
+    const wtPath = path.join(project.worktreeRootPath!, "t-1-alpha");
+    fs.writeFileSync(path.join(wtPath, "unmerged.txt"), "unmerged work");
+    execSync("git add -A", { cwd: wtPath });
+    execSync("git commit -m unmerged", { cwd: wtPath });
+
+    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+    await openCleanup("delete");
+    await waitForChecksSettled(ctx.page);
+    await ctx.page.click('[data-testid="ticket-cleanup-delete-worktree-button"]');
+    await waitForChecksSettled(ctx.page);
+
+    const localStatus = ctx.page.locator('[data-testid="ticket-cleanup-delete-local-status"]');
+    expect(await localStatus.textContent()).toContain("Branch has unmerged commits");
+    expect(localBranchExists(project.projectPath, "t-1-alpha")).toBe(true);
+
+    await ctx.page.click('[data-testid="ticket-cleanup-force-delete-branch"]');
+    await ctx.page.click('[data-testid="force-delete-branch-cancel"]');
+    await ctx.page.waitForSelector('[data-testid="force-delete-branch-confirm"]', {
+      state: "detached", timeout: 15000,
+    });
+    expect(localBranchExists(project.projectPath, "t-1-alpha")).toBe(true);
+
+    await ctx.page.click('[data-testid="ticket-cleanup-force-delete-branch"]');
+    await ctx.page.click('[data-testid="force-delete-branch-confirm"]');
+    await expect.poll(
+      () => localStatus.textContent(),
+      { timeout: 15000 },
+    ).toContain("No local branch");
+    expect(localBranchExists(project.projectPath, "t-1-alpha")).toBe(false);
+  }, 60000);
+
+  it.skipIf(process.platform !== "win32")(
+    "kills the process locking a worktree after cancel then confirm",
+    async () => {
+      const project = await createProject(ctx.testServer, {
+        projectSlug: uniqueSlug("tc-kill"),
+        withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
+        withWorktrees: [{ folderName: "t-1-alpha" }],
+      });
+      ctx.projects.push(project);
+
+      const wtPath = path.join(project.worktreeRootPath!, "t-1-alpha");
+      const holder = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
+        cwd: wtPath, stdio: "ignore",
+      });
+      const holderPid = holder.pid!;
+      setCommandTemplateOverride(
+        ctx.testServer,
+        "agent-worktree.locking-processes.windows",
+        `Write-Output "${holderPid}$([char]9)node"`,
+      );
+
+      try {
+        await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+        await openCleanup("delete");
+        await waitForChecksSettled(ctx.page);
+
+        const worktreeStatus = ctx.page.locator('[data-testid="ticket-cleanup-delete-worktree-status"]');
+        expect(await worktreeStatus.textContent()).toContain("in use by another process");
+
+        await ctx.page.click('[data-testid="ticket-cleanup-kill-processes"]');
+        await ctx.page.waitForSelector('[data-testid="kill-processes-confirm"]', {
+          state: "visible", timeout: 15000,
+        });
+        expect(await ctx.page.getByText(`PID ${holderPid}`).count()).toBe(1);
+
+        await ctx.page.click('[data-testid="kill-processes-cancel"]');
+        await ctx.page.waitForSelector('[data-testid="kill-processes-confirm"]', {
+          state: "detached", timeout: 15000,
+        });
+        expect(processAlive(holderPid)).toBe(true);
+
+        await ctx.page.click('[data-testid="ticket-cleanup-kill-processes"]');
+        await ctx.page.click('[data-testid="kill-processes-confirm"]');
+        await poll(() => processAlive(holderPid), (alive) => alive === false, 15000);
+        expect(processAlive(holderPid)).toBe(false);
+      } finally {
+        if (processAlive(holderPid)) holder.kill();
+      }
+    }, 60000);
 
   it("keeps completed cleanup status when the dialog is reopened", async () => {
     const project = await createProject(ctx.testServer, {

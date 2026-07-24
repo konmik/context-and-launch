@@ -349,6 +349,15 @@ export function uniqueSlug(base: string): string {
   return n === 0 ? safe : `${safe}-${n}`;
 }
 
+export function setCommandTemplateOverride(
+  server: TestServer, key: string, script: string,
+): void {
+  const file = path.join(server.dataDir, "config", "command-templates.json");
+  const current = JSON.parse(fs.readFileSync(file, "utf-8")) as Record<string, string>;
+  current[key] = script;
+  fs.writeFileSync(file, JSON.stringify(current, null, 2));
+}
+
 export async function gotoProject(page: Page, server: TestServer, projectSlug: string): Promise<void> {
   await page.goto(`${server.baseUrl}/project/${projectSlug}`);
   await page.waitForSelector('[data-testid="project-header-settings-button"]', {

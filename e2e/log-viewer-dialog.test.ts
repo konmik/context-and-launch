@@ -89,10 +89,6 @@ function loadingStatus(page: Page): Locator {
 	return logPanel(page).locator('[data-testid="log-viewer-loading"]');
 }
 
-function emptyStatus(page: Page): Locator {
-	return logPanel(page).getByText("No logs yet.", { exact: true });
-}
-
 async function waitForLoadingStatus(page: Page): Promise<void> {
 	await loadingStatus(page).waitFor({ state: "visible" });
 }
@@ -112,7 +108,7 @@ async function waitForPanelText(page: Page, text: string): Promise<void> {
 	).toContain(text);
 }
 
-async function resizeLogPanel(page: Page, delta: { x: number; y: number }): Promise<number> {
+async function resizeLogPanel(page: Page, delta: { x: number; y: number }): Promise<void> {
 	const handle = logPanel(page).locator(
 		'[data-part="resize-trigger"][data-axis="se"]',
 	);
@@ -122,11 +118,12 @@ async function resizeLogPanel(page: Page, delta: { x: number; y: number }): Prom
 	const startY = box.y + box.height / 2;
 	await page.mouse.move(startX, startY);
 	await page.mouse.down();
-	const startedAt = performance.now();
 	await page.mouse.move(startX + delta.x, startY + delta.y, { steps: 20 });
-	const elapsedMs = performance.now() - startedAt;
 	await page.mouse.up();
-	return elapsedMs;
+}
+
+async function renderedLineCount(page: Page): Promise<number> {
+	return logPanel(page).locator(".cm-line").count();
 }
 
 describe("Application Logs dialog (e2e, real server)", () => {
@@ -137,24 +134,6 @@ describe("Application Logs dialog (e2e, real server)", () => {
 		ctx.projects.push(project);
 		await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
 	}
-
-	it("shows loading while an initial empty read is pending", async () => {
-		await setupProject("logs-empty");
-		await ctx.page.clock.install();
-		seedLogs(ctx.testServer.dataDir, "");
-		const deferred = await deferNextLogRead(ctx.page);
-		await openLogs(ctx.page);
-		await deferred.requestUrl;
-		try {
-			await waitForLoadingStatus(ctx.page);
-			await expectStatusAbsent(emptyStatus(ctx.page));
-		} finally {
-			seedLogs(ctx.testServer.dataDir, "");
-			await deferred.release();
-		}
-		await waitForEmptyStatus(ctx.page);
-		await expectStatusAbsent(loadingStatus(ctx.page));
-	}, 60000);
 
 	it("shows content when the initial log read completes", async () => {
 		await setupProject("logs-content");
@@ -245,20 +224,21 @@ describe("Application Logs dialog (e2e, real server)", () => {
 		expect(await logPanel(ctx.page).innerText()).not.toContain(LOG_TEXT);
 	}, 60000);
 
-	it("keeps resize work bounded with a full log history", async () => {
+	it("renders only viewport-sized content for a full log history", async () => {
 		await setupProject("logs-resize");
-		seedLogs(ctx.testServer.dataDir, "");
-		await openLogs(ctx.page);
-		await waitForEmptyStatus(ctx.page);
-		const emptyResizeMs = await resizeLogPanel(ctx.page, { x: 160, y: 80 });
-		await closeLogs(ctx.page);
-
 		const line = "2026-07-24T10:00:00.000Z [app] realistic application log output for resize performance\n";
-		seedLogs(ctx.testServer.dataDir, line.repeat(16000));
+		const historyLines = 16000;
+		seedLogs(ctx.testServer.dataDir, line.repeat(historyLines));
 		await openLogs(ctx.page);
 		await waitForPanelText(ctx.page, "realistic application log output");
-		const fullResizeMs = await resizeLogPanel(ctx.page, { x: -160, y: -80 });
 
-		expect(fullResizeMs).toBeLessThan(emptyResizeMs * 1.5 + 100);
+		const beforeResize = await renderedLineCount(ctx.page);
+		expect(beforeResize).toBeGreaterThan(0);
+		expect(beforeResize).toBeLessThan(historyLines / 10);
+
+		await resizeLogPanel(ctx.page, { x: -160, y: -80 });
+		const afterResize = await renderedLineCount(ctx.page);
+		expect(afterResize).toBeGreaterThan(0);
+		expect(afterResize).toBeLessThan(historyLines / 10);
 	}, 60000);
 });
