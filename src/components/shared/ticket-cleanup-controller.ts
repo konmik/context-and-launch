@@ -119,19 +119,24 @@ export function createTicketCleanupController(deps: TicketCleanupDeps) {
     const ticket = deps.ticket();
     const processes = lockingProcesses();
     if (!ticket || !processes || processes.length === 0) return;
+    const token = lifecycleToken;
     setKillingProcesses(true);
+    setErrorInfo(null);
+    let actionError: ErrorInfo | undefined;
     try {
       const result = await deps.killLockingProcesses(
         deps.projectSlug(), ticket.folderName, processes.map(p => p.pid),
       );
-      if (result.error) setErrorInfo(toErrorInfo(result.error));
+      if (result.error) actionError = toErrorInfo(result.error);
     } catch (err: any) {
-      setErrorInfo({ description: err?.message ?? 'Failed to kill processes' });
-    } finally {
-      setKillingProcesses(false);
-      closeKillDialog();
-      await startChecks();
+      actionError = { description: err?.message ?? 'Failed to kill processes' };
     }
+    if (token !== lifecycleToken) return;
+    setKillingProcesses(false);
+    closeKillDialog();
+    await startChecks();
+    if (token !== lifecycleToken) return;
+    if (actionError) setErrorInfo(actionError);
   }
 
   function openForceDeleteDialog(): void {
@@ -141,17 +146,22 @@ export function createTicketCleanupController(deps: TicketCleanupDeps) {
   async function confirmForceDelete(): Promise<void> {
     const ticket = deps.ticket();
     if (!ticket) return;
+    const token = lifecycleToken;
     setForceDeleting(true);
+    setErrorInfo(null);
+    let actionError: ErrorInfo | undefined;
     try {
       const result = await deps.forceDeleteLocalBranch(deps.projectSlug(), ticket.folderName);
-      if (result.error) setErrorInfo(toErrorInfo(result.error));
+      if (result.error) actionError = toErrorInfo(result.error);
     } catch (err: any) {
-      setErrorInfo({ description: err?.message ?? 'Failed to force-delete branch' });
-    } finally {
-      setForceDeleting(false);
-      closeForceDeleteDialog();
-      await startChecks();
+      actionError = { description: err?.message ?? 'Failed to force-delete branch' };
     }
+    if (token !== lifecycleToken) return;
+    setForceDeleting(false);
+    closeForceDeleteDialog();
+    await startChecks();
+    if (token !== lifecycleToken) return;
+    if (actionError) setErrorInfo(actionError);
   }
 
   function closeForceDeleteDialog(): void {
