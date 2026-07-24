@@ -30,6 +30,8 @@ function makeDeps(overrides?: Partial<TicketCleanupDeps>): TicketCleanupDeps {
     onCleanup: async () => ({}),
     onSubmit: async () => ({}),
     onOpenChange: () => {},
+    loadLockingProcesses: async () => [],
+    killLockingProcesses: async () => ({}),
     ...overrides,
   };
 }

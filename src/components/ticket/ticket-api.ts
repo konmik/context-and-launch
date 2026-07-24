@@ -17,6 +17,7 @@ import { findHerdrAgent, stopHerdrAgent } from "~/core/herdr/herdr-control.js";
 import { ValidationError, NotFoundError, errorMessage, errorPayload, errorResult } from "~/core/shared/errors.js";
 import type { ErrorInfo } from "~/core/shared/errors.js";
 import { resolveInitialTicketStatus } from "~/core/board/initial-ticket-status.js";
+import type { LockingProcessInfo } from "~/core/worktree/agent-worktree.js";
 
 function mutateTickets<T>(projectSlug: string, mutation: (store: TicketStore) => T): T {
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
@@ -374,4 +375,32 @@ export async function worktreeCleanup(
       message: payload.description, errorInfo: payload as ErrorInfo,
     };
   }
+}
+
+export async function getWorktreeLockingProcesses(
+  projectSlug: string, folderName: string,
+): Promise<LockingProcessInfo[]> {
+  "use server";
+  const { worktreePath } = resolveTicketCleanupTarget(projectSlug, folderName);
+  return agentWorktreeManager.findLockingProcesses(worktreePath);
+}
+
+export async function killWorktreeLockingProcesses(
+  projectSlug: string, folderName: string, pids: number[],
+): Promise<{ error?: string }> {
+  "use server";
+  const failed: string[] = [];
+  for (const pid of pids) {
+    if (pid < 2 || pid === process.pid) continue;
+    try {
+      process.kill(pid);
+    } catch (e: any) {
+      failed.push(`PID ${pid}: ${e?.message ?? 'Unknown error'}`);
+    }
+  }
+  if (failed.length > 0) {
+    return { error: `Failed to kill: ${failed.join(', ')}` };
+  }
+  await new Promise(resolve => setTimeout(resolve, 500));
+  return {};
 }

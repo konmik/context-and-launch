@@ -4,11 +4,15 @@ import {
   FloatingWindow, FloatingWindowHeader, FloatingPanelBody,
   FloatingPanelCloseTrigger, FloatingPanelTitle,
 } from "../ui/floating-panel";
+import { DialogRoot, DialogTitle, DialogDescription } from "../ui/dialog";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { ErrorInfo } from "~/core/shared/errors.js";
 import type { CleanupItemKey } from "~/core/worktree/ticket-cleanup-checks.js";
+import type { LockingProcessInfo } from "~/core/worktree/agent-worktree.js";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
-import { getCleanupStatus } from "~/components/ticket/ticket-api.js";
+import {
+  getCleanupStatus, getWorktreeLockingProcesses, killWorktreeLockingProcesses,
+} from "~/components/ticket/ticket-api.js";
 import type { TicketCleanupOptions } from "./ticket-cleanup-pure.js";
 import {
   createTicketCleanupController,
@@ -54,6 +58,8 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps) {
     onCleanup: props.onCleanup,
     onSubmit: props.onSubmit,
     onOpenChange: props.onOpenChange,
+    loadLockingProcesses: getWorktreeLockingProcesses,
+    killLockingProcesses: killWorktreeLockingProcesses,
   });
 
   createEffect(() => {
@@ -67,6 +73,7 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps) {
   });
 
   return (
+    <>
     <FloatingWindow
       open={props.open && !!props.ticket}
       onOpenChange={(d) => { if (!d.open) s.close(); }}
@@ -121,6 +128,18 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps) {
                               <span class={"warning" in item() ? "text-destructive" : "text-muted-foreground"}>
                                 {(item() as { reason: string }).reason}
                               </span>
+                              <Show when={(item() as any).killable}>
+                                {" "}
+                                <button
+                                  type="button"
+                                  onClick={() => void s.openKillDialog()}
+                                  disabled={s.busy()}
+                                  class="text-xs underline text-destructive hover:text-destructive/80"
+                                  data-testid="ticket-cleanup-kill-processes"
+                                >
+                                  Kill processes
+                                </button>
+                              </Show>
                             </Show>
                             <Show when={item().state === "error"}>
                               <span class="text-destructive">
@@ -177,5 +196,65 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps) {
         </form>
       </FloatingPanelBody>
     </FloatingWindow>
+    <KillProcessesConfirmDialog
+      open={s.killDialogOpen()}
+      processes={s.lockingProcesses()}
+      killing={s.killingProcesses()}
+      onConfirm={() => void s.confirmKill()}
+      onClose={s.closeKillDialog}
+    />
+    </>
+  );
+}
+
+function KillProcessesConfirmDialog(props: {
+  open: boolean;
+  processes: LockingProcessInfo[] | undefined;
+  killing: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <DialogRoot open={props.open} onOpenChange={(open) => { if (!open) props.onClose(); }}>
+      <DialogTitle>Kill Locking Processes</DialogTitle>
+      <Show when={props.processes !== undefined} fallback={
+        <p class="animate-pulse text-sm text-muted-foreground">Finding locking processes...</p>
+      }>
+        <Show when={props.processes!.length > 0} fallback={
+          <DialogDescription>
+            Could not identify the locking processes. Close any editors or terminals
+            using this folder, then try again.
+          </DialogDescription>
+        }>
+          <DialogDescription>
+            Killing these processes may cause unsaved work to be lost.
+          </DialogDescription>
+          <ul class="my-3 space-y-1">
+            <For each={props.processes}>
+              {(p) => (
+                <li class="text-sm">
+                  {p.processName} <span class="text-muted-foreground">(PID {p.pid})</span>
+                </li>
+              )}
+            </For>
+          </ul>
+        </Show>
+      </Show>
+      <div class="flex justify-end gap-2">
+        <button type="button" onClick={props.onClose} class="btn-secondary"
+          data-testid="kill-processes-cancel">
+          Cancel
+        </button>
+        <Show when={props.processes && props.processes.length > 0}>
+          <button
+            type="button"
+            disabled={props.killing}
+            onClick={props.onConfirm}
+            class="btn-destructive"
+            data-testid="kill-processes-confirm"
+          >Kill All</button>
+        </Show>
+      </div>
+    </DialogRoot>
   );
 }

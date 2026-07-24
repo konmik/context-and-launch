@@ -24,6 +24,41 @@ function canonicalize(p: string): string {
 	}
 }
 
+export interface LockingProcessInfo {
+	pid: number;
+	processName: string;
+}
+
+function parseLsofProcesses(stdout: string): LockingProcessInfo[] {
+	const seen = new Set<number>();
+	const result: LockingProcessInfo[] = [];
+	for (const line of stdout.split('\n')) {
+		if (!line.trim() || line.startsWith('COMMAND')) continue;
+		const parts = line.trim().split(/\s+/);
+		if (parts.length < 2) continue;
+		const pid = parseInt(parts[1], 10);
+		if (isNaN(pid) || seen.has(pid) || pid === process.pid) continue;
+		seen.add(pid);
+		result.push({ pid, processName: parts[0] });
+	}
+	return result;
+}
+
+function parseTabSeparatedProcesses(stdout: string): LockingProcessInfo[] {
+	const seen = new Set<number>();
+	const result: LockingProcessInfo[] = [];
+	for (const line of stdout.split('\n')) {
+		if (!line.trim()) continue;
+		const parts = line.trim().split('\t');
+		if (parts.length < 2) continue;
+		const pid = parseInt(parts[0], 10);
+		if (isNaN(pid) || seen.has(pid) || pid === process.pid) continue;
+		seen.add(pid);
+		result.push({ pid, processName: parts[1] });
+	}
+	return result;
+}
+
 export interface SavedWorktreeInfo {
 	branchName: string;
 	agentWorktreePath: string;
@@ -190,6 +225,34 @@ export class AgentWorktreeManager {
 				appLog('worktree', `busy probe unavailable for ${worktreePath}: ${errorMessage(error)}`);
 			}
 			return false;
+		}
+	}
+
+	async findLockingProcesses(worktreePath: string): Promise<LockingProcessInfo[]> {
+		if (process.platform === 'win32') {
+			try {
+				const scriptPath = path.join(
+					this.launcherConfig.getConfigDefaultsDir(),
+					'find-locking-processes.ps1',
+				);
+				const normalizedPath = worktreePath.replace(/\//g, '\\');
+				const stdout = await this.commands.execute(
+					'agent-worktree.locking-processes.windows', normalizedPath,
+					{ scriptPath, worktreePath: normalizedPath },
+				);
+				return parseTabSeparatedProcesses(stdout);
+			} catch {
+				return [];
+			}
+		}
+		const key = process.platform === 'darwin'
+			? 'agent-worktree.busy.probe.macos'
+			: 'agent-worktree.busy.probe.linux';
+		try {
+			const stdout = await this.commands.execute(key, worktreePath, { worktreePath });
+			return parseLsofProcesses(stdout);
+		} catch {
+			return [];
 		}
 	}
 

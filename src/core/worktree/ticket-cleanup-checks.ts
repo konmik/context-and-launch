@@ -7,7 +7,7 @@ export type CleanupItemKey =
 
 export type CleanupCheckItem =
 	| { state: "ready" }
-	| { state: "blocked"; reason: string; warning?: true }
+	| { state: "blocked"; reason: string; warning?: true; killable?: true }
 	| { state: "error"; error: ErrorInfo };
 
 export type TicketCleanupStatus = Record<CleanupItemKey, CleanupCheckItem>;
@@ -70,6 +70,7 @@ export async function runTicketCleanupChecks(
 			return {
 				state: "blocked",
 				warning: true,
+				killable: true,
 				reason: herdr.state === "ready"
 					? "Worktree is in use by another process\n(a Herdr agent is running in it)"
 					: "Worktree is in use by another process",

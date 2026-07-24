@@ -127,7 +127,13 @@ if (-not $ready) {
     throw "Dev server did not become ready at $url within 30 seconds. Last error: $lastStartupError`n$stderr`n$stdout"
 }
 
-Start-Process -FilePath $chromePath -ArgumentList $url
+$chromeDataDir = Join-Path $env:TEMP "chrome-dev-$port"
+Start-Process -FilePath $chromePath -ArgumentList @(
+    "--user-data-dir=$chromeDataDir",
+    "--no-first-run",
+    "--no-default-browser-check",
+    $url
+)
 
 Write-Output "Dev server started at $url"
 Write-Output "Process ID: $($devProcess.Id)"

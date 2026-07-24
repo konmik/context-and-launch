@@ -2,6 +2,7 @@ import { createSignal } from "solid-js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { ErrorInfo } from "~/core/shared/errors.js";
 import type { CleanupItemKey, TicketCleanupStatus } from "~/core/worktree/ticket-cleanup-checks.js";
+import type { LockingProcessInfo } from "~/core/worktree/agent-worktree.js";
 import {
   type TicketCleanupOptions, type TicketCleanupItemStates,
   singleCleanupOption, toErrorInfo, allChecking, allError,
@@ -17,6 +18,8 @@ export interface TicketCleanupDeps {
   ) => Promise<{ error?: string | ErrorInfo }>;
   onSubmit: (folderName: string) => Promise<{ error?: string | ErrorInfo }>;
   onOpenChange: (open: boolean) => void;
+  loadLockingProcesses: (projectSlug: string, folderName: string) => Promise<LockingProcessInfo[]>;
+  killLockingProcesses: (projectSlug: string, folderName: string, pids: number[]) => Promise<{ error?: string }>;
 }
 
 export function createTicketCleanupController(deps: TicketCleanupDeps) {
@@ -24,6 +27,9 @@ export function createTicketCleanupController(deps: TicketCleanupDeps) {
   const [runningItem, setRunningItem] = createSignal<CleanupItemKey>();
   const [submitting, setSubmitting] = createSignal(false);
   const [errorInfo, setErrorInfo] = createSignal<ErrorInfo | null>(null);
+  const [killDialogOpen, setKillDialogOpen] = createSignal(false);
+  const [lockingProcesses, setLockingProcesses] = createSignal<LockingProcessInfo[] | undefined>();
+  const [killingProcesses, setKillingProcesses] = createSignal(false);
 
   let requestToken = 0;
   let lifecycleToken = 0;
@@ -70,7 +76,7 @@ export function createTicketCleanupController(deps: TicketCleanupDeps) {
   }
 
   const actionLabel = () => deps.action() === "archive" ? "Archive" : "Delete";
-  const busy = () => submitting() || runningItem() !== undefined;
+  const busy = () => submitting() || runningItem() !== undefined || killingProcesses();
 
   async function doSubmit() {
     const ticket = deps.ticket();
@@ -93,6 +99,43 @@ export function createTicketCleanupController(deps: TicketCleanupDeps) {
     void doSubmit();
   }
 
+  async function openKillDialog(): Promise<void> {
+    const ticket = deps.ticket();
+    if (!ticket) return;
+    setKillDialogOpen(true);
+    setLockingProcesses(undefined);
+    try {
+      const processes = await deps.loadLockingProcesses(deps.projectSlug(), ticket.folderName);
+      setLockingProcesses(processes);
+    } catch {
+      setLockingProcesses([]);
+    }
+  }
+
+  async function confirmKill(): Promise<void> {
+    const ticket = deps.ticket();
+    const processes = lockingProcesses();
+    if (!ticket || !processes || processes.length === 0) return;
+    setKillingProcesses(true);
+    try {
+      const result = await deps.killLockingProcesses(
+        deps.projectSlug(), ticket.folderName, processes.map(p => p.pid),
+      );
+      if (result.error) setErrorInfo(toErrorInfo(result.error));
+    } catch (err: any) {
+      setErrorInfo({ description: err?.message ?? 'Failed to kill processes' });
+    } finally {
+      setKillingProcesses(false);
+      closeKillDialog();
+      await startChecks();
+    }
+  }
+
+  function closeKillDialog(): void {
+    setKillDialogOpen(false);
+    setLockingProcesses(undefined);
+  }
+
   function close() {
     lifecycleToken++;
     requestToken++;
@@ -100,11 +143,14 @@ export function createTicketCleanupController(deps: TicketCleanupDeps) {
     setErrorInfo(null);
     setItems(allChecking());
     setRunningItem(undefined);
+    closeKillDialog();
   }
 
   return {
     items, runningItem, submitting, busy, errorInfo, actionLabel,
     runCleanup, startChecks, doSubmit, handleSubmit, close,
+    killDialogOpen, lockingProcesses, killingProcesses,
+    openKillDialog, confirmKill, closeKillDialog,
   };
 }
 

@@ -65,6 +65,7 @@
   "agent-worktree.main-tree": "git rev-parse {{treeRef}}",
   "agent-worktree.remove": "git worktree remove {{worktreePath}}",
   "agent-worktree.branch.delete-local": "git branch -D {{branch}}",
+  "agent-worktree.locking-processes.windows": "& {{scriptPath}} {{worktreePath}}",
   "agent-worktree.branch.delete-remote": "git push origin --delete {{branch}}",
   "herdr.workspace.list": "herdr workspace list",
   "herdr.agent.list": "herdr agent list",

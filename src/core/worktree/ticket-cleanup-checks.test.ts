@@ -92,6 +92,7 @@ describe("runTicketCleanupChecks", () => {
 			state: "blocked",
 			reason: "Worktree is in use by another process\n(a Herdr agent is running in it)",
 			warning: true,
+			killable: true,
 		});
 	});
 
@@ -101,7 +102,7 @@ describe("runTicketCleanupChecks", () => {
 			findHerdrAgent: async () => ({ kind: "no-agent" }),
 		}));
 		expect(status.deleteWorktree).toEqual({
-			state: "blocked", reason: "Worktree is in use by another process", warning: true,
+			state: "blocked", reason: "Worktree is in use by another process", warning: true, killable: true,
 		});
 	});
 
@@ -111,7 +112,7 @@ describe("runTicketCleanupChecks", () => {
 			findHerdrAgent: async () => { throw new Error("herdr broke"); },
 		}));
 		expect(status.deleteWorktree).toEqual({
-			state: "blocked", reason: "Worktree is in use by another process", warning: true,
+			state: "blocked", reason: "Worktree is in use by another process", warning: true, killable: true,
 		});
 	});
 

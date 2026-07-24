@@ -125,6 +125,7 @@ export const COMMAND_TEMPLATE_DEFINITIONS = [
 	definition('agent-worktree.main-tree', 'Resolve main tree', AGENT_WORKTREE, ['treeRef'], gitOptions),
 	definition('agent-worktree.remove', 'Remove Agent Worktree', AGENT_WORKTREE, ['worktreePath'], gitOptions),
 	definition('agent-worktree.branch.delete-local', 'Delete local Agent Worktree branch', AGENT_WORKTREE, ['branch'], gitOptions),
+	definition('agent-worktree.locking-processes.windows', 'Find processes locking Agent Worktree on Windows', AGENT_WORKTREE, ['scriptPath', 'worktreePath'], { platforms: ['windows'], timeoutMs: 10_000 }),
 	definition('agent-worktree.branch.delete-remote', 'Delete remote Agent Worktree branch', AGENT_WORKTREE, ['branch'], gitOptions),
 
 	definition('herdr.workspace.list', 'List Herdr workspaces', HERDR),

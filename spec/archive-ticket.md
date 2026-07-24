@@ -28,6 +28,18 @@
       - Worktree has uncommitted changes
       - Worktree is in use by another process
         - When a Herdr agent is running in it, the reason says so
+        - A "Kill processes" link appears next to the reason
+          - User clicks it
+            - A confirmation dialog opens
+            - The dialog lists the processes locking the worktree folder
+              - Each entry shows the process name and PID
+            - If no processes can be identified, the dialog says so
+            - User confirms
+              - Kill all listed processes
+              - Close the dialog
+              - Refresh all cleanup statuses
+            - User cancels
+              - Close the dialog
       - No local branch
       - Branch has unmerged commits
       - No remote branch
