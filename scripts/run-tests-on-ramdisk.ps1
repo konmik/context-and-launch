@@ -6,15 +6,20 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$volume = Get-Volume -DriveLetter T -ErrorAction SilentlyContinue
-if (-not $volume) {
-  throw "The T: RAM disk does not exist. Run npm run test:ramdisk:create first."
-}
-if ($volume.FileSystemLabel.Trim() -ne "Temp" -or $volume.FileSystem -ne "NTFS") {
-  throw "T: is not the Temp NTFS RAM disk."
-}
-if ($volume.SizeRemaining -lt 2GB) {
-  throw "The T: RAM disk requires at least 2 GB of free space to run the test suite."
+. (Join-Path $PSScriptRoot "ramdisk-drive.ps1")
+
+$drive = Get-TestRamDiskInfo
+$driveStatus = Get-TestRamDiskStatus -DriveInfo $drive -MinimumAvailableFreeSpace 2GB
+switch ($driveStatus) {
+  "Missing" {
+    throw "The T: RAM disk does not exist. Run npm run test:ramdisk:create first."
+  }
+  "Invalid" {
+    throw "T: is not the Temp NTFS RAM disk."
+  }
+  "InsufficientSpace" {
+    throw "The T: RAM disk requires at least 2 GB of free space to run the test suite."
+  }
 }
 
 $source = Split-Path $PSScriptRoot -Parent

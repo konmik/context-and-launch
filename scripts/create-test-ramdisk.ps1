@@ -1,8 +1,10 @@
 $ErrorActionPreference = "Stop"
 
-$existingVolume = Get-Volume -DriveLetter T -ErrorAction SilentlyContinue
-if ($existingVolume) {
-  if ($existingVolume.FileSystemLabel.Trim() -ne "Temp" -or $existingVolume.FileSystem -ne "NTFS") {
+. (Join-Path $PSScriptRoot "ramdisk-drive.ps1")
+
+$existingDrive = Get-TestRamDiskInfo
+if ($existingDrive) {
+  if ((Get-TestRamDiskStatus -DriveInfo $existingDrive) -ne "Ready") {
     throw "T: is already in use and is not the Temp NTFS RAM disk."
   }
   exit 0
@@ -36,8 +38,8 @@ if ($LASTEXITCODE -ne 0) {
 
 $deadline = [DateTime]::UtcNow.AddSeconds(20)
 do {
-  $volume = Get-Volume -DriveLetter T -ErrorAction SilentlyContinue
-  if ($volume -and $volume.FileSystemLabel.Trim() -eq "Temp" -and $volume.FileSystem -eq "NTFS") {
+  $drive = Get-TestRamDiskInfo
+  if ((Get-TestRamDiskStatus -DriveInfo $drive) -eq "Ready") {
     exit 0
   }
   Start-Sleep -Milliseconds 200
