@@ -9,6 +9,7 @@ dist/
 !.env.example
 temp/
 .playwright-mcp/
+.pi-subagents/
 app.config.timestamp_*.js
 skills-lock.json
 dist-electron/
