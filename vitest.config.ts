@@ -12,7 +12,7 @@ const solidVite = { plugins, resolve: { alias, conditions: ["browser", "developm
 export default defineConfig({
   ...solidVite,
   test: {
-    poolOptions: { forks: { maxForks: 12 } },
+    poolOptions: { forks: { maxForks: process.platform === "win32" ? 4 : 12 } },
     projects: [
       { ...solidVite, test: { name: "unit-ts", isolate: false, include: ["src/**/*.test.ts", "electron/**/*.test.ts"], exclude: ["**/*.shell.test.ts"], testTimeout: 20000, maxConcurrency: 2, setupFiles: ["src/test-git-env.ts"] } },
       { ...solidVite, test: { name: "unit-tsx", include: ["src/**/*.test.tsx"], environment: "jsdom", setupFiles: ["src/test-setup.ts"] } },
