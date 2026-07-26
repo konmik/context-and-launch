@@ -8,11 +8,18 @@ $ErrorActionPreference = "Stop"
 
 . (Join-Path $PSScriptRoot "ramdisk-drive.ps1")
 
+# The workspace is a read-mostly mirror the OS file cache already keeps hot, so it lives on
+# the local disk and is refreshed incrementally. Only the runtime - the temporary files,
+# sandboxed data directory and caches a run churns through - goes on the RAM disk.
 $source = Split-Path $PSScriptRoot -Parent
-$root = "T:\context-launch-tests"
+if (-not $env:LOCALAPPDATA) {
+  throw "LOCALAPPDATA is not set; the test workspace has nowhere to live."
+}
+$workspaceRoot = Join-Path $env:LOCALAPPDATA "context-launch-tests"
+$runtimeRoot = "T:\context-launch-tests"
 $markerName = ".managed-by-context-launch"
 $lockName = ".run-lock"
-$requiredFreeSpace = 2GB
+$requiredRuntimeFreeSpace = 700MB
 
 function ConvertTo-PathSegment {
   param([string]$Value)
@@ -42,9 +49,9 @@ function Get-SourceBranch {
 }
 
 function Test-RunLockAlive {
-  param([string]$RunDirectory)
+  param([string]$Directory)
 
-  $lockFile = Join-Path $RunDirectory $lockName
+  $lockFile = Join-Path $Directory $lockName
   if (-not (Test-Path $lockFile)) {
     return $false
   }
@@ -57,11 +64,26 @@ function Test-RunLockAlive {
   }
 }
 
+function Initialize-ManagedDirectory {
+  param([string]$Directory)
+
+  New-Item -ItemType Directory -Force $Directory | Out-Null
+  $marker = Join-Path $Directory $markerName
+  if (-not (Test-Path $marker)) {
+    if ((Get-ChildItem $Directory -Force).Count -ne 0) {
+      throw "$Directory contains data not created by this test runner. Move it before running tests."
+    }
+    Set-Content -Path $marker -Value "Context & Launch test workspace"
+  }
+}
+
 function Get-ManagedRunDirectories {
-  if (-not (Test-Path $root)) {
+  param([string]$Root)
+
+  if (-not (Test-Path $Root)) {
     return @()
   }
-  $projectDirectories = @(Get-ChildItem $root -Directory -ErrorAction SilentlyContinue)
+  $projectDirectories = @(Get-ChildItem $Root -Directory -ErrorAction SilentlyContinue)
   $runDirectories = @()
   foreach ($projectDirectory in $projectDirectories) {
     $runDirectories += @(Get-ChildItem $projectDirectory.FullName -Directory -ErrorAction SilentlyContinue)
@@ -69,21 +91,19 @@ function Get-ManagedRunDirectories {
   return @($runDirectories | Where-Object { Test-Path (Join-Path $_.FullName $markerName) })
 }
 
-# Warm mirrors are the point of the RAM disk, so an idle branch keeps its workspace until
-# the disk actually needs the space. Only runs whose owning process is gone are removable.
-function Remove-StaleRunDirectories {
+function Remove-StaleRuntimeDirectories {
   param([string]$KeepDirectory)
 
-  $stale = @(Get-ManagedRunDirectories |
+  $stale = @(Get-ManagedRunDirectories -Root $runtimeRoot |
     Where-Object { $_.FullName -ne $KeepDirectory -and -not (Test-RunLockAlive $_.FullName) } |
     Sort-Object LastWriteTime)
 
   foreach ($directory in $stale) {
     $drive = Get-TestRamDiskInfo
-    if ($drive -and $drive.AvailableFreeSpace -ge $requiredFreeSpace) {
+    if ($drive -and $drive.AvailableFreeSpace -ge $requiredRuntimeFreeSpace) {
       return
     }
-    Write-Host "Reclaiming space from the idle test workspace $($directory.FullName)."
+    Write-Host "Reclaiming space from the idle test runtime $($directory.FullName)."
     Remove-Item $directory.FullName -Recurse -Force
   }
 }
@@ -98,25 +118,17 @@ switch ($driveStatus) {
   }
 }
 
-$projectSegment = ConvertTo-PathSegment (Split-Path $source -Leaf)
-$branchSegment = ConvertTo-PathSegment (Get-SourceBranch)
-$runRoot = Join-Path $root (Join-Path $projectSegment $branchSegment)
-$workspace = Join-Path $runRoot "workspace"
-$runtime = Join-Path $runRoot "runtime"
-$marker = Join-Path $runRoot $markerName
-$lockFile = Join-Path $runRoot $lockName
+$runSegments = Join-Path `
+  (ConvertTo-PathSegment (Split-Path $source -Leaf)) `
+  (ConvertTo-PathSegment (Get-SourceBranch))
+$workspaceRun = Join-Path $workspaceRoot $runSegments
+$runtimeRun = Join-Path $runtimeRoot $runSegments
+$workspace = Join-Path $workspaceRun "workspace"
+$lockFile = Join-Path $workspaceRun $lockName
 
-New-Item -ItemType Directory -Force $runRoot | Out-Null
-if (-not (Test-Path $marker)) {
-  $existingEntries = Get-ChildItem $runRoot -Force
-  if ($existingEntries.Count -ne 0) {
-    throw "$runRoot contains data not created by this test runner. Move it before running tests."
-  }
-  Set-Content -Path $marker -Value "Context & Launch test RAM workspace"
-}
-
-if (Test-RunLockAlive $runRoot) {
-  throw "Another test run is already using $runRoot. Wait for it to finish."
+Initialize-ManagedDirectory $workspaceRun
+if (Test-RunLockAlive $workspaceRun) {
+  throw "Another test run is already using $workspaceRun. Wait for it to finish."
 }
 Set-Content -Path $lockFile -Value (
   [pscustomobject]@{
@@ -126,13 +138,18 @@ Set-Content -Path $lockFile -Value (
 )
 
 try {
-  Remove-StaleRunDirectories -KeepDirectory $runRoot
+  Remove-StaleRuntimeDirectories -KeepDirectory $runtimeRun
   if ((Get-TestRamDiskStatus -DriveInfo (Get-TestRamDiskInfo) `
-        -MinimumAvailableFreeSpace $requiredFreeSpace) -eq "InsufficientSpace") {
-    throw "The T: RAM disk requires at least 2 GB of free space to run the test suite."
+        -MinimumAvailableFreeSpace $requiredRuntimeFreeSpace) -eq "InsufficientSpace") {
+    throw "The T: RAM disk requires at least 700 MB of free space to run the test suite."
   }
 
-  New-Item -ItemType Directory -Force $workspace, $runtime | Out-Null
+  # A run must not inherit the previous run's data directory, logs or temporary files.
+  if (Test-Path $runtimeRun) {
+    Remove-Item $runtimeRun -Recurse -Force
+  }
+  Initialize-ManagedDirectory $runtimeRun
+  New-Item -ItemType Directory -Force $workspace | Out-Null
 
   $excludedDirectories = @(
     ".output",
@@ -166,10 +183,10 @@ try {
     throw "Failed to mirror the workspace to $workspace; robocopy exited with code $LASTEXITCODE."
   }
 
-  $tempDirectory = Join-Path $runtime "temp"
-  $cacheDirectory = Join-Path $runtime "cache"
-  $dataDirectory = Join-Path $runtime "data"
-  $homeDirectory = Join-Path $runtime "home"
+  $tempDirectory = Join-Path $runtimeRun "temp"
+  $cacheDirectory = Join-Path $runtimeRun "cache"
+  $dataDirectory = Join-Path $runtimeRun "data"
+  $homeDirectory = Join-Path $runtimeRun "home"
   New-Item -ItemType Directory -Force $tempDirectory, $cacheDirectory, $dataDirectory, $homeDirectory | Out-Null
 
   # The sandboxed HOME hides the developer's global git identity, and a repository the tests
