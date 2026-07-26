@@ -8,9 +8,6 @@ $ErrorActionPreference = "Stop"
 
 . (Join-Path $PSScriptRoot "ramdisk-drive.ps1")
 
-# The workspace is a read-mostly mirror the OS file cache already keeps hot, so it lives on
-# the local disk and is refreshed incrementally. Only the runtime - the temporary files,
-# sandboxed data directory and caches a run churns through - goes on the RAM disk.
 $source = Split-Path $PSScriptRoot -Parent
 if (-not $env:LOCALAPPDATA) {
   throw "LOCALAPPDATA is not set; the test workspace has nowhere to live."
@@ -144,7 +141,6 @@ try {
     throw "The T: RAM disk requires at least 700 MB of free space to run the test suite."
   }
 
-  # A run must not inherit the previous run's data directory, logs or temporary files.
   if (Test-Path $runtimeRun) {
     Remove-Item $runtimeRun -Recurse -Force
   }
@@ -189,9 +185,6 @@ try {
   $homeDirectory = Join-Path $runtimeRun "home"
   New-Item -ItemType Directory -Force $tempDirectory, $cacheDirectory, $dataDirectory, $homeDirectory | Out-Null
 
-  # The sandboxed HOME hides the developer's global git identity, and a repository the tests
-  # clone has no per-repository identity to fall back on. The sandbox supplies its own so a
-  # run never depends on how the machine happens to be configured.
   Set-Content -Path (Join-Path $homeDirectory ".gitconfig") -Value @"
 [user]
 	name = Context Launch Tests

@@ -304,9 +304,6 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     await loadActiveFile(af);
   }, { defer: true }));
 
-  // The worktree is shared with agents and the user's own editors. A change to it
-  // refreshes the file list and the open file when nothing is at stake, and is held as
-  // a conflict when the editor has edits that a reload would destroy.
   createEffect(on(worktreeRevision, () => {
     void revalidate("ticket-files");
     if (activeTab() !== "editor") return;

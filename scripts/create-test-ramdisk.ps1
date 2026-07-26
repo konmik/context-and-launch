@@ -31,10 +31,6 @@ if ($freeMemoryBytes -lt 3GB) {
   throw "At least 3 GB of free physical memory is required to create the 2 GB test RAM disk."
 }
 
-# The disk holds only the runtime a test run churns through - roughly 500 MB of scratch git
-# repositories, sandboxed data directories and caches per e2e run, which is what the RAM disk
-# is worth pinning memory for. The workspace mirror lives on the local disk instead, where the
-# OS file cache already serves it from memory for free.
 & $aim -a -t file -o awe -s 2G -m T: -p "/fs:ntfs /q /y /v:Temp"
 if ($LASTEXITCODE -ne 0) {
   throw "AIM Toolkit failed to create T: with exit code $LASTEXITCODE."
