@@ -16,6 +16,7 @@ import {
   DeleteFileDialog,
   ConfirmUploadDialog,
   ShortcutConfirmationDialog,
+  ExternalChangeDialog,
   activeFileLabel,
 } from "./ticket-detail-parts.js";
 import { EditorTab } from "./ticket-detail-editor-tab.js";
@@ -318,6 +319,13 @@ function TicketDetailContent(props: {
         running={s.runningShortcut() !== ""}
         onCancel={() => s.setShortcutConfirmation(undefined)}
         onProceed={(n) => { s.setShortcutConfirmation(undefined); s.runShortcut(n, true); }}
+      />
+
+      <ExternalChangeDialog
+        open={s.confirmingExternalChange()}
+        label={activeFileLabel(s.activeFile())}
+        onOverwrite={s.overwriteExternalChange}
+        onDiscard={s.discardExternalChange}
       />
 
       <NewFileDialog

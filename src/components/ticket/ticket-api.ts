@@ -2,7 +2,7 @@ import fs from "fs";
 import { query } from "@solidjs/router";
 import {
   worktreeManager, boardConfigManager, projectRegistry,
-  operationTracker, ticketSyncManager, syncPendingTracker,
+  operationTracker, ticketSyncManager, syncPendingTracker, worktreeRevisions,
   launcherConfigManager, agentWorktreeManager, fileWatcher, herdrExec,
   commandTemplateService,
 } from "~/core/config/instances.js";
@@ -24,7 +24,7 @@ function mutateTickets<T>(projectSlug: string, mutation: (store: TicketStore) =>
   try {
     return mutation(new TicketStore(worktreeDir));
   } finally {
-    syncPendingTracker.invalidate(worktreeDir);
+    worktreeRevisions.bump(worktreeDir);
   }
 }
 
@@ -39,7 +39,7 @@ async function mutateTicketsExclusive<T>(
       () => mutation(new TicketStore(worktreeDir)),
     );
   } finally {
-    syncPendingTracker.invalidate(worktreeDir);
+    worktreeRevisions.bump(worktreeDir);
   }
 }
 
@@ -202,7 +202,7 @@ export async function uploadFile(
       }
       return { ok: true as const, results };
     } finally {
-      syncPendingTracker.invalidate(worktreeDir);
+      worktreeRevisions.bump(worktreeDir);
     }
   } catch (e) {
     return errorResult(e);
@@ -253,13 +253,18 @@ export async function syncTickets(projectSlug: string) {
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
     return await fileWatcher.runWithWatchPaused(worktreeDir, async () => {
       const result = await operationTracker.track(ticketSyncManager.sync(worktreeDir));
-      syncPendingTracker.invalidate(worktreeDir);
+      worktreeRevisions.bump(worktreeDir);
       return { ok: true as const, ...result };
     });
   } catch (e) {
     return errorResult(e);
   }
 }
+
+export const getWorktreeRevision = query(async (projectSlug: string): Promise<number> => {
+  "use server";
+  return worktreeRevisions.current(worktreeManager.getWorktreeDir(projectSlug));
+}, "worktree-revision");
 
 export const getSyncPending = query(async (projectSlug: string): Promise<boolean> => {
   "use server";

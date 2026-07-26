@@ -32,3 +32,4 @@ export const ticketSyncManager = services.ticketSyncManager;
 export const projectPageService = services.projectPageService;
 export const operationTracker = services.operationTracker;
 export const syncPendingTracker = services.syncPendingTracker;
+export const worktreeRevisions = services.worktreeRevisions;

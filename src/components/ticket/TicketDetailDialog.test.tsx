@@ -44,6 +44,8 @@ const mockDeleteContext = vi.fn().mockResolvedValue({ ok: true });
 const mockUploadFile = vi.fn().mockResolvedValue({ ok: true, results: [] });
 const emptyTicketFiles = { contextNames: [], fileNames: [], references: [] };
 const mockGetTicketFiles = vi.fn().mockResolvedValue(emptyTicketFiles);
+let worktreeRevision = 0;
+const mockGetWorktreeRevision = vi.fn(async (..._args: unknown[]) => worktreeRevision);
 const mockGetMergedLauncherConfig = vi.fn().mockResolvedValue({
   templates: [], skills: [], profiles: [], shortcuts: [],
   columnDefaults: {}, worktreeRootPath: null,
@@ -73,6 +75,9 @@ vi.mock("./ticket-api.js", async () => {
     reorderTicket: vi.fn().mockResolvedValue({ ok: true }),
     syncTickets: vi.fn().mockResolvedValue({ ok: true }),
     getSyncPending: vi.fn().mockResolvedValue(false),
+    getWorktreeRevision: query(
+      (...args: unknown[]) => mockGetWorktreeRevision(...args), "worktree-revision",
+    ),
     worktreeCleanup: vi.fn().mockResolvedValue({ ok: true }),
   };
 });
@@ -218,6 +223,104 @@ describe("TicketDetailDialog content loading", () => {
     } finally {
       dispose();
     }
+  });
+});
+
+describe("TicketDetailDialog external worktree changes", () => {
+  afterEach(() => {
+    cleanup();
+    worktreeRevision = 0;
+    mockGetContext.mockResolvedValue({ content: "" });
+  });
+
+  async function changeWorktree() {
+    const { revalidate } = await import("@solidjs/router");
+    worktreeRevision += 1;
+    await revalidate("worktree-revision");
+    await flush();
+    await flush();
+  }
+
+  it("reloads the open markdown file when the worktree changes underneath it", async () => {
+    mockGetContext.mockResolvedValue({ content: "written by me" });
+
+    render(() => (
+      <TicketDetailDialog
+        onClose={() => {}}
+        projectSlug="test-project"
+        ticket={makeTicket("t-1-alpha", "T-1", "Alpha")}
+      />
+    ));
+    await flush();
+    await flush();
+    expect(screen.getByTestId("editor-content").textContent).toBe("written by me");
+
+    mockGetContext.mockResolvedValue({ content: "written by the agent" });
+    await changeWorktree();
+
+    expect(screen.getByTestId("editor-content").textContent).toBe("written by the agent");
+  });
+
+  it("keeps unsaved edits and refuses to save over an external change", async () => {
+    mockGetContext.mockResolvedValue({ content: "original" });
+    const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
+
+    const { state, dispose } = createRoot((disposeRoot) => ({
+      state: createTicketDetailState({
+        ticket, projectSlug: "test-project", onClose: () => {},
+      }),
+      dispose: disposeRoot,
+    }));
+    try {
+      await flush();
+      state.setContent("my unsaved edit");
+
+      mockGetContext.mockResolvedValue({ content: "written by the agent" });
+      await changeWorktree();
+
+      expect(state.content()).toBe("my unsaved edit");
+      expect(state.externallyChanged()).toBe(true);
+
+      await state.saveAll();
+      expect(state.confirmingExternalChange()).toBe(true);
+
+      state.discardExternalChange();
+      await flush();
+      expect(state.content()).toBe("written by the agent");
+      expect(state.externallyChanged()).toBe(false);
+    } finally {
+      dispose();
+    }
+  });
+
+  it("does not blank the editor while a background reload is in flight", async () => {
+    mockGetContext.mockResolvedValue({ content: "original" });
+
+    render(() => (
+      <TicketDetailDialog
+        onClose={() => {}}
+        projectSlug="test-project"
+        ticket={makeTicket("t-1-alpha", "T-1", "Alpha")}
+      />
+    ));
+    await flush();
+    await flush();
+
+    let resolveContext!: (value: { content: string }) => void;
+    mockGetContext.mockImplementation(
+      () => new Promise((resolve) => { resolveContext = resolve; }),
+    );
+    worktreeRevision += 1;
+    const { revalidate } = await import("@solidjs/router");
+    await revalidate("worktree-revision");
+    await flush();
+
+    expect(screen.getByTestId("editor-content").textContent).toBe("original");
+
+    resolveContext({ content: "refreshed" });
+    await flush();
+    expect(screen.getByTestId("editor-content").textContent).toBe("refreshed");
+    mockGetContext.mockResolvedValue({ content: "" });
   });
 });
 

@@ -33,6 +33,7 @@ import {
   addReferences as addReferencesAction, openTicketWorktree,
 } from "./ticket-api.js";
 import { ticketMutationRevalidateKeys } from "../shared/revalidate-keys.js";
+import { createWorktreeRevision } from "../shared/worktree-revision.js";
 import {
   getMergedLauncherConfig, saveColumnDefaults, cacheMergedLauncherConfig,
   type MergedLauncherConfigWithMeta,
@@ -70,6 +71,10 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   const [browsing, setBrowsing] = createSignal(false);
   const [fileView, setFileView] = createSignal<FileView>({ kind: "loading" });
   const [useWorktree, setUseWorktree] = createSignal(props.ticket.useWorktree);
+  const [externallyChanged, setExternallyChanged] = createSignal(false);
+  const [confirmingExternalChange, setConfirmingExternalChange] = createSignal(false);
+
+  const worktreeRevision = createWorktreeRevision(() => props.projectSlug);
 
   const header = createHeaderEditState({
     projectSlug: props.projectSlug,
@@ -194,9 +199,11 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   // or content.
   let loadSeq = 0;
 
-  async function loadContextContent(af: ActiveFile & { type: "context" }): Promise<void> {
+  async function loadContextContent(
+    af: ActiveFile & { type: "context" }, background = false,
+  ): Promise<void> {
     const seq = ++loadSeq;
-    setFileView({ kind: "loading" });
+    if (!background) setFileView({ kind: "loading" });
     try {
       const data = await getContext(props.projectSlug, header.savedFolderName(), af.name);
       if (seq !== loadSeq) return;
@@ -211,14 +218,14 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     }
   }
 
-  function loadFileByName(fileName: string, url: string): void {
+  function loadFileByName(fileName: string, url: string, background = false): void {
     const seq = ++loadSeq;
     const mode = resolveFileViewMode(fileName);
-    setContent(""); setSavedContent("");
+    if (!background) { setContent(""); setSavedContent(""); }
     if (mode === "image") {
       setFileView({ kind: "image", url });
     } else if (mode === "editor") {
-      setFileView({ kind: "loading" });
+      if (!background) setFileView({ kind: "loading" });
       fetch(url).then(async (res) => {
         const text = res.ok ? normalizeLineEndings(await res.text()) : "";
         if (seq !== loadSeq) return;
@@ -270,24 +277,41 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
 
   void loadContextContent({ type: "context", name: "to-do" });
 
-  createEffect(on(activeFile, async (af) => {
-    if (activeTab() !== "editor") return;
-    setError(null);
+  async function loadActiveFile(af: ActiveFile, background = false): Promise<void> {
+    setExternallyChanged(false);
     if (af.type === "context") {
-      await loadContextContent(af);
+      await loadContextContent(af, background);
     } else if (af.type === "file") {
       loadFileByName(
         af.name,
         ticketUrl(`files/${encodeURIComponent(af.name)}`),
+        background,
       );
-    } else if (af.type === "reference") {
+    } else {
       loadFileByName(
         activeFileLabel(af),
         ticketUrl(
           `references/content?path=${encodeURIComponent(af.path)}`,
         ),
+        background,
       );
     }
+  }
+
+  createEffect(on(activeFile, async (af) => {
+    if (activeTab() !== "editor") return;
+    setError(null);
+    await loadActiveFile(af);
+  }, { defer: true }));
+
+  // The worktree is shared with agents and the user's own editors. A change to it
+  // refreshes the file list and the open file when nothing is at stake, and is held as
+  // a conflict when the editor has edits that a reload would destroy.
+  createEffect(on(worktreeRevision, () => {
+    void revalidate("ticket-files");
+    if (activeTab() !== "editor") return;
+    if (hasUnsavedFileChanges()) { setExternallyChanged(true); return; }
+    void loadActiveFile(activeFile(), true);
   }, { defer: true }));
 
   async function saveFileContent() {
@@ -422,11 +446,26 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   }
 
   async function saveAll() {
+    if (externallyChanged() && hasUnsavedFileChanges()) {
+      setConfirmingExternalChange(true);
+      return;
+    }
     await Promise.all([
       header.hasUnsavedHeaderChanges() ? header.saveTicketHeader() : undefined,
       hasUnsavedFileChanges() ? saveFileContent() : undefined,
     ]);
     await refreshTicketFiles();
+  }
+
+  async function overwriteExternalChange() {
+    setConfirmingExternalChange(false);
+    setExternallyChanged(false);
+    await saveAll();
+  }
+
+  function discardExternalChange() {
+    setConfirmingExternalChange(false);
+    void loadActiveFile(activeFile());
   }
 
   const showSaveButton = () => showSaveButtonPure(activeTab(), activeFile().type);
@@ -451,6 +490,8 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     runShortcut: shortcuts.runShortcut,
     useWorktree, launchDir, allFileOptions, isReferenceStale, hasUnsavedFileChanges, isCurrentReadOnly,
     showSaveButton, persistWorktree, openWorktree,
+    externallyChanged, confirmingExternalChange,
+    overwriteExternalChange, discardExternalChange,
     switchTab, selectFile, openNewFileDialog,
     submitNewFile, deleteOrRemoveFile, handleTrashClick, close, forceClose,
     proceedFileSwitch,

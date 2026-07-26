@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { checkHasPendingChanges, SyncPendingTracker } from './sync-pending.js';
+import { WorktreeRevisionStore } from './worktree-revision.js';
 import { git, gitSync, setGitOriginUrl } from '~/test-git.js';
 import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js';
 import { cloneFromTemplate, lazyTemplate } from '~/test-temp.js';
@@ -98,7 +99,7 @@ describe('checkHasPendingChanges', () => {
 describe('SyncPendingTracker', () => {
 	it('computes once and serves repeated reads from cache', () => {
 		const check = vi.fn().mockReturnValue(true);
-		const tracker = new SyncPendingTracker(check);
+		const tracker = new SyncPendingTracker(check, new WorktreeRevisionStore());
 
 		expect(tracker.hasPendingChanges('/wt')).toBe(true);
 		expect(tracker.hasPendingChanges('/wt')).toBe(true);
@@ -106,36 +107,39 @@ describe('SyncPendingTracker', () => {
 		expect(check).toHaveBeenCalledTimes(1);
 	});
 
-	it('invalidate forces a recompute on the next read', () => {
+	it('a new worktree revision forces a recompute on the next read', () => {
 		const check = vi.fn().mockReturnValueOnce(true).mockReturnValueOnce(false);
-		const tracker = new SyncPendingTracker(check);
+		const revisions = new WorktreeRevisionStore();
+		const tracker = new SyncPendingTracker(check, revisions);
 
 		expect(tracker.hasPendingChanges('/wt')).toBe(true);
-		tracker.invalidate('/wt');
+		revisions.bump('/wt');
 		expect(tracker.hasPendingChanges('/wt')).toBe(false);
 		expect(tracker.hasPendingChanges('/wt')).toBe(false);
 		expect(check).toHaveBeenCalledTimes(2);
 	});
 
-	it('invalidate during a slow recompute does not pin the stale value', () => {
+	it('a change during a slow recompute does not pin the stale value', () => {
 		const check = vi.fn().mockReturnValue(true);
-		const tracker = new SyncPendingTracker(check);
+		const revisions = new WorktreeRevisionStore();
+		const tracker = new SyncPendingTracker(check, revisions);
 
 		tracker.hasPendingChanges('/wt');
-		tracker.invalidate('/wt');
+		revisions.bump('/wt');
 		// Simulates a change arriving while the value above was being computed:
-		// the cached entry carries the pre-invalidation version, so it must recompute.
+		// the cached entry carries the pre-change revision, so it must recompute.
 		expect(tracker.hasPendingChanges('/wt')).toBe(true);
 		expect(check).toHaveBeenCalledTimes(2);
 	});
 
 	it('tracks worktrees independently', () => {
 		const check = vi.fn((worktreeDir: string) => worktreeDir === '/a');
-		const tracker = new SyncPendingTracker(check);
+		const revisions = new WorktreeRevisionStore();
+		const tracker = new SyncPendingTracker(check, revisions);
 
 		expect(tracker.hasPendingChanges('/a')).toBe(true);
 		expect(tracker.hasPendingChanges('/b')).toBe(false);
-		tracker.invalidate('/a');
+		revisions.bump('/a');
 		expect(tracker.hasPendingChanges('/b')).toBe(false);
 		expect(check).toHaveBeenCalledTimes(2);
 		expect(tracker.hasPendingChanges('/a')).toBe(true);

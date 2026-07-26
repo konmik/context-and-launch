@@ -3,7 +3,7 @@ import path from "path";
 import {
   launcherConfigManager, projectRegistry, worktreeManager,
   operationTracker, ticketSyncManager,
-  syncPendingTracker, commandTemplateService,
+  worktreeRevisions, commandTemplateService,
 } from "~/core/config/instances.js";
 import {
   resolveTicketAndProject, ensureLaunchDir,
@@ -312,7 +312,7 @@ export async function abortRebase(projectSlug: string) {
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
     await operationTracker.track(ticketSyncManager.abort(worktreeDir));
-    syncPendingTracker.invalidate(worktreeDir);
+    worktreeRevisions.bump(worktreeDir);
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);

@@ -368,6 +368,41 @@ export function ConfirmUploadDialog(props: {
   );
 }
 
+export function ExternalChangeDialog(props: {
+  open: boolean;
+  label: string;
+  onOverwrite: () => void;
+  onDiscard: () => void;
+}) {
+  return (
+    <DialogRoot
+      open={props.open}
+      onOpenChange={props.onDiscard}
+      onMouseDown={(e: MouseEvent) => e.preventDefault()}
+    >
+      <DialogTitle>File Changed on Disk</DialogTitle>
+      <DialogDescription>
+        {props.label} changed on disk while you were editing it. Overwrite it with your
+        version, or discard your changes and load the version on disk?
+      </DialogDescription>
+      <div class="flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={props.onDiscard}
+          class="btn-secondary"
+          data-testid="ticket-detail-external-change-discard"
+        >Discard Mine</button>
+        <button
+          type="button"
+          onClick={props.onOverwrite}
+          class="btn-destructive"
+          data-testid="ticket-detail-external-change-overwrite"
+        >Overwrite</button>
+      </div>
+    </DialogRoot>
+  );
+}
+
 export function ShortcutConfirmationDialog(props: {
   info: ShortcutConfirmation | undefined;
   running: boolean;

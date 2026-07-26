@@ -11,6 +11,7 @@ import { GitRepository } from '../infra/git-repository.js';
 import { ProjectPageService } from '../board/project-page-service.js';
 import { OperationTracker } from '../infra/operation-tracker.js';
 import { SyncPendingTracker, checkHasPendingChanges } from '../board/sync-pending.js';
+import { WorktreeRevisionStore } from '../board/worktree-revision.js';
 import { CommandTemplateStore } from '../command-template/command-template-store.js';
 import { CommandTemplateService } from '../command-template/command-template-service.js';
 import { FixedPlatformShellRunner } from '../command-template/platform-shell-runner.js';
@@ -34,6 +35,7 @@ export interface ServiceContainer {
 	projectPageService: ProjectPageService;
 	operationTracker: OperationTracker;
 	syncPendingTracker: SyncPendingTracker;
+	worktreeRevisions: WorktreeRevisionStore;
 }
 
 export function createServices(baseDir?: string, configDefaultsDir?: string): ServiceContainer {
@@ -51,11 +53,13 @@ export function createServices(baseDir?: string, configDefaultsDir?: string): Se
 	const worktreeManager = new WorktreeManager(
 		configPaths, commandTemplateService, (projectSlug) => projectRegistry.getTicketsPath(projectSlug),
 	);
+	const worktreeRevisions = new WorktreeRevisionStore();
 	const syncPendingTracker = new SyncPendingTracker(
 		(worktreeDir) => checkHasPendingChanges(worktreeDir, commandTemplateService),
+		worktreeRevisions,
 	);
 	const fileWatcher = new FileWatcher(
-		commandTemplateService, (worktreeDir) => syncPendingTracker.invalidate(worktreeDir),
+		commandTemplateService, (worktreeDir) => worktreeRevisions.bump(worktreeDir),
 	);
 	const launcherConfigManager = new LauncherConfigManager(configPaths, configRepo);
 	const agentWorktreeManager = new AgentWorktreeManager(launcherConfigManager, commandTemplateService);
@@ -83,5 +87,6 @@ export function createServices(baseDir?: string, configDefaultsDir?: string): Se
 		projectPageService,
 		operationTracker,
 		syncPendingTracker,
+		worktreeRevisions,
 	};
 }

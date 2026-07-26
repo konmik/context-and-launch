@@ -1,26 +1,21 @@
 import type { CommandTemplateExecutor } from '../command-template/command-template-types.js';
+import type { WorktreeRevisionStore } from './worktree-revision.js';
 
 export class SyncPendingTracker {
-	private versions = new Map<string, number>();
-	private cache = new Map<string, { version: number; value: boolean }>();
+	private cache = new Map<string, { revision: number; value: boolean }>();
 
-	constructor(private readonly check: (worktreeDir: string) => boolean) {}
-
-	invalidate(worktreeDir: string): void {
-		this.versions.set(worktreeDir, this.currentVersion(worktreeDir) + 1);
-	}
+	constructor(
+		private readonly check: (worktreeDir: string) => boolean,
+		private readonly revisions: WorktreeRevisionStore,
+	) {}
 
 	hasPendingChanges(worktreeDir: string): boolean {
-		const version = this.currentVersion(worktreeDir);
+		const revision = this.revisions.current(worktreeDir);
 		const cached = this.cache.get(worktreeDir);
-		if (cached && cached.version === version) return cached.value;
+		if (cached && cached.revision === revision) return cached.value;
 		const value = this.check(worktreeDir);
-		this.cache.set(worktreeDir, { version, value });
+		this.cache.set(worktreeDir, { revision, value });
 		return value;
-	}
-
-	private currentVersion(worktreeDir: string): number {
-		return this.versions.get(worktreeDir) ?? 0;
 	}
 }
 
