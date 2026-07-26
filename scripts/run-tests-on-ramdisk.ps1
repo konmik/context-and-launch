@@ -88,18 +88,22 @@ function Get-ManagedRunDirectories {
   return @($runDirectories | Where-Object { Test-Path (Join-Path $_.FullName $markerName) })
 }
 
+function Get-WorkspaceRunDirectory {
+  param([string]$RuntimeDirectory)
+
+  $relative = $RuntimeDirectory.Substring($runtimeRoot.Length).TrimStart("\")
+  return Join-Path $workspaceRoot $relative
+}
+
 function Remove-StaleRuntimeDirectories {
   param([string]$KeepDirectory)
 
-  $stale = @(Get-ManagedRunDirectories -Root $runtimeRoot |
-    Where-Object { $_.FullName -ne $KeepDirectory -and -not (Test-RunLockAlive $_.FullName) } |
-    Sort-Object LastWriteTime)
+  $stale = @(Get-ManagedRunDirectories -Root $runtimeRoot | Where-Object {
+    $_.FullName -ne $KeepDirectory -and
+    -not (Test-RunLockAlive (Get-WorkspaceRunDirectory $_.FullName))
+  })
 
   foreach ($directory in $stale) {
-    $drive = Get-TestRamDiskInfo
-    if ($drive -and $drive.AvailableFreeSpace -ge $requiredRuntimeFreeSpace) {
-      return
-    }
     Write-Host "Reclaiming space from the idle test runtime $($directory.FullName)."
     Remove-Item $directory.FullName -Recurse -Force
   }
