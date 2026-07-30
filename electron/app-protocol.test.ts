@@ -1,95 +1,100 @@
 import { describe, it, expect } from "vitest";
 import {
   APP_ORIGIN,
-  toServerUrl,
-  toServerHeaders,
-  rewriteLocation,
-  rewriteRedirect,
+  APP_HOST,
+  APP_SCHEME,
+  handleAppRequest,
   appearanceArgs,
   seedAppearance,
+  type LocalFetch,
+  type LocalFetchInit,
 } from "./app-protocol.js";
 import { projectSlugFromUrl } from "./window-bookkeeping.js";
 
-describe("toServerUrl", () => {
-  it("maps an app-origin URL to the local server, preserving path and query", () => {
-    expect(toServerUrl(`${APP_ORIGIN}/project/my-repo?x=1`, 5173)).toBe(
-      "http://127.0.0.1:5173/project/my-repo?x=1",
+interface Recorded {
+  path: string;
+  init: LocalFetchInit;
+}
+
+function recordingBackend(response: Response = new Response("ok")): {
+  localFetch: LocalFetch;
+  calls: Recorded[];
+} {
+  const calls: Recorded[] = [];
+  const localFetch: LocalFetch = (path, init) => {
+    calls.push({ path, init });
+    return Promise.resolve(response);
+  };
+  return { localFetch, calls };
+}
+
+function streamingRequest(url: string, chunks: string[]): Request {
+  const encoder = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
+      controller.close();
+    },
+  });
+  return new Request(url, {
+    method: "POST",
+    body,
+    headers: { "content-type": "application/json" },
+    duplex: "half",
+  } as RequestInit);
+}
+
+describe("handleAppRequest", () => {
+  it("routes an app-origin URL to the in-process handler by path and query", async () => {
+    const { localFetch, calls } = recordingBackend();
+    await handleAppRequest(new Request(`${APP_ORIGIN}/project/my-repo?x=1`), localFetch);
+    expect(calls[0].path).toBe("/project/my-repo?x=1");
+    expect(calls[0].init.method).toBe("GET");
+    expect(calls[0].init.host).toBe(APP_HOST);
+    expect(calls[0].init.protocol).toBe(`${APP_SCHEME}:`);
+  });
+
+  it("buffers a streaming request body instead of forwarding the stream", async () => {
+    const { localFetch, calls } = recordingBackend();
+    await handleAppRequest(
+      streamingRequest(`${APP_ORIGIN}/_server/saveTicket`, ['{"a":', "1}"]),
+      localFetch,
     );
+    const body = calls[0].init.body;
+    expect(body).toBeInstanceOf(ArrayBuffer);
+    expect(new TextDecoder().decode(body as ArrayBuffer)).toBe('{"a":1}');
   });
 
-  it("maps the app-origin root", () => {
-    expect(toServerUrl(`${APP_ORIGIN}/`, 4321)).toBe("http://127.0.0.1:4321/");
-  });
-
-  it("throws on a URL from a different origin", () => {
-    expect(() => toServerUrl("http://evil.example/steal", 5173)).toThrow();
-  });
-});
-
-describe("toServerHeaders", () => {
-  it("rewrites app-origin referer and origin to the server origin", () => {
-    const headers = toServerHeaders(
-      new Headers({ referer: `${APP_ORIGIN}/project/x`, origin: APP_ORIGIN, accept: "*/*" }),
-      5173,
+  it("forwards request headers unchanged", async () => {
+    const { localFetch, calls } = recordingBackend();
+    await handleAppRequest(
+      new Request(`${APP_ORIGIN}/_server/x`, {
+        method: "GET",
+        headers: { accept: "text/html", referer: `${APP_ORIGIN}/project/x` },
+      }),
+      localFetch,
     );
-    expect(headers.get("referer")).toBe("http://127.0.0.1:5173/project/x");
-    expect(headers.get("origin")).toBe("http://127.0.0.1:5173");
-    expect(headers.get("accept")).toBe("*/*");
+    expect(calls[0].init.headers.get("accept")).toBe("text/html");
+    expect(calls[0].init.headers.get("referer")).toBe(`${APP_ORIGIN}/project/x`);
   });
 
-  it("leaves headers without app-origin values unchanged", () => {
-    const headers = toServerHeaders(new Headers({ accept: "text/html" }), 5173);
-    expect(headers.get("referer")).toBeNull();
-    expect(headers.get("origin")).toBeNull();
-    expect(headers.get("accept")).toBe("text/html");
-  });
-});
-
-describe("rewriteLocation", () => {
-  it("rewrites an absolute local-server URL back to the app origin", () => {
-    expect(rewriteLocation("http://127.0.0.1:5173/project/my-repo", 5173)).toBe(
-      `${APP_ORIGIN}/project/my-repo`,
-    );
+  it("omits the body for a bodyless request", async () => {
+    const { localFetch, calls } = recordingBackend();
+    await handleAppRequest(new Request(`${APP_ORIGIN}/`), localFetch);
+    expect(calls[0].init.body).toBeUndefined();
   });
 
-  it("leaves relative locations unchanged", () => {
-    expect(rewriteLocation("/project/my-repo", 5173)).toBe("/project/my-repo");
+  it("returns the handler response unchanged", async () => {
+    const response = new Response("payload", { status: 201, headers: { "x-test": "1" } });
+    const { localFetch } = recordingBackend(response);
+    const result = await handleAppRequest(new Request(`${APP_ORIGIN}/`), localFetch);
+    expect(result).toBe(response);
   });
 
-  it("leaves external origins unchanged", () => {
-    expect(rewriteLocation("https://example.com/page", 5173)).toBe("https://example.com/page");
-  });
-
-  it("leaves local-server URLs on a different port unchanged", () => {
-    expect(rewriteLocation("http://127.0.0.1:9999/x", 5173)).toBe("http://127.0.0.1:9999/x");
-  });
-});
-
-describe("rewriteRedirect", () => {
-  it("returns the response unchanged when there is no location header", () => {
-    const response = new Response("body", { status: 200 });
-    expect(rewriteRedirect(response, 5173)).toBe(response);
-  });
-
-  it("rewrites a local-server location to the app origin, preserving status and other headers", () => {
-    const response = new Response(null, {
-      status: 302,
-      statusText: "Found",
-      headers: { location: "http://127.0.0.1:5173/project/my-repo", "set-cookie": "a=1" },
-    });
-    const rewritten = rewriteRedirect(response, 5173);
-    expect(rewritten.status).toBe(302);
-    expect(rewritten.statusText).toBe("Found");
-    expect(rewritten.headers.get("location")).toBe(`${APP_ORIGIN}/project/my-repo`);
-    expect(rewritten.headers.get("set-cookie")).toBe("a=1");
-  });
-
-  it("leaves an external location unchanged", () => {
-    const response = new Response(null, {
-      status: 302,
-      headers: { location: "https://example.com/page" },
-    });
-    expect(rewriteRedirect(response, 5173).headers.get("location")).toBe("https://example.com/page");
+  it("rejects a URL from a different origin", async () => {
+    const { localFetch } = recordingBackend();
+    await expect(handleAppRequest(new Request("http://evil.example/steal"), localFetch))
+      .rejects.toThrow(/app-origin/);
   });
 });
 

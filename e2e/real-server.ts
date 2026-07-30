@@ -5,7 +5,7 @@ import { removeTempDir } from "../src/test-temp.js";
 import { pickPort } from "./test-port.js";
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const SERVER_ENTRY = path.join(PROJECT_ROOT, ".output", "server", "index.mjs");
+const SERVER_ENTRY = path.join(PROJECT_ROOT, "scripts", "serve.mjs");
 
 export interface RealServer {
   process: ChildProcess;

@@ -65,6 +65,11 @@ export default defineConfig({
     }
   },
   server: {
-    preset: "node-server",
+    // The handler-only preset: the built server exports a request handler and
+    // binds nothing. Electron calls it in-process; scripts/serve.mjs wraps it
+    // in an HTTP server for dev preview and e2e.
+    preset: "node",
+    serveStatic: true,
+    plugins: ["./src/server/publish-server-app.ts"],
   }
 });

@@ -1,62 +1,44 @@
 import { isPaletteName, type PaletteName } from "../src/components/shared/palette-pure.js";
 import { parseMode, type AppMode } from "../src/components/shared/theme-toggle-pure.js";
 
-// The renderer loads the app from a fixed custom-scheme origin instead of the
-// local HTTP server's ephemeral port. localStorage (and all other web storage)
-// is keyed by origin, so the origin must be identical across launches; the
-// server port is not. The main process proxies app:// requests to the server.
+// The renderer loads the app from a fixed custom-scheme origin. localStorage
+// (and all other web storage) is keyed by origin, so the origin must be
+// identical across launches. The main process answers app:// requests by
+// invoking the server's request handler in-process: the server bundle is
+// loaded into the main process, so there is no socket between the two.
 export const APP_SCHEME = "app";
 export const APP_HOST = "context-launch";
 export const APP_ORIGIN = `${APP_SCHEME}://${APP_HOST}`;
 
-function serverHost(port: number): string {
-  return `127.0.0.1:${port}`;
+export interface LocalFetchInit {
+  host: string;
+  protocol: string;
+  headers: Headers;
+  method: string;
+  redirect: RequestRedirect;
+  body?: ArrayBuffer;
 }
 
-export function toServerUrl(requestUrl: string, port: number): string {
-  const url = new URL(requestUrl);
+export type LocalFetch = (path: string, init: LocalFetchInit) => Promise<Response>;
+
+export async function handleAppRequest(
+  request: Request,
+  localFetch: LocalFetch,
+): Promise<Response> {
+  const url = new URL(request.url);
   if (url.protocol !== `${APP_SCHEME}:` || url.host !== APP_HOST) {
-    throw new Error(`Not an app-origin URL: ${requestUrl}`);
+    throw new Error(`Not an app-origin URL: ${request.url}`);
   }
-  return `http://${serverHost(port)}${url.pathname}${url.search}`;
-}
-
-// Chromium's network stack rejects forwarded requests whose Referer or Origin
-// carries the custom scheme, so both are rewritten to the server origin.
-export function toServerHeaders(headers: Headers, port: number): Headers {
-  const out = new Headers(headers);
-  const referer = out.get("referer");
-  if (referer !== null && referer.startsWith(APP_ORIGIN)) {
-    out.set("referer", toServerUrl(referer, port));
-  }
-  if (out.get("origin") === APP_ORIGIN) {
-    out.set("origin", `http://${serverHost(port)}`);
-  }
-  return out;
-}
-
-export function rewriteLocation(location: string, port: number): string {
-  let parsed: URL;
-  try {
-    parsed = new URL(location);
-  } catch {
-    return location;
-  }
-  if (parsed.protocol === "http:" && parsed.host === serverHost(port)) {
-    return `${APP_ORIGIN}${parsed.pathname}${parsed.search}${parsed.hash}`;
-  }
-  return location;
-}
-
-export function rewriteRedirect(response: Response, port: number): Response {
-  const location = response.headers.get("location");
-  if (location === null) return response;
-  const headers = new Headers(response.headers);
-  headers.set("location", rewriteLocation(location, port));
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
+  // The body is read to completion here: a ReadableStream handed straight to
+  // the handler is not a supported body type and tears down the request.
+  const body = request.body ? await request.arrayBuffer() : undefined;
+  return localFetch(`${url.pathname}${url.search}`, {
+    host: url.hostname,
+    protocol: url.protocol,
+    headers: request.headers,
+    method: request.method,
+    redirect: request.redirect,
+    body,
   });
 }
 

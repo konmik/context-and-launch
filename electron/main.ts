@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, nativeTheme, net, protocol, screen } from "electron";
+import { app, BrowserWindow, ipcMain, nativeTheme, protocol, screen } from "electron";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -17,9 +17,7 @@ import {
 import {
   APP_SCHEME,
   APP_ORIGIN,
-  toServerUrl,
-  toServerHeaders,
-  rewriteRedirect,
+  handleAppRequest,
   appearanceArgs,
 } from "./app-protocol.js";
 import {
@@ -235,22 +233,17 @@ if (!gotLock) {
 
   app.on("ready", async () => {
     serverHandle = await startServer(appRoot);
-    const serverPort = serverHandle.port;
+    const handle = serverHandle;
     const base = APP_ORIGIN;
 
-    protocol.handle(APP_SCHEME, async (request) => {
-      const response = await net.fetch(toServerUrl(request.url, serverPort), {
-        method: request.method,
-        headers: toServerHeaders(request.headers, serverPort),
-        body: request.body,
-        redirect: "manual",
-        ...(request.body ? { duplex: "half" } : {}),
-      } as RequestInit).catch((err: unknown) => {
-        console.error("app protocol proxy failed:", request.method, request.url, err);
+    protocol.handle(APP_SCHEME, (request) =>
+      handleAppRequest(request, handle.localFetch).catch((err: unknown) => {
+        handle.appLog(
+          "app-protocol",
+          `${request.method} ${request.url} failed: ${err instanceof Error ? err.stack ?? err.message : String(err)}`,
+        );
         throw err;
-      });
-      return rewriteRedirect(response, serverPort);
-    });
+      }));
 
     let raw: unknown = null;
     try {
