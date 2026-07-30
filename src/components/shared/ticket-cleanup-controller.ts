@@ -110,8 +110,12 @@ export function createTicketCleanupController(deps: TicketCleanupDeps) {
     try {
       const processes = await deps.loadLockingProcesses(deps.projectSlug(), ticket.folderName);
       setLockingProcesses(processes);
-    } catch {
+    } catch (err: any) {
       setLockingProcesses([]);
+      setErrorInfo({
+        title: "Could not list locking processes",
+        description: err?.message ?? "Unknown error",
+      });
     }
   }
 

@@ -230,20 +230,16 @@ export class AgentWorktreeManager {
 
 	async findLockingProcesses(worktreePath: string): Promise<LockingProcessInfo[]> {
 		if (process.platform === 'win32') {
-			try {
-				const scriptPath = path.join(
-					this.launcherConfig.getConfigDefaultsDir(),
-					'find-locking-processes.ps1',
-				);
-				const normalizedPath = worktreePath.replace(/\//g, '\\');
-				const stdout = await this.commands.execute(
-					'agent-worktree.locking-processes.windows', normalizedPath,
-					{ scriptPath, worktreePath: normalizedPath },
-				);
-				return parseTabSeparatedProcesses(stdout);
-			} catch {
-				return [];
-			}
+			const scriptPath = path.join(
+				this.launcherConfig.getConfigDefaultsDir(),
+				'find-locking-processes.ps1',
+			);
+			const normalizedPath = worktreePath.replace(/\//g, '\\');
+			const stdout = await this.commands.execute(
+				'agent-worktree.locking-processes.windows', normalizedPath,
+				{ scriptPath, worktreePath: normalizedPath },
+			);
+			return parseTabSeparatedProcesses(stdout);
 		}
 		const key = process.platform === 'darwin'
 			? 'agent-worktree.busy.probe.macos'
@@ -251,8 +247,10 @@ export class AgentWorktreeManager {
 		try {
 			const stdout = await this.commands.execute(key, worktreePath, { worktreePath });
 			return parseLsofProcesses(stdout);
-		} catch {
-			return [];
+		} catch (error) {
+			// lsof exits non-zero when nothing is open, which means "no holders".
+			if (error instanceof ProcessError && error.kind === 'exited') return [];
+			throw error;
 		}
 	}
 
