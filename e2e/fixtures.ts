@@ -647,17 +647,17 @@ export function ticketFileNames(
 }
 
 export async function poll<T>(
-  fn: () => T,
+  fn: () => T | Promise<T>,
   predicate: (value: T) => boolean,
   timeoutMs: number,
   intervalMs = 500,
 ): Promise<T> {
   const deadline = Date.now() + timeoutMs;
-  let last = fn();
+  let last = await fn();
   while (!predicate(last)) {
     if (Date.now() > deadline) return last;
     await new Promise((r) => setTimeout(r, intervalMs));
-    last = fn();
+    last = await fn();
   }
   return last;
 }

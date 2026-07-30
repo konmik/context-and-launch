@@ -55,8 +55,12 @@ describe('Command Templates Settings tab (e2e, real server)', () => {
 		expect(saved).toEqual({
 			'git.version': 'git version\n--build-options\n--no-pager\n--paginate',
 		});
-		expect(await row.locator('[data-testid="command-template-override-state"]').textContent())
-			.toBe('Override');
+		expect(await poll(
+			() => row.locator('[data-testid="command-template-override-state"]').textContent(),
+			(state) => state === 'Override',
+			5000,
+			100,
+		)).toBe('Override');
 
 		await ctx.page.click('[data-testid="launcher-settings-close-button"]');
 		await openLauncherSettings(ctx.page);
