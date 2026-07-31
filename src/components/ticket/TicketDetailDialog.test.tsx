@@ -293,6 +293,32 @@ describe("TicketDetailDialog external worktree changes", () => {
     }
   });
 
+  it("keeps editing when the worktree changes but the open file did not", async () => {
+    mockGetContext.mockResolvedValue({ content: "original" });
+    const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
+
+    const { state, dispose } = createRoot((disposeRoot) => ({
+      state: createTicketDetailState({
+        ticket, projectSlug: "test-project", onClose: () => {},
+      }),
+      dispose: disposeRoot,
+    }));
+    try {
+      await flush();
+      state.setContent("my unsaved edit");
+
+      await changeWorktree();
+
+      expect(state.content()).toBe("my unsaved edit");
+      expect(state.externallyChanged()).toBe(false);
+
+      await state.saveAll();
+      expect(state.confirmingExternalChange()).toBe(false);
+    } finally {
+      dispose();
+    }
+  });
+
   it("does not blank the editor while a background reload is in flight", async () => {
     mockGetContext.mockResolvedValue({ content: "original" });
 

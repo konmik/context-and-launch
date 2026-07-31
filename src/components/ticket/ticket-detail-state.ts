@@ -277,24 +277,44 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
 
   void loadContextContent({ type: "context", name: "to-do" });
 
+  function fileContentUrl(af: ActiveFile & { type: "file" | "reference" }): string {
+    return af.type === "file"
+      ? ticketUrl(`files/${encodeURIComponent(af.name)}`)
+      : ticketUrl(`references/content?path=${encodeURIComponent(af.path)}`);
+  }
+
+  async function readFileText(af: ActiveFile): Promise<string> {
+    if (af.type === "context") {
+      const data = await getContext(props.projectSlug, header.savedFolderName(), af.name);
+      return data ? normalizeLineEndings(data.content) : "";
+    }
+    const response = await fetch(fileContentUrl(af));
+    return response.ok ? normalizeLineEndings(await response.text()) : "";
+  }
+
   async function loadActiveFile(af: ActiveFile, background = false): Promise<void> {
     setExternallyChanged(false);
     if (af.type === "context") {
       await loadContextContent(af, background);
-    } else if (af.type === "file") {
-      loadFileByName(
-        af.name,
-        ticketUrl(`files/${encodeURIComponent(af.name)}`),
-        background,
-      );
     } else {
-      loadFileByName(
-        activeFileLabel(af),
-        ticketUrl(
-          `references/content?path=${encodeURIComponent(af.path)}`,
-        ),
-        background,
-      );
+      loadFileByName(activeFileLabel(af), fileContentUrl(af), background);
+    }
+  }
+
+  /**
+   * The worktree revision covers every Ticket in the Project, so it answers
+   * "something was written" and never "this file was written". Only the file
+   * being edited decides a conflict, and only by its content: a revision bump
+   * whose disk content still matches what the editor loaded is not one.
+   */
+  async function detectExternalChange(af: ActiveFile): Promise<void> {
+    try {
+      const text = await readFileText(af);
+      if (!isActiveFileMatch(af, activeFile()) || !hasUnsavedFileChanges()) return;
+      if (text === savedContent()) return;
+      setExternallyChanged(true);
+    } catch (e) {
+      setError(errorPayload(e, "Load failed"));
     }
   }
 
@@ -307,7 +327,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   createEffect(on(worktreeRevision, () => {
     void revalidate("ticket-files");
     if (activeTab() !== "editor") return;
-    if (hasUnsavedFileChanges()) { setExternallyChanged(true); return; }
+    if (hasUnsavedFileChanges()) { void detectExternalChange(activeFile()); return; }
     void loadActiveFile(activeFile(), true);
   }, { defer: true }));
 
