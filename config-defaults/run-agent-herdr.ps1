@@ -20,21 +20,70 @@ $projectSlug = Split-Path -Leaf (Split-Path -Parent $markerPath)
 $ticketFolder = [IO.Path]::GetFileNameWithoutExtension($markerPath)
 $agentName = "$projectSlug--$ticketFolder"
 
-function Invoke-Herdr {
-    param([string[]]$CommandArgs)
-    $output = & herdr @CommandArgs 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        throw "herdr $($CommandArgs -join ' ') failed: $($output -join [Environment]::NewLine)"
-    }
-    return ($output -join [Environment]::NewLine) | ConvertFrom-Json
-}
-
 function Get-Field {
     param($Object, [string]$Name)
     if ($null -ne $Object -and $Object.PSObject.Properties[$Name]) {
         return $Object.PSObject.Properties[$Name].Value
     }
     return $null
+}
+
+# A native command writing to stderr raises a terminating NativeCommandError while
+# $ErrorActionPreference is 'Stop', which aborts before $LASTEXITCODE is read and
+# leaves the trap with nothing but Herdr's raw stderr line. Exit codes decide the
+# failure path here, so every Herdr failure keeps the command that produced it.
+function Invoke-HerdrRaw {
+    param([string[]]$CommandArgs)
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $output = & herdr @CommandArgs 2>&1
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+    return [pscustomobject]@{
+        ExitCode = $exitCode
+        Text = (@($output | ForEach-Object { [string]$_ }) -join [Environment]::NewLine)
+    }
+}
+
+# Herdr reports a failure it understands as a JSON envelope. Anything else came
+# from the CLI itself, before it reached the server.
+function Get-HerdrReportedError {
+    param([string]$Text)
+    try { $parsed = $Text | ConvertFrom-Json } catch { return $null }
+    $reported = Get-Field $parsed 'error'
+    if ($null -eq $reported) { return $null }
+    $message = [string](Get-Field $reported 'message')
+    if ([string]::IsNullOrWhiteSpace($message)) { return $null }
+    return $message
+}
+
+function Test-HerdrServerRunning {
+    $status = Invoke-HerdrRaw @('status')
+    if ($status.ExitCode -ne 0) { return $false }
+    return $status.Text -match '(?m)^\s*status:\s*running\s*$'
+}
+
+function Invoke-Herdr {
+    param([string[]]$CommandArgs)
+    $command = "herdr $($CommandArgs -join ' ')"
+    $result = Invoke-HerdrRaw $CommandArgs
+    if ($result.ExitCode -ne 0) {
+        $reported = Get-HerdrReportedError $result.Text
+        if ($reported) { throw "$command failed: $reported" }
+        if (-not (Test-HerdrServerRunning)) {
+            throw "Herdr is not running. Start Herdr, then launch the agent again." +
+                " ($command exited $($result.ExitCode): $($result.Text))"
+        }
+        throw "$command failed (exit $($result.ExitCode)): $($result.Text)"
+    }
+    try {
+        return $result.Text | ConvertFrom-Json
+    } catch {
+        throw "$command returned output that is not JSON: $($result.Text)"
+    }
 }
 
 function ConvertTo-Literal {

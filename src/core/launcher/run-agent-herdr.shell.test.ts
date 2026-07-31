@@ -191,3 +191,57 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
 		expect(result.stderr).toContain('already has a Herdr agent (working)');
 	});
 });
+
+// The mocked-function harness above cannot see how PowerShell treats a real
+// program that writes to stderr, which is exactly where a failing Herdr call
+// used to lose its context. These cases put a native `herdr` on PATH instead.
+function runWithNativeStub(serverStatus: 'running' | 'not running', stderrLine: string): {
+	status: number | null;
+	stderr: string;
+} {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'run-agent-herdr-stub-'));
+	tempDirs.push(dir);
+	fs.writeFileSync(path.join(dir, 'herdr.cmd'), [
+		'@echo off',
+		'if "%1"=="status" (',
+		'echo server:',
+		`echo   status: ${serverStatus}`,
+		'exit /b 0',
+		')',
+		`>&2 echo ${stderrLine}`,
+		'exit /b 1',
+		'',
+	].join('\r\n'));
+	const result = spawnSync('powershell', [
+		'-NoProfile', '-File', SCRIPT_PATH,
+		'prompt', 'title', path.join(dir, 'running', 'alpha', 'st-47.json'),
+		'custom-agent', '--flag',
+	], {
+		encoding: 'utf-8',
+		cwd: dir,
+		env: { ...process.env, PATH: `${dir}${path.delimiter}${process.env.PATH ?? ''}` },
+	});
+	return { status: result.status, stderr: result.stderr };
+}
+
+describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1 Herdr failures', () => {
+	it('names the unreachable Herdr server instead of leaking its transport error', () => {
+		const result = runWithNativeStub(
+			'not running',
+			'Error: Os { code: 2, kind: NotFound, message: "The system cannot find the file specified." }',
+		);
+		expect(result.status).toBe(64);
+		expect(result.stderr).toContain('Herdr is not running. Start Herdr, then launch the agent again.');
+		expect(result.stderr).toContain('herdr workspace list exited 1');
+		expect(result.stderr).toContain('kind: NotFound');
+	});
+
+	it('keeps the failing command with a failure Herdr itself reported', () => {
+		const result = runWithNativeStub(
+			'running',
+			'{"error":{"code":"internal","message":"workspace list is broken"}}',
+		);
+		expect(result.status).toBe(64);
+		expect(result.stderr).toContain('herdr workspace list failed: workspace list is broken');
+	});
+});

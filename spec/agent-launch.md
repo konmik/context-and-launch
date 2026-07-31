@@ -44,6 +44,10 @@
   - A working, blocked, or unknown existing Herdr Agent blocks the launch
   - The multiline prompt is passed as the fresh agent process's positional CLI argument in the same `pane run` command
   - A legacy pane without a persistent shell fails without closing the pane or creating another pane
+  - A failing Herdr command is reported with the command that failed
+    - A failure Herdr itself reports is shown with Herdr's own message
+    - A failure that never reached the Herdr server, while the Herdr server is not running, is reported as Herdr not running
+    - Any other failure is shown with the exit code and the raw output
 - On agent exit: delete marker
 
 # Prompt preview
