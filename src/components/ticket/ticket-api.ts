@@ -349,7 +349,7 @@ export async function worktreeCleanup(
       resolveTicketCleanupTarget(projectSlug, folderName);
     if (options.stopHerdrAgent) {
       const found = await findHerdrAgent({
-        projectSlug, folderName, agentWorktreePath: worktreePath,
+        projectSlug, folderName,
       }, herdrExec);
       if (found.kind === "herdr-missing") {
         throw new ValidationError("Herdr is not installed or is not available on PATH.");

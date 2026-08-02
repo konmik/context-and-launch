@@ -44,7 +44,6 @@ describe("runTicketCleanupChecks", () => {
 		expect(findHerdrAgent).toHaveBeenCalledWith({
 			projectSlug: "alpha",
 			folderName: "st-1",
-			agentWorktreePath: "/wt/st-1",
 		});
 	});
 

@@ -129,6 +129,7 @@ export const COMMAND_TEMPLATE_DEFINITIONS = [
 	definition('agent-worktree.branch.delete-remote', 'Delete remote Agent Worktree branch', AGENT_WORKTREE, ['branch'], gitOptions),
 
 	definition('herdr.workspace.list', 'List Herdr workspaces', HERDR),
+	definition('herdr.pane.list', 'List Herdr panes', HERDR, ['workspaceId']),
 	definition('herdr.agent.list', 'List Herdr agents', HERDR),
 	definition('herdr.agent.stop', 'Stop Herdr agent', HERDR, ['paneId']),
 

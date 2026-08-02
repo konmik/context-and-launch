@@ -1,17 +1,25 @@
-import { listHerdrAgents, type HerdrAgent, type HerdrExecFn } from './herdr-exec.js';
+import type { HerdrExecFn } from './herdr-exec.js';
+import {
+	listHerdrTicketPanes, type HerdrTicketPane,
+} from './herdr-ticket-panes.js';
 
 export type HerdrAgentStatus = 'idle' | 'working' | 'blocked' | 'done' | 'unknown';
 
-export function ticketStatusesFromAgents(
-	agents: HerdrAgent[], projectSlug: string,
+export function ticketStatusesFromPanes(
+	panes: HerdrTicketPane[],
 ): Record<string, HerdrAgentStatus> {
-	const prefix = `${projectSlug}--`;
 	const statuses: Record<string, HerdrAgentStatus> = {};
-	for (const agent of agents) {
-		if (typeof agent.agent_status !== 'string') continue;
-		if (agent.name == null || !agent.name.startsWith(prefix)) continue;
-		const folderName = agent.name.slice(prefix.length);
-		statuses[folderName] = agent.agent_status as HerdrAgentStatus;
+	const seenFolderNames = new Set<string>();
+	for (const pane of panes) {
+		if (seenFolderNames.has(pane.folderName)) {
+			statuses[pane.folderName] = 'unknown';
+			continue;
+		}
+		seenFolderNames.add(pane.folderName);
+		if (pane.agentStatuses.length === 0) continue;
+		statuses[pane.folderName] = pane.agentStatuses.length === 1
+			? pane.agentStatuses[0] as HerdrAgentStatus
+			: 'unknown';
 	}
 	return statuses;
 }
@@ -19,5 +27,5 @@ export function ticketStatusesFromAgents(
 export async function fetchHerdrTicketStatuses(
 	projectSlug: string, exec: HerdrExecFn,
 ): Promise<Record<string, HerdrAgentStatus>> {
-	return ticketStatusesFromAgents(await listHerdrAgents(exec), projectSlug);
+	return ticketStatusesFromPanes(await listHerdrTicketPanes(projectSlug, exec));
 }

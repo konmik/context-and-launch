@@ -15,10 +15,15 @@ if (-not (Get-Command herdr -ErrorAction SilentlyContinue)) {
 $initialPrompt = [string]$args[0]
 $markerPath = [string]$args[2]
 $agentCommand = @($args[3..($args.Length - 1)] | ForEach-Object { [string]$_ })
+$agentKind = [IO.Path]::GetFileNameWithoutExtension($agentCommand[0]).ToLowerInvariant()
+$agentArgs = @()
+if ($agentCommand.Length -gt 1) {
+    $agentArgs = @($agentCommand[1..($agentCommand.Length - 1)])
+}
 $launchDir = (Get-Location).Path
 $projectSlug = Split-Path -Leaf (Split-Path -Parent $markerPath)
 $ticketFolder = [IO.Path]::GetFileNameWithoutExtension($markerPath)
-$agentName = "$projectSlug--$ticketFolder"
+$ticketPaneLabel = "$projectSlug--$ticketFolder"
 
 function Get-Field {
     param($Object, [string]$Name)
@@ -86,32 +91,6 @@ function Invoke-Herdr {
     }
 }
 
-function ConvertTo-Literal {
-    param([string]$Value)
-    return "'" + ($Value -replace "'", "''") + "'"
-}
-
-function ConvertTo-PromptExpression {
-    param([string]$Value)
-    $lines = @([regex]::Split($Value, '\r\n|\r|\n'))
-    if ($lines.Count -eq 1) {
-        return ConvertTo-Literal $Value
-    }
-    $quotedLines = ($lines | ForEach-Object { ConvertTo-Literal $_ }) -join ', '
-    return "([string]::Join([Environment]::NewLine, @($quotedLines)))"
-}
-
-function Resolve-AgentCommand {
-    param([string[]]$Command)
-    $executable = Get-Command $Command[0] -ErrorAction Stop
-    $tail = if ($Command.Length -gt 1) { @($Command[1..($Command.Length - 1)]) } else { @() }
-    if ($executable.CommandType -eq 'ExternalScript') {
-        $powershell = (Get-Command powershell -ErrorAction Stop).Source
-        return @($powershell, '-NoProfile', '-File', $executable.Source) + $tail
-    }
-    return @($executable.Source) + $tail
-}
-
 function Get-PaneProcesses {
     param([string]$PaneId)
     return (Invoke-Herdr @('pane', 'process-info', '--pane', $PaneId)).result.process_info
@@ -123,12 +102,6 @@ function Get-ForegroundChildren {
     return @($ProcessInfo.foreground_processes | Where-Object {
         [int](Get-Field $_ 'pid') -ne $shellPid
     })
-}
-
-function Test-PersistentPane {
-    param($ProcessInfo)
-    $process = Get-CimInstance Win32_Process -Filter "ProcessId = $($ProcessInfo.shell_pid)"
-    return $process.Name -ieq 'powershell.exe' -and $process.CommandLine -match '(?i)-NoExit'
 }
 
 function Stop-AgentChild {
@@ -148,11 +121,34 @@ function Stop-AgentChild {
     throw "Agent in pane '$PaneId' did not stop."
 }
 
-function Start-AgentChild {
-    param([string]$PaneId, [string[]]$Command, [string]$Prompt)
-    $run = '& ' + (($Command | ForEach-Object { ConvertTo-Literal $_ }) -join ' ') +
-        ' ' + (ConvertTo-PromptExpression $Prompt)
-    Invoke-Herdr @('pane', 'run', $PaneId, $run) | Out-Null
+function Get-AgentsInPane {
+    param([string]$PaneId)
+    $agentList = Invoke-Herdr @('agent', 'list')
+    return @($agentList.result.agents | Where-Object {
+        [string](Get-Field $_ 'pane_id') -eq $PaneId
+    })
+}
+
+function Wait-AgentReleased {
+    param([string]$PaneId)
+    for ($attempt = 0; $attempt -lt 20; $attempt++) {
+        if (@(Get-AgentsInPane $PaneId).Count -eq 0) { return }
+        Start-Sleep -Milliseconds 250
+    }
+    throw "Herdr did not release the agent in pane '$PaneId'."
+}
+
+function Start-Agent {
+    param([string]$PaneId)
+    $agentName = ('cl-' + ($PaneId -replace '[^A-Za-z0-9_-]', '-')).ToLowerInvariant()
+    $startArgs = @('agent', 'start', $agentName, '--kind', $agentKind, '--pane', $PaneId)
+    if ($agentArgs.Count -gt 0) {
+        $startArgs += @('--') + $agentArgs
+    }
+    $started = Invoke-Herdr $startArgs
+    Invoke-Herdr @('pane', 'rename', $PaneId, $ticketPaneLabel) | Out-Null
+    if ([string]::IsNullOrWhiteSpace($initialPrompt)) { return $started }
+    return Invoke-Herdr @('agent', 'prompt', $agentName, $initialPrompt)
 }
 
 $workspaceList = Invoke-Herdr @('workspace', 'list')
@@ -163,54 +159,71 @@ if ($workspaces.Count -gt 1) {
     throw "Multiple Herdr workspaces are labeled '$projectSlug'."
 }
 
-$rootPaneToClose = ''
+$ticketPaneId = ''
+$workspacePanes = @()
 if ($workspaces.Count -eq 1) {
     $workspaceId = [string]$workspaces[0].workspace_id
+    $paneList = Invoke-Herdr @('pane', 'list', '--workspace', $workspaceId)
+    $workspacePanes = @($paneList.result.panes)
 } else {
     $created = Invoke-Herdr @(
         'workspace', 'create', '--cwd', $launchDir,
         '--label', $projectSlug, '--no-focus'
     )
     $workspaceId = [string]$created.result.workspace.workspace_id
-    $rootPaneToClose = [string]$created.result.root_pane.pane_id
+    $ticketPaneId = [string]$created.result.root_pane.pane_id
 }
 
-$agentList = Invoke-Herdr @('agent', 'list')
-$agents = @($agentList.result.agents | Where-Object {
-    (Get-Field $_ 'workspace_id') -eq $workspaceId -and
-        (Get-Field $_ 'name') -ceq $agentName
+$ticketPanes = @($workspacePanes | Where-Object {
+    (Get-Field $_ 'label') -ceq $ticketPaneLabel
 })
-if ($agents.Count -gt 1) {
-    throw "Ticket '$ticketFolder' has multiple Herdr agents."
+if ($ticketPanes.Count -gt 1) {
+    throw "Ticket '$ticketFolder' has multiple Herdr panes."
 }
 
-if ($agents.Count -eq 1) {
-    $status = [string](Get-Field $agents[0] 'agent_status')
-    $paneId = [string](Get-Field $agents[0] 'pane_id')
+if ($ticketPanes.Count -eq 1) {
+    $paneId = [string](Get-Field $ticketPanes[0] 'pane_id')
     $processes = Get-PaneProcesses $paneId
-    if (-not (Test-PersistentPane $processes)) {
-        throw "Herdr pane '$paneId' cannot restart in place because it has no persistent shell."
-    }
     $children = @(Get-ForegroundChildren $processes)
     if ($children.Count -gt 0) {
+        $agents = @(Get-AgentsInPane $paneId)
+        $status = if ($agents.Count -eq 1) {
+            [string](Get-Field $agents[0] 'agent_status')
+        } else {
+            'unknown'
+        }
         if ($status -cne 'idle' -and $status -cne 'done') {
             throw "Ticket '$ticketFolder' already has a Herdr agent ($status)."
         }
         Stop-AgentChild $paneId
+        Wait-AgentReleased $paneId
     }
-    Start-AgentChild $paneId (Resolve-AgentCommand $agentCommand) $initialPrompt
+    Start-Agent $paneId | ConvertTo-Json -Depth 10 | Write-Output
     exit 0
 }
 
-$powershell = (Get-Command powershell -ErrorAction Stop).Source
-$started = Invoke-Herdr (@(
-    'agent', 'start', $agentName,
-    '--cwd', $launchDir, '--workspace', $workspaceId, '--no-focus', '--'
-) + @($powershell, '-NoLogo', '-NoProfile', '-NoExit'))
-$paneId = [string]$started.result.agent.pane_id
-Start-AgentChild $paneId (Resolve-AgentCommand $agentCommand) $initialPrompt
-
-if ($rootPaneToClose) {
-    Invoke-Herdr @('pane', 'close', $rootPaneToClose) | Out-Null
+if (-not $ticketPaneId) {
+    $availablePanes = @($workspacePanes | Where-Object {
+        [string]::IsNullOrWhiteSpace([string](Get-Field $_ 'label')) -and
+            [string](Get-Field $_ 'cwd') -ieq $launchDir
+    })
+    if ($availablePanes.Count -gt 0) {
+        $candidateId = [string](Get-Field $availablePanes[0] 'pane_id')
+        $processes = Get-PaneProcesses $candidateId
+        if (@(Get-ForegroundChildren $processes).Count -eq 0) {
+            $ticketPaneId = $candidateId
+        }
+    }
 }
-$started | ConvertTo-Json -Depth 10 | Write-Output
+if (-not $ticketPaneId) {
+    if ($workspacePanes.Count -eq 0) {
+        throw "Herdr workspace '$workspaceId' has no pane to split."
+    }
+    $split = Invoke-Herdr @(
+        'pane', 'split', [string](Get-Field $workspacePanes[0] 'pane_id'),
+        '--direction', 'right', '--cwd', $launchDir, '--no-focus'
+    )
+    $ticketPaneId = [string]$split.result.pane.pane_id
+}
+
+Start-Agent $ticketPaneId | ConvertTo-Json -Depth 10 | Write-Output

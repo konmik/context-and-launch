@@ -205,7 +205,7 @@ A project-level container in Herdr that Context & Launch associates with one Pro
 Avoid: Herdr environment, terminal environment
 
 Herdr Ticket Pane:
-A persistent pane in a Herdr Workspace associated with one Ticket. It retains its identity when its Herdr Agent is replaced.
+A persistent pane in a Herdr Workspace associated with one Ticket through its `{projectSlug}--{folderName}` pane label. It retains its identity when its Herdr Agent is replaced.
 Avoid: agent panel, agent instance
 
 Herdr Agent:

@@ -1,9 +1,6 @@
-import path from "path";
 import { ProcessError } from "../shared/errors.js";
-import {
-	listHerdrAgents, listHerdrWorkspaces,
-	type HerdrAgent, type HerdrExecFn,
-} from "./herdr-exec.js";
+import type { HerdrExecFn } from "./herdr-exec.js";
+import { listHerdrTicketPanes } from "./herdr-ticket-panes.js";
 
 export type { HerdrExecFn } from "./herdr-exec.js";
 
@@ -15,67 +12,38 @@ export type FindHerdrAgentResult =
 export interface HerdrAgentTarget {
 	projectSlug: string;
 	folderName: string;
-	agentWorktreePath: string;
 }
 
 function isHerdrMissing(err: unknown): boolean {
 	return err instanceof ProcessError && err.kind === "command-not-found";
 }
 
-function normalizePath(value: string): string {
-	const normalized = path.resolve(value);
-	return process.platform === "win32" ? normalized.toLowerCase() : normalized;
-}
-
-function agentBelongsToTarget(agent: HerdrAgent, target: HerdrAgentTarget): boolean {
-	const expectedName = `${target.projectSlug}--${target.folderName}`;
-	if (agent.name === expectedName) return true;
-	const expectedPath = normalizePath(target.agentWorktreePath);
-	return [agent.cwd, agent.foreground_cwd]
-		.some((candidate) => typeof candidate === "string"
-			&& candidate.length > 0
-			&& normalizePath(candidate) === expectedPath);
-}
-
 export async function findHerdrAgent(
 	target: HerdrAgentTarget,
 	exec: HerdrExecFn,
 ): Promise<FindHerdrAgentResult> {
-	let workspaces;
+	let ticketPanes;
 	try {
-		workspaces = await listHerdrWorkspaces(exec);
+		ticketPanes = await listHerdrTicketPanes(target.projectSlug, exec);
 	} catch (err) {
 		if (isHerdrMissing(err)) return { kind: "herdr-missing" };
 		throw err;
 	}
 
-	const matchingWorkspaces = workspaces.filter((w) => w.label === target.projectSlug);
-	if (matchingWorkspaces.length > 1) {
+	const panes = ticketPanes.filter((candidate) => candidate.folderName === target.folderName);
+	if (panes.length > 1) {
 		throw new Error(
-			`Multiple Herdr workspaces are labeled '${target.projectSlug}'.`
-			+ " Rename or close duplicates first.",
+			`Ticket '${target.folderName}' has multiple Herdr panes. Rename or close duplicates first.`,
 		);
 	}
-	if (matchingWorkspaces.length === 0) return { kind: "no-agent" };
-	const workspaceId = matchingWorkspaces[0].workspace_id;
-
-	const agents = await listHerdrAgents(exec);
-	const matchingAgents = agents
-		.filter((a) => a.workspace_id === workspaceId && agentBelongsToTarget(a, target));
-	if (matchingAgents.length > 1) {
-		const statuses = matchingAgents.map((a) => a.agent_status ?? "unknown");
-		throw new Error(
-			`Ticket '${target.folderName}' has multiple Herdr agents (${statuses.join(", ")}).`
-			+ " Close duplicates first.",
-		);
+	if (panes.length === 0 || panes[0].agentStatuses.length === 0) {
+		return { kind: "no-agent" };
 	}
-	if (matchingAgents.length === 0) return { kind: "no-agent" };
-
-	const agent = matchingAgents[0];
-	if (!agent.pane_id) {
-		throw new Error(`Herdr agent for ticket '${target.folderName}' has no pane id.`);
+	const pane = panes[0];
+	if (pane.agentStatuses.length > 1) {
+		throw new Error(`Herdr pane '${pane.paneId}' has multiple agents.`);
 	}
-	return { kind: "agent", paneId: agent.pane_id, agentStatus: agent.agent_status ?? "unknown" };
+	return { kind: "agent", paneId: pane.paneId, agentStatus: pane.agentStatuses[0] };
 }
 
 export async function stopHerdrAgent(paneId: string, exec: HerdrExecFn): Promise<void> {

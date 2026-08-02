@@ -13,13 +13,11 @@ interface HarnessReport {
 	calls: { args: string[] }[];
 }
 
-function makeHarness(): { dir: string; harness: string; report: string; agent: string } {
+function makeHarness(): { dir: string; harness: string; report: string } {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'run-agent-herdr-'));
 	tempDirs.push(dir);
 	const harness = path.join(dir, 'harness.ps1');
 	const report = path.join(dir, 'report.json');
-	const agent = path.join(dir, 'probe-agent.ps1');
-	fs.writeFileSync(agent, '');
 	fs.writeFileSync(harness, String.raw`
 param(
   [string]$TargetScript,
@@ -52,23 +50,34 @@ function global:herdr {
     return '{"id":"test","result":{"workspace":{"workspace_id":"w1"},' +
       '"root_pane":{"pane_id":"w1:p1"}}}'
   }
+  if ($verb -eq 'pane list') {
+    if ($Mode -eq 'reuse') {
+      return '{"id":"test","result":{"panes":[' +
+        '{"workspace_id":"w1","pane_id":"w1:p1","label":"another-ticket"}]}}'
+    }
+    return '{"id":"test","result":{"panes":[' +
+      '{"workspace_id":"w1","pane_id":"w1:p1","label":"another-ticket"},' +
+      '{"workspace_id":"w1","pane_id":"w1:p9","label":"alpha--st-47"}]}}'
+  }
   if ($verb -eq 'agent list') {
+    if ($global:Stopped) {
+      return '{"id":"test","result":{"agents":[]}}'
+    }
     if ($Mode -eq 'working') {
       return '{"id":"test","result":{"agents":[{"workspace_id":"w1",' +
-        '"pane_id":"w1:p9","name":"alpha--st-47","agent_status":"working"}]}}'
+        '"pane_id":"w1:p9","agent_status":"working"}]}}'
     }
     if ($Mode -eq 'idle') {
       return '{"id":"test","result":{"agents":[{"workspace_id":"w1",' +
-        '"pane_id":"w1:p9","name":"alpha--st-47","agent_status":"idle"}]}}'
-    }
-    if ($Mode -eq 'empty') {
-      return '{"id":"test","result":{"agents":[{"workspace_id":"w1",' +
-        '"pane_id":"w1:p9","name":"alpha--st-47","agent_status":"unknown"}]}}'
+        '"pane_id":"w1:p9","agent_status":"idle"}]}}'
     }
     return '{"id":"test","result":{"agents":[]}}'
   }
   if ($verb -eq 'agent start') {
-    return '{"id":"test","result":{"agent":{"pane_id":"w1:p2"}}}'
+    return '{"id":"test","result":{"agent":{"agent_status":"idle"}}}'
+  }
+  if ($verb -eq 'agent prompt') {
+    return '{"id":"test","result":{"agent":{"agent_status":"working"}}}'
   }
   if ($verb -eq 'pane process-info') {
     $foregroundPid = if ($global:Stopped -or $Mode -eq 'empty') { $PID } else { 999999 }
@@ -84,8 +93,11 @@ function global:herdr {
     if ($callArgs[3] -eq 'enter' -and $global:QuitPending) { $global:Stopped = $true }
     return '{"id":"test","result":{"type":"ok"}}'
   }
-  if ($verb -eq 'pane close') {
+  if ($verb -eq 'pane rename') {
     return '{"id":"test","result":{"type":"ok"}}'
+  }
+  if ($verb -eq 'pane split') {
+    return '{"id":"test","result":{"pane":{"pane_id":"w1:p2"}}}'
   }
   throw "Unexpected Herdr call: $($callArgs -join ' ')"
 }
@@ -101,7 +113,7 @@ try {
   ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $ReportPath
 exit $exitCode
 `);
-	return { dir, harness, report, agent };
+	return { dir, harness, report };
 }
 
 function runHarness(mode: 'create' | 'reuse' | 'idle' | 'empty' | 'working'): {
@@ -115,7 +127,22 @@ function runHarness(mode: 'create' | 'reuse' | 'idle' | 'empty' | 'working'): {
 	const result = spawnSync('powershell', [
 		'-NoProfile', '-File', files.harness,
 		SCRIPT_PATH, files.report, mode, files.dir,
-		prompt, marker, files.agent, '--flag',
+		prompt, marker, 'claude', '--flag',
+	], { encoding: 'utf-8' });
+	return {
+		status: result.status,
+		stderr: result.stderr,
+		report: JSON.parse(fs.readFileSync(files.report, 'utf-8')) as HarnessReport,
+	};
+}
+
+function runHarnessWithoutPrompt(): ReturnType<typeof runHarness> {
+	const files = makeHarness();
+	const marker = path.join(files.dir, 'running', 'alpha', 'st-47.json');
+	const result = spawnSync('powershell', [
+		'-NoProfile', '-File', files.harness,
+		SCRIPT_PATH, files.report, 'create', files.dir,
+		'', marker, 'claude', '--flag',
 	], { encoding: 'utf-8' });
 	return {
 		status: result.status,
@@ -131,31 +158,43 @@ afterEach(() => {
 });
 
 describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
-	it('creates a persistent pane and starts the agent as its child', () => {
+	it('uses a new workspace root pane for the Ticket agent', () => {
 		const result = runHarness('create');
 		expect(result.status, result.stderr).toBe(0);
 		const calls = result.report.calls.map(call => call.args);
-		expect(calls[3]).toEqual([
-			'agent', 'start', 'alpha--st-47', '--cwd', expect.any(String),
-			'--workspace', 'w1', '--no-focus', '--',
-			expect.stringMatching(/powershell(?:\.exe)?$/i),
-			'-NoLogo', '-NoProfile', '-NoExit',
+		expect(calls).toContainEqual(['pane', 'rename', 'w1:p1', 'alpha--st-47']);
+		expect(calls).toContainEqual([
+			'agent', 'start', 'cl-w1-p1', '--kind', 'claude', '--pane', 'w1:p1',
+			'--', '--flag',
 		]);
 		expect(calls).toContainEqual([
-			'pane', 'run', 'w1:p2', expect.stringMatching(
-				/\[string\]::Join\([^)]*'hello', 'multiline ''world'''\)\)/,
-			),
+			'agent', 'prompt', 'cl-w1-p1', "hello\nmultiline 'world'",
 		]);
-		expect(calls.find(call => call[0] === 'pane' && call[1] === 'run')?.[3])
-			.not.toContain('\n');
-		expect(calls.at(-1)?.slice(0, 3)).toEqual(['pane', 'close', 'w1:p1']);
+		expect(calls.some(call => call.includes('--cwd') && call[0] === 'agent')).toBe(false);
 	});
 
-	it('reuses the Project workspace', () => {
+	it('splits a Ticket pane in an existing Project workspace', () => {
 		const result = runHarness('reuse');
 		expect(result.status, result.stderr).toBe(0);
-		expect(result.report.calls.map(call => call.args.slice(0, 2).join(' ')))
+		const calls = result.report.calls.map(call => call.args);
+		expect(calls.map(call => call.slice(0, 2).join(' ')))
 			.not.toContain('workspace create');
+		expect(calls).toContainEqual([
+			'pane', 'split', 'w1:p1', '--direction', 'right',
+			'--cwd', expect.any(String), '--no-focus',
+		]);
+		expect(calls).toContainEqual([
+			'agent', 'start', 'cl-w1-p2', '--kind', 'claude', '--pane', 'w1:p2',
+			'--', '--flag',
+		]);
+	});
+
+	it('starts without prompting when the initial prompt is empty', () => {
+		const result = runHarnessWithoutPrompt();
+		expect(result.status, result.stderr).toBe(0);
+		const calls = result.report.calls.map(call => call.args);
+		expect(calls.some(call => call[0] === 'agent' && call[1] === 'start')).toBe(true);
+		expect(calls.some(call => call[0] === 'agent' && call[1] === 'prompt')).toBe(false);
 	});
 
 	it('restarts an idle agent process inside the same pane', () => {
@@ -165,24 +204,24 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
 		expect(calls).toContainEqual(['pane', 'run', 'w1:p9', '/quit']);
 		expect(calls).toContainEqual(['pane', 'send-keys', 'w1:p9', 'enter']);
 		expect(calls).not.toContainEqual(['pane', 'send-keys', 'w1:p9', 'ctrl+c']);
-		expect(calls.some(call => call[0] === 'agent' && call[1] === 'start')).toBe(false);
 		expect(calls.some(call => call[0] === 'pane' && call[1] === 'close')).toBe(false);
-		const restart = calls.find(call =>
-			call[0] === 'pane' && call[1] === 'run' && call[3].includes('probe-agent.ps1'));
-		expect(restart?.[2]).toBe('w1:p9');
-		expect(restart?.[3]).toMatch(
-			/\[string\]::Join\([^)]*'hello', 'multiline ''world'''\)\)/,
-		);
-		expect(restart?.[3]).not.toContain('\n');
+		expect(calls).toContainEqual([
+			'agent', 'start', 'cl-w1-p9', '--kind', 'claude', '--pane', 'w1:p9',
+			'--', '--flag',
+		]);
+		expect(calls).toContainEqual([
+			'agent', 'prompt', 'cl-w1-p9', "hello\nmultiline 'world'",
+		]);
 	});
 
-	it('restarts an empty persistent pane even when Herdr reports unknown', () => {
+	it('starts an agent in an empty persistent Ticket pane', () => {
 		const result = runHarness('empty');
 		expect(result.status, result.stderr).toBe(0);
 		const calls = result.report.calls.map(call => call.args);
-		expect(calls.some(call =>
-			call[0] === 'pane' && call[1] === 'run' && call[2] === 'w1:p9',
-		)).toBe(true);
+		expect(calls).toContainEqual([
+			'agent', 'start', 'cl-w1-p9', '--kind', 'claude', '--pane', 'w1:p9',
+			'--', '--flag',
+		]);
 	});
 
 	it('rejects a working agent', () => {

@@ -30,10 +30,13 @@ export interface HerdrWorkspace {
 export interface HerdrAgent {
 	workspace_id?: string;
 	pane_id?: string;
-	name?: string;
-	cwd?: string;
-	foreground_cwd?: string;
 	agent_status?: string;
+}
+
+export interface HerdrPane {
+	workspace_id: string;
+	pane_id: string;
+	label?: string;
 }
 
 export async function listHerdrWorkspaces(
@@ -58,4 +61,16 @@ export async function listHerdrAgents(
 		throw new Error("Missing agents array in output from 'herdr.agent.list'.");
 	}
 	return result.agents as HerdrAgent[];
+}
+
+export async function listHerdrPanes(
+	exec: HerdrExecFn, workspaceId: string,
+): Promise<HerdrPane[]> {
+	const output = await exec('herdr.pane.list', { workspaceId });
+	const result = (parseHerdrJson(output, 'herdr.pane.list').result
+		?? {}) as { panes?: unknown };
+	if (!Array.isArray(result.panes)) {
+		throw new Error("Missing panes array in output from 'herdr.pane.list'.");
+	}
+	return result.panes as HerdrPane[];
 }

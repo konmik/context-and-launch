@@ -34,6 +34,7 @@ export async function createServer(opts: CreateServerOptions = {}): Promise<Test
     path.join(dataDir, "config", "command-templates.json"),
     JSON.stringify({
       "herdr.workspace.list": "herdr-e2e-not-installed workspace list",
+      "herdr.pane.list": "herdr-e2e-not-installed pane list --workspace {{workspaceId}}",
       "herdr.agent.list": "herdr-e2e-not-installed agent list",
       "herdr.agent.stop": "herdr-e2e-not-installed pane close {{paneId}}",
     }, null, 2),
@@ -440,13 +441,31 @@ export async function dragSortable(
   toSelector: string,
   options: DragSortableOptions = {},
 ): Promise<void> {
-  const source = page.locator(fromSelector);
-  const target = page.locator(toSelector);
-  const sBox = await source.boundingBox();
-  const tBox = await target.boundingBox();
-  if (!sBox || !tBox) {
-    throw new Error(`dragSortable: missing bounding box for ${fromSelector} or ${toSelector}`);
-  }
+  const boxes = await page.waitForFunction(
+    ({ fromSelector, toSelector }) => {
+      const source = document.querySelector(fromSelector);
+      const target = document.querySelector(toSelector);
+      if (!source || !target) return false;
+      const sourceBox = source.getBoundingClientRect();
+      const targetBox = target.getBoundingClientRect();
+      if (sourceBox.width === 0 || sourceBox.height === 0
+        || targetBox.width === 0 || targetBox.height === 0) return false;
+      return {
+        source: {
+          x: sourceBox.x, y: sourceBox.y,
+          width: sourceBox.width, height: sourceBox.height,
+        },
+        target: {
+          x: targetBox.x, y: targetBox.y,
+          width: targetBox.width, height: targetBox.height,
+        },
+      };
+    },
+    { fromSelector, toSelector },
+    { timeout: 2500 },
+  ).then(handle => handle.jsonValue());
+  if (!boxes) throw new Error(`dragSortable: missing visible endpoints`);
+  const { source: sBox, target: tBox } = boxes;
   const sx = sBox.x + sBox.width / 2;
   const sy = sBox.y + sBox.height / 2;
   const tx = tBox.x + tBox.width / 2;

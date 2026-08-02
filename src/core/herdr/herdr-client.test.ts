@@ -1,51 +1,58 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-	fetchHerdrTicketStatuses, ticketStatusesFromAgents,
+	fetchHerdrTicketStatuses, ticketStatusesFromPanes,
 } from './herdr-client.js';
 import type { HerdrExecFn } from './herdr-exec.js';
 import { ProcessError } from '../shared/errors.js';
 
-const WORKING_JSON = '{"id":"test","result":{"type":"agent_list","agents":'
-	+ '[{"workspace_id":"w1","pane_id":"w1:p2","name":'
-	+ '"alpha--st-47-herdr","agent_status":"working"}]}}';
+const WORKSPACES_JSON = JSON.stringify({
+	result: { workspaces: [{ workspace_id: 'w1', label: 'alpha' }] },
+});
+const PANES_JSON = JSON.stringify({
+	result: { panes: [{ workspace_id: 'w1', pane_id: 'w1:p2', label: 'alpha--st-47-herdr' }] },
+});
 
-const UNNAMED_JSON = '{"id":"test","result":{"type":"agent_list","agents":'
-	+ '[{"workspace_id":"w1","pane_id":"w1:p2","agent_status":"working"}]}}';
-
-function execReturning(stdout: string): HerdrExecFn {
-	return async () => stdout;
+function execReturning(agentListJson: string): HerdrExecFn {
+	return async (key) => {
+		if (key === 'herdr.workspace.list') return WORKSPACES_JSON;
+		if (key === 'herdr.pane.list') return PANES_JSON;
+		if (key === 'herdr.agent.list') return agentListJson;
+		throw new Error(`Unexpected command: ${key}`);
+	};
 }
 
 describe('fetchHerdrTicketStatuses', () => {
-	it('parses the pinned JSON shape into folder-name statuses', async () => {
-		const statuses = await fetchHerdrTicketStatuses('alpha', execReturning(WORKING_JSON));
-		expect(statuses).toEqual({ 'st-47-herdr': 'working' });
+	it('joins agent status to the Ticket pane label', async () => {
+		const agents = JSON.stringify({
+			result: { agents: [{ workspace_id: 'w1', pane_id: 'w1:p2', agent_status: 'working' }] },
+		});
+		await expect(fetchHerdrTicketStatuses('alpha', execReturning(agents)))
+			.resolves.toEqual({ 'st-47-herdr': 'working' });
 	});
 
-	it('skips unnamed agents', async () => {
-		const statuses = await fetchHerdrTicketStatuses('alpha', execReturning(UNNAMED_JSON));
-		expect(statuses).toEqual({});
-	});
-
-	it('skips agents from other projects', async () => {
-		const json = '{"result":{"agents":[{"name":"beta--st-9","agent_status":"working"}]}}';
-		const statuses = await fetchHerdrTicketStatuses('alpha', execReturning(json));
-		expect(statuses).toEqual({});
+	it('skips a Ticket pane without an agent', async () => {
+		await expect(fetchHerdrTicketStatuses(
+			'alpha', execReturning('{"result":{"agents":[]}}'),
+		)).resolves.toEqual({});
 	});
 
 	it('keeps the done status', async () => {
-		const json = '{"result":{"agents":[{"name":"alpha--st-2","agent_status":"done"}]}}';
-		const statuses = await fetchHerdrTicketStatuses('alpha', execReturning(json));
-		expect(statuses).toEqual({ 'st-2': 'done' });
+		const agents = JSON.stringify({
+			result: { agents: [{ workspace_id: 'w1', pane_id: 'w1:p2', agent_status: 'done' }] },
+		});
+		await expect(fetchHerdrTicketStatuses('alpha', execReturning(agents)))
+			.resolves.toEqual({ 'st-47-herdr': 'done' });
 	});
 
 	it('passes an out-of-vocabulary status through verbatim', async () => {
-		const json = '{"result":{"agents":[{"name":"alpha--st-1","agent_status":"frobnicating"}]}}';
-		const statuses = await fetchHerdrTicketStatuses('alpha', execReturning(json));
-		expect(statuses).toEqual({ 'st-1': 'frobnicating' });
+		const agents = JSON.stringify({
+			result: { agents: [{ workspace_id: 'w1', pane_id: 'w1:p2', agent_status: 'frobnicating' }] },
+		});
+		await expect(fetchHerdrTicketStatuses('alpha', execReturning(agents)))
+			.resolves.toEqual({ 'st-47-herdr': 'frobnicating' });
 	});
 
-	it('throws on non-JSON output', async () => {
+	it('throws on non-JSON agent output', async () => {
 		await expect(fetchHerdrTicketStatuses('alpha', execReturning('not json')))
 			.rejects.toThrow("Could not parse JSON output from 'herdr.agent.list'.");
 	});
@@ -57,25 +64,25 @@ describe('fetchHerdrTicketStatuses', () => {
 
 	it('propagates a nonzero-exit ProcessError from exec', async () => {
 		const exec: HerdrExecFn = async () => {
-			throw new ProcessError('herdr agent list', 1, 'boom');
+			throw new ProcessError('herdr workspace list', 1, 'boom');
 		};
-		const promise = fetchHerdrTicketStatuses('alpha', exec);
-		await expect(promise).rejects.toBeInstanceOf(ProcessError);
-		await expect(promise).rejects.toThrow('boom');
+		await expect(fetchHerdrTicketStatuses('alpha', exec)).rejects.toBeInstanceOf(ProcessError);
 	});
 });
 
-describe('ticketStatusesFromAgents', () => {
-	it('lets later duplicates overwrite earlier ones', () => {
-		const statuses = ticketStatusesFromAgents([
-			{ name: 'alpha--st-1', agent_status: 'idle' },
-			{ name: 'alpha--st-1', agent_status: 'working' },
-		], 'alpha');
-		expect(statuses).toEqual({ 'st-1': 'working' });
+describe('ticketStatusesFromPanes', () => {
+	it('maps only panes with agents', () => {
+		expect(ticketStatusesFromPanes([
+			{ folderName: 'st-1', paneId: 'w1:p1', agentStatuses: ['working'] },
+			{ folderName: 'st-2', paneId: 'w1:p2', agentStatuses: [] },
+		])).toEqual({ 'st-1': 'working' });
 	});
 
-	it('skips agents without a string agent_status', () => {
-		const statuses = ticketStatusesFromAgents([{ name: 'alpha--st-1' }], 'alpha');
-		expect(statuses).toEqual({});
+	it('marks duplicate panes and multiple agents as unknown', () => {
+		expect(ticketStatusesFromPanes([
+			{ folderName: 'st-1', paneId: 'w1:p1', agentStatuses: ['working'] },
+			{ folderName: 'st-1', paneId: 'w1:p2', agentStatuses: [] },
+			{ folderName: 'st-2', paneId: 'w1:p3', agentStatuses: ['idle', 'working'] },
+		])).toEqual({ 'st-1': 'unknown', 'st-2': 'unknown' });
 	});
 });

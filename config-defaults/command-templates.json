@@ -68,6 +68,7 @@
   "agent-worktree.locking-processes.windows": "& {{scriptPath}} {{worktreePath}}",
   "agent-worktree.branch.delete-remote": "git push origin --delete {{branch}}",
   "herdr.workspace.list": "herdr workspace list",
+  "herdr.pane.list": "herdr pane list --workspace {{workspaceId}}",
   "herdr.agent.list": "herdr agent list",
   "herdr.agent.stop": "herdr pane close {{paneId}}",
   "agent-launch.process-start.windows": "(Get-Process -Id {{pid}} -ErrorAction Stop).StartTime.ToUniversalTime().ToString('o')",

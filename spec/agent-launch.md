@@ -39,10 +39,14 @@
 - Launch script runs the agent with the initial prompt as one positional argument
 - For the Herdr Launch Target
   - A Ticket pane is owned by a persistent shell, with the Herdr Agent as its foreground child process
+  - The Ticket pane label is the Project Slug, two hyphens, and the Ticket Folder name
+    - The pane label is the persistent Ticket identity
+    - The Herdr Agent name is a transient launch handle derived from the pane ID
   - An existing quiescent Herdr Agent (`idle` or `done`) is stopped and replaced by a fresh process in the same pane
-  - A new Ticket pane is created only when the Ticket has no existing agent
+  - A new Ticket pane is created only when the Ticket has no existing pane
   - A working, blocked, or unknown existing Herdr Agent blocks the launch
-  - The multiline prompt is passed as the fresh agent process's positional CLI argument in the same `pane run` command
+  - Herdr starts the configured agent kind in the Ticket pane
+  - Herdr submits the multiline prompt to the fresh agent after it becomes interactive
   - A legacy pane without a persistent shell fails without closing the pane or creating another pane
   - A failing Herdr command is reported with the command that failed
     - A failure Herdr itself reports is shown with Herdr's own message

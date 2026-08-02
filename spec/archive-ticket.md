@@ -8,7 +8,7 @@
   - Delete local branch
   - Delete remote branch
 - Checks start in parallel when the dialog opens
-  - A Herdr Agent belongs to the ticket when either its explicit name matches or it runs in the ticket's Agent Worktree
+  - A Herdr Agent belongs to the Ticket when its pane has the Ticket's persistent pane label
   - Checks re-run every time the dialog is reopened
   - Each item shows a checking indicator until its check settles
   - Each cleanup item is a button with its status on the right

@@ -50,7 +50,6 @@ export async function runTicketCleanupChecks(
 		const found = await deps.findHerdrAgent({
 			projectSlug: target.projectSlug,
 			folderName: target.folderName,
-			agentWorktreePath: target.worktreePath,
 		});
 		if (found.kind === "herdr-missing") return { state: "blocked", reason: "Herdr is not installed" };
 		if (found.kind === "no-agent") return { state: "blocked", reason: "No Herdr agent" };
