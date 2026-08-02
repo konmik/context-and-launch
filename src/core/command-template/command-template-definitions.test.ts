@@ -5,6 +5,7 @@ import {
 	COMMAND_TEMPLATE_DEFINITION_BY_KEY,
 	COMMAND_TEMPLATE_DEFINITIONS,
 	gitEnvironment,
+	remoteGitEnvironment,
 } from './command-template-definitions.js';
 import { COMMAND_TEMPLATE_GROUP_ORDER } from './command-template-types.js';
 
@@ -29,18 +30,42 @@ describe('Command Template catalog', () => {
 		}
 	});
 
-	it('shares one git environment so every git command inherits long-path support', () => {
+	it('gives remote Git commands credential interaction without terminal prompts', () => {
+		const remoteKeys = new Set([
+			'ticket-sync.push.set-upstream',
+			'ticket-sync.fetch-origin',
+			'ticket-sync.fetch',
+			'ticket-sync.push',
+			'conflict-resolution.fetch',
+			'conflict-resolution.push',
+			'worktree.remote-branch.probe',
+			'worktree.adopt-remote',
+			'agent-worktree.remote-branch.probe',
+			'agent-worktree.main.fetch',
+			'agent-worktree.branch.delete-remote',
+		]);
 		const gitCommands = COMMAND_TEMPLATE_DEFINITIONS.filter(
 			(definition) => Object.keys(definition.environment).length > 0,
 		);
 		expect(gitCommands.length).toBeGreaterThan(0);
 		for (const definition of gitCommands) {
-			expect(definition.environment).toBe(gitEnvironment);
+			if (remoteKeys.has(definition.key)) {
+				expect(definition.environment).toBe(remoteGitEnvironment);
+				expect(definition.timeoutMs).toBe(600_000);
+			} else {
+				expect(definition.environment).toBe(gitEnvironment);
+			}
 		}
 		expect(gitEnvironment).toMatchObject({
+			GIT_TERMINAL_PROMPT: '0',
 			GIT_CONFIG_COUNT: '1',
 			GIT_CONFIG_KEY_0: 'core.longpaths',
 			GIT_CONFIG_VALUE_0: 'true',
+		});
+		expect(gitEnvironment).not.toHaveProperty('GCM_INTERACTIVE');
+		expect(remoteGitEnvironment).toMatchObject({
+			GIT_TERMINAL_PROMPT: '0',
+			GCM_INTERACTIVE: 'auto',
 		});
 	});
 

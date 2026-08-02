@@ -7,10 +7,13 @@ import type {
 const ALL_PLATFORMS: readonly CommandTemplatePlatform[] = ['windows', 'macos', 'linux'];
 export const gitEnvironment = {
 	GIT_TERMINAL_PROMPT: '0',
-	GCM_INTERACTIVE: 'never',
 	GIT_CONFIG_COUNT: '1',
 	GIT_CONFIG_KEY_0: 'core.longpaths',
 	GIT_CONFIG_VALUE_0: 'true',
+} as const;
+export const remoteGitEnvironment = {
+	...gitEnvironment,
+	GCM_INTERACTIVE: 'auto',
 } as const;
 
 interface DefinitionOptions {
@@ -19,7 +22,7 @@ interface DefinitionOptions {
 	timeoutMs?: number;
 	detachDelayMs?: number;
 	listPlaceholders?: readonly string[];
-	git?: boolean;
+	git?: 'local' | 'remote';
 }
 
 function definition<Key extends string>(
@@ -36,7 +39,9 @@ function definition<Key extends string>(
 		platforms: options.platforms ?? ALL_PLATFORMS,
 		scalarPlaceholders,
 		listPlaceholders: options.listPlaceholders ?? [],
-		environment: options.git ? gitEnvironment : {},
+		environment: options.git === 'remote'
+			? remoteGitEnvironment
+			: options.git === 'local' ? gitEnvironment : {},
 		mode: options.mode ?? 'capture',
 		timeoutMs: options.timeoutMs ?? 30_000,
 		detachDelayMs: options.detachDelayMs,
@@ -52,7 +57,8 @@ const HERDR: CommandTemplateFeatureGroup = 'Herdr integration';
 const LAUNCH: CommandTemplateFeatureGroup = 'Agent launching and process inspection';
 const PICKER: CommandTemplateFeatureGroup = 'File and directory pickers';
 const OPEN: CommandTemplateFeatureGroup = 'Operating-system open actions';
-const gitOptions = { git: true } as const;
+const gitOptions = { git: 'local' } as const;
+const remoteGitOptions = { git: 'remote', timeoutMs: 600_000 } as const;
 
 export const COMMAND_TEMPLATE_DEFINITIONS = [
 	definition('git.version', 'Git version', GIT, [], gitOptions),
@@ -66,18 +72,18 @@ export const COMMAND_TEMPLATE_DEFINITIONS = [
 	definition('ticket-sync.remote.list', 'List remotes', SYNC, [], gitOptions),
 	definition('ticket-sync.upstream.resolve', 'Resolve upstream', SYNC, [], gitOptions),
 	definition('ticket-sync.branch.current', 'Resolve current branch', SYNC, [], gitOptions),
-	definition('ticket-sync.push.set-upstream', 'Push and set upstream', SYNC, ['remote', 'branch'], gitOptions),
-	definition('ticket-sync.fetch-origin', 'Fetch origin', SYNC, [], gitOptions),
+	definition('ticket-sync.push.set-upstream', 'Push and set upstream', SYNC, ['remote', 'branch'], remoteGitOptions),
+	definition('ticket-sync.fetch-origin', 'Fetch origin', SYNC, [], remoteGitOptions),
 	definition('ticket-sync.head.resolve', 'Resolve HEAD', SYNC, [], gitOptions),
 	definition('ticket-sync.upstream.repair', 'Repair upstream branch', SYNC, ['remoteBranch', 'localHead', 'upstream'], gitOptions),
 	definition('ticket-sync.ref.resolve', 'Resolve ref', SYNC, ['ref'], gitOptions),
 	definition('ticket-sync.merge-base', 'Resolve merge base', SYNC, ['left', 'right'], gitOptions),
 	definition('ticket-sync.reset-soft', 'Soft reset', SYNC, ['ref'], gitOptions),
-	definition('ticket-sync.fetch', 'Fetch upstream changes', SYNC, [], gitOptions),
+	definition('ticket-sync.fetch', 'Fetch upstream changes', SYNC, [], remoteGitOptions),
 	definition('ticket-sync.fast-forward', 'Fast-forward merge', SYNC, ['ref'], gitOptions),
-	definition('ticket-sync.push', 'Push ref', SYNC, ['remote', 'refspec'], gitOptions),
+	definition('ticket-sync.push', 'Push ref', SYNC, ['remote', 'refspec'], remoteGitOptions),
 	definition('ticket-sync.merge-tree', 'Build merged tree', SYNC, ['left', 'right'], gitOptions),
-	definition('ticket-sync.commit-tree', 'Create merge commit', SYNC, ['tree', 'parent', 'message'], { git: true, listPlaceholders: ['signArgs'] }),
+	definition('ticket-sync.commit-tree', 'Create merge commit', SYNC, ['tree', 'parent', 'message'], { git: 'local', listPlaceholders: ['signArgs'] }),
 	definition('ticket-sync.reset-hard', 'Hard reset', SYNC, ['ref'], gitOptions),
 	definition('ticket-sync.staged-files', 'List staged files', SYNC, [], gitOptions),
 	definition('ticket-sync.ancestor.probe', 'Probe commit ancestry', SYNC, ['ancestor', 'descendant'], gitOptions),
@@ -87,9 +93,9 @@ export const COMMAND_TEMPLATE_DEFINITIONS = [
 
 	definition('conflict-resolution.upstream.resolve', 'Resolve conflict upstream', CONFLICT, [], gitOptions),
 	definition('conflict-resolution.scratch.create', 'Create scratch worktree', CONFLICT, ['scratch', 'ref'], gitOptions),
-	definition('conflict-resolution.fetch', 'Fetch conflict upstream', CONFLICT, [], gitOptions),
+	definition('conflict-resolution.fetch', 'Fetch conflict upstream', CONFLICT, [], remoteGitOptions),
 	definition('conflict-resolution.rebase', 'Rebase conflict worktree', CONFLICT, ['upstream'], gitOptions),
-	definition('conflict-resolution.push', 'Push conflict resolution', CONFLICT, ['remote', 'refspec'], gitOptions),
+	definition('conflict-resolution.push', 'Push conflict resolution', CONFLICT, ['remote', 'refspec'], remoteGitOptions),
 	definition('conflict-resolution.head.resolve', 'Resolve conflict HEAD', CONFLICT, [], gitOptions),
 	definition('conflict-resolution.snapshot-base.resolve', 'Resolve snapshot base', CONFLICT, [], gitOptions),
 	definition('conflict-resolution.local-changes.rebase', 'Rebase local changes', CONFLICT, ['upstream', 'snapshotBase', 'localHead'], gitOptions),
@@ -100,8 +106,8 @@ export const COMMAND_TEMPLATE_DEFINITIONS = [
 	definition('worktree.add-existing', 'Add existing branch worktree', WORKTREE, ['worktreeDir', 'branch'], gitOptions),
 	definition('worktree.create-orphan', 'Create orphan worktree', WORKTREE, ['worktreeDir', 'branch', 'message'], gitOptions),
 	definition('worktree.remote.list', 'List worktree remotes', WORKTREE, [], gitOptions),
-	definition('worktree.remote-branch.probe', 'Probe remote worktree branch', WORKTREE, ['remote', 'branch'], gitOptions),
-	definition('worktree.adopt-remote', 'Adopt remote worktree branch', WORKTREE, ['remote', 'branch', 'worktreeDir', 'remoteBranch'], gitOptions),
+	definition('worktree.remote-branch.probe', 'Probe remote worktree branch', WORKTREE, ['remote', 'branch'], remoteGitOptions),
+	definition('worktree.adopt-remote', 'Adopt remote worktree branch', WORKTREE, ['remote', 'branch', 'worktreeDir', 'remoteBranch'], remoteGitOptions),
 	definition('worktree.prune', 'Prune worktrees', WORKTREE, [], gitOptions),
 	definition('worktree.list', 'List worktrees', WORKTREE, [], gitOptions),
 
@@ -112,7 +118,7 @@ export const COMMAND_TEMPLATE_DEFINITIONS = [
 	definition('agent-worktree.behind-upstream.count', 'Count commits behind upstream', AGENT_WORKTREE, ['range'], gitOptions),
 	definition('agent-worktree.create', 'Create Agent Worktree', AGENT_WORKTREE, ['branch', 'worktreePath', 'mainBranch'], gitOptions),
 	definition('agent-worktree.status', 'Read Agent Worktree status', AGENT_WORKTREE, [], gitOptions),
-	definition('agent-worktree.remote-branch.probe', 'Probe remote Agent Worktree branch', AGENT_WORKTREE, ['branch'], gitOptions),
+	definition('agent-worktree.remote-branch.probe', 'Probe remote Agent Worktree branch', AGENT_WORKTREE, ['branch'], remoteGitOptions),
 	definition('agent-worktree.busy.probe.macos', 'Probe busy Agent Worktree on macOS', AGENT_WORKTREE, ['worktreePath'], { platforms: ['macos'], timeoutMs: 5_000 }),
 	definition('agent-worktree.busy.probe.linux', 'Probe busy Agent Worktree on Linux', AGENT_WORKTREE, ['worktreePath'], { platforms: ['linux'], timeoutMs: 5_000 }),
 	definition('agent-worktree.branch.remote', 'Resolve Agent Worktree remote', AGENT_WORKTREE, ['configKey'], gitOptions),
@@ -120,13 +126,13 @@ export const COMMAND_TEMPLATE_DEFINITIONS = [
 	definition('agent-worktree.local-branch.probe', 'Probe local Agent Worktree branch', AGENT_WORKTREE, ['ref'], gitOptions),
 	definition('agent-worktree.merged.probe', 'Probe merged Agent Worktree branch', AGENT_WORKTREE, ['branch', 'mainBranch'], gitOptions),
 	definition('agent-worktree.remote.list', 'List Agent Worktree remotes', AGENT_WORKTREE, [], gitOptions),
-	definition('agent-worktree.main.fetch', 'Fetch main branch', AGENT_WORKTREE, ['remote', 'mainBranch'], gitOptions),
+	definition('agent-worktree.main.fetch', 'Fetch main branch', AGENT_WORKTREE, ['remote', 'mainBranch'], remoteGitOptions),
 	definition('agent-worktree.merge-tree', 'Build Agent Worktree merge tree', AGENT_WORKTREE, ['mainBranch', 'branch'], gitOptions),
 	definition('agent-worktree.main-tree', 'Resolve main tree', AGENT_WORKTREE, ['treeRef'], gitOptions),
 	definition('agent-worktree.remove', 'Remove Agent Worktree', AGENT_WORKTREE, ['worktreePath'], gitOptions),
 	definition('agent-worktree.branch.delete-local', 'Delete local Agent Worktree branch', AGENT_WORKTREE, ['branch'], gitOptions),
 	definition('agent-worktree.locking-processes.windows', 'Find processes locking Agent Worktree on Windows', AGENT_WORKTREE, ['scriptPath', 'worktreePath'], { platforms: ['windows'], timeoutMs: 10_000 }),
-	definition('agent-worktree.branch.delete-remote', 'Delete remote Agent Worktree branch', AGENT_WORKTREE, ['branch'], gitOptions),
+	definition('agent-worktree.branch.delete-remote', 'Delete remote Agent Worktree branch', AGENT_WORKTREE, ['branch'], remoteGitOptions),
 
 	definition('herdr.workspace.list', 'List Herdr workspaces', HERDR),
 	definition('herdr.pane.list', 'List Herdr panes', HERDR, ['workspaceId']),

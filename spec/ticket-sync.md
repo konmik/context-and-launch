@@ -7,6 +7,8 @@
     - Done
 - Squash: if more than 1 commit ahead of upstream, soft-reset and re-commit as one
 - Fetch
+  - Permit the configured credential helper to authenticate through its GUI or browser
+  - Do not request credentials through an unavailable terminal
 - Rebase onto upstream (no-op if not behind)
   - Rebase fails with conflict
     - Return "conflict"
