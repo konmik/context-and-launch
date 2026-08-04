@@ -68,6 +68,13 @@ export const COMMAND_TEMPLATE_DEFINITIONS = [
 	definition('git.commit', 'Commit staged changes', GIT, ['message'], gitOptions),
 	definition('git.sync-pending.tracked-probe', 'Probe tracked pending changes', GIT, [], gitOptions),
 	definition('git.sync-pending.untracked', 'List untracked files', GIT, [], gitOptions),
+	definition('diff-review.head.resolve', 'Resolve Diff Review HEAD', GIT, [], gitOptions),
+	definition('diff-review.merge-base.resolve', 'Resolve Diff Review merge-base', GIT, ['mainBranch'], gitOptions),
+	definition('diff-review.tracked.files', 'List tracked Diff Review files', GIT, ['baseRef'], gitOptions),
+	definition('diff-review.branch.files', 'List committed Diff Review files', GIT, ['baseRef'], gitOptions),
+	definition('diff-review.last-commit.files', 'List last-commit Diff Review files', GIT, [], gitOptions),
+	definition('diff-review.untracked.files', 'List untracked Diff Review files', GIT, [], gitOptions),
+	definition('diff-review.file.read', 'Read Diff Review file at revision', GIT, ['refPath'], gitOptions),
 
 	definition('ticket-sync.remote.list', 'List remotes', SYNC, [], gitOptions),
 	definition('ticket-sync.upstream.resolve', 'Resolve upstream', SYNC, [], gitOptions),
@@ -85,6 +92,7 @@ export const COMMAND_TEMPLATE_DEFINITIONS = [
 	definition('ticket-sync.merge-tree', 'Build merged tree', SYNC, ['left', 'right'], gitOptions),
 	definition('ticket-sync.commit-tree', 'Create merge commit', SYNC, ['tree', 'parent', 'message'], { git: 'local', listPlaceholders: ['signArgs'] }),
 	definition('ticket-sync.reset-hard', 'Hard reset', SYNC, ['ref'], gitOptions),
+
 	definition('ticket-sync.staged-files', 'List staged files', SYNC, [], gitOptions),
 	definition('ticket-sync.ancestor.probe', 'Probe commit ancestry', SYNC, ['ancestor', 'descendant'], gitOptions),
 	definition('ticket-sync.ahead-count', 'Count commits ahead', SYNC, ['range'], gitOptions),
@@ -138,6 +146,7 @@ export const COMMAND_TEMPLATE_DEFINITIONS = [
 	definition('herdr.pane.list', 'List Herdr panes', HERDR, ['workspaceId']),
 	definition('herdr.agent.list', 'List Herdr agents', HERDR),
 	definition('herdr.agent.stop', 'Stop Herdr agent', HERDR, ['paneId']),
+	definition('herdr.review-prompt.deliver', 'Deliver Review Prompt', HERDR, ['paneId', 'prompt']),
 
 	definition('agent-launch.process-start.windows', 'Read Windows process start time', LAUNCH, ['pid'], { platforms: ['windows'] }),
 	definition('agent-launch.process-start.macos', 'Read macOS process start time', LAUNCH, ['pid'], { platforms: ['macos'] }),

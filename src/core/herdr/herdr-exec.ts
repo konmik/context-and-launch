@@ -30,6 +30,9 @@ export interface HerdrWorkspace {
 export interface HerdrAgent {
 	workspace_id?: string;
 	pane_id?: string;
+	name?: string;
+	cwd?: string;
+	foreground_cwd?: string;
 	agent_status?: string;
 }
 

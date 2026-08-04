@@ -88,18 +88,23 @@ describe('launchAgent profile-based spawn (code-inspection)', () => {
 		path.resolve(__dirname, 'agent-launch.ts'),
 		'utf-8'
 	);
+	const profileLaunchSource = fs.readFileSync(
+		path.resolve(__dirname, 'profile-launch.ts'),
+		'utf-8'
+	);
 
 	it('launchAgent delegates to spawnProfile with launchDir as cwd', () => {
 		expect(source).toMatch(/spawnProfile\(profile,\s*commandVars,\s*launchDir\)/);
 	});
 
 	it('spawnProfile delegates custom bodies to the trusted fixed-shell runner', () => {
-		expect(source).toContain('executeTrustedScript');
+		expect(profileLaunchSource).toContain('executeTrustedScript');
 	});
 
 	it('spawnProfile preserves custom script bodies without tokenization', () => {
 		expect(source).not.toContain('interpolateCommand(');
-		expect(source).toMatch(/script:\s*profile\.command/);
+		expect(profileLaunchSource).not.toContain('interpolateCommand(');
+		expect(profileLaunchSource).toMatch(/script:\s*profile\.command/);
 	});
 
 	it('launchAgent passes initialPrompt from launchRequest directly', () => {

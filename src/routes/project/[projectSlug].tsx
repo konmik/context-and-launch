@@ -22,6 +22,9 @@ import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "~/c
 
 const KanbanBoard = clientOnly(() => import("~/components/board/KanbanBoard"));
 const ForestView = clientOnly(() => import("~/components/forest/ForestView"));
+const DiffReview = clientOnly(
+  () => import("~/components/diff-review/DiffReview"),
+);
 import { getViewMode, setViewMode } from "~/components/forest/forest-local-state.js";
 import CreateTicketDialog from "~/components/ticket/CreateTicketDialog";
 import TicketCleanupDialog from "~/components/shared/TicketCleanupDialog";
@@ -96,6 +99,12 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   const { dialogState, syncState, selectionState, commands } =
     props?.ctrl ?? createProjectPageController({ projectSlug, data });
 
+  createEffect(() => {
+    if (!deferredPollsReady()) return;
+    const timer = setInterval(() => void revalidate("project-page"), 30_000);
+    onCleanup(() => clearInterval(timer));
+  });
+
   const launcherConfig = createNonSuspendingAsync(async () => {
     const page = data();
     if (page?.status !== "loaded") return undefined;
@@ -127,7 +136,10 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   });
   createEffect(() => {
     if (!herdrPollingActive()) return;
-    const timer = setInterval(() => void revalidate("herdr-agent-statuses"), 5000);
+    const timer = setInterval(
+      () => void revalidate(["herdr-agent-statuses", "diff-review-queue"]),
+      5000,
+    );
     onCleanup(() => clearInterval(timer));
   });
   const herdrTicketStatuses = () => {
@@ -404,27 +416,41 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                 </Match>
                 <Match when={ld()}>
                   {(loaded) => (
-                    <Show when={viewMode() === 'forest'} fallback={
-                      <ShortcutRunnerContext.Provider value={shortcutRunner}>
-                        <KanbanBoard
-                          board={loaded().board}
-                          projectSlug={d().projectSlug}
-                          onDelete={commands.openDelete}
-                          onArchive={commands.openArchive}
-                          onViewDetail={commands.openDetail}
-                          onReorder={commands.handleReorder}
-                        />
-                      </ShortcutRunnerContext.Provider>
+                    <Show keyed when={selectionState().reviewTicket} fallback={
+                      <Show when={viewMode() === 'forest'} fallback={
+                        <ShortcutRunnerContext.Provider value={shortcutRunner}>
+                          <KanbanBoard
+                            board={loaded().board}
+                            projectSlug={d().projectSlug}
+                            onDelete={commands.openDelete}
+                            onArchive={commands.openArchive}
+                            onViewDetail={commands.openDetail}
+                            onReviewChanges={commands.openReview}
+                            onReorder={commands.handleReorder}
+                          />
+                        </ShortcutRunnerContext.Provider>
+                      }>
+                        <div class="min-h-0 flex-1">
+                          <ForestView
+                            board={loaded().board}
+                            projectSlug={d().projectSlug}
+                            onViewDetail={commands.openDetail}
+                            onClose={toggleViewMode}
+                            suggestedNextNumber={loaded().suggestedNextNumber}
+                          />
+                        </div>
+                      </Show>
                     }>
+                      {(reviewTicket) => (
                       <div class="min-h-0 flex-1">
-                        <ForestView
-                          board={loaded().board}
+                        <DiffReview
                           projectSlug={d().projectSlug}
-                          onViewDetail={commands.openDetail}
-                          onClose={toggleViewMode}
-                          suggestedNextNumber={loaded().suggestedNextNumber}
+                          projectName={currentProjectName()}
+                          ticket={reviewTicket}
+                          onClose={commands.closeReview}
                         />
                       </div>
+                      )}
                     </Show>
                   )}
                 </Match>
@@ -450,6 +476,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
           />
           <TicketDetailDialog
             onClose={commands.closeDetail}
+            onReviewChanges={commands.openReview}
             projectSlug={d().projectSlug}
             ticket={selectionState().detailTicket}
           />

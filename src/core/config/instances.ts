@@ -33,3 +33,7 @@ export const projectPageService = services.projectPageService;
 export const operationTracker = services.operationTracker;
 export const syncPendingTracker = services.syncPendingTracker;
 export const worktreeRevisions = services.worktreeRevisions;
+export const diffReviewStore = services.diffReviewStore;
+export const diffReviewGitService = services.diffReviewGitService;
+export const diffReviewTargetResolver = services.diffReviewTargetResolver;
+export const reviewPromptQueueService = services.reviewPromptQueueService;

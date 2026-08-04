@@ -16,7 +16,7 @@ $workspaceRoot = Join-Path $env:LOCALAPPDATA "context-launch-tests"
 $runtimeRoot = "T:\context-launch-tests"
 $markerName = ".managed-by-context-launch"
 $lockName = ".run-lock"
-$requiredRuntimeFreeSpace = 700MB
+$requiredRuntimeFreeSpace = 200MB
 
 function ConvertTo-PathSegment {
   param([string]$Value)
@@ -142,7 +142,7 @@ try {
   Remove-StaleRuntimeDirectories -KeepDirectory $runtimeRun
   if ((Get-TestRamDiskStatus -DriveInfo (Get-TestRamDiskInfo) `
         -MinimumAvailableFreeSpace $requiredRuntimeFreeSpace) -eq "InsufficientSpace") {
-    throw "The T: RAM disk requires at least 700 MB of free space to run the test suite."
+    throw "The T: RAM disk requires at least 200 MB of free space to run the test suite."
   }
 
   if (Test-Path $runtimeRun) {

@@ -28,6 +28,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
   const [cleanupAction, setCleanupAction] = createSignal<"archive" | "delete">("archive");
   const [selectedTicket, setSelectedTicket] = createSignal<TicketInfo | null>(null);
   const [detailTicket, setDetailTicket] = createSignal<TicketInfo | null>(null);
+  const [reviewTicket, setReviewTicket] = createSignal<TicketInfo | null>(null);
   const [syncing, setSyncing] = createSignal(false);
   const [syncSuccess, setSyncSuccess] = createSignal(false);
   const [syncError, setSyncError] = createSignal<ErrorInfo | null>(null);
@@ -105,6 +106,12 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     setDetailTicket(ticket);
   }
 
+  function openReview(ticket: TicketInfo) {
+    if (!ticket.hasAgentWorktree) return;
+    setDetailTicket(null);
+    setReviewTicket(ticket);
+  }
+
   async function handleCreateTicket(number: string, title: string) {
     const result = await createTicket(deps.projectSlug(), number, title);
     if (result.ok) revalidate(ticketMutationRevalidateKeys);
@@ -174,6 +181,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
   const selectionState = () => ({
     selectedTicket: selectedTicket(),
     detailTicket: detailTicket(),
+    reviewTicket: reviewTicket(),
   });
 
   const commands = {
@@ -181,6 +189,8 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     openDelete,
     openArchive,
     openDetail,
+    openReview,
+    closeReview: () => setReviewTicket(null),
     closeDetail: () => setDetailTicket(null),
     handleSync,
     handleConflictResolve,

@@ -46,6 +46,11 @@ export class ConfigPaths {
 		return path.join(this.baseDir, 'config', 'command-templates.json');
 	}
 
+	diffReviewStateFile(projectSlug: string): string {
+		requireSafeSlug(projectSlug);
+		return path.join(this.baseDir, 'projects', projectSlug, 'config', 'diff-review.json');
+	}
+
 	projectDir(projectSlug: string): string {
 		requireSafeSlug(projectSlug);
 		return path.join(this.baseDir, 'projects', projectSlug);

@@ -5,6 +5,7 @@ import {
   operationTracker, ticketSyncManager, syncPendingTracker, worktreeRevisions,
   launcherConfigManager, agentWorktreeManager, fileWatcher, herdrExec,
   commandTemplateService,
+  diffReviewStore,
 } from "~/core/config/instances.js";
 import { openInOs } from "~/core/infra/open-in-os.js";
 import { TicketStore } from "~/core/ticket/ticket-store.js";
@@ -74,6 +75,7 @@ export async function deleteTicket(projectSlug: string, folderName: string) {
   "use server";
   try {
     await mutateTicketsExclusive(projectSlug, store => store.deleteTicket(folderName));
+    diffReviewStore.removeTicket(projectSlug, folderName);
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
@@ -359,18 +361,27 @@ export async function worktreeCleanup(
       }
       await stopHerdrAgent(found.paneId, herdrExec);
     }
-    await new WorktreeCleanupService(agentWorktreeManager).cleanup(
-      project.path, branchName, worktreePath,
-      {
-        deleteWorktree: options.deleteWorktree,
-        deleteLocalBranch: options.deleteLocalBranch,
-        deleteRemoteBranch: options.deleteRemoteBranch,
-      },
-      project.mainBranch,
-    );
+    try {
+      await new WorktreeCleanupService(agentWorktreeManager).cleanup(
+        project.path, branchName, worktreePath,
+        {
+          deleteWorktree: options.deleteWorktree,
+          deleteLocalBranch: options.deleteLocalBranch,
+          deleteRemoteBranch: options.deleteRemoteBranch,
+        },
+        project.mainBranch,
+      );
+    } finally {
+      if (options.deleteWorktree && !fs.existsSync(worktreePath)) {
+        diffReviewStore.removeTicket(projectSlug, folderName);
+      }
+    }
     if (ticket?.agentWorktreeBranchName
         && (options.deleteWorktree || options.deleteLocalBranch)) {
       store.clearAgentWorktreeInfo(folderName);
+    }
+    if (options.deleteLocalBranch) {
+      diffReviewStore.removeTicket(projectSlug, folderName);
     }
     return { ok: true as const };
   } catch (e) {
@@ -421,6 +432,7 @@ export async function forceDeleteLocalBranch(
     if (ticket?.agentWorktreeBranchName) {
       store.clearAgentWorktreeInfo(folderName);
     }
+    diffReviewStore.removeTicket(projectSlug, folderName);
     return {};
   } catch (e: any) {
     return { error: e?.message ?? 'Failed to force-delete branch' };

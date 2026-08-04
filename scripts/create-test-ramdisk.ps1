@@ -27,11 +27,11 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 }
 
 $freeMemoryBytes = (Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory * 1KB
-if ($freeMemoryBytes -lt 3GB) {
-  throw "At least 3 GB of free physical memory is required to create the 2 GB test RAM disk."
+if ($freeMemoryBytes -lt 1GB) {
+  throw "At least 1 GB of free physical memory is required to create the 500 MB test RAM disk."
 }
 
-& $aim -a -t file -o awe -s 2G -m T: -p "/fs:ntfs /q /y /v:Temp"
+& $aim -a -t file -o awe -s 500M -m T: -p "/fs:ntfs /q /y /v:Temp"
 if ($LASTEXITCODE -ne 0) {
   throw "AIM Toolkit failed to create T: with exit code $LASTEXITCODE."
 }

@@ -21,6 +21,7 @@ interface KanbanBoardProps {
 	onDelete: (ticket: TicketInfo) => void;
 	onArchive: (ticket: TicketInfo) => void;
 	onViewDetail: (ticket: TicketInfo) => void;
+	onReviewChanges?: (ticket: TicketInfo) => void;
 	onReorder: (
 		folderName: string, fromColumn: string,
 		toColumn: string, newIndex: number,
@@ -117,6 +118,7 @@ export default function KanbanBoard(props: KanbanBoardProps) {
 									onDelete={props.onDelete}
 									onArchive={props.onArchive}
 									onViewDetail={props.onViewDetail}
+									onReviewChanges={props.onReviewChanges ?? (() => {})}
 								/>
 							)}
 						</For>
@@ -129,6 +131,7 @@ export default function KanbanBoard(props: KanbanBoardProps) {
 								onDelete={props.onDelete}
 								onArchive={props.onArchive}
 								onViewDetail={props.onViewDetail}
+								onReviewChanges={props.onReviewChanges ?? (() => {})}
 							/>
 						</Show>
 					</div>
@@ -146,6 +149,7 @@ export default function KanbanBoard(props: KanbanBoardProps) {
 									onDelete={() => {}}
 									onArchive={() => {}}
 									onViewDetail={() => {}}
+									onReviewChanges={() => {}}
 								/>
 							</DragOverlayCard>
 						)}

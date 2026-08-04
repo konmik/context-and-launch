@@ -208,11 +208,12 @@ describe("Launcher Settings Columns tab (e2e, real server)", () => {
       timeout: 15000,
     });
     await ctx.page.click('[data-testid="launcher-settings-columns-set-project-board-confirm-btn"]');
-    const registryAfter = await poll(
-      () => readProjectRegistry(ctx.testServer),
-      (r) => r.projects.find((p) => p.projectSlug === project.projectSlug)?.boardId === "simple",
-      5000,
-    );
+    // The dialog closes only after the save resolves, so its disappearance is the
+    // app's own signal that the registry has been written.
+    await ctx.page.waitForSelector('[data-testid="launcher-settings-columns-set-project-board-message"]', {
+      state: "detached", timeout: 15000,
+    });
+    const registryAfter = readProjectRegistry(ctx.testServer);
     const entryAfter = registryAfter.projects.find((p) => p.projectSlug === project.projectSlug);
     expect(entryAfter?.boardId).toBe("simple");
   }, 60000);

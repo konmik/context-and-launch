@@ -200,6 +200,78 @@ Agent Worktree:
 A git worktree created from the project's main branch for an agent to work in isolation. Located under a user-configured worktree root path (defaults to `~/.context-launch/projects/{projectSlug}/worktrees/`). Branch named `{folderName}`, or `{branchPrefix}/{folderName}` when a branch prefix is configured. Reused across runs.
 Avoid: sandbox, workspace
 
+Diff Review:
+A Ticket-scoped full-screen surface for inspecting changes in that Ticket's Agent Worktree and sending line-specific feedback to its Agent.
+Avoid: project diff, git diff app, change viewer
+
+Review Selection:
+A contiguous range of lines within one file selected in a Diff Review as the subject of feedback to an Agent. It is made by dragging the line-number gutter, by selecting or clicking the code itself, and always covers whole lines even when only part of a line is selected. It refers to the content shown when the selection was made. Disconnected ranges or ranges in different files are separate Review Selections.
+Avoid: line reference, highlighted lines
+
+Stale Review Selection:
+A Review Selection whose referenced content has changed since it was selected. Its feedback editor stays open and warns the user that the underlying lines changed.
+Avoid: invalid selection, expired selection
+
+Review Prompt:
+Feedback submitted from a Diff Review to the Ticket's Herdr Agent. It carries a Review Selection when the user selected lines, and stands alone when the user prompts the Agent directly from the Diff Review header. With a selection it immutably captures the feedback and the selected content as they existed when submitted, and if that selection later becomes stale, delivery includes the original snapshot and identifies it as stale; without one, the feedback is delivered verbatim. Submitting it adds it immediately to the Review Prompt Queue rather than waiting for the Herdr Agent to be ready, and leaves the feedback editor open so more feedback can follow. It is one-directional: the Agent acts on it and does not answer back through Diff Review. While it carries a Review Selection the user can also take it out of the app, either by dragging the selected lines or by dragging or activating the handle in the feedback editor, which also copies it to the clipboard; the text that leaves is the same text the Agent would receive, in every format the receiving window may read. Direct Terminal profiles do not accept Review Prompts.
+Avoid: comment, annotation, message
+
+Review Prompt Queue:
+The ordered pending Review Prompts for one Ticket. It delivers one prompt at a time when a Herdr Agent exists for the Ticket and Herdr reports that Agent as idle or done. When the Ticket has no Agent at all, it starts one from the Ticket column's chosen launcher profile with that prompt as the Agent's initial prompt, rather than waiting for the user to start one. It is shown inside the feedback editor, above that editor's own content, and is not visible while the editor is closed. The Herdr Agent Status for the Ticket is shown in the Diff Review header, next to the action that opens the editor without a Review Selection. It survives app restarts and is removed with either the Ticket or its Agent Worktree.
+Avoid: comment queue, feedback backlog, batch
+
+Confirmed Turn Completion:
+An authoritative signal that a Herdr Agent's current turn and every child, subagent, or background task it started have ended. Herdr Agent Status values such as idle or done do not establish Confirmed Turn Completion.
+Avoid: idle, done, ready for input, completely stopped
+
+Diff Scope:
+The boundary that determines which Agent Worktree changes a Diff Review shows: All Changes, Branch Changes, Uncommitted Changes, or Last Commit Changes. A Diff Review opens on All Changes, because reviewing an Agent's work means reviewing everything it produced, committed or not.
+Avoid: mode, diff mode, change mode
+
+All Changes:
+Everything introduced since the merge-base of the Agent Worktree branch and the Project's configured main branch, including Uncommitted Changes. The union of Branch Changes and Uncommitted Changes.
+Avoid: everything, full diff
+
+Branch Changes:
+The changes committed on the Agent Worktree branch since its merge-base with the Project's configured main branch, excluding Uncommitted Changes.
+Avoid: branch mode, committed changes
+
+Uncommitted Changes:
+The staged, unstaged, and untracked changes in an Agent Worktree relative to its current `HEAD`.
+Avoid: working changes, uncommitted mode, working-tree mode
+
+Last Commit Changes:
+The changes introduced by the current `HEAD` commit in an Agent Worktree, excluding Uncommitted Changes.
+Avoid: commit mode, latest changes
+
+Review Pace:
+The update behavior of a Diff Review: Live Review or Step-by-Step Review.
+Avoid: review mode, update mode
+
+Live Review:
+A Review Pace that watches the Agent Worktree and updates the displayed diff as file changes occur.
+Avoid: real-time mode, unfrozen review
+
+Step-by-Step Review:
+A Review Pace that does not watch the Agent Worktree and changes its displayed diff only when the user requests a refresh.
+Avoid: frozen mode, paused review
+
+Review Hunk:
+A contiguous group of changed lines in a Diff Review. It groups changed lines for counting and navigation; reviewed state is tracked per changed line, not per hunk.
+Avoid: change block, diff block, patch
+
+Review State:
+The durable record of reviewed changed lines for one Ticket's Agent Worktree. A changed line becomes reviewed once it has entered the viewport at least once; rapid scrolling and live changes already visible both count, while visible live changes briefly blink to draw attention. A file is shown as reviewed once all of its changed lines are, and as not reviewed otherwise; there is no separate state for a file that changed after being reviewed. A line is identified by its own content, so editing one line leaves every other line in the same hunk reviewed. It follows unchanged lines across Diff Scopes, survives closing Diff Review and restarting the app, and is removed with the Agent Worktree.
+Avoid: review cache, diff cache
+
+Next Change:
+A user action that scrolls the Diff Review to the first changed line that is not reviewed yet, switching files and wrapping around the Diff Scope as needed. Arriving at a line makes it reviewed, so repeated use walks the whole Diff Scope once. Its counter shows how many Review Hunks still hold an unreviewed line.
+Avoid: next hunk, next diff, skip
+
+Refresh:
+A user action that rebuilds the displayed diff directly from Git for the selected Diff Scope. It preserves Review State for unchanged lines and is the only way the displayed diff changes during Step-by-Step Review.
+Avoid: advance, sync, reset review
+
 Herdr Workspace:
 A project-level container in Herdr that Context & Launch associates with one Project and uses to host Herdr Agents. It is distinct from an Agent Worktree.
 Avoid: Herdr environment, terminal environment

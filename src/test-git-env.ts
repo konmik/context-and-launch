@@ -7,6 +7,7 @@ const testGitConfig: Readonly<Record<string, string>> = {
 	'maintenance.auto': 'false',
 	'core.fsmonitor': 'false',
 	'core.editor': 'true',
+	'core.longpaths': 'true',
 };
 
 /**

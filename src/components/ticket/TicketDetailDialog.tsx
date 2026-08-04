@@ -28,6 +28,7 @@ import ErrorDialog from "../shared/ErrorDialog.js";
 
 interface TicketDetailDialogProps {
   onClose: () => void;
+  onReviewChanges?: (ticket: TicketInfo) => void;
   projectSlug: string;
   ticket: TicketInfo | null;
 }
@@ -40,6 +41,7 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
           ticket={ticket}
           onClose={props.onClose}
           projectSlug={props.projectSlug}
+          onReviewChanges={props.onReviewChanges}
         />
       )}
     </Show>
@@ -50,6 +52,7 @@ function TicketDetailContent(props: {
   ticket: TicketInfo;
   onClose: () => void;
   projectSlug: string;
+  onReviewChanges?: (ticket: TicketInfo) => void;
   ctrl?: TicketDetailState;
 }) {
   const s = props.ctrl ?? createTicketDetailState(props);
@@ -151,6 +154,17 @@ function TicketDetailContent(props: {
                         data-testid="ticket-detail-open-worktree-menu-item"
                         onClick={() => s.openWorktree()}
                       >Open worktree</MenuItem>
+                      <Show when={props.onReviewChanges}>
+                        <MenuItem
+                          value="review-changes"
+                          data-testid="ticket-detail-review-changes-menu-item"
+                          disabled={s.hasAnyUnsavedChanges()}
+                          onClick={() => {
+                            props.onClose();
+                            props.onReviewChanges?.(props.ticket);
+                          }}
+                        >Diff Review</MenuItem>
+                      </Show>
                       <Show when={(s.launcherConfig()?.shortcuts.length ?? 0) > 0}>
                         <MenuSeparator />
                       </Show>

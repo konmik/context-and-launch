@@ -17,6 +17,11 @@ import { CommandTemplateService } from '../command-template/command-template-ser
 import { FixedPlatformShellRunner } from '../command-template/platform-shell-runner.js';
 import { createHerdrExec } from '../herdr/herdr-exec.js';
 import type { HerdrExecFn } from '../herdr/herdr-exec.js';
+import { DiffReviewStore } from '../diff-review/diff-review-store.js';
+import { DiffReviewGitService } from '../diff-review/diff-review-git.js';
+import { DiffReviewTargetResolver } from '../diff-review/diff-review-target.js';
+import { ReviewPromptQueueService } from '../diff-review/review-prompt-queue.js';
+import { ProfileReviewAgentLauncher } from '../diff-review/review-agent-launcher.js';
 
 export interface ServiceContainer {
 	configPaths: ConfigPaths;
@@ -36,6 +41,10 @@ export interface ServiceContainer {
 	operationTracker: OperationTracker;
 	syncPendingTracker: SyncPendingTracker;
 	worktreeRevisions: WorktreeRevisionStore;
+	diffReviewStore: DiffReviewStore;
+	diffReviewGitService: DiffReviewGitService;
+	diffReviewTargetResolver: DiffReviewTargetResolver;
+	reviewPromptQueueService: ReviewPromptQueueService;
 }
 
 export function createServices(baseDir?: string, configDefaultsDir?: string): ServiceContainer {
@@ -63,6 +72,19 @@ export function createServices(baseDir?: string, configDefaultsDir?: string): Se
 	);
 	const launcherConfigManager = new LauncherConfigManager(configPaths, configRepo);
 	const agentWorktreeManager = new AgentWorktreeManager(launcherConfigManager, commandTemplateService);
+	const diffReviewStore = new DiffReviewStore(configPaths, configRepo);
+	const diffReviewGitService = new DiffReviewGitService(commandTemplateService);
+	const diffReviewTargetResolver = new DiffReviewTargetResolver(
+		projectRegistry, worktreeManager, launcherConfigManager,
+	);
+	const reviewPromptQueueService = new ReviewPromptQueueService(
+		diffReviewStore,
+		diffReviewGitService,
+		diffReviewTargetResolver,
+		projectRegistry,
+		commandTemplateService,
+		new ProfileReviewAgentLauncher(launcherConfigManager, commandTemplateService),
+	);
 	const ticketSyncManager = new TicketSyncManager(commandTemplateService, gitRepo);
 	const operationTracker = new OperationTracker();
 	const projectPageService = new ProjectPageService(
@@ -88,5 +110,9 @@ export function createServices(baseDir?: string, configDefaultsDir?: string): Se
 		operationTracker,
 		syncPendingTracker,
 		worktreeRevisions,
+		diffReviewStore,
+		diffReviewGitService,
+		diffReviewTargetResolver,
+		reviewPromptQueueService,
 	};
 }

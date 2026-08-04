@@ -1,5 +1,3 @@
-import fs from "fs";
-import path from "path";
 import {
   worktreeManager, projectRegistry, launcherConfigManager, agentWorktreeManager,
   commandTemplateService,
@@ -7,20 +5,17 @@ import {
 import { toSavedWorktreeInfo } from "~/core/worktree/agent-worktree.js";
 import { TicketStore } from "~/core/ticket/ticket-store.js";
 import { NotFoundError } from "~/core/shared/errors.js";
-import { isAlive } from "./process-utils.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { ProjectInfo } from "~/core/project/project-registry.js";
 import type { LauncherProfile } from "~/core/launcher/launcher-config.js";
+import {
+  agentMarkerPathIn, buildWindowTitle, isProfileAgentRunning, projectWindowTitle,
+  runLauncherProfile,
+} from "./profile-launch.js";
 import { PROJECT_LAUNCH_KEY } from "./launch-keys.js";
 
 export { PROJECT_LAUNCH_KEY };
-
-const TITLE_SUFFIX = " -- AI";
-
-interface AgentMarker {
-  pid: number;
-  startSec?: number;
-}
+export { buildWindowTitle };
 
 /**
  * Path to the per-ticket marker file an agent launch script writes while the
@@ -28,73 +23,15 @@ interface AgentMarker {
  * survives worktree teardown and is never committed.
  */
 export function agentMarkerPath(projectSlug: string, folderName: string): string {
-  return path.join(
-    launcherConfigManager.getAppConfigDir(), "running", projectSlug, `${folderName}.json`,
+  return agentMarkerPathIn(
+    launcherConfigManager.getAppConfigDir(), projectSlug, folderName,
   );
 }
 
-const MARKER_START_TOLERANCE_SEC = 5;
-
-function processStartSec(pid: number): number | null {
-  try {
-    if (process.platform === "linux") {
-      const raw = fs.readFileSync(`/proc/${pid}/stat`, "utf-8");
-      const afterComm = raw.slice(raw.lastIndexOf(")") + 2);
-      const startTicks = Number(afterComm.split(" ")[19]);
-      const uptimeSec = Number(
-        fs.readFileSync("/proc/uptime", "utf-8").split(" ")[0],
-      );
-      const bootSec = Math.floor(Date.now() / 1000 - uptimeSec);
-      return bootSec + Math.floor(startTicks / 100);
-    }
-    if (process.platform === "darwin") {
-      const out = commandTemplateService.executeSync('agent-launch.process-start.macos', process.cwd(),
-      	{ pid: String(pid) },
-      ).trim();
-      return Math.floor(new Date(out).getTime() / 1000);
-    }
-    if (process.platform === "win32") {
-      const out = commandTemplateService.executeSync('agent-launch.process-start.windows', process.cwd(),
-      	{ pid: String(pid) },
-      ).trim();
-      return Math.floor(new Date(out).getTime() / 1000);
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function reapMarker(markerPath: string): void {
-  try {
-    fs.rmSync(markerPath, { force: true });
-  } catch (e) {
-    console.warn(`Failed to reap stale agent marker ${markerPath}:`, e);
-  }
-}
-
 export function agentRunning(projectSlug: string, folderName: string): boolean {
-  const markerPath = agentMarkerPath(projectSlug, folderName);
-  let marker: AgentMarker;
-  try {
-    marker = JSON.parse(fs.readFileSync(markerPath, "utf-8"));
-  } catch {
-    return false;
-  }
-  if (typeof marker.pid !== "number") return false;
-  if (!isAlive(marker.pid)) {
-    reapMarker(markerPath);
-    return false;
-  }
-  if (typeof marker.startSec === "number") {
-    const osSec = processStartSec(marker.pid);
-    if (osSec !== null
-      && Math.abs(osSec - marker.startSec) > MARKER_START_TOLERANCE_SEC) {
-      reapMarker(markerPath);
-      return false;
-    }
-  }
-  return true;
+  return isProfileAgentRunning(
+    commandTemplateService, agentMarkerPath(projectSlug, folderName),
+  );
 }
 
 export type ResolveLaunchDirResult =
@@ -185,23 +122,12 @@ export async function readLaunchRequest(request: Request): Promise<LaunchRequest
   return parseLaunchRequest(body);
 }
 
-export function buildWindowTitle(ticket: TicketInfo): string {
-  return ticket.title + TITLE_SUFFIX;
-}
-
 export async function spawnProfile(
   profile: LauncherProfile,
   commandVars: Record<string, string>,
   cwd: string,
 ): Promise<void> {
-  await commandTemplateService.executeTrustedScript({
-    source: { kind: 'profile', profileName: profile.name },
-    script: profile.command,
-    values: commandVars,
-    knownScalarPlaceholders: Object.keys(commandVars),
-    cwd,
-    mode: 'detached',
-  });
+  await runLauncherProfile(commandTemplateService, profile, commandVars, cwd);
 }
 
 async function spawnAgent(
@@ -248,6 +174,6 @@ export async function launchProjectAgent(
   launchDir: string,
 ): Promise<void> {
   await spawnAgent(
-    projectSlug, PROJECT_LAUNCH_KEY, projectName + TITLE_SUFFIX, launchRequest, launchDir,
+    projectSlug, PROJECT_LAUNCH_KEY, projectWindowTitle(projectName), launchRequest, launchDir,
   );
 }

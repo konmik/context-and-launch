@@ -1,5 +1,6 @@
+import path from "path";
 import { ProcessError } from "../shared/errors.js";
-import type { HerdrExecFn } from "./herdr-exec.js";
+import type { HerdrExecFn, HerdrAgent } from "./herdr-exec.js";
 import { listHerdrTicketPanes } from "./herdr-ticket-panes.js";
 
 export type { HerdrExecFn } from "./herdr-exec.js";
@@ -12,6 +13,25 @@ export type FindHerdrAgentResult =
 export interface HerdrAgentTarget {
 	projectSlug: string;
 	folderName: string;
+}
+
+export interface AgentBelongingTarget extends HerdrAgentTarget {
+	agentWorktreePath: string;
+}
+
+function normalizePath(value: string): string {
+	const normalized = path.resolve(value);
+	return process.platform === "win32" ? normalized.toLowerCase() : normalized;
+}
+
+export function agentBelongsToTarget(agent: HerdrAgent, target: AgentBelongingTarget): boolean {
+	const expectedName = `${target.projectSlug}--${target.folderName}`;
+	if (agent.name === expectedName) return true;
+	const expectedPath = normalizePath(target.agentWorktreePath);
+	return [agent.cwd, agent.foreground_cwd]
+		.some((candidate) => typeof candidate === "string"
+			&& candidate.length > 0
+			&& normalizePath(candidate) === expectedPath);
 }
 
 function isHerdrMissing(err: unknown): boolean {

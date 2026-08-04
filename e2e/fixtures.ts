@@ -23,6 +23,8 @@ export interface TestServer extends ProjectDirs {
 export interface CreateServerOptions {
   env?: NodeJS.ProcessEnv;
   dataDirPrefix?: string;
+  /** Command template overrides layered over the defaults this fixture writes. */
+  commandTemplates?: Record<string, string>;
 }
 
 export async function createServer(opts: CreateServerOptions = {}): Promise<TestServer> {
@@ -37,6 +39,7 @@ export async function createServer(opts: CreateServerOptions = {}): Promise<Test
       "herdr.pane.list": "herdr-e2e-not-installed pane list --workspace {{workspaceId}}",
       "herdr.agent.list": "herdr-e2e-not-installed agent list",
       "herdr.agent.stop": "herdr-e2e-not-installed pane close {{paneId}}",
+      ...opts.commandTemplates,
     }, null, 2),
   );
   const safeEnv: NodeJS.ProcessEnv = {
@@ -118,6 +121,7 @@ export interface CreateProjectOptions {
   withWorktrees?: { folderName: string }[];
   worktreeRootPath?: string;
   branch?: string;
+  mainBranch?: string;
   appLauncherConfig?: SeedAppLauncherConfig;
 }
 
@@ -228,6 +232,7 @@ export async function createProject(
     path: canonicalProjectPath,
     projectSlug: opts.projectSlug,
     branch,
+    ...(opts.mainBranch ? { mainBranch: opts.mainBranch } : {}),
   });
   registry.lastUsedProjectSlug = opts.projectSlug;
   fs.writeFileSync(configFile, JSON.stringify(registry, null, 2));

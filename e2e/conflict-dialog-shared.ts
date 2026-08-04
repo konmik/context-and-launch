@@ -29,10 +29,23 @@ export function createActiveRebaseConflict(ticketsPath: string, remoteUrl: strin
   const scratch = `${ticketsPath}-conflict-resolve`;
   execSync(`git worktree add --detach "${scratch}" HEAD`, { cwd: ticketsPath });
   let rebaseFailed = false;
+  let rebaseOutput = "";
   try {
     execSync("git rebase origin/tickets", { cwd: scratch, stdio: "pipe" });
-  } catch {
+  } catch (error) {
     rebaseFailed = true;
+    const failure = error as { stdout?: Buffer; stderr?: Buffer };
+    rebaseOutput = [failure.stdout, failure.stderr]
+      .map((stream) => (stream ? stream.toString() : ""))
+      .join("");
   }
   if (!rebaseFailed) throw new Error("expected rebase to leave a conflict");
+  try {
+    execSync("git rev-parse --verify REBASE_HEAD", { cwd: scratch, stdio: "pipe" });
+  } catch {
+    throw new Error(
+      `expected a rebase in progress in ${scratch}, but git left none.`
+      + ` git rebase output was:\n${rebaseOutput}`,
+    );
+  }
 }

@@ -24,6 +24,7 @@ export default defineConfig({
           testTimeout: 60000,
           hookTimeout: 60000,
           maxConcurrency: 1,
+          setupFiles: ["src/test-git-env.ts"],
         },
       },
       {
@@ -34,6 +35,7 @@ export default defineConfig({
           testTimeout: 600000,
           hookTimeout: 600000,
           maxConcurrency: 1,
+          setupFiles: ["src/test-git-env.ts"],
         },
       },
     ],

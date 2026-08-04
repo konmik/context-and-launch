@@ -1,6 +1,6 @@
-import type { HerdrExecFn } from './herdr-exec.js';
+import type { HerdrAgent, HerdrExecFn } from './herdr-exec.js';
 import {
-	listHerdrTicketPanes, type HerdrTicketPane,
+	listHerdrTicketPaneState, type HerdrTicketPane,
 } from './herdr-ticket-panes.js';
 
 export type HerdrAgentStatus = 'idle' | 'working' | 'blocked' | 'done' | 'unknown';
@@ -24,8 +24,20 @@ export function ticketStatusesFromPanes(
 	return statuses;
 }
 
+export interface HerdrTicketState {
+	statusesByFolderName: Record<string, HerdrAgentStatus>;
+	agents: HerdrAgent[];
+}
+
+export async function fetchHerdrTicketState(
+	projectSlug: string, exec: HerdrExecFn,
+): Promise<HerdrTicketState> {
+	const { ticketPanes, agents } = await listHerdrTicketPaneState(projectSlug, exec);
+	return { statusesByFolderName: ticketStatusesFromPanes(ticketPanes), agents };
+}
+
 export async function fetchHerdrTicketStatuses(
 	projectSlug: string, exec: HerdrExecFn,
 ): Promise<Record<string, HerdrAgentStatus>> {
-	return ticketStatusesFromPanes(await listHerdrTicketPanes(projectSlug, exec));
+	return (await fetchHerdrTicketState(projectSlug, exec)).statusesByFolderName;
 }

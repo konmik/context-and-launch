@@ -1,9 +1,9 @@
 import { query } from "@solidjs/router";
-import { herdrExec } from "~/core/config/instances.js";
+import { herdrExec, reviewPromptQueueService } from "~/core/config/instances.js";
 import { appLog } from "~/core/infra/app-logger.js";
 import { errorMessage, ProcessError } from "~/core/shared/errors.js";
 import {
-  fetchHerdrTicketStatuses, type HerdrAgentStatus,
+  fetchHerdrTicketState, type HerdrAgentStatus,
 } from "~/core/herdr/herdr-client.js";
 
 export type HerdrAgentStatusesResult =
@@ -16,10 +16,11 @@ export const getHerdrAgentStatuses = query(async (
 ): Promise<HerdrAgentStatusesResult> => {
   "use server";
   try {
-    return {
-      kind: "available",
-      statusesByFolderName: await fetchHerdrTicketStatuses(projectSlug, herdrExec),
-    };
+    const { statusesByFolderName, agents } = await fetchHerdrTicketState(
+      projectSlug, herdrExec,
+    );
+    await reviewPromptQueueService.process(agents);
+    return { kind: "available", statusesByFolderName };
   } catch (e) {
     // A missing Herdr CLI is an answer, not a failure: nothing about this
     // machine will change until Herdr is installed, so the client stops polling
