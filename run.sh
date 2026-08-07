@@ -99,8 +99,18 @@ if ! port_in_use "$port"; then
     fi
 
     echo "Starting server on port $port..."
-    PORT="$port" nohup node .output/server/index.mjs >/dev/null 2>&1 &
+    server_log="${TMPDIR:-/tmp}/context-launch-server.log"
+    PORT="$port" nohup node scripts/serve.mjs >"$server_log" 2>&1 &
+    server_pid=$!
     disown || true
+
+    die_with_log() {
+        echo "ERROR: $*" >&2
+        echo "Server output ($server_log):" >&2
+        cat "$server_log" >&2 || true
+        read -r -p "Press Enter to exit" _ || true
+        exit 1
+    }
 
     attempts=0
     max_attempts=30
@@ -109,11 +119,14 @@ if ! port_in_use "$port"; then
         if port_in_use "$port"; then
             break
         fi
+        if ! kill -0 "$server_pid" 2>/dev/null; then
+            die_with_log "Server exited before it started listening."
+        fi
         attempts=$((attempts + 1))
     done
 
     if [ "$attempts" -ge "$max_attempts" ]; then
-        die "Server did not start within 15 seconds."
+        die_with_log "Server did not start within 15 seconds."
     fi
 fi
 

@@ -115,27 +115,45 @@ if (-not $portInUse) {
     # Start server hidden
     Write-Host "Starting server on port $port..."
     $env:PORT = $port
-    Start-Process -WindowStyle Hidden -FilePath "node" -ArgumentList ".output/server/index.mjs"
+    $logDir = Join-Path $env:TEMP "context-launch"
+    New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+    $outLog = Join-Path $logDir "server-out.log"
+    $errLog = Join-Path $logDir "server-err.log"
+    $proc = Start-Process -PassThru -WindowStyle Hidden -FilePath "node" `
+        -ArgumentList "scripts/serve.mjs" `
+        -RedirectStandardOutput $outLog -RedirectStandardError $errLog
+
+    function Exit-WithServerLog($message) {
+        Write-Host "ERROR: $message"
+        Write-Host "Server output ($logDir):"
+        foreach ($log in @($outLog, $errLog)) {
+            if (Test-Path $log) { Get-Content $log | Write-Host }
+        }
+        Pop-Location
+        Read-Host "Press Enter to exit"
+        exit 1
+    }
 
     # Wait for port to be listening
     $attempts = 0
     $maxAttempts = 30
+    $listening = $false
     while ($attempts -lt $maxAttempts) {
         Start-Sleep -Milliseconds 500
         try {
             $conn = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
-            if ($conn) { break }
+            if ($conn) { $listening = $true; break }
         } catch {
             Write-Verbose "Port poll attempt ${attempts}: $_"
+        }
+        if ($proc.HasExited) {
+            Exit-WithServerLog "Server exited (code $($proc.ExitCode)) before it started listening."
         }
         $attempts++
     }
 
-    if ($attempts -ge $maxAttempts) {
-        Write-Host "ERROR: Server did not start within 15 seconds."
-        Pop-Location
-        Read-Host "Press Enter to exit"
-        exit 1
+    if (-not $listening) {
+        Exit-WithServerLog "Server did not start within 15 seconds."
     }
 
     Pop-Location
