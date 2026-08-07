@@ -3,6 +3,7 @@ import {
 	findHerdrAgent, stopHerdrAgent, type HerdrExecFn,
 } from "./herdr-control.js";
 import { ProcessError } from "../shared/errors.js";
+import { HerdrUnavailableError } from "./herdr-availability.js";
 
 const TARGET = { projectSlug: "alpha", folderName: "st-1" };
 
@@ -39,14 +40,18 @@ function fakeExec(opts: FakeExecOptions): { exec: HerdrExecFn; calls: string[] }
 }
 
 describe("findHerdrAgent", () => {
-	it("returns herdr-missing when the command could not be resolved", async () => {
+	it("returns herdr-unavailable when Herdr could not answer", async () => {
 		const exec: HerdrExecFn = async () => {
-			throw new ProcessError("herdr", 127, "not found", undefined, "command-not-found");
+			throw new HerdrUnavailableError("server-not-running");
 		};
-		expect(await findHerdrAgent(TARGET, exec)).toEqual({ kind: "herdr-missing" });
+		expect(await findHerdrAgent(TARGET, exec)).toEqual({
+			kind: "herdr-unavailable",
+			reason: "server-not-running",
+			message: "Herdr is not running.",
+		});
 	});
 
-	it("does not treat a herdr that ran and failed as missing", async () => {
+	it("does not treat a herdr that ran and failed as unavailable", async () => {
 		const exec: HerdrExecFn = async () => {
 			throw new ProcessError("herdr", 1, "'herdr' is not recognized", undefined, "exited");
 		};

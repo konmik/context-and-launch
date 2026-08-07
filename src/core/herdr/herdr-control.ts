@@ -1,12 +1,12 @@
 import path from "path";
-import { ProcessError } from "../shared/errors.js";
+import { HerdrUnavailableError, type HerdrUnavailableReason } from "./herdr-availability.js";
 import type { HerdrExecFn, HerdrAgent } from "./herdr-exec.js";
 import { listHerdrTicketPanes } from "./herdr-ticket-panes.js";
 
 export type { HerdrExecFn } from "./herdr-exec.js";
 
 export type FindHerdrAgentResult =
-	| { kind: "herdr-missing" }
+	| { kind: "herdr-unavailable"; reason: HerdrUnavailableReason; message: string }
 	| { kind: "no-agent" }
 	| { kind: "agent"; paneId: string; agentStatus: string };
 
@@ -34,10 +34,6 @@ export function agentBelongsToTarget(agent: HerdrAgent, target: AgentBelongingTa
 			&& normalizePath(candidate) === expectedPath);
 }
 
-function isHerdrMissing(err: unknown): boolean {
-	return err instanceof ProcessError && err.kind === "command-not-found";
-}
-
 export async function findHerdrAgent(
 	target: HerdrAgentTarget,
 	exec: HerdrExecFn,
@@ -46,7 +42,9 @@ export async function findHerdrAgent(
 	try {
 		ticketPanes = await listHerdrTicketPanes(target.projectSlug, exec);
 	} catch (err) {
-		if (isHerdrMissing(err)) return { kind: "herdr-missing" };
+		if (err instanceof HerdrUnavailableError) {
+			return { kind: "herdr-unavailable", reason: err.reason, message: err.message };
+		}
 		throw err;
 	}
 

@@ -284,6 +284,10 @@ Herdr Agent:
 A coding-agent process hosted by a Herdr Ticket Pane. A later launch replaces the finished or waiting process, and a Herdr Ticket Pane never hosts concurrent Herdr Agents.
 Avoid: terminal, pane
 
+Herdr Unavailable:
+The state in which Herdr answers nothing because the Herdr CLI is not installed or the Herdr server is not running. Every Herdr command is a call over the Herdr server socket, so both cases mean the same thing: this machine hosts no Herdr Agents right now. Actions that only need to know whether a Herdr Agent exists, such as Ticket cleanup, treat it as "no Herdr Agent" and stay available rather than failing. A missing CLI stops Herdr Agent Status polling, a stopped server does not.
+Avoid: Herdr error, Herdr missing
+
 ## Relationships
 
 - A Project has exactly one Worktree (created automatically on first board load)

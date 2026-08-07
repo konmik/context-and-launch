@@ -51,7 +51,7 @@ export async function runTicketCleanupChecks(
 			projectSlug: target.projectSlug,
 			folderName: target.folderName,
 		});
-		if (found.kind === "herdr-missing") return { state: "blocked", reason: "Herdr is not installed" };
+		if (found.kind === "herdr-unavailable") return { state: "blocked", reason: found.message };
 		if (found.kind === "no-agent") return { state: "blocked", reason: "No Herdr agent" };
 		return { state: "ready" };
 	});

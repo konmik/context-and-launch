@@ -142,6 +142,7 @@ export const COMMAND_TEMPLATE_DEFINITIONS = [
 	definition('agent-worktree.locking-processes.windows', 'Find processes locking Agent Worktree on Windows', AGENT_WORKTREE, ['scriptPath', 'worktreePath'], { platforms: ['windows'], timeoutMs: 10_000 }),
 	definition('agent-worktree.branch.delete-remote', 'Delete remote Agent Worktree branch', AGENT_WORKTREE, ['branch'], remoteGitOptions),
 
+	definition('herdr.status.server', 'Check Herdr server status', HERDR),
 	definition('herdr.workspace.list', 'List Herdr workspaces', HERDR),
 	definition('herdr.pane.list', 'List Herdr panes', HERDR, ['workspaceId']),
 	definition('herdr.agent.list', 'List Herdr agents', HERDR),

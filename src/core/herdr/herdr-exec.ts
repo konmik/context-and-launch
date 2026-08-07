@@ -2,6 +2,8 @@ import type { CommandTemplateKey } from '../command-template/command-template-de
 import type {
 	CommandTemplateExecutor, CommandTemplateValues,
 } from '../command-template/command-template-types.js';
+import { ProcessError } from '../shared/errors.js';
+import { HerdrUnavailableError } from './herdr-availability.js';
 
 /** Derived from the catalog, so a key that was never bundled cannot be named here. */
 export type HerdrCommandTemplateKey = Extract<CommandTemplateKey, `herdr.${string}`>;
@@ -10,8 +12,53 @@ export type HerdrExecFn = (
 	key: HerdrCommandTemplateKey, values?: CommandTemplateValues,
 ) => Promise<string>;
 
+type HerdrServerStatus = 'running' | 'not-running';
+
+/** `herdr status server` reports `status: running` or `status: not running`. */
+function serverStatusFromOutput(output: string): HerdrServerStatus | undefined {
+	for (const line of output.split(/\r?\n/)) {
+		const separator = line.indexOf(':');
+		if (separator < 0 || line.slice(0, separator).trim() !== 'status') continue;
+		const value = line.slice(separator + 1).trim();
+		if (value === 'running') return 'running';
+		if (value === 'not running') return 'not-running';
+		return undefined;
+	}
+	return undefined;
+}
+
+/**
+ * A Herdr command that exits non-zero cannot say on its own whether Herdr
+ * rejected the request or was never reachable, so the status probe answers that
+ * question once, at the boundary, instead of every caller guessing from output.
+ */
+async function herdrUnavailability(
+	error: unknown, exec: HerdrExecFn,
+): Promise<HerdrUnavailableError | undefined> {
+	if (!(error instanceof ProcessError)) return undefined;
+	if (error.kind === 'command-not-found') return new HerdrUnavailableError('cli-missing');
+	if (error.kind !== 'exited') return undefined;
+	let status: HerdrServerStatus | undefined;
+	try {
+		status = serverStatusFromOutput(await exec('herdr.status.server'));
+	} catch (probeError) {
+		if (probeError instanceof ProcessError && probeError.kind === 'command-not-found') {
+			return new HerdrUnavailableError('cli-missing');
+		}
+		return undefined;
+	}
+	return status === 'not-running' ? new HerdrUnavailableError('server-not-running') : undefined;
+}
+
 export function createHerdrExec(commands: CommandTemplateExecutor): HerdrExecFn {
-	return (key, values = {}) => commands.execute(key, process.cwd(), values);
+	const run: HerdrExecFn = (key, values = {}) => commands.execute(key, process.cwd(), values);
+	return async (key, values = {}) => {
+		try {
+			return await run(key, values);
+		} catch (error) {
+			throw (await herdrUnavailability(error, run)) ?? error;
+		}
+	};
 }
 
 function parseHerdrJson(output: string, commandTemplateKey: string): Record<string, unknown> {

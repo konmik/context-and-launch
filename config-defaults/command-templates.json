@@ -74,6 +74,7 @@
   "agent-worktree.branch.delete-local": "git branch -D {{branch}}",
   "agent-worktree.locking-processes.windows": "& {{scriptPath}} {{worktreePath}}",
   "agent-worktree.branch.delete-remote": "git push origin --delete {{branch}}",
+  "herdr.status.server": "herdr status server",
   "herdr.workspace.list": "herdr workspace list",
   "herdr.pane.list": "herdr pane list --workspace {{workspaceId}}",
   "herdr.agent.list": "herdr agent list",

@@ -35,6 +35,7 @@ export async function createServer(opts: CreateServerOptions = {}): Promise<Test
   fs.writeFileSync(
     path.join(dataDir, "config", "command-templates.json"),
     JSON.stringify({
+      "herdr.status.server": "herdr-e2e-not-installed status server",
       "herdr.workspace.list": "herdr-e2e-not-installed workspace list",
       "herdr.pane.list": "herdr-e2e-not-installed pane list --workspace {{workspaceId}}",
       "herdr.agent.list": "herdr-e2e-not-installed agent list",

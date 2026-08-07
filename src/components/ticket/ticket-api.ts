@@ -353,8 +353,8 @@ export async function worktreeCleanup(
       const found = await findHerdrAgent({
         projectSlug, folderName,
       }, herdrExec);
-      if (found.kind === "herdr-missing") {
-        throw new ValidationError("Herdr is not installed or is not available on PATH.");
+      if (found.kind === "herdr-unavailable") {
+        throw new ValidationError(found.message);
       }
       if (found.kind === "no-agent") {
         throw new ValidationError(`No Herdr agent found for ticket '${folderName}'.`);

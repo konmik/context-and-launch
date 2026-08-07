@@ -47,11 +47,13 @@ describe("runTicketCleanupChecks", () => {
 		});
 	});
 
-	it("blocks stopHerdrAgent with 'Herdr is not installed' when herdr is missing", async () => {
+	it("blocks stopHerdrAgent with the reason Herdr is unavailable", async () => {
 		const status = await runTicketCleanupChecks(target, makeDeps({
-			findHerdrAgent: async () => ({ kind: "herdr-missing" }),
+			findHerdrAgent: async () => ({
+				kind: "herdr-unavailable", reason: "server-not-running", message: "Herdr is not running.",
+			}),
 		}));
-		expect(status.stopHerdrAgent).toEqual({ state: "blocked", reason: "Herdr is not installed" });
+		expect(status.stopHerdrAgent).toEqual({ state: "blocked", reason: "Herdr is not running." });
 	});
 
 	it("blocks stopHerdrAgent with 'No Herdr agent' when there is no agent", async () => {
