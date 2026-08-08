@@ -1,74 +1,61 @@
 import { describe, it, expect } from "vitest";
 import {
-  createProject, uniqueSlug, gotoProject, setupE2E,
+  openProject, setupE2E,
   listTicketFolders, readTicketStatus,
 } from "./fixtures.js";
+import { testId, waitVisible, waitGone } from "./locators.js";
 
 describe("CreateTicketDialog (e2e, real server)", () => {
   const ctx = setupE2E();
 
   async function openCreate() {
-    await ctx.page.click('[data-testid="project-header-new-ticket-button"]');
-    await ctx.page.waitForSelector('[data-testid="create-ticket-number-input"]', {
-      state: "visible", timeout: 15000,
-    });
+    await testId(ctx.page, "project-header-new-ticket-button").click();
+    await waitVisible(ctx.page, "create-ticket-number-input");
   }
 
   it("create-ticket-number-input and title-input accept values", async () => {
-    const project = await createProject(ctx.testServer, { projectSlug: uniqueSlug("ct-vals") });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+    await openProject(ctx, { slugBase: "ct-vals" });
     await openCreate();
-    await ctx.page.fill('[data-testid="create-ticket-number-input"]', "ABC-1");
-    await ctx.page.fill('[data-testid="create-ticket-title-input"]', "First Ticket");
+    await testId(ctx.page, "create-ticket-number-input").fill("ABC-1");
+    await testId(ctx.page, "create-ticket-title-input").fill("First Ticket");
     expect(await ctx.page.inputValue('[data-testid="create-ticket-number-input"]')).toBe("ABC-1");
     expect(await ctx.page.inputValue('[data-testid="create-ticket-title-input"]')).toBe("First Ticket");
-  }, 60000);
+  });
 
   it("create-ticket-cancel closes the dialog without creating", async () => {
-    const project = await createProject(ctx.testServer, { projectSlug: uniqueSlug("ct-cancel") });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+    const project = await openProject(ctx, { slugBase: "ct-cancel" });
     await openCreate();
-    await ctx.page.click('[data-testid="create-ticket-cancel"]');
-    await ctx.page.waitForSelector('[data-testid="create-ticket-number-input"]', {
-      state: "detached", timeout: 15000,
-    });
+    await testId(ctx.page, "create-ticket-cancel").click();
+    await waitGone(ctx.page, "create-ticket-number-input");
     expect(listTicketFolders(ctx.testServer, project.projectSlug)).toEqual([]);
-  }, 60000);
+  });
 
   it("create-ticket-submit creates a ticket on disk", async () => {
-    const project = await createProject(ctx.testServer, { projectSlug: uniqueSlug("ct-submit") });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+    const project = await openProject(ctx, { slugBase: "ct-submit" });
     await openCreate();
-    await ctx.page.fill('[data-testid="create-ticket-number-input"]', "ABC-1");
-    await ctx.page.fill('[data-testid="create-ticket-title-input"]', "First Ticket");
-    await ctx.page.click('[data-testid="create-ticket-submit"]');
-    await ctx.page.waitForSelector('[data-testid="kanban-board-ticket-card"]', {
-      state: "visible", timeout: 10000,
-    });
+    await testId(ctx.page, "create-ticket-number-input").fill("ABC-1");
+    await testId(ctx.page, "create-ticket-title-input").fill("First Ticket");
+    await testId(ctx.page, "create-ticket-submit").click();
+    await waitVisible(ctx.page, "kanban-board-ticket-card");
     const folders = listTicketFolders(ctx.testServer, project.projectSlug);
     expect(folders.length).toBe(1);
     const status = readTicketStatus(ctx.testServer, project.projectSlug, folders[0]);
     expect(status?.number).toBe("ABC-1");
     expect(status?.title).toBe("First Ticket");
-  }, 60000);
+  });
 
   it("regenerate button suggests number for typed prefix", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("ct-regen"),
+    await openProject(ctx, {
+      slugBase: "ct-regen",
       withTickets: [
         { number: "ST-0001", title: "First", status: "todo" },
         { number: "ST-0002", title: "Second", status: "todo" },
         { number: "BUG-0001", title: "Bug One", status: "todo" },
       ],
     });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await openCreate();
-    await ctx.page.fill('[data-testid="create-ticket-number-input"]', "BUG");
-    await ctx.page.click('[data-testid="create-ticket-regenerate-button"]');
+    await testId(ctx.page, "create-ticket-number-input").fill("BUG");
+    await testId(ctx.page, "create-ticket-regenerate-button").click();
     const sel = '[data-testid="create-ticket-number-input"]';
     await ctx.page.waitForFunction(
       (s) => (document.querySelector(s) as HTMLInputElement)?.value.startsWith("BUG-"),
@@ -77,5 +64,5 @@ describe("CreateTicketDialog (e2e, real server)", () => {
     );
     const value = await ctx.page.inputValue('[data-testid="create-ticket-number-input"]');
     expect(value).toBe("BUG-0002");
-  }, 60000);
+  });
 });

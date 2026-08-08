@@ -1,24 +1,19 @@
 import fs from "node:fs";
 import path from "node:path";
-import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll } from "vitest";
-import { type Browser, type Page } from "playwright";
+import { describe, it, expect } from "vitest";
+import { type Page } from "playwright";
 import {
-  createServer, launchBrowser, createProject, uniqueSlug, gotoProject,
-  type TestServer, type TestBrowser, type CreatedProject,
-  readTicketStatus, poll,
+  dragElement, openProject, sortableItem,
+  type CreatedProject,
+  readTicketStatus, poll, setupE2E,
 } from "./fixtures.js";
 
-let testServer: TestServer;
-let testBrowser: TestBrowser;
-let browser: Browser;
-let page: Page;
-
 async function getSortablesByColumn(p: Page) {
-  const sortables = p.locator("[data-sortable-id]");
-  const count = await sortables.count();
+  const ids = await p.locator("[data-sortable-id]").evaluateAll(
+    (elements) => elements.map((e) => e.getAttribute("data-sortable-id") ?? ""),
+  );
   const columns = new Map<string, string[]>();
-  for (let i = 0; i < count; i++) {
-    const id = await sortables.nth(i).getAttribute("data-sortable-id");
+  for (const id of ids) {
     if (!id) continue;
     const col = id.split(":")[0];
     if (!columns.has(col)) columns.set(col, []);
@@ -27,23 +22,18 @@ async function getSortablesByColumn(p: Page) {
   return columns;
 }
 
-async function dragTo(p: Page, sourceId: string, targetId: string) {
-  const source = p.locator(`[data-sortable-id="${sourceId}"]`);
-  const target = p.locator(`[data-sortable-id="${targetId}"]`);
-  const sBox = (await source.boundingBox())!;
-  const tBox = (await target.boundingBox())!;
-  const sx = sBox.x + sBox.width / 2;
-  const sy = sBox.y + sBox.height / 2;
-  const tx = tBox.x + tBox.width / 2;
-  const ty = tBox.y + 5;
-  await p.mouse.move(sx, sy);
-  await p.mouse.down();
-  await p.waitForTimeout(150);
-  for (let i = 1; i <= 20; i++) {
-    await p.mouse.move(sx + (tx - sx) * (i / 20), sy + (ty - sy) * (i / 20));
-    await p.waitForTimeout(30);
-  }
-  await p.waitForTimeout(200);
+/**
+ * The board's drag sensor needs a press-and-hold before it arms, and its drop
+ * handler runs off the last pointer position, so the pointer settles before it
+ * is released.
+ */
+function dragCard(p: Page, sourceId: string, targetId: string) {
+  return dragElement(p, sortableItem(p, sourceId), sortableItem(p, targetId), {
+    releaseAt: "top",
+    holdMs: 150,
+    steps: 20,
+    settleMs: 200,
+  });
 }
 
 const TICKETS = [
@@ -60,78 +50,62 @@ const APP_BOARDS = [
 ];
 
 describe("KanbanBoard drag-and-drop (e2e, real server)", () => {
-  let project: CreatedProject;
-  beforeAll(async () => {
-    testServer = await createServer();
-    testBrowser = await launchBrowser();
-    browser = testBrowser.browser;
-  }, 60000);
+  const ctx = setupE2E();
 
-  beforeEach(async () => {
-    page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
-    project = await createProject(testServer, {
-      projectSlug: uniqueSlug("dnd"),
+  async function setup(suffix: string): Promise<CreatedProject> {
+    const project = await openProject(ctx, {
+      slugBase: `dnd-${suffix}`,
       withBoards: APP_BOARDS,
       withTickets: TICKETS,
     });
-    await gotoProject(page, testServer, project.projectSlug);
-  });
-
-  afterEach(async () => {
-    await page?.close();
-    project?.cleanup();
-  });
-
-  afterAll(async () => {
-    await testBrowser?.stop();
-    await testServer?.stop();
-  }, 20000);
+    await ctx.page.locator("[data-sortable-id]").first()
+      .waitFor({ state: "visible", timeout: 10000 });
+    return project;
+  }
 
   it("renders test tickets in correct columns", async () => {
-    await page.waitForSelector("[data-sortable-id]", { timeout: 10000 });
-    const columns = await getSortablesByColumn(page);
+    await setup("renders");
+    const columns = await getSortablesByColumn(ctx.page);
     const todo = columns.get("todo") ?? [];
     const inProgress = columns.get("in-progress") ?? [];
     expect(todo.length).toBe(2);
     expect(inProgress.length).toBe(2);
     expect(todo[0]).toContain("t-1-alpha");
     expect(inProgress[0]).toContain("t-3-charlie");
-  }, 60000);
+  });
 
   it("persists cross-column drop to disk", async () => {
-    await page.waitForSelector("[data-sortable-id]", { timeout: 10000 });
-    const before = await getSortablesByColumn(page);
+    const project = await setup("cross-column");
+    const before = await getSortablesByColumn(ctx.page);
     const todo = before.get("todo")!;
     const inProgress = before.get("in-progress")!;
     const movedFolder = todo[0].split(":")[1];
 
-    await dragTo(page, todo[0], inProgress[0]);
-    await page.mouse.up();
+    await dragCard(ctx.page, todo[0], inProgress[0]);
     const status = await poll(
-      () => readTicketStatus(testServer, project.projectSlug, movedFolder),
+      () => readTicketStatus(ctx.testServer, project.projectSlug, movedFolder),
       (s) => s?.status === "in-progress",
       5000,
     );
 
-    const after = await getSortablesByColumn(page);
+    const after = await getSortablesByColumn(ctx.page);
     const ipAfter = after.get("in-progress") ?? [];
     expect(ipAfter.some((id) => id.includes(movedFolder))).toBe(true);
     expect(status?.status).toBe("in-progress");
-  }, 60000);
+  });
 
   it("same position drop does not modify ticket-order.json", async () => {
-    await page.waitForSelector("[data-sortable-id]", { timeout: 10000 });
+    const project = await setup("same-position");
 
     const orderFile = path.join(
-      testServer.dataDir, "projects", project.projectSlug, "tickets", "ticket-order.json",
+      ctx.testServer.dataDir, "projects", project.projectSlug, "tickets", "ticket-order.json",
     );
     const beforeContent = fs.readFileSync(orderFile, "utf-8");
 
-    await dragTo(page, "todo:t-1-alpha", "todo:t-1-alpha");
-    await page.mouse.up();
-    await page.waitForTimeout(2000);
+    await dragCard(ctx.page, "todo:t-1-alpha", "todo:t-1-alpha");
+    await ctx.page.waitForTimeout(2000);
 
     const afterContent = fs.readFileSync(orderFile, "utf-8");
     expect(afterContent).toBe(beforeContent);
-  }, 60000);
+  });
 });

@@ -1,14 +1,15 @@
 import { describe, it, expect } from "vitest";
 import {
-  createProject, uniqueSlug, gotoProject, clickTicketMenuItem, setupE2E,
+  openProject, clickTicketMenuItem, setupE2E,
 } from "./fixtures.js";
+import { testId, waitVisible } from "./locators.js";
 
 describe("Kanban board (e2e, real server)", () => {
   const ctx = setupE2E();
 
   it("renders kanban-board-column-header and kanban-board-column-description", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("kb-cols"),
+    await openProject(ctx, {
+      slugBase: "kb-cols",
       withBoards: [{
         id: "kanban", name: "Kanban",
         columns: [
@@ -17,81 +18,64 @@ describe("Kanban board (e2e, real server)", () => {
         ],
       }],
     });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    const headers = await ctx.page.locator('[data-testid="kanban-board-column-header"]').allTextContents();
+    const headers = await testId(ctx.page, "kanban-board-column-header").allTextContents();
     expect(headers.map(h => h.trim().toLowerCase())).toContain("todo");
-    const desc = ctx.page.locator('[data-testid="kanban-board-column-description"]').first();
+    const desc = testId(ctx.page, "kanban-board-column-description").first();
     expect(await desc.textContent()).toBe("Things to do");
-  }, 60000);
+  });
 
   it("kanban-board-empty-dropzone renders for empty columns", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("kb-empty"),
-    });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    expect(await ctx.page.locator('[data-testid="kanban-board-empty-dropzone"]').count()).toBeGreaterThan(0);
-  }, 60000);
+    await openProject(ctx, { slugBase: "kb-empty" });
+    expect(await testId(ctx.page, "kanban-board-empty-dropzone").count()).toBeGreaterThan(0);
+  });
 
   it("kanban-board-ticket-card click opens ticket detail dialog within 500ms", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("kb-click"),
+    await openProject(ctx, {
+      slugBase: "kb-click",
       withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
     });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     const startedAt = performance.now();
-    await ctx.page.locator('[data-testid="kanban-board-ticket-card"]').first().click();
-    await ctx.page.waitForSelector('[data-testid="ticket-detail-number-input"]', {
-      state: "visible",
-      timeout: 500,
-    });
+    await testId(ctx.page, "kanban-board-ticket-card").first().click();
+    await waitVisible(ctx.page, "ticket-detail-number-input");
     expect(performance.now() - startedAt).toBeLessThan(500);
-  }, 60000);
+  });
 
   it("kanban-board-ticket-menu-trigger opens menu with archive/delete items", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("kb-menu"),
+    await openProject(ctx, {
+      slugBase: "kb-menu",
       withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
     });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    const trigger = ctx.page.locator('[data-testid="kanban-board-ticket-menu-trigger"]').first();
+    const trigger = testId(ctx.page, "kanban-board-ticket-menu-trigger").first();
     await trigger.click();
-    await ctx.page.locator('[data-testid="kanban-board-ticket-menu-archive"]').waitFor({
+    await testId(ctx.page, "kanban-board-ticket-menu-archive").waitFor({
       state: "visible", timeout: 10000,
     });
-    expect(await ctx.page.locator('[data-testid="kanban-board-ticket-menu-edit"]').count()).toBe(0);
-    expect(await ctx.page.locator('[data-testid="kanban-board-ticket-menu-archive"]').count()).toBe(1);
-    expect(await ctx.page.locator('[data-testid="kanban-board-ticket-menu-delete"]').count()).toBe(1);
-  }, 60000);
+    expect(await testId(ctx.page, "kanban-board-ticket-menu-edit").count()).toBe(0);
+    expect(await testId(ctx.page, "kanban-board-ticket-menu-archive").count()).toBe(1);
+    expect(await testId(ctx.page, "kanban-board-ticket-menu-delete").count()).toBe(1);
+  });
 
   it("kanban-board-ticket-menu-archive opens Archive Ticket dialog", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("kb-arch-menu"),
+    await openProject(ctx, {
+      slugBase: "kb-arch-menu",
       withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
     });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await clickTicketMenuItem(ctx.page, "archive");
-    await ctx.page.waitForSelector('[data-testid="ticket-cleanup-submit"]', { state: "visible", timeout: 15000 });
-  }, 60000);
+    await waitVisible(ctx.page, "ticket-cleanup-submit");
+  });
 
   it("kanban-board-ticket-menu-delete opens Delete Ticket dialog", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("kb-del-menu"),
+    await openProject(ctx, {
+      slugBase: "kb-del-menu",
       withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
     });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await clickTicketMenuItem(ctx.page, "delete");
-    await ctx.page.waitForSelector('[data-testid="ticket-cleanup-submit"]', { state: "visible", timeout: 15000 });
-  }, 60000);
+    await waitVisible(ctx.page, "ticket-cleanup-submit");
+  });
 
   it("kanban-board-undefined-column and related testids render for orphan-status tickets", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("kb-orphan"),
+    await openProject(ctx, {
+      slugBase: "kb-orphan",
       withBoards: [{
         id: "kanban", name: "Kanban",
         columns: [{ name: "todo" }, { name: "done" }],
@@ -100,16 +84,12 @@ describe("Kanban board (e2e, real server)", () => {
         number: "T-9", title: "Orphan", status: "missing-col", folderName: "t-9-orphan",
       }],
     });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await ctx.page.waitForSelector('[data-testid="kanban-board-undefined-column"]', {
-      state: "visible", timeout: 15000,
-    });
+    await waitVisible(ctx.page, "kanban-board-undefined-column");
     expect(
-      await ctx.page.locator('[data-testid="kanban-board-undefined-column-description"]').textContent(),
+      await testId(ctx.page, "kanban-board-undefined-column-description").textContent(),
     ).toBe("Update manually");
     expect(
-      await ctx.page.locator('[data-testid="kanban-board-ticket-orphaned-status"]').textContent(),
+      await testId(ctx.page, "kanban-board-ticket-orphaned-status").textContent(),
     ).toBe("missing-col");
-  }, 60000);
+  });
 });

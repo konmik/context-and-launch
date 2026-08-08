@@ -4,12 +4,12 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Locator, Page } from "playwright";
 import {
-	createProject,
 	gotoProject,
 	openTicketDetail,
+	seedProject,
 	setupE2E,
-	uniqueSlug,
 } from "./fixtures.js";
+import { testId } from "./locators.js";
 
 async function expectVisible(locator: Locator, timeout = 10_000): Promise<void> {
 	await locator.waitFor({ state: "visible", timeout });
@@ -20,11 +20,11 @@ async function openCardReview(page: Page, folderName: string): Promise<void> {
 	const card = page.locator(
 		`[data-testid="kanban-board-ticket-card"][data-folder-name="${folderName}"]`,
 	);
-	await card.locator('[data-testid="kanban-board-ticket-menu-trigger"]').click();
-	const action = page.locator('[data-testid="kanban-board-ticket-menu-review-changes"]');
+	await testId(card, "kanban-board-ticket-menu-trigger").click();
+	const action = testId(page, "kanban-board-ticket-menu-review-changes");
 	await action.waitFor({ state: "attached", timeout: 10_000 });
 	await action.click();
-	await page.locator('[data-testid="diff-review"]').waitFor({
+	await testId(page, "diff-review").waitFor({
 		state: "visible",
 		timeout: 15_000,
 	});
@@ -36,8 +36,8 @@ describe("Diff Review (e2e, real server)", () => {
 	it("reviews a worktree change and preserves a queued prompt snapshot", async () => {
 		await ctx.page.clock.install();
 		const folderName = "t-1-review-worktree";
-		const project = await createProject(ctx.testServer, {
-			projectSlug: uniqueSlug("diff-review"),
+		const project = await seedProject(ctx, {
+			slugBase: "diff-review",
 			withTickets: [{
 				number: "T-1",
 				title: "Review worktree",
@@ -46,7 +46,6 @@ describe("Diff Review (e2e, real server)", () => {
 			}],
 			withWorktrees: [{ folderName }],
 		});
-		ctx.projects.push(project);
 		const worktreePath = path.join(project.worktreeRootPath!, folderName);
 		const sourcePath = path.join(worktreePath, "src", "example.ts");
 		fs.mkdirSync(path.dirname(sourcePath), { recursive: true });
@@ -60,29 +59,29 @@ describe("Diff Review (e2e, real server)", () => {
 			() => ctx.page.locator('[data-testid="diff-review-scope"] option').count(),
 			{ timeout: 15_000 },
 		).toBe(2);
-		expect(await ctx.page.locator('[data-testid="diff-review-scope"]').inputValue())
+		expect(await testId(ctx.page, "diff-review-scope").inputValue())
 			.toBe("working");
-		await expectVisible(ctx.page.locator('[data-testid="diff-review-file-tree"]'));
+		await expectVisible(testId(ctx.page, "diff-review-file-tree"));
 		await expect.poll(
-			() => ctx.page.locator('[data-testid="diff-review-file"]').count(),
+			() => testId(ctx.page, "diff-review-file").count(),
 		).toBe(2);
-		await expectVisible(ctx.page.locator('[data-testid="diff-review-scroll"]'));
-		await expectVisible(ctx.page.locator('[data-testid="diff-review-binary"]'));
+		await expectVisible(testId(ctx.page, "diff-review-scroll"));
+		await expectVisible(testId(ctx.page, "diff-review-binary"));
 
 		await ctx.page.locator(
 			'[data-testid="diff-review-file"][data-file-path="src/example.ts"]',
 		).click();
-		await expectVisible(ctx.page.locator('[data-testid="diff-review-file-diff"]'));
+		await expectVisible(testId(ctx.page, "diff-review-file-diff"));
 
-		await ctx.page.locator('[data-testid="diff-review-pace-step"]').click();
-		expect(await ctx.page.locator('[data-testid="diff-review-pace-step"]')
+		await testId(ctx.page, "diff-review-pace-step").click();
+		expect(await testId(ctx.page, "diff-review-pace-step")
 			.getAttribute("aria-pressed")).toBe("true");
-		await ctx.page.locator('[data-testid="diff-review-refresh"]').click();
-		await ctx.page.locator('[data-testid="diff-review-pace-live"]').click();
+		await testId(ctx.page, "diff-review-refresh").click();
+		await testId(ctx.page, "diff-review-pace-live").click();
 
-		await ctx.page.locator('[data-testid="diff-review-scope"]').selectOption("last-commit");
-		await expectVisible(ctx.page.locator('[data-testid="diff-review-empty"]'));
-		await ctx.page.locator('[data-testid="diff-review-scope"]').selectOption("working");
+		await testId(ctx.page, "diff-review-scope").selectOption("last-commit");
+		await expectVisible(testId(ctx.page, "diff-review-empty"));
+		await testId(ctx.page, "diff-review-scope").selectOption("working");
 		await ctx.page.locator(
 			'[data-testid="diff-review-file"][data-file-path="src/example.ts"]',
 		).click();
@@ -93,49 +92,49 @@ describe("Diff Review (e2e, real server)", () => {
 		).first();
 		await addedLine.waitFor({ state: "visible", timeout: 15_000 });
 		await addedLine.click();
-		await expectVisible(ctx.page.locator('[data-testid="diff-review-composer"]'));
-		const composerInput = ctx.page.locator('[data-testid="diff-review-composer-input"]');
+		await expectVisible(testId(ctx.page, "diff-review-composer"));
+		const composerInput = testId(ctx.page, "diff-review-composer-input");
 		expect(await composerInput.evaluate((element) => document.activeElement === element)).toBe(true);
 
 		fs.writeFileSync(sourcePath, "export const value = 2;\nexport const stable = true;\n");
 		await ctx.page.clock.fastForward(1_300);
 		await expectVisible(
-			ctx.page.locator('[data-testid="diff-review-stale-warning"]'),
+			testId(ctx.page, "diff-review-stale-warning"),
 		);
 		await composerInput.fill("Please explain why this value changed.");
-		await ctx.page.locator('[data-testid="diff-review-composer-send"]').click();
+		await testId(ctx.page, "diff-review-composer-send").click();
 
 		await expectVisible(ctx.page.locator(
 			'[data-testid="diff-review-composer"] [data-testid="diff-review-queue"]',
 		));
 		await expect.poll(
-			() => ctx.page.locator('[data-testid="diff-review-queue-item"]').count(),
+			() => testId(ctx.page, "diff-review-queue-item").count(),
 		).toBe(1);
-		expect(await ctx.page.locator('[data-testid="diff-review-queue-retry"]').count()).toBe(0);
+		expect(await testId(ctx.page, "diff-review-queue-retry").count()).toBe(0);
 		expect(await composerInput.inputValue()).toBe("");
 
 		await ctx.page.locator(
 			'[data-testid="diff-review-composer"] [aria-label="Close Review Prompt composer"]',
 		).click();
-		await ctx.page.locator('[data-testid="diff-review-queue"]')
+		await testId(ctx.page, "diff-review-queue")
 			.waitFor({ state: "detached", timeout: 10_000 });
 
-		await ctx.page.locator('[data-testid="diff-review-close"]').click();
-		await ctx.page.locator('[data-testid="diff-review"]')
+		await testId(ctx.page, "diff-review-close").click();
+		await testId(ctx.page, "diff-review")
 			.waitFor({ state: "detached", timeout: 10_000 });
 		await openTicketDetail(ctx.page, folderName);
-		await ctx.page.locator('[data-testid="ticket-detail-shortcuts-menu-trigger"]').click();
-		await ctx.page.locator('[data-testid="ticket-detail-review-changes-menu-item"]')
+		await testId(ctx.page, "ticket-detail-shortcuts-menu-trigger").click();
+		await testId(ctx.page, "ticket-detail-review-changes-menu-item")
 			.waitFor({ state: "attached", timeout: 10_000 });
-	}, 60_000);
+	});
 
 	// Dispatching dragstart leaves Playwright's Chromium input handling in a drag state, so this
 	// assertion has to be the last interaction of its own test.
 	it("carries the full Review Prompt as drag-out text", async () => {
 		await ctx.page.clock.install();
 		const folderName = "t-6-drag-prompt";
-		const project = await createProject(ctx.testServer, {
-			projectSlug: uniqueSlug("diff-review-drag"),
+		const project = await seedProject(ctx, {
+			slugBase: "diff-review-drag",
 			withTickets: [{
 				number: "T-6",
 				title: "Drag prompt",
@@ -144,7 +143,6 @@ describe("Diff Review (e2e, real server)", () => {
 			}],
 			withWorktrees: [{ folderName }],
 		});
-		ctx.projects.push(project);
 		const worktreePath = path.join(project.worktreeRootPath!, folderName);
 		const sourcePath = path.join(worktreePath, "src", "example.ts");
 		fs.mkdirSync(path.dirname(sourcePath), { recursive: true });
@@ -160,8 +158,8 @@ describe("Diff Review (e2e, real server)", () => {
 		).first();
 		await addedLine.waitFor({ state: "visible", timeout: 15_000 });
 		await addedLine.click();
-		await expectVisible(ctx.page.locator('[data-testid="diff-review-composer"]'));
-		await ctx.page.locator('[data-testid="diff-review-composer-input"]')
+		await expectVisible(testId(ctx.page, "diff-review-composer"));
+		await testId(ctx.page, "diff-review-composer-input")
 			.fill("Explain this value.");
 
 		await ctx.page.evaluate(() => {
@@ -177,14 +175,14 @@ describe("Diff Review (e2e, real server)", () => {
 				},
 			});
 		});
-		await ctx.page.locator('[data-testid="diff-review-drag-prompt"]').click();
+		await testId(ctx.page, "diff-review-drag-prompt").click();
 		const copiedPrompts = await ctx.page.evaluate(() => {
 			const copied = Reflect.get(window, "__copiedPrompts");
 			return Array.isArray(copied) ? copied.map(String) : [];
 		});
 		expect(copiedPrompts).toHaveLength(1);
 
-		const drop = await ctx.page.locator('[data-testid="diff-review-drag-prompt"]')
+		const drop = await testId(ctx.page, "diff-review-drag-prompt")
 			.evaluate((node) => {
 				const transfer = new DataTransfer();
 				transfer.setData("text/html", "<b>raw diff markup</b>");
@@ -204,7 +202,7 @@ describe("Diff Review (e2e, real server)", () => {
 		expect(dropText).toContain("Selected diff:");
 		expect(dropText).toContain("export const value = 1;");
 
-		const rowDrop = await ctx.page.locator('[data-testid="diff-review-file-diff"]')
+		const rowDrop = await testId(ctx.page, "diff-review-file-diff")
 			.evaluate((host) => {
 				const root = (host.firstElementChild as HTMLElement).shadowRoot!;
 				const row = root.querySelector<HTMLElement>(
@@ -225,13 +223,13 @@ describe("Diff Review (e2e, real server)", () => {
 			});
 		expect(rowDrop.html).toBe("");
 		expect(rowDrop.text).toBe(dropText);
-	}, 60_000);
+	});
 
 	it("keeps a dragged text selection alive across Live Review refreshes", async () => {
 		await ctx.page.clock.install();
 		const folderName = "t-3-live-selection";
-		const project = await createProject(ctx.testServer, {
-			projectSlug: uniqueSlug("diff-review-live"),
+		const project = await seedProject(ctx, {
+			slugBase: "diff-review-live",
 			withTickets: [{
 				number: "T-3",
 				title: "Live selection",
@@ -240,7 +238,6 @@ describe("Diff Review (e2e, real server)", () => {
 			}],
 			withWorktrees: [{ folderName }],
 		});
-		ctx.projects.push(project);
 		const worktreePath = path.join(project.worktreeRootPath!, folderName);
 		const sourcePath = path.join(worktreePath, "many.ts");
 		fs.writeFileSync(
@@ -296,13 +293,13 @@ describe("Diff Review (e2e, real server)", () => {
 		});
 		expect(report.stillRendered).toBe(true);
 		expect(report.stillSelected).toBe(true);
-	}, 60_000);
+	});
 
 	it("queues a prompt with no Review Selection and holds the file list still", async () => {
 		await ctx.page.clock.install();
 		const folderName = "t-5-direct-prompt";
-		const project = await createProject(ctx.testServer, {
-			projectSlug: uniqueSlug("diff-review-direct"),
+		const project = await seedProject(ctx, {
+			slugBase: "diff-review-direct",
 			withTickets: [{
 				number: "T-5",
 				title: "Direct prompt",
@@ -311,7 +308,6 @@ describe("Diff Review (e2e, real server)", () => {
 			}],
 			withWorktrees: [{ folderName }],
 		});
-		ctx.projects.push(project);
 		const worktreePath = path.join(project.worktreeRootPath!, folderName);
 		for (let index = 0; index < 40; index++) {
 			fs.writeFileSync(
@@ -323,11 +319,11 @@ describe("Diff Review (e2e, real server)", () => {
 		await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
 		await openCardReview(ctx.page, folderName);
 		await expect.poll(
-			() => ctx.page.locator('[data-testid="diff-review-file"]').count(),
+			() => testId(ctx.page, "diff-review-file").count(),
 			{ timeout: 15_000 },
 		).toBe(40);
 
-		const tree = ctx.page.locator('[data-testid="diff-review-file-tree"]');
+		const tree = testId(ctx.page, "diff-review-file-tree");
 		await tree.evaluate((node) => { node.scrollTop = 200; });
 		const inView = await tree.evaluate((node) => {
 			const treeBox = node.getBoundingClientRect();
@@ -345,25 +341,25 @@ describe("Diff Review (e2e, real server)", () => {
 		await ctx.page.clock.fastForward(1_500);
 		expect(await tree.evaluate((node) => node.scrollTop)).toBe(200);
 
-		await expectVisible(ctx.page.locator('[data-testid="diff-review-agent-status"]'));
-		await ctx.page.locator('[data-testid="diff-review-prompt-agent"]').click();
-		await expectVisible(ctx.page.locator('[data-testid="diff-review-composer"]'));
-		expect(await ctx.page.locator('[data-testid="diff-review-stale-warning"]').count())
+		await expectVisible(testId(ctx.page, "diff-review-agent-status"));
+		await testId(ctx.page, "diff-review-prompt-agent").click();
+		await expectVisible(testId(ctx.page, "diff-review-composer"));
+		expect(await testId(ctx.page, "diff-review-stale-warning").count())
 			.toBe(0);
-		await ctx.page.locator('[data-testid="diff-review-composer-input"]')
+		await testId(ctx.page, "diff-review-composer-input")
 			.fill("Rerun the tests.");
-		await ctx.page.locator('[data-testid="diff-review-composer-send"]').click();
+		await testId(ctx.page, "diff-review-composer-send").click();
 		await expect.poll(
-			() => ctx.page.locator('[data-testid="diff-review-queue-item"]').allTextContents(),
+			() => testId(ctx.page, "diff-review-queue-item").allTextContents(),
 			{ timeout: 10_000 },
 		).toEqual([expect.stringContaining("Agent prompt")]);
-	}, 60_000);
+	});
 
 	it("keeps Review State for lines that did not change when the file changes", async () => {
 		await ctx.page.clock.install();
 		const folderName = "t-4-review-state";
-		const project = await createProject(ctx.testServer, {
-			projectSlug: uniqueSlug("diff-review-state"),
+		const project = await seedProject(ctx, {
+			slugBase: "diff-review-state",
 			mainBranch: "main",
 			withTickets: [{
 				number: "T-4",
@@ -373,7 +369,6 @@ describe("Diff Review (e2e, real server)", () => {
 			}],
 			withWorktrees: [{ folderName }],
 		});
-		ctx.projects.push(project);
 		const worktreePath = path.join(project.worktreeRootPath!, folderName);
 		const sourcePath = path.join(worktreePath, "long.ts");
 		const lines = Array.from({ length: 200 }, (_, index) => `export const v${index} = ${index};`);
@@ -403,18 +398,18 @@ describe("Diff Review (e2e, real server)", () => {
 		await expect.poll(() => fileIcon.getAttribute("aria-label"), { timeout: 15_000 })
 			.toBe("Not reviewed");
 
-		const nextChange = ctx.page.locator('[data-testid="diff-review-next-change"]');
+		const nextChange = testId(ctx.page, "diff-review-next-change");
 		await expect.poll(() => nextChange.isDisabled()).toBe(false);
 		await nextChange.click();
 		await expect.poll(() => fileIcon.getAttribute("aria-label"), { timeout: 15_000 })
 			.toBe("Reviewed");
-	}, 60_000);
+	});
 
 	it("opens on All Changes, covering committed and uncommitted work", async () => {
 		await ctx.page.clock.install();
 		const folderName = "t-2-review-branch";
-		const project = await createProject(ctx.testServer, {
-			projectSlug: uniqueSlug("diff-review-branch"),
+		const project = await seedProject(ctx, {
+			slugBase: "diff-review-branch",
 			mainBranch: "main",
 			withTickets: [{
 				number: "T-2",
@@ -424,7 +419,6 @@ describe("Diff Review (e2e, real server)", () => {
 			}],
 			withWorktrees: [{ folderName }],
 		});
-		ctx.projects.push(project);
 		const worktreePath = path.join(project.worktreeRootPath!, folderName);
 		fs.writeFileSync(path.join(worktreePath, "committed.ts"), "export const done = 1;\n");
 		execSync("git add committed.ts", { cwd: worktreePath });
@@ -438,14 +432,14 @@ describe("Diff Review (e2e, real server)", () => {
 			() => ctx.page.locator('[data-testid="diff-review-scope"] option').count(),
 			{ timeout: 15_000 },
 		).toBe(4);
-		expect(await ctx.page.locator('[data-testid="diff-review-scope"]').inputValue())
+		expect(await testId(ctx.page, "diff-review-scope").inputValue())
 			.toBe("all");
 		await expect.poll(
-			() => ctx.page.locator('[data-testid="diff-review-file"]').count(),
+			() => testId(ctx.page, "diff-review-file").count(),
 			{ timeout: 15_000 },
 		).toBe(2);
 
-		const nextChange = ctx.page.locator('[data-testid="diff-review-next-change"]');
+		const nextChange = testId(ctx.page, "diff-review-next-change");
 		await expectVisible(nextChange);
 		await expect.poll(() => nextChange.isDisabled()).toBe(false);
 		await nextChange.click();
@@ -455,22 +449,22 @@ describe("Diff Review (e2e, real server)", () => {
 		).toContain("bg-accent");
 		await expect.poll(() => nextChange.isDisabled(), { timeout: 15_000 }).toBe(true);
 
-		await ctx.page.locator('[data-testid="diff-review-scope"]').selectOption("working");
+		await testId(ctx.page, "diff-review-scope").selectOption("working");
 		await expect.poll(
-			() => ctx.page.locator('[data-testid="diff-review-file"]').allTextContents(),
+			() => testId(ctx.page, "diff-review-file").allTextContents(),
 			{ timeout: 15_000 },
 		).toEqual([expect.stringContaining("pending.ts")]);
 
-		await ctx.page.locator('[data-testid="diff-review-scope"]').selectOption("branch");
+		await testId(ctx.page, "diff-review-scope").selectOption("branch");
 		await expect.poll(
-			() => ctx.page.locator('[data-testid="diff-review-file"]').allTextContents(),
+			() => testId(ctx.page, "diff-review-file").allTextContents(),
 			{ timeout: 15_000 },
 		).toEqual([expect.stringContaining("committed.ts")]);
 
-		await ctx.page.locator('[data-testid="diff-review-scope"]').selectOption("all");
+		await testId(ctx.page, "diff-review-scope").selectOption("all");
 		await expect.poll(
-			() => ctx.page.locator('[data-testid="diff-review-file"]').count(),
+			() => testId(ctx.page, "diff-review-file").count(),
 			{ timeout: 15_000 },
 		).toBe(2);
-	}, 60_000);
+	});
 });

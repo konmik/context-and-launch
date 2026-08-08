@@ -1,132 +1,104 @@
 import { describe, it, expect } from "vitest";
-import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  createProject, uniqueSlug, gotoProject,
+  gotoProject, seedProject,
   setupE2E,
 } from "./fixtures.js";
+import {
+  aheadCount, commitAll, fetchTickets, git, mutateRemote, porcelainStatus,
+  pushTickets, remoteBranchLog, remoteSubjects, upstreamBranch,
+} from "./git-fixtures.js";
+import { testId, waitVisible } from "./locators.js";
+
+function writeTicketFolder(root: string, folderName: string, status: object): void {
+  fs.mkdirSync(path.join(root, folderName), { recursive: true });
+  fs.writeFileSync(path.join(root, folderName, "status.json"), JSON.stringify(status));
+}
 
 describe("Sync button push behavior (e2e, real server)", () => {
-  const ctx = setupE2E({ serverOpts: { dataDirPrefix: ".cl-e2e-data-" } });
+  const ctx = setupE2E();
+
+  async function syncAndWaitForSuccess(): Promise<void> {
+    await testId(ctx.page, "sync-button-trigger").click();
+    await waitVisible(ctx.page, "sync-button-check-icon");
+  }
 
   it("diverged without conflict: sync merges and pushes", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("sb-diverged-ok"),
+    const project = await seedProject(ctx, {
+      slugBase: "sb-diverged-ok",
       withRemote: true,
       withTickets: [{ number: "DV-1", title: "Local file", status: "todo", folderName: "dv-1-local-file" }],
     });
-    ctx.projects.push(project);
 
-    execSync("git push", { cwd: project.ticketsPath });
-    const tmpClone = project.remoteUrl + "-clone-dv";
-    execSync(`git clone "${project.remoteUrl}" "${tmpClone}"`);
-    execSync("git checkout tickets", { cwd: tmpClone });
-    fs.mkdirSync(path.join(tmpClone, "dv-2-remote-only"), { recursive: true });
-    fs.writeFileSync(path.join(tmpClone, "dv-2-remote-only", "status.json"),
-      JSON.stringify({ number: "DV-2", title: "Remote only", status: "todo" }));
-    execSync('git add -A && git commit -m "remote add"', { cwd: tmpClone });
-    execSync("git push", { cwd: tmpClone });
-    fs.rmSync(tmpClone, { recursive: true, force: true });
+    pushTickets(project);
+    mutateRemote(project, {
+      message: "remote add",
+      edit: (clone) => writeTicketFolder(clone, "dv-2-remote-only", {
+        number: "DV-2", title: "Remote only", status: "todo",
+      }),
+    });
 
     fs.writeFileSync(path.join(project.ticketsPath, "dv-1-local-file", "notes.md"), "local note");
-    execSync("git fetch", { cwd: project.ticketsPath });
+    fetchTickets(project);
 
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await ctx.page.click('[data-testid="sync-button-trigger"]');
-    await ctx.page.waitForSelector('[data-testid="sync-button-check-icon"]', {
-      state: "visible", timeout: 20000,
-    });
+    await syncAndWaitForSuccess();
 
-    const remoteLog = execSync("git log --all --format=%s", {
-      cwd: project.remoteUrl!, encoding: "utf-8",
-    });
-    expect(remoteLog).toContain("sync: local changes");
-  }, 60000);
+    expect(remoteSubjects(project)).toContain("sync: local changes");
+  });
 
   it("multiple commits squashed into one before push", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("sb-squash"),
-      withRemote: true,
+    const project = await seedProject(ctx, { slugBase: "sb-squash", withRemote: true });
+    pushTickets(project);
+
+    writeTicketFolder(project.ticketsPath, "sq-1-first", {
+      number: "SQ-1", title: "First", status: "todo",
     });
-    ctx.projects.push(project);
-    execSync("git push -u origin tickets", { cwd: project.ticketsPath });
+    commitAll(project.ticketsPath, "auto: external changes");
 
-    fs.mkdirSync(path.join(project.ticketsPath, "sq-1-first"), { recursive: true });
-    fs.writeFileSync(path.join(project.ticketsPath, "sq-1-first", "status.json"),
-      JSON.stringify({ number: "SQ-1", title: "First", status: "todo" }));
-    execSync('git add -A && git commit -m "auto: external changes"', { cwd: project.ticketsPath });
-
-    fs.mkdirSync(path.join(project.ticketsPath, "sq-2-second"), { recursive: true });
-    fs.writeFileSync(path.join(project.ticketsPath, "sq-2-second", "status.json"),
-      JSON.stringify({ number: "SQ-2", title: "Second", status: "todo" }));
-    execSync('git add -A && git commit -m "auto: external changes"', { cwd: project.ticketsPath });
+    writeTicketFolder(project.ticketsPath, "sq-2-second", {
+      number: "SQ-2", title: "Second", status: "todo",
+    });
+    commitAll(project.ticketsPath, "auto: external changes");
 
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await ctx.page.click('[data-testid="sync-button-trigger"]');
-    await ctx.page.waitForSelector('[data-testid="sync-button-check-icon"]', {
-      state: "visible", timeout: 20000,
-    });
+    await syncAndWaitForSuccess();
 
-    const count = execSync("git rev-list @{u}..HEAD --count", {
-      cwd: project.ticketsPath, encoding: "utf-8",
-    }).trim();
-    expect(count).toBe("0");
+    expect(aheadCount(project.ticketsPath)).toBe(0);
 
-    const log = execSync("git log --oneline tickets", {
-      cwd: project.remoteUrl!, encoding: "utf-8",
-    });
-    const syncLines = log.split("\n").filter((l: string) => l.includes("sync: local changes"));
+    const syncLines = remoteBranchLog(project).split("\n")
+      .filter((line) => line.includes("sync: local changes"));
     expect(syncLines.length).toBe(1);
-  }, 60000);
+  });
 
   it("no-upstream first sync: pushes and sets tracking", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("sb-no-upstream"),
-      withRemote: true,
-    });
-    ctx.projects.push(project);
+    const project = await seedProject(ctx, { slugBase: "sb-no-upstream", withRemote: true });
 
-    execSync("git branch --unset-upstream", { cwd: project.ticketsPath });
-    fs.mkdirSync(path.join(project.ticketsPath, "nu-1-test"), { recursive: true });
-    fs.writeFileSync(path.join(project.ticketsPath, "nu-1-test", "status.json"),
-      JSON.stringify({ number: "NU-1", title: "Test", status: "todo" }));
+    git("branch --unset-upstream", project.ticketsPath);
+    writeTicketFolder(project.ticketsPath, "nu-1-test", {
+      number: "NU-1", title: "Test", status: "todo",
+    });
 
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await ctx.page.click('[data-testid="sync-button-trigger"]');
-    await ctx.page.waitForSelector('[data-testid="sync-button-check-icon"]', {
-      state: "visible", timeout: 20000,
-    });
+    await syncAndWaitForSuccess();
 
-    const tracking = execSync("git rev-parse --abbrev-ref --symbolic-full-name @{u}", {
-      cwd: project.ticketsPath, encoding: "utf-8",
-    }).trim();
-    expect(tracking).toContain("origin/");
-  }, 60000);
+    expect(upstreamBranch(project.ticketsPath)).toContain("origin/");
+  });
 
   it("net-zero unpushed commits: sync succeeds and flip.txt does not exist", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("sb-netzero"),
-      withRemote: true,
-    });
-    ctx.projects.push(project);
-    execSync("git push -u origin tickets", { cwd: project.ticketsPath });
+    const project = await seedProject(ctx, { slugBase: "sb-netzero", withRemote: true });
+    pushTickets(project);
 
     fs.writeFileSync(path.join(project.ticketsPath, "flip.txt"), "changed");
-    execSync('git add -A && git commit -m "auto: change"', { cwd: project.ticketsPath });
+    commitAll(project.ticketsPath, "auto: change");
     fs.unlinkSync(path.join(project.ticketsPath, "flip.txt"));
-    execSync('git add -A && git commit -m "auto: revert"', { cwd: project.ticketsPath });
+    commitAll(project.ticketsPath, "auto: revert");
 
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await ctx.page.click('[data-testid="sync-button-trigger"]');
-    await ctx.page.waitForSelector('[data-testid="sync-button-check-icon"]', {
-      state: "visible", timeout: 20000,
-    });
+    await syncAndWaitForSuccess();
 
     expect(fs.existsSync(path.join(project.ticketsPath, "flip.txt"))).toBe(false);
-    const status = execSync("git status --porcelain", {
-      cwd: project.ticketsPath, encoding: "utf-8",
-    }).trim();
-    expect(status).toBe("");
-  }, 60000);
+    expect(porcelainStatus(project.ticketsPath)).toBe("");
+  });
 });

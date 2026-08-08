@@ -1,10 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { setupE2E, readTicketStatus } from "./fixtures.js";
+import { setupE2E, readTicketStatus, boxOf, centerOf } from "./fixtures.js";
 import {
-  boxOf, centerOf, clickHandle, closeSubforest, deleteDependencyViaPopup,
+  clickHandle, closeSubforest, deleteDependencyViaPopup,
   forestCard, forestHandle, forestSurface, openForestProject, openSubforest,
   pathScreenEndpoints, pathScreenPoint, subforestCloseButton,
 } from "./forest-helpers.js";
+import { testId } from "./locators.js";
 
 describe("Forest group connections", () => {
   const ctx = setupE2E();
@@ -29,7 +30,7 @@ describe("Forest group connections", () => {
     const memberHandleCenter = await centerOf(memberHandle);
     await ctx.page.mouse.move(memberHandleCenter.x, memberHandleCenter.y);
     const previewPoints = await pathScreenEndpoints(
-      ctx.page.locator('[data-testid="forest-connection-preview"]'),
+      testId(ctx.page, "forest-connection-preview"),
     );
     expect(Math.abs(previewPoints.start.y - groupWindowBox.y)).toBeLessThan(4);
     expect(Math.abs(previewPoints.end.x - memberHandleCenter.x)).toBeLessThan(4);
@@ -45,7 +46,7 @@ describe("Forest group connections", () => {
       () => ctx.page.locator('[data-connection-edit-mode="active"]').count(),
       { timeout: 10000 },
     ).toBe(0);
-    expect(await ctx.page.locator('[data-testid="forest-connection-preview"]').count()).toBe(0);
+    expect(await testId(ctx.page, "forest-connection-preview").count()).toBe(0);
 
     const externalDependency = ctx.page.locator(
       '[data-testid="forest-subforest-backdrop"] [data-testid="forest-external-dependency"]',
@@ -78,7 +79,7 @@ describe("Forest group connections", () => {
     const memberHandleCenter = await centerOf(memberHandle);
     await ctx.page.mouse.move(memberHandleCenter.x, memberHandleCenter.y);
     const previewPoints = await pathScreenEndpoints(
-      ctx.page.locator('[data-testid="forest-connection-preview"]'),
+      testId(ctx.page, "forest-connection-preview"),
     );
     expect(Math.abs(previewPoints.start.y - groupWindowBottom)).toBeLessThan(4);
     expect(Math.abs(previewPoints.end.x - memberHandleCenter.x)).toBeLessThan(4);
@@ -117,7 +118,7 @@ describe("Forest group connections", () => {
 
     await openSubforest(ctx.page, "S-G");
 
-    await ctx.page.locator('[data-testid="forest-external-dependency"]')
+    await testId(ctx.page, "forest-external-dependency")
       .waitFor({ state: "attached", timeout: 10000 });
     const groupWindowBox = await boxOf(subforestCloseButton(ctx.page).locator(".."));
     const memberHandleBox = await boxOf(forestHandle(ctx.page, "S-1", "top"));
@@ -133,7 +134,7 @@ describe("Forest group connections", () => {
       { timeout: 10000 },
     ).toBeUndefined();
     await expect.poll(
-      () => ctx.page.locator('[data-testid="forest-external-dependency"]').count(),
+      () => testId(ctx.page, "forest-external-dependency").count(),
       { timeout: 10000 },
     ).toBe(0);
   }, 120000);
@@ -149,7 +150,7 @@ describe("Forest group connections", () => {
       ],
     });
 
-    const dependency = ctx.page.locator('[data-testid="forest-dependency"]');
+    const dependency = testId(ctx.page, "forest-dependency");
     await dependency.waitFor({ state: "attached", timeout: 10000 });
     await ctx.page.waitForTimeout(300);
     const clickPoint = await pathScreenPoint(dependency, "middle");
@@ -162,7 +163,7 @@ describe("Forest group connections", () => {
       { timeout: 10000 },
     ).toBeUndefined();
     await expect.poll(
-      () => ctx.page.locator('[data-testid="forest-dependency"]').count(),
+      () => testId(ctx.page, "forest-dependency").count(),
       { timeout: 10000 },
     ).toBe(0);
   }, 120000);
@@ -185,7 +186,7 @@ describe("Forest group connections", () => {
     await closeSubforest(ctx.page);
 
     expect(await rootSurface.getAttribute("data-connection-edit-mode")).toBe("active");
-    const preview = ctx.page.locator('[data-testid="forest-connection-preview"]');
+    const preview = testId(ctx.page, "forest-connection-preview");
     expect(await preview.count()).toBe(1);
     const surfaceBox = await boxOf(rootSurface);
     const pointer = {
@@ -220,7 +221,7 @@ describe("Forest group connections", () => {
     await ctx.page.mouse.move(pointer.x, pointer.y);
 
     const endpoints = await pathScreenEndpoints(
-      ctx.page.locator('[data-testid="forest-connection-preview"]'),
+      testId(ctx.page, "forest-connection-preview"),
     );
     const groupHandle = forestHandle(ctx.page, "S-G", "bottom");
     expect(await groupHandle.getAttribute("data-connection-handle-state")).toBe("source");

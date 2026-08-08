@@ -33,6 +33,9 @@ function scanReferences(file: string): Set<string> {
   const found = new Set<string>();
   const patterns: RegExp[] = [
     /data-testid=\\?["']([a-z0-9-]+)\\?["']/g,
+    // The e2e locator helpers, which name a testid as their first argument:
+    // testId(page, "x"), waitVisible(page, "x"), waitGone(page, "x"), ...
+    /\b(?:testId|waitVisible|waitAttached|waitGone|waitHidden|countOf|fastForwardUntilVisible)\(\s*[\w.]+\s*,\s*["']([a-z0-9-]+)["']/g,
     /testId:\s*["']([a-z0-9-]+)["']/g,
     /triggerTestId:\s*["']([a-z0-9-]+)["']/g,
     /testIdOverride:\s*["']([a-z0-9-]+)["']/g,
@@ -50,6 +53,10 @@ function scanReferences(file: string): Set<string> {
   ];
   for (const re of patterns) {
     for (const m of text.matchAll(re)) found.add(m[1]);
+  }
+  // waitVisibleAny(page, ["x", "y"]) names several testids at once.
+  for (const m of text.matchAll(/\bwaitVisibleAny\(\s*[\w.]+\s*,\s*\[([^\]]*)\]/g)) {
+    for (const id of m[1].matchAll(/["']([a-z0-9-]+)["']/g)) found.add(id[1]);
   }
   return found;
 }

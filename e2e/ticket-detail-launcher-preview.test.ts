@@ -1,8 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  createProject, uniqueSlug, gotoProject,
-  setupE2E,
-} from "./fixtures.js";
+import { openProject, setupE2E } from "./fixtures.js";
 import { APP_LAUNCHER, openLauncher, setupLauncherTicket } from "./ticket-detail-launcher-shared.js";
 
 describe("Ticket detail launcher prompt preview (e2e, real server)", () => {
@@ -15,7 +12,7 @@ describe("Ticket detail launcher prompt preview (e2e, real server)", () => {
     expect(text).toContain("do it in");
     expect(text).not.toContain("{{ticketDir}}");
     expect(text).toContain(project.projectSlug);
-  }, 60000);
+  });
 
   it("prompt preview updates when template selection changes", async () => {
     await setupLauncherTicket(ctx, "preview-change");
@@ -27,7 +24,7 @@ describe("Ticket detail launcher prompt preview (e2e, real server)", () => {
     await ctx.page.waitForTimeout(500);
     const textAfter = await cm.textContent();
     expect(textAfter).toContain("other");
-  }, 60000);
+  });
 
   it("prompt preview includes checked skill text", async () => {
     await setupLauncherTicket(ctx, "preview-skill");
@@ -40,11 +37,11 @@ describe("Ticket detail launcher prompt preview (e2e, real server)", () => {
     const cm = ctx.page.locator('.cm-content');
     const text = await cm.textContent();
     expect(text).toContain("a");
-  }, 60000);
+  });
 
   it("prompt preview interpolates {{launchDir}} placeholder", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("tdl-dir-preview"),
+    const project = await openProject(ctx, {
+      slugBase: "tdl-dir-preview",
       withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
       appLauncherConfig: {
         ...APP_LAUNCHER,
@@ -53,15 +50,13 @@ describe("Ticket detail launcher prompt preview (e2e, real server)", () => {
         ],
       },
     });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await openLauncher(ctx);
     const cm = ctx.page.locator('.cm-content');
     await cm.waitFor({ state: "visible", timeout: 15000 });
     const text = await cm.textContent();
     expect(text).toContain(project.projectPath);
     expect(text).not.toContain("{{launchDir}}");
-  }, 60000);
+  });
 
   it("cursor stays near original position when prompt updates externally", async () => {
     await setupLauncherTicket(ctx, "cursor-preserve");
@@ -103,5 +98,5 @@ describe("Ticket detail launcher prompt preview (e2e, real server)", () => {
     });
 
     expect(cursorAfter).toBe(middleOffset);
-  }, 60000);
+  });
 });

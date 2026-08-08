@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { setupE2E, readTicketStatus } from "./fixtures.js";
+import { setupE2E, readTicketStatus, boxOf, centerOf, dragPointer } from "./fixtures.js";
 import {
-  boxOf, centerOf, clickHandle, deleteDependencyViaPopup, dragPointer,
-  forestCard, forestHandle, forestSurface, openForestProject,
+  clickHandle, deleteDependencyViaPopup, forestCard, forestHandle, forestSurface, openForestProject,
   pathScreenEndpoints, pathScreenPoint,
 } from "./forest-helpers.js";
+import { testId, waitVisible } from "./locators.js";
 
 describe("Forest connection mode", () => {
   const ctx = setupE2E();
@@ -74,7 +74,7 @@ describe("Forest connection mode", () => {
     ).toBe(true);
 
     await expect.poll(
-      () => ctx.page.locator('[data-testid="forest-dependency"]').count(),
+      () => testId(ctx.page, "forest-dependency").count(),
       { timeout: 10000 },
     ).toBeGreaterThanOrEqual(1);
     expect(await ctx.page.locator('[data-connection-edit-mode="active"]').count()).toBe(0);
@@ -87,7 +87,7 @@ describe("Forest connection mode", () => {
     await ctx.page.mouse.up();
 
     expect(await ctx.page.locator('[data-connection-edit-mode="active"]').count()).toBe(0);
-    expect(await ctx.page.locator('[data-testid="forest-connection-preview"]').count()).toBe(0);
+    expect(await testId(ctx.page, "forest-connection-preview").count()).toBe(0);
   }, 120000);
 
   it("cycle rejection", async () => {
@@ -105,7 +105,7 @@ describe("Forest connection mode", () => {
     await ctx.page.mouse.move(cardCenter.x, cardCenter.y);
     await ctx.page.waitForTimeout(200);
 
-    const handle = ctx.page.locator('[data-testid="forest-handle-bottom"]').first();
+    const handle = testId(ctx.page, "forest-handle-bottom").first();
     await handle.waitFor({ state: "visible", timeout: 5000 });
 
     const handlePoint = await centerOf(handle);
@@ -113,8 +113,8 @@ describe("Forest connection mode", () => {
     await dragPointer(ctx.page, handlePoint, targetPoint);
     await ctx.page.waitForTimeout(500);
 
-    await ctx.page.waitForSelector('[data-testid="error-dialog-ok"]', { state: "visible", timeout: 10000 });
-    await ctx.page.click('[data-testid="error-dialog-ok"]');
+    await waitVisible(ctx.page, "error-dialog-ok");
+    await testId(ctx.page, "error-dialog-ok").click();
 
     const status = readTicketStatus(ctx.testServer, project.projectSlug, "a-1-alpha");
     expect(status?.dependsOn).toBeUndefined();
@@ -129,14 +129,14 @@ describe("Forest connection mode", () => {
       ],
     });
 
-    const edge = ctx.page.locator('[data-testid="forest-dependency"]').first();
+    const edge = testId(ctx.page, "forest-dependency").first();
     await edge.waitFor({ state: "attached", timeout: 15000 });
     await ctx.page.waitForTimeout(300);
     const edgePoint = await pathScreenPoint(edge, "middle");
     await ctx.page.mouse.click(edgePoint.x, edgePoint.y);
 
     await deleteDependencyViaPopup(ctx.page);
-    await ctx.page.locator('[data-testid="forest-dependency-delete"]')
+    await testId(ctx.page, "forest-dependency-delete")
       .waitFor({ state: "detached", timeout: 10000 });
 
     await expect.poll(
@@ -145,7 +145,7 @@ describe("Forest connection mode", () => {
     ).toBeUndefined();
 
     await expect.poll(
-      () => ctx.page.locator('[data-testid="forest-dependency"]').count(),
+      () => testId(ctx.page, "forest-dependency").count(),
       { timeout: 10000 },
     ).toBe(0);
   }, 120000);
@@ -201,7 +201,7 @@ describe("Forest connection mode", () => {
     await ctx.page.mouse.click(cardGutter.x + 12, cardGutter.y + 2);
 
     expect(await surface.getAttribute("data-connection-edit-mode")).toBeNull();
-    expect(await ctx.page.locator('[data-testid="forest-connection-preview"]').count()).toBe(0);
+    expect(await testId(ctx.page, "forest-connection-preview").count()).toBe(0);
   }, 120000);
 
   it("Escape exits connection mode", async () => {
@@ -217,7 +217,7 @@ describe("Forest connection mode", () => {
     await ctx.page.keyboard.press("Escape");
 
     expect(await surface.getAttribute("data-connection-edit-mode")).toBeNull();
-    expect(await ctx.page.locator('[data-testid="forest-connection-preview"]').count()).toBe(0);
+    expect(await testId(ctx.page, "forest-connection-preview").count()).toBe(0);
   }, 120000);
 
   it("exits connection mode after connecting or clicking empty space", async () => {
@@ -238,7 +238,7 @@ describe("Forest connection mode", () => {
       .getAttribute("data-connection-handle-state")).toBe("hidden");
     expect(await forestHandle(ctx.page, "B-1", "bottom")
       .getAttribute("data-connection-handle-state")).toBe("hidden");
-    const preview = ctx.page.locator('[data-testid="forest-connection-preview"]');
+    const preview = testId(ctx.page, "forest-connection-preview");
     expect(await preview.count()).toBe(1);
     const initialPreviewPath = await preview.getAttribute("d");
     const sourceBox = await boxOf(forestCard(ctx.page, "A-1"));
@@ -257,7 +257,7 @@ describe("Forest connection mode", () => {
       { timeout: 10000 },
     ).toBeNull();
     expect(await sourceHandle.getAttribute("data-connection-handle-state")).toBe("hidden");
-    expect(await ctx.page.locator('[data-testid="forest-connection-preview"]').count()).toBe(0);
+    expect(await testId(ctx.page, "forest-connection-preview").count()).toBe(0);
 
     await clickHandle(ctx.page, "A-1", "bottom");
     expect(await surface.getAttribute("data-connection-edit-mode")).toBe("active");

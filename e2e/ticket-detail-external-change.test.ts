@@ -5,6 +5,7 @@ import {
   setupE2E,
 } from "./fixtures.js";
 import { setupEditorTicket } from "./ticket-detail-editor-shared.js";
+import { testId, waitVisible } from "./locators.js";
 
 describe("Ticket detail external worktree changes (e2e, real server)", () => {
   const ctx = setupE2E();
@@ -29,7 +30,7 @@ describe("Ticket detail external worktree changes (e2e, real server)", () => {
       undefined,
       { timeout: 15000 },
     );
-  }, 60000);
+  });
 
   it("an agent's write during editing is held as a conflict instead of being overwritten", async () => {
     const project = await setupEditorTicket(ctx, "ext-conflict");
@@ -48,14 +49,12 @@ describe("Ticket detail external worktree changes (e2e, real server)", () => {
     expect(await editorText()).toContain("mine");
     expect(await editorText()).toContain("original");
 
-    await ctx.page.click('[data-testid="ticket-detail-save-button"]');
-    await ctx.page.waitForSelector('[data-testid="ticket-detail-external-change-overwrite"]', {
-      state: "visible", timeout: 15000,
-    });
+    await testId(ctx.page, "ticket-detail-save-button").click();
+    await waitVisible(ctx.page, "ticket-detail-external-change-overwrite");
     expect(readContextFile(ctx.testServer, project.projectSlug, "t-1-alpha", "to-do"))
       .toBe("written by the agent");
 
-    await ctx.page.click('[data-testid="ticket-detail-external-change-discard"]');
+    await testId(ctx.page, "ticket-detail-external-change-discard").click();
     await ctx.page.waitForFunction(
       () => {
         const text = document.querySelector(".cm-content")?.textContent ?? "";
@@ -64,7 +63,7 @@ describe("Ticket detail external worktree changes (e2e, real server)", () => {
       undefined,
       { timeout: 15000 },
     );
-  }, 60000);
+  });
 
   it("overwrite keeps the edited version and writes it to disk", async () => {
     const project = await setupEditorTicket(ctx, "ext-overwrite");
@@ -80,11 +79,9 @@ describe("Ticket detail external worktree changes (e2e, real server)", () => {
     );
     await ctx.page.waitForTimeout(4000);
 
-    await ctx.page.click('[data-testid="ticket-detail-save-button"]');
-    await ctx.page.waitForSelector('[data-testid="ticket-detail-external-change-overwrite"]', {
-      state: "visible", timeout: 15000,
-    });
-    await ctx.page.click('[data-testid="ticket-detail-external-change-overwrite"]');
+    await testId(ctx.page, "ticket-detail-save-button").click();
+    await waitVisible(ctx.page, "ticket-detail-external-change-overwrite");
+    await testId(ctx.page, "ticket-detail-external-change-overwrite").click();
 
     const content = await poll(
       () => readContextFile(ctx.testServer, project.projectSlug, "t-1-alpha", "to-do"),
@@ -92,5 +89,5 @@ describe("Ticket detail external worktree changes (e2e, real server)", () => {
       10000,
     );
     expect(content?.includes("mine")).toBe(true);
-  }, 60000);
+  });
 });

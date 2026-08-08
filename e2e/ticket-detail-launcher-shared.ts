@@ -2,6 +2,7 @@ import {
   createProject, uniqueSlug, gotoProject, openTicketDetail,
   type E2EContext, type CreatedProject,
 } from "./fixtures.js";
+import { testId, waitVisible } from "./locators.js";
 
 export const APP_LAUNCHER = {
   templates: [
@@ -20,10 +21,8 @@ export const APP_LAUNCHER = {
 
 export async function openLauncher(ctx: E2EContext): Promise<void> {
   await openTicketDetail(ctx.page, "t-1-alpha");
-  await ctx.page.click('[data-testid="ticket-detail-tab-launcher"]');
-  await ctx.page.waitForSelector('[data-testid="ticket-detail-launcher-run-button"]', {
-    state: "visible", timeout: 15000,
-  });
+  await testId(ctx.page, "ticket-detail-tab-launcher").click();
+  await waitVisible(ctx.page, "ticket-detail-launcher-run-button");
 }
 
 export async function setupLauncherTicket(ctx: E2EContext, suffix: string): Promise<CreatedProject> {

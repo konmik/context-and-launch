@@ -4,6 +4,7 @@ import {
   setupE2E,
 } from "./fixtures.js";
 import { setupLauncherTicket } from "./ticket-detail-launcher-shared.js";
+import { testId, waitVisible, waitGone } from "./locators.js";
 
 describe("Ticket detail launcher config and run (e2e, real server)", () => {
   const ctx = setupE2E();
@@ -16,7 +17,7 @@ describe("Ticket detail launcher config and run (e2e, real server)", () => {
       5000,
     );
     expect(cfg?.columnDefaults?.["todo"]?.profileName).toBe("GPT");
-  }, 60000);
+  });
 
   it("template select persists selection to project launcher config", async () => {
     const project = await setupLauncherTicket(ctx, "template");
@@ -27,7 +28,7 @@ describe("Ticket detail launcher config and run (e2e, real server)", () => {
       5000,
     );
     expect(cfg?.columnDefaults?.["todo"]?.templateName).toBe("Other");
-  }, 60000);
+  });
 
   it("skill checkbox toggle persists to project launcher config", async () => {
     const project = await setupLauncherTicket(ctx, "skill-toggle");
@@ -42,7 +43,7 @@ describe("Ticket detail launcher config and run (e2e, real server)", () => {
       5000,
     );
     expect(cfg?.columnDefaults?.["todo"]?.checkedSkills).toContain("alpha-skill");
-  }, 60000);
+  });
 
   it("run button is clickable and triggers an HTTP request", async () => {
     await setupLauncherTicket(ctx, "run");
@@ -50,18 +51,18 @@ describe("Ticket detail launcher config and run (e2e, real server)", () => {
     ctx.page.on("request", (req) => {
       if (req.url().includes("/_server")) aiRunRequest = true;
     });
-    await ctx.page.click('[data-testid="ticket-detail-launcher-run-button"]');
+    await testId(ctx.page, "ticket-detail-launcher-run-button").click();
     await ctx.page.waitForTimeout(2000);
     expect(aiRunRequest).toBe(true);
-  }, 60000);
+  });
 
   it("reference-only: behind-remote and dirty-worktree dialog testids are absent on happy path", async () => {
     await setupLauncherTicket(ctx, "ref-only");
-    expect(await ctx.page.locator('[data-testid="ticket-detail-launcher-behind-remote-cancel"]').count()).toBe(0);
-    expect(await ctx.page.locator('[data-testid="ticket-detail-launcher-behind-remote-proceed"]').count()).toBe(0);
-    expect(await ctx.page.locator('[data-testid="ticket-detail-launcher-dirty-cancel"]').count()).toBe(0);
-    expect(await ctx.page.locator('[data-testid="ticket-detail-launcher-dirty-launch-anyway"]').count()).toBe(0);
-  }, 60000);
+    expect(await testId(ctx.page, "ticket-detail-launcher-behind-remote-cancel").count()).toBe(0);
+    expect(await testId(ctx.page, "ticket-detail-launcher-behind-remote-proceed").count()).toBe(0);
+    expect(await testId(ctx.page, "ticket-detail-launcher-dirty-cancel").count()).toBe(0);
+    expect(await testId(ctx.page, "ticket-detail-launcher-dirty-launch-anyway").count()).toBe(0);
+  });
 
   it("keeps the launcher tab active after closing and reopening without reload", async () => {
     const project = await setupLauncherTicket(ctx, "tab-persist");
@@ -70,32 +71,28 @@ describe("Ticket detail launcher config and run (e2e, real server)", () => {
       (c) => c?.columnDefaults?.["todo"]?.lastLayer === "launcher",
       5000,
     );
-    await ctx.page.click('[data-testid="ticket-detail-close-window-button"]');
-    await ctx.page.waitForSelector('[data-testid="ticket-detail-tab-editor"]', {
-      state: "detached", timeout: 15000,
-    });
+    await testId(ctx.page, "ticket-detail-close-window-button").click();
+    await waitGone(ctx.page, "ticket-detail-tab-editor");
     await openTicketDetail(ctx.page, "t-1-alpha");
-    await ctx.page.waitForSelector('[data-testid="ticket-detail-launcher-run-button"]', {
-      state: "visible", timeout: 15000,
-    });
-  }, 60000);
+    await waitVisible(ctx.page, "ticket-detail-launcher-run-button");
+  });
 
   it("launch dir display shows project path when worktree is off", async () => {
     const project = await setupLauncherTicket(ctx, "dir-off");
-    const display = ctx.page.locator('[data-testid="launch-dir-display"]');
+    const display = testId(ctx.page, "launch-dir-display");
     await display.waitFor({ state: "visible", timeout: 15000 });
     const text = await display.textContent();
     expect(text).toContain(project.projectPath);
-    expect(await ctx.page.locator('[data-testid="launch-dir-copy-button"]').count()).toBe(1);
-  }, 60000);
+    expect(await testId(ctx.page, "launch-dir-copy-button").count()).toBe(1);
+  });
 
   it("launch dir display updates when worktree toggle changes", async () => {
     const project = await setupLauncherTicket(ctx, "dir-toggle");
-    const display = ctx.page.locator('[data-testid="launch-dir-display"]');
+    const display = testId(ctx.page, "launch-dir-display");
     await display.waitFor({ state: "visible", timeout: 15000 });
     const textBefore = await display.textContent();
     expect(textBefore).toContain(project.projectPath);
-    const cb = ctx.page.locator('[data-testid="ticket-detail-use-worktree-checkbox"]');
+    const cb = testId(ctx.page, "ticket-detail-use-worktree-checkbox");
     await cb.check();
     await ctx.page.waitForTimeout(500);
     const textAfter = await display.textContent();
@@ -105,5 +102,5 @@ describe("Ticket detail launcher config and run (e2e, real server)", () => {
     await ctx.page.waitForTimeout(500);
     const textReverted = await display.textContent();
     expect(textReverted).toContain(project.projectPath);
-  }, 60000);
+  });
 });

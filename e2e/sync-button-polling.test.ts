@@ -1,90 +1,67 @@
 import { describe, it, expect } from "vitest";
-import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  createProject, uniqueSlug, gotoProjectOnFakeClock, fastForwardUntilVisible,
+  gotoProjectOnFakeClock, fastForwardUntilVisible, openProject, seedProject,
   setupE2E,
 } from "./fixtures.js";
+import { pushTickets } from "./git-fixtures.js";
+import { testId, waitVisible, waitGone } from "./locators.js";
 
 describe("Sync button polling and trigger state (e2e, real server)", () => {
-  const ctx = setupE2E({ serverOpts: { dataDirPrefix: ".cl-e2e-data-" } });
+  const ctx = setupE2E();
 
   it("untracked files make pending badge appear", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("sb-untracked"),
-      withRemote: true,
-    });
-    ctx.projects.push(project);
-    execSync("git push -u origin tickets", { cwd: project.ticketsPath });
+    const project = await seedProject(ctx, { slugBase: "sb-untracked", withRemote: true });
+    pushTickets(project);
 
     await ctx.page.clock.install();
     await gotoProjectOnFakeClock(ctx.page, ctx.testServer, project.projectSlug);
-    await ctx.page.waitForSelector('[data-testid="sync-button-pending-badge"]', {
-      state: "visible", timeout: 5000,
-    });
-    await ctx.page.click('[data-testid="sync-button-trigger"]');
-    await ctx.page.waitForSelector('[data-testid="sync-button-pending-badge"]', {
-      state: "detached", timeout: 10000,
-    });
+    await waitVisible(ctx.page, "sync-button-pending-badge");
+    await testId(ctx.page, "sync-button-trigger").click();
+    await waitGone(ctx.page, "sync-button-pending-badge");
 
     fs.writeFileSync(path.join(project.ticketsPath, "loose-file.txt"), "untracked");
 
     // The server only sees the new file once its watcher bumps the worktree
     // revision, which is a real chokidar event on real time.
     await fastForwardUntilVisible(ctx.page, "sync-button-pending-badge");
-  }, 60000);
+  });
 
   it("double-click sync: second click is ignored while first is in progress", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("sb-doubleclick"),
+    await openProject(ctx, {
+      slugBase: "sb-doubleclick",
       withRemote: true,
       withTickets: [{ number: "DC-1", title: "Double", status: "todo", folderName: "dc-1-double" }],
+      fakeClock: true,
     });
-    ctx.projects.push(project);
+    await waitVisible(ctx.page, "sync-button-trigger");
 
-    await ctx.page.clock.install();
-    await gotoProjectOnFakeClock(ctx.page, ctx.testServer, project.projectSlug);
-    await ctx.page.waitForSelector('[data-testid="sync-button-trigger"]', { state: "visible", timeout: 5000 });
+    await testId(ctx.page, "sync-button-trigger").click();
 
-    await ctx.page.click('[data-testid="sync-button-trigger"]');
-
-    const isDisabled = await ctx.page.locator('[data-testid="sync-button-trigger"]').isDisabled();
+    const isDisabled = await testId(ctx.page, "sync-button-trigger").isDisabled();
     expect(isDisabled).toBe(true);
 
-    await ctx.page.waitForSelector('[data-testid="sync-button-check-icon"]', {
-      state: "visible", timeout: 10000,
-    });
-  }, 60000);
+    await waitVisible(ctx.page, "sync-button-check-icon");
+  });
 
   it("switch project resets pending badge and polls new project", async () => {
-    const project1 = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("sb-switch-a"),
+    const project1 = await seedProject(ctx, {
+      slugBase: "sb-switch-a",
       withRemote: true,
       withTickets: [{ number: "SW-1", title: "Has changes", status: "todo", folderName: "sw-1-has-changes" }],
     });
-    ctx.projects.push(project1);
 
-    const project2 = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("sb-switch-b"),
-      withRemote: true,
-    });
-    ctx.projects.push(project2);
-    execSync("git push -u origin tickets", { cwd: project2.ticketsPath });
+    const project2 = await seedProject(ctx, { slugBase: "sb-switch-b", withRemote: true });
+    pushTickets(project2);
 
     await ctx.page.clock.install();
     await gotoProjectOnFakeClock(ctx.page, ctx.testServer, project1.projectSlug);
-    await ctx.page.waitForSelector('[data-testid="sync-button-pending-badge"]', {
-      state: "visible", timeout: 5000,
-    });
+    await waitVisible(ctx.page, "sync-button-pending-badge");
 
     await gotoProjectOnFakeClock(ctx.page, ctx.testServer, project2.projectSlug);
-    await ctx.page.waitForSelector('[data-testid="sync-button-pending-badge"]', {
-      state: "visible", timeout: 5000,
-    });
-    await ctx.page.click('[data-testid="sync-button-trigger"]');
-    await ctx.page.waitForSelector('[data-testid="sync-button-pending-badge"]', {
-      state: "detached", timeout: 10000,
-    });
-  }, 60000);
+    await waitVisible(ctx.page, "sync-button-pending-badge");
+    await testId(ctx.page, "sync-button-trigger").click();
+    await waitGone(ctx.page, "sync-button-pending-badge");
+  });
 });

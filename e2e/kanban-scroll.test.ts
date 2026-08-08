@@ -1,15 +1,10 @@
-import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll } from "vitest";
-import { type Browser, type Page } from "playwright";
+import { describe, it, expect } from "vitest";
+import { type Page } from "playwright";
 import {
-  createServer, launchBrowser, createProject, uniqueSlug, gotoProject,
-  type TestServer, type TestBrowser, type CreatedProject,
+  openProject, setupE2E,
   type SeedTicket,
 } from "./fixtures.js";
-
-let testServer: TestServer;
-let testBrowser: TestBrowser;
-let browser: Browser;
-let page: Page;
+import { countOf, testId } from "./locators.js";
 
 const TICKETS: SeedTicket[] = Array.from({ length: 40 }, (_, i) => ({
   number: `T-${i + 1}`,
@@ -28,69 +23,49 @@ const COLUMNS = [
 const APP_BOARDS = [{ id: "standard", name: "Standard", columns: COLUMNS }];
 
 function columnHeader(p: Page, name: string) {
-  return p.locator(
-    `[data-testid="kanban-board-column-header"][data-column-name="${name}"]`,
-  );
+  return testId(p, "kanban-board-column-header", { "data-column-name": name });
 }
 
 function columnHeaderCell(p: Page, name: string) {
-  return p.locator(
-    `[data-testid="kanban-board-column-header-cell"][data-column-name="${name}"]`,
-  );
+  return testId(p, "kanban-board-column-header-cell", { "data-column-name": name });
 }
 
 function columnBody(p: Page, name: string) {
-  return p.locator(
-    `[data-testid="kanban-board-column-body"][data-column-name="${name}"]`,
-  );
+  return testId(p, "kanban-board-column-body", { "data-column-name": name });
 }
 
 function boardScroll(p: Page) {
-  return p.locator('[data-testid="kanban-board-scroll"]');
+  return testId(p, "kanban-board-scroll");
 }
 
 describe("KanbanBoard board scrolling (e2e, real server)", () => {
-  let project: CreatedProject;
-  beforeAll(async () => {
-    testServer = await createServer();
-    testBrowser = await launchBrowser();
-    browser = testBrowser.browser;
-  }, 60000);
+  const ctx = setupE2E();
 
-  beforeEach(async () => {
-    page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
-    project = await createProject(testServer, {
-      projectSlug: uniqueSlug("scroll"),
+  async function setup(suffix: string): Promise<void> {
+    await openProject(ctx, {
+      slugBase: `scroll-${suffix}`,
       withBoards: APP_BOARDS,
       withTickets: TICKETS,
     });
-    await gotoProject(page, testServer, project.projectSlug);
-    await page.waitForSelector("[data-sortable-id]", { timeout: 10000 });
-  });
-
-  afterEach(async () => {
-    await page?.close();
-    project?.cleanup();
-  });
-
-  afterAll(async () => {
-    await testBrowser?.stop();
-    await testServer?.stop();
-  }, 20000);
+    await ctx.page.locator("[data-sortable-id]").first()
+      .waitFor({ state: "visible", timeout: 10000 });
+  }
 
   it("scrolls all columns together, leaving the headers in place", async () => {
-    const scroller = boardScroll(page);
-    const before = (await columnHeader(page, "todo").boundingBox())!;
+    await setup("together");
+    const scroller = boardScroll(ctx.page);
+    const before = (await columnHeader(ctx.page, "todo").boundingBox())!;
 
     await scroller.evaluate((el) => { el.scrollTop = el.scrollHeight; });
     expect(await scroller.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
 
-    const after = (await columnHeader(page, "todo").boundingBox())!;
+    const after = (await columnHeader(ctx.page, "todo").boundingBox())!;
     expect(after.y).toBe(before.y);
-  }, 60000);
+  });
 
   it("keeps the column headers outside every vertical scroll container", async () => {
-    const scrollAncestors = await columnHeader(page, "todo").evaluate((el) => {
+    await setup("headers-outside");
+    const scrollAncestors = await columnHeader(ctx.page, "todo").evaluate((el) => {
       const found: string[] = [];
       let node = el.parentElement;
       while (node) {
@@ -103,10 +78,11 @@ describe("KanbanBoard board scrolling (e2e, real server)", () => {
       return found;
     });
     expect(scrollAncestors).toEqual([]);
-  }, 60000);
+  });
 
   it("has exactly one scroll container, holding every column", async () => {
-    const scrollers = await page.locator("[data-sortable-id]").first().evaluate((el) => {
+    await setup("one-scroller");
+    const scrollers = await ctx.page.locator("[data-sortable-id]").first().evaluate((el) => {
       const found: string[] = [];
       let node = el.parentElement;
       while (node) {
@@ -121,39 +97,40 @@ describe("KanbanBoard board scrolling (e2e, real server)", () => {
     });
     expect(scrollers).toEqual(["kanban-board-scroll"]);
 
-    const bodyCount = await page.locator('[data-testid="kanban-board-column-body"]').count();
-    const inScroller = await boardScroll(page)
-      .locator('[data-testid="kanban-board-column-body"]').count();
+    const bodyCount = await countOf(ctx.page, "kanban-board-column-body");
+    const inScroller = await testId(boardScroll(ctx.page), "kanban-board-column-body").count();
     expect(bodyCount).toBe(COLUMNS.length);
     expect(inScroller).toBe(COLUMNS.length);
-  }, 60000);
+  });
 
   it("aligns each header with its column body", async () => {
+    await setup("aligns");
     for (const column of COLUMNS) {
-      const header = (await columnHeaderCell(page, column.name).boundingBox())!;
-      const body = (await columnBody(page, column.name).boundingBox())!;
+      const header = (await columnHeaderCell(ctx.page, column.name).boundingBox())!;
+      const body = (await columnBody(ctx.page, column.name).boundingBox())!;
       expect(Math.abs(header.x - body.x)).toBeLessThan(1);
       expect(Math.abs(header.width - body.width)).toBeLessThan(1);
     }
-  }, 60000);
+  });
 
   it("keeps headers aligned while the board scrolls horizontally", async () => {
-    await page.setViewportSize({ width: 700, height: 800 });
-    const scroller = boardScroll(page);
+    await setup("horizontal");
+    await ctx.page.setViewportSize({ width: 700, height: 800 });
+    const scroller = boardScroll(ctx.page);
     await scroller.evaluate((el) => { el.scrollLeft = el.scrollWidth; });
     const scrollLeft = await scroller.evaluate((el) => el.scrollLeft);
     expect(scrollLeft).toBeGreaterThan(0);
 
-    await page.waitForFunction((left) => {
+    await ctx.page.waitForFunction((left) => {
       const header = document.querySelector('[data-testid="kanban-board-scroll"]')
         ?.previousElementSibling;
       return header instanceof HTMLElement && header.scrollLeft === left;
     }, scrollLeft, { timeout: 5000 });
 
     for (const column of COLUMNS) {
-      const header = (await columnHeaderCell(page, column.name).boundingBox())!;
-      const body = (await columnBody(page, column.name).boundingBox())!;
+      const header = (await columnHeaderCell(ctx.page, column.name).boundingBox())!;
+      const body = (await columnBody(ctx.page, column.name).boundingBox())!;
       expect(Math.abs(header.x - body.x)).toBeLessThan(1);
     }
-  }, 60000);
+  });
 });

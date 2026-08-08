@@ -1,16 +1,15 @@
 import { describe, expect, it } from "vitest";
-import type { Page } from "playwright";
+import type { Locator, Page } from "playwright";
 import {
-  createProject,
-  dragSortable,
-  gotoProject,
+  dragElement,
   openLauncherSettings,
   openLauncherSettingsTab,
   poll,
   readAppLauncherConfig,
+  openProject,
   setupE2E,
-  uniqueSlug,
 } from "./fixtures.js";
+import { testId } from "./locators.js";
 
 const ITEM_SELECTORS = {
   template: {
@@ -29,22 +28,19 @@ const ITEM_SELECTORS = {
 
 type ItemType = keyof typeof ITEM_SELECTORS;
 
+function itemRow(page: Page, itemType: ItemType, name: string): Locator {
+  return testId(page, ITEM_SELECTORS[itemType].row, { "data-item-name": name });
+}
+
 async function dragItem(page: Page, itemType: ItemType, fromName: string, toName: string) {
-  const { row, handle } = ITEM_SELECTORS[itemType];
-  const sourceSelector =
-    `[data-testid="${row}"][data-item-name="${fromName}"] [data-testid="${handle}"]`;
-  const targetSelector = `[data-testid="${row}"][data-item-name="${toName}"]`;
-  await page.locator(sourceSelector).waitFor({ state: "visible", timeout: 15000 });
-  await page.locator(targetSelector).scrollIntoViewIfNeeded();
-  await dragSortable(
-    page,
-    sourceSelector,
-    targetSelector,
-  );
+  const source = testId(itemRow(page, itemType, fromName), ITEM_SELECTORS[itemType].handle);
+  const target = itemRow(page, itemType, toName);
+  await target.scrollIntoViewIfNeeded();
+  await dragElement(page, source, target);
 }
 
 async function itemNames(page: Page, itemType: ItemType): Promise<string[]> {
-  return page.locator(`[data-testid="${ITEM_SELECTORS[itemType].row}"]`).evaluateAll(
+  return testId(page, ITEM_SELECTORS[itemType].row).evaluateAll(
     (elements) => elements.map(element => element.getAttribute("data-item-name") ?? ""),
   );
 }
@@ -53,8 +49,8 @@ describe("Launcher Settings item reorder (e2e, real server)", () => {
   const ctx = setupE2E();
 
   it("reorders prompt templates, agents, and shortcuts and persists their order", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("settings-item-reorder"),
+    await openProject(ctx, {
+      slugBase: "settings-item-reorder",
       appLauncherConfig: {
         templates: [
           { name: "Template A", text: "a" },
@@ -73,8 +69,6 @@ describe("Launcher Settings item reorder (e2e, real server)", () => {
         ],
       },
     });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await openLauncherSettings(ctx.page);
 
     await openLauncherSettingsTab(ctx.page, "prompts");
@@ -103,5 +97,5 @@ describe("Launcher Settings item reorder (e2e, real server)", () => {
     expect(appConfig?.templates?.find(item => item.name === "Template A")?.order).toBe(3);
     expect(appConfig?.profiles?.find(item => item.name === "Agent A")?.order).toBe(3);
     expect(appConfig?.shortcuts?.find(item => item.name === "Shortcut A")?.order).toBe(3);
-  }, 60000);
+  });
 });

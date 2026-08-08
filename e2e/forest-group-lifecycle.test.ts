@@ -2,12 +2,13 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  setupE2E, readTicketStatus, listTicketFolders, poll,
+  setupE2E, readTicketStatus, listTicketFolders, poll, boxOf,
 } from "./fixtures.js";
 import {
-  boxOf, forestGroupCard, forestSurface, groupViaDialog, openForestProject,
+  forestGroupCard, forestSurface, groupViaDialog, openForestProject,
   openSubforest, shiftDragSelection, toggleToForest,
 } from "./forest-helpers.js";
+import { testId, waitVisible } from "./locators.js";
 
 describe("Forest group lifecycle", () => {
   const ctx = setupE2E();
@@ -21,10 +22,8 @@ describe("Forest group lifecycle", () => {
       ],
     });
 
-    await ctx.page.waitForSelector('[data-testid="forest-ticket-card"]', {
-      state: "visible", timeout: 15000,
-    });
-    expect(await ctx.page.locator('[data-testid="forest-ticket-card"]').count()).toBe(2);
+    await waitVisible(ctx.page, "forest-ticket-card");
+    expect(await testId(ctx.page, "forest-ticket-card").count()).toBe(2);
 
     const surfaceBox = await boxOf(forestSurface(ctx.page));
     await shiftDragSelection(
@@ -33,7 +32,7 @@ describe("Forest group lifecycle", () => {
       { x: surfaceBox.x + surfaceBox.width - 10, y: surfaceBox.y + surfaceBox.height - 10 },
     );
 
-    await ctx.page.locator('[data-testid="forest-group-button"]')
+    await testId(ctx.page, "forest-group-button")
       .waitFor({ state: "visible", timeout: 10000 });
     await groupViaDialog(ctx.page, "G-1", "My Group");
 
@@ -62,7 +61,7 @@ describe("Forest group lifecycle", () => {
     await forestGroupCard(ctx.page).waitFor({ state: "visible", timeout: 15000 });
     await openSubforest(ctx.page);
 
-    const subRearrange = ctx.page.locator('[data-testid="forest-rearrange-button"]').nth(1);
+    const subRearrange = testId(ctx.page, "forest-rearrange-button").nth(1);
     await subRearrange.waitFor({ state: "visible", timeout: 10000 });
     await subRearrange.click();
     await ctx.page.waitForTimeout(500);
@@ -74,7 +73,7 @@ describe("Forest group lifecycle", () => {
       { x: subSurfaceBox.x + subSurfaceBox.width - 10, y: subSurfaceBox.y + subSurfaceBox.height - 10 },
     );
 
-    await ctx.page.locator('[data-testid="forest-group-button"]')
+    await testId(ctx.page, "forest-group-button")
       .waitFor({ state: "visible", timeout: 10000 });
     await groupViaDialog(ctx.page, "NG-1", "Nested Group");
 
@@ -104,9 +103,9 @@ describe("Forest group lifecycle", () => {
 
     await forestGroupCard(ctx.page).waitFor({ state: "visible", timeout: 15000 });
 
-    await ctx.page.click('[data-testid="forest-group-menu-trigger"]');
+    await testId(ctx.page, "forest-group-menu-trigger").click();
     await ctx.page.waitForTimeout(300);
-    await ctx.page.click('[data-testid="forest-group-menu-ungroup"]');
+    await testId(ctx.page, "forest-group-menu-ungroup").click();
 
     await poll(
       () => {
@@ -136,13 +135,11 @@ describe("Forest group lifecycle", () => {
     });
 
     await forestGroupCard(ctx.page).waitFor({ state: "visible", timeout: 15000 });
-    await ctx.page.click('[data-testid="forest-group-menu-trigger"]');
+    await testId(ctx.page, "forest-group-menu-trigger").click();
     await ctx.page.waitForTimeout(300);
-    await ctx.page.click('[data-testid="forest-group-menu-open-ticket"]');
+    await testId(ctx.page, "forest-group-menu-open-ticket").click();
 
-    await ctx.page.waitForSelector('[data-testid="ticket-detail-tab-editor"]', {
-      state: "visible", timeout: 15000,
-    });
+    await waitVisible(ctx.page, "ticket-detail-tab-editor");
   }, 120000);
 
   it("kanban renders group and members as ordinary cards", async () => {
@@ -156,7 +153,7 @@ describe("Forest group lifecycle", () => {
       view: "kanban",
     });
 
-    expect(await ctx.page.locator('[data-testid="kanban-board-ticket-card"]').count()).toBe(3);
+    expect(await testId(ctx.page, "kanban-board-ticket-card").count()).toBe(3);
   }, 120000);
 
   it("archive hides the ticket from the forest and drops its dangling edges", async () => {
@@ -176,10 +173,10 @@ describe("Forest group lifecycle", () => {
     await ar2Card.hover();
     await ctx.page.waitForTimeout(200);
 
-    const menuTrigger = ar2Card.locator('[data-testid="kanban-board-ticket-menu-trigger"]');
+    const menuTrigger = testId(ar2Card, "kanban-board-ticket-menu-trigger");
     await menuTrigger.waitFor({ state: "visible", timeout: 10000 });
     await menuTrigger.click();
-    await ctx.page.locator('[data-testid="kanban-board-ticket-menu-archive"]').first().waitFor({
+    await testId(ctx.page, "kanban-board-ticket-menu-archive").first().waitFor({
       state: "attached", timeout: 10000,
     });
     await ctx.page.evaluate(() => {
@@ -187,10 +184,8 @@ describe("Forest group lifecycle", () => {
       const last = items[items.length - 1] as HTMLElement;
       if (last) last.click();
     });
-    await ctx.page.waitForSelector('[data-testid="ticket-cleanup-submit"]', {
-      state: "visible", timeout: 15000,
-    });
-    await ctx.page.click('[data-testid="ticket-cleanup-submit"]');
+    await waitVisible(ctx.page, "ticket-cleanup-submit");
+    await testId(ctx.page, "ticket-cleanup-submit").click();
     const archived = path.join(project.ticketsPath, "archive", "ar-2-archivable");
     await poll(() => fs.existsSync(archived), (v) => v, 5000, 200);
     expect(fs.existsSync(archived)).toBe(true);
@@ -198,7 +193,7 @@ describe("Forest group lifecycle", () => {
     await toggleToForest(ctx.page);
     await ctx.page.waitForTimeout(500);
 
-    expect(await ctx.page.locator('[data-testid="forest-ticket-card"]').count()).toBe(1);
-    expect(await ctx.page.locator('[data-testid="forest-external-dependency"]').count()).toBe(0);
+    expect(await testId(ctx.page, "forest-ticket-card").count()).toBe(1);
+    expect(await testId(ctx.page, "forest-external-dependency").count()).toBe(0);
   }, 120000);
 }, 120000);

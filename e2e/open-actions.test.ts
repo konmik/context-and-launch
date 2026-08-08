@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
 import type { Page } from "playwright";
 import {
-  createProject, uniqueSlug, gotoProject, openTicketDetail,
+  openProject, openTicketDetail,
   setupE2E,
 } from "./fixtures.js";
+import { testId } from "./locators.js";
 
 function trackServerRequests(page: Page): string[] {
   const requests: string[] = [];
@@ -29,12 +30,10 @@ describe("Open actions (e2e, real server)", () => {
   const ctx = setupE2E();
 
   it("opens the tickets folder from the title menu", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("oa-tickets-folder"),
+    await openProject(ctx, {
+      slugBase: "oa-tickets-folder",
       withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
     });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     const requests = trackServerRequests(ctx.page);
     await clickMenuItem(
       ctx.page,
@@ -42,16 +41,14 @@ describe("Open actions (e2e, real server)", () => {
       '[data-testid="project-header-open-tickets-folder-menuitem"]',
     );
     await expect.poll(() => requests.length, { timeout: 10000 }).toBeGreaterThan(0);
-    expect(await ctx.page.locator('[data-testid="error-dialog-ok"]').count()).toBe(0);
-  }, 60000);
+    expect(await testId(ctx.page, "error-dialog-ok").count()).toBe(0);
+  });
 
   it("opens the project folder from the title menu", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("oa-project-folder"),
+    await openProject(ctx, {
+      slugBase: "oa-project-folder",
       withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
     });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     const requests = trackServerRequests(ctx.page);
     await clickMenuItem(
       ctx.page,
@@ -59,17 +56,15 @@ describe("Open actions (e2e, real server)", () => {
       '[data-testid="project-header-open-project-folder-menuitem"]',
     );
     await expect.poll(() => requests.length, { timeout: 10000 }).toBeGreaterThan(0);
-    expect(await ctx.page.locator('[data-testid="error-dialog-ok"]').count()).toBe(0);
-  }, 60000);
+    expect(await testId(ctx.page, "error-dialog-ok").count()).toBe(0);
+  });
 
   it("opens the worktree from the ticket card menu", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("oa-card-worktree"),
+    await openProject(ctx, {
+      slugBase: "oa-card-worktree",
       withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
       withWorktrees: [{ folderName: "t-1-alpha" }],
     });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     const requests = trackServerRequests(ctx.page);
     await clickMenuItem(
       ctx.page,
@@ -77,17 +72,15 @@ describe("Open actions (e2e, real server)", () => {
       '[data-testid="kanban-board-ticket-menu-open-worktree"]',
     );
     await expect.poll(() => requests.length, { timeout: 10000 }).toBeGreaterThan(0);
-    expect(await ctx.page.locator('[data-testid="error-dialog-ok"]').count()).toBe(0);
-  }, 60000);
+    expect(await testId(ctx.page, "error-dialog-ok").count()).toBe(0);
+  });
 
   it("opens the worktree from the ticket detail menu", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("oa-detail-worktree"),
+    await openProject(ctx, {
+      slugBase: "oa-detail-worktree",
       withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
       withWorktrees: [{ folderName: "t-1-alpha" }],
     });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await openTicketDetail(ctx.page, "t-1-alpha");
     const requests = trackServerRequests(ctx.page);
     await clickMenuItem(
@@ -96,6 +89,6 @@ describe("Open actions (e2e, real server)", () => {
       '[data-testid="ticket-detail-open-worktree-menu-item"]',
     );
     await expect.poll(() => requests.length, { timeout: 10000 }).toBeGreaterThan(0);
-    expect(await ctx.page.locator('[data-testid="error-dialog-ok"]').count()).toBe(0);
-  }, 60000);
+    expect(await testId(ctx.page, "error-dialog-ok").count()).toBe(0);
+  });
 });

@@ -2,9 +2,8 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import type { Locator, Page, Route } from "playwright";
-import {
-	createProject, gotoProject, setupE2E, uniqueSlug,
-} from "./fixtures.js";
+import { setupE2E, openProject } from "./fixtures.js";
+import { testId } from "./locators.js";
 
 const LOG_TEXT = "distinctive log viewer e2e entry";
 const REFRESH_TEXT = "distinctive refreshed log viewer entry";
@@ -69,7 +68,7 @@ async function deferNextLogRead(page: Page): Promise<{
 }
 
 async function openLogs(page: Page): Promise<void> {
-	await page.click('[data-testid="project-header-logs-button"]');
+	await testId(page, "project-header-logs-button").click();
 	await logPanel(page).waitFor({ state: "visible" });
 }
 
@@ -130,9 +129,7 @@ describe("Application Logs dialog (e2e, real server)", () => {
 	const ctx = setupE2E();
 
 	async function setupProject(prefix: string): Promise<void> {
-		const project = await createProject(ctx.testServer, { projectSlug: uniqueSlug(prefix) });
-		ctx.projects.push(project);
-		await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+		await openProject(ctx, { slugBase: prefix });
 	}
 
 	it("shows content when the initial log read completes", async () => {
@@ -150,7 +147,7 @@ describe("Application Logs dialog (e2e, real server)", () => {
 		}
 		await waitForPanelText(ctx.page, LOG_TEXT);
 		await expectStatusAbsent(loadingStatus(ctx.page));
-	}, 60000);
+	});
 
 	it("retains completed content while a refresh is pending", async () => {
 		await setupProject("logs-refresh");
@@ -177,7 +174,7 @@ describe("Application Logs dialog (e2e, real server)", () => {
 		seedLogs(ctx.testServer.dataDir, REFRESH_TEXT);
 		await nextRefresh.release();
 		await waitForPanelText(ctx.page, REFRESH_TEXT);
-	}, 60000);
+	});
 
 	it("clear stays loaded-empty and close rejects a late read and stops polling", async () => {
 		await setupProject("logs-close");
@@ -206,7 +203,7 @@ describe("Application Logs dialog (e2e, real server)", () => {
 		ctx.page.off("request", countReads);
 		expect(laterReads).toBe(0);
 		expect(await logPanel(ctx.page).getByText(REFRESH_TEXT, { exact: true }).count()).toBe(0);
-	}, 60000);
+	});
 
 	it("clear rejects an in-flight initial read", async () => {
 		await setupProject("logs-clear-pending");
@@ -222,7 +219,7 @@ describe("Application Logs dialog (e2e, real server)", () => {
 		await ctx.page.waitForTimeout(100);
 		await waitForEmptyStatus(ctx.page);
 		expect(await logPanel(ctx.page).innerText()).not.toContain(LOG_TEXT);
-	}, 60000);
+	});
 
 	it("renders only viewport-sized content for a full log history", async () => {
 		await setupProject("logs-resize");
@@ -240,5 +237,5 @@ describe("Application Logs dialog (e2e, real server)", () => {
 		const afterResize = await renderedLineCount(ctx.page);
 		expect(afterResize).toBeGreaterThan(0);
 		expect(afterResize).toBeLessThan(historyLines / 10);
-	}, 60000);
+	});
 });

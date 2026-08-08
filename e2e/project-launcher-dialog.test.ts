@@ -1,9 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
-  createProject, uniqueSlug, gotoProject,
-  readProjectLauncherConfig, poll,
-  setupE2E,
+  openProject, readProjectLauncherConfig, poll, setupE2E,
 } from "./fixtures.js";
+import { testId, waitVisible, waitGone } from "./locators.js";
 
 const APP_LAUNCHER = {
   templates: [
@@ -25,30 +24,26 @@ describe("Project launcher dialog (e2e, real server)", () => {
   const ctx = setupE2E();
 
   async function setup(suffix: string) {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug(`pld-${suffix}`),
+    const project = await openProject(ctx, {
+      slugBase: `pld-${suffix}`,
       appLauncherConfig: APP_LAUNCHER,
     });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     return project;
   }
 
   async function openDialog() {
-    await ctx.page.click('[data-testid="project-header-title-menu-trigger"]');
-    await ctx.page.locator('[data-testid="project-header-launch-agent-menuitem"]').waitFor({
+    await testId(ctx.page, "project-header-title-menu-trigger").click();
+    await testId(ctx.page, "project-header-launch-agent-menuitem").waitFor({
       state: "visible", timeout: 10000,
     });
-    await ctx.page.click('[data-testid="project-header-launch-agent-menuitem"]');
-    await ctx.page.waitForSelector('[data-testid="project-launcher-run-button"]', {
-      state: "visible", timeout: 15000,
-    });
+    await testId(ctx.page, "project-header-launch-agent-menuitem").click();
+    await waitVisible(ctx.page, "project-launcher-run-button");
   }
 
   it("title menu opens the project launcher dialog showing the project folder", async () => {
     const project = await setup("open");
     await openDialog();
-    const display = ctx.page.locator('[data-testid="project-launcher-dir-display"]');
+    const display = testId(ctx.page, "project-launcher-dir-display");
     await display.waitFor({ state: "visible", timeout: 15000 });
     await ctx.page.waitForFunction(
       (expected) => {
@@ -59,7 +54,7 @@ describe("Project launcher dialog (e2e, real server)", () => {
       { timeout: 15000 },
     );
     expect(await display.textContent()).toContain(project.projectPath);
-  }, 60000);
+  });
 
   it("profile select persists to project launcher config under the project key", async () => {
     const project = await setup("profile");
@@ -71,27 +66,23 @@ describe("Project launcher dialog (e2e, real server)", () => {
       5000,
     );
     expect(cfg?.columnDefaults?.[PROJECT_KEY]?.profileName).toBe("GPT");
-  }, 60000);
+  });
 
   it("run button triggers a server request and closes the dialog", async () => {
     await setup("run");
     await openDialog();
     const serverRequest = ctx.page.waitForRequest(req => req.url().includes("/_server"));
-    await ctx.page.click('[data-testid="project-launcher-run-button"]');
+    await testId(ctx.page, "project-launcher-run-button").click();
     await serverRequest;
-    await ctx.page.waitForSelector('[data-testid="project-launcher-run-button"]', {
-      state: "detached", timeout: 15000,
-    });
-    expect(await ctx.page.locator('[data-testid="project-launcher-run-button"]').count()).toBe(0);
-  }, 60000);
+    await waitGone(ctx.page, "project-launcher-run-button");
+    expect(await testId(ctx.page, "project-launcher-run-button").count()).toBe(0);
+  });
 
   it("close button dismisses the dialog", async () => {
     await setup("close");
     await openDialog();
-    await ctx.page.click('[data-testid="project-launcher-close-button"]');
-    await ctx.page.waitForSelector('[data-testid="project-launcher-run-button"]', {
-      state: "detached", timeout: 15000,
-    });
-    expect(await ctx.page.locator('[data-testid="project-launcher-run-button"]').count()).toBe(0);
-  }, 60000);
+    await testId(ctx.page, "project-launcher-close-button").click();
+    await waitGone(ctx.page, "project-launcher-run-button");
+    expect(await testId(ctx.page, "project-launcher-run-button").count()).toBe(0);
+  });
 });

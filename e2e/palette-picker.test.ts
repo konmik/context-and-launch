@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   setupE2E, getLocalStorageItem, createProject, gotoProject, uniqueSlug,
 } from "./fixtures.js";
+import { testId, waitVisible } from "./locators.js";
 
 const ctx = setupE2E();
 
@@ -15,14 +16,12 @@ describe("Palette picker (e2e, real server)", () => {
   it("selects a palette, persists across reload, and coexists with dark mode", async () => {
     const { page, testServer } = ctx;
     await page.goto(`${testServer.baseUrl}/add-project`);
-    await page.waitForSelector('[data-testid="palette-picker-trigger"]', {
-      state: "visible", timeout: 15000,
-    });
+    await waitVisible(page, "palette-picker-trigger");
 
     const defaultBg = await bodyBg(page);
 
-    await page.click('[data-testid="palette-picker-trigger"]');
-    await page.click('[data-testid="palette-picker-item-dracula"]');
+    await testId(page, "palette-picker-trigger").click();
+    await testId(page, "palette-picker-item-dracula").click();
 
     await page.waitForFunction(
       () => document.documentElement.dataset.palette === "dracula",
@@ -34,15 +33,13 @@ describe("Palette picker (e2e, real server)", () => {
     expect(draculaBg).not.toBe(defaultBg);
 
     await page.reload();
-    await page.waitForSelector('[data-testid="palette-picker-trigger"]', {
-      state: "visible", timeout: 15000,
-    });
+    await waitVisible(page, "palette-picker-trigger");
     expect(
       await page.evaluate(() => document.documentElement.dataset.palette),
     ).toBe("dracula");
 
-    await page.click('[data-testid="palette-picker-trigger"]');
-    await page.click('[data-testid="palette-picker-mode-toggle"]');
+    await testId(page, "palette-picker-trigger").click();
+    await testId(page, "palette-picker-mode-toggle").click();
     await page.waitForFunction(
       () => document.documentElement.classList.contains("dark"),
       undefined, { timeout: 5000 },
@@ -56,7 +53,7 @@ describe("Palette picker (e2e, real server)", () => {
 
     const draculaDarkBg = await bodyBg(page);
     expect(draculaDarkBg).not.toBe(draculaBg);
-  }, 60000);
+  });
 
   it("keeps one project's palette out of another project", async () => {
     const { page, testServer } = ctx;
@@ -65,8 +62,8 @@ describe("Palette picker (e2e, real server)", () => {
     ctx.projects.push(first, second);
 
     await gotoProject(page, testServer, first.projectSlug);
-    await page.click('[data-testid="palette-picker-trigger"]');
-    await page.click('[data-testid="palette-picker-item-dracula"]');
+    await testId(page, "palette-picker-trigger").click();
+    await testId(page, "palette-picker-item-dracula").click();
     await page.waitForFunction(
       () => document.documentElement.dataset.palette === "dracula",
       undefined, { timeout: 5000 },
@@ -83,5 +80,5 @@ describe("Palette picker (e2e, real server)", () => {
     expect(
       await page.evaluate(() => document.documentElement.dataset.palette),
     ).toBe("dracula");
-  }, 60000);
+  });
 });

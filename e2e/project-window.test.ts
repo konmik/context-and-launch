@@ -3,9 +3,11 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  createProject, uniqueSlug, setupE2E, readProjectRegistry, gotoProject,
+  createProject, uniqueSlug, seedProject, gotoProject,
   gotoProjectOnFakeClock, fastForwardUntilVisible, poll,
+  setupE2E, readProjectRegistry,
 } from "./fixtures.js";
+import { testId, waitVisible } from "./locators.js";
 
 describe("Project window (e2e, real server)", () => {
   const ctx = setupE2E({
@@ -17,15 +19,13 @@ describe("Project window (e2e, real server)", () => {
     const a = await createProject(ctx.testServer, {
       projectSlug: uniqueSlug("pw-live-a"), withRemote: true,
     });
-    const b = await createProject(ctx.testServer, { projectSlug: uniqueSlug("pw-live-b") });
+    const b = await seedProject(ctx, { slugBase: "pw-live-b" });
     ctx.projects.push(a, b);
 
     await ctx.page.clock.install();
     await gotoProjectOnFakeClock(ctx.page, ctx.testServer, a.projectSlug);
-    await ctx.page.click('[data-testid="sync-button-trigger"]');
-    await ctx.page.waitForSelector('[data-testid="sync-button-check-icon"]', {
-      state: "visible", timeout: 20000,
-    });
+    await testId(ctx.page, "sync-button-trigger").click();
+    await waitVisible(ctx.page, "sync-button-check-icon");
 
     const page2 = await ctx.newPage();
     await gotoProject(page2, ctx.testServer, b.projectSlug);
@@ -50,8 +50,8 @@ describe("Project window (e2e, real server)", () => {
   }, 90000);
 
   it("focusing a window makes its project the last-used", async () => {
-    const f = await createProject(ctx.testServer, { projectSlug: uniqueSlug("pw-focus-f") });
-    const g = await createProject(ctx.testServer, { projectSlug: uniqueSlug("pw-focus-g") });
+    const f = await seedProject(ctx, { slugBase: "pw-focus-f" });
+    const g = await seedProject(ctx, { slugBase: "pw-focus-g" });
     ctx.projects.push(f, g);
 
     await gotoProject(ctx.page, ctx.testServer, f.projectSlug);
@@ -77,8 +77,8 @@ describe("Project window (e2e, real server)", () => {
   }, 90000);
 
   it("the open-in-new-window button opens a titled popup and reuses the named target", async () => {
-    const c = await createProject(ctx.testServer, { projectSlug: uniqueSlug("pw-open-c") });
-    const d = await createProject(ctx.testServer, { projectSlug: uniqueSlug("pw-open-d") });
+    const c = await seedProject(ctx, { slugBase: "pw-open-c" });
+    const d = await seedProject(ctx, { slugBase: "pw-open-d" });
     ctx.projects.push(c, d);
 
     await gotoProject(ctx.page, ctx.testServer, c.projectSlug);
@@ -86,18 +86,18 @@ describe("Project window (e2e, real server)", () => {
 
     const openRowButton = async () => {
       await ctx.page.bringToFront();
-      if (await ctx.page.locator('[data-testid="project-header-project-item"]').first().isVisible()) {
+      if (await testId(ctx.page, "project-header-project-item").first().isVisible()) {
         await ctx.page.keyboard.press("Escape");
-        await ctx.page.locator('[data-testid="project-header-project-item"]').first().waitFor({
+        await testId(ctx.page, "project-header-project-item").first().waitFor({
           state: "hidden", timeout: 5000,
         });
       }
-      await ctx.page.click('[data-testid="project-header-project-dropdown-trigger"]');
+      await testId(ctx.page, "project-header-project-dropdown-trigger").click();
       const row = ctx.page.locator('[data-testid="project-header-project-item"]', {
         hasText: d.projectSlug,
       });
       await row.waitFor({ state: "visible", timeout: 10000 });
-      const button = row.locator('[data-testid="project-header-open-window-button"]');
+      const button = testId(row, "project-header-open-window-button");
       await button.waitFor({ state: "visible", timeout: 10000 });
       return button;
     };
@@ -108,9 +108,7 @@ describe("Project window (e2e, real server)", () => {
     ]);
     await popup.waitForLoadState();
     expect(popup.url().endsWith(`/project/${d.projectSlug}`)).toBe(true);
-    await popup.waitForSelector('[data-testid="project-header-settings-button"]', {
-      state: "visible", timeout: 15000,
-    });
+    await waitVisible(popup, "project-header-settings-button");
     expect(await popup.title()).toContain(d.projectSlug);
     expect(ctx.page.url()).toContain(`/project/${c.projectSlug}`);
 
@@ -124,7 +122,7 @@ describe("Project window (e2e, real server)", () => {
   }, 90000);
 
   it("the open-in-new-window button is disabled for an unavailable project", async () => {
-    const e = await createProject(ctx.testServer, { projectSlug: uniqueSlug("pw-open-e") });
+    const e = await seedProject(ctx, { slugBase: "pw-open-e" });
     ctx.projects.push(e);
 
     const configFile = path.join(ctx.testServer.dataDir, "config", "config.json");
@@ -137,7 +135,7 @@ describe("Project window (e2e, real server)", () => {
     fs.writeFileSync(configFile, JSON.stringify(registry, null, 2));
 
     await gotoProject(ctx.page, ctx.testServer, e.projectSlug);
-    await ctx.page.click('[data-testid="project-header-project-dropdown-trigger"]');
+    await testId(ctx.page, "project-header-project-dropdown-trigger").click();
     const goneRow = ctx.page.locator('[data-testid="project-header-project-item"]', {
       hasText: "gone-x",
     });

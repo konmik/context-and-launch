@@ -4,6 +4,7 @@ import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { createProject, gotoProject, poll, setupE2E, uniqueSlug } from "./fixtures.js";
+import { testId } from "./locators.js";
 
 const fakeHerdr = fileURLToPath(new URL("./fake-herdr.mjs", import.meta.url));
 const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "cl-e2e-fake-herdr-"));
@@ -74,13 +75,13 @@ describe("Review Prompt delivery (e2e, real server)", () => {
 		const card = ctx.page.locator(
 			`[data-testid="kanban-board-ticket-card"][data-folder-name="${folderName}"]`,
 		);
-		await card.locator('[data-testid="kanban-board-ticket-menu-trigger"]').click();
+		await testId(card, "kanban-board-ticket-menu-trigger").click();
 		const reviewAction = ctx.page.locator(
 			'[data-testid="kanban-board-ticket-menu-review-changes"]',
 		);
 		await reviewAction.waitFor({ state: "attached", timeout: 10_000 });
 		await reviewAction.click();
-		await ctx.page.locator('[data-testid="diff-review"]')
+		await testId(ctx.page, "diff-review")
 			.waitFor({ state: "visible", timeout: 15_000 });
 
 		await ctx.page.locator(
@@ -91,11 +92,11 @@ describe("Review Prompt delivery (e2e, real server)", () => {
 		).first();
 		await addedLine.waitFor({ state: "visible", timeout: 15_000 });
 		await addedLine.click();
-		await ctx.page.locator('[data-testid="diff-review-composer-input"]')
+		await testId(ctx.page, "diff-review-composer-input")
 			.fill("Explain this value.");
-		await ctx.page.locator('[data-testid="diff-review-composer-send"]').click();
+		await testId(ctx.page, "diff-review-composer-send").click();
 		await expect.poll(
-			() => ctx.page.locator('[data-testid="diff-review-queue-item"]').count(),
+			() => testId(ctx.page, "diff-review-queue-item").count(),
 			{ timeout: 10_000 },
 		).toBe(1);
 		expect(deliveredPrompts()).toEqual([]);
@@ -115,8 +116,8 @@ describe("Review Prompt delivery (e2e, real server)", () => {
 		expect(delivered[0].prompt).toContain("example.ts");
 
 		await expect.poll(
-			() => ctx.page.locator('[data-testid="diff-review-queue-item"]').count(),
+			() => testId(ctx.page, "diff-review-queue-item").count(),
 			{ timeout: 15_000 },
 		).toBe(0);
-	}, 60_000);
+	});
 });

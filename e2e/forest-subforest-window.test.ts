@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { setupE2E } from "./fixtures.js";
+import { setupE2E, boxOf } from "./fixtures.js";
 import {
-  boxOf, closeSubforest, forestCard, forestGroupCard, openForestProject,
+  closeSubforest, forestCard, forestGroupCard, openForestProject,
   openSubforest, pathScreenEndpoints, subforestCloseButton,
 } from "./forest-helpers.js";
+import { testId } from "./locators.js";
 
 describe("Forest sub-forest window", () => {
   const ctx = setupE2E();
@@ -44,14 +45,14 @@ describe("Forest sub-forest window", () => {
     });
 
     await openSubforest(ctx.page, "S-G");
-    const subforest = ctx.page.locator('[data-testid="forest-subforest-backdrop"]');
-    const surface = subforest.locator('[data-testid="forest-surface"]');
+    const subforest = testId(ctx.page, "forest-subforest-backdrop");
+    const surface = testId(subforest, "forest-surface");
 
     await ctx.page.waitForTimeout(300);
-    await surface.locator('[data-testid="forest-center-button"]').click();
+    await testId(surface, "forest-center-button").click();
 
     const surfaceBox = await boxOf(surface);
-    const cardBoxes = await subforest.locator('[data-testid="forest-ticket-card"]')
+    const cardBoxes = await testId(subforest, "forest-ticket-card")
       .evaluateAll(elements => elements.map(element => element.getBoundingClientRect().toJSON()));
     expect(cardBoxes).toHaveLength(2);
     const left = Math.min(...cardBoxes.map(box => box.x));
@@ -127,7 +128,7 @@ describe("Forest sub-forest window", () => {
     const memberBox = await boxOf(forestCard(ctx.page, "S-1"));
     const windowBox = await boxOf(subforestCloseButton(ctx.page).locator(".."));
     const endpoints = await pathScreenEndpoints(
-      ctx.page.locator('[data-testid="forest-external-dependency"]'),
+      testId(ctx.page, "forest-external-dependency"),
     );
     const top = Math.min(endpoints.start.y, endpoints.end.y);
     const bottom = Math.max(endpoints.start.y, endpoints.end.y);
@@ -208,7 +209,7 @@ describe("Forest sub-forest window", () => {
     });
 
     await openSubforest(ctx.page);
-    const backdropBox = await boxOf(ctx.page.locator('[data-testid="forest-subforest-backdrop"]'));
+    const backdropBox = await boxOf(testId(ctx.page, "forest-subforest-backdrop"));
 
     await ctx.page.mouse.click(backdropBox.x + 10, backdropBox.y + 10);
 

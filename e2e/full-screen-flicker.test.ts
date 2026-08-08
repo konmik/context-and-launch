@@ -1,8 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { Page } from "playwright";
-import {
-  createProject, uniqueSlug, gotoProject, setupE2E,
-} from "./fixtures.js";
+import { gotoProject, seedProject, setupE2E } from "./fixtures.js";
+import { waitVisible } from "./locators.js";
 
 // Counts detachments of the full app UI. A Suspense collapse to the root
 // boundary removes the subtree containing <header> from the DOM, which is the
@@ -56,11 +55,10 @@ describe("Full-screen flicker (e2e, real server)", () => {
   const ctx = setupE2E();
 
   it("keeps the UI attached while deferred background reads load after start", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("flicker-start"),
+    const project = await seedProject(ctx, {
+      slugBase: "flicker-start",
       withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
     });
-    ctx.projects.push(project);
     await ctx.page.addInitScript(DETACH_COUNTER);
     const responses = trackServerResponses(ctx.page);
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
@@ -70,25 +68,21 @@ describe("Full-screen flicker (e2e, real server)", () => {
     ).toBeGreaterThanOrEqual(2);
     expect(await observerActive(ctx.page)).toBe(true);
     expect(await detachCount(ctx.page)).toBe(0);
-  }, 60000);
+  });
 
   it("keeps the UI attached when opening a ticket", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("flicker-open-ticket"),
+    const project = await seedProject(ctx, {
+      slugBase: "flicker-open-ticket",
       withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
     });
-    ctx.projects.push(project);
     await ctx.page.addInitScript(DETACH_COUNTER);
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await ctx.page.evaluate(() => {
       (window as unknown as { __fullUiDetachCount: number }).__fullUiDetachCount = 0;
     });
     await ctx.page.click('[data-testid="kanban-board-ticket-card"][data-folder-name="t-1-alpha"]');
-    await ctx.page.waitForSelector('[data-testid="ticket-detail-tab-editor"]', {
-      state: "visible",
-      timeout: 15000,
-    });
+    await waitVisible(ctx.page, "ticket-detail-tab-editor");
     expect(await observerActive(ctx.page)).toBe(true);
     expect(await detachCount(ctx.page)).toBe(0);
-  }, 60000);
+  });
 });

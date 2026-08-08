@@ -4,6 +4,7 @@ import {
   createServer, createProject, uniqueSlug,
   type TestServer, type CreatedProject, type SeedTicket,
 } from "./fixtures.js";
+import { testId, waitVisible } from "./locators.js";
 
 // Ranks the slowest user-facing areas against a real server + real browser and
 // splits board load into time-to-first-column-header vs time-to-all-cards.
@@ -81,9 +82,7 @@ describe("Area benchmark (real server + real browser)", () => {
 
     async function gotoBoard(page: Page): Promise<void> {
       await page.goto(`${base}/project/${slug}`);
-      await page.waitForSelector('[data-testid="kanban-board-column-header"]', {
-        state: "visible", timeout: 30000,
-      });
+      await waitVisible(page, "kanban-board-column-header");
       await page.waitForFunction(
         (n) => document.querySelectorAll('[data-testid="kanban-board-ticket-card"]').length >= n,
         TICKET_COUNT,
@@ -112,9 +111,7 @@ describe("Area benchmark (real server + real browser)", () => {
           try {
             const start = performance.now();
             await page.goto(`${base}/project/${slug}`);
-            await page.waitForSelector('[data-testid="kanban-board-column-header"]', {
-              state: "visible", timeout: 30000,
-            });
+            await waitVisible(page, "kanban-board-column-header");
             headerSamples.push(performance.now() - start);
             await page.waitForFunction(
               (n) => document.querySelectorAll('[data-testid="kanban-board-ticket-card"]').length >= n,
@@ -136,18 +133,14 @@ describe("Area benchmark (real server + real browser)", () => {
 
       // Area 2: ticket detail dialog open.
       await measure("ticket-detail-open", async (page) => {
-        await page.locator('[data-testid="kanban-board-ticket-card"]').first().click();
-        await page.waitForSelector('[data-testid="ticket-detail-number-input"]', {
-          state: "visible", timeout: 20000,
-        });
+        await testId(page, "kanban-board-ticket-card").first().click();
+        await waitVisible(page, "ticket-detail-number-input");
       }, gotoBoard);
 
       // Area 3: Forest View first render.
       await measure("forest-view-render", async (page) => {
-        await page.click('[data-testid="project-header-forest-toggle-button"]');
-        await page.waitForSelector('[data-testid="forest-surface"]', {
-          state: "visible", timeout: 30000,
-        });
+        await testId(page, "project-header-forest-toggle-button").click();
+        await waitVisible(page, "forest-surface");
         await page.waitForFunction(
           () => document.querySelectorAll('[data-testid="forest-ticket-card"]').length > 0,
           undefined, { timeout: 30000 },
@@ -156,24 +149,20 @@ describe("Area benchmark (real server + real browser)", () => {
 
       // Area 4: Settings (Launcher Config) dialog open.
       await measure("settings-open", async (page) => {
-        await page.click('[data-testid="project-header-settings-button"]');
-        await page.waitForSelector('[data-testid="launcher-settings-tab-misc"]', {
-          state: "visible", timeout: 20000,
-        });
+        await testId(page, "project-header-settings-button").click();
+        await waitVisible(page, "launcher-settings-tab-misc");
       }, gotoBoard);
 
       // Area 5: Create-ticket dialog open.
       await measure("create-ticket-open", async (page) => {
-        await page.click('[data-testid="project-header-new-ticket-button"]');
-        await page.waitForSelector('[data-testid="create-ticket-number-input"]', {
-          state: "visible", timeout: 20000,
-        });
+        await testId(page, "project-header-new-ticket-button").click();
+        await waitVisible(page, "create-ticket-number-input");
       }, gotoBoard);
 
       // Area 6: Palette switch (client restyle of the whole board).
       await measure("palette-switch", async (page) => {
-        await page.click('[data-testid="palette-picker-trigger"]');
-        await page.click('[data-testid="palette-picker-item-dracula"]');
+        await testId(page, "palette-picker-trigger").click();
+        await testId(page, "palette-picker-item-dracula").click();
         await page.waitForTimeout(50);
       }, gotoBoard);
 

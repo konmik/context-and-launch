@@ -1,60 +1,48 @@
 import { describe, it, expect } from "vitest";
-import path from "node:path";
 import {
-  createProject, uniqueSlug, gotoProject, setupE2E, expectOpenConfigDirRequest,
+  gotoProject, seedProject, setupE2E, expectOpenConfigDirRequest,
   openConflictDialog, readProjectRegistry,
+  type SeedAppLauncherConfig,
 } from "./fixtures.js";
-import { createActiveRebaseConflict } from "./conflict-dialog-shared.js";
+import { createActiveRebaseConflict, CONFLICT_LAUNCHER } from "./conflict-dialog-shared.js";
+import { testId, waitGone } from "./locators.js";
 
 describe("Conflict dialog controls (e2e, real server)", () => {
   const ctx = setupE2E();
-  it("launch button fires resolve-conflicts request", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("conflict-launch"),
-      withRemote: true,
-      appLauncherConfig: {
-        profiles: [{ name: "Claude", command: "echo claude" }],
-      },
-    });
-    ctx.projects.push(project);
 
-    const ticketsPath = path.join(
-      ctx.testServer.dataDir, "projects", project.projectSlug, "tickets",
-    );
-    createActiveRebaseConflict(ticketsPath, project.remoteUrl);
-
+  /** Seeds a Project whose tickets worktree is already mid-rebase, then opens it. */
+  async function openConflictedProject(
+    slugBase: string,
+    appLauncherConfig: SeedAppLauncherConfig = CONFLICT_LAUNCHER,
+  ) {
+    const project = await seedProject(ctx, { slugBase, withRemote: true, appLauncherConfig });
+    createActiveRebaseConflict(project);
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+    return project;
+  }
+
+  it("launch button fires resolve-conflicts request", async () => {
+    await openConflictedProject("conflict-launch");
     await openConflictDialog(ctx.page);
     const launchRequest = ctx.page.waitForRequest(
       (r) => r.url().includes("/_server"),
       { timeout: 5000 },
     );
-    await ctx.page.click('[data-testid="conflict-dialog-launch"]');
+    await testId(ctx.page, "conflict-dialog-launch").click();
     await launchRequest;
-  }, 60000);
+  });
 
   it("selecting a profile persists the global pref and pre-selects it on reopen", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("conflict-global-pref"),
-      withRemote: true,
-      appLauncherConfig: {
-        profiles: [
-          { name: "Claude", command: "echo claude" },
-          { name: "Codex", command: "echo codex" },
-        ],
-      },
+    const project = await openConflictedProject("conflict-global-pref", {
+      profiles: [
+        { name: "Claude", command: "echo claude" },
+        { name: "Codex", command: "echo codex" },
+      ],
     });
-    ctx.projects.push(project);
 
-    const ticketsPath = path.join(
-      ctx.testServer.dataDir, "projects", project.projectSlug, "tickets",
-    );
-    createActiveRebaseConflict(ticketsPath, project.remoteUrl);
-
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await openConflictDialog(ctx.page);
 
-    const select = ctx.page.locator('[data-testid="conflict-dialog-profile-select"]');
+    const select = testId(ctx.page, "conflict-dialog-profile-select");
     await select.selectOption("Codex");
 
     // Wait for the PUT to land in config.json.
@@ -63,37 +51,21 @@ describe("Conflict dialog controls (e2e, real server)", () => {
       { timeout: 15000 },
     ).toBe("Codex");
 
-    await ctx.page.click('[data-testid="conflict-dialog-close"]');
-    await ctx.page.waitForSelector('[data-testid="conflict-dialog-profile-select"]', {
-      state: "detached", timeout: 15000,
-    });
+    await testId(ctx.page, "conflict-dialog-close").click();
+    await waitGone(ctx.page, "conflict-dialog-profile-select");
 
     // Reload the page and reopen the dialog: the previously selected profile is pre-selected.
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await openConflictDialog(ctx.page);
     await expect.poll(async () =>
-      ctx.page.locator('[data-testid="conflict-dialog-profile-select"]').inputValue(),
+      testId(ctx.page, "conflict-dialog-profile-select").inputValue(),
     ).toBe("Codex");
-  }, 60000);
+  });
 
   it("open-tickets-repo fires open-config-dir", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("conflict-open"),
-      withRemote: true,
-      appLauncherConfig: {
-        profiles: [{ name: "Claude", command: "echo claude" }],
-      },
-    });
-    ctx.projects.push(project);
-
-    const ticketsPath = path.join(
-      ctx.testServer.dataDir, "projects", project.projectSlug, "tickets",
-    );
-    createActiveRebaseConflict(ticketsPath, project.remoteUrl);
-
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+    await openConflictedProject("conflict-open");
     await openConflictDialog(ctx.page);
     await expectOpenConfigDirRequest(ctx.page, () =>
-      ctx.page.click('[data-testid="conflict-dialog-open-tickets-repo"]'));
-  }, 60000);
+      testId(ctx.page, "conflict-dialog-open-tickets-repo").click());
+  });
 });

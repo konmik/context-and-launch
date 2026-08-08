@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { testId } from "./locators.js";
 import {
 	createProject, gotoProject, openLauncherSettings, openLauncherSettingsTab,
 	poll, setupE2E, uniqueSlug,
@@ -23,28 +24,28 @@ describe('Command Templates Settings tab (e2e, real server)', () => {
 			'[data-testid="launcher-settings-tab-command-templates"]',
 		).count()).toBe(1);
 		await openLauncherSettingsTab(ctx.page, 'command-templates');
-		expect(await ctx.page.locator('[data-testid="command-template-list"]').count()).toBe(1);
-		expect(await ctx.page.locator('[data-testid="command-template-group"]').count())
+		expect(await testId(ctx.page, "command-template-list").count()).toBe(1);
+		expect(await testId(ctx.page, "command-template-group").count())
 			.toBeGreaterThan(0);
-		expect(await ctx.page.locator('[data-testid="command-template-row"]').count())
+		expect(await testId(ctx.page, "command-template-row").count())
 			.toBeGreaterThan(0);
-		expect(await ctx.page.locator('[data-testid="command-template-override-state"]').first().textContent())
+		expect(await testId(ctx.page, "command-template-override-state").first().textContent())
 			.toBe('Default');
 
 		const gitGroup = ctx.page.locator(
 			'[data-command-template-group="Git and repository checks"]',
 		);
 		const row = ctx.page.locator('[data-command-template-key="git.version"]');
-		expect(await row.locator('[data-testid="command-template-editor-script"]').isVisible())
+		expect(await testId(row, "command-template-editor-script").isVisible())
 			.toBe(false);
-		await gitGroup.locator('[data-testid="command-template-group-toggle"]').click();
-		const scriptField = row.locator('[data-testid="command-template-editor-script"]');
+		await testId(gitGroup, "command-template-group-toggle").click();
+		const scriptField = testId(row, "command-template-editor-script");
 		await scriptField.fill('git version');
 		const oneLineHeight = (await scriptField.boundingBox())!.height;
 		await scriptField.fill('git version\n--build-options\n--no-pager\n--paginate');
 		const grownHeight = (await scriptField.boundingBox())!.height;
 		expect(grownHeight).toBeGreaterThan(oneLineHeight);
-		await row.locator('[data-testid="command-template-editor-save"]').click();
+		await testId(row, "command-template-editor-save").click();
 		const saved = await poll(
 			() => (fs.existsSync(overrideFile)
 				? JSON.parse(fs.readFileSync(overrideFile, 'utf8'))
@@ -56,13 +57,13 @@ describe('Command Templates Settings tab (e2e, real server)', () => {
 			'git.version': 'git version\n--build-options\n--no-pager\n--paginate',
 		});
 		expect(await poll(
-			() => row.locator('[data-testid="command-template-override-state"]').textContent(),
+			() => testId(row, "command-template-override-state").textContent(),
 			(state) => state === 'Override',
 			5000,
 			100,
 		)).toBe('Override');
 
-		await ctx.page.click('[data-testid="launcher-settings-close-button"]');
+		await testId(ctx.page, "launcher-settings-close-button").click();
 		await openLauncherSettings(ctx.page);
 		await openLauncherSettingsTab(ctx.page, 'command-templates');
 		await ctx.page.locator(
@@ -70,9 +71,9 @@ describe('Command Templates Settings tab (e2e, real server)', () => {
 			+ ' [data-testid="command-template-group-toggle"]',
 		).click();
 		const reloaded = ctx.page.locator('[data-command-template-key="git.version"]');
-		expect(await reloaded.locator('[data-testid="command-template-editor-script"]').inputValue())
+		expect(await testId(reloaded, "command-template-editor-script").inputValue())
 			.toContain('build-options');
-		await reloaded.locator('[data-testid="command-template-reset"]').click();
+		await testId(reloaded, "command-template-reset").click();
 		const afterReset = await poll(
 			() => (fs.existsSync(overrideFile)
 				? JSON.parse(fs.readFileSync(overrideFile, 'utf8'))
@@ -81,5 +82,5 @@ describe('Command Templates Settings tab (e2e, real server)', () => {
 			5000,
 		);
 		expect(afterReset).toEqual({});
-	}, 60_000);
+	});
 });

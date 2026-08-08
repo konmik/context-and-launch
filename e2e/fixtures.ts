@@ -3,13 +3,12 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, inject } from "vitest";
-import { chromium, type Browser, type Page } from "playwright";
+import { chromium, type Browser, type Locator, type Page } from "playwright";
 import { pickPort } from "./test-port.js";
 import { startRealServer, stopRealServer, type RealServer } from "./real-server.js";
 import type { ProjectTemplate } from "./project-template.js";
-
-/** The Orphan Branch every fixture Project stores its tickets on. */
-const TICKETS_BRANCH = "tickets";
+import { TICKETS_BRANCH, initGitRepo } from "./git-fixtures.js";
+import { testId, waitVisible, waitVisibleAny, WAIT_TIMEOUT_MS } from "./locators.js";
 
 /**
  * The board re-checks Sync Pending on this client timer, so a test with a faked
@@ -45,6 +44,11 @@ export interface CreateServerOptions {
   dataDirPrefix?: string;
   /** Command template overrides layered over the defaults this fixture writes. */
   commandTemplates?: Record<string, string>;
+  /**
+   * Writes into the data dir before the server starts, for state the server
+   * reads once at boot, such as a config file it migrates in place.
+   */
+  seedDataDir?: (dataDir: string) => void;
 }
 
 export async function createServer(opts: CreateServerOptions = {}): Promise<TestServer> {
@@ -63,6 +67,7 @@ export async function createServer(opts: CreateServerOptions = {}): Promise<Test
       ...opts.commandTemplates,
     }, null, 2),
   );
+  opts.seedDataDir?.(dataDir);
   const safeEnv: NodeJS.ProcessEnv = {
     CONTEXT_PICKER_STUB: "__cancel__",
     CONTEXT_FILE_PICKER_STUB: "__cancel__",
@@ -201,13 +206,6 @@ function makeRepoDir(projectSlug: string, parentDir: string): string {
   return dir;
 }
 
-function gitInitRepo(repoPath: string): void {
-  execSync("git init -b main", { cwd: repoPath });
-  execSync("git config user.email test@test.com", { cwd: repoPath });
-  execSync("git config user.name Test", { cwd: repoPath });
-  execSync("git commit --allow-empty -m init", { cwd: repoPath });
-}
-
 function remoteDirFor(repoPath: string): string {
   return repoPath + "-remote.git";
 }
@@ -239,7 +237,7 @@ export async function createProject(
 
   let remoteUrl: string | null = null;
   if (!fromTemplate) {
-    gitInitRepo(projectPath);
+    initGitRepo(projectPath);
     if (opts.withRemote) {
       remoteUrl = setupBareRemote(projectPath, TICKETS_BRANCH, false);
     }
@@ -434,74 +432,56 @@ export async function fastForwardPastSyncPoll(page: Page): Promise<void> {
  */
 export async function fastForwardUntilVisible(
   page: Page,
-  testId: string,
+  id: string,
   timeoutMs = 5000,
 ): Promise<void> {
   await expect.poll(async () => {
     await fastForwardPastSyncPoll(page);
-    return page.locator(`[data-testid="${testId}"]`).isVisible();
+    return testId(page, id).isVisible();
   }, { timeout: timeoutMs }).toBe(true);
 }
 
 export async function gotoProject(page: Page, server: TestServer, projectSlug: string): Promise<void> {
   await page.goto(`${server.baseUrl}/project/${projectSlug}`);
-  await page.waitForSelector('[data-testid="project-header-settings-button"]', {
-    state: "visible",
-    timeout: 15000,
-  });
-  await page.waitForSelector(
-    '[data-testid="kanban-board-column-header"], [data-testid="forest-surface"]',
-    { state: "visible", timeout: 15000 },
-  );
+  await waitVisible(page, "project-header-settings-button");
+  await waitVisibleAny(page, ["kanban-board-column-header", "forest-surface"]);
 }
 
 export async function openConflictDialog(page: Page): Promise<void> {
-  await page.click('[data-testid="sync-button-trigger"]');
-  await page.waitForSelector('[data-testid="conflict-dialog-profile-select"]', {
-    state: "visible",
-    timeout: 15000,
-  });
+  await testId(page, "sync-button-trigger").click();
+  await waitVisible(page, "conflict-dialog-profile-select");
+}
+
+export function ticketCard(page: Page, folderName: string): Locator {
+  return testId(page, "kanban-board-ticket-card", { "data-folder-name": folderName });
 }
 
 export async function openTicketDetail(page: Page, folderName: string): Promise<void> {
-  const card = page.locator(`[data-testid="kanban-board-ticket-card"][data-folder-name="${folderName}"]`);
-  await card.waitFor({ state: "visible", timeout: 15000 });
+  const card = ticketCard(page, folderName);
+  await card.waitFor({ state: "visible", timeout: WAIT_TIMEOUT_MS });
   await card.click();
-  await page.waitForSelector(
-    '[data-testid="ticket-detail-loading"], [data-testid="ticket-detail-tab-editor"]',
-    { state: "visible", timeout: 15000 },
-  );
+  await waitVisibleAny(page, ["ticket-detail-loading", "ticket-detail-tab-editor"]);
   try {
-    await page.waitForSelector('[data-testid="ticket-detail-tab-editor"]', {
-      state: "visible",
-      timeout: 15000,
-    });
+    await waitVisible(page, "ticket-detail-tab-editor");
   } catch {
+    // The click can land while the board is still settling, which drops it.
     await card.click();
-    await page.waitForSelector('[data-testid="ticket-detail-tab-editor"]', {
-      state: "visible",
-      timeout: 15000,
-    });
+    await waitVisible(page, "ticket-detail-tab-editor");
   }
 }
 
 export async function openLauncherSettings(page: Page): Promise<void> {
-  await page.click('[data-testid="project-header-settings-button"]');
-  await page.waitForSelector('[data-scope="floating-panel"][data-part="content"]', {
-    state: "visible",
-    timeout: 15000,
-  });
-  await page.waitForSelector('[data-testid="launcher-settings-tab-misc"]', {
-    state: "visible",
-    timeout: 15000,
-  });
+  await testId(page, "project-header-settings-button").click();
+  await page.locator('[data-scope="floating-panel"][data-part="content"]')
+    .waitFor({ state: "visible", timeout: WAIT_TIMEOUT_MS });
+  await waitVisible(page, "launcher-settings-tab-misc");
 }
 
 export type LauncherSettingsTab =
   | "misc" | "prompts" | "launch" | "columns" | "command-templates";
 
 export async function openLauncherSettingsTab(page: Page, name: LauncherSettingsTab): Promise<void> {
-  await page.click(`[data-testid="launcher-settings-tab-${name}"]`);
+  await testId(page, `launcher-settings-tab-${name}`).click();
   const contentTestId: Record<LauncherSettingsTab, string> = {
     launch: "launcher-settings-launch-add-profile-button",
     prompts: "launcher-settings-skills-add-button",
@@ -509,56 +489,99 @@ export async function openLauncherSettingsTab(page: Page, name: LauncherSettings
     columns: "launcher-settings-columns-board-selector",
     "command-templates": "command-template-list",
   };
-  await page.waitForSelector(`[data-testid="${contentTestId[name]}"]`, {
-    state: "visible",
-    timeout: 15000,
-  });
+  await waitVisible(page, contentTestId[name]);
 }
 
-export interface DragSortableOptions {
+export interface ScreenPoint {
+  x: number;
+  y: number;
+}
+
+export interface ScreenBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export async function boxOf(locator: Locator): Promise<ScreenBox> {
+  const box = await locator.boundingBox();
+  if (!box) throw new Error("Element has no bounding box");
+  return box;
+}
+
+export function boxCenter(box: ScreenBox): ScreenPoint {
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+export async function centerOf(locator: Locator): Promise<ScreenPoint> {
+  return boxCenter(await boxOf(locator));
+}
+
+export interface DragPointerOptions {
+  steps?: number;
+  stepDelayMs?: number;
+  /** Held after pressing, before the first move, to let a drag sensor arm. */
+  holdMs?: number;
+  /** Held at the destination before releasing, to let the drop target settle. */
+  settleMs?: number;
+}
+
+/**
+ * The one mouse drag every suite uses. Drag-and-drop here is driven by pointer
+ * events rather than the HTML drag protocol, so Playwright's dragTo cannot do it
+ * and the move has to be stepped by hand.
+ */
+export async function dragPointer(
+  page: Page,
+  from: ScreenPoint,
+  to: ScreenPoint,
+  options: DragPointerOptions = {},
+): Promise<void> {
+  const steps = options.steps ?? 10;
+  const stepDelayMs = options.stepDelayMs ?? 30;
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  if (options.holdMs) await page.waitForTimeout(options.holdMs);
+  for (let i = 1; i <= steps; i++) {
+    await page.mouse.move(
+      from.x + (to.x - from.x) * (i / steps),
+      from.y + (to.y - from.y) * (i / steps),
+    );
+    await page.waitForTimeout(stepDelayMs);
+  }
+  if (options.settleMs) await page.waitForTimeout(options.settleMs);
+  await page.mouse.up();
+}
+
+export function sortableItem(page: Page, sortableId: string): Locator {
+  return page.locator(`[data-sortable-id="${sortableId}"]`);
+}
+
+export interface DragElementOptions extends DragPointerOptions {
+  /** "top" aims just inside the target's leading edge, to drop before it. */
   releaseAt?: "center" | "top";
 }
 
-export async function dragSortable(
+/**
+ * Drags one element onto another. Endpoints are Locators rather than selector
+ * strings so a caller can aim at a sortable item, a drop zone or a drag handle
+ * without this helper knowing how any of them are identified.
+ */
+export async function dragElement(
   page: Page,
-  fromSelector: string,
-  toSelector: string,
-  options: DragSortableOptions = {},
+  source: Locator,
+  target: Locator,
+  options: DragElementOptions = {},
 ): Promise<void> {
-  const boxes = await page.waitForFunction(
-    ({ fromSelector, toSelector }) => {
-      const source = document.querySelector(fromSelector);
-      const target = document.querySelector(toSelector);
-      if (!source || !target) return false;
-      const sourceBox = source.getBoundingClientRect();
-      const targetBox = target.getBoundingClientRect();
-      if (sourceBox.width === 0 || sourceBox.height === 0
-        || targetBox.width === 0 || targetBox.height === 0) return false;
-      return {
-        source: {
-          x: sourceBox.x, y: sourceBox.y,
-          width: sourceBox.width, height: sourceBox.height,
-        },
-        target: {
-          x: targetBox.x, y: targetBox.y,
-          width: targetBox.width, height: targetBox.height,
-        },
-      };
-    },
-    { fromSelector, toSelector },
-    { timeout: 2500 },
-  ).then(handle => handle.jsonValue());
-  if (!boxes) throw new Error(`dragSortable: missing visible endpoints`);
-  const { source: sBox, target: tBox } = boxes;
-  const sx = sBox.x + sBox.width / 2;
-  const sy = sBox.y + sBox.height / 2;
-  const tx = tBox.x + tBox.width / 2;
-  const ty = options.releaseAt === "top" ? tBox.y + 5 : tBox.y + tBox.height / 2;
-
-  await page.mouse.move(sx, sy);
-  await page.mouse.down();
-  await page.mouse.move(tx, ty, { steps: 5 });
-  await page.mouse.up();
+  await source.waitFor({ state: "visible", timeout: WAIT_TIMEOUT_MS });
+  await target.waitFor({ state: "visible", timeout: WAIT_TIMEOUT_MS });
+  const sourceBox = await boxOf(source);
+  const targetBox = await boxOf(target);
+  const to = options.releaseAt === "top"
+    ? { x: targetBox.x + targetBox.width / 2, y: targetBox.y + 5 }
+    : boxCenter(targetBox);
+  await dragPointer(page, boxCenter(sourceBox), to, options);
 }
 
 export async function selectMenuItem(
@@ -566,7 +589,7 @@ export async function selectMenuItem(
   triggerTestId: string,
   itemText: string,
 ): Promise<void> {
-  await page.locator(`[data-testid="${triggerTestId}"]`).click();
+  await testId(page, triggerTestId).click();
   await page.waitForTimeout(200);
   await page.locator('[role="menuitem"]', { hasText: itemText }).first().click();
   await page.waitForTimeout(100);
@@ -576,16 +599,18 @@ export async function clickTicketMenuItem(
   page: Page,
   item: "edit" | "archive" | "delete",
 ): Promise<void> {
-  const trigger = page.locator('[data-testid="kanban-board-ticket-menu-trigger"]').first();
-  await trigger.waitFor({ state: "visible", timeout: 10000 });
+  const trigger = testId(page, "kanban-board-ticket-menu-trigger").first();
+  await trigger.waitFor({ state: "visible", timeout: WAIT_TIMEOUT_MS });
   await trigger.click();
-  const testId = `kanban-board-ticket-menu-${item}`;
-  await page.locator(`[data-testid="${testId}"]`).waitFor({ state: "attached", timeout: 10000 });
-  await page.evaluate((tid) => {
-    const el = document.querySelector(`[data-testid="${tid}"]`) as HTMLElement | null;
-    if (!el) throw new Error(`${tid} not in DOM`);
+  const itemTestId = `kanban-board-ticket-menu-${item}`;
+  await testId(page, itemTestId).waitFor({ state: "attached", timeout: WAIT_TIMEOUT_MS });
+  // The menu closes on the pointer press that Playwright's click sends first,
+  // so the item has to be activated directly.
+  await page.evaluate((id) => {
+    const el = document.querySelector(`[data-testid="${id}"]`) as HTMLElement | null;
+    if (!el) throw new Error(`${id} not in DOM`);
     el.click();
-  }, testId);
+  }, itemTestId);
 }
 
 export interface ProjectEntry {
@@ -691,11 +716,6 @@ export function listTicketFolders(server: TestServer, projectSlug: string): stri
   return fs.readdirSync(dir, { withFileTypes: true })
     .filter((d) => d.isDirectory() && d.name !== ".git")
     .map((d) => d.name);
-}
-
-export function gitBranches(repoPath: string): string[] {
-  const out = execSync("git branch --list", { cwd: repoPath, encoding: "utf-8" });
-  return out.split("\n").map((l) => l.replace(/^[\s*]+/, "").trim()).filter(Boolean);
 }
 
 export function worktreeExists(
@@ -813,6 +833,51 @@ export function setupE2E(opts: {
     for (const p of ctx.projects) p.cleanup();
   }, 20000);
   return ctx;
+}
+
+export interface OpenProjectOptions extends Omit<CreateProjectOptions, "projectSlug"> {
+  /** Base for the generated projectSlug; uniqueSlug keeps it distinct per test. */
+  slugBase: string;
+  /** Fakes the clock before the first navigation, for Sync Pending polling tests. */
+  fakeClock?: boolean;
+}
+
+/**
+ * Seeds a Project, registers it for cleanup and opens it. Every e2e test starts
+ * here, so the ownership of the created Project stays with the fixture instead
+ * of being re-established by each file.
+ */
+export async function openProject(
+  ctx: E2EContext,
+  options: OpenProjectOptions,
+): Promise<CreatedProject> {
+  const { slugBase, fakeClock, ...createOptions } = options;
+  const project = await createProject(ctx.testServer, {
+    ...createOptions,
+    projectSlug: uniqueSlug(slugBase),
+  });
+  ctx.projects.push(project);
+  if (fakeClock) {
+    await ctx.page.clock.install();
+    await gotoProjectOnFakeClock(ctx.page, ctx.testServer, project.projectSlug);
+  } else {
+    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+  }
+  return project;
+}
+
+/** Seeds a Project and registers it for cleanup without opening a page on it. */
+export async function seedProject(
+  ctx: E2EContext,
+  options: Omit<OpenProjectOptions, "fakeClock">,
+): Promise<CreatedProject> {
+  const { slugBase, ...createOptions } = options;
+  const project = await createProject(ctx.testServer, {
+    ...createOptions,
+    projectSlug: uniqueSlug(slugBase),
+  });
+  ctx.projects.push(project);
+  return project;
 }
 
 export async function expectOpenConfigDirRequest(

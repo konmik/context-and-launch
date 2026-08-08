@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
-  setupE2E, readTicketStatus, readForestLayout, getLocalStorageItem, poll,
+  setupE2E, readTicketStatus, readForestLayout, getLocalStorageItem, poll, boxOf, centerOf, dragPointer,
 } from "./fixtures.js";
 import {
-  boxOf, centerOf, clickHandle, dragPointer, forestCard, forestHandle,
+  clickHandle, forestCard, forestHandle,
   openForestProject, toggleToKanban, waitForForestTicketCount,
 } from "./forest-helpers.js";
+import { testId, waitVisible } from "./locators.js";
 
 describe("Forest layout and persistence", () => {
   const ctx = setupE2E();
@@ -47,17 +48,17 @@ describe("Forest layout and persistence", () => {
       ],
     });
 
-    expect(await ctx.page.locator('[data-testid="forest-ticket-card"]').count()).toBe(1);
+    expect(await testId(ctx.page, "forest-ticket-card").count()).toBe(1);
 
     const viewMode = await getLocalStorageItem(ctx.page, `view-mode:${project.projectSlug}`);
     expect(viewMode).toBe("forest");
 
     await ctx.page.reload();
-    await ctx.page.waitForSelector('[data-testid="forest-rearrange-button"]', { state: "visible", timeout: 15000 });
+    await waitVisible(ctx.page, "forest-rearrange-button");
     await waitForForestTicketCount(ctx.page, 1);
-    expect(await ctx.page.locator('[data-testid="forest-ticket-card"]').count()).toBe(1);
+    expect(await testId(ctx.page, "forest-ticket-card").count()).toBe(1);
 
-    expect(await ctx.page.locator('[data-testid="project-header-logs-button"]').count()).toBe(1);
+    expect(await testId(ctx.page, "project-header-logs-button").count()).toBe(1);
 
     await toggleToKanban(ctx.page);
   }, 120000);
@@ -72,7 +73,7 @@ describe("Forest layout and persistence", () => {
       ],
     });
 
-    await ctx.page.click('[data-testid="forest-rearrange-button"]');
+    await testId(ctx.page, "forest-rearrange-button").click();
     await ctx.page.waitForTimeout(500);
 
     await forestCard(ctx.page, "A-1").waitFor({ state: "visible", timeout: 15000 });
@@ -146,7 +147,7 @@ describe("Forest layout and persistence", () => {
       ],
     });
 
-    await ctx.page.click('[data-testid="forest-rearrange-button"]');
+    await testId(ctx.page, "forest-rearrange-button").click();
 
     const layout = await poll(
       () => readForestLayout(ctx.testServer, project.projectSlug),

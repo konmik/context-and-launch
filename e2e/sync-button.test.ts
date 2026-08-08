@@ -1,78 +1,64 @@
 import { describe, it, expect } from "vitest";
-import { execSync } from "node:child_process";
 import {
-  createProject, uniqueSlug, gotoProject, dragSortable,
+  openProject, dragElement, sortableItem,
   setupE2E,
 } from "./fixtures.js";
+import { remoteSubjects } from "./git-fixtures.js";
+import { countOf, testId, waitVisible, waitGone } from "./locators.js";
+
+const THREE_COLUMN_BOARD = [
+  { id: "standard", name: "Standard", columns: [
+    { name: "todo" }, { name: "in-progress" }, { name: "done" },
+  ] },
+];
 
 describe("Sync button (e2e, real server)", () => {
-  const ctx = setupE2E({ serverOpts: { dataDirPrefix: ".cl-e2e-data-" } });
+  const ctx = setupE2E();
 
   it("sync-button-trigger renders on the page", async () => {
-    const project = await createProject(ctx.testServer, { projectSlug: uniqueSlug("sb-render") });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await ctx.page.waitForSelector('[data-testid="sync-button-trigger"]', { state: "visible", timeout: 10000 });
-  }, 60000);
+    await openProject(ctx, { slugBase: "sb-render" });
+    await waitVisible(ctx.page, "sync-button-trigger");
+  });
 
   it("sync-button-trigger push to remote, then sync-button-check-icon appears", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("sb-push"),
+    const project = await openProject(ctx, {
+      slugBase: "sb-push",
       withRemote: true,
       withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
     });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await ctx.page.click('[data-testid="sync-button-trigger"]');
-    await ctx.page.waitForSelector('[data-testid="sync-button-check-icon"]', {
-      state: "visible", timeout: 20000,
-    });
-    if (project.remoteUrl) {
-      const log = execSync(`git log --all --format=%s`, { cwd: project.remoteUrl, encoding: "utf-8" });
-      expect(log.length).toBeGreaterThan(0);
-    }
-  }, 60000);
+    await testId(ctx.page, "sync-button-trigger").click();
+    await waitVisible(ctx.page, "sync-button-check-icon");
+    expect(remoteSubjects(project).length).toBeGreaterThan(0);
+  });
 
   it("sync-button-check-icon and sync-button-conflict-badge are absent on a fresh project", async () => {
-    const project = await createProject(ctx.testServer, { projectSlug: uniqueSlug("sb-icons") });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    expect(await ctx.page.locator('[data-testid="sync-button-check-icon"]').count()).toBe(0);
-    expect(await ctx.page.locator('[data-testid="sync-button-conflict-badge"]').count()).toBe(0);
-  }, 60000);
+    await openProject(ctx, { slugBase: "sb-icons" });
+    expect(await countOf(ctx.page, "sync-button-check-icon")).toBe(0);
+    expect(await countOf(ctx.page, "sync-button-conflict-badge")).toBe(0);
+  });
 
   it("pending badge appears after dragging a ticket between columns", async () => {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug("sb-pending-drag"),
+    await openProject(ctx, {
+      slugBase: "sb-pending-drag",
       withRemote: true,
-      withBoards: [{ id: "standard", name: "Standard", columns: [
-        { name: "todo" }, { name: "in-progress" }, { name: "done" },
-      ]}],
+      withBoards: THREE_COLUMN_BOARD,
       withTickets: [
         { number: "D-1", title: "Drag me", status: "todo", folderName: "d-1-drag-me" },
         { number: "D-2", title: "Anchor", status: "in-progress", folderName: "d-2-anchor" },
       ],
     });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
 
-    await ctx.page.waitForSelector('[data-testid="sync-button-pending-badge"]', {
-      state: "visible", timeout: 15000,
-    });
-    await ctx.page.click('[data-testid="sync-button-trigger"]');
-    await ctx.page.waitForSelector('[data-testid="sync-button-pending-badge"]', {
-      state: "detached", timeout: 20000,
-    });
+    await waitVisible(ctx.page, "sync-button-pending-badge");
+    await testId(ctx.page, "sync-button-trigger").click();
+    await waitGone(ctx.page, "sync-button-pending-badge");
 
-    await dragSortable(
+    await dragElement(
       ctx.page,
-      '[data-sortable-id="todo:d-1-drag-me"]',
-      '[data-sortable-id="in-progress:d-2-anchor"]',
+      sortableItem(ctx.page, "todo:d-1-drag-me"),
+      sortableItem(ctx.page, "in-progress:d-2-anchor"),
       { releaseAt: "top" },
     );
 
-    await ctx.page.waitForSelector('[data-testid="sync-button-pending-badge"]', {
-      state: "visible", timeout: 15000,
-    });
-  }, 60000);
+    await waitVisible(ctx.page, "sync-button-pending-badge");
+  });
 });

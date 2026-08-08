@@ -1,22 +1,21 @@
 import { describe, it, expect } from "vitest";
 import type { Page } from "playwright";
 import {
-  createProject, uniqueSlug, gotoProject, openTicketDetail,
+  openProject, openTicketDetail,
   setupE2E,
 } from "./fixtures.js";
+import { testId } from "./locators.js";
 
 describe("Ticket detail window dragging (e2e, real server)", () => {
   const ctx = setupE2E();
 
   async function setup(suffix: string) {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug(`tdd-${suffix}`),
+    const project = await openProject(ctx, {
+      slugBase: `tdd-${suffix}`,
       withTickets: [{
         number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha",
       }],
     });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await openTicketDetail(ctx.page, "t-1-alpha");
     return project;
   }
@@ -54,18 +53,18 @@ describe("Ticket detail window dragging (e2e, real server)", () => {
 
     const dx = await dragFrom(page, triggerBox!.x + triggerBox!.width / 2, triggerBox!.y + 12);
     expect(Math.abs(dx)).toBeGreaterThan(10);
-  }, 60000);
+  });
 
   it("the title input row does not initiate drag", async () => {
     await setup("title-row");
     const page = ctx.page;
 
-    const numBox = await page.locator('[data-testid="ticket-detail-number-input"]').boundingBox();
-    const titleBox = await page.locator('[data-testid="ticket-detail-title-input"]').boundingBox();
+    const numBox = await testId(page, "ticket-detail-number-input").boundingBox();
+    const titleBox = await testId(page, "ticket-detail-title-input").boundingBox();
     expect(numBox).toBeTruthy();
     expect(titleBox).toBeTruthy();
 
     const dx = await dragFrom(page, (numBox!.x + numBox!.width + titleBox!.x) / 2, numBox!.y + numBox!.height / 2);
     expect(Math.abs(dx)).toBeLessThan(1);
-  }, 60000);
+  });
 }, 120000);

@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { setupE2E, getLocalStorageItem } from "./fixtures.js";
+import { setupE2E, getLocalStorageItem, boxOf, dragPointer } from "./fixtures.js";
 import {
-  boxOf, dragPointer, forestCard, forestSurface, openForestProject,
+  forestCard, forestSurface, openForestProject,
   toggleToForest, toggleToKanban,
 } from "./forest-helpers.js";
+import { testId, waitVisible } from "./locators.js";
 
 describe("Forest viewport", () => {
   const ctx = setupE2E();
@@ -14,19 +15,19 @@ describe("Forest viewport", () => {
       tickets: [{ number: "A-1", title: "First", folderName: "a-1-first" }],
     });
 
-    await ctx.page.waitForSelector('[data-testid="forest-rearrange-button"]', { state: "visible", timeout: 15000 });
+    await waitVisible(ctx.page, "forest-rearrange-button");
 
     const viewport = ctx.page.viewportSize();
     expect(viewport).toBeTruthy();
     const surfaceBox = await boxOf(forestSurface(ctx.page));
     expect(surfaceBox.height).toBeGreaterThan(viewport!.height / 2);
 
-    await ctx.page.locator('[data-testid="forest-close-button"]')
+    await testId(ctx.page, "forest-close-button")
       .waitFor({ state: "visible", timeout: 15000 });
-    const selectHint = ctx.page.locator('[data-testid="forest-select-hint"]');
+    const selectHint = testId(ctx.page, "forest-select-hint");
     await selectHint.waitFor({ state: "visible", timeout: 15000 });
     expect(await selectHint.textContent()).toBe("Shift+mouse to select");
-    expect(await ctx.page.locator('[data-testid="forest-ticket-card"]').count()).toBe(1);
+    expect(await testId(ctx.page, "forest-ticket-card").count()).toBe(1);
   }, 120000);
 
   it("centers the full forest horizontally at the bottom-middle of the surface", async () => {
@@ -46,8 +47,8 @@ describe("Forest viewport", () => {
       },
     });
 
-    const rearrangeButton = ctx.page.locator('[data-testid="forest-rearrange-button"]');
-    const centerButton = ctx.page.locator('[data-testid="forest-center-button"]');
+    const rearrangeButton = testId(ctx.page, "forest-rearrange-button");
+    const centerButton = testId(ctx.page, "forest-center-button");
     const surfaceBox = await boxOf(forestSurface(ctx.page));
 
     await dragPointer(
@@ -58,7 +59,7 @@ describe("Forest viewport", () => {
     );
     await centerButton.click();
 
-    const cardBoxes = await ctx.page.locator('[data-testid="forest-ticket-card"]')
+    const cardBoxes = await testId(ctx.page, "forest-ticket-card")
       .evaluateAll(elements => elements.map(element => element.getBoundingClientRect().toJSON()));
     const left = Math.min(...cardBoxes.map(box => box.x));
     const right = Math.max(...cardBoxes.map(box => box.x + box.width));
@@ -81,7 +82,7 @@ describe("Forest viewport", () => {
     await ctx.page.waitForTimeout(500);
 
     await ctx.page.reload();
-    await ctx.page.waitForSelector('[data-testid="forest-rearrange-button"]', { state: "visible", timeout: 15000 });
+    await waitVisible(ctx.page, "forest-rearrange-button");
 
     const vpStr = await getLocalStorageItem(ctx.page, `forest-viewport:${project.projectSlug}`);
     expect(vpStr).toBeTruthy();

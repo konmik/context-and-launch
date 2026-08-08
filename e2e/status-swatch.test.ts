@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
 import type { Locator } from "playwright";
 import {
-  createProject, uniqueSlug, gotoProject,
-  openLauncherSettings, openLauncherSettingsTab,
+  openProject, openLauncherSettings, openLauncherSettingsTab,
   readBoardDefinitions, poll, setupE2E,
   type SeedBoard, type SeedTicket, type SeedAppLauncherConfig,
 } from "./fixtures.js";
 import { toggleToForest, forestCard, forestGroupCard } from "./forest-helpers.js";
+import { testId, waitVisible } from "./locators.js";
 
 const HERDRLESS_LAUNCHER: SeedAppLauncherConfig = {
   templates: [{ name: "Default", text: "x" }],
@@ -26,14 +26,12 @@ describe("Status swatch (e2e, real server)", () => {
     boards: SeedBoard[],
     tickets: SeedTicket[],
   ) {
-    const project = await createProject(ctx.testServer, {
-      projectSlug: uniqueSlug(`swatch-${suffix}`),
+    const project = await openProject(ctx, {
+      slugBase: `swatch-${suffix}`,
       withBoards: boards,
       withTickets: tickets,
       appLauncherConfig: HERDRLESS_LAUNCHER,
     });
-    ctx.projects.push(project);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     return project;
   }
 
@@ -46,10 +44,10 @@ describe("Status swatch (e2e, real server)", () => {
 
     await openLauncherSettings(ctx.page);
     await openLauncherSettingsTab(ctx.page, "columns");
-    await ctx.page.locator('[data-testid="launcher-settings-columns-edit-button"]').first().click();
-    await ctx.page.waitForSelector('[data-testid="launcher-settings-columns-name-input"]', { timeout: 15000 });
+    await testId(ctx.page, "launcher-settings-columns-edit-button").first().click();
+    await waitVisible(ctx.page, "launcher-settings-columns-name-input");
     await ctx.page.click('[data-testid="launcher-settings-columns-color-option"][data-color-hex="#0969da"]');
-    await ctx.page.click('[data-testid="launcher-settings-columns-form-submit"]');
+    await testId(ctx.page, "launcher-settings-columns-form-submit").click();
 
     const boards = await poll(
       () => readBoardDefinitions(ctx.testServer),
@@ -59,7 +57,7 @@ describe("Status swatch (e2e, real server)", () => {
     const todo = boards.find((b) => b.id === "kanban")?.columns.find((c) => c.name === "todo");
     expect(todo?.color).toBe("#0969da");
 
-    await ctx.page.click('[data-testid="launcher-settings-close-button"]');
+    await testId(ctx.page, "launcher-settings-close-button").click();
     await ctx.page.waitForTimeout(500);
 
     const kanbanLine = ctx.page.locator(
@@ -86,9 +84,9 @@ describe("Status swatch (e2e, real server)", () => {
       [{ id: "kanban", name: "Kanban", columns: [{ name: "todo" }, { name: "done" }] }],
       [{ number: "T-1", title: "Alpha", status: "done" }],
     );
-    const card = ctx.page.locator('[data-testid="kanban-board-ticket-card"]');
+    const card = testId(ctx.page, "kanban-board-ticket-card");
     await card.waitFor({ state: "visible", timeout: 15000 });
-    expect(await card.locator('[data-testid="status-swatch"]').count()).toBe(0);
+    expect(await testId(card, "status-swatch").count()).toBe(0);
     const line = ctx.page.locator(
       '[data-testid="kanban-board-column-color-line"][data-column-name="done"]',
     );
@@ -133,7 +131,7 @@ describe("Status swatch (e2e, real server)", () => {
     await toggleToForest(ctx.page);
     const groupCard = forestGroupCard(ctx.page, "S-G");
     await groupCard.waitFor({ state: "visible", timeout: 15000 });
-    const groupSwatch = groupCard.locator('[data-testid="status-swatch"]');
+    const groupSwatch = testId(groupCard, "status-swatch");
     await groupSwatch.waitFor({ state: "visible", timeout: 15000 });
     expect(await backgroundColor(groupSwatch)).toBe("rgb(26, 127, 55)");
   }, 120000);
@@ -147,10 +145,10 @@ describe("Status swatch (e2e, real server)", () => {
 
     await openLauncherSettings(ctx.page);
     await openLauncherSettingsTab(ctx.page, "columns");
-    await ctx.page.locator('[data-testid="launcher-settings-columns-edit-button"]').first().click();
-    await ctx.page.waitForSelector('[data-testid="launcher-settings-columns-name-input"]', { timeout: 15000 });
-    await ctx.page.click('[data-testid="launcher-settings-columns-color-none"]');
-    await ctx.page.click('[data-testid="launcher-settings-columns-form-submit"]');
+    await testId(ctx.page, "launcher-settings-columns-edit-button").first().click();
+    await waitVisible(ctx.page, "launcher-settings-columns-name-input");
+    await testId(ctx.page, "launcher-settings-columns-color-none").click();
+    await testId(ctx.page, "launcher-settings-columns-form-submit").click();
 
     const boards = await poll(
       () => readBoardDefinitions(ctx.testServer),
@@ -160,8 +158,8 @@ describe("Status swatch (e2e, real server)", () => {
     const todo = boards.find((b) => b.id === "kanban")?.columns.find((c) => c.name === "todo");
     expect(todo?.color).toBeUndefined();
 
-    await ctx.page.click('[data-testid="launcher-settings-close-button"]');
-    const card = ctx.page.locator('[data-testid="kanban-board-ticket-card"]');
+    await testId(ctx.page, "launcher-settings-close-button").click();
+    const card = testId(ctx.page, "kanban-board-ticket-card");
     await card.waitFor({ state: "visible", timeout: 15000 });
     const line = ctx.page.locator(
       '[data-testid="kanban-board-column-color-line"][data-column-name="todo"]',
@@ -178,12 +176,12 @@ describe("Status swatch (e2e, real server)", () => {
       [{ id: "kanban", name: "Kanban", columns: [{ name: "todo", color: "#0969da" }, { name: "done" }] }],
       [{ number: "T-1", title: "Alpha", status: "todo" }],
     );
-    await ctx.page.locator('[data-testid="kanban-board-ticket-card"]').first()
+    await testId(ctx.page, "kanban-board-ticket-card").first()
       .waitFor({ state: "visible", timeout: 15000 });
-    expect(await ctx.page.locator('[data-testid="herdr-status-icon"]').count()).toBe(0);
+    expect(await testId(ctx.page, "herdr-status-icon").count()).toBe(0);
 
     await toggleToForest(ctx.page);
     await forestCard(ctx.page, "T-1").waitFor({ state: "visible", timeout: 15000 });
-    expect(await ctx.page.locator('[data-testid="herdr-status-icon"]').count()).toBe(0);
+    expect(await testId(ctx.page, "herdr-status-icon").count()).toBe(0);
   }, 120000);
 });

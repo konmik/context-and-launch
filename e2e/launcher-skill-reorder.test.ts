@@ -1,51 +1,44 @@
-import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll } from "vitest";
-import { type Browser, type Page } from "playwright";
+import { describe, it, expect } from "vitest";
+import { type Locator, type Page } from "playwright";
 import {
-  createServer, launchBrowser, createProject, uniqueSlug, gotoProject, openTicketDetail,
-  dragSortable,
-  type TestServer, type TestBrowser, type CreatedProject,
+  openProject, openTicketDetail, dragElement,
+  type CreatedProject,
   readProjectLauncherConfig, poll,
+  setupE2E,
 } from "./fixtures.js";
-
-let testServer: TestServer;
-let testBrowser: TestBrowser;
-let browser: Browser;
-let page: Page;
+import { testId, waitVisible } from "./locators.js";
 
 const TICKET = { number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" };
 
 async function skillNames(p: Page): Promise<string[]> {
-  return p.locator('[data-testid="launcher-skill-row"]').evaluateAll((els) =>
+  return testId(p, "launcher-skill-row").evaluateAll((els) =>
     els.map((e) => e.getAttribute("data-skill-name") ?? ""));
 }
 
+function skillRow(p: Page, name: string): Locator {
+  return testId(p, "launcher-skill-row", { "data-skill-name": name });
+}
+
 async function dragSkill(p: Page, fromName: string, toName: string) {
-  await dragSortable(
+  await dragElement(
     p,
-    `[data-testid="launcher-skill-row"][data-skill-name="${fromName}"] [data-testid="launcher-skill-drag-handle"]`,
-    `[data-testid="launcher-skill-row"][data-skill-name="${toName}"]`,
+    testId(skillRow(p, fromName), "launcher-skill-drag-handle"),
+    skillRow(p, toName),
   );
 }
 
 async function openLauncher(p: Page) {
   await openTicketDetail(p, "t-1-alpha");
-  await p.click('[data-testid="ticket-detail-tab-launcher"]');
-  await p.waitForSelector('[data-testid="launcher-skill-row"]', { timeout: 15000 });
+  await testId(p, "ticket-detail-tab-launcher").click();
+  await waitVisible(p, "launcher-skill-row");
 }
 
 describe("Agent launcher skill reorder (e2e, real server)", () => {
-  let project: CreatedProject;
+  const ctx = setupE2E({ viewport: { width: 1200, height: 900 } });
 
-  beforeAll(async () => {
-    testServer = await createServer();
-    testBrowser = await launchBrowser();
-    browser = testBrowser.browser;
-  }, 60000);
-
-  beforeEach(async () => {
-    page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
-    project = await createProject(testServer, {
-      projectSlug: uniqueSlug("skill-reorder"),
+  async function setup(suffix: string): Promise<CreatedProject> {
+    const project = await openProject(ctx, {
+      slugBase: `skill-reorder-${suffix}`,
       withTickets: [TICKET],
       appLauncherConfig: {
         templates: [{ name: "Default", text: "do it" }],
@@ -57,38 +50,29 @@ describe("Agent launcher skill reorder (e2e, real server)", () => {
         ],
       },
     });
-    await gotoProject(page, testServer, project.projectSlug);
-  });
-
-  afterEach(async () => {
-    await page?.close();
-    project?.cleanup();
-  });
-
-  afterAll(async () => {
-    await testBrowser?.stop();
-    await testServer?.stop();
-  }, 20000);
+    await openLauncher(ctx.page);
+    return project;
+  }
 
   it("renders skills in merged config order by default", async () => {
-    await openLauncher(page);
-    expect(await skillNames(page)).toEqual(["alpha-skill", "bravo-skill", "charlie-skill"]);
-  }, 60000);
+    await setup("default-order");
+    expect(await skillNames(ctx.page)).toEqual(["alpha-skill", "bravo-skill", "charlie-skill"]);
+  });
 
   it("drag reorders skills and persists to project-level column defaults", async () => {
-    await openLauncher(page);
-    await dragSkill(page, "alpha-skill", "charlie-skill");
+    const project = await setup("drag");
+    await dragSkill(ctx.page, "alpha-skill", "charlie-skill");
     const cfg = await poll(
-      () => readProjectLauncherConfig(testServer, project.projectSlug),
+      () => readProjectLauncherConfig(ctx.testServer, project.projectSlug),
       (c) => {
         const order = c?.columnDefaults?.["todo"]?.skillOrder;
         return !!order && order.includes("alpha-skill") && order[0] !== "alpha-skill";
       },
       5000,
     );
-    const after = await skillNames(page);
+    const after = await skillNames(ctx.page);
     expect(after).toContain("alpha-skill");
     expect(after[0]).not.toBe("alpha-skill");
     expect(cfg?.columnDefaults?.["todo"]?.skillOrder).toEqual(after);
-  }, 60000);
+  });
 });

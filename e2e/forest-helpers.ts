@@ -1,14 +1,17 @@
 import fs from "node:fs";
 import path from "node:path";
+import { expect } from "vitest";
 import type { Locator, Page } from "playwright";
 import {
-  createProject,
+  dragPointer,
   gotoProject,
-  uniqueSlug,
+  seedProject,
   type CreatedProject,
   type E2EContext,
+  type ScreenPoint,
   type SeedTicket,
 } from "./fixtures.js";
+import { countOf, testId, waitGone, waitVisible } from "./locators.js";
 
 export const forestBoards = [
   { id: "default", name: "Default", columns: [{ name: "todo" }, { name: "done" }] },
@@ -27,12 +30,11 @@ export async function openForestProject(
   ctx: E2EContext,
   options: OpenForestOptions,
 ): Promise<CreatedProject> {
-  const project = await createProject(ctx.testServer, {
-    projectSlug: uniqueSlug(options.slugBase),
+  const project = await seedProject(ctx, {
+    slugBase: options.slugBase,
     withBoards: forestBoards,
     withTickets: options.tickets.map(ticket => ({ status: "todo", ...ticket })),
   });
-  ctx.projects.push(project);
   if (options.layout) {
     fs.writeFileSync(
       path.join(project.ticketsPath, "forest-layout.json"),
@@ -45,94 +47,36 @@ export async function openForestProject(
 }
 
 export async function toggleToForest(page: Page): Promise<void> {
-  await page.click('[data-testid="project-header-forest-toggle-button"]');
-  await page.waitForSelector('[data-testid="forest-rearrange-button"]', {
-    state: "visible", timeout: 15000,
-  });
+  await testId(page, "project-header-forest-toggle-button").click();
+  await waitVisible(page, "forest-rearrange-button");
 }
 
 export async function toggleToKanban(page: Page): Promise<void> {
-  await page.click('[data-testid="project-header-forest-toggle-button"]');
-  await page.waitForSelector('[data-testid="kanban-board-column-header"]', {
-    state: "visible", timeout: 15000,
-  });
+  await testId(page, "project-header-forest-toggle-button").click();
+  await waitVisible(page, "kanban-board-column-header");
 }
 
 export async function waitForForestTicketCount(page: Page, expected: number): Promise<void> {
-  await page.waitForFunction(
-    count => document.querySelectorAll('[data-testid="forest-ticket-card"]').length === count,
-    expected,
-    { timeout: 15000 },
-  );
+  await expect.poll(() => countOf(page, "forest-ticket-card"), { timeout: 15000 })
+    .toBe(expected);
 }
 
 export function forestSurface(page: Page): Locator {
-  return page.locator('[data-testid="forest-surface"]');
+  return testId(page, "forest-surface");
 }
 
 export function forestCard(page: Page, ticketNumber: string): Locator {
-  return page.locator(`[data-testid="forest-ticket-card"][data-ticket-number="${ticketNumber}"]`);
+  return testId(page, "forest-ticket-card", { "data-ticket-number": ticketNumber });
 }
 
 export function forestGroupCard(page: Page, ticketNumber?: string): Locator {
-  return page.locator(ticketNumber
-    ? `[data-testid="forest-group-card"][data-ticket-number="${ticketNumber}"]`
-    : '[data-testid="forest-group-card"]');
+  return ticketNumber
+    ? testId(page, "forest-group-card", { "data-ticket-number": ticketNumber })
+    : testId(page, "forest-group-card");
 }
 
 export function forestHandle(page: Page, ticketNumber: string, end: "top" | "bottom"): Locator {
-  return page.locator(`[data-testid="forest-handle-${end}"][data-ticket-number="${ticketNumber}"]`);
-}
-
-export interface ScreenPoint {
-  x: number;
-  y: number;
-}
-
-export interface ScreenBox {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-export async function boxOf(locator: Locator): Promise<ScreenBox> {
-  const box = await locator.boundingBox();
-  if (!box) throw new Error("Element has no bounding box");
-  return box;
-}
-
-export function boxCenter(box: ScreenBox): ScreenPoint {
-  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-}
-
-export async function centerOf(locator: Locator): Promise<ScreenPoint> {
-  return boxCenter(await boxOf(locator));
-}
-
-export interface DragPointerOptions {
-  steps?: number;
-  stepDelayMs?: number;
-}
-
-export async function dragPointer(
-  page: Page,
-  from: ScreenPoint,
-  to: ScreenPoint,
-  options: DragPointerOptions = {},
-): Promise<void> {
-  const steps = options.steps ?? 10;
-  const stepDelayMs = options.stepDelayMs ?? 30;
-  await page.mouse.move(from.x, from.y);
-  await page.mouse.down();
-  for (let i = 1; i <= steps; i++) {
-    await page.mouse.move(
-      from.x + (to.x - from.x) * (i / steps),
-      from.y + (to.y - from.y) * (i / steps),
-    );
-    await page.waitForTimeout(stepDelayMs);
-  }
-  await page.mouse.up();
+  return testId(page, `forest-handle-${end}`, { "data-ticket-number": ticketNumber });
 }
 
 export async function shiftDragSelection(
@@ -183,36 +127,30 @@ export async function pathScreenEndpoints(
 }
 
 export async function deleteDependencyViaPopup(page: Page): Promise<void> {
-  const deleteButton = page.locator('[data-testid="forest-dependency-delete"]');
-  await deleteButton.waitFor({ state: "visible", timeout: 10000 });
+  const deleteButton = await waitVisible(page, "forest-dependency-delete");
   await deleteButton.click();
 }
 
 export function subforestCloseButton(page: Page): Locator {
-  return page.locator('[data-testid="forest-subforest-close"]');
+  return testId(page, "forest-subforest-close");
 }
 
 export async function openSubforest(page: Page, ticketNumber?: string): Promise<void> {
   await forestGroupCard(page, ticketNumber).click();
-  await subforestCloseButton(page).waitFor({ state: "visible", timeout: 10000 });
+  await waitVisible(page, "forest-subforest-close");
 }
 
 export async function closeSubforest(page: Page): Promise<void> {
-  const closeButton = subforestCloseButton(page);
-  await closeButton.click();
-  await closeButton.waitFor({ state: "detached", timeout: 10000 });
+  await subforestCloseButton(page).click();
+  await waitGone(page, "forest-subforest-close");
 }
 
 export async function groupViaDialog(page: Page, number: string, title: string): Promise<void> {
-  await page.click('[data-testid="forest-group-button"]');
-  await page.waitForSelector('[data-testid="create-ticket-number-input"]', {
-    state: "visible", timeout: 15000,
-  });
-  await page.fill('[data-testid="create-ticket-number-input"]', number);
-  await page.fill('[data-testid="create-ticket-title-input"]', title);
-  await page.click('[data-testid="create-ticket-submit"]');
-  await page.waitForSelector('[data-testid="create-ticket-number-input"]', {
-    state: "detached", timeout: 15000,
-  });
+  await testId(page, "forest-group-button").click();
+  await waitVisible(page, "create-ticket-number-input");
+  await testId(page, "create-ticket-number-input").fill(number);
+  await testId(page, "create-ticket-title-input").fill(title);
+  await testId(page, "create-ticket-submit").click();
+  await waitGone(page, "create-ticket-number-input");
   await page.waitForTimeout(1000);
 }

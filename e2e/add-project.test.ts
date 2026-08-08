@@ -1,145 +1,111 @@
-import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll } from "vitest";
-import { execSync } from "node:child_process";
+import { describe, it, expect, afterAll } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import os from "node:os";
-import { type Browser, type Page } from "playwright";
 import {
-  createServer, launchBrowser, type TestServer, type TestBrowser,
-  readProjectRegistry,
-  getLocalStorageItem,
+  readProjectRegistry, getLocalStorageItem, setupE2E,
 } from "./fixtures.js";
-
-let testServer: TestServer;
-let testBrowser: TestBrowser;
-let browser: Browser;
-let page: Page;
-let repoDir: string;
-
-function makeRepo(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cl-addproj-repo-"));
-  execSync("git init -b main", { cwd: dir });
-  execSync("git config user.email test@test.com", { cwd: dir });
-  execSync("git config user.name Test", { cwd: dir });
-  execSync("git commit --allow-empty -m init", { cwd: dir });
-  return dir;
-}
+import { createScratchRepo, gitBranches } from "./git-fixtures.js";
+import { countOf, testId, waitVisible } from "./locators.js";
 
 describe("Add project welcome screen (e2e, real server)", () => {
-  beforeAll(async () => {
-    testServer = await createServer();
-    testBrowser = await launchBrowser();
-    browser = testBrowser.browser;
-    repoDir = makeRepo();
-  }, 60000);
+  const ctx = setupE2E();
+  const scratchRepos: string[] = [];
 
-  beforeEach(async () => {
-    page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
+  /** A repo the welcome screen can register, fresh per test so none share state. */
+  function scratchRepo(): string {
+    const dir = createScratchRepo("cl-addproj-repo-");
+    scratchRepos.push(dir);
+    return dir;
+  }
+
+  afterAll(() => {
+    for (const dir of scratchRepos) fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  afterEach(async () => {
-    await page?.close();
-  });
-
-  afterAll(async () => {
-    await testBrowser?.stop();
-    await testServer?.stop();
-    if (repoDir) fs.rmSync(repoDir, { recursive: true, force: true });
-  }, 20000);
+  async function gotoAddProject(): Promise<void> {
+    await ctx.page.goto(`${ctx.testServer.baseUrl}/add-project`);
+  }
 
   it("palette-picker mode toggle switches class and writes localStorage", async () => {
-    await page.goto(`${testServer.baseUrl}/add-project`);
-    await page.waitForSelector('[data-testid="palette-picker-trigger"]', { state: "visible", timeout: 10000 });
-    const before = await page.evaluate(() => document.documentElement.classList.contains("dark"));
-    await page.click('[data-testid="palette-picker-trigger"]');
-    await page.click('[data-testid="palette-picker-mode-toggle"]');
-    await page.waitForFunction(
+    await gotoAddProject();
+    await waitVisible(ctx.page, "palette-picker-trigger");
+    const before = await ctx.page.evaluate(() => document.documentElement.classList.contains("dark"));
+    await testId(ctx.page, "palette-picker-trigger").click();
+    await testId(ctx.page, "palette-picker-mode-toggle").click();
+    await ctx.page.waitForFunction(
       (was) => document.documentElement.classList.contains("dark") !== was,
       before, { timeout: 3000 },
     );
-    const theme = await getLocalStorageItem(page, "theme");
+    const theme = await getLocalStorageItem(ctx.page, "theme");
     expect(theme === "light" || theme === "dark").toBe(true);
-  }, 60000);
+  });
 
   it("project name input is empty by default and editable", async () => {
-    await page.goto(`${testServer.baseUrl}/add-project`);
-    await page.waitForSelector('[data-testid="add-project-name-input"]', { state: "visible", timeout: 10000 });
-    const input = page.locator('[data-testid="add-project-name-input"]');
+    await gotoAddProject();
+    await waitVisible(ctx.page, "add-project-name-input");
+    const input = testId(ctx.page, "add-project-name-input");
     expect(await input.inputValue()).toBe("");
     await input.fill("My Project");
     expect(await input.inputValue()).toBe("My Project");
-  }, 60000);
+  });
 
   it("branch input defaults to tickets and is editable", async () => {
-    await page.goto(`${testServer.baseUrl}/add-project`);
-    await page.waitForSelector('[data-testid="add-project-branch-input"]', { state: "visible", timeout: 10000 });
-    const input = page.locator('[data-testid="add-project-branch-input"]');
+    await gotoAddProject();
+    await waitVisible(ctx.page, "add-project-branch-input");
+    const input = testId(ctx.page, "add-project-branch-input");
     expect(await input.inputValue()).toBe("tickets");
     await input.fill("work-items");
     expect(await input.inputValue()).toBe("work-items");
-  }, 60000);
+  });
 
   it("path Browse button is rendered", async () => {
-    await page.goto(`${testServer.baseUrl}/add-project`);
-    await page.waitForSelector('[data-testid="add-project-path-browse"]', { state: "visible", timeout: 10000 });
-    expect(await page.locator('[data-testid="add-project-path-browse"]').count()).toBe(1);
-  }, 60000);
+    await gotoAddProject();
+    await waitVisible(ctx.page, "add-project-path-browse");
+    expect(await countOf(ctx.page, "add-project-path-browse")).toBe(1);
+  });
+
+  /** The server derives the main branch from the repo, so the field fills itself. */
+  async function fillPathAndAwaitMainBranch(repoDir: string): Promise<void> {
+    await testId(ctx.page, "add-project-path-input").fill(repoDir);
+    await expect.poll(
+      () => testId(ctx.page, "add-project-main-branch-input").inputValue(),
+      { timeout: 15000 },
+    ).not.toBe("");
+  }
 
   it("main branch input is auto-filled after entering a valid path", async () => {
-    await page.goto(`${testServer.baseUrl}/add-project`);
-    await page.waitForSelector('[data-testid="add-project-path-input"]', { state: "visible", timeout: 10000 });
-    await page.locator('[data-testid="add-project-path-input"]').fill(repoDir);
-    await page.waitForFunction(
-      () => {
-        const el = document.querySelector(
-          '[data-testid="add-project-main-branch-input"]',
-        ) as HTMLInputElement | null;
-        return (el?.value ?? "").length > 0;
-      },
-      { timeout: 10000 },
-    );
-    const mainBranch = await page.locator('[data-testid="add-project-main-branch-input"]').inputValue();
-    expect(mainBranch).toBe("main");
-  }, 60000);
+    await gotoAddProject();
+    await waitVisible(ctx.page, "add-project-path-input");
+    await fillPathAndAwaitMainBranch(scratchRepo());
+    expect(await testId(ctx.page, "add-project-main-branch-input").inputValue()).toBe("main");
+  });
 
   it("submit registers the project on disk and creates the orphan branch", async () => {
-    await page.goto(`${testServer.baseUrl}/add-project`);
-    await page.waitForSelector('[data-testid="add-project-path-input"]', { state: "visible", timeout: 10000 });
+    const repoDir = scratchRepo();
+    await gotoAddProject();
+    await waitVisible(ctx.page, "add-project-path-input");
 
-    await page.locator('[data-testid="add-project-path-input"]').fill(repoDir);
-    await page.waitForFunction(() => {
-      const m = (
-        document.querySelector('[data-testid="add-project-main-branch-input"]') as HTMLInputElement | null
-      )?.value ?? "";
-      return m.length > 0;
-    }, { timeout: 15000 });
-    await page.locator('[data-testid="add-project-branch-input"]').fill("work-items");
-    await page.locator('[data-testid="add-project-submit"]').click();
+    await fillPathAndAwaitMainBranch(repoDir);
+    await testId(ctx.page, "add-project-branch-input").fill("work-items");
+    await testId(ctx.page, "add-project-submit").click();
 
-    await page.waitForSelector('[data-testid="project-header-settings-button"]', {
-      state: "visible", timeout: 15000,
-    });
+    await waitVisible(ctx.page, "project-header-settings-button");
 
-    const registry = readProjectRegistry(testServer);
+    const registry = readProjectRegistry(ctx.testServer);
     expect(registry.projects).toHaveLength(1);
     expect(registry.projects[0].branch).toBe("work-items");
     expect(registry.projects[0].mainBranch).toBe("main");
     expect(typeof registry.projects[0].boardId).toBe("string");
 
-    const orphan = execSync('git branch --list "work-items"', { cwd: repoDir, encoding: "utf-8" });
-    expect(orphan).toContain("work-items");
-  }, 60000);
+    expect(gitBranches(repoDir)).toContain("work-items");
+  });
 });
 
 describe("Add project with multiple boards (e2e)", () => {
-  let srv: TestServer;
-  let tb: TestBrowser;
-  let br: Browser;
-  let pg: Page;
+  const ctx = setupE2E();
 
-  beforeAll(async () => {
-    srv = await createServer();
-    const configDir = path.join(srv.dataDir, "config");
+  it("board select is visible when multiple boards exist", async () => {
+    const configDir = path.join(ctx.testServer.dataDir, "config");
     fs.mkdirSync(configDir, { recursive: true });
     fs.writeFileSync(
       path.join(configDir, "boards.json"),
@@ -148,30 +114,11 @@ describe("Add project with multiple boards (e2e)", () => {
         { id: "scrum", name: "Scrum", columns: [{ name: "Backlog" }] },
       ]),
     );
-    tb = await launchBrowser();
-    br = tb.browser;
-  }, 60000);
 
-  beforeEach(async () => {
-    pg = await br.newPage({ viewport: { width: 1200, height: 800 } });
-  });
-
-  afterEach(async () => { await pg?.close(); });
-
-  afterAll(async () => {
-    await tb?.stop();
-    await srv?.stop();
-  }, 20000);
-
-  it("board select is visible when multiple boards exist", async () => {
-    await pg.goto(`${srv.baseUrl}/add-project`);
-    await pg.waitForSelector(
-      '[data-testid="add-project-board-select"]',
-      { state: "visible", timeout: 15000 },
-    );
-    const options = await pg.locator(
-      '[data-testid="add-project-board-select"] option',
-    ).allTextContents();
+    await ctx.page.goto(`${ctx.testServer.baseUrl}/add-project`);
+    await waitVisible(ctx.page, "add-project-board-select");
+    const options = await testId(ctx.page, "add-project-board-select")
+      .locator("option").allTextContents();
     expect(options).toEqual(["Kanban", "Scrum"]);
-  }, 60000);
+  });
 });
