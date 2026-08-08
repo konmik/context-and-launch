@@ -28,7 +28,15 @@ const DEFAULT_ADAPTERS: FileWatcherAdapters = {
 
 // Test seam: e2e runs shorten the auto-commit debounce; the timing itself is
 // covered by unit tests with fake timers. Production default stays 2000ms.
-const WATCH_DEBOUNCE_MS = Number(process.env.CONTEXT_LAUNCH_WATCH_DEBOUNCE_MS ?? 2000);
+const WATCH_DEBOUNCE_MS = (() => {
+	const raw = process.env.CONTEXT_LAUNCH_WATCH_DEBOUNCE_MS;
+	if (raw === undefined) return 2000;
+	const parsed = Number(raw);
+	if (!Number.isFinite(parsed) || parsed <= 0) {
+		throw new Error(`CONTEXT_LAUNCH_WATCH_DEBOUNCE_MS must be a positive number, got "${raw}".`);
+	}
+	return parsed;
+})();
 
 function hasDotSegment(relativePath: string): boolean {
 	return relativePath.split(/[/\\]/).some((segment) => segment.startsWith('.'));

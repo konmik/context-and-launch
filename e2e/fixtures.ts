@@ -202,48 +202,57 @@ function setupBareRemote(repoPath: string, branch: string, pushMain = true): str
 interface ProjectTemplate {
   repo: string;
   remote: string;
-  tickets: string;
 }
 
-const TEMPLATE_BASE = path.join(os.tmpdir(), "cl-e2e-template");
+// Versioned so a changed template build is not silently served from a stale
+// cached base; bump when the build below changes.
+const TEMPLATE_VERSION = "v1";
+const TEMPLATE_BASE = path.join(os.tmpdir(), `cl-e2e-template-${TEMPLATE_VERSION}`);
+
+function buildProjectTemplate(repo: string, remote: string): void {
+  const tickets = path.join(TEMPLATE_BASE, "tickets");
+  fs.mkdirSync(repo, { recursive: true });
+  execSync("git init -b main", { cwd: repo });
+  execSync("git config user.email test@test.com", { cwd: repo });
+  execSync("git config user.name Test", { cwd: repo });
+  execSync("git commit --allow-empty -m init", { cwd: repo });
+  execSync(`git init --bare -b tickets "${remote}"`, { cwd: os.tmpdir() });
+  execSync(`git remote add origin "${remote}"`, { cwd: repo });
+  execSync("git push -u origin main", { cwd: repo });
+  execSync(`git worktree add --orphan -b tickets "${tickets}"`, { cwd: repo });
+  execSync("git commit --allow-empty -m init", { cwd: tickets });
+  execSync("git push -u origin tickets", { cwd: tickets });
+}
 
 async function getProjectTemplate(): Promise<ProjectTemplate> {
   const marker = path.join(TEMPLATE_BASE, "ready");
   const repo = path.join(TEMPLATE_BASE, "repo");
   const remote = path.join(TEMPLATE_BASE, "remote.git");
-  const tickets = path.join(TEMPLATE_BASE, "tickets");
-  if (fs.existsSync(marker)) return { repo, remote, tickets };
-  try {
-    fs.mkdirSync(TEMPLATE_BASE, { recursive: false });
-  } catch {
-    const deadline = Date.now() + 30000;
-    while (!fs.existsSync(marker)) {
+  const deadline = Date.now() + 60000;
+  while (!fs.existsSync(marker) || !fs.existsSync(repo)) {
+    try {
+      fs.mkdirSync(TEMPLATE_BASE, { recursive: false });
+    } catch {
+      // Another worker is building the template; wait for its ready marker.
+      // If the builder died mid-build (no marker within the deadline) the
+      // half-built base is orphaned: take it over instead of waiting forever.
       if (Date.now() > deadline) {
-        throw new Error("timed out waiting for the e2e project template");
+        fs.rmSync(TEMPLATE_BASE, { recursive: true, force: true });
+        continue;
       }
       await new Promise((r) => setTimeout(r, 100));
+      continue;
     }
-    return { repo, remote, tickets };
+    try {
+      buildProjectTemplate(repo, remote);
+      fs.writeFileSync(marker, "ready");
+    } catch (err) {
+      fs.rmSync(TEMPLATE_BASE, { recursive: true, force: true });
+      throw err;
+    }
+    return { repo, remote };
   }
-  try {
-    fs.mkdirSync(repo, { recursive: true });
-    execSync("git init -b main", { cwd: repo });
-    execSync("git config user.email test@test.com", { cwd: repo });
-    execSync("git config user.name Test", { cwd: repo });
-    execSync("git commit --allow-empty -m init", { cwd: repo });
-    execSync(`git init --bare -b tickets "${remote}"`, { cwd: os.tmpdir() });
-    execSync(`git remote add origin "${remote}"`, { cwd: repo });
-    execSync("git push -u origin main", { cwd: repo });
-    execSync(`git worktree add --orphan -b tickets "${tickets}"`, { cwd: repo });
-    execSync("git commit --allow-empty -m init", { cwd: tickets });
-    execSync("git push -u origin tickets", { cwd: tickets });
-    execSync(`git --git-dir="${remote}" symbolic-ref HEAD refs/heads/tickets`);
-    fs.writeFileSync(marker, "ready");
-    return { repo, remote, tickets };
-  } catch (err) {
-    fs.rmSync(TEMPLATE_BASE, { recursive: true, force: true });
-    throw err;
-  }
+  return { repo, remote };
 }
 
 export async function createProject(
@@ -251,6 +260,12 @@ export async function createProject(
   opts: CreateProjectOptions,
 ): Promise<CreatedProject> {
   const branch = opts.branch ?? "tickets";
+  if (!opts.seedRemoteBaseline && branch !== "tickets") {
+    throw new Error(
+      `The project template only supports branch "tickets"; `
+      + `pass seedRemoteBaseline: true to create a project on branch "${branch}".`,
+    );
+  }
   seedAppConfigFiles(server.dataDir, opts.withBoards, opts.appLauncherConfig);
 
   const projectPath = makeRepoDir(opts.projectSlug, server.reposParentDir);
@@ -264,26 +279,17 @@ export async function createProject(
   } else {
     const template = await getProjectTemplate();
     fs.cpSync(template.repo, projectPath, { recursive: true });
+    // The template's worktree registration points at the template dir; a copy
+    // must never carry it. Fixtures that need a tickets worktree re-register
+    // one with `git worktree add` below, and projects without one leave the
+    // app free to create its own.
+    fs.rmSync(path.join(projectPath, ".git", "worktrees"), { recursive: true, force: true });
     if (opts.withRemote) {
       remoteUrl = projectPath + "-remote.git";
       fs.cpSync(template.remote, remoteUrl, { recursive: true });
-    }
-    if (opts.withRemote) {
       execSync(`git remote set-url origin "${remoteUrl}"`, { cwd: projectPath });
     } else {
       execSync("git remote remove origin", { cwd: projectPath });
-    }
-    const needsTicketsWorktree = !!opts.withRemote
-      || (opts.withTickets && opts.withTickets.length > 0)
-      || !!opts.withTicketOrder;
-    if (!needsTicketsWorktree) {
-      // The template's tickets worktree registration points at the template
-      // dir; without a fixture-created worktree the app must be free to create
-      // its own, so drop the stale registration from the copy.
-      fs.rmSync(
-        path.join(projectPath, ".git", "worktrees", "tickets"),
-        { recursive: true, force: true },
-      );
     }
   }
 
@@ -326,17 +332,17 @@ export async function createProject(
 
   async function ensureTicketsWorktree(): Promise<void> {
     if (fs.existsSync(path.join(ticketsPath, ".git"))) return;
+    fs.mkdirSync(path.dirname(ticketsPath), { recursive: true });
     if (opts.seedRemoteBaseline) {
-      fs.mkdirSync(path.dirname(ticketsPath), { recursive: true });
       execSync(
         `git worktree add --orphan -b "${branch}" "${ticketsPath}"`,
         { cwd: projectPath },
       );
       execSync("git commit --allow-empty -m init", { cwd: ticketsPath });
     } else {
-      const template = await getProjectTemplate();
-      fs.cpSync(template.tickets, ticketsPath, { recursive: true });
-      execSync(`git worktree repair "${ticketsPath}"`, { cwd: projectPath });
+      // The copied repo already has the local tickets branch (with upstream
+      // tracking) from the template, so one add spawn re-registers it.
+      execSync(`git worktree add "${ticketsPath}" "${branch}"`, { cwd: projectPath });
     }
   }
 
