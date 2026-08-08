@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   openProject, dragElement, sortableItem,
-  setupE2E,
+  setupE2E, THREE_COLUMN_BOARD,
 } from "./fixtures.js";
 import { aheadCount, porcelainStatus } from "./git-fixtures.js";
 import { testId, waitVisible, waitGone } from "./locators.js";
@@ -31,9 +31,7 @@ describe("Sync button drag (e2e, real server)", () => {
       slugBase: "sb-pending-dragback",
       withRemote: true,
       seedRemoteBaseline: true,
-      withBoards: [{ id: "standard", name: "Standard", columns: [
-        { name: "todo" }, { name: "in-progress" }, { name: "done" },
-      ]}],
+      withBoards: THREE_COLUMN_BOARD,
       withTickets: [
         { number: "B-1", title: "Boomerang", status: "todo", folderName: "b-1-boomerang" },
       ],

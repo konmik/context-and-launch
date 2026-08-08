@@ -10,13 +10,13 @@ export const WAIT_TIMEOUT_MS = 15_000;
 /** Extra attributes narrowing a test id, e.g. `{ "data-column-name": "todo" }`. */
 export type TestIdAttributes = Record<string, string>;
 
-export function testIdSelector(id: string, attrs: TestIdAttributes = {}): string {
+function testIdSelector(id: string, attrs: TestIdAttributes = {}): string {
   const extra = Object.entries(attrs).map(([name, value]) => `[${name}="${value}"]`).join("");
   return `[data-testid="${id}"]${extra}`;
 }
 
 /** Anything a test id can be looked up under: the page, or an enclosing element. */
-export type LocatorRoot = Pick<Page, "locator">;
+type LocatorRoot = Pick<Page, "locator">;
 
 export function testId(root: LocatorRoot, id: string, attrs: TestIdAttributes = {}): Locator {
   return root.locator(testIdSelector(id, attrs));
@@ -29,7 +29,7 @@ export function testId(root: LocatorRoot, id: string, attrs: TestIdAttributes = 
  * make a shared testid such as a board column header unusable as a wait target.
  */
 async function waitForState(
-  page: Page, id: string, attrs: TestIdAttributes, state: "visible" | "attached" | "detached" | "hidden",
+  page: Page, id: string, attrs: TestIdAttributes, state: "visible" | "detached" | "hidden",
 ): Promise<Locator> {
   const locator = testId(page, id, attrs);
   await locator.first().waitFor({ state, timeout: WAIT_TIMEOUT_MS });
@@ -40,12 +40,6 @@ export function waitVisible(
   page: Page, id: string, attrs: TestIdAttributes = {},
 ): Promise<Locator> {
   return waitForState(page, id, attrs, "visible");
-}
-
-export function waitAttached(
-  page: Page, id: string, attrs: TestIdAttributes = {},
-): Promise<Locator> {
-  return waitForState(page, id, attrs, "attached");
 }
 
 export async function waitGone(

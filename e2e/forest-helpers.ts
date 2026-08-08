@@ -13,7 +13,7 @@ import {
 } from "./fixtures.js";
 import { countOf, testId, waitGone, waitVisible } from "./locators.js";
 
-export const forestBoards = [
+const forestBoards = [
   { id: "default", name: "Default", columns: [{ name: "todo" }, { name: "done" }] },
 ];
 

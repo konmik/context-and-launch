@@ -70,26 +70,14 @@ export function porcelainStatus(cwd: string): string {
   return git("status --porcelain", cwd);
 }
 
-export function upstreamBranch(cwd: string): string {
-  return git("rev-parse --abbrev-ref --symbolic-full-name @{u}", cwd);
-}
-
-export function diffAgainstUpstream(cwd: string): string {
-  return git("diff @{u}", cwd);
-}
-
 function requireRemote(project: TicketsWorktree): string {
   if (!project.remoteUrl) throw new Error("this fixture Project has no remote");
   return project.remoteUrl;
 }
 
-/** Every commit subject reachable in the Project's remote. */
-export function remoteSubjects(project: TicketsWorktree): string {
-  return git("log --all --format=%s", requireRemote(project));
-}
-
-export function remoteBranchLog(project: TicketsWorktree, branch = TICKETS_BRANCH): string {
-  return git(`log --oneline ${branch}`, requireRemote(project));
+/** Runs git log inside the Project's remote, e.g. remoteLog(p, "--all --format=%s"). */
+export function remoteLog(project: TicketsWorktree, args: string): string {
+  return git(`log ${args}`, requireRemote(project));
 }
 
 export interface MutateRemoteOptions {

@@ -1,13 +1,12 @@
-import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, inject } from "vitest";
 import { chromium, type Browser, type Locator, type Page } from "playwright";
 import { pickPort } from "./test-port.js";
-import { startRealServer, stopRealServer, type RealServer } from "./real-server.js";
+import { startRealServer, stopRealServer } from "./real-server.js";
 import type { ProjectTemplate } from "./project-template.js";
-import { TICKETS_BRANCH, initGitRepo } from "./git-fixtures.js";
+import { TICKETS_BRANCH, commitAll, git, initGitRepo } from "./git-fixtures.js";
 import { testId, waitVisible, waitVisibleAny, WAIT_TIMEOUT_MS } from "./locators.js";
 
 /**
@@ -33,9 +32,7 @@ export interface ProjectDirs {
 }
 
 export interface TestServer extends ProjectDirs {
-  server: RealServer;
   baseUrl: string;
-  port: number;
   stop: () => Promise<void>;
 }
 
@@ -75,12 +72,9 @@ export async function createServer(opts: CreateServerOptions = {}): Promise<Test
     ...(opts.env ?? {}),
   };
   const server = await startRealServer(startPort, dataDir, safeEnv);
-  const resolvedPort = Number(new URL(server.baseUrl).port);
   return {
-    server,
     baseUrl: server.baseUrl,
     dataDir,
-    port: resolvedPort,
     reposParentDir,
     stop: async () => {
       await stopRealServer(server);
@@ -92,16 +86,6 @@ export async function createServer(opts: CreateServerOptions = {}): Promise<Test
       }
     },
   };
-}
-
-export interface TestBrowser {
-  browser: Browser;
-  stop: () => Promise<void>;
-}
-
-export async function launchBrowser(): Promise<TestBrowser> {
-  const browser = await chromium.launch({ headless: true });
-  return { browser, stop: async () => { await browser.close(); } };
 }
 
 export interface SeedTicket {
@@ -127,6 +111,13 @@ export interface SeedBoard {
   name: string;
   columns: SeedColumn[];
 }
+
+/** The board a test wants when it needs somewhere to drag a ticket to. */
+export const THREE_COLUMN_BOARD: SeedBoard[] = [
+  { id: "standard", name: "Standard", columns: [
+    { name: "todo" }, { name: "in-progress" }, { name: "done" },
+  ] },
+];
 
 export interface SeedAppLauncherConfig {
   templates?: { name: string; text: string; order?: number }[];
@@ -212,11 +203,9 @@ function remoteDirFor(repoPath: string): string {
 
 function setupBareRemote(repoPath: string, branch: string, pushMain = true): string {
   const remoteDir = remoteDirFor(repoPath);
-  execSync(`git init --bare -b ${branch} "${remoteDir}"`, { cwd: os.tmpdir() });
-  execSync(`git remote add origin "${remoteDir}"`, { cwd: repoPath });
-  if (pushMain) {
-    execSync("git push -u origin main", { cwd: repoPath });
-  }
+  git(`init --bare -b ${branch} "${remoteDir}"`, os.tmpdir());
+  git(`remote add origin "${remoteDir}"`, repoPath);
+  if (pushMain) git("push -u origin main", repoPath);
   return remoteDir;
 }
 
@@ -247,9 +236,9 @@ export async function createProject(
     if (opts.withRemote) {
       remoteUrl = remoteDirFor(projectPath);
       fs.cpSync(template.remote, remoteUrl, { recursive: true });
-      execSync(`git remote set-url origin "${remoteUrl}"`, { cwd: projectPath });
+      git(`remote set-url origin "${remoteUrl}"`, projectPath);
     } else {
-      execSync("git remote remove origin", { cwd: projectPath });
+      git("remote remove origin", projectPath);
     }
   }
 
@@ -296,14 +285,11 @@ export async function createProject(
     if (fromTemplate) {
       // The copy already carries the Orphan Branch and its upstream tracking,
       // so registering a worktree for it takes one command.
-      execSync(`git worktree add "${ticketsPath}" "${TICKETS_BRANCH}"`, { cwd: projectPath });
+      git(`worktree add "${ticketsPath}" "${TICKETS_BRANCH}"`, projectPath);
       return;
     }
-    execSync(
-      `git worktree add --orphan -b "${TICKETS_BRANCH}" "${ticketsPath}"`,
-      { cwd: projectPath },
-    );
-    execSync("git commit --allow-empty -m init", { cwd: ticketsPath });
+    git(`worktree add --orphan -b "${TICKETS_BRANCH}" "${ticketsPath}"`, projectPath);
+    git("commit --allow-empty -m init", ticketsPath);
   }
 
   if (seedsTickets) {
@@ -339,12 +325,11 @@ export async function createProject(
         JSON.stringify(opts.withTicketOrder, null, 2),
       );
     }
-    execSync("git add -A", { cwd: ticketsPath });
-    execSync("git commit -m seed", { cwd: ticketsPath });
+    commitAll(ticketsPath, "seed");
   }
 
   if (opts.withRemote && !fromTemplate) {
-    execSync(`git push -u origin "${TICKETS_BRANCH}"`, { cwd: ticketsPath });
+    git(`push -u origin "${TICKETS_BRANCH}"`, ticketsPath);
   }
 
   if (opts.withWorktrees && opts.withWorktrees.length > 0 && worktreeRootPath) {
@@ -352,7 +337,7 @@ export async function createProject(
       const wtPath = path.join(worktreeRootPath, w.folderName);
       const wtBranch = w.folderName;
       fs.mkdirSync(path.dirname(wtPath), { recursive: true });
-      execSync(`git worktree add "${wtPath}" -b "${wtBranch}"`, { cwd: projectPath });
+      git(`worktree add "${wtPath}" -b "${wtBranch}"`, projectPath);
     }
   }
 
@@ -362,7 +347,7 @@ export async function createProject(
         const wtPath = path.join(worktreeRootPath, w.folderName);
         if (!fs.existsSync(wtPath)) continue;
         try {
-          execSync(`git worktree remove --force "${wtPath}"`, { cwd: projectPath });
+          git(`worktree remove --force "${wtPath}"`, projectPath);
         } catch (err) {
           console.warn("worktree remove failed:", err);
         }
@@ -452,12 +437,8 @@ export async function openConflictDialog(page: Page): Promise<void> {
   await waitVisible(page, "conflict-dialog-profile-select");
 }
 
-export function ticketCard(page: Page, folderName: string): Locator {
-  return testId(page, "kanban-board-ticket-card", { "data-folder-name": folderName });
-}
-
 export async function openTicketDetail(page: Page, folderName: string): Promise<void> {
-  const card = ticketCard(page, folderName);
+  const card = testId(page, "kanban-board-ticket-card", { "data-folder-name": folderName });
   await card.waitFor({ state: "visible", timeout: WAIT_TIMEOUT_MS });
   await card.click();
   await waitVisibleAny(page, ["ticket-detail-loading", "ticket-detail-tab-editor"]);
@@ -510,7 +491,7 @@ export async function boxOf(locator: Locator): Promise<ScreenBox> {
   return box;
 }
 
-export function boxCenter(box: ScreenBox): ScreenPoint {
+function boxCenter(box: ScreenBox): ScreenPoint {
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
@@ -582,17 +563,6 @@ export async function dragElement(
     ? { x: targetBox.x + targetBox.width / 2, y: targetBox.y + 5 }
     : boxCenter(targetBox);
   await dragPointer(page, boxCenter(sourceBox), to, options);
-}
-
-export async function selectMenuItem(
-  page: Page,
-  triggerTestId: string,
-  itemText: string,
-): Promise<void> {
-  await testId(page, triggerTestId).click();
-  await page.waitForTimeout(200);
-  await page.locator('[role="menuitem"]', { hasText: itemText }).first().click();
-  await page.waitForTimeout(100);
 }
 
 export async function clickTicketMenuItem(
@@ -787,8 +757,6 @@ export async function poll<T>(
 
 export interface E2EContext {
   testServer: TestServer;
-  testBrowser: TestBrowser;
-  browser: Browser;
   page: Page;
   newPage: () => Promise<Page>;
   projects: CreatedProject[];
@@ -801,10 +769,10 @@ export function setupE2E(opts: {
   const viewport = opts.viewport ?? { width: 1200, height: 800 };
   const ctx = { projects: [] as CreatedProject[] } as E2EContext;
   const extraPages: Page[] = [];
+  let browser: Browser;
   beforeAll(async () => {
     ctx.testServer = await createServer(opts.serverOpts);
-    ctx.testBrowser = await launchBrowser();
-    ctx.browser = ctx.testBrowser.browser;
+    browser = await chromium.launch({ headless: true });
   }, 60000);
   beforeEach(async () => {
     if (ctx.page && !ctx.page.isClosed()) {
@@ -813,10 +781,10 @@ export function setupE2E(opts: {
         + " Drop .concurrent from this test, or open a second page with ctx.newPage().",
       );
     }
-    ctx.page = await ctx.browser.newPage({ viewport });
+    ctx.page = await browser.newPage({ viewport });
   });
   ctx.newPage = async () => {
-    const p = await ctx.browser.newPage({ viewport });
+    const p = await browser.newPage({ viewport });
     extraPages.push(p);
     return p;
   };
@@ -828,7 +796,7 @@ export function setupE2E(opts: {
     await ctx.page?.close();
   });
   afterAll(async () => {
-    await ctx.testBrowser?.stop();
+    await browser?.close();
     await ctx.testServer?.stop();
     for (const p of ctx.projects) p.cleanup();
   }, 20000);
@@ -843,30 +811,10 @@ export interface OpenProjectOptions extends Omit<CreateProjectOptions, "projectS
 }
 
 /**
- * Seeds a Project, registers it for cleanup and opens it. Every e2e test starts
- * here, so the ownership of the created Project stays with the fixture instead
- * of being re-established by each file.
+ * Seeds a Project and registers it for cleanup, without opening a page on it.
+ * Ownership of the created Project stays with the fixture instead of being
+ * re-established by each file.
  */
-export async function openProject(
-  ctx: E2EContext,
-  options: OpenProjectOptions,
-): Promise<CreatedProject> {
-  const { slugBase, fakeClock, ...createOptions } = options;
-  const project = await createProject(ctx.testServer, {
-    ...createOptions,
-    projectSlug: uniqueSlug(slugBase),
-  });
-  ctx.projects.push(project);
-  if (fakeClock) {
-    await ctx.page.clock.install();
-    await gotoProjectOnFakeClock(ctx.page, ctx.testServer, project.projectSlug);
-  } else {
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-  }
-  return project;
-}
-
-/** Seeds a Project and registers it for cleanup without opening a page on it. */
 export async function seedProject(
   ctx: E2EContext,
   options: Omit<OpenProjectOptions, "fakeClock">,
@@ -877,6 +825,22 @@ export async function seedProject(
     projectSlug: uniqueSlug(slugBase),
   });
   ctx.projects.push(project);
+  return project;
+}
+
+/** Seeds a Project and opens it. Where a test needs no setup between the two. */
+export async function openProject(
+  ctx: E2EContext,
+  options: OpenProjectOptions,
+): Promise<CreatedProject> {
+  const { fakeClock, ...seedOptions } = options;
+  const project = await seedProject(ctx, seedOptions);
+  if (fakeClock) {
+    await ctx.page.clock.install();
+    await gotoProjectOnFakeClock(ctx.page, ctx.testServer, project.projectSlug);
+  } else {
+    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+  }
   return project;
 }
 

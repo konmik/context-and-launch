@@ -5,7 +5,7 @@ import { type Page } from "playwright";
 import {
   dragElement, openProject, sortableItem,
   type CreatedProject,
-  readTicketStatus, poll, setupE2E,
+  readTicketStatus, poll, setupE2E, THREE_COLUMN_BOARD,
 } from "./fixtures.js";
 
 async function getSortablesByColumn(p: Page) {
@@ -43,19 +43,13 @@ const TICKETS = [
   { number: "T-4", title: "Delta", status: "in-progress", folderName: "t-4-delta" },
 ];
 
-const APP_BOARDS = [
-  { id: "standard", name: "Standard", columns: [
-    { name: "todo" }, { name: "in-progress" }, { name: "done" },
-  ]},
-];
-
 describe("KanbanBoard drag-and-drop (e2e, real server)", () => {
   const ctx = setupE2E();
 
   async function setup(suffix: string): Promise<CreatedProject> {
     const project = await openProject(ctx, {
       slugBase: `dnd-${suffix}`,
-      withBoards: APP_BOARDS,
+      withBoards: THREE_COLUMN_BOARD,
       withTickets: TICKETS,
     });
     await ctx.page.locator("[data-sortable-id]").first()

@@ -7,7 +7,7 @@ import {
 } from "./fixtures.js";
 import {
   aheadCount, commitAll, fetchTickets, git, mutateRemote, porcelainStatus,
-  pushTickets, remoteBranchLog, remoteSubjects, upstreamBranch,
+  pushTickets, remoteLog,
 } from "./git-fixtures.js";
 import { testId, waitVisible } from "./locators.js";
 
@@ -45,7 +45,7 @@ describe("Sync button push behavior (e2e, real server)", () => {
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await syncAndWaitForSuccess();
 
-    expect(remoteSubjects(project)).toContain("sync: local changes");
+    expect(remoteLog(project, "--all --format=%s")).toContain("sync: local changes");
   });
 
   it("multiple commits squashed into one before push", async () => {
@@ -67,7 +67,7 @@ describe("Sync button push behavior (e2e, real server)", () => {
 
     expect(aheadCount(project.ticketsPath)).toBe(0);
 
-    const syncLines = remoteBranchLog(project).split("\n")
+    const syncLines = remoteLog(project, "--oneline tickets").split("\n")
       .filter((line) => line.includes("sync: local changes"));
     expect(syncLines.length).toBe(1);
   });
@@ -83,7 +83,8 @@ describe("Sync button push behavior (e2e, real server)", () => {
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await syncAndWaitForSuccess();
 
-    expect(upstreamBranch(project.ticketsPath)).toContain("origin/");
+    expect(git("rev-parse --abbrev-ref --symbolic-full-name @{u}", project.ticketsPath))
+      .toContain("origin/");
   });
 
   it("net-zero unpushed commits: sync succeeds and flip.txt does not exist", async () => {

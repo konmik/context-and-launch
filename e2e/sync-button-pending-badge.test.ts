@@ -3,10 +3,10 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   gotoProjectOnFakeClock, fastForwardPastSyncPoll, dragElement, sortableItem,
-  openProject, seedProject, setupE2E, poll,
+  openProject, seedProject, setupE2E, poll, THREE_COLUMN_BOARD,
 } from "./fixtures.js";
 import {
-  aheadCount, diffAgainstUpstream, fetchTickets, mutateRemote, pushTickets,
+  aheadCount, fetchTickets, git, mutateRemote, pushTickets,
 } from "./git-fixtures.js";
 import { countOf, testId, waitVisible, waitGone } from "./locators.js";
 
@@ -20,9 +20,7 @@ describe("Sync button pending badge (e2e, real server)", () => {
     const project = await openProject(ctx, {
       slugBase: "sb-pending-dragback-committed",
       withRemote: true,
-      withBoards: [{ id: "standard", name: "Standard", columns: [
-        { name: "todo" }, { name: "in-progress" }, { name: "done" },
-      ]}],
+      withBoards: THREE_COLUMN_BOARD,
       withTickets: [
         { number: "C-1", title: "Boomerang", status: "todo", folderName: "c-1-boomerang" },
         { number: "C-2", title: "Stay todo", status: "todo", folderName: "c-2-stay-todo" },
@@ -60,7 +58,7 @@ describe("Sync button pending badge (e2e, real server)", () => {
     await waitGone(ctx.page, "sync-button-pending-badge");
 
     expect(ahead()).toBeGreaterThan(0);
-    expect(diffAgainstUpstream(project.ticketsPath)).toBe("");
+    expect(git("diff @{u}", project.ticketsPath)).toBe("");
   });
 
   it("unknown project: not-found page shows no pending badge", async () => {

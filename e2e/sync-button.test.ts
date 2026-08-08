@@ -1,16 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
   openProject, dragElement, sortableItem,
-  setupE2E,
+  setupE2E, THREE_COLUMN_BOARD,
 } from "./fixtures.js";
-import { remoteSubjects } from "./git-fixtures.js";
+import { remoteLog } from "./git-fixtures.js";
 import { countOf, testId, waitVisible, waitGone } from "./locators.js";
-
-const THREE_COLUMN_BOARD = [
-  { id: "standard", name: "Standard", columns: [
-    { name: "todo" }, { name: "in-progress" }, { name: "done" },
-  ] },
-];
 
 describe("Sync button (e2e, real server)", () => {
   const ctx = setupE2E();
@@ -28,7 +22,7 @@ describe("Sync button (e2e, real server)", () => {
     });
     await testId(ctx.page, "sync-button-trigger").click();
     await waitVisible(ctx.page, "sync-button-check-icon");
-    expect(remoteSubjects(project).length).toBeGreaterThan(0);
+    expect(remoteLog(project, "--all --format=%s").length).toBeGreaterThan(0);
   });
 
   it("sync-button-check-icon and sync-button-conflict-badge are absent on a fresh project", async () => {
