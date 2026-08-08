@@ -21,7 +21,6 @@ describe("Error dialog (e2e, real server)", () => {
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     const syncButton = ctx.page.locator('[data-testid="sync-button-trigger"]');
     await syncButton.waitFor({ state: "visible", timeout: 10000 });
-    await ctx.page.waitForTimeout(500);
     await syncButton.click();
     await ctx.page.waitForSelector('[data-testid="error-dialog-ok"]', { state: "visible", timeout: 20000 });
     await ctx.page.click('[data-testid="error-dialog-ok"]');

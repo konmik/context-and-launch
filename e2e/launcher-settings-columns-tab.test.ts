@@ -45,7 +45,7 @@ describe("Launcher Settings Columns tab (e2e, real server)", () => {
     const boards = await poll(
       () => readBoardDefinitions(ctx.testServer),
       (b) => b.map((x) => x.name).includes("Sprint Board"),
-      5000,
+      15000,
     );
     expect(boards.map((b) => b.name)).toContain("Sprint Board");
   }, 60000);

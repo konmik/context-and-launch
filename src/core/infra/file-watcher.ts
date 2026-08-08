@@ -26,6 +26,10 @@ const DEFAULT_ADAPTERS: FileWatcherAdapters = {
 	clearTimer: (timer) => clearTimeout(timer),
 };
 
+// Test seam: e2e runs shorten the auto-commit debounce; the timing itself is
+// covered by unit tests with fake timers. Production default stays 2000ms.
+const WATCH_DEBOUNCE_MS = Number(process.env.CONTEXT_LAUNCH_WATCH_DEBOUNCE_MS ?? 2000);
+
 function hasDotSegment(relativePath: string): boolean {
 	return relativePath.split(/[/\\]/).some((segment) => segment.startsWith('.'));
 }
@@ -55,7 +59,7 @@ export class FileWatcher {
 		private readonly adapters: FileWatcherAdapters = DEFAULT_ADAPTERS,
 	) {}
 
-	watch(worktreeDir: string, debounceMs = 2000): void {
+	watch(worktreeDir: string, debounceMs = WATCH_DEBOUNCE_MS): void {
 		if (this.watchers.has(worktreeDir)) return;
 
 		let watcher: FileWatcherHandle;

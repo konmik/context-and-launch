@@ -7,7 +7,10 @@ import {
 } from "./fixtures.js";
 
 describe("Project window (e2e, real server)", () => {
-  const ctx = setupE2E();
+  const ctx = setupE2E({
+    // The watcher-liveness test waits on the server's auto-commit; shorten its debounce.
+    serverOpts: { env: { CONTEXT_LAUNCH_WATCH_DEBOUNCE_MS: "200" } },
+  });
 
   it("watchers stay live across windows: an external change to a backgrounded project still commits", async () => {
     const a = await createProject(ctx.testServer, {
@@ -16,7 +19,9 @@ describe("Project window (e2e, real server)", () => {
     const b = await createProject(ctx.testServer, { projectSlug: uniqueSlug("pw-live-b") });
     ctx.projects.push(a, b);
 
+    await ctx.page.clock.install();
     await gotoProject(ctx.page, ctx.testServer, a.projectSlug);
+    await ctx.page.clock.fastForward(100);
     await ctx.page.click('[data-testid="sync-button-trigger"]');
     await ctx.page.waitForSelector('[data-testid="sync-button-check-icon"]', {
       state: "visible", timeout: 20000,
@@ -32,17 +37,23 @@ describe("Project window (e2e, real server)", () => {
     // badge on its next poll.
     fs.writeFileSync(path.join(a.ticketsPath, "external-note.md"), "external change");
 
-    await ctx.page.waitForSelector('[data-testid="sync-button-pending-badge"]', {
-      state: "visible",
-      timeout: 20000,
-    });
-
     const lastSubject = await poll(
       () => execSync("git log -1 --format=%s", { cwd: a.ticketsPath, encoding: "utf-8" }).trim(),
       (s) => s === "auto: external changes",
       20000,
     );
     expect(lastSubject).toBe("auto: external changes");
+
+    // The badge refresh on A's page is gated on the 10s sync-pending poll.
+    // Re-fire it until the badge appears so the fetch always lands after the
+    // server-side watcher has bumped the revision.
+    await expect.poll(
+      async () => {
+        await ctx.page.clock.fastForward(11_000);
+        return ctx.page.locator('[data-testid="sync-button-pending-badge"]').isVisible();
+      },
+      { timeout: 5000 },
+    ).toBe(true);
   }, 90000);
 
   it("focusing a window makes its project the last-used", async () => {

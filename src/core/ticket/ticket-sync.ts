@@ -123,10 +123,12 @@ export class TicketSyncManager {
 
 			await this.gitRepo.assertSupportsMergeTree(worktreeDir);
 
-			const baseUpstream = (await this.resolveRef(worktreeDir, upstream)).trim();
-			const squashBase = (await this.commands.execute('ticket-sync.merge-base', worktreeDir,
-				{ left: 'HEAD', right: baseUpstream },
-			)).trim();
+			const [baseUpstream, squashBase] = await Promise.all([
+				this.resolveRef(worktreeDir, upstream).then((r) => r.trim()),
+				this.commands.execute('ticket-sync.merge-base', worktreeDir,
+					{ left: 'HEAD', right: upstream },
+				).then((r) => r.trim()),
+			]);
 			if (await this.countAheadOf(worktreeDir, squashBase) > 1) {
 				await this.commands.execute('ticket-sync.reset-soft', worktreeDir, { ref: squashBase });
 				await this.commitAll(worktreeDir);
@@ -134,9 +136,11 @@ export class TicketSyncManager {
 
 			await this.commands.execute('ticket-sync.fetch', worktreeDir);
 			await this.commitAll(worktreeDir);
-			const headLocal = (await this.commands.execute('ticket-sync.head.resolve', worktreeDir)).trim();
-			const newUpstream = (await this.resolveRef(worktreeDir, upstream)).trim();
-			const aheadCount = await this.countAheadOf(worktreeDir, baseUpstream);
+			const [headLocal, newUpstream, aheadCount] = await Promise.all([
+				this.commands.execute('ticket-sync.head.resolve', worktreeDir).then((r) => r.trim()),
+				this.resolveRef(worktreeDir, upstream).then((r) => r.trim()),
+				this.countAheadOf(worktreeDir, baseUpstream),
+			]);
 
 			if (aheadCount === 0) {
 				if (headLocal !== newUpstream) {

@@ -23,16 +23,14 @@ describe("Conflict dialog controls (e2e, real server)", () => {
     );
     createActiveRebaseConflict(ticketsPath, project.remoteUrl);
 
-    let serverCalled = false;
-    ctx.page.on("request", (r) => {
-      if (r.url().includes("/_server")) serverCalled = true;
-    });
-
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await openConflictDialog(ctx.page);
+    const launchRequest = ctx.page.waitForRequest(
+      (r) => r.url().includes("/_server"),
+      { timeout: 5000 },
+    );
     await ctx.page.click('[data-testid="conflict-dialog-launch"]');
-    await ctx.page.waitForTimeout(1500);
-    expect(serverCalled).toBe(true);
+    await launchRequest;
   }, 60000);
 
   it("selecting a profile persists the global pref and pre-selects it on reopen", async () => {

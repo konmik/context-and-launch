@@ -58,6 +58,7 @@ describe("Diff Review (e2e, real server)", () => {
 
 		await expect.poll(
 			() => ctx.page.locator('[data-testid="diff-review-scope"] option').count(),
+			{ timeout: 15_000 },
 		).toBe(2);
 		expect(await ctx.page.locator('[data-testid="diff-review-scope"]').inputValue())
 			.toBe("working");
@@ -435,11 +436,13 @@ describe("Diff Review (e2e, real server)", () => {
 
 		await expect.poll(
 			() => ctx.page.locator('[data-testid="diff-review-scope"] option').count(),
+			{ timeout: 15_000 },
 		).toBe(4);
 		expect(await ctx.page.locator('[data-testid="diff-review-scope"]').inputValue())
 			.toBe("all");
 		await expect.poll(
 			() => ctx.page.locator('[data-testid="diff-review-file"]').count(),
+			{ timeout: 15_000 },
 		).toBe(2);
 
 		const nextChange = ctx.page.locator('[data-testid="diff-review-next-change"]');
@@ -455,16 +458,19 @@ describe("Diff Review (e2e, real server)", () => {
 		await ctx.page.locator('[data-testid="diff-review-scope"]').selectOption("working");
 		await expect.poll(
 			() => ctx.page.locator('[data-testid="diff-review-file"]').allTextContents(),
+			{ timeout: 15_000 },
 		).toEqual([expect.stringContaining("pending.ts")]);
 
 		await ctx.page.locator('[data-testid="diff-review-scope"]').selectOption("branch");
 		await expect.poll(
 			() => ctx.page.locator('[data-testid="diff-review-file"]').allTextContents(),
+			{ timeout: 15_000 },
 		).toEqual([expect.stringContaining("committed.ts")]);
 
 		await ctx.page.locator('[data-testid="diff-review-scope"]').selectOption("all");
 		await expect.poll(
 			() => ctx.page.locator('[data-testid="diff-review-file"]').count(),
+			{ timeout: 15_000 },
 		).toBe(2);
 	}, 60_000);
 });

@@ -46,13 +46,15 @@
 
 - Run dev server: `npm run dev`.
 - Run all tests: `npm run test:all` (tsc + unit + build + e2e). Never skip e2e.
+- Every test run writes per-test timings (setup, execution, cleanup) to `test-timing.log`. Find it in the run's temp folder: `T:\context-launch-tests\<project>\<branch>\temp\test-timing.log` under the official RAM-disk runner, or `%LOCALAPPDATA%\Temp\test-timing.log` for direct runs. Set the `TEST_TIMING_LOG` env var to store it somewhere else.
 - Do not run tests (unit, e2e, build, or screenshots) for pure design/styling changes (CSS, colors, class tweaks) unless the user explicitly asks. Just make the edit.
 - Never run shell tests unless the user explicitly asks you to run them.
+- Never run benchmarks (e2e/*.bench.ts) unless the user asks for them. Benchmarks open the real Electron app on screen. A plain `npx vitest run` includes benchmarks, so always scope runs explicitly: `npx vitest run --project unit-ts --project unit-tsx --project e2e` (or use `test:all:workspace`).
 - Any test that launches a terminal or console-host process (powershell, cmd, wt) is a shell test. Name it *.shell.test.ts so it runs only via `npm run test:shell`, never in test or test:all.
 - Write UI tests with playwright.
 - e2e tests run the real server against a sandboxed CONTEXT_LAUNCH_DATA_DIR temp dir and a scratch git repo, drive the UI with playwright, and assert on real side effects (config.json contents, git branches/worktrees). Use the e2e/real-server.ts harness. Never stub the app's own server functions; mock only true external boundaries.
 - e2e/mock-server.ts is a fixture for pure-UI rendering tests that need no real backend behavior.
-- A test must complete within 3 seconds when run in isolation without multithreading. Under the full parallel suite tests may run slower; timeout ceilings (suite testTimeout/hookTimeout, helper wait deadlines) are crash backstops for that contention, not targets. If a test takes longer than 3 seconds in isolation, fix the cause immediately. Never dismiss a timeout as an unrelated change you are not going to fix, and never fix a slow test by increasing a timeout.
+- A test must finish within 3 seconds when run alone without multithreading. Under the full parallel suite tests may run slower; the timeout limits (suite testTimeout/hookTimeout, helper wait deadlines) exist only to stop a broken test from hanging — they are not how long a test may take. If a test takes longer than 3 seconds when run alone, fix the cause immediately. Never dismiss a timeout as an unrelated change you are not going to fix, and never fix a slow test by raising its timeout.
 - A flaky test is a real failure. Never dismiss a failing test as flaky, and never re-run a test to get a green result. Fix the cause: a test that passes in isolation but fails under the full suite is a real ordering, resource, or concurrency bug in the test or the code.
 - Profile per-file test timings: `npx tsx scripts/test-timings.ts`. Runs the unit-ts and unit-tsx projects once in a single warm, single-threaded vitest process, reads per-file durations from the JSON reporter, and writes a sorted summary to `temp/timings.txt`.
 

@@ -109,8 +109,12 @@ describe("Forest group lifecycle", () => {
     await ctx.page.click('[data-testid="forest-group-menu-ungroup"]');
 
     await poll(
-      () => readTicketStatus(ctx.testServer, project.projectSlug, "u-1-mem-a")?.memberOf,
-      (m) => m === undefined,
+      () => {
+        const s1 = readTicketStatus(ctx.testServer, project.projectSlug, "u-1-mem-a")?.memberOf;
+        const s2 = readTicketStatus(ctx.testServer, project.projectSlug, "u-2-mem-b")?.memberOf;
+        return s1 === undefined && s2 === undefined;
+      },
+      (ok) => ok,
       5000,
     );
     const s1 = readTicketStatus(ctx.testServer, project.projectSlug, "u-1-mem-a");
@@ -187,9 +191,9 @@ describe("Forest group lifecycle", () => {
       state: "visible", timeout: 15000,
     });
     await ctx.page.click('[data-testid="ticket-cleanup-submit"]');
-    await ctx.page.waitForTimeout(3000);
-
-    expect(fs.existsSync(path.join(project.ticketsPath, "archive", "ar-2-archivable"))).toBe(true);
+    const archived = path.join(project.ticketsPath, "archive", "ar-2-archivable");
+    await poll(() => fs.existsSync(archived), (v) => v, 5000, 200);
+    expect(fs.existsSync(archived)).toBe(true);
 
     await toggleToForest(ctx.page);
     await ctx.page.waitForTimeout(500);

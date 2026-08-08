@@ -148,31 +148,34 @@ export class DiffReviewGitService {
 				"diff-review.last-commit.files",
 				target.worktreePath,
 			));
+		} else if (scope === "branch") {
+			baseRef = await this.resolveMergeBase(target, scope);
+			changed = parseNameStatus(await this.commands.execute(
+				"diff-review.branch.files",
+				target.worktreePath,
+				{ baseRef },
+			));
 		} else {
 			baseRef = scope === "working"
 				? "HEAD"
 				: await this.resolveMergeBase(target, scope);
-			if (scope === "branch") {
-				changed = parseNameStatus(await this.commands.execute(
-					"diff-review.branch.files",
-					target.worktreePath,
-					{ baseRef },
-				));
-			} else {
-				changed = parseNameStatus(await this.commands.execute(
+			const [trackedOut, untrackedOut] = await Promise.all([
+				this.commands.execute(
 					"diff-review.tracked.files",
 					target.worktreePath,
 					{ baseRef },
-				));
-				const trackedPaths = new Set(changed.map((file) => file.path));
-				const untracked = parseZeroSeparated(await this.commands.execute(
+				),
+				this.commands.execute(
 					"diff-review.untracked.files",
 					target.worktreePath,
-				));
-				for (const filePath of untracked) {
-					if (!trackedPaths.has(filePath)) {
-						changed.push({ status: "A", path: filePath, changeType: "added" });
-					}
+				),
+			]);
+			changed = parseNameStatus(trackedOut);
+			const trackedPaths = new Set(changed.map((file) => file.path));
+			const untracked = parseZeroSeparated(untrackedOut);
+			for (const filePath of untracked) {
+				if (!trackedPaths.has(filePath)) {
+					changed.push({ status: "A", path: filePath, changeType: "added" });
 				}
 			}
 		}

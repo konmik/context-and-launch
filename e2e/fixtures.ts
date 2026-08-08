@@ -199,6 +199,53 @@ function setupBareRemote(repoPath: string, branch: string, pushMain = true): str
   return remoteDir;
 }
 
+interface ProjectTemplate {
+  repo: string;
+  remote: string;
+  tickets: string;
+}
+
+const TEMPLATE_BASE = path.join(os.tmpdir(), "cl-e2e-template");
+
+async function getProjectTemplate(): Promise<ProjectTemplate> {
+  const marker = path.join(TEMPLATE_BASE, "ready");
+  const repo = path.join(TEMPLATE_BASE, "repo");
+  const remote = path.join(TEMPLATE_BASE, "remote.git");
+  const tickets = path.join(TEMPLATE_BASE, "tickets");
+  if (fs.existsSync(marker)) return { repo, remote, tickets };
+  try {
+    fs.mkdirSync(TEMPLATE_BASE, { recursive: false });
+  } catch {
+    const deadline = Date.now() + 30000;
+    while (!fs.existsSync(marker)) {
+      if (Date.now() > deadline) {
+        throw new Error("timed out waiting for the e2e project template");
+      }
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    return { repo, remote, tickets };
+  }
+  try {
+    fs.mkdirSync(repo, { recursive: true });
+    execSync("git init -b main", { cwd: repo });
+    execSync("git config user.email test@test.com", { cwd: repo });
+    execSync("git config user.name Test", { cwd: repo });
+    execSync("git commit --allow-empty -m init", { cwd: repo });
+    execSync(`git init --bare -b tickets "${remote}"`, { cwd: os.tmpdir() });
+    execSync(`git remote add origin "${remote}"`, { cwd: repo });
+    execSync("git push -u origin main", { cwd: repo });
+    execSync(`git worktree add --orphan -b tickets "${tickets}"`, { cwd: repo });
+    execSync("git commit --allow-empty -m init", { cwd: tickets });
+    execSync("git push -u origin tickets", { cwd: tickets });
+    execSync(`git --git-dir="${remote}" symbolic-ref HEAD refs/heads/tickets`);
+    fs.writeFileSync(marker, "ready");
+    return { repo, remote, tickets };
+  } catch (err) {
+    fs.rmSync(TEMPLATE_BASE, { recursive: true, force: true });
+    throw err;
+  }
+}
+
 export async function createProject(
   server: ProjectDirs,
   opts: CreateProjectOptions,
@@ -207,11 +254,37 @@ export async function createProject(
   seedAppConfigFiles(server.dataDir, opts.withBoards, opts.appLauncherConfig);
 
   const projectPath = makeRepoDir(opts.projectSlug, server.reposParentDir);
-  gitInitRepo(projectPath);
 
   let remoteUrl: string | null = null;
-  if (opts.withRemote) {
-    remoteUrl = setupBareRemote(projectPath, branch, !opts.seedRemoteBaseline);
+  if (opts.seedRemoteBaseline) {
+    gitInitRepo(projectPath);
+    if (opts.withRemote) {
+      remoteUrl = setupBareRemote(projectPath, branch, false);
+    }
+  } else {
+    const template = await getProjectTemplate();
+    fs.cpSync(template.repo, projectPath, { recursive: true });
+    if (opts.withRemote) {
+      remoteUrl = projectPath + "-remote.git";
+      fs.cpSync(template.remote, remoteUrl, { recursive: true });
+    }
+    if (opts.withRemote) {
+      execSync(`git remote set-url origin "${remoteUrl}"`, { cwd: projectPath });
+    } else {
+      execSync("git remote remove origin", { cwd: projectPath });
+    }
+    const needsTicketsWorktree = !!opts.withRemote
+      || (opts.withTickets && opts.withTickets.length > 0)
+      || !!opts.withTicketOrder;
+    if (!needsTicketsWorktree) {
+      // The template's tickets worktree registration points at the template
+      // dir; without a fixture-created worktree the app must be free to create
+      // its own, so drop the stale registration from the copy.
+      fs.rmSync(
+        path.join(projectPath, ".git", "worktrees", "tickets"),
+        { recursive: true, force: true },
+      );
+    }
   }
 
   const ticketsPath = path.join(server.dataDir, "projects", opts.projectSlug, "tickets");
@@ -251,25 +324,28 @@ export async function createProject(
   projectLauncher.worktreeRootPath = effectiveWorktreeRootPath;
   fs.writeFileSync(projectLauncherFile, JSON.stringify(projectLauncher, null, 2));
 
-  function ensureTicketsWorktree(): void {
+  async function ensureTicketsWorktree(): Promise<void> {
     if (fs.existsSync(path.join(ticketsPath, ".git"))) return;
-    fs.mkdirSync(path.dirname(ticketsPath), { recursive: true });
-    execSync(
-      `git worktree add --orphan -b "${branch}" "${ticketsPath}"`,
-      { cwd: projectPath },
-    );
-    execSync("git commit --allow-empty -m init", { cwd: ticketsPath });
-  }
-
-  if (opts.withRemote) {
-    ensureTicketsWorktree();
-    if (!opts.seedRemoteBaseline) {
-      execSync(`git push -u origin "${branch}"`, { cwd: ticketsPath });
+    if (opts.seedRemoteBaseline) {
+      fs.mkdirSync(path.dirname(ticketsPath), { recursive: true });
+      execSync(
+        `git worktree add --orphan -b "${branch}" "${ticketsPath}"`,
+        { cwd: projectPath },
+      );
+      execSync("git commit --allow-empty -m init", { cwd: ticketsPath });
+    } else {
+      const template = await getProjectTemplate();
+      fs.cpSync(template.tickets, ticketsPath, { recursive: true });
+      execSync(`git worktree repair "${ticketsPath}"`, { cwd: projectPath });
     }
   }
 
+  if (opts.withRemote) {
+    await ensureTicketsWorktree();
+  }
+
   if ((opts.withTickets && opts.withTickets.length > 0) || opts.withTicketOrder) {
-    ensureTicketsWorktree();
+    await ensureTicketsWorktree();
     const useWorktreeFolders = new Set(
       (opts.withWorktrees ?? []).map((w) => w.folderName),
     );
@@ -735,16 +811,7 @@ export async function expectOpenConfigDirRequest(
   page: Page,
   trigger: () => Promise<void>,
 ): Promise<void> {
-  let called = false;
-  const handler = (r: import("playwright").Request) => {
-    if (r.url().includes("/_server")) called = true;
-  };
-  page.on("request", handler);
-  try {
-    await trigger();
-    await page.waitForTimeout(500);
-    if (!called) throw new Error("expected server function request, none observed");
-  } finally {
-    page.off("request", handler);
-  }
+  const serverCall = page.waitForRequest((r) => r.url().includes("/_server"), { timeout: 5000 });
+  await trigger();
+  await serverCall;
 }
