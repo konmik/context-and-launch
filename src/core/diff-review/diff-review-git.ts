@@ -133,53 +133,15 @@ export class DiffReviewGitService {
 		if (!fs.existsSync(target.worktreePath)) {
 			throw new Error(`Agent Worktree does not exist: ${target.worktreePath}`);
 		}
-		const head = (await this.commands.execute(
-			"diff-review.head.resolve",
-			target.worktreePath,
-		)).trim();
+		// The HEAD revision does not gate the file list, so both reads run together.
+		const [head, { baseRef, changed }] = await Promise.all([
+			this.commands.execute("diff-review.head.resolve", target.worktreePath)
+				.then((out) => out.trim()),
+			this.resolveChanged(target, scope),
+		]);
 		if (!head) throw new Error("Git did not return an Agent Worktree HEAD revision.");
 
-		let baseRef: string;
-		let changed: ChangedPath[];
 		const readNewFromWorktree = scope === "all" || scope === "working";
-		if (scope === "last-commit") {
-			baseRef = "HEAD^";
-			changed = parseNameStatus(await this.commands.execute(
-				"diff-review.last-commit.files",
-				target.worktreePath,
-			));
-		} else if (scope === "branch") {
-			baseRef = await this.resolveMergeBase(target, scope);
-			changed = parseNameStatus(await this.commands.execute(
-				"diff-review.branch.files",
-				target.worktreePath,
-				{ baseRef },
-			));
-		} else {
-			baseRef = scope === "working"
-				? "HEAD"
-				: await this.resolveMergeBase(target, scope);
-			const [trackedOut, untrackedOut] = await Promise.all([
-				this.commands.execute(
-					"diff-review.tracked.files",
-					target.worktreePath,
-					{ baseRef },
-				),
-				this.commands.execute(
-					"diff-review.untracked.files",
-					target.worktreePath,
-				),
-			]);
-			changed = parseNameStatus(trackedOut);
-			const trackedPaths = new Set(changed.map((file) => file.path));
-			const untracked = parseZeroSeparated(untrackedOut);
-			for (const filePath of untracked) {
-				if (!trackedPaths.has(filePath)) {
-					changed.push({ status: "A", path: filePath, changeType: "added" });
-				}
-			}
-		}
-
 		const baseIdentity = baseRef === "HEAD"
 			? head
 			: baseRef === "HEAD^" ? `${head}^` : baseRef;
@@ -195,6 +157,48 @@ export class DiffReviewGitService {
 			worktreeIdentity: target.worktreeIdentity,
 			files,
 		};
+	}
+
+	private async resolveChanged(
+		target: DiffReviewTarget,
+		scope: DiffScope,
+	): Promise<{ baseRef: string; changed: ChangedPath[] }> {
+		if (scope === "last-commit") {
+			return {
+				baseRef: "HEAD^",
+				changed: parseNameStatus(await this.commands.execute(
+					"diff-review.last-commit.files",
+					target.worktreePath,
+				)),
+			};
+		}
+		if (scope === "branch") {
+			const baseRef = await this.resolveMergeBase(target, scope);
+			return {
+				baseRef,
+				changed: parseNameStatus(await this.commands.execute(
+					"diff-review.branch.files",
+					target.worktreePath,
+					{ baseRef },
+				)),
+			};
+		}
+
+		const baseRef = scope === "working"
+			? "HEAD"
+			: await this.resolveMergeBase(target, scope);
+		const [trackedOut, untrackedOut] = await Promise.all([
+			this.commands.execute("diff-review.tracked.files", target.worktreePath, { baseRef }),
+			this.commands.execute("diff-review.untracked.files", target.worktreePath),
+		]);
+		const changed = parseNameStatus(trackedOut);
+		const trackedPaths = new Set(changed.map((file) => file.path));
+		for (const filePath of parseZeroSeparated(untrackedOut)) {
+			if (!trackedPaths.has(filePath)) {
+				changed.push({ status: "A", path: filePath, changeType: "added" });
+			}
+		}
+		return { baseRef, changed };
 	}
 
 	private async resolveMergeBase(

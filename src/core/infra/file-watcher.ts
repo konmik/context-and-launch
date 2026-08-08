@@ -26,17 +26,7 @@ const DEFAULT_ADAPTERS: FileWatcherAdapters = {
 	clearTimer: (timer) => clearTimeout(timer),
 };
 
-// Test seam: e2e runs shorten the auto-commit debounce; the timing itself is
-// covered by unit tests with fake timers. Production default stays 2000ms.
-const WATCH_DEBOUNCE_MS = (() => {
-	const raw = process.env.CONTEXT_LAUNCH_WATCH_DEBOUNCE_MS;
-	if (raw === undefined) return 2000;
-	const parsed = Number(raw);
-	if (!Number.isFinite(parsed) || parsed <= 0) {
-		throw new Error(`CONTEXT_LAUNCH_WATCH_DEBOUNCE_MS must be a positive number, got "${raw}".`);
-	}
-	return parsed;
-})();
+const DEFAULT_DEBOUNCE_MS = 2000;
 
 function hasDotSegment(relativePath: string): boolean {
 	return relativePath.split(/[/\\]/).some((segment) => segment.startsWith('.'));
@@ -56,6 +46,7 @@ function statusEntryPath(statusLine: string): string | undefined {
 interface WatcherState {
 	watcher: FileWatcherHandle;
 	timer: ReturnType<typeof setTimeout> | null;
+	debounceMs: number;
 }
 
 export class FileWatcher {
@@ -65,9 +56,10 @@ export class FileWatcher {
 		private readonly commands: CommandTemplateExecutor,
 		private readonly onWorktreeChange?: (worktreeDir: string) => void,
 		private readonly adapters: FileWatcherAdapters = DEFAULT_ADAPTERS,
+		private readonly defaultDebounceMs: number = DEFAULT_DEBOUNCE_MS,
 	) {}
 
-	watch(worktreeDir: string, debounceMs = WATCH_DEBOUNCE_MS): void {
+	watch(worktreeDir: string, debounceMs = this.defaultDebounceMs): void {
 		if (this.watchers.has(worktreeDir)) return;
 
 		let watcher: FileWatcherHandle;
@@ -83,7 +75,7 @@ export class FileWatcher {
 			return;
 		}
 
-		const state: WatcherState = { watcher, timer: null };
+		const state: WatcherState = { watcher, timer: null, debounceMs };
 		this.watchers.set(worktreeDir, state);
 
 		const debouncedCommit = () => {
@@ -153,12 +145,12 @@ export class FileWatcher {
 	}
 
 	async runWithWatchPaused<T>(worktreeDir: string, task: () => T | Promise<T>): Promise<T> {
-		const wasWatching = this.watchers.has(worktreeDir);
-		if (wasWatching) await this.stop(worktreeDir);
+		const pausedDebounceMs = this.watchers.get(worktreeDir)?.debounceMs;
+		if (pausedDebounceMs !== undefined) await this.stop(worktreeDir);
 		try {
 			return await task();
 		} finally {
-			if (wasWatching) this.watch(worktreeDir);
+			if (pausedDebounceMs !== undefined) this.watch(worktreeDir, pausedDebounceMs);
 		}
 	}
 

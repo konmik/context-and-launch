@@ -47,7 +47,15 @@ export interface ServiceContainer {
 	reviewPromptQueueService: ReviewPromptQueueService;
 }
 
-export function createServices(baseDir?: string, configDefaultsDir?: string): ServiceContainer {
+export interface ServiceOptions {
+	baseDir?: string;
+	configDefaultsDir?: string;
+	/** Quiet period before the file watcher auto-commits. Defaults to the FileWatcher default. */
+	watchDebounceMs?: number;
+}
+
+export function createServices(options: ServiceOptions = {}): ServiceContainer {
+	const { baseDir, configDefaultsDir, watchDebounceMs } = options;
 	const configPaths = new ConfigPaths(baseDir, configDefaultsDir);
 	const configRepo = new ConfigRepository();
 	const commandTemplateStore = new CommandTemplateStore(configPaths, configRepo);
@@ -69,6 +77,7 @@ export function createServices(baseDir?: string, configDefaultsDir?: string): Se
 	);
 	const fileWatcher = new FileWatcher(
 		commandTemplateService, (worktreeDir) => worktreeRevisions.bump(worktreeDir),
+		undefined, watchDebounceMs,
 	);
 	const launcherConfigManager = new LauncherConfigManager(configPaths, configRepo);
 	const agentWorktreeManager = new AgentWorktreeManager(launcherConfigManager, commandTemplateService);

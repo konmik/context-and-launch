@@ -3,14 +3,17 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  createProject, uniqueSlug, gotoProject, dragSortable,
+  createProject, uniqueSlug, gotoProjectOnFakeClock, fastForwardPastSyncPoll, dragSortable,
   setupE2E, poll,
 } from "./fixtures.js";
 
 describe("Sync button pending badge (e2e, real server)", () => {
   const ctx = setupE2E({
     // These tests wait on the server's auto-commit; shorten its debounce.
-    serverOpts: { env: { CONTEXT_LAUNCH_WATCH_DEBOUNCE_MS: "200" } },
+    serverOpts: {
+      dataDirPrefix: ".cl-e2e-data-",
+      env: { CONTEXT_LAUNCH_WATCH_DEBOUNCE_MS: "200" },
+    },
   });
 
   it("pending badge clears after drag there and back when auto-commit runs in between", async () => {
@@ -28,8 +31,7 @@ describe("Sync button pending badge (e2e, real server)", () => {
     });
     ctx.projects.push(project);
     await ctx.page.clock.install();
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await ctx.page.clock.fastForward(100);
+    await gotoProjectOnFakeClock(ctx.page, ctx.testServer, project.projectSlug);
 
     await ctx.page.waitForSelector('[data-testid="sync-button-pending-badge"]', {
       state: "visible", timeout: 5000,
@@ -61,8 +63,8 @@ describe("Sync button pending badge (e2e, real server)", () => {
       { releaseAt: "top" },
     );
 
-    // The badge refresh after the auto-commit is gated on the 10s sync-pending poll.
-    await ctx.page.clock.fastForward(11_000);
+    // The badge refresh after the auto-commit waits for the next poll.
+    await fastForwardPastSyncPoll(ctx.page);
     await ctx.page.waitForSelector('[data-testid="sync-button-pending-badge"]', {
       state: "detached", timeout: 5000,
     });
@@ -80,10 +82,10 @@ describe("Sync button pending badge (e2e, real server)", () => {
     await ctx.page.clock.install();
     await ctx.page.goto(`${ctx.testServer.baseUrl}/project/${unknownSlug}`);
     await ctx.page.waitForSelector("text=Project not found", { state: "visible", timeout: 10000 });
-    // Let the sync-pending poll run; the not-found page must never show a badge.
-    await ctx.page.clock.fastForward(11_000);
+    // Let the poll run; the not-found page must never show a badge.
+    await fastForwardPastSyncPoll(ctx.page);
     const badgeCount = await ctx.page.locator('[data-testid="sync-button-pending-badge"]').count();
-    expect(badgeCount).toBeLessThanOrEqual(1);
+    expect(badgeCount).toBe(0);
   }, 60000);
 
   it("pending badge disappears after sync when local is behind remote", async () => {
@@ -107,8 +109,7 @@ describe("Sync button pending badge (e2e, real server)", () => {
     execSync("git fetch", { cwd: project.ticketsPath });
 
     await ctx.page.clock.install();
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await ctx.page.clock.fastForward(100);
+    await gotoProjectOnFakeClock(ctx.page, ctx.testServer, project.projectSlug);
     await ctx.page.waitForSelector('[data-testid="sync-button-pending-badge"]', {
       state: "visible", timeout: 5000,
     });
@@ -126,8 +127,7 @@ describe("Sync button pending badge (e2e, real server)", () => {
     ctx.projects.push(project);
     execSync("git push -u origin tickets", { cwd: project.ticketsPath });
     await ctx.page.clock.install();
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await ctx.page.clock.fastForward(100);
+    await gotoProjectOnFakeClock(ctx.page, ctx.testServer, project.projectSlug);
     await ctx.page.waitForSelector('[data-testid="sync-button-pending-badge"]', {
       state: "visible", timeout: 5000,
     });

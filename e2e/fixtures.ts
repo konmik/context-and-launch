@@ -2,10 +2,30 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { afterAll, afterEach, beforeAll, beforeEach } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, expect, inject } from "vitest";
 import { chromium, type Browser, type Page } from "playwright";
 import { pickPort } from "./test-port.js";
 import { startRealServer, stopRealServer, type RealServer } from "./real-server.js";
+import type { ProjectTemplate } from "./project-template.js";
+
+/** The Orphan Branch every fixture Project stores its tickets on. */
+const TICKETS_BRANCH = "tickets";
+
+/**
+ * The board re-checks Sync Pending on this client timer, so a test with a faked
+ * clock sees no refresh until it advances past the interval.
+ */
+const SYNC_PENDING_POLL_MS = 10_000;
+
+/**
+ * The deferred work the project page schedules through requestIdleCallback,
+ * which Playwright's clock fakes as a 50ms timer.
+ */
+const IDLE_CALLBACK_MS = 100;
+
+function projectTemplate(): ProjectTemplate {
+  return inject("projectTemplate");
+}
 
 export interface ProjectDirs {
   dataDir: string;
@@ -121,7 +141,6 @@ export interface CreateProjectOptions {
   seedRemoteBaseline?: boolean;
   withWorktrees?: { folderName: string }[];
   worktreeRootPath?: string;
-  branch?: string;
   mainBranch?: string;
   appLauncherConfig?: SeedAppLauncherConfig;
 }
@@ -189,8 +208,12 @@ function gitInitRepo(repoPath: string): void {
   execSync("git commit --allow-empty -m init", { cwd: repoPath });
 }
 
+function remoteDirFor(repoPath: string): string {
+  return repoPath + "-remote.git";
+}
+
 function setupBareRemote(repoPath: string, branch: string, pushMain = true): string {
-  const remoteDir = repoPath + "-remote.git";
+  const remoteDir = remoteDirFor(repoPath);
   execSync(`git init --bare -b ${branch} "${remoteDir}"`, { cwd: os.tmpdir() });
   execSync(`git remote add origin "${remoteDir}"`, { cwd: repoPath });
   if (pushMain) {
@@ -199,93 +222,32 @@ function setupBareRemote(repoPath: string, branch: string, pushMain = true): str
   return remoteDir;
 }
 
-interface ProjectTemplate {
-  repo: string;
-  remote: string;
-}
-
-// Versioned so a changed template build is not silently served from a stale
-// cached base; bump when the build below changes.
-const TEMPLATE_VERSION = "v1";
-const TEMPLATE_BASE = path.join(os.tmpdir(), `cl-e2e-template-${TEMPLATE_VERSION}`);
-
-function buildProjectTemplate(repo: string, remote: string): void {
-  const tickets = path.join(TEMPLATE_BASE, "tickets");
-  fs.mkdirSync(repo, { recursive: true });
-  execSync("git init -b main", { cwd: repo });
-  execSync("git config user.email test@test.com", { cwd: repo });
-  execSync("git config user.name Test", { cwd: repo });
-  execSync("git commit --allow-empty -m init", { cwd: repo });
-  execSync(`git init --bare -b tickets "${remote}"`, { cwd: os.tmpdir() });
-  execSync(`git remote add origin "${remote}"`, { cwd: repo });
-  execSync("git push -u origin main", { cwd: repo });
-  execSync(`git worktree add --orphan -b tickets "${tickets}"`, { cwd: repo });
-  execSync("git commit --allow-empty -m init", { cwd: tickets });
-  execSync("git push -u origin tickets", { cwd: tickets });
-}
-
-async function getProjectTemplate(): Promise<ProjectTemplate> {
-  const marker = path.join(TEMPLATE_BASE, "ready");
-  const repo = path.join(TEMPLATE_BASE, "repo");
-  const remote = path.join(TEMPLATE_BASE, "remote.git");
-  const deadline = Date.now() + 60000;
-  while (!fs.existsSync(marker) || !fs.existsSync(repo)) {
-    try {
-      fs.mkdirSync(TEMPLATE_BASE, { recursive: false });
-    } catch {
-      // Another worker is building the template; wait for its ready marker.
-      // If the builder died mid-build (no marker within the deadline) the
-      // half-built base is orphaned: take it over instead of waiting forever.
-      if (Date.now() > deadline) {
-        fs.rmSync(TEMPLATE_BASE, { recursive: true, force: true });
-        continue;
-      }
-      await new Promise((r) => setTimeout(r, 100));
-      continue;
-    }
-    try {
-      buildProjectTemplate(repo, remote);
-      fs.writeFileSync(marker, "ready");
-    } catch (err) {
-      fs.rmSync(TEMPLATE_BASE, { recursive: true, force: true });
-      throw err;
-    }
-    return { repo, remote };
-  }
-  return { repo, remote };
-}
-
 export async function createProject(
   server: ProjectDirs,
   opts: CreateProjectOptions,
 ): Promise<CreatedProject> {
-  const branch = opts.branch ?? "tickets";
-  if (!opts.seedRemoteBaseline && branch !== "tickets") {
-    throw new Error(
-      `The project template only supports branch "tickets"; `
-      + `pass seedRemoteBaseline: true to create a project on branch "${branch}".`,
-    );
-  }
   seedAppConfigFiles(server.dataDir, opts.withBoards, opts.appLauncherConfig);
 
   const projectPath = makeRepoDir(opts.projectSlug, server.reposParentDir);
 
+  // seedRemoteBaseline needs a remote that starts without the Orphan Branch, a
+  // shape the template does not hold, so that one runs the git ceremony.
+  const fromTemplate = !opts.seedRemoteBaseline;
+  const seedsTickets = Boolean(
+    opts.withRemote || opts.withTickets?.length || opts.withTicketOrder,
+  );
+
   let remoteUrl: string | null = null;
-  if (opts.seedRemoteBaseline) {
+  if (!fromTemplate) {
     gitInitRepo(projectPath);
     if (opts.withRemote) {
-      remoteUrl = setupBareRemote(projectPath, branch, false);
+      remoteUrl = setupBareRemote(projectPath, TICKETS_BRANCH, false);
     }
   } else {
-    const template = await getProjectTemplate();
+    const template = projectTemplate();
     fs.cpSync(template.repo, projectPath, { recursive: true });
-    // The template's worktree registration points at the template dir; a copy
-    // must never carry it. Fixtures that need a tickets worktree re-register
-    // one with `git worktree add` below, and projects without one leave the
-    // app free to create its own.
-    fs.rmSync(path.join(projectPath, ".git", "worktrees"), { recursive: true, force: true });
     if (opts.withRemote) {
-      remoteUrl = projectPath + "-remote.git";
+      remoteUrl = remoteDirFor(projectPath);
       fs.cpSync(template.remote, remoteUrl, { recursive: true });
       execSync(`git remote set-url origin "${remoteUrl}"`, { cwd: projectPath });
     } else {
@@ -311,7 +273,7 @@ export async function createProject(
   registry.projects.push({
     path: canonicalProjectPath,
     projectSlug: opts.projectSlug,
-    branch,
+    branch: TICKETS_BRANCH,
     ...(opts.mainBranch ? { mainBranch: opts.mainBranch } : {}),
   });
   registry.lastUsedProjectSlug = opts.projectSlug;
@@ -330,28 +292,27 @@ export async function createProject(
   projectLauncher.worktreeRootPath = effectiveWorktreeRootPath;
   fs.writeFileSync(projectLauncherFile, JSON.stringify(projectLauncher, null, 2));
 
-  async function ensureTicketsWorktree(): Promise<void> {
+  function ensureTicketsWorktree(): void {
     if (fs.existsSync(path.join(ticketsPath, ".git"))) return;
     fs.mkdirSync(path.dirname(ticketsPath), { recursive: true });
-    if (opts.seedRemoteBaseline) {
-      execSync(
-        `git worktree add --orphan -b "${branch}" "${ticketsPath}"`,
-        { cwd: projectPath },
-      );
-      execSync("git commit --allow-empty -m init", { cwd: ticketsPath });
-    } else {
-      // The copied repo already has the local tickets branch (with upstream
-      // tracking) from the template, so one add spawn re-registers it.
-      execSync(`git worktree add "${ticketsPath}" "${branch}"`, { cwd: projectPath });
+    if (fromTemplate) {
+      // The copy already carries the Orphan Branch and its upstream tracking,
+      // so registering a worktree for it takes one command.
+      execSync(`git worktree add "${ticketsPath}" "${TICKETS_BRANCH}"`, { cwd: projectPath });
+      return;
     }
+    execSync(
+      `git worktree add --orphan -b "${TICKETS_BRANCH}" "${ticketsPath}"`,
+      { cwd: projectPath },
+    );
+    execSync("git commit --allow-empty -m init", { cwd: ticketsPath });
   }
 
-  if (opts.withRemote) {
-    await ensureTicketsWorktree();
+  if (seedsTickets) {
+    ensureTicketsWorktree();
   }
 
   if ((opts.withTickets && opts.withTickets.length > 0) || opts.withTicketOrder) {
-    await ensureTicketsWorktree();
     const useWorktreeFolders = new Set(
       (opts.withWorktrees ?? []).map((w) => w.folderName),
     );
@@ -384,8 +345,8 @@ export async function createProject(
     execSync("git commit -m seed", { cwd: ticketsPath });
   }
 
-  if (opts.withRemote && opts.seedRemoteBaseline) {
-    execSync(`git push -u origin "${branch}"`, { cwd: ticketsPath });
+  if (opts.withRemote && !fromTemplate) {
+    execSync(`git push -u origin "${TICKETS_BRANCH}"`, { cwd: ticketsPath });
   }
 
   if (opts.withWorktrees && opts.withWorktrees.length > 0 && worktreeRootPath) {
@@ -424,7 +385,7 @@ export async function createProject(
     projectPath,
     ticketsPath,
     worktreeRootPath,
-    branch,
+    branch: TICKETS_BRANCH,
     remoteUrl,
     cleanup,
   };
@@ -445,6 +406,41 @@ export function setCommandTemplateOverride(
   const current = JSON.parse(fs.readFileSync(file, "utf-8")) as Record<string, string>;
   current[key] = script;
   fs.writeFileSync(file, JSON.stringify(current, null, 2));
+}
+
+/**
+ * Opens a Project on a faked clock and advances past the page's deferred start-up
+ * work, so its first Sync Pending fetch runs at once. Call page.clock.install()
+ * before the first navigation; every later navigation goes through here too.
+ */
+export async function gotoProjectOnFakeClock(
+  page: Page,
+  server: TestServer,
+  projectSlug: string,
+): Promise<void> {
+  await gotoProject(page, server, projectSlug);
+  await page.clock.fastForward(IDLE_CALLBACK_MS);
+}
+
+/** Runs the next Sync Pending poll on a faked clock. */
+export async function fastForwardPastSyncPoll(page: Page): Promise<void> {
+  await page.clock.fastForward(SYNC_PENDING_POLL_MS + 1000);
+}
+
+/**
+ * Runs one Sync Pending poll per attempt until the element shows. Each attempt
+ * re-runs the fetch, so a poll that lands before the server has seen a change is
+ * followed by one that lands after it.
+ */
+export async function fastForwardUntilVisible(
+  page: Page,
+  testId: string,
+  timeoutMs = 5000,
+): Promise<void> {
+  await expect.poll(async () => {
+    await fastForwardPastSyncPoll(page);
+    return page.locator(`[data-testid="${testId}"]`).isVisible();
+  }, { timeout: timeoutMs }).toBe(true);
 }
 
 export async function gotoProject(page: Page, server: TestServer, projectSlug: string): Promise<void> {
@@ -791,6 +787,12 @@ export function setupE2E(opts: {
     ctx.browser = ctx.testBrowser.browser;
   }, 60000);
   beforeEach(async () => {
+    if (ctx.page && !ctx.page.isClosed()) {
+      throw new Error(
+        "setupE2E gives the whole file one page, so two of its tests cannot run at once."
+        + " Drop .concurrent from this test, or open a second page with ctx.newPage().",
+      );
+    }
     ctx.page = await ctx.browser.newPage({ viewport });
   });
   ctx.newPage = async () => {

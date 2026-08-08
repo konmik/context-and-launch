@@ -9,6 +9,7 @@ const alias = { "~": path.resolve(__dirname, "src") };
 const plugins = [solidPlugin()] as any[];
 const solidVite = { plugins, resolve: { alias, conditions: ["browser", "development"] } };
 const timingReporter = fileURLToPath(new URL("./scripts/test-timing-reporter.ts", import.meta.url));
+const projectTemplate = fileURLToPath(new URL("./e2e/project-template.ts", import.meta.url));
 
 export default defineConfig({
   ...solidVite,
@@ -26,6 +27,7 @@ export default defineConfig({
           testTimeout: 60000,
           hookTimeout: 60000,
           maxConcurrency: 4,
+          globalSetup: [projectTemplate],
           setupFiles: ["src/test-git-env.ts"],
         },
       },
@@ -37,6 +39,7 @@ export default defineConfig({
           testTimeout: 600000,
           hookTimeout: 600000,
           maxConcurrency: 1,
+          globalSetup: [projectTemplate],
           setupFiles: ["src/test-git-env.ts"],
         },
       },

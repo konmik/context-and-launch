@@ -46,6 +46,7 @@
 
 - Run dev server: `npm run dev`.
 - Run all tests: `npm run test:all` (tsc + unit + build + e2e). Never skip e2e.
+- Always run tests on the T: RAM disk through the npm scripts (`npm run test`, `npm run test:e2e`, `npm run test:all`). If T: is missing, create it with `npm run test:ramdisk:create`; it needs administrator elevation, so ask the user to run it. Never fall back to the `:workspace` variants to get around a missing RAM disk: they run in the source tree, are slower, and their timings are not comparable to RAM-disk runs.
 - Every test run writes per-test timings (setup, execution, cleanup) to `test-timing.log`. Find it in the run's temp folder: `T:\context-launch-tests\<project>\<branch>\temp\test-timing.log` under the official RAM-disk runner, or `%LOCALAPPDATA%\Temp\test-timing.log` for direct runs. Set the `TEST_TIMING_LOG` env var to store it somewhere else.
 - Do not run tests (unit, e2e, build, or screenshots) for pure design/styling changes (CSS, colors, class tweaks) unless the user explicitly asks. Just make the edit.
 - Never run shell tests unless the user explicitly asks you to run them.

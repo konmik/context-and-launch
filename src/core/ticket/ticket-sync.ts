@@ -58,10 +58,8 @@ export class TicketSyncManager {
 			throw error;
 		}
 
-		const localHead = (await this.commands.execute(
-			'ticket-sync.head.resolve', worktreeDir,
-		)).trim();
-		const upstreamHead = (await this.resolveRef(worktreeDir, upstream)).trim();
+		const localHead = await this.resolveHead(worktreeDir);
+		const upstreamHead = await this.resolveRef(worktreeDir, upstream);
 		if (localHead === upstreamHead) return false;
 		if (await this.isAncestor(worktreeDir, localHead, upstreamHead)) return false;
 		if (await this.isAncestor(worktreeDir, upstreamHead, localHead)) return false;
@@ -112,8 +110,7 @@ export class TicketSyncManager {
 					if (!isNonFastForward) throw pushErr;
 					await this.commands.execute('ticket-sync.fetch-origin', worktreeDir);
 					await this.commitAll(worktreeDir);
-					const localHead = (await this.commands.execute(
-						'ticket-sync.head.resolve', worktreeDir)).trim();
+					const localHead = await this.resolveHead(worktreeDir);
 					upstream = `origin/${branch}`;
 					await this.commands.execute('ticket-sync.upstream.repair', worktreeDir,
 						{ remoteBranch: upstream, localHead, upstream },
@@ -124,10 +121,8 @@ export class TicketSyncManager {
 			await this.gitRepo.assertSupportsMergeTree(worktreeDir);
 
 			const [baseUpstream, squashBase] = await Promise.all([
-				this.resolveRef(worktreeDir, upstream).then((r) => r.trim()),
-				this.commands.execute('ticket-sync.merge-base', worktreeDir,
-					{ left: 'HEAD', right: upstream },
-				).then((r) => r.trim()),
+				this.resolveRef(worktreeDir, upstream),
+				this.resolveMergeBase(worktreeDir, 'HEAD', upstream),
 			]);
 			if (await this.countAheadOf(worktreeDir, squashBase) > 1) {
 				await this.commands.execute('ticket-sync.reset-soft', worktreeDir, { ref: squashBase });
@@ -137,8 +132,8 @@ export class TicketSyncManager {
 			await this.commands.execute('ticket-sync.fetch', worktreeDir);
 			await this.commitAll(worktreeDir);
 			const [headLocal, newUpstream, aheadCount] = await Promise.all([
-				this.commands.execute('ticket-sync.head.resolve', worktreeDir).then((r) => r.trim()),
-				this.resolveRef(worktreeDir, upstream).then((r) => r.trim()),
+				this.resolveHead(worktreeDir),
+				this.resolveRef(worktreeDir, upstream),
 				this.countAheadOf(worktreeDir, baseUpstream),
 			]);
 
@@ -179,8 +174,7 @@ export class TicketSyncManager {
 			}
 
 			await this.commitAll(worktreeDir);
-			const headAfterPush = (await this.commands.execute(
-				'ticket-sync.head.resolve', worktreeDir)).trim();
+			const headAfterPush = await this.resolveHead(worktreeDir);
 			if (headAfterPush !== headLocal) {
 				return { status: 'conflict' };
 			}
@@ -314,7 +308,7 @@ export class TicketSyncManager {
 			return false;
 		}
 		const scratchHead = (await this.commands.execute('conflict-resolution.head.resolve', scratch)).trim();
-		let upstreamHead = (await this.resolveRef(worktreeDir, upstream)).trim();
+		let upstreamHead = await this.resolveRef(worktreeDir, upstream);
 		if (scratchHead !== upstreamHead) return false;
 
 		await this.commitAll(worktreeDir);
@@ -449,8 +443,18 @@ export class TicketSyncManager {
 		}
 	}
 
-	private resolveRef(worktreeDir: string, ref: string): Promise<string> {
-		return this.commands.execute('ticket-sync.ref.resolve', worktreeDir, { ref });
+	private async resolveRef(worktreeDir: string, ref: string): Promise<string> {
+		return (await this.commands.execute('ticket-sync.ref.resolve', worktreeDir, { ref })).trim();
+	}
+
+	private async resolveHead(worktreeDir: string): Promise<string> {
+		return (await this.commands.execute('ticket-sync.head.resolve', worktreeDir)).trim();
+	}
+
+	private async resolveMergeBase(worktreeDir: string, left: string, right: string): Promise<string> {
+		return (await this.commands.execute(
+			'ticket-sync.merge-base', worktreeDir, { left, right },
+		)).trim();
 	}
 
 	private async removeResolveWorktree(worktreeDir: string, scratch: string): Promise<void> {

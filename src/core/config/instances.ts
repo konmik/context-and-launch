@@ -3,13 +3,24 @@ import { initializeDataDir } from './initialize.js';
 
 interface ServiceGlobal { __aiStagesServices?: ServiceContainer }
 
+function readPositiveMs(name: string): number | undefined {
+	const raw = process.env[name];
+	if (raw === undefined || raw === '') return undefined;
+	const parsed = Number(raw);
+	if (!Number.isFinite(parsed) || parsed <= 0) {
+		throw new Error(`${name} must be a positive number of milliseconds, got "${raw}".`);
+	}
+	return parsed;
+}
+
 function initializeServices(): ServiceContainer {
 	const g = globalThis as unknown as ServiceGlobal;
 	if (g.__aiStagesServices) return g.__aiStagesServices;
-	const s = createServices(
-		process.env.CONTEXT_LAUNCH_DATA_DIR || undefined,
-		process.env.CONTEXT_LAUNCH_CONFIG_DEFAULTS_DIR || undefined,
-	);
+	const s = createServices({
+		baseDir: process.env.CONTEXT_LAUNCH_DATA_DIR || undefined,
+		configDefaultsDir: process.env.CONTEXT_LAUNCH_CONFIG_DEFAULTS_DIR || undefined,
+		watchDebounceMs: readPositiveMs('CONTEXT_LAUNCH_WATCH_DEBOUNCE_MS'),
+	});
 	initializeDataDir(s.configPaths);
 	g.__aiStagesServices = s;
 	return s;
