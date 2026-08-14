@@ -32,7 +32,13 @@ $global:Calls = @()
 $global:Stopped = $false
 $global:QuitPending = $false
 $global:CustomAgentStarted = $false
-function global:Start-Sleep {}
+$global:PromptSettled = $false
+function global:Start-Sleep {
+  param([int]$Seconds, [int]$Milliseconds)
+  if ($global:CustomAgentStarted -and $Seconds -ge 1) {
+    $global:PromptSettled = $true
+  }
+}
 function global:Get-CimInstance {
   return [pscustomobject]@{ Name = 'powershell.exe'; CommandLine = 'powershell.exe -NoExit' }
 }
@@ -104,6 +110,10 @@ function global:herdr {
     return '{"id":"test","result":{"type":"ok"}}'
   }
   if ($verb -eq 'pane send-keys') {
+    if ($global:CustomAgentStarted -and -not $global:PromptSettled) {
+      $global:LASTEXITCODE = 1
+      return '{"error":{"message":"OpenCode prompt was not settled"}}'
+    }
     if ($callArgs[3] -eq 'enter' -and $global:QuitPending) { $global:Stopped = $true }
     return '{"id":"test","result":{"type":"ok"}}'
   }

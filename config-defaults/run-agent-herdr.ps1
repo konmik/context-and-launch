@@ -180,6 +180,7 @@ function Start-Agent {
         Invoke-Herdr @('pane', 'run', $PaneId, $launchCommand) | Out-Null
         if (-not [string]::IsNullOrWhiteSpace($initialPrompt)) {
             Wait-OpenCodePromptVisible $PaneId $initialPrompt
+            Start-Sleep -Seconds 1
             Invoke-Herdr @('pane', 'send-keys', $PaneId, 'enter') | Out-Null
         }
         for ($attempt = 0; $attempt -lt 120; $attempt++) {
