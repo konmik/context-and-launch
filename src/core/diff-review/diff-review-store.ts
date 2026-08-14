@@ -49,6 +49,7 @@ const QueueSchema = v.object({
 	items: v.array(QueueItemSchema),
 	cooldownUntil: v.optional(v.string()),
 	agentLaunchReservedUntil: v.optional(v.string()),
+	requestedAgentProfileName: v.optional(v.string()),
 });
 const TicketStateSchema = v.object({
 	worktreeIdentity: v.string(),
@@ -196,6 +197,30 @@ export class DiffReviewStore {
 		});
 	}
 
+	requestAgentLaunch(
+		projectSlug: string,
+		folderName: string,
+		worktreeIdentity: string,
+		profileName: string,
+	): DiffReviewTicketState {
+		if (!profileName.trim()) throw new Error("An Agent launch requires a profile.");
+		return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
+			ticket.queue.requestedAgentProfileName = profileName;
+			return ticket;
+		});
+	}
+
+	clearAgentLaunchRequest(
+		projectSlug: string,
+		folderName: string,
+		worktreeIdentity: string,
+	): DiffReviewTicketState {
+		return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
+			delete ticket.queue.requestedAgentProfileName;
+			return ticket;
+		});
+	}
+
 	removeQueueItem(
 		projectSlug: string,
 		folderName: string,
@@ -203,6 +228,7 @@ export class DiffReviewStore {
 		itemId: string,
 	): DiffReviewTicketState {
 		return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
+			const removedHead = ticket.queue.items[0]?.id === itemId;
 			const item = ticket.queue.items.find((candidate) => candidate.id === itemId);
 			if (!item) throw new Error("That Review Prompt is no longer in the queue.");
 			if (
@@ -215,6 +241,7 @@ export class DiffReviewStore {
 				);
 			}
 			ticket.queue.items = ticket.queue.items.filter((candidate) => candidate.id !== itemId);
+			if (removedHead) delete ticket.queue.requestedAgentProfileName;
 			return ticket;
 		});
 	}

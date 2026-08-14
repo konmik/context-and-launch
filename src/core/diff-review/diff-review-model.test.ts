@@ -11,6 +11,36 @@ function numberedLines(count: number): string {
 }
 
 describe("Diff Review model", () => {
+	it("does not transfer reviewed identity to a different duplicate line", () => {
+		const before = [
+			"start", "first", ...numberedLines(10).split("\n"), "second", "end",
+		].join("\n");
+		const original = buildReviewFile({
+			path: "src/example.ts",
+			changeType: "modified",
+			oldContents: before,
+			newContents: before.replace("first", "same").replace("second", "same"),
+			byteSize: before.length,
+		});
+		const afterFirstChangeWasRemoved = buildReviewFile({
+			path: "src/example.ts",
+			changeType: "modified",
+			oldContents: before,
+			newContents: before.replace("second", "same"),
+			byteSize: before.length,
+		});
+		const firstDuplicate = original.lines.find(
+			(line) => line.type === "addition" && line.text === "same",
+		);
+		const survivingDuplicate = afterFirstChangeWasRemoved.lines.find(
+			(line) => line.type === "addition" && line.text === "same",
+		);
+
+		expect(firstDuplicate).toBeDefined();
+		expect(survivingDuplicate).toBeDefined();
+		expect(survivingDuplicate?.id).not.toBe(firstDuplicate?.id);
+	});
+
 	it("builds stable hunks and snapshots only the selection plus three context lines", () => {
 		const before = numberedLines(20);
 		const after = before

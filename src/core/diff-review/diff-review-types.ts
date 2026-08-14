@@ -105,6 +105,7 @@ export interface ReviewPromptQueue {
 	items: ReviewPromptQueueItem[];
 	cooldownUntil?: string;
 	agentLaunchReservedUntil?: string;
+	requestedAgentProfileName?: string;
 }
 
 export interface DiffReviewTicketState {

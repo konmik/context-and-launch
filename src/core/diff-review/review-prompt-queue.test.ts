@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ConfigPaths } from "../config/config-paths.js";
 import { ConfigRepository } from "../config/config-repository.js";
+import { setAppLogListener } from "../infra/app-logger.js";
 import { makeTempDir, removeTempDirOrWarn } from "../../test-temp.js";
 import { buildReviewFile, buildReviewPromptSnapshot } from "./diff-review-model.js";
 import { DiffReviewStore } from "./diff-review-store.js";
@@ -15,6 +16,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+	setAppLogListener(undefined);
 	vi.clearAllTimers();
 	vi.useRealTimers();
 	await Promise.all(dirs.splice(0).map(removeTempDirOrWarn));
@@ -153,6 +155,12 @@ describe("ReviewPromptQueueService", () => {
 
 	it("keeps a delivered head while its profile Agent marker is alive", async () => {
 		const { store, service, launcher, agent, snapshot } = setupQueue();
+		const errors: string[] = [];
+		setAppLogListener((category, message) => {
+			if (category === "diff-review" && message.startsWith("queue processing failed")) {
+				errors.push(message);
+			}
+		});
 		store.enqueue("project", "st-1-ticket", "worktree", "First", snapshot);
 		await service.reconcileProject("project", [agent]);
 		launcher.isRunning.mockReturnValue(true);
@@ -163,6 +171,7 @@ describe("ReviewPromptQueueService", () => {
 		expect(
 			store.getTicket("project", "st-1-ticket", "worktree").queue.items[0].state,
 		).toBe("sent");
+		expect(errors).toEqual([]);
 	});
 
 	it("does not acknowledge from an observation that started before delivery", async () => {
@@ -238,6 +247,68 @@ describe("ReviewPromptQueueService", () => {
 		expect(
 			store.getTicket("project", "st-1-ticket", "worktree").queue.items[0].state,
 		).toBe("sent");
+	});
+
+	it("starts the requested Agent when a retried head's cooldown expires", async () => {
+		const { store, service, launcher, agent, snapshot } = setupQueue();
+		const first = store.enqueue(
+			"project", "st-1-ticket", "worktree", "First", snapshot,
+		);
+		await service.reconcileProject("project", [agent]);
+		await vi.advanceTimersByTimeAsync(1_000);
+		await service.reconcileProject("project", []);
+
+		await service.retryAndLaunch("project", "st-1-ticket", first.id, "GPT");
+
+		expect(launcher.launch).not.toHaveBeenCalled();
+		expect(
+			store.getTicket("project", "st-1-ticket", "worktree")
+				.queue.requestedAgentProfileName,
+		).toBe("GPT");
+		await vi.advanceTimersByTimeAsync(2_000);
+		expect(launcher.launch).toHaveBeenCalledTimes(1);
+		expect(launcher.launch.mock.calls[0][2]).toBe("GPT");
+		expect(
+			store.getTicket("project", "st-1-ticket", "worktree")
+				.queue.requestedAgentProfileName,
+		).toBeUndefined();
+		expect(
+			store.getTicket("project", "st-1-ticket", "worktree").queue.items[0].state,
+		).toBe("sent");
+	});
+
+	it("does not start the requested profile when Herdr reports an Agent during cooldown", async () => {
+		const { store, execute, launcher, agent, snapshot, target } = setupQueue();
+		const observeProject = vi.fn()
+			.mockResolvedValueOnce({ agents: [], observedAt: Date.now() })
+			.mockImplementation(async () => ({
+				agents: [{ ...agent, agent_status: "working" }],
+				observedAt: Date.now(),
+			}));
+		const service = new ReviewPromptQueueService(
+			store,
+			{ loadSnapshot: vi.fn() } as never,
+			{ resolve: () => target } as never,
+			{ execute } as never,
+			launcher,
+			observeProject,
+		);
+		const first = store.enqueue(
+			"project", "st-1-ticket", "worktree", "First", snapshot,
+		);
+		await service.reconcileProject("project", [agent]);
+		await vi.advanceTimersByTimeAsync(1_000);
+		await service.reconcileProject("project", []);
+		await service.retryAndLaunch("project", "st-1-ticket", first.id, "GPT");
+
+		await vi.advanceTimersByTimeAsync(2_000);
+
+		expect(observeProject).toHaveBeenCalledTimes(2);
+		expect(launcher.launch).not.toHaveBeenCalled();
+		expect(
+			store.getTicket("project", "st-1-ticket", "worktree")
+				.queue.requestedAgentProfileName,
+		).toBeUndefined();
 	});
 
 	it("never starts a Herdr Agent on its own when the Ticket has none", async () => {

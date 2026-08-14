@@ -44,6 +44,12 @@ function agentIsFree(agent: HerdrAgent): boolean {
 	return agent.agent_status === "idle" || agent.agent_status === "done";
 }
 
+type TicketAgentObservation =
+	| { kind: "herdr"; agent: HerdrAgent }
+	| { kind: "profile" }
+	| { kind: "absent" }
+	| { kind: "ambiguous" };
+
 export class ReviewPromptQueueService {
 	private readonly recoveredProjects = new Set<string>();
 	private readonly processingTickets = new Set<string>();
@@ -103,9 +109,20 @@ export class ReviewPromptQueueService {
 	}
 
 	private agentRunningFor(target: ResolvedDiffReviewTarget): boolean {
-		if (this.launcher.isRunning(target)) return true;
-		return (this.agentSnapshots.get(target.projectSlug)?.agents ?? [])
-			.some((agent) => agentMatchesTarget(agent, target));
+		return this.observeTicketAgent(
+			target,
+			this.agentSnapshots.get(target.projectSlug)?.agents ?? [],
+		).kind !== "absent";
+	}
+
+	private observeTicketAgent(
+		target: ResolvedDiffReviewTarget,
+		agents: HerdrAgent[],
+	): TicketAgentObservation {
+		const matching = agents.filter((agent) => agentMatchesTarget(agent, target));
+		if (matching.length > 1) return { kind: "ambiguous" };
+		if (matching[0]) return { kind: "herdr", agent: matching[0] };
+		return this.launcher.isRunning(target) ? { kind: "profile" } : { kind: "absent" };
 	}
 
 	/**
@@ -140,16 +157,11 @@ export class ReviewPromptQueueService {
 			const item = this.store.enqueue(
 				projectSlug, folderName, target.worktreeIdentity, feedback, snapshot,
 			);
-			const ticket = this.store.getTicket(projectSlug, folderName, target.worktreeIdentity);
 			if (
 				profileName
-				&& agentsKnown
-				&&
-				!this.agentRunningFor(target)
-				&& !this.launchReserved(ticket)
-				&& this.cooldownRemainingMs(ticket) === 0
+				&& (!agentsKnown || !this.agentRunningFor(target))
 			) {
-				await this.launchWithQueueHeadLocked(projectSlug, folderName, profileName);
+				await this.requestAgentLaunchLocked(target, profileName, agentsKnown);
 			}
 			return item;
 		});
@@ -164,18 +176,40 @@ export class ReviewPromptQueueService {
 		await this.withTicketLock(projectSlug, folderName, async () => {
 			const target = this.targets.resolve(projectSlug, folderName);
 			const agentsKnown = await this.refreshAgentSnapshot(projectSlug);
-			const ticket = this.store.retry(projectSlug, folderName, target.worktreeIdentity, itemId);
+			this.store.retry(projectSlug, folderName, target.worktreeIdentity, itemId);
 			if (
 				profileName
-				&& agentsKnown
-				&&
-				!this.agentRunningFor(target)
-				&& !this.launchReserved(ticket)
-				&& this.cooldownRemainingMs(ticket) === 0
+				&& (!agentsKnown || !this.agentRunningFor(target))
 			) {
-				await this.launchWithQueueHeadLocked(projectSlug, folderName, profileName);
+				await this.requestAgentLaunchLocked(target, profileName, agentsKnown);
 			}
 		});
+	}
+
+	private async requestAgentLaunchLocked(
+		target: ResolvedDiffReviewTarget,
+		profileName: string,
+		agentsKnown: boolean,
+	): Promise<void> {
+		const current = this.store.getTicket(
+			target.projectSlug, target.folderName, target.worktreeIdentity,
+		);
+		if (current.queue.items[0]?.state !== "waiting" || this.launchReserved(current)) return;
+		const ticket = this.store.requestAgentLaunch(
+			target.projectSlug, target.folderName, target.worktreeIdentity, profileName,
+		);
+		if (!agentsKnown) return;
+		const cooldownRemaining = this.cooldownRemainingMs(ticket);
+		if (cooldownRemaining > 0) {
+			const key = ticketKey(target.projectSlug, target.folderName);
+			this.scheduleTicket(
+				`${key}:cooldown`, cooldownRemaining, target.projectSlug, target.folderName,
+			);
+			return;
+		}
+		await this.launchWithQueueHeadLocked(
+			target.projectSlug, target.folderName, profileName,
+		);
 	}
 
 	private async refreshAgentSnapshot(projectSlug: string): Promise<boolean> {
@@ -210,6 +244,9 @@ export class ReviewPromptQueueService {
 				+ " Review Prompt Queue hands it the next Review Prompt on its own.",
 			);
 		}
+		this.store.clearAgentLaunchRequest(
+			projectSlug, folderName, target.worktreeIdentity,
+		);
 		if (head) {
 			await this.deliver(target, head, this.agentLaunchDelivery(target, profileName));
 			return;
@@ -303,9 +340,7 @@ export class ReviewPromptQueueService {
 			const head = ticket.queue.items[0];
 			if (!head) return;
 			if (head.state !== "waiting" && head.state !== "sent") return;
-			const matching = agents.filter((agent) => agentMatchesTarget(agent, target));
-			if (matching.length > 1) return;
-			const agent = matching[0];
+			const agent = this.observeTicketAgent(target, agents);
 			// A delivered Review Prompt stays at the head of the queue for as long as
 			// the Agent works on it, so the queue shows what the Agent is running and
 			// hands over the next Review Prompt only once the Agent is free again. Only
@@ -317,7 +352,7 @@ export class ReviewPromptQueueService {
 					throw new Error("A delivered Review Prompt carries no delivery time.");
 				}
 				if (agentsReadAt <= sentAt) return;
-				if (!agent && !this.launcher.isRunning(target)) {
+				if (agent.kind === "absent") {
 					this.store.failSentDelivery(
 						projectSlug,
 						folderName,
@@ -328,7 +363,7 @@ export class ReviewPromptQueueService {
 					);
 					return;
 				}
-				if (!agentIsFree(agent)) return;
+				if (agent.kind !== "herdr" || !agentIsFree(agent.agent)) return;
 				this.store.acknowledgeSent(
 					projectSlug,
 					folderName,
@@ -345,13 +380,23 @@ export class ReviewPromptQueueService {
 				);
 				return;
 			}
+			if (agent.kind === "absent" && ticket.queue.requestedAgentProfileName) {
+				const profileName = ticket.queue.requestedAgentProfileName;
+				await this.launchWithQueueHeadLocked(projectSlug, folderName, profileName);
+				return;
+			}
+			if (agent.kind !== "absent" && ticket.queue.requestedAgentProfileName) {
+				this.store.clearAgentLaunchRequest(
+					projectSlug, folderName, target.worktreeIdentity,
+				);
+			}
 			// Starting an Agent opens a terminal on the user's machine, so only the
 			// user starts one. With no Herdr Agent to deliver to, the Review Prompt
 			// keeps its place and waits for one.
-			if (!agent) return;
-			if (!agent.pane_id) return;
-			if (!agentIsFree(agent)) return;
-			const paneId = agent.pane_id;
+			if (agent.kind !== "herdr") return;
+			if (!agent.agent.pane_id) return;
+			if (!agentIsFree(agent.agent)) return;
+			const paneId = agent.agent.pane_id;
 			await this.deliver(target, head, {
 				send: (prompt) => this.commands.execute(
 					"herdr.review-prompt.deliver",
@@ -483,6 +528,10 @@ export class ReviewPromptQueueService {
 		folderName: string,
 	): void {
 		this.schedule(key, delayMs, async () => {
+			if (this.observeProject) {
+				await this.reconcileProject(projectSlug);
+				return;
+			}
 			const snapshot = this.agentSnapshots.get(projectSlug);
 			if (!snapshot) return;
 			await this.processTicketIsolated(projectSlug, folderName, snapshot);

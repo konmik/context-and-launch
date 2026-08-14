@@ -139,10 +139,18 @@ export function buildReviewFile(input: BuildReviewFileInput): ReviewFileSnapshot
 	let deletions = 0;
 	const fingerprintOccurrences = new Map<string, number>();
 	const lineOccurrences = new Map<string, number>();
+	const rawHunks = diff.hunks.map((_, index) => rawLinesForHunk(diff, index));
+	const signatureCounts = new Map<string, number>();
+	for (const rawLines of rawHunks) {
+		for (const line of rawLines) {
+			const signature = lineSignature(line.type, line.text);
+			signatureCounts.set(signature, (signatureCounts.get(signature) ?? 0) + 1);
+		}
+	}
 
 	for (let hunkIndex = 0; hunkIndex < diff.hunks.length; hunkIndex++) {
 		const sourceHunk = diff.hunks[hunkIndex];
-		const rawLines = rawLinesForHunk(diff, hunkIndex);
+		const rawLines = rawHunks[hunkIndex];
 		const baseFingerprint = hunkFingerprint(input.path, rawLines, 0).replace(/-0$/, "");
 		const occurrence = fingerprintOccurrences.get(baseFingerprint) ?? 0;
 		fingerprintOccurrences.set(baseFingerprint, occurrence + 1);
@@ -154,9 +162,14 @@ export function buildReviewFile(input: BuildReviewFileInput): ReviewFileSnapshot
 			const signature = lineSignature(line.type, line.text);
 			const lineOccurrence = lineOccurrences.get(signature) ?? 0;
 			lineOccurrences.set(signature, lineOccurrence + 1);
+			// Equal diff lines have no intrinsic identity. Tie ambiguous occurrences
+			// to this revision so removing one cannot transfer reviewed state to another.
+			const identity = signatureCounts.get(signature) === 1
+				? `${input.path}\0${signature}`
+				: `${input.path}\0${signature}\0${contentHash}`;
 			lines.push({
 				...line,
-				id: `l-${stableHash(`${input.path}\0${signature}`)}-${lineOccurrence}`,
+				id: `l-${stableHash(identity)}-${lineOccurrence}`,
 				hunkId,
 			});
 		}
