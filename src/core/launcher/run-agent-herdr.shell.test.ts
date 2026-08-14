@@ -243,24 +243,18 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
 		expect(calls.some(call => call[0] === 'agent' && call[1] === 'prompt')).toBe(false);
 	});
 
-	it('runs OpenCode 2 with its configured arguments and binds the detected agent', () => {
+	it('starts OpenCode 2 as a normal agent kind', () => {
 		const result = runOpenCode2Harness();
 		expect(result.status, result.stderr).toBe(0);
 		const calls = result.report.calls.map(call => call.args);
-		const run = calls.find(call => call[0] === 'pane' && call[1] === 'run');
-		expect(run?.slice(0, 3)).toEqual(['pane', 'run', 'w1:p1']);
-		const encoded = run?.[3].match(/^powershell\.exe -NoLogo -NoProfile -EncodedCommand (\S+)$/)?.[1];
-		expect(encoded).toBeDefined();
-		expect(Buffer.from(encoded!, 'base64').toString('utf16le')).toBe(
-			"& 'opencode2' '--auto' '--prompt' 'hello\nmultiline ''world'''",
-		);
-		expect(calls.some(call => call[0] === 'agent' && call[1] === 'start')).toBe(false);
-		expect(calls).toContainEqual(['pane', 'read', 'w1:p1', '--source', 'visible']);
-		expect(calls.filter(call =>
-		call[0] === 'pane' && call[1] === 'send-keys' && call[3] === 'enter',
-	)).toHaveLength(2);
-		expect(calls).toContainEqual(['agent', 'rename', 'w1:p1', 'cl-w1-p1']);
-		expect(calls.some(call => call[0] === 'agent' && call[1] === 'prompt')).toBe(false);
+		expect(calls).toContainEqual([
+			'agent', 'start', 'cl-w1-p1', '--kind', 'opencode2', '--pane', 'w1:p1',
+			'--', '--auto',
+		]);
+		expect(calls.some(call => call[0] === 'pane' && call[1] === 'run')).toBe(false);
+		expect(calls).toContainEqual([
+			'agent', 'prompt', 'cl-w1-p1', "hello\nmultiline 'world'",
+		]);
 	});
 
 	it('restarts an idle agent process inside the same pane', () => {
