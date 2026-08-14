@@ -33,6 +33,7 @@ $global:Stopped = $false
 $global:QuitPending = $false
 $global:CustomAgentStarted = $false
 $global:PromptSettled = $false
+$global:EnterAttempts = 0
 function global:Start-Sleep {
   param([int]$Seconds, [int]$Milliseconds)
   if ($global:CustomAgentStarted -and $Seconds -ge 1) {
@@ -71,8 +72,11 @@ function global:herdr {
       return '{"id":"test","result":{"agents":[]}}'
     }
     if ($global:CustomAgentStarted) {
+      $status = if ($global:EnterAttempts -ge 2) { 'working' } else { 'idle' }
+      $sequence = if ($global:EnterAttempts -ge 2) { 2 } else { 1 }
       return '{"id":"test","result":{"agents":[{"workspace_id":"w1",' +
-        '"pane_id":"w1:p1","agent_status":"idle","agent":"opencode"}]}}'
+        '"pane_id":"w1:p1","agent_status":"' + $status + '","agent":"opencode",' +
+        '"state_change_seq":' + $sequence + '}]}}'
     }
     if ($Mode -eq 'working') {
       return '{"id":"test","result":{"agents":[{"workspace_id":"w1",' +
@@ -113,6 +117,9 @@ function global:herdr {
     if ($global:CustomAgentStarted -and -not $global:PromptSettled) {
       $global:LASTEXITCODE = 1
       return '{"error":{"message":"OpenCode prompt was not settled"}}'
+    }
+    if ($global:CustomAgentStarted -and $callArgs[3] -eq 'enter') {
+      $global:EnterAttempts += 1
     }
     if ($callArgs[3] -eq 'enter' -and $global:QuitPending) { $global:Stopped = $true }
     return '{"id":"test","result":{"type":"ok"}}'
@@ -249,7 +256,9 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
 		);
 		expect(calls.some(call => call[0] === 'agent' && call[1] === 'start')).toBe(false);
 		expect(calls).toContainEqual(['pane', 'read', 'w1:p1', '--source', 'visible']);
-		expect(calls).toContainEqual(['pane', 'send-keys', 'w1:p1', 'enter']);
+		expect(calls.filter(call =>
+		call[0] === 'pane' && call[1] === 'send-keys' && call[3] === 'enter',
+	)).toHaveLength(2);
 		expect(calls).toContainEqual(['agent', 'rename', 'w1:p1', 'cl-w1-p1']);
 		expect(calls.some(call => call[0] === 'agent' && call[1] === 'prompt')).toBe(false);
 	});

@@ -178,20 +178,38 @@ function Start-Agent {
         $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($launchScript))
         $launchCommand = "powershell.exe -NoLogo -NoProfile -EncodedCommand $encoded"
         Invoke-Herdr @('pane', 'run', $PaneId, $launchCommand) | Out-Null
-        if (-not [string]::IsNullOrWhiteSpace($initialPrompt)) {
-            Wait-OpenCodePromptVisible $PaneId $initialPrompt
-            Start-Sleep -Seconds 1
-            Invoke-Herdr @('pane', 'send-keys', $PaneId, 'enter') | Out-Null
-        }
+        $detected = $null
         for ($attempt = 0; $attempt -lt 120; $attempt++) {
             $agents = @(Get-AgentsInPane $PaneId)
             if ($agents.Count -eq 1) {
                 Invoke-Herdr @('agent', 'rename', $PaneId, $agentName) | Out-Null
-                return $agents[0]
+                $detected = $agents[0]
+                break
             }
             Start-Sleep -Milliseconds 250
         }
-        throw "Herdr did not detect '$($agentCommand[0])' in pane '$PaneId'."
+        if ($null -eq $detected) {
+            throw "Herdr did not detect '$($agentCommand[0])' in pane '$PaneId'."
+        }
+        if ([string]::IsNullOrWhiteSpace($initialPrompt)) { return $detected }
+
+        Wait-OpenCodePromptVisible $PaneId $initialPrompt
+        $initialSequence = [long](Get-Field $detected 'state_change_seq')
+        for ($attempt = 0; $attempt -lt 30; $attempt++) {
+            Start-Sleep -Seconds 1
+            Invoke-Herdr @('pane', 'send-keys', $PaneId, 'enter') | Out-Null
+            Start-Sleep -Milliseconds 500
+            $agents = @(Get-AgentsInPane $PaneId)
+            if ($agents.Count -ne 1) { continue }
+            $current = $agents[0]
+            $status = [string](Get-Field $current 'agent_status')
+            $sequence = [long](Get-Field $current 'state_change_seq')
+            if ($status -ceq 'working' -or $status -ceq 'blocked' -or
+                $sequence -gt $initialSequence) {
+                return $current
+            }
+        }
+        throw "OpenCode did not submit the initial prompt in pane '$PaneId'."
     }
     $startArgs = @('agent', 'start', $agentName, '--kind', $agentKind, '--pane', $PaneId)
     if ($agentArgs.Count -gt 0) {
