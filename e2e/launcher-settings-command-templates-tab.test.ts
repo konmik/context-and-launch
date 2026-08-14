@@ -10,6 +10,24 @@ import {
 describe('Command Templates Settings tab (e2e, real server)', () => {
 	const ctx = setupE2E();
 
+	it('preserves expanded groups while switching Settings tabs', async () => {
+		const project = await createProject(ctx.testServer, {
+			projectSlug: uniqueSlug('command-template-tab-state'),
+		});
+		ctx.projects.push(project);
+		await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+		await openLauncherSettings(ctx.page);
+		await openLauncherSettingsTab(ctx.page, 'command-templates');
+		const group = testId(ctx.page, "command-template-group").first();
+		await testId(group, "command-template-group-toggle").click();
+		expect(await group.evaluate((element) => (element as HTMLDetailsElement).open)).toBe(true);
+
+		await openLauncherSettingsTab(ctx.page, 'misc');
+		await openLauncherSettingsTab(ctx.page, 'command-templates');
+
+		expect(await group.evaluate((element) => (element as HTMLDetailsElement).open)).toBe(true);
+	});
+
 	it('lists, edits, persists, reloads, and resets a sparse global override', async () => {
 		const project = await createProject(ctx.testServer, {
 			projectSlug: uniqueSlug('command-templates'),

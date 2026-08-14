@@ -728,7 +728,12 @@ export function readContextFile(
 ): string | null {
   const file = ticketContextFile(server, projectSlug, folderName, contextName);
   if (!fs.existsSync(file)) return null;
-  return fs.readFileSync(file, "utf-8");
+  try {
+    return fs.readFileSync(file, "utf-8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
 }
 
 export function ticketFileNames(

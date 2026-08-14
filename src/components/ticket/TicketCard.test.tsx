@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, fireEvent, cleanup, waitFor } from "@solidjs/testing-library";
+import { render, fireEvent, cleanup, waitFor } from "~/test-render.js";
 import TicketCard from "./TicketCard";
 import { HerdrStatusesContext } from "./herdr-statuses-context.js";
 import type { HerdrAgentStatus } from "~/core/herdr/herdr-client.js";
@@ -27,14 +27,14 @@ function renderCard(props: {
   onArchive?: (ticket: TicketInfo) => void;
 }) {
   return render(() => (
-    <HerdrStatusesContext.Provider value={(folderName) => props.herdrStatuses?.[folderName]}>
+    <HerdrStatusesContext value={(folderName) => props.herdrStatuses?.[folderName]}>
       <TicketCard
         ticket={makeTicket(props.ticket)}
         onDelete={props.onDelete ?? (() => {})}
         onArchive={props.onArchive ?? (() => {})}
         onViewDetail={() => {}}
       />
-    </HerdrStatusesContext.Provider>
+    </HerdrStatusesContext>
   ));
 }
 

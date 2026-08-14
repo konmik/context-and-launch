@@ -2,7 +2,7 @@ import { createSignal } from "solid-js";
 import { TabsContent } from "../ui/tabs";
 import { ScopeBadge } from "./launcher-settings-rows.js";
 import DeleteProjectDialog from "../project/DeleteProjectDialog.js";
-import { pickDirectory } from "../shared/shared-api.js";
+import { pickDirectory } from "../shared/directory-picker.js";
 import { errorPayload, type ErrorInfo } from "~/core/shared/errors.js";
 
 export function MiscTab(props: {
@@ -11,7 +11,7 @@ export function MiscTab(props: {
 	saveProjectName: () => void;
 	worktreeRootPath: string;
 	setWorktreeRootPath: (v: string) => void;
-	saveWorktreeRootPath: () => void;
+	saveWorktreeRootPath: (path?: string) => void;
 	branchPrefix: string | undefined;
 	setBranchPrefix: (v: string | undefined) => void;
 	saveBranchPrefix: () => void;
@@ -48,7 +48,7 @@ export function MiscTab(props: {
 							type="text"
 							value={props.worktreeRootPath}
 							onInput={(e) => props.setWorktreeRootPath(e.currentTarget.value)}
-							onBlur={props.saveWorktreeRootPath}
+							onBlur={() => props.saveWorktreeRootPath()}
 							onKeyDown={(e) => {
 								if (e.key === "Enter") props.saveWorktreeRootPath();
 							}}
@@ -64,7 +64,7 @@ export function MiscTab(props: {
 									const result = await pickDirectory(props.worktreeRootPath);
 									if ("path" in result) {
 										props.setWorktreeRootPath(result.path);
-										props.saveWorktreeRootPath();
+										props.saveWorktreeRootPath(result.path);
 									} else if ("error" in result) {
 										props.setError({ title: "Browse failed", description: result.error });
 									}

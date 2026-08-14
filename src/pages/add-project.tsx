@@ -2,6 +2,7 @@ import { useNavigate } from "@solidjs/router";
 import AddProjectForm from "~/components/project/AddProjectForm";
 import PalettePicker from "~/components/shared/PalettePicker";
 import { addProject } from "~/components/project/project-api.js";
+import { paths } from "~/router.js";
 
 export default function AddProjectPage() {
   const navigate = useNavigate();
@@ -14,7 +15,7 @@ export default function AddProjectPage() {
         <h1 class="mb-6 text-[clamp(1.25rem,3vw,1.75rem)] font-semibold"># Welcome to Context &amp; Launch</h1>
         <AddProjectForm
           action={addProject}
-          onSuccess={(projectSlug) => navigate(`/project/${projectSlug}`)}
+          onSuccess={(projectSlug) => navigate(paths.project(projectSlug)())}
         />
       </div>
     </div>

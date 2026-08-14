@@ -1,5 +1,5 @@
 import { Show, For, createEffect } from "solid-js";
-import X from "lucide-solid/icons/x";
+import { X } from "~/components/ui/icons.js";
 import {
   FloatingWindow, FloatingWindowHeader, FloatingPanelBody,
   FloatingPanelCloseTrigger, FloatingPanelTitle,
@@ -64,8 +64,8 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps) {
     forceDeleteLocalBranch,
   });
 
-  createEffect(() => {
-    if (props.open && props.ticket) void s.startChecks();
+  createEffect(() => [props.open, props.ticket] as const, ([open, ticket]) => {
+    if (open && ticket) void s.startChecks();
   });
 
   useModEnterSubmit({

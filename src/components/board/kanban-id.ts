@@ -1,8 +1,8 @@
-import type { Id } from "@thisbeyond/solid-dnd";
+import type { DragId } from "~/components/drag/drag-types.js";
 
 export const COLUMN_PREFIX = "column:";
 
-export function parseId(id: Id): { column: string; folderName: string } {
+export function parseId(id: DragId): { column: string; folderName: string } {
 	const str = String(id);
 	const sep = str.indexOf(":");
 	return { column: str.slice(0, sep), folderName: str.slice(sep + 1) };

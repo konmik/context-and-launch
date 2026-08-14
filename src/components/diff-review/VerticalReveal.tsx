@@ -3,8 +3,8 @@ import {
 	createEffect,
 	createSignal,
 	untrack,
-	type JSX,
 } from "solid-js";
+import type { JSX } from "@solidjs/web";
 
 type RevealPhase = "entering" | "visible" | "leaving";
 
@@ -27,8 +27,7 @@ export default function VerticalReveal(props: {
 		props.onHidden?.();
 	}
 
-	createEffect(() => {
-		const show = props.show;
+	createEffect(() => props.show, (show) => {
 		const currentPhase = untrack(phase);
 		if (show) {
 			const wasMounted = untrack(mounted);
@@ -55,11 +54,9 @@ export default function VerticalReveal(props: {
 	return (
 		<Show when={mounted()}>
 			<div
-				class={`${props.class ?? ""} vertical-reveal-body`}
-				classList={{
-					"vertical-reveal-enter": phase() === "entering",
-					"vertical-reveal-leave": phase() === "leaving",
-				}}
+				class={`${props.class ?? ""} vertical-reveal-body ${
+					phase() === "entering" ? "vertical-reveal-enter" : ""
+				} ${phase() === "leaving" ? "vertical-reveal-leave" : ""}`}
 				onAnimationEnd={onRevealEnd}
 			>
 				<div>{props.children}</div>

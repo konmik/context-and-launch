@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createRoot } from "solid-js";
+import { createRoot, flush, runWithOwner } from "solid-js";
 import {
   createTicketCleanupController, type TicketCleanupDeps,
 } from "./ticket-cleanup-controller.js";
@@ -20,6 +20,12 @@ const allReady: TicketCleanupStatus = {
   deleteLocalBranch: { state: "ready" },
   deleteRemoteBranch: { state: "ready" },
 };
+
+function invoke<T>(fn: () => T): T {
+  const result = runWithOwner(null, fn);
+  flush();
+  return result;
+}
 
 function makeDeps(overrides?: Partial<TicketCleanupDeps>): TicketCleanupDeps {
   return {
@@ -45,7 +51,7 @@ describe("createTicketCleanupController", () => {
         const ctrl = createTicketCleanupController(makeDeps({
           loadStatus: () => new Promise((r) => { resolve = r; }),
         }));
-        const p = ctrl.startChecks();
+        const p = invoke(ctrl.startChecks);
         expect(ctrl.items().stopHerdrAgent.state).toBe("checking");
         expect(ctrl.items().deleteRemoteBranch.state).toBe("checking");
         resolve(allReady);
@@ -64,7 +70,7 @@ describe("createTicketCleanupController", () => {
           deleteRemoteBranch: { state: "blocked", reason: "No remote branch" },
         };
         const ctrl = createTicketCleanupController(makeDeps({ loadStatus: async () => status }));
-        await ctrl.startChecks();
+        await invoke(ctrl.startChecks);
         expect(ctrl.items().deleteRemoteBranch).toEqual({ state: "blocked", reason: "No remote branch" });
         expect(ctrl.items().stopHerdrAgent).toEqual({ state: "ready" });
         expect(ctrl.items().deleteWorktree).toEqual({ state: "ready" });
@@ -81,7 +87,7 @@ describe("createTicketCleanupController", () => {
         const ctrl = createTicketCleanupController(makeDeps({
           loadStatus: async () => { throw new Error("server down"); },
         }));
-        await ctrl.startChecks();
+        await invoke(ctrl.startChecks);
         expect(ctrl.items().stopHerdrAgent).toEqual({
           state: "error", error: { description: "server down" },
         });
@@ -108,8 +114,8 @@ describe("createTicketCleanupController", () => {
             return Promise.resolve(statusB);
           },
         }));
-        const pA = ctrl.startChecks();
-        const pB = ctrl.startChecks();
+        const pA = invoke(ctrl.startChecks);
+        const pB = invoke(ctrl.startChecks);
         await pB;
         resolveA(allReady);
         await pA;
@@ -133,8 +139,8 @@ describe("createTicketCleanupController", () => {
           loadStatus: async () => ++checks === 1 ? allReady : refreshed,
           onCleanup: async (_folderName, cleanup) => { submitted = cleanup; return {}; },
         }));
-        await ctrl.startChecks();
-        await ctrl.runCleanup("deleteWorktree");
+        await invoke(ctrl.startChecks);
+        await invoke(() => ctrl.runCleanup("deleteWorktree"));
         expect(submitted).toEqual({
           stopHerdrAgent: false,
           deleteWorktree: true,
@@ -156,8 +162,8 @@ describe("createTicketCleanupController", () => {
         const ctrl = createTicketCleanupController(makeDeps({
           onSubmit: async (folderName) => { submittedFolderName = folderName; return {}; },
         }));
-        await ctrl.startChecks();
-        await ctrl.doSubmit();
+        await invoke(ctrl.startChecks);
+        await invoke(ctrl.doSubmit);
         expect(submittedFolderName).toBe("t-1-alpha");
       } finally {
         dispose();
@@ -173,8 +179,8 @@ describe("createTicketCleanupController", () => {
           onOpenChange: (open) => { closedWith = open; },
           onSubmit: async () => ({ error: "cleanup failed" }),
         }));
-        await ctrl.startChecks();
-        await ctrl.doSubmit();
+        await invoke(ctrl.startChecks);
+        await invoke(ctrl.doSubmit);
         expect(ctrl.errorInfo()).toEqual({ description: "cleanup failed" });
         expect(closedWith).toBeUndefined();
       } finally {
@@ -190,8 +196,8 @@ describe("createTicketCleanupController", () => {
         const ctrl = createTicketCleanupController(makeDeps({
           onOpenChange: (open) => { closedWith = open; },
         }));
-        await ctrl.startChecks();
-        await ctrl.doSubmit();
+        await invoke(ctrl.startChecks);
+        await invoke(ctrl.doSubmit);
         expect(closedWith).toBe(false);
         expect(ctrl.items().deleteWorktree.state).toBe("checking");
       } finally {
@@ -207,8 +213,8 @@ describe("createTicketCleanupController", () => {
         const ctrl = createTicketCleanupController(makeDeps({
           onSubmit: () => new Promise((r) => { resolve = r; }),
         }));
-        await ctrl.startChecks();
-        const p = ctrl.doSubmit();
+        await invoke(ctrl.startChecks);
+        const p = invoke(ctrl.doSubmit);
         expect(ctrl.submitting()).toBe(true);
         resolve({});
         await p;
@@ -226,8 +232,8 @@ describe("createTicketCleanupController", () => {
         const ctrl = createTicketCleanupController(makeDeps({
           onCleanup: () => new Promise((r) => { resolve = r; }),
         }));
-        await ctrl.startChecks();
-        const p = ctrl.runCleanup("deleteWorktree");
+        await invoke(ctrl.startChecks);
+        const p = invoke(() => ctrl.runCleanup("deleteWorktree"));
         expect(ctrl.runningItem()).toBe("deleteWorktree");
         expect(ctrl.busy()).toBe(true);
         resolve({});
@@ -248,8 +254,8 @@ describe("createTicketCleanupController", () => {
           loadStatus: async () => { checks++; return allReady; },
           onCleanup: async () => ({ error: "action failed" }),
         }));
-        await ctrl.startChecks();
-        await ctrl.runCleanup("deleteWorktree");
+        await invoke(ctrl.startChecks);
+        await invoke(() => ctrl.runCleanup("deleteWorktree"));
         expect(checks).toBe(2);
         expect(ctrl.errorInfo()).toEqual({ description: "action failed" });
       } finally {

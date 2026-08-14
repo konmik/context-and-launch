@@ -1,7 +1,6 @@
-import { Handle, Position, type NodeProps } from "@dschz/solid-flow";
 import { createContext, createSignal, Show, useContext } from "solid-js";
-import Group from "lucide-solid/icons/group";
-import EllipsisVertical from "lucide-solid/icons/ellipsis-vertical";
+import { Group } from "~/components/ui/icons.js";
+import { EllipsisVertical } from "~/components/ui/icons.js";
 import { MenuContent, MenuItem, MenuRoot, MenuTrigger } from "../ui/menu";
 import {
   isConnectionTarget,
@@ -17,6 +16,7 @@ import { useHerdrStatuses } from "../ticket/herdr-statuses-context.js";
 
 export interface ForestCardCommands {
   activateConnection: (endpoint: ConnectionEndpoint) => void;
+  dragConnection: (endpoint: ConnectionEndpoint) => void;
   openGroupTicket: (ticketNumber: string) => void;
   ungroup: (ticketNumber: string) => void;
 }
@@ -25,30 +25,12 @@ export const ForestCardCommandsContext = createContext<ForestCardCommands>();
 export const ForestConnectionSessionContext = createContext<() => ForestConnectionSession>();
 export const ForestCardColumnsContext = createContext<() => SwatchColumn[]>();
 
-function requireCardCommands(): ForestCardCommands {
-  const commands = useContext(ForestCardCommandsContext);
-  if (!commands) throw new Error("Forest card commands are unavailable");
-  return commands;
-}
-
-function requireConnectionSession(): () => ForestConnectionSession {
-  const session = useContext(ForestConnectionSessionContext);
-  if (!session) throw new Error("Forest connection session is unavailable");
-  return session;
-}
-
-function requireCardColumns(): () => SwatchColumn[] {
-  const columns = useContext(ForestCardColumnsContext);
-  if (!columns) throw new Error("Forest card columns are unavailable");
-  return columns;
-}
-
 export default function ForestCard(
-  props: NodeProps<ForestNodeData, "forest-ticket">,
+  props: { data: ForestNodeData; selected?: boolean },
 ) {
-  const commands = requireCardCommands();
-  const connectionSession = requireConnectionSession();
-  const columns = requireCardColumns();
+  const commands = useContext(ForestCardCommandsContext);
+  const connectionSession = useContext(ForestConnectionSessionContext);
+  const columns = useContext(ForestCardColumnsContext);
   const herdrStatus = useHerdrStatuses();
   const [hovered, setHovered] = createSignal(false);
   const ticketNumber = () => props.data.ticket.number;
@@ -67,14 +49,10 @@ export default function ForestCard(
     const state = () => handleState(endpoint());
     const visible = () => state() !== "hidden";
     return (
-      <Handle
-        id={handleProps.end}
-        type={handleProps.end === "top" ? "target" : "source"}
-        position={handleProps.end === "top" ? Position.Top : Position.Bottom}
-        isConnectable
-        isConnectableStart={connectionSession().kind === "idle"}
-        isConnectableEnd={connectionSession().kind === "idle" || state() === "available"}
+      <button
+        type="button"
         class={`rounded-full border border-background bg-primary cursor-crosshair
+          absolute left-1/2 -translate-x-1/2 ${handleProps.end === "top" ? "-top-1.5" : "-bottom-1.5"}
           transition-[opacity,transform,box-shadow] pointer-events-auto ${visible()
             ? "opacity-100"
             : "opacity-0"}${state() === "source"
@@ -83,11 +61,16 @@ export default function ForestCard(
         style={{
           width: "12px",
           height: "12px",
+          "z-index": 1,
           "pointer-events": "all",
         }}
-        onClick={(event: MouseEvent) => {
+        onClick={(event) => {
           event.stopPropagation();
           commands.activateConnection(endpoint());
+        }}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          commands.dragConnection(endpoint());
         }}
         data-testid={`forest-handle-${handleProps.end}`}
         data-ticket-number={ticketNumber()}
@@ -129,7 +112,7 @@ export default function ForestCard(
           <Show when={props.data.group}>
             <div
               class="contents nodrag nopan"
-              on:pointerdown={(event: PointerEvent) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
               onClick={(event: MouseEvent) => event.stopPropagation()}
             >
               <MenuRoot

@@ -1,11 +1,11 @@
-import { onCleanup, onMount } from "solid-js";
+import { onSettled } from "solid-js";
 
 export function useEscapeKey(handler: () => void): void {
-  onMount(() => {
+  onSettled(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") handler();
     }
     document.addEventListener("keydown", onKeyDown);
-    onCleanup(() => document.removeEventListener("keydown", onKeyDown));
+    return () => document.removeEventListener("keydown", onKeyDown);
   });
 }

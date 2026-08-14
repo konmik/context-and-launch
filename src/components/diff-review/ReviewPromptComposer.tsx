@@ -1,9 +1,9 @@
 import { For, Show, createEffect } from "solid-js";
-import { Portal } from "solid-js/web";
-import AlertTriangle from "lucide-solid/icons/triangle-alert";
-import GripVertical from "lucide-solid/icons/grip-vertical";
-import Send from "lucide-solid/icons/send";
-import X from "lucide-solid/icons/x";
+import { Portal } from "@solidjs/web";
+import { AlertTriangle } from "~/components/ui/icons.js";
+import { GripVertical } from "~/components/ui/icons.js";
+import { Send } from "~/components/ui/icons.js";
+import { X } from "~/components/ui/icons.js";
 import type {
 	ReviewLineRange,
 	ReviewPromptQueueItem,
@@ -87,9 +87,8 @@ export default function ReviewPromptComposer(props: {
 		}
 	}
 
-	createEffect(() => {
-		if (!props.open) return;
-		props.selection;
+	createEffect(() => [props.open, props.selection] as const, ([open]) => {
+		if (!open) return;
 		queueMicrotask(() => inputRef?.focus());
 	});
 
@@ -130,7 +129,7 @@ export default function ReviewPromptComposer(props: {
 							</div>
 							<div class="mt-1 truncate font-mono text-[9px] text-primary">
 								{props.selection
-									? selectionLabel(props.selection)
+									? selectionLabel(props.selection!)
 									: `Agent: ${props.agentStatus
 										?? (props.agentPresent ? "running" : "not started")}`}
 							</div>
@@ -213,7 +212,7 @@ export default function ReviewPromptComposer(props: {
 							{(text) => (
 								<button
 									type="button"
-									draggable={true}
+									draggable="true"
 									class={
 										"flex shrink-0 cursor-grab items-center rounded-md border"
 										+ " border-border p-1.5 text-muted-foreground hover:bg-accent"

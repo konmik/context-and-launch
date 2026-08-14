@@ -1,5 +1,5 @@
-import { Show } from "solid-js";
-import RefreshCw from "lucide-solid/icons/refresh-cw";
+import { Show, untrack } from "solid-js";
+import { RefreshCw } from "~/components/ui/icons.js";
 import { DialogRoot, DialogTitle } from "../ui/dialog";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 import {
@@ -18,13 +18,13 @@ interface CreateTicketDialogProps {
 }
 
 export default function CreateTicketDialog(props: CreateTicketDialogProps) {
-  const s = props.ctrl ?? createCreateTicketController({
+  const s = untrack(() => props.ctrl ?? createCreateTicketController({
     onSubmit: props.onSubmit,
     onOpenChange: props.onOpenChange,
     suggestedNextNumber: () => props.suggestedNextNumber,
     open: () => props.open,
     onSuggestNumber: (numberInput: string) => suggestTicketNumber(props.projectSlug, numberInput),
-  });
+  }));
 
   useModEnterSubmit({
     onSubmit: s.doSubmit,

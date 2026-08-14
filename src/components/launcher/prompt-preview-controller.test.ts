@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { createRoot, createSignal } from "solid-js";
+import { createRoot, createSignal, flush, runWithOwner } from "solid-js";
 import { createPromptPreviewController } from "./prompt-preview-controller.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { MergedLauncherConfig } from "~/core/launcher/launcher-config.js";
@@ -30,6 +30,11 @@ function makeConfig(templateText: string): MergedLauncherConfig {
 	};
 }
 
+function invoke(fn: () => void) {
+	runWithOwner(null, fn);
+	flush();
+}
+
 describe("createPromptPreviewController", () => {
 	it("updates prompt when ticket folderName changes", () => {
 		createRoot((dispose) => {
@@ -55,7 +60,7 @@ describe("createPromptPreviewController", () => {
 			expect(ctrl.currentPrompt()).toContain("t-1-alpha");
 			expect(ctrl.currentPrompt()).not.toContain("t-1-beta");
 
-			setTicket(makeTicket({ folderName: "t-1-beta", number: "T-1", title: "Beta" }));
+			invoke(() => setTicket(makeTicket({ folderName: "t-1-beta", number: "T-1", title: "Beta" })));
 
 			expect(ctrl.currentPrompt()).toContain("t-1-beta");
 			expect(ctrl.currentPrompt()).not.toContain("t-1-alpha");
@@ -87,7 +92,7 @@ describe("createPromptPreviewController", () => {
 
 			expect(ctrl.currentPrompt()).toContain("T-1 - Alpha");
 
-			setTicket(makeTicket({ folderName: "t-2-beta", number: "T-2", title: "Beta" }));
+			invoke(() => setTicket(makeTicket({ folderName: "t-2-beta", number: "T-2", title: "Beta" })));
 
 			expect(ctrl.currentPrompt()).toContain("T-2 - Beta");
 			expect(ctrl.currentPrompt()).not.toContain("T-1");
@@ -194,8 +199,8 @@ describe("createPromptPreviewController", () => {
 					onEditedPromptChange: (v) => saved.push(v),
 				});
 
-				ctrl.setEditMode(true);
-				ctrl.setEditedPrompt("edited text");
+				invoke(() => ctrl.setEditMode(true));
+				invoke(() => ctrl.setEditedPrompt("edited text"));
 				expect(saved).toEqual([]);
 				await vi.advanceTimersByTimeAsync(500);
 				expect(saved).toEqual(["edited text"]);
@@ -229,7 +234,7 @@ describe("createPromptPreviewController", () => {
 					onEditedPromptChange: (v) => saved.push(v),
 				});
 
-				ctrl.setEditMode(false);
+				invoke(() => ctrl.setEditMode(false));
 				await vi.advanceTimersByTimeAsync(500);
 				expect(saved).toEqual([undefined]);
 				expect(ctrl.editMode()).toBe(false);
@@ -265,11 +270,11 @@ describe("createPromptPreviewController", () => {
 				});
 
 				expect(ctrl.editMode()).toBe(false);
-				ctrl.resetFromSaved("prompt from another column");
+				invoke(() => ctrl.resetFromSaved("prompt from another column"));
 				expect(ctrl.editMode()).toBe(true);
 				expect(ctrl.currentPrompt()).toBe("prompt from another column");
 
-				ctrl.resetFromSaved(undefined);
+				invoke(() => ctrl.resetFromSaved(undefined));
 				expect(ctrl.editMode()).toBe(false);
 				expect(ctrl.currentPrompt()).toBe("generated");
 
@@ -331,7 +336,7 @@ describe("createPromptPreviewController", () => {
 					onEditedPromptChange: (v) => saved.push(v),
 				});
 
-				ctrl.setEditedPrompt("");
+				invoke(() => ctrl.setEditedPrompt(""));
 				await vi.advanceTimersByTimeAsync(500);
 				expect(ctrl.editMode()).toBe(true);
 				expect(ctrl.currentPrompt()).toBe("");

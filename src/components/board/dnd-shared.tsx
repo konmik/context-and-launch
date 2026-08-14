@@ -1,6 +1,7 @@
-import { Show, type JSX } from "solid-js";
-import GripVertical from "lucide-solid/icons/grip-vertical";
-import { DragOverlay } from "@thisbeyond/solid-dnd";
+import { Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { GripVertical } from "~/components/ui/icons.js";
+import { DragOverlay } from "~/components/drag/drag-provider.js";
 import { joinClass } from "~/lib/class-util";
 
 // Shared drag-and-drop visual language, used by both the KanbanBoard (ticket
@@ -41,7 +42,15 @@ export function DragOverlayCard(props: { class?: string; style?: JSX.CSSProperti
 
 export function DragGrip(props: { gripProps?: Record<string, unknown>; testId: string }) {
 	return (
-		<span {...(props.gripProps ?? {})} class="cursor-grab text-muted-foreground" data-testid={props.testId}>
+		<span
+			onPointerDown={props.gripProps?.onPointerDown as JSX.EventHandler<HTMLSpanElement, PointerEvent>}
+			onKeyDown={props.gripProps?.onKeyDown as JSX.EventHandler<HTMLSpanElement, KeyboardEvent>}
+			role="button"
+			tabindex="0"
+			aria-label="Drag to reorder"
+			class="cursor-grab text-muted-foreground"
+			data-testid={props.testId}
+		>
 			<GripVertical size={14} />
 		</span>
 	);

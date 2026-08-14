@@ -1,9 +1,9 @@
-import { Show, createSignal, type Accessor } from "solid-js";
+import { Show, createSignal } from "solid-js";
 import BoardSelect from "./BoardSelect.js";
 import { listBoards, type BoardRef } from "../board/board-api.js";
 
 interface BoardSelectorProps {
-  boardId: Accessor<string>;
+  boardId: string;
   setBoardId: (v: string) => void;
   onError?: (msg: string) => void;
 }
@@ -14,7 +14,7 @@ export default function BoardSelector(props: BoardSelectorProps) {
   listBoards()
     .then((data) => {
       setBoards(data);
-      if (!props.boardId()) props.setBoardId(data[0]?.id ?? "");
+      if (!props.boardId) props.setBoardId(data[0]?.id ?? "");
     })
     .catch((err: any) => props.onError?.(err?.message ?? "Failed to load boards"));
 
@@ -24,7 +24,7 @@ export default function BoardSelector(props: BoardSelectorProps) {
         <label for="project-board" class="field-label">Board Definition</label>
         <BoardSelect
           boards={boards()}
-          value={props.boardId()}
+          value={props.boardId}
           onChange={(e) => props.setBoardId(e.currentTarget.value)}
           class="input"
           testId="add-project-board-select"

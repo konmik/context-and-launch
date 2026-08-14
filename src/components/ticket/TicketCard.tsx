@@ -1,5 +1,5 @@
 import { Show, For } from "solid-js";
-import EllipsisVertical from "lucide-solid/icons/ellipsis-vertical";
+import { EllipsisVertical } from "~/components/ui/icons.js";
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "../ui/menu";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import HerdrStatusIcon from "./HerdrStatusIcon";
@@ -19,7 +19,8 @@ export default function TicketCard(props: TicketCardProps) {
   const herdrStatus = useHerdrStatuses();
   const shortcutRunner = useShortcutRunner();
   function handleCardClick(e: MouseEvent) {
-    if ((e.target as HTMLElement).closest("[data-menu]")) return;
+    const target = e.target as HTMLElement;
+    if (target.closest("[data-menu]")) return;
     props.onViewDetail(props.ticket);
   }
 
@@ -63,13 +64,18 @@ export default function TicketCard(props: TicketCardProps) {
                   >Open worktree</MenuItem>
                 </Show>
                 <Show when={props.onReviewChanges}>
-                  <MenuItem
+                  <button
+                    type="button"
+                    role="menuitem"
+                    data-scope="menu"
+                    data-part="item"
                     value="review-changes"
                     data-testid="kanban-board-ticket-menu-review-changes"
-                    onClick={(e: MouseEvent) => {
-                      e.stopPropagation(); props.onReviewChanges?.(props.ticket);
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      props.onReviewChanges?.(props.ticket);
                     }}
-                  >Diff Review</MenuItem>
+                  >Diff Review</button>
                 </Show>
                 <MenuSeparator />
               </Show>

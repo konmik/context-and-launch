@@ -1,4 +1,4 @@
-import { createEffect, onCleanup, onMount } from "solid-js";
+import { createEffect, onSettled } from "solid-js";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { searchKeymap } from "@codemirror/search";
@@ -73,7 +73,7 @@ export default function LogTextView(props: { text: string }) {
 		});
 	};
 
-	onMount(() => {
+	onSettled(() => {
 		const state = EditorState.create({
 			doc: renderedText,
 			extensions: [
@@ -90,10 +90,16 @@ export default function LogTextView(props: { text: string }) {
 		});
 		view = new EditorView({ state, parent: containerRef! });
 		initialScrollFrame = requestAnimationFrame(scrollToBottom);
+		return () => {
+			if (initialScrollFrame !== undefined) {
+				cancelAnimationFrame(initialScrollFrame);
+			}
+			view?.destroy();
+			view = undefined;
+		};
 	});
 
-	createEffect(() => {
-		const nextText = props.text;
+	createEffect(() => props.text, (nextText) => {
 		if (!view || nextText === renderedText) return;
 		const { scrollDOM } = view;
 		const shouldFollowTail = (
@@ -103,14 +109,6 @@ export default function LogTextView(props: { text: string }) {
 		renderedText = nextText;
 		view.dispatch({ changes: change });
 		if (shouldFollowTail) scrollToBottom();
-	});
-
-	onCleanup(() => {
-		if (initialScrollFrame !== undefined) {
-			cancelAnimationFrame(initialScrollFrame);
-		}
-		view?.destroy();
-		view = undefined;
 	});
 
 	return (

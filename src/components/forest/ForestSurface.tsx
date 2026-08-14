@@ -1,646 +1,349 @@
-import {
-  NodeToolbar,
-  Panel,
-  SolidFlow,
-  useNodes,
-  useSolidFlow,
-  useViewport,
-  type EdgeProps,
-  type EdgeTypes,
-  type NodeProps,
-  type NodeTypes,
-  type Viewport,
-} from "@dschz/solid-flow";
-import "@dschz/solid-flow/styles";
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  on,
-  onCleanup,
-  onMount,
-  Show,
-  type Accessor,
-} from "solid-js";
-import { Portal } from "solid-js/web";
-import { createStore, reconcile } from "solid-js/store";
-import X from "lucide-solid/icons/x";
+/* eslint-disable max-len */
+import { For, Show, createMemo, createSignal, createStore, onSettled, untrack, type Accessor } from "solid-js";
+import { X } from "~/components/ui/icons.js";
 import type { OverlayRect } from "../shared/ExpandingOverlay";
-import ForestCard, {
-  ForestCardCommandsContext,
-  ForestCardColumnsContext,
-  ForestConnectionSessionContext,
-  type ForestCardCommands,
-} from "./ForestCard.js";
-import type { SwatchColumn } from "~/core/board/status-swatch.js";
+import ForestCard, { ForestCardCommandsContext, ForestCardColumnsContext, ForestConnectionSessionContext, type ForestCardCommands } from "./ForestCard.js";
 import ForestDependencyEdge from "./ForestDependencyEdge.js";
-import {
-  dependencyFromEndpoints,
-  isConnectionTarget,
-  type ConnectionAnchor,
-  type ConnectionEndpoint,
-  type ConnectionSurface,
-  type ForestConnectionCommands,
-  type ForestConnectionSession,
-} from "./forest-connections.js";
-import {
-  buildForestFlowModel,
-  groupPosition,
-  positionsFromNodes,
-  rearrangedForestPositions,
-  type ForestEdgeData,
-  type ForestFlowEdge,
-  type ForestFlowNode,
-  type ForestNodeData,
-} from "./forest-flow-model.js";
-import {
-  representativeInScope,
-  type DependencyRelation,
-  type ForestTicket,
-} from "./forest-graph.js";
-import {
-  externalDependencyPath,
-  nodeEndpointPoint,
-  viewportForBounds,
-  viewportForLayout,
-} from "./forest-viewport.js";
+import type { SwatchColumn } from "~/core/board/status-swatch.js";
+import { dependencyFromEndpoints, isConnectionTarget, type ConnectionAnchor, type ConnectionEndpoint, type ConnectionSurface, type ForestConnectionCommands, type ForestConnectionSession } from "./forest-connections.js";
+import { buildForestFlowModel, groupPosition, positionsFromNodes, rearrangedForestPositions, type ForestFlowNode } from "./forest-flow-model.js";
+import { CARD_HEIGHT, CARD_WIDTH, representativeInScope, type DependencyRelation, type ForestTicket } from "./forest-graph.js";
+import { externalDependencyPath, viewportForLayout } from "./forest-viewport.js";
+import type { ForestViewport } from "./forest-types.js";
 import { useEscapeKey } from "~/lib/use-escape-key.js";
 import type { ForestLayout } from "~/core/ticket/forest-layout-store.js";
-
-function ForestCardAdapter(props: NodeProps<Record<string, unknown>, string | undefined>) {
-  return <ForestCard {...props as NodeProps<ForestNodeData, "forest-ticket">} />;
-}
-
-function ForestDependencyEdgeAdapter(
-  props: EdgeProps<Record<string, unknown>, string | undefined>,
-) {
-  return <ForestDependencyEdge {...props as EdgeProps<ForestEdgeData, "forest-dependency">} />;
-}
-
-const nodeTypes = { "forest-ticket": ForestCardAdapter } satisfies NodeTypes;
-const edgeTypes = { "forest-dependency": ForestDependencyEdgeAdapter } satisfies EdgeTypes;
 
 export interface ForestSurfaceData {
   tickets: ForestTicket[];
   layout: ForestLayout;
   columns: SwatchColumn[];
   scopeGroupNumber?: string;
-  viewport?: Viewport;
+  viewport?: ForestViewport;
 }
-
 export interface ForestSurfaceApi {
+  clearSelection: () => void;
   connectionAnchor: (endpoint: ConnectionEndpoint) => ConnectionAnchor | undefined;
 }
-
 export interface ForestSurfaceCommands {
   addDependency: (dependentNumber: string, dependencyNumber: string) => Promise<boolean>;
-  groupSelection: (
-    memberNumbers: string[],
-    position: { x: number; y: number },
-  ) => void;
+  groupSelection: (memberNumbers: string[], position: { x: number; y: number }) => void;
   openGroup: (ticketNumber: string, cardRect: OverlayRect) => void;
   onClose?: () => void;
   openTicket: (ticketNumber: string) => void;
   persistPositions: (positions: ForestLayout) => Promise<void>;
-  persistViewport?: (viewport: Viewport) => void;
+  persistViewport?: (viewport: ForestViewport) => void;
   registerSurface: (api: ForestSurfaceApi | undefined) => void;
-  removeDependencies: (relations: DependencyRelation[]) => Promise<void>;
+  removeDependency: (relation: DependencyRelation) => Promise<void>;
   reportError: (error: unknown) => void;
   ungroup: (ticketNumber: string) => void;
 }
+interface Props { data: ForestSurfaceData; commands: ForestSurfaceCommands; connectionSession: Accessor<ForestConnectionSession>; connectionCommands: ForestConnectionCommands }
+interface Popup { relations: DependencyRelation[]; screenX: number; screenY: number }
 
-interface ForestSurfaceProps {
-  data: ForestSurfaceData;
-  commands: ForestSurfaceCommands;
-  connectionSession: Accessor<ForestConnectionSession>;
-  connectionCommands: ForestConnectionCommands;
-}
-
-interface DependencyPopup {
-  relations: DependencyRelation[];
-  screenX: number;
-  screenY: number;
-}
-
-function surfaceInfo(
-  element: HTMLDivElement,
-  scopeGroupNumber: string | undefined,
-): ConnectionSurface {
+function surfaceInfo(element: HTMLElement, scopeGroupNumber: string | undefined): ConnectionSurface {
   const boundary = element.closest<HTMLElement>("[data-forest-connection-boundary]") ?? element;
   const bounds = boundary.getBoundingClientRect();
-  return {
-    scopeGroupNumber,
-    bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
-  };
+  return { scopeGroupNumber, bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height } };
 }
 
-export default function ForestSurface(props: ForestSurfaceProps) {
-  const model = createMemo(() => buildForestFlowModel(
-    props.data.tickets,
-    props.data.scopeGroupNumber,
-    props.data.layout,
-  ));
-  const [size, setSize] = createSignal({ width: 0, height: 0 });
-  const measured = createMemo(() => size().width > 0 && size().height > 0);
-  let surfaceRef: HTMLDivElement | undefined;
-  let initialViewportValue: Viewport | undefined;
+export default function ForestSurface(props: Props) {
+  const model = createMemo(() => buildForestFlowModel(props.data.tickets, props.data.scopeGroupNumber, props.data.layout));
+  const [nodes, setNodes] = createStore(
+    () => model().nodes,
+    [] as ForestFlowNode[],
+    { key: "id" },
+  );
+  const [viewport, setViewport] = createSignal<ForestViewport>(
+    untrack(() => props.data.viewport) ?? { x: 0, y: 0, zoom: 1 },
+  );
+  const [selected, setSelected] = createSignal<string[]>([]);
+  const [popup, setPopup] = createSignal<Popup>();
+  const [persisting, setPersisting] = createSignal(false);
+  const [panning, setPanning] = createSignal(false);
+  const [selectionRect, setSelectionRect] = createSignal<{ x: number; y: number; width: number; height: number }>();
+  const [geometryRevision, setGeometryRevision] = createSignal(0);
+  const [raisedNodeId, setRaisedNodeId] = createSignal<string>();
+  let surface!: HTMLDivElement;
+  let measured = false;
+  let suppressedClick: { id: string; until: number } | undefined;
 
-  function requireSurface(): HTMLDivElement {
-    if (!surfaceRef) throw new Error("Forest surface is not mounted");
-    return surfaceRef;
+  const screenPoint = (point: { x: number; y: number }, current = viewport()) => ({ x: point.x * current.zoom + current.x, y: point.y * current.zoom + current.y });
+  const nodeById = (id: string) => nodes.find((node) => node.id === id);
+  function endpoint(id: string, end: "top" | "bottom") {
+    geometryRevision();
+    const node = nodeById(id);
+    if (!node) return { x: 0, y: 0 };
+    const card = surface?.querySelector<HTMLElement>(`[data-forest-card][data-ticket-number="${CSS.escape(id)}"]`);
+    if (!card) return { x: node.position.x + CARD_WIDTH / 2, y: node.position.y + (end === "bottom" ? CARD_HEIGHT : 0) };
+    return {
+      x: node.position.x + card.offsetWidth / 2,
+      y: node.position.y + (end === "bottom" ? card.offsetHeight : 0),
+    };
   }
-
-  function initialViewport(): Viewport {
-    initialViewportValue ??= props.data.viewport ?? viewportForLayout(
-      positionsFromNodes(model().nodes),
-      size().width,
-      size().height,
-    );
-    return initialViewportValue;
+  function connectionAnchor(connection: ConnectionEndpoint, current = viewport()): ConnectionAnchor | undefined {
+    const representative = representativeInScope(model().lookup, connection.ticketNumber, props.data.scopeGroupNumber);
+    if (!representative || !nodeById(representative)) return undefined;
+    const local = screenPoint(endpoint(representative, connection.end), current);
+    const rect = surface.getBoundingClientRect();
+    return { screenPoint: { x: rect.left + local.x, y: rect.top + local.y }, surface: surfaceInfo(surface, props.data.scopeGroupNumber) };
   }
-
-  const [nodes, setNodes] = createStore<ForestFlowNode[]>(model().nodes);
-  const [edges, setEdges] = createStore<ForestFlowEdge[]>(model().edges);
-  createEffect(on(model, current => setNodes(reconcile(current.nodes, { key: "id" })), { defer: true }));
-  createEffect(on(model, current => setEdges(reconcile(current.edges, { key: "id" })), { defer: true }));
-  const [selectedNodeIds, setSelectedNodeIds] = createSignal<string[]>([]);
-  const [pendingPositionWrites, setPendingPositionWrites] = createSignal(0);
-  const isPersistingPositions = () => pendingPositionWrites() > 0;
-  const [dependencyPopup, setDependencyPopup] = createSignal<DependencyPopup>();
-  let surfaceApi: ForestSurfaceApi | undefined;
-  let nativeConnectionCompleted = false;
+  function refreshAnchor(current = viewport()) {
+    const session = props.connectionSession();
+    if (session.kind === "connecting") {
+      const anchor = connectionAnchor(session.source, current);
+      if (anchor) props.connectionCommands.reanchorSource(anchor);
+    }
+  }
+  function beginConnection(endpoint: ConnectionEndpoint) {
+    const anchor = connectionAnchor(endpoint);
+    if (anchor) props.connectionCommands.begin(endpoint, anchor);
+  }
+  function activateConnection(target: ConnectionEndpoint) {
+    const session = props.connectionSession();
+    if (session.kind !== "connecting") {
+      setRaisedNodeId(undefined);
+      return beginConnection(target);
+    }
+    if (!isConnectionTarget(session.source, target)) return;
+    const { dependentNumber, dependencyNumber } = dependencyFromEndpoints(session.source, target);
+    props.connectionCommands.cancel();
+    void props.commands.addDependency(dependentNumber, dependencyNumber).catch(props.commands.reportError);
+  }
+  function dragConnection(source: ConnectionEndpoint) {
+    if (props.connectionSession().kind === "connecting") return;
+    beginConnection(source);
+    const cleanup = () => {
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", cancel);
+    };
+    const finish = (event: PointerEvent) => {
+      cleanup();
+      const element = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+      const handle = element?.closest<HTMLElement>("[data-connection-handle-end][data-ticket-number]");
+      const card = element?.closest<HTMLElement>("[data-forest-card][data-ticket-number]");
+      const ticketNumber = handle?.dataset.ticketNumber ?? card?.dataset.ticketNumber;
+      const end = handle?.dataset.connectionHandleEnd as "top" | "bottom" | undefined;
+      if (ticketNumber && ticketNumber !== source.ticketNumber) {
+        activateConnection({ ticketNumber, end: end ?? (source.end === "bottom" ? "top" : "bottom") });
+      } else if (!ticketNumber) {
+        props.connectionCommands.cancel();
+      }
+    };
+    const cancel = () => { cleanup(); props.connectionCommands.cancel(); };
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", cancel);
+  }
+  const cardCommands: ForestCardCommands = untrack(() => ({
+    activateConnection,
+    dragConnection,
+    openGroupTicket: props.commands.openTicket,
+    ungroup: props.commands.ungroup,
+  }));
 
   async function persistPositions(positions: ForestLayout) {
-    setPendingPositionWrites(count => count + 1);
-    try {
-      await props.commands.persistPositions(positions);
-    } catch (error) {
-      props.commands.reportError(error);
-    } finally {
-      setPendingPositionWrites(count => count - 1);
-    }
+    setPersisting(true);
+    try { await props.commands.persistPositions(positions); } catch (error) { props.commands.reportError(error); } finally { setPersisting(false); }
   }
-
-  async function completeConnection(
-    source: ConnectionEndpoint,
-    target: ConnectionEndpoint,
-    pendingEdgeId?: string,
-  ) {
-    if (!isConnectionTarget(source, target)) return;
-    const { dependentNumber, dependencyNumber } = dependencyFromEndpoints(source, target);
-    let connected: boolean;
-    try {
-      connected = await props.commands.addDependency(dependentNumber, dependencyNumber);
-    } catch (error) {
-      if (pendingEdgeId) setEdges(current => current.filter(edge => edge.id !== pendingEdgeId));
-      props.connectionCommands.cancel();
-      props.commands.reportError(error);
-      return;
-    }
-    if (!connected && pendingEdgeId) {
-      setEdges(current => current.filter(edge => edge.id !== pendingEdgeId));
-    }
+  function bounds(ids = nodes.map((node) => node.id)) {
+    const chosen = nodes.filter((node) => ids.includes(node.id));
+    if (!chosen.length) return undefined;
+    const minX = Math.min(...chosen.map((node) => node.position.x));
+    const minY = Math.min(...chosen.map((node) => node.position.y));
+    const maxX = Math.max(...chosen.map((node) => node.position.x + CARD_WIDTH));
+    const maxY = Math.max(...chosen.map((node) => node.position.y + CARD_HEIGHT));
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
   }
-
-  function submitConnection(
-    source: ConnectionEndpoint,
-    target: ConnectionEndpoint,
-    pendingEdgeId?: string,
-  ) {
-    props.connectionCommands.cancel();
-    void completeConnection(source, target, pendingEdgeId);
+  function center() {
+    const next = viewportForLayout(positionsFromNodes(nodes), surface.clientWidth, surface.clientHeight);
+    setViewport(next); props.commands.persistViewport?.(next); refreshAnchor(next);
   }
-
-  function beginConnection(endpoint: ConnectionEndpoint) {
-    const anchor = surfaceApi?.connectionAnchor(endpoint);
-    if (!anchor) throw new Error(`Forest connection handle ${endpoint.ticketNumber} is unavailable`);
-    props.connectionCommands.begin(endpoint, anchor);
+  function rearrange() {
+    if (persisting()) return;
+    const positions = rearrangedForestPositions(props.data.tickets, props.data.scopeGroupNumber);
+    setNodes((draft) => { for (const node of draft) if (positions[node.id]) node.position = positions[node.id]; });
+    void persistPositions(positions);
   }
-
-  function activateConnection(endpoint: ConnectionEndpoint) {
-    const session = props.connectionSession();
-    if (session.kind === "connecting" && isConnectionTarget(session.source, endpoint)) {
-      submitConnection(session.source, endpoint);
-      return;
-    }
-    beginConnection(endpoint);
-  }
-
-  function beginNativeConnection(ticketNumber: string, handleType: "source" | "target") {
-    beginConnection({
-      ticketNumber,
-      end: handleType === "source" ? "bottom" : "top",
-    });
-  }
-
-  function showDependencyPopup(relations: DependencyRelation[], event: MouseEvent) {
+  function startNodeDrag(event: PointerEvent, id: string) {
     event.stopPropagation();
-    setDependencyPopup({
-      relations,
+    setRaisedNodeId(id);
+    if (event.shiftKey) { setSelected((ids) => ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id]); return; }
+    const node = nodeById(id)!;
+    const target = event.currentTarget as HTMLElement;
+    const origin = { x: event.clientX, y: event.clientY, position: { ...node.position } };
+    let dragging = false;
+    const move = (next: PointerEvent) => {
+      if (!dragging && Math.hypot(next.clientX - origin.x, next.clientY - origin.y) < 4) return;
+      if (!dragging) { dragging = true; target.setPointerCapture(next.pointerId); }
+      setNodes((draft) => {
+      const current = draft.find((value) => value.id === id)!;
+      current.position.x = origin.position.x + (next.clientX - origin.x) / viewport().zoom;
+      current.position.y = origin.position.y + (next.clientY - origin.y) / viewport().zoom;
+      });
+    };
+    const cleanup = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", cancel);
+    };
+    const end = () => {
+      cleanup();
+      if (dragging) {
+        suppressedClick = { id, until: performance.now() + 1000 };
+        void persistPositions({ [id]: { ...nodeById(id)!.position } });
+        refreshAnchor();
+      }
+    };
+    const cancel = () => cleanup();
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", cancel);
+  }
+  function startPan(event: PointerEvent) {
+    if (event.button !== 0) return;
+    const origin = { x: event.clientX, y: event.clientY, viewport: viewport() };
+    let moved = false;
+    surface.setPointerCapture(event.pointerId);
+    setPanning(!event.shiftKey);
+    const move = event.shiftKey
+      ? (next: PointerEvent) => { moved = true; setSelectionRect({ x: Math.min(origin.x, next.clientX), y: Math.min(origin.y, next.clientY), width: Math.abs(next.clientX - origin.x), height: Math.abs(next.clientY - origin.y) }); }
+      : (next: PointerEvent) => { moved = true; setViewport({ ...origin.viewport, x: origin.viewport.x + next.clientX - origin.x, y: origin.viewport.y + next.clientY - origin.y }); };
+    const cleanup = () => {
+      surface.removeEventListener("pointermove", move);
+      surface.removeEventListener("pointerup", end);
+      surface.removeEventListener("pointercancel", cancel);
+    };
+    const end = () => {
+      cleanup();
+      const rectangle = selectionRect();
+      if (event.shiftKey && rectangle) {
+        const ids = [...surface.querySelectorAll<HTMLElement>("[data-forest-card]")].filter((card) => {
+          const box = card.getBoundingClientRect();
+          return box.left < rectangle.x + rectangle.width && box.right > rectangle.x && box.top < rectangle.y + rectangle.height && box.bottom > rectangle.y;
+        }).map((card) => card.dataset.ticketNumber!).filter(Boolean);
+        setSelected(ids);
+        setSelectionRect(undefined);
+      } else {
+        props.commands.persistViewport?.(viewport()); refreshAnchor();
+      }
+      if (!moved && props.connectionSession().kind === "connecting") props.connectionCommands.cancel();
+      setPanning(false);
+    };
+    const cancel = () => {
+      cleanup();
+      setSelectionRect(undefined);
+      setPanning(false);
+    };
+    surface.addEventListener("pointermove", move);
+    surface.addEventListener("pointerup", end);
+    surface.addEventListener("pointercancel", cancel);
+  }
+  function wheel(event: WheelEvent) {
+    event.preventDefault();
+    const rect = surface.getBoundingClientRect();
+    const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    const previous = viewport();
+    const zoom = Math.max(0.2, Math.min(2.5, previous.zoom * Math.exp(-event.deltaY * 0.001)));
+    const next = { zoom, x: point.x - ((point.x - previous.x) / previous.zoom) * zoom, y: point.y - ((point.y - previous.y) / previous.zoom) * zoom };
+    setViewport(next);
+    props.commands.persistViewport?.(next);
+    refreshAnchor(next);
+  }
+  function clickNode(event: MouseEvent, node: ForestFlowNode) {
+    event.stopPropagation();
+    if (event.shiftKey) return;
+    if (suppressedClick?.id === node.id && performance.now() < suppressedClick.until) {
+      suppressedClick = undefined;
+      return;
+    }
+    suppressedClick = undefined;
+    if (node.data.group) {
+      const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+      props.commands.openGroup(node.id, { x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+    } else if (props.connectionSession().kind === "connecting") {
+      const session = props.connectionSession();
+      if (session.kind !== "connecting") return;
+      const source = session.source;
+      const target = { ticketNumber: node.id, end: source.end === "bottom" ? "top" as const : "bottom" as const };
+      if (isConnectionTarget(source, target)) activateConnection(target);
+      else props.connectionCommands.cancel();
+    } else props.commands.openTicket(node.id);
+  }
+  function nodeZIndex(node: ForestFlowNode) {
+    const session = props.connectionSession();
+    if (session.kind === "connecting") {
+      return node.data.representedTicketNumbers.includes(session.source.ticketNumber) ? 0 : 1;
+    }
+    return raisedNodeId() === node.id ? 1 : 0;
+  }
+  function showPopup(relations: DependencyRelation[], event: MouseEvent) {
+    event.stopPropagation();
+    setPopup({
+      relations: relations.map((relation) => ({ ...relation })),
       screenX: event.clientX,
       screenY: event.clientY,
     });
   }
-
-  async function deleteDependency() {
-    const popup = dependencyPopup();
-    if (!popup) return;
-    try {
-      await props.commands.removeDependencies(popup.relations);
-      setDependencyPopup(undefined);
-    } catch (error) {
-      props.commands.reportError(error);
-    }
-  }
-
-  const cardCommands: ForestCardCommands = {
-    activateConnection,
-    openGroupTicket: props.commands.openTicket,
-    ungroup: props.commands.ungroup,
-  };
-
-  useEscapeKey(() => setDependencyPopup(undefined));
-
-  const [boundaryGeometryVersion, setBoundaryGeometryVersion] = createSignal(0);
-
-  onMount(() => {
-    const element = requireSurface();
-    const measure = () => setSize({ width: element.clientWidth, height: element.clientHeight });
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    onCleanup(() => observer.disconnect());
-
-    // The sub-forest overlay animates its panel with a CSS transform, which moves
-    // the boundary's screen rect without firing the ResizeObserver.
-    const boundary = element.closest("[data-forest-connection-boundary]");
-    if (boundary) {
-      const onTransitionEnd = () => setBoundaryGeometryVersion(version => version + 1);
-      boundary.addEventListener("transitionend", onTransitionEnd);
-      onCleanup(() => boundary.removeEventListener("transitionend", onTransitionEnd));
-    }
+  useEscapeKey(() => setPopup(undefined));
+  onSettled(() => {
+    const resize = () => { setGeometryRevision((value) => value + 1); if (!measured) { measured = true; if (!props.data.viewport) center(); } refreshAnchor(); };
+    const observer = new ResizeObserver(resize); observer.observe(surface); resize();
+    props.commands.registerSurface({ clearSelection: () => setSelected([]), connectionAnchor });
+    return () => { observer.disconnect(); props.commands.registerSurface(undefined); };
   });
 
-  function FlowRuntime() {
-    const flow = useSolidFlow<ForestFlowNode, ForestFlowEdge>();
-    const flowNodes = useNodes<ForestFlowNode>();
-    const viewport = useViewport();
+  const externalPaths = createMemo(() => model().externalDependencies.map((dependency) => {
+    const start = endpoint(dependency.memberNumber, dependency.direction === "down" ? "bottom" : "top");
+    const boundaryScreenY = dependency.direction === "down" ? surface?.clientHeight ?? 0 : 0;
+    const targetY = (boundaryScreenY - viewport().y) / viewport().zoom;
+    return { ...dependency, start, targetY, d: externalDependencyPath(start, dependency.direction, targetY) };
+  }));
 
-    function connectionAnchor(endpoint: ConnectionEndpoint): ConnectionAnchor | undefined {
-      const representative = representativeInScope(
-        model().lookup,
-        endpoint.ticketNumber,
-        props.data.scopeGroupNumber,
+  function surfaceClick(event: MouseEvent) {
+    if (event.target !== event.currentTarget && !(event.target instanceof SVGElement)) return;
+    const dependency = externalPaths().find((candidate) => {
+      const handle = surface.querySelector<HTMLElement>(
+        `[data-ticket-number="${CSS.escape(candidate.memberNumber)}"]`
+        + `[data-connection-handle-end="${candidate.direction === "up" ? "top" : "bottom"}"]`,
       );
-      if (!representative) return undefined;
-      const node = flow.getInternalNode(representative);
-      if (!node) return undefined;
-      return {
-        screenPoint: flow.flowToScreenPosition(nodeEndpointPoint(node, endpoint.end)),
-        surface: surfaceInfo(requireSurface(), props.data.scopeGroupNumber),
-      };
-    }
-
-    function refreshConnectionAnchor() {
-      const session = props.connectionSession();
-      if (session.kind !== "connecting") return;
-      const anchor = connectionAnchor(session.source);
-      if (anchor) props.connectionCommands.reanchorSource(anchor);
-    }
-
-    function cardBounds(ticketNumbers: string[]) {
-      if (ticketNumbers.length === 0) return undefined;
-      const bounds = flow.getNodesBounds(ticketNumbers);
-      return bounds.width > 0 && bounds.height > 0 ? bounds : undefined;
-    }
-
-    async function rearrange() {
-      if (isPersistingPositions()) return;
-      const positions = rearrangedForestPositions(
-        props.data.tickets,
-        props.data.scopeGroupNumber,
-      );
-      for (const [ticketNumber, position] of Object.entries(positions)) {
-        flow.updateNode(ticketNumber, { position });
-      }
-      await persistPositions(positions);
-    }
-
-    async function center() {
-      const bounds = cardBounds(model().nodes.map(node => node.id));
-      const nextViewport = bounds
-        ? viewportForBounds(bounds, size().width, size().height)
-        : { x: size().width / 2, y: size().height / 2, zoom: 1 };
-      await flow.setViewport(nextViewport);
-      props.commands.persistViewport?.(nextViewport);
-      refreshConnectionAnchor();
-    }
-
-    function groupSelectedNodes() {
-      const selectedIds = selectedNodeIds();
-      if (selectedIds.length < 2) return;
-      const bounds = cardBounds(selectedIds);
-      if (!bounds) throw new Error("Selected Forest cards are unavailable");
-      props.commands.groupSelection(selectedIds, groupPosition(bounds));
-    }
-
-    // Computed purely from reactive flow state (world positions + viewport + surface
-    // size), never from live DOM rects: the sub-forest panel animates with a CSS
-    // transform that moves screen rects outside reactivity, so any sampled rect is
-    // stale for the rest of the animation. Surface-local coordinates transform
-    // together with the cards on every animation frame.
-    const externalPaths = createMemo(() => {
-      if (model().externalDependencies.length === 0) return [];
-      const currentViewport = viewport();
-      flowNodes();
-      const surfaceHeight = size().height;
-      return model().externalDependencies.flatMap(dependency => {
-        const node = flow.getInternalNode(dependency.memberNumber);
-        if (!node) return [];
-        const worldPoint = nodeEndpointPoint(node, dependency.direction === "down" ? "bottom" : "top");
-        const start = {
-          x: worldPoint.x * currentViewport.zoom + currentViewport.x,
-          y: worldPoint.y * currentViewport.zoom + currentViewport.y,
-        };
-        const targetY = dependency.direction === "down" ? surfaceHeight : 0;
-        return [{
-          ...dependency,
-          d: externalDependencyPath(start, dependency.direction, targetY),
-        }];
-      });
+      if (!handle) return false;
+      const bounds = handle.getBoundingClientRect();
+      return Math.abs(event.clientX - (bounds.left + bounds.width / 2)) <= 16;
     });
-
-    const connecting = createMemo(() => props.connectionSession().kind === "connecting");
-    createEffect(() => {
-      if (!connecting()) return;
-      viewport();
-      flowNodes();
-      boundaryGeometryVersion();
-      queueMicrotask(refreshConnectionAnchor);
-    });
-
-    createEffect(() => {
-      setSelectedNodeIds(flowNodes().filter(node => node.selected).map(node => node.id));
-    });
-
-    onMount(() => {
-      surfaceApi = { connectionAnchor };
-      props.commands.registerSurface(surfaceApi);
-      queueMicrotask(refreshConnectionAnchor);
-    });
-    onCleanup(() => {
-      surfaceApi = undefined;
-      props.commands.registerSurface(undefined);
-    });
-
-    return (
-      <>
-        <Panel
-          position={props.data.scopeGroupNumber === undefined ? "top-right" : "top-left"}
-          class="flex gap-2 nopan nodrag"
-          style={{ margin: "12px" }}
-        >
-          <button
-            class="btn-secondary"
-            on:pointerdown={(event: PointerEvent) => event.stopPropagation()}
-            onClick={() => void rearrange()}
-            disabled={isPersistingPositions()}
-            data-testid="forest-rearrange-button"
-          >Rearrange</button>
-          <button
-            class="btn-secondary"
-            on:pointerdown={(event: PointerEvent) => event.stopPropagation()}
-            onClick={() => void center()}
-            data-testid="forest-center-button"
-          >Center</button>
-          <Show when={props.commands.onClose}>
-            {(onClose) => (
-              <button
-                class="btn-icon"
-                style={{ height: "2.5rem", width: "2.5rem" }}
-                on:pointerdown={(event: PointerEvent) => event.stopPropagation()}
-                onClick={() => onClose()()}
-                title="Close forest view"
-                data-testid="forest-close-button"
-              >
-                <X size={16} />
-              </button>
-            )}
-          </Show>
-        </Panel>
-
-        <Show when={props.data.scopeGroupNumber === undefined}>
-          <Panel
-            position="bottom-left"
-            class="nopan nodrag pointer-events-none"
-            style={{ margin: "12px" }}
-          >
-            <span class="text-xs text-muted-foreground" data-testid="forest-select-hint">
-              Shift+mouse to select
-            </span>
-          </Panel>
-        </Show>
-
-        <Show when={selectedNodeIds().length >= 2}>
-          <NodeToolbar
-            nodeId={selectedNodeIds()}
-            position="top"
-            align="center"
-            offset={12}
-            isVisible
-          >
-            <button
-              class="btn-primary nodrag nopan"
-              on:pointerdown={(event: PointerEvent) => event.stopPropagation()}
-              onClick={groupSelectedNodes}
-              data-testid="forest-group-button"
-            >Group</button>
-          </NodeToolbar>
-        </Show>
-
-        <Show when={externalPaths().length > 0}>
-          <Portal mount={requireSurface()}>
-            <svg class="pointer-events-none absolute inset-0 h-full w-full overflow-visible" aria-hidden="true">
-            <For each={externalPaths()}>
-              {(dependency) => (
-                <>
-                  <path
-                    d={dependency.d}
-                    fill="none"
-                    class="stroke-muted-foreground"
-                    stroke-width="1"
-                    stroke-dasharray="6 4"
-                    pointer-events="none"
-                    data-testid="forest-external-dependency"
-                    data-from={dependency.relations[0]?.fromNumber}
-                    data-to={dependency.relations[0]?.toNumber}
-                  />
-                  <path
-                    d={dependency.d}
-                    fill="none"
-                    stroke="transparent"
-                    stroke-width="32"
-                    style={{ "pointer-events": "stroke", cursor: "pointer" }}
-                    on:pointerdown={(event: PointerEvent) => event.stopPropagation()}
-                    onClick={(event: MouseEvent) => showDependencyPopup(dependency.relations, event)}
-                  />
-                </>
-              )}
-              </For>
-            </svg>
-          </Portal>
-        </Show>
-      </>
-    );
+    if (dependency) return showPopup(dependency.relations, event);
+    props.connectionCommands.cancel();
+    setPopup(undefined);
   }
 
-  return (
-    <div
-      ref={surfaceRef}
-      class="relative h-full w-full overflow-hidden select-none touch-none"
-      data-testid="forest-surface"
-      data-connection-edit-mode={props.connectionSession().kind === "connecting" ? "active" : undefined}
-      onPointerMove={(event: PointerEvent) => {
-        if (props.connectionSession().kind === "connecting") {
-          props.connectionCommands.movePointer(
-            { x: event.clientX, y: event.clientY },
-            surfaceInfo(requireSurface(), props.data.scopeGroupNumber),
-          );
-        }
-      }}
-    >
-      <Show when={measured()}>
-        <ForestConnectionSessionContext.Provider value={props.connectionSession}>
-          <ForestCardColumnsContext.Provider value={() => props.data.columns}>
-            <ForestCardCommandsContext.Provider value={cardCommands}>
-              <SolidFlow<ForestFlowNode, ForestFlowEdge>
-                id={`forest-${props.data.scopeGroupNumber ?? "root"}`}
-                nodes={nodes}
-                edges={edges}
-                nodeTypes={nodeTypes}
-                edgeTypes={edgeTypes}
-                initialViewport={initialViewport()}
-                minZoom={0.2}
-                maxZoom={2.5}
-                nodeDragThreshold={5}
-                nodeClickDistance={5}
-                connectionDragThreshold={5}
-                connectionRadius={100}
-                connectionMode="strict"
-                connectionLineComponent={() => null}
-                selectionKey="Shift"
-                selectionMode="partial"
-                panOnDrag
-                nodesConnectable
-                clickConnect={false}
-                deleteKey={null}
-                proOptions={{ hideAttribution: true }}
-                class="h-full w-full"
-                onPaneClick={() => {
-                  props.connectionCommands.cancel();
-                  setDependencyPopup(undefined);
-                }}
-                onMoveEnd={(_event, viewport) => {
-                  props.commands.persistViewport?.(viewport);
-                }}
-                onNodeClick={({ node, event }) => {
-                  if (node.data.group) {
-                    const card = event.currentTarget instanceof Element
-                      ? event.currentTarget.querySelector<HTMLElement>("[data-forest-card]")
-                      : undefined;
-                    const bounds = card?.getBoundingClientRect();
-                    if (!bounds) throw new Error(`Forest card ${node.id} is unavailable`);
-                    props.commands.openGroup(node.id, {
-                      x: bounds.x,
-                      y: bounds.y,
-                      width: bounds.width,
-                      height: bounds.height,
-                    });
-                    return;
-                  }
-                  const session = props.connectionSession();
-                  if (session.kind === "connecting") {
-                    const target = {
-                      ticketNumber: node.id,
-                      end: session.source.end === "bottom" ? "top" as const : "bottom" as const,
-                    };
-                    if (isConnectionTarget(session.source, target)) {
-                      submitConnection(session.source, target);
-                    } else {
-                      props.connectionCommands.cancel();
-                    }
-                    return;
-                  }
-                  props.commands.openTicket(node.id);
-                }}
-                onNodeDragStop={({ nodes: movedNodes }) => {
-                  const positions = positionsFromNodes(movedNodes);
-                  void persistPositions(positions);
-                }}
-                isValidConnection={connection =>
-                  connection.source !== connection.target
-                  && !(model().dependsOnByNumber.get(connection.source) ?? []).includes(connection.target)
-                }
-                onBeforeConnect={connection => ({
-                  ...connection,
-                  type: "forest-dependency",
-                  data: {
-                    relations: [{ fromNumber: connection.source, toNumber: connection.target }],
-                  },
-                })}
-                onConnect={connection => {
-                  nativeConnectionCompleted = true;
-                  submitConnection(
-                    { ticketNumber: connection.source, end: "bottom" },
-                    { ticketNumber: connection.target, end: "top" },
-                    connection.id,
-                  );
-                }}
-                onConnectStart={(_event, connection) => {
-                  if (!connection.nodeId) throw new Error("Forest connection source is unavailable");
-                  beginNativeConnection(
-                    connection.nodeId,
-                    connection.handleType as "source" | "target",
-                  );
-                }}
-                onConnectEnd={() => {
-                  if (!nativeConnectionCompleted) props.connectionCommands.cancel();
-                  nativeConnectionCompleted = false;
-                }}
-                onEdgeClick={({ edge, event }) => {
-                  if (!edge.data) throw new Error(`Forest dependency ${edge.id} has no data`);
-                  showDependencyPopup(edge.data.relations, event);
-                }}
-              >
-                <FlowRuntime />
-              </SolidFlow>
-
-              <Show when={dependencyPopup()}>
-                {(popup) => (
-                  <Portal>
-                    <div class="fixed inset-0" onClick={() => setDependencyPopup(undefined)} />
-                    <div
-                      class="fixed rounded-md border border-border bg-popover p-1"
-                      style={{
-                        left: `${popup().screenX}px`,
-                        top: `${popup().screenY}px`,
-                        transform: "translate(-50%, -50%)",
-                      }}
-                    >
-                      <button
-                        class="btn-destructive px-3 py-1 text-sm"
-                        onClick={() => void deleteDependency()}
-                        data-testid="forest-dependency-delete"
-                      >Delete dependency</button>
-                    </div>
-                  </Portal>
-                )}
-              </Show>
-            </ForestCardCommandsContext.Provider>
-          </ForestCardColumnsContext.Provider>
-        </ForestConnectionSessionContext.Provider>
-      </Show>
+  return <div ref={surface} class={`solid-flow__wrapper relative h-full w-full overflow-hidden select-none touch-none ${panning() ? "cursor-grabbing" : "cursor-default"}`} data-testid="forest-surface" data-connection-edit-mode={props.connectionSession().kind === "connecting" ? "active" : undefined} onPointerDown={startPan} onWheel={wheel} onPointerMove={(event) => props.connectionSession().kind === "connecting" && props.connectionCommands.movePointer({ x: event.clientX, y: event.clientY }, surfaceInfo(surface, props.data.scopeGroupNumber))} onClick={surfaceClick}>
+    <div class="solid-flow__pane pointer-events-none absolute inset-0" style={{ cursor: panning() ? "grabbing" : "default" }} />
+    <div class={`absolute z-20 flex gap-2 ${props.data.scopeGroupNumber === undefined ? "right-3" : "left-3"} top-3`}>
+      <button class="btn-secondary" onPointerDown={(e) => e.stopPropagation()} onClick={rearrange} disabled={persisting()} data-testid="forest-rearrange-button">Rearrange</button>
+      <button class="btn-secondary" onPointerDown={(e) => e.stopPropagation()} onClick={center} data-testid="forest-center-button">Center</button>
+      <Show when={props.commands.onClose}>{(close) => <button class="btn-icon" style={{ height: "2.5rem", width: "2.5rem" }} onPointerDown={(e) => e.stopPropagation()} onClick={() => close()()} title="Close forest view" data-testid="forest-close-button"><X size={16} /></button>}</Show>
     </div>
-  );
+    <Show when={props.data.scopeGroupNumber === undefined}><span class="pointer-events-none absolute bottom-3 left-3 z-20 text-xs text-muted-foreground" data-testid="forest-select-hint">Shift+mouse to select</span></Show>
+    <Show when={selected().length >= 2}><button class="btn-primary absolute left-1/2 top-3 z-30" onPointerDown={(e) => e.stopPropagation()} onClick={() => { const selectedBounds = bounds(selected()); if (selectedBounds) props.commands.groupSelection(selected(), groupPosition(selectedBounds)); }} data-testid="forest-group-button">Group</button></Show>
+    <Show when={selectionRect()}>{(rect) => <div class="solid-flow__selection pointer-events-none fixed border border-primary bg-primary/10" style={{ left: `${rect().x}px`, top: `${rect().y}px`, width: `${rect().width}px`, height: `${rect().height}px` }} />}</Show>
+    <ForestConnectionSessionContext value={props.connectionSession}><ForestCardColumnsContext value={() => props.data.columns}><ForestCardCommandsContext value={cardCommands}>
+      <div class="absolute left-0 top-0 origin-top-left" style={{ transform: `translate(${viewport().x}px, ${viewport().y}px) scale(${viewport().zoom})` }}>
+        <svg class="absolute left-0 top-0 overflow-visible" width="1" height="1" aria-hidden="true">
+          <For each={model().edges}>{(edge) => <ForestDependencyEdge source={edge.source} target={edge.target} sourcePoint={endpoint(edge.source, "bottom")} targetPoint={endpoint(edge.target, "top")} relations={edge.data.relations} onClick={(event) => showPopup(edge.data.relations, event)} />}</For>
+          <For each={externalPaths()}>{(dependency) => <>
+            <path d={dependency.d} fill="none" class="stroke-muted-foreground" stroke-width="1" stroke-dasharray="6 4" style={{ "pointer-events": "stroke", cursor: "pointer" }} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => showPopup(dependency.relations, event)} data-testid="forest-external-dependency" data-from={dependency.relations[0]?.fromNumber} data-to={dependency.relations[0]?.toNumber} />
+            <path d={dependency.d} fill="none" stroke="transparent" stroke-width="32" style={{ "pointer-events": "stroke", cursor: "pointer" }} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => showPopup(dependency.relations, event)} />
+          </>}</For>
+        </svg>
+        <For each={nodes}>{(node) => <div class="absolute" style={{ left: `${node.position.x}px`, top: `${node.position.y}px`, "z-index": nodeZIndex(node) }} onPointerDown={(event) => startNodeDrag(event, node.id)} onClick={(event) => clickNode(event, node)}><ForestCard data={node.data} selected={selected().includes(node.id)} /></div>}</For>
+      </div>
+    </ForestCardCommandsContext></ForestCardColumnsContext></ForestConnectionSessionContext>
+    <Show when={popup()} keyed>{(value) =>
+      <><div class="fixed inset-0 z-40" onClick={() => setPopup(undefined)} /><div class="fixed z-50 rounded-md border border-border bg-popover p-1" onPointerDown={(event) => event.stopPropagation()} style={{ left: `${value.screenX}px`, top: `${value.screenY}px`, transform: "translate(-50%, -50%)" }}><button class="btn-destructive px-3 py-1 text-sm" onClick={(event) => {
+        event.stopPropagation();
+        void (async () => {
+          for (const relation of value.relations) await props.commands.removeDependency(relation);
+          setPopup(undefined);
+        })().catch(props.commands.reportError);
+      }} data-testid="forest-dependency-delete">Delete dependency</button></div></>
+    }</Show>
+  </div>;
 }

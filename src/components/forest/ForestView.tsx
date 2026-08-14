@@ -1,11 +1,11 @@
-import { revalidate } from "@solidjs/router";
+import { revalidate, useAction } from "@solidjs/router";
 import {
   createMemo,
   createSignal,
   For,
   Show,
 } from "solid-js";
-import X from "lucide-solid/icons/x";
+import { X } from "~/components/ui/icons.js";
 import CreateTicketDialog from "../ticket/CreateTicketDialog";
 import ErrorDialog from "../shared/ErrorDialog";
 import ExpandingOverlay, { type ExpandingOverlayOrigin, type OverlayRect } from "../shared/ExpandingOverlay";
@@ -30,7 +30,6 @@ import {
 import { getForestViewport, setForestViewport } from "./forest-local-state.js";
 import type { DependencyRelation, ForestTicket } from "./forest-graph.js";
 import { useEscapeKey } from "~/lib/use-escape-key.js";
-import { createNonSuspendingAsync } from "~/lib/create-non-suspending-async.js";
 import { ticketMutationRevalidateKeys } from "../shared/revalidate-keys.js";
 import type { BoardState } from "~/core/board/board-types.js";
 import { errorPayload, type ErrorInfo } from "~/core/shared/errors.js";
@@ -52,12 +51,17 @@ interface GroupingDraft {
 }
 
 export default function ForestView(props: ForestViewProps) {
-  const layout = createNonSuspendingAsync(() => getForestLayout(props.projectSlug));
+  const layout = createMemo(() => getForestLayout(props.projectSlug));
   const [error, setError] = createSignal<ErrorInfo>();
   const [openGroups, setOpenGroups] = createSignal<string[]>([]);
   const [openGroupOrigin, setOpenGroupOrigin] = createSignal<ExpandingOverlayOrigin>();
   const [groupingDraft, setGroupingDraft] = createSignal<GroupingDraft>();
   const [createDialogOpen, setCreateDialogOpen] = createSignal(false);
+  const runSaveForestPositions = useAction(saveForestPositions);
+  const runAddDependency = useAction(addDependency);
+  const runRemoveDependency = useAction(removeDependency);
+  const runCreateGroupTicket = useAction(createGroupTicket);
+  const runUngroupTicket = useAction(ungroupTicket);
   const connection = createForestConnection();
   const surfaceApis = new Map<string, ForestSurfaceApi>();
   let containerRef: HTMLDivElement | undefined;
@@ -106,30 +110,34 @@ export default function ForestView(props: ForestViewProps) {
   }
 
   async function persistPositions(positions: ForestLayout) {
-    await runMutation(() => saveForestPositions(props.projectSlug, positions), ["forest-layout"]);
+    await runMutation(
+      () => runSaveForestPositions({ projectSlug: props.projectSlug, positions }),
+      ["forest-layout"],
+    );
   }
 
   function handleAddDependency(dependentNumber: string, dependencyNumber: string) {
     const dependent = findTicket(dependentNumber);
     return runMutation(
-      () => addDependency(props.projectSlug, dependent.folderName, dependencyNumber),
+      () => runAddDependency({
+        projectSlug: props.projectSlug,
+        folderName: dependent.folderName,
+        dependencyNumber,
+      }),
       ticketMutationRevalidateKeys,
     );
   }
 
-  async function handleRemoveDependencies(relations: DependencyRelation[]) {
+  async function handleRemoveDependency(relation: DependencyRelation) {
     try {
-      for (const relation of relations) {
-        const dependent = findTicket(relation.fromNumber);
-        const result = await removeDependency(
-          props.projectSlug,
-          dependent.folderName,
-          relation.toNumber,
-        );
-        if (!result.ok) {
-          setError({ description: result.message });
-          return;
-        }
+      const dependent = findTicket(relation.fromNumber);
+      const result = await runRemoveDependency({
+        projectSlug: props.projectSlug,
+        folderName: dependent.folderName,
+        dependencyNumber: relation.toNumber,
+      });
+      if (!result.ok) {
+        setError({ description: result.message });
       }
     } finally {
       await revalidate(ticketMutationRevalidateKeys);
@@ -139,7 +147,7 @@ export default function ForestView(props: ForestViewProps) {
   async function handleUngroup(ticketNumber: string) {
     const group = findTicket(ticketNumber);
     await runMutation(
-      () => ungroupTicket(props.projectSlug, group.folderName),
+      () => runUngroupTicket({ projectSlug: props.projectSlug, folderName: group.folderName }),
       [...ticketMutationRevalidateKeys, "forest-layout"],
     );
   }
@@ -180,15 +188,16 @@ export default function ForestView(props: ForestViewProps) {
     const draft = groupingDraft();
     if (!draft) return { error: "No members selected" };
     const memberFolderNames = draft.memberNumbers.map(memberNumber => findTicket(memberNumber).folderName);
-    const result = await createGroupTicket(
-      props.projectSlug,
+    const result = await runCreateGroupTicket({
+      projectSlug: props.projectSlug,
       number,
       title,
       memberFolderNames,
-      draft.ownerGroupNumber,
-      draft.position,
-    );
+      parentGroupNumber: draft.ownerGroupNumber ?? null,
+      position: draft.position,
+    });
     if (!result.ok) return { error: result.message };
+    surfaceApis.get(draft.ownerGroupNumber ?? "root")?.clearSelection();
     setGroupingDraft(undefined);
     await revalidate([...ticketMutationRevalidateKeys, "forest-layout"]);
     return {};
@@ -212,7 +221,7 @@ export default function ForestView(props: ForestViewProps) {
         ? (viewport) => setForestViewport(localStorage, props.projectSlug, viewport)
         : undefined,
       registerSurface: api => registerSurface(scopeGroupNumber, api),
-      removeDependencies: handleRemoveDependencies,
+      removeDependency: handleRemoveDependency,
       reportError,
       ungroup: ticketNumber => void handleUngroup(ticketNumber).catch(reportError),
     };

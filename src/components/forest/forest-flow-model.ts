@@ -1,4 +1,3 @@
-import { Position, type Edge, type Node } from "@dschz/solid-flow";
 import {
   autoLayoutPositions,
   buildLookup,
@@ -16,26 +15,32 @@ import {
 import type { ForestLayout } from "~/core/ticket/forest-layout-store.js";
 
 export interface ForestNodeData {
-  [key: string]: unknown;
   ticket: ForestTicket;
   representedTicketNumbers: string[];
   group: boolean;
 }
 
 export interface ForestEdgeData {
-  [key: string]: unknown;
   relations: DependencyRelation[];
 }
 
-export type ForestFlowNode = Node<ForestNodeData, "forest-ticket">;
-export type ForestFlowEdge = Edge<ForestEdgeData, "forest-dependency">;
+export interface ForestFlowNode {
+  id: string;
+  position: { x: number; y: number };
+  data: ForestNodeData;
+}
+export interface ForestFlowEdge {
+  id: string;
+  source: string;
+  target: string;
+  data: ForestEdgeData;
+}
 
 export interface ForestFlowModel {
   nodes: ForestFlowNode[];
   edges: ForestFlowEdge[];
   externalDependencies: ExternalDependencyProjection[];
   lookup: ForestLookup;
-  dependsOnByNumber: Map<string, string[]>;
 }
 
 export function buildForestFlowModel(
@@ -54,7 +59,6 @@ export function buildForestFlowModel(
   );
   const representedByScopeNode = new Map<string, string[]>();
   const parentNumbers = new Set<string>();
-  const dependsOnByNumber = new Map<string, string[]>();
   for (const ticket of tickets) {
     const representative = representativeInScope(
       lookup,
@@ -69,7 +73,6 @@ export function buildForestFlowModel(
     }
     const parent = effectiveParent(ticket, lookup.allNumbers);
     if (parent) parentNumbers.add(parent);
-    dependsOnByNumber.set(ticket.number, ticket.dependsOn ?? []);
   }
   const savedScopePositions: ForestLayout = {};
   let allSaved = true;
@@ -85,30 +88,21 @@ export function buildForestFlowModel(
   return {
     nodes: scopeNodes.map(ticket => ({
       id: ticket.number,
-      type: "forest-ticket",
       position: positions[ticket.number] ?? { x: 0, y: 0 },
       data: {
         ticket,
         representedTicketNumbers: representedByScopeNode.get(ticket.number) ?? [],
         group: parentNumbers.has(ticket.number),
       },
-      sourcePosition: Position.Bottom,
-      targetPosition: Position.Top,
-      style: { width: `${CARD_WIDTH}px` },
     })),
     edges: internal.map(dependency => ({
       id: `dependency:${dependency.fromNumber}:${dependency.toNumber}`,
-      type: "forest-dependency",
       source: dependency.fromNumber,
       target: dependency.toNumber,
-      sourceHandle: "bottom",
-      targetHandle: "top",
-      selectable: false,
       data: { relations: dependency.relations },
     })),
     externalDependencies: external,
     lookup,
-    dependsOnByNumber,
   };
 }
 
@@ -123,7 +117,7 @@ export function rearrangedForestPositions(
   );
 }
 
-export function positionsFromNodes(nodes: ForestFlowNode[]): ForestLayout {
+export function positionsFromNodes(nodes: readonly ForestFlowNode[]): ForestLayout {
   return Object.fromEntries(nodes.map(node => [node.id, { ...node.position }]));
 }
 

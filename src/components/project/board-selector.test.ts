@@ -22,7 +22,7 @@ describe("BoardSelector", () => {
         const [boardId, setBoardId] = createSignal("");
         let error = "";
         const { default: BoardSelector } = await import("./BoardSelector.jsx");
-        BoardSelector({ boardId, setBoardId, onError: (msg: string) => { error = msg; } });
+        BoardSelector({ boardId: boardId(), setBoardId, onError: (msg: string) => { error = msg; } });
         await flushMicrotasks();
         resolve({ error, boardId: boardId() });
         dispose();
@@ -44,7 +44,7 @@ describe("BoardSelector", () => {
       createRoot(async (dispose) => {
         const [boardId, setBoardId] = createSignal("");
         const { default: BoardSelector } = await import("./BoardSelector.jsx");
-        BoardSelector({ boardId, setBoardId });
+        BoardSelector({ boardId: boardId(), setBoardId });
         await flushMicrotasks();
         resolve({ boardId: boardId() });
         dispose();

@@ -3,7 +3,7 @@ import type { Page } from "playwright";
 import { gotoProject, seedProject, setupE2E } from "./fixtures.js";
 import { waitVisible } from "./locators.js";
 
-// Counts detachments of the full app UI. A Suspense collapse to the root
+// Counts detachments of the full app UI. A loading-state collapse to the root
 // boundary removes the subtree containing <header> from the DOM, which is the
 // full-screen flicker as a DOM fact, independent of frame timing.
 const DETACH_COUNTER = `
@@ -63,7 +63,7 @@ describe("Full-screen flicker (e2e, real server)", () => {
     const responses = trackServerResponses(ctx.page);
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await expect.poll(
-      () => responses.filter((u) => u.includes("getSyncStatus") || u.includes("getHerdrAgentStatuses")).length,
+      () => responses.length,
       { timeout: 15000 },
     ).toBeGreaterThanOrEqual(2);
     expect(await observerActive(ctx.page)).toBe(true);

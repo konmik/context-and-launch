@@ -12,9 +12,7 @@ export interface BoardSelectProps {
 
 export default function BoardSelect(props: BoardSelectProps) {
   let ref!: HTMLSelectElement;
-  createEffect(() => {
-    const v = props.value;
-    void props.boards;
+  createEffect(() => [props.value, props.boards] as const, ([v]) => {
     queueMicrotask(() => { ref.value = v; });
   });
   return (

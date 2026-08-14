@@ -1,4 +1,7 @@
-import { app, BrowserWindow, ipcMain, nativeTheme, protocol, screen } from "electron";
+import {
+  app, BrowserWindow, dialog, ipcMain, nativeTheme, protocol, screen,
+  type OpenDialogOptions,
+} from "electron";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -237,7 +240,7 @@ if (!gotLock) {
     const base = APP_ORIGIN;
 
     protocol.handle(APP_SCHEME, (request) =>
-      handleAppRequest(request, handle.localFetch).catch((err: unknown) => {
+      handleAppRequest(request, handle.handleRequest).catch((err: unknown) => {
         handle.appLog(
           "app-protocol",
           `${request.method} ${request.url} failed: ${err instanceof Error ? err.stack ?? err.message : String(err)}`,
@@ -288,6 +291,22 @@ if (!gotLock) {
         currentMode = parsed;
         applyAppearance();
       }
+    });
+
+    ipcMain.handle("context-launch:pick-directory", async (event, preselect: unknown) => {
+      const owner = BrowserWindow.fromWebContents(event.sender);
+      const options: OpenDialogOptions = {
+        properties: ["openDirectory"],
+        ...(typeof preselect === "string" && preselect.trim()
+          ? { defaultPath: preselect.trim() }
+          : {}),
+      };
+      const result = owner
+        ? await dialog.showOpenDialog(owner, options)
+        : await dialog.showOpenDialog(options);
+      return result.canceled || result.filePaths.length === 0
+        ? { cancelled: true }
+        : { path: result.filePaths[0] };
     });
 
     for (const entry of entries) {

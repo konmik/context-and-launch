@@ -16,11 +16,15 @@ export function createConflictDialogController(deps: ConflictDialogDeps) {
   const [profiles, setProfiles] = createSignal<{ name: string }[]>([]);
   const [selectedProfile, setSelectedProfile] = createSignal("");
 
-  createEffect(() => {
-    if (deps.open()) {
+  createEffect(
+    () => [deps.open(), deps.projectSlug()] as const,
+    ([open, projectSlug]) => {
+    if (open) {
+      let cancelled = false;
       setErrorMsg("");
-      getMergedLauncherConfig(deps.projectSlug())
+      getMergedLauncherConfig(projectSlug)
         .then(async data => {
+          if (cancelled) return;
           const list = extractProfiles(data);
           setProfiles(list);
           if (list.length === 0) return;
@@ -35,9 +39,10 @@ export function createConflictDialogController(deps: ConflictDialogDeps) {
           const match = preferred && list.some(p => p.name === preferred)
             ? preferred
             : list[0].name;
-          setSelectedProfile(match);
+          if (!cancelled) setSelectedProfile(match);
         })
-        .catch(() => setErrorMsg("Failed to load profiles"));
+        .catch(() => { if (!cancelled) setErrorMsg("Failed to load profiles"); });
+      return () => { cancelled = true; };
     }
   });
 

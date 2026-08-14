@@ -84,4 +84,16 @@ describe('Command Template catalog', () => {
 				.toMatchObject({ mode: 'detached', detachDelayMs: 0 });
 		}
 	});
+
+	it('owns Windows picker dialogs so they cannot open behind the browser', () => {
+		const bundled = JSON.parse(fs.readFileSync(
+			path.resolve('config-defaults/command-templates.json'), 'utf8',
+		)) as Record<string, string>;
+		for (const key of ['picker.files.windows', 'picker.directory.windows']) {
+			expect(bundled[key]).toContain('$owner.TopMost = $true');
+			expect(bundled[key]).toContain('$dialog.ShowDialog($owner)');
+			expect(bundled[key]).toContain('$dialog.Dispose()');
+			expect(bundled[key]).toContain('$owner.Dispose()');
+		}
+	});
 });

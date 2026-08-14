@@ -1,4 +1,4 @@
-import type { Viewport } from "@dschz/solid-flow";
+import type { ForestViewport } from "./forest-types.js";
 
 interface Storage {
   getItem(key: string): string | null;
@@ -19,7 +19,7 @@ export function setViewMode(storage: Storage, projectSlug: string, mode: "kanban
 export function getForestViewport(
   storage: Storage,
   projectSlug: string,
-): Viewport | undefined {
+): ForestViewport | undefined {
   const raw = storage.getItem(`forest-viewport:${projectSlug}`);
   if (!raw) return undefined;
   const parsed: unknown = JSON.parse(raw);
@@ -37,7 +37,7 @@ export function getForestViewport(
 export function setForestViewport(
   storage: Storage,
   projectSlug: string,
-  viewport: Viewport,
+  viewport: ForestViewport,
 ): void {
   storage.setItem(`forest-viewport:${projectSlug}`, JSON.stringify(viewport));
 }

@@ -19,7 +19,7 @@ import type {
 export const getReviewSnapshot = query(async (
 	projectSlug: string,
 	folderName: string,
-	requestedScope?: DiffScope,
+	requestedScope?: DiffScope | null,
 ) => {
 	"use server";
 	const target = diffReviewTargetResolver.resolve(projectSlug, folderName);
@@ -111,13 +111,13 @@ export async function enqueueReviewPrompt(
 	projectSlug: string,
 	folderName: string,
 	feedback: string,
-	profileName: string | undefined,
-	snapshot?: ReviewPromptSnapshot,
+	profileName: string | null,
+	snapshot: ReviewPromptSnapshot | null,
 ) {
 	"use server";
 	try {
 		const item = await reviewPromptQueueService.enqueueAndLaunch(
-			projectSlug, folderName, feedback, snapshot, profileName,
+			projectSlug, folderName, feedback, snapshot ?? undefined, profileName ?? undefined,
 		);
 		return { ok: true as const, item };
 	} catch (error) {
@@ -154,12 +154,12 @@ export async function retryReviewPrompt(
 	projectSlug: string,
 	folderName: string,
 	itemId: string,
-	profileName: string | undefined,
+	profileName: string | null,
 ) {
 	"use server";
 	try {
 		await reviewPromptQueueService.retryAndLaunch(
-			projectSlug, folderName, itemId, profileName,
+			projectSlug, folderName, itemId, profileName ?? undefined,
 		);
 		return { ok: true as const };
 	} catch (error) {

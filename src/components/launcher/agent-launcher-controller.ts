@@ -1,4 +1,4 @@
-import { createSignal, createEffect, createMemo, on } from "solid-js";
+import { createSignal, createEffect, createMemo } from "solid-js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/core/launcher/launcher-config.js";
 import type { ErrorInfo } from "~/core/shared/errors.js";
@@ -71,21 +71,36 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 
 	const initialConfig = props.config;
 	const initialResetKey = resetKey();
-	createEffect(on(
-		() => [props.config, resetKey()] as const,
-		([cfg, key], previous) => {
-			const [previousConfig, previousKey] = previous ?? [initialConfig, initialResetKey];
-			const defaults = resolveDefaults(cfg, defaultsKey());
-			setSelectedTemplate(defaults.templateName);
-			setSelectedProfile(defaults.profileName);
-			setCheckedSkills(new Set(defaults.checkedSkills));
-			setSkillOrder(defaults.skillOrder);
-			const configFirstArrived = !previousConfig && cfg;
-			const ticketChanged = key !== previousKey;
-			if (configFirstArrived || ticketChanged) preview.resetFromSaved(defaults.editedPrompt);
+	createEffect(
+		() => ({
+			config: props.config,
+			key: resetKey(),
+			defaultsKey: defaultsKey(),
+			selectedTemplate: selectedTemplate(),
+			selectedProfile: selectedProfile(),
+		}),
+		(current, previous) => {
+			const { config: cfg, key, defaultsKey: currentDefaultsKey } = current;
+			const defaults = resolveDefaults(cfg, currentDefaultsKey);
+			const configFirstArrived = !(previous ? previous.config : initialConfig) && cfg;
+			const ticketChanged = key !== (previous?.key ?? initialResetKey);
+			if (configFirstArrived || ticketChanged) {
+				setSelectedTemplate(defaults.templateName);
+				setSelectedProfile(defaults.profileName);
+				setCheckedSkills(new Set(defaults.checkedSkills));
+				setSkillOrder(defaults.skillOrder);
+				preview.resetFromSaved(defaults.editedPrompt);
+				return;
+			}
+			if (cfg && !cfg.templates.some((item) => item.name === current.selectedTemplate)) {
+				setSelectedTemplate(defaults.templateName);
+			}
+			if (cfg && !cfg.profiles.some((item) => item.name === current.selectedProfile)) {
+				setSelectedProfile(defaults.profileName);
+			}
 		},
 		{ defer: true },
-	));
+	);
 
 	function toggleSkill(name: string) {
 		const next = new Set(checkedSkills());

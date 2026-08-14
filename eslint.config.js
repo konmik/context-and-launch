@@ -1,7 +1,7 @@
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: [".output/**", ".vinxi/**", "node_modules/**", "dist-electron/**"] },
+  { ignores: ["dist/**", "node_modules/**", "dist-electron/**"] },
   {
     files: ["src/**/*.{ts,tsx}", "e2e/**/*.{ts,tsx}", "electron/**/*.ts"],
     languageOptions: {
@@ -10,19 +10,16 @@ export default tseslint.config(
     rules: {
       "max-len": ["error", { code: 120, ignoreUrls: true }],
       "no-restricted-imports": ["error", {
-        paths: [{
-          name: "@solidjs/router",
-          importNames: ["createAsync"],
-          message: "Use createNonSuspendingAsync from ~/lib/create-non-suspending-async.js;"
-            + " a plain createAsync read collapses the root Suspense boundary and blanks the screen.",
-        }],
+        paths: [
+          {
+            name: "@solidjs/router",
+            importNames: ["createAsync"],
+            message: "Use a Solid 2 async memo or projection under Loading and Errored boundaries.",
+          },
+          { name: "solid-js/web", message: "Import renderer APIs from @solidjs/web." },
+          { name: "solid-js/store", message: "Import Solid 2 store APIs from solid-js." },
+        ],
       }],
-    },
-  },
-  {
-    files: ["src/lib/create-non-suspending-async.ts"],
-    rules: {
-      "no-restricted-imports": "off",
     },
   },
 );

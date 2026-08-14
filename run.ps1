@@ -66,10 +66,10 @@ if (Test-Path $serverProcessFile) {
                 Start-Sleep -Milliseconds 100
             }
             if (Get-Process -Id $previousPid -ErrorAction SilentlyContinue) {
-                throw "Process $previousPid did not stop. Cannot safely clear .output."
+                throw "Process $previousPid did not stop. Cannot safely rebuild dist."
             }
         } elseif ($owningPid) {
-            throw "Port $previousPort belongs to process $owningPid, not recorded process $previousPid. Cannot safely clear .output."
+            throw "Port $previousPort belongs to process $owningPid, not recorded process $previousPid. Cannot safely rebuild dist."
         }
     }
 }
@@ -99,10 +99,10 @@ if (-not $portInUse) {
     }
 
     function Test-OutputStale {
-        $marker = ".output/server/index.mjs"
+        $marker = "dist/server/server.js"
         if (-not (Test-Path $marker)) { return $true }
         $markerTime = (Get-Item $marker).LastWriteTime
-        foreach ($sourcePath in @("src", "public", "app.config.ts", "package.json", "package-lock.json")) {
+        foreach ($sourcePath in @("src", "public", "vite.config.ts", "package.json", "package-lock.json")) {
             if (-not (Test-Path $sourcePath)) { continue }
             $newer = Get-ChildItem -Path $sourcePath -Recurse -File -ErrorAction SilentlyContinue |
                 Where-Object { $_.LastWriteTime -gt $markerTime } |
@@ -113,14 +113,14 @@ if (-not $portInUse) {
     }
 
     $buildReason = ""
-    if (-not (Test-Path ".output")) {
+    if (-not (Test-Path "dist/server/server.js") -or -not (Test-Path "dist/client/index.html")) {
         $buildReason = "missing"
     } elseif (Test-OutputStale) {
         $buildReason = "stale"
     }
     if ($buildReason) {
         Write-Host $(if ($buildReason -eq "stale") {
-            "Source files are newer than .output, rebuilding..."
+            "Source files are newer than dist, rebuilding..."
         } else {
             "Building application..."
         })
@@ -129,7 +129,7 @@ if (-not $portInUse) {
             Pop-Location
             exit 0
         }
-        npx vinxi build
+        npm run build
         if ($LASTEXITCODE -ne 0) {
             Write-Host "ERROR: Build failed."
             Pop-Location
@@ -190,7 +190,7 @@ if (-not $portInUse) {
 
     Pop-Location
 } else {
-    throw "Port $port is already in use by an untracked process. Cannot safely clear .output or rebuild."
+    throw "Port $port is already in use by an untracked process. Cannot safely rebuild dist."
 }
 
 # Open browser in app mode

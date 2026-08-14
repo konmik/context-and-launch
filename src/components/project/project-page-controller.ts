@@ -1,5 +1,5 @@
-import { createEffect, createSignal, on } from "solid-js";
-import { revalidate } from "@solidjs/router";
+import { createSignal, flush } from "solid-js";
+import { revalidate, useAction } from "@solidjs/router";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { ErrorInfo } from "~/core/shared/errors.js";
 import {
@@ -33,27 +33,29 @@ export function createProjectPageController(deps: ProjectPageDeps) {
   const [syncSuccess, setSyncSuccess] = createSignal(false);
   const [syncError, setSyncError] = createSignal<ErrorInfo | null>(null);
   const [conflictDialogOpen, setConflictDialogOpen] = createSignal(false);
-
-  createEffect(on(deps.projectSlug, () => {
-    setSelectedTicket(null);
-    setDetailTicket(null);
-    setReviewTicket(null);
-    setCleanupDialogOpen(false);
-  }, { defer: true }));
-
+  const [conflictDetected, setConflictDetected] = createSignal(false);
+  const runSyncTickets = useAction(syncTickets);
+  let syncInProgress = false;
   async function handleSync() {
-    if (syncing()) return;
+    if (syncInProgress) return;
     const d = deps.data();
     if (!d || d.status !== "loaded") return;
-    setSyncing(true);
-    setSyncError(null);
+    syncInProgress = true;
+    // Paint the imperative sync lock before starting filesystem and network work.
+    flush(() => {
+      setSyncing(true);
+      setSyncError(null);
+    });
+    let showSuccess = false;
     try {
       const ss = await getSyncStatus(deps.projectSlug());
       if (ss.hasConflict) {
+        setConflictDetected(true);
         await revalidate(projectSyncRevalidateKeys);
         setConflictDialogOpen(true);
         return;
       }
+      setConflictDetected(false);
       if (!ss.hasRemote) {
         setSyncError({
           title: "Sync failed",
@@ -62,14 +64,19 @@ export function createProjectPageController(deps: ProjectPageDeps) {
         });
         return;
       }
-      const result = await syncTickets(deps.projectSlug());
+      const result = await runSyncTickets(deps.projectSlug());
       if (!result.ok) {
         setSyncError({ title: "Sync failed", description: result.message });
       } else {
         const parsed = parseSyncResult(result);
         if (parsed.type === "success") {
+          showSuccess = true;
           setSyncSuccess(true);
-          setTimeout(() => setSyncSuccess(false), 2000);
+          setTimeout(() => {
+            setSyncSuccess(false);
+            setSyncing(false);
+            syncInProgress = false;
+          }, 2000);
           await revalidate(projectSyncRevalidateKeys);
         } else if (parsed.type === "conflict") {
           await revalidate(projectSyncRevalidateKeys);
@@ -81,7 +88,10 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     } catch (err) {
       setSyncError({ title: "Sync failed", description: err instanceof Error ? err.message : "Sync failed" });
     } finally {
-      setSyncing(false);
+      if (!showSuccess) {
+        setSyncing(false);
+        syncInProgress = false;
+      }
     }
   }
 
@@ -94,6 +104,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
   async function handleConflictAbort() {
     const result = await abortRebase(deps.projectSlug());
     if (!result.ok) throw new Error(result.message);
+    setConflictDetected(false);
     await revalidate(projectSyncRevalidateKeys);
   }
 
@@ -115,8 +126,11 @@ export function createProjectPageController(deps: ProjectPageDeps) {
 
   function openReview(ticket: TicketInfo) {
     if (!ticket.hasAgentWorktree) return;
-    setDetailTicket(null);
+    if (detailTicket()) setDetailTicket(null);
     setReviewTicket(ticket);
+    // Opening Diff Review replaces the board that owns this event handler.
+    // Commit the selection before that dynamic subtree is disposed.
+    flush();
   }
 
   async function handleCreateTicket(number: string, title: string) {
@@ -183,13 +197,16 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     syncing: syncing(),
     syncSuccess: syncSuccess(),
     syncError: syncError(),
+    conflictDetected: conflictDetected(),
   });
 
-  const selectionState = () => ({
-    selectedTicket: selectedTicket(),
-    detailTicket: detailTicket(),
-    reviewTicket: reviewTicket(),
-  });
+  const selectionState = () => {
+    return {
+      selectedTicket: selectedTicket(),
+      detailTicket: detailTicket(),
+      reviewTicket: reviewTicket(),
+    };
+  };
 
   const commands = {
     openCreate: () => setCreateTicketOpen(true),
@@ -197,8 +214,9 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     openArchive,
     openDetail,
     openReview,
-    closeReview: () => setReviewTicket(null),
-    closeDetail: () => setDetailTicket(null),
+    // Callers navigate immediately after these commands and need overlays disposed first.
+    closeReview: () => flush(() => setReviewTicket(null)),
+    closeDetail: () => flush(() => setDetailTicket(null)),
     handleSync,
     handleConflictResolve,
     handleConflictAbort,

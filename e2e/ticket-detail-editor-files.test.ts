@@ -87,6 +87,17 @@ describe("Ticket detail editor file management (e2e, real server)", () => {
     await waitVisible(ctx.page, "ticket-detail-delete-file-confirm");
   });
 
+  it("Escape closes the delete file dialog without closing ticket detail", async () => {
+    await setupEditorTicket(ctx, "trash-escape");
+    await testId(ctx.page, "ticket-detail-editor-trash-button").click();
+    await waitVisible(ctx.page, "ticket-detail-delete-file-confirm");
+
+    await ctx.page.keyboard.press("Escape");
+
+    await waitGone(ctx.page, "ticket-detail-delete-file-confirm");
+    expect(await testId(ctx.page, "ticket-detail-number-input").count()).toBe(1);
+  });
+
   it("delete-file dialog has cancel and confirm", async () => {
     const project = await setupEditorTicket(ctx, "delfile");
     await testId(ctx.page, "ticket-detail-editor-new-file-button").click();

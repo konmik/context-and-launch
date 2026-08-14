@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@solidjs/testing-library";
+import { render, screen, cleanup, fireEvent } from "~/test-render.js";
 
 vi.mock("@solidjs/router", async () => {
-  const { createSignal, createEffect } = await import("solid-js");
+  const { createSignal } = await import("solid-js");
   const queryVersions = new Map<string, { track: () => number; bump: () => void }>();
   function versionFor(queryKey: string) {
     let entry = queryVersions.get(queryKey);
@@ -22,18 +22,6 @@ vi.mock("@solidjs/router", async () => {
     query: (fn: Function, queryKey: string) => (...args: unknown[]) => {
       versionFor(queryKey).track();
       return fn(...args);
-    },
-    createAsync: (
-      fn: () => Promise<unknown>,
-      options?: { initialValue?: unknown },
-    ) => {
-      const [value, setValue] = createSignal(options?.initialValue);
-      createEffect(() => {
-        Promise.resolve(fn()).then((v) => setValue(() => v));
-      });
-      const accessor = () => value();
-      Object.defineProperty(accessor, "latest", { get: () => value() });
-      return accessor;
     },
   };
 });
@@ -84,8 +72,10 @@ vi.mock("./ticket-api.js", async () => {
 
 vi.mock("../launcher/launcher-api.js", () => ({
   getMergedLauncherConfig: (...args: unknown[]) => mockGetMergedLauncherConfig(...args),
+  loadMergedLauncherConfig: (...args: unknown[]) => mockGetMergedLauncherConfig(...args),
+  latestMergedLauncherConfig: vi.fn(),
   saveColumnDefaults: vi.fn().mockResolvedValue({ ok: true }),
-  cacheMergedLauncherConfig: vi.fn(),
+  saveColumnDefaultsAndReturnConfig: vi.fn().mockResolvedValue({ ok: true }),
   launchAgentAction: vi.fn().mockResolvedValue({ ok: true }),
   runShortcut: vi.fn().mockResolvedValue({ ok: true }),
   getLastUsedProfile: vi.fn().mockResolvedValue(null),

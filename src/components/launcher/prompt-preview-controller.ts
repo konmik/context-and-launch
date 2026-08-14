@@ -1,4 +1,4 @@
-import { createSignal, createMemo, onCleanup } from "solid-js";
+import { createSignal, createMemo, onSettled } from "solid-js";
 import { interpolatePrompt } from "~/core/launcher/prompt-interpolation.js";
 import type { MergedLauncherConfig } from "~/core/launcher/launcher-config.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
@@ -25,7 +25,7 @@ export function createPromptPreviewController(deps: PromptPreviewDeps) {
 	const [editedPrompt, setEditedPromptRaw] = createSignal(deps.initialEditedPrompt ?? "");
 
 	let persistTimer: ReturnType<typeof setTimeout> | undefined;
-	onCleanup(() => clearTimeout(persistTimer));
+	onSettled(() => () => clearTimeout(persistTimer));
 	function persist(value: string | undefined) {
 		clearTimeout(persistTimer);
 		persistTimer = setTimeout(() => deps.onEditedPromptChange(value), PERSIST_DEBOUNCE_MS);

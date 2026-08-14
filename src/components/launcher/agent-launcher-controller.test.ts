@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createRoot, createSignal, type Accessor } from "solid-js";
+import { createRoot, createSignal, flush, type Accessor } from "solid-js";
 import { createAgentLauncherController, type AgentLauncherController } from "./agent-launcher-controller.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { MergedLauncherConfig } from "~/core/launcher/launcher-config.js";
@@ -27,6 +27,20 @@ function makeConfig(editedPrompt: string | undefined): MergedLauncherConfig {
 		columnDefaults: { todo: { templateName: null, profileName: null, checkedSkills: [], editedPrompt } },
 		worktreeRootPath: null,
 		conflictResolutionPrompt: "",
+	};
+}
+
+function makeConfigWithProfile(profileName: string): MergedLauncherConfig {
+	const config = makeConfig(undefined);
+	return {
+		...config,
+		profiles: [
+			{ name: "Claude", scope: "project" },
+			{ name: "GPT", scope: "project" },
+		] as MergedLauncherConfig["profiles"],
+		columnDefaults: {
+			todo: { ...config.columnDefaults.todo, profileName },
+		},
 	};
 }
 
@@ -65,6 +79,21 @@ function setup(initial: {
 }
 
 describe("createAgentLauncherController prompt reset", () => {
+	it("keeps the selected agent when a stale config response arrives for the same ticket", () => {
+		const { ctrl, setConfig, dispose } = setup({
+			ticket: makeTicket({ folderName: "t-1-alpha", status: "todo" }),
+			config: makeConfigWithProfile("Claude"),
+		});
+
+		ctrl.setSelectedProfile("GPT");
+		flush();
+		setConfig(makeConfigWithProfile("Claude"));
+		flush();
+
+		expect(ctrl.selectedProfile()).toBe("GPT");
+		dispose();
+	});
+
 	it("keeps in-progress prompt edits when config revalidates for the same ticket", () => {
 		const { ctrl, setConfig, dispose } = setup({
 			ticket: makeTicket({ folderName: "t-1-alpha", status: "todo" }),
@@ -73,9 +102,11 @@ describe("createAgentLauncherController prompt reset", () => {
 
 		ctrl.preview.setEditMode(true);
 		ctrl.preview.setEditedPrompt("hello world");
+		flush();
 		expect(ctrl.preview.currentPrompt()).toBe("hello world");
 
 		setConfig(makeConfig("hello"));
+		flush();
 
 		expect(ctrl.preview.currentPrompt()).toBe("hello world");
 
@@ -91,6 +122,7 @@ describe("createAgentLauncherController prompt reset", () => {
 		expect(ctrl.preview.editMode()).toBe(false);
 
 		setConfig(makeConfig("saved edit"));
+		flush();
 
 		expect(ctrl.preview.editMode()).toBe(true);
 		expect(ctrl.preview.currentPrompt()).toBe("saved edit");
@@ -105,6 +137,7 @@ describe("createAgentLauncherController prompt reset", () => {
 		});
 
 		setConfig(makeConfig(undefined));
+		flush();
 
 		expect(ctrl.preview.editMode()).toBe(false);
 
@@ -119,10 +152,12 @@ describe("createAgentLauncherController prompt reset", () => {
 
 		ctrl.preview.setEditMode(true);
 		ctrl.preview.setEditedPrompt("in progress on alpha");
+		flush();
 		expect(ctrl.preview.currentPrompt()).toBe("in progress on alpha");
 
 		setConfig(makeConfig("beta saved prompt"));
 		setTicket(makeTicket({ folderName: "t-2-beta", status: "todo" }));
+		flush();
 
 		expect(ctrl.preview.editMode()).toBe(true);
 		expect(ctrl.preview.currentPrompt()).toBe("beta saved prompt");

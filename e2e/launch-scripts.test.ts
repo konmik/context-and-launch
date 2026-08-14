@@ -20,12 +20,11 @@ describe("launch scripts", () => {
       const startLines = contents
         .replace(/[`\\]\r?\n\s*/g, " ")
         .split("\n")
-        .filter((line) => /\bnode\b/.test(line) && /\.output|serve\.mjs/.test(line));
+        .filter((line) => /\bnode\b/.test(line) && /serve\.mjs/.test(line));
       expect(startLines.join("\n")).toMatch(/scripts[/\\]serve\.mjs/);
-      expect(startLines.join("\n")).not.toMatch(/\.output/);
     });
 
-		it(`${name} distinguishes missing, stale, and current build output`, () => {
+		it(`${name} distinguishes missing, stale, and current build artifacts`, () => {
 			const contents = fs.readFileSync(path.join(repoRoot, name), "utf8");
 			expect(contents).toContain("BUILD=yes REASON=");
 			expect(contents).toContain("BUILD=no");

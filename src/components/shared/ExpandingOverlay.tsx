@@ -1,4 +1,5 @@
-import { createSignal, onMount, type JSX } from "solid-js";
+import { createSignal, onSettled } from "solid-js";
+import type { JSX } from "@solidjs/web";
 
 export interface OverlayRect {
   x: number;
@@ -43,7 +44,7 @@ export default function ExpandingOverlay(props: ExpandingOverlayProps) {
   };
   const [transform, setTransform] = createSignal(initialTransform());
 
-  onMount(() => {
+  onSettled(() => {
     if (!transform()) return;
     requestAnimationFrame(() => requestAnimationFrame(() => setTransform(undefined)));
   });
@@ -52,7 +53,7 @@ export default function ExpandingOverlay(props: ExpandingOverlayProps) {
     <div
       {...props.backdropAttributes}
       class="absolute inset-0"
-      on:pointerdown={(event: PointerEvent) => {
+      onPointerDown={(event: PointerEvent) => {
         if (event.target === event.currentTarget) props.onClose();
       }}
     >

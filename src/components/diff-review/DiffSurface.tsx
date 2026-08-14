@@ -1,5 +1,5 @@
 import { FileDiff, type SelectedLineRange } from "@pierre/diffs";
-import { createEffect, onCleanup, onMount } from "solid-js";
+import { createEffect, onSettled } from "solid-js";
 import type {
 	DiffLayout,
 	DiffLineOverflow,
@@ -254,37 +254,31 @@ export default function DiffSurface(props: {
 		});
 	}
 
-	onMount(() => {
+	onSettled(() => {
 		diff = new FileDiff(options(new Set()));
 		render();
 		hostRef?.addEventListener("pointerdown", handlePointerDown);
 		hostRef?.addEventListener("dragstart", handleDragStart);
 		document.addEventListener("dragend", handleDragEnd);
 		document.addEventListener("pointerup", handleDocumentPointerUp);
+		return () => {
+			hostRef?.removeEventListener("pointerdown", handlePointerDown);
+			hostRef?.removeEventListener("dragstart", handleDragStart);
+			document.removeEventListener("dragend", handleDragEnd);
+			document.removeEventListener("pointerup", handleDocumentPointerUp);
+			observer?.disconnect();
+			diff?.cleanUp();
+		};
 	});
-	createEffect(() => {
-		props.file.contentHash;
-		props.layout;
-		props.lineOverflow;
+	createEffect(() => [props.file.contentHash, props.layout, props.lineOverflow], () => {
 		render();
 	});
-	createEffect(() => {
-		const range = props.selection;
+	createEffect(() => props.selection, (range) => {
 		diff?.setSelectedLines(range ? { ...range } : null, { notify: false });
 	});
-	createEffect(() => {
-		props.jumpTarget;
+	createEffect(() => props.jumpTarget, () => {
 		applyJump();
 	});
-	onCleanup(() => {
-		hostRef?.removeEventListener("pointerdown", handlePointerDown);
-		hostRef?.removeEventListener("dragstart", handleDragStart);
-		document.removeEventListener("dragend", handleDragEnd);
-		document.removeEventListener("pointerup", handleDocumentPointerUp);
-		observer?.disconnect();
-		diff?.cleanUp();
-	});
-
 	return (
 		<div
 			ref={hostRef}

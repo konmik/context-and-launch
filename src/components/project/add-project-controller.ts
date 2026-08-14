@@ -1,6 +1,6 @@
-import { createSignal, createEffect, onCleanup } from "solid-js";
+import { createSignal, createEffect } from "solid-js";
 import { previewProjectPath } from "./project-api.js";
-import { pickDirectory } from "../shared/shared-api.js";
+import { pickDirectory } from "../shared/directory-picker.js";
 
 export type AddProjectAction = (
   pathValue: string, branch: string, mainBranch: string, boardId: string,
@@ -24,14 +24,12 @@ export function createAddProjectController(deps: AddProjectControllerDeps) {
   const [localError, setLocalError] = createSignal(deps.errorMessage ?? "");
 
   const [debouncedPath, setDebouncedPath] = createSignal("");
-  createEffect(() => {
-    const p = pathValue().trim();
+  createEffect(() => pathValue().trim(), (p) => {
     const handle = setTimeout(() => setDebouncedPath(p), 300);
-    onCleanup(() => clearTimeout(handle));
+    return () => clearTimeout(handle);
   });
 
-  createEffect(() => {
-    const p = debouncedPath();
+  createEffect(debouncedPath, (p) => {
     if (!p) { setMainBranchValue(""); return; }
     let cancelled = false;
     previewProjectPath(p)
@@ -39,7 +37,7 @@ export function createAddProjectController(deps: AddProjectControllerDeps) {
         if (!cancelled && !mainBranchTouched() && res.mainBranch) setMainBranchValue(res.mainBranch);
       })
       .catch((err: any) => { if (!cancelled) setLocalError(err?.message ?? "Failed to compute paths"); });
-    onCleanup(() => { cancelled = true; });
+    return () => { cancelled = true; };
   });
 
   async function handleBrowsePath() {

@@ -1,7 +1,5 @@
 .idea/
 node_modules/
-.vinxi/
-.output/
 build/
 dist/
 .env

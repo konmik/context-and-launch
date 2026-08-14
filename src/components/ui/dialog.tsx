@@ -1,38 +1,89 @@
-import { Dialog as ArkDialog } from "@ark-ui/solid";
-import { Portal } from "solid-js/web";
-import type { JSX, ComponentProps } from "solid-js";
+/* eslint-disable max-len */
+import { Show, createContext, createEffect, createUniqueId, useContext } from "solid-js";
+import { Portal, type ComponentProps, type JSX } from "@solidjs/web";
 
-type RootProps = ComponentProps<typeof ArkDialog.Root>;
+const DialogContext = createContext<{ close(): void; titleId: string; descriptionId: string }>();
 
 export function DialogRoot(props: {
-  open: RootProps["open"];
+  open: boolean;
   onOpenChange: (open: boolean) => void;
   children: JSX.Element;
   class?: string;
-  closeOnInteractOutside?: RootProps["closeOnInteractOutside"];
+  closeOnInteractOutside?: boolean;
   onMouseDown?: (e: MouseEvent) => void;
   ref?: HTMLDivElement | ((el: HTMLDivElement) => void);
 }) {
+  let content!: HTMLDivElement;
+  let previouslyFocused: Element | null = null;
+  const id = createUniqueId();
+  const context = {
+    close: () => props.onOpenChange(false),
+    titleId: `${id}-title`,
+    descriptionId: `${id}-description`,
+  };
+  createEffect(() => props.open, (isOpen) => {
+    if (!isOpen) return;
+    previouslyFocused = document.activeElement;
+    queueMicrotask(() => content?.querySelector<HTMLElement>("button, input, select, textarea, [tabindex]:not([tabindex='-1'])")?.focus());
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        const dialogs = document.querySelectorAll('[data-scope="dialog"][data-part="content"][data-state="open"]');
+        const menu = document.querySelector('[data-scope="menu"][data-part="content"]');
+        if (!menu && dialogs.item(dialogs.length - 1) === content) props.onOpenChange(false);
+      }
+      if (event.key !== "Tab") return;
+      const focusable = [...content.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])")];
+      if (!focusable.length) return;
+      const current = focusable.indexOf(document.activeElement as HTMLElement);
+      const next = event.shiftKey ? (current <= 0 ? focusable.length - 1 : current - 1) : (current + 1) % focusable.length;
+      event.preventDefault();
+      focusable[next].focus();
+    };
+    document.addEventListener("keydown", keydown);
+    return () => {
+      document.removeEventListener("keydown", keydown);
+      (previouslyFocused as HTMLElement | null)?.focus?.();
+    };
+  });
   return (
-    <ArkDialog.Root
-      open={props.open}
-      onOpenChange={(d) => { if (!d.open) props.onOpenChange(false); }}
-      closeOnInteractOutside={props.closeOnInteractOutside}
-      lazyMount
-      unmountOnExit
-    >
-      <Portal>
-        <ArkDialog.Backdrop />
-        <ArkDialog.Positioner>
-          <ArkDialog.Content class={props.class} onMouseDown={props.onMouseDown} ref={props.ref}>
-            {props.children}
-          </ArkDialog.Content>
-        </ArkDialog.Positioner>
-      </Portal>
-    </ArkDialog.Root>
+    <Show when={props.open}>
+      <DialogContext value={context}>
+        <Portal>
+          <div data-scope="dialog" data-part="backdrop" onClick={() => props.closeOnInteractOutside !== false && props.onOpenChange(false)} />
+          <div
+            data-scope="dialog"
+            data-part="positioner"
+            onClick={() => props.closeOnInteractOutside !== false && props.onOpenChange(false)}
+          >
+            <div
+              ref={(element) => { content = element; typeof props.ref === "function" ? props.ref(element) : undefined; }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={context.titleId}
+              aria-describedby={context.descriptionId}
+              data-state="open"
+              data-scope="dialog"
+              data-part="content"
+              class={props.class}
+              onMouseDown={props.onMouseDown}
+              onClick={(event) => event.stopPropagation()}
+            >{props.children}</div>
+          </div>
+        </Portal>
+      </DialogContext>
+    </Show>
   );
 }
 
-export const DialogTitle = ArkDialog.Title;
-export const DialogDescription = ArkDialog.Description;
-export const DialogCloseTrigger = ArkDialog.CloseTrigger;
+export function DialogTitle(props: ComponentProps<"h2">) {
+  const dialog = useContext(DialogContext);
+  return <h2 {...props} id={dialog.titleId} data-scope="dialog" data-part="title" />;
+}
+export function DialogDescription(props: ComponentProps<"p">) {
+  const dialog = useContext(DialogContext);
+  return <p {...props} id={dialog.descriptionId} data-scope="dialog" data-part="description" />;
+}
+export function DialogCloseTrigger(props: ComponentProps<"button">) {
+  const dialog = useContext(DialogContext);
+  return <button type="button" {...props} data-scope="dialog" data-part="close-trigger" onClick={dialog.close} />;
+}

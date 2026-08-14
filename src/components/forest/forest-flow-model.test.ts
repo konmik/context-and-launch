@@ -35,7 +35,7 @@ describe("forest flow model", () => {
     expect(model.nodes[0]?.position).toEqual({ x: 25, y: 50 });
     expect(model.nodes[0]?.data.representedTicketNumbers).toEqual(["A-1", "G-1"]);
     expect(model.edges).toHaveLength(1);
-    expect(model.edges[0]).toMatchObject({ source: "O-1", target: "G-1", selectable: false });
+    expect(model.edges[0]).toMatchObject({ source: "O-1", target: "G-1" });
   });
 
   it("projects dependencies crossing a group boundary", () => {

@@ -79,22 +79,20 @@ describe("Launcher Settings Launch tab (e2e, real server)", () => {
   it("delete-profile removes profile from config", async () => {
     await setup("delete-profile");
     await testId(ctx.page, "launcher-settings-launch-profile-delete-button").click();
-    const app = await poll(
-      () => readAppLauncherConfig(ctx.testServer),
-      (a) => !(a?.profiles?.map((p) => p.name).includes("Claude") ?? false),
-      5000,
-    );
+    await testId(ctx.page, "launcher-settings-launch-profile-row")
+      .filter({ hasText: "Claude" })
+      .waitFor({ state: "detached", timeout: 15_000 });
+    const app = readAppLauncherConfig(ctx.testServer);
     expect(app?.profiles?.map((p) => p.name)).not.toContain("Claude");
   });
 
   it("delete-shortcut removes shortcut from config", async () => {
     await setup("delete-shortcut");
     await testId(ctx.page, "launcher-settings-launch-shortcut-delete-button").click();
-    const app = await poll(
-      () => readAppLauncherConfig(ctx.testServer),
-      (a) => !(a?.shortcuts?.map((s) => s.name).includes("Editor") ?? false),
-      5000,
-    );
+    await testId(ctx.page, "launcher-settings-launch-shortcut-row")
+      .filter({ hasText: "Editor" })
+      .waitFor({ state: "detached", timeout: 15_000 });
+    const app = readAppLauncherConfig(ctx.testServer);
     expect(app?.shortcuts?.map((s) => s.name)).not.toContain("Editor");
   });
 

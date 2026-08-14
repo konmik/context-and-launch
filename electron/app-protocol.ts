@@ -10,36 +10,23 @@ export const APP_SCHEME = "app";
 export const APP_HOST = "context-launch";
 export const APP_ORIGIN = `${APP_SCHEME}://${APP_HOST}`;
 
-export interface LocalFetchInit {
-  host: string;
-  protocol: string;
-  headers: Headers;
-  method: string;
-  redirect: RequestRedirect;
-  body?: ArrayBuffer;
-}
-
-export type LocalFetch = (path: string, init: LocalFetchInit) => Promise<Response>;
+export type AppRequestHandler = (request: Request) => Promise<Response>;
 
 export async function handleAppRequest(
   request: Request,
-  localFetch: LocalFetch,
+  handleRequest: AppRequestHandler,
 ): Promise<Response> {
   const url = new URL(request.url);
   if (url.protocol !== `${APP_SCHEME}:` || url.host !== APP_HOST) {
     throw new Error(`Not an app-origin URL: ${request.url}`);
   }
-  // The body is read to completion here: a ReadableStream handed straight to
-  // the handler is not a supported body type and tears down the request.
   const body = request.body ? await request.arrayBuffer() : undefined;
-  return localFetch(`${url.pathname}${url.search}`, {
-    host: url.hostname,
-    protocol: url.protocol,
+  return handleRequest(new Request(request.url, {
     headers: request.headers,
     method: request.method,
     redirect: request.redirect,
     body,
-  });
+  }));
 }
 
 // One-time migration of the appearance persisted by the main process

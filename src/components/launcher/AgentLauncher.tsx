@@ -1,8 +1,7 @@
 import { Show, For } from "solid-js";
 import {
-	DragDropProvider, DragDropSensors, SortableProvider,
-	createSortable, closestCenter,
-} from "@thisbeyond/solid-dnd";
+	DragDropProvider, createSortable,
+} from "~/components/drag/drag-provider.js";
 import { DialogRoot, DialogTitle } from "../ui/dialog";
 import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/core/launcher/launcher-config.js";
 import ErrorDialog from "../shared/ErrorDialog.js";
@@ -37,7 +36,12 @@ function NamedEntrySelect(props: {
 				data-testid={props.testId}
 			>
 				<For each={props.options}>
-					{(option) => <option value={option.name}>{option.name}</option>}
+					{(option) => (
+						<option
+							value={option.name}
+							selected={option.name === props.value}
+						>{option.name}</option>
+					)}
 				</For>
 			</select>
 		</div>
@@ -56,8 +60,7 @@ function SortableLauncherSkill(props: {
 			ref={sortable.ref}
 			data-testid="launcher-skill-row"
 			data-skill-name={props.skill.name}
-			classList={{ [DND_ACTIVE_CLASS]: props.isActive }}
-			class="flex items-center gap-2"
+			class={`flex items-center gap-2 ${props.isActive ? DND_ACTIVE_CLASS : ""}`}
 		>
 			<DragGrip gripProps={sortable.dragActivators} testId="launcher-skill-drag-handle" />
 			<label class="flex items-center gap-2 text-sm">
@@ -120,11 +123,8 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 										onDragStart={c.skillReorder.onDragStart}
 										onDragOver={c.skillReorder.onDragOver}
 										onDragEnd={c.skillReorder.onDragEnd}
-										collisionDetector={closestCenter}
 									>
-										<DragDropSensors />
-										<SortableProvider ids={c.orderedSkills().map(s => s.name)}>
-											<div class="flex flex-col gap-1 pl-2">
+										<div class="flex flex-col gap-1 pl-2">
 												<For each={c.orderedSkills()}>
 													{(skill, i) => (
 														<>
@@ -151,8 +151,7 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 														skill={c.skillReorder.dropPreview()!.item}
 													/>
 												</Show>
-											</div>
-										</SortableProvider>
+										</div>
 										<NameDragOverlay nameOf={
 											(id) => c.orderedSkills().find(s => s.name === id)?.name
 										} />

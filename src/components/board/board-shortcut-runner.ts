@@ -1,4 +1,4 @@
-import { createSignal, createMemo } from "solid-js";
+import { createSignal, createMemo, flush } from "solid-js";
 import { createShortcutState } from "../ticket/ticket-detail-shortcuts.js";
 import { openTicketWorktree } from "../ticket/ticket-api.js";
 import { computeLaunchDir } from "../launcher/agent-launcher-pure.js";
@@ -37,6 +37,8 @@ export function createBoardShortcutRunner(deps: {
 
   function run(ticket: TicketInfo, name: string) {
     setActiveTicket(ticket);
+    // The shortcut command imperatively reads the ticket selected by this same event.
+    flush();
     void shortcutState.runShortcut(name);
   }
 

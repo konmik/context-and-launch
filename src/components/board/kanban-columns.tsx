@@ -1,9 +1,8 @@
 import { For, Show } from "solid-js";
 import {
-	SortableProvider,
 	createSortable,
 	createDroppable,
-} from "@thisbeyond/solid-dnd";
+} from "~/components/drag/drag-provider.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { ColumnDefinition } from "~/core/project/board-config.js";
 import TicketCard from "../ticket/TicketCard";
@@ -43,7 +42,10 @@ function SortableTicketCard(props: {
 		<div
 			ref={sortable.ref}
 			data-sortable-id={id}
-			classList={{ [DND_ACTIVE_CLASS]: isActive() }}
+			role="button"
+			tabindex="0"
+			aria-label={`Drag ticket ${props.ticket.number} to reorder`}
+			class={isActive() ? DND_ACTIVE_CLASS : undefined}
 			{...sortable.dragActivators}
 		>
 			<TicketCard
@@ -95,13 +97,7 @@ export function ColumnHeader(props: {
 			data-column-name={props.column.name}
 		>
 			<div
-				classList={{
-					"mb-3 h-2": true,
-					"-ml-8": props.edgeLeft,
-					"-ml-4": !props.edgeLeft,
-					"-mr-8": props.edgeRight,
-					"-mr-4": !props.edgeRight,
-				}}
+				class={`mb-3 h-2 ${props.edgeLeft ? "-ml-8" : "-ml-4"} ${props.edgeRight ? "-mr-8" : "-mr-4"}`}
 				style={{ "background-color": props.column.color ?? "transparent" }}
 				data-testid="kanban-board-column-color-line"
 				data-column-name={props.column.name}
@@ -130,7 +126,6 @@ export function ColumnBody(props: TicketColumnProps & {
 	tickets: TicketInfo[];
 	registerRef: (el: HTMLDivElement) => void;
 }) {
-	const ids = () => props.tickets.map((t) => makeId(props.column.name, t.folderName));
 	const sourceIndexInColumn = () => {
 		const aid = props.activeId;
 		if (!aid) return null;
@@ -149,34 +144,32 @@ export function ColumnBody(props: TicketColumnProps & {
 			data-testid="kanban-board-column-body"
 			data-column-name={props.column.name}
 		>
-			<SortableProvider ids={ids()}>
-				<div ref={(el) => props.registerRef(el)} class="flex flex-1 flex-col gap-2 pb-4">
-					<For each={props.tickets}>
-						{(ticket, i) => (
-							<>
-								<Show when={previewAt() === i() && props.activeTicket}>
-									{(t) => <DropPreview ticket={t()} />}
-								</Show>
-								<SortableTicketCard
-									ticket={ticket}
-									column={props.column.name}
-									activeId={props.activeId}
-									onDelete={props.onDelete}
-									onArchive={props.onArchive}
-									onViewDetail={props.onViewDetail}
-									onReviewChanges={props.onReviewChanges}
-								/>
-							</>
-						)}
-					</For>
-					<Show when={previewAt() === props.tickets.length && props.activeTicket}>
-						{(t) => <DropPreview ticket={t()} />}
-					</Show>
-					<Show when={props.tickets.length === 0}>
-						<EmptyColumnDropzone column={props.column.name} />
-					</Show>
-				</div>
-			</SortableProvider>
+			<div ref={(el) => props.registerRef(el)} class="flex flex-1 flex-col gap-2 pb-4">
+				<For each={props.tickets}>
+					{(ticket, i) => (
+						<>
+							<Show when={previewAt() === i() && props.activeTicket}>
+								{(t) => <DropPreview ticket={t()} />}
+							</Show>
+							<SortableTicketCard
+								ticket={ticket}
+								column={props.column.name}
+								activeId={props.activeId}
+								onDelete={props.onDelete}
+								onArchive={props.onArchive}
+								onViewDetail={props.onViewDetail}
+								onReviewChanges={props.onReviewChanges}
+							/>
+						</>
+					)}
+				</For>
+				<Show when={previewAt() === props.tickets.length && props.activeTicket}>
+					{(t) => <DropPreview ticket={t()} />}
+				</Show>
+				<Show when={props.tickets.length === 0}>
+					<EmptyColumnDropzone column={props.column.name} />
+				</Show>
+			</div>
 		</div>
 	);
 }
@@ -211,24 +204,22 @@ export function OrphanBody(props: TicketColumnProps & { tickets: TicketInfo[] })
 			data-testid="kanban-board-column-body"
 			data-column-name="undefined"
 		>
-			<SortableProvider ids={props.tickets.map((t) => makeId("undefined", t.folderName))}>
-				<div class="flex flex-1 flex-col gap-2">
-					<For each={props.tickets}>
-						{(ticket) => (
-							<SortableTicketCard
-								ticket={ticket}
-								column="undefined"
-								activeId={props.activeId}
-								onDelete={props.onDelete}
-								onArchive={props.onArchive}
-								onViewDetail={props.onViewDetail}
-								onReviewChanges={props.onReviewChanges}
-								orphanedStatus={ticket.status}
-							/>
-						)}
-					</For>
-				</div>
-			</SortableProvider>
+			<div class="flex flex-1 flex-col gap-2">
+				<For each={props.tickets}>
+					{(ticket) => (
+						<SortableTicketCard
+							ticket={ticket}
+							column="undefined"
+							activeId={props.activeId}
+							onDelete={props.onDelete}
+							onArchive={props.onArchive}
+							onViewDetail={props.onViewDetail}
+							onReviewChanges={props.onReviewChanges}
+							orphanedStatus={ticket.status}
+						/>
+					)}
+				</For>
+			</div>
 		</div>
 	);
 }

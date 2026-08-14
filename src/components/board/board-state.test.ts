@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createRoot, createSignal } from "solid-js";
+import { createRoot, createSignal, flush, runWithOwner } from "solid-js";
 import { createBoardDnd } from "./board-state";
 import type { BoardState } from "~/components/project/project-api.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
@@ -34,6 +34,12 @@ function makeBoard(
 			.map(t => t.folderName);
 	}
 	return { columns: colDefs, tickets, ticketOrder };
+}
+
+function invoke<T>(fn: () => T): T {
+	const result = runWithOwner(null, fn);
+	flush();
+	return result;
 }
 
 describe("createBoardDnd board view", () => {
@@ -95,7 +101,7 @@ describe("createBoardDnd drag state", () => {
 			const tickets = [makeTicket({ folderName: "t-1-alpha", status: "todo" })];
 			const [b] = createSignal(makeBoard(tickets));
 			const { drag, activeTicket, commands } = createBoardDnd(b);
-			commands.startDrag("todo:t-1-alpha");
+			invoke(() => commands.startDrag("todo:t-1-alpha"));
 			expect(drag().activeId).toBe("todo:t-1-alpha");
 			expect(activeTicket()?.folderName).toBe("t-1-alpha");
 			dispose();
@@ -107,9 +113,9 @@ describe("createBoardDnd drag state", () => {
 			const tickets = [makeTicket({ folderName: "t-1-alpha", status: "todo" })];
 			const [b] = createSignal(makeBoard(tickets));
 			const { drag, commands } = createBoardDnd(b);
-			commands.startDrag("todo:t-1-alpha");
-			commands.updateHover({ column: "done", index: 0 });
-			commands.cancelDrag();
+			invoke(() => commands.startDrag("todo:t-1-alpha"));
+			invoke(() => commands.updateHover({ column: "done", index: 0 }));
+			invoke(commands.cancelDrag);
 			expect(drag().activeId).toBeNull();
 			expect(drag().hoverTarget).toBeNull();
 			dispose();
@@ -126,9 +132,9 @@ describe("createBoardDnd endDrag", () => {
 			];
 			const [b] = createSignal(makeBoard(tickets));
 			const { commands } = createBoardDnd(b);
-			commands.startDrag("todo:t-1-alpha");
-			commands.updateHover({ column: "done", index: 1 });
-			expect(commands.endDrag()).toEqual({
+			invoke(() => commands.startDrag("todo:t-1-alpha"));
+			invoke(() => commands.updateHover({ column: "done", index: 1 }));
+			expect(invoke(commands.endDrag)).toEqual({
 				folderName: "t-1-alpha",
 				fromColumn: "todo",
 				toColumn: "done",
@@ -147,9 +153,9 @@ describe("createBoardDnd endDrag", () => {
 			];
 			const [b] = createSignal(makeBoard(tickets));
 			const { commands } = createBoardDnd(b);
-			commands.startDrag("todo:t-1-alpha");
-			commands.updateHover({ column: "todo", index: 2 });
-			expect(commands.endDrag()).toEqual({
+			invoke(() => commands.startDrag("todo:t-1-alpha"));
+			invoke(() => commands.updateHover({ column: "todo", index: 2 }));
+			expect(invoke(commands.endDrag)).toEqual({
 				folderName: "t-1-alpha",
 				fromColumn: "todo",
 				toColumn: "todo",
@@ -167,9 +173,9 @@ describe("createBoardDnd endDrag", () => {
 			];
 			const [b] = createSignal(makeBoard(tickets));
 			const { commands } = createBoardDnd(b);
-			commands.startDrag("todo:t-1-alpha");
-			commands.updateHover({ column: "todo", index: 0 });
-			expect(commands.endDrag()).toBeNull();
+			invoke(() => commands.startDrag("todo:t-1-alpha"));
+			invoke(() => commands.updateHover({ column: "todo", index: 0 }));
+			expect(invoke(commands.endDrag)).toBeNull();
 			dispose();
 		});
 	});
@@ -179,8 +185,8 @@ describe("createBoardDnd endDrag", () => {
 			const tickets = [makeTicket({ folderName: "t-1-alpha", status: "todo" })];
 			const [b] = createSignal(makeBoard(tickets));
 			const { commands } = createBoardDnd(b);
-			commands.startDrag("todo:t-1-alpha");
-			expect(commands.endDrag()).toBeNull();
+			invoke(() => commands.startDrag("todo:t-1-alpha"));
+			expect(invoke(commands.endDrag)).toBeNull();
 			dispose();
 		});
 	});
@@ -193,9 +199,9 @@ describe("createBoardDnd endDrag", () => {
 			];
 			const [b] = createSignal(makeBoard(tickets));
 			const { commands } = createBoardDnd(b);
-			commands.startDrag("todo:t-1-alpha");
-			commands.updateHover({ column: "undefined", index: 0 });
-			expect(commands.endDrag()).toBeNull();
+			invoke(() => commands.startDrag("todo:t-1-alpha"));
+			invoke(() => commands.updateHover({ column: "undefined", index: 0 }));
+			expect(invoke(commands.endDrag)).toBeNull();
 			dispose();
 		});
 	});
@@ -208,9 +214,9 @@ describe("createBoardDnd endDrag", () => {
 			];
 			const [b] = createSignal(makeBoard(tickets));
 			const { drag, commands } = createBoardDnd(b);
-			commands.startDrag("todo:t-1-alpha");
-			commands.updateHover({ column: "done", index: 0 });
-			commands.endDrag();
+			invoke(() => commands.startDrag("todo:t-1-alpha"));
+			invoke(() => commands.updateHover({ column: "done", index: 0 }));
+			invoke(commands.endDrag);
 			expect(drag().activeId).toBeNull();
 			expect(drag().hoverTarget).toBeNull();
 			dispose();
@@ -225,9 +231,9 @@ describe("createBoardDnd endDrag", () => {
 			];
 			const [b] = createSignal(makeBoard(tickets));
 			const { currentOrder, commands } = createBoardDnd(b);
-			commands.startDrag("todo:t-1-alpha");
-			commands.updateHover({ column: "done", index: 1 });
-			commands.endDrag();
+			invoke(() => commands.startDrag("todo:t-1-alpha"));
+			invoke(() => commands.updateHover({ column: "done", index: 1 }));
+			invoke(commands.endDrag);
 			expect(currentOrder()["todo"]).toEqual([]);
 			expect(currentOrder()["done"]).toEqual(["t-2-bravo", "t-1-alpha"]);
 			dispose();
@@ -246,9 +252,9 @@ describe("createBoardDnd server sync", () => {
 			const [b, setB] = createSignal(makeBoard(tickets));
 			const { currentOrder, commands } = createBoardDnd(b);
 
-			commands.startDrag("todo:t-1-alpha");
-			commands.updateHover({ column: "done", index: 0 });
-			commands.endDrag();
+			invoke(() => commands.startDrag("todo:t-1-alpha"));
+			invoke(() => commands.updateHover({ column: "done", index: 0 }));
+			invoke(commands.endDrag);
 			expect(currentOrder()["done"])
 				.toEqual(["t-1-alpha", "t-2-bravo", "t-3-charlie"]);
 
@@ -256,11 +262,11 @@ describe("createBoardDnd server sync", () => {
 				todo: [],
 				done: ["t-3-charlie", "t-1-alpha", "t-2-bravo"],
 			};
-			setB({
+			invoke(() => setB({
 				columns: b().columns,
 				tickets: b().tickets,
 				ticketOrder: serverOrder,
-			});
+			}));
 
 			expect(currentOrder()["done"])
 				.toEqual(["t-3-charlie", "t-1-alpha", "t-2-bravo"]);
@@ -275,12 +281,12 @@ describe("createBoardDnd server sync", () => {
 			const [b, setB] = createSignal(makeBoard([ticketA, ticketB]));
 			const { board, commands } = createBoardDnd(b);
 
-			commands.startDrag("todo:t-1-alpha");
-			commands.updateHover({ column: "done", index: 0 });
-			commands.endDrag();
+			invoke(() => commands.startDrag("todo:t-1-alpha"));
+			invoke(() => commands.updateHover({ column: "done", index: 0 }));
+			invoke(commands.endDrag);
 
 			const ticketC = makeTicket({ folderName: "t-3-charlie", status: "todo" });
-			setB(makeBoard([ticketA, ticketB, ticketC]));
+			invoke(() => setB(makeBoard([ticketA, ticketB, ticketC])));
 
 			expect(board().ticketMap.has("t-3-charlie")).toBe(true);
 			dispose();

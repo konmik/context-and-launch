@@ -1,5 +1,5 @@
-import RotateCcw from "lucide-solid/icons/rotate-ccw";
-import Trash2 from "lucide-solid/icons/trash-2";
+import { RotateCcw } from "~/components/ui/icons.js";
+import { Trash2 } from "~/components/ui/icons.js";
 import { For, Show, createEffect, createSignal, untrack } from "solid-js";
 import type { ReviewPromptQueueItem } from "~/core/diff-review/diff-review-types.js";
 import VerticalReveal from "./VerticalReveal.js";
@@ -18,8 +18,7 @@ export default function ReviewPromptQueueList(props: {
 	const itemError = (item: ReviewPromptQueueItem) =>
 		item.state === "error" || item.state === "uncertain" ? item.error : undefined;
 
-	createEffect(() => {
-		const incoming = props.items;
+	createEffect(() => props.items, (incoming) => {
 		const current = untrack(entries);
 		const next = incoming.map((item) => ({ item, shown: true }));
 		const incomingIds = new Set(incoming.map((item) => item.id));
@@ -29,10 +28,10 @@ export default function ReviewPromptQueueList(props: {
 		setEntries(next);
 	});
 
-	createEffect(() => {
-		props.items.length;
+	createEffect(() => props.items.length, () => {
 		queueMicrotask(() => {
-			if (bodyRef) bodyRef.scrollTop = 0;
+			const body = bodyRef;
+			if (body) body.scrollTop = 0;
 		});
 	});
 
@@ -55,10 +54,9 @@ export default function ReviewPromptQueueList(props: {
 					ref={bodyRef}
 					class="max-h-[132px] overflow-y-auto border-t border-border"
 				>
-					<For each={entries().map((entry) => entry.item.id)}>
-						{(id) => {
-							const entry = () =>
-								entries().find((candidate) => candidate.item.id === id)!;
+					<For each={entries()} keyed={(entry) => entry.item.id}>
+						{(entry) => {
+							const id = () => entry().item.id;
 							return (
 								<article
 									class="border-b border-border last:border-b-0"
@@ -67,7 +65,7 @@ export default function ReviewPromptQueueList(props: {
 									<VerticalReveal
 										show={entry().shown}
 										onHidden={() => setEntries((list) =>
-											list.filter((candidate) => candidate.item.id !== id))}
+											list.filter((candidate) => candidate.item.id !== id()))}
 									>
 										<div class="flex items-start gap-2 px-2.5 py-1.5">
 											<div class="min-w-0 flex-1">
@@ -93,8 +91,8 @@ export default function ReviewPromptQueueList(props: {
 													type="button"
 													class="btn-secondary btn-sm shrink-0 gap-1.5"
 													title="Send this Review Prompt to the Agent again"
-													disabled={props.retryingId === entry().item.id}
-													onClick={() => props.onRetry(entry().item.id)}
+													disabled={props.retryingId === id()}
+													onClick={() => props.onRetry(id())}
 													data-testid="diff-review-queue-retry"
 												>
 													<RotateCcw size={12} />
@@ -111,8 +109,8 @@ export default function ReviewPromptQueueList(props: {
 													class="btn-ghost-icon h-6 w-6 shrink-0"
 													aria-label="Remove this Review Prompt from the queue"
 													title="Remove this Review Prompt from the queue"
-													disabled={props.removingId === entry().item.id}
-													onClick={() => props.onRemove(entry().item.id)}
+												disabled={props.removingId === id()}
+												onClick={() => props.onRemove(id())}
 													data-testid="diff-review-queue-remove"
 												>
 													<Trash2 size={12} />

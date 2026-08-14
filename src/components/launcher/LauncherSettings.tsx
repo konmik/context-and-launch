@@ -1,5 +1,5 @@
-import { Show, createSignal, createEffect } from "solid-js";
-import X from "lucide-solid/icons/x";
+import { Show, createSignal, createEffect, untrack } from "solid-js";
+import { X } from "~/components/ui/icons.js";
 import {
 	FloatingWindow, FloatingWindowHeader, FloatingPanelBody,
 	FloatingPanelCloseTrigger, FloatingPanelTitle,
@@ -36,12 +36,11 @@ interface LauncherSettingsProps {
 }
 
 export default function LauncherSettings(props: LauncherSettingsProps) {
-	const s = props.ctrl ?? createLauncherSettingsState(props);
+	const s = untrack(() => props.ctrl ?? createLauncherSettingsState(props));
 	const commandTemplates = createCommandTemplateSettingsState(props);
 
-	const [visitedTabs, setVisitedTabs] = createSignal<Set<string>>(new Set([s.activeTab()]));
-	createEffect(() => {
-		const tab = s.activeTab();
+	const [visitedTabs, setVisitedTabs] = createSignal<Set<string>>(new Set());
+	createEffect(s.activeTab, (tab) => {
 		setVisitedTabs((prev) => prev.has(tab) ? prev : new Set(prev).add(tab));
 	});
 	const visited = (tab: string) => visitedTabs().has(tab);
@@ -128,13 +127,15 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 			</FloatingWindowHeader>
 
 			<FloatingPanelBody>
-				<div class="flex-1 overflow-auto px-6 py-4">
+				<div class="flex-1 overflow-auto px-6 py-4" data-testid="launcher-settings-scroll">
 								<Show when={s.loading() && !s.config()}>
 									<p class="text-sm text-muted-foreground">Loading...</p>
 								</Show>
 
 								<Show when={s.config()}>
-									{(cfg) => (<>
+									{(_) => {
+										const cfg = () => s.config()!;
+										return (<>
 										<Show when={visited("misc")}>
 											<MiscTab
 												projectName={s.projectName()}
@@ -189,7 +190,8 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 												setColumnDialogError={s.setColumnDialogError}
 											/>
 										</Show>
-									</>)}
+									</>);
+									}}
 								</Show>
 								<Show when={visited("command-templates")}>
 									<CommandTemplatesTab controller={commandTemplates} />

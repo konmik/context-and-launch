@@ -1,6 +1,5 @@
-import { createSignal, createEffect, createMemo, on, onCleanup } from "solid-js";
-import { revalidate, query } from "@solidjs/router";
-import { createNonSuspendingAsync } from "~/lib/create-non-suspending-async.js";
+import { createSignal, createEffect, createMemo, flush, onSettled, untrack } from "solid-js";
+import { revalidate } from "@solidjs/router";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/core/launcher/launcher-config.js";
 import {
@@ -35,20 +34,12 @@ import {
 import { ticketMutationRevalidateKeys } from "../shared/revalidate-keys.js";
 import { createWorktreeRevision } from "../shared/worktree-revision.js";
 import {
-  getMergedLauncherConfig, saveAndCacheColumnDefaults,
+  latestMergedLauncherConfig, loadMergedLauncherConfig, saveColumnDefaultsAndReturnConfig,
   type MergedLauncherConfigWithMeta,
 } from "../launcher/launcher-api.js";
 import { openNativeFileBrowser as openNativeFileBrowserServer } from "../shared/shared-api.js";
 
 export type Tab = "editor" | "launcher";
-
-function peekCachedLauncherConfig(projectSlug: string): MergedLauncherConfigWithMeta | undefined {
-  try {
-    return query.get(getMergedLauncherConfig.keyFor(projectSlug)) as MergedLauncherConfigWithMeta | undefined;
-  } catch {
-    return undefined;
-  }
-}
 
 export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug: string; onClose: () => void }) {
   const [activeFile, setActiveFile] = createSignal<ActiveFile>({ type: "context", name: "to-do" });
@@ -70,7 +61,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   const [dropdownOpen, setDropdownOpen] = createSignal(false);
   const [browsing, setBrowsing] = createSignal(false);
   const [fileView, setFileView] = createSignal<FileView>({ kind: "loading" });
-  const [useWorktree, setUseWorktree] = createSignal(props.ticket.useWorktree);
+  const [useWorktree, setUseWorktree] = createSignal(() => props.ticket.useWorktree);
   const [externallyChanged, setExternallyChanged] = createSignal(false);
   const [confirmingExternalChange, setConfirmingExternalChange] = createSignal(false);
 
@@ -82,10 +73,10 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     setError,
   });
 
-  const ticketFiles = createNonSuspendingAsync(
+  const ticketFiles = createMemo(
     () => getTicketFiles(props.projectSlug, header.savedFolderName()),
     {
-      initialValue: {
+      loadingValue: {
         contextNames: props.ticket.contextNames ?? [],
         fileNames: props.ticket.fileNames ?? [],
         references: props.ticket.references ?? [],
@@ -128,10 +119,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     requestFileSwitch,
   });
 
-  createEffect(on(
-    () => props.ticket.folderName,
-    () => setUseWorktree(props.ticket.useWorktree),
-  ));
+  const cachedConfig = latestMergedLauncherConfig(props.projectSlug);
 
   async function openWorktree() {
     setError(null);
@@ -189,10 +177,11 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   function handleBeforeUnload(e: BeforeUnloadEvent) {
     if (hasAnyUnsavedChanges()) e.preventDefault();
   }
-  if (typeof window !== "undefined") {
+  onSettled(() => {
+    if (typeof window === "undefined") return;
     window.addEventListener("beforeunload", handleBeforeUnload);
-    onCleanup(() => window.removeEventListener("beforeunload", handleBeforeUnload));
-  }
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  });
 
   // Only the newest load may touch the view state: a slow response for a file
   // the user has already navigated away from must not clobber the current view
@@ -241,40 +230,46 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     }
   }
 
-  function applyInitialTab(data: MergedLauncherConfigWithMeta) {
+  function applyInitialTab(data: MergedLauncherConfigWithMeta, status = props.ticket.status) {
     setLauncherConfig(data);
-    const defaults = data.columnDefaults[props.ticket.status];
+    const defaults = data.columnDefaults[status];
     if (defaults?.lastLayer === "launcher") setActiveTab("launcher");
     setInitialTabResolved(true);
   }
 
-  const cachedConfig = peekCachedLauncherConfig(props.projectSlug);
-  if (cachedConfig) applyInitialTab(cachedConfig);
-
-  createEffect(on(
-    () => [props.projectSlug, props.ticket.folderName] as const,
-    async ([projectSlug]) => {
-      if (!projectSlug || initialTabResolved()) return;
+  createEffect(
+    () => [
+      props.projectSlug,
+      props.ticket.folderName,
+      props.ticket.status,
+      initialTabResolved(),
+    ] as const,
+    ([projectSlug, , status, resolved]) => { void (async () => {
+      if (!projectSlug || resolved) return;
       try {
-        applyInitialTab(await getMergedLauncherConfig(projectSlug));
+        applyInitialTab(await loadMergedLauncherConfig(projectSlug), status);
       } catch (e) {
         setError(errorPayload(e, "Load failed"));
         setInitialTabResolved(true);
       }
-    }
-  ));
+    })(); }
+  );
 
   function patchColumnDefaults(patch: Partial<LauncherColumnDefaults>) {
-    saveAndCacheColumnDefaults(props.projectSlug, props.ticket.status, patch)
+    saveColumnDefaultsAndReturnConfig(props.projectSlug, props.ticket.status, patch)
       .then((result) => {
         if (!result.ok) { setError({ title: "Save failed", description: result.message }); return; }
+        setLauncherConfig(result.config);
       })
       .catch((e) => {
         setError(errorPayload(e, "Save failed"));
       });
   }
 
-  void loadContextContent({ type: "context", name: "to-do" });
+  onSettled(() => {
+    if (cachedConfig) applyInitialTab(cachedConfig);
+    void loadContextContent({ type: "context", name: "to-do" });
+  });
 
   function fileContentUrl(af: ActiveFile & { type: "file" | "reference" }): string {
     return af.type === "file"
@@ -317,18 +312,31 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     }
   }
 
-  createEffect(on(activeFile, async (af) => {
-    if (activeTab() !== "editor") return;
+	createEffect(() => {
+		const af = activeFile();
+		return [af, untrack(activeTab)] as const;
+	}, ([af, tab]) => { void (async () => {
+    if (tab !== "editor") return;
     setError(null);
-    await loadActiveFile(af);
-  }, { defer: true }));
+		await untrack(() => loadActiveFile(af));
+	})(); }, { defer: true });
 
-  createEffect(on(worktreeRevision, () => {
+  createEffect(
+    () => {
+      const revision = worktreeRevision();
+      return untrack(() => [
+        revision,
+        activeTab(),
+        hasUnsavedFileChanges(),
+        activeFile(),
+      ] as const);
+    },
+    ([, tab, hasUnsavedChanges, af]) => {
     void revalidate("ticket-files");
-    if (activeTab() !== "editor") return;
-    if (hasUnsavedFileChanges()) { void detectExternalChange(activeFile()); return; }
-    void loadActiveFile(activeFile(), true);
-  }, { defer: true }));
+    if (tab !== "editor") return;
+    if (hasUnsavedChanges) { void untrack(() => detectExternalChange(af)); return; }
+    void untrack(() => loadActiveFile(af, true));
+  }, { defer: true });
 
   async function saveFileContent() {
     const af = activeFile();
@@ -439,7 +447,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
       const lastRef = refs[refs.length - 1]?.path;
       const fallback = lastRef ? lastRef.replace(/\/[^/]*$/, "") : "";
       const startDir = remembered || fallback;
-      const paths = await openNativeFileBrowserServer(startDir || undefined);
+      const paths = await openNativeFileBrowserServer(startDir || null);
       if (paths.length === 0) return;
       const lastPicked = paths[paths.length - 1];
       const pickedDir = lastPicked.replace(/\/[^/]*$/, "");
@@ -476,6 +484,8 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   async function overwriteExternalChange() {
     setConfirmingExternalChange(false);
     setExternallyChanged(false);
+    // saveAll must observe the user's explicit overwrite choice in this event turn.
+    flush();
     await saveAll();
   }
 

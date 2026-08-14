@@ -1,5 +1,5 @@
 import { Show, For } from "solid-js";
-import { DragDropProvider, DragDropSensors, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd";
+import { DragDropProvider } from "~/components/drag/drag-provider.js";
 import { TabsContent } from "../ui/tabs";
 import type { MergedLauncherConfig } from "~/core/launcher/launcher-config.js";
 import { NameDragOverlay } from "../board/dnd-shared.js";
@@ -52,11 +52,8 @@ export function ItemSection<T extends MergedLauncherItem>(props: {
 					onDragStart={props.reorder.onDragStart}
 					onDragOver={props.reorder.onDragOver}
 					onDragEnd={props.reorder.onDragEnd}
-					collisionDetector={closestCenter}
 				>
-					<DragDropSensors />
-					<SortableProvider ids={props.items.map(item => item.name)}>
-						<div class="space-y-2">
+					<div class="space-y-2">
 							<For each={props.items}>
 								{(item, index) => (<>
 									<Show when={props.reorder.dropPreview()?.insertBefore === index()}>
@@ -88,8 +85,7 @@ export function ItemSection<T extends MergedLauncherItem>(props: {
 									detail={props.detailOf(props.reorder.dropPreview()!.item)}
 								/>
 							</Show>
-						</div>
-					</SortableProvider>
+					</div>
 					<NameDragOverlay nameOf={(id) => props.items.find(item => item.name === id)?.name} />
 				</DragDropProvider>
 			</Show>

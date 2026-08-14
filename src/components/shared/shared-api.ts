@@ -24,10 +24,10 @@ export async function openConfigDir(
 }
 
 export async function openNativeFileBrowser(
-  startDir?: string,
+  startDir: string | null,
 ): Promise<string[]> {
   "use server";
-  return openFileDialog(startDir, commandTemplateService);
+  return openFileDialog(startDir ?? undefined, commandTemplateService);
 }
 
 export async function pickDirectory(

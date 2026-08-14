@@ -2,12 +2,17 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { createBuiltAppHandler } from "./built-app.mjs";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const entry = path.join(projectRoot, ".output", "server", "index.mjs");
+const entry = path.join(projectRoot, "dist", "server", "server.js");
+const clientRoot = path.join(projectRoot, "dist", "client");
 const serverProcessPath = process.env.CONTEXT_LAUNCH_SERVER_PROCESS_FILE
-  ?? path.join(projectRoot, ".output", "server-process");
-const { handler } = await import(pathToFileURL(entry).href);
+  ?? path.join(projectRoot, "dist", "server-process");
+const serverModule = await import(pathToFileURL(entry).href);
+const serverHandler = serverModule.default;
+
+const handleRequest = createBuiltAppHandler(serverHandler, clientRoot);
 
 const port = Number(process.env.PORT ?? 3000);
 const host = process.env.HOST ?? "127.0.0.1";
@@ -34,9 +39,35 @@ function restartIdleCountdown() {
   idleTimer.unref();
 }
 
-const server = http.createServer((request, response) => {
+async function readRequestBody(request) {
+  if (request.method === "GET" || request.method === "HEAD") return undefined;
+  const chunks = [];
+  for await (const chunk of request) chunks.push(chunk);
+  return chunks.length > 0 ? Buffer.concat(chunks) : undefined;
+}
+
+async function writeResponse(response, nodeResponse) {
+  nodeResponse.writeHead(response.status, Object.fromEntries(response.headers));
+  if (!response.body) return void nodeResponse.end();
+  for await (const chunk of response.body) nodeResponse.write(chunk);
+  nodeResponse.end();
+}
+
+const server = http.createServer(async (request, response) => {
   restartIdleCountdown();
-  handler(request, response);
+  try {
+    const origin = `http://${request.headers.host ?? `${host}:${port}`}`;
+    const webRequest = new Request(new URL(request.url ?? "/", origin), {
+      method: request.method,
+      headers: request.headers,
+      body: await readRequestBody(request),
+    });
+    await writeResponse(await handleRequest(webRequest), response);
+  } catch (error) {
+    console.error(error);
+    if (!response.headersSent) response.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
+    response.end("Internal server error");
+  }
 });
 // Idle keep-alive connections must outlive any client's polling interval, or a
 // client reusing a connection races the server closing it and the request dies
@@ -46,7 +77,7 @@ server.headersTimeout = 125000;
 server.listen(port, host, () => {
   restartIdleCountdown();
   // The launch scripts stop this process on the next launch: it serves the
-  // build sitting in .output, so it dies with that build. They are shell
+  // build sitting in dist, so it dies with that build. They are shell
   // scripts, so the file is the pid and the port on one line and nothing else.
   fs.writeFileSync(serverProcessPath, `${process.pid} ${port}\n`);
   console.log(`Listening on http://${host}:${port}`);

@@ -7,6 +7,7 @@ import { testId } from "./locators.js";
 
 const LOG_TEXT = "distinctive log viewer e2e entry";
 const REFRESH_TEXT = "distinctive refreshed log viewer entry";
+const SECOND_REFRESH_TEXT = "alternate completed log snapshot";
 
 function seedLogs(dataDir: string, text: string): void {
 	const logDir = path.join(dataDir, "logs");
@@ -35,13 +36,13 @@ async function deferNextLogRead(page: Page): Promise<{
 	const requestUrl = new Promise<string>((resolve) => { observed = resolve; });
 	let captured = false;
 	const handler = async (route: Route) => {
-		const serverIdHeader = route.request().headers()["x-server-id"];
+		const serverIdHeader = route.request().headers()["x-server-function-id"];
 		if (!serverIdHeader) {
 			await route.fallback();
 			return;
 		}
-		const serverId = decodeURIComponent(serverIdHeader);
-		if (captured || !serverId.includes("log-api_ts--getAppLogs")) {
+		// Solid 2's Vite plugin generates opaque server-function IDs.
+		if (captured) {
 			await route.fallback();
 			return;
 		}
@@ -163,17 +164,17 @@ describe("Application Logs dialog (e2e, real server)", () => {
 		const refreshPendingText = await logPanel(ctx.page).innerText();
 		expect(refreshPendingText).toContain(LOG_TEXT);
 
-		seedLogs(ctx.testServer.dataDir, "");
-		await deferred.release();
-		await waitForEmptyStatus(ctx.page);
 		seedLogs(ctx.testServer.dataDir, REFRESH_TEXT);
+		await deferred.release();
+		await waitForPanelText(ctx.page, REFRESH_TEXT);
+		seedLogs(ctx.testServer.dataDir, SECOND_REFRESH_TEXT);
 		const nextRefresh = await deferNextLogRead(ctx.page);
 		await ctx.page.clock.runFor(10000);
 		await nextRefresh.requestUrl;
-		await waitForEmptyStatus(ctx.page);
-		seedLogs(ctx.testServer.dataDir, REFRESH_TEXT);
+		expect(await logPanel(ctx.page).innerText()).toContain(REFRESH_TEXT);
+		seedLogs(ctx.testServer.dataDir, SECOND_REFRESH_TEXT);
 		await nextRefresh.release();
-		await waitForPanelText(ctx.page, REFRESH_TEXT);
+		await waitForPanelText(ctx.page, SECOND_REFRESH_TEXT);
 	});
 
 	it("clear stays loaded-empty and close rejects a late read and stops polling", async () => {

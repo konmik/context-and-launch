@@ -2,33 +2,31 @@ import type { SelectedLineRange } from "@pierre/diffs";
 import { revalidate } from "@solidjs/router";
 import {
 	type Accessor,
-	ErrorBoundary,
+	Errored,
 	For,
 	Show,
 	createEffect,
 	createMemo,
 	createSignal,
-	on,
-	onCleanup,
-	onMount,
+	onSettled,
 } from "solid-js";
-import AlertTriangle from "lucide-solid/icons/triangle-alert";
-import ArrowDownToLine from "lucide-solid/icons/arrow-down-to-line";
-import Check from "lucide-solid/icons/check";
-import ChevronDown from "lucide-solid/icons/chevron-down";
-import ChevronRight from "lucide-solid/icons/chevron-right";
-import CircleQuestionMark from "lucide-solid/icons/circle-question-mark";
-import FileCode2 from "lucide-solid/icons/file-code-2";
-import FileWarning from "lucide-solid/icons/file-warning";
-import FolderOpen from "lucide-solid/icons/folder-open";
-import GitCompareArrows from "lucide-solid/icons/git-compare-arrows";
-import LoaderCircle from "lucide-solid/icons/loader-circle";
-import Pause from "lucide-solid/icons/pause";
-import Play from "lucide-solid/icons/play";
-import RefreshCw from "lucide-solid/icons/refresh-cw";
-import Send from "lucide-solid/icons/send";
-import WrapText from "lucide-solid/icons/wrap-text";
-import X from "lucide-solid/icons/x";
+import { AlertTriangle } from "~/components/ui/icons.js";
+import { ArrowDownToLine } from "~/components/ui/icons.js";
+import { Check } from "~/components/ui/icons.js";
+import { ChevronDown } from "~/components/ui/icons.js";
+import { ChevronRight } from "~/components/ui/icons.js";
+import { CircleQuestionMark } from "~/components/ui/icons.js";
+import { FileCode2 } from "~/components/ui/icons.js";
+import { FileWarning } from "~/components/ui/icons.js";
+import { FolderOpen } from "~/components/ui/icons.js";
+import { GitCompareArrows } from "~/components/ui/icons.js";
+import { LoaderCircle } from "~/components/ui/icons.js";
+import { Pause } from "~/components/ui/icons.js";
+import { Play } from "~/components/ui/icons.js";
+import { RefreshCw } from "~/components/ui/icons.js";
+import { Send } from "~/components/ui/icons.js";
+import { WrapText } from "~/components/ui/icons.js";
+import { X } from "~/components/ui/icons.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type {
 	DiffLayout,
@@ -49,11 +47,10 @@ import {
 	unreviewedChangeCount,
 	type ReviewChangeLocation,
 } from "~/core/diff-review/review-navigation.js";
-import { createNonSuspendingAsync } from "~/lib/create-non-suspending-async.js";
 import { useHerdrStatuses } from "../ticket/herdr-statuses-context.js";
 import {
 	getMergedLauncherConfig,
-	saveAndCacheColumnDefaults,
+	saveColumnDefaultsAndReturnConfig,
 } from "../launcher/launcher-api.js";
 import {
 	enqueueReviewPrompt,
@@ -146,7 +143,7 @@ function FileTreeNodes(props: {
 										+ " hover:bg-accent/60"
 									}
 									onClick={() => props.onToggleDirectory(node.directoryPath)}
-									aria-expanded={!collapsed()}
+									aria-expanded={!collapsed() ? "true" : "false"}
 									data-testid="diff-review-directory"
 									data-directory-path={node.directoryPath}
 								>
@@ -372,17 +369,16 @@ export default function DiffReview(props: {
 	});
 	const reviewedLineIds = reviewedLines.reviewedLineIds;
 
-	const review = createNonSuspendingAsync(() =>
-		getReviewSnapshot(props.projectSlug, props.ticket.folderName, scope()));
-	const queue = createNonSuspendingAsync(() =>
+	const review = createMemo(() =>
+		getReviewSnapshot(props.projectSlug, props.ticket.folderName, scope() ?? null));
+	const queue = createMemo(() =>
 		getReviewPromptQueue(props.projectSlug, props.ticket.folderName));
-	const launcherConfig = createNonSuspendingAsync(() =>
+	const launcherConfig = createMemo(() =>
 		getMergedLauncherConfig(props.projectSlug));
 	const agentPresent = () =>
 		!!herdrStatus(props.ticket.folderName) || queue()?.agentRunning === true;
 	const profileNames = () => launcherConfig()?.profiles.map((profile) => profile.name) ?? [];
-	createEffect(() => {
-		const config = launcherConfig();
+	createEffect(launcherConfig, (config) => {
 		if (!config) return;
 		const names = config.profiles.map((profile) => profile.name);
 		setSelectedProfile((current) => {
@@ -407,9 +403,9 @@ export default function DiffReview(props: {
 	const scopeError = () => scopeAnswer()?.error;
 	const scopedSnapshot = () => scopeAnswer()?.snapshot;
 	const files = createMemo<ReviewFileSnapshot[]>((previous) =>
-		reuseUnchangedFiles(previous, scopedSnapshot()?.files ?? []), []);
+		reuseUnchangedFiles(previous ?? [], scopedSnapshot()?.files ?? []), { loadingValue: [] });
 	const snapshotFilePaths = createMemo<string[]>((previous) =>
-		reuseFilePaths(previous, files()), []);
+		reuseFilePaths(previous ?? [], files()), { loadingValue: [] });
 	const fileTree = createMemo(() => buildDiffReviewFileTree(snapshotFilePaths()));
 	const filePaths = createMemo(() => diffReviewFilePathsInTreeOrder(fileTree()));
 	const fileByPath = createMemo(() => new Map(
@@ -458,10 +454,8 @@ export default function DiffReview(props: {
 		scheduleActivePathUpdate();
 	}
 
-	createEffect(() => {
-		const current = scopedSnapshot();
+	createEffect(() => [scopedSnapshot(), activePath()] as const, ([current, currentPath]) => {
 		if (!current) return;
-		const currentPath = activePath();
 		reviewedLines.mergeAcknowledged(current.reviewedLineIds);
 		if (!current.files.some((file) => file.path === currentPath)) {
 			setActivePath(filePaths()[0] ?? "");
@@ -469,32 +463,36 @@ export default function DiffReview(props: {
 		queueMicrotask(scheduleActivePathUpdate);
 	});
 
-	createEffect(() => {
-		if (pace() !== "live") return;
+	createEffect(pace, (currentPace) => {
+		if (currentPace !== "live") return;
 		let disposed = false;
 		let timer: ReturnType<typeof setTimeout> | undefined;
 		const scheduleNext = () => {
 			if (disposed) return;
-			timer = setTimeout(() => {
-				void revalidate("diff-review-snapshot")
-					.catch((error: unknown) => {
+				timer = setTimeout(() => {
+					try { revalidate("diff-review-snapshot"); } catch (error) {
 						setReviewError(error instanceof Error ? error.message : String(error));
-					})
-					.then(scheduleNext);
+					}
+					scheduleNext();
 			}, 1_200);
 		};
 		scheduleNext();
-		onCleanup(() => {
+		return () => {
 			disposed = true;
 			if (timer !== undefined) clearTimeout(timer);
-		});
+		};
 	});
 
 	// The queue advances on the server as the Agent picks up and finishes each
 	// Review Prompt, so the Diff Review rereads it while it is open.
-	onMount(() => {
+	onSettled(() => {
 		const timer = setInterval(() => void revalidate("diff-review-queue"), 1_200);
-		onCleanup(() => clearInterval(timer));
+		return () => {
+			clearInterval(timer);
+			if (scrollFrame !== undefined) cancelAnimationFrame(scrollFrame);
+			endTreeResize();
+			void reviewedLines.dispose();
+		};
 	});
 
 	const scopeLabel = () => {
@@ -511,7 +509,10 @@ export default function DiffReview(props: {
 		return !reviewSelectionStillExists(file, selected.snapshot);
 	});
 
-	createEffect(on(composer, () => setFeedback("")));
+	function changeComposer(next?: ActiveComposer) {
+		setComposer(next);
+		setFeedback("");
+	}
 
 	// The complete message the queue delivers to the Agent for the current
 	// Composer: identical to what the server sends when the user hits Send.
@@ -542,22 +543,16 @@ export default function DiffReview(props: {
 		reviewedLines.markVisible({ id: lineId, path: filePath });
 	}
 
-	onCleanup(() => {
-		if (scrollFrame !== undefined) cancelAnimationFrame(scrollFrame);
-		endTreeResize();
-		void reviewedLines.dispose();
-	});
-
 	function selectLines(file: ReviewFileSnapshot, range: SelectedLineRange | null) {
 		if (!range) {
-			setComposer();
+			changeComposer();
 			return;
 		}
 		const current = scopedSnapshot();
 		if (!current || file.binary) return;
 		try {
 			setActivePath(file.path);
-			setComposer({
+			changeComposer({
 				selection: {
 					range,
 					snapshot: buildReviewPromptSnapshot(file, range, current.scope, current.revision),
@@ -578,8 +573,8 @@ export default function DiffReview(props: {
 				props.projectSlug,
 				props.ticket.folderName,
 				feedback,
-				selectedProfile() || undefined,
-				selection()?.snapshot,
+				selectedProfile() || null,
+				selection()?.snapshot ?? null,
 			);
 			if (!result.ok) {
 				setSendError(result.message);
@@ -621,7 +616,7 @@ export default function DiffReview(props: {
 		setSavingProfile(true);
 		setSendError();
 		try {
-			const result = await saveAndCacheColumnDefaults(
+			const result = await saveColumnDefaultsAndReturnConfig(
 				props.projectSlug,
 				props.ticket.status,
 				{ profileName },
@@ -647,7 +642,7 @@ export default function DiffReview(props: {
 				props.projectSlug,
 				props.ticket.folderName,
 				itemId,
-				selectedProfile() || undefined,
+				selectedProfile() || null,
 			);
 			if (!result.ok) setReviewError(result.message);
 			await revalidate("diff-review-queue");
@@ -751,8 +746,8 @@ export default function DiffReview(props: {
 							class="input input-sm w-[180px] appearance-none pr-8 text-xs"
 							value={selectedScope() ?? ""}
 							onChange={(event) => {
-								setScope(event.currentTarget.value as DiffScope);
-								setComposer();
+				setScope(event.currentTarget.value as DiffScope);
+								changeComposer();
 							}}
 							data-testid="diff-review-scope"
 						>
@@ -777,7 +772,7 @@ export default function DiffReview(props: {
 									: "text-muted-foreground"
 							}`}
 							onClick={() => setPace("live")}
-							aria-pressed={pace() === "live"}
+							aria-pressed={pace() === "live" ? "true" : "false"}
 							data-testid="diff-review-pace-live"
 						>
 							<Play size={11} class="mr-1 inline" />
@@ -791,7 +786,7 @@ export default function DiffReview(props: {
 									: "text-muted-foreground"
 							}`}
 							onClick={() => setPace("step-by-step")}
-							aria-pressed={pace() === "step-by-step"}
+							aria-pressed={pace() === "step-by-step" ? "true" : "false"}
 							data-testid="diff-review-pace-step"
 						>
 							<Pause size={11} class="mr-1 inline" />
@@ -816,7 +811,7 @@ export default function DiffReview(props: {
 						type="button"
 						class="btn-secondary btn-sm gap-1.5"
 						onClick={() => {
-							setComposer({});
+							changeComposer({});
 							setSendError();
 						}}
 						title="Send the Agent a prompt without selecting lines"
@@ -852,7 +847,7 @@ export default function DiffReview(props: {
 											: "text-muted-foreground"
 									}`}
 									onClick={() => setLayout(value)}
-									aria-pressed={layout() === value}
+									aria-pressed={layout() === value ? "true" : "false"}
 								>
 									{value === "split" ? "Split" : "Unified"}
 								</button>
@@ -866,7 +861,7 @@ export default function DiffReview(props: {
 						}`}
 						onClick={() =>
 							setLineOverflow((current) => current === "wrap" ? "scroll" : "wrap")}
-						aria-pressed={lineOverflow() === "wrap"}
+						aria-pressed={lineOverflow() === "wrap" ? "true" : "false"}
 						title="Wrap long lines instead of scrolling them sideways"
 						data-testid="diff-review-wrap-lines"
 					>
@@ -885,9 +880,9 @@ export default function DiffReview(props: {
 				</div>
 			</header>
 
-			<ErrorBoundary fallback={(error) => (
+			<Errored fallback={(error) => (
 				<DiffLoadError
-					error={error}
+					error={error()}
 					onRetry={() => void revalidate("diff-review-snapshot")}
 				/>
 			)}>
@@ -935,7 +930,7 @@ export default function DiffReview(props: {
 								aria-valuemin={TREE_WIDTH_MIN}
 								aria-valuemax={TREE_WIDTH_MAX}
 								aria-valuenow={treeWidth()}
-								tabIndex={0}
+						tabindex={0}
 								onPointerDown={startTreeResize}
 								onKeyDown={onTreeResizeKeyDown}
 								data-testid="diff-review-tree-resize"
@@ -1036,7 +1031,7 @@ export default function DiffReview(props: {
 						</div>
 					</Show>
 				</Show>
-			</ErrorBoundary>
+			</Errored>
 
 			<Show when={reviewError()}>
 				<div
@@ -1080,8 +1075,8 @@ export default function DiffReview(props: {
 				removingId={removingId()}
 				onRetry={(itemId) => void retry(itemId)}
 				onRemove={(itemId) => void removePrompt(itemId)}
-				onCancel={() => {
-					setComposer();
+					onCancel={() => {
+					changeComposer();
 					setSendError();
 				}}
 				onError={setSendError}

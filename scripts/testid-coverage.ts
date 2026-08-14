@@ -10,7 +10,7 @@ function walk(dir: string, filter: (p: string) => boolean): string[] {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name);
     if (e.isDirectory()) {
-      if (e.name === "node_modules" || e.name === ".output" || e.name === ".vinxi") continue;
+      if (e.name === "node_modules" || e.name === "dist" || e.name === "dist-electron") continue;
       out.push(...walk(p, filter));
     } else if (filter(p)) {
       out.push(p);

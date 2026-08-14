@@ -1,5 +1,6 @@
-import { For, Show, type JSX } from "solid-js";
-import X from "lucide-solid/icons/x";
+import { For, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { X } from "~/components/ui/icons.js";
 import { DialogRoot, DialogTitle, DialogCloseTrigger } from "../ui/dialog";
 import { modEnterHint } from "~/lib/use-mod-enter-submit";
 import { slugifyColumnName } from "~/lib/slugify.js";
@@ -72,7 +73,7 @@ const itemTypeLabel: Record<ItemType, string> = {
 export function ItemFormDialog(props: {
 	form: ItemFormState | null;
 	setForm: (form: ItemFormState | null) => void;
-	onSubmit: () => void;
+	onSubmit: (form: ItemFormState) => void;
 }) {
 	return (
 		<DialogRoot open={!!props.form} onOpenChange={() => props.setForm(null)} class="max-w-lg p-0">
@@ -192,7 +193,7 @@ export function ItemFormDialog(props: {
 							data-testid="launcher-settings-item-form-cancel"
 						>Cancel</button>
 						<button
-							onClick={props.onSubmit}
+							onClick={() => props.onSubmit(f())}
 							disabled={!f().name.trim()}
 							title={modEnterHint()}
 							class="btn-primary"
@@ -211,7 +212,7 @@ export function ColumnFormDialog(props: {
 	renameActive: boolean;
 	columnError: string;
 	validation: string;
-	onSubmit: () => void;
+	onSubmit: (form: ColumnFormState) => void;
 }) {
 	return (
 		<DialogRoot
@@ -266,11 +267,11 @@ export function ColumnFormDialog(props: {
 								<button
 									type="button"
 									onClick={() => props.setColumnForm({ ...cf(), color: "" })}
-									class={"flex h-6 w-6 items-center justify-center rounded-md "
-										+ "border border-border text-muted-foreground"}
-									classList={{
-										"ring-2 ring-primary ring-offset-2 ring-offset-background": cf().color === "",
-									}}
+									class={
+										"flex h-6 w-6 items-center justify-center rounded-md border border-border "
+										+ `text-muted-foreground ${cf().color === ""
+											? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`
+									}
 									data-testid="launcher-settings-columns-color-none"
 									title="None"
 									aria-label="No color"
@@ -282,11 +283,10 @@ export function ColumnFormDialog(props: {
 										<button
 											type="button"
 											onClick={() => props.setColumnForm({ ...cf(), color: option.hex })}
-											class="h-6 w-6 rounded-md border border-border"
-											classList={{
-												"ring-2 ring-primary ring-offset-2 ring-offset-background":
-													cf().color === option.hex,
-											}}
+											class={`h-6 w-6 rounded-md border border-border ${
+												cf().color === option.hex
+													? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""
+											}`}
 											style={{ "background-color": option.hex }}
 											data-testid="launcher-settings-columns-color-option"
 											data-color-hex={option.hex}
@@ -305,7 +305,7 @@ export function ColumnFormDialog(props: {
 							data-testid="launcher-settings-columns-form-cancel"
 						>Cancel</button>
 						<button
-							onClick={props.onSubmit}
+							onClick={() => props.onSubmit(cf())}
 							disabled={!cf().name.trim() || !!props.validation}
 							title={modEnterHint()}
 							class="btn-primary"
@@ -322,7 +322,7 @@ export function RenameColumnDialog(props: {
 	renameForm: RenameFormState | null;
 	setRenameForm: (form: RenameFormState | null) => void;
 	columnError: string;
-	onRename: () => void;
+	onRename: (form: RenameFormState) => void;
 }) {
 	return (
 		<DialogRoot open={!!props.renameForm} onOpenChange={() => props.setRenameForm(null)} class="max-w-lg p-0">
@@ -380,7 +380,7 @@ export function RenameColumnDialog(props: {
 							data-testid="launcher-settings-columns-rename-cancel"
 						>Cancel</button>
 						<button
-							onClick={props.onRename}
+							onClick={() => props.onRename(rf())}
 							title={modEnterHint()}
 							class="btn-primary"
 							data-testid="launcher-settings-columns-rename-confirm"

@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { setupE2E, readTicketStatus, boxOf, centerOf } from "./fixtures.js";
 import {
-  clickHandle, closeSubforest, deleteDependencyViaPopup,
-  forestCard, forestHandle, forestSurface, openForestProject, openSubforest,
+  clickHandle, clickPath, closeSubforest, deleteDependencyViaPopup,
+  forestHandle, forestSurface, openForestProject, openSubforest,
   pathScreenEndpoints, pathScreenPoint, subforestCloseButton,
 } from "./forest-helpers.js";
 import { testId } from "./locators.js";
@@ -118,14 +118,11 @@ describe("Forest group connections", () => {
 
     await openSubforest(ctx.page, "S-G");
 
-    await testId(ctx.page, "forest-external-dependency")
-      .waitFor({ state: "attached", timeout: 10000 });
-    const groupWindowBox = await boxOf(subforestCloseButton(ctx.page).locator(".."));
-    const memberHandleBox = await boxOf(forestHandle(ctx.page, "S-1", "top"));
-    await ctx.page.mouse.click(
-      memberHandleBox.x + memberHandleBox.width / 2,
-      (groupWindowBox.y + memberHandleBox.y) / 2,
+    const externalDependency = ctx.page.locator(
+      '[data-testid="forest-subforest-backdrop"] [data-testid="forest-external-dependency"]',
     );
+    await externalDependency.waitFor({ state: "attached", timeout: 10000 });
+    await clickPath(externalDependency, "middle");
 
     await deleteDependencyViaPopup(ctx.page);
 
@@ -153,8 +150,7 @@ describe("Forest group connections", () => {
     const dependency = testId(ctx.page, "forest-dependency");
     await dependency.waitFor({ state: "attached", timeout: 10000 });
     await ctx.page.waitForTimeout(300);
-    const clickPoint = await pathScreenPoint(dependency, "middle");
-    await ctx.page.mouse.click(clickPoint.x, clickPoint.y);
+    await clickPath(dependency, "middle");
 
     await deleteDependencyViaPopup(ctx.page);
 
@@ -208,9 +204,10 @@ describe("Forest group connections", () => {
     });
 
     await openSubforest(ctx.page, "S-G");
-    await forestCard(ctx.page, "S-1").hover();
-    const memberHandleCenter = await centerOf(forestHandle(ctx.page, "S-1", "bottom"));
-    await ctx.page.mouse.click(memberHandleCenter.x, memberHandleCenter.y);
+    await clickHandle(ctx.page, "S-1", "bottom");
+    await expect.poll(
+      () => forestSurface(ctx.page).first().getAttribute("data-connection-edit-mode"),
+    ).toBe("active");
 
     await closeSubforest(ctx.page);
     const surfaceBox = await boxOf(forestSurface(ctx.page).first());

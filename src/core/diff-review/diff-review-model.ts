@@ -234,8 +234,8 @@ function promptLine(line: ReviewDiffLine): ReviewPromptLine {
 	return {
 		type: line.type,
 		text: line.text,
-		oldLineNumber: line.oldLineNumber,
-		newLineNumber: line.newLineNumber,
+		...(line.oldLineNumber === undefined ? {} : { oldLineNumber: line.oldLineNumber }),
+		...(line.newLineNumber === undefined ? {} : { newLineNumber: line.newLineNumber }),
 	};
 }
 
@@ -272,11 +272,13 @@ export function buildReviewPromptSnapshot(
 	const selected = file.lines.slice(first, last + 1);
 	if (selected.length === 0) throw new Error("Select at least one diff line.");
 	const selectedLines = selected.map(promptLine);
+	const oldRange = rangeFor(selected, "oldLineNumber");
+	const newRange = rangeFor(selected, "newLineNumber");
 	return {
 		scope,
 		filePath: file.path,
-		oldRange: rangeFor(selected, "oldLineNumber"),
-		newRange: rangeFor(selected, "newLineNumber"),
+		...(oldRange ? { oldRange } : {}),
+		...(newRange ? { newRange } : {}),
 		selectedLines,
 		contextBefore: file.lines.slice(Math.max(0, first - 3), first).map(promptLine),
 		contextAfter: file.lines.slice(last + 1, last + 4).map(promptLine),

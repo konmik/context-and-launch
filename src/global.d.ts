@@ -1,4 +1,4 @@
-/// <reference types="@solidjs/start/env" />
+/// <reference types="@solidjs/vite-plugin/boundary-modules" />
 
 declare module '*.ps1?raw' {
   const content: string;
@@ -19,5 +19,8 @@ interface Window {
   contextLaunch?: {
     setPalette(name: string): void;
     setMode(mode: string): void;
+		pickDirectory(preselect: string): Promise<
+			{ path: string } | { cancelled: true } | { error: string }
+		>;
   };
 }

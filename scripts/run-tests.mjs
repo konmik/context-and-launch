@@ -45,7 +45,7 @@ const runRoot = fs.mkdtempSync(path.join(os.tmpdir(), `context-launch-tests-${id
 const workspace = path.join(runRoot, "workspace");
 const runtime = path.join(runRoot, "runtime");
 const excluded = new Set([
-  ".output", ".pi-subagents", ".playwright-mcp", ".vinxi", "build", "coverage",
+  ".pi-subagents", ".playwright-mcp", "build", "coverage",
   "dist", "dist-electron", "temp", "test-results",
 ]);
 let marker;

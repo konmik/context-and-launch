@@ -1,5 +1,5 @@
 import { Show, For } from "solid-js";
-import { DragDropProvider, DragDropSensors, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd";
+import { DragDropProvider } from "~/components/drag/drag-provider.js";
 import { TabsContent } from "../ui/tabs";
 import type { BoardDefinition, ColumnDefinition } from "~/core/project/board-config.js";
 import type { BoardRef } from "../board/board-api.js";
@@ -82,7 +82,9 @@ export function ColumnsTab(props: {
 						>Add</button>
 					</div>
 					<Show when={props.selectedBoard}>
-						{(board) => (
+						{(_) => {
+							const board = () => props.selectedBoard!;
+							return (
 							<Show
 								when={board().columns.length > 0}
 								fallback={
@@ -95,11 +97,8 @@ export function ColumnsTab(props: {
 									onDragStart={props.columnReorder.onDragStart}
 									onDragOver={props.columnReorder.onDragOver}
 									onDragEnd={props.columnReorder.onDragEnd}
-									collisionDetector={closestCenter}
 								>
-									<DragDropSensors />
-									<SortableProvider ids={board().columns.map(c => c.name)}>
-										<div class="space-y-2">
+									<div class="space-y-2">
 											<For each={board().columns}>
 												{(col, i) => (
 													<>
@@ -143,14 +142,14 @@ export function ColumnsTab(props: {
 													column={props.columnReorder.dropPreview()!.item}
 												/>
 											</Show>
-										</div>
-									</SortableProvider>
+									</div>
 									<NameDragOverlay nameOf={
 										(id) => board().columns.find(c => c.name === id)?.name
 									} />
 								</DragDropProvider>
 							</Show>
-						)}
+							);
+						}}
 					</Show>
 				</section>
 			</div>

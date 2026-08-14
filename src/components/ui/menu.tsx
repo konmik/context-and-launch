@@ -1,24 +1,102 @@
-import { Menu as ArkMenu } from "@ark-ui/solid";
-import { Portal } from "solid-js/web";
-import type { JSX } from "solid-js";
+/* eslint-disable max-len */
+import { Show, createContext, createEffect, createSignal, useContext } from "solid-js";
+import { Portal, type ComponentProps, type JSX } from "@solidjs/web";
 
-export function MenuRoot(props: {
-  children: JSX.Element;
-  trigger: JSX.Element;
-}) {
-  return (
-    <ArkMenu.Root lazyMount unmountOnExit>
-      {props.trigger}
-      <Portal>
-        <ArkMenu.Positioner>
-          {props.children}
-        </ArkMenu.Positioner>
-      </Portal>
-    </ArkMenu.Root>
-  );
+interface MenuContextValue {
+  open: () => boolean;
+  toggle(): void;
+  close(restoreFocus?: boolean): void;
+  position(): { left: number; top: number };
+  trigger?: HTMLButtonElement;
+  content?: HTMLDivElement;
 }
 
-export const MenuTrigger = ArkMenu.Trigger;
-export const MenuContent = ArkMenu.Content;
-export const MenuItem = ArkMenu.Item;
-export const MenuSeparator = ArkMenu.Separator;
+const MenuContext = createContext<MenuContextValue>();
+
+export function MenuRoot(props: { children: JSX.Element; trigger: JSX.Element }) {
+  const [open, setOpen] = createSignal(false);
+  const context: MenuContextValue = {
+    open,
+    toggle: () => setOpen((value) => !value),
+    close: (restoreFocus = false) => {
+      setOpen(false);
+      if (restoreFocus) queueMicrotask(() => context.trigger?.focus());
+    },
+    position: () => {
+      const rect = context.trigger?.getBoundingClientRect();
+      return {
+        left: Math.max(8, Math.min(rect?.left ?? 8, window.innerWidth - 208)),
+        top: Math.min(rect?.bottom ?? 8, window.innerHeight - 8),
+      };
+    },
+  };
+  createEffect(open, (isOpen) => {
+    if (!isOpen) return;
+    const dismiss = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest('[data-scope="menu"], [aria-haspopup="menu"]')) return;
+      setOpen(false);
+    };
+    queueMicrotask(() => context.content?.querySelector<HTMLElement>('[role="menuitem"]:not([disabled])')?.focus());
+    const keydown = (event: KeyboardEvent) => event.key === "Escape" && context.close(true);
+    document.addEventListener("pointerdown", dismiss);
+    document.addEventListener("keydown", keydown);
+    return () => { document.removeEventListener("pointerdown", dismiss); document.removeEventListener("keydown", keydown); };
+  });
+  return <MenuContext value={context}>{props.trigger}<Show when={open()}><Portal>{props.children}</Portal></Show></MenuContext>;
+}
+
+export function MenuTrigger(props: ComponentProps<"button">) {
+  const menu = useContext(MenuContext);
+  return <button ref={(element) => { menu.trigger = element; }} type="button" {...props} aria-haspopup="menu" aria-expanded={menu.open() ? "true" : "false"} onPointerDown={(e) => e.stopPropagation()} onClick={(event) => {
+    const handler = props.onClick;
+    if (typeof handler === "function") handler(event);
+    else handler?.[0](handler[1], event);
+    menu.toggle();
+  }} />;
+}
+export function MenuContent(props: ComponentProps<"div">) {
+  const menu = useContext(MenuContext);
+  return <div
+    {...props}
+    ref={(element) => { menu.content = element; }}
+    role="menu"
+    data-scope="menu"
+    data-part="content"
+    style={{ position: "fixed", left: `${menu.position().left}px`, top: `${menu.position().top}px` }}
+    onPointerDown={(e) => e.stopPropagation()}
+    onKeyDown={(event) => {
+      const items = [...event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])')];
+      if (!items.length) return;
+      const current = items.indexOf(document.activeElement as HTMLElement);
+      let next: number | undefined;
+      if (event.key === "ArrowDown") next = (current + 1) % items.length;
+      if (event.key === "ArrowUp") next = (current <= 0 ? items.length : current) - 1;
+      if (event.key === "Home") next = 0;
+      if (event.key === "End") next = items.length - 1;
+      if (next === undefined) return;
+      event.preventDefault();
+      items[next].focus();
+    }}
+  />;
+}
+export function MenuItem(props: ComponentProps<"button"> & { value?: string; closeOnSelect?: boolean }) {
+  const menu = useContext(MenuContext);
+  return <button
+    type="button"
+    {...props}
+    role="menuitem"
+    data-scope="menu"
+    data-part="item"
+    data-disabled={props.disabled ? "" : undefined}
+    onClick={(event) => {
+      const handler = props.onClick;
+      if (typeof handler === "function") handler(event);
+      else handler?.[0](handler[1], event);
+      if (props.closeOnSelect !== false) menu.close(true);
+    }}
+  />;
+}
+export function MenuSeparator(props: ComponentProps<"div">) {
+  return <div {...props} role="separator" data-scope="menu" data-part="separator" />;
+}

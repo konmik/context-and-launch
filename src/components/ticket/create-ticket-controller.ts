@@ -1,4 +1,4 @@
-import { createSignal, createEffect, on } from "solid-js";
+import { createSignal, createEffect } from "solid-js";
 import { createFormDialogController } from "./form-dialog-controller.js";
 
 export interface CreateTicketDeps {
@@ -16,14 +16,13 @@ export function createCreateTicketController(deps: CreateTicketDeps) {
   const [title, setTitle] = createSignal("");
   const [suggestingNumber, setSuggestingNumber] = createSignal(false);
 
-  createEffect(on(
-    deps.open,
-    (isOpen) => {
-      const suggested = deps.suggestedNextNumber();
+  createEffect(
+    () => [deps.open(), deps.suggestedNextNumber()] as const,
+    ([isOpen, suggested]) => {
       if (isOpen && suggested) setNumber(suggested);
     },
     { defer: true },
-  ));
+  );
 
   function resetFields() {
     setNumber("");

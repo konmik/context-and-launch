@@ -117,6 +117,27 @@ export async function pathScreenPoint(
   }, at);
 }
 
+export async function clickPath(locator: Locator, at: "start" | "middle" | "end"): Promise<void> {
+  await locator.evaluate((element, position) => {
+    const path = element as SVGPathElement;
+    const total = path.getTotalLength();
+    const length = position === "start" ? 0 : position === "middle" ? total / 2 : total;
+    const point = path.getPointAtLength(length);
+    const matrix = path.getScreenCTM();
+    if (!matrix) throw new Error("Path is not rendered on screen");
+    const clientX = matrix.a * point.x + matrix.c * point.y + matrix.e;
+    const clientY = matrix.b * point.x + matrix.d * point.y + matrix.f;
+    const target = getComputedStyle(path).pointerEvents === "none"
+      ? path.nextElementSibling
+      : path;
+    target?.dispatchEvent(new MouseEvent("click", {
+      bubbles: true,
+      clientX,
+      clientY,
+    }));
+  }, at);
+}
+
 export async function pathScreenEndpoints(
   locator: Locator,
 ): Promise<{ start: ScreenPoint; end: ScreenPoint }> {
@@ -137,7 +158,10 @@ export function subforestCloseButton(page: Page): Locator {
 
 export async function openSubforest(page: Page, ticketNumber?: string): Promise<void> {
   await forestGroupCard(page, ticketNumber).click();
-  await waitVisible(page, "forest-subforest-close");
+  const closeButton = await waitVisible(page, "forest-subforest-close");
+  await expect.poll(
+    () => closeButton.locator("..").evaluate(element => getComputedStyle(element).transform),
+  ).toBe("none");
 }
 
 export async function closeSubforest(page: Page): Promise<void> {

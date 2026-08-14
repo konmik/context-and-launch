@@ -1,5 +1,6 @@
 import fs from "fs";
-import { query } from "@solidjs/router";
+import { action, query } from "@solidjs/router";
+import { respond } from "@solidjs/web";
 import {
   worktreeManager, boardConfigManager, projectRegistry,
   operationTracker, ticketSyncManager, syncPendingTracker, worktreeRevisions,
@@ -249,19 +250,20 @@ export async function setUseWorktree(
   }
 }
 
-export async function syncTickets(projectSlug: string) {
+export const syncTickets = action(async function syncTickets(projectSlug: string) {
   "use server";
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
-    return await fileWatcher.runWithWatchPaused(worktreeDir, async () => {
+    const result = await fileWatcher.runWithWatchPaused(worktreeDir, async () => {
       const result = await operationTracker.track(ticketSyncManager.sync(worktreeDir));
       worktreeRevisions.bump(worktreeDir);
       return { ok: true as const, ...result };
     });
+    return respond(result, { revalidate: [] });
   } catch (e) {
-    return errorResult(e);
+    return respond(errorResult(e), { revalidate: [] });
   }
-}
+}, "sync-tickets");
 
 export const getWorktreeRevision = query(async (projectSlug: string): Promise<number> => {
   "use server";

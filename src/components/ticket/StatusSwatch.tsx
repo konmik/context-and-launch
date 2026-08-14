@@ -13,10 +13,9 @@ export default function StatusSwatch(props: { status: string; columns: SwatchCol
         data-testid="status-swatch"
         data-status={props.status}
         title={props.status}
-        classList={{
-          "inline-block h-2.5 w-2.5 shrink-0 rounded-[3px]": true,
-          "bg-destructive": appearance().kind === "orphan-status",
-        }}
+        class={`inline-block h-2.5 w-2.5 shrink-0 rounded-[3px] ${
+          appearance().kind === "orphan-status" ? "bg-destructive" : ""
+        }`}
         style={{ "background-color": hex() }}
       />
     </Show>

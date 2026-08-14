@@ -1,11 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
+import { createRoot, flush } from "solid-js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 
 const { mockRevalidate } = vi.hoisted(() => ({
 	mockRevalidate: vi.fn(),
 }));
 
-vi.mock("@solidjs/router", () => ({ revalidate: mockRevalidate }));
+vi.mock("@solidjs/router", () => ({
+	revalidate: mockRevalidate,
+	useAction: <T,>(action: T) => action,
+}));
 vi.mock("../ticket/ticket-api.js", () => ({
 	createTicket: vi.fn(),
 	deleteTicket: vi.fn(),
@@ -43,20 +47,49 @@ describe("ProjectPageController ticket detail", () => {
 	it("selects the clicked ticket without waiting for project refresh", () => {
 		mockRevalidate.mockReturnValue(new Promise(() => {}));
 		const clicked = ticket();
-		const controller = createProjectPageController({
-			projectSlug: () => "test-project",
-			data: () => ({
-				status: "loaded",
-				projects: [],
-				projectSlug: "test-project",
-				projectPath: "/repo",
-				suggestedNextNumber: null,
-				board: { columns: [], tickets: [clicked], ticketOrder: {} },
+		const { controller, dispose } = createRoot((dispose) => ({
+			controller: createProjectPageController({
+				projectSlug: () => "test-project",
+				data: () => ({
+					status: "loaded",
+					projects: [],
+					projectSlug: "test-project",
+					projectPath: "/repo",
+					suggestedNextNumber: null,
+					board: { columns: [], tickets: [clicked], ticketOrder: {} },
+				}),
 			}),
-		});
+			dispose,
+		}));
 
 		void controller.commands.openDetail(clicked);
+		flush();
 
 		expect(controller.selectionState().detailTicket).toBe(clicked);
+		dispose();
+	});
+
+	it("selects a worktree ticket for review", () => {
+		const clicked = { ...ticket(), hasAgentWorktree: true };
+		const { controller, dispose } = createRoot((dispose) => ({
+			controller: createProjectPageController({
+				projectSlug: () => "test-project",
+				data: () => ({
+					status: "loaded",
+					projects: [],
+					projectSlug: "test-project",
+					projectPath: "/repo",
+					suggestedNextNumber: null,
+					board: { columns: [], tickets: [clicked], ticketOrder: {} },
+				}),
+			}),
+			dispose,
+		}));
+
+		controller.commands.openReview(clicked);
+		flush();
+
+		expect(controller.selectionState().reviewTicket).toBe(clicked);
+		dispose();
 	});
 });

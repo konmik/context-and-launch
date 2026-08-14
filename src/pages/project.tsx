@@ -1,30 +1,27 @@
 import { useParams, useNavigate, revalidate } from "@solidjs/router";
-import { clientOnly } from "@solidjs/start";
 import {
-  Show, For, Switch, Match, ErrorBoundary,
-  createSignal, createEffect, createMemo, on, onCleanup, onMount,
+  Show, For, Switch, Match, Errored, Loading,
+  createSignal, createEffect, createMemo, onSettled, lazy, flush,
 } from "solid-js";
-import EllipsisVertical from "lucide-solid/icons/ellipsis-vertical";
-import Network from "lucide-solid/icons/network";
-import ScrollText from "lucide-solid/icons/scroll-text";
-import RefreshCw from "lucide-solid/icons/refresh-cw";
-import Check from "lucide-solid/icons/check";
-import Settings from "lucide-solid/icons/settings";
-import ChevronDown from "lucide-solid/icons/chevron-down";
-import ExternalLink from "lucide-solid/icons/external-link";
-import X from "lucide-solid/icons/x";
-import TriangleAlert from "lucide-solid/icons/triangle-alert";
+import { EllipsisVertical } from "~/components/ui/icons.js";
+import { Network } from "~/components/ui/icons.js";
+import { ScrollText } from "~/components/ui/icons.js";
+import { RefreshCw } from "~/components/ui/icons.js";
+import { Check } from "~/components/ui/icons.js";
+import { Settings } from "~/components/ui/icons.js";
+import { ChevronDown } from "~/components/ui/icons.js";
+import { ExternalLink } from "~/components/ui/icons.js";
+import { X } from "~/components/ui/icons.js";
+import { TriangleAlert } from "~/components/ui/icons.js";
 import {
   FloatingWindow, FloatingWindowHeader, FloatingPanelBody,
   FloatingPanelCloseTrigger, FloatingPanelTitle,
 } from "~/components/ui/floating-panel";
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "~/components/ui/menu";
 
-const KanbanBoard = clientOnly(() => import("~/components/board/KanbanBoard"));
-const ForestView = clientOnly(() => import("~/components/forest/ForestView"));
-const DiffReview = clientOnly(
-  () => import("~/components/diff-review/DiffReview"),
-);
+const KanbanBoard = lazy(() => import("~/components/board/KanbanBoard"));
+const ForestView = lazy(() => import("~/components/forest/ForestView"));
+const DiffReview = lazy(() => import("~/components/diff-review/DiffReview"));
 import { getViewMode, setViewMode } from "~/components/forest/forest-local-state.js";
 import CreateTicketDialog from "~/components/ticket/CreateTicketDialog";
 import TicketCleanupDialog from "~/components/shared/TicketCleanupDialog";
@@ -37,7 +34,6 @@ import PalettePicker from "~/components/shared/PalettePicker";
 import LogViewerDialog from "~/components/shared/LogViewerDialog";
 import LauncherSettings from "~/components/launcher/LauncherSettings";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
-import { createNonSuspendingAsync } from "~/lib/create-non-suspending-async.js";
 import {
   loadProjectPage, getSyncStatus, addProject, recordProjectFocus,
 } from "~/components/project/project-api.js";
@@ -57,14 +53,11 @@ import { HerdrStatusesContext } from "~/components/ticket/herdr-statuses-context
 import { ShortcutRunnerContext } from "~/components/board/shortcut-runner-context.js";
 import { createBoardShortcutRunner } from "~/components/board/board-shortcut-runner.js";
 import { ShortcutConfirmationDialog } from "~/components/ticket/ticket-detail-parts.js";
-
-export const route = {
-  load: ({ params }: { params: { projectSlug: string } }) => loadProjectPage(params.projectSlug),
-};
+import { paths } from "~/router.js";
 
 function createDeferredAsync<T>(ready: () => boolean, load: () => Promise<T>, placeholder: T) {
-  return createNonSuspendingAsync(() => (ready() ? load() : Promise.resolve(placeholder)), {
-    initialValue: placeholder,
+  return createMemo(() => (ready() ? load() : Promise.resolve(placeholder)), {
+    loadingValue: placeholder,
   });
 }
 
@@ -72,13 +65,13 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   const params = useParams();
   const navigate = useNavigate();
   const projectSlug = () => params.projectSlug ?? "";
-  const data = createNonSuspendingAsync(() => loadProjectPage(projectSlug()));
+  const data = createMemo(() => loadProjectPage(projectSlug()));
 
   const [deferredPollsReady, setDeferredPollsReady] = createSignal(false);
-  createEffect(() => {
-    if (!data()) return;
+  createEffect(data, (loaded) => {
+    if (!loaded) return;
     const handle = requestIdleCallback(() => setDeferredPollsReady(true));
-    onCleanup(() => cancelIdleCallback(handle));
+    return () => cancelIdleCallback(handle);
   });
 
   const syncStatus = createDeferredAsync(
@@ -86,8 +79,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   );
 
   const [viewMode, setViewModeSignal] = createSignal<'kanban' | 'forest'>('kanban');
-  createEffect(() => {
-    const ps = projectSlug();
+  createEffect(projectSlug, (ps) => {
     if (!ps) return;
     setViewModeSignal(getViewMode(localStorage, ps));
   });
@@ -102,13 +94,21 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   const { dialogState, syncState, selectionState, commands } =
     props?.ctrl ?? createProjectPageController({ projectSlug, data });
 
-  createEffect(() => {
-    if (!deferredPollsReady()) return;
+  function navigateToProject(nextProjectSlug: string) {
+    commands.closeReview();
+    commands.closeDetail();
+    // Dispose the open project overlays before the router replaces their owner.
+    flush();
+    navigate(paths.project(nextProjectSlug)());
+  }
+
+  createEffect(deferredPollsReady, (ready) => {
+    if (!ready) return;
     const timer = setInterval(() => void revalidate("project-page"), 30_000);
-    onCleanup(() => clearInterval(timer));
+    return () => clearInterval(timer);
   });
 
-  const launcherConfig = createNonSuspendingAsync(async () => {
+  const launcherConfig = createMemo(async () => {
     const page = data();
     if (page?.status !== "loaded") return undefined;
     return getMergedLauncherConfig(page.projectSlug);
@@ -122,10 +122,10 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
     () => getSyncPending(projectSlug()),
     false,
   );
-  createEffect(() => {
-    if (!deferredPollsReady()) return;
+  createEffect(deferredPollsReady, (ready) => {
+    if (!ready) return;
     const timer = setInterval(() => void revalidate("sync-pending"), 10000);
-    onCleanup(() => clearInterval(timer));
+    return () => clearInterval(timer);
   });
 
   const herdrStatusesResult = createDeferredAsync(
@@ -137,7 +137,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
     const result = herdrStatusesResult();
     return !!result && result.kind !== "disabled";
   });
-  createEffect(on(
+  createEffect(
     () => deferredPollsReady() ? projectSlug() : "",
     (currentProjectSlug) => {
       if (!currentProjectSlug) return;
@@ -145,9 +145,9 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
         .then(() => revalidate("diff-review-queue"))
         .catch((error: unknown) => console.error("Review Prompt Queue reconciliation failed", error));
     },
-  ));
-  createEffect(() => {
-    if (!herdrPollingActive()) return;
+  );
+  createEffect(herdrPollingActive, (active) => {
+    if (!active) return;
     let running = false;
     const poll = async () => {
       if (running) return;
@@ -165,7 +165,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
       }
     };
     const timer = setInterval(() => void poll(), 5000);
-    onCleanup(() => clearInterval(timer));
+    return () => clearInterval(timer);
   });
   const herdrTicketStatuses = () => {
     const result = herdrStatusesResult();
@@ -179,39 +179,44 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   };
 
   let lastReportedProjectSlug: string | null = null;
-  createEffect(() => {
-    const v = data();
+  createEffect(data, (v) => {
     if (v?.status === "loaded" && v.projectSlug !== lastReportedProjectSlug) {
       lastReportedProjectSlug = v.projectSlug;
       void recordProjectFocus(v.projectSlug);
     }
   });
 
-  onMount(() => {
+  onSettled(() => {
     const handler = () => {
       const v = data();
       if (v?.status === "loaded") void recordProjectFocus(v.projectSlug);
     };
     window.addEventListener("focus", handler);
-    onCleanup(() => window.removeEventListener("focus", handler));
+    return () => window.removeEventListener("focus", handler);
   });
 
-  createEffect(() => {
-    const name = currentProjectName();
+  createEffect(currentProjectName, (name) => {
     if (name) document.title = `${name} - Context & Launch`;
   });
 
   function SyncControls() {
-    const hasConflict = createMemo(() => syncStatus()?.hasConflict ?? false);
-    createEffect(() => {
-      if (!hasConflict()) return;
+    const hasConflict = createMemo(() =>
+      syncState().conflictDetected || (syncStatus()?.hasConflict ?? false));
+    createEffect(hasConflict, (conflict) => {
+      if (!conflict) return;
       const timer = setInterval(() => void revalidate(projectSyncRevalidateKeys), 5000);
-      onCleanup(() => clearInterval(timer));
+      return () => clearInterval(timer);
     });
     return (
       <>
         <button
-          onClick={hasConflict() ? () => commands.setConflictDialogOpen(true) : commands.handleSync}
+          onClick={(event) => {
+            if (hasConflict()) commands.setConflictDialogOpen(true);
+            else {
+              event.currentTarget.disabled = true;
+              void commands.handleSync();
+            }
+          }}
           disabled={syncState().syncing}
           class={`btn-icon relative ${
             hasConflict() ? "border-destructive text-destructive hover:bg-destructive/10" : ""
@@ -276,9 +281,10 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
     active: () => dialogState().addProjectDialogOpen,
   });
 
-  return (
+  return (<>
     <Show when={data()} fallback={<p>Loading...</p>}>
-      {(d) => {
+      {(_) => {
+        const d = () => data()!;
         const ld = () => { const v = d(); return v.status === 'loaded' ? v : undefined; };
         const unavail = () => { const v = d(); return v.status === 'unavailable' ? v : undefined; };
         const pageErr = () => { const v = d(); return v.status === 'error' ? v : undefined; };
@@ -343,9 +349,9 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
               >
                 <ScrollText size={16} />
               </button>
-              <ErrorBoundary fallback={(error) => <SyncStatusErrorButton error={error} />}>
+              <Errored fallback={(error) => <SyncStatusErrorButton error={error()} />}>
                 <SyncControls />
-              </ErrorBoundary>
+              </Errored>
               <button
                 onClick={commands.openSettings}
                 class="btn-icon"
@@ -371,7 +377,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                         class={`flex items-center justify-between gap-2 ${
                           project.projectSlug === d().projectSlug ? "font-semibold" : ""
                         }`}
-                        onClick={() => navigate(`/project/${project.projectSlug}`)}
+                        onClick={() => navigateToProject(project.projectSlug)}
                         data-testid="project-header-project-item"
                       >
                         <span class="flex min-w-0 items-center gap-1.5">
@@ -389,7 +395,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                           onPointerDown={(e) => { e.stopPropagation(); }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            window.open(`/project/${project.projectSlug}`, project.projectSlug);
+                            window.open(paths.project(project.projectSlug)(), project.projectSlug);
                           }}
                         >
                           <ExternalLink size={14} />
@@ -409,7 +415,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
           </header>
 
           <main class="flex flex-1 flex-col min-h-0">
-            <HerdrStatusesContext.Provider
+            <HerdrStatusesContext
               value={(folderName) => herdrTicketStatuses()[folderName]}
             >
               <Switch>
@@ -440,10 +446,12 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                   )}
                 </Match>
                 <Match when={ld()}>
-                  {(loaded) => (
-                    <Show keyed when={selectionState().reviewTicket} fallback={
+                  {(_) => {
+                    const loaded = () => ld()!;
+                    return (
+                    <Show when={selectionState().reviewTicket} fallback={
                       <Show when={viewMode() === 'forest'} fallback={
-                        <ShortcutRunnerContext.Provider value={shortcutRunner}>
+                        <ShortcutRunnerContext value={shortcutRunner}>
                           <KanbanBoard
                             board={loaded().board}
                             projectSlug={d().projectSlug}
@@ -453,7 +461,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                             onReviewChanges={commands.openReview}
                             onReorder={commands.handleReorder}
                           />
-                        </ShortcutRunnerContext.Provider>
+                        </ShortcutRunnerContext>
                       }>
                         <div class="min-h-0 flex-1">
                           <ForestView
@@ -468,19 +476,22 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                     }>
                       {(reviewTicket) => (
                       <div class="min-h-0 flex-1">
-                        <DiffReview
-                          projectSlug={d().projectSlug}
-                          projectName={currentProjectName()}
-                          ticket={reviewTicket}
-                          onClose={commands.closeReview}
-                        />
+                        <Loading fallback={<p class="p-4 text-sm text-muted-foreground">Loading Diff Review...</p>}>
+                          <DiffReview
+                            projectSlug={d().projectSlug}
+                            projectName={currentProjectName()}
+                            ticket={reviewTicket()}
+                            onClose={commands.closeReview}
+                          />
+                        </Loading>
                       </div>
                       )}
                     </Show>
-                  )}
+                    );
+                  }}
                 </Match>
               </Switch>
-            </HerdrStatusesContext.Provider>
+            </HerdrStatusesContext>
           </main>
 
           <CreateTicketDialog
@@ -516,8 +527,8 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
             onOpenChange={(d) => { if (!d.open) commands.closeAddProject(); }}
             defaultSize={{ width: 480, height: 560 }}
             minSize={{ width: 360, height: 320 }}
-            persistRect
             fitContent
+            persistRect
           >
             <FloatingWindowHeader
               title={<FloatingPanelTitle>Add Project</FloatingPanelTitle>}
@@ -533,7 +544,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                   action={addProject}
                   onSuccess={(s) => {
                     commands.closeAddProject();
-                    navigate(`/project/${s}`);
+                    navigateToProject(s);
                   }}
                   submitTitle={modEnterHint()}
                 />
@@ -550,33 +561,37 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
           <ErrorDialog error={shortcutRunner.error()} onClose={() => shortcutRunner.setError(null)} />
           <ErrorDialog error={syncState().syncError} onClose={() => commands.setSyncError(null)} />
           <LogViewerDialog open={logViewerOpen()} onOpenChange={setLogViewerOpen} />
-          <LauncherSettings
-            open={dialogState().settingsOpen}
-            onOpenChange={(open) => {
-              if (open) commands.openSettings();
-              else {
-                commands.closeSettings();
-                revalidate(["project-page", "herdr-agent-statuses"]);
-              }
-            }}
-            projectSlug={d().projectSlug}
-            onDeleteProject={async (projectSlug) => {
-              const result = await commands.handleDeleteProject(projectSlug);
-              if (!result.error) {
-                commands.closeSettings();
-                const remaining = d().projects.filter((p) => p.projectSlug !== projectSlug);
-                await revalidate();
-                navigate(
-                  remaining[0] ? `/project/${remaining[0].projectSlug}` : "/add-project",
-                  { replace: true },
-                );
-              }
-              return result;
-            }}
-          />
         </div>
         );
       }}
     </Show>
-  );
+    <Loading fallback={null}>
+      <LauncherSettings
+        open={dialogState().settingsOpen}
+        onOpenChange={(open) => {
+          if (open) commands.openSettings();
+          else {
+            commands.closeSettings();
+            revalidate(["project-page", "herdr-agent-statuses"]);
+          }
+        }}
+        projectSlug={projectSlug()}
+        onDeleteProject={async (deletedProjectSlug) => {
+          const result = await commands.handleDeleteProject(deletedProjectSlug);
+          if (!result.error) {
+            commands.closeSettings();
+            const remaining = data()?.projects.filter(
+              (project) => project.projectSlug !== deletedProjectSlug,
+            ) ?? [];
+            await revalidate();
+            navigate(
+              remaining[0] ? paths.project(remaining[0].projectSlug)() : paths["add-project"](),
+              { replace: true },
+            );
+          }
+          return result;
+        }}
+      />
+    </Loading>
+  </>);
 }

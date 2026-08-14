@@ -7,7 +7,7 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "jsx": "preserve",
-    "jsxImportSource": "solid-js",
+    "jsxImportSource": "@solidjs/web",
     "strict": true,
     "noEmit": true,
     "incremental": true,
@@ -17,5 +17,5 @@
       "~/*": ["./src/*"]
     }
   },
-  "include": ["src", "e2e", "scripts", "electron"]
+  "include": ["src", "e2e", "scripts", "electron", "vite.config.ts"]
 }

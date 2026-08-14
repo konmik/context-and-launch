@@ -1,6 +1,6 @@
-import { createSignal, createEffect, onCleanup, Show } from "solid-js";
-import Trash2 from "lucide-solid/icons/trash-2";
-import X from "lucide-solid/icons/x";
+import { createSignal, createEffect, Show } from "solid-js";
+import { Trash2 } from "~/components/ui/icons.js";
+import { X } from "~/components/ui/icons.js";
 import {
 	FloatingWindow, FloatingWindowHeader, FloatingPanelBody,
 	FloatingPanelTitle,
@@ -15,8 +15,8 @@ export default function LogViewerDialog(props: {
 	const [logText, setLogText] = createSignal<string>();
 	let loadVersion = 0;
 
-	createEffect(() => {
-		if (!props.open) return;
+	createEffect(() => props.open, (open) => {
+		if (!open) return;
 		setLogText(undefined);
 		let stopped = false;
 		const load = async () => {
@@ -27,10 +27,10 @@ export default function LogViewerDialog(props: {
 		};
 		void load();
 		const timer = setInterval(() => void load(), 10000);
-		onCleanup(() => {
+		return () => {
 			stopped = true;
 			clearInterval(timer);
-		});
+		};
 	});
 
 	return (

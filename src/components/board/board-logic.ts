@@ -1,4 +1,4 @@
-import type { DragEvent as DndDragEvent } from "@thisbeyond/solid-dnd";
+import type { DragEvent as DndDragEvent } from "~/components/drag/drag-types.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { BoardState } from "~/components/project/project-api.js";
 import type { HoverTarget } from "./drop-index.js";

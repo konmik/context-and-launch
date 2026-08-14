@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, cleanup } from "@solidjs/testing-library";
+import { render, screen, cleanup } from "~/test-render.js";
 import type { ComponentProps } from "solid-js";
 import KanbanBoard from "./KanbanBoard";
 import type { BoardState } from "~/components/project/project-api.js";
@@ -44,7 +44,7 @@ function renderBoard(board: BoardState, opts: {
   activeTicket?: ComponentProps<typeof KanbanBoard>["activeTicket"];
 } = {}) {
   return render(() => (
-    <HerdrStatusesContext.Provider value={(folderName) => opts.herdrStatuses?.[folderName]}>
+    <HerdrStatusesContext value={(folderName) => opts.herdrStatuses?.[folderName]}>
       <KanbanBoard
         board={board}
         projectSlug="test"
@@ -55,7 +55,7 @@ function renderBoard(board: BoardState, opts: {
         dragState={opts.dragState}
         activeTicket={opts.activeTicket}
       />
-    </HerdrStatusesContext.Provider>
+    </HerdrStatusesContext>
   ));
 }
 

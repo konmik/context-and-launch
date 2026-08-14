@@ -504,10 +504,6 @@
 		line-height: 1.25rem;
 		cursor: pointer;
 	}
-	[data-scope="menu"][data-part="item"][data-highlighted] {
-		background: var(--accent);
-		color: var(--accent-foreground);
-	}
 	[data-scope="menu"][data-part="item"]:active {
 		background: color-mix(in oklch, var(--accent), #000 var(--darken-sm));
 	}
@@ -563,16 +559,13 @@
 		border-color: var(--border);
 	}
 
-	[data-scope="tabs"][data-part="indicator"] {
-		display: none;
-	}
-
 	/* ark-ui floating panel */
 	[data-scope="floating-panel"][data-part="positioner"] {
 		position: fixed;
 	}
 
 	[data-scope="floating-panel"][data-part="content"] {
+		position: fixed;
 		display: flex;
 		flex-direction: column;
 		width: 100%;
@@ -582,17 +575,29 @@
 		border: 1px solid var(--border);
 		background: var(--card);
 	}
+	[data-scope="floating-panel"][data-part="viewport"] {
+		display: flex;
+		flex: 1;
+		min-height: 0;
+		flex-direction: column;
+		overflow: clip;
+		padding: 1px;
+		border-radius: calc(var(--radius-lg) - 1px);
+	}
 
 	[data-scope="floating-panel"][data-part="content"].floating-panel-fit {
 		height: auto !important;
 		max-height: calc(100vh - 2rem);
+	}
+	[data-scope="floating-panel"][data-part="content"].floating-panel-fit [data-part="viewport"] {
+		flex: 0 1 auto;
 	}
 	[data-scope="floating-panel"][data-part="content"].floating-panel-fit [data-part="body"] {
 		flex: 0 1 auto;
 		overflow: auto;
 	}
 
-	[data-scope="floating-panel"][data-part="content"] > [data-part="root"] {
+	[data-scope="floating-panel"][data-part="viewport"] > [data-part="root"] {
 		display: flex;
 		flex-direction: column;
 		flex: 1;

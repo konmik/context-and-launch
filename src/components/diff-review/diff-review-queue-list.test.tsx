@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { render, cleanup } from "@solidjs/testing-library";
-import { createSignal } from "solid-js";
+import { render, cleanup } from "~/test-render.js";
+import { createSignal, flush } from "solid-js";
 import ReviewPromptQueueList from "./ReviewPromptQueueList.js";
 import type { ReviewPromptQueueItem } from "~/core/diff-review/diff-review-types.js";
 
@@ -53,9 +53,11 @@ describe("ReviewPromptQueueList", () => {
 		expect(betaBefore).toBeTruthy();
 
 		setItems((list) => list.filter((item) => item.id !== "a"));
+		flush();
 		const alpha = itemByFeedback(container, "alpha");
 		expect(alpha).toBeTruthy();
 		fireAnimationEnd(bodyOf(alpha!), "vertical-reveal-close");
+		flush();
 
 		const betaAfter = itemByFeedback(container, "beta");
 		expect(betaAfter).toBeTruthy();
@@ -78,15 +80,18 @@ describe("ReviewPromptQueueList", () => {
 		expect(betaBefore).toBeTruthy();
 
 		setItems(() => []);
+		flush();
 		const alpha = itemByFeedback(container, "alpha");
 		expect(alpha).toBeTruthy();
 		fireAnimationEnd(bodyOf(alpha!), "vertical-reveal-close");
+		flush();
 
 		const betaWhileLeaving = itemByFeedback(container, "beta");
 		expect(betaWhileLeaving).toBeTruthy();
 		expect(betaWhileLeaving!.isSameNode(betaBefore!)).toBe(true);
 
 		fireAnimationEnd(bodyOf(betaWhileLeaving!), "vertical-reveal-close");
+		flush();
 		expect(container.querySelector('[data-testid="diff-review-queue"]')).toBeNull();
 	});
 
@@ -104,6 +109,7 @@ describe("ReviewPromptQueueList", () => {
 		expect(container.querySelector('[data-testid="diff-review-queue-remove"]')).toBeTruthy();
 
 		setItems([makeItem({ id: "a", feedback: "alpha updated", state: "sent" })]);
+		flush();
 		const updated = itemByFeedback(container, "alpha updated");
 		expect(updated).toBeTruthy();
 		expect(updated!.querySelector('[data-testid="diff-review-queue-remove"]')).toBeNull();

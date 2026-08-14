@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createRoot } from "solid-js";
+import { createRoot, flush, runWithOwner } from "solid-js";
 import { createCreateTicketController, type CreateTicketDeps } from "./create-ticket-controller.js";
 
 function makeDeps(overrides?: Partial<CreateTicketDeps>): CreateTicketDeps {
@@ -23,7 +23,8 @@ describe("createCreateTicketController", () => {
 					});
 					const ctrl = createCreateTicketController(deps);
 
-					await ctrl.suggestNumber();
+					await runWithOwner(null, ctrl.suggestNumber);
+					flush();
 
 					expect(ctrl.errorMsg()).toBe("server broke");
 					expect(ctrl.suggestingNumber()).toBe(false);
@@ -41,7 +42,8 @@ describe("createCreateTicketController", () => {
 					});
 					const ctrl = createCreateTicketController(deps);
 
-					await ctrl.suggestNumber();
+					await runWithOwner(null, ctrl.suggestNumber);
+					flush();
 
 					expect(ctrl.number()).toBe("T-42");
 					expect(ctrl.suggestingNumber()).toBe(false);
@@ -66,12 +68,16 @@ describe("createCreateTicketController", () => {
 					});
 					const ctrl = createCreateTicketController(deps);
 
-					const suggestPromise = ctrl.suggestNumber();
+					const suggestPromise = runWithOwner(null, ctrl.suggestNumber);
+					flush();
 					expect(ctrl.suggestingNumber()).toBe(true);
 
-					ctrl.setNumber("T-1");
-					ctrl.setTitle("Some title");
-					await ctrl.doSubmit();
+					runWithOwner(null, () => {
+						ctrl.setNumber("T-1");
+						ctrl.setTitle("Some title");
+					});
+					flush();
+					await runWithOwner(null, ctrl.doSubmit);
 
 					expect(submitSpy.called).toBe(false);
 

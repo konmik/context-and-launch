@@ -16,7 +16,7 @@ const CLEANUP_PATTERNS = [
 fs.rmSync(DIST_DIR, { recursive: true, force: true });
 
 const steps = [
-  "vinxi build",
+  "vite build",
   "npm run electron:build-main",
   "npx electron-builder",
 ];

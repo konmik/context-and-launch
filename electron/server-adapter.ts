@@ -1,9 +1,10 @@
 import path from "path";
 import { pathToFileURL } from "url";
-import type { LocalFetch } from "./app-protocol.js";
+import type { AppRequestHandler } from "./app-protocol.js";
+import { createBuiltAppHandler, type FetchHandler } from "../scripts/built-app.mjs";
 
 export interface ServerHandle {
-  localFetch: LocalFetch;
+  handleRequest: AppRequestHandler;
   appLog: (category: string, message: string) => void;
   shutdown: () => void;
   waitForPendingOps: () => Promise<void>;
@@ -11,47 +12,36 @@ export interface ServerHandle {
 }
 
 interface ServerGlobal {
-  __aiStagesServerApp?: {
-    localFetch: LocalFetch;
-    appLog: (category: string, message: string) => void;
-  };
-  __aiStagesServices?: {
-    fileWatcher: { stopAll(): void };
-    operationTracker: { waitForAll(): Promise<void>; hasPending(): boolean };
-    projectRegistry: { listProjects(): { projectSlug: string }[] };
+  __contextLaunchServices?: {
+    log(category: string, message: string): void;
+    shutdown(): void;
+    drainOperations(): Promise<void>;
+    listProjectSlugs(): string[];
   };
 }
 
 export async function startServer(appRoot: string): Promise<ServerHandle> {
   const outputDir = appRoot.replace("app.asar", "app.asar.unpacked");
-  const serverEntry = path.resolve(outputDir, ".output", "server", "index.mjs");
-  await import(pathToFileURL(serverEntry).href);
+  const serverEntry = path.resolve(outputDir, "dist", "server", "server.js");
+  const clientRoot = path.resolve(outputDir, "dist", "client");
+  const serverModule = await import(pathToFileURL(serverEntry).href) as { default?: FetchHandler };
+  const serverHandler = serverModule.default;
 
   const g = globalThis as unknown as ServerGlobal;
-  const serverApp = g.__aiStagesServerApp;
-  if (!serverApp) {
+  const services = g.__contextLaunchServices;
+  if (!serverHandler || typeof serverHandler.fetch !== "function" || !services) {
     throw new Error(
-      `Server bundle at ${serverEntry} did not publish its request handler. `
-      + "The publish-server-app nitro plugin is missing from the build.",
+      `Server bundle at ${serverEntry} did not export its request handler or publish services.`,
     );
   }
 
-  const shutdown = () => {
-    g.__aiStagesServices?.fileWatcher.stopAll();
-  };
-
-  const waitForPendingOps = async () => {
-    await g.__aiStagesServices?.operationTracker.waitForAll();
-  };
-
-  const listProjectSlugs = () =>
-    g.__aiStagesServices?.projectRegistry.listProjects().map((p) => p.projectSlug) ?? [];
+  const handleRequest: AppRequestHandler = createBuiltAppHandler(serverHandler, clientRoot);
 
   return {
-    localFetch: serverApp.localFetch,
-    appLog: serverApp.appLog,
-    shutdown,
-    waitForPendingOps,
-    listProjectSlugs,
+    handleRequest,
+    appLog: services.log,
+    shutdown: services.shutdown,
+    waitForPendingOps: services.drainOperations,
+    listProjectSlugs: services.listProjectSlugs,
   };
 }

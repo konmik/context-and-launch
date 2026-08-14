@@ -1,4 +1,4 @@
-import { createEffect, createSignal, on } from 'solid-js';
+import { createEffect, createSignal } from 'solid-js';
 import { revalidate } from '@solidjs/router';
 import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js';
 import type { CommandTemplateKey } from '~/core/command-template/command-template-definitions.js';
@@ -13,10 +13,10 @@ export function createCommandTemplateSettingsState(props: { open: boolean }) {
 	const [error, setError] = createSignal<ErrorInfo | null>(null);
 	const [drafts, setDrafts] = createSignal<Record<string, string>>({});
 
-	createEffect(on(() => props.open, (open) => {
+	createEffect(() => props.open, (open) => {
 		if (open) void load();
 		else setDrafts({});
-	}));
+	});
 
 	async function load(): Promise<void> {
 		setLoading(true);

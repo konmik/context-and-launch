@@ -1,5 +1,5 @@
-import { createSignal, createEffect, on } from "solid-js";
-import X from "lucide-solid/icons/x";
+import { createSignal, createEffect, untrack } from "solid-js";
+import { X } from "~/components/ui/icons.js";
 import {
   FloatingWindow, FloatingWindowHeader, FloatingPanelBody,
   FloatingPanelCloseTrigger, FloatingPanelTitle,
@@ -8,7 +8,7 @@ import {
 import { LauncherTab } from "../ticket/ticket-detail-launcher-tab.js";
 import { createAgentLauncherController } from "./agent-launcher-controller.js";
 import {
-  getMergedLauncherConfig, saveAndCacheColumnDefaults,
+  loadMergedLauncherConfig, saveColumnDefaultsAndReturnConfig,
   launchProjectAgentAction,
   type MergedLauncherConfigWithMeta,
 } from "./launcher-api.js";
@@ -25,27 +25,28 @@ export default function ProjectLauncherDialog(props: {
   const [config, setConfig] = createSignal<MergedLauncherConfigWithMeta | null>(null);
   const [error, setError] = createSignal<ErrorInfo | null>(null);
 
-  createEffect(on(
+  createEffect(
     () => [props.open, props.projectSlug] as const,
-    async ([open, projectSlug]) => {
+    ([open, projectSlug]) => { void (async () => {
       if (!open || !projectSlug) return;
       try {
-        setConfig(await getMergedLauncherConfig(projectSlug));
+        setConfig(await loadMergedLauncherConfig(projectSlug));
       } catch (e) {
         setError(errorPayload(e, "Load failed"));
       }
-    },
-  ));
+    })(); },
+  );
 
   function patchDefaults(patch: Partial<LauncherColumnDefaults>) {
-    saveAndCacheColumnDefaults(props.projectSlug, PROJECT_LAUNCH_KEY, patch)
+    saveColumnDefaultsAndReturnConfig(props.projectSlug, PROJECT_LAUNCH_KEY, patch)
       .then((result) => {
         if (!result.ok) { setError({ title: "Save failed", description: result.message }); return; }
+        setConfig(result.config);
       })
       .catch((e) => setError(errorPayload(e, "Save failed")));
   }
 
-  const ctrl = createAgentLauncherController({
+  const ctrl = untrack(() => createAgentLauncherController({
     projectSlug: props.projectSlug,
     get config() { return config(); },
     onDefaultsChange: patchDefaults,
@@ -54,7 +55,7 @@ export default function ProjectLauncherDialog(props: {
     worktreeDir: "",
     launchDir: () => config()?.projectPath ?? "",
     launch: (args) => launchProjectAgentAction(props.projectSlug, args),
-  });
+  }));
 
   async function run() {
     await ctrl.launchAgent();

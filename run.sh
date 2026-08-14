@@ -60,7 +60,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # The server records its pid and port here when it starts. It serves the build it
 # loaded, so it is useless once anything is rebuilt: stop it before starting the
 # new one, while that record is still on disk.
-server_process_file="$script_dir/.output/server-process"
+server_process_file="$script_dir/dist/server-process"
 
 stop_previous_server() {
     [ -f "$server_process_file" ] || return 0
@@ -87,13 +87,12 @@ stop_previous_server() {
 
 stop_previous_server
 
-# Returns 0 (true) if .output is missing or older than any tracked source path.
-# Tracked sources: src/, app.config.ts, package.json, package-lock.json.
+# Returns 0 (true) if the Vite server artifact is missing or older than a source.
 output_is_stale() {
-    local marker=".output/server/index.mjs"
+    local marker="dist/server/server.js"
     [ -f "$marker" ] || return 0
     local newer
-    newer=$(find src public app.config.ts package.json package-lock.json -newer "$marker" -print -quit 2>/dev/null || true)
+    newer=$(find src public vite.config.ts package.json package-lock.json -newer "$marker" -print -quit 2>/dev/null || true)
     [ -n "$newer" ]
 }
 
@@ -106,7 +105,7 @@ if ! port_in_use "$port"; then
     fi
 
     build_reason=""
-    if [ ! -d ".output" ]; then
+    if [ ! -f "dist/server/server.js" ] || [ ! -f "dist/client/index.html" ]; then
         build_reason="missing"
     elif output_is_stale; then
         build_reason="stale"
@@ -114,7 +113,7 @@ if ! port_in_use "$port"; then
 
     if [ -n "$build_reason" ]; then
         if [ "$build_reason" = "stale" ]; then
-            echo "Source files are newer than .output, rebuilding..."
+            echo "Source files are newer than dist, rebuilding..."
         else
             echo "Building application..."
         fi
@@ -122,7 +121,7 @@ if ! port_in_use "$port"; then
             echo "DRY_RUN: BUILD=yes REASON=$build_reason"
             exit 0
         fi
-        npx vinxi build || die "Build failed."
+        npm run build || die "Build failed."
     elif [ "${RUN_SH_DRY_RUN:-}" = "1" ]; then
         echo "DRY_RUN: BUILD=no"
         exit 0

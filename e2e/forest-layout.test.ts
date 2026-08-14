@@ -122,7 +122,7 @@ describe("Forest layout and persistence", () => {
 
     const card = forestCard(ctx.page, "D-1");
     await card.waitFor({ state: "visible", timeout: 15000 });
-    const wrapper = await ctx.page.locator('[data-testid="solid-flow__wrapper"]').elementHandle();
+    const wrapper = await ctx.page.locator('[data-testid="forest-surface"]').elementHandle();
     expect(wrapper).toBeTruthy();
 
     const start = await centerOf(card);

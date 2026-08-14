@@ -1,10 +1,8 @@
 import { For, Show } from "solid-js";
 import {
 	DragDropProvider,
-	DragDropSensors,
 	DragOverlay,
-	closestCenter,
-} from "@thisbeyond/solid-dnd";
+} from "~/components/drag/drag-provider.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { BoardState } from "~/components/project/project-api.js";
 import TicketCard from "../ticket/TicketCard";
@@ -66,9 +64,7 @@ export default function KanbanBoard(props: KanbanBoardProps) {
 					);
 				}
 			}}
-			collisionDetector={closestCenter}
 		>
-			<DragDropSensors />
 			<div class="flex min-h-0 flex-1 flex-col">
 				<div
 					ref={headerRow}

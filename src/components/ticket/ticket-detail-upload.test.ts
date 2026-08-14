@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createRoot } from "solid-js";
+import { createRoot, runWithOwner } from "solid-js";
 
 vi.mock("@solidjs/router", () => ({
   revalidate: vi.fn(),
@@ -42,10 +42,10 @@ describe("createFileUploadState", () => {
     await createRoot(async (dispose) => {
       const state = createFileUploadState(deps);
       const file = new File(["content"], "report.txt", { type: "text/plain" });
-      await state.handleFileInputChange({
+      await runWithOwner(null, () => state.handleFileInputChange({
         target: { files: [file], value: "" },
         preventDefault: vi.fn(),
-      } as any);
+      } as any));
       expect(deps.setError).toHaveBeenCalledWith({ title: "Upload failed", description: "disk full" });
       expect(deps.requestFileSwitch).not.toHaveBeenCalled();
       dispose();
@@ -62,10 +62,10 @@ describe("createFileUploadState", () => {
     await createRoot(async (dispose) => {
       const state = createFileUploadState(deps);
       const file = new File(["# Notes"], "notes.md", { type: "text/markdown" });
-      await state.handleFileInputChange({
+      await runWithOwner(null, () => state.handleFileInputChange({
         target: { files: [file], value: "" },
         preventDefault: vi.fn(),
-      } as any);
+      } as any));
       expect(deps.setError).toHaveBeenCalledWith({ title: "Upload failed", description: "permission denied" });
       expect(deps.requestFileSwitch).not.toHaveBeenCalled();
       dispose();
@@ -82,10 +82,10 @@ describe("createFileUploadState", () => {
     await createRoot(async (dispose) => {
       const state = createFileUploadState(deps);
       const file = new File(["content"], "report.txt", { type: "text/plain" });
-      await state.handleFileInputChange({
+      await runWithOwner(null, () => state.handleFileInputChange({
         target: { files: [file], value: "" },
         preventDefault: vi.fn(),
-      } as any);
+      } as any));
       expect(deps.requestFileSwitch).toHaveBeenCalledWith({
         type: "file",
         name: "report.txt",
@@ -108,10 +108,10 @@ describe("createFileUploadState", () => {
     await createRoot(async (dispose) => {
       const state = createFileUploadState(deps);
       const file = new File(["# Notes"], "notes.md", { type: "text/markdown" });
-      await state.handleFileInputChange({
+      await runWithOwner(null, () => state.handleFileInputChange({
         target: { files: [file], value: "" },
         preventDefault: vi.fn(),
-      } as any);
+      } as any));
       expect(calls).toEqual(["refresh", "switch"]);
       expect(deps.requestFileSwitch).toHaveBeenCalledWith({
         type: "context",
@@ -131,10 +131,10 @@ describe("createFileUploadState", () => {
     await createRoot(async (dispose) => {
       const state = createFileUploadState(deps);
       const file = new File(["content"], "report.txt", { type: "text/plain" });
-      await state.handleFileInputChange({
+      await runWithOwner(null, () => state.handleFileInputChange({
         target: { files: [file], value: "" },
         preventDefault: vi.fn(),
-      } as any);
+      } as any));
       expect(deps.refreshFiles).not.toHaveBeenCalled();
       dispose();
     });

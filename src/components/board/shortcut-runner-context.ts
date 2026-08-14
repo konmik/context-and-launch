@@ -11,8 +11,8 @@ export interface ShortcutRunner {
   openWorktree: (ticket: TicketInfo) => void;
 }
 
-export const ShortcutRunnerContext = createContext<ShortcutRunner>();
+export const ShortcutRunnerContext = createContext<ShortcutRunner | null>(null);
 
 export function useShortcutRunner(): ShortcutRunner | undefined {
-  return useContext(ShortcutRunnerContext);
+  return useContext(ShortcutRunnerContext) ?? undefined;
 }

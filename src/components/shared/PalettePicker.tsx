@@ -1,8 +1,8 @@
-import { createSignal, createEffect, For } from "solid-js";
+import { createSignal, createEffect, For, untrack } from "solid-js";
 import { useLocation } from "@solidjs/router";
-import Palette from "lucide-solid/icons/palette";
-import Sun from "lucide-solid/icons/sun";
-import Moon from "lucide-solid/icons/moon";
+import { Palette } from "~/components/ui/icons.js";
+import { Sun } from "~/components/ui/icons.js";
+import { Moon } from "~/components/ui/icons.js";
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "~/components/ui/menu";
 import {
   PALETTES, getStoredPalette, setStoredPalette, projectSlugFromPath,
@@ -28,15 +28,15 @@ function initialPalette(projectSlug: string | undefined): PaletteName {
 export default function PalettePicker() {
   const location = useLocation();
   const projectSlug = () => projectSlugFromPath(location.pathname);
-  const [active, setActive] = createSignal<PaletteName>(initialPalette(projectSlug()));
+  const [active, setActive] = createSignal<PaletteName>(initialPalette(untrack(projectSlug)));
   const [theme, setTheme] = createSignal<"light" | "dark">("light");
 
-  createEffect(() => {
-    const stored = getStoredPalette(localStorage, projectSlug());
+  createEffect(projectSlug, (slug) => {
+    const stored = getStoredPalette(localStorage, slug);
     setActive(stored);
     if (document.documentElement.dataset.palette !== stored) showPalette(stored);
 
-    const mode = getStoredMode(localStorage, projectSlug());
+    const mode = getStoredMode(localStorage, slug);
     const matchesDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const dark = isDarkMode(mode, matchesDark);
     setTheme(dark ? "dark" : "light");

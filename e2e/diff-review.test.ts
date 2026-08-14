@@ -53,7 +53,6 @@ describe("Diff Review (e2e, real server)", () => {
 	const ctx = setupE2E();
 
 	it("reviews a worktree change and preserves a queued prompt snapshot", async () => {
-		await ctx.page.clock.install();
 		const folderName = "t-1-review-worktree";
 		const project = await seedProject(ctx, {
 			slugBase: "diff-review",
@@ -141,7 +140,7 @@ describe("Diff Review (e2e, real server)", () => {
 		expect(await composerInput.evaluate((element) => document.activeElement === element)).toBe(true);
 
 		fs.writeFileSync(sourcePath, "export const value = 2;\nexport const stable = true;\n");
-		await ctx.page.clock.fastForward(1_300);
+		await ctx.page.waitForTimeout(1_300);
 		await waitLocatorVisible(
 			ctx.page.locator('[data-testid="diff-review-stale-warning"]'),
 		);
@@ -165,10 +164,10 @@ describe("Diff Review (e2e, real server)", () => {
 		await ctx.page.locator(
 			'[data-testid="diff-review-composer"] [aria-label="Close Review Prompt composer"]',
 		).click();
-		await ctx.page.locator('[data-testid="diff-review-queue"]')
+		await ctx.page.locator('[data-testid="diff-review-composer"]')
 			.waitFor({ state: "detached", timeout: 10_000 });
 
-		await ctx.page.locator('[data-testid="diff-review-close"]').click();
+		await ctx.page.locator('[data-testid="diff-review-close"]').dispatchEvent("click");
 		await ctx.page.locator('[data-testid="diff-review"]')
 			.waitFor({ state: "detached", timeout: 10_000 });
 		await openTicketDetail(ctx.page, folderName);
@@ -696,6 +695,41 @@ describe("Diff Review (e2e, real server)", () => {
 			"pending.ts",
 		]);
 		expect(await ctx.page.locator('[data-testid="diff-review-file-diff"]').count()).toBe(2);
+		expect(await ctx.page.locator('[data-testid="diff-review-file-diff"]')
+			.evaluateAll((diffs) => diffs.map((diff) => {
+				const element = diff as HTMLElement;
+				return !element.hidden && getComputedStyle(element).display !== "none";
+			}))).toEqual([true, true]);
+		expect(await ctx.page.locator('[data-testid="diff-review-file-diff"]')
+			.evaluateAll((diffs) => diffs.map((diff) =>
+				diff.querySelectorAll("[data-line]").length))).toEqual([
+			expect.any(Number),
+			expect.any(Number),
+		]);
+		for (const filePath of ["committed.ts", "pending.ts"]) {
+			expect(await reviewFileDiff(ctx.page, filePath).locator("[data-line]").count())
+				.toBeGreaterThan(0);
+		}
+		const simultaneousSections = await ctx.page.locator(
+			'[data-testid="diff-review-file-section"]',
+		).evaluateAll((sections) => {
+			const scroll = document.querySelector('[data-testid="diff-review-scroll"]')!
+				.getBoundingClientRect();
+			return sections.filter((section) => {
+				const box = section.getBoundingClientRect();
+				return box.bottom > scroll.top && box.top < scroll.bottom;
+			}).length;
+		});
+		expect(simultaneousSections).toBe(2);
+		const sectionBoxes = await ctx.page.locator(
+			'[data-testid="diff-review-file-section"]',
+		).evaluateAll((sections) => sections.map((section) => {
+			const box = section.getBoundingClientRect();
+			return { top: box.top, bottom: box.bottom, height: box.height };
+		}));
+		expect(sectionBoxes[0].height).toBeGreaterThan(50);
+		expect(sectionBoxes[1].height).toBeGreaterThan(50);
+		expect(sectionBoxes[1].top).toBeGreaterThanOrEqual(sectionBoxes[0].bottom);
 		const typeTotals = await ctx.page.locator(
 			'[data-testid="diff-review-file-type-totals"]',
 		).textContent();

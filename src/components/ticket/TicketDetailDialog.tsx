@@ -1,7 +1,7 @@
-import { Show, For } from "solid-js";
-import X from "lucide-solid/icons/x";
-import Copy from "lucide-solid/icons/copy";
-import Zap from "lucide-solid/icons/zap";
+import { Show, For, untrack } from "solid-js";
+import { X } from "~/components/ui/icons.js";
+import { Copy } from "~/components/ui/icons.js";
+import { Zap } from "~/components/ui/icons.js";
 import {
   FloatingWindow, FloatingWindowHeader, FloatingPanelBody,
   FLOATING_WINDOW_MIN_SIZE, tallWindowDefaultSize,
@@ -55,7 +55,7 @@ function TicketDetailContent(props: {
   onReviewChanges?: (ticket: TicketInfo) => void;
   ctrl?: TicketDetailState;
 }) {
-  const s = props.ctrl ?? createTicketDetailState(props);
+  const s = untrack(() => props.ctrl ?? createTicketDetailState(props));
 
   const ticketAccessor = () => ({
     ...props.ticket,
@@ -63,7 +63,7 @@ function TicketDetailContent(props: {
     number: s.savedNumber(),
     title: s.savedTitle(),
   });
-  const launcherDeps = {
+  const launcherDeps = untrack(() => ({
     projectSlug: props.projectSlug,
     ticket: ticketAccessor,
     get config() { return s.launcherConfig(); },
@@ -74,8 +74,8 @@ function TicketDetailContent(props: {
     launchDir: s.launchDir,
     launch: (args: Parameters<typeof launchAgentAction>[2]) =>
       launchAgentAction(props.projectSlug, ticketAccessor().folderName, args),
-  };
-  const launcherCtrl = createAgentLauncherController(launcherDeps);
+  }));
+  const launcherCtrl = untrack(() => createAgentLauncherController(launcherDeps));
 
   useModEnterSubmit({
     onSubmit: s.submitNewFile,

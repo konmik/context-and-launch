@@ -212,10 +212,8 @@ try {
   New-Item -ItemType Directory -Force $workspace | Out-Null
 
   $excludedDirectories = @(
-    ".output",
     ".pi-subagents",
     ".playwright-mcp",
-    ".vinxi",
     "build",
     "coverage",
     "dist",

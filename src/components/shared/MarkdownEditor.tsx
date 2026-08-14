@@ -1,4 +1,4 @@
-import { onMount, onCleanup, createEffect } from "solid-js";
+import { onSettled, createEffect } from "solid-js";
 import {
   EditorView, ViewPlugin, Decoration, type DecorationSet,
   keymap, placeholder as cmPlaceholder,
@@ -128,9 +128,10 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
   let containerRef: HTMLDivElement | undefined;
   let view: EditorView | undefined;
   let lastPushedValue: string | null = null;
+  let applyingExternalValue = false;
   const readOnlyCompartment = new Compartment();
 
-  onMount(() => {
+  onSettled(() => {
     const saveKeymap = props.onSave
       ? [
           { key: "Mod-s", run: () => { props.onSave!(); return true; } },
@@ -161,7 +162,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
         theme,
         cmPlaceholder(props.placeholder ?? ""),
         EditorView.updateListener.of((update) => {
-          if (update.docChanged) {
+          if (update.docChanged && !applyingExternalValue) {
             lastPushedValue = update.state.doc.toString();
             props.onChange(lastPushedValue);
           }
@@ -178,11 +179,11 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     });
 
     view = new EditorView({ state, parent: containerRef! });
+    return () => view?.destroy();
   });
 
-  createEffect(() => {
+  createEffect(() => !!props.readOnly, (ro) => {
     if (!view) return;
-    const ro = !!props.readOnly;
     view.dispatch({
       effects: readOnlyCompartment.reconfigure([
         EditorState.readOnly.of(ro),
@@ -191,8 +192,7 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     });
   });
 
-  createEffect(() => {
-    const val = props.value;
+  createEffect(() => props.value, (val) => {
     if (val === lastPushedValue) {
       lastPushedValue = null;
       return;
@@ -214,15 +214,16 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
           oldEnd--;
           newEnd--;
         }
-        view.dispatch({
-          changes: { from: prefixLen, to: oldEnd, insert: val.slice(prefixLen, newEnd) },
-        });
+        applyingExternalValue = true;
+        try {
+          view.dispatch({
+            changes: { from: prefixLen, to: oldEnd, insert: val.slice(prefixLen, newEnd) },
+          });
+        } finally {
+          applyingExternalValue = false;
+        }
       }
     }
-  });
-
-  onCleanup(() => {
-    view?.destroy();
   });
 
   return (

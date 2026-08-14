@@ -113,4 +113,8 @@ npm install
 npm run dev
 ```
 
+The frontend uses a pinned Solid 2 prerelease cohort (`solid-js`, `@solidjs/web`,
+Router, and the Vite plugin). Update those packages together rather than
+upgrading one independently.
+
 If you wish to contribute, please create an issue first. PRs from unknown contributors will be ignored.

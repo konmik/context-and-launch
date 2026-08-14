@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { flush } from "solid-js";
 import { createReviewedLineTracker } from "./create-reviewed-line-tracker.js";
 
 afterEach(() => {
@@ -22,6 +23,7 @@ describe("createReviewedLineTracker", () => {
 		const tracker = createReviewedLineTracker({ persist, onError: vi.fn() });
 		tracker.markVisible({ id: "line-1", path: "src/a.ts" });
 		tracker.markVisible({ id: "line-2", path: "src/b.ts" });
+		flush();
 		expect([...tracker.reviewedLineIds()]).toEqual(["line-1", "line-2"]);
 		await vi.advanceTimersByTimeAsync(400);
 		expect(persist).toHaveBeenCalledWith([

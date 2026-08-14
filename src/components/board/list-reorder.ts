@@ -1,5 +1,5 @@
 import { createSignal, createMemo, type Accessor } from "solid-js";
-import type { DragEvent as DndDragEvent } from "@thisbeyond/solid-dnd";
+import type { DragEvent as DndDragEvent } from "~/components/drag/drag-types.js";
 
 // Fractional sort key for an item dropped between two neighbours, given their
 // orders (undefined when the item lands at an end of the list). Picking the

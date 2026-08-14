@@ -1,5 +1,6 @@
-import { Show, splitProps, type JSX } from "solid-js";
-import { createSortable } from "@thisbeyond/solid-dnd";
+import { Show, omit } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { createSortable } from "~/components/drag/drag-provider.js";
 import { DragGrip, DragPreview, DND_ACTIVE_CLASS } from "../board/dnd-shared.js";
 import { joinClass } from "~/lib/class-util";
 import type { MergedLauncherConfig } from "~/core/launcher/launcher-config.js";
@@ -14,11 +15,11 @@ export type MergedProfile = MergedLauncherConfig["profiles"][number];
 export type MergedShortcut = MergedLauncherConfig["shortcuts"][number];
 
 export function ScopeBadge(props: { scope: string }) {
-	const cls = props.scope === "app"
+	const cls = () => props.scope === "app"
 		? "bg-muted text-muted-foreground"
 		: "bg-primary/15 text-primary";
 	return (
-		<span class={`label-mono rounded px-1.5 py-0.5 text-xs ${cls}`}>
+		<span class={`label-mono rounded px-1.5 py-0.5 text-xs ${cls()}`}>
 			{props.scope === "app" ? "User" : "Project"}
 		</span>
 	);
@@ -28,10 +29,10 @@ export const CARD_CLASS =
 	"settings-card flex items-center justify-between gap-2 rounded-md border border-border p-3";
 
 export function SettingsCard(props: JSX.HTMLAttributes<HTMLDivElement>) {
-	const [local, rest] = splitProps(props, ["class", "children"]);
+	const rest = omit(props, "class", "children");
 	return (
-		<div class={joinClass(CARD_CLASS, local.class)} {...rest}>
-			{local.children}
+		<div class={joinClass(CARD_CLASS, typeof props.class === "string" ? props.class : undefined)} {...rest}>
+			{props.children}
 		</div>
 	);
 }
@@ -100,7 +101,7 @@ export function SortableColumnRow(props: {
 			ref={sortable.ref}
 			data-testid="launcher-settings-columns-row"
 			data-column-name={props.column.name}
-			classList={{ [DND_ACTIVE_CLASS]: props.isActive }}
+			class={props.isActive ? DND_ACTIVE_CLASS : undefined}
 		>
 			<CardRowBody
 				name={props.column.name}
@@ -142,7 +143,7 @@ export function SortableItemRow(props: {
 			ref={sortable.ref}
 			data-testid={props.rowTestId}
 			data-item-name={props.item.name}
-			classList={{ [DND_ACTIVE_CLASS]: props.isActive }}
+			class={props.isActive ? DND_ACTIVE_CLASS : undefined}
 		>
 			<CardRowBody
 				scope={props.item.scope}

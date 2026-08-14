@@ -1,4 +1,4 @@
-import { query } from "@solidjs/router";
+import { action, query } from "@solidjs/router";
 import path from "path";
 import {
   launcherConfigManager, projectRegistry, worktreeManager,
@@ -16,6 +16,7 @@ import {
 import { NotFoundError, ValidationError, errorResult } from "~/core/shared/errors.js";
 import type {
   LauncherItemType,
+  LauncherColumnDefaults,
   MergedLauncherConfig,
 } from "~/core/launcher/launcher-config.js";
 
@@ -48,19 +49,32 @@ export const getMergedLauncherConfig = query(async (
   return buildMergedLauncherConfig(projectSlug);
 }, "launcher-config");
 
-export function cacheMergedLauncherConfig(
-  projectSlug: string, config: MergedLauncherConfigWithMeta,
-): void {
-  query.set(getMergedLauncherConfig.keyFor(projectSlug), config);
+const latestMergedConfigs = new Map<string, { config: MergedLauncherConfigWithMeta; savedAt: number }>();
+
+export function latestMergedLauncherConfig(projectSlug: string) {
+  const latest = latestMergedConfigs.get(projectSlug);
+  if (!latest || Date.now() - latest.savedAt > 5_000) return undefined;
+  return latest.config;
 }
 
-export async function saveAndCacheColumnDefaults(
+export async function loadMergedLauncherConfig(projectSlug: string) {
+  const config = await getMergedLauncherConfig(projectSlug);
+  latestMergedConfigs.set(projectSlug, { config, savedAt: Date.now() });
+  return config;
+}
+
+export async function saveColumnDefaultsAndReturnConfig(
   projectSlug: string,
   column: string,
-  patch: Parameters<typeof saveColumnDefaults>[2],
+  patch: Partial<LauncherColumnDefaults>,
 ) {
-  const result = await saveColumnDefaults(projectSlug, column, patch);
-  if (result.ok) cacheMergedLauncherConfig(projectSlug, result.config);
+  const result = await saveColumnDefaults(projectSlug, column, {
+    ...patch,
+    ...(Object.hasOwn(patch, "editedPrompt")
+      ? { editedPrompt: patch.editedPrompt ?? null }
+      : {}),
+  });
+  if (result.ok) latestMergedConfigs.set(projectSlug, { config: result.config, savedAt: Date.now() });
   return result;
 }
 
@@ -72,12 +86,18 @@ export async function saveColumnDefaults(
     profileName?: string | null;
     lastLayer?: "editor" | "launcher" | "shortcuts";
     skillOrder?: string[];
-    editedPrompt?: string;
+    editedPrompt?: string | null;
   },
 ) {
   "use server";
   try {
-    launcherConfigManager.saveColumnDefaults(projectSlug, column, patch);
+    const { editedPrompt, ...rest } = patch;
+    launcherConfigManager.saveColumnDefaults(projectSlug, column, {
+      ...rest,
+      ...(Object.hasOwn(patch, "editedPrompt")
+        ? { editedPrompt: editedPrompt ?? undefined }
+        : {}),
+    });
     return { ok: true as const, config: buildMergedLauncherConfig(projectSlug) };
   } catch (e) {
     return errorResult(e);
@@ -95,7 +115,7 @@ export async function saveWorktreeRootPath(projectSlug: string, worktreeRootPath
   }
 }
 
-export async function saveBranchPrefix(projectSlug: string, branchPrefix: string | undefined) {
+export async function saveBranchPrefix(projectSlug: string, branchPrefix: string | null) {
   "use server";
   try {
     const value = branchPrefix?.trim() || undefined;
@@ -138,42 +158,67 @@ function callItemMethod(
   (launcherConfigManager as any)[methodName](scope, projectSlug, ...args);
 }
 
-export async function addItem(
-  projectSlug: string, itemType: LauncherItemType, scope: Scope, fields: ItemFields,
-) {
+export const addItem = action(async function addItem(input: {
+  projectSlug: string;
+  itemType: LauncherItemType;
+  scope: Scope;
+  fields: ItemFields;
+}) {
   "use server";
   try {
-    callItemMethod(ITEM_METHODS[itemType].add, scope, projectSlug, fields);
+    callItemMethod(
+      ITEM_METHODS[input.itemType].add,
+      input.scope,
+      input.projectSlug,
+      input.fields,
+    );
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
   }
-}
+}, "launcher-add-item");
 
-export async function updateItem(
-  projectSlug: string, itemType: LauncherItemType, scope: Scope,
-  oldName: string, fields: ItemFields,
-) {
+export const updateItem = action(async function updateItem(input: {
+  projectSlug: string;
+  itemType: LauncherItemType;
+  scope: Scope;
+  oldName: string;
+  fields: ItemFields;
+}) {
   "use server";
   try {
-    callItemMethod(ITEM_METHODS[itemType].update, scope, projectSlug, oldName, fields);
+    callItemMethod(
+      ITEM_METHODS[input.itemType].update,
+      input.scope,
+      input.projectSlug,
+      input.oldName,
+      input.fields,
+    );
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
   }
-}
+}, "launcher-update-item");
 
-export async function deleteItem(
-  projectSlug: string, itemType: LauncherItemType, scope: Scope, name: string,
-) {
+export const deleteItem = action(async function deleteItem(input: {
+  projectSlug: string;
+  itemType: LauncherItemType;
+  scope: Scope;
+  name: string;
+}) {
   "use server";
   try {
-    callItemMethod(ITEM_METHODS[itemType].remove, scope, projectSlug, name);
+    callItemMethod(
+      ITEM_METHODS[input.itemType].remove,
+      input.scope,
+      input.projectSlug,
+      input.name,
+    );
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
   }
-}
+}, "launcher-delete-item");
 
 export async function reorderItem(
   projectSlug: string, itemType: LauncherItemType, scope: Scope,

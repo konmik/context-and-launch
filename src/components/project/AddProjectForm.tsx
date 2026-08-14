@@ -56,7 +56,7 @@ export default function AddProjectForm(props: AddProjectFormProps) {
         </div>
       </div>
       <BoardSelector
-        boardId={s.boardId}
+        boardId={s.boardId()}
         setBoardId={s.setBoardId}
         onError={s.setLocalError}
       />

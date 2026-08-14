@@ -1,19 +1,19 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-# Launch the local Vinxi development server on the project-specific port and open Chrome.
+# Launch the local Vite development server on the project-specific port and open Chrome.
 $port = 3003
 $listenAddress = "127.0.0.1"
 $url = "http://${listenAddress}:$port"
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$vinxiPath = Join-Path $repoRoot "node_modules\vinxi\bin\cli.mjs"
-$logDirectory = Join-Path $repoRoot ".vinxi"
+$vitePath = Join-Path $repoRoot "node_modules\vite\bin\vite.js"
+$logDirectory = Join-Path $repoRoot "temp\vite"
 $logStamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $stdoutPath = Join-Path $logDirectory "run-open-$port-$logStamp.stdout.log"
 $stderrPath = Join-Path $logDirectory "run-open-$port-$logStamp.stderr.log"
 
-if (-not (Test-Path -LiteralPath $vinxiPath)) {
-    throw "Vinxi is not installed. Run npm install before starting the dev server."
+if (-not (Test-Path -LiteralPath $vitePath)) {
+    throw "Vite is not installed. Run npm install before starting the dev server."
 }
 
 $existingListeners = @(
@@ -64,7 +64,7 @@ if (-not $chromePath) {
 New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
 
 $nodePath = (Get-Command node.exe -ErrorAction Stop).Source
-$quotedVinxiPath = "`"$vinxiPath`""
+$quotedVitePath = "`"$vitePath`""
 $originalHostEnvironmentValue = [Environment]::GetEnvironmentVariable(
     "HOST",
     [EnvironmentVariableTarget]::Process
@@ -77,7 +77,7 @@ $originalHostEnvironmentValue = [Environment]::GetEnvironmentVariable(
 try {
     $devProcess = Start-Process `
         -FilePath $nodePath `
-        -ArgumentList @($quotedVinxiPath, "dev", "--port", "$port") `
+        -ArgumentList @($quotedVitePath, "--port", "$port") `
         -WorkingDirectory $repoRoot `
         -RedirectStandardOutput $stdoutPath `
         -RedirectStandardError $stderrPath `

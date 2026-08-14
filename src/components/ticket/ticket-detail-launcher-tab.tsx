@@ -1,6 +1,5 @@
-import "solid-resizable-panels/styles.css";
-import { onCleanup } from "solid-js";
-import { PanelGroup, Panel, ResizeHandle } from "solid-resizable-panels";
+import { onSettled } from "solid-js";
+import { SplitPane } from "../ui/split-pane.js";
 import AgentLauncher from "../launcher/AgentLauncher";
 import MarkdownEditor from "../shared/MarkdownEditor.js";
 import { TAB_PANE_CLASS } from "./ticket-detail-parts.js";
@@ -29,7 +28,7 @@ export function LauncherTab(props: {
   const ctrl = props.ctrl;
 
   let splitterPersistTimer: ReturnType<typeof setTimeout> | undefined;
-  onCleanup(() => clearTimeout(splitterPersistTimer));
+  onSettled(() => () => clearTimeout(splitterPersistTimer));
   function persistSplitterSizes(sizes: number[]) {
     if (sizes.length === 2) {
       clearTimeout(splitterPersistTimer);
@@ -41,8 +40,17 @@ export function LauncherTab(props: {
 
   return (
     <div class={TAB_PANE_CLASS}>
-      <PanelGroup direction="row" class="h-full" onLayoutChange={persistSplitterSizes}>
-        <Panel id="launcher-controls" initialSize={saved[0]} minSize={20}>
+      <SplitPane
+        initialPercent={saved[0]}
+        minPercent={20}
+        onChangeEnd={persistSplitterSizes}
+        separatorClass={[
+          "relative w-4 cursor-col-resize !bg-transparent",
+          "after:absolute after:inset-y-0 after:left-1/2 after:w-px",
+          "after:-translate-x-1/2 after:bg-border/10",
+          "hover:after:bg-border/30",
+        ].join(" ")}
+        first={
           <div class="flex h-full flex-col ">
             <div class="flex-1 overflow-hidden pt-4">
               <AgentLauncher
@@ -52,14 +60,8 @@ export function LauncherTab(props: {
               />
             </div>
           </div>
-        </Panel>
-        <ResizeHandle class={[
-          "relative w-4 cursor-col-resize !bg-transparent",
-          "after:absolute after:inset-y-0 after:left-1/2 after:w-px",
-          "after:-translate-x-1/2 after:bg-border/10",
-          "hover:after:bg-border/30",
-        ].join(" ")} />
-        <Panel id="launcher-preview" initialSize={saved[1]} minSize={20}>
+        }
+        second={
           <div class="flex h-full flex-col ">
             <div class="px-4 pt-4">
               <div class="mb-1 flex items-center justify-between">
@@ -90,8 +92,8 @@ export function LauncherTab(props: {
               />
             </div>
           </div>
-        </Panel>
-      </PanelGroup>
+        }
+      />
     </div>
   );
 }

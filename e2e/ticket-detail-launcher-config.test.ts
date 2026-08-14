@@ -10,13 +10,15 @@ describe("Ticket detail launcher config and run (e2e, real server)", () => {
   const ctx = setupE2E();
   it("profile select persists selection to project launcher config", async () => {
     const project = await setupLauncherTicket(ctx, "profile");
-    await ctx.page.selectOption('[data-testid="ticket-detail-launcher-profile-select"]', "GPT");
+    const profileSelect = ctx.page.locator('[data-testid="ticket-detail-launcher-profile-select"]');
+    await profileSelect.selectOption("GPT");
     const cfg = await poll(
       () => readProjectLauncherConfig(ctx.testServer, project.projectSlug),
       (c) => c?.columnDefaults?.["todo"]?.profileName === "GPT",
       5000,
     );
     expect(cfg?.columnDefaults?.["todo"]?.profileName).toBe("GPT");
+    await expect.poll(() => profileSelect.inputValue()).toBe("GPT");
   });
 
   it("template select persists selection to project launcher config", async () => {

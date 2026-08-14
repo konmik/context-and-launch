@@ -1,4 +1,4 @@
-import { createEffect, onCleanup } from "solid-js";
+import { createEffect } from "solid-js";
 
 interface UseModEnterSubmitOptions {
   onSubmit: () => void;
@@ -7,8 +7,8 @@ interface UseModEnterSubmitOptions {
 }
 
 export function useModEnterSubmit(options: UseModEnterSubmitOptions) {
-  createEffect(() => {
-    if (!options.active()) return;
+  createEffect(options.active, (active) => {
+    if (!active) return;
 
     function handler(e: KeyboardEvent) {
       if (e.defaultPrevented) return;
@@ -25,7 +25,7 @@ export function useModEnterSubmit(options: UseModEnterSubmitOptions) {
     }
 
     document.addEventListener("keydown", handler);
-    onCleanup(() => document.removeEventListener("keydown", handler));
+    return () => document.removeEventListener("keydown", handler);
   });
 }
 

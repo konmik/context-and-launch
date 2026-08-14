@@ -11,28 +11,30 @@ const repoRoot = path.resolve(__dirname, "..");
 const realScript = path.join(repoRoot, "run.sh");
 
 type Layout = {
-  hasOutput: boolean;
-  sourceMtimeOffsetMs: number; // mtime of src/file relative to .output/server/index.mjs
+  hasBuild: boolean;
+  sourceMtimeOffsetMs: number; // mtime of src/file relative to dist/server/server.js
 };
 
 function makeFakeProject(layout: Layout): { dir: string; scriptPath: string } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "run-sh-stale-"));
   fs.mkdirSync(path.join(dir, "src"));
   fs.writeFileSync(path.join(dir, "src", "app.tsx"), "// fake source\n");
-  fs.writeFileSync(path.join(dir, "app.config.ts"), "// fake config\n");
+  fs.writeFileSync(path.join(dir, "vite.config.ts"), "// fake config\n");
   fs.writeFileSync(path.join(dir, "package.json"), "{}\n");
   fs.writeFileSync(path.join(dir, "package-lock.json"), "{}\n");
   fs.mkdirSync(path.join(dir, "node_modules"));
 
-  if (layout.hasOutput) {
-    fs.mkdirSync(path.join(dir, ".output", "server"), { recursive: true });
-    const marker = path.join(dir, ".output", "server", "index.mjs");
+  if (layout.hasBuild) {
+    fs.mkdirSync(path.join(dir, "dist", "server"), { recursive: true });
+    fs.mkdirSync(path.join(dir, "dist", "client"), { recursive: true });
+    const marker = path.join(dir, "dist", "server", "server.js");
     fs.writeFileSync(marker, "// fake built entry\n");
+    fs.writeFileSync(path.join(dir, "dist", "client", "index.html"), "<!doctype html>\n");
     const baseSec = Math.floor(Date.now() / 1000);
     const markerTime = new Date(baseSec * 1000);
     fs.utimesSync(marker, markerTime, markerTime);
     const sourceTime = new Date((baseSec + Math.round(layout.sourceMtimeOffsetMs / 1000)) * 1000);
-    for (const rel of ["src/app.tsx", "app.config.ts", "package.json", "package-lock.json"]) {
+    for (const rel of ["src/app.tsx", "vite.config.ts", "package.json", "package-lock.json"]) {
       fs.utimesSync(path.join(dir, rel), sourceTime, sourceTime);
     }
     // src/ directory mtime can be incidentally bumped by file writes; pin it too.
@@ -64,21 +66,21 @@ function runDry(dir: string, scriptPath: string) {
   });
 }
 
-describe.runIf(process.platform !== "win32")("run.sh build-skip when .output is stale", () => {
-  it("rebuilds when a source file is newer than .output/server/index.mjs", () => {
+describe.runIf(process.platform !== "win32")("run.sh stale build detection", () => {
+  it("rebuilds when a source file is newer than dist/server/server.js", () => {
     const { dir, scriptPath } = makeFakeProject({
-      hasOutput: true,
+      hasBuild: true,
       sourceMtimeOffsetMs: 120_000, // sources are 2 minutes newer than the marker
     });
     const result = runDry(dir, scriptPath);
     expect(result.status, `stdout=${result.stdout}\nstderr=${result.stderr}`).toBe(0);
     expect(result.stdout).toMatch(/BUILD=yes REASON=stale/);
-    expect(result.stdout).toMatch(/Source files are newer than \.output, rebuilding/);
+    expect(result.stdout).toMatch(/Source files are newer than dist, rebuilding/);
   });
 
-  it("skips build when .output is fresh", () => {
+  it("skips build when dist is fresh", () => {
     const { dir, scriptPath } = makeFakeProject({
-      hasOutput: true,
+      hasBuild: true,
       sourceMtimeOffsetMs: -120_000, // sources are 2 minutes older than the marker
     });
     const result = runDry(dir, scriptPath);
@@ -87,9 +89,9 @@ describe.runIf(process.platform !== "win32")("run.sh build-skip when .output is 
     expect(result.stdout).not.toMatch(/REASON=stale/);
   });
 
-  it("builds when .output is missing entirely", () => {
+  it("builds when dist is missing entirely", () => {
     const { dir, scriptPath } = makeFakeProject({
-      hasOutput: false,
+      hasBuild: false,
       sourceMtimeOffsetMs: 0,
     });
     const result = runDry(dir, scriptPath);

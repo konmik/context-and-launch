@@ -6,26 +6,24 @@ import {
   handleAppRequest,
   appearanceArgs,
   seedAppearance,
-  type LocalFetch,
-  type LocalFetchInit,
+  type AppRequestHandler,
 } from "./app-protocol.js";
 import { projectSlugFromUrl } from "./window-bookkeeping.js";
 
 interface Recorded {
-  path: string;
-  init: LocalFetchInit;
+  request: Request;
 }
 
 function recordingBackend(response: Response = new Response("ok")): {
-  localFetch: LocalFetch;
+  handleRequest: AppRequestHandler;
   calls: Recorded[];
 } {
   const calls: Recorded[] = [];
-  const localFetch: LocalFetch = (path, init) => {
-    calls.push({ path, init });
+  const handleRequest: AppRequestHandler = (request) => {
+    calls.push({ request });
     return Promise.resolve(response);
   };
-  return { localFetch, calls };
+  return { handleRequest, calls };
 }
 
 function streamingRequest(url: string, chunks: string[]): Request {
@@ -46,54 +44,50 @@ function streamingRequest(url: string, chunks: string[]): Request {
 
 describe("handleAppRequest", () => {
   it("routes an app-origin URL to the in-process handler by path and query", async () => {
-    const { localFetch, calls } = recordingBackend();
-    await handleAppRequest(new Request(`${APP_ORIGIN}/project/my-repo?x=1`), localFetch);
-    expect(calls[0].path).toBe("/project/my-repo?x=1");
-    expect(calls[0].init.method).toBe("GET");
-    expect(calls[0].init.host).toBe(APP_HOST);
-    expect(calls[0].init.protocol).toBe(`${APP_SCHEME}:`);
+    const { handleRequest, calls } = recordingBackend();
+    await handleAppRequest(new Request(`${APP_ORIGIN}/project/my-repo?x=1`), handleRequest);
+    expect(calls[0].request.url).toBe(`${APP_ORIGIN}/project/my-repo?x=1`);
+    expect(calls[0].request.method).toBe("GET");
   });
 
   it("buffers a streaming request body instead of forwarding the stream", async () => {
-    const { localFetch, calls } = recordingBackend();
+    const { handleRequest, calls } = recordingBackend();
     await handleAppRequest(
       streamingRequest(`${APP_ORIGIN}/_server/saveTicket`, ['{"a":', "1}"]),
-      localFetch,
+      handleRequest,
     );
-    const body = calls[0].init.body;
-    expect(body).toBeInstanceOf(ArrayBuffer);
-    expect(new TextDecoder().decode(body as ArrayBuffer)).toBe('{"a":1}');
+    expect(await calls[0].request.text()).toBe('{"a":1}');
   });
 
   it("forwards request headers unchanged", async () => {
-    const { localFetch, calls } = recordingBackend();
+    const { handleRequest, calls } = recordingBackend();
     await handleAppRequest(
       new Request(`${APP_ORIGIN}/_server/x`, {
         method: "GET",
         headers: { accept: "text/html", referer: `${APP_ORIGIN}/project/x` },
       }),
-      localFetch,
+      handleRequest,
     );
-    expect(calls[0].init.headers.get("accept")).toBe("text/html");
-    expect(calls[0].init.headers.get("referer")).toBe(`${APP_ORIGIN}/project/x`);
+    expect(calls[0].request.headers.get("accept")).toBe("text/html");
+    expect(calls[0].request.headers.get("referer")).toBe(`${APP_ORIGIN}/project/x`);
   });
 
   it("omits the body for a bodyless request", async () => {
-    const { localFetch, calls } = recordingBackend();
-    await handleAppRequest(new Request(`${APP_ORIGIN}/`), localFetch);
-    expect(calls[0].init.body).toBeUndefined();
+    const { handleRequest, calls } = recordingBackend();
+    await handleAppRequest(new Request(`${APP_ORIGIN}/`), handleRequest);
+    expect(calls[0].request.body).toBeNull();
   });
 
   it("returns the handler response unchanged", async () => {
     const response = new Response("payload", { status: 201, headers: { "x-test": "1" } });
-    const { localFetch } = recordingBackend(response);
-    const result = await handleAppRequest(new Request(`${APP_ORIGIN}/`), localFetch);
+    const { handleRequest } = recordingBackend(response);
+    const result = await handleAppRequest(new Request(`${APP_ORIGIN}/`), handleRequest);
     expect(result).toBe(response);
   });
 
   it("rejects a URL from a different origin", async () => {
-    const { localFetch } = recordingBackend();
-    await expect(handleAppRequest(new Request("http://evil.example/steal"), localFetch))
+    const { handleRequest } = recordingBackend();
+    await expect(handleAppRequest(new Request("http://evil.example/steal"), handleRequest))
       .rejects.toThrow(/app-origin/);
   });
 });
