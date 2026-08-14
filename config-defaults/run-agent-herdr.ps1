@@ -16,6 +16,10 @@ $initialPrompt = [string]$args[0]
 $markerPath = [string]$args[2]
 $agentCommand = @($args[3..($args.Length - 1)] | ForEach-Object { [string]$_ })
 $agentKind = [IO.Path]::GetFileNameWithoutExtension($agentCommand[0]).ToLowerInvariant()
+$usesCustomOpenCodeExecutable = $agentKind -ceq 'opencode2'
+if ($usesCustomOpenCodeExecutable) {
+    $agentKind = 'opencode'
+}
 $agentArgs = @()
 if ($agentCommand.Length -gt 1) {
     $agentArgs = @($agentCommand[1..($agentCommand.Length - 1)])
@@ -31,6 +35,28 @@ function Get-Field {
         return $Object.PSObject.Properties[$Name].Value
     }
     return $null
+}
+
+function ConvertTo-PowerShellLiteral {
+    param([string]$Value)
+    return "'$($Value.Replace("'", "''"))'"
+}
+
+function Wait-OpenCodePromptVisible {
+    param([string]$PaneId, [string]$Prompt)
+    $expected = [regex]::Replace($Prompt, '\s', '')
+    if ($expected.Length -gt 80) {
+        $expected = $expected.Substring($expected.Length - 80)
+    }
+    for ($attempt = 0; $attempt -lt 120; $attempt++) {
+        $snapshot = Invoke-HerdrRaw @('pane', 'read', $PaneId, '--source', 'visible')
+        if ($snapshot.ExitCode -eq 0) {
+            $visible = [regex]::Replace($snapshot.Text, '\s', '')
+            if ($visible.Contains($expected)) { return }
+        }
+        Start-Sleep -Milliseconds 250
+    }
+    throw "OpenCode did not display the initial prompt in pane '$PaneId'."
 }
 
 # A native command writing to stderr raises a terminating NativeCommandError while
@@ -141,6 +167,31 @@ function Wait-AgentReleased {
 function Start-Agent {
     param([string]$PaneId)
     $agentName = ('cl-' + ($PaneId -replace '[^A-Za-z0-9_-]', '-')).ToLowerInvariant()
+    if ($usesCustomOpenCodeExecutable) {
+        $launchArgs = @($agentCommand)
+        if (-not [string]::IsNullOrWhiteSpace($initialPrompt)) {
+            $launchArgs += @('--prompt', $initialPrompt)
+        }
+        $launchScript = '& ' + (@(
+            $launchArgs | ForEach-Object { ConvertTo-PowerShellLiteral $_ }
+        ) -join ' ')
+        $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($launchScript))
+        $launchCommand = "powershell.exe -NoLogo -NoProfile -EncodedCommand $encoded"
+        Invoke-Herdr @('pane', 'run', $PaneId, $launchCommand) | Out-Null
+        if (-not [string]::IsNullOrWhiteSpace($initialPrompt)) {
+            Wait-OpenCodePromptVisible $PaneId $initialPrompt
+            Invoke-Herdr @('pane', 'send-keys', $PaneId, 'enter') | Out-Null
+        }
+        for ($attempt = 0; $attempt -lt 120; $attempt++) {
+            $agents = @(Get-AgentsInPane $PaneId)
+            if ($agents.Count -eq 1) {
+                Invoke-Herdr @('agent', 'rename', $PaneId, $agentName) | Out-Null
+                return $agents[0]
+            }
+            Start-Sleep -Milliseconds 250
+        }
+        throw "Herdr did not detect '$($agentCommand[0])' in pane '$PaneId'."
+    }
     $startArgs = @('agent', 'start', $agentName, '--kind', $agentKind, '--pane', $PaneId)
     if ($agentArgs.Count -gt 0) {
         $startArgs += @('--') + $agentArgs
