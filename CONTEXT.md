@@ -56,7 +56,7 @@ A small colored rectangle rendered after the Ticket Number on kanban and Forest 
 Avoid: status rectangle, color badge, color dot
 
 Herdr Agent Status:
-The live state of the Herdr Agent associated with a Ticket, exactly as Herdr reports it: working, blocked, idle, done, or unknown. Herdr's done means idle with a result not yet seen in Herdr, not work completion, so it is rendered as a muted circle-dot rather than a completion check. Each status has its own icon. Shown as an icon after the Status Swatch on kanban and Forest View cards. Absent when the Ticket has no Herdr Agent.
+The live state of the Herdr Agent associated with a Ticket, exactly as Herdr reports it: working, blocked, idle, done, or unknown. Herdr's done means idle with a result not yet seen in Herdr, not work completion, so it is rendered as a muted circle-dot rather than a completion check. The icon mirrors Herdr's own state icons: a filled dot for working, blocked and done, a hollow dot for idle, and a middle dot for unknown, each in Herdr's status color. Shown as an icon after the Status Swatch on kanban and Forest View cards. Absent when the Ticket has no Herdr Agent.
 Avoid: agent state, terminal status
 
 Undefined Column:
@@ -201,8 +201,16 @@ A git worktree created from the project's main branch for an agent to work in is
 Avoid: sandbox, workspace
 
 Diff Review:
-A Ticket-scoped full-screen surface for inspecting changes in that Ticket's Agent Worktree and sending line-specific feedback to its Agent.
+A Ticket-scoped full-screen surface for inspecting changes in that Ticket's Agent Worktree and sending line-specific feedback to its Agent. It presents every changed file in a Continuous Diff and uses a File Tree for navigation.
 Avoid: project diff, git diff app, change viewer
+
+File Tree:
+The left-side Diff Review navigation that groups changed files under expandable and collapsible repository-relative directories. Selecting a file scrolls its section into view without hiding the other file sections.
+Avoid: flat file list, file picker
+
+Continuous Diff:
+The single vertical Diff Review document containing a section for every changed file in the selected Diff Scope. Its section order matches the File Tree, and scrolling moves directly across file boundaries.
+Avoid: selected-file diff, file-level view
 
 Review Selection:
 A contiguous range of lines within one file selected in a Diff Review as the subject of feedback to an Agent. It is made by dragging the line-number gutter, by selecting or clicking the code itself, and always covers whole lines even when only part of a line is selected. It refers to the content shown when the selection was made. Disconnected ranges or ranges in different files are separate Review Selections.
@@ -217,7 +225,7 @@ Feedback submitted from a Diff Review to the Ticket's Herdr Agent. It carries a 
 Avoid: comment, annotation, message
 
 Review Prompt Queue:
-The ordered pending Review Prompts for one Ticket. It delivers one prompt at a time when a Herdr Agent exists for the Ticket and Herdr reports that Agent as idle or done. When the Ticket has no Agent at all, it starts one from the Ticket column's chosen launcher profile with that prompt as the Agent's initial prompt, rather than waiting for the user to start one. It is shown inside the feedback editor, above that editor's own content, and is not visible while the editor is closed. The Herdr Agent Status for the Ticket is shown in the Diff Review header, next to the action that opens the editor without a Review Selection. It survives app restarts and is removed with either the Ticket or its Agent Worktree.
+The ordered pending Review Prompts for one Ticket. It delivers one prompt at a time when a Herdr Agent exists for the Ticket and Herdr reports that Agent as idle or done. Queue reconciliation is project-scoped and separate from the read-only Herdr Agent Status query. A delivered prompt remains at the head until a later Agent report establishes completion; if that Agent disappears, the prompt becomes retryable instead of blocking the queue or being assumed complete. When the Ticket has no Agent at all it delivers nothing on its own, because starting an Agent opens a terminal on the user's machine. Sending a Review Prompt and retrying one are the moments the user asks for it to move, so each is one server operation that starts an Agent from the Ticket column's chosen launcher profile with the queue head as that Agent's initial prompt when a profile is configured and the Ticket has no Agent. Without a configured profile, the prompt remains queued for a Herdr Agent. Every Agent start is reserved durably before launch so concurrent requests and app restarts cannot start it twice. It is shown inside the feedback editor, above that editor's own content, and is not visible while the editor is closed. The Herdr Agent Status for the Ticket is shown in the Diff Review header, next to the action that opens the editor without a Review Selection. It survives app restarts and is removed with either the Ticket or its Agent Worktree.
 Avoid: comment queue, feedback backlog, batch
 
 Confirmed Turn Completion:
@@ -265,7 +273,7 @@ The durable record of reviewed changed lines for one Ticket's Agent Worktree. A 
 Avoid: review cache, diff cache
 
 Next Change:
-A user action that scrolls the Diff Review to the first changed line that is not reviewed yet, switching files and wrapping around the Diff Scope as needed. Arriving at a line makes it reviewed, so repeated use walks the whole Diff Scope once. Its counter shows how many Review Hunks still hold an unreviewed line.
+A user action that scrolls the Continuous Diff to the first changed line that is not reviewed yet, moving between file sections and wrapping around the Diff Scope as needed. Arriving at a line makes it reviewed, so repeated use walks the whole Diff Scope once. Its counter shows how many Review Hunks still hold an unreviewed line.
 Avoid: next hunk, next diff, skip
 
 Refresh:

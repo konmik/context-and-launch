@@ -40,6 +40,40 @@ if (Test-Path $configPath) {
 
 $url = "http://localhost:$port"
 
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$logDir = Join-Path $env:TEMP "context-launch"
+New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+
+$serverProcessFile = Join-Path $logDir "server-$port.process"
+
+if (Test-Path $serverProcessFile) {
+    $recorded = (Get-Content $serverProcessFile -Raw).Trim() -split '\s+'
+    if ($recorded.Count -ne 2) {
+        throw "$serverProcessFile is not a pid and a port. Delete it after confirming port $port is free."
+    } else {
+        $previousPid = [int]$recorded[0]
+        $previousPort = [int]$recorded[1]
+        $owningPid = Get-NetTCPConnection -LocalPort $previousPort -State Listen -ErrorAction SilentlyContinue |
+            Select-Object -First 1 -ExpandProperty OwningProcess
+        if ($owningPid -eq $previousPid) {
+            Write-Host "Stopping the previous server on port $previousPort (process $previousPid)."
+            Stop-Process -Id $previousPid -Force -ErrorAction SilentlyContinue
+            $deadline = (Get-Date).AddSeconds(5)
+            while (
+                (Get-Date) -lt $deadline -and
+                (Get-Process -Id $previousPid -ErrorAction SilentlyContinue)
+            ) {
+                Start-Sleep -Milliseconds 100
+            }
+            if (Get-Process -Id $previousPid -ErrorAction SilentlyContinue) {
+                throw "Process $previousPid did not stop. Cannot safely clear .output."
+            }
+        } elseif ($owningPid) {
+            throw "Port $previousPort belongs to process $owningPid, not recorded process $previousPid. Cannot safely clear .output."
+        }
+    }
+}
+
 # Check if port already in use
 $portInUse = $false
 try {
@@ -51,7 +85,6 @@ try {
 
 if (-not $portInUse) {
     # Install dependencies if needed
-    $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
     Push-Location $scriptDir
 
     if (-not (Test-Path "node_modules")) {
@@ -65,15 +98,13 @@ if (-not $portInUse) {
         }
     }
 
-    # Build if needed: missing .output or any source file newer than the built entry.
     function Test-OutputStale {
         $marker = ".output/server/index.mjs"
         if (-not (Test-Path $marker)) { return $true }
         $markerTime = (Get-Item $marker).LastWriteTime
-        $sources = @("src", "public", "app.config.ts", "package.json", "package-lock.json")
-        foreach ($s in $sources) {
-            if (-not (Test-Path $s)) { continue }
-            $newer = Get-ChildItem -Path $s -Recurse -File -ErrorAction SilentlyContinue |
+        foreach ($sourcePath in @("src", "public", "app.config.ts", "package.json", "package-lock.json")) {
+            if (-not (Test-Path $sourcePath)) { continue }
+            $newer = Get-ChildItem -Path $sourcePath -Recurse -File -ErrorAction SilentlyContinue |
                 Where-Object { $_.LastWriteTime -gt $markerTime } |
                 Select-Object -First 1
             if ($newer) { return $true }
@@ -87,13 +118,12 @@ if (-not $portInUse) {
     } elseif (Test-OutputStale) {
         $buildReason = "stale"
     }
-
     if ($buildReason) {
-        if ($buildReason -eq "stale") {
-            Write-Host "Source files are newer than .output, rebuilding..."
+        Write-Host $(if ($buildReason -eq "stale") {
+            "Source files are newer than .output, rebuilding..."
         } else {
-            Write-Host "Building application..."
-        }
+            "Building application..."
+        })
         if ($env:RUN_SH_DRY_RUN -eq "1") {
             Write-Host "DRY_RUN: BUILD=yes REASON=$buildReason"
             Pop-Location
@@ -112,11 +142,11 @@ if (-not $portInUse) {
         exit 0
     }
 
-    # Start server hidden
+    # Start server hidden. The built entry only exports a request handler and
+    # binds nothing, so scripts/serve.mjs is what opens the port.
     Write-Host "Starting server on port $port..."
     $env:PORT = $port
-    $logDir = Join-Path $env:TEMP "context-launch"
-    New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+    $env:CONTEXT_LAUNCH_SERVER_PROCESS_FILE = $serverProcessFile
     $outLog = Join-Path $logDir "server-out.log"
     $errLog = Join-Path $logDir "server-err.log"
     $proc = Start-Process -PassThru -WindowStyle Hidden -FilePath "node" `
@@ -141,7 +171,9 @@ if (-not $portInUse) {
     while ($attempts -lt $maxAttempts) {
         Start-Sleep -Milliseconds 500
         try {
-            $conn = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
+            $conn = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue |
+                Where-Object { $_.OwningProcess -eq $proc.Id } |
+                Select-Object -First 1
             if ($conn) { $listening = $true; break }
         } catch {
             Write-Verbose "Port poll attempt ${attempts}: $_"
@@ -157,6 +189,8 @@ if (-not $portInUse) {
     }
 
     Pop-Location
+} else {
+    throw "Port $port is already in use by an untracked process. Cannot safely clear .output or rebuild."
 }
 
 # Open browser in app mode
@@ -178,7 +212,7 @@ $browserPaths = @{
 function Open-BrowserApp($browserName, $appUrl) {
     # If the browser value is a direct path to an executable, use it
     if (Test-Path $browserName) {
-        Start-Process -FilePath $browserName -ArgumentList "--app=$appUrl"
+        Start-Process -FilePath $browserName -ArgumentList "--guest", "--app=$appUrl"
         return $true
     }
     # Otherwise look up known browser locations
@@ -186,7 +220,7 @@ function Open-BrowserApp($browserName, $appUrl) {
     if (-not $paths) { return $false }
     foreach ($p in $paths) {
         if (Test-Path $p) {
-            Start-Process -FilePath $p -ArgumentList "--app=$appUrl"
+            Start-Process -FilePath $p -ArgumentList "--guest", "--app=$appUrl"
             return $true
         }
     }

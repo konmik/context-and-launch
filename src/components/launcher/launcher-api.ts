@@ -54,6 +54,16 @@ export function cacheMergedLauncherConfig(
   query.set(getMergedLauncherConfig.keyFor(projectSlug), config);
 }
 
+export async function saveAndCacheColumnDefaults(
+  projectSlug: string,
+  column: string,
+  patch: Parameters<typeof saveColumnDefaults>[2],
+) {
+  const result = await saveColumnDefaults(projectSlug, column, patch);
+  if (result.ok) cacheMergedLauncherConfig(projectSlug, result.config);
+  return result;
+}
+
 export async function saveColumnDefaults(
   projectSlug: string, column: string,
   patch: {

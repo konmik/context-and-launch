@@ -72,6 +72,31 @@ describe("Diff Review model", () => {
 		expect(reviewSelectionStillExists(changed, snapshot)).toBe(false);
 	});
 
+	it("marks a changed occurrence stale when identical selected text remains elsewhere", () => {
+		const original = buildReviewFile({
+			path: "src/example.ts",
+			changeType: "modified",
+			oldContents: "before first\nold\nafter first\nbefore second\nold\nafter second",
+			newContents: "before first\nselected\nafter first\nbefore second\nselected\nafter second",
+			byteSize: 72,
+		});
+		const snapshot = buildReviewPromptSnapshot(
+			original,
+			{ start: 2, end: 2, side: "additions" },
+			"working",
+			"revision-1",
+		);
+		const changed = buildReviewFile({
+			path: "src/example.ts",
+			changeType: "modified",
+			oldContents: "before first\nold\nafter first\nbefore second\nold\nafter second",
+			newContents: "before first\ndifferent\nafter first\nbefore second\nselected\nafter second",
+			byteSize: 73,
+		});
+
+		expect(reviewSelectionStillExists(changed, snapshot)).toBe(false);
+	});
+
 	it("does not truncate large text diffs and keeps binary files non-selectable", () => {
 		const large = buildReviewFile({
 			path: "generated.txt",
@@ -91,5 +116,27 @@ describe("Diff Review model", () => {
 		});
 		expect(binary.binary).toBe(true);
 		expect(binary.lines).toEqual([]);
+	});
+
+	it("treats line-ending differences between the two sides as noise", () => {
+		const text = numberedLines(20);
+		const oldContents = text.replace(/\n/g, "\r\n");
+		const newContents = text.replace("line 5", "changed five");
+
+		const file = buildReviewFile({
+			path: "src/example.ts",
+			changeType: "modified",
+			oldContents,
+			newContents,
+			byteSize: Buffer.byteLength(newContents),
+		});
+
+		expect(file.hunks).toHaveLength(1);
+		expect(file.additions).toBe(1);
+		expect(file.deletions).toBe(1);
+		expect(file.lines.filter((line) => line.type === "addition")).toEqual([
+			expect.objectContaining({ newLineNumber: 5, text: "changed five" }),
+		]);
+		expect(file.lines.some((line) => line.text.includes("\r"))).toBe(false);
 	});
 });

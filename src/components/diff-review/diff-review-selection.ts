@@ -58,7 +58,11 @@ export function selectedNodes(
 	const shadowRoots = root instanceof ShadowRoot ? [root] : [];
 	if (documentSelection && isComposedRangeSelection(documentSelection)) {
 		const [range] = documentSelection.getComposedRanges({ shadowRoots });
-		if (range && root.contains(lineElementAt(range.startContainer) ?? range.startContainer)) {
+		if (
+			range
+			&& root.contains(lineElementAt(range.startContainer) ?? range.startContainer)
+			&& root.contains(lineElementAt(range.endContainer) ?? range.endContainer)
+		) {
 			return { start: range.startContainer, end: range.endContainer };
 		}
 	}
@@ -68,6 +72,10 @@ export function selectedNodes(
 	const anchorNode = rootSelection?.anchorNode;
 	const focusNode = rootSelection?.focusNode;
 	if (!anchorNode || !focusNode) return undefined;
+	if (
+		!root.contains(lineElementAt(anchorNode) ?? anchorNode)
+		|| !root.contains(lineElementAt(focusNode) ?? focusNode)
+	) return undefined;
 	return { start: anchorNode, end: focusNode };
 }
 

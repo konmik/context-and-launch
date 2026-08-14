@@ -816,6 +816,58 @@ textarea.input { display: block; height: auto; }
 	background: var(--settings-card-bg, transparent);
 }
 
+/* indeterminate progress bar for work with no known duration */
+.progress-indeterminate {
+	position: relative;
+	overflow: hidden;
+	height: 2px;
+	border-radius: 9999px;
+	background: color-mix(in oklch, var(--primary), transparent 80%);
+}
+.progress-indeterminate::after {
+	content: "";
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 40%;
+	border-radius: inherit;
+	background: var(--primary);
+	animation: progress-indeterminate-slide 1.2s ease-in-out infinite;
+}
+@keyframes progress-indeterminate-slide {
+	0% { transform: translateX(-100%); }
+	100% { transform: translateX(250%); }
+}
+@media (prefers-reduced-motion: reduce) {
+	.progress-indeterminate::after { width: 100%; animation: none; }
+}
+
 .solid-flow__edge-interaction { vector-effect: non-scaling-stroke; }
 .solid-flow__pane.draggable:not(.dragging) { cursor: default; }
 .solid-flow .solid-flow__nodes { z-index: 1; }
+
+/* Vertical reveal motion for queue items and composer notifications */
+.vertical-reveal-body {
+	display: grid;
+	grid-template-rows: 1fr;
+}
+.vertical-reveal-body > * {
+	min-height: 0;
+	overflow: hidden;
+}
+.vertical-reveal-enter {
+	animation: vertical-reveal-open 160ms ease-out;
+}
+.vertical-reveal-leave {
+	animation: vertical-reveal-close 160ms ease-in forwards;
+}
+@keyframes vertical-reveal-open {
+	from { grid-template-rows: 0fr; opacity: 0; margin-block: 0; }
+}
+@keyframes vertical-reveal-close {
+	to { grid-template-rows: 0fr; opacity: 0; margin-block: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.vertical-reveal-enter,
+	.vertical-reveal-leave { animation: none; }
+}

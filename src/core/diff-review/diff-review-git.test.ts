@@ -17,6 +17,7 @@ async function createRepository(): Promise<string> {
 	await git(repoDir, "init", "-b", "main");
 	await git(repoDir, "config", "user.email", "test@example.com");
 	await git(repoDir, "config", "user.name", "Test");
+	await git(repoDir, "config", "core.autocrlf", "false");
 	fs.writeFileSync(path.join(repoDir, "tracked.txt"), "base\n");
 	await git(repoDir, "add", "tracked.txt");
 	await git(repoDir, "commit", "-m", "base");
@@ -69,6 +70,74 @@ describe("DiffReviewGitService", () => {
 			.toBe("working\n");
 		const committed = await service.loadSnapshot(target, "last-commit");
 		expect(committed.files.some((file) => file.path === "after-commit.txt")).toBe(false);
+	});
+
+	it("compares base revisions in the working tree line-ending representation", async () => {
+		const repoDir = makeTempDir("diff-review-eol-");
+		dirs.push(repoDir);
+		await git(repoDir, "init", "-b", "main");
+		await git(repoDir, "config", "user.email", "test@example.com");
+		await git(repoDir, "config", "user.name", "Test");
+		await git(repoDir, "config", "core.autocrlf", "false");
+		fs.writeFileSync(path.join(repoDir, ".gitattributes"), "*.txt text eol=crlf\n");
+		fs.writeFileSync(path.join(repoDir, "tracked.txt"), "one\r\ntwo\r\nthree\r\n");
+		await git(repoDir, "add", "-A");
+		await git(repoDir, "commit", "-m", "base");
+		await git(repoDir, "checkout", "-b", "feature");
+		fs.writeFileSync(path.join(repoDir, "tracked.txt"), "one\r\ntwo changed\r\nthree\r\n");
+		await git(repoDir, "add", "-A");
+		await git(repoDir, "commit", "-m", "feature");
+
+		const service = new DiffReviewGitService(createTestCommandTemplateService());
+		const snapshot = await service.loadSnapshot({
+			worktreePath: repoDir,
+			worktreeIdentity: "worktree",
+			mainBranch: "main",
+		}, "all");
+		const file = snapshot.files.find((entry) => entry.path === "tracked.txt");
+		expect(file?.additions).toBe(1);
+		expect(file?.deletions).toBe(1);
+	});
+
+	it("does not show a whole CRLF file as rewritten when the working tree drops its carriage returns", async () => {
+		const repoDir = makeTempDir("diff-review-eol-mixed-");
+		dirs.push(repoDir);
+		await git(repoDir, "init", "-b", "main");
+		await git(repoDir, "config", "user.email", "test@example.com");
+		await git(repoDir, "config", "user.name", "Test");
+		await git(repoDir, "config", "core.autocrlf", "false");
+		fs.writeFileSync(path.join(repoDir, ".gitattributes"), "*.txt text eol=crlf\n");
+		fs.writeFileSync(path.join(repoDir, "tracked.txt"), "one\r\ntwo\r\nthree\r\n");
+		await git(repoDir, "add", "-A");
+		await git(repoDir, "commit", "-m", "base");
+		await git(repoDir, "checkout", "-b", "feature");
+		fs.writeFileSync(path.join(repoDir, "tracked.txt"), "one\ntwo changed\nthree\n");
+
+		const service = new DiffReviewGitService(createTestCommandTemplateService());
+		const snapshot = await service.loadSnapshot({
+			worktreePath: repoDir,
+			worktreeIdentity: "worktree",
+			mainBranch: "main",
+		}, "working");
+		const file = snapshot.files.find((entry) => entry.path === "tracked.txt");
+		expect(file?.additions).toBe(1);
+		expect(file?.deletions).toBe(1);
+		expect(file?.lines.some((line) => line.text.includes("\r"))).toBe(false);
+	});
+
+	it("keeps invalid UTF-8 assets non-selectable without requiring a NUL byte", async () => {
+		const repoDir = await createRepository();
+		fs.writeFileSync(path.join(repoDir, "asset.bin"), Buffer.from([0xff, 0xfe, 0xfd, 0xfc]));
+		const service = new DiffReviewGitService(createTestCommandTemplateService());
+
+		const snapshot = await service.loadSnapshot({
+			worktreePath: repoDir,
+			worktreeIdentity: "worktree",
+			mainBranch: "main",
+		}, "working");
+
+		expect(snapshot.files[0].binary).toBe(true);
+		expect(snapshot.files[0].lines).toEqual([]);
 	});
 
 	it("reports a missing configured main branch instead of substituting a scope", async () => {

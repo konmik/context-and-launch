@@ -54,6 +54,11 @@ export async function waitHidden(
   await waitForState(page, id, attrs, "hidden");
 }
 
+/** Waits on an already-built locator, for targets a test id alone cannot express. */
+export async function waitLocatorVisible(locator: Locator): Promise<void> {
+  await locator.first().waitFor({ state: "visible", timeout: WAIT_TIMEOUT_MS });
+}
+
 export function countOf(
   page: Page, id: string, attrs: TestIdAttributes = {},
 ): Promise<number> {

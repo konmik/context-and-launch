@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { isUtf8 } from "node:buffer";
 import type { CommandTemplateExecutor } from "../command-template/command-template-types.js";
 import { mapConcurrent } from "../shared/concurrency.js";
 import {
@@ -87,7 +88,7 @@ function readWorkingFile(worktreePath: string, filePath: string): Buffer {
 }
 
 function isBinary(contents: Buffer): boolean {
-	return contents.includes(0);
+	return contents.includes(0) || !isUtf8(contents);
 }
 
 function revisionFor(head: string, files: ReviewFileSnapshot[]): string {

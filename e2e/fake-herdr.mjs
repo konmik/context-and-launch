@@ -30,8 +30,23 @@ if (command === "workspace" && subcommand === "list") {
 } else if (command === "pane" && subcommand === "run") {
   const [paneId, ...promptParts] = rest;
   state.delivered.push({ paneId, prompt: promptParts.join(" ") });
+  // A real agent starts working on the prompt it was just handed, and the test
+  // decides when it reports back as idle.
+  for (const agent of state.agents) {
+    if (agent.pane_id === paneId) agent.agent_status = "working";
+  }
   writeState(state);
   console.log(JSON.stringify({ result: {} }));
+} else if (command === "agent" && subcommand === "prompt") {
+  const [paneId, ...promptParts] = rest;
+  state.delivered.push({ paneId, prompt: promptParts.join(" ") });
+  // Submitting a prompt through the agent surface starts the agent working on
+  // it, just like pane run, and the test decides when it reports back idle.
+  for (const agent of state.agents) {
+    if (agent.pane_id === paneId) agent.agent_status = "working";
+  }
+  writeState(state);
+  console.log(JSON.stringify({ result: { agent: { agent_status: "working" } } }));
 } else {
   console.error(`fake-herdr received an unsupported command: ${process.argv.slice(2).join(" ")}`);
   process.exit(1);

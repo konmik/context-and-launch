@@ -1,6 +1,7 @@
 export type DiffScope = "all" | "branch" | "working" | "last-commit";
 export type ReviewPace = "live" | "step-by-step";
 export type DiffLayout = "split" | "unified";
+export type DiffLineOverflow = "scroll" | "wrap";
 export type ReviewLineSide = "deletions" | "additions";
 
 export interface ReviewLineRange {
@@ -85,22 +86,25 @@ export interface ReviewPromptSnapshot {
 	sourceRevision: string;
 }
 
-export type ReviewPromptQueueState = "waiting" | "delivering" | "sent" | "error";
-
-export interface ReviewPromptQueueItem {
+interface ReviewPromptQueueItemBase {
 	id: string;
 	createdAt: string;
 	feedback: string;
 	snapshot?: ReviewPromptSnapshot;
-	state: ReviewPromptQueueState;
-	error?: string;
-	deliveryStartedAt?: string;
-	sentAt?: string;
 }
+
+export type ReviewPromptQueueItem = ReviewPromptQueueItemBase & (
+	| { state: "waiting" }
+	| { state: "delivering"; deliveryStartedAt: string }
+	| { state: "sent"; sentAt: string }
+	| { state: "error"; error: string }
+	| { state: "uncertain"; error: string }
+);
 
 export interface ReviewPromptQueue {
 	items: ReviewPromptQueueItem[];
 	cooldownUntil?: string;
+	agentLaunchReservedUntil?: string;
 }
 
 export interface DiffReviewTicketState {

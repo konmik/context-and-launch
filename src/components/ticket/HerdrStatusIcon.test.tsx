@@ -11,53 +11,42 @@ function iconRoot(container: HTMLElement) {
   return container.querySelector('[data-testid="herdr-status-icon"]') as HTMLElement;
 }
 
+function expectGlyph(
+  container: HTMLElement, status: HerdrAgentStatus, glyph: string, color: string,
+) {
+  const icon = iconRoot(container);
+  expect(icon.getAttribute("data-herdr-status")).toBe(status);
+  expect(icon.getAttribute("title")).toBe(status);
+  const renderedGlyph = icon.firstElementChild as HTMLElement;
+  expect(renderedGlyph.textContent).toBe(glyph);
+  expect(renderedGlyph.style.color).toBe(color);
+}
+
 describe("HerdrStatusIcon", () => {
   afterEach(() => cleanup());
 
-  it("renders the working state as herdr's braille spinner in the herdr yellow", () => {
+  it("renders the working state as herdr's filled dot in the herdr yellow", () => {
     const { container } = renderIcon("working");
-    const icon = iconRoot(container);
-    expect(icon.getAttribute("data-herdr-status")).toBe("working");
-    expect(icon.getAttribute("title")).toBe("working");
-    const spinner = icon.querySelector('[data-testid="herdr-classic-spinner"]') as HTMLElement;
-    expect(spinner).toBeTruthy();
-    expect(spinner.style.color).toBe("rgb(249, 226, 175)");
-    expect(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]).toContain(spinner.textContent);
+    expectGlyph(container, "working", "●", "rgb(249, 226, 175)");
   });
 
-  it("renders the blocked glyph as herdr's filled ring in the herdr red", () => {
+  it("renders the blocked state as herdr's filled dot in the herdr red", () => {
     const { container } = renderIcon("blocked");
-    const icon = iconRoot(container);
-    expect(icon.getAttribute("data-herdr-status")).toBe("blocked");
-    const glyph = icon.firstElementChild as HTMLElement;
-    expect(glyph.textContent).toBe("◉");
-    expect(glyph.style.color).toBe("rgb(243, 139, 168)");
+    expectGlyph(container, "blocked", "●", "rgb(243, 139, 168)");
   });
 
-  it("renders the idle glyph as herdr's check in the herdr green", () => {
+  it("renders the idle state as herdr's hollow dot in the herdr green", () => {
     const { container } = renderIcon("idle");
-    const icon = iconRoot(container);
-    expect(icon.getAttribute("data-herdr-status")).toBe("idle");
-    const glyph = icon.firstElementChild as HTMLElement;
-    expect(glyph.textContent).toBe("✓");
-    expect(glyph.style.color).toBe("rgb(166, 227, 161)");
+    expectGlyph(container, "idle", "○", "rgb(166, 227, 161)");
   });
 
-  it("renders the done glyph as herdr's filled dot in the herdr teal", () => {
+  it("renders the done state as herdr's filled dot in the herdr teal", () => {
     const { container } = renderIcon("done");
-    const icon = iconRoot(container);
-    expect(icon.getAttribute("data-herdr-status")).toBe("done");
-    const glyph = icon.firstElementChild as HTMLElement;
-    expect(glyph.textContent).toBe("●");
-    expect(glyph.style.color).toBe("rgb(148, 226, 213)");
+    expectGlyph(container, "done", "●", "rgb(148, 226, 213)");
   });
 
-  it("renders the unknown glyph as herdr's hollow ring in the herdr overlay gray", () => {
+  it("renders the unknown state as herdr's middle dot in the herdr overlay gray", () => {
     const { container } = renderIcon("unknown");
-    const icon = iconRoot(container);
-    expect(icon.getAttribute("data-herdr-status")).toBe("unknown");
-    const glyph = icon.firstElementChild as HTMLElement;
-    expect(glyph.textContent).toBe("○");
-    expect(glyph.style.color).toBe("rgb(108, 112, 134)");
+    expectGlyph(container, "unknown", "·", "rgb(108, 112, 134)");
   });
 });

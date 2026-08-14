@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-	fetchHerdrTicketStatuses, ticketStatusesFromPanes,
+	fetchHerdrTicketState, fetchHerdrTicketStatuses, ticketStatusesFromPanes,
 } from './herdr-client.js';
 import type { HerdrExecFn } from './herdr-exec.js';
 import { ProcessError } from '../shared/errors.js';
@@ -50,6 +50,20 @@ describe('fetchHerdrTicketStatuses', () => {
 		});
 		await expect(fetchHerdrTicketStatuses('alpha', execReturning(agents)))
 			.resolves.toEqual({ 'st-47-herdr': 'frobnicating' });
+	});
+
+	it('returns only Agents from the project workspace', async () => {
+		const agents = JSON.stringify({
+			result: { agents: [
+				{ workspace_id: 'w1', pane_id: 'w1:p2', agent_status: 'idle' },
+				{ workspace_id: 'w2', pane_id: 'w2:p1', agent_status: 'working' },
+			] },
+		});
+
+		const state = await fetchHerdrTicketState('alpha', execReturning(agents));
+		expect(state.agents).toEqual([
+			{ workspace_id: 'w1', pane_id: 'w1:p2', agent_status: 'idle' },
+		]);
 	});
 
 	it('throws on non-JSON agent output', async () => {

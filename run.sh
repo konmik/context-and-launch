@@ -57,6 +57,36 @@ port_in_use() {
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# The server records its pid and port here when it starts. It serves the build it
+# loaded, so it is useless once anything is rebuilt: stop it before starting the
+# new one, while that record is still on disk.
+server_process_file="$script_dir/.output/server-process"
+
+stop_previous_server() {
+    [ -f "$server_process_file" ] || return 0
+    local previous_pid previous_port
+    read -r previous_pid previous_port < "$server_process_file"
+    [ -n "$previous_pid" ] && [ -n "$previous_port" ] || return 0
+    kill -0 "$previous_pid" 2>/dev/null || return 0
+
+    if command -v lsof >/dev/null 2>&1; then
+        local owning_pid
+        owning_pid=$(lsof -nP -iTCP:"$previous_port" -sTCP:LISTEN -t 2>/dev/null | head -1)
+        [ "$owning_pid" = "$previous_pid" ] || return 0
+    fi
+
+    echo "Stopping the previous server on port $previous_port (process $previous_pid)."
+    kill "$previous_pid" 2>/dev/null || true
+
+    local waited=0
+    while [ "$waited" -lt 50 ] && port_in_use "$previous_port"; do
+        sleep 0.1
+        waited=$((waited + 1))
+    done
+}
+
+stop_previous_server
+
 # Returns 0 (true) if .output is missing or older than any tracked source path.
 # Tracked sources: src/, app.config.ts, package.json, package-lock.json.
 output_is_stale() {
@@ -99,6 +129,8 @@ if ! port_in_use "$port"; then
     fi
 
     echo "Starting server on port $port..."
+    # The built entry only exports a request handler and binds nothing, so
+    # scripts/serve.mjs is what opens the port.
     server_log="${TMPDIR:-/tmp}/context-launch-server.log"
     PORT="$port" nohup node scripts/serve.mjs >"$server_log" 2>&1 &
     server_pid=$!
@@ -137,7 +169,7 @@ open_browser_app() {
     local app_url=$2
 
     if [ -x "$name" ]; then
-        "$name" --app="$app_url" >/dev/null 2>&1 &
+        "$name" --guest --app="$app_url" >/dev/null 2>&1 &
         disown || true
         return 0
     fi
@@ -160,7 +192,7 @@ open_browser_app() {
                     ;;
             esac
             if [ -n "$app_path" ] && [ -x "$app_path" ]; then
-                "$app_path" --app="$app_url" >/dev/null 2>&1 &
+                "$app_path" --guest --app="$app_url" >/dev/null 2>&1 &
                 disown || true
                 return 0
             fi
@@ -174,7 +206,7 @@ open_browser_app() {
                 brave) bin="brave-browser" ;;
             esac
             if [ -n "$bin" ] && command -v "$bin" >/dev/null 2>&1; then
-                "$bin" --app="$app_url" >/dev/null 2>&1 &
+                "$bin" --guest --app="$app_url" >/dev/null 2>&1 &
                 disown || true
                 return 0
             fi

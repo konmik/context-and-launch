@@ -24,6 +24,17 @@ function canonicalize(p: string): string {
 	}
 }
 
+function pathsReferToSameEntry(left: string, right: string): boolean {
+	if (canonicalize(left) === canonicalize(right)) return true;
+	try {
+		const leftStat = fs.statSync(left);
+		const rightStat = fs.statSync(right);
+		return leftStat.dev === rightStat.dev && leftStat.ino === rightStat.ino;
+	} catch {
+		return false;
+	}
+}
+
 export interface LockingProcessInfo {
 	pid: number;
 	processName: string;
@@ -120,12 +131,11 @@ export class AgentWorktreeManager {
 		const mainBranch = await this.getMainBranch(projectPath, configuredBranch);
 
 		const worktreeListOutput = await this.commands.execute('agent-worktree.list', projectPath);
-		const normalizedTarget = canonicalize(worktreePath);
 		const alreadyExists = worktreeListOutput
 			.split('\n')
 			.some(line =>
 				line.startsWith('worktree ') &&
-				canonicalize(line.slice('worktree '.length).trim()) === normalizedTarget
+				pathsReferToSameEntry(line.slice('worktree '.length).trim(), worktreePath)
 			);
 
 		// Reusing an existing worktree does not touch main, so main's state is irrelevant.
@@ -270,7 +280,7 @@ export class AgentWorktreeManager {
 	): Promise<void> {
 		await this.commands.execute('agent-worktree.prune', projectPath);
 		const existing = await this.worktreePathForBranch(projectPath, branchName);
-		if (existing && canonicalize(existing) !== canonicalize(targetWorktreePath)) {
+		if (existing && !pathsReferToSameEntry(existing, targetWorktreePath)) {
 			throw new Error(
 				`Branch '${branchName}' is already checked out at ${existing}.`
 				+ ` Remove that worktree first (git worktree remove "${existing}").`,

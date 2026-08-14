@@ -1,6 +1,7 @@
-import { FileDiff, type SelectedLineRange } from "@pierre/diffs";
+import type { SelectedLineRange } from "@pierre/diffs";
 import { revalidate } from "@solidjs/router";
 import {
+	type Accessor,
 	ErrorBoundary,
 	For,
 	Show,
@@ -11,34 +12,30 @@ import {
 	onCleanup,
 	onMount,
 } from "solid-js";
-import { Portal } from "solid-js/web";
 import AlertTriangle from "lucide-solid/icons/triangle-alert";
 import ArrowDownToLine from "lucide-solid/icons/arrow-down-to-line";
 import Check from "lucide-solid/icons/check";
 import ChevronDown from "lucide-solid/icons/chevron-down";
+import ChevronRight from "lucide-solid/icons/chevron-right";
 import CircleQuestionMark from "lucide-solid/icons/circle-question-mark";
 import FileCode2 from "lucide-solid/icons/file-code-2";
 import FileWarning from "lucide-solid/icons/file-warning";
+import FolderOpen from "lucide-solid/icons/folder-open";
 import GitCompareArrows from "lucide-solid/icons/git-compare-arrows";
-import GripVertical from "lucide-solid/icons/grip-vertical";
 import LoaderCircle from "lucide-solid/icons/loader-circle";
 import Pause from "lucide-solid/icons/pause";
 import Play from "lucide-solid/icons/play";
 import RefreshCw from "lucide-solid/icons/refresh-cw";
-import RotateCcw from "lucide-solid/icons/rotate-ccw";
 import Send from "lucide-solid/icons/send";
+import WrapText from "lucide-solid/icons/wrap-text";
 import X from "lucide-solid/icons/x";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type {
 	DiffLayout,
+	DiffLineOverflow,
 	DiffScope,
 	ReviewFileSnapshot,
-	ReviewLineRange,
-	ReviewLineSide,
 	ReviewPace,
-	ReviewPromptQueueItem,
-	ReviewPromptSnapshot,
-	ReviewSnapshot,
 } from "~/core/diff-review/diff-review-types.js";
 import {
 	buildReviewPromptSnapshot,
@@ -55,18 +52,27 @@ import {
 import { createNonSuspendingAsync } from "~/lib/create-non-suspending-async.js";
 import { useHerdrStatuses } from "../ticket/herdr-statuses-context.js";
 import {
-	isGutterPath,
-	reviewLineRangeBetween,
-	reviewLineRangeFromSelection,
-} from "./diff-review-selection.js";
+	getMergedLauncherConfig,
+	saveAndCacheColumnDefaults,
+} from "../launcher/launcher-api.js";
 import {
 	enqueueReviewPrompt,
 	getReviewPromptQueue,
-	getReviewScopes,
 	getReviewSnapshot,
+	launchReviewAgent,
 	markReviewLinesReviewed,
+	removeReviewPrompt,
 	retryReviewPrompt,
 } from "./diff-review-api.js";
+import {
+	buildDiffReviewFileTree,
+	diffReviewFilePathsInTreeOrder,
+	type DiffReviewFileTreeNode,
+} from "./diff-review-file-tree.js";
+import { buildFileTypeTotals } from "./diff-review-file-type-totals.js";
+import { createReviewedLineTracker } from "./create-reviewed-line-tracker.js";
+import DiffSurface from "./DiffSurface.js";
+import ReviewPromptComposer, { type ActiveSelection } from "./ReviewPromptComposer.js";
 
 const SCOPE_LABELS: Record<DiffScope, string> = {
 	all: "All Changes",
@@ -75,24 +81,14 @@ const SCOPE_LABELS: Record<DiffScope, string> = {
 	"last-commit": "Last Commit Changes",
 };
 
-type FileReviewStatus = "unreviewed" | "reviewed";
+const TREE_WIDTH_DEFAULT = 270;
+const TREE_WIDTH_MIN = 180;
+const TREE_WIDTH_MAX = 480;
 
-interface ActiveSelection {
-	range: ReviewLineRange;
-	snapshot: ReviewPromptSnapshot;
-}
+type FileReviewStatus = "unreviewed" | "reviewed";
 
 interface ActiveComposer {
 	selection?: ActiveSelection;
-}
-
-function fileName(filePath: string): string {
-	return filePath.split("/").at(-1) ?? filePath;
-}
-
-function fileDirectory(filePath: string): string {
-	const parts = filePath.split("/");
-	return parts.slice(0, -1).join("/");
 }
 
 function formatBytes(value: number): string {
@@ -101,48 +97,15 @@ function formatBytes(value: number): string {
 	return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function changedLineKey(side: "deletions" | "additions", lineNumber: number): string {
-	return `${side === "deletions" ? "d" : "a"}:${lineNumber}`;
-}
-
-function changedLineText(file: ReviewFileSnapshot): Map<string, string> {
-	const result = new Map<string, string>();
-	for (const line of file.lines) {
-		if (line.type === "addition" && line.newLineNumber !== undefined) {
-			result.set(changedLineKey("additions", line.newLineNumber), line.text);
-		}
-		if (line.type === "deletion" && line.oldLineNumber !== undefined) {
-			result.set(changedLineKey("deletions", line.oldLineNumber), line.text);
-		}
-	}
-	return result;
-}
-
-function setPromptDragData(
-	event: DragEvent,
-	text: string,
-	onError: (message: string) => void,
-) {
-	if (!event.dataTransfer) {
-		onError("The drag carried no data, so the Review Prompt was not attached to it.");
-		return;
-	}
-	// Chromium seeds a selection drag with text/html as well, so the markup has to
-	// go before the prompt is attached or rich-text targets paste the diff instead.
-	event.dataTransfer.clearData();
-	event.dataTransfer.effectAllowed = "copy";
-	event.dataTransfer.setData("text/plain", text);
-}
-
-function selectionLabel(selection: ActiveSelection): string {
-	const snapshot = selection.snapshot;
-	const oldRange = snapshot.oldRange
-		? `old ${snapshot.oldRange.start}-${snapshot.oldRange.end}`
-		: "";
-	const newRange = snapshot.newRange
-		? `new ${snapshot.newRange.start}-${snapshot.newRange.end}`
-		: "";
-	return `${snapshot.filePath} · ${[oldRange, newRange].filter(Boolean).join(" · ")}`;
+function reuseFilePaths(
+	previous: string[],
+	files: ReviewFileSnapshot[],
+): string[] {
+	const current = files.map((file) => file.path);
+	return current.length === previous.length
+		&& current.every((filePath, index) => filePath === previous[index])
+		? previous
+		: current;
 }
 
 function ReviewStateIcon(props: { status: FileReviewStatus }) {
@@ -158,560 +121,176 @@ function ReviewStateIcon(props: { status: FileReviewStatus }) {
 	);
 }
 
-function DiffSurface(props: {
-	file: ReviewFileSnapshot;
-	layout: DiffLayout;
-	selection?: ReviewLineRange;
-	jumpTarget?: ReviewChangeLocation;
-	scrollRoot: () => HTMLElement | undefined;
-	onSelect(range: SelectedLineRange | null): void;
-	onJumpApplied(): void;
-	onChangedLineVisible(lineId: string): void;
-	onError(message: string): void;
-	dragText(): string | undefined;
+function FileTreeNodes(props: {
+	nodes: DiffReviewFileTreeNode[];
+	activePath: string;
+	collapsedDirectoryPaths: ReadonlySet<string>;
+	fileForPath(filePath: string): ReviewFileSnapshot | undefined;
+	statusFor(file: ReviewFileSnapshot): FileReviewStatus;
+	onToggleDirectory(directoryPath: string): void;
+	onSelect(filePath: string): void;
 }) {
-	let hostRef: HTMLDivElement | undefined;
-	let diff: FileDiff | undefined;
-	let observer: IntersectionObserver | undefined;
-	let previousLines: Map<string, string> | undefined;
-	let previousPath: string | undefined;
-	let surfaceRoot: ParentNode | undefined;
-	let renderedIdentity: string | undefined;
-	let pointerStartedOnGutter = false;
-	let pointerStartedInside = false;
-	let pendingRender = false;
-
-	function changedRow(side: ReviewLineSide, lineNumber: number): HTMLElement | undefined {
-		if (!surfaceRoot) return undefined;
-		const lineType = side === "deletions" ? "change-deletion" : "change-addition";
-		const column = surfaceRoot.querySelector(
-			side === "deletions"
-				? "[data-code][data-deletions]"
-				: "[data-code][data-additions]",
-		) ?? surfaceRoot;
-		return column.querySelector<HTMLElement>(
-			`[data-line="${lineNumber}"][data-line-type="${lineType}"]`,
-		) ?? surfaceRoot.querySelector<HTMLElement>(
-			`[data-line="${lineNumber}"][data-line-type="${lineType}"]`,
-		) ?? undefined;
-	}
-
-	function applyJump() {
-		const target = props.jumpTarget;
-		if (!target || target.filePath !== props.file.path) return;
-		const row = changedRow(target.side, target.lineNumber);
-		if (!row) return;
-		row.scrollIntoView({ block: "center", behavior: "smooth" });
-		props.onJumpApplied();
-	}
-
-	function handlePointerDown(event: PointerEvent) {
-		pointerStartedInside = true;
-		pointerStartedOnGutter = isGutterPath(event.composedPath());
-	}
-
-	// Dragging the highlighted rows is a native text-selection drag: Chromium
-	// fires dragstart with the raw selected text, and drag events cross the
-	// shadow boundary, so the host can swap in the full Review Prompt.
-	function handleDragStart(event: DragEvent) {
-		const text = props.dragText();
-		if (!text) return;
-		setPromptDragData(event, text, props.onError);
-	}
-
-	// A native drag swallows the pointerup, so the gesture has to be closed out
-	// here or renders stay deferred forever.
-	function handleDragEnd() {
-		pointerStartedInside = false;
-		pointerStartedOnGutter = false;
-		if (pendingRender) render();
-	}
-
-	function handleDocumentPointerUp(event: PointerEvent) {
-		if (!pointerStartedInside) return;
-		pointerStartedInside = false;
-		const ownedByLibrary = pointerStartedOnGutter;
-		const root = surfaceRoot;
-		const clickedLine = event.composedPath().find((node): node is HTMLElement =>
-			node instanceof HTMLElement && node.hasAttribute("data-line"));
-		queueMicrotask(() => {
-			if (!ownedByLibrary && root) {
-				const range = reviewLineRangeFromSelection(
-					root as ShadowRoot | HTMLElement,
-					document.getSelection(),
-				) ?? reviewLineRangeBetween(clickedLine, clickedLine);
-				props.onSelect(range ?? null);
-			}
-			if (pendingRender) render();
-		});
-	}
-
-	function observeLines(node: HTMLElement, blinkKeys: Set<string>) {
-		observer?.disconnect();
-		const root = node.shadowRoot ?? node;
-		surfaceRoot = root;
-		const rows = [...root.querySelectorAll<HTMLElement>(
-			'[data-line][data-line-type="change-addition"],'
-			+ '[data-line][data-line-type="change-deletion"]',
-		)];
-		const handleVisible = (row: HTMLElement) => {
-			const lineNumber = Number(row.dataset.line);
-			if (!Number.isFinite(lineNumber)) return;
-			const side = row.dataset.lineType === "change-deletion" ? "deletions" : "additions";
-			const key = changedLineKey(side, lineNumber);
-			const line = props.file.lines.find((candidate) =>
-				candidate.type === (side === "deletions" ? "deletion" : "addition")
-				&& (side === "deletions"
-					? candidate.oldLineNumber === lineNumber
-					: candidate.newLineNumber === lineNumber));
-			if (!line) return;
-			props.onChangedLineVisible(line.id);
-			if (blinkKeys.has(key)) {
-				row.dataset.reviewBlink = "";
-				setTimeout(() => delete row.dataset.reviewBlink, 900);
-			}
-		};
-		if (typeof IntersectionObserver === "undefined") {
-			for (const row of rows) handleVisible(row);
-			return;
-		}
-		observer = new IntersectionObserver((entries) => {
-			for (const entry of entries) {
-				if (entry.isIntersecting) handleVisible(entry.target as HTMLElement);
-			}
-		}, { root: props.scrollRoot() });
-		for (const row of rows) observer.observe(row);
-	}
-
-	function options(blinkKeys: Set<string>) {
-		return {
-			theme: { dark: "github-dark", light: "github-light" },
-			themeType: document.documentElement.classList.contains("dark")
-				? "dark" as const
-				: "light" as const,
-			diffStyle: props.layout,
-			diffIndicators: "bars" as const,
-			overflow: "scroll" as const,
-			hunkSeparators: "line-info-basic" as const,
-			lineDiffType: "word-alt" as const,
-			lineHoverHighlight: "both" as const,
-			enableLineSelection: true,
-			onLineSelectionEnd: props.onSelect,
-			onPostRender: (node: HTMLElement) => queueMicrotask(() => {
-				observeLines(node, blinkKeys);
-				applyJump();
-			}),
-			unsafeCSS: `:host {
-				--diffs-font-family: var(--font-mono);
-				--diffs-header-font-family: Inter, system-ui, sans-serif;
-				--diffs-font-size: 12px;
-				--diffs-line-height: 20px;
-				--diffs-light-bg: var(--background);
-				--diffs-dark-bg: var(--background);
-				--diffs-light: var(--foreground);
-				--diffs-dark: var(--foreground);
-				--diffs-modified-color: var(--primary);
-				display: block;
-				min-width: 100%;
-			}
-			[data-review-blink] {
-				animation: review-line-blink 850ms ease-out;
-			}
-			@keyframes review-line-blink {
-				0%, 35% { filter: brightness(1.7); }
-				100% { filter: none; }
-			}
-			@media (prefers-reduced-motion: reduce) {
-				[data-review-blink] { animation: none; }
-			}`,
-		};
-	}
-
-	function render() {
-		if (!hostRef || !diff) return;
-		const identity = `${props.file.path}\0${props.file.contentHash}\0${props.layout}`;
-		if (identity === renderedIdentity) return;
-		if (pointerStartedInside) {
-			pendingRender = true;
-			return;
-		}
-		pendingRender = false;
-		renderedIdentity = identity;
-		const currentLines = changedLineText(props.file);
-		const blinkKeys = new Set<string>();
-		if (previousLines && previousPath === props.file.path) {
-			for (const [key, text] of currentLines) {
-				if (previousLines.get(key) !== text) blinkKeys.add(key);
-			}
-		}
-		previousLines = currentLines;
-		previousPath = props.file.path;
-		diff.setOptions(options(blinkKeys));
-		diff.render({
-			oldFile: {
-				name: props.file.previousPath ?? props.file.path,
-				contents: props.file.oldContents ?? "",
-				cacheKey: `${props.file.contentHash}:old`,
-			},
-			newFile: {
-				name: props.file.path,
-				contents: props.file.newContents ?? "",
-				cacheKey: `${props.file.contentHash}:new`,
-			},
-			containerWrapper: hostRef,
-			forceRender: true,
-		});
-	}
-
-	onMount(() => {
-		diff = new FileDiff(options(new Set()));
-		render();
-		hostRef?.addEventListener("pointerdown", handlePointerDown);
-		hostRef?.addEventListener("dragstart", handleDragStart);
-		document.addEventListener("dragend", handleDragEnd);
-		document.addEventListener("pointerup", handleDocumentPointerUp);
-	});
-	createEffect(() => {
-		props.file.contentHash;
-		props.layout;
-		render();
-	});
-	createEffect(() => {
-		const range = props.selection;
-		diff?.setSelectedLines(range ? { ...range } : null, { notify: false });
-	});
-	createEffect(() => {
-		props.jumpTarget;
-		applyJump();
-	});
-	onCleanup(() => {
-		hostRef?.removeEventListener("pointerdown", handlePointerDown);
-		hostRef?.removeEventListener("dragstart", handleDragStart);
-		document.removeEventListener("dragend", handleDragEnd);
-		document.removeEventListener("pointerup", handleDocumentPointerUp);
-		observer?.disconnect();
-		diff?.cleanUp();
-	});
-
 	return (
-		<div
-			ref={hostRef}
-			class="min-w-0 rounded-md border border-border bg-background"
-			data-testid="diff-review-file-diff"
-		/>
+		<ul class="space-y-0.5">
+			<For each={props.nodes}>
+				{(node) => {
+					if (node.kind === "directory") {
+						const collapsed = () => props.collapsedDirectoryPaths.has(node.directoryPath);
+						return (
+							<li>
+								<button
+									type="button"
+									class={
+										"flex w-full items-center gap-1 px-2 py-1 font-mono text-[10px]"
+										+ " font-medium text-muted-foreground"
+										+ " hover:bg-accent/60"
+									}
+									onClick={() => props.onToggleDirectory(node.directoryPath)}
+									aria-expanded={!collapsed()}
+									data-testid="diff-review-directory"
+									data-directory-path={node.directoryPath}
+								>
+									<Show
+										when={!collapsed()}
+										fallback={<ChevronRight size={11} class="shrink-0" />}
+									>
+										<ChevronDown size={11} class="shrink-0" />
+									</Show>
+									<FolderOpen size={13} class="shrink-0" />
+									<span class="whitespace-nowrap">{node.name}</span>
+								</button>
+								<Show when={!collapsed()}>
+									<div class="ml-3 border-l border-border/70 pl-1">
+										<FileTreeNodes {...props} nodes={node.children} />
+									</div>
+								</Show>
+							</li>
+						);
+					}
+					const file = () => props.fileForPath(node.filePath);
+					return (
+						<Show when={file()}>
+							{(current) => (
+								<li>
+									<button
+										type="button"
+										class={`flex w-full items-start gap-1.5 rounded-md px-2 py-1.5 text-left ${
+											props.activePath === node.filePath
+												? "bg-accent text-accent-foreground"
+												: "hover:bg-accent/60"
+										}`}
+										onClick={() => props.onSelect(node.filePath)}
+										data-testid="diff-review-file"
+										data-file-path={node.filePath}
+										title={node.filePath}
+									>
+										<Show
+											when={!current().binary}
+											fallback={
+												<FileWarning size={13} class="mt-0.5 shrink-0 text-warning" />
+											}
+										>
+											<FileCode2 size={13} class="mt-0.5 shrink-0 text-muted-foreground" />
+										</Show>
+										<span class="min-w-max flex-1">
+											<span class="flex items-center gap-1.5 whitespace-nowrap">
+												<ReviewStateIcon status={props.statusFor(current())} />
+												<span class="font-mono text-[10px] font-medium">
+													{node.name}
+												</span>
+											</span>
+											<span class="mt-0.5 block whitespace-nowrap pl-[19px] font-mono text-[9px]">
+												<span class="text-success">+{current().additions}</span>
+												<span class="ml-2 text-destructive">-{current().deletions}</span>
+												<Show when={current().binary}>
+													<span class="ml-2 text-warning">BINARY</span>
+												</Show>
+											</span>
+										</span>
+									</button>
+								</li>
+							)}
+						</Show>
+					);
+				}}
+			</For>
+		</ul>
 	);
 }
 
 function FileTree(props: {
 	files: ReviewFileSnapshot[];
+	nodes: DiffReviewFileTreeNode[];
+	loadedScope?: DiffScope;
 	activePath: string;
+	width: number;
 	statusFor(file: ReviewFileSnapshot): FileReviewStatus;
 	onSelect(filePath: string): void;
 }) {
+	const [collapsedDirectoryPaths, setCollapsedDirectoryPaths] = createSignal(
+		new Set<string>(),
+	);
+	const fileByPath = createMemo(() => new Map(
+		props.files.map((file) => [file.path, file]),
+	));
+	const totalsByFileType = createMemo(() => buildFileTypeTotals(props.files));
+	function toggleDirectory(directoryPath: string) {
+		setCollapsedDirectoryPaths((current) => {
+			const next = new Set(current);
+			if (next.has(directoryPath)) next.delete(directoryPath);
+			else next.add(directoryPath);
+			return next;
+		});
+	}
 	return (
 		<nav
-			class="min-h-0 w-[270px] shrink-0 overflow-auto border-r border-border bg-card/35 p-3"
+			style={{ width: `${props.width}px` }}
+			class="flex min-h-0 shrink-0 flex-col border-r border-border bg-card/35"
 			aria-label="Changed files"
 			data-testid="diff-review-file-tree"
+			data-loaded-scope={props.loadedScope}
 		>
-			<div class="mb-3 px-2 font-mono text-[10px] font-bold tracking-[0.12em] text-muted-foreground">
-				CHANGED FILES · {props.files.length}
-			</div>
-			<div class="space-y-1">
-				<For each={props.files}>
-					{(file) => (
-						<button
-							type="button"
-							class={`flex w-full items-start gap-2 rounded-md px-2 py-2 text-left ${
-								props.activePath === file.path
-									? "bg-accent text-accent-foreground"
-									: "hover:bg-accent/60"
-							}`}
-							onClick={() => props.onSelect(file.path)}
-							data-testid="diff-review-file"
-							data-file-path={file.path}
-						>
-							<Show
-								when={!file.binary}
-								fallback={<FileWarning size={14} class="mt-0.5 shrink-0 text-warning" />}
-							>
-								<FileCode2 size={14} class="mt-0.5 shrink-0 text-muted-foreground" />
-							</Show>
-							<span class="min-w-0 flex-1">
-								<span class="flex items-center gap-1.5">
-									<ReviewStateIcon status={props.statusFor(file)} />
-									<span class="truncate font-mono text-[11px] font-medium">
-										{fileName(file.path)}
-									</span>
-								</span>
-								<Show when={fileDirectory(file.path)}>
-									<span class="mt-0.5 block truncate pl-5 font-mono text-[9px] text-muted-foreground">
-										{fileDirectory(file.path)}
-									</span>
-								</Show>
-								<span class="mt-1 block pl-5 font-mono text-[9px]">
-									<span class="text-success">+{file.additions}</span>
-									<span class="ml-2 text-destructive">-{file.deletions}</span>
-									<Show when={file.binary}>
-										<span class="ml-2 text-warning">BINARY</span>
-									</Show>
-								</span>
-							</span>
-						</button>
-					)}
-				</For>
-			</div>
-		</nav>
-	);
-}
-
-function PromptComposer(props: {
-	open: boolean;
-	selection?: ActiveSelection;
-	stale: boolean;
-	sending: boolean;
-	error?: string;
-	queueItems: ReviewPromptQueueItem[];
-	agentStatus?: string;
-	retryingId?: string;
-	feedback: string;
-	dragText?: string;
-	onFeedbackChange(feedback: string): void;
-	onRetry(itemId: string): void;
-	onCancel(): void;
-	onError(message: string): void;
-	onSend(feedback: string): Promise<boolean>;
-}) {
-	let inputRef: HTMLTextAreaElement | undefined;
-
-	async function copyPrompt(text: string) {
-		try {
-			await navigator.clipboard.writeText(text);
-		} catch (error) {
-			props.onError(error instanceof Error ? error.message : String(error));
-		}
-	}
-
-	createEffect(() => {
-		if (!props.open) return;
-		props.selection;
-		queueMicrotask(() => inputRef?.focus());
-	});
-
-	async function submit(event: SubmitEvent) {
-		event.preventDefault();
-		if (!props.feedback.trim() || props.sending) return;
-		await props.onSend(props.feedback.trim());
-	}
-
-	return (
-		<Show when={props.open}>
-			<Portal>
-				<form
-					class={
-						"fixed bottom-6 right-6 w-[min(440px,calc(100vw-3rem))] rounded-lg"
-						+ " border border-primary/50 bg-popover p-3 text-popover-foreground shadow-2xl"
-					}
-					onSubmit={(event) => void submit(event)}
-					data-testid="diff-review-composer"
-				>
-					<ReviewPromptQueueList
-						items={props.queueItems}
-						retryingId={props.retryingId}
-						onRetry={props.onRetry}
-					/>
-					<div class="flex items-start justify-between gap-2">
-						<div class="min-w-0">
-							<div class="text-xs font-semibold">
-								{props.selection ? "Review selected lines" : "Prompt the Agent"}
-							</div>
-							<div class="mt-1 truncate font-mono text-[9px] text-primary">
-								{props.selection
-									? selectionLabel(props.selection)
-									: `Herdr Agent: ${props.agentStatus ?? "not started"}`}
-							</div>
-						</div>
-						<Show when={props.dragText}>
-							{(text) => (
-								<button
-									type="button"
-									draggable={true}
-									class={
-										"flex shrink-0 cursor-grab items-center gap-1 rounded-md border"
-										+ " border-border px-1.5 py-1 text-[9px] text-muted-foreground"
-										+ " hover:bg-accent active:cursor-grabbing"
-									}
-									title="Copy this Review Prompt, or drag it into another window"
-									onDragStart={(event) => setPromptDragData(event, text(), props.onError)}
-									onClick={() => void copyPrompt(text())}
-									data-testid="diff-review-drag-prompt"
-								>
-									<GripVertical size={12} />
-									Copy or drag
-								</button>
-							)}
-						</Show>
-						<button
-							type="button"
-							class="btn-ghost-icon h-6 w-6 shrink-0"
-							aria-label="Close Review Prompt composer"
-							onClick={props.onCancel}
-						>
-							<X size={13} />
-						</button>
-					</div>
-					<textarea
-						ref={inputRef}
-						class="input mt-3 min-h-[92px] resize-y text-xs"
-						placeholder={props.selection
-							? "What should the Agent change here?"
-							: "What should the Agent do next?"}
-						value={props.feedback}
-						onInput={(event) => props.onFeedbackChange(event.currentTarget.value)}
-						onKeyDown={(event) => {
-							if (event.key === "Escape") {
-								event.preventDefault();
-								props.onCancel();
-							} else if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
-								event.preventDefault();
-								event.currentTarget.form?.requestSubmit();
-							}
-						}}
-						data-testid="diff-review-composer-input"
-					/>
-					<Show when={props.stale}>
-						<div
-							class={
-								"mt-2 flex gap-2 rounded-md border border-warning/40 bg-warning/10"
-								+ " px-2 py-1.5 text-[10px] text-warning"
-							}
-							role="status"
-							data-testid="diff-review-stale-warning"
-						>
-							<AlertTriangle size={13} class="shrink-0" />
-							The selected content changed. The original snapshot will still be sent.
-						</div>
-					</Show>
-					<Show when={props.error}>
-						<div class="mt-2 text-[10px] text-destructive" role="alert">
-							{props.error}
-						</div>
-					</Show>
-					<div class="mt-3 flex items-center justify-between">
-						<span class="font-mono text-[9px] text-muted-foreground">
-							Enter adds a line · Ctrl/Cmd+Enter sends
-						</span>
-						<button
-							type="submit"
-							class="btn-primary btn-sm gap-1.5"
-							disabled={!props.feedback.trim() || props.sending}
-							data-testid="diff-review-composer-send"
-						>
-							<Send size={12} />
-							Send
-						</button>
-					</div>
-				</form>
-			</Portal>
-		</Show>
-	);
-}
-
-function queueStateLabel(item: ReviewPromptQueueItem): string {
-	if (item.state === "delivering") return "Delivering";
-	if (item.state === "sent") return "Sent";
-	if (item.state === "error") return "Delivery failed";
-	return "Waiting";
-}
-
-function ReviewPromptQueueList(props: {
-	items: ReviewPromptQueueItem[];
-	retryingId?: string;
-	onRetry(itemId: string): void;
-}) {
-	let bodyRef: HTMLDivElement | undefined;
-	createEffect(() => {
-		props.items.length;
-		queueMicrotask(() => {
-			if (bodyRef) bodyRef.scrollTop = 0;
-		});
-	});
-	return (
-		<Show when={props.items.length > 0}>
-			<section
-				class="mb-3 rounded-md border border-border bg-card"
-				aria-label="Review Prompt Queue"
-				data-testid="diff-review-queue"
-			>
-				<div class="flex items-center gap-2 px-2.5 py-1.5">
-					<span class="font-mono text-[9px] font-bold tracking-[0.12em]">
-						REVIEW PROMPT QUEUE
-					</span>
-					<span class="rounded-full bg-muted px-1.5 py-0.5 font-mono text-[9px]">
-						{props.items.length}
-					</span>
+			<div class="shrink-0 p-3 pb-0">
+				<div class="px-2 font-mono text-[10px] font-bold tracking-[0.12em] text-muted-foreground">
+					CHANGED FILES · {props.files.length}
 				</div>
-				<div
-					ref={bodyRef}
-					class="max-h-[132px] overflow-y-auto border-t border-border"
-				>
-					<For each={props.items}>
-						{(item, index) => (
-							<article
-								class={
-									"flex items-start gap-2 border-b border-border"
-									+ " px-2.5 py-1.5 last:border-b-0"
-								}
-								data-testid="diff-review-queue-item"
+			</div>
+			<div
+				class="min-h-0 flex-1 overflow-auto p-3 pt-2"
+				data-testid="diff-review-file-tree-scroll"
+			>
+				<FileTreeNodes
+					nodes={props.nodes}
+					activePath={props.activePath}
+					collapsedDirectoryPaths={collapsedDirectoryPaths()}
+					fileForPath={(filePath) => fileByPath().get(filePath)}
+					statusFor={props.statusFor}
+					onToggleDirectory={toggleDirectory}
+					onSelect={props.onSelect}
+				/>
+			</div>
+			<footer class="shrink-0 border-t border-border/70 p-3">
+				<div class="px-2 font-mono text-[10px] font-bold tracking-[0.12em] text-muted-foreground">
+					LINE CHANGES BY TYPE
+				</div>
+				<ul class="mt-1.5" data-testid="diff-review-file-type-totals">
+					<For each={totalsByFileType()}>
+						{(totals) => (
+							<li
+								class="flex items-baseline justify-between gap-2 px-2 py-0.5 font-mono text-[10px]"
+								data-file-type={totals.fileType}
 							>
-								<div class="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center">
-									<Show when={item.state === "sent"}>
-										<Check size={12} class="text-success" />
-									</Show>
-									<Show when={item.state === "delivering"}>
-										<LoaderCircle size={12} class="animate-spin text-primary" />
-									</Show>
-									<Show when={item.state === "error"}>
-										<AlertTriangle size={12} class="text-destructive" />
-									</Show>
-									<Show when={item.state === "waiting"}>
-										<span class="font-mono text-[9px] text-muted-foreground">
-											{index() + 1}
-										</span>
-									</Show>
-								</div>
-								<div class="min-w-0 flex-1">
-									<div class="flex items-center gap-2">
-										<span class="truncate font-mono text-[9px] text-primary">
-											{item.snapshot?.filePath ?? "Agent prompt"}
-										</span>
-										<span class="shrink-0 text-[9px] text-muted-foreground">
-											{queueStateLabel(item)}
-										</span>
-									</div>
-									<p class="mt-0.5 line-clamp-2 text-[10px]">{item.feedback}</p>
-									<Show when={item.error}>
-										<p class="mt-0.5 text-[9px] text-destructive">{item.error}</p>
-									</Show>
-								</div>
-								<Show when={item.state === "error" && index() === 0}>
-									<button
-										type="button"
-										class="btn-secondary btn-sm shrink-0 gap-1.5"
-										disabled={props.retryingId === item.id}
-										onClick={() => props.onRetry(item.id)}
-										data-testid="diff-review-queue-retry"
-									>
-										<RotateCcw size={12} />
-										Retry
-									</button>
-								</Show>
-							</article>
+								<span class="min-w-0 truncate text-muted-foreground">{totals.fileType}</span>
+								<span class="ml-auto whitespace-nowrap tabular-nums">
+									<span class="text-success">+{totals.additions}</span>
+									<span class="ml-2 text-destructive">-{totals.deletions}</span>
+								</span>
+							</li>
 						)}
 					</For>
-				</div>
-			</section>
-		</Show>
+				</ul>
+			</footer>
+		</nav>
 	);
 }
 
@@ -733,6 +312,28 @@ function DiffLoadError(props: { error: unknown; onRetry(): void }) {
 	);
 }
 
+// What stands in for the files while the selected Diff Scope has none to show:
+// Git is still calculating it, or Git answered that it cannot.
+function DiffScopeUnavailable(props: {
+	error?: string;
+	label: string;
+	onRetry(): void;
+}) {
+	return (
+		<Show
+			when={props.error}
+			fallback={
+				<div class="flex min-h-0 flex-1 items-center justify-center text-sm text-muted-foreground">
+					<LoaderCircle size={16} class="mr-2 animate-spin" />
+					Calculating {props.label}...
+				</div>
+			}
+		>
+			{(message) => <DiffLoadError error={message()} onRetry={props.onRetry} />}
+		</Show>
+	);
+}
+
 export default function DiffReview(props: {
 	projectSlug: string;
 	projectName: string;
@@ -743,52 +344,129 @@ export default function DiffReview(props: {
 	const [scope, setScope] = createSignal<DiffScope>();
 	const [pace, setPace] = createSignal<ReviewPace>("live");
 	const [layout, setLayout] = createSignal<DiffLayout>("split");
+	const [lineOverflow, setLineOverflow] = createSignal<DiffLineOverflow>("scroll");
+	const [treeWidth, setTreeWidth] = createSignal(TREE_WIDTH_DEFAULT);
 	const [activePath, setActivePath] = createSignal("");
 	const [composer, setComposer] = createSignal<ActiveComposer>();
 	const [feedback, setFeedback] = createSignal("");
-	const [reviewedLineIds, setReviewedLineIds] = createSignal(new Set<string>());
 	const [sendError, setSendError] = createSignal<string>();
 	const [sending, setSending] = createSignal(false);
 	const [refreshing, setRefreshing] = createSignal(false);
 	const [retryingId, setRetryingId] = createSignal<string>();
+	const [removingId, setRemovingId] = createSignal<string>();
+	const [launching, setLaunching] = createSignal(false);
+	const [savingProfile, setSavingProfile] = createSignal(false);
+	const [selectedProfile, setSelectedProfile] = createSignal("");
 	const [reviewError, setReviewError] = createSignal<string>();
 	const [jumpTarget, setJumpTarget] = createSignal<ReviewChangeLocation>();
-	const persistedLines = new Set<string>();
-	const pendingLines = new Map<string, string>();
-	let flushTimer: ReturnType<typeof setTimeout> | undefined;
 	let scrollRef: HTMLDivElement | undefined;
-
-	const scopes = createNonSuspendingAsync(() =>
-		getReviewScopes(props.projectSlug, props.ticket.folderName));
-	const snapshot = createNonSuspendingAsync(async () => {
-		const selected = scope();
-		if (!selected) return undefined;
-		return await getReviewSnapshot(props.projectSlug, props.ticket.folderName, selected);
+	let scrollFrame: number | undefined;
+	const sectionRefs = new Map<string, HTMLElement>();
+	const reviewedLines = createReviewedLineTracker({
+		persist: (lines) => markReviewLinesReviewed(
+			props.projectSlug,
+			props.ticket.folderName,
+			lines,
+		),
+		onError: setReviewError,
 	});
+	const reviewedLineIds = reviewedLines.reviewedLineIds;
+
+	const review = createNonSuspendingAsync(() =>
+		getReviewSnapshot(props.projectSlug, props.ticket.folderName, scope()));
 	const queue = createNonSuspendingAsync(() =>
 		getReviewPromptQueue(props.projectSlug, props.ticket.folderName));
-	const files = createMemo<ReviewFileSnapshot[]>((previous) =>
-		reuseUnchangedFiles(previous, snapshot()?.files ?? []), []);
-	const selection = () => composer()?.selection;
-
+	const launcherConfig = createNonSuspendingAsync(() =>
+		getMergedLauncherConfig(props.projectSlug));
+	const agentPresent = () =>
+		!!herdrStatus(props.ticket.folderName) || queue()?.agentRunning === true;
+	const profileNames = () => launcherConfig()?.profiles.map((profile) => profile.name) ?? [];
 	createEffect(() => {
-		const available = scopes();
-		if (!available || scope()) return;
-		setScope(available[0]);
+		const config = launcherConfig();
+		if (!config) return;
+		const names = config.profiles.map((profile) => profile.name);
+		setSelectedProfile((current) => {
+			if (names.includes(current)) return current;
+			const configured = config.columnDefaults[props.ticket.status]?.profileName;
+			return configured && names.includes(configured) ? configured : names[0] ?? "";
+		});
 	});
+	const scopes = () => review()?.scopes ?? [];
+	// Before the user picks one, the selected Diff Scope is the one the server
+	// opened the Diff Review with.
+	const selectedScope = () => scope() ?? review()?.scope;
+	// Git's answer belongs to the Diff Scope it was calculated for, so an answer
+	// for another scope never reaches the screen: while a newly selected scope
+	// loads, the Diff Review shows its loading state instead of the files of the
+	// scope the user just left. A scope Git cannot calculate answers with an
+	// error, and the other scopes stay selectable.
+	const scopeAnswer = createMemo(() => {
+		const current = review();
+		return current && current.scope === selectedScope() ? current : undefined;
+	});
+	const scopeError = () => scopeAnswer()?.error;
+	const scopedSnapshot = () => scopeAnswer()?.snapshot;
+	const files = createMemo<ReviewFileSnapshot[]>((previous) =>
+		reuseUnchangedFiles(previous, scopedSnapshot()?.files ?? []), []);
+	const snapshotFilePaths = createMemo<string[]>((previous) =>
+		reuseFilePaths(previous, files()), []);
+	const fileTree = createMemo(() => buildDiffReviewFileTree(snapshotFilePaths()));
+	const filePaths = createMemo(() => diffReviewFilePathsInTreeOrder(fileTree()));
+	const fileByPath = createMemo(() => new Map(
+		files().map((file) => [file.path, file]),
+	));
+	const orderedFiles = createMemo(() => {
+		const order = new Map(filePaths().map((filePath, index) => [filePath, index]));
+		return [...files()].sort((left, right) =>
+			order.get(left.path)! - order.get(right.path)!);
+	});
+	const selection = () => composer()?.selection;
+	const selectionRangeForFile = (filePath: string) => {
+		const selected = selection();
+		return selected?.snapshot.filePath === filePath ? selected.range : undefined;
+	};
+
+	function updateActivePathFromScroll() {
+		scrollFrame = undefined;
+		const root = scrollRef;
+		const currentFiles = orderedFiles();
+		if (!root || currentFiles.length === 0) return;
+		const rootTop = root.getBoundingClientRect().top;
+		let currentPath = currentFiles[0].path;
+		for (const file of currentFiles) {
+			const section = sectionRefs.get(file.path);
+			if (!section?.isConnected) continue;
+			if (section.getBoundingClientRect().top > rootTop + 16) break;
+			currentPath = file.path;
+		}
+		if (root.scrollTop + root.clientHeight >= root.scrollHeight - 1) {
+			currentPath = currentFiles.at(-1)!.path;
+		}
+		setActivePath(currentPath);
+	}
+
+	function scheduleActivePathUpdate() {
+		if (scrollFrame !== undefined) return;
+		scrollFrame = requestAnimationFrame(updateActivePathFromScroll);
+	}
+
+	function scrollToFile(filePath: string) {
+		const section = sectionRefs.get(filePath);
+		if (!section?.isConnected) return;
+		setActivePath(filePath);
+		section.scrollIntoView({ block: "start" });
+		scheduleActivePathUpdate();
+	}
 
 	createEffect(() => {
-		const current = snapshot();
+		const current = scopedSnapshot();
 		if (!current) return;
-		setReviewedLineIds((existing) => new Set([
-			...existing,
-			...current.reviewedLineIds,
-		]));
 		const currentPath = activePath();
+		reviewedLines.mergeAcknowledged(current.reviewedLineIds);
 		if (!current.files.some((file) => file.path === currentPath)) {
-			setActivePath(current.files[0]?.path ?? "");
-			setComposer();
+			setActivePath(filePaths()[0] ?? "");
 		}
+		queueMicrotask(scheduleActivePathUpdate);
 	});
 
 	createEffect(() => {
@@ -812,26 +490,19 @@ export default function DiffReview(props: {
 		});
 	});
 
-	createEffect(() => {
-		const sentItems = queue()?.items.filter((item) => item.state === "sent") ?? [];
-		if (sentItems.length === 0) return;
-		const delay = Math.max(
-			0,
-			Math.min(...sentItems.map((item) =>
-				Date.parse(item.sentAt ?? "") + 2_000 - Date.now())),
-		);
-		const timer = setTimeout(() => void revalidate("diff-review-queue"), delay + 20);
-		onCleanup(() => clearTimeout(timer));
+	// The queue advances on the server as the Agent picks up and finishes each
+	// Review Prompt, so the Diff Review rereads it while it is open.
+	onMount(() => {
+		const timer = setInterval(() => void revalidate("diff-review-queue"), 1_200);
+		onCleanup(() => clearInterval(timer));
 	});
 
-	const activeFile = createMemo(() =>
-		files().find((file) => file.path === activePath()));
 	const scopeLabel = () => {
-		const selected = scope();
+		const selected = selectedScope();
 		return selected ? SCOPE_LABELS[selected] : "changes";
 	};
 	const unseenChanges = createMemo(() =>
-		unreviewedChangeCount(files(), reviewedLineIds()));
+		unreviewedChangeCount(orderedFiles(), reviewedLineIds()));
 	const selectionStale = createMemo(() => {
 		const selected = selection();
 		if (!selected) return false;
@@ -842,67 +513,54 @@ export default function DiffReview(props: {
 
 	createEffect(on(composer, () => setFeedback("")));
 
+	// The complete message the queue delivers to the Agent for the current
+	// Composer: identical to what the server sends when the user hits Send.
+	function completePromptText(): string {
+		const selected = selection();
+		return renderReviewPrompt(
+			{ feedback: feedback().trim(), snapshot: selected?.snapshot },
+			{ stale: selectionStale() },
+		);
+	}
+
 	// The text every drag source hands to another window: identical to what the
 	// queue delivers to the Agent for the same Review Selection.
 	function promptDragText(): string | undefined {
-		const selected = selection();
-		if (!selected) return undefined;
-		return renderReviewPrompt(
-			{ feedback: feedback().trim(), snapshot: selected.snapshot },
-			{ stale: selectionStale() },
-		);
+		if (!selection()) return undefined;
+		return completePromptText();
+	}
+
+	function promptDragTextForFile(filePath: string): string | undefined {
+		return selection()?.snapshot.filePath === filePath ? promptDragText() : undefined;
 	}
 
 	function statusFor(file: ReviewFileSnapshot): FileReviewStatus {
 		return fileIsReviewed(file, reviewedLineIds()) ? "reviewed" : "unreviewed";
 	}
 
-	function flushReviewedLines() {
-		flushTimer = undefined;
-		const batch = [...pendingLines].map(([id, path]) => ({ id, path }));
-		pendingLines.clear();
-		if (batch.length === 0) return;
-		void markReviewLinesReviewed(
-			props.projectSlug,
-			props.ticket.folderName,
-			batch,
-		).then((result) => {
-			if (result.ok) return;
-			for (const line of batch) persistedLines.delete(line.id);
-			setReviewError(result.message);
-		});
-	}
-
-	function onChangedLineVisible(lineId: string) {
-		const file = activeFile();
-		if (!file) return;
-		setReviewedLineIds((current) =>
-			current.has(lineId) ? current : new Set([...current, lineId]));
-		if (persistedLines.has(lineId)) return;
-		persistedLines.add(lineId);
-		pendingLines.set(lineId, file.path);
-		if (flushTimer === undefined) flushTimer = setTimeout(flushReviewedLines, 400);
+	function onChangedLineVisible(filePath: string, lineId: string) {
+		reviewedLines.markVisible({ id: lineId, path: filePath });
 	}
 
 	onCleanup(() => {
-		if (flushTimer !== undefined) clearTimeout(flushTimer);
-		flushReviewedLines();
+		if (scrollFrame !== undefined) cancelAnimationFrame(scrollFrame);
+		endTreeResize();
+		void reviewedLines.dispose();
 	});
 
-	function selectLines(range: SelectedLineRange | null) {
+	function selectLines(file: ReviewFileSnapshot, range: SelectedLineRange | null) {
 		if (!range) {
 			setComposer();
 			return;
 		}
-		const file = activeFile();
-		const current = snapshot();
-		const currentScope = scope();
-		if (!file || !current || !currentScope || file.binary) return;
+		const current = scopedSnapshot();
+		if (!current || file.binary) return;
 		try {
+			setActivePath(file.path);
 			setComposer({
 				selection: {
 					range,
-					snapshot: buildReviewPromptSnapshot(file, range, currentScope, current.revision),
+					snapshot: buildReviewPromptSnapshot(file, range, current.scope, current.revision),
 				},
 			});
 			setSendError();
@@ -920,6 +578,7 @@ export default function DiffReview(props: {
 				props.projectSlug,
 				props.ticket.folderName,
 				feedback,
+				selectedProfile() || undefined,
 				selection()?.snapshot,
 			);
 			if (!result.ok) {
@@ -934,6 +593,52 @@ export default function DiffReview(props: {
 		}
 	}
 
+	// A queue action ignores a second click while its own kind is still running,
+	// reports its failure in the Diff Review error bar, and leaves the queue on
+	// screen showing what the server now holds.
+	async function launchAgent() {
+		const profileName = selectedProfile();
+		if (!profileName) {
+			setReviewError("Choose an Agent profile before launching.");
+			return;
+		}
+		if (launching()) return;
+		setLaunching(true);
+		try {
+			const result = await launchReviewAgent(
+				props.projectSlug, props.ticket.folderName, profileName,
+			);
+			if (!result.ok) setReviewError(result.message);
+			await revalidate("diff-review-queue");
+		} finally {
+			setLaunching(false);
+		}
+	}
+
+	async function changeProfile(profileName: string) {
+		if (savingProfile()) return;
+		setSelectedProfile(profileName);
+		setSavingProfile(true);
+		setSendError();
+		try {
+			const result = await saveAndCacheColumnDefaults(
+				props.projectSlug,
+				props.ticket.status,
+				{ profileName },
+			);
+			if (!result.ok) {
+				setSendError(result.message);
+				return;
+			}
+		} catch (error) {
+			setSendError(error instanceof Error ? error.message : String(error));
+		} finally {
+			setSavingProfile(false);
+		}
+	}
+
+	// Sending and retrying are the moments the user asks for the Review Prompt to
+	// move, so they start an Agent when the Ticket has none and a profile is configured.
 	async function retry(itemId: string) {
 		if (retryingId()) return;
 		setRetryingId(itemId);
@@ -942,6 +647,7 @@ export default function DiffReview(props: {
 				props.projectSlug,
 				props.ticket.folderName,
 				itemId,
+				selectedProfile() || undefined,
 			);
 			if (!result.ok) setReviewError(result.message);
 			await revalidate("diff-review-queue");
@@ -950,13 +656,26 @@ export default function DiffReview(props: {
 		}
 	}
 
-	function jumpToNextChange() {
-		const location = nextUnreviewedChange(files(), reviewedLineIds(), activePath());
-		if (!location) return;
-		if (location.filePath !== activePath()) {
-			setActivePath(location.filePath);
-			setComposer();
+	async function removePrompt(itemId: string) {
+		if (removingId()) return;
+		setRemovingId(itemId);
+		try {
+			const result = await removeReviewPrompt(props.projectSlug, props.ticket.folderName, itemId);
+			if (!result.ok) setReviewError(result.message);
+			await revalidate("diff-review-queue");
+		} finally {
+			setRemovingId();
 		}
+	}
+
+	function jumpToNextChange() {
+		const location = nextUnreviewedChange(
+			orderedFiles(),
+			reviewedLineIds(),
+			activePath(),
+		);
+		if (!location) return;
+		setActivePath(location.filePath);
 		setJumpTarget(location);
 	}
 
@@ -970,8 +689,46 @@ export default function DiffReview(props: {
 		}
 	}
 
+	let treeResizeState: { startX: number; startWidth: number } | undefined;
+
+	function onTreeResizePointerMove(event: PointerEvent) {
+		if (!treeResizeState) return;
+		const next = treeResizeState.startWidth + (event.clientX - treeResizeState.startX);
+		setTreeWidth(Math.min(Math.max(next, TREE_WIDTH_MIN), TREE_WIDTH_MAX));
+	}
+
+	function endTreeResize() {
+		if (!treeResizeState) return;
+		treeResizeState = undefined;
+		document.body.style.removeProperty("cursor");
+		document.body.style.removeProperty("user-select");
+		window.removeEventListener("pointermove", onTreeResizePointerMove);
+		window.removeEventListener("pointerup", endTreeResize);
+		window.removeEventListener("pointercancel", endTreeResize);
+	}
+
+	function startTreeResize(event: PointerEvent) {
+		event.preventDefault();
+		treeResizeState = { startX: event.clientX, startWidth: treeWidth() };
+		document.body.style.cursor = "col-resize";
+		document.body.style.userSelect = "none";
+		window.addEventListener("pointermove", onTreeResizePointerMove);
+		window.addEventListener("pointerup", endTreeResize);
+		window.addEventListener("pointercancel", endTreeResize);
+	}
+
+	function onTreeResizeKeyDown(event: KeyboardEvent) {
+		if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+		event.preventDefault();
+		const step = event.shiftKey ? 40 : 10;
+		setTreeWidth((current) => Math.min(
+			Math.max(current + (event.key === "ArrowRight" ? step : -step), TREE_WIDTH_MIN),
+			TREE_WIDTH_MAX,
+		));
+	}
+
 	return (
-		<div class="flex h-full min-h-0 flex-col bg-background" data-testid="diff-review">
+		<div class="isolate flex h-full min-h-0 flex-col bg-background" data-testid="diff-review">
 			<header
 				class={
 					"flex h-[54px] shrink-0 items-center justify-between gap-4"
@@ -992,14 +749,14 @@ export default function DiffReview(props: {
 						<span class="sr-only">Diff Scope</span>
 						<select
 							class="input input-sm w-[180px] appearance-none pr-8 text-xs"
-							value={scope() ?? ""}
+							value={selectedScope() ?? ""}
 							onChange={(event) => {
 								setScope(event.currentTarget.value as DiffScope);
 								setComposer();
 							}}
 							data-testid="diff-review-scope"
 						>
-							<For each={scopes() ?? []}>
+							<For each={scopes()}>
 								{(value) => <option value={value}>{SCOPE_LABELS[value]}</option>}
 							</For>
 						</select>
@@ -1104,6 +861,20 @@ export default function DiffReview(props: {
 					</div>
 					<button
 						type="button"
+						class={`btn-secondary btn-sm gap-1.5 ${
+							lineOverflow() === "wrap" ? "bg-accent text-accent-foreground" : ""
+						}`}
+						onClick={() =>
+							setLineOverflow((current) => current === "wrap" ? "scroll" : "wrap")}
+						aria-pressed={lineOverflow() === "wrap"}
+						title="Wrap long lines instead of scrolling them sideways"
+						data-testid="diff-review-wrap-lines"
+					>
+						<WrapText size={12} />
+						Wrap Lines
+					</button>
+					<button
+						type="button"
 						class="btn-ghost-icon h-8 w-8"
 						aria-label="Close Diff Review"
 						onClick={props.onClose}
@@ -1121,12 +892,13 @@ export default function DiffReview(props: {
 				/>
 			)}>
 				<Show
-					when={snapshot()}
+					when={scopedSnapshot()}
 					fallback={
-						<div class="flex min-h-0 flex-1 items-center justify-center text-sm text-muted-foreground">
-							<LoaderCircle size={16} class="mr-2 animate-spin" />
-							Calculating {scopeLabel()}...
-						</div>
+						<DiffScopeUnavailable
+							error={scopeError()}
+							label={scopeLabel()}
+							onRetry={() => void revalidate("diff-review-snapshot")}
+						/>
 					}
 				>
 					<Show
@@ -1135,6 +907,7 @@ export default function DiffReview(props: {
 							<div
 								class="flex min-h-0 flex-1 flex-col items-center justify-center text-center"
 								data-testid="diff-review-empty"
+								data-loaded-scope={selectedScope()}
 							>
 								<Check size={28} class="mb-3 text-muted-foreground" />
 								<p class="font-medium">No {scopeLabel().toLowerCase()}</p>
@@ -1147,80 +920,118 @@ export default function DiffReview(props: {
 						<div class="flex min-h-0 flex-1">
 							<FileTree
 								files={files()}
+								nodes={fileTree()}
+								loadedScope={selectedScope()}
 								activePath={activePath()}
+								width={treeWidth()}
 								statusFor={statusFor}
-								onSelect={(filePath) => {
-									setActivePath(filePath);
-									setComposer();
-								}}
+								onSelect={scrollToFile}
+							/>
+							<div
+								class="w-1.5 shrink-0 cursor-col-resize hover:bg-border/40 active:bg-border/60"
+								role="separator"
+								aria-orientation="vertical"
+								aria-label="Resize changed files panel"
+								aria-valuemin={TREE_WIDTH_MIN}
+								aria-valuemax={TREE_WIDTH_MAX}
+								aria-valuenow={treeWidth()}
+								tabIndex={0}
+								onPointerDown={startTreeResize}
+								onKeyDown={onTreeResizeKeyDown}
+								data-testid="diff-review-tree-resize"
 							/>
 							<div
 								ref={scrollRef}
 								class="min-h-0 min-w-0 flex-1 overflow-auto p-4"
+								onScroll={scheduleActivePathUpdate}
 								data-testid="diff-review-scroll"
 							>
-								<Show when={activeFile()}>
-									{(file) => (
-										<>
-											<div class="mb-3 flex items-center justify-between">
-												<div class="min-w-0">
-													<div class="truncate font-mono text-xs font-semibold">
-														{file().path}
-													</div>
-													<div class="mt-1 text-[10px] text-muted-foreground">
-														{file().changeType} · {formatBytes(file().byteSize)}
-													</div>
-												</div>
-												<ReviewStateIcon status={statusFor(file())} />
-											</div>
-											<Show
-												when={!file().binary}
-												fallback={
-													<div
-														class={
-															"rounded-lg border border-border"
-															+ " bg-card p-8 text-center"
-														}
-														data-testid="diff-review-binary"
+								<div class="space-y-8">
+									<For each={filePaths()}>
+										{(filePath) => (
+											<Show when={fileByPath().get(filePath)}>
+												{(file) => (
+													<section
+														ref={(element) => sectionRefs.set(filePath, element)}
+														class="scroll-mt-4"
+														data-testid="diff-review-file-section"
+														data-file-path={filePath}
 													>
-														<FileWarning size={24} class="mx-auto text-warning" />
-														<p class="mt-3 font-medium">Binary file</p>
-														<p class="mt-1 text-sm text-muted-foreground">
-															Line review is unavailable for this file.
-														</p>
-													</div>
-												}
-											>
-												<Show
-													when={file().hunks.length > 0}
-													fallback={
 														<div
 															class={
-																"rounded-lg border border-border"
-																+ " bg-card p-8 text-center"
+																"flex items-center justify-between rounded-t-md border"
+																+ " border-border bg-card px-3 py-2"
 															}
 														>
-															This file changed without a text-content diff.
+															<div class="min-w-0">
+																<div class="truncate font-mono text-xs font-semibold">
+																	{file().path}
+																</div>
+																<div class="mt-1 text-[10px] text-muted-foreground">
+																	{file().changeType} · {formatBytes(file().byteSize)}
+																</div>
+															</div>
+															<ReviewStateIcon status={statusFor(file())} />
 														</div>
-													}
-												>
-													<DiffSurface
-														file={file()}
-														layout={layout()}
-														selection={selection()?.range}
-														jumpTarget={jumpTarget()}
-														scrollRoot={() => scrollRef}
-														onSelect={selectLines}
-														onJumpApplied={() => setJumpTarget()}
-														onChangedLineVisible={onChangedLineVisible}
-														onError={setReviewError}
-														dragText={promptDragText}
-													/>
-												</Show>
+														<Show
+															when={!file().binary}
+															fallback={
+																<div
+																	class={
+																		"rounded-b-md border border-t-0 border-border"
+																		+ " bg-card p-8 text-center"
+																	}
+																	data-testid="diff-review-binary"
+																	data-file-path={filePath}
+																>
+																	<FileWarning
+																		size={24}
+																		class="mx-auto text-warning"
+																	/>
+																	<p class="mt-3 font-medium">Binary file</p>
+																	<p class="mt-1 text-sm text-muted-foreground">
+																		Line review is unavailable for this file.
+																	</p>
+																</div>
+															}
+														>
+															<Show
+																when={file().hunks.length > 0}
+																fallback={
+																	<div
+																		class={
+																			"rounded-b-md border border-t-0"
+																			+ " border-border"
+																			+ " bg-card p-8 text-center"
+																		}
+																	>
+																		This file changed without a text-content diff.
+																	</div>
+																}
+															>
+																<DiffSurface
+																	file={file()}
+																	layout={layout()}
+																	lineOverflow={lineOverflow()}
+																	selection={selectionRangeForFile(filePath)}
+																	jumpTarget={jumpTarget()}
+																	scrollRoot={() => scrollRef}
+																	onSelect={(range) => selectLines(file(), range)}
+																	onJumpApplied={() => setJumpTarget()}
+																	onChangedLineVisible={(lineId) =>
+																		onChangedLineVisible(filePath, lineId)}
+																	onError={setReviewError}
+																	dragText={() =>
+																		promptDragTextForFile(filePath)}
+																/>
+															</Show>
+														</Show>
+													</section>
+												)}
 											</Show>
-										</>
-									)}
-								</Show>
+										)}
+									</For>
+								</div>
 							</div>
 						</div>
 					</Show>
@@ -1248,19 +1059,27 @@ export default function DiffReview(props: {
 				</div>
 			</Show>
 
-			<PromptComposer
+			<ReviewPromptComposer
 				open={composer() !== undefined}
 				selection={selection()}
 				stale={selectionStale()}
 				feedback={feedback()}
+				completePrompt={completePromptText()}
 				dragText={promptDragText()}
+				profileNames={profileNames()}
+				selectedProfile={selectedProfile()}
+				savingProfile={savingProfile()}
 				onFeedbackChange={setFeedback}
+				onProfileChange={(profileName) => void changeProfile(profileName)}
 				sending={sending()}
 				error={sendError()}
 				queueItems={queue()?.items ?? []}
 				agentStatus={herdrStatus(props.ticket.folderName)}
+				agentPresent={agentPresent()}
 				retryingId={retryingId()}
+				removingId={removingId()}
 				onRetry={(itemId) => void retry(itemId)}
+				onRemove={(itemId) => void removePrompt(itemId)}
 				onCancel={() => {
 					setComposer();
 					setSendError();
@@ -1268,6 +1087,7 @@ export default function DiffReview(props: {
 				onError={setSendError}
 				onSend={sendFeedback}
 			/>
+
 		</div>
 	);
 }

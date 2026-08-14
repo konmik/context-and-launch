@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createEffect, createSignal, on } from "solid-js";
 import { revalidate } from "@solidjs/router";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { ErrorInfo } from "~/core/shared/errors.js";
@@ -33,6 +33,13 @@ export function createProjectPageController(deps: ProjectPageDeps) {
   const [syncSuccess, setSyncSuccess] = createSignal(false);
   const [syncError, setSyncError] = createSignal<ErrorInfo | null>(null);
   const [conflictDialogOpen, setConflictDialogOpen] = createSignal(false);
+
+  createEffect(on(deps.projectSlug, () => {
+    setSelectedTicket(null);
+    setDetailTicket(null);
+    setReviewTicket(null);
+    setCleanupDialogOpen(false);
+  }, { defer: true }));
 
   async function handleSync() {
     if (syncing()) return;

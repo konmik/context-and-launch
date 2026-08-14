@@ -2,7 +2,7 @@ import { useParams, useNavigate, revalidate } from "@solidjs/router";
 import { clientOnly } from "@solidjs/start";
 import {
   Show, For, Switch, Match, ErrorBoundary,
-  createSignal, createEffect, createMemo, onCleanup, onMount,
+  createSignal, createEffect, createMemo, on, onCleanup, onMount,
 } from "solid-js";
 import EllipsisVertical from "lucide-solid/icons/ellipsis-vertical";
 import Network from "lucide-solid/icons/network";
@@ -49,7 +49,10 @@ import {
 import { getSyncPending } from "~/components/ticket/ticket-api.js";
 import { openConfigDir } from "~/components/shared/shared-api.js";
 import { getMergedLauncherConfig } from "~/components/launcher/launcher-api.js";
-import { getHerdrAgentStatuses } from "~/components/board/herdr-status-api.js";
+import {
+  getHerdrAgentStatuses,
+  reconcileReviewPromptQueue,
+} from "~/components/board/herdr-status-api.js";
 import { HerdrStatusesContext } from "~/components/ticket/herdr-statuses-context.js";
 import { ShortcutRunnerContext } from "~/components/board/shortcut-runner-context.js";
 import { createBoardShortcutRunner } from "~/components/board/board-shortcut-runner.js";
@@ -134,12 +137,34 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
     const result = herdrStatusesResult();
     return !!result && result.kind !== "disabled";
   });
+  createEffect(on(
+    () => deferredPollsReady() ? projectSlug() : "",
+    (currentProjectSlug) => {
+      if (!currentProjectSlug) return;
+      void reconcileReviewPromptQueue(currentProjectSlug)
+        .then(() => revalidate("diff-review-queue"))
+        .catch((error: unknown) => console.error("Review Prompt Queue reconciliation failed", error));
+    },
+  ));
   createEffect(() => {
     if (!herdrPollingActive()) return;
-    const timer = setInterval(
-      () => void revalidate(["herdr-agent-statuses", "diff-review-queue"]),
-      5000,
-    );
+    let running = false;
+    const poll = async () => {
+      if (running) return;
+      running = true;
+      try {
+        await Promise.all([
+          revalidate("herdr-agent-statuses"),
+          reconcileReviewPromptQueue(projectSlug()),
+        ]);
+        await revalidate("diff-review-queue");
+	  } catch (error) {
+		console.error("Herdr polling failed", error);
+      } finally {
+        running = false;
+      }
+    };
+    const timer = setInterval(() => void poll(), 5000);
     onCleanup(() => clearInterval(timer));
   });
   const herdrTicketStatuses = () => {

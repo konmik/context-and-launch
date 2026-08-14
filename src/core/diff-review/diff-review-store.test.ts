@@ -76,10 +76,8 @@ describe("DiffReviewStore", () => {
 			"Feedback",
 			promptSnapshot("src/a.ts"),
 		);
-		store.updateQueue("project", "st-1-ticket", "old-worktree", (ticket) => {
-			ticket.queue.items[0].state = "error";
-			ticket.queue.items[0].error = "delivery failed";
-		});
+		store.beginDelivery("project", "st-1-ticket", "old-worktree", item.id);
+		store.failDelivery("project", "st-1-ticket", "old-worktree", item.id, "delivery failed");
 		expect(
 			store.getTicket("project", "st-1-ticket", "old-worktree").queue.items[0].state,
 		).toBe("error");
@@ -91,6 +89,71 @@ describe("DiffReviewStore", () => {
 		expect(
 			store.ensureTicket("project", "st-1-ticket", "new-worktree").queue.items,
 		).toEqual([]);
+	});
+
+	it("retries a delivered head and refuses one that is still delivering", () => {
+		const { store } = createStore();
+		const item = store.enqueue("project", "st-1-ticket", "worktree", "Feedback");
+		store.beginDelivery("project", "st-1-ticket", "worktree", item.id);
+		store.completeDelivery(
+			"project",
+			"st-1-ticket",
+			"worktree",
+			item.id,
+			new Date("2026-07-25T12:00:00.000Z"),
+			3_000,
+		);
+
+		store.retry("project", "st-1-ticket", "worktree", item.id);
+		const head = store.getTicket("project", "st-1-ticket", "worktree").queue.items[0];
+		expect(head.state).toBe("waiting");
+		expect("sentAt" in head).toBe(false);
+
+		store.beginDelivery("project", "st-1-ticket", "worktree", item.id);
+		expect(() => store.retry("project", "st-1-ticket", "worktree", item.id))
+			.toThrow(/failed, uncertain, or delivered/);
+	});
+
+	it("removes an unsent prompt and refuses one already delivering", () => {
+		const { store } = createStore();
+		const first = store.enqueue("project", "st-1-ticket", "worktree", "First");
+		const second = store.enqueue("project", "st-1-ticket", "worktree", "Second");
+
+		store.removeQueueItem("project", "st-1-ticket", "worktree", second.id);
+		expect(
+			store.getTicket("project", "st-1-ticket", "worktree").queue.items
+				.map((item) => item.id),
+		).toEqual([first.id]);
+
+		store.beginDelivery("project", "st-1-ticket", "worktree", first.id);
+		expect(() => store.removeQueueItem("project", "st-1-ticket", "worktree", first.id))
+			.toThrow(/already delivering/);
+		expect(() => store.removeQueueItem("project", "st-1-ticket", "worktree", second.id))
+			.toThrow(/no longer in the queue/);
+	});
+
+	it("persists an Agent launch reservation and converts it to cooldown", () => {
+		const { store } = createStore();
+		store.reserveAgentLaunch(
+			"project",
+			"st-1-ticket",
+			"worktree",
+			new Date("2026-07-25T12:00:45.000Z"),
+		);
+		expect(
+			store.getTicket("project", "st-1-ticket", "worktree")
+				.queue.agentLaunchReservedUntil,
+		).toBe("2026-07-25T12:00:45.000Z");
+
+		store.completeAgentLaunch(
+			"project",
+			"st-1-ticket",
+			"worktree",
+			new Date("2026-07-25T12:00:45.000Z"),
+		);
+		const queue = store.getTicket("project", "st-1-ticket", "worktree").queue;
+		expect(queue.agentLaunchReservedUntil).toBeUndefined();
+		expect(queue.cooldownUntil).toBe("2026-07-25T12:00:45.000Z");
 	});
 
 	it("removes all persisted review data with the Ticket", () => {

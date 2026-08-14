@@ -4,6 +4,7 @@ import {
 	lineElementAt,
 	lineSideOf,
 	reviewLineRangeBetween,
+	reviewLineRangeFromSelection,
 } from "./diff-review-selection.js";
 
 function renderSplitDiff(): { host: HTMLElement; line(side: string, value: string): HTMLElement } {
@@ -77,5 +78,20 @@ describe("Diff Review text selection", () => {
 	it("ignores nodes outside any diff line", () => {
 		renderSplitDiff();
 		expect(reviewLineRangeBetween(document.body, document.body)).toBeUndefined();
+	});
+
+	it("ignores selections that cross between file surfaces", () => {
+		const first = renderSplitDiff();
+		const second = document.createElement("div");
+		second.innerHTML = '<span data-line="6" data-line-type="change-addition">next</span>';
+		document.body.append(second);
+		const range = document.createRange();
+		range.setStart(first.line("additions", "4").firstChild!, 0);
+		range.setEnd(second.querySelector("[data-line]")!.firstChild!, 1);
+		const selection = document.getSelection()!;
+		selection.removeAllRanges();
+		selection.addRange(range);
+
+		expect(reviewLineRangeFromSelection(first.host, selection)).toBeUndefined();
 	});
 });

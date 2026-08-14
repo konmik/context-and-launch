@@ -28,19 +28,27 @@ const PromptSnapshotSchema = v.object({
 	selectionFingerprint: v.string(),
 	sourceRevision: v.string(),
 });
-const QueueItemSchema = v.object({
+const QueueItemBaseSchema = {
 	id: v.string(),
 	createdAt: v.string(),
 	feedback: v.string(),
 	snapshot: v.optional(PromptSnapshotSchema),
-	state: v.picklist(["waiting", "delivering", "sent", "error"]),
-	error: v.optional(v.string()),
-	deliveryStartedAt: v.optional(v.string()),
-	sentAt: v.optional(v.string()),
-});
+};
+const QueueItemSchema = v.union([
+	v.object({ ...QueueItemBaseSchema, state: v.literal("waiting") }),
+	v.object({
+		...QueueItemBaseSchema,
+		state: v.literal("delivering"),
+		deliveryStartedAt: v.string(),
+	}),
+	v.object({ ...QueueItemBaseSchema, state: v.literal("sent"), sentAt: v.string() }),
+	v.object({ ...QueueItemBaseSchema, state: v.literal("error"), error: v.string() }),
+	v.object({ ...QueueItemBaseSchema, state: v.literal("uncertain"), error: v.string() }),
+]);
 const QueueSchema = v.object({
 	items: v.array(QueueItemSchema),
 	cooldownUntil: v.optional(v.string()),
+	agentLaunchReservedUntil: v.optional(v.string()),
 });
 const TicketStateSchema = v.object({
 	worktreeIdentity: v.string(),
@@ -176,24 +184,185 @@ export class DiffReviewStore {
 	): DiffReviewTicketState {
 		return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
 			const head = ticket.queue.items[0];
-			if (!head || head.id !== itemId || head.state !== "error") {
-				throw new Error("Only the errored head Review Prompt can be retried.");
+			if (
+				!head
+				|| head.id !== itemId
+				|| (head.state !== "error" && head.state !== "sent" && head.state !== "uncertain")
+			) {
+				throw new Error("Only a failed, uncertain, or delivered head Review Prompt can be retried.");
 			}
-			head.state = "waiting";
-			delete head.error;
-			delete head.deliveryStartedAt;
+			ticket.queue.items[0] = this.withState(head, { state: "waiting" });
 			return ticket;
 		});
 	}
 
-	updateQueue(
+	removeQueueItem(
 		projectSlug: string,
 		folderName: string,
 		worktreeIdentity: string,
-		update: (ticket: DiffReviewTicketState) => void,
+		itemId: string,
 	): DiffReviewTicketState {
 		return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
-			update(ticket);
+			const item = ticket.queue.items.find((candidate) => candidate.id === itemId);
+			if (!item) throw new Error("That Review Prompt is no longer in the queue.");
+			if (
+				item.state !== "waiting"
+				&& item.state !== "error"
+				&& item.state !== "uncertain"
+			) {
+				throw new Error(
+					`This Review Prompt is already ${item.state} and can no longer be removed.`,
+				);
+			}
+			ticket.queue.items = ticket.queue.items.filter((candidate) => candidate.id !== itemId);
+			return ticket;
+		});
+	}
+
+	beginDelivery(
+		projectSlug: string,
+		folderName: string,
+		worktreeIdentity: string,
+		itemId: string,
+	): DiffReviewTicketState {
+		return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
+			const head = ticket.queue.items[0];
+			if (!head || head.id !== itemId || head.state !== "waiting") {
+				throw new Error("Review Prompt queue head changed before delivery.");
+			}
+			ticket.queue.items[0] = this.withState(head, {
+				state: "delivering",
+				deliveryStartedAt: new Date().toISOString(),
+			});
+			return ticket;
+		});
+	}
+
+	completeDelivery(
+		projectSlug: string,
+		folderName: string,
+		worktreeIdentity: string,
+		itemId: string,
+		sentAt: Date,
+		cooldownMs: number,
+	): DiffReviewTicketState {
+		return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
+			const head = ticket.queue.items[0];
+			if (!head || head.id !== itemId || head.state !== "delivering") {
+				throw new Error("Review Prompt queue head changed during delivery.");
+			}
+			ticket.queue.items[0] = this.withState(head, {
+				state: "sent",
+				sentAt: sentAt.toISOString(),
+			});
+			ticket.queue.cooldownUntil = new Date(sentAt.getTime() + cooldownMs).toISOString();
+			return ticket;
+		});
+	}
+
+	failDelivery(
+		projectSlug: string,
+		folderName: string,
+		worktreeIdentity: string,
+		itemId: string,
+		error: string,
+	): DiffReviewTicketState {
+		return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
+			const head = ticket.queue.items[0];
+			if (!head || head.id !== itemId || head.state !== "delivering") {
+				throw new Error("Review Prompt queue head changed during failed delivery.");
+			}
+			ticket.queue.items[0] = this.withState(head, { state: "error", error });
+			return ticket;
+		});
+	}
+
+	failSentDelivery(
+		projectSlug: string,
+		folderName: string,
+		worktreeIdentity: string,
+		itemId: string,
+		error: string,
+	): DiffReviewTicketState {
+		return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
+			const head = ticket.queue.items[0];
+			if (!head || head.id !== itemId || head.state !== "sent") {
+				throw new Error("Only a delivered head Review Prompt can lose its Agent.");
+			}
+			ticket.queue.items[0] = this.withState(head, { state: "error", error });
+			return ticket;
+		});
+	}
+
+	markDeliveryUncertain(
+		projectSlug: string,
+		folderName: string,
+		worktreeIdentity: string,
+		itemId: string,
+		error: string,
+	): DiffReviewTicketState {
+		return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
+			const head = ticket.queue.items[0];
+			if (!head || head.id !== itemId || head.state !== "delivering") {
+				throw new Error("Only a delivering head Review Prompt can have an uncertain outcome.");
+			}
+			ticket.queue.items[0] = this.withState(head, { state: "uncertain", error });
+			return ticket;
+		});
+	}
+
+	acknowledgeSent(
+		projectSlug: string,
+		folderName: string,
+		worktreeIdentity: string,
+		itemId: string,
+	): DiffReviewTicketState {
+		return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
+			const head = ticket.queue.items[0];
+			if (!head || head.id !== itemId || head.state !== "sent") {
+				throw new Error("Only a delivered head Review Prompt can be acknowledged.");
+			}
+			ticket.queue.items.shift();
+			return ticket;
+		});
+	}
+
+	reserveAgentLaunch(
+		projectSlug: string,
+		folderName: string,
+		worktreeIdentity: string,
+		reservedUntil: Date,
+	): DiffReviewTicketState {
+		return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
+			const existing = Date.parse(ticket.queue.agentLaunchReservedUntil ?? "");
+			if (Number.isFinite(existing) && existing > Date.now()) {
+				throw new Error("An Agent launch is already in progress for this Ticket.");
+			}
+			ticket.queue.agentLaunchReservedUntil = reservedUntil.toISOString();
+			return ticket;
+		});
+	}
+
+	completeAgentLaunch(
+		projectSlug: string,
+		folderName: string,
+		worktreeIdentity: string,
+		cooldownUntil: Date,
+	): DiffReviewTicketState {
+		return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
+			delete ticket.queue.agentLaunchReservedUntil;
+			ticket.queue.cooldownUntil = cooldownUntil.toISOString();
+			return ticket;
+		});
+	}
+
+	clearAgentLaunchReservation(
+		projectSlug: string,
+		folderName: string,
+		worktreeIdentity: string,
+	): DiffReviewTicketState {
+		return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
+			delete ticket.queue.agentLaunchReservedUntil;
 			return ticket;
 		});
 	}
@@ -202,13 +371,13 @@ export class DiffReviewStore {
 		const project = this.loadProject(projectSlug);
 		let changed = false;
 		for (const ticket of Object.values(project.tickets)) {
-			const recovered = ticket.queue.items.filter((item) => item.state !== "sent");
-			if (recovered.length !== ticket.queue.items.length) changed = true;
-			ticket.queue.items = recovered;
-			for (const item of ticket.queue.items) {
+			for (let index = 0; index < ticket.queue.items.length; index += 1) {
+				const item = ticket.queue.items[index];
 				if (item.state !== "delivering") continue;
-				item.state = "waiting";
-				delete item.deliveryStartedAt;
+				ticket.queue.items[index] = this.withState(item, {
+					state: "uncertain",
+					error: "Delivery was interrupted and may have reached the Agent. Retry only if needed.",
+				});
 				changed = true;
 			}
 		}
@@ -239,6 +408,24 @@ export class DiffReviewStore {
 		project.tickets[folderName] = updated;
 		this.saveProject(projectSlug, project);
 		return structuredClone(updated);
+	}
+
+	private withState(
+		item: ReviewPromptQueueItem,
+		state:
+			| { state: "waiting" }
+			| { state: "delivering"; deliveryStartedAt: string }
+			| { state: "sent"; sentAt: string }
+			| { state: "error"; error: string }
+			| { state: "uncertain"; error: string },
+	): ReviewPromptQueueItem {
+		return {
+			id: item.id,
+			createdAt: item.createdAt,
+			feedback: item.feedback,
+			snapshot: item.snapshot,
+			...state,
+		};
 	}
 
 	private saveProject(projectSlug: string, project: DiffReviewProjectState): void {

@@ -44,9 +44,10 @@ export async function listHerdrTicketPaneState(
 		listHerdrPanes(exec, workspaceId),
 		listHerdrAgents(exec),
 	]);
-	const agentsByPaneId = new Map<string, typeof agents>();
-	for (const agent of agents) {
-		if (agent.workspace_id !== workspaceId || !agent.pane_id) continue;
+	const workspaceAgents = agents.filter((agent) => agent.workspace_id === workspaceId);
+	const agentsByPaneId = new Map<string, typeof workspaceAgents>();
+	for (const agent of workspaceAgents) {
+		if (!agent.pane_id) continue;
 		const paneAgents = agentsByPaneId.get(agent.pane_id) ?? [];
 		paneAgents.push(agent);
 		agentsByPaneId.set(agent.pane_id, paneAgents);
@@ -64,5 +65,5 @@ export async function listHerdrTicketPaneState(
 			agentStatuses: paneAgents.map((agent) => agent.agent_status ?? 'unknown'),
 		});
 	}
-	return { ticketPanes, agents };
+	return { ticketPanes, agents: workspaceAgents };
 }

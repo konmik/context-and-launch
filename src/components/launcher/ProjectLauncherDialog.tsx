@@ -8,7 +8,7 @@ import {
 import { LauncherTab } from "../ticket/ticket-detail-launcher-tab.js";
 import { createAgentLauncherController } from "./agent-launcher-controller.js";
 import {
-  getMergedLauncherConfig, saveColumnDefaults, cacheMergedLauncherConfig,
+  getMergedLauncherConfig, saveAndCacheColumnDefaults,
   launchProjectAgentAction,
   type MergedLauncherConfigWithMeta,
 } from "./launcher-api.js";
@@ -38,10 +38,9 @@ export default function ProjectLauncherDialog(props: {
   ));
 
   function patchDefaults(patch: Partial<LauncherColumnDefaults>) {
-    saveColumnDefaults(props.projectSlug, PROJECT_LAUNCH_KEY, patch)
+    saveAndCacheColumnDefaults(props.projectSlug, PROJECT_LAUNCH_KEY, patch)
       .then((result) => {
         if (!result.ok) { setError({ title: "Save failed", description: result.message }); return; }
-        cacheMergedLauncherConfig(props.projectSlug, result.config);
       })
       .catch((e) => setError(errorPayload(e, "Save failed")));
   }

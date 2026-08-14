@@ -69,6 +69,15 @@ describe('Command Template catalog', () => {
 		});
 	});
 
+	it('delivers a Review Prompt through the agent surface, not the raw pane', () => {
+		const bundled = JSON.parse(fs.readFileSync(
+			path.resolve('config-defaults/command-templates.json'), 'utf8',
+		)) as Record<string, string>;
+		expect(bundled['herdr.review-prompt.deliver']).toBe(
+			'herdr agent prompt {{paneId}} {{prompt}}',
+		);
+	});
+
 	it('returns operating-system open actions as soon as the shell spawns', () => {
 		for (const platform of ['windows', 'macos', 'linux']) {
 			expect(COMMAND_TEMPLATE_DEFINITION_BY_KEY.get(`open.directory.${platform}`))

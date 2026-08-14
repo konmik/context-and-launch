@@ -17,6 +17,33 @@ interface AgentLauncherProps {
 	ctrl: AgentLauncherController;
 }
 
+// The Agent and the Prompt Template are both picked from a list of named
+// entries, and picking one both moves the launcher to it and records it as the
+// column's default.
+function NamedEntrySelect(props: {
+	label: string;
+	value: string;
+	options: { name: string }[];
+	testId: string;
+	onChange(name: string): void;
+}) {
+	return (
+		<div>
+			<label class="field-label">{props.label}</label>
+			<select
+				value={props.value}
+				onChange={(e) => props.onChange(e.currentTarget.value)}
+				class="input input-sm"
+				data-testid={props.testId}
+			>
+				<For each={props.options}>
+					{(option) => <option value={option.name}>{option.name}</option>}
+				</For>
+			</select>
+		</div>
+	);
+}
+
 function SortableLauncherSkill(props: {
 	skill: MergedSkill;
 	checked: boolean;
@@ -66,38 +93,26 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 				{(cfg) => (
 					<div class="flex w-full flex-col gap-4">
 						<div class="flex flex-col gap-4">
-							<div>
-								<label class="field-label">Agent</label>
-								<select
-									value={c.selectedProfile()}
-									onChange={(e) => {
-										c.setSelectedProfile(e.currentTarget.value);
-										props.onDefaultsChange({ profileName: e.currentTarget.value });
-									}}
-									class="input input-sm"
-									data-testid="ticket-detail-launcher-profile-select"
-								>
-									<For each={cfg().profiles}>
-									{(p) => <option value={p.name}>{p.name}</option>}
-								</For>
-								</select>
-							</div>
-							<div>
-								<label class="field-label">Prompt Template</label>
-								<select
-									value={c.selectedTemplate()}
-									onChange={(e) => {
-										c.setSelectedTemplate(e.currentTarget.value);
-										props.onDefaultsChange({ templateName: e.currentTarget.value });
-									}}
-									class="input input-sm"
-									data-testid="ticket-detail-launcher-template-select"
-								>
-									<For each={cfg().templates}>
-									{(t) => <option value={t.name}>{t.name}</option>}
-								</For>
-								</select>
-							</div>
+							<NamedEntrySelect
+								label="Agent"
+								value={c.selectedProfile()}
+								options={cfg().profiles}
+								testId="ticket-detail-launcher-profile-select"
+								onChange={(name) => {
+									c.setSelectedProfile(name);
+									props.onDefaultsChange({ profileName: name });
+								}}
+							/>
+							<NamedEntrySelect
+								label="Prompt Template"
+								value={c.selectedTemplate()}
+								options={cfg().templates}
+								testId="ticket-detail-launcher-template-select"
+								onChange={(name) => {
+									c.setSelectedTemplate(name);
+									props.onDefaultsChange({ templateName: name });
+								}}
+							/>
 							<Show when={cfg().skills.length > 0}>
 								<div>
 									<label class="field-label">Skills</label>
@@ -182,14 +197,14 @@ export default function AgentLauncher(props: AgentLauncherProps) {
 						data-testid="ticket-detail-launcher-dirty-cancel"
 					>Cancel</button>
 					<button
-				onClick={() => {
-					c.setDirtyWorktreeMsg("");
-					c.launchAgent({ force: true });
-				}}
-				disabled={c.launching()}
-				class="btn-primary"
-				data-testid="ticket-detail-launcher-dirty-launch-anyway"
-			>Launch Anyway</button>
+						onClick={() => {
+							c.setDirtyWorktreeMsg("");
+							c.launchAgent({ force: true });
+						}}
+						disabled={c.launching()}
+						class="btn-primary"
+						data-testid="ticket-detail-launcher-dirty-launch-anyway"
+					>Launch Anyway</button>
 				</div>
 			</DialogRoot>
 		</div>

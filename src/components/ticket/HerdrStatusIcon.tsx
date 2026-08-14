@@ -1,4 +1,3 @@
-import { Switch, Match, createSignal, onCleanup } from "solid-js";
 import type { HerdrAgentStatus } from "~/core/herdr/herdr-client.js";
 
 export const HERDR_STATUS_COLORS: Record<HerdrAgentStatus, string> = {
@@ -9,34 +8,32 @@ export const HERDR_STATUS_COLORS: Record<HerdrAgentStatus, string> = {
   unknown: "#6c7086",
 };
 
-const CLASSIC_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+const HERDR_STATUS_GLYPHS: Record<HerdrAgentStatus, string> = {
+  working: "●",
+  blocked: "●",
+  idle: "○",
+  done: "●",
+  unknown: "·",
+};
 
-function StatusGlyph(props: { glyph: string; color: string; testId?: string }) {
+function StatusGlyph(props: { glyph: string; color: string; size: number }) {
   return (
     <span
-      data-testid={props.testId}
       class="inline-block shrink-0 font-mono leading-none tabular-nums"
-      style={{ "font-size": "12px", width: "12px", "text-align": "center", color: props.color }}
+      style={{
+        "font-size": `${props.size}px`,
+        width: `${props.size}px`,
+        "text-align": "center",
+        color: props.color,
+      }}
     >
       {props.glyph}
     </span>
   );
 }
 
-function ClassicSpinner(props: { color: string }) {
-  const [frame, setFrame] = createSignal(0);
-  const timer = setInterval(() => setFrame((f) => (f + 1) % CLASSIC_FRAMES.length), 80);
-  onCleanup(() => clearInterval(timer));
-  return (
-    <StatusGlyph
-      glyph={CLASSIC_FRAMES[frame()]}
-      color={props.color}
-      testId="herdr-classic-spinner"
-    />
-  );
-}
-
-export default function HerdrStatusIcon(props: { status: HerdrAgentStatus }) {
+export default function HerdrStatusIcon(props: { status: HerdrAgentStatus; size?: number }) {
+  const size = () => props.size ?? 12;
   const color = () => HERDR_STATUS_COLORS[props.status];
   return (
     <span
@@ -45,23 +42,7 @@ export default function HerdrStatusIcon(props: { status: HerdrAgentStatus }) {
       data-herdr-status={props.status}
       title={props.status}
     >
-      <Switch>
-        <Match when={props.status === "working"}>
-          <ClassicSpinner color={color()} />
-        </Match>
-        <Match when={props.status === "blocked"}>
-          <StatusGlyph glyph="◉" color={color()} />
-        </Match>
-        <Match when={props.status === "idle"}>
-          <StatusGlyph glyph="✓" color={color()} />
-        </Match>
-        <Match when={props.status === "done"}>
-          <StatusGlyph glyph="●" color={color()} />
-        </Match>
-        <Match when={props.status === "unknown"}>
-          <StatusGlyph glyph="○" color={color()} />
-        </Match>
-      </Switch>
+      <StatusGlyph glyph={HERDR_STATUS_GLYPHS[props.status]} color={color()} size={size()} />
     </span>
   );
 }

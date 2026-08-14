@@ -22,6 +22,8 @@ import { DiffReviewGitService } from '../diff-review/diff-review-git.js';
 import { DiffReviewTargetResolver } from '../diff-review/diff-review-target.js';
 import { ReviewPromptQueueService } from '../diff-review/review-prompt-queue.js';
 import { ProfileReviewAgentLauncher } from '../diff-review/review-agent-launcher.js';
+import { fetchHerdrTicketState } from '../herdr/herdr-client.js';
+import { HerdrUnavailableError } from '../herdr/herdr-availability.js';
 
 export interface ServiceContainer {
 	configPaths: ConfigPaths;
@@ -90,9 +92,22 @@ export function createServices(options: ServiceOptions = {}): ServiceContainer {
 		diffReviewStore,
 		diffReviewGitService,
 		diffReviewTargetResolver,
-		projectRegistry,
 		commandTemplateService,
 		new ProfileReviewAgentLauncher(launcherConfigManager, commandTemplateService),
+		async (projectSlug) => {
+			const observedAt = Date.now();
+			try {
+				const state = await fetchHerdrTicketState(projectSlug, herdrExec);
+				return { agents: state.agents, observedAt };
+			} catch (error) {
+				if (error instanceof HerdrUnavailableError) {
+					return error.reason === 'cli-missing'
+						? { agents: [], observedAt }
+						: undefined;
+				}
+				throw error;
+			}
+		},
 	);
 	const ticketSyncManager = new TicketSyncManager(commandTemplateService, gitRepo);
 	const operationTracker = new OperationTracker();

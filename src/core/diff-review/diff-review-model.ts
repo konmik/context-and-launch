@@ -29,6 +29,15 @@ function lineSignature(type: ReviewDiffLine["type"], text: string): string {
 	return `${type}:${text}`;
 }
 
+// Git stores text with LF endings and normalizes CRLF at the index boundary,
+// while the working file on disk may carry the platform's own endings. The two
+// sides of a Diff Review reach the model through different pipelines, so line
+// endings must be normalized here or a CRLF-versus-LF file reads as a change to
+// every line. A stray carriage return never belongs to the line's text.
+function normalizeLineEndings(value: string): string {
+	return value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+}
+
 function hunkFingerprint(
 	filePath: string,
 	lines: Omit<ReviewDiffLine, "id" | "hunkId">[],
@@ -90,8 +99,10 @@ export interface BuildReviewFileInput {
 }
 
 export function buildReviewFile(input: BuildReviewFileInput): ReviewFileSnapshot {
-	const contentHash = reviewContentHash(input.oldContents, input.newContents);
-	if (input.oldContents === input.newContents) {
+	const oldContents = normalizeLineEndings(input.oldContents);
+	const newContents = normalizeLineEndings(input.newContents);
+	const contentHash = reviewContentHash(oldContents, newContents);
+	if (oldContents === newContents) {
 		return {
 			path: input.path,
 			previousPath: input.previousPath,
@@ -101,8 +112,8 @@ export function buildReviewFile(input: BuildReviewFileInput): ReviewFileSnapshot
 			binary: false,
 			byteSize: input.byteSize,
 			contentHash,
-			oldContents: input.oldContents,
-			newContents: input.newContents,
+			oldContents,
+			newContents,
 			hunks: [],
 			lines: [],
 		};
@@ -111,12 +122,12 @@ export function buildReviewFile(input: BuildReviewFileInput): ReviewFileSnapshot
 	const diff = parseDiffFromFile(
 		{
 			name: input.previousPath ?? input.path,
-			contents: input.oldContents,
+			contents: oldContents,
 			cacheKey: `${contentHash}:old`,
 		},
 		{
 			name: input.path,
-			contents: input.newContents,
+			contents: newContents,
 			cacheKey: `${contentHash}:new`,
 		},
 		{ context: 3 },
@@ -168,8 +179,8 @@ export function buildReviewFile(input: BuildReviewFileInput): ReviewFileSnapshot
 		binary: false,
 		byteSize: input.byteSize,
 		contentHash,
-		oldContents: input.oldContents,
-		newContents: input.newContents,
+		oldContents,
+		newContents,
 		hunks,
 		lines,
 	};
@@ -269,7 +280,19 @@ export function reviewSelectionStillExists(
 	const expected = selectionSignature(snapshot.selectedLines);
 	const count = snapshot.selectedLines.length;
 	for (let index = 0; index <= file.lines.length - count; index++) {
-		if (selectionSignature(file.lines.slice(index, index + count)) === expected) return true;
+		if (selectionSignature(file.lines.slice(index, index + count)) !== expected) continue;
+		const before = file.lines.slice(
+			Math.max(0, index - snapshot.contextBefore.length),
+			index,
+		);
+		const after = file.lines.slice(
+			index + count,
+			index + count + snapshot.contextAfter.length,
+		);
+		if (
+			selectionSignature(before) === selectionSignature(snapshot.contextBefore)
+			&& selectionSignature(after) === selectionSignature(snapshot.contextAfter)
+		) return true;
 	}
 	return false;
 }
