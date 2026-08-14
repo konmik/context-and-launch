@@ -486,9 +486,13 @@ export interface ScreenBox {
 }
 
 export async function boxOf(locator: Locator): Promise<ScreenBox> {
-  const box = await locator.boundingBox();
-  if (!box) throw new Error("Element has no bounding box");
-  return box;
+  const deadline = Date.now() + WAIT_TIMEOUT_MS;
+  for (;;) {
+    const box = await locator.boundingBox();
+    if (box) return box;
+    if (Date.now() > deadline) throw new Error("Element has no bounding box");
+    await new Promise((r) => setTimeout(r, 100));
+  }
 }
 
 function boxCenter(box: ScreenBox): ScreenPoint {

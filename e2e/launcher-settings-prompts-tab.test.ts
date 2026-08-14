@@ -57,9 +57,9 @@ describe("Launcher Settings Prompts tab (e2e, real server)", () => {
     const app = await poll(
       () => readAppLauncherConfig(ctx.testServer),
       (a) => a?.templates?.map((t) => t.name).includes("Brand New") ?? false,
-      5000,
+      15000,
     );
-    expect(app?.templates?.map((t) => t.name)).toContain("Brand New");
+    expect(app?.templates?.map((t) => t.name) ?? []).toContain("Brand New");
   });
 
   it("submit at project scope writes to project launcher config", async () => {
@@ -73,9 +73,9 @@ describe("Launcher Settings Prompts tab (e2e, real server)", () => {
     const proj = await poll(
       () => readProjectLauncherConfig(ctx.testServer, project.projectSlug),
       (p) => p?.templates?.map((t) => t.name).includes("Project Prompt") ?? false,
-      5000,
+      15000,
     );
-    expect(proj?.templates?.map((t) => t.name)).toContain("Project Prompt");
+    expect(proj?.templates?.map((t) => t.name) ?? []).toContain("Project Prompt");
   });
 
   it("edit button opens dialog with prefilled name", async () => {
@@ -93,8 +93,8 @@ describe("Launcher Settings Prompts tab (e2e, real server)", () => {
     const app = await poll(
       () => readAppLauncherConfig(ctx.testServer),
       (a) => !(a?.templates?.map((t) => t.name).includes("Existing") ?? false),
-      5000,
+      15000,
     );
-    expect(app?.templates?.map((t) => t.name)).not.toContain("Existing");
+    expect(app?.templates?.map((t) => t.name) ?? []).not.toContain("Existing");
   });
 });

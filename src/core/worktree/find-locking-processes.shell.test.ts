@@ -21,6 +21,20 @@ function runFinder(dir: string): Array<{ pid: number; processName: string }> {
     .map(parts => ({ pid: Number(parts[0]), processName: parts[1] }));
 }
 
+async function removeDirRetry(dir: string): Promise<void> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+      return;
+    } catch (err) {
+      lastErr = err;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+  throw lastErr;
+}
+
 describe.runIf(process.platform === "win32")("find-locking-processes.ps1", () => {
   const holders: number[] = [];
   const dirs: string[] = [];
@@ -47,11 +61,14 @@ describe.runIf(process.platform === "win32")("find-locking-processes.ps1", () =>
     return child.pid!;
   }
 
-  afterEach(() => {
+  afterEach(async () => {
     while (holders.length > 0) {
       try { process.kill(holders.pop()!); } catch { /* already exited */ }
     }
-    while (dirs.length > 0) fs.rmSync(dirs.pop()!, { recursive: true, force: true });
+    while (dirs.length > 0) {
+      const dir = dirs.pop()!;
+      await removeDirRetry(dir);
+    }
   });
 
   it("reports a process holding an open file handle from another directory", async () => {

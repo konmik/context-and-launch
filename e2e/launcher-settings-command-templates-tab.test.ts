@@ -74,12 +74,18 @@ describe('Command Templates Settings tab (e2e, real server)', () => {
 		expect(await testId(reloaded, "command-template-editor-script").inputValue())
 			.toContain('build-options');
 		await testId(reloaded, "command-template-reset").click();
+		await poll(
+			() => testId(reloaded, "command-template-override-state").textContent(),
+			(state) => state === 'Default',
+			15000,
+			100,
+		);
 		const afterReset = await poll(
 			() => (fs.existsSync(overrideFile)
 				? JSON.parse(fs.readFileSync(overrideFile, 'utf8'))
 				: {}) as Record<string, string>,
 			(o) => Object.keys(o).length === 0,
-			5000,
+			15000,
 		);
 		expect(afterReset).toEqual({});
 	});

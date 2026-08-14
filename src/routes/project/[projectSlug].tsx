@@ -118,7 +118,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   const [logViewerOpen, setLogViewerOpen] = createSignal(false);
   const [projectLauncherOpen, setProjectLauncherOpen] = createSignal(false);
   const hasPendingChanges = createDeferredAsync(
-    () => deferredPollsReady() && projectSlug() !== "",
+    () => deferredPollsReady() && projectSlug() !== "" && data()?.status === "loaded",
     () => getSyncPending(projectSlug()),
     false,
   );
