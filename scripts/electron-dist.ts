@@ -17,6 +17,7 @@ fs.rmSync(DIST_DIR, { recursive: true, force: true });
 
 const steps = [
   "vite build",
+  "node scripts/verify-electron-server-bundle.mjs",
   "npm run electron:build-main",
   "npx electron-builder",
 ];

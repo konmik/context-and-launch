@@ -30,6 +30,7 @@ export default defineConfig({
     tailwindcss(),
   ],
   build: { target: "esnext" },
+  ssr: { noExternal: true },
   server: { watch: { ignored: ["**/dist-electron/**"] } },
   optimizeDeps: {
     esbuildOptions: { target: "esnext" },
