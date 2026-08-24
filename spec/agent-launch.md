@@ -45,10 +45,10 @@
   - An existing quiescent Herdr Agent (`idle` or `done`) is stopped and replaced by a fresh process in the same pane
   - A new Ticket pane is created only when the Ticket has no existing pane
   - A working, blocked, or unknown existing Herdr Agent blocks the launch
-  - Herdr starts the configured agent kind in the Ticket pane
-    - OpenCode 2 preview is started with its configured `opencode2` command because Herdr's canonical OpenCode launcher starts the stable `opencode` executable
-    - The initial prompt is passed through OpenCode 2's `--prompt` startup option; after that text is visible in the composer, the launcher retries Enter until Herdr observes submission
-    - The detected OpenCode 2 process is assigned the Ticket's transient Agent name
+  - The configured agent command is run through the Ticket pane's shell
+    - Arguments are encoded as a single-line PowerShell command so profile argv is preserved without shell interpolation
+    - Herdr auto-detects the process, which avoids its Windows `Start-Process` launcher selecting non-runnable npm shims
+    - The detected process is assigned the Ticket's transient Agent name and the pane keeps its persistent Ticket label
   - Herdr submits the multiline prompt to the fresh agent after it becomes interactive
   - A legacy pane without a persistent shell fails without closing the pane or creating another pane
   - A failing Herdr command is reported with the command that failed

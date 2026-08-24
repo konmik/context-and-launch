@@ -31,17 +31,10 @@ param(
 $global:Calls = @()
 $global:Stopped = $false
 $global:QuitPending = $false
-$global:CustomAgentStarted = $false
-$global:PromptSettled = $false
-$global:EnterAttempts = 0
+$global:AgentStarted = $false
+$global:StartedPaneId = ''
 function global:Start-Sleep {
   param([int]$Seconds, [int]$Milliseconds)
-  if ($global:CustomAgentStarted -and $Seconds -ge 1) {
-    $global:PromptSettled = $true
-  }
-}
-function global:Get-CimInstance {
-  return [pscustomobject]@{ Name = 'powershell.exe'; CommandLine = 'powershell.exe -NoExit' }
 }
 function global:herdr {
   $callArgs = @($args | ForEach-Object { [string]$_ })
@@ -68,15 +61,13 @@ function global:herdr {
       '{"workspace_id":"w1","pane_id":"w1:p9","label":"alpha--st-47"}]}}'
   }
   if ($verb -eq 'agent list') {
+    if ($global:AgentStarted) {
+      return '{"id":"test","result":{"agents":[{"workspace_id":"w1",' +
+        '"pane_id":"' + $global:StartedPaneId + '","agent_status":"idle",' +
+        '"agent":"opencode","state_change_seq":1}]}}'
+    }
     if ($global:Stopped) {
       return '{"id":"test","result":{"agents":[]}}'
-    }
-    if ($global:CustomAgentStarted) {
-      $status = if ($global:EnterAttempts -ge 2) { 'working' } else { 'idle' }
-      $sequence = if ($global:EnterAttempts -ge 2) { 2 } else { 1 }
-      return '{"id":"test","result":{"agents":[{"workspace_id":"w1",' +
-        '"pane_id":"w1:p1","agent_status":"' + $status + '","agent":"opencode",' +
-        '"state_change_seq":' + $sequence + '}]}}'
     }
     if ($Mode -eq 'working') {
       return '{"id":"test","result":{"agents":[{"workspace_id":"w1",' +
@@ -109,18 +100,13 @@ function global:herdr {
   if ($verb -eq 'pane run') {
     if ($callArgs[3] -eq '/quit') { $global:QuitPending = $true }
     if ($callArgs[3] -like 'powershell.exe -NoLogo -NoProfile -EncodedCommand *') {
-      $global:CustomAgentStarted = $true
+      $global:AgentStarted = $true
+      $global:StartedPaneId = $callArgs[2]
+      $global:Stopped = $false
     }
     return '{"id":"test","result":{"type":"ok"}}'
   }
   if ($verb -eq 'pane send-keys') {
-    if ($global:CustomAgentStarted -and -not $global:PromptSettled) {
-      $global:LASTEXITCODE = 1
-      return '{"error":{"message":"OpenCode prompt was not settled"}}'
-    }
-    if ($global:CustomAgentStarted -and $callArgs[3] -eq 'enter') {
-      $global:EnterAttempts += 1
-    }
     if ($callArgs[3] -eq 'enter' -and $global:QuitPending) { $global:Stopped = $true }
     return '{"id":"test","result":{"type":"ok"}}'
   }
@@ -182,13 +168,13 @@ function runHarnessWithoutPrompt(): ReturnType<typeof runHarness> {
 	};
 }
 
-function runOpenCode2Harness(): ReturnType<typeof runHarness> {
+function runOpenCodeHarness(): ReturnType<typeof runHarness> {
 	const files = makeHarness();
 	const marker = path.join(files.dir, 'running', 'alpha', 'st-47.json');
 	const result = spawnSync('powershell', [
 		'-NoProfile', '-File', files.harness,
 		SCRIPT_PATH, files.report, 'create', files.dir,
-		"hello\nmultiline 'world'", marker, 'opencode2', '--auto',
+		"hello\nmultiline 'world'", marker, 'opencode', '--auto',
 	], { encoding: 'utf-8' });
 	return {
 		status: result.status,
@@ -209,10 +195,12 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
 		expect(result.status, result.stderr).toBe(0);
 		const calls = result.report.calls.map(call => call.args);
 		expect(calls).toContainEqual(['pane', 'rename', 'w1:p1', 'alpha--st-47']);
-		expect(calls).toContainEqual([
-			'agent', 'start', 'cl-w1-p1', '--kind', 'claude', '--pane', 'w1:p1',
-			'--', '--flag',
-		]);
+		const run = calls.find(call => call[0] === 'pane' && call[1] === 'run');
+		const encoded = run?.[3].match(/-EncodedCommand (\S+)$/)?.[1];
+		expect(Buffer.from(encoded!, 'base64').toString('utf16le')).toBe(
+			"& 'claude' '--flag'",
+		);
+		expect(calls).toContainEqual(['agent', 'rename', 'w1:p1', 'cl-w1-p1']);
 		expect(calls).toContainEqual([
 			'agent', 'prompt', 'cl-w1-p1', "hello\nmultiline 'world'",
 		]);
@@ -229,29 +217,35 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
 			'pane', 'split', 'w1:p1', '--direction', 'right',
 			'--cwd', expect.any(String), '--no-focus',
 		]);
-		expect(calls).toContainEqual([
-			'agent', 'start', 'cl-w1-p2', '--kind', 'claude', '--pane', 'w1:p2',
-			'--', '--flag',
-		]);
+		expect(calls.some(call =>
+			call[0] === 'pane' && call[1] === 'run' && call[2] === 'w1:p2',
+		)).toBe(true);
 	});
 
 	it('starts without prompting when the initial prompt is empty', () => {
 		const result = runHarnessWithoutPrompt();
 		expect(result.status, result.stderr).toBe(0);
 		const calls = result.report.calls.map(call => call.args);
-		expect(calls.some(call => call[0] === 'agent' && call[1] === 'start')).toBe(true);
+		expect(calls.some(call => call[0] === 'pane' && call[1] === 'run')).toBe(true);
 		expect(calls.some(call => call[0] === 'agent' && call[1] === 'prompt')).toBe(false);
 	});
 
-	it('starts OpenCode 2 as a normal agent kind', () => {
-		const result = runOpenCode2Harness();
+	it('runs the configured OpenCode command through the pane shell', () => {
+		const result = runOpenCodeHarness();
 		expect(result.status, result.stderr).toBe(0);
 		const calls = result.report.calls.map(call => call.args);
-		expect(calls).toContainEqual([
-			'agent', 'start', 'cl-w1-p1', '--kind', 'opencode2', '--pane', 'w1:p1',
-			'--', '--auto',
-		]);
-		expect(calls.some(call => call[0] === 'pane' && call[1] === 'run')).toBe(false);
+		const run = calls.find(call => call[0] === 'pane' && call[1] === 'run');
+		expect(run?.slice(0, 3)).toEqual(['pane', 'run', 'w1:p1']);
+		const encoded = run?.[3].match(
+			/^powershell\.exe -NoLogo -NoProfile -EncodedCommand (\S+)$/,
+		)?.[1];
+		expect(encoded).toBeDefined();
+		expect(Buffer.from(encoded!, 'base64').toString('utf16le')).toBe(
+			"& 'opencode' '--auto'",
+		);
+		expect(calls.some(call => call[0] === 'agent' && call[1] === 'start')).toBe(false);
+		expect(calls).toContainEqual(['agent', 'rename', 'w1:p1', 'cl-w1-p1']);
+		expect(calls).toContainEqual(['pane', 'rename', 'w1:p1', 'alpha--st-47']);
 		expect(calls).toContainEqual([
 			'agent', 'prompt', 'cl-w1-p1', "hello\nmultiline 'world'",
 		]);
@@ -265,10 +259,10 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
 		expect(calls).toContainEqual(['pane', 'send-keys', 'w1:p9', 'enter']);
 		expect(calls).not.toContainEqual(['pane', 'send-keys', 'w1:p9', 'ctrl+c']);
 		expect(calls.some(call => call[0] === 'pane' && call[1] === 'close')).toBe(false);
-		expect(calls).toContainEqual([
-			'agent', 'start', 'cl-w1-p9', '--kind', 'claude', '--pane', 'w1:p9',
-			'--', '--flag',
-		]);
+		expect(calls.some(call =>
+			call[0] === 'pane' && call[1] === 'run' && call[2] === 'w1:p9' &&
+			call[3] !== '/quit',
+		)).toBe(true);
 		expect(calls).toContainEqual([
 			'agent', 'prompt', 'cl-w1-p9', "hello\nmultiline 'world'",
 		]);
@@ -278,10 +272,9 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
 		const result = runHarness('empty');
 		expect(result.status, result.stderr).toBe(0);
 		const calls = result.report.calls.map(call => call.args);
-		expect(calls).toContainEqual([
-			'agent', 'start', 'cl-w1-p9', '--kind', 'claude', '--pane', 'w1:p9',
-			'--', '--flag',
-		]);
+		expect(calls.some(call =>
+			call[0] === 'pane' && call[1] === 'run' && call[2] === 'w1:p9',
+		)).toBe(true);
 	});
 
 	it('rejects a working agent', () => {

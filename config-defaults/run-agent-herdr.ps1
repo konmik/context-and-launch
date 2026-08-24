@@ -15,11 +15,6 @@ if (-not (Get-Command herdr -ErrorAction SilentlyContinue)) {
 $initialPrompt = [string]$args[0]
 $markerPath = [string]$args[2]
 $agentCommand = @($args[3..($args.Length - 1)] | ForEach-Object { [string]$_ })
-$agentKind = [IO.Path]::GetFileNameWithoutExtension($agentCommand[0]).ToLowerInvariant()
-$agentArgs = @()
-if ($agentCommand.Length -gt 1) {
-    $agentArgs = @($agentCommand[1..($agentCommand.Length - 1)])
-}
 $launchDir = (Get-Location).Path
 $projectSlug = Split-Path -Leaf (Split-Path -Parent $markerPath)
 $ticketFolder = [IO.Path]::GetFileNameWithoutExtension($markerPath)
@@ -31,6 +26,11 @@ function Get-Field {
         return $Object.PSObject.Properties[$Name].Value
     }
     return $null
+}
+
+function ConvertTo-PowerShellLiteral {
+    param([string]$Value)
+    return "'$($Value.Replace("'", "''"))'"
 }
 
 # A native command writing to stderr raises a terminating NativeCommandError while
@@ -141,13 +141,38 @@ function Wait-AgentReleased {
 function Start-Agent {
     param([string]$PaneId)
     $agentName = ('cl-' + ($PaneId -replace '[^A-Za-z0-9_-]', '-')).ToLowerInvariant()
-    $startArgs = @('agent', 'start', $agentName, '--kind', $agentKind, '--pane', $PaneId)
-    if ($agentArgs.Count -gt 0) {
-        $startArgs += @('--') + $agentArgs
+
+    # Herdr's Windows agent launcher passes a bare executable name to
+    # Start-Process, which can select an extensionless npm shim instead of its
+    # runnable .cmd/.exe sibling. Let the pane shell resolve the configured
+    # command and preserve every argument in an encoded PowerShell invocation.
+    $launchScript = '& ' + (@(
+        $agentCommand | ForEach-Object { ConvertTo-PowerShellLiteral $_ }
+    ) -join ' ')
+    $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($launchScript))
+    $launchCommand = "powershell.exe -NoLogo -NoProfile -EncodedCommand $encoded"
+    Invoke-Herdr @('pane', 'run', $PaneId, $launchCommand) | Out-Null
+
+    $detected = $null
+    for ($attempt = 0; $attempt -lt 360; $attempt++) {
+        $agents = @(Get-AgentsInPane $PaneId)
+        if ($agents.Count -eq 1) {
+            $status = [string](Get-Field $agents[0] 'agent_status')
+            if ($status -ceq 'idle' -or $status -ceq 'done') {
+                $detected = $agents[0]
+                break
+            }
+        }
+        Start-Sleep -Milliseconds 250
     }
-    $started = Invoke-Herdr $startArgs
+    if ($null -eq $detected) {
+        throw "Herdr did not detect a ready '$($agentCommand[0])' agent in pane '$PaneId'."
+    }
+
+    Invoke-Herdr @('agent', 'rename', $PaneId, $agentName) | Out-Null
     Invoke-Herdr @('pane', 'rename', $PaneId, $ticketPaneLabel) | Out-Null
-    if ([string]::IsNullOrWhiteSpace($initialPrompt)) { return $started }
+    if ([string]::IsNullOrWhiteSpace($initialPrompt)) { return $detected }
+    Start-Sleep -Milliseconds 1500
     return Invoke-Herdr @('agent', 'prompt', $agentName, $initialPrompt)
 }
 
