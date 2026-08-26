@@ -49,11 +49,15 @@ export function DialogRoot(props: {
     <Show when={props.open}>
       <DialogContext value={context}>
         <Portal>
-          <div data-scope="dialog" data-part="backdrop" onClick={() => props.closeOnInteractOutside !== false && props.onOpenChange(false)} />
+          <div data-scope="dialog" data-part="backdrop" />
           <div
             data-scope="dialog"
             data-part="positioner"
-            onClick={() => props.closeOnInteractOutside !== false && props.onOpenChange(false)}
+            onPointerDown={(event) => {
+              if (event.button === 0 && event.target === event.currentTarget && props.closeOnInteractOutside !== false) {
+                props.onOpenChange(false);
+              }
+            }}
           >
             <div
               ref={(element) => { content = element; typeof props.ref === "function" ? props.ref(element) : undefined; }}
@@ -66,7 +70,6 @@ export function DialogRoot(props: {
               data-part="content"
               class={props.class}
               onMouseDown={props.onMouseDown}
-              onClick={(event) => event.stopPropagation()}
             >{props.children}</div>
           </div>
         </Portal>

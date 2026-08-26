@@ -30,6 +30,21 @@ describe("CreateTicketDialog (e2e, real server)", () => {
     expect(listTicketFolders(ctx.testServer, project.projectSlug)).toEqual([]);
   });
 
+  it("stays open when a pointer press starts inside and ends outside", async () => {
+    await openProject(ctx, { slugBase: "ct-drag-out" });
+    await openCreate();
+    const input = testId(ctx.page, "create-ticket-number-input");
+    const box = await input.boundingBox();
+    expect(box).not.toBeNull();
+
+    await ctx.page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+    await ctx.page.mouse.down();
+    await ctx.page.mouse.move(5, 5);
+    await ctx.page.mouse.up();
+
+    expect(await input.count()).toBe(1);
+  });
+
   it("create-ticket-submit creates a ticket on disk", async () => {
     const project = await openProject(ctx, { slugBase: "ct-submit" });
     await openCreate();

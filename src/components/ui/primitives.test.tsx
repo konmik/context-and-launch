@@ -17,13 +17,26 @@ describe("local UI primitives", () => {
 		expect(getComputedStyle(handle).bottom).toBe("0px");
 	});
 
-  it("dismisses a dialog from its outside positioner", () => {
+  it("dismisses a dialog from a pointer press on its outside positioner", () => {
     const close = vi.fn();
     render(() => <DialogRoot open onOpenChange={close}><button>Inside</button></DialogRoot>);
 
-    fireEvent.click(document.querySelector('[data-part="positioner"]')!);
+    fireEvent.pointerDown(document.querySelector('[data-part="positioner"]')!);
 
     expect(close).toHaveBeenCalledWith(false);
+  });
+
+  it("does not dismiss when a pointer press starts inside and its click ends outside", () => {
+    const close = vi.fn();
+    render(() => <DialogRoot open onOpenChange={close}><button>Inside</button></DialogRoot>);
+    const positioner = document.querySelector('[data-part="positioner"]')!;
+    const inside = document.querySelector('[data-part="content"] button')!;
+
+    fireEvent.pointerDown(inside);
+    fireEvent.pointerUp(positioner);
+    fireEvent.click(positioner);
+
+    expect(close).not.toHaveBeenCalled();
   });
 
   it("portals a positioned menu and restores focus after selection", async () => {
