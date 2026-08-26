@@ -25,6 +25,7 @@ function renderCard(props: {
   herdrStatuses?: Record<string, HerdrAgentStatus>;
   onDelete?: (ticket: TicketInfo) => void;
   onArchive?: (ticket: TicketInfo) => void;
+  onOpenFolder?: (ticket: TicketInfo) => void;
 }) {
   return render(() => (
     <HerdrStatusesContext value={(folderName) => props.herdrStatuses?.[folderName]}>
@@ -33,6 +34,7 @@ function renderCard(props: {
         onDelete={props.onDelete ?? (() => {})}
         onArchive={props.onArchive ?? (() => {})}
         onViewDetail={() => {}}
+        onOpenFolder={props.onOpenFolder ?? (() => {})}
       />
     </HerdrStatusesContext>
   ));
@@ -73,6 +75,25 @@ describe("TicketCard overflow menu", () => {
     expect(onArchive).toHaveBeenCalledWith(makeTicket());
   });
 
+  it("calls onOpenFolder when Open ticket folder is clicked", async () => {
+    const onOpenFolder = vi.fn();
+    const { container } = renderCard({ onOpenFolder });
+
+    const menuBtn = container.querySelector("[aria-label='Ticket actions']") as HTMLElement;
+    await fireEvent.click(menuBtn);
+
+    const openFolderItem = await waitFor(() => {
+      const el = [...document.querySelectorAll("[role='menuitem']")].find(
+        el => el.textContent?.trim() === "Open ticket folder"
+      );
+      if (!el) throw new Error("Open ticket folder item not yet rendered");
+      return el as HTMLElement;
+    });
+    await fireEvent.click(openFolderItem);
+
+    expect(onOpenFolder).toHaveBeenCalledWith(makeTicket());
+  });
+
   it("shows both menu options", async () => {
     cleanup();
     const { container } = renderCard({});
@@ -83,6 +104,7 @@ describe("TicketCard overflow menu", () => {
     await waitFor(() => {
       const items = [...document.querySelectorAll("[role='menuitem']")].map(el => el.textContent?.trim());
       expect(items).not.toContain("Edit");
+      expect(items).toContain("Open ticket folder");
       expect(items).toContain("Archive");
       expect(items).toContain("Delete");
     });

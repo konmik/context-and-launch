@@ -32,6 +32,7 @@ function SortableTicketCard(props: {
 	onDelete: (ticket: TicketInfo) => void;
 	onArchive: (ticket: TicketInfo) => void;
 	onViewDetail: (ticket: TicketInfo) => void;
+	onOpenFolder: (ticket: TicketInfo) => void;
 	onReviewChanges: (ticket: TicketInfo) => void;
 }) {
 	const id = makeId(props.column, props.ticket.folderName);
@@ -54,6 +55,7 @@ function SortableTicketCard(props: {
 				onDelete={props.onDelete}
 				onArchive={props.onArchive}
 				onViewDetail={props.onViewDetail}
+				onOpenFolder={props.onOpenFolder}
 				onReviewChanges={props.onReviewChanges}
 			/>
 		</div>
@@ -79,6 +81,7 @@ export interface TicketColumnProps {
 	onDelete: (ticket: TicketInfo) => void;
 	onArchive: (ticket: TicketInfo) => void;
 	onViewDetail: (ticket: TicketInfo) => void;
+	onOpenFolder: (ticket: TicketInfo) => void;
 	onReviewChanges: (ticket: TicketInfo) => void;
 }
 
@@ -158,6 +161,7 @@ export function ColumnBody(props: TicketColumnProps & {
 								onDelete={props.onDelete}
 								onArchive={props.onArchive}
 								onViewDetail={props.onViewDetail}
+								onOpenFolder={props.onOpenFolder}
 								onReviewChanges={props.onReviewChanges}
 							/>
 						</>
@@ -214,6 +218,7 @@ export function OrphanBody(props: TicketColumnProps & { tickets: TicketInfo[] })
 							onDelete={props.onDelete}
 							onArchive={props.onArchive}
 							onViewDetail={props.onViewDetail}
+							onOpenFolder={props.onOpenFolder}
 							onReviewChanges={props.onReviewChanges}
 							orphanedStatus={ticket.status}
 						/>

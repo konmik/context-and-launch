@@ -1,4 +1,5 @@
 import fs from "fs";
+import path from "path";
 import { action, query } from "@solidjs/router";
 import { respond } from "@solidjs/web";
 import {
@@ -315,6 +316,14 @@ export async function openTicketWorktree(projectSlug: string, folderName: string
   } catch (e) {
     return errorResult(e);
   }
+}
+
+export async function openTicketFolder(projectSlug: string, folderName: string): Promise<void> {
+  "use server";
+  const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
+  const store = new TicketStore(worktreeDir);
+  if (!store.getTicket(folderName)) throw new NotFoundError(`Ticket not found: ${folderName}`);
+  await openInOs(path.join(worktreeDir, folderName), commandTemplateService);
 }
 
 export async function getCleanupStatus(

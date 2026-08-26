@@ -59,6 +59,21 @@ describe("Open actions (e2e, real server)", () => {
     expect(await testId(ctx.page, "error-dialog-ok").count()).toBe(0);
   });
 
+  it("opens the ticket folder from the ticket card menu", async () => {
+    await openProject(ctx, {
+      slugBase: "oa-card-ticket-folder",
+      withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
+    });
+    const requests = trackServerRequests(ctx.page);
+    await clickMenuItem(
+      ctx.page,
+      '[data-testid="kanban-board-ticket-menu-trigger"]',
+      '[data-testid="kanban-board-ticket-menu-open-folder"]',
+    );
+    await expect.poll(() => requests.length, { timeout: 10000 }).toBeGreaterThan(0);
+    expect(await testId(ctx.page, "error-dialog-ok").count()).toBe(0);
+  });
+
   it("opens the worktree from the ticket card menu", async () => {
     await openProject(ctx, {
       slugBase: "oa-card-worktree",

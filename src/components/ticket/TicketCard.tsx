@@ -12,6 +12,7 @@ interface TicketCardProps {
   onDelete: (ticket: TicketInfo) => void;
   onArchive: (ticket: TicketInfo) => void;
   onViewDetail: (ticket: TicketInfo) => void;
+  onOpenFolder?: (ticket: TicketInfo) => void;
   onReviewChanges?: (ticket: TicketInfo) => void;
 }
 
@@ -53,6 +54,15 @@ export default function TicketCard(props: TicketCardProps) {
             }
           >
             <MenuContent>
+              <Show when={props.onOpenFolder}>
+                <MenuItem
+                  value="open-ticket-folder"
+                  data-testid="kanban-board-ticket-menu-open-folder"
+                  onClick={(e: MouseEvent) => {
+                    e.stopPropagation(); props.onOpenFolder?.(props.ticket);
+                  }}
+                >Open ticket folder</MenuItem>
+              </Show>
               <Show when={props.ticket.hasAgentWorktree && (shortcutRunner || props.onReviewChanges)}>
                 <Show when={shortcutRunner}>
                   <MenuItem
@@ -77,6 +87,11 @@ export default function TicketCard(props: TicketCardProps) {
                     }}
                   >Diff Review</button>
                 </Show>
+              </Show>
+              <Show when={
+                props.onOpenFolder
+                || (props.ticket.hasAgentWorktree && (shortcutRunner || props.onReviewChanges))
+              }>
                 <MenuSeparator />
               </Show>
               <MenuItem

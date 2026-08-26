@@ -12,6 +12,7 @@ import { resolveTicketsForColumn } from "./board-logic.js";
 import { createBoardDnd, type BoardCommands } from "./board-state.js";
 import type { Accessor } from "solid-js";
 import type { BoardView, DragState } from "./board-state.js";
+import { openTicketFolder } from "../ticket/ticket-api.js";
 
 interface KanbanBoardProps {
 	board: BoardState;
@@ -38,6 +39,9 @@ export default function KanbanBoard(props: KanbanBoardProps) {
 	const currentOrder = props.currentOrder ?? dnd.currentOrder;
 	const activeTicket = props.activeTicket ?? dnd.activeTicket;
 	const commands = props.commands ?? dnd.commands;
+	const openFolder = (ticket: TicketInfo) => {
+		void openTicketFolder(props.projectSlug, ticket.folderName);
+	};
 
 	const ticketsFor = (column: string) => resolveTicketsForColumn(
 		column, currentOrder(), board().ticketMap, board().orphanFolderNames,
@@ -114,6 +118,7 @@ export default function KanbanBoard(props: KanbanBoardProps) {
 									onDelete={props.onDelete}
 									onArchive={props.onArchive}
 									onViewDetail={props.onViewDetail}
+									onOpenFolder={openFolder}
 									onReviewChanges={props.onReviewChanges ?? (() => {})}
 								/>
 							)}
@@ -127,6 +132,7 @@ export default function KanbanBoard(props: KanbanBoardProps) {
 								onDelete={props.onDelete}
 								onArchive={props.onArchive}
 								onViewDetail={props.onViewDetail}
+								onOpenFolder={openFolder}
 								onReviewChanges={props.onReviewChanges ?? (() => {})}
 							/>
 						</Show>

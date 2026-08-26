@@ -51,6 +51,7 @@ describe("Kanban board (e2e, real server)", () => {
       state: "visible", timeout: 10000,
     });
     expect(await testId(ctx.page, "kanban-board-ticket-menu-edit").count()).toBe(0);
+    expect(await testId(ctx.page, "kanban-board-ticket-menu-open-folder").count()).toBe(1);
     expect(await testId(ctx.page, "kanban-board-ticket-menu-archive").count()).toBe(1);
     expect(await testId(ctx.page, "kanban-board-ticket-menu-delete").count()).toBe(1);
   });
