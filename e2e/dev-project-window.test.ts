@@ -87,7 +87,9 @@ describe("Project window (e2e, Vite development server)", () => {
   it("runs project workflows without Solid development diagnostics", async () => {
     const expectNoLifecycleDiagnostics = (stage: string) => {
       const lifecycleDiagnostics = diagnostics.filter((message) =>
-        message.includes("STRICT_READ_UNTRACKED") || message.includes("$$pointermove"),
+        message.includes("STRICT_READ_UNTRACKED")
+        || message.includes("PRIMITIVE_IN_FORBIDDEN_SCOPE")
+        || message.includes("$$pointermove"),
       );
       diagnostics.length = 0;
       expect(lifecycleDiagnostics, stage).toEqual([]);
@@ -148,5 +150,14 @@ describe("Project window (e2e, Vite development server)", () => {
     if (!forestBounds) throw new Error("Forest surface has no bounds");
     await page.mouse.move(forestBounds.x + forestBounds.width / 2, forestBounds.y + forestBounds.height / 2);
     expectNoLifecycleDiagnostics("Forest pointer move");
+
+    await page.locator('[data-testid="forest-ticket-card"]').click();
+    const ticketDetailClose = page.locator('[data-testid="ticket-detail-close-button"]');
+    await ticketDetailClose.waitFor({ state: "visible" });
+    expect(await page.getByRole("alert").count(), "Forest Ticket Detail open app error").toBe(0);
+    await page.waitForTimeout(500);
+    await ticketDetailClose.hover();
+    expect(await page.getByRole("alert").count(), "Forest Ticket Detail app error").toBe(0);
+    expectNoLifecycleDiagnostics("Forest Ticket Detail dialog");
   });
 });

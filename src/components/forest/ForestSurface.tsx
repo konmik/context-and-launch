@@ -286,9 +286,18 @@ export default function ForestSurface(props: Props) {
   useEscapeKey(() => setPopup(undefined));
   onSettled(() => {
     const resize = () => { setGeometryRevision((value) => value + 1); if (!measured) { measured = true; if (!props.data.viewport) center(); } refreshAnchor(); };
+    const movePointer = (event: PointerEvent) => {
+      if (props.connectionSession().kind === "connecting") {
+        props.connectionCommands.movePointer(
+          { x: event.clientX, y: event.clientY },
+          surfaceInfo(surface, props.data.scopeGroupNumber),
+        );
+      }
+    };
     const observer = new ResizeObserver(resize); observer.observe(surface); resize();
+    surface.addEventListener("pointermove", movePointer);
     props.commands.registerSurface({ clearSelection: () => setSelected([]), connectionAnchor });
-    return () => { observer.disconnect(); props.commands.registerSurface(undefined); };
+    return () => { observer.disconnect(); surface.removeEventListener("pointermove", movePointer); props.commands.registerSurface(undefined); };
   });
 
   const externalPaths = createMemo(() => model().externalDependencies.map((dependency) => {
@@ -314,7 +323,7 @@ export default function ForestSurface(props: Props) {
     setPopup(undefined);
   }
 
-  return <div ref={surface} class={`solid-flow__wrapper relative h-full w-full overflow-hidden select-none touch-none ${panning() ? "cursor-grabbing" : "cursor-default"}`} data-testid="forest-surface" data-connection-edit-mode={props.connectionSession().kind === "connecting" ? "active" : undefined} onPointerDown={startPan} onWheel={wheel} onPointerMove={(event) => props.connectionSession().kind === "connecting" && props.connectionCommands.movePointer({ x: event.clientX, y: event.clientY }, surfaceInfo(surface, props.data.scopeGroupNumber))} onClick={surfaceClick}>
+  return <div ref={surface} class={`solid-flow__wrapper relative h-full w-full overflow-hidden select-none touch-none ${panning() ? "cursor-grabbing" : "cursor-default"}`} data-testid="forest-surface" data-connection-edit-mode={props.connectionSession().kind === "connecting" ? "active" : undefined} onPointerDown={startPan} onWheel={wheel} onClick={surfaceClick}>
     <div class="solid-flow__pane pointer-events-none absolute inset-0" style={{ cursor: panning() ? "grabbing" : "default" }} />
     <div class={`absolute z-20 flex gap-2 ${props.data.scopeGroupNumber === undefined ? "right-3" : "left-3"} top-3`}>
       <button class="btn-secondary" onPointerDown={(e) => e.stopPropagation()} onClick={rearrange} disabled={persisting()} data-testid="forest-rearrange-button">Rearrange</button>
