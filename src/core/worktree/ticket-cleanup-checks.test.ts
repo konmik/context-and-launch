@@ -19,6 +19,7 @@ function makeDeps(overrides: Partial<TicketCleanupCheckDeps> = {}): TicketCleanu
 	return {
 		worktreeExists: () => true,
 		isGitWorktree: () => true,
+		getWorktreeOwnership: async () => ({ kind: "current-project" }),
 		isWorktreeClean: async () => true,
 		isWorktreeBusy: async () => false,
 		localBranchExists: async () => true,
@@ -74,6 +75,19 @@ describe("runTicketCleanupChecks", () => {
 		const status = await runTicketCleanupChecks(target, makeDeps({ isWorktreeClean: async () => false }));
 		expect(status.deleteWorktree).toEqual({
 			state: "blocked", reason: "Worktree has uncommitted changes",
+		});
+	});
+
+	it("reports the same foreign-worktree error before cleanup", async () => {
+		const status = await runTicketCleanupChecks(target, makeDeps({
+			getWorktreeOwnership: async () => ({ kind: "different-project" }),
+		}));
+		expect(status.deleteWorktree).toEqual({
+			state: "error",
+			error: {
+				description: `The saved worktree belongs to a different project: ${target.worktreePath}.`
+					+ " Remove it from its original project before retrying.",
+			},
 		});
 	});
 

@@ -4,6 +4,7 @@ import { rename } from 'fs/promises';
 import { writeMergeTree } from '../infra/git-merge-tree.js';
 import { ProcessError, ValidationError, errorMessage } from '../shared/errors.js';
 import { appLog } from '../infra/app-logger.js';
+import { GitRepository } from '../infra/git-repository.js';
 import { resolveAgentWorktreeLocation } from './worktree-naming.js';
 import type { LauncherConfigManager } from '../launcher/launcher-config.js';
 import type { CommandTemplateExecutor } from '../command-template/command-template-types.js';
@@ -32,6 +33,22 @@ function pathsReferToSameEntry(left: string, right: string): boolean {
 		return leftStat.dev === rightStat.dev && leftStat.ino === rightStat.ino;
 	} catch {
 		return false;
+	}
+}
+
+export type WorktreeOwnership =
+	| { kind: 'not-worktree' }
+	| { kind: 'current-project' }
+	| { kind: 'different-project' };
+
+export function foreignWorktreeMessage(worktreePath: string): string {
+	return `The saved worktree belongs to a different project: ${worktreePath}.`
+		+ ' Remove it from its original project before retrying.';
+}
+
+export class ForeignWorktreeError extends ValidationError {
+	constructor(worktreePath: string) {
+		super(foreignWorktreeMessage(worktreePath));
 	}
 }
 
@@ -95,10 +112,14 @@ export interface DirtyWorktreeResult {
 }
 
 export class AgentWorktreeManager {
+	private readonly repository: GitRepository;
+
 	constructor(
 		private launcherConfig: LauncherConfigManager,
 		private readonly commands: CommandTemplateExecutor,
-	) {}
+	) {
+		this.repository = new GitRepository(commands);
+	}
 
 	async getMainBranch(projectPath: string, configuredBranch?: string): Promise<string> {
 		const trimmed = configuredBranch?.trim();
@@ -130,16 +151,12 @@ export class AgentWorktreeManager {
 		);
 		const mainBranch = await this.getMainBranch(projectPath, configuredBranch);
 
-		const worktreeListOutput = await this.commands.execute('agent-worktree.list', projectPath);
-		const alreadyExists = worktreeListOutput
-			.split('\n')
-			.some(line =>
-				line.startsWith('worktree ') &&
-				pathsReferToSameEntry(line.slice('worktree '.length).trim(), worktreePath)
-			);
-
 		// Reusing an existing worktree does not touch main, so main's state is irrelevant.
-		if (alreadyExists) {
+		const ownership = await this.getWorktreeOwnership(projectPath, worktreePath);
+		if (ownership.kind === 'different-project') {
+			throw new ForeignWorktreeError(worktreePath);
+		}
+		if (ownership.kind === 'current-project') {
 			return { worktreePath, branchName };
 		}
 
@@ -194,7 +211,14 @@ export class AgentWorktreeManager {
 	}
 
 	isGitWorktree(worktreePath: string): boolean {
-		return fs.existsSync(path.join(worktreePath, '.git'));
+		return this.repository.isWorktree(worktreePath);
+	}
+
+	async getWorktreeOwnership(projectPath: string, worktreePath: string): Promise<WorktreeOwnership> {
+		if (!this.repository.isWorktree(worktreePath)) return { kind: 'not-worktree' };
+		return await this.repository.isSameRepository(projectPath, worktreePath)
+			? { kind: 'current-project' }
+			: { kind: 'different-project' };
 	}
 
 	async hasRemoteBranch(projectPath: string, branchName: string): Promise<boolean> {

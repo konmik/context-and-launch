@@ -1,6 +1,7 @@
 import { errorPayload } from "../shared/errors.js";
 import type { ErrorInfo } from "../shared/errors.js";
 import type { FindHerdrAgentResult, HerdrAgentTarget } from "../herdr/herdr-control.js";
+import { foreignWorktreeMessage, type WorktreeOwnership } from "./agent-worktree.js";
 
 export type CleanupItemKey =
 	"stopHerdrAgent" | "deleteWorktree" | "deleteLocalBranch" | "deleteRemoteBranch";
@@ -26,6 +27,7 @@ export interface TicketCleanupCheckTarget {
 export interface TicketCleanupCheckDeps {
 	worktreeExists(worktreePath: string): boolean;
 	isGitWorktree(worktreePath: string): boolean;
+	getWorktreeOwnership(projectPath: string, worktreePath: string): Promise<WorktreeOwnership>;
 	isWorktreeClean(worktreePath: string): Promise<boolean>;
 	isWorktreeBusy(worktreePath: string): Promise<boolean>;
 	localBranchExists(projectPath: string, branchName: string): Promise<boolean>;
@@ -59,6 +61,13 @@ export async function runTicketCleanupChecks(
 	const deleteWorktree = guard(async () => {
 		if (!deps.worktreeExists(target.worktreePath)) {
 			return { state: "blocked", reason: "No worktree" };
+		}
+		const ownership = await deps.getWorktreeOwnership(target.projectPath, target.worktreePath);
+		if (ownership.kind === "different-project") {
+			return {
+				state: "error",
+				error: { description: foreignWorktreeMessage(target.worktreePath) },
+			};
 		}
 		if (deps.isGitWorktree(target.worktreePath)
 			&& !await deps.isWorktreeClean(target.worktreePath)) {

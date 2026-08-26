@@ -1,5 +1,6 @@
 {
   "git.version": "git --version",
+  "git.common-dir.resolve": "git rev-parse --path-format=absolute --git-common-dir",
   "git.main-branch.probe": "git branch --list {{branch}}",
   "git.stage-all": "git add -A",
   "git.status": "git status --porcelain",

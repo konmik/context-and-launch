@@ -2,7 +2,7 @@ import { describe, it as baseIt, expect, afterAll, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { AgentWorktreeManager } from './agent-worktree.js';
+import { AgentWorktreeManager, ForeignWorktreeError } from './agent-worktree.js';
 import { LauncherConfigManager } from '../launcher/launcher-config.js';
 import { ConfigPaths } from '../config/config-paths.js';
 import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js';
@@ -479,6 +479,34 @@ describe('AgentWorktreeManager', () => {
 		if ('worktreePath' in result2) {
 			expect(fs.existsSync(result2.worktreePath)).toBe(true);
 		}
+	});
+
+	it.concurrent('classifies and rejects a saved worktree owned by another repository', async () => {
+		const { projectDir, awm } = setup();
+		const foreignProject = tmpDir('awm-foreign-project-');
+		const foreignWorktreeRoot = tmpDir('awm-foreign-worktrees-');
+		dirs.push(foreignProject, foreignWorktreeRoot);
+		initGitRepo(foreignProject);
+		const folderName = 'st-0055-plugin-system';
+		const foreignWorktree = path.join(foreignWorktreeRoot, folderName);
+		await git(foreignProject, 'worktree', 'add', '-b', folderName, foreignWorktree);
+		expect(await awm.getWorktreeOwnership(projectDir, foreignWorktree)).toEqual({
+			kind: 'different-project',
+		});
+
+		const error = await awm.ensureAgentWorktree(
+			projectDir,
+			'my-proj',
+			folderName,
+			undefined,
+			undefined,
+			{ branchName: folderName, agentWorktreePath: foreignWorktree },
+		).catch((cause: unknown) => cause);
+		expect(error).toBeInstanceOf(ForeignWorktreeError);
+		expect((error as Error).message).toBe(
+			`The saved worktree belongs to a different project: ${foreignWorktree}.`
+			+ ' Remove it from its original project before retrying.',
+		);
 	});
 
 	it('rev-list returns non-numeric output: parseInt produces NaN,'

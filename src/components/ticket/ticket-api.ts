@@ -330,6 +330,8 @@ export async function getCleanupStatus(
     {
       worktreeExists: (worktreePath) => fs.existsSync(worktreePath),
       isGitWorktree: (worktreePath) => agentWorktreeManager.isGitWorktree(worktreePath),
+      getWorktreeOwnership: (projectPath, worktreePath) =>
+        agentWorktreeManager.getWorktreeOwnership(projectPath, worktreePath),
       isWorktreeClean: (worktreePath) => agentWorktreeManager.isWorktreeClean(worktreePath),
       isWorktreeBusy: (worktreePath) => agentWorktreeManager.isWorktreeBusy(worktreePath),
       localBranchExists: (projectPath, branchName) =>

@@ -47,6 +47,22 @@ describe('WorktreeCleanupService', () => {
 		expect(fs.existsSync(result.worktreePath)).toBe(false);
 	});
 
+	it.concurrent('cleanup removes an unregistered folder that is not a git worktree', async () => {
+		const { projectDir, worktreeRoot, service } = setup();
+		const folderName = 'st-cleanup-unregistered';
+		const worktreePath = path.join(worktreeRoot, folderName);
+		fs.mkdirSync(worktreePath);
+		fs.writeFileSync(path.join(worktreePath, 'left-behind.txt'), 'left behind');
+
+		await service.cleanup(projectDir, folderName, worktreePath, {
+			deleteWorktree: true,
+			deleteLocalBranch: false,
+			deleteRemoteBranch: false,
+		});
+
+		expect(fs.existsSync(worktreePath)).toBe(false);
+	});
+
 	it.concurrent('cleanup with only deleteLocalBranch skips worktree removal', async () => {
 		const { projectDir, awm, service } = setup();
 		const folderName = 'st-cleanup-branchonly';

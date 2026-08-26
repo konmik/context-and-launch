@@ -2,8 +2,27 @@ import fs from 'fs';
 import path from 'path';
 import type { CommandTemplateExecutor } from '../command-template/command-template-types.js';
 
+function pathsReferToSameEntry(left: string, right: string): boolean {
+	if (left === right) return true;
+	try {
+		const leftStat = fs.statSync(left);
+		const rightStat = fs.statSync(right);
+		return leftStat.dev === rightStat.dev && leftStat.ino === rightStat.ino;
+	} catch {
+		return false;
+	}
+}
+
 export class GitRepository {
 	constructor(private readonly commands: CommandTemplateExecutor) {}
+
+	async isSameRepository(leftWorktree: string, rightWorktree: string): Promise<boolean> {
+		const [leftCommonDir, rightCommonDir] = await Promise.all([
+			this.resolveCommonDir(leftWorktree),
+			this.resolveCommonDir(rightWorktree),
+		]);
+		return pathsReferToSameEntry(leftCommonDir, rightCommonDir);
+	}
 
 	isWorktree(worktreeDir: string): boolean {
 		const dotGit = path.join(worktreeDir, '.git');
@@ -56,5 +75,9 @@ export class GitRepository {
 				+ 'for "merge-tree --write-tree". Please upgrade git.',
 			);
 		}
+	}
+
+	private async resolveCommonDir(worktreeDir: string): Promise<string> {
+		return (await this.commands.execute('git.common-dir.resolve', worktreeDir)).trim();
 	}
 }

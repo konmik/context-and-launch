@@ -62,6 +62,7 @@ const remoteGitOptions = { git: 'remote', timeoutMs: 600_000 } as const;
 
 export const COMMAND_TEMPLATE_DEFINITIONS = [
 	definition('git.version', 'Git version', GIT, [], gitOptions),
+	definition('git.common-dir.resolve', 'Resolve common Git directory', GIT, [], gitOptions),
 	definition('git.main-branch.probe', 'Probe main branch', GIT, ['branch'], gitOptions),
 	definition('git.stage-all', 'Stage all changes', GIT, [], gitOptions),
 	definition('git.status', 'Read Git status', GIT, [], gitOptions),

@@ -1,5 +1,5 @@
 import * as v from 'valibot';
-import type { AgentWorktreeManager } from './agent-worktree.js';
+import { ForeignWorktreeError, type AgentWorktreeManager } from './agent-worktree.js';
 
 const CleanupOptionsSchema = v.object({
 	deleteWorktree: v.boolean(),
@@ -26,6 +26,10 @@ export class WorktreeCleanupService {
 		configuredBranch?: string,
 	): Promise<void> {
 		if (options.deleteWorktree) {
+			const ownership = await this.agentWorktreeManager.getWorktreeOwnership(projectPath, worktreePath);
+			if (ownership.kind === 'different-project') {
+				throw new ForeignWorktreeError(worktreePath);
+			}
 			if (this.agentWorktreeManager.isGitWorktree(worktreePath)) {
 				const clean = await this.agentWorktreeManager.isWorktreeClean(worktreePath);
 				if (!clean) {
