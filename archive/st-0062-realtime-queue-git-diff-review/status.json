@@ -1,0 +1,10 @@
+{
+  "number": "ST-0062",
+  "title": "Realtime queue git diff review",
+  "status": "done",
+  "useWorktree": true,
+  "createdAt": "2026-07-24T20:16:08.898Z",
+  "dependsOn": [
+    "ST-0052"
+  ]
+}

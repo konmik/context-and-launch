@@ -1,0 +1,1 @@
+When i create a ticket it make ticket number selected by defailt, instead if the ticket number is present is should focus on the title. Also when i press tab it must skip regenerate number button, and jump directly to title
