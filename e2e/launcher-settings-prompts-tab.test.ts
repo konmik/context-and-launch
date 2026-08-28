@@ -36,6 +36,18 @@ describe("Launcher Settings Prompts tab (e2e, real server)", () => {
     expect(await testId(ctx.page, "launcher-settings-item-form-scope-project").count()).toBe(1);
   });
 
+  it("keeps focus while entering a Template name", async () => {
+    await setup("typing");
+    await testId(ctx.page, "launcher-settings-prompts-add-button").click();
+    const nameInput = testId(ctx.page, "launcher-settings-item-form-name-input");
+    await nameInput.focus();
+
+    for (const character of "New") {
+      await ctx.page.keyboard.type(character);
+      expect(await nameInput.evaluate((element) => document.activeElement === element)).toBe(true);
+    }
+  });
+
   it("cancel closes the dialog without saving", async () => {
     await setup("cancel");
     await testId(ctx.page, "launcher-settings-prompts-add-button").click();

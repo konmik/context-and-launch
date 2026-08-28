@@ -15,7 +15,7 @@ See the [CHANGELOG](CHANGELOG.md) for recent updates.
   - [For contributors](#for-contributors)
 
 ## Overview
-
+c
 There is no fixed workflow, no rules, and no standard.
 Think of this app as a highly configurable todo+notepad with CLI shortcuts that is especially suited for AI-assisted workflow.
 It has a convenient kanban board for all notes, so the developer won't forget where each task is, and can easily pick up from where they left off.

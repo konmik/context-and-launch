@@ -1,5 +1,5 @@
 /* eslint-disable max-len */
-import { Show, createContext, createEffect, createUniqueId, useContext } from "solid-js";
+import { Show, createContext, createEffect, createMemo, createUniqueId, useContext } from "solid-js";
 import { Portal, type ComponentProps, type JSX } from "@solidjs/web";
 
 const DialogContext = createContext<{ close(): void; titleId: string; descriptionId: string }>();
@@ -15,13 +15,14 @@ export function DialogRoot(props: {
 }) {
   let content!: HTMLDivElement;
   let previouslyFocused: Element | null = null;
+  const open = createMemo(() => props.open);
   const id = createUniqueId();
   const context = {
     close: () => props.onOpenChange(false),
     titleId: `${id}-title`,
     descriptionId: `${id}-description`,
   };
-  createEffect(() => props.open, (isOpen) => {
+  createEffect(open, (isOpen) => {
     if (!isOpen) return;
     previouslyFocused = document.activeElement;
     queueMicrotask(() => content?.querySelector<HTMLElement>("button, input, select, textarea, [tabindex]:not([tabindex='-1'])")?.focus());
@@ -46,7 +47,7 @@ export function DialogRoot(props: {
     };
   });
   return (
-    <Show when={props.open}>
+    <Show when={open()}>
       <DialogContext value={context}>
         <Portal>
           <div data-scope="dialog" data-part="backdrop" />
