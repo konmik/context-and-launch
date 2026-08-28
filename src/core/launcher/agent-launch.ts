@@ -9,8 +9,8 @@ import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { ProjectInfo } from "~/core/project/project-registry.js";
 import type { LauncherProfile } from "~/core/launcher/launcher-config.js";
 import {
-  agentMarkerPathIn, buildWindowTitle, isProfileAgentRunning, projectWindowTitle,
-  runLauncherProfile,
+  agentMarkerPathIn, buildAgentDisplayName, buildWindowTitle,
+  isProfileAgentRunning, projectWindowTitle, runLauncherProfile,
 } from "./profile-launch.js";
 import { PROJECT_LAUNCH_KEY } from "./launch-keys.js";
 
@@ -134,6 +134,7 @@ async function spawnAgent(
   projectSlug: string,
   markerKey: string,
   windowTitle: string,
+  agentDisplayName: string,
   launchRequest: LaunchRequest,
   launchDir: string,
 ): Promise<void> {
@@ -148,7 +149,9 @@ async function spawnAgent(
   }
 
   const commandVars: Record<string, string> = {
-    initialPrompt: launchRequest.initialPrompt, windowTitle,
+    initialPrompt: launchRequest.initialPrompt, windowTitle, agentDisplayName,
+    herdrWorkspaceLabel: projectSlug,
+    herdrPaneLabel: `${projectSlug}--${markerKey}`,
     markerPath: agentMarkerPath(projectSlug, markerKey),
     appConfigDir: launcherConfigManager.getAppConfigDir(),
     configDefaultsDir: launcherConfigManager.getConfigDefaultsDir(),
@@ -162,14 +165,13 @@ export async function launchAgent(
   launchRequest: LaunchRequest,
   launchDir: string,
 ): Promise<void> {
-	const windowTitle = buildWindowTitle(
-		ticket,
-		launchRequest.useWorktree
-			? { worktreePath: launchDir }
-			: { projectName: projectRegistry.getName(projectSlug) },
-	);
+	const context = launchRequest.useWorktree
+		? { worktreePath: launchDir }
+		: { projectName: projectRegistry.getName(projectSlug) };
+	const agentDisplayName = buildAgentDisplayName(ticket, context);
+	const windowTitle = buildWindowTitle(ticket, context);
   await spawnAgent(
-    projectSlug, ticket.folderName, windowTitle, launchRequest, launchDir,
+    projectSlug, ticket.folderName, windowTitle, agentDisplayName, launchRequest, launchDir,
   );
 }
 
@@ -180,6 +182,7 @@ export async function launchProjectAgent(
   launchDir: string,
 ): Promise<void> {
   await spawnAgent(
-    projectSlug, PROJECT_LAUNCH_KEY, projectWindowTitle(projectName), launchRequest, launchDir,
+    projectSlug, PROJECT_LAUNCH_KEY, projectWindowTitle(projectName), projectName,
+    launchRequest, launchDir,
   );
 }

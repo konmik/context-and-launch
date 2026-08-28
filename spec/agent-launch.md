@@ -26,7 +26,7 @@
 - Pass initial prompt through to the launch profile
 - Resolve profile by name, fall back to first available
   - No profile available: error
-- Parse profile command, interpolate prompt and marker path into arguments
+- Parse profile command and interpolate each launch parameter into its argument
 - Spawn detached process, wait up to 10 seconds
   - Exits with code 64 and stderr text before timeout: user error
     - Stderr is shown as the error message, without command or output details

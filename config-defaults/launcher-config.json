@@ -34,7 +34,7 @@
     },
     {
       "name": "Claude Herdr",
-      "command": "powershell -File {{configDefaultsDir}}/run-agent-herdr.ps1 {{initialPrompt}} {{windowTitle}} {{markerPath}} claude --dangerously-skip-permissions"
+      "command": "powershell -File {{configDefaultsDir}}/run-agent-herdr.ps1 {{initialPrompt}} {{agentDisplayName}} {{herdrWorkspaceLabel}} {{herdrPaneLabel}} claude --dangerously-skip-permissions"
     }
   ],
   "shortcuts": [

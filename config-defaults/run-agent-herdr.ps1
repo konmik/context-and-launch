@@ -5,22 +5,19 @@ trap {
     exit 64
 }
 
-if ($args.Length -lt 4) {
-    throw 'Usage: run-agent-herdr.ps1 <prompt> <title> <marker> <agent command...>'
+if ($args.Length -lt 5) {
+    throw 'Usage: run-agent-herdr.ps1 <prompt> <agent display name> <workspace label> <pane label> <agent command...>'
 }
 if (-not (Get-Command herdr -ErrorAction SilentlyContinue)) {
     throw 'Herdr is not installed or is not available on PATH.'
 }
 
 $initialPrompt = [string]$args[0]
-$windowTitle = [string]$args[1]
-$markerPath = [string]$args[2]
-$agentCommand = @($args[3..($args.Length - 1)] | ForEach-Object { [string]$_ })
+$agentDisplayName = [string]$args[1]
+$workspaceLabel = [string]$args[2]
+$ticketPaneLabel = [string]$args[3]
+$agentCommand = @($args[4..($args.Length - 1)] | ForEach-Object { [string]$_ })
 $launchDir = (Get-Location).Path
-$projectSlug = Split-Path -Leaf (Split-Path -Parent $markerPath)
-$ticketFolder = [IO.Path]::GetFileNameWithoutExtension($markerPath)
-$ticketPaneLabel = "$projectSlug--$ticketFolder"
-$agentDisplayName = $windowTitle -replace ' -- AI$', ''
 
 function Get-Field {
     param($Object, [string]$Name)
@@ -179,7 +176,7 @@ function Start-Agent {
 
 $workspaceList = Invoke-Herdr @('workspace', 'list')
 $workspaces = @($workspaceList.result.workspaces | Where-Object {
-    (Get-Field $_ 'label') -ceq $projectSlug
+    (Get-Field $_ 'label') -ceq $workspaceLabel
 })
 
 $ticketPaneId = ''
@@ -191,7 +188,7 @@ if ($workspaces.Count -gt 0) {
 } else {
     $created = Invoke-Herdr @(
         'workspace', 'create', '--cwd', $launchDir,
-        '--label', $projectSlug, '--no-focus'
+        '--label', $workspaceLabel, '--no-focus'
     )
     $workspaceId = [string]$created.result.workspace.workspace_id
     $ticketPaneId = [string]$created.result.root_pane.pane_id
@@ -201,7 +198,7 @@ $ticketPanes = @($workspacePanes | Where-Object {
     (Get-Field $_ 'label') -ceq $ticketPaneLabel
 })
 if ($ticketPanes.Count -gt 1) {
-    throw "Ticket '$ticketFolder' has multiple Herdr panes."
+    throw "Ticket pane '$ticketPaneLabel' is not unique."
 }
 
 if ($ticketPanes.Count -eq 1) {
@@ -216,7 +213,7 @@ if ($ticketPanes.Count -eq 1) {
             'unknown'
         }
         if ($status -cne 'idle' -and $status -cne 'done') {
-            throw "Ticket '$ticketFolder' already has a Herdr agent ($status)."
+            throw "Ticket pane '$ticketPaneLabel' already has a Herdr agent ($status)."
         }
         Stop-AgentChild $paneId
         Wait-AgentReleased $paneId

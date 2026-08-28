@@ -18,7 +18,7 @@ vi.mock('~/core/config/instances.js', () => ({
 }));
 
 import { spawnProfile } from '~/core/launcher/agent-launch.js';
-import { buildWindowTitle } from '~/core/launcher/profile-launch.js';
+import { buildAgentDisplayName, buildWindowTitle } from '~/core/launcher/profile-launch.js';
 
 describe('buildWindowTitle', () => {
 	const ticket = { number: 'ST-47', title: 'Fix login timeout' };
@@ -32,6 +32,15 @@ describe('buildWindowTitle', () => {
 	it('uses the Ticket title, Ticket Number, and Project name without a worktree', () => {
 		expect(buildWindowTitle(ticket, { projectName: 'Alpha' }))
 			.toBe('Fix login timeout ST-47 - Alpha -- AI');
+	});
+});
+
+describe('buildAgentDisplayName', () => {
+	it('builds the Agent name without the terminal title suffix', () => {
+		expect(buildAgentDisplayName(
+			{ number: 'ST-47', title: 'Fix login timeout' },
+			{ projectName: 'Alpha' },
+		)).toBe('Fix login timeout ST-47 - Alpha');
 	});
 });
 

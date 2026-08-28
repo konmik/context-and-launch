@@ -958,6 +958,10 @@ describe('LauncherConfigManager', () => {
 		expect(config.profiles![2].name).toBe('Claude Herdr');
 		const herdrCmd = config.profiles![2].command;
 		expect(herdrCmd).toContain('powershell -File {{configDefaultsDir}}/run-agent-herdr.ps1');
+		expect(herdrCmd).toContain(
+			'{{agentDisplayName}} {{herdrWorkspaceLabel}} {{herdrPaneLabel}}',
+		);
+		expect(herdrCmd).not.toContain('{{markerPath}}');
 		expect(herdrCmd).toContain('claude --dangerously-skip-permissions');
 	});
 

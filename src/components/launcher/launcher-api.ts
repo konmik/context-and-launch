@@ -352,6 +352,9 @@ export async function resolveConflicts(projectSlug: string, profileName: string)
     await spawnProfile(profile, {
       initialPrompt,
       windowTitle: "Resolve Conflicts",
+      agentDisplayName: "Resolve Conflicts",
+      herdrWorkspaceLabel: projectSlug,
+      herdrPaneLabel: `${projectSlug}--__resolve-conflicts__`,
       markerPath: agentMarkerPath(projectSlug, "__resolve-conflicts__"),
       appConfigDir: launcherConfigManager.getAppConfigDir(),
       configDefaultsDir: launcherConfigManager.getConfigDefaultsDir(),

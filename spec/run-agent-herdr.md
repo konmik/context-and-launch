@@ -1,0 +1,49 @@
+# Run Agent With Herdr
+
+- Receive the initial prompt
+- Receive the Agent display name
+- Receive the Herdr workspace label
+- Receive the Herdr pane label
+- Receive the Agent executable
+- Receive any Agent command arguments
+- Require enough inputs and an available Herdr installation
+  - Either requirement fails: report the error and exit as a user error
+- Find the first Herdr workspace whose label exactly matches the provided workspace label
+  - No matching workspace exists
+    - Create one in the launch directory without focusing it
+    - Use its root pane for the Ticket
+  - A matching workspace exists
+    - List its panes
+- Find panes whose labels exactly match the provided pane label
+  - More than one matching pane exists: report the ambiguity and exit as a user error
+  - One matching pane exists
+    - Inspect its foreground processes
+    - A foreground child is running
+      - Exactly one detected Agent is idle or done
+        - Ask it to quit and confirm the request if needed
+        - Wait for both the child process and Agent registration to disappear
+        - Either remains: report the timeout and exit as a user error
+      - Otherwise: report that the Ticket already has an Agent and exit as a user error
+    - Start a fresh Agent in the same pane
+    - Return the launch result
+  - No matching pane exists
+    - A workspace was just created: use its root pane
+    - Otherwise reuse the first unlabeled pane in the launch directory if it has no foreground child
+    - Otherwise split the workspace's first pane without focusing the new pane
+      - The workspace has no pane to split: report the error and exit as a user error
+- Start a fresh Agent
+  - Run the configured command through the pane's PowerShell shell with its arguments preserved
+  - Wait for Herdr to detect exactly one idle or done Agent in the pane
+    - No ready Agent is detected before the timeout: report the error and exit as a user error
+  - Rename the Agent with the provided display name
+  - Label the pane with the provided pane label
+  - The initial prompt is not blank
+    - Wait briefly for the Agent to become interactive
+    - Submit the prompt
+  - Return the detected Agent or prompt result as JSON
+- A Herdr invocation fails
+  - Herdr provides a structured error: report its message with the failed command
+  - Herdr is not running: explain how to recover and include the failed command details
+  - A successful response is not valid JSON: report its raw output with the command
+  - Otherwise: report the failed command, exit code, and raw output
+- Any failure writes its message to standard error and exits as a user error

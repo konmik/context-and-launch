@@ -121,7 +121,8 @@ export function ItemFormDialog(props: {
 							/>
 							<p class="mt-1 text-xs text-muted-foreground">
 								{f().itemType === "profile"
-									? "{{initialPrompt}} {{windowTitle}} {{markerPath}} "
+									? "{{initialPrompt}} {{windowTitle}} {{agentDisplayName}} "
+										+ "{{herdrWorkspaceLabel}} {{herdrPaneLabel}} {{markerPath}} "
 										+ "{{configDefaultsDir}} {{appConfigDir}}"
 								: f().itemType === "shortcut"
 									? [

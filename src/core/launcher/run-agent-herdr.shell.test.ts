@@ -25,7 +25,8 @@ param(
   [string]$Mode,
   [string]$WorkingDir,
   [string]$Prompt,
-  [string]$MarkerPath,
+  [string]$WorkspaceLabel,
+  [string]$PaneLabel,
   [Parameter(ValueFromRemainingArguments=$true)][string[]]$AgentCommand
 )
 $global:Calls = @()
@@ -126,7 +127,7 @@ function global:herdr {
 $exitCode = 0
 try {
   Push-Location -LiteralPath $WorkingDir
-  & $TargetScript $Prompt 'Fix login timeout ST-47 - Alpha -- AI' $MarkerPath @AgentCommand
+  & $TargetScript $Prompt 'Fix login timeout ST-47 - Alpha' $WorkspaceLabel $PaneLabel @AgentCommand
   $exitCode = $LASTEXITCODE
 } finally {
   Pop-Location
@@ -144,12 +145,11 @@ function runHarness(mode: 'create' | 'reuse' | 'duplicate' | 'idle' | 'empty' | 
 	report: HarnessReport;
 } {
 	const files = makeHarness();
-	const marker = path.join(files.dir, 'running', 'alpha', 'st-47.json');
 	const prompt = "hello\nmultiline 'world'";
 	const result = spawnSync('powershell', [
 		'-NoProfile', '-File', files.harness,
 		SCRIPT_PATH, files.report, mode, files.dir,
-		prompt, marker, 'claude', '--flag',
+		prompt, 'alpha', 'alpha--st-47', 'claude', '--flag',
 	], { encoding: 'utf-8' });
 	return {
 		status: result.status,
@@ -160,11 +160,10 @@ function runHarness(mode: 'create' | 'reuse' | 'duplicate' | 'idle' | 'empty' | 
 
 function runHarnessWithoutPrompt(): ReturnType<typeof runHarness> {
 	const files = makeHarness();
-	const marker = path.join(files.dir, 'running', 'alpha', 'st-47.json');
 	const result = spawnSync('powershell', [
 		'-NoProfile', '-File', files.harness,
 		SCRIPT_PATH, files.report, 'create', files.dir,
-		'', marker, 'claude', '--flag',
+		'', 'alpha', 'alpha--st-47', 'claude', '--flag',
 	], { encoding: 'utf-8' });
 	return {
 		status: result.status,
@@ -175,11 +174,10 @@ function runHarnessWithoutPrompt(): ReturnType<typeof runHarness> {
 
 function runOpenCodeHarness(): ReturnType<typeof runHarness> {
 	const files = makeHarness();
-	const marker = path.join(files.dir, 'running', 'alpha', 'st-47.json');
 	const result = spawnSync('powershell', [
 		'-NoProfile', '-File', files.harness,
 		SCRIPT_PATH, files.report, 'create', files.dir,
-		"hello\nmultiline 'world'", marker, 'opencode', '--auto',
+		"hello\nmultiline 'world'", 'alpha', 'alpha--st-47', 'opencode', '--auto',
 	], { encoding: 'utf-8' });
 	return {
 		status: result.status,
@@ -298,7 +296,7 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
 	it('rejects a working agent', () => {
 		const result = runHarness('working');
 		expect(result.status).toBe(64);
-		expect(result.stderr).toContain('already has a Herdr agent (working)');
+		expect(result.stderr).toContain("Ticket pane 'alpha--st-47' already has a Herdr agent (working)");
 	});
 });
 
@@ -324,7 +322,7 @@ function runWithNativeStub(serverStatus: 'running' | 'not running', stderrLine: 
 	].join('\r\n'));
 	const result = spawnSync('powershell', [
 		'-NoProfile', '-File', SCRIPT_PATH,
-		'prompt', 'title', path.join(dir, 'running', 'alpha', 'st-47.json'),
+		'prompt', 'title', 'alpha', 'alpha--st-47',
 		'custom-agent', '--flag',
 	], {
 		encoding: 'utf-8',
