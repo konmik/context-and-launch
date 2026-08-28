@@ -30,11 +30,6 @@ export async function listHerdrTicketPaneState(
 ): Promise<HerdrTicketPaneState> {
 	const workspaces = (await listHerdrWorkspaces(exec))
 		.filter((workspace) => workspace.label === projectSlug);
-	if (workspaces.length > 1) {
-		throw new Error(
-			`Multiple Herdr workspaces are labeled '${projectSlug}'. Rename or close duplicates first.`,
-		);
-	}
 	// Without a workspace for this project Herdr cannot be hosting any of its
 	// agents, so the answer is known without spawning a second Herdr process.
 	if (workspaces.length === 0) return { ticketPanes: [], agents: [] };

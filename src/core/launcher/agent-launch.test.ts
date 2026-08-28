@@ -18,6 +18,22 @@ vi.mock('~/core/config/instances.js', () => ({
 }));
 
 import { spawnProfile } from '~/core/launcher/agent-launch.js';
+import { buildWindowTitle } from '~/core/launcher/profile-launch.js';
+
+describe('buildWindowTitle', () => {
+	const ticket = { number: 'ST-47', title: 'Fix login timeout' };
+
+	it('uses the Agent Worktree folder when launching in a worktree', () => {
+		const worktreePath = path.join('root', 'worktrees', 'st-47-fix-login-timeout');
+		expect(buildWindowTitle(ticket, { worktreePath }))
+			.toBe('st-47-fix-login-timeout -- AI');
+	});
+
+	it('uses the Ticket title, Ticket Number, and Project name without a worktree', () => {
+		expect(buildWindowTitle(ticket, { projectName: 'Alpha' }))
+			.toBe('Fix login timeout ST-47 - Alpha -- AI');
+	});
+});
 
 describe('parseLaunchRequest (code-inspection)', () => {
 	const source = fs.readFileSync(

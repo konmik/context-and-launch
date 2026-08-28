@@ -20,8 +20,14 @@ export function agentMarkerPathIn(
 	return path.join(appConfigDir, "running", projectSlug, `${markerKey}.json`);
 }
 
-export function buildWindowTitle(ticket: { title: string }): string {
-	return ticket.title + TITLE_SUFFIX;
+export function buildWindowTitle(
+	ticket: { number: string; title: string },
+	context: { projectName: string } | { worktreePath: string },
+): string {
+	const label = 'worktreePath' in context
+		? path.basename(context.worktreePath)
+		: `${ticket.title} ${ticket.number} - ${context.projectName}`;
+	return label + TITLE_SUFFIX;
 }
 
 export function projectWindowTitle(projectName: string): string {

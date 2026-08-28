@@ -103,16 +103,18 @@ describe("findHerdrAgent", () => {
 		expect(await findHerdrAgent(TARGET, exec)).toEqual({ kind: "no-agent" });
 	});
 
-	it("rejects when two workspaces share the Project label", async () => {
+	it("uses the first workspace when two share the Project label", async () => {
 		const { exec } = fakeExec({
 			workspaces: [
 				{ workspace_id: "w1", label: "alpha" },
 				{ workspace_id: "w2", label: "alpha" },
 			],
+			panes: [{ workspace_id: "w1", pane_id: "w1:p1", label: "alpha--st-1" }],
+			agents: [{ workspace_id: "w1", pane_id: "w1:p1", agent_status: "working" }],
 		});
-		await expect(findHerdrAgent(TARGET, exec)).rejects.toThrow(
-			"Multiple Herdr workspaces are labeled 'alpha'.",
-		);
+		expect(await findHerdrAgent(TARGET, exec)).toEqual({
+			kind: "agent", paneId: "w1:p1", agentStatus: "working",
+		});
 	});
 
 	it("rejects when two panes share the Ticket label", async () => {

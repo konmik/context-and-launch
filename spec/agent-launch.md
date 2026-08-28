@@ -41,14 +41,16 @@
   - A Ticket pane is owned by a persistent shell, with the Herdr Agent as its foreground child process
   - The Ticket pane label is the Project Slug, two hyphens, and the Ticket Folder name
     - The pane label is the persistent Ticket identity
-    - The Herdr Agent name is a transient launch handle derived from the pane ID
+    - The Herdr Agent name is derived from the Agent Worktree folder name when launched in an Agent Worktree
+    - Without an Agent Worktree, the name is `{ticketTitle} {ticketNumber} - {projectName}`
+      - The readable name is display-only; commands target the Agent by pane ID
   - An existing quiescent Herdr Agent (`idle` or `done`) is stopped and replaced by a fresh process in the same pane
   - A new Ticket pane is created only when the Ticket has no existing pane
   - A working, blocked, or unknown existing Herdr Agent blocks the launch
   - The configured agent command is run through the Ticket pane's shell
     - Arguments are encoded as a single-line PowerShell command so profile argv is preserved without shell interpolation
     - Herdr auto-detects the process, which avoids its Windows `Start-Process` launcher selecting non-runnable npm shims
-    - The detected process is assigned the Ticket's transient Agent name and the pane keeps its persistent Ticket label
+    - The detected process is assigned the Ticket's readable Agent name and the pane keeps its persistent Ticket label
   - Herdr submits the multiline prompt to the fresh agent after it becomes interactive
   - A legacy pane without a persistent shell fails without closing the pane or creating another pane
   - A failing Herdr command is reported with the command that failed

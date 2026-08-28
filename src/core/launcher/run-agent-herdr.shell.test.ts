@@ -45,6 +45,11 @@ function global:herdr {
     if ($Mode -eq 'create') {
       return '{"id":"test","result":{"workspaces":[]}}'
     }
+    if ($Mode -eq 'duplicate') {
+      return '{"id":"test","result":{"workspaces":[' +
+        '{"workspace_id":"w1","label":"alpha"},' +
+        '{"workspace_id":"w2","label":"alpha"}]}}'
+    }
     return '{"id":"test","result":{"workspaces":[{"workspace_id":"w1","label":"alpha"}]}}'
   }
   if ($verb -eq 'workspace create') {
@@ -52,7 +57,7 @@ function global:herdr {
       '"root_pane":{"pane_id":"w1:p1"}}}'
   }
   if ($verb -eq 'pane list') {
-    if ($Mode -eq 'reuse') {
+    if ($Mode -eq 'reuse' -or $Mode -eq 'duplicate') {
       return '{"id":"test","result":{"panes":[' +
         '{"workspace_id":"w1","pane_id":"w1:p1","label":"another-ticket"}]}}'
     }
@@ -121,7 +126,7 @@ function global:herdr {
 $exitCode = 0
 try {
   Push-Location -LiteralPath $WorkingDir
-  & $TargetScript $Prompt 'ignored' $MarkerPath @AgentCommand
+  & $TargetScript $Prompt 'Fix login timeout ST-47 - Alpha -- AI' $MarkerPath @AgentCommand
   $exitCode = $LASTEXITCODE
 } finally {
   Pop-Location
@@ -133,7 +138,7 @@ exit $exitCode
 	return { dir, harness, report };
 }
 
-function runHarness(mode: 'create' | 'reuse' | 'idle' | 'empty' | 'working'): {
+function runHarness(mode: 'create' | 'reuse' | 'duplicate' | 'idle' | 'empty' | 'working'): {
 	status: number | null;
 	stderr: string;
 	report: HarnessReport;
@@ -200,9 +205,11 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
 		expect(Buffer.from(encoded!, 'base64').toString('utf16le')).toBe(
 			"& 'claude' '--flag'",
 		);
-		expect(calls).toContainEqual(['agent', 'rename', 'w1:p1', 'cl-w1-p1']);
 		expect(calls).toContainEqual([
-			'agent', 'prompt', 'cl-w1-p1', "hello\nmultiline 'world'",
+			'agent', 'rename', 'w1:p1', 'Fix login timeout ST-47 - Alpha',
+		]);
+		expect(calls).toContainEqual([
+			'agent', 'prompt', 'w1:p1', "hello\nmultiline 'world'",
 		]);
 		expect(calls.some(call => call.includes('--cwd') && call[0] === 'agent')).toBe(false);
 	});
@@ -220,6 +227,15 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
 		expect(calls.some(call =>
 			call[0] === 'pane' && call[1] === 'run' && call[2] === 'w1:p2',
 		)).toBe(true);
+	});
+
+	it('uses the first matching Project workspace when labels are duplicated', () => {
+		const result = runHarness('duplicate');
+		expect(result.status, result.stderr).toBe(0);
+		const calls = result.report.calls.map(call => call.args);
+		expect(calls).toContainEqual(['pane', 'list', '--workspace', 'w1']);
+		expect(calls.map(call => call.slice(0, 2).join(' ')))
+			.not.toContain('workspace create');
 	});
 
 	it('starts without prompting when the initial prompt is empty', () => {
@@ -244,10 +260,12 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
 			"& 'opencode' '--auto'",
 		);
 		expect(calls.some(call => call[0] === 'agent' && call[1] === 'start')).toBe(false);
-		expect(calls).toContainEqual(['agent', 'rename', 'w1:p1', 'cl-w1-p1']);
+		expect(calls).toContainEqual([
+			'agent', 'rename', 'w1:p1', 'Fix login timeout ST-47 - Alpha',
+		]);
 		expect(calls).toContainEqual(['pane', 'rename', 'w1:p1', 'alpha--st-47']);
 		expect(calls).toContainEqual([
-			'agent', 'prompt', 'cl-w1-p1', "hello\nmultiline 'world'",
+			'agent', 'prompt', 'w1:p1', "hello\nmultiline 'world'",
 		]);
 	});
 
@@ -264,7 +282,7 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
 			call[3] !== '/quit',
 		)).toBe(true);
 		expect(calls).toContainEqual([
-			'agent', 'prompt', 'cl-w1-p9', "hello\nmultiline 'world'",
+			'agent', 'prompt', 'w1:p9', "hello\nmultiline 'world'",
 		]);
 	});
 

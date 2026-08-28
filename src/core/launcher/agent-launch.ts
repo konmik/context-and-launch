@@ -162,8 +162,14 @@ export async function launchAgent(
   launchRequest: LaunchRequest,
   launchDir: string,
 ): Promise<void> {
+	const windowTitle = buildWindowTitle(
+		ticket,
+		launchRequest.useWorktree
+			? { worktreePath: launchDir }
+			: { projectName: projectRegistry.getName(projectSlug) },
+	);
   await spawnAgent(
-    projectSlug, ticket.folderName, buildWindowTitle(ticket), launchRequest, launchDir,
+    projectSlug, ticket.folderName, windowTitle, launchRequest, launchDir,
   );
 }
 

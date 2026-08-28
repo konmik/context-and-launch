@@ -32,7 +32,7 @@ export class ProfileReviewAgentLauncher implements ReviewAgentLauncher {
 		}
 		await runLauncherProfile(this.commands, profile, {
 			initialPrompt,
-			windowTitle: buildWindowTitle(target.ticket),
+			windowTitle: buildWindowTitle(target.ticket, { worktreePath: target.worktreePath }),
 			markerPath: this.markerPath(target),
 			appConfigDir: this.launcherConfig.getAppConfigDir(),
 			configDefaultsDir: this.launcherConfig.getConfigDefaultsDir(),

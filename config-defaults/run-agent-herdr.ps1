@@ -13,12 +13,14 @@ if (-not (Get-Command herdr -ErrorAction SilentlyContinue)) {
 }
 
 $initialPrompt = [string]$args[0]
+$windowTitle = [string]$args[1]
 $markerPath = [string]$args[2]
 $agentCommand = @($args[3..($args.Length - 1)] | ForEach-Object { [string]$_ })
 $launchDir = (Get-Location).Path
 $projectSlug = Split-Path -Leaf (Split-Path -Parent $markerPath)
 $ticketFolder = [IO.Path]::GetFileNameWithoutExtension($markerPath)
 $ticketPaneLabel = "$projectSlug--$ticketFolder"
+$agentDisplayName = $windowTitle -replace ' -- AI$', ''
 
 function Get-Field {
     param($Object, [string]$Name)
@@ -140,7 +142,6 @@ function Wait-AgentReleased {
 
 function Start-Agent {
     param([string]$PaneId)
-    $agentName = ('cl-' + ($PaneId -replace '[^A-Za-z0-9_-]', '-')).ToLowerInvariant()
 
     # Herdr's Windows agent launcher passes a bare executable name to
     # Start-Process, which can select an extensionless npm shim instead of its
@@ -169,24 +170,21 @@ function Start-Agent {
         throw "Herdr did not detect a ready '$($agentCommand[0])' agent in pane '$PaneId'."
     }
 
-    Invoke-Herdr @('agent', 'rename', $PaneId, $agentName) | Out-Null
+    Invoke-Herdr @('agent', 'rename', $PaneId, $agentDisplayName) | Out-Null
     Invoke-Herdr @('pane', 'rename', $PaneId, $ticketPaneLabel) | Out-Null
     if ([string]::IsNullOrWhiteSpace($initialPrompt)) { return $detected }
     Start-Sleep -Milliseconds 1500
-    return Invoke-Herdr @('agent', 'prompt', $agentName, $initialPrompt)
+    return Invoke-Herdr @('agent', 'prompt', $PaneId, $initialPrompt)
 }
 
 $workspaceList = Invoke-Herdr @('workspace', 'list')
 $workspaces = @($workspaceList.result.workspaces | Where-Object {
     (Get-Field $_ 'label') -ceq $projectSlug
 })
-if ($workspaces.Count -gt 1) {
-    throw "Multiple Herdr workspaces are labeled '$projectSlug'."
-}
 
 $ticketPaneId = ''
 $workspacePanes = @()
-if ($workspaces.Count -eq 1) {
+if ($workspaces.Count -gt 0) {
     $workspaceId = [string]$workspaces[0].workspace_id
     $paneList = Invoke-Herdr @('pane', 'list', '--workspace', $workspaceId)
     $workspacePanes = @($paneList.result.panes)
