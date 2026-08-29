@@ -3,10 +3,20 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import * as v from "valibot";
 
 export const activeMarkerName = ".context-launch-test-workspace.json";
 export const workspaceEnvironmentName = "CONTEXT_LAUNCH_TEST_WORKSPACE";
 export const tokenEnvironmentName = "CONTEXT_LAUNCH_TEST_TOKEN";
+
+const ActiveMarkerSchema = v.looseObject({
+  managedBy: v.literal("context-launch-test-runner"),
+  version: v.literal(1),
+  kind: v.literal("active-workspace"),
+  directory: v.string(),
+  active: v.literal(true),
+  token: v.pipe(v.string(), v.minLength(32)),
+});
 
 function git(sourcePath, args) {
   return execFileSync("git", ["-C", sourcePath, ...args], {
@@ -67,19 +77,12 @@ export function readActiveMarker(workspace) {
   } catch (error) {
     throw new Error(`Cannot read the active test workspace marker at ${markerPath}: ${error.message}`);
   }
-  if (
-    marker?.managedBy !== "context-launch-test-runner"
-    || marker.version !== 1
-    || marker.kind !== "active-workspace"
-    || marker.active !== true
-    || typeof marker.token !== "string"
-    || marker.token.length < 32
-    || typeof marker.directory !== "string"
-    || canonicalPath(workspace) !== canonicalPath(marker.directory)
-  ) {
+  const parsed = v.safeParse(ActiveMarkerSchema, marker);
+  if (!parsed.success
+    || canonicalPath(workspace) !== canonicalPath(parsed.output.directory)) {
     throw new Error(`The active test workspace marker at ${markerPath} is invalid.`);
   }
-  return marker;
+  return parsed.output;
 }
 
 if (process.argv[1] && canonicalPath(process.argv[1]) === canonicalPath(fileURLToPath(import.meta.url))) {

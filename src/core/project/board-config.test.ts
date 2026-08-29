@@ -164,21 +164,6 @@ describe('BoardConfigManager', () => {
 		]);
 	});
 
-	it('migrates legacy string[] columns to ColumnDefinition[]', () => {
-		const configDir = tmpDir('board-config-test-');
-		dirs.push(configDir);
-
-		const legacy = [
-			{ id: 'old', name: 'Old Board', columns: ['todo', 'done'] },
-		];
-		const configSubdir = path.join(configDir, 'config');
-		fs.mkdirSync(configSubdir, { recursive: true });
-		fs.writeFileSync(path.join(configSubdir, 'boards.json'), JSON.stringify(legacy));
-
-		const manager = new BoardConfigManager(new ConfigPaths(configDir));
-		const config = manager.getConfig('old');
-		expect(config.columns).toEqual([{ name: 'todo' }, { name: 'done' }]);
-	});
 });
 
 describe('slugifyColumnName', () => {

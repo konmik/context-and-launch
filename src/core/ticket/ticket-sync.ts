@@ -162,7 +162,8 @@ export class TicketSyncManager {
 
 			const signArgs = await this.commitTreeArgs(worktreeDir);
 			const newCommit = (await this.commands.execute('ticket-sync.commit-tree', worktreeDir,
-				{ signArgs, tree: mergedTree, parent: newUpstream, message: 'sync: local changes' },
+				{ tree: mergedTree, parent: newUpstream, message: 'sync: local changes' },
+				{ signArgs },
 			)).trim();
 
 			try {

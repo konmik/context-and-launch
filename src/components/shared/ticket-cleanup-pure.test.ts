@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  noCleanupOptions, singleCleanupOption, toErrorInfo, allChecking, allError,
+  noCleanupOptions, singleCleanupOption, allChecking, allError,
 } from "./ticket-cleanup-pure.js";
 
 describe("noCleanupOptions", () => {
@@ -17,17 +17,6 @@ describe("singleCleanupOption", () => {
       stopHerdrAgent: false, deleteWorktree: true,
       deleteLocalBranch: false, deleteRemoteBranch: false,
     });
-  });
-});
-
-describe("toErrorInfo", () => {
-  it("wraps a string in a description", () => {
-    expect(toErrorInfo("boom")).toEqual({ description: "boom" });
-  });
-
-  it("returns an ErrorInfo object unchanged", () => {
-    const info = { description: "boom", command: "git" };
-    expect(toErrorInfo(info)).toBe(info);
   });
 });
 

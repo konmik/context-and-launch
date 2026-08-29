@@ -29,7 +29,7 @@ export function agentBelongsToTarget(agent: HerdrAgent, target: AgentBelongingTa
 	if (agent.name === expectedName) return true;
 	const expectedPath = normalizePath(target.agentWorktreePath);
 	return [agent.cwd, agent.foreground_cwd]
-		.some((candidate) => typeof candidate === "string"
+		.some((candidate) => candidate !== undefined
 			&& candidate.length > 0
 			&& normalizePath(candidate) === expectedPath);
 }

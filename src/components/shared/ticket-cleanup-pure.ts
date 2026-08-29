@@ -12,10 +12,6 @@ const cleanupItemKeys: CleanupItemKey[] = [
   "stopHerdrAgent", "deleteWorktree", "deleteLocalBranch", "deleteRemoteBranch",
 ];
 
-export function toErrorInfo(value: string | ErrorInfo): ErrorInfo {
-  return typeof value === "string" ? { description: value } : value;
-}
-
 export function allChecking(): TicketCleanupItemStates {
   return buildStates(() => ({ state: "checking" }));
 }

@@ -177,7 +177,7 @@ describe("createTicketCleanupController", () => {
         let closedWith: boolean | undefined;
         const ctrl = createTicketCleanupController(makeDeps({
           onOpenChange: (open) => { closedWith = open; },
-          onSubmit: async () => ({ error: "cleanup failed" }),
+          onSubmit: async () => ({ error: { description: "cleanup failed" } }),
         }));
         await invoke(ctrl.startChecks);
         await invoke(ctrl.doSubmit);
@@ -209,7 +209,7 @@ describe("createTicketCleanupController", () => {
   it("tracks submitting during an in-flight submit", async () => {
     await createRoot(async (dispose) => {
       try {
-        let resolve!: (v: { error?: string }) => void;
+        let resolve!: (v: { error?: { description: string } }) => void;
         const ctrl = createTicketCleanupController(makeDeps({
           onSubmit: () => new Promise((r) => { resolve = r; }),
         }));
@@ -228,7 +228,7 @@ describe("createTicketCleanupController", () => {
   it("tracks a running cleanup and refreshes after it settles", async () => {
     await createRoot(async (dispose) => {
       try {
-        let resolve!: (v: { error?: string }) => void;
+        let resolve!: (v: { error?: { description: string } }) => void;
         const ctrl = createTicketCleanupController(makeDeps({
           onCleanup: () => new Promise((r) => { resolve = r; }),
         }));
@@ -252,7 +252,7 @@ describe("createTicketCleanupController", () => {
         let checks = 0;
         const ctrl = createTicketCleanupController(makeDeps({
           loadStatus: async () => { checks++; return allReady; },
-          onCleanup: async () => ({ error: "action failed" }),
+          onCleanup: async () => ({ error: { description: "action failed" } }),
         }));
         await invoke(ctrl.startChecks);
         await invoke(() => ctrl.runCleanup("deleteWorktree"));

@@ -1,4 +1,5 @@
 import bundledDefaults from '../../../config-defaults/command-templates.json' with { type: 'json' };
+import * as v from 'valibot';
 import type { ConfigPaths } from '../config/config-paths.js';
 import type { ConfigRepository } from '../config/config-repository.js';
 import { COMMAND_TEMPLATE_DEFINITION_BY_KEY, COMMAND_TEMPLATE_DEFINITIONS } from './command-template-definitions.js';
@@ -9,17 +10,24 @@ import type { CommandTemplateDefinition, CommandTemplateEntry } from './command-
 type ScriptMap = Record<string, string>;
 
 const BUNDLED_DEFAULTS_LABEL = 'The bundled Command Template catalog';
+const ScriptRecordSchema = v.record(v.string(), v.unknown());
+const ScriptSchema = v.string();
 
 function validateScriptMap(value: unknown, fileLabel: string) {
-	if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+	if (Array.isArray(value)) {
+		throw new Error(`${fileLabel} must contain a JSON object of Command Template strings.`);
+	}
+	const parsedRecord = v.safeParse(ScriptRecordSchema, value);
+	if (!parsedRecord.success) {
 		throw new Error(`${fileLabel} must contain a JSON object of Command Template strings.`);
 	}
 	const result: ScriptMap = {};
-	for (const [key, script] of Object.entries(value)) {
-		if (typeof script !== 'string') {
+	for (const [key, script] of Object.entries(parsedRecord.output)) {
+		const parsedScript = v.safeParse(ScriptSchema, script);
+		if (!parsedScript.success) {
 			throw new Error(`Command Template '${key}' in ${fileLabel} must be a string.`);
 		}
-		result[key] = script;
+		result[key] = parsedScript.output;
 	}
 	return result;
 }
@@ -73,7 +81,6 @@ export class CommandTemplateStore {
 
 	save(key: CommandTemplateKey, script: string): CommandTemplateEntry {
 		const definition = this.requireKnown(key);
-		if (typeof script !== 'string') throw new Error('Command Template script must be a string.');
 		assertDeclaredPlaceholders(definition, script, 'The edited script');
 		const defaults = this.loadDefaults();
 		const overrides = this.loadOverrides();

@@ -21,19 +21,16 @@ function makeTicket(overrides: Partial<TicketInfo> & { folderName: string }): Ti
 
 function makeBoard(
 	tickets: TicketInfo[],
-	columns: string[] | ColumnDefinition[] = ["todo", "done"],
+	columns: ColumnDefinition[] = [{ name: "todo" }, { name: "done" }],
 ): BoardState {
-	const colDefs: ColumnDefinition[] = columns.map(
-		c => typeof c === "string" ? { name: c } : c,
-	);
-	const colNames = colDefs.map(c => c.name);
+	const colNames = columns.map(c => c.name);
 	const ticketOrder: Record<string, string[]> = {};
 	for (const col of colNames) {
 		ticketOrder[col] = tickets
 			.filter(t => t.status === col)
 			.map(t => t.folderName);
 	}
-	return { columns: colDefs, tickets, ticketOrder };
+	return { columns, tickets, ticketOrder };
 }
 
 function invoke<T>(fn: () => T): T {

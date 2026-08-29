@@ -1,5 +1,6 @@
 import path from "path";
 import { pathToFileURL } from "url";
+import * as v from "valibot";
 import type { AppRequestHandler } from "./app-protocol.js";
 import { createBuiltAppHandler, type FetchHandler } from "../scripts/built-app.mjs";
 
@@ -18,6 +19,10 @@ interface ServerServices {
   listProjectSlugs(): string[];
 }
 
+const FetchHandlerContractSchema = v.object({ fetch: v.function() });
+const FetchHandlerSchema = v.custom<FetchHandler>((value) =>
+  v.safeParse(FetchHandlerContractSchema, value).success);
+
 declare global {
   var __contextLaunchServices: ServerServices | undefined;
 }
@@ -30,13 +35,14 @@ export async function startServer(appRoot: string): Promise<ServerHandle> {
   const serverHandler = serverModule.default;
 
   const services = globalThis.__contextLaunchServices;
-  if (!serverHandler || typeof serverHandler.fetch !== "function" || !services) {
+  const parsedServerHandler = v.safeParse(FetchHandlerSchema, serverHandler);
+  if (!parsedServerHandler.success || !services) {
     throw new Error(
       `Server bundle at ${serverEntry} did not export its request handler or publish services.`,
     );
   }
 
-  const handleRequest: AppRequestHandler = createBuiltAppHandler(serverHandler, clientRoot);
+  const handleRequest: AppRequestHandler = createBuiltAppHandler(parsedServerHandler.output, clientRoot);
 
   return {
     handleRequest,

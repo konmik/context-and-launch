@@ -87,9 +87,11 @@ describe("Forest viewport", () => {
     const vpStr = await getLocalStorageItem(ctx.page, `forest-viewport:${project.projectSlug}`);
     expect(vpStr).toBeTruthy();
     const vp = JSON.parse(vpStr!);
-    expect(typeof vp.x).toBe("number");
-    expect(typeof vp.y).toBe("number");
-    expect(typeof vp.zoom).toBe("number");
+    expect(vp).toMatchObject({
+      x: expect.any(Number),
+      y: expect.any(Number),
+      zoom: expect.any(Number),
+    });
   }, 120000);
 
   it("keeps a panned Forest in place when switching to kanban and back", async () => {

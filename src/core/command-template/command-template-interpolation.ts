@@ -1,5 +1,5 @@
 import type {
-	CommandTemplatePlatform, CommandTemplateValue, CommandTemplateValues,
+	CommandTemplateListValues, CommandTemplatePlatform, CommandTemplateValues,
 } from './command-template-types.js';
 
 export const PLACEHOLDER_SOURCE = '\\{\\{([^{}]+)\\}\\}';
@@ -9,7 +9,6 @@ const PLACEHOLDER_PATTERN = new RegExp(PLACEHOLDER_SOURCE, 'g');
 const PLACEHOLDER_WITH_PATH_SUFFIX_PATTERN = new RegExp(
 	`${PLACEHOLDER_SOURCE}(${PATH_SUFFIX_SOURCE})?`, 'g',
 );
-
 /**
  * Names a script references that the action does not declare. A template body is
  * edited by hand, so a misspelled name would otherwise survive interpolation as
@@ -33,35 +32,38 @@ export function shellLiteral(value: string, platform: CommandTemplatePlatform): 
 	return `'${value.replaceAll("'", `'"'"'`)}'`;
 }
 
-function renderValue(value: CommandTemplateValue, platform: CommandTemplatePlatform): string {
-	if (typeof value === 'string') return shellLiteral(value, platform);
+function renderList(value: readonly string[], platform: CommandTemplatePlatform): string {
 	return value.map((item) => shellLiteral(item, platform)).join(' ');
 }
 
 export function interpolateCommandTemplate(
 	script: string,
 	values: CommandTemplateValues,
+	listValues: CommandTemplateListValues,
 	knownScalarPlaceholders: readonly string[],
 	knownListPlaceholders: readonly string[],
 	platform: CommandTemplatePlatform,
 ): string {
-	const known = new Set([...knownScalarPlaceholders, ...knownListPlaceholders]);
+	const scalarNames = new Set(knownScalarPlaceholders);
+	const listNames = new Set(knownListPlaceholders);
 	// Render from the original script in one pass. Repeated replaceAll calls would
 	// rescan an already escaped runtime value, so a literal value such as
 	// "{{otherKnownValue}}" could accidentally be interpreted as template syntax.
 	return script.replace(PLACEHOLDER_WITH_PATH_SUFFIX_PATTERN, (
 		placeholder, name: string, pathSuffix: string | undefined,
 	) => {
-		if (!known.has(name) || !Object.hasOwn(values, name)) return placeholder;
-		const value = values[name];
+		if (scalarNames.has(name)) {
+			const value = values[name];
+			if (value === undefined) return placeholder;
+			return shellLiteral(pathSuffix ? `${value}${pathSuffix}` : value, platform);
+		}
+		if (!listNames.has(name)) return placeholder;
+		const value = listValues[name];
 		if (value === undefined) return placeholder;
 		// PowerShell does not concatenate a quoted argument with an adjacent path
 		// suffix: 'C:\dir'/tool.ps1 becomes two argv entries. Fold a static suffix
 		// into scalar values before quoting so existing Profile bodies such as
 		// {{configDefaultsDir}}/run-agent.ps1 remain one safely escaped argument.
-		if (pathSuffix && typeof value === 'string') {
-			return renderValue(`${value}${pathSuffix}`, platform);
-		}
-		return `${renderValue(value, platform)}${pathSuffix ?? ''}`;
+		return `${renderList(value, platform)}${pathSuffix ?? ''}`;
 	});
 }

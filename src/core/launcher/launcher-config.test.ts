@@ -519,29 +519,6 @@ describe('LauncherConfigManager', () => {
 			.toThrow('already exists');
 	});
 
-	it('saveAppConfig with missing templates/skills writes raw body,'
-		+ ' loadAppConfig treats missing arrays as empty', () => {
-		const configDir = tmpDir('lc-');
-		dirs.push(configDir);
-		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-		// Save a config object that has no templates or skills keys
-		mgr.saveAppConfig({ worktreeRootPath: '/some/path' } as any);
-
-		// Raw file on disk should have no templates/skills keys
-		const raw = JSON.parse(
-			fs.readFileSync(path.join(configDir, 'config', 'launcher-config.json'), 'utf-8')
-		);
-		expect(raw.templates).toBeUndefined();
-		expect(raw.skills).toBeUndefined();
-		expect(raw.worktreeRootPath).toBe('/some/path');
-
-		// loadAppConfig parses via parseConfig which defaults missing arrays to []
-		const loaded = mgr.loadAppConfig();
-		expect(loaded.templates).toEqual([]);
-		expect(loaded.skills).toEqual([]);
-		expect(loaded.worktreeRootPath).toBe('/some/path');
-	});
-
 	it('empty projectSlug resolves project config to projects/config/ dir, not a subdirectory', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
@@ -596,62 +573,6 @@ describe('LauncherConfigManager', () => {
 		expect(stored).toEqual(defaults);
 	});
 
-	it('addTemplate with non-string name/text (null, undefined, number, object)'
-		+ ' passes through and roundtrips via JSON', () => {
-		const configDir = tmpDir('lc-');
-		dirs.push(configDir);
-		initializeDataDir(new ConfigPaths(configDir));
-		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-
-		// No runtime type guard exists, so non-string values are accepted
-		mgr.addTemplate('app', 'test-project', { name: 42, text: null } as any);
-		mgr.addTemplate('app', 'test-project', { name: undefined, text: { nested: true } } as any);
-		mgr.addTemplate('app', 'test-project', { name: { complex: 'object' }, text: 'valid text' } as any);
-
-		// Read raw JSON from disk to see what was serialized
-		const raw = JSON.parse(
-			fs.readFileSync(path.join(configDir, 'config', 'launcher-config.json'), 'utf-8')
-		);
-
-		// name: 42, text: null -- both survive JSON serialization
-		const rawT42 = raw.templates.find((t: any) => t.name === 42);
-		expect(rawT42).toBeDefined();
-		expect(rawT42.text).toBeNull();
-
-		// name: undefined becomes missing key in JSON (JSON.stringify omits undefined in object values)
-		// The entry exists as an object but the 'name' property is absent
-		const rawUndef = raw.templates.find((t: any) => !('name' in t) || t.name === undefined);
-		expect(rawUndef).toBeDefined();
-		// text: { nested: true } survives as a nested object
-		expect(rawUndef.text).toEqual({ nested: true });
-
-		// name: { complex: 'object' } survives as a nested object
-		const rawObj = raw.templates.find(
-			(t: any) => typeof t.name === 'object' && t.name !== null && t.name.complex === 'object',
-		);
-		expect(rawObj).toBeDefined();
-		expect(rawObj.text).toBe('valid text');
-
-		// Roundtrip: loadAppConfig reads them back through parseConfig
-		const reloaded = mgr.loadAppConfig();
-		// 3 default templates + 3 non-string entries = 6 total
-		expect(reloaded.templates).toHaveLength(6);
-
-		// name: 42 survives JSON roundtrip (number stays number)
-		const t42 = reloaded.templates.find(t => (t.name as any) === 42);
-		expect(t42).toBeDefined();
-		expect(t42!.text).toBeNull();
-
-		// name: undefined -> after JSON roundtrip, key is absent, so name is undefined
-		const tUndef = reloaded.templates.find(t => t.name === undefined);
-		expect(tUndef).toBeDefined();
-
-		// name: { complex: 'object' } survives as a parsed object
-		const tObj = reloaded.templates.find(t => typeof t.name === 'object' && t.name !== null);
-		expect(tObj).toBeDefined();
-		expect((tObj!.name as any).complex).toBe('object');
-	});
-
 	it('addTemplate/addSkill with control characters or 10000-char name: accepted and persisted', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
@@ -690,42 +611,6 @@ describe('LauncherConfigManager', () => {
 		// Duplicate detection still works for long name
 		expect(() => mgr.addSkill('project', 'test-project', { name: longName, text: 'dup' }))
 			.toThrow('already exists');
-	});
-
-	it('saveAppConfig with a JSON array (not object) writes array,'
-		+ ' loadAppConfig returns empty templates/skills', () => {
-		const configDir = tmpDir('lc-');
-		dirs.push(configDir);
-		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
-
-		// Save an array instead of the expected { templates, skills } object
-		const arrayPayload = [
-			{ name: 'T1', text: 'template one' },
-			{ name: 'T2', text: 'template two' },
-		];
-		mgr.saveAppConfig(arrayPayload as any);
-
-		// The raw file on disk should contain a JSON array
-		const raw = JSON.parse(
-			fs.readFileSync(path.join(configDir, 'config', 'launcher-config.json'), 'utf-8')
-		);
-		expect(Array.isArray(raw)).toBe(true);
-		expect(raw).toHaveLength(2);
-		expect(raw[0]).toEqual({ name: 'T1', text: 'template one' });
-
-		// loadAppConfig -> parseConfig accesses parsed.templates and parsed.skills,
-		// which are undefined on an array, so both default to [].
-		// columnDefaults and worktreeRootPath are also undefined.
-		const loaded = mgr.loadAppConfig();
-		expect(loaded.templates).toEqual([]);
-		expect(loaded.skills).toEqual([]);
-		expect(loaded.columnDefaults).toBeUndefined();
-		expect(loaded.worktreeRootPath).toBeUndefined();
-
-		// The original array data is silently lost -- a type-confusion corruption.
-		// writeConfigFile accepted the array because JSON.stringify handles arrays,
-		// but parseConfig assumes the parsed result is an object with .templates/.skills
-		// and silently falls back to empty arrays when those properties are missing.
 	});
 
 	it('saveProjectConfig with Windows-reserved device names (CON, NUL, AUX, PRN) as projectSlug values', () => {
@@ -1255,7 +1140,7 @@ describe('LauncherConfigManager', () => {
 		expect(config.conflictResolutionPrompt).toBe('My prompt');
 	});
 
-	it('non-string conflictResolutionPrompt on disk falls back to default in getMergedConfig', () => {
+	it('rejects a non-string conflictResolutionPrompt on disk', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);
 		initializeDataDir(new ConfigPaths(configDir));
@@ -1267,11 +1152,7 @@ describe('LauncherConfigManager', () => {
 			templates: [], skills: [], profiles: [], shortcuts: [],
 			conflictResolutionPrompt: 12345,
 		}));
-		const merged = mgr.getMergedConfig('test-project');
-		// MergedLauncherConfig.conflictResolutionPrompt is typed string; a truthy
-		// non-string value must not leak through. It falls back to the default.
-		expect(typeof merged.conflictResolutionPrompt).toBe('string');
-		expect(merged.conflictResolutionPrompt).toContain('git rebase --continue');
+		expect(() => mgr.getMergedConfig('test-project')).toThrow();
 	});
 
 	it('empty conflictResolutionPrompt falls back to default in getMergedConfig', () => {

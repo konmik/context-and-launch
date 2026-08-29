@@ -110,18 +110,51 @@ export const RunShortcutBody = v.object({
 });
 export type RunShortcutBody = v.InferOutput<typeof RunShortcutBody>;
 
+const FiniteNumberSchema = v.pipe(v.number(), v.finite());
+const OrderedItemEntries = {
+	name: v.string(),
+	order: v.optional(FiniteNumberSchema),
+};
+const LauncherColumnDefaultsSchema = v.object({
+	templateName: v.nullable(v.string()),
+	checkedSkills: v.array(v.string()),
+	profileName: v.nullable(v.string()),
+	lastLayer: v.optional(v.picklist(["editor", "launcher", "shortcuts"])),
+	skillOrder: v.optional(v.array(v.string())),
+	editedPrompt: v.optional(v.string()),
+});
+const UnknownObjectSchema = v.objectWithRest({}, v.unknown());
+const LauncherConfigSchema = v.object({
+	templates: v.array(v.object({ ...OrderedItemEntries, text: v.string() })),
+	skills: v.array(v.object({ ...OrderedItemEntries, text: v.string() })),
+	profiles: v.optional(v.array(v.object({ ...OrderedItemEntries, command: v.string() }))),
+	shortcuts: v.optional(v.array(v.object({ ...OrderedItemEntries, command: v.string() }))),
+	columnDefaults: v.optional(v.unknown()),
+	worktreeRootPath: v.optional(v.string()),
+	branchPrefix: v.optional(v.string()),
+	conflictResolutionPrompt: v.optional(v.string()),
+});
+
 function parseConfig(raw: unknown): LauncherConfig {
-	const parsed = raw as Record<string, unknown>;
-	return {
-		templates: (parsed.templates as LauncherTemplate[]) ?? [],
-		skills: (parsed.skills as LauncherSkill[]) ?? [],
-		profiles: (parsed.profiles as LauncherProfile[]) ?? [],
-		shortcuts: (parsed.shortcuts as LauncherShortcut[]) ?? [],
-		columnDefaults: parsed.columnDefaults as Record<string, LauncherColumnDefaults> | undefined,
-		worktreeRootPath: parsed.worktreeRootPath as string | undefined,
-		branchPrefix: parsed.branchPrefix as string | undefined,
-		conflictResolutionPrompt: parsed.conflictResolutionPrompt as string | undefined,
-	};
+	const { columnDefaults, ...config } = v.parse(LauncherConfigSchema, raw);
+	if (columnDefaults === undefined) return config;
+	if (!v.is(UnknownObjectSchema, columnDefaults)) {
+		throw new Error('columnDefaults must be an object.');
+	}
+	const entries = v.parse(
+		v.array(v.tuple([v.string(), LauncherColumnDefaultsSchema])),
+		Object.entries(columnDefaults),
+	);
+	const parsedColumnDefaults: Record<string, LauncherColumnDefaults> = {};
+	for (const [column, defaults] of entries) {
+		Object.defineProperty(parsedColumnDefaults, column, {
+			value: defaults,
+			writable: true,
+			enumerable: true,
+			configurable: true,
+		});
+	}
+	return { ...config, columnDefaults: parsedColumnDefaults };
 }
 
 function mergeByName<T extends { name: string }>(
@@ -145,10 +178,7 @@ function mergeOrderedByName<T extends OrderedLauncherItem>(
 	return mergeByName(appItems, projectItems)
 		.map((item, canonicalIndex) => ({
 			...item,
-			order:
-				typeof item.order === "number" && Number.isFinite(item.order)
-					? item.order
-					: canonicalIndex,
+			order: item.order ?? canonicalIndex,
 		}))
 		.sort((a, b) => a.order - b.order);
 }
@@ -163,11 +193,7 @@ export function mergeLauncherConfigs(
 	app: LauncherConfig,
 	project: LauncherConfig,
 ): MergedLauncherConfig {
-	const appPrompt =
-		typeof app.conflictResolutionPrompt === 'string'
-		&& app.conflictResolutionPrompt
-			? app.conflictResolutionPrompt
-			: '';
+	const appPrompt = app.conflictResolutionPrompt || '';
 
 	return {
 		templates: mergeOrderedByName(app.templates, project.templates),
@@ -177,11 +203,7 @@ export function mergeLauncherConfigs(
 		columnDefaults: project.columnDefaults ?? {},
 		worktreeRootPath: project.worktreeRootPath ?? null,
 		branchPrefix: project.branchPrefix,
-		conflictResolutionPrompt:
-			typeof project.conflictResolutionPrompt === 'string'
-			&& project.conflictResolutionPrompt
-				? project.conflictResolutionPrompt
-				: appPrompt,
+		conflictResolutionPrompt: project.conflictResolutionPrompt || appPrompt,
 	};
 }
 
@@ -498,7 +520,7 @@ export class LauncherConfigManager {
 		name: string,
 		order: number,
 	): void {
-		if (typeof order !== "number" || !Number.isFinite(order)) {
+		if (!Number.isFinite(order)) {
 			throw new Error("order must be a finite number");
 		}
 		this.withConfig(scope, projectSlug, (config) => {

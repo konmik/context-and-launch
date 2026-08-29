@@ -5,7 +5,7 @@ describe('Command Template interpolation', () => {
 	it('escapes scalar and list values and leaves unknown placeholders unchanged', () => {
 		const rendered = interpolateCommandTemplate(
 			'run {{scalar}} {{items}} {{unknown}}',
-			{ scalar: "a b'$;&`{}\nline", items: ['one two', "three's"] },
+			{ scalar: "a b'$;&`{}\nline" }, { items: ['one two', "three's"] },
 			['scalar'], ['items'], 'linux',
 		);
 		expect(rendered).toContain(shellLiteral("a b'$;&`{}\nline", 'linux'));
@@ -21,7 +21,7 @@ describe('Command Template interpolation', () => {
 	it('does not reinterpret placeholder text contained in a runtime value', () => {
 		expect(interpolateCommandTemplate(
 			'run {{first}} {{second}}',
-			{ first: '{{second}}', second: 'replacement' },
+			{ first: '{{second}}', second: 'replacement' }, {},
 			['first', 'second'], [], 'windows',
 		)).toBe("run '{{second}}' 'replacement'");
 	});
@@ -29,7 +29,7 @@ describe('Command Template interpolation', () => {
 	it('quotes an interpolated directory and its static path suffix as one argument', () => {
 		expect(interpolateCommandTemplate(
 			'powershell -File {{configDefaultsDir}}/run-agent.ps1',
-			{ configDefaultsDir: 'C:\\Program Files\\context-launch\\config-defaults' },
+			{ configDefaultsDir: 'C:\\Program Files\\context-launch\\config-defaults' }, {},
 			['configDefaultsDir'], [], 'windows',
 		)).toBe(
 			"powershell -File 'C:\\Program Files\\context-launch\\config-defaults/run-agent.ps1'",

@@ -8,45 +8,45 @@ describe('Command Template direct invocation', () => {
 	it('builds argv with raw placeholder values for a single-line template', () => {
 		expect(buildDirectInvocationArgv(
 			'git commit -m {{message}}',
-			{ cwd: 'x', message: "it's got spaces" },
+			{ cwd: 'x', message: "it's got spaces" }, {},
 			['message'], [],
 		)).toEqual(['git', 'commit', '-m', "it's got spaces"]);
 	});
 
 	it('unwraps single-quoted literal tokens', () => {
-		expect(buildDirectInvocationArgv("git diff --quiet '@{u}'", {}, [], []))
+		expect(buildDirectInvocationArgv("git diff --quiet '@{u}'", {}, {}, [], []))
 			.toEqual(['git', 'diff', '--quiet', '@{u}']);
 	});
 
 	it('spreads list values and omits empty lists', () => {
 		expect(buildDirectInvocationArgv(
 			'git commit-tree {{signArgs}} {{tree}}',
-			{ signArgs: ['-S'], tree: 'abc' }, ['tree'], ['signArgs'],
+			{ tree: 'abc' }, { signArgs: ['-S'] }, ['tree'], ['signArgs'],
 		)).toEqual(['git', 'commit-tree', '-S', 'abc']);
 		expect(buildDirectInvocationArgv(
 			'git commit-tree {{signArgs}} {{tree}}',
-			{ signArgs: [], tree: 'abc' }, ['tree'], ['signArgs'],
+			{ tree: 'abc' }, { signArgs: [] }, ['tree'], ['signArgs'],
 		)).toEqual(['git', 'commit-tree', 'abc']);
 	});
 
 	it('rejects multiline templates', () => {
-		expect(buildDirectInvocationArgv('git fetch\ngit rebase', {}, [], [])).toBeUndefined();
+		expect(buildDirectInvocationArgv('git fetch\ngit rebase', {}, {}, [], [])).toBeUndefined();
 	});
 
 	it('rejects shell syntax', () => {
-		expect(buildDirectInvocationArgv('git log | head', {}, [], [])).toBeUndefined();
+		expect(buildDirectInvocationArgv('git log | head', {}, {}, [], [])).toBeUndefined();
 		expect(buildDirectInvocationArgv(
-			'(Get-Process -Id {{pid}}).StartTime', { pid: '1' }, ['pid'], [],
+			'(Get-Process -Id {{pid}}).StartTime', { pid: '1' }, {}, ['pid'], [],
 		)).toBeUndefined();
 		expect(buildDirectInvocationArgv(
-			'zenity --filename={{startDir}}/', { startDir: 'x' }, ['startDir'], [],
+			'zenity --filename={{startDir}}/', { startDir: 'x' }, {}, ['startDir'], [],
 		)).toBeUndefined();
 	});
 
 	it('folds a leading-placeholder path suffix into one argv entry', () => {
 		expect(buildDirectInvocationArgv(
 			'powershell -File {{configDefaultsDir}}/run-agent.ps1 {{initialPrompt}}',
-			{ configDefaultsDir: 'C:\\cfg', initialPrompt: 'go' },
+			{ configDefaultsDir: 'C:\\cfg', initialPrompt: 'go' }, {},
 			['configDefaultsDir', 'initialPrompt'], [],
 		)).toEqual(['powershell', '-File', 'C:\\cfg/run-agent.ps1', 'go']);
 	});
@@ -60,7 +60,7 @@ describe('Command Template direct invocation', () => {
 			{
 				configDefaultsDir: 'C:\\cfg', initialPrompt: prompt,
 				windowTitle: 'WNA-1619 -- AI', markerPath: 'C:\\marker.json',
-			},
+			}, {},
 			['configDefaultsDir', 'initialPrompt', 'windowTitle', 'markerPath'], [],
 		)).toEqual([
 			'powershell', '-File', 'C:\\cfg/run-agent.ps1', prompt,
@@ -69,20 +69,20 @@ describe('Command Template direct invocation', () => {
 	});
 
 	it('rejects placeholders without a provided value and unknown placeholders', () => {
-		expect(buildDirectInvocationArgv('git rev-parse {{ref}}', {}, ['ref'], [])).toBeUndefined();
+		expect(buildDirectInvocationArgv('git rev-parse {{ref}}', {}, {}, ['ref'], [])).toBeUndefined();
 		expect(buildDirectInvocationArgv(
-			'git rev-parse {{unknown}}', { unknown: 'x' }, [], [],
+			'git rev-parse {{unknown}}', { unknown: 'x' }, {}, [], [],
 		)).toBeUndefined();
 	});
 
 	it('accepts a placeholder as the program token and resolves its value', () => {
 		expect(buildDirectInvocationArgv(
-			'{{program}} --version', { program: 'git' }, ['program'], [],
+			'{{program}} --version', { program: 'git' }, {}, ['program'], [],
 		)).toEqual(['git', '--version']);
 	});
 
 	it('rejects a program placeholder with no supplied value', () => {
-		expect(buildDirectInvocationArgv('{{program}} --version', {}, ['program'], []))
+		expect(buildDirectInvocationArgv('{{program}} --version', {}, {}, ['program'], []))
 			.toBeUndefined();
 	});
 
@@ -97,13 +97,16 @@ describe('Command Template direct invocation', () => {
 		for (const key of singleLineGitKeys) {
 			const definition = COMMAND_TEMPLATE_DEFINITION_BY_KEY.get(key);
 			if (!definition) throw new Error(`No definition for '${key}'.`);
-			const values = Object.fromEntries([
-				...definition.scalarPlaceholders.map((name) => [name, 'value']),
-				...definition.listPlaceholders.map((name) => [name, ['value']]),
-			]);
+			const values = Object.fromEntries(
+				definition.scalarPlaceholders.map((name) => [name, 'value']),
+			);
+			const listValues = Object.fromEntries(
+				definition.listPlaceholders.map((name) => [name, ['value']]),
+			);
 			expect(
 				buildDirectInvocationArgv(
-					defaults[key], values, definition.scalarPlaceholders, definition.listPlaceholders,
+					defaults[key], values, listValues,
+					definition.scalarPlaceholders, definition.listPlaceholders,
 				),
 				`'${key}' must stay directly executable`,
 			).toBeDefined();

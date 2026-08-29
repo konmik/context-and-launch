@@ -7,6 +7,7 @@ import type { CommandTemplateStore } from './command-template-store.js';
 import {
 	currentCommandTemplatePlatform,
 	type CommandTemplateExecutor,
+	type CommandTemplateListValues,
 	type CommandTemplateMode,
 	type CommandTemplatePlatform,
 	type CommandTemplateValues,
@@ -36,6 +37,7 @@ export interface TrustedScriptOptions {
 	source: TrustedScriptSource;
 	script: string;
 	values: CommandTemplateValues;
+	listValues?: CommandTemplateListValues;
 	knownScalarPlaceholders: readonly string[];
 	knownListPlaceholders?: readonly string[];
 	cwd: string;
@@ -89,21 +91,34 @@ export class CommandTemplateService implements CommandTemplateExecutor {
 		return this.store.reset(key);
 	}
 
-	render(key: CommandTemplateKey, values: CommandTemplateValues = {}): string {
+	render(
+		key: CommandTemplateKey,
+		values: CommandTemplateValues = {},
+		listValues: CommandTemplateListValues = {},
+	): string {
 		const entry = this.get(key);
 		return interpolateCommandTemplate(
-			entry.script, values, entry.scalarPlaceholders, entry.listPlaceholders, this.platform,
+			entry.script, values, listValues,
+			entry.scalarPlaceholders, entry.listPlaceholders, this.platform,
 		);
 	}
 
 	async execute(
-		key: CommandTemplateKey, cwd: string, values: CommandTemplateValues = {},
+		key: CommandTemplateKey,
+		cwd: string,
+		values: CommandTemplateValues = {},
+		listValues: CommandTemplateListValues = {},
 	): Promise<string> {
-		return this.executeRequest(this.buildExecutionRequest(key, cwd, values));
+		return this.executeRequest(this.buildExecutionRequest(key, cwd, values, listValues));
 	}
 
-	executeSync(key: CommandTemplateKey, cwd: string, values: CommandTemplateValues = {}): string {
-		const request = this.buildExecutionRequest(key, cwd, values);
+	executeSync(
+		key: CommandTemplateKey,
+		cwd: string,
+		values: CommandTemplateValues = {},
+		listValues: CommandTemplateListValues = {},
+	): string {
+		const request = this.buildExecutionRequest(key, cwd, values, listValues);
 		this.log('command-template', 'start', { commandTemplateKey: key });
 		try {
 			const stdout = this.runner.executeSync(request);
@@ -120,6 +135,7 @@ export class CommandTemplateService implements CommandTemplateExecutor {
 		const renderedScript = interpolateCommandTemplate(
 			options.script,
 			options.values,
+			options.listValues ?? {},
 			options.knownScalarPlaceholders,
 			options.knownListPlaceholders ?? [],
 			this.platform,
@@ -131,6 +147,7 @@ export class CommandTemplateService implements CommandTemplateExecutor {
 			argv: buildDirectInvocationArgv(
 				options.script,
 				options.values,
+				options.listValues ?? {},
 				options.knownScalarPlaceholders,
 				options.knownListPlaceholders ?? [],
 			),
@@ -143,7 +160,10 @@ export class CommandTemplateService implements CommandTemplateExecutor {
 	}
 
 	private buildExecutionRequest(
-		key: CommandTemplateKey, cwd: string, values: CommandTemplateValues,
+		key: CommandTemplateKey,
+		cwd: string,
+		values: CommandTemplateValues,
+		listValues: CommandTemplateListValues,
 	): ShellExecutionRequest {
 		const entry = this.get(key);
 		return {
@@ -152,6 +172,7 @@ export class CommandTemplateService implements CommandTemplateExecutor {
 			script: interpolateCommandTemplate(
 				entry.script,
 				values,
+				listValues,
 				entry.scalarPlaceholders,
 				entry.listPlaceholders,
 				this.platform,
@@ -159,6 +180,7 @@ export class CommandTemplateService implements CommandTemplateExecutor {
 			argv: buildDirectInvocationArgv(
 				entry.script,
 				values,
+				listValues,
 				entry.scalarPlaceholders,
 				entry.listPlaceholders,
 			),

@@ -161,11 +161,12 @@ export default function DiffSurface(props: {
 				setTimeout(() => delete row.dataset.reviewBlink, 900);
 			}
 		};
-		if (typeof IntersectionObserver === "undefined") {
+		const Observer = globalThis.IntersectionObserver;
+		if (Observer === undefined) {
 			for (const row of rows) handleVisible(row);
 			return;
 		}
-		observer = new IntersectionObserver((entries) => {
+		observer = new Observer((entries) => {
 			for (const entry of entries) {
 				if (entry.isIntersecting) handleVisible(entry.target as HTMLElement);
 			}

@@ -20,8 +20,8 @@ export const COMMAND_TEMPLATE_GROUP_ORDER = [
 
 export type CommandTemplateFeatureGroup = typeof COMMAND_TEMPLATE_GROUP_ORDER[number];
 
-export type CommandTemplateValue = string | readonly string[];
-export type CommandTemplateValues = Readonly<Record<string, CommandTemplateValue>>;
+export type CommandTemplateValues = Readonly<Record<string, string>>;
+export type CommandTemplateListValues = Readonly<Record<string, readonly string[]>>;
 
 export interface CommandTemplateDefinition {
 	readonly key: string;
@@ -72,9 +72,23 @@ export interface PlatformShellRunner {
  * for a field the type system should have guaranteed.
  */
 export interface CommandTemplateExecutor {
-	execute(key: CommandTemplateKey, cwd: string, values?: CommandTemplateValues): Promise<string>;
-	executeSync(key: CommandTemplateKey, cwd: string, values?: CommandTemplateValues): string;
-	render(key: CommandTemplateKey, values?: CommandTemplateValues): string;
+	execute(
+		key: CommandTemplateKey,
+		cwd: string,
+		values?: CommandTemplateValues,
+		listValues?: CommandTemplateListValues,
+	): Promise<string>;
+	executeSync(
+		key: CommandTemplateKey,
+		cwd: string,
+		values?: CommandTemplateValues,
+		listValues?: CommandTemplateListValues,
+	): string;
+	render(
+		key: CommandTemplateKey,
+		values?: CommandTemplateValues,
+		listValues?: CommandTemplateListValues,
+	): string;
 }
 
 export function currentCommandTemplatePlatform(

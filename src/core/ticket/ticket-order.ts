@@ -1,8 +1,11 @@
+import * as v from 'valibot';
 import { reconcileOrder } from './ticket-order-reconcile.js';
 import { TicketRepository } from './ticket-repository.js';
 import type { TicketInfo } from './ticket-store.js';
 
 export type TicketOrder = Record<string, string[]>;
+
+const TicketOrderSchema = v.record(v.string(), v.array(v.string()));
 
 export class TicketOrderStore {
 	private worktreeDir: string;
@@ -16,12 +19,9 @@ export class TicketOrderStore {
 	read(): TicketOrder {
 		const parsed = this.repo.readWorktreeJson(this.worktreeDir, 'ticket-order.json');
 		if (parsed === null) return {};
-		if (typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-		const record = parsed as Record<string, unknown>;
-		for (const key of Object.keys(record)) {
-			if (!Array.isArray(record[key])) return {};
-		}
-		return parsed as TicketOrder;
+		if (Array.isArray(parsed)) return {};
+		const result = v.safeParse(TicketOrderSchema, parsed);
+		return result.success ? result.output : {};
 	}
 
 	write(order: TicketOrder): void {

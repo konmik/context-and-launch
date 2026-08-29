@@ -215,9 +215,10 @@ export function createTicketDetailState(
     if (hasAnyUnsavedChanges()) e.preventDefault();
   }
   onSettled(() => {
-    if (typeof window === "undefined") return;
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    const browserWindow = globalThis.window;
+    if (!browserWindow) return;
+    browserWindow.addEventListener("beforeunload", handleBeforeUnload);
+    return () => browserWindow.removeEventListener("beforeunload", handleBeforeUnload);
   });
 
   // Only the newest load may touch the view state: a slow response for a file

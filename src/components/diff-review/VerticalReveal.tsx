@@ -17,9 +17,8 @@ export default function VerticalReveal(props: {
 	const [mounted, setMounted] = createSignal(false);
 	const [phase, setPhase] = createSignal<RevealPhase>("visible");
 	const prefersReducedMotion = () =>
-		typeof window !== "undefined"
-		&& typeof window.matchMedia === "function"
-		&& window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+		globalThis.window?.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches
+		?? false;
 
 	function hide() {
 		setMounted(false);

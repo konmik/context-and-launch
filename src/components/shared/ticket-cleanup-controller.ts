@@ -1,11 +1,11 @@
 import { createSignal } from "solid-js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
-import type { ErrorInfo } from "~/core/shared/errors.js";
+import { errorPayload, type ErrorInfo } from "~/core/shared/errors.js";
 import type { CleanupItemKey, TicketCleanupStatus } from "~/core/worktree/ticket-cleanup-checks.js";
 import type { LockingProcessInfo } from "~/core/worktree/agent-worktree.js";
 import {
   type TicketCleanupOptions, type TicketCleanupItemStates,
-  singleCleanupOption, toErrorInfo, allChecking, allError,
+  singleCleanupOption, allChecking, allError,
 } from "./ticket-cleanup-pure.js";
 
 export interface TicketCleanupDeps {
@@ -15,8 +15,8 @@ export interface TicketCleanupDeps {
   loadStatus: (projectSlug: string, folderName: string) => Promise<TicketCleanupStatus>;
   onCleanup: (
     folderName: string, cleanup: TicketCleanupOptions,
-  ) => Promise<{ error?: string | ErrorInfo }>;
-  onSubmit: (folderName: string) => Promise<{ error?: string | ErrorInfo }>;
+  ) => Promise<{ error?: ErrorInfo }>;
+  onSubmit: (folderName: string) => Promise<{ error?: ErrorInfo }>;
   onOpenChange: (open: boolean) => void;
   loadLockingProcesses: (projectSlug: string, folderName: string) => Promise<LockingProcessInfo[]>;
   killLockingProcesses: (projectSlug: string, folderName: string, pids: number[]) => Promise<{ error?: string }>;
@@ -48,9 +48,9 @@ export function createTicketCleanupController(deps: TicketCleanupDeps) {
       if (token === requestToken) {
         setItems(status);
       }
-    } catch (err: any) {
+    } catch (err) {
       if (token === requestToken) {
-        setItems(allError(toErrorInfo(err?.message ?? "Failed to check cleanup status")));
+        setItems(allError(errorPayload(err)));
       }
     }
   }
@@ -64,12 +64,9 @@ export function createTicketCleanupController(deps: TicketCleanupDeps) {
     let actionError: ErrorInfo | undefined;
     try {
       const result = await deps.onCleanup(ticket.folderName, singleCleanupOption(key));
-      if (result.error) actionError = toErrorInfo(result.error);
-    } catch (err: any) {
-      actionError = {
-        title: "Cleanup failed",
-        description: err?.message ?? "Unknown error",
-      };
+      if (result.error) actionError = result.error;
+    } catch (err) {
+      actionError = errorPayload(err, "Cleanup failed");
     }
     if (token !== lifecycleToken) return;
     await startChecks();
@@ -88,10 +85,10 @@ export function createTicketCleanupController(deps: TicketCleanupDeps) {
     setErrorInfo(null);
     try {
       const result = await deps.onSubmit(ticket.folderName);
-      if (result?.error) setErrorInfo(toErrorInfo(result.error));
+      if (result.error) setErrorInfo(result.error);
       else close();
-    } catch (err: any) {
-      setErrorInfo({ title: "Cleanup failed", description: err?.message ?? "Unknown error" });
+    } catch (err) {
+      setErrorInfo(errorPayload(err, "Cleanup failed"));
     } finally {
       setSubmitting(false);
     }
@@ -110,12 +107,9 @@ export function createTicketCleanupController(deps: TicketCleanupDeps) {
     try {
       const processes = await deps.loadLockingProcesses(deps.projectSlug(), ticket.folderName);
       setLockingProcesses(processes);
-    } catch (err: any) {
+    } catch (err) {
       setLockingProcesses([]);
-      setErrorInfo({
-        title: "Could not list locking processes",
-        description: err?.message ?? "Unknown error",
-      });
+      setErrorInfo(errorPayload(err, "Could not list locking processes"));
     }
   }
 
@@ -131,9 +125,9 @@ export function createTicketCleanupController(deps: TicketCleanupDeps) {
       const result = await deps.killLockingProcesses(
         deps.projectSlug(), ticket.folderName, processes.map(p => p.pid),
       );
-      if (result.error) actionError = toErrorInfo(result.error);
-    } catch (err: any) {
-      actionError = { description: err?.message ?? 'Failed to kill processes' };
+      if (result.error) actionError = { description: result.error };
+    } catch (err) {
+      actionError = errorPayload(err, 'Failed to kill processes');
     }
     if (token !== lifecycleToken) return;
     setKillingProcesses(false);
@@ -156,9 +150,9 @@ export function createTicketCleanupController(deps: TicketCleanupDeps) {
     let actionError: ErrorInfo | undefined;
     try {
       const result = await deps.forceDeleteLocalBranch(deps.projectSlug(), ticket.folderName);
-      if (result.error) actionError = toErrorInfo(result.error);
-    } catch (err: any) {
-      actionError = { description: err?.message ?? 'Failed to force-delete branch' };
+      if (result.error) actionError = { description: result.error };
+    } catch (err) {
+      actionError = errorPayload(err, 'Failed to force-delete branch');
     }
     if (token !== lifecycleToken) return;
     setForceDeleting(false);

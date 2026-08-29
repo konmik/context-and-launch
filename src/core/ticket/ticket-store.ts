@@ -361,9 +361,6 @@ export class TicketStore {
 	}
 
 	saveTicketContext(folderName: string, name: string, content: string): void {
-		if (typeof content !== 'string') {
-			throw new TypeError('content must be a string');
-		}
 		requireSimpleName(name, 'name');
 		const dir = this.resolveTicketDir(folderName);
 		const file = path.join(dir, `${name}.md`);

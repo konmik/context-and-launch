@@ -11,7 +11,7 @@ export function DialogRoot(props: {
   class?: string;
   closeOnInteractOutside?: boolean;
   onMouseDown?: (e: MouseEvent) => void;
-  ref?: HTMLDivElement | ((el: HTMLDivElement) => void);
+  ref?: (el: HTMLDivElement) => void;
 }) {
   let content!: HTMLDivElement;
   let previouslyFocused: Element | null = null;
@@ -61,7 +61,7 @@ export function DialogRoot(props: {
             }}
           >
             <div
-              ref={(element) => { content = element; typeof props.ref === "function" ? props.ref(element) : undefined; }}
+              ref={(element) => { content = element; props.ref?.(element); }}
               role="dialog"
               aria-modal="true"
               aria-labelledby={context.titleId}

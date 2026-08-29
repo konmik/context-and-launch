@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import * as v from "valibot";
 import type { CommandTemplateService } from "../command-template/command-template-service.js";
 import type { LauncherProfile } from "./launcher-config.js";
 import { isAlive } from "./process-utils.js";
@@ -11,6 +12,11 @@ interface AgentMarker {
 	pid: number;
 	startSec?: number;
 }
+
+const AgentMarkerSchema = v.object({
+	pid: v.number(),
+	startSec: v.optional(v.number()),
+});
 
 export function agentMarkerPathIn(
 	appConfigDir: string,
@@ -94,18 +100,20 @@ export function isProfileAgentRunning(
 	commands: CommandTemplateService,
 	markerPath: string,
 ): boolean {
-	let marker: AgentMarker;
+	let raw: unknown;
 	try {
-		marker = JSON.parse(fs.readFileSync(markerPath, "utf-8"));
+		raw = JSON.parse(fs.readFileSync(markerPath, "utf-8"));
 	} catch {
 		return false;
 	}
-	if (typeof marker.pid !== "number") return false;
+	const parsed = v.safeParse(AgentMarkerSchema, raw);
+	if (!parsed.success) return false;
+	const marker: AgentMarker = parsed.output;
 	if (!isAlive(marker.pid)) {
 		reapMarker(markerPath);
 		return false;
 	}
-	if (typeof marker.startSec === "number") {
+	if (marker.startSec !== undefined) {
 		const osSec = processStartSec(commands, marker.pid);
 		if (osSec !== null
 			&& Math.abs(osSec - marker.startSec) > MARKER_START_TOLERANCE_SEC) {

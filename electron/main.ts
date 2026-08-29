@@ -5,6 +5,7 @@ import {
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import * as v from "valibot";
 import { startServer, type ServerHandle } from "./server-adapter.js";
 import {
   paletteBackground,
@@ -59,6 +60,10 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 const SYNC_WINDOW_DELAY_MS = 5000;
+const AppearanceStateSchema = v.object({
+  palette: v.optional(v.unknown()),
+  mode: v.optional(v.unknown()),
+});
 
 const windowsById = new Map<number, BrowserWindow>();
 let sessionWindows: SessionWindow[] = [];
@@ -254,10 +259,10 @@ if (!gotLock) {
     } catch {
       raw = null;
     }
-    if (raw !== null && typeof raw === "object") {
-      const state = raw as Record<string, unknown>;
-      if (isPaletteName(state.palette)) currentPalette = state.palette;
-      const storedMode = parseMode(state.mode);
+    const appearanceState = v.safeParse(AppearanceStateSchema, raw);
+    if (appearanceState.success) {
+      if (isPaletteName(appearanceState.output.palette)) currentPalette = appearanceState.output.palette;
+      const storedMode = parseMode(appearanceState.output.mode);
       if (storedMode) currentMode = storedMode;
     }
     let entries = migrateWindowState(raw);
@@ -298,8 +303,9 @@ if (!gotLock) {
       const options: OpenDialogOptions = {
         properties: ["openDirectory"],
       };
-      if (typeof preselect === "string" && preselect.trim()) {
-        options.defaultPath = preselect.trim();
+      const parsedPreselect = v.safeParse(v.string(), preselect);
+      if (parsedPreselect.success && parsedPreselect.output.trim()) {
+        options.defaultPath = parsedPreselect.output.trim();
       }
       const result = owner
         ? await dialog.showOpenDialog(owner, options)

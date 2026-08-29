@@ -83,7 +83,7 @@ export class FixedPlatformShellRunner implements PlatformShellRunner {
 				maxBuffer: 16 * 1024 * 1024,
 			}, (error, stdout, stderr) => {
 				if (error) {
-					const code = typeof error.code === 'number' ? error.code : undefined;
+					const code = Number.isFinite(error.code) ? Number(error.code) : undefined;
 					const description = error.killed
 						? `Timed out after ${request.timeoutMs}ms`
 						: error.message;
@@ -116,7 +116,7 @@ export class FixedPlatformShellRunner implements PlatformShellRunner {
 			};
 			const stdout = failure.stdout?.toString() ?? '';
 			const stderr = failure.stderr?.toString() ?? '';
-			const status = typeof failure.status === 'number' ? failure.status : undefined;
+			const status = Number.isFinite(failure.status) ? Number(failure.status) : undefined;
 			throw createProcessError(
 				request,
 				status,

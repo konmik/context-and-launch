@@ -13,6 +13,10 @@ interface MenuContextValue {
 
 const MenuContext = createContext<MenuContextValue>();
 
+type MenuButtonProps = Omit<ComponentProps<"button">, "onClick"> & {
+  onClick?: JSX.EventHandler<HTMLButtonElement, MouseEvent>;
+};
+
 export function MenuRoot(props: { children: JSX.Element; trigger: JSX.Element }) {
   const [open, setOpen] = createSignal(false);
   const context: MenuContextValue = {
@@ -46,12 +50,10 @@ export function MenuRoot(props: { children: JSX.Element; trigger: JSX.Element })
   return <MenuContext value={context}>{props.trigger}<Show when={open()}><Portal>{props.children}</Portal></Show></MenuContext>;
 }
 
-export function MenuTrigger(props: ComponentProps<"button">) {
+export function MenuTrigger(props: MenuButtonProps) {
   const menu = useContext(MenuContext);
   return <button ref={(element) => { menu.trigger = element; }} type="button" {...props} aria-haspopup="menu" aria-expanded={menu.open() ? "true" : "false"} onPointerDown={(e) => e.stopPropagation()} onClick={(event) => {
-    const handler = props.onClick;
-    if (typeof handler === "function") handler(event);
-    else handler?.[0](handler[1], event);
+    props.onClick?.(event);
     menu.toggle();
   }} />;
 }
@@ -80,7 +82,7 @@ export function MenuContent(props: ComponentProps<"div">) {
     }}
   />;
 }
-export function MenuItem(props: ComponentProps<"button"> & { value?: string; closeOnSelect?: boolean }) {
+export function MenuItem(props: MenuButtonProps & { value?: string; closeOnSelect?: boolean }) {
   const menu = useContext(MenuContext);
   return <button
     type="button"
@@ -90,9 +92,7 @@ export function MenuItem(props: ComponentProps<"button"> & { value?: string; clo
     data-part="item"
     data-disabled={props.disabled ? "" : undefined}
     onClick={(event) => {
-      const handler = props.onClick;
-      if (typeof handler === "function") handler(event);
-      else handler?.[0](handler[1], event);
+      props.onClick?.(event);
       if (props.closeOnSelect !== false) menu.close(true);
     }}
   />;

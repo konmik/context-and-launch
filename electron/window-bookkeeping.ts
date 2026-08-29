@@ -1,3 +1,5 @@
+import * as v from "valibot";
+
 export interface WindowBounds {
   x?: number;
   y?: number;
@@ -22,39 +24,35 @@ export const DEFAULT_WINDOW_WIDTH = 1400;
 export const DEFAULT_WINDOW_HEIGHT = 900;
 export const CASCADE_STEP = 32;
 
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
+const FiniteNumberSchema = v.pipe(v.number(), v.finite());
+const WindowBoundsSchema = v.object({
+  x: v.optional(FiniteNumberSchema),
+  y: v.optional(FiniteNumberSchema),
+  width: FiniteNumberSchema,
+  height: FiniteNumberSchema,
+});
+const WindowStateEntrySchema = v.object({
+  projectSlug: v.nullable(v.string()),
+  bounds: WindowBoundsSchema,
+  maximized: v.boolean(),
+});
+const WindowStateRecordSchema = v.record(v.string(), v.unknown());
 
 function parseBounds(raw: unknown): WindowBounds | null {
-  if (raw === null || typeof raw !== "object") return null;
-  const r = raw as Record<string, unknown>;
-  if (!isFiniteNumber(r.width) || !isFiniteNumber(r.height)) return null;
-  const bounds: WindowBounds = { width: r.width, height: r.height };
-  if (r.x !== undefined) {
-    if (!isFiniteNumber(r.x)) return null;
-    bounds.x = r.x;
-  }
-  if (r.y !== undefined) {
-    if (!isFiniteNumber(r.y)) return null;
-    bounds.y = r.y;
-  }
-  return bounds;
+  const parsed = v.safeParse(WindowBoundsSchema, raw);
+  return parsed.success ? parsed.output : null;
 }
 
 function parseEntry(raw: unknown): WindowStateEntry | null {
-  if (raw === null || typeof raw !== "object") return null;
-  const r = raw as Record<string, unknown>;
-  if (r.projectSlug !== null && typeof r.projectSlug !== "string") return null;
-  const bounds = parseBounds(r.bounds);
-  if (!bounds) return null;
-  if (typeof r.maximized !== "boolean") return null;
-  return { projectSlug: r.projectSlug, bounds, maximized: r.maximized };
+  const parsed = v.safeParse(WindowStateEntrySchema, raw);
+  return parsed.success ? parsed.output : null;
 }
 
 export function migrateWindowState(raw: unknown): WindowStateEntry[] {
-  if (raw === null || typeof raw !== "object") return [];
-  const r = raw as Record<string, unknown>;
+  if (Array.isArray(raw)) return [];
+  const parsed = v.safeParse(WindowStateRecordSchema, raw);
+  if (!parsed.success) return [];
+  const r = parsed.output;
   if (Array.isArray(r.windows)) {
     const entries: WindowStateEntry[] = [];
     for (const element of r.windows) {

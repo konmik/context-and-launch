@@ -95,7 +95,7 @@ describe("Add project welcome screen (e2e, real server)", () => {
     expect(registry.projects).toHaveLength(1);
     expect(registry.projects[0].branch).toBe("work-items");
     expect(registry.projects[0].mainBranch).toBe("main");
-    expect(typeof registry.projects[0].boardId).toBe("string");
+    expect(registry.projects[0].boardId).toEqual(expect.any(String));
 
     expect(gitBranches(repoDir)).toContain("work-items");
   });

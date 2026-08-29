@@ -1,3 +1,4 @@
+import * as v from "valibot";
 import { modeStorageKey } from "./theme-toggle-pure.js";
 
 const PROJECT_PATH_PATTERN = /^\/project\/([^/]+)$/;
@@ -10,9 +11,10 @@ export function projectSlugFromPath(pathname: string): string | undefined {
 export const PALETTES = ["terminal", "graphite", "tokyo-night", "catppuccin", "dracula", "nord", "gruvbox"] as const;
 export type PaletteName = (typeof PALETTES)[number];
 export const DEFAULT_PALETTE: PaletteName = "terminal";
+const PaletteNameSchema = v.picklist(PALETTES);
 
 export function isPaletteName(value: unknown): value is PaletteName {
-  return typeof value === "string" && (PALETTES as readonly string[]).includes(value);
+  return v.safeParse(PaletteNameSchema, value).success;
 }
 
 export function paletteStorageKey(projectSlug?: string): string {

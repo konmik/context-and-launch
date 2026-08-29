@@ -150,7 +150,7 @@ export function createDroppable(id: DragId) {
   const drag = useContext(DragContext);
   return { ref: (node: HTMLElement) => drag.register(id, node) };
 }
-export function DragOverlay(props: { children: ((active?: DragItem) => JSX.Element) | JSX.Element }) {
+export function DragOverlay(props: { children: (active?: DragItem) => JSX.Element }) {
   const drag = useContext(DragContext);
-  return <Show when={drag.active()}>{(item) => <Portal><div class="pointer-events-none fixed" style={{ left: `${drag.position()?.x ?? 0}px`, top: `${drag.position()?.y ?? 0}px` }}>{typeof props.children === "function" ? props.children(item()) : props.children}</div></Portal>}</Show>;
+  return <Show when={drag.active()}>{(item) => <Portal><div class="pointer-events-none fixed" style={{ left: `${drag.position()?.x ?? 0}px`, top: `${drag.position()?.y ?? 0}px` }}>{props.children(item())}</div></Portal>}</Show>;
 }

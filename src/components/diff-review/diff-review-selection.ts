@@ -10,8 +10,7 @@ interface ComposedRangeSelection {
 function isComposedRangeSelection(
 	selection: Selection,
 ): selection is Selection & ComposedRangeSelection {
-	return typeof (selection as Partial<ComposedRangeSelection>).getComposedRanges
-		=== "function";
+	return "getComposedRanges" in selection;
 }
 
 export function lineElementAt(node: Node | null | undefined): HTMLElement | undefined {

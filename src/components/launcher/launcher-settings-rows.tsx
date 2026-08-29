@@ -2,7 +2,6 @@ import { Show, omit } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import { createSortable } from "~/components/drag/drag-provider.js";
 import { DragGrip, DragPreview, DND_ACTIVE_CLASS } from "../board/dnd-shared.js";
-import { joinClass } from "~/lib/class-util";
 import type { MergedLauncherConfig } from "~/core/launcher/launcher-config.js";
 import type { ColumnDefinition } from "~/core/project/board-config.js";
 
@@ -31,7 +30,7 @@ export const CARD_CLASS =
 export function SettingsCard(props: JSX.HTMLAttributes<HTMLDivElement>) {
 	const rest = omit(props, "class", "children");
 	return (
-		<div class={joinClass(CARD_CLASS, typeof props.class === "string" ? props.class : undefined)} {...rest}>
+		<div class={`${CARD_CLASS} ${props.class ?? ""}`} {...rest}>
 			{props.children}
 		</div>
 	);

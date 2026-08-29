@@ -11,9 +11,10 @@ export function git(workDir: string, ...args: string[]): Promise<string> {
 		execFile('git', args, { cwd: workDir, timeout: 30_000, encoding: 'utf8', env: environment },
 			(error, stdout, stderr) => {
 				if (error) {
+					const exitCode = Number.isFinite(error.code) ? Number(error.code) : undefined;
 					reject(new ProcessError(
 						`git ${args.join(' ')}`,
-						typeof error.code === 'number' ? error.code : undefined,
+						exitCode,
 						(stderr || stdout || error.message).trim(),
 					));
 					return;

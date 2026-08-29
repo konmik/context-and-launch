@@ -611,53 +611,6 @@ describe('TicketStore', () => {
 		expect(store.getTicketContext(newFolder, 'todo')).toBe('# Important notes');
 	});
 
-	it.concurrent('saveTicketContext with undefined content throws TypeError from fs.writeFileSync', async () => {
-		const worktreeDir = await createGitWorktree();
-		dirs.push(worktreeDir);
-
-		const store = new TicketStore(worktreeDir);
-		store.createTicket('UNDEF-1', 'Undefined Test');
-
-		// Bypass TypeScript to simulate a runtime caller passing undefined.
-		// Node's fs.writeFileSync rejects undefined with a TypeError, so the
-		// call does throw -- but with a low-level Node error rather than a
-		// clear application-level message like "content must be a string".
-		expect(() =>
-			store.saveTicketContext('undef-1-undefined-test', 'notes', undefined as any)
-		).toThrow(TypeError);
-	});
-
-	it.concurrent('saveTicketContext with null content throws TypeError from fs.writeFileSync', async () => {
-		const worktreeDir = await createGitWorktree();
-		dirs.push(worktreeDir);
-
-		const store = new TicketStore(worktreeDir);
-		store.createTicket('NULL-1', 'Null Test');
-
-		// Bypass TypeScript to simulate a runtime caller passing null.
-		// Node's fs.writeFileSync rejects null with a TypeError, so the
-		// call does throw -- but with a low-level Node error rather than a
-		// clear application-level message like "content must be a string".
-		expect(() =>
-			store.saveTicketContext('null-1-null-test', 'notes', null as any)
-		).toThrow(TypeError);
-	});
-
-	it.concurrent('saveTicketContext with numeric content rejects non-string input', async () => {
-		const worktreeDir = await createGitWorktree();
-		dirs.push(worktreeDir);
-
-		const store = new TicketStore(worktreeDir);
-		store.createTicket('NUM-1', 'Numeric Test');
-
-		// Bypass TypeScript to simulate a runtime caller passing a number.
-		// Without an explicit guard, fs.writeFileSync silently coerces numbers
-		// to strings, writing "123" to the file -- data corruption.
-		expect(() =>
-			store.saveTicketContext('num-1-numeric-test', 'notes', 123 as any)
-		).toThrow(TypeError);
-	});
-
 	it.concurrent('createTicket with undefined initialStatus defaults to todo', async () => {
 		const worktreeDir = await createGitWorktree();
 		dirs.push(worktreeDir);

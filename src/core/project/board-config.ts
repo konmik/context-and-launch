@@ -1,3 +1,4 @@
+import * as v from 'valibot';
 import type { ConfigPaths } from '../config/config-paths.js';
 import { ConfigRepository } from '../config/config-repository.js';
 import { slugifyColumnName } from '../../lib/slugify.js';
@@ -35,6 +36,17 @@ export interface BoardConfig {
 	columns: ColumnDefinition[];
 }
 
+const ColumnDefinitionSchema = v.object({
+	name: v.string(),
+	description: v.optional(v.string()),
+	color: v.optional(v.string()),
+});
+const BoardDefinitionsSchema = v.array(v.object({
+	id: v.string(),
+	name: v.string(),
+	columns: v.array(ColumnDefinitionSchema),
+}));
+
 export function validateColumnName(name: string, existingNames: string[], renamingFrom?: string): string {
 	const slugified = slugifyColumnName(name);
 	if (!slugified) {
@@ -52,14 +64,6 @@ export function validateColumnName(name: string, existingNames: string[], renami
 	return slugified;
 }
 
-function migrateColumns(columns: unknown[]): ColumnDefinition[] {
-	return columns.map(c => {
-		if (typeof c === 'string') return { name: c };
-		if (typeof c === 'object' && c !== null && 'name' in c) return c as ColumnDefinition;
-		return { name: String(c) };
-	});
-}
-
 export class BoardConfigManager {
 	private paths: ConfigPaths;
 	private configRepo: ConfigRepository;
@@ -75,15 +79,11 @@ export class BoardConfigManager {
 		if (raw === null) {
 			throw new Error(`boards.json not found: ${filePath}`);
 		}
-		if (!Array.isArray(raw) || raw.length === 0) {
+		const parsed = v.safeParse(BoardDefinitionsSchema, raw);
+		if (!parsed.success || parsed.output.length === 0) {
 			throw new Error(`boards.json is empty or not an array: ${filePath}`);
 		}
-		for (const board of raw as BoardDefinition[]) {
-			if (Array.isArray(board.columns)) {
-				board.columns = migrateColumns(board.columns);
-			}
-		}
-		return raw as BoardDefinition[];
+		return parsed.output;
 	}
 
 	private saveAll(boards: BoardDefinition[]): void {

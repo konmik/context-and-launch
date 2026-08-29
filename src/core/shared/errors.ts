@@ -1,3 +1,5 @@
+import * as v from 'valibot';
+
 export interface ErrorInfo {
 	title?: string;
 	description: string;
@@ -56,13 +58,14 @@ export class ProcessError extends Error {
 	}
 }
 
+const ErrorMessageSchema = v.object({ message: v.string() });
+
 export function errorMessage(e: unknown): string {
 	if (e instanceof Error) return e.message;
-	if (typeof e === 'string') return e;
-	if (typeof e === 'object' && e !== null && 'message' in e
-		&& typeof (e as { message: unknown }).message === 'string') {
-		return (e as { message: string }).message;
-	}
+	const stringResult = v.safeParse(v.string(), e);
+	if (stringResult.success) return stringResult.output;
+	const objectResult = v.safeParse(ErrorMessageSchema, e);
+	if (objectResult.success) return objectResult.output.message;
 	return 'Unknown error';
 }
 

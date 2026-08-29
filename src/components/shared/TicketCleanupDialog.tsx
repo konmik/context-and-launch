@@ -28,8 +28,8 @@ interface TicketCleanupDialogProps {
   action: "archive" | "delete";
   onCleanup: (
     folderName: string, cleanup: TicketCleanupOptions,
-  ) => Promise<{ error?: string | ErrorInfo }>;
-  onSubmit: (folderName: string) => Promise<{ error?: string | ErrorInfo }>;
+  ) => Promise<{ error?: ErrorInfo }>;
+  onSubmit: (folderName: string) => Promise<{ error?: ErrorInfo }>;
   ctrl?: TicketCleanupController;
 }
 

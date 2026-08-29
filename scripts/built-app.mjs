@@ -1,5 +1,8 @@
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
+import * as v from "valibot";
+
+const FetchHandlerSchema = v.object({ fetch: v.function() });
 
 const mimeTypes = new Map([
   [".css", "text/css; charset=utf-8"],
@@ -38,7 +41,7 @@ async function readStaticResponse(request, clientRoot, pathname) {
 }
 
 export function createBuiltAppHandler(serverHandler, clientRoot) {
-  if (!serverHandler || typeof serverHandler.fetch !== "function") {
+  if (!v.safeParse(FetchHandlerSchema, serverHandler).success) {
     throw new Error("The built server module does not export a fetch handler.");
   }
   return async function handleRequest(request) {

@@ -15,7 +15,7 @@ describe('fixed platform shell', () => {
 			+ `${shellLiteral(code, platform)} {{scalar}} {{items}}`;
 		const script = interpolateCommandTemplate(
 			template,
-			{ scalar: "a b'$;&`{}\nline", items: ['', 'two words'] },
+			{ scalar: "a b'$;&`{}\nline" }, { items: ['', 'two words'] },
 			['scalar'], ['items'], platform,
 		);
 		const result = await runner.execute({

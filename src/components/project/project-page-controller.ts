@@ -143,13 +143,13 @@ export function createProjectPageController(deps: ProjectPageDeps) {
   async function handleArchiveTicket(folderName: string) {
     const result = await archiveTicket(deps.projectSlug(), folderName);
     if (result.ok) revalidate(ticketMutationRevalidateKeys);
-    return result.ok ? {} : { error: result.message };
+    return result.ok ? {} : { error: { description: result.message } };
   }
 
   async function handleDeleteTicket(folderName: string) {
     const result = await deleteTicket(deps.projectSlug(), folderName);
     if (result.ok) revalidate(ticketMutationRevalidateKeys);
-    return result.ok ? {} : { error: result.message };
+    return result.ok ? {} : { error: { description: result.message } };
   }
 
   async function handleDeleteProject(projectSlug: string) {
@@ -180,7 +180,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     const cleanupResult = await worktreeCleanup(deps.projectSlug(), folderName, options);
     if (!cleanupResult.ok) {
       const info = 'errorInfo' in cleanupResult ? cleanupResult.errorInfo : undefined;
-      return { error: info ?? cleanupResult.message };
+      return { error: info ?? { description: cleanupResult.message } };
     }
     return {};
   }

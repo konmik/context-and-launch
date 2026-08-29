@@ -102,55 +102,6 @@ describe('PUT /context/:name non-JSON body handling', () => {
 	});
 });
 
-describe('saveTicketContext rejects non-string content', () => {
-	const dirs: string[] = [];
-
-	afterAll(() => {
-		for (const d of dirs) {
-			try { fs.rmSync(d, { recursive: true, force: true }); } catch (e) { console.warn('cleanup failed', e); }
-		}
-		dirs.length = 0;
-	});
-
-	const badValues: [string, unknown][] = [
-		['null', null],
-		['undefined', undefined],
-		['number 123', 123],
-		['empty object', {}],
-		['array', [1, 2]],
-		['boolean true', true],
-	];
-
-	for (const [label, value] of badValues) {
-		it.concurrent(`throws TypeError for content=${label}`, async () => {
-			const worktreeDir = await createGitWorktree();
-			dirs.push(worktreeDir);
-			const store = new TicketStore(worktreeDir);
-			store.createTicket('T-1', 'Test Ticket');
-
-			expect(() =>
-				store.saveTicketContext('t-1-test-ticket', 'notes', value as string)
-			).toThrow(TypeError);
-		});
-
-		it.concurrent(`error message for content=${label} mentions "content" and "string"`, async () => {
-			const worktreeDir = await createGitWorktree();
-			dirs.push(worktreeDir);
-			const store = new TicketStore(worktreeDir);
-			store.createTicket('T-1', 'Test Ticket');
-
-			let msg = '';
-			try {
-				store.saveTicketContext('t-1-test-ticket', 'notes', value as string);
-			} catch (e) {
-				msg = errorMessage(e);
-			}
-			expect(msg).toContain('content');
-			expect(msg).toContain('string');
-		});
-	}
-});
-
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }

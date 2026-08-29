@@ -1,7 +1,6 @@
 export function parseTicketNumber(
   raw: string
 ): { prefix: string; num: number; paddingWidth: number } | null {
-  if (typeof raw !== 'string') return null;
   const match = raw.match(/^([A-Z]+)-(\d+)$/);
   if (!match) return null;
   const prefix = match[1];

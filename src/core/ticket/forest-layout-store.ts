@@ -4,6 +4,7 @@ import { TicketRepository } from './ticket-repository.js';
 export type ForestLayout = Record<string, { x: number; y: number }>;
 
 const PositionSchema = v.object({ x: v.number(), y: v.number() });
+const ForestLayoutRecordSchema = v.record(v.string(), v.unknown());
 
 export class ForestLayoutStore {
 	private worktreeDir: string;
@@ -16,9 +17,11 @@ export class ForestLayoutStore {
 
 	read() {
 		const raw = this.repo.readWorktreeJson(this.worktreeDir, 'forest-layout.json');
-		if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return {};
+		if (raw === null || Array.isArray(raw)) return {};
+		const record = v.safeParse(ForestLayoutRecordSchema, raw);
+		if (!record.success) return {};
 		const result: ForestLayout = {};
-		for (const [ticketNumber, value] of Object.entries(raw as Record<string, unknown>)) {
+		for (const [ticketNumber, value] of Object.entries(record.output)) {
 			const parsed = v.safeParse(PositionSchema, value);
 			if (parsed.success) result[ticketNumber] = parsed.output;
 		}

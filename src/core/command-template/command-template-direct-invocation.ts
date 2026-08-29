@@ -1,5 +1,7 @@
 import { PATH_SUFFIX_SOURCE, PLACEHOLDER_SOURCE } from './command-template-interpolation.js';
-import type { CommandTemplateValues } from './command-template-types.js';
+import type {
+	CommandTemplateListValues, CommandTemplateValues,
+} from './command-template-types.js';
 
 const placeholderToken = new RegExp(`^${PLACEHOLDER_SOURCE}$`);
 // A scalar placeholder at the start of a token followed by a static path suffix,
@@ -12,6 +14,7 @@ const singleQuotedToken = /^'([^']*)'$/;
 export function buildDirectInvocationArgv(
 	script: string,
 	values: CommandTemplateValues,
+	listValues: CommandTemplateListValues,
 	knownScalarPlaceholders: readonly string[],
 	knownListPlaceholders: readonly string[],
 ): readonly string[] | undefined {
@@ -28,21 +31,24 @@ export function buildDirectInvocationArgv(
 		const placeholder = placeholderToken.exec(token);
 		if (placeholder) {
 			const name = placeholder[1];
-			const value = Object.hasOwn(values, name) ? values[name] : undefined;
-			if (scalarNames.has(name) && typeof value === 'string') {
+			if (scalarNames.has(name)) {
+				const value = values[name];
+				if (value === undefined) return undefined;
 				argv.push(value);
-			} else if (listNames.has(name) && typeof value === 'object') {
-				argv.push(...value);
-			} else {
-				return undefined;
+				continue;
 			}
+			if (!listNames.has(name)) return undefined;
+			const value = listValues[name];
+			if (value === undefined) return undefined;
+			argv.push(...value);
 			continue;
 		}
 		const suffixed = placeholderWithPathSuffixToken.exec(token);
 		if (suffixed) {
 			const [, name, pathSuffix] = suffixed;
-			const value = Object.hasOwn(values, name) ? values[name] : undefined;
-			if (!scalarNames.has(name) || typeof value !== 'string') return undefined;
+			if (!scalarNames.has(name)) return undefined;
+			const value = values[name];
+			if (value === undefined) return undefined;
 			argv.push(`${value}${pathSuffix}`);
 			continue;
 		}

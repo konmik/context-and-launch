@@ -1,5 +1,11 @@
 import { createEffect } from "solid-js";
 
+declare global {
+  interface Navigator {
+    readonly userAgentData?: { readonly platform?: string };
+  }
+}
+
 interface UseModEnterSubmitOptions {
   onSubmit: () => void;
   disabled: () => boolean;
@@ -30,9 +36,9 @@ export function useModEnterSubmit(options: UseModEnterSubmitOptions) {
 }
 
 export function modEnterHint(): string {
+  const browserNavigator = globalThis.navigator;
   const isMac =
-    typeof navigator !== "undefined" &&
-    (/Mac|iPhone|iPad|iPod/i.test(navigator.platform) ||
-      (navigator as any).userAgentData?.platform === "macOS");
+    /Mac|iPhone|iPad|iPod/i.test(browserNavigator?.platform ?? "") ||
+    browserNavigator?.userAgentData?.platform === "macOS";
   return isMac ? "Cmd+Enter" : "Ctrl+Enter";
 }

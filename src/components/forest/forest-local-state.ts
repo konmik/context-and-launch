@@ -1,9 +1,16 @@
+import * as v from "valibot";
 import type { ForestViewport } from "./forest-types.js";
 
 interface Storage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
 }
+
+const ForestViewportSchema = v.object({
+  x: v.number(),
+  y: v.number(),
+  zoom: v.number(),
+});
 
 export function getViewMode(storage: Storage, projectSlug: string): "kanban" | "forest" {
   const stored = storage.getItem(`view-mode:${projectSlug}`);
@@ -22,16 +29,8 @@ export function getForestViewport(
 ): ForestViewport | undefined {
   const raw = storage.getItem(`forest-viewport:${projectSlug}`);
   if (!raw) return undefined;
-  const parsed: unknown = JSON.parse(raw);
-  if (
-    typeof parsed === "object" && parsed !== null
-    && "x" in parsed && typeof parsed.x === "number"
-    && "y" in parsed && typeof parsed.y === "number"
-    && "zoom" in parsed && typeof parsed.zoom === "number"
-  ) {
-    return { x: parsed.x, y: parsed.y, zoom: parsed.zoom };
-  }
-  return undefined;
+  const parsed = v.safeParse(ForestViewportSchema, JSON.parse(raw));
+  return parsed.success ? parsed.output : undefined;
 }
 
 export function setForestViewport(

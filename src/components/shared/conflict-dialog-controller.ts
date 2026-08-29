@@ -1,5 +1,4 @@
 import { createSignal, createEffect } from "solid-js";
-import { extractProfiles } from "./conflict-dialog-pure.js";
 import { getMergedLauncherConfig, getLastUsedProfile, saveLastUsedProfile } from "../launcher/launcher-api.js";
 
 export interface ConflictDialogDeps {
@@ -25,7 +24,7 @@ export function createConflictDialogController(deps: ConflictDialogDeps) {
       getMergedLauncherConfig(projectSlug)
         .then(async data => {
           if (cancelled) return;
-          const list = extractProfiles(data);
+          const list = data.profiles;
           setProfiles(list);
           if (list.length === 0) return;
           const current = selectedProfile();
