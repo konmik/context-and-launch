@@ -14,6 +14,14 @@ import {
 } from "./fixtures.js";
 import { testId, waitLocatorVisible } from "./locators.js";
 
+declare global {
+	interface Window {
+		__copiedPrompts: string[];
+		__reviewRoot: ShadowRoot & { getSelection?(): Selection | null };
+		__reviewFirstLine: HTMLElement;
+	}
+}
+
 // Selecting a Diff Scope starts a Git calculation on the server. The Diff Review
 // renders no files until that scope is loaded, so waiting for the file tree to
 // report the selected scope waits for the calculation itself, not for a delay.
@@ -311,7 +319,7 @@ describe("Diff Review (e2e, real server)", () => {
 
 		await ctx.page.evaluate(() => {
 			const copied: string[] = [];
-			Reflect.set(window, "__copiedPrompts", copied);
+			window.__copiedPrompts = copied;
 			Object.defineProperty(navigator, "clipboard", {
 				configurable: true,
 				value: {
@@ -324,8 +332,7 @@ describe("Diff Review (e2e, real server)", () => {
 		});
 		await ctx.page.locator('[data-testid="diff-review-drag-prompt"]').click();
 		const copiedPrompts = await ctx.page.evaluate(() => {
-			const copied = Reflect.get(window, "__copiedPrompts");
-			return Array.isArray(copied) ? copied.map(String) : [];
+			return window.__copiedPrompts;
 		});
 		expect(copiedPrompts).toHaveLength(1);
 
@@ -406,7 +413,7 @@ describe("Diff Review (e2e, real server)", () => {
 
 		await ctx.page.evaluate(() => {
 			const copied: string[] = [];
-			Reflect.set(window, "__copiedPrompts", copied);
+			window.__copiedPrompts = copied;
 			Object.defineProperty(navigator, "clipboard", {
 				configurable: true,
 				value: {
@@ -419,8 +426,7 @@ describe("Diff Review (e2e, real server)", () => {
 		});
 		await ctx.page.keyboard.press("ControlOrMeta+Alt+c");
 		const copiedPrompts = await ctx.page.evaluate(() => {
-			const copied = Reflect.get(window, "__copiedPrompts");
-			return Array.isArray(copied) ? copied.map(String) : [];
+			return window.__copiedPrompts;
 		});
 		expect(copiedPrompts).toHaveLength(1);
 		expect(copiedPrompts[0]).toContain("Review Prompt");
@@ -458,7 +464,7 @@ describe("Diff Review (e2e, real server)", () => {
 
 		await ctx.page.evaluate(() => {
 			const copied: string[] = [];
-			Reflect.set(window, "__copiedPrompts", copied);
+			window.__copiedPrompts = copied;
 			Object.defineProperty(navigator, "clipboard", {
 				configurable: true,
 				value: {
@@ -471,8 +477,7 @@ describe("Diff Review (e2e, real server)", () => {
 		});
 		await ctx.page.keyboard.press("ControlOrMeta+Alt+c");
 		const copiedPrompts = await ctx.page.evaluate(() => {
-			const copied = Reflect.get(window, "__copiedPrompts");
-			return Array.isArray(copied) ? copied.map(String) : [];
+			return window.__copiedPrompts;
 		});
 		expect(copiedPrompts).toEqual(["Run the tests."]);
 	});
@@ -525,16 +530,15 @@ describe("Diff Review (e2e, real server)", () => {
 			range.setEnd(lines[2], lines[2].childNodes.length);
 			selection.removeAllRanges();
 			selection.addRange(range);
-			Reflect.set(window, "__reviewRoot", root);
-			Reflect.set(window, "__reviewFirstLine", lines[0]);
+			window.__reviewRoot = root;
+			window.__reviewFirstLine = lines[0];
 		});
 
 		await ctx.page.clock.fastForward(1_500);
 
 		const report = await ctx.page.evaluate(() => {
-			const root = Reflect.get(window, "__reviewRoot") as
-				ShadowRoot & { getSelection?(): Selection | null };
-			const firstLine = Reflect.get(window, "__reviewFirstLine") as HTMLElement;
+			const root = window.__reviewRoot;
+			const firstLine = window.__reviewFirstLine;
 			const after = root.getSelection?.() ?? document.getSelection()!;
 			return {
 				stillRendered: firstLine.isConnected,
