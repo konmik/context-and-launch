@@ -1,11 +1,11 @@
 {
   "number": "ST-0055",
   "title": "Plugin system",
-  "status": "done",
+  "status": "review",
   "useWorktree": true,
   "createdAt": "2026-07-20T01:49:02.685Z",
   "agentWorktreeBranchName": "st-0055-plugin-system",
-  "agentWorktreeDir": "C:\\Users\\elkmo\\.context-launch\\projects\\ai-stages\\worktrees/st-0055-plugin-system",
+  "agentWorktreeDir": "C:\\Users\\elkmo\\.context-launch\\projects\\spinloaf\\worktrees/st-0055-plugin-system",
   "dependsOn": [
     "ST-0066"
   ]

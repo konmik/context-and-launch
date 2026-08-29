@@ -6,6 +6,5 @@
   "createdAt": "2026-07-16T12:13:10.118Z",
   "dependsOn": [
     "ST-0040"
-  ],
-  "memberOf": "ST-0048"
+  ]
 }

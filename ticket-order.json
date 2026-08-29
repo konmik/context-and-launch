@@ -12,9 +12,8 @@
   ],
   "plan": [],
   "in-progress": [],
-  "review": [],
-  "done": [
-    "st-0048-test-test",
+  "review": [
     "st-0055-plugin-system"
-  ]
+  ],
+  "done": []
 }
