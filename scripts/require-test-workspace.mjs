@@ -22,7 +22,7 @@ try {
 if (!valid) {
   console.error(
     "Internal workspace test commands require a managed isolated workspace. "
-    + "Run the public npm test command instead.",
+    + "Run the public pnpm test command instead.",
   );
   process.exit(1);
 }

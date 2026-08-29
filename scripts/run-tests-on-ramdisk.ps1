@@ -272,8 +272,7 @@ try {
   }
   $env:HOME = $homeDirectory
   $env:XDG_CACHE_HOME = $cacheDirectory
-  $env:NPM_CONFIG_CACHE = Join-Path $cacheDirectory "npm"
-  $env:NPM_CONFIG_LOGS_MAX = "0"
+  $env:PNPM_CONFIG_CACHE_DIR = Join-Path $cacheDirectory "pnpm"
   $env:CONTEXT_LAUNCH_DATA_DIR = $dataDirectory
   $env:CONTEXT_LAUNCH_TEST_WORKSPACE = $workspace
   $activeTokenBytes = New-Object byte[] 32
@@ -315,9 +314,9 @@ try {
       @()
     }
     if ($testArguments.Count -gt 0) {
-      & npm.cmd run $workspaceScripts[$Suite] -- @testArguments
+      & pnpm.cmd run $workspaceScripts[$Suite] -- @testArguments
     } else {
-      & npm.cmd run $workspaceScripts[$Suite]
+      & pnpm.cmd run $workspaceScripts[$Suite]
     }
     $suiteExitCode = $LASTEXITCODE
   } finally {

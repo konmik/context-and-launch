@@ -92,7 +92,7 @@ output_is_stale() {
     local marker="dist/server/server.js"
     [ -f "$marker" ] || return 0
     local newer
-    newer=$(find src public vite.config.ts package.json package-lock.json -newer "$marker" -print -quit 2>/dev/null || true)
+    newer=$(find src public vite.config.ts package.json pnpm-lock.yaml pnpm-workspace.yaml -newer "$marker" -print -quit 2>/dev/null || true)
     [ -n "$newer" ]
 }
 
@@ -101,7 +101,7 @@ if ! port_in_use "$port"; then
 
     if [ ! -d "node_modules" ]; then
         echo "Installing dependencies..."
-        npm install || die "npm install failed."
+        pnpm install --frozen-lockfile || die "pnpm install failed."
     fi
 
     build_reason=""
@@ -121,7 +121,7 @@ if ! port_in_use "$port"; then
             echo "DRY_RUN: BUILD=yes REASON=$build_reason"
             exit 0
         fi
-        npm run build || die "Build failed."
+        pnpm run build || die "Build failed."
     elif [ "${RUN_SH_DRY_RUN:-}" = "1" ]; then
         echo "DRY_RUN: BUILD=no"
         exit 0

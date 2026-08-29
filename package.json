@@ -2,6 +2,7 @@
   "name": "context-launch",
   "version": "0.1.2",
   "private": true,
+  "packageManager": "pnpm@11.22.0",
   "engines": {
     "node": ">=20"
   },
@@ -30,10 +31,17 @@
     "electron:dist": "tsx scripts/electron-dist.ts"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "6.20.3",
+    "@codemirror/commands": "6.10.4",
     "@codemirror/lang-markdown": "6.5.0",
+    "@codemirror/language": "6.12.4",
     "@codemirror/language-data": "6.5.2",
+    "@codemirror/search": "6.7.1",
+    "@codemirror/state": "6.7.1",
+    "@codemirror/view": "6.43.8",
     "@fontsource/inter": "5.2.8",
     "@fontsource/jetbrains-mono": "5.2.8",
+    "@lezer/highlight": "1.2.3",
     "@pierre/diffs": "1.2.12",
     "@solidjs/router": "2.0.0-next.16",
     "@solidjs/web": "2.0.0-rc.1",
@@ -46,9 +54,9 @@
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@solidjs/vite-plugin": "3.0.0-next.31",
+    "@tailwindcss/vite": "4.3.1",
     "@testing-library/dom": "10.4.1",
     "@testing-library/jest-dom": "6.9.1",
-    "@tailwindcss/vite": "4.3.1",
     "@types/node": "25.9.1",
     "babel-preset-solid": "2.0.0-rc.1",
     "electron": "42.4.0",
@@ -64,17 +72,5 @@
     "typescript-eslint": "8.60.0",
     "vite": "7.3.5",
     "vitest": "3.2.6"
-  },
-  "overrides": {
-    "@solidjs/vite-plugin": {
-      "babel-preset-solid": "$babel-preset-solid"
-    },
-    "esbuild": "0.28.1",
-    "vite-node": {
-      "vite": "7.3.5"
-    },
-    "vitest": {
-      "vite": "7.3.5"
-    }
   }
 }

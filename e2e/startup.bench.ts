@@ -65,7 +65,7 @@ async function launchAppAndMeasure(
 
 describe("Startup benchmark (real Electron app)", () => {
   it("reports launch-to-window and launch-to-boards timings", async () => {
-    execSync("npm run electron:build-main", { cwd: PROJECT_ROOT, stdio: "ignore" });
+    execSync("pnpm run electron:build-main", { cwd: PROJECT_ROOT, stdio: "ignore" });
 
     const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "cl-bench-app-data-"));
     const reposParentDir = fs.mkdtempSync(path.join(os.tmpdir(), "cl-bench-app-repos-"));

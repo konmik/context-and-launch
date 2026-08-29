@@ -78,13 +78,12 @@ try {
     TMPDIR: path.join(runtime, "temp"),
     HOME: path.join(runtime, "home"),
     XDG_CACHE_HOME: path.join(runtime, "cache"),
-    NPM_CONFIG_CACHE: path.join(runtime, "cache", "npm"),
-    NPM_CONFIG_LOGS_MAX: "0",
+    PNPM_CONFIG_CACHE_DIR: path.join(runtime, "cache", "pnpm"),
     CONTEXT_LAUNCH_DATA_DIR: path.join(runtime, "data"),
     [workspaceEnvironmentName]: workspace,
     [tokenEnvironmentName]: marker.token,
   };
-  const result = spawnSync("npm", [
+  const result = spawnSync("pnpm", [
     "run", workspaceScripts[suite], ...(testArguments.length ? ["--", ...testArguments] : []),
   ], {
     cwd: workspace,

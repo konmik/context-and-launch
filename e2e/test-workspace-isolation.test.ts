@@ -59,7 +59,7 @@ describe("test workspace isolation", () => {
 		const result = runGuard();
 
 		expect(result.status).toBe(1);
-		expect(result.stderr).toContain("Run the public npm test command instead");
+		expect(result.stderr).toContain("Run the public pnpm test command instead");
 	});
 
 	it("accepts the managed isolated workspace", () => {

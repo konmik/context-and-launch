@@ -11,8 +11,9 @@ const jsonPath = path.join(outDir, "results.json");
 console.log("Running unit tests once (single warm fork, no parallelism)...\n");
 
 const run = spawnSync(
-  "npx",
+  "pnpm",
   [
+    "exec",
     "vitest",
     "run",
     "--project",

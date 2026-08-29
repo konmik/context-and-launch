@@ -8,7 +8,7 @@ import { testId, waitVisible } from "./locators.js";
 
 // Ranks the slowest user-facing areas against a real server + real browser and
 // splits board load into time-to-first-column-header vs time-to-all-cards.
-// Re-run after a change to compare: `npm run bench`.
+// Re-run after a change to compare: `pnpm run bench`.
 
 const COLUMNS = ["todo", "in-progress", "review", "blocked", "qa", "done"];
 const TICKET_COUNT = Number(process.env.BENCH_TICKETS ?? 300);

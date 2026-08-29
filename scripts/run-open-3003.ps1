@@ -13,7 +13,7 @@ $stdoutPath = Join-Path $logDirectory "run-open-$port-$logStamp.stdout.log"
 $stderrPath = Join-Path $logDirectory "run-open-$port-$logStamp.stderr.log"
 
 if (-not (Test-Path -LiteralPath $vitePath)) {
-    throw "Vite is not installed. Run npm install before starting the dev server."
+    throw "Vite is not installed. Run pnpm install before starting the dev server."
 }
 
 $existingListeners = @(

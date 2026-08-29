@@ -21,7 +21,8 @@ function makeFakeProject(layout: Layout): { dir: string; scriptPath: string } {
   fs.writeFileSync(path.join(dir, "src", "app.tsx"), "// fake source\n");
   fs.writeFileSync(path.join(dir, "vite.config.ts"), "// fake config\n");
   fs.writeFileSync(path.join(dir, "package.json"), "{}\n");
-  fs.writeFileSync(path.join(dir, "package-lock.json"), "{}\n");
+  fs.writeFileSync(path.join(dir, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+  fs.writeFileSync(path.join(dir, "pnpm-workspace.yaml"), "saveExact: true\n");
   fs.mkdirSync(path.join(dir, "node_modules"));
 
   if (layout.hasBuild) {
@@ -34,7 +35,7 @@ function makeFakeProject(layout: Layout): { dir: string; scriptPath: string } {
     const markerTime = new Date(baseSec * 1000);
     fs.utimesSync(marker, markerTime, markerTime);
     const sourceTime = new Date((baseSec + Math.round(layout.sourceMtimeOffsetMs / 1000)) * 1000);
-    for (const rel of ["src/app.tsx", "vite.config.ts", "package.json", "package-lock.json"]) {
+    for (const rel of ["src/app.tsx", "vite.config.ts", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"]) {
       fs.utimesSync(path.join(dir, rel), sourceTime, sourceTime);
     }
     // src/ directory mtime can be incidentally bumped by file writes; pin it too.

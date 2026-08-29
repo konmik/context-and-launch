@@ -89,9 +89,9 @@ if (-not $portInUse) {
 
     if (-not (Test-Path "node_modules")) {
         Write-Host "Installing dependencies..."
-        npm install
+        pnpm install --frozen-lockfile
         if ($LASTEXITCODE -ne 0) {
-            Write-Host "ERROR: npm install failed."
+            Write-Host "ERROR: pnpm install failed."
             Pop-Location
             Read-Host "Press Enter to exit"
             exit 1
@@ -102,7 +102,7 @@ if (-not $portInUse) {
         $marker = "dist/server/server.js"
         if (-not (Test-Path $marker)) { return $true }
         $markerTime = (Get-Item $marker).LastWriteTime
-        foreach ($sourcePath in @("src", "public", "vite.config.ts", "package.json", "package-lock.json")) {
+        foreach ($sourcePath in @("src", "public", "vite.config.ts", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml")) {
             if (-not (Test-Path $sourcePath)) { continue }
             $newer = Get-ChildItem -Path $sourcePath -Recurse -File -ErrorAction SilentlyContinue |
                 Where-Object { $_.LastWriteTime -gt $markerTime } |
@@ -129,7 +129,7 @@ if (-not $portInUse) {
             Pop-Location
             exit 0
         }
-        npm run build
+        pnpm run build
         if ($LASTEXITCODE -ne 0) {
             Write-Host "ERROR: Build failed."
             Pop-Location

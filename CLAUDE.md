@@ -32,7 +32,7 @@
 
 ## Building
 
-- Build Electron distributable: `npm run electron:dist`.
+- Build Electron distributable: `pnpm run electron:dist`.
 - On Windows this produces `dist-electron/context-launch-setup.exe` (NSIS installer).
 - On macOS this produces `dist-electron/context-launch-setup.dmg`.
 
@@ -44,17 +44,17 @@
 
 ## Testing
 
-- Run dev server: `npm run dev`.
-- Run all tests: `npm run test:all` (tsc + unit + build + e2e). Never skip e2e.
+- Run dev server: `pnpm run dev`.
+- Run all tests: `pnpm run test:all` (tsc + unit + build + e2e). Never skip e2e.
 - During implementation, run only the specific affected test file or test case.
 - Do not run the full test suite when only one test or narrowly scoped area changed. Run only the affected test file or test case.
 - Run the full test suite after broad changes that affect multiple areas are complete.
-- Always run tests on the T: RAM disk through the npm scripts (`npm run test`, `npm run test:e2e`, `npm run test:all`). If T: is missing, create it with `npm run test:ramdisk:create`; it needs administrator elevation, so ask the user to run it. Never fall back to the `:workspace` variants to get around a missing RAM disk: they run in the source tree, are slower, and their timings are not comparable to RAM-disk runs.
+- Always run tests on the T: RAM disk through the pnpm scripts (`pnpm run test`, `pnpm run test:e2e`, `pnpm run test:all`). If T: is missing, create it with `pnpm run test:ramdisk:create`; it needs administrator elevation, so ask the user to run it. Never fall back to the `:workspace` variants to get around a missing RAM disk: they run in the source tree, are slower, and their timings are not comparable to RAM-disk runs.
 - Every test run writes per-test timings (setup, execution, cleanup) to `test-timing.log`. Find it in the run's temp folder: `T:\context-launch-tests\<project>\<branch>\temp\test-timing.log` under the official RAM-disk runner, or `%LOCALAPPDATA%\Temp\test-timing.log` for direct runs. Set the `TEST_TIMING_LOG` env var to store it somewhere else.
 - Do not run tests (unit, e2e, build, or screenshots) for pure design/styling changes (CSS, colors, class tweaks) unless the user explicitly asks. Just make the edit.
 - Never run shell tests unless the user explicitly asks you to run them.
-- Never run benchmarks (e2e/*.bench.ts) unless the user asks for them. Benchmarks open the real Electron app on screen; they only run via `vitest bench` (or `--benchmark`), never in a plain `npx vitest run`. Scope runs explicitly to keep them fast: `npx vitest run --project unit-ts --project unit-tsx --project e2e` (or use `test:all:workspace`).
-- Any test that launches a terminal or console-host process (powershell, cmd, wt) is a shell test. Name it *.shell.test.ts so it runs only via `npm run test:shell`, never in test or test:all.
+- Never run benchmarks (e2e/*.bench.ts) unless the user asks for them. Benchmarks open the real Electron app on screen; they only run via `vitest bench` (or `--benchmark`), never in a plain `pnpm exec vitest run`. Scope runs explicitly to keep them fast: `pnpm exec vitest run --project unit-ts --project unit-tsx --project e2e` (or use `test:all:workspace`).
+- Any test that launches a terminal or console-host process (powershell, cmd, wt) is a shell test. Name it *.shell.test.ts so it runs only via `pnpm run test:shell`, never in test or test:all.
 - Tests must never run the real herdr binary or launch a real agent. Every herdr boundary is faked: e2e points the herdr command templates at fake-herdr.mjs (or a stub that resolves to "not installed"), unit tests mock herdrExec, and shell tests intercept the herdr command inside the harness so the real CLI and real agents are never reached.
 - Write UI tests with playwright.
 - e2e tests run the real server against a sandboxed CONTEXT_LAUNCH_DATA_DIR temp dir and a scratch git repo, drive the UI with playwright, and assert on real side effects (config.json contents, git branches/worktrees). Use the e2e/real-server.ts harness. Never stub the app's own server functions; mock only true external boundaries.
@@ -62,7 +62,7 @@
 - Never add timeouts in code unless explicitly asked. Use standard and idiomatic features of the test harness (event-driven waits, hooks, built-in retry/poll helpers) to make tests deterministic instead.
 - A test must finish within 3 seconds when run alone without multithreading. Under the full parallel suite tests may run slower; the timeout limits (suite testTimeout/hookTimeout, helper wait deadlines) exist only to stop a broken test from hanging — they are not how long a test may take. If a test takes longer than 3 seconds when run alone, fix the cause immediately. Never dismiss a timeout as an unrelated change you are not going to fix, and never fix a slow test by raising its timeout.
 - A flaky test is a real failure. Never dismiss a failing test as flaky, and never re-run a test to get a green result. Fix the cause: a test that passes in isolation but fails under the full suite is a real ordering, resource, or concurrency bug in the test or the code.
-- Profile per-file test timings: `npx tsx scripts/test-timings.ts`. Runs the unit-ts and unit-tsx projects once in a single warm, single-threaded vitest process, reads per-file durations from the JSON reporter, and writes a sorted summary to `temp/timings.txt`.
+- Profile per-file test timings: `pnpm exec tsx scripts/test-timings.ts`. Runs the unit-ts and unit-tsx projects once in a single warm, single-threaded vitest process, reads per-file durations from the JSON reporter, and writes a sorted summary to `temp/timings.txt`.
 
 ## Specs
 

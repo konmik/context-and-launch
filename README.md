@@ -85,7 +85,7 @@ The Windows script requires [Windows Terminal](https://learn.microsoft.com/en-us
 ### Run as a normal desktop app
 
 ```
-npm run electron:dist
+pnpm run electron:dist
 ```
 
 On Windows this produces `dist-electron/context-launch-setup.exe` (NSIS installer).
@@ -109,8 +109,8 @@ Tickets can be added to the board right away, but expect to spend a few minutes 
 ### For contributors
 
 ```
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 The frontend uses a pinned Solid 2 prerelease cohort (`solid-js`, `@solidjs/web`,
