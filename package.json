@@ -36,20 +36,21 @@
     "@fontsource/jetbrains-mono": "5.2.8",
     "@pierre/diffs": "1.2.12",
     "@solidjs/router": "2.0.0-next.16",
-    "@solidjs/web": "2.0.0-rc.0",
+    "@solidjs/web": "2.0.0-rc.1",
     "chokidar": "5.0.0",
     "codemirror": "6.0.2",
     "lucide": "1.31.0",
-    "solid-js": "2.0.0-rc.0",
+    "solid-js": "2.0.0-rc.1",
     "valibot": "1.4.1"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
-    "@solidjs/vite-plugin": "3.0.0-next.28",
+    "@solidjs/vite-plugin": "3.0.0-next.31",
     "@testing-library/dom": "10.4.1",
     "@testing-library/jest-dom": "6.9.1",
     "@tailwindcss/vite": "4.3.1",
     "@types/node": "25.9.1",
+    "babel-preset-solid": "2.0.0-rc.1",
     "electron": "42.4.0",
     "electron-builder": "26.15.3",
     "esbuild": "0.28.1",
@@ -65,6 +66,9 @@
     "vitest": "3.2.6"
   },
   "overrides": {
+    "@solidjs/vite-plugin": {
+      "babel-preset-solid": "$babel-preset-solid"
+    },
     "esbuild": "0.28.1",
     "vite-node": {
       "vite": "7.3.5"

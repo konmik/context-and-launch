@@ -1,4 +1,4 @@
-import { onSettled, createEffect } from "solid-js";
+import { onSettled, createEffect, untrack } from "solid-js";
 import {
   EditorView, ViewPlugin, Decoration, type DecorationSet,
   keymap, placeholder as cmPlaceholder,
@@ -130,12 +130,20 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
   let lastPushedValue: string | null = null;
   let applyingExternalValue = false;
   const readOnlyCompartment = new Compartment();
+  const initial = untrack(() => ({
+    value: props.value,
+    onChange: props.onChange,
+    onSave: props.onSave,
+    placeholder: props.placeholder ?? "",
+    readOnly: !!props.readOnly,
+    plain: !!props.plain,
+  }));
 
   onSettled(() => {
-    const saveKeymap = props.onSave
+    const saveKeymap = initial.onSave
       ? [
-          { key: "Mod-s", run: () => { props.onSave!(); return true; } },
-          { key: "Mod-Enter", run: () => { props.onSave!(); return true; } },
+          { key: "Mod-s", run: () => { initial.onSave!(); return true; } },
+          { key: "Mod-Enter", run: () => { initial.onSave!(); return true; } },
         ]
       : [];
 
@@ -151,30 +159,30 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
         closeBrackets(),
         bracketMatching(),
         highlightSelectionMatches(),
-        ...(props.plain ? [] : [
+        ...(initial.plain ? [] : [
           syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
           syntaxHighlighting(markdownStyle),
           markdown({ codeLanguages: languages }),
           codeBlockPlugin,
         ]),
         EditorView.lineWrapping,
-        EditorView.contentAttributes.of({ spellcheck: props.plain ? "false" : "true" }),
+        EditorView.contentAttributes.of({ spellcheck: initial.plain ? "false" : "true" }),
         theme,
-        cmPlaceholder(props.placeholder ?? ""),
+        cmPlaceholder(initial.placeholder),
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !applyingExternalValue) {
             lastPushedValue = update.state.doc.toString();
-            props.onChange(lastPushedValue);
+            initial.onChange(lastPushedValue);
           }
         }),
         readOnlyCompartment.of([
-          EditorState.readOnly.of(!!props.readOnly),
-          EditorView.editable.of(!props.readOnly),
+          EditorState.readOnly.of(initial.readOnly),
+          EditorView.editable.of(!initial.readOnly),
         ]),
     ];
 
     const state = EditorState.create({
-      doc: props.value,
+      doc: initial.value,
       extensions,
     });
 

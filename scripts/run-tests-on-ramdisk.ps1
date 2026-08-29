@@ -309,7 +309,16 @@ try {
 
   Push-Location $workspace
   try {
-    & npm.cmd run $workspaceScripts[$Suite]
+    $testArguments = if ($env:CONTEXT_LAUNCH_TEST_ARGUMENTS) {
+      @(ConvertFrom-Json $env:CONTEXT_LAUNCH_TEST_ARGUMENTS)
+    } else {
+      @()
+    }
+    if ($testArguments.Count -gt 0) {
+      & npm.cmd run $workspaceScripts[$Suite] -- @testArguments
+    } else {
+      & npm.cmd run $workspaceScripts[$Suite]
+    }
     $suiteExitCode = $LASTEXITCODE
   } finally {
     Pop-Location

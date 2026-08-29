@@ -19,9 +19,9 @@ import {
 } from "~/components/ui/floating-panel";
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "~/components/ui/menu";
 
-const KanbanBoard = lazy(() => import("~/components/board/KanbanBoard"));
-const ForestView = lazy(() => import("~/components/forest/ForestView"));
-const DiffReview = lazy(() => import("~/components/diff-review/DiffReview"));
+const KanbanBoard = lazy(() => import("~/components/board/KanbanBoard"), undefined);
+const ForestView = lazy(() => import("~/components/forest/ForestView"), undefined);
+const DiffReview = lazy(() => import("~/components/diff-review/DiffReview"), undefined);
 import { getViewMode, setViewMode } from "~/components/forest/forest-local-state.js";
 import CreateTicketDialog from "~/components/ticket/CreateTicketDialog";
 import TicketCleanupDialog from "~/components/shared/TicketCleanupDialog";

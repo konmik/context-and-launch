@@ -23,7 +23,8 @@ function stubLanguageDataOnServer() {
 export default defineConfig({
   plugins: [
     solidPlugin({
-      start: { middleware: "./src/server/middleware.ts" },
+      compiler: "babel",
+      start: { middleware: "./src/server/middleware.ts", devtools: false },
       serverFunctions: { configure: "./src/server-config.ts" },
     }),
     stubLanguageDataOnServer(),

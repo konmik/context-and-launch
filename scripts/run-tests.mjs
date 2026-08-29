@@ -21,6 +21,7 @@ const workspaceScripts = {
   bench: "bench:workspace",
 };
 const suite = process.argv[2];
+const testArguments = process.argv.slice(3);
 if (!Object.hasOwn(workspaceScripts, suite)) {
   console.error(`Usage: node scripts/run-tests.mjs <${Object.keys(workspaceScripts).join("|")}>`);
   process.exit(1);
@@ -35,7 +36,13 @@ if (process.platform === "win32") {
     "-ExecutionPolicy", "Bypass",
     "-File", path.join(scriptsDirectory, "run-tests-on-ramdisk.ps1"),
     "-Suite", suite,
-  ], { stdio: "inherit" });
+  ], {
+    env: {
+      ...process.env,
+      CONTEXT_LAUNCH_TEST_ARGUMENTS: JSON.stringify(testArguments),
+    },
+    stdio: "inherit",
+  });
   if (result.error) throw result.error;
   process.exit(result.status ?? 1);
 }
@@ -77,7 +84,9 @@ try {
     [workspaceEnvironmentName]: workspace,
     [tokenEnvironmentName]: marker.token,
   };
-  const result = spawnSync("npm", ["run", workspaceScripts[suite]], {
+  const result = spawnSync("npm", [
+    "run", workspaceScripts[suite], ...(testArguments.length ? ["--", ...testArguments] : []),
+  ], {
     cwd: workspace,
     env,
     stdio: "inherit",

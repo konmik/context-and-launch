@@ -66,7 +66,7 @@ describe("Project window (e2e, Vite development server)", () => {
     }
     if (!ready) throw new Error(`Vite did not become ready:\n${stderr}`);
 
-    browser = await chromium.launch({ headless: true });
+    browser = await chromium.launch({ headless: true, channel: "chrome" });
     page = await browser.newPage();
     page.on("console", (message) => {
       if (message.type() === "warning" || message.type() === "error") {
@@ -82,6 +82,49 @@ describe("Project window (e2e, Vite development server)", () => {
     project?.cleanup();
     fs.rmSync(dataDir, { recursive: true, force: true });
     fs.rmSync(reposParentDir, { recursive: true, force: true });
+  });
+
+  it("redirects the Home route without Solid lifecycle diagnostics", async () => {
+    diagnostics.length = 0;
+
+    await page.goto(baseUrl);
+    await page.locator('[data-testid="kanban-board-scroll"]').waitFor({ state: "visible" });
+
+    expect(diagnostics.filter((message) => message.includes("FLUSH_IN_EFFECT_CALLBACK"))).toEqual([]);
+  });
+
+  it("keeps the Kanban board rendered while Ticket Detail is open", async () => {
+    diagnostics.length = 0;
+    await page.goto(`${baseUrl}/project/${project.projectSlug}`);
+    await page.locator('[data-testid="kanban-board-ticket-card"]').first().click();
+    await page.locator('[data-testid="ticket-detail-tab-editor"]').waitFor({ state: "visible" });
+    await page.waitForTimeout(500);
+
+    expect(diagnostics.filter((message) => message.includes("PRIMITIVE_IN_FORBIDDEN_SCOPE"))).toEqual([]);
+    expect(await page.getByRole("alert").allTextContents()).toEqual([]);
+    expect(await page.locator('[data-testid="kanban-board-scroll"]').count()).toBe(1);
+  });
+
+  it("closes Ticket Detail without delegated event errors after Vite HMR", async () => {
+    await page.goto(`${baseUrl}/project/${project.projectSlug}`);
+    await page.locator('[data-testid="kanban-board-ticket-card"]').first().click();
+    await page.locator('[data-testid="ticket-detail-tab-editor"]').waitFor({ state: "visible" });
+    const panelModule = path.resolve("src/components/ui/floating-panel.tsx");
+    const hotUpdate = page.waitForEvent("console", {
+      predicate: (message) => message.text().includes("hot updated: /src/components/ui/floating-panel.tsx"),
+    });
+    const panelStat = fs.statSync(panelModule);
+    fs.utimesSync(panelModule, panelStat.atime, new Date());
+    await hotUpdate;
+    await page.waitForTimeout(250);
+    diagnostics.length = 0;
+
+    await page.locator('[data-testid="ticket-detail-close-window-button"]').click();
+    await page.waitForTimeout(100);
+
+    expect(diagnostics.filter((message) => message.includes("Cannot read properties of undefined (reading '$$")))
+      .toEqual([]);
+    expect(await page.locator('[data-testid="ticket-detail-close-window-button"]').count()).toBe(0);
   });
 
   it("runs project workflows without Solid development diagnostics", async () => {
