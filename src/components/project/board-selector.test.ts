@@ -1,28 +1,23 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { createRoot, createSignal } from "solid-js";
-
-vi.mock("../board/board-api.js", () => ({
-  listBoards: vi.fn(),
-}));
-
-import { listBoards } from "../board/board-api.js";
 
 function flushMicrotasks(): Promise<void> {
   return new Promise((r) => setTimeout(r, 0));
 }
 
 describe("BoardSelector", () => {
-  afterEach(() => { vi.restoreAllMocks(); });
-
   it("sets error and keeps boardId empty when listBoards throws", async () => {
-    vi.mocked(listBoards).mockRejectedValue(new Error("boards.json not found (500)"));
-
     const result = await new Promise<{ error: string; boardId: string }>((resolve) => {
       createRoot(async (dispose) => {
         const [boardId, setBoardId] = createSignal("");
         let error = "";
         const { default: BoardSelector } = await import("./BoardSelector.jsx");
-        BoardSelector({ boardId: boardId(), setBoardId, onError: (msg: string) => { error = msg; } });
+        BoardSelector({
+          boardId: boardId(),
+          setBoardId,
+          onError: (msg: string) => { error = msg; },
+          loadBoards: () => Promise.reject(new Error("boards.json not found (500)")),
+        });
         await flushMicrotasks();
         resolve({ error, boardId: boardId() });
         dispose();
@@ -38,13 +33,11 @@ describe("BoardSelector", () => {
       { id: "standard", name: "Standard", columns: [] },
       { id: "simple", name: "Simple", columns: [] },
     ];
-    vi.mocked(listBoards).mockResolvedValue(boardData);
-
     const result = await new Promise<{ boardId: string }>((resolve) => {
       createRoot(async (dispose) => {
         const [boardId, setBoardId] = createSignal("");
         const { default: BoardSelector } = await import("./BoardSelector.jsx");
-        BoardSelector({ boardId: boardId(), setBoardId });
+        BoardSelector({ boardId: boardId(), setBoardId, loadBoards: async () => boardData });
         await flushMicrotasks();
         resolve({ boardId: boardId() });
         dispose();

@@ -13,9 +13,11 @@ import {
   isProfileAgentRunning, projectWindowTitle, runLauncherProfile,
 } from "./profile-launch.js";
 import { PROJECT_LAUNCH_KEY } from "./launch-keys.js";
+import type { LaunchRequest } from "./launch-request.js";
 
 export { PROJECT_LAUNCH_KEY };
 export { buildWindowTitle };
+export { parseLaunchRequest, readLaunchRequest, type LaunchRequest } from "./launch-request.js";
 
 /**
  * Path to the per-ticket marker file an agent launch script writes while the
@@ -84,42 +86,6 @@ export function resolveTicketAndProject(
   if (!project) throw new NotFoundError(`Project not found: ${projectSlug}`);
 
   return { ticket, project, worktreeDir };
-}
-
-export interface LaunchRequest {
-  initialPrompt: string;
-  useWorktree: boolean;
-  profileName: string;
-  force: boolean;
-  skipBehindRemote: boolean;
-  launchDir: string;
-}
-
-export function parseLaunchRequest(body: unknown): LaunchRequest {
-  const result: LaunchRequest = {
-    initialPrompt: "", useWorktree: false, profileName: "", force: false,
-    skipBehindRemote: false, launchDir: "",
-  };
-  if (body && typeof body === "object") {
-    const b = body as Record<string, unknown>;
-    if (typeof b.initialPrompt === "string") result.initialPrompt = b.initialPrompt;
-    if (typeof b.useWorktree === "boolean") result.useWorktree = b.useWorktree;
-    if (typeof b.profileName === "string") result.profileName = b.profileName;
-    if (typeof b.force === "boolean") result.force = b.force;
-    if (typeof b.skipBehindRemote === "boolean") result.skipBehindRemote = b.skipBehindRemote;
-    if (typeof b.launchDir === "string") result.launchDir = b.launchDir;
-  }
-  return result;
-}
-
-export async function readLaunchRequest(request: Request): Promise<LaunchRequest> {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch (e) {
-    console.warn("Failed to parse request body, using defaults:", e);
-  }
-  return parseLaunchRequest(body);
 }
 
 export async function spawnProfile(

@@ -1,24 +1,15 @@
 import { describe, it, expect, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
+import { fromPartial } from '@total-typescript/shoehorn';
+import type { CommandTemplateService } from '../command-template/command-template-service.js';
+import { parseLaunchRequest } from './launch-request.js';
+import {
+	buildAgentDisplayName, buildWindowTitle, runLauncherProfile,
+} from './profile-launch.js';
 
-const { executeTrustedScript } = vi.hoisted(() => ({
-	executeTrustedScript: vi.fn().mockResolvedValue(''),
-}));
-vi.mock('~/core/config/instances.js', () => ({
-	worktreeManager: {},
-	projectRegistry: {},
-	launcherConfigManager: {},
-	agentWorktreeManager: {},
-	commandTemplateService: {
-		executeTrustedScript,
-		execute: vi.fn().mockResolvedValue(''),
-		executeSync: vi.fn().mockReturnValue(''),
-	},
-}));
-
-import { spawnProfile } from '~/core/launcher/agent-launch.js';
-import { buildAgentDisplayName, buildWindowTitle } from '~/core/launcher/profile-launch.js';
+const executeTrustedScript = vi.fn().mockResolvedValue('');
+const commands = fromPartial<CommandTemplateService>({ executeTrustedScript });
 
 describe('buildWindowTitle', () => {
 	const ticket = { number: 'ST-47', title: 'Fix login timeout' };
@@ -44,39 +35,7 @@ describe('buildAgentDisplayName', () => {
 	});
 });
 
-describe('parseLaunchRequest (code-inspection)', () => {
-	const source = fs.readFileSync(
-		path.resolve(__dirname, 'agent-launch.ts'),
-		'utf-8'
-	);
-
-	interface LaunchRequest {
-		initialPrompt: string; useWorktree: boolean; profileName: string;
-		force: boolean; skipBehindRemote: boolean; launchDir: string;
-	}
-	function parseLaunchRequest(body: unknown): LaunchRequest {
-		const result: LaunchRequest = {
-			initialPrompt: '', useWorktree: false, profileName: '', force: false,
-			skipBehindRemote: false, launchDir: '',
-		};
-		if (body && typeof body === 'object') {
-			const b = body as Record<string, unknown>;
-			if (typeof b.initialPrompt === 'string') result.initialPrompt = b.initialPrompt;
-			if (typeof b.useWorktree === 'boolean') result.useWorktree = b.useWorktree;
-			if (typeof b.profileName === 'string') result.profileName = b.profileName;
-			if (typeof b.force === 'boolean') result.force = b.force;
-			if (typeof b.skipBehindRemote === 'boolean') result.skipBehindRemote = b.skipBehindRemote;
-			if (typeof b.launchDir === 'string') result.launchDir = b.launchDir;
-		}
-		return result;
-	}
-
-	it('replicated function matches source code', () => {
-		expect(source).toContain('profileName: ""');
-		expect(source).toContain('initialPrompt: ""');
-		expect(source).toContain('launchDir: ""');
-	});
-
+describe('parseLaunchRequest', () => {
 	it('parseLaunchRequest with initialPrompt extracts string value', () => {
 		const result = parseLaunchRequest({ initialPrompt: 'do the thing' });
 		expect(result.initialPrompt).toBe('do the thing');
@@ -149,7 +108,8 @@ describe('launchAgent profile-based spawn (code-inspection)', () => {
 
 describe('spawnProfile trusted script execution', () => {
 	it('passes the complete custom body and values to the fixed shell service', async () => {
-		await spawnProfile(
+		await runLauncherProfile(
+			commands,
 			{ name: 'Custom', command: 'my-agent --flag {{initialPrompt}}' },
 			{ configDefaultsDir: '/fake/config-defaults', initialPrompt: 'do the thing' },
 			'/fake/cwd',

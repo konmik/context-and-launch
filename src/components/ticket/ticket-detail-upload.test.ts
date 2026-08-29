@@ -1,16 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createRoot, runWithOwner } from "solid-js";
 
-vi.mock("@solidjs/router", () => ({
-  revalidate: vi.fn(),
-  action: (fn: Function) => fn,
-  query: (fn: Function) => fn,
-}));
-
 const mockUploadFile = vi.fn();
-vi.mock("./ticket-api.js", () => ({
-  uploadFile: (...args: unknown[]) => mockUploadFile(...args),
-}));
 
 import { createFileUploadState, type FileUploadDeps } from "./ticket-detail-upload.js";
 
@@ -23,6 +14,7 @@ function makeDeps(overrides?: Partial<FileUploadDeps>): FileUploadDeps {
     contextNames: () => [],
     refreshFiles: vi.fn().mockResolvedValue(undefined),
     requestFileSwitch: vi.fn(),
+    uploadFile: mockUploadFile,
     ...overrides,
   };
 }

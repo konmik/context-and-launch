@@ -3,23 +3,12 @@ import { render, screen, cleanup, waitFor } from "~/test-render.js";
 
 const mockGetAppLogs = vi.fn();
 
-vi.mock("./log-api.js", () => ({
-  getAppLogs: (...args: unknown[]) => mockGetAppLogs(...args),
-  serverClearAppLogs: vi.fn().mockResolvedValue(undefined),
-}));
-
-vi.mock("./LogTextView.js", () => ({
-  default: (props: { text: string }) => <div data-testid="log-text">{props.text}</div>,
-}));
-
-vi.mock("../ui/floating-panel", () => ({
-  FloatingWindow: (props: any) => <div data-testid="floating-panel">{props.children}</div>,
-  FloatingWindowHeader: (props: any) => <div>{props.title}{props.actions}</div>,
-  FloatingPanelBody: (props: any) => <div>{props.children}</div>,
-  FloatingPanelTitle: (props: any) => <div>{props.children}</div>,
-}));
-
 import LogViewerDialog from "./LogViewerDialog";
+
+const deps = {
+  getLogs: mockGetAppLogs,
+  clearLogs: vi.fn().mockResolvedValue(undefined),
+};
 
 afterEach(() => {
   cleanup();
@@ -35,7 +24,7 @@ function deferredLogs() {
 describe("LogViewerDialog read states", () => {
   it("shows loading and not the empty state while the initial read is pending", async () => {
     deferredLogs();
-    render(() => <LogViewerDialog open onOpenChange={() => {}} />);
+    render(() => <LogViewerDialog open onOpenChange={() => {}} deps={deps} />);
 
     await waitFor(() => expect(screen.getByTestId("log-viewer-loading")).toBeTruthy());
     expect(screen.queryByText("No logs yet.")).toBeNull();
@@ -43,7 +32,7 @@ describe("LogViewerDialog read states", () => {
 
   it("shows the empty state once an empty read completes", async () => {
     const logs = deferredLogs();
-    render(() => <LogViewerDialog open onOpenChange={() => {}} />);
+    render(() => <LogViewerDialog open onOpenChange={() => {}} deps={deps} />);
     await waitFor(() => expect(screen.getByTestId("log-viewer-loading")).toBeTruthy());
 
     logs.resolve("");
@@ -54,12 +43,14 @@ describe("LogViewerDialog read states", () => {
 
   it("shows the log text once a non-empty read completes", async () => {
     const logs = deferredLogs();
-    render(() => <LogViewerDialog open onOpenChange={() => {}} />);
+    render(() => <LogViewerDialog open onOpenChange={() => {}} deps={deps} />);
     await waitFor(() => expect(screen.getByTestId("log-viewer-loading")).toBeTruthy());
 
     logs.resolve("first line");
 
-    await waitFor(() => expect(screen.getByTestId("log-text").textContent).toBe("first line"));
+    await waitFor(() => expect(
+      screen.getByLabelText("Application logs").textContent,
+    ).toBe("first line"));
     expect(screen.queryByTestId("log-viewer-loading")).toBeNull();
     expect(screen.queryByText("No logs yet.")).toBeNull();
   });

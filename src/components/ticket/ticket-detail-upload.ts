@@ -12,6 +12,7 @@ export interface FileUploadDeps {
   contextNames: () => string[];
   refreshFiles: () => Promise<void>;
   requestFileSwitch: (file: ActiveFile) => void;
+  uploadFile?: typeof uploadFileAction;
 }
 
 export function createFileUploadState(deps: FileUploadDeps) {
@@ -72,7 +73,9 @@ export function createFileUploadState(deps: FileUploadDeps) {
     setUploading(true); deps.setError(null);
     try {
       const formData = new FormData(); formData.append("file", file);
-      const result = await uploadFileAction(deps.projectSlug, deps.folderName(), formData);
+      const result = await (deps.uploadFile ?? uploadFileAction)(
+        deps.projectSlug, deps.folderName(), formData,
+      );
       if (!result.ok) { deps.setError({ title: "Upload failed", description: result.message }); return; }
       let anySucceeded = false;
       for (const r of result.results) {

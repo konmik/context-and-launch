@@ -1,24 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HerdrUnavailableError } from "~/core/herdr/herdr-availability.js";
+import { createHerdrStatusService } from "./herdr-status-service.js";
 
 const fetchHerdrTicketState = vi.fn();
 const reconcileProject = vi.fn();
 
-vi.mock("@solidjs/router", () => ({ query: (fn: unknown) => fn }));
-vi.mock("~/core/config/instances.js", () => ({
-  herdrExec: vi.fn(),
-  reviewPromptQueueService: {
-    reconcileProject: (...args: unknown[]) => reconcileProject(...args),
-  },
-}));
-vi.mock("~/core/herdr/herdr-client.js", () => ({
-  fetchHerdrTicketState: (...args: unknown[]) => fetchHerdrTicketState(...args),
-}));
-
-const {
-  getHerdrAgentStatuses,
-  reconcileReviewPromptQueue,
-} = await import("./herdr-status-api.js");
+const log = vi.fn();
+const service = createHerdrStatusService({
+  loadTicketState: fetchHerdrTicketState,
+  reconcileProject,
+  log,
+});
 
 describe("getHerdrAgentStatuses", () => {
   beforeEach(() => {
@@ -34,7 +26,7 @@ describe("getHerdrAgentStatuses", () => {
       agents,
     });
 
-    const result = await getHerdrAgentStatuses("project");
+    const result = await service.getStatuses("project");
 
     expect(result).toEqual({
       kind: "available",
@@ -48,7 +40,7 @@ describe("getHerdrAgentStatuses", () => {
       new HerdrUnavailableError("server-not-running"),
     );
 
-    const result = await getHerdrAgentStatuses("project");
+    const result = await service.getStatuses("project");
 
     expect(result).toEqual({ kind: "unavailable" });
     expect(reconcileProject).not.toHaveBeenCalled();
@@ -57,7 +49,7 @@ describe("getHerdrAgentStatuses", () => {
   it("reports disabled without mutating the Review Prompt Queue", async () => {
     fetchHerdrTicketState.mockRejectedValue(new HerdrUnavailableError("cli-missing"));
 
-    const result = await getHerdrAgentStatuses("project");
+    const result = await service.getStatuses("project");
 
     expect(result).toEqual({ kind: "disabled" });
     expect(reconcileProject).not.toHaveBeenCalled();
@@ -66,21 +58,21 @@ describe("getHerdrAgentStatuses", () => {
   it("leaves the Review Prompt Queue alone when Herdr fails for another reason", async () => {
     fetchHerdrTicketState.mockRejectedValue(new Error("workspace list exploded"));
 
-    const result = await getHerdrAgentStatuses("project");
+    const result = await service.getStatuses("project");
 
     expect(result).toEqual({ kind: "unavailable" });
     expect(reconcileProject).not.toHaveBeenCalled();
   });
 
   it("asks the queue service to reconcile the project explicitly", async () => {
-    await expect(reconcileReviewPromptQueue("project")).resolves.toEqual({ ok: true });
+    await expect(service.reconcile("project")).resolves.toEqual({ ok: true });
     expect(reconcileProject).toHaveBeenCalledWith("project");
   });
 
   it("surfaces explicit reconciliation failures", async () => {
     reconcileProject.mockRejectedValue(new Error("workspace list exploded"));
 
-    await expect(reconcileReviewPromptQueue("project")).resolves.toEqual({
+    await expect(service.reconcile("project")).resolves.toEqual({
       ok: false,
       message: "workspace list exploded",
     });

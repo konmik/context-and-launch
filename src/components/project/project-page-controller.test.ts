@@ -1,31 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createRoot, flush } from "solid-js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
-
-const { mockRevalidate } = vi.hoisted(() => ({
-	mockRevalidate: vi.fn(),
-}));
-
-vi.mock("@solidjs/router", () => ({
-	revalidate: mockRevalidate,
-	useAction: <T,>(action: T) => action,
-}));
-vi.mock("../ticket/ticket-api.js", () => ({
-	createTicket: vi.fn(),
-	deleteTicket: vi.fn(),
-	archiveTicket: vi.fn(),
-	reorderTicket: vi.fn(),
-	syncTickets: vi.fn(),
-	worktreeCleanup: vi.fn(),
-}));
-vi.mock("./project-api.js", () => ({
-	deleteProject: vi.fn(),
-	getSyncStatus: vi.fn(),
-}));
-vi.mock("../launcher/launcher-api.js", () => ({
-	resolveConflicts: vi.fn(),
-	abortRebase: vi.fn(),
-}));
 
 import { createProjectPageController } from "./project-page-controller.js";
 
@@ -45,7 +20,6 @@ function ticket(): TicketInfo {
 
 describe("ProjectPageController ticket detail", () => {
 	it("selects the clicked ticket without waiting for project refresh", () => {
-		mockRevalidate.mockReturnValue(new Promise(() => {}));
 		const clicked = ticket();
 		const { controller, dispose } = createRoot((dispose) => ({
 			controller: createProjectPageController({
@@ -58,6 +32,7 @@ describe("ProjectPageController ticket detail", () => {
 					suggestedNextNumber: null,
 					board: { columns: [], tickets: [clicked], ticketOrder: {} },
 				}),
+				runSyncTickets: () => new Promise(() => {}),
 			}),
 			dispose,
 		}));
@@ -82,6 +57,7 @@ describe("ProjectPageController ticket detail", () => {
 					suggestedNextNumber: null,
 					board: { columns: [], tickets: [clicked], ticketOrder: {} },
 				}),
+				runSyncTickets: () => new Promise(() => {}),
 			}),
 			dispose,
 		}));

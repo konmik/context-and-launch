@@ -23,7 +23,9 @@ import { EditorTab } from "./ticket-detail-editor-tab.js";
 import { LauncherTab } from "./ticket-detail-launcher-tab.js";
 import { createAgentLauncherController } from "../launcher/agent-launcher-controller.js";
 import { launchAgentAction } from "../launcher/launcher-api.js";
-import { createTicketDetailState, type Tab, type TicketDetailState } from "./ticket-detail-state.js";
+import {
+  createTicketDetailState, type Tab, type TicketDetailState, type TicketDetailStateDeps,
+} from "./ticket-detail-state.js";
 import ErrorDialog from "../shared/ErrorDialog.js";
 
 interface TicketDetailDialogProps {
@@ -31,6 +33,8 @@ interface TicketDetailDialogProps {
   onReviewChanges?: (ticket: TicketInfo) => void;
   projectSlug: string;
   ticket: TicketInfo | null;
+  stateDeps?: TicketDetailStateDeps;
+  launchAgent?: typeof launchAgentAction;
 }
 
 export default function TicketDetailDialog(props: TicketDetailDialogProps) {
@@ -42,6 +46,8 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
           onClose={props.onClose}
           projectSlug={props.projectSlug}
           onReviewChanges={props.onReviewChanges}
+          stateDeps={props.stateDeps}
+          launchAgent={props.launchAgent}
         />
       )}
     </Show>
@@ -54,8 +60,10 @@ function TicketDetailContent(props: {
   projectSlug: string;
   onReviewChanges?: (ticket: TicketInfo) => void;
   ctrl?: TicketDetailState;
+  stateDeps?: TicketDetailStateDeps;
+  launchAgent?: typeof launchAgentAction;
 }) {
-  const s = untrack(() => props.ctrl ?? createTicketDetailState(props));
+  const s = untrack(() => props.ctrl ?? createTicketDetailState(props, props.stateDeps));
 
   const ticketAccessor = () => ({
     ...props.ticket,
@@ -73,7 +81,9 @@ function TicketDetailContent(props: {
     get worktreeDir() { return s.launcherConfig()?.worktreeDir ?? ""; },
     launchDir: s.launchDir,
     launch: (args: Parameters<typeof launchAgentAction>[2]) =>
-      launchAgentAction(props.projectSlug, ticketAccessor().folderName, args),
+      (props.launchAgent ?? launchAgentAction)(
+        props.projectSlug, ticketAccessor().folderName, args,
+      ),
   }));
   const launcherCtrl = untrack(() => createAgentLauncherController(launcherDeps));
 

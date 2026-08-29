@@ -6,6 +6,7 @@ export interface HeaderEditDeps {
   projectSlug: string;
   ticket: { number: string; title: string; folderName: string };
   setError: (error: ErrorInfo | null) => void;
+  updateTicket?: typeof updateTicket;
 }
 
 export function createHeaderEditState(deps: HeaderEditDeps) {
@@ -27,7 +28,7 @@ export function createHeaderEditState(deps: HeaderEditDeps) {
     const numberToSave = trimmedNumber && trimmedNumber !== savedNumber() ? trimmedNumber : null;
     const titleToSave = trimmedTitle && trimmedTitle !== savedTitle() ? trimmedTitle : null;
     if (!numberToSave && !titleToSave) return;
-    const result = await updateTicket(
+    const result = await (deps.updateTicket ?? updateTicket)(
       deps.projectSlug, savedFolderName(), numberToSave, titleToSave, null,
     );
     if (!result.ok) { deps.setError({ title: "Save failed", description: result.message }); return; }

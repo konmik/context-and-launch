@@ -1,22 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({
+const mocks = {
   getFileContent: vi.fn(),
   getReferencedFileContent: vi.fn(),
   getWorktreeDir: vi.fn(() => "C:/worktree"),
-}));
+};
 
-vi.mock("../core/config/instances.js", () => ({
-  worktreeManager: { getWorktreeDir: mocks.getWorktreeDir },
-}));
-vi.mock("../core/ticket/ticket-store.js", () => ({
-  TicketStore: class {
-    getFileContent = mocks.getFileContent;
-    getReferencedFileContent = mocks.getReferencedFileContent;
-  },
-}));
+import { createRawRouteHandler } from "./raw-route-handler.js";
 
-import { handleRawRoute } from "./raw-routes.js";
+const handleRawRoute = createRawRouteHandler({
+  getWorktreeDir: mocks.getWorktreeDir,
+  createTicketStore: () => ({
+    getFileContent: mocks.getFileContent,
+    getReferencedFileContent: mocks.getReferencedFileContent,
+  }),
+});
 
 beforeEach(() => {
   vi.clearAllMocks();

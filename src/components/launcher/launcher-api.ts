@@ -14,6 +14,7 @@ import {
   type LaunchRequest,
 } from "~/core/launcher/agent-launch.js";
 import { NotFoundError, ValidationError, errorResult } from "~/core/shared/errors.js";
+import { resolveConflictsWith } from "~/core/launcher/resolve-conflicts.js";
 import type {
   LauncherItemType,
   LauncherColumnDefaults,
@@ -337,26 +338,16 @@ export async function runShortcut(
 export async function resolveConflicts(projectSlug: string, profileName: string) {
   "use server";
   try {
-    const merged = launcherConfigManager.getMergedConfig(projectSlug);
-    const profile = merged.profiles.find(p => p.name === profileName);
-    if (!profile) throw new ValidationError(`Profile "${profileName}" not found. Check your launcher settings.`);
-    const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
-    const plan = await operationTracker.track(ticketSyncManager.prepareResolution(worktreeDir));
-    if (!plan.needsAgent) {
-      return { ok: true as const };
-    }
-    const initialPrompt = `${merged.conflictResolutionPrompt}\n\n`
-      + `When the rebase is complete, push your result with:\n${plan.pushCommand}`;
-    await spawnProfile(profile, {
-      initialPrompt,
-      windowTitle: "Resolve Conflicts",
-      agentDisplayName: "Resolve Conflicts",
-      herdrWorkspaceLabel: projectSlug,
-      herdrPaneLabel: `${projectSlug}--__resolve-conflicts__`,
-      markerPath: agentMarkerPath(projectSlug, "__resolve-conflicts__"),
-      appConfigDir: launcherConfigManager.getAppConfigDir(),
-      configDefaultsDir: launcherConfigManager.getConfigDefaultsDir(),
-    }, plan.scratchDir);
+    await resolveConflictsWith({
+      getMergedConfig: (slug) => launcherConfigManager.getMergedConfig(slug),
+      getWorktreeDir: (slug) => worktreeManager.getWorktreeDir(slug),
+      prepareResolution: (worktreeDir) => ticketSyncManager.prepareResolution(worktreeDir),
+      trackOperation: (operation) => operationTracker.track(operation),
+      spawnProfile,
+      markerPath: agentMarkerPath,
+      getAppConfigDir: () => launcherConfigManager.getAppConfigDir(),
+      getConfigDefaultsDir: () => launcherConfigManager.getConfigDefaultsDir(),
+    }, projectSlug, profileName);
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);

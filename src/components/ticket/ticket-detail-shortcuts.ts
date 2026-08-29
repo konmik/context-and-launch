@@ -8,6 +8,7 @@ export interface ShortcutDeps {
   useWorktree: () => boolean;
   launchDir: () => string;
   setError: (error: ErrorInfo | null) => void;
+  runShortcut?: typeof runShortcutAction;
 }
 
 export interface ShortcutConfirmation {
@@ -24,7 +25,7 @@ export function createShortcutState(deps: ShortcutDeps) {
     setRunningShortcut(name);
     deps.setError(null);
     try {
-      const result = await runShortcutAction(
+      const result = await (deps.runShortcut ?? runShortcutAction)(
         deps.projectSlug(), deps.folderName(), name, deps.useWorktree(), force ?? false, deps.launchDir(),
       );
       if (!result.ok) {

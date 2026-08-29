@@ -6,12 +6,13 @@ interface BoardSelectorProps {
   boardId: string;
   setBoardId: (v: string) => void;
   onError?: (msg: string) => void;
+  loadBoards?: () => Promise<BoardRef[]>;
 }
 
 export default function BoardSelector(props: BoardSelectorProps) {
   const [boards, setBoards] = createSignal<BoardRef[]>([]);
 
-  listBoards()
+  (props.loadBoards ?? listBoards)()
     .then((data) => {
       setBoards(data);
       if (!props.boardId) props.setBoardId(data[0]?.id ?? "");

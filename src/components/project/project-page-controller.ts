@@ -18,6 +18,7 @@ import type { TicketCleanupOptions } from "../shared/ticket-cleanup-pure.js";
 export interface ProjectPageDeps {
   projectSlug: () => string;
   data: () => ProjectPageData | undefined;
+  runSyncTickets?: (projectSlug: string) => ReturnType<typeof syncTickets>;
 }
 
 export function createProjectPageController(deps: ProjectPageDeps) {
@@ -34,7 +35,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
   const [syncError, setSyncError] = createSignal<ErrorInfo | null>(null);
   const [conflictDialogOpen, setConflictDialogOpen] = createSignal(false);
   const [conflictDetected, setConflictDetected] = createSignal(false);
-  const runSyncTickets = useAction(syncTickets);
+  const runSyncTickets = deps.runSyncTickets ?? useAction(syncTickets);
   let syncInProgress = false;
   async function handleSync() {
     if (syncInProgress) return;

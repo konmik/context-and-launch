@@ -1,4 +1,5 @@
 import { createSignal, createEffect, createMemo, flush, onSettled, untrack } from "solid-js";
+import type { Accessor } from "solid-js";
 import { revalidate } from "@solidjs/router";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/core/launcher/launcher-config.js";
@@ -26,22 +27,49 @@ import { createShortcutState } from "./ticket-detail-shortcuts.js";
 import { errorPayload, type ErrorInfo } from "~/core/shared/errors.js";
 import { computeLaunchDir } from "../launcher/agent-launcher-pure.js";
 import {
-  getContext, getTicketFiles, saveContext as saveContextAction,
+  getContext as getContextAction, getTicketFiles, saveContext as saveContextAction,
   deleteContext as deleteContextAction, deleteFile as deleteFileAction,
   removeReference as removeReferenceAction, setUseWorktree as setUseWorktreeAction,
   addReferences as addReferencesAction, openTicketWorktree,
+  uploadFile as uploadFileAction, updateTicket,
+  type TicketFiles,
 } from "./ticket-api.js";
 import { ticketMutationRevalidateKeys } from "../shared/revalidate-keys.js";
 import { createWorktreeRevision } from "../shared/worktree-revision.js";
 import {
   latestMergedLauncherConfig, loadMergedLauncherConfig, saveColumnDefaultsAndReturnConfig,
+  runShortcut,
   type MergedLauncherConfigWithMeta,
 } from "../launcher/launcher-api.js";
 import { openNativeFileBrowser as openNativeFileBrowserServer } from "../shared/shared-api.js";
 
 export type Tab = "editor" | "launcher";
 
-export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug: string; onClose: () => void }) {
+export interface TicketDetailStateDeps {
+  ticketFiles?: Accessor<TicketFiles>;
+  worktreeRevision?: Accessor<number>;
+  refreshTicketFiles?: () => Promise<void>;
+  getContext?: typeof getContextAction;
+  saveContext?: typeof saveContextAction;
+  deleteContext?: typeof deleteContextAction;
+  deleteFile?: typeof deleteFileAction;
+  removeReference?: typeof removeReferenceAction;
+  setUseWorktree?: typeof setUseWorktreeAction;
+  addReferences?: typeof addReferencesAction;
+  openTicketWorktree?: typeof openTicketWorktree;
+  uploadFile?: typeof uploadFileAction;
+  updateTicket?: typeof updateTicket;
+  runShortcut?: typeof runShortcut;
+  latestMergedLauncherConfig?: typeof latestMergedLauncherConfig;
+  loadMergedLauncherConfig?: typeof loadMergedLauncherConfig;
+  saveColumnDefaultsAndReturnConfig?: typeof saveColumnDefaultsAndReturnConfig;
+  openNativeFileBrowser?: typeof openNativeFileBrowserServer;
+}
+
+export function createTicketDetailState(
+  props: { ticket: TicketInfo; projectSlug: string; onClose: () => void },
+  deps: TicketDetailStateDeps = {},
+) {
   const [activeFile, setActiveFile] = createSignal<ActiveFile>({ type: "context", name: "to-do" });
   const [content, setContent] = createSignal("");
   const [savedContent, setSavedContent] = createSignal("");
@@ -65,15 +93,16 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   const [externallyChanged, setExternallyChanged] = createSignal(false);
   const [confirmingExternalChange, setConfirmingExternalChange] = createSignal(false);
 
-  const worktreeRevision = createWorktreeRevision(() => props.projectSlug);
+  const worktreeRevision = deps.worktreeRevision ?? createWorktreeRevision(() => props.projectSlug);
 
   const header = createHeaderEditState({
     projectSlug: props.projectSlug,
     ticket: props.ticket,
     setError,
+    updateTicket: deps.updateTicket,
   });
 
-  const ticketFiles = createMemo(
+  const ticketFiles = deps.ticketFiles ?? createMemo(
     () => getTicketFiles(props.projectSlug, header.savedFolderName()),
     {
       loadingValue: {
@@ -85,6 +114,10 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   );
 
   async function refreshTicketFiles() {
+    if (deps.refreshTicketFiles) {
+      await deps.refreshTicketFiles();
+      return;
+    }
     await revalidate(["ticket-files", ...ticketMutationRevalidateKeys]);
   }
 
@@ -107,6 +140,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     useWorktree,
     launchDir,
     setError,
+    runShortcut: deps.runShortcut,
   });
 
   const upload = createFileUploadState({
@@ -117,14 +151,17 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     contextNames: () => ticketFiles().contextNames,
     refreshFiles: refreshTicketFiles,
     requestFileSwitch,
+    uploadFile: deps.uploadFile,
   });
 
-  const cachedConfig = latestMergedLauncherConfig(props.projectSlug);
+  const cachedConfig = (deps.latestMergedLauncherConfig ?? latestMergedLauncherConfig)(props.projectSlug);
 
   async function openWorktree() {
     setError(null);
     try {
-      const result = await openTicketWorktree(props.projectSlug, header.savedFolderName());
+      const result = await (deps.openTicketWorktree ?? openTicketWorktree)(
+        props.projectSlug, header.savedFolderName(),
+      );
       if (!result.ok) setError(result.errorInfo);
     } catch (e) {
       setError(errorPayload(e, "Open failed"));
@@ -133,7 +170,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
 
   function persistWorktree(value: boolean) {
     setUseWorktree(value);
-    setUseWorktreeAction(props.projectSlug, header.savedFolderName(), value)
+    (deps.setUseWorktree ?? setUseWorktreeAction)(props.projectSlug, header.savedFolderName(), value)
       .then((result) => {
         if (!result.ok) setError({ title: "Save failed", description: result.message });
       })
@@ -194,7 +231,9 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     const seq = ++loadSeq;
     if (!background) setFileView({ kind: "loading" });
     try {
-      const data = await getContext(props.projectSlug, header.savedFolderName(), af.name);
+      const data = await (deps.getContext ?? getContextAction)(
+        props.projectSlug, header.savedFolderName(), af.name,
+      );
       if (seq !== loadSeq) return;
       const normalized = data ? normalizeLineEndings(data.content) : "";
       setContent(normalized); setSavedContent(normalized);
@@ -247,7 +286,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     ([projectSlug, , status, resolved]) => { void (async () => {
       if (!projectSlug || resolved) return;
       try {
-        applyInitialTab(await loadMergedLauncherConfig(projectSlug), status);
+        applyInitialTab(await (deps.loadMergedLauncherConfig ?? loadMergedLauncherConfig)(projectSlug), status);
       } catch (e) {
         setError(errorPayload(e, "Load failed"));
         setInitialTabResolved(true);
@@ -256,7 +295,9 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   );
 
   function patchColumnDefaults(patch: Partial<LauncherColumnDefaults>) {
-    saveColumnDefaultsAndReturnConfig(props.projectSlug, props.ticket.status, patch)
+    (deps.saveColumnDefaultsAndReturnConfig ?? saveColumnDefaultsAndReturnConfig)(
+      props.projectSlug, props.ticket.status, patch,
+    )
       .then((result) => {
         if (!result.ok) { setError({ title: "Save failed", description: result.message }); return; }
         setLauncherConfig(result.config);
@@ -279,7 +320,9 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
 
   async function readFileText(af: ActiveFile): Promise<string> {
     if (af.type === "context") {
-      const data = await getContext(props.projectSlug, header.savedFolderName(), af.name);
+      const data = await (deps.getContext ?? getContextAction)(
+        props.projectSlug, header.savedFolderName(), af.name,
+      );
       return data ? normalizeLineEndings(data.content) : "";
     }
     const response = await fetch(fileContentUrl(af));
@@ -343,7 +386,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     if (af.type !== "context") return;
     setSaving(true);
     try {
-      const result = await saveContextAction(
+      const result = await (deps.saveContext ?? saveContextAction)(
         props.projectSlug, header.savedFolderName(), af.name, content(),
       );
       if (result.ok) setSavedContent(content());
@@ -406,17 +449,17 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
     setConfirmingDelete(false);
     try {
       if (af.type === "reference") {
-        const result = await removeReferenceAction(
+        const result = await (deps.removeReference ?? removeReferenceAction)(
           props.projectSlug, header.savedFolderName(), af.path,
         );
         if (!result.ok) { setError({ title: "Delete failed", description: result.message }); return; }
       } else if (af.type === "file") {
-        const result = await deleteFileAction(
+        const result = await (deps.deleteFile ?? deleteFileAction)(
           props.projectSlug, header.savedFolderName(), af.name,
         );
         if (!result.ok) { setError({ title: "Delete failed", description: result.message }); return; }
       } else {
-        const result = await deleteContextAction(
+        const result = await (deps.deleteContext ?? deleteContextAction)(
           props.projectSlug, header.savedFolderName(), af.name,
         );
         if (!result.ok) { setError({ title: "Delete failed", description: result.message }); return; }
@@ -447,7 +490,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
       const lastRef = refs[refs.length - 1]?.path;
       const fallback = lastRef ? lastRef.replace(/\/[^/]*$/, "") : "";
       const startDir = remembered || fallback;
-      const paths = await openNativeFileBrowserServer(startDir || null);
+      const paths = await (deps.openNativeFileBrowser ?? openNativeFileBrowserServer)(startDir || null);
       if (paths.length === 0) return;
       const lastPicked = paths[paths.length - 1];
       const pickedDir = lastPicked.replace(/\/[^/]*$/, "");
@@ -460,7 +503,7 @@ export function createTicketDetailState(props: { ticket: TicketInfo; projectSlug
   async function handleReferencesSelected(paths: string[]) {
     setError(null);
     try {
-      const result = await addReferencesAction(
+      const result = await (deps.addReferences ?? addReferencesAction)(
         props.projectSlug, header.savedFolderName(), paths,
       );
       if (!result.ok) { setError({ title: "Add reference failed", description: result.message }); return; }

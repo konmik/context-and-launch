@@ -1,30 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "~/test-render.js";
-
-vi.mock("@solidjs/router", async () => {
-  const { createSignal } = await import("solid-js");
-  const queryVersions = new Map<string, { track: () => number; bump: () => void }>();
-  function versionFor(queryKey: string) {
-    let entry = queryVersions.get(queryKey);
-    if (!entry) {
-      const [track, setVersion] = createSignal(0);
-      entry = { track, bump: () => setVersion((v) => v + 1) };
-      queryVersions.set(queryKey, entry);
-    }
-    return entry;
-  }
-  return {
-    revalidate: vi.fn(async (keyOrKeys: string | string[]) => {
-      const keys = Array.isArray(keyOrKeys) ? keyOrKeys : [keyOrKeys];
-      for (const queryKey of keys) queryVersions.get(queryKey)?.bump();
-    }),
-    action: (fn: Function) => fn,
-    query: (fn: Function, queryKey: string) => (...args: unknown[]) => {
-      versionFor(queryKey).track();
-      return fn(...args);
-    },
-  };
-});
+import { render, screen, cleanup, fireEvent, waitFor } from "~/test-render.js";
+import { createSignal, createRoot } from "solid-js";
+import TicketDetailDialog from "./TicketDetailDialog";
+import {
+  createTicketDetailState, type TicketDetailStateDeps,
+} from "./ticket-detail-state.js";
+import type { TicketInfo } from "~/core/ticket/ticket-store.js";
+import type { TicketFiles } from "./ticket-api.js";
 
 const mockGetContext = vi.fn().mockResolvedValue({ content: "" });
 const mockUpdateTicket = vi.fn().mockResolvedValue({ ok: true, folderName: "test" });
@@ -32,8 +14,7 @@ const mockDeleteContext = vi.fn().mockResolvedValue({ ok: true });
 const mockUploadFile = vi.fn().mockResolvedValue({ ok: true, results: [] });
 const emptyTicketFiles = { contextNames: [], fileNames: [], references: [] };
 const mockGetTicketFiles = vi.fn().mockResolvedValue(emptyTicketFiles);
-let worktreeRevision = 0;
-const mockGetWorktreeRevision = vi.fn(async (..._args: unknown[]) => worktreeRevision);
+const [worktreeRevision, setWorktreeRevision] = createSignal(0);
 const mockGetMergedLauncherConfig = vi.fn().mockResolvedValue({
   templates: [], skills: [], profiles: [], shortcuts: [],
   columnDefaults: {}, worktreeRootPath: null,
@@ -41,76 +22,6 @@ const mockGetMergedLauncherConfig = vi.fn().mockResolvedValue({
   projectBoardId: null, projectName: "",
   projectPath: "", worktreeDir: "", agentWorktreeDir: "",
 });
-
-vi.mock("./ticket-api.js", async () => {
-  const { query } = await import("@solidjs/router");
-  return {
-    getTicketFiles: query(
-      (...args: unknown[]) => mockGetTicketFiles(...args), "ticket-files",
-    ),
-    getContext: (...args: unknown[]) => mockGetContext(...args),
-    saveContext: vi.fn().mockResolvedValue({ ok: true }),
-    deleteContext: (...args: unknown[]) => mockDeleteContext(...args),
-    deleteFile: vi.fn().mockResolvedValue({ ok: true }),
-    removeReference: vi.fn().mockResolvedValue({ ok: true }),
-    setUseWorktree: vi.fn().mockResolvedValue({ ok: true }),
-    addReferences: vi.fn().mockResolvedValue({ ok: true }),
-    uploadFile: (...args: unknown[]) => mockUploadFile(...args),
-    createTicket: vi.fn().mockResolvedValue({ ok: true }),
-    updateTicket: (...args: unknown[]) => mockUpdateTicket(...args),
-    deleteTicket: vi.fn().mockResolvedValue({ ok: true }),
-    archiveTicket: vi.fn().mockResolvedValue({ ok: true }),
-    reorderTicket: vi.fn().mockResolvedValue({ ok: true }),
-    syncTickets: vi.fn().mockResolvedValue({ ok: true }),
-    getSyncPending: vi.fn().mockResolvedValue(false),
-    getWorktreeRevision: query(
-      (...args: unknown[]) => mockGetWorktreeRevision(...args), "worktree-revision",
-    ),
-    worktreeCleanup: vi.fn().mockResolvedValue({ ok: true }),
-  };
-});
-
-vi.mock("../launcher/launcher-api.js", () => ({
-  getMergedLauncherConfig: (...args: unknown[]) => mockGetMergedLauncherConfig(...args),
-  loadMergedLauncherConfig: (...args: unknown[]) => mockGetMergedLauncherConfig(...args),
-  latestMergedLauncherConfig: vi.fn(),
-  saveColumnDefaults: vi.fn().mockResolvedValue({ ok: true }),
-  saveColumnDefaultsAndReturnConfig: vi.fn().mockResolvedValue({ ok: true }),
-  launchAgentAction: vi.fn().mockResolvedValue({ ok: true }),
-  runShortcut: vi.fn().mockResolvedValue({ ok: true }),
-  getLastUsedProfile: vi.fn().mockResolvedValue(null),
-  saveLastUsedProfile: vi.fn().mockResolvedValue({ ok: true }),
-}));
-
-vi.mock("../shared/shared-api.js", () => ({
-  openNativeFileBrowser: vi.fn().mockResolvedValue([]),
-  openConfigDir: vi.fn().mockResolvedValue(undefined),
-  pickDirectory: vi.fn().mockResolvedValue({ cancelled: true }),
-}));
-
-vi.mock("../shared/MarkdownEditor", () => ({
-  default: (props: { value: string }) => (
-    <div data-testid="editor-content">{props.value}</div>
-  ),
-}));
-
-vi.mock("../launcher/AgentLauncher", () => ({
-  default: () => <div data-testid="agent-launcher" />,
-}));
-
-vi.mock("../ui/floating-panel", () => ({
-  FloatingWindow: (props: any) => <div data-testid="floating-panel">{props.children}</div>,
-  FloatingWindowHeader: (props: any) => <div>{props.title}{props.actions}{props.children}</div>,
-  FloatingPanelBody: (props: any) => <div>{props.children}</div>,
-  FLOATING_WINDOW_MIN_SIZE: { width: 400, height: 300 },
-  tallWindowDefaultSize: () => ({ width: 768, height: 640 }),
-}));
-
-
-import { createSignal, createRoot } from "solid-js";
-import TicketDetailDialog from "./TicketDetailDialog";
-import { createTicketDetailState } from "./ticket-detail-state.js";
-import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 
 function makeTicket(folder: string, number: string, title: string): TicketInfo {
   return {
@@ -128,38 +39,51 @@ function makeTicket(folder: string, number: string, title: string): TicketInfo {
 
 const emptyConfig = { templates: [], skills: [], profiles: [], columnDefaults: {} };
 
-interface DeferredFetch {
-  resolve: (body: object, status?: number) => void;
-  reject: (error: Error) => void;
-}
-
-function createFetchController() {
-  const pending: DeferredFetch[] = [];
-
-  const mockFetch = vi.fn(
-    (_url: string, _opts?: RequestInit) =>
-      new Promise<Response>((resolve, reject) => {
-        pending.push({
-          resolve: (body: object, status = 200) =>
-            resolve(
-              new Response(JSON.stringify(body), {
-                status,
-                headers: { "Content-Type": "application/json" },
-              })
-            ),
-          reject: (error: Error) => reject(error),
-        });
-      })
-  );
-
-  return { mockFetch, pending };
-}
-
-function jsonResponse(body: object, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
+function stateDependencies(ticket: TicketInfo): TicketDetailStateDeps {
+  const [ticketFiles, setTicketFiles] = createSignal<TicketFiles>({
+    contextNames: ticket.contextNames,
+    fileNames: ticket.fileNames,
+    references: ticket.references,
   });
+  return {
+    ticketFiles,
+    worktreeRevision,
+    refreshTicketFiles: async () => {
+      setTicketFiles(await mockGetTicketFiles("test-project", ticket.folderName));
+    },
+    getContext: mockGetContext,
+    saveContext: async () => ({ ok: true }),
+    deleteContext: mockDeleteContext,
+    deleteFile: async () => ({ ok: true }),
+    removeReference: async () => ({ ok: true }),
+    setUseWorktree: async () => ({ ok: true }),
+    addReferences: async () => ({ ok: true }),
+    uploadFile: mockUploadFile,
+    updateTicket: mockUpdateTicket,
+    latestMergedLauncherConfig: () => undefined,
+    loadMergedLauncherConfig: mockGetMergedLauncherConfig,
+    saveColumnDefaultsAndReturnConfig: async () => ({
+      ok: true,
+      config: await mockGetMergedLauncherConfig("test-project"),
+    }),
+    openNativeFileBrowser: async () => [],
+  };
+}
+
+function renderTicket(ticket: TicketInfo) {
+  const stateDeps = stateDependencies(ticket);
+  return render(() => (
+    <TicketDetailDialog
+      onClose={() => {}}
+      projectSlug="test-project"
+      ticket={ticket}
+      stateDeps={stateDeps}
+    />
+  ));
+}
+
+async function expectEditorText(text: string) {
+  await waitFor(() => expect(document.querySelector(".cm-content")?.textContent).toBe(text));
 }
 
 function flush() {
@@ -177,17 +101,11 @@ describe("TicketDetailDialog content loading", () => {
 
     const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
 
-    render(() => (
-      <TicketDetailDialog
-        onClose={() => {}}
-        projectSlug="test-project"
-        ticket={ticket}
-      />
-    ));
+    renderTicket(ticket);
 
     await flush();
     await flush();
-    expect(screen.getByTestId("editor-content").textContent).toBe("Hello World");
+    await expectEditorText("Hello World");
   });
 
   it("a slow context load does not clobber a newer image selection", async () => {
@@ -198,7 +116,10 @@ describe("TicketDetailDialog content loading", () => {
     const ticket = { ...makeTicket("t-1-alpha", "T-1", "Alpha"), fileNames: ["shot.png"] };
 
     const { state, dispose } = createRoot((disposeRoot) => ({
-      state: createTicketDetailState({ ticket, projectSlug: "test-project", onClose: () => {} }),
+      state: createTicketDetailState(
+        { ticket, projectSlug: "test-project", onClose: () => {} },
+        stateDependencies(ticket),
+      ),
       dispose: disposeRoot,
     }));
     try {
@@ -219,14 +140,12 @@ describe("TicketDetailDialog content loading", () => {
 describe("TicketDetailDialog external worktree changes", () => {
   afterEach(() => {
     cleanup();
-    worktreeRevision = 0;
+    setWorktreeRevision(0);
     mockGetContext.mockResolvedValue({ content: "" });
   });
 
   async function changeWorktree() {
-    const { revalidate } = await import("@solidjs/router");
-    worktreeRevision += 1;
-    await revalidate("worktree-revision");
+    setWorktreeRevision((revision) => revision + 1);
     await flush();
     await flush();
   }
@@ -234,21 +153,15 @@ describe("TicketDetailDialog external worktree changes", () => {
   it("reloads the open markdown file when the worktree changes underneath it", async () => {
     mockGetContext.mockResolvedValue({ content: "written by me" });
 
-    render(() => (
-      <TicketDetailDialog
-        onClose={() => {}}
-        projectSlug="test-project"
-        ticket={makeTicket("t-1-alpha", "T-1", "Alpha")}
-      />
-    ));
+    renderTicket(makeTicket("t-1-alpha", "T-1", "Alpha"));
     await flush();
     await flush();
-    expect(screen.getByTestId("editor-content").textContent).toBe("written by me");
+    await expectEditorText("written by me");
 
     mockGetContext.mockResolvedValue({ content: "written by the agent" });
     await changeWorktree();
 
-    expect(screen.getByTestId("editor-content").textContent).toBe("written by the agent");
+    await expectEditorText("written by the agent");
   });
 
   it("keeps unsaved edits and refuses to save over an external change", async () => {
@@ -256,9 +169,10 @@ describe("TicketDetailDialog external worktree changes", () => {
     const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
 
     const { state, dispose } = createRoot((disposeRoot) => ({
-      state: createTicketDetailState({
-        ticket, projectSlug: "test-project", onClose: () => {},
-      }),
+      state: createTicketDetailState(
+        { ticket, projectSlug: "test-project", onClose: () => {} },
+        stateDependencies(ticket),
+      ),
       dispose: disposeRoot,
     }));
     try {
@@ -288,9 +202,10 @@ describe("TicketDetailDialog external worktree changes", () => {
     const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
 
     const { state, dispose } = createRoot((disposeRoot) => ({
-      state: createTicketDetailState({
-        ticket, projectSlug: "test-project", onClose: () => {},
-      }),
+      state: createTicketDetailState(
+        { ticket, projectSlug: "test-project", onClose: () => {} },
+        stateDependencies(ticket),
+      ),
       dispose: disposeRoot,
     }));
     try {
@@ -312,13 +227,7 @@ describe("TicketDetailDialog external worktree changes", () => {
   it("does not blank the editor while a background reload is in flight", async () => {
     mockGetContext.mockResolvedValue({ content: "original" });
 
-    render(() => (
-      <TicketDetailDialog
-        onClose={() => {}}
-        projectSlug="test-project"
-        ticket={makeTicket("t-1-alpha", "T-1", "Alpha")}
-      />
-    ));
+    renderTicket(makeTicket("t-1-alpha", "T-1", "Alpha"));
     await flush();
     await flush();
 
@@ -326,16 +235,14 @@ describe("TicketDetailDialog external worktree changes", () => {
     mockGetContext.mockImplementation(
       () => new Promise((resolve) => { resolveContext = resolve; }),
     );
-    worktreeRevision += 1;
-    const { revalidate } = await import("@solidjs/router");
-    await revalidate("worktree-revision");
+    setWorktreeRevision((revision) => revision + 1);
     await flush();
 
-    expect(screen.getByTestId("editor-content").textContent).toBe("original");
+    await expectEditorText("original");
 
     resolveContext({ content: "refreshed" });
     await flush();
-    expect(screen.getByTestId("editor-content").textContent).toBe("refreshed");
+    await expectEditorText("refreshed");
     mockGetContext.mockResolvedValue({ content: "" });
   });
 });
@@ -365,13 +272,7 @@ describe("TicketDetailDialog multi-file upload confirmation", () => {
 
     const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
 
-    render(() => (
-      <TicketDetailDialog
-        onClose={() => {}}
-        projectSlug="test-project"
-        ticket={ticket}
-      />
-    ));
+    renderTicket(ticket);
 
     await flush();
     await flush();
@@ -401,13 +302,7 @@ describe("TicketDetailDialog multi-file upload confirmation", () => {
   it("cancelling first file lets second file show its confirmation", async () => {
     const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
 
-    render(() => (
-      <TicketDetailDialog
-        onClose={() => {}}
-        projectSlug="test-project"
-        ticket={ticket}
-      />
-    ));
+    renderTicket(ticket);
 
     await flush();
     await flush();
@@ -445,13 +340,7 @@ describe("TicketDetailDialog multi-file upload confirmation", () => {
       contextNames: [], fileNames: ["exist1.txt", "exist2.txt"], references: [],
     });
 
-    render(() => (
-      <TicketDetailDialog
-        onClose={() => {}}
-        projectSlug="test-project"
-        ticket={ticket}
-      />
-    ));
+    renderTicket(ticket);
 
     await flush();
     await flush();
@@ -494,13 +383,7 @@ describe("TicketDetailDialog file list refresh after upload", () => {
   });
 
   async function renderAndDrop(file: File) {
-    render(() => (
-      <TicketDetailDialog
-        onClose={() => {}}
-        projectSlug="test-project"
-        ticket={makeTicket("t-1-alpha", "T-1", "Alpha")}
-      />
-    ));
+    renderTicket(makeTicket("t-1-alpha", "T-1", "Alpha"));
     await flush();
     await flush();
 
@@ -560,13 +443,7 @@ describe("TicketDetailDialog context deletion clears extraFiles", () => {
   it("deleting a context added via New markdown file removes it from the dropdown", async () => {
     const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
 
-    render(() => (
-      <TicketDetailDialog
-        onClose={() => {}}
-        projectSlug="test-project"
-        ticket={ticket}
-      />
-    ));
+    renderTicket(ticket);
 
     await flush();
     await flush();
@@ -628,13 +505,7 @@ describe("TicketDetailDialog initial tab", () => {
     mockGetMergedLauncherConfig.mockReturnValue(new Promise(() => {}));
     const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
 
-    render(() => (
-      <TicketDetailDialog
-        onClose={() => {}}
-        projectSlug="test-project"
-        ticket={ticket}
-      />
-    ));
+    renderTicket(ticket);
 
     expect(screen.getByTestId("ticket-detail-number-input")).toBeTruthy();
   });
@@ -652,18 +523,12 @@ describe("TicketDetailDialog initial tab", () => {
 
     const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
 
-    render(() => (
-      <TicketDetailDialog
-        onClose={() => {}}
-        projectSlug="test-project"
-        ticket={ticket}
-      />
-    ));
+    renderTicket(ticket);
 
     await flush();
     await flush();
 
-    expect(screen.getByTestId("agent-launcher")).toBeTruthy();
+    expect(screen.getByTestId("ticket-detail-launcher-profile-select")).toBeTruthy();
     expect(screen.queryByText("Drop a file to copy")).toBeNull();
   });
 });
@@ -683,13 +548,7 @@ describe("TicketDetailDialog editable title", () => {
 
     const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
 
-    render(() => (
-      <TicketDetailDialog
-        onClose={() => {}}
-        projectSlug="test-project"
-        ticket={ticket}
-      />
-    ));
+    renderTicket(ticket);
 
     await flush();
     await flush();
@@ -711,13 +570,7 @@ describe("TicketDetailDialog editable title", () => {
 
     const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
 
-    render(() => (
-      <TicketDetailDialog
-        onClose={() => {}}
-        projectSlug="test-project"
-        ticket={ticket}
-      />
-    ));
+    renderTicket(ticket);
 
     await flush();
     await flush();
@@ -741,13 +594,7 @@ describe("TicketDetailDialog editable title", () => {
   it("Escape reverts inputs without saving", async () => {
     const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
 
-    render(() => (
-      <TicketDetailDialog
-        onClose={() => {}}
-        projectSlug="test-project"
-        ticket={ticket}
-      />
-    ));
+    renderTicket(ticket);
 
     await flush();
     await flush();

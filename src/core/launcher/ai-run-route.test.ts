@@ -8,10 +8,7 @@ import { TicketStore } from '../ticket/ticket-store.js';
 import { errorMessage } from '../shared/errors.js';
 import { escapeBatchTitle } from '../shared/batch-escape.js';
 import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js';
-// parseLaunchRequest cannot be imported directly because agent-launch.ts pulls in
-// singleton instances via the ~ alias which vitest cannot resolve without the
-// SvelteKit build pipeline. Instead, replicate the pure function here and verify
-// it matches the source code.
+import { parseLaunchRequest } from './launch-request.js';
 
 function tmpDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -224,40 +221,10 @@ describe('useWorktree=true with worktreeRootPath=null (code-inspection)', () => 
 
 
 describe('parseLaunchRequest with missing/malformed request body', () => {
-	interface LaunchRequest {
-		initialPrompt: string; useWorktree: boolean; profileName: string; force: boolean; launchDir: string;
-	}
-	function parseLaunchRequest(body: unknown): LaunchRequest {
-		const result: LaunchRequest = {
-			initialPrompt: '', useWorktree: false, profileName: '', force: false, launchDir: '',
-		};
-		if (body && typeof body === 'object') {
-			const b = body as Record<string, unknown>;
-			if (typeof b.initialPrompt === 'string') result.initialPrompt = b.initialPrompt;
-			if (typeof b.useWorktree === 'boolean') result.useWorktree = b.useWorktree;
-			if (typeof b.profileName === 'string') result.profileName = b.profileName;
-			if (typeof b.force === 'boolean') result.force = b.force;
-			if (typeof b.launchDir === 'string') result.launchDir = b.launchDir;
-		}
-		return result;
-	}
-
-	const DEFAULTS = { initialPrompt: '', useWorktree: false, profileName: '', force: false, launchDir: '' };
-
-	it('replicated function matches source code', () => {
-		const source = fs.readFileSync(
-			path.resolve(__dirname, 'agent-launch.ts'),
-			'utf-8'
-		);
-		expect(source).toContain('initialPrompt: ""');
-		expect(source).toContain('useWorktree: false');
-		expect(source).toContain('profileName: ""');
-		expect(source).toContain('launchDir: ""');
-		expect(source).toContain("typeof b.initialPrompt === \"string\"");
-		expect(source).toContain("typeof b.useWorktree === \"boolean\"");
-		expect(source).toContain("typeof b.profileName === \"string\"");
-		expect(source).toContain("typeof b.launchDir === \"string\"");
-	});
+	const DEFAULTS = {
+		initialPrompt: '', useWorktree: false, profileName: '', force: false,
+		skipBehindRemote: false, launchDir: '',
+	};
 
 	it('undefined body returns all defaults', () => {
 		const result = parseLaunchRequest(undefined);
@@ -312,6 +279,7 @@ describe('parseLaunchRequest with missing/malformed request body', () => {
 			useWorktree: true,
 			profileName: '',
 			force: false,
+			skipBehindRemote: false,
 			launchDir: '',
 		});
 	});
@@ -323,6 +291,7 @@ describe('parseLaunchRequest with missing/malformed request body', () => {
 			useWorktree: false,
 			profileName: '',
 			force: false,
+			skipBehindRemote: false,
 			launchDir: '',
 		});
 	});

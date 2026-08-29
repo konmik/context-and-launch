@@ -1,87 +1,81 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { MergedLauncherConfig, LauncherProfile } from "./launcher-config.js";
+import { resolveConflictsWith, type ResolveConflictsDeps } from "./resolve-conflicts.js";
 
-vi.mock("~/core/config/instances.js", () => ({
-	worktreeManager: { getWorktreeDir: vi.fn().mockReturnValue("/fake/worktree") },
-	launcherConfigManager: {
-		getMergedConfig: vi.fn(),
-		getAppConfigDir: vi.fn().mockReturnValue("/fake/config"),
-		getConfigDefaultsDir: vi.fn().mockReturnValue("/fake/config-defaults"),
-	},
-	ticketSyncManager: {
-		prepareResolution: vi.fn().mockResolvedValue({
-			needsAgent: true, scratchDir: "/fake/worktree-conflict-resolve",
-			pushCommand: "git push origin HEAD:tickets",
-		}),
-	},
-	operationTracker: { track: <T>(p: Promise<T>) => p },
-}));
-vi.mock("~/core/launcher/agent-launch.js", () => ({
-	spawnProfile: vi.fn().mockResolvedValue(undefined),
-	agentMarkerPath: vi.fn().mockReturnValue("/fake/config/running/test-project/__resolve-conflicts__.json"),
-}));
+const profile: LauncherProfile & { scope: "app"; order: number } = {
+  name: "Claude Win",
+  command: "cmd /c claude",
+  scope: "app",
+  order: 0,
+};
 
-import { launcherConfigManager, ticketSyncManager } from "~/core/config/instances.js";
-import { spawnProfile } from "~/core/launcher/agent-launch.js";
-import type { MergedLauncherConfig, LauncherProfile } from "~/core/launcher/launcher-config.js";
-
-function makeMerged(
-	overrides: Partial<MergedLauncherConfig> & {
-		profiles: (LauncherProfile & { scope: "app" | "project"; order: number })[];
-	},
-): MergedLauncherConfig {
-	return {
-		templates: [],
-		skills: [],
-		shortcuts: [],
-		columnDefaults: {},
-		worktreeRootPath: null,
-		conflictResolutionPrompt: "resolve conflicts",
-		...overrides,
-	};
+function mergedConfig(): MergedLauncherConfig {
+  return {
+    templates: [],
+    skills: [],
+    profiles: [profile],
+    shortcuts: [],
+    columnDefaults: {},
+    worktreeRootPath: null,
+    conflictResolutionPrompt: "resolve conflicts",
+  };
 }
 
-describe("resolve-conflicts profile lookup", () => {
-	beforeEach(() => {
-		vi.clearAllMocks();
-	});
+function dependencies(): ResolveConflictsDeps {
+  return {
+    getMergedConfig: vi.fn(() => mergedConfig()),
+    getWorktreeDir: vi.fn(() => "/fake/worktree"),
+    prepareResolution: vi.fn(async () => ({
+      needsAgent: true,
+      scratchDir: "/fake/worktree-conflict-resolve",
+      pushCommand: "git push origin HEAD:tickets",
+    })),
+    trackOperation: async (operation) => operation,
+    spawnProfile: vi.fn(async () => undefined),
+    markerPath: vi.fn(() => "/fake/config/running/test-project/__resolve-conflicts__.json"),
+    getAppConfigDir: vi.fn(() => "/fake/config"),
+    getConfigDefaultsDir: vi.fn(() => "/fake/config-defaults"),
+  };
+}
 
-	it("getMergedConfig returns profiles for testing", () => {
-		const profiles: (LauncherProfile & { scope: "app" | "project"; order: number })[] = [
-			{ name: "Claude Win", command: "cmd /c claude", scope: "app", order: 0 },
-		];
-		vi.mocked(launcherConfigManager.getMergedConfig).mockReturnValue(
-			makeMerged({ profiles }),
-		);
-		const merged = launcherConfigManager.getMergedConfig("test-project");
-		expect(merged.profiles).toHaveLength(1);
-		expect(merged.profiles[0].name).toBe("Claude Win");
-	});
+describe("resolveConflictsWith", () => {
+  beforeEach(() => vi.clearAllMocks());
 
-	it("spawnProfile is callable with correct arguments", async () => {
-		const profiles: (LauncherProfile & { scope: "app" | "project"; order: number })[] = [
-			{ name: "Claude Win", command: "cmd /c claude", scope: "app", order: 0 },
-		];
-		await spawnProfile(
-			profiles[0],
-			{
-				initialPrompt: "test", windowTitle: "test", markerPath: "/fake",
-				appConfigDir: "/fake", configDefaultsDir: "/fake",
-			},
-			"/fake/cwd",
-		);
-		expect(spawnProfile).toHaveBeenCalledWith(
-			profiles[0],
-			expect.objectContaining({ initialPrompt: "test" }),
-			"/fake/cwd",
-		);
-	});
+  it("launches the selected profile with the prepared resolution plan", async () => {
+    const deps = dependencies();
 
-	it("prepareResolution returns expected shape", async () => {
-		const result = await ticketSyncManager.prepareResolution("/fake/worktree");
-		expect(result).toEqual({
-			needsAgent: true,
-			scratchDir: "/fake/worktree-conflict-resolve",
-			pushCommand: "git push origin HEAD:tickets",
-		});
-	});
+    await resolveConflictsWith(deps, "test-project", "Claude Win");
+
+    expect(deps.prepareResolution).toHaveBeenCalledWith("/fake/worktree");
+    expect(deps.spawnProfile).toHaveBeenCalledWith(
+      profile,
+      expect.objectContaining({
+        initialPrompt: expect.stringContaining("git push origin HEAD:tickets"),
+        herdrWorkspaceLabel: "test-project",
+        herdrPaneLabel: "test-project--__resolve-conflicts__",
+      }),
+      "/fake/worktree-conflict-resolve",
+    );
+  });
+
+  it("does not launch an agent when preparation completes the resolution", async () => {
+    const deps = dependencies();
+    deps.prepareResolution = vi.fn(async () => ({
+      needsAgent: false,
+      scratchDir: "",
+      pushCommand: "",
+    }));
+
+    await resolveConflictsWith(deps, "test-project", "Claude Win");
+
+    expect(deps.spawnProfile).not.toHaveBeenCalled();
+  });
+
+  it("rejects a profile that is not in merged configuration", async () => {
+    const deps = dependencies();
+
+    await expect(resolveConflictsWith(deps, "test-project", "Missing"))
+      .rejects.toThrow('Profile "Missing" not found');
+    expect(deps.prepareResolution).not.toHaveBeenCalled();
+  });
 });

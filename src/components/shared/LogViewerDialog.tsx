@@ -8,9 +8,15 @@ import {
 import { getAppLogs, serverClearAppLogs } from "./log-api.js";
 import LogTextView from "./LogTextView.js";
 
+export interface LogViewerDialogDeps {
+	getLogs: typeof getAppLogs;
+	clearLogs: typeof serverClearAppLogs;
+}
+
 export default function LogViewerDialog(props: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
+	deps?: LogViewerDialogDeps;
 }) {
 	const [logText, setLogText] = createSignal<string>();
 	let loadVersion = 0;
@@ -21,7 +27,7 @@ export default function LogViewerDialog(props: {
 		let stopped = false;
 		const load = async () => {
 			const version = ++loadVersion;
-			const text = await getAppLogs();
+			const text = await (props.deps?.getLogs ?? getAppLogs)();
 			if (stopped || version !== loadVersion) return;
 			setLogText(text);
 		};
@@ -49,7 +55,7 @@ export default function LogViewerDialog(props: {
 						aria-label="Clear logs"
 						onClick={async () => {
 							loadVersion += 1;
-							await serverClearAppLogs();
+							await (props.deps?.clearLogs ?? serverClearAppLogs)();
 							setLogText("");
 						}}
 						class="btn-icon"

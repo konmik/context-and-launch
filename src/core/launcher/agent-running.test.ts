@@ -1,32 +1,33 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { fromPartial } from "@total-typescript/shoehorn";
+import type { CommandTemplateService } from "../command-template/command-template-service.js";
+import { agentMarkerPathIn, isProfileAgentRunning } from "./profile-launch.js";
 
-// agentRunning resolves the marker path from the app config dir, so mock the
-// instances module to point it at a per-test temp dir. The other singletons are
-// imported by agent-launch.ts at load time but unused by these tests.
-//
 // The process start-time probe is stubbed with a fixed timestamp so PID-reuse
 // detection is deterministic and no real shell runs: any marker whose startSec
 // differs from that timestamp describes a different process.
-const h = vi.hoisted(() => ({ appDir: "" }));
-vi.mock("~/core/config/instances.js", () => ({
-	worktreeManager: {},
-	projectRegistry: {},
-	agentWorktreeManager: {},
-	launcherConfigManager: { getAppConfigDir: () => h.appDir },
-	commandTemplateService: { executeSync: () => "2020-01-01T00:00:00.000Z" },
-}));
+let appDir = "";
+const commands = fromPartial<CommandTemplateService>({
+	executeSync: () => "2020-01-01T00:00:00.000Z",
+});
 
-import { agentRunning, agentMarkerPath } from "~/core/launcher/agent-launch.js";
+function agentMarkerPath(projectSlug: string, folderName: string): string {
+	return agentMarkerPathIn(appDir, projectSlug, folderName);
+}
+
+function agentRunning(projectSlug: string, folderName: string): boolean {
+	return isProfileAgentRunning(commands, agentMarkerPath(projectSlug, folderName));
+}
 
 describe("agentRunning", () => {
 	beforeEach(() => {
-		h.appDir = fs.mkdtempSync(path.join(os.tmpdir(), "agent-running-"));
+		appDir = fs.mkdtempSync(path.join(os.tmpdir(), "agent-running-"));
 	});
 	afterEach(() => {
-		fs.rmSync(h.appDir, { recursive: true, force: true });
+		fs.rmSync(appDir, { recursive: true, force: true });
 	});
 
 	function writeMarker(projectSlug: string, folderName: string, content: string) {
