@@ -10,7 +10,7 @@ type ScriptMap = Record<string, string>;
 
 const BUNDLED_DEFAULTS_LABEL = 'The bundled Command Template catalog';
 
-function validateScriptMap(value: unknown, fileLabel: string): ScriptMap {
+function validateScriptMap(value: unknown, fileLabel: string) {
 	if (typeof value !== 'object' || value === null || Array.isArray(value)) {
 		throw new Error(`${fileLabel} must contain a JSON object of Command Template strings.`);
 	}

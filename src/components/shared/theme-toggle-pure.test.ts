@@ -47,17 +47,19 @@ describe("getStoredMode", () => {
   });
 
   it("prefers the project's own mode over the app-level one", () => {
-    const stored: Record<string, string> = { "theme": "light", "theme:proj": "dark" };
+    const stored = Object.fromEntries([
+      ["theme", "light"], ["theme:proj", "dark"],
+    ]);
     expect(getStoredMode({ getItem: (k) => stored[k] ?? null }, "proj")).toBe("dark");
   });
 
   it("follows the app-level mode for a project that has none", () => {
-    const stored: Record<string, string> = { "theme": "dark" };
+    const stored = Object.fromEntries([["theme", "dark"]]);
     expect(getStoredMode({ getItem: (k) => stored[k] ?? null }, "proj")).toBe("dark");
   });
 
   it("ignores another project's mode", () => {
-    const stored: Record<string, string> = { "theme:other": "dark" };
+    const stored = Object.fromEntries([["theme:other", "dark"]]);
     expect(getStoredMode({ getItem: (k) => stored[k] ?? null }, "proj")).toBe("system");
   });
 });

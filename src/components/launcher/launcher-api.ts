@@ -143,12 +143,12 @@ interface ItemFields {
   command?: string;
 }
 
-const ITEM_METHODS: Record<LauncherItemType, { add: string; update: string; remove: string }> = {
+const ITEM_METHODS = {
   template: { add: "addTemplate", update: "updateTemplate", remove: "removeTemplate" },
   skill:    { add: "addSkill",    update: "updateSkill",    remove: "removeSkill" },
   profile:  { add: "addProfile",  update: "updateProfile",  remove: "removeProfile" },
   shortcut: { add: "addShortcut", update: "updateShortcut", remove: "removeShortcut" },
-};
+} satisfies Record<LauncherItemType, { add: string; update: string; remove: string }>;
 
 function callItemMethod(
   methodName: string, scope: Scope, projectSlug: string, ...args: unknown[]

@@ -90,7 +90,7 @@ export class BoardConfigManager {
 		this.configRepo.writeJson(this.paths.boardsFile(), boards);
 	}
 
-	private findBoard(boardId: string): { boards: BoardDefinition[]; board: BoardDefinition; index: number } {
+	private findBoard(boardId: string) {
 		const boards = this.loadAll();
 		const index = boards.findIndex(b => b.id === boardId);
 		if (index < 0) throw new Error(`Board not found: ${boardId}`);
@@ -177,7 +177,7 @@ export class BoardConfigManager {
 		this.saveAll(boards);
 	}
 
-	renameColumn(boardId: string, oldName: string, newName: string): { oldName: string; newName: string } {
+	renameColumn(boardId: string, oldName: string, newName: string) {
 		const { boards, board } = this.findBoard(boardId);
 		const column = board.columns.find(c => c.name === oldName);
 		if (!column) throw new Error(`Column not found: ${oldName}`);

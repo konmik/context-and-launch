@@ -16,7 +16,7 @@ const SOCKET_FAILURE = new ProcessError(
 
 function executor(
 	handlers: Partial<Record<string, () => Promise<string>>>,
-): { executor: CommandTemplateExecutor; calls: CommandTemplateKey[] } {
+) {
 	const calls: CommandTemplateKey[] = [];
 	const commands: CommandTemplateExecutor = {
 		execute: async (key) => {

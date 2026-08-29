@@ -41,7 +41,7 @@ const getNoUpstreamTemplate = lazyTemplate(() => {
 
 export function createNoUpstreamRepoWithExistingRemoteBranch(
 	dirs: string[],
-): { worktreeDir: string; remoteDir: string } {
+) {
 	const template = getNoUpstreamTemplate();
 	const remoteDir = cloneFromTemplate(template.bareDir, 'sync-remote-orphan-');
 	const worktreeDir = cloneFromTemplate(template.worktreeDir, 'sync-orphan-');
@@ -65,7 +65,7 @@ const getRemoteRepoTemplate = lazyTemplate(() => {
 	return { bareDir, worktreeDir };
 });
 
-export function createRepoWithRemote(): { worktreeDir: string; remoteDir: string } {
+export function createRepoWithRemote() {
 	const template = getRemoteRepoTemplate();
 	const remoteDir = cloneFromTemplate(template.bareDir, 'sync-remote-');
 	const worktreeDir = cloneFromTemplate(template.worktreeDir, 'sync-worktree-');

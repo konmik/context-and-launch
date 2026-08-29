@@ -210,7 +210,7 @@ export class LauncherConfigManager {
 		return this.paths.agentWorktreeDir(projectSlug);
 	}
 
-	resolveWorktreeSettings(projectSlug: string): { worktreeRootPath: string; branchPrefix?: string } {
+	resolveWorktreeSettings(projectSlug: string) {
 		const config = this.loadProjectConfig(projectSlug);
 		return {
 			worktreeRootPath: config.worktreeRootPath || this.paths.agentWorktreeDir(projectSlug),
@@ -502,12 +502,12 @@ export class LauncherConfigManager {
 			throw new Error("order must be a finite number");
 		}
 		this.withConfig(scope, projectSlug, (config) => {
-			const collections: Record<LauncherItemType, OrderedLauncherItem[]> = {
+			const collections = {
 				template: config.templates,
 				skill: config.skills,
 				profile: config.profiles ?? [],
 				shortcut: config.shortcuts ?? [],
-			};
+			} satisfies Record<LauncherItemType, OrderedLauncherItem[]>;
 			const item = collections[itemType].find((entry) => entry.name === name);
 			if (!item) {
 				const label = itemType[0].toUpperCase() + itemType.slice(1);

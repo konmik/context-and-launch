@@ -1,6 +1,10 @@
 import path from "path";
 
-const MIME_TYPES: Record<string, string> = {
+interface MimeTypeRegistry {
+	readonly [extension: string]: string;
+}
+
+const MIME_TYPES: MimeTypeRegistry = {
 	".txt": "text/plain",
 	".md": "text/plain",
 	".json": "application/json",

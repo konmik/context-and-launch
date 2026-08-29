@@ -27,7 +27,7 @@ function promptSnapshot(filePath: string): ReviewPromptSnapshot {
 	};
 }
 
-function createStore(): { store: DiffReviewStore; paths: ConfigPaths } {
+function createStore() {
 	const baseDir = makeTempDir("diff-review-store-");
 	dirs.push(baseDir);
 	const paths = new ConfigPaths(baseDir);

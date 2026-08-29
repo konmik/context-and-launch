@@ -14,10 +14,7 @@ interface Recorded {
   request: Request;
 }
 
-function recordingBackend(response: Response = new Response("ok")): {
-  handleRequest: AppRequestHandler;
-  calls: Recorded[];
-} {
+function recordingBackend(response: Response = new Response("ok")) {
   const calls: Recorded[] = [];
   const handleRequest: AppRequestHandler = (request) => {
     calls.push({ request });

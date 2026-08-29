@@ -7,7 +7,7 @@ import {
 	reviewLineRangeFromSelection,
 } from "./diff-review-selection.js";
 
-function renderSplitDiff(): { host: HTMLElement; line(side: string, value: string): HTMLElement } {
+function renderSplitDiff() {
 	const host = document.createElement("div");
 	host.innerHTML = `
 		<div data-code data-deletions>
@@ -22,7 +22,7 @@ function renderSplitDiff(): { host: HTMLElement; line(side: string, value: strin
 	document.body.replaceChildren(host);
 	return {
 		host,
-		line(side, value) {
+		line(side: string, value: string) {
 			const column = host.querySelector(`[data-code][data-${side}]`)!;
 			return column.querySelector<HTMLElement>(`[data-line="${value}"]`)!;
 		},

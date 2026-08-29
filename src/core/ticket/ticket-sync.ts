@@ -409,7 +409,7 @@ export class TicketSyncManager {
 		}
 	}
 
-	private parseUpstream(upstream: string): { remote: string; branch: string } {
+	private parseUpstream(upstream: string) {
 		const slashIndex = upstream.indexOf('/');
 		if (slashIndex === -1) return { remote: 'origin', branch: upstream };
 		return { remote: upstream.slice(0, slashIndex), branch: upstream.slice(slashIndex + 1) };

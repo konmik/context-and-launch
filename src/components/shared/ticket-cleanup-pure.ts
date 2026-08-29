@@ -32,7 +32,7 @@ export function singleCleanupOption(key: CleanupItemKey): TicketCleanupOptions {
   return buildOptions((candidate) => candidate === key);
 }
 
-function buildStates(make: () => CleanupItemClientState): TicketCleanupItemStates {
+function buildStates(make: () => CleanupItemClientState) {
   const result = {} as TicketCleanupItemStates;
   for (const key of cleanupItemKeys) result[key] = make();
   return result;

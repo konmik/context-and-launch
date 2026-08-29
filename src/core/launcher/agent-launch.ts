@@ -74,7 +74,7 @@ export async function ensureLaunchDir(
 
 export function resolveTicketAndProject(
   projectSlug: string, folderName: string,
-): { ticket: TicketInfo; project: ProjectInfo; worktreeDir: string } {
+) {
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
   const store = new TicketStore(worktreeDir);
   const ticket = store.getTicket(folderName);
@@ -148,14 +148,14 @@ async function spawnAgent(
     throw new Error("No valid profile configured for launch");
   }
 
-  const commandVars: Record<string, string> = {
+  const commandVars = {
     initialPrompt: launchRequest.initialPrompt, windowTitle, agentDisplayName,
     herdrWorkspaceLabel: projectSlug,
     herdrPaneLabel: `${projectSlug}--${markerKey}`,
     markerPath: agentMarkerPath(projectSlug, markerKey),
     appConfigDir: launcherConfigManager.getAppConfigDir(),
     configDefaultsDir: launcherConfigManager.getConfigDefaultsDir(),
-  };
+  } satisfies Record<string, string>;
   await spawnProfile(profile, commandVars, launchDir);
 }
 

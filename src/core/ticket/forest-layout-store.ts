@@ -14,7 +14,7 @@ export class ForestLayoutStore {
 		this.repo = repo ?? new TicketRepository();
 	}
 
-	read(): ForestLayout {
+	read() {
 		const raw = this.repo.readWorktreeJson(this.worktreeDir, 'forest-layout.json');
 		if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return {};
 		const result: ForestLayout = {};
@@ -51,7 +51,7 @@ export class ForestLayoutStore {
 		memberNumbers: string[],
 	): void {
 		const layout = this.read();
-		const updates: ForestLayout = { [groupNumber]: groupPosition };
+		const updates = { [groupNumber]: groupPosition } satisfies ForestLayout;
 		for (const memberNumber of memberNumbers) {
 			const memberPosition = layout[memberNumber];
 			if (memberPosition) {

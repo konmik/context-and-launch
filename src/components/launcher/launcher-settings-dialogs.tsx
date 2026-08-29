@@ -66,9 +66,9 @@ function DialogFooter(props: { children: JSX.Element }) {
 	return <div class="flex justify-end gap-2 border-t border-border px-6 py-3">{props.children}</div>;
 }
 
-const itemTypeLabel: Record<ItemType, string> = {
+const itemTypeLabel = {
 	template: "Prompt Template", skill: "Skill", profile: "Launch", shortcut: "Shortcut",
-};
+} satisfies Record<ItemType, string>;
 
 export function ItemFormDialog(props: {
 	form: ItemFormState | null;

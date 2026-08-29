@@ -1,5 +1,5 @@
 import { appLog, type AppLogContext } from '../infra/app-logger.js';
-import { ProcessError, type ProcessFailureKind } from '../shared/errors.js';
+import { ProcessError } from '../shared/errors.js';
 import { buildDirectInvocationArgv } from './command-template-direct-invocation.js';
 import type { CommandTemplateKey } from './command-template-definitions.js';
 import { interpolateCommandTemplate } from './command-template-interpolation.js';
@@ -43,7 +43,7 @@ export interface TrustedScriptOptions {
 	timeoutMs?: number;
 }
 
-const FAILURE_LOG_MESSAGES: Record<ProcessFailureKind, string> = {
+const FAILURE_LOG_MESSAGES = {
 	exited: 'non-zero failure',
 	'command-not-found': 'command not found',
 	'interpreter-failure': 'interpreter failure',

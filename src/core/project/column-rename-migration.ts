@@ -111,7 +111,7 @@ export function renameColumnWithMigration(
 	scope: MigrationScope,
 	currentProjectSlug: string,
 	deps: ColumnRenameDeps,
-): { newName: string; ticketsUpdated: number; projectsUpdated: number } {
+) {
 	const result = deps.boardConfigManager.renameColumn(boardId, columnName, newName);
 	let migration;
 	try {

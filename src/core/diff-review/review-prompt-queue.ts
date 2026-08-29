@@ -305,9 +305,9 @@ export class ReviewPromptQueueService {
 	private agentLaunchDelivery(
 		target: ResolvedDiffReviewTarget,
 		profileName: string,
-	): { send(prompt: string): Promise<void>; cooldownMs: number } {
+	) {
 		return {
-			send: (prompt) => this.launcher.launch(target, prompt, profileName),
+			send: (prompt: string) => this.launcher.launch(target, prompt, profileName),
 			cooldownMs: AGENT_STARTUP_COOLDOWN_MS,
 		};
 	}

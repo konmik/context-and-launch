@@ -54,7 +54,7 @@ export function applyDrop(
 	folderName: string,
 	toColumn: string,
 	newIndex: number,
-): Record<string, string[]> {
+) {
 	const updated = { ...order };
 	updated[fromColumn] = (updated[fromColumn] ?? [])
 		.filter(fn => fn !== folderName);
@@ -112,10 +112,7 @@ export function resolveCursorPosition(
 
 export function collectColumnRects(
 	columnRefs: Map<string, HTMLDivElement>,
-): {
-	colRects: Map<string, { left: number; right: number }>;
-	cardRectsByCol: Map<string, { top: number; height: number }[]>;
-} {
+) {
 	const colRects = new Map<string, { left: number; right: number }>();
 	const cardRectsByCol = new Map<string, { top: number; height: number }[]>();
 	for (const [col, el] of columnRefs) {

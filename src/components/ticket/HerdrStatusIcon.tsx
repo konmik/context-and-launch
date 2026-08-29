@@ -1,20 +1,20 @@
 import type { HerdrAgentStatus } from "~/core/herdr/herdr-client.js";
 
-export const HERDR_STATUS_COLORS: Record<HerdrAgentStatus, string> = {
+export const HERDR_STATUS_COLORS = {
   working: "#f9e2af",
   blocked: "#f38ba8",
   idle: "#a6e3a1",
   done: "#94e2d5",
   unknown: "#6c7086",
-};
+} satisfies Record<HerdrAgentStatus, string>;
 
-const HERDR_STATUS_GLYPHS: Record<HerdrAgentStatus, string> = {
+const HERDR_STATUS_GLYPHS = {
   working: "●",
   blocked: "●",
   idle: "○",
   done: "●",
   unknown: "·",
-};
+} satisfies Record<HerdrAgentStatus, string>;
 
 function StatusGlyph(props: { glyph: string; color: string; size: number }) {
   return (

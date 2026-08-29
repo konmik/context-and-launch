@@ -53,12 +53,7 @@ function setup(initial: {
 	setConfig: (c: MergedLauncherConfig) => void;
 	dispose: () => void;
 } {
-	let out!: {
-		ctrl: AgentLauncherController;
-		setTicket: (t: TicketInfo) => void;
-		setConfig: (c: MergedLauncherConfig) => void;
-		dispose: () => void;
-	};
+	let out!: ReturnType<typeof setup>;
 	createRoot((dispose) => {
 		const [ticket, setTicket] = createSignal(initial.ticket);
 		const [config, setConfig] = createSignal<MergedLauncherConfig | null>(initial.config);

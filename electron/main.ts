@@ -95,7 +95,7 @@ function applyAppearance(): void {
   writeWindowState();
 }
 
-function currentBounds(win: BrowserWindow): { bounds: WindowBounds; maximized: boolean } {
+function currentBounds(win: BrowserWindow) {
   const maximized = win.isMaximized();
   const bounds = maximized ? win.getNormalBounds() : win.getBounds();
   return { bounds, maximized };
@@ -248,7 +248,7 @@ if (!gotLock) {
         throw err;
       }));
 
-    let raw: unknown = null;
+    let raw = null;
     try {
       raw = JSON.parse(fs.readFileSync(windowStateFile, "utf-8"));
     } catch {

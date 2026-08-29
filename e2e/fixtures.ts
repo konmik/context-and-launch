@@ -252,7 +252,7 @@ export async function createProject(
   const configDir = path.join(server.dataDir, "config");
   const configFile = path.join(configDir, "config.json");
   fs.mkdirSync(configDir, { recursive: true });
-  let registry: { projects: any[]; lastUsedProjectSlug: string | null } =
+  let registry: ProjectRegistry =
     { projects: [], lastUsedProjectSlug: null };
   if (fs.existsSync(configFile)) {
     registry = JSON.parse(fs.readFileSync(configFile, "utf-8"));
@@ -465,13 +465,13 @@ export type LauncherSettingsTab =
 
 export async function openLauncherSettingsTab(page: Page, name: LauncherSettingsTab): Promise<void> {
   await testId(page, `launcher-settings-tab-${name}`).click();
-  const contentTestId: Record<LauncherSettingsTab, string> = {
+  const contentTestId = {
     launch: "launcher-settings-launch-add-profile-button",
     prompts: "launcher-settings-skills-add-button",
     misc: "launcher-settings-misc-project-name-input",
     columns: "launcher-settings-columns-board-selector",
     "command-templates": "command-template-list",
-  };
+  } satisfies Record<LauncherSettingsTab, string>;
   await waitVisible(page, contentTestId[name]);
 }
 

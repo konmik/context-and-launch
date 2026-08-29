@@ -1,4 +1,4 @@
-const testGitConfig: Readonly<Record<string, string>> = {
+const testGitConfig = {
 	'user.email': 'test@test.com',
 	'user.name': 'Test',
 	'init.defaultBranch': 'master',
@@ -8,7 +8,7 @@ const testGitConfig: Readonly<Record<string, string>> = {
 	'core.fsmonitor': 'false',
 	'core.editor': 'true',
 	'core.longpaths': 'true',
-};
+} satisfies Readonly<Record<string, string>>;
 
 /**
  * Merge the suite's fast, non-interactive Git settings with command-specific

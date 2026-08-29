@@ -15,7 +15,7 @@ type Layout = {
   sourceMtimeOffsetMs: number; // mtime of src/file relative to dist/server/server.js
 };
 
-function makeFakeProject(layout: Layout): { dir: string; scriptPath: string } {
+function makeFakeProject(layout: Layout) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "run-sh-stale-"));
   fs.mkdirSync(path.join(dir, "src"));
   fs.writeFileSync(path.join(dir, "src", "app.tsx"), "// fake source\n");

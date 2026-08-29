@@ -7,7 +7,7 @@ export type HerdrAgentStatus = 'idle' | 'working' | 'blocked' | 'done' | 'unknow
 
 export function ticketStatusesFromPanes(
 	panes: HerdrTicketPane[],
-): Record<string, HerdrAgentStatus> {
+	) {
 	const statuses: Record<string, HerdrAgentStatus> = {};
 	const seenFolderNames = new Set<string>();
 	for (const pane of panes) {

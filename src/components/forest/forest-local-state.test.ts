@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { getViewMode, setViewMode, getForestViewport, setForestViewport } from './forest-local-state.js';
 
-function createStorage(): { getItem(k: string): string | null; setItem(k: string, v: string): void } {
+function createStorage() {
   const store = new Map<string, string>();
   return {
     getItem: (k) => store.get(k) ?? null,
     setItem: (k, v) => store.set(k, v),
-  };
+  } satisfies { getItem(k: string): string | null; setItem(k: string, v: string): void };
 }
 
 function throwingStorage() {

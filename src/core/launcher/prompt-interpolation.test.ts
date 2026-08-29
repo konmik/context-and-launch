@@ -67,7 +67,7 @@ describe('interpolatePrompt', () => {
 		const template = 'Result: {{val}}';
 		// String replacers would interpret these as special patterns;
 		// function replacers must pass them through literally.
-		const cases: Record<string, string> = {
+		const cases = {
 			'$1': '$1',
 			'$$': '$$',
 			'$&': '$&',
@@ -76,7 +76,7 @@ describe('interpolatePrompt', () => {
 			'$<name>': '$<name>',
 			'prefix $1 suffix': 'prefix $1 suffix',
 			'$$100': '$$100',
-		};
+		} satisfies Record<string, string>;
 		for (const [input, expected] of Object.entries(cases)) {
 			const result = interpolatePrompt(template, { val: input });
 			expect(result).toBe(`Result: ${expected}`);

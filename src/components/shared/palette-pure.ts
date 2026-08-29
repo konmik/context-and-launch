@@ -42,7 +42,7 @@ export function setStoredPalette(
 }
 
 // Hex form of the --background oklch tokens in src/app.css; parity is enforced by palette-backgrounds.test.ts.
-export const PALETTE_BACKGROUNDS: Record<PaletteName, { light: string; dark: string }> = {
+export const PALETTE_BACKGROUNDS = {
   "terminal": { light: "#ffffff", dark: "#000000" },
   "graphite": { light: "#ffffff", dark: "#000000" },
   "tokyo-night": { light: "#e1e2e7", dark: "#1a1b26" },
@@ -50,7 +50,7 @@ export const PALETTE_BACKGROUNDS: Record<PaletteName, { light: string; dark: str
   "dracula": { light: "#f8f8f2", dark: "#282a36" },
   "nord": { light: "#eceff4", dark: "#2e3440" },
   "gruvbox": { light: "#fbf1c8", dark: "#282828" },
-};
+} satisfies Record<PaletteName, { light: string; dark: string }>;
 
 export function paletteBackground(palette: PaletteName, dark: boolean): string {
   const entry = PALETTE_BACKGROUNDS[palette];

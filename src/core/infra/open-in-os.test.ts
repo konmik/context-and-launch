@@ -5,10 +5,7 @@ import type {
   CommandTemplateExecutor, CommandTemplateKey, CommandTemplateValues,
 } from "../command-template/command-template-types.js";
 
-function recordingExecutor(): {
-  executor: CommandTemplateExecutor;
-  calls: { key: CommandTemplateKey; cwd: string; values?: CommandTemplateValues }[];
-} {
+function recordingExecutor() {
   const calls: { key: CommandTemplateKey; cwd: string; values?: CommandTemplateValues }[] = [];
   const executor: CommandTemplateExecutor = {
     execute: async (key, cwd, values) => { calls.push({ key, cwd, values }); return ""; },

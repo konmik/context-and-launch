@@ -126,7 +126,7 @@ export function groupPosition(bounds: {
   y: number;
   width: number;
   height: number;
-}): { x: number; y: number } {
+}) {
   return {
     x: bounds.x + (bounds.width - CARD_WIDTH) / 2,
     y: bounds.y + (bounds.height - CARD_HEIGHT) / 2,

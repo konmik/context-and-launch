@@ -71,12 +71,12 @@ import { createReviewedLineTracker } from "./create-reviewed-line-tracker.js";
 import DiffSurface from "./DiffSurface.js";
 import ReviewPromptComposer, { type ActiveSelection } from "./ReviewPromptComposer.js";
 
-const SCOPE_LABELS: Record<DiffScope, string> = {
+const SCOPE_LABELS = {
 	all: "All Changes",
 	branch: "Branch Changes",
 	working: "Uncommitted Changes",
 	"last-commit": "Last Commit Changes",
-};
+} satisfies Record<DiffScope, string>;
 
 const TREE_WIDTH_DEFAULT = 270;
 const TREE_WIDTH_MIN = 180;

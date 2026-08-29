@@ -5,7 +5,7 @@ export function reconcileOrder(
 	existing: TicketOrder,
 	tickets: TicketInfo[],
 	columns: string[],
-): { order: TicketOrder; changed: boolean } {
+) {
 	if (columns.length === 0) return { order: {}, changed: JSON.stringify(existing) !== '{}' };
 
 	const ticketsByColumn = new Map<string, string[]>();

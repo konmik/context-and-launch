@@ -13,7 +13,7 @@ interface HarnessReport {
 	calls: { args: string[] }[];
 }
 
-function makeHarness(): { dir: string; harness: string; report: string } {
+function makeHarness() {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'run-agent-herdr-'));
 	tempDirs.push(dir);
 	const harness = path.join(dir, 'harness.ps1');
@@ -139,11 +139,7 @@ exit $exitCode
 	return { dir, harness, report };
 }
 
-function runHarness(mode: 'create' | 'reuse' | 'duplicate' | 'idle' | 'empty' | 'working'): {
-	status: number | null;
-	stderr: string;
-	report: HarnessReport;
-} {
+function runHarness(mode: 'create' | 'reuse' | 'duplicate' | 'idle' | 'empty' | 'working') {
 	const files = makeHarness();
 	const prompt = "hello\nmultiline 'world'";
 	const result = spawnSync('powershell', [
@@ -303,10 +299,7 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
 // The mocked-function harness above cannot see how PowerShell treats a real
 // program that writes to stderr, which is exactly where a failing Herdr call
 // used to lose its context. These cases put a native `herdr` on PATH instead.
-function runWithNativeStub(serverStatus: 'running' | 'not running', stderrLine: string): {
-	status: number | null;
-	stderr: string;
-} {
+function runWithNativeStub(serverStatus: 'running' | 'not running', stderrLine: string) {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'run-agent-herdr-stub-'));
 	tempDirs.push(dir);
 	fs.writeFileSync(path.join(dir, 'herdr.cmd'), [

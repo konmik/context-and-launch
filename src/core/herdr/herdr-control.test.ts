@@ -19,7 +19,7 @@ interface FakeExecOptions {
 	workspaceListError?: unknown;
 }
 
-function fakeExec(opts: FakeExecOptions): { exec: HerdrExecFn; calls: string[] } {
+function fakeExec(opts: FakeExecOptions) {
 	const calls: string[] = [];
 	const exec: HerdrExecFn = async (key) => {
 		calls.push(key);

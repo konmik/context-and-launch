@@ -40,20 +40,22 @@ export function createPromptPreviewController(deps: PromptPreviewDeps) {
 		const skillTexts = deps.orderedSkills()
 			.filter(s => checked.has(s.name))
 			.map(s => s.text);
-		const variables: Record<string, string> = {
+		const variables = {
 			projectPath: deps.projectPath(),
 			projectSlug: deps.projectSlug,
 			skills: skillTexts.join('\n'),
 			launchDir: deps.launchDir(),
-		};
+		} satisfies Record<string, string>;
 		const t = deps.ticket?.();
 		if (t) {
 			const ticketDir = deps.worktreeDir().replace(/[\\/]$/, '') + "/" + t.folderName;
-			variables.ticketDir = ticketDir;
-			variables.ticketSlug = t.folderName;
-			variables.ticketTitle = t.title;
-			variables.ticketNumber = t.number;
-			variables.ticketStatus = t.status;
+			Object.assign(variables, {
+				ticketDir,
+				ticketSlug: t.folderName,
+				ticketTitle: t.title,
+				ticketNumber: t.number,
+				ticketStatus: t.status,
+			});
 		}
 		return interpolatePrompt(templateText, variables);
 	});
