@@ -10,8 +10,13 @@ import {
   pushTickets, remoteLog,
 } from "./git-fixtures.js";
 import { testId, waitVisible } from "./locators.js";
+import type { StatusJson } from "../src/core/ticket/ticket-repository.js";
 
-function writeTicketFolder(root: string, folderName: string, status: object): void {
+function writeTicketFolder(
+  root: string,
+  folderName: string,
+  status: Pick<StatusJson, "number" | "title" | "status">,
+): void {
   fs.mkdirSync(path.join(root, folderName), { recursive: true });
   fs.writeFileSync(path.join(root, folderName, "status.json"), JSON.stringify(status));
 }
