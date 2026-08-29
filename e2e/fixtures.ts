@@ -610,7 +610,7 @@ export function readProjectRegistry(server: TestServer): ProjectRegistry {
   return JSON.parse(fs.readFileSync(file, "utf-8")) as ProjectRegistry;
 }
 
-export interface LauncherConfigShape {
+export interface PersistedLauncherConfig {
   templates?: { name: string; text: string; order?: number }[];
   skills?: { name: string; text: string; order?: number }[];
   profiles?: { name: string; command: string; order?: number }[];
@@ -628,7 +628,7 @@ export interface LauncherConfigShape {
   conflictResolutionPrompt?: string;
 }
 
-export function readAppLauncherConfig(server: TestServer): LauncherConfigShape | null {
+export function readAppLauncherConfig(server: TestServer): PersistedLauncherConfig | null {
   const file = path.join(server.dataDir, "config", "launcher-config.json");
   if (!fs.existsSync(file)) return null;
   return JSON.parse(fs.readFileSync(file, "utf-8"));
@@ -636,25 +636,25 @@ export function readAppLauncherConfig(server: TestServer): LauncherConfigShape |
 
 export function readProjectLauncherConfig(
   server: TestServer, projectSlug: string,
-): LauncherConfigShape | null {
+): PersistedLauncherConfig | null {
   const file = path.join(server.dataDir, "projects", projectSlug, "config", "launcher-config.json");
   if (!fs.existsSync(file)) return null;
   return JSON.parse(fs.readFileSync(file, "utf-8"));
 }
 
-export interface BoardDefinitionShape {
+export interface PersistedBoardDefinition {
   id: string;
   name: string;
   columns: { name: string; description?: string; color?: string }[];
 }
 
-export function readBoardDefinitions(server: TestServer): BoardDefinitionShape[] {
+export function readBoardDefinitions(server: TestServer): PersistedBoardDefinition[] {
   const file = path.join(server.dataDir, "config", "boards.json");
   if (!fs.existsSync(file)) return [];
   return JSON.parse(fs.readFileSync(file, "utf-8"));
 }
 
-export interface StatusJsonShape {
+export interface PersistedTicketStatus {
   number: string;
   title: string;
   status: string;
@@ -667,7 +667,7 @@ export function readTicketStatus(
   server: TestServer,
   projectSlug: string,
   folderName: string,
-): StatusJsonShape | null {
+): PersistedTicketStatus | null {
   const file = path.join(
     server.dataDir, "projects", projectSlug, "tickets", folderName, "status.json",
   );
