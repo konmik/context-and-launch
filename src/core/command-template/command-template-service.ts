@@ -53,8 +53,8 @@ const FAILURE_LOG_MESSAGES = {
 	'spawn-error': 'spawn error',
 };
 
-function failureLogMessage(error: unknown): string {
-	return error instanceof ProcessError ? FAILURE_LOG_MESSAGES[error.kind] : 'spawn error';
+function failureLogMessage(cause: unknown): string {
+	return cause instanceof ProcessError ? FAILURE_LOG_MESSAGES[cause.kind] : 'spawn error';
 }
 
 function trustedScriptContext(source: TrustedScriptSource): AppLogContext {
@@ -207,7 +207,7 @@ export class CommandTemplateService implements CommandTemplateExecutor {
 		}
 	}
 
-	private logFailure(key: string, error: unknown, extra: AppLogContext = {}): void {
-		this.log('command-template', failureLogMessage(error), { ...extra, commandTemplateKey: key });
+	private logFailure(key: string, cause: unknown, extra: AppLogContext = {}): void {
+		this.log('command-template', failureLogMessage(cause), { ...extra, commandTemplateKey: key });
 	}
 }

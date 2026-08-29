@@ -33,11 +33,11 @@ function serverStatusFromOutput(output: string): HerdrServerStatus | undefined {
  * question once, at the boundary, instead of every caller guessing from output.
  */
 async function herdrUnavailability(
-	error: unknown, exec: HerdrExecFn,
+	cause: unknown, exec: HerdrExecFn,
 ): Promise<HerdrUnavailableError | undefined> {
-	if (!(error instanceof ProcessError)) return undefined;
-	if (error.kind === 'command-not-found') return new HerdrUnavailableError('cli-missing');
-	if (error.kind !== 'exited') return undefined;
+	if (!(cause instanceof ProcessError)) return undefined;
+	if (cause.kind === 'command-not-found') return new HerdrUnavailableError('cli-missing');
+	if (cause.kind !== 'exited') return undefined;
 	let status: HerdrServerStatus | undefined;
 	try {
 		status = serverStatusFromOutput(await exec('herdr.status.server'));

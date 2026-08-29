@@ -6,6 +6,7 @@ import { COMMAND_TEMPLATE_DEFINITION_BY_KEY, COMMAND_TEMPLATE_DEFINITIONS } from
 import type { CommandTemplateKey } from './command-template-definitions.js';
 import { undeclaredPlaceholders } from './command-template-interpolation.js';
 import type { CommandTemplateDefinition, CommandTemplateEntry } from './command-template-types.js';
+import type { JsonValue } from '../shared/json.js';
 
 type ScriptMap = Record<string, string>;
 
@@ -13,7 +14,7 @@ const BUNDLED_DEFAULTS_LABEL = 'The bundled Command Template catalog';
 const ScriptRecordSchema = v.record(v.string(), v.unknown());
 const ScriptSchema = v.string();
 
-function validateScriptMap(value: unknown, fileLabel: string) {
+function validateScriptMap(value: JsonValue, fileLabel: string) {
 	if (Array.isArray(value)) {
 		throw new Error(`${fileLabel} must contain a JSON object of Command Template strings.`);
 	}

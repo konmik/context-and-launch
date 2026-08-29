@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import type { JsonValue } from "../src/core/shared/json.js";
 
 export interface WindowBounds {
   x?: number;
@@ -38,17 +39,12 @@ const WindowStateEntrySchema = v.object({
 });
 const WindowStateRecordSchema = v.record(v.string(), v.unknown());
 
-function parseBounds(raw: unknown): WindowBounds | null {
-  const parsed = v.safeParse(WindowBoundsSchema, raw);
-  return parsed.success ? parsed.output : null;
-}
-
-function parseEntry(raw: unknown): WindowStateEntry | null {
+function parseEntry(raw: JsonValue): WindowStateEntry | null {
   const parsed = v.safeParse(WindowStateEntrySchema, raw);
   return parsed.success ? parsed.output : null;
 }
 
-export function migrateWindowState(raw: unknown): WindowStateEntry[] {
+export function migrateWindowState(raw: JsonValue): WindowStateEntry[] {
   if (Array.isArray(raw)) return [];
   const parsed = v.safeParse(WindowStateRecordSchema, raw);
   if (!parsed.success) return [];
@@ -61,9 +57,9 @@ export function migrateWindowState(raw: unknown): WindowStateEntry[] {
     }
     return entries;
   }
-  const bounds = parseBounds(r);
-  if (bounds) {
-    return [{ projectSlug: null, bounds, maximized: !!r.maximized }];
+  const parsedBounds = v.safeParse(WindowBoundsSchema, r);
+  if (parsedBounds.success) {
+    return [{ projectSlug: null, bounds: parsedBounds.output, maximized: !!r.maximized }];
   }
   return [];
 }

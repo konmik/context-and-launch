@@ -1,6 +1,8 @@
+import type { JsonValue } from "~/core/shared/json.js";
+
 export type AppMode = "light" | "dark" | "system";
 
-export function parseMode(value: unknown): AppMode | undefined {
+export function parseMode(value: JsonValue | undefined): AppMode | undefined {
   return value === "light" || value === "dark" || value === "system" ? value : undefined;
 }
 

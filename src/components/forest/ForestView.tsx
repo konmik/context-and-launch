@@ -80,8 +80,8 @@ export default function ForestView(props: ForestViewProps) {
     return containerRef;
   }
 
-  function reportError(caught: unknown) {
-    setError(errorPayload(caught));
+  function reportError(cause: unknown) {
+    setError(errorPayload(cause));
   }
 
   function findTicket(ticketNumber: string): TicketInfo {

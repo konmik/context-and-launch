@@ -6,6 +6,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import * as v from "valibot";
+import type { JsonValue } from "../src/core/shared/json.js";
 import { startServer, type ServerHandle } from "./server-adapter.js";
 import {
   paletteBackground,
@@ -245,15 +246,15 @@ if (!gotLock) {
     const base = APP_ORIGIN;
 
     protocol.handle(APP_SCHEME, (request) =>
-      handleAppRequest(request, handle.handleRequest).catch((err: unknown) => {
+      handleAppRequest(request, handle.handleRequest).catch((cause: unknown) => {
         handle.appLog(
           "app-protocol",
-          `${request.method} ${request.url} failed: ${err instanceof Error ? err.stack ?? err.message : String(err)}`,
+          `${request.method} ${request.url} failed: ${cause instanceof Error ? cause.stack ?? cause.message : String(cause)}`,
         );
-        throw err;
+        throw cause;
       }));
 
-    let raw = null;
+    let raw: JsonValue = null;
     try {
       raw = JSON.parse(fs.readFileSync(windowStateFile, "utf-8"));
     } catch {
@@ -261,8 +262,12 @@ if (!gotLock) {
     }
     const appearanceState = v.safeParse(AppearanceStateSchema, raw);
     if (appearanceState.success) {
-      if (isPaletteName(appearanceState.output.palette)) currentPalette = appearanceState.output.palette;
-      const storedMode = parseMode(appearanceState.output.mode);
+      const storedPalette = v.safeParse(v.string(), appearanceState.output.palette);
+      if (storedPalette.success && isPaletteName(storedPalette.output)) {
+        currentPalette = storedPalette.output;
+      }
+      const storedModeInput = v.safeParse(v.string(), appearanceState.output.mode);
+      const storedMode = storedModeInput.success ? parseMode(storedModeInput.output) : undefined;
       if (storedMode) currentMode = storedMode;
     }
     let entries = migrateWindowState(raw);
@@ -283,14 +288,14 @@ if (!gotLock) {
       applyWindowBackgrounds();
     });
 
-    ipcMain.on("context-launch:set-palette", (_event, name: unknown) => {
+    ipcMain.on("context-launch:set-palette", (_event, name: JsonValue | undefined) => {
       if (isPaletteName(name) && name !== currentPalette) {
         currentPalette = name;
         applyAppearance();
       }
     });
 
-    ipcMain.on("context-launch:set-mode", (_event, mode: unknown) => {
+    ipcMain.on("context-launch:set-mode", (_event, mode: JsonValue | undefined) => {
       const parsed = parseMode(mode);
       if (parsed && parsed !== currentMode) {
         currentMode = parsed;
@@ -298,7 +303,7 @@ if (!gotLock) {
       }
     });
 
-    ipcMain.handle("context-launch:pick-directory", async (event, preselect: unknown) => {
+    ipcMain.handle("context-launch:pick-directory", async (event, preselect: JsonValue | undefined) => {
       const owner = BrowserWindow.fromWebContents(event.sender);
       const options: OpenDialogOptions = {
         properties: ["openDirectory"],

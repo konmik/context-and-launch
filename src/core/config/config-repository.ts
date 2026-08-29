@@ -1,9 +1,10 @@
 import fs from 'fs';
 import path from 'path';
 import { randomUUID } from 'node:crypto';
+import type { JsonValue } from '../shared/json.js';
 
 export class ConfigRepository {
-	readJson(filePath: string): unknown | null {
+	readJson(filePath: string): JsonValue | null {
 		if (!fs.existsSync(filePath)) return null;
 		const text = fs.readFileSync(filePath, 'utf-8');
 		try {
@@ -15,7 +16,7 @@ export class ConfigRepository {
 		}
 	}
 
-	writeJson(filePath: string, data: unknown): void {
+	writeJson<Data extends object>(filePath: string, data: Data): void {
 		const parentDir = path.dirname(filePath);
 		fs.mkdirSync(parentDir, { recursive: true });
 		const temporaryPath = path.join(

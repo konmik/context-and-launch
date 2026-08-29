@@ -34,7 +34,7 @@ export interface ForestSurfaceCommands {
   persistViewport?: (viewport: ForestViewport) => void;
   registerSurface: (api: ForestSurfaceApi | undefined) => void;
   removeDependency: (relation: DependencyRelation) => Promise<void>;
-  reportError: (error: unknown) => void;
+  reportError: (cause: unknown) => void;
   ungroup: (ticketNumber: string) => void;
 }
 interface Props { data: ForestSurfaceData; commands: ForestSurfaceCommands; connectionSession: Accessor<ForestConnectionSession>; connectionCommands: ForestConnectionCommands }

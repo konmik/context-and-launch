@@ -6,7 +6,7 @@ type WatcherEvent = 'ready' | 'error' | 'add' | 'change' | 'unlink' | 'addDir' |
 
 export interface FileWatcherHandle {
 	on(event: 'ready', callback: () => void): FileWatcherHandle;
-	on(event: 'error', callback: (error: unknown) => void): FileWatcherHandle;
+	on(event: 'error', callback: (cause: unknown) => void): FileWatcherHandle;
 	on(event: Exclude<WatcherEvent, 'ready' | 'error'>, callback: () => void): FileWatcherHandle;
 	close(): Promise<void>;
 }

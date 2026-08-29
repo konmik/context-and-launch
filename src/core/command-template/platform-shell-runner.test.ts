@@ -62,9 +62,9 @@ describe("platform shell runner failure classification", () => {
   it.concurrent("only answers exitedWith for a code the command itself chose", async () => {
     const cwd = makeTempDir();
     const missing = await runCapturedScript("definitely-not-a-real-executable-xyz", cwd)
-      .then(() => { throw new Error("expected a failure"); }, (error: unknown) => error as ProcessError);
+      .then(() => { throw new Error("expected a failure"); }, (cause: unknown) => cause as ProcessError);
     const refused = await runCapturedScript(`${quoted(process.execPath)} -e "process.exit(1)"`, cwd)
-      .then(() => { throw new Error("expected a failure"); }, (error: unknown) => error as ProcessError);
+      .then(() => { throw new Error("expected a failure"); }, (cause: unknown) => cause as ProcessError);
     expect(refused.exitedWith(1)).toBe(true);
     expect(missing.exitedWith(1)).toBe(false);
   });

@@ -514,8 +514,8 @@ export class ReviewPromptQueueService {
 		if (existing) clearTimeout(existing);
 		const timer = setTimeout(() => {
 			this.timers.delete(key);
-			void task().catch((error: unknown) => {
-				appLog("diff-review", `scheduled queue processing failed: ${errorMessage(error)}`);
+			void task().catch((cause: unknown) => {
+				appLog("diff-review", `scheduled queue processing failed: ${errorMessage(cause)}`);
 			});
 		}, Math.max(0, delayMs));
 		this.timers.set(key, timer);

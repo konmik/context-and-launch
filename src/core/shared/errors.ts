@@ -60,27 +60,27 @@ export class ProcessError extends Error {
 
 const ErrorMessageSchema = v.object({ message: v.string() });
 
-export function errorMessage(e: unknown): string {
-	if (e instanceof Error) return e.message;
-	const stringResult = v.safeParse(v.string(), e);
+export function errorMessage(cause: unknown): string {
+	if (cause instanceof Error) return cause.message;
+	const stringResult = v.safeParse(v.string(), cause);
 	if (stringResult.success) return stringResult.output;
-	const objectResult = v.safeParse(ErrorMessageSchema, e);
+	const objectResult = v.safeParse(ErrorMessageSchema, cause);
 	if (objectResult.success) return objectResult.output.message;
 	return 'Unknown error';
 }
 
-export function errorResult(e: unknown) {
-	return { ok: false as const, type: "error" as const, message: errorMessage(e), errorInfo: errorPayload(e) };
+export function errorResult(cause: unknown) {
+	return { ok: false as const, type: "error" as const, message: errorMessage(cause), errorInfo: errorPayload(cause) };
 }
 
-export function errorPayload(e: unknown, title?: string): ErrorInfo {
-	if (e instanceof ProcessError) {
+export function errorPayload(cause: unknown, title?: string): ErrorInfo {
+	if (cause instanceof ProcessError) {
 		return {
 			title,
-			description: e.shortDescription,
-			command: e.command,
-			output: e.output,
+			description: cause.shortDescription,
+			command: cause.command,
+			output: cause.output,
 		};
 	}
-	return { title, description: errorMessage(e) };
+	return { title, description: errorMessage(cause) };
 }

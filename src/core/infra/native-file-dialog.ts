@@ -10,8 +10,8 @@ import { normalizeMacPickedPath } from './picker-paths.js';
  * tool does: zenity, kdialog and osascript all exit 1. `exitedWith` is what makes
  * that readable as an answer rather than as a broken invocation.
  */
-function isCancellation(error: unknown): boolean {
-	return error instanceof ProcessError && error.exitedWith(1);
+function isCancellation(cause: unknown): boolean {
+	return cause instanceof ProcessError && cause.exitedWith(1);
 }
 
 /**
@@ -19,9 +19,9 @@ function isCancellation(error: unknown): boolean {
  * own message, which surfaces as AppError. A missing interpreter or tool surfaces
  * as command-not-found. Both mean "no picker here", neither is an app failure.
  */
-function unavailableReason(error: unknown): string | undefined {
-	if (error instanceof AppError) return error.message;
-	if (error instanceof ProcessError && error.kind === 'command-not-found') return unavailableMessage();
+function unavailableReason(cause: unknown): string | undefined {
+	if (cause instanceof AppError) return cause.message;
+	if (cause instanceof ProcessError && cause.kind === 'command-not-found') return unavailableMessage();
 	return undefined;
 }
 

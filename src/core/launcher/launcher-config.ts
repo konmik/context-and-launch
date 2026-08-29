@@ -1,5 +1,6 @@
 import path from 'path';
 import * as v from 'valibot';
+import type { JsonValue } from '../shared/json.js';
 import type { ConfigPaths } from '../config/config-paths.js';
 import { ConfigRepository } from '../config/config-repository.js';
 
@@ -135,7 +136,7 @@ const LauncherConfigSchema = v.object({
 	conflictResolutionPrompt: v.optional(v.string()),
 });
 
-function parseConfig(raw: unknown): LauncherConfig {
+function parseConfig(raw: JsonValue): LauncherConfig {
 	const { columnDefaults, ...config } = v.parse(LauncherConfigSchema, raw);
 	if (columnDefaults === undefined) return config;
 	if (!v.is(UnknownObjectSchema, columnDefaults)) {

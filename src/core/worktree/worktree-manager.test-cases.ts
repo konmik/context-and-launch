@@ -481,7 +481,7 @@ describe('WorktreeManager', () => {
 		const first = await Promise.race([
 			manager.ensureWorktree(projectDir, 'deadlock-project').then(
 				(v) => ({ status: 'fulfilled' as const, value: v }),
-				(e: unknown) => ({ status: 'rejected' as const, reason: e })
+				(cause: unknown) => ({ status: 'rejected' as const, reason: cause })
 			),
 			new Promise<never>((_, reject) =>
 				setTimeout(() => reject(new Error('DEADLOCK: first call timed out')), DEADLOCK_MS)

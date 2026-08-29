@@ -27,7 +27,7 @@ async function deferNextLogRead(page: Page): Promise<{
 	let releaseGate!: () => void;
 	const released = new Promise<void>((resolve) => { releaseGate = resolve; });
 	let resolveHandled!: () => void;
-	let rejectHandled!: (error: unknown) => void;
+	let rejectHandled!: (cause: unknown) => void;
 	const handled = new Promise<void>((resolve, reject) => {
 		resolveHandled = resolve;
 		rejectHandled = reject;

@@ -143,7 +143,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
       if (!currentProjectSlug) return;
       void reconcileReviewPromptQueue(currentProjectSlug)
         .then(() => revalidate("diff-review-queue"))
-        .catch((error: unknown) => console.error("Review Prompt Queue reconciliation failed", error));
+        .catch((cause: unknown) => console.error("Review Prompt Queue reconciliation failed", cause));
     },
   );
   createEffect(herdrPollingActive, (active) => {

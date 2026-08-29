@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import type { JsonValue } from "../shared/json.js";
 
 export interface LaunchRequest {
   initialPrompt: string;
@@ -23,13 +24,13 @@ const emptyLaunchRequest = (): LaunchRequest => ({
   skipBehindRemote: false, launchDir: "",
 });
 
-export function parseLaunchRequest(body: unknown): LaunchRequest {
+export function parseLaunchRequest(body: JsonValue | undefined): LaunchRequest {
   const parsed = v.safeParse(LaunchRequestSchema, body);
   return parsed.success ? parsed.output : emptyLaunchRequest();
 }
 
 export async function readLaunchRequest(request: Request): Promise<LaunchRequest> {
-  let body: unknown;
+  let body: JsonValue | undefined;
   try {
     body = await request.json();
   } catch (error) {

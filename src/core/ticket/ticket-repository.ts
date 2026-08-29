@@ -3,6 +3,7 @@ import path from 'path';
 import { randomUUID } from 'node:crypto';
 import * as v from 'valibot';
 import { ConfigRepository } from '../config/config-repository.js';
+import type { JsonValue } from '../shared/json.js';
 
 export const StatusJsonSchema = v.looseObject({
 	number: v.string(),
@@ -18,8 +19,8 @@ export const StatusJsonSchema = v.looseObject({
 });
 export type StatusJson = v.InferOutput<typeof StatusJsonSchema>;
 
-function isEnoent(err: unknown): boolean {
-	return (err as NodeJS.ErrnoException | null)?.code === 'ENOENT';
+function isEnoent(cause: unknown): boolean {
+	return (cause as NodeJS.ErrnoException | null)?.code === 'ENOENT';
 }
 
 interface TransactionState {
@@ -74,7 +75,7 @@ export class TicketRepository {
 
 	readStatusJson(dir: string): StatusJson | null {
 		const file = path.join(dir, 'status.json');
-		let raw: unknown;
+		let raw: JsonValue | null;
 		try {
 			raw = this.configRepo.readJson(file);
 		} catch (err) {
@@ -93,7 +94,7 @@ export class TicketRepository {
 			if (isEnoent(err)) return null;
 			throw err;
 		}
-		let raw: unknown;
+		let raw: JsonValue;
 		try {
 			raw = JSON.parse(text);
 		} catch (err) {
@@ -103,7 +104,7 @@ export class TicketRepository {
 		return this.validateStatusJson(raw, dir);
 	}
 
-	private validateStatusJson(raw: unknown, dir: string): StatusJson | null {
+	private validateStatusJson(raw: JsonValue, dir: string): StatusJson | null {
 		if (raw === null) return null;
 		const parsed = v.safeParse(StatusJsonSchema, raw);
 		if (!parsed.success) {
@@ -117,7 +118,7 @@ export class TicketRepository {
 		this.writeJson(path.join(dir, 'status.json'), status);
 	}
 
-	readWorktreeJson(worktreeDir: string, fileName: string): unknown | null {
+	readWorktreeJson(worktreeDir: string, fileName: string): JsonValue | null {
 		const filePath = path.join(worktreeDir, fileName);
 		try {
 			return this.configRepo.readJson(filePath);
@@ -127,7 +128,7 @@ export class TicketRepository {
 		}
 	}
 
-	writeWorktreeJson(worktreeDir: string, fileName: string, data: unknown): void {
+	writeWorktreeJson<Data extends object>(worktreeDir: string, fileName: string, data: Data): void {
 		this.writeJson(path.join(worktreeDir, fileName), data);
 	}
 
@@ -220,7 +221,7 @@ export class TicketRepository {
 		return fs.realpathSync(filePath);
 	}
 
-	private writeJson(filePath: string, data: unknown): void {
+	private writeJson<Data extends object>(filePath: string, data: Data): void {
 		const before = this.captureFile(filePath);
 		try {
 			this.configRepo.writeJson(filePath, data);

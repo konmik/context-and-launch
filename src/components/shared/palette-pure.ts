@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import type { JsonValue } from "~/core/shared/json.js";
 import { modeStorageKey } from "./theme-toggle-pure.js";
 
 const PROJECT_PATH_PATTERN = /^\/project\/([^/]+)$/;
@@ -13,7 +14,7 @@ export type PaletteName = (typeof PALETTES)[number];
 export const DEFAULT_PALETTE: PaletteName = "terminal";
 const PaletteNameSchema = v.picklist(PALETTES);
 
-export function isPaletteName(value: unknown): value is PaletteName {
+export function isPaletteName(value: JsonValue | undefined): value is PaletteName {
   return v.safeParse(PaletteNameSchema, value).success;
 }
 
