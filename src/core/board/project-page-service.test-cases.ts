@@ -1,4 +1,5 @@
 import { describe, it as baseIt, expect, vi, afterEach, afterAll } from 'vitest';
+import { fromPartial } from '@total-typescript/shoehorn';
 import fs from 'fs';
 import path from 'path';
 import { spawn } from 'node:child_process';
@@ -26,28 +27,28 @@ function stubDeps(overrides: {
 } = {}) {
 	const projects: ProjectInfo[] = overrides.projects ?? [];
 
-	const projectRegistry = {
+	const projectRegistry = fromPartial<ProjectRegistry>({
 		listProjects: vi.fn(() => projects),
-	} as unknown as ProjectRegistry;
+	});
 
-	const boardConfigManager = {
+	const boardConfigManager = fromPartial<BoardConfigManager>({
 		getConfig: vi.fn(() => ({
 			columns: [{ name: 'todo' }, { name: 'in-progress' }, { name: 'done' }],
 		})),
-	} as unknown as BoardConfigManager;
-	const worktreeManager = {
+	});
+	const worktreeManager = fromPartial<WorktreeManager>({
 		ensureWorktree: vi.fn(async () => {
 			if (!overrides.worktreeDir) throw new Error('no worktreeDir configured in stub');
 			return overrides.worktreeDir;
 		}),
-	} as unknown as WorktreeManager;
-	const fileWatcher = { watch: vi.fn() } as unknown as FileWatcher;
+	});
+	const fileWatcher = fromPartial<FileWatcher>({ watch: vi.fn() });
 	const ticketSyncManager = overrides.ticketSyncManager ?? ({} as TicketSyncManager);
-	const launcherConfigManager = {
+	const launcherConfigManager = fromPartial<LauncherConfigManager>({
 		resolveWorktreeSettings: vi.fn(() => ({
 			worktreeRootPath: overrides.agentWorktreeRoot ?? '/nonexistent-agent-worktree-root',
 		})),
-	} as unknown as LauncherConfigManager;
+	});
 
 	const service = new ProjectPageService(
 		projectRegistry,
@@ -255,11 +256,11 @@ describe('ProjectPageService.loadProjectPage', () => {
 		}
 
 		function simpleSyncManager() {
-			return {
+			return fromPartial<TicketSyncManager>({
 				finalizeResolution: vi.fn(),
 				hasRemote: vi.fn(async () => false),
 				detectConflict: vi.fn(async () => false),
-			} as unknown as TicketSyncManager;
+			});
 		}
 
 		it('sets hasAgentWorktree true when the worktree folder exists on disk', async () => {
@@ -325,7 +326,7 @@ describe('ProjectPageService.loadSyncStatus', () => {
 		const finalizeGate = new Promise<void>((resolve) => { releaseFinalize = resolve; });
 		let finalizeStarted!: () => void;
 		const finalizeStartedGate = new Promise<void>((resolve) => { finalizeStarted = resolve; });
-		const ticketSyncManager = {
+		const ticketSyncManager = fromPartial<TicketSyncManager>({
 			finalizeResolution: vi.fn(async () => {
 				finalizeStarted();
 				await finalizeGate;
@@ -336,7 +337,7 @@ describe('ProjectPageService.loadSyncStatus', () => {
 				return false;
 			}),
 			detectConflict: vi.fn(async () => false),
-		} as unknown as TicketSyncManager;
+		});
 
 		const { service } = stubDeps({
 			projects: [{ path: worktreeDir, projectSlug: 'proj', name: 'proj', available: true }],

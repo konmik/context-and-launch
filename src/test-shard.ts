@@ -1,12 +1,9 @@
 import type { it as vitestIt } from "vitest";
 
 type TestApi = typeof vitestIt;
-type Registrar = (...args: unknown[]) => unknown;
-type ConditionalRegistrar = Registrar & { concurrent: unknown };
-
-function asRegistrar(value: unknown): Registrar {
-	return value as Registrar;
-}
+type Registrar = TestApi["concurrent"];
+type RegistrarCall = (...args: Parameters<Registrar>) => ReturnType<Registrar>;
+type ConditionalRegistrar = RegistrarCall & { concurrent: RegistrarCall };
 
 /**
  * Distributes declarations from one integration suite across test files.
@@ -20,7 +17,7 @@ export function shardTestCases(
 	shard: number | readonly number[],
 	total: number,
 ): TestApi {
-	const shards = typeof shard === "number" ? [shard] : shard;
+	const shards = Array.isArray(shard) ? shard : [shard];
 	const invalidShard = shards.some((value) =>
 		!Number.isInteger(value) || value < 0 || value >= total
 	);
@@ -35,23 +32,20 @@ export function shardTestCases(
 	}
 
 	let index = 0;
-	const selected = (registrar: unknown): Registrar => (...args: unknown[]) => {
+	const selected = (registrar: Registrar): RegistrarCall => (...args: Parameters<Registrar>) => {
 		const selectedForShard = shards.includes(index % total);
 		index += 1;
-		if (selectedForShard) return asRegistrar(registrar)(...args);
-		return asRegistrar(base.skip)(...args);
+		if (selectedForShard) return registrar(...args);
+		return base.skip(...args);
 	};
-	const conditional = (registrar: unknown): unknown => {
-		const chain = registrar as ConditionalRegistrar;
-		return Object.assign(
-			selected(chain),
-			{ concurrent: selected(chain.concurrent) },
-		);
-	};
+	const conditional = (registrar: Registrar): ConditionalRegistrar => Object.assign(
+		selected(registrar),
+		{ concurrent: selected(registrar.concurrent) },
+	);
 
-	return Object.assign(selected(base), {
+	return Object.assign(selected(base), base, {
 		concurrent: selected(base.concurrent),
 		runIf: (condition: boolean) => conditional(base.runIf(condition)),
 		skipIf: (condition: boolean) => conditional(base.skipIf(condition)),
-	}) as unknown as TestApi;
+	});
 }

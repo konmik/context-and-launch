@@ -30,17 +30,19 @@ window.__observerActive = false;
 })();
 `;
 
-interface DetachProbe {
-  __fullUiDetachCount: number;
-  __observerActive: boolean;
+declare global {
+  interface Window {
+    __fullUiDetachCount: number;
+    __observerActive: boolean;
+  }
 }
 
 function detachCount(page: Page): Promise<number> {
-  return page.evaluate(() => (window as unknown as DetachProbe).__fullUiDetachCount);
+  return page.evaluate(() => window.__fullUiDetachCount);
 }
 
 function observerActive(page: Page): Promise<boolean> {
-  return page.evaluate(() => (window as unknown as DetachProbe).__observerActive);
+  return page.evaluate(() => window.__observerActive);
 }
 
 function trackServerResponses(page: Page): string[] {
@@ -78,7 +80,7 @@ describe("Full-screen flicker (e2e, real server)", () => {
     await ctx.page.addInitScript(DETACH_COUNTER);
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
     await ctx.page.evaluate(() => {
-      (window as unknown as { __fullUiDetachCount: number }).__fullUiDetachCount = 0;
+      window.__fullUiDetachCount = 0;
     });
     await ctx.page.click('[data-testid="kanban-board-ticket-card"][data-folder-name="t-1-alpha"]');
     await waitVisible(ctx.page, "ticket-detail-tab-editor");

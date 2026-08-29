@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
+import { fromPartial } from '@total-typescript/shoehorn';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -109,9 +110,9 @@ describe('cascadeClearBoardId', () => {
 		dirs.push(configDir);
 		initializeDataDir(new ConfigPaths(configDir));
 
-		const brokenRegistry = {
+		const brokenRegistry = fromPartial<ProjectRegistry>({
 			listProjects() { throw new Error('corrupt'); },
-		} as unknown as ProjectRegistry;
+		});
 
 		const cleared = cascadeClearBoardId('any-board', {
 			projectRegistry: brokenRegistry,

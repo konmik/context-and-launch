@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { fromPartial } from "@total-typescript/shoehorn";
 import { resolveDefaults, computeLaunchDir, launchErrorInfo } from "./agent-launcher-pure.js";
 import type { MergedLauncherConfig } from "~/core/launcher/launcher-config.js";
 
@@ -27,7 +28,7 @@ describe("launchErrorInfo", () => {
 });
 
 describe("resolveDefaults", () => {
-	const config = {
+	const config = fromPartial<MergedLauncherConfig>({
 		templates: [{ name: "default", text: "" }],
 		profiles: [{ name: "fast", command: "" }],
 		skills: [],
@@ -40,7 +41,7 @@ describe("resolveDefaults", () => {
 				skillOrder: ["lint", "test"],
 			},
 		},
-	} as unknown as MergedLauncherConfig;
+	});
 
 	it("returns column defaults when they exist", () => {
 		const result = resolveDefaults(config, "todo");

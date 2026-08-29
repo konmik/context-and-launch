@@ -1,7 +1,9 @@
 import { createServices, type ServiceContainer } from './service-container.js';
 import { initializeDataDir } from './initialize.js';
 
-interface ServiceGlobal { __aiStagesServices?: ServiceContainer }
+declare global {
+	var __serviceContainer: ServiceContainer | undefined;
+}
 
 function readPositiveMs(name: string): number | undefined {
 	const raw = process.env[name];
@@ -13,20 +15,17 @@ function readPositiveMs(name: string): number | undefined {
 	return parsed;
 }
 
-function initializeServices(): ServiceContainer {
-	const g = globalThis as unknown as ServiceGlobal;
-	if (g.__aiStagesServices) return g.__aiStagesServices;
-	const s = createServices({
+function createInitializedServices(): ServiceContainer {
+	const services = createServices({
 		baseDir: process.env.CONTEXT_LAUNCH_DATA_DIR || undefined,
 		configDefaultsDir: process.env.CONTEXT_LAUNCH_CONFIG_DEFAULTS_DIR || undefined,
 		watchDebounceMs: readPositiveMs('CONTEXT_LAUNCH_WATCH_DEBOUNCE_MS'),
 	});
-	initializeDataDir(s.configPaths);
-	g.__aiStagesServices = s;
-	return s;
+	initializeDataDir(services.configPaths);
+	return services;
 }
 
-const services = initializeServices();
+const services = globalThis.__serviceContainer ??= createInitializedServices();
 
 export const configPaths = services.configPaths;
 export const configRepo = services.configRepo;

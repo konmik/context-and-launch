@@ -6,6 +6,12 @@ import {
 } from "./forest-helpers.js";
 import { testId } from "./locators.js";
 
+declare global {
+  interface Window {
+    __lineSamples: { dx: number; dy: number; dyEnd: number }[];
+  }
+}
+
 describe("Forest sub-forest window", () => {
   const ctx = setupE2E();
 
@@ -153,7 +159,7 @@ describe("Forest sub-forest window", () => {
 
     await ctx.page.evaluate(() => {
       const samples: { dx: number; dy: number; dyEnd: number }[] = [];
-      (window as unknown as { __lineSamples: unknown }).__lineSamples = samples;
+      window.__lineSamples = samples;
       const deadline = performance.now() + 2000;
       const sample = () => {
         const path = document.querySelector<SVGPathElement>(
@@ -186,9 +192,7 @@ describe("Forest sub-forest window", () => {
     await forestGroupCard(ctx.page, "S-G").click();
     await ctx.page.waitForTimeout(1200);
     const samples = await ctx.page.evaluate(
-      () => (window as unknown as {
-        __lineSamples: { dx: number; dy: number; dyEnd: number }[];
-      }).__lineSamples,
+      () => window.__lineSamples,
     );
 
     expect(samples.length).toBeGreaterThan(5);

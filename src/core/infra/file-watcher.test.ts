@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fromAny, fromPartial } from '@total-typescript/shoehorn';
 import type { CommandTemplateExecutor } from '../command-template/command-template-types.js';
 import {
 	FileWatcher,
@@ -25,16 +26,16 @@ class FakeWatcher implements FileWatcherHandle {
 function createHarness(status = '') {
 	const handles: FakeWatcher[] = [];
 	const ignored: Array<(filePath: string) => boolean> = [];
-	const commands = {
+	const commands = fromPartial<CommandTemplateExecutor>({
 		execute: vi.fn(),
 		executeSync: vi.fn((key: string) => key === 'git.status' ? status : ''),
 		render: vi.fn(),
-	} as unknown as CommandTemplateExecutor;
+	});
 	const adapters: FileWatcherAdapters = {
 		createWatcher: vi.fn((_dir, options) => {
 			const handle = new FakeWatcher();
 			handles.push(handle);
-			ignored.push(options?.ignored as (filePath: string) => boolean);
+			ignored.push(fromAny(options?.ignored));
 			return handle;
 		}),
 		setTimer: (callback, delayMs) => setTimeout(callback, delayMs),
@@ -172,7 +173,7 @@ describe('FileWatcher', () => {
 		watcher.watch('/create-error');
 		watcher.watch('/repo', 10);
 
-		harness.handles[0].emit('error', new Error('watch error') as never);
+		harness.handles[0].emit('error', fromAny(new Error('watch error')));
 		vi.mocked(harness.commands.executeSync).mockImplementationOnce(() => {
 			throw new Error('ready failed');
 		});
@@ -243,7 +244,7 @@ describe('FileWatcher', () => {
 		let queuedCallback: (() => void) | undefined;
 		harness.adapters.setTimer = vi.fn((callback) => {
 			queuedCallback = callback;
-			return 1 as unknown as ReturnType<typeof setTimeout>;
+			return fromAny(1);
 		});
 		harness.adapters.clearTimer = vi.fn();
 		const watcher = new FileWatcher(harness.commands, undefined, harness.adapters);

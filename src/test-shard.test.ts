@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { fromAny } from "@total-typescript/shoehorn";
 import { shardTestCases } from "./test-shard.js";
 
 function fakeTestApi() {
@@ -17,7 +18,7 @@ function fakeTestApi() {
 describe("shardTestCases", () => {
 	it("registers every declaration selected by a grouped shard", () => {
 		const base = fakeTestApi();
-		const shard = shardTestCases(base as unknown as typeof it, [0, 2], 3);
+		const shard = shardTestCases(fromAny(base), [0, 2], 3);
 
 		shard("zero", () => undefined);
 		shard("one", () => undefined);
@@ -32,9 +33,10 @@ describe("shardTestCases", () => {
 
 	it("rejects empty, duplicate, and out-of-range shard groups", () => {
 		const base = fakeTestApi();
+		const testApi: typeof it = fromAny(base);
 
-		expect(() => shardTestCases(base as unknown as typeof it, [], 3)).toThrow("Invalid test shard");
-		expect(() => shardTestCases(base as unknown as typeof it, [1, 1], 3)).toThrow("Invalid test shard");
-		expect(() => shardTestCases(base as unknown as typeof it, [3], 3)).toThrow("Invalid test shard");
+		expect(() => shardTestCases(testApi, [], 3)).toThrow("Invalid test shard");
+		expect(() => shardTestCases(testApi, [1, 1], 3)).toThrow("Invalid test shard");
+		expect(() => shardTestCases(testApi, [3], 3)).toThrow("Invalid test shard");
 	});
 });

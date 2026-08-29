@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
+import { fromAny, fromPartial } from '@total-typescript/shoehorn';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -191,7 +192,7 @@ describe('migrateColumnRename', () => {
 		setupProject(configDir, 'proj-a', 'standard');
 
 		const result = migrateColumnRename(
-			'standard', 'todo', 'backlog', 'current', undefined as unknown as string, makeDeps(configDir),
+			'standard', 'todo', 'backlog', 'current', fromAny<string, undefined>(undefined), makeDeps(configDir),
 		);
 
 		expect(result.ticketsUpdated).toBe(0);
@@ -217,9 +218,9 @@ describe('migrateColumnRename', () => {
 		dirs.push(configDir);
 		initializeDataDir(new ConfigPaths(configDir));
 
-		const brokenRegistry = {
+		const brokenRegistry = fromPartial<ProjectRegistry>({
 			listProjects() { throw new Error('corrupt projects.json'); },
-		} as unknown as ProjectRegistry;
+		});
 
 		const deps = makeDeps(configDir);
 		const result = migrateColumnRename('standard', 'todo', 'backlog', 'all', '', {

@@ -11,13 +11,15 @@ export interface ServerHandle {
   listProjectSlugs: () => string[];
 }
 
-interface ServerGlobal {
-  __contextLaunchServices?: {
-    log(category: string, message: string): void;
-    shutdown(): void;
-    drainOperations(): Promise<void>;
-    listProjectSlugs(): string[];
-  };
+interface ServerServices {
+  log(category: string, message: string): void;
+  shutdown(): void;
+  drainOperations(): Promise<void>;
+  listProjectSlugs(): string[];
+}
+
+declare global {
+  var __contextLaunchServices: ServerServices | undefined;
 }
 
 export async function startServer(appRoot: string): Promise<ServerHandle> {
@@ -27,8 +29,7 @@ export async function startServer(appRoot: string): Promise<ServerHandle> {
   const serverModule = await import(pathToFileURL(serverEntry).href) as { default?: FetchHandler };
   const serverHandler = serverModule.default;
 
-  const g = globalThis as unknown as ServerGlobal;
-  const services = g.__contextLaunchServices;
+  const services = globalThis.__contextLaunchServices;
   if (!serverHandler || typeof serverHandler.fetch !== "function" || !services) {
     throw new Error(
       `Server bundle at ${serverEntry} did not export its request handler or publish services.`,
