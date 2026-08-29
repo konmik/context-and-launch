@@ -297,10 +297,10 @@ if (!gotLock) {
       const owner = BrowserWindow.fromWebContents(event.sender);
       const options: OpenDialogOptions = {
         properties: ["openDirectory"],
-        ...(typeof preselect === "string" && preselect.trim()
-          ? { defaultPath: preselect.trim() }
-          : {}),
       };
+      if (typeof preselect === "string" && preselect.trim()) {
+        options.defaultPath = preselect.trim();
+      }
       const result = owner
         ? await dialog.showOpenDialog(owner, options)
         : await dialog.showOpenDialog(options);

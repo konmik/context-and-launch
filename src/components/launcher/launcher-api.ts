@@ -68,12 +68,11 @@ export async function saveColumnDefaultsAndReturnConfig(
   column: string,
   patch: Partial<LauncherColumnDefaults>,
 ) {
-  const result = await saveColumnDefaults(projectSlug, column, {
-    ...patch,
-    ...(Object.hasOwn(patch, "editedPrompt")
-      ? { editedPrompt: patch.editedPrompt ?? null }
-      : {}),
-  });
+  const normalizedPatch: Parameters<typeof saveColumnDefaults>[2] = { ...patch };
+  if (Object.hasOwn(patch, "editedPrompt")) {
+    normalizedPatch.editedPrompt = patch.editedPrompt ?? null;
+  }
+  const result = await saveColumnDefaults(projectSlug, column, normalizedPatch);
   if (result.ok) latestMergedConfigs.set(projectSlug, { config: result.config, savedAt: Date.now() });
   return result;
 }
@@ -92,12 +91,11 @@ export async function saveColumnDefaults(
   "use server";
   try {
     const { editedPrompt, ...rest } = patch;
-    launcherConfigManager.saveColumnDefaults(projectSlug, column, {
-      ...rest,
-      ...(Object.hasOwn(patch, "editedPrompt")
-        ? { editedPrompt: editedPrompt ?? undefined }
-        : {}),
-    });
+    const normalizedPatch: Partial<LauncherColumnDefaults> = { ...rest };
+    if (Object.hasOwn(patch, "editedPrompt")) {
+      normalizedPatch.editedPrompt = editedPrompt ?? undefined;
+    }
+    launcherConfigManager.saveColumnDefaults(projectSlug, column, normalizedPatch);
     return { ok: true as const, config: buildMergedLauncherConfig(projectSlug) };
   } catch (e) {
     return errorResult(e);

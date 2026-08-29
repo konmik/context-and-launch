@@ -231,12 +231,13 @@ function pointMatches(
 }
 
 function promptLine(line: ReviewDiffLine): ReviewPromptLine {
-	return {
+	const prompt: ReviewPromptLine = {
 		type: line.type,
 		text: line.text,
-		...(line.oldLineNumber === undefined ? {} : { oldLineNumber: line.oldLineNumber }),
-		...(line.newLineNumber === undefined ? {} : { newLineNumber: line.newLineNumber }),
 	};
+	if (line.oldLineNumber !== undefined) prompt.oldLineNumber = line.oldLineNumber;
+	if (line.newLineNumber !== undefined) prompt.newLineNumber = line.newLineNumber;
+	return prompt;
 }
 
 function rangeFor(
@@ -274,17 +275,18 @@ export function buildReviewPromptSnapshot(
 	const selectedLines = selected.map(promptLine);
 	const oldRange = rangeFor(selected, "oldLineNumber");
 	const newRange = rangeFor(selected, "newLineNumber");
-	return {
+	const snapshot: ReviewPromptSnapshot = {
 		scope,
 		filePath: file.path,
-		...(oldRange ? { oldRange } : {}),
-		...(newRange ? { newRange } : {}),
 		selectedLines,
 		contextBefore: file.lines.slice(Math.max(0, first - 3), first).map(promptLine),
 		contextAfter: file.lines.slice(last + 1, last + 4).map(promptLine),
 		selectionFingerprint: stableHash(selectionSignature(selectedLines)),
 		sourceRevision,
 	};
+	if (oldRange) snapshot.oldRange = oldRange;
+	if (newRange) snapshot.newRange = newRange;
+	return snapshot;
 }
 
 export function reviewSelectionStillExists(

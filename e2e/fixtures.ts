@@ -257,12 +257,13 @@ export async function createProject(
   if (fs.existsSync(configFile)) {
     registry = JSON.parse(fs.readFileSync(configFile, "utf-8"));
   }
-  registry.projects.push({
+  const projectEntry = {
     path: canonicalProjectPath,
     projectSlug: opts.projectSlug,
     branch: TICKETS_BRANCH,
-    ...(opts.mainBranch ? { mainBranch: opts.mainBranch } : {}),
-  });
+  };
+  if (opts.mainBranch) Object.assign(projectEntry, { mainBranch: opts.mainBranch });
+  registry.projects.push(projectEntry);
   registry.lastUsedProjectSlug = opts.projectSlug;
   fs.writeFileSync(configFile, JSON.stringify(registry, null, 2));
 
@@ -305,17 +306,18 @@ export async function createProject(
         ?? toKebab(`${t.number}-${t.title}`);
       const folder = path.join(ticketsPath, folderName);
       fs.mkdirSync(folder, { recursive: true });
+      const status = {
+        number: t.number,
+        title: t.title,
+        status: t.status,
+        useWorktree: t.useWorktree ?? useWorktreeFolders.has(folderName),
+      };
+      if (t.createdAt) Object.assign(status, { createdAt: t.createdAt });
+      if (t.dependsOn) Object.assign(status, { dependsOn: t.dependsOn });
+      if (t.memberOf) Object.assign(status, { memberOf: t.memberOf });
       fs.writeFileSync(
         path.join(folder, "status.json"),
-        JSON.stringify({
-          number: t.number,
-          title: t.title,
-          status: t.status,
-          useWorktree: t.useWorktree ?? useWorktreeFolders.has(folderName),
-          ...(t.createdAt ? { createdAt: t.createdAt } : {}),
-          ...(t.dependsOn ? { dependsOn: t.dependsOn } : {}),
-          ...(t.memberOf ? { memberOf: t.memberOf } : {}),
-        }, null, 2),
+        JSON.stringify(status, null, 2),
       );
       fs.writeFileSync(path.join(folder, "to-do.md"), t.body ?? "");
     }
