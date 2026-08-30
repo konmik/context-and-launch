@@ -49,7 +49,7 @@ describe.runIf(process.platform === "win32")(
             fs.rmSync(dir, { recursive: true, force: true });
             break;
           } catch (e) {
-            const code = (e as NodeJS.ErrnoException).code;
+            const code = e instanceof Error && "code" in e ? e.code : undefined;
             if (
               (code !== "EBUSY" && code !== "ENOTEMPTY"
                 && code !== "EPERM")

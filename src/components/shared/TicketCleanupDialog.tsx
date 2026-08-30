@@ -104,6 +104,14 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps) {
                 {(row) => {
                   const item = () => s.items()[row.key];
                   const running = () => s.runningItem() === row.key;
+                  const blockedItem = () => {
+                    const value = item();
+                    return value.state === "blocked" ? value : undefined;
+                  };
+                  const errorItem = () => {
+                    const value = item();
+                    return value.state === "error" ? value : undefined;
+                  };
                   return (
                     <>
                       <button
@@ -126,39 +134,43 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps) {
                             <Show when={item().state === "checking"}>
                               <span class="animate-pulse text-muted-foreground">Checking...</span>
                             </Show>
-                            <Show when={item().state === "blocked"}>
-                              <span class={"warning" in item() ? "text-destructive" : "text-muted-foreground"}>
-                                {(item() as { reason: string }).reason}
-                              </span>
-                              <Show when={(item() as any).killable}>
-                                {" "}
-                                <button
-                                  type="button"
-                                  onClick={() => void s.openKillDialog()}
-                                  disabled={s.busy()}
-                                  class="text-xs underline text-destructive hover:text-destructive/80"
-                                  data-testid="ticket-cleanup-kill-processes"
-                                >
-                                  Kill processes
-                                </button>
-                              </Show>
-                              <Show when={(item() as any).forceDeleteable}>
-                                {" "}
-                                <button
-                                  type="button"
-                                  onClick={() => s.openForceDeleteDialog()}
-                                  disabled={s.busy()}
-                                  class="text-xs underline text-destructive hover:text-destructive/80"
-                                  data-testid="ticket-cleanup-force-delete-branch"
-                                >
-                                  Force delete
-                                </button>
-                              </Show>
+                            <Show when={blockedItem()}>
+                              {(blocked) => <>
+                                <span class={"warning" in blocked() ? "text-destructive" : "text-muted-foreground"}>
+                                  {blocked().reason}
+                                </span>
+                                <Show when={blocked().killable}>
+                                  {" "}
+                                  <button
+                                    type="button"
+                                    onClick={() => void s.openKillDialog()}
+                                    disabled={s.busy()}
+                                    class="text-xs underline text-destructive hover:text-destructive/80"
+                                    data-testid="ticket-cleanup-kill-processes"
+                                  >
+                                    Kill processes
+                                  </button>
+                                </Show>
+                                <Show when={blocked().forceDeleteable}>
+                                  {" "}
+                                  <button
+                                    type="button"
+                                    onClick={() => s.openForceDeleteDialog()}
+                                    disabled={s.busy()}
+                                    class="text-xs underline text-destructive hover:text-destructive/80"
+                                    data-testid="ticket-cleanup-force-delete-branch"
+                                  >
+                                    Force delete
+                                  </button>
+                                </Show>
+                              </>}
                             </Show>
-                            <Show when={item().state === "error"}>
-                              <span class="text-destructive">
-                                {(item() as { error: ErrorInfo }).error.description}
-                              </span>
+                            <Show when={errorItem()}>
+                              {(error) => (
+                                <span class="text-destructive">
+                                  {error().error.description}
+                                </span>
+                              )}
                             </Show>
                           </>
                         }>

@@ -111,6 +111,7 @@ export class FixedPlatformShellRunner implements PlatformShellRunner {
 			});
 			return stdout;
 		} catch (error) {
+			// SAFETY: Node's execFileSync errors expose optional code, status, killed, stdout, and stderr fields.
 			const failure = error as NodeJS.ErrnoException & {
 				status?: number; stdout?: Buffer | string; stderr?: Buffer | string; killed?: boolean;
 			};

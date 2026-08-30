@@ -139,6 +139,10 @@ exit $exitCode
 	return { dir, harness, report };
 }
 
+function readHarnessReport(reportPath: string): HarnessReport {
+	return JSON.parse(fs.readFileSync(reportPath, 'utf-8'));
+}
+
 function runHarness(mode: 'create' | 'reuse' | 'duplicate' | 'idle' | 'empty' | 'working') {
 	const files = makeHarness();
 	const prompt = "hello\nmultiline 'world'";
@@ -150,7 +154,7 @@ function runHarness(mode: 'create' | 'reuse' | 'duplicate' | 'idle' | 'empty' | 
 	return {
 		status: result.status,
 		stderr: result.stderr,
-		report: JSON.parse(fs.readFileSync(files.report, 'utf-8')) as HarnessReport,
+		report: readHarnessReport(files.report),
 	};
 }
 
@@ -164,7 +168,7 @@ function runHarnessWithoutPrompt(): ReturnType<typeof runHarness> {
 	return {
 		status: result.status,
 		stderr: result.stderr,
-		report: JSON.parse(fs.readFileSync(files.report, 'utf-8')) as HarnessReport,
+		report: readHarnessReport(files.report),
 	};
 }
 
@@ -178,7 +182,7 @@ function runOpenCodeHarness(): ReturnType<typeof runHarness> {
 	return {
 		status: result.status,
 		stderr: result.stderr,
-		report: JSON.parse(fs.readFileSync(files.report, 'utf-8')) as HarnessReport,
+		report: readHarnessReport(files.report),
 	};
 }
 

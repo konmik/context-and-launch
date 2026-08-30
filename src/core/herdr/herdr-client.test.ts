@@ -44,12 +44,12 @@ describe('fetchHerdrTicketStatuses', () => {
 			.resolves.toEqual({ 'st-47-herdr': 'done' });
 	});
 
-	it('passes an out-of-vocabulary status through verbatim', async () => {
+	it('maps an out-of-vocabulary status to unknown', async () => {
 		const agents = JSON.stringify({
 			result: { agents: [{ workspace_id: 'w1', pane_id: 'w1:p2', agent_status: 'frobnicating' }] },
 		});
 		await expect(fetchHerdrTicketStatuses('alpha', execReturning(agents)))
-			.resolves.toEqual({ 'st-47-herdr': 'frobnicating' });
+			.resolves.toEqual({ 'st-47-herdr': 'unknown' });
 	});
 
 	it('returns only Agents from the project workspace', async () => {

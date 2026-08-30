@@ -95,7 +95,7 @@ export class DiffReviewStore {
 		const raw = this.repository.readJson(filePath);
 		if (raw === null) return emptyProjectState();
 		const parsed = v.safeParse(ProjectStateSchema, raw);
-		if (parsed.success) return parsed.output as DiffReviewProjectState;
+		if (parsed.success) return parsed.output;
 		const legacy = v.safeParse(LegacyProjectStateSchema, raw);
 		if (!legacy.success) {
 			throw new Error(`Invalid Diff Review state in ${filePath}.`);

@@ -370,7 +370,7 @@ export function createLauncherSettingsState(props: {
 					const item = itemMap.get(name)!;
 					return name === dragged.name ? { ...item, order: newOrder } : item;
 				});
-				setConfig({ ...cfg, [collection]: reorderedItems } as MergedLauncherConfig);
+				setConfig(Object.assign({}, cfg, { [collection]: reorderedItems }));
 				saveItemOrderFn(itemType, dragged.scope, dragged.name, newOrder);
 			},
 		});

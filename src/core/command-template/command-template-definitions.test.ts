@@ -70,9 +70,9 @@ describe('Command Template catalog', () => {
 	});
 
 	it('delivers a Review Prompt through the agent surface, not the raw pane', () => {
-		const bundled = JSON.parse(fs.readFileSync(
+		const bundled = v.parse(v.record(v.string(), v.string()), JSON.parse(fs.readFileSync(
 			path.resolve('config-defaults/command-templates.json'), 'utf8',
-		)) as Record<string, string>;
+		)));
 		expect(bundled['herdr.review-prompt.deliver']).toBe(
 			'herdr agent prompt {{paneId}} {{prompt}}',
 		);
@@ -86,9 +86,9 @@ describe('Command Template catalog', () => {
 	});
 
 	it('owns Windows picker dialogs so they cannot open behind the browser', () => {
-		const bundled = JSON.parse(fs.readFileSync(
+		const bundled = v.parse(v.record(v.string(), v.string()), JSON.parse(fs.readFileSync(
 			path.resolve('config-defaults/command-templates.json'), 'utf8',
-		)) as Record<string, string>;
+		)));
 		for (const key of ['picker.files.windows', 'picker.directory.windows']) {
 			expect(bundled[key]).toContain('$owner.TopMost = $true');
 			expect(bundled[key]).toContain('$dialog.ShowDialog($owner)');

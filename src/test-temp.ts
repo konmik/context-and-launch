@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import * as v from 'valibot';
 
 export function makeTempDir(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -15,7 +16,10 @@ export async function removeTempDir(dir: string): Promise<void> {
 			fs.rmSync(dir, { recursive: true, force: true });
 			return;
 		} catch (e) {
-			const code = (e as NodeJS.ErrnoException).code;
+			const parsedCode = e instanceof Error && 'code' in e
+				? v.safeParse(v.string(), e.code)
+				: undefined;
+			const code = parsedCode?.success ? parsedCode.output : undefined;
 			if (!code || !transientCodes.has(code) || Date.now() > deadline) throw e;
 			await new Promise((r) => setTimeout(r, 100));
 		}

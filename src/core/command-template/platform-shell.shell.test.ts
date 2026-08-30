@@ -40,10 +40,10 @@ describe('fixed platform shell', () => {
 			});
 			throw new Error('expected shell failure');
 		} catch (error) {
-			expect(error).toBeInstanceOf(ProcessError);
-			expect((error as ProcessError).exitCode).toBe(7);
-			expect((error as ProcessError).output).toContain('before');
-			expect((error as ProcessError).output).not.toContain('after');
+			if (!(error instanceof ProcessError)) throw new Error('Expected shell execution to reject with a ProcessError.');
+			expect(error.exitCode).toBe(7);
+			expect(error.output).toContain('before');
+			expect(error.output).not.toContain('after');
 		}
 	});
 

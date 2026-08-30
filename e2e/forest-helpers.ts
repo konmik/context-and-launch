@@ -103,8 +103,7 @@ export async function pathScreenPoint(
   locator: Locator,
   at: "start" | "middle" | "end",
 ): Promise<ScreenPoint> {
-  return await locator.evaluate((element, position) => {
-    const svgPath = element as SVGPathElement;
+  return await locator.evaluate<ScreenPoint, typeof at, SVGPathElement>((svgPath, position) => {
     const total = svgPath.getTotalLength();
     const length = position === "start" ? 0 : position === "middle" ? total / 2 : total;
     const point = svgPath.getPointAtLength(length);
@@ -118,8 +117,7 @@ export async function pathScreenPoint(
 }
 
 export async function clickPath(locator: Locator, at: "start" | "middle" | "end"): Promise<void> {
-  await locator.evaluate((element, position) => {
-    const path = element as SVGPathElement;
+  await locator.evaluate<void, typeof at, SVGPathElement>((path, position) => {
     const total = path.getTotalLength();
     const length = position === "start" ? 0 : position === "middle" ? total / 2 : total;
     const point = path.getPointAtLength(length);

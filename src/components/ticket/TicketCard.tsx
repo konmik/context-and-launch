@@ -20,8 +20,8 @@ export default function TicketCard(props: TicketCardProps) {
   const herdrStatus = useHerdrStatuses();
   const shortcutRunner = useShortcutRunner();
   function handleCardClick(e: MouseEvent) {
-    const target = e.target as HTMLElement;
-    if (target.closest("[data-menu]")) return;
+    const target = e.target;
+    if (target instanceof Element && target.closest("[data-menu]")) return;
     props.onViewDetail(props.ticket);
   }
 

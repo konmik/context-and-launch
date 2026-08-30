@@ -9,6 +9,11 @@ export const CONFLICT_LAUNCHER: SeedAppLauncherConfig = {
   profiles: [{ name: "Claude", command: "echo claude" }],
 };
 
+function outputBuffer(error: Error, key: "stdout" | "stderr"): Buffer | undefined {
+  const value = Object.getOwnPropertyDescriptor(error, key)?.value;
+  return Buffer.isBuffer(value) ? value : undefined;
+}
+
 // Reproduce the state after a user launches conflict resolution: a scratch
 // worktree (sibling of the live tickets folder) with a rebase in progress.
 // The live tickets folder is left clean on its last good commit.
@@ -31,8 +36,8 @@ export function createActiveRebaseConflict(project: TicketsWorktree): void {
     execSync("git rebase origin/tickets", { cwd: scratch, stdio: "pipe" });
   } catch (error) {
     rebaseFailed = true;
-    const failure = error as { stdout?: Buffer; stderr?: Buffer };
-    rebaseOutput = [failure.stdout, failure.stderr]
+    if (!(error instanceof Error)) throw error;
+    rebaseOutput = [outputBuffer(error, "stdout"), outputBuffer(error, "stderr")]
       .map((stream) => (stream ? stream.toString() : ""))
       .join("");
   }

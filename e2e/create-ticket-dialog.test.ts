@@ -73,7 +73,7 @@ describe("CreateTicketDialog (e2e, real server)", () => {
     await testId(ctx.page, "create-ticket-regenerate-button").click();
     const sel = '[data-testid="create-ticket-number-input"]';
     await ctx.page.waitForFunction(
-      (s) => (document.querySelector(s) as HTMLInputElement)?.value.startsWith("BUG-"),
+      (s) => document.querySelector<HTMLInputElement>(s)?.value.startsWith("BUG-"),
       sel,
       { timeout: 10000 },
     );

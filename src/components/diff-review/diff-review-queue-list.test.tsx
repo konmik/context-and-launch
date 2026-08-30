@@ -20,8 +20,8 @@ function makeItem(overrides: {
 }
 
 function itemByFeedback(container: HTMLElement, feedback: string) {
-	const nodes = [...container.querySelectorAll('[data-testid="diff-review-queue-item"]')];
-	return nodes.find((node) => node.textContent?.includes(feedback)) as HTMLElement | undefined;
+  const nodes = [...container.querySelectorAll<HTMLElement>('[data-testid="diff-review-queue-item"]')];
+  return nodes.find((node) => node.textContent?.includes(feedback));
 }
 
 function fireAnimationEnd(element: Element, animationName: string) {
@@ -31,7 +31,9 @@ function fireAnimationEnd(element: Element, animationName: string) {
 }
 
 function bodyOf(item: HTMLElement) {
-	return item.querySelector(".vertical-reveal-body") as HTMLElement;
+  const body = item.querySelector<HTMLElement>(".vertical-reveal-body");
+  if (!body) throw new Error("Expected queue item reveal body");
+  return body;
 }
 
 describe("ReviewPromptQueueList", () => {

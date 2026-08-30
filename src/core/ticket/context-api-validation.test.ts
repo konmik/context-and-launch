@@ -26,7 +26,8 @@ describe('PUT /context/:name non-JSON body handling', () => {
 			await request.json();
 			throw new Error('Expected json() to throw');
 		} catch (e) {
-			return e as Error;
+			if (e instanceof Error) return e;
+			throw new Error('Expected json() to throw an Error.');
 		}
 	}
 

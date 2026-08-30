@@ -8,10 +8,6 @@ export type { TicketCleanupOptions };
 export type CleanupItemClientState = { state: "checking" } | CleanupCheckItem;
 export type TicketCleanupItemStates = Record<CleanupItemKey, CleanupItemClientState>;
 
-const cleanupItemKeys: CleanupItemKey[] = [
-  "stopHerdrAgent", "deleteWorktree", "deleteLocalBranch", "deleteRemoteBranch",
-];
-
 export function allChecking(): TicketCleanupItemStates {
   return buildStates(() => ({ state: "checking" }));
 }
@@ -29,13 +25,19 @@ export function singleCleanupOption(key: CleanupItemKey): TicketCleanupOptions {
 }
 
 function buildStates(make: () => CleanupItemClientState) {
-  const result = {} as TicketCleanupItemStates;
-  for (const key of cleanupItemKeys) result[key] = make();
-  return result;
+  return {
+    stopHerdrAgent: make(),
+    deleteWorktree: make(),
+    deleteLocalBranch: make(),
+    deleteRemoteBranch: make(),
+  } satisfies TicketCleanupItemStates;
 }
 
 function buildOptions(value: (key: CleanupItemKey) => boolean): TicketCleanupOptions {
-  const result = {} as TicketCleanupOptions;
-  for (const key of cleanupItemKeys) result[key] = value(key);
-  return result;
+  return {
+    stopHerdrAgent: value("stopHerdrAgent"),
+    deleteWorktree: value("deleteWorktree"),
+    deleteLocalBranch: value("deleteLocalBranch"),
+    deleteRemoteBranch: value("deleteRemoteBranch"),
+  } satisfies TicketCleanupOptions;
 }

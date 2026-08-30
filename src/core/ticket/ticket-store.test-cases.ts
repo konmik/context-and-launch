@@ -616,7 +616,7 @@ describe('TicketStore', () => {
 		dirs.push(worktreeDir);
 
 		const store = new TicketStore(worktreeDir);
-		// Bypass TypeScript to simulate a runtime caller passing undefined
+		// SAFETY: This test intentionally bypasses the typed call signature to verify undefined is defaulted at runtime.
 		const ticket = (store as any).createTicket('UNDEF-S1', 'Status Test', undefined);
 
 		// Check the returned ticket object
@@ -863,12 +863,21 @@ describe('TicketStore', () => {
 		expect(rejected.length).toBe(1);
 
 		// The failure has a clear error message (not a cryptic ENOENT)
-		const error = (rejected[0] as PromiseRejectedResult).reason;
+		const rejectedResult = rejected[0];
+		if (!rejectedResult || rejectedResult.status !== 'rejected') {
+			throw new Error('Expected one rejected updateTicket result.');
+		}
+		const error = rejectedResult.reason;
 		expect(error).toBeInstanceOf(Error);
+		if (!(error instanceof Error)) throw new Error('Expected rejected updateTicket result to contain an Error.');
 		expect(error.message).toMatch(/Ticket not found/);
 
 		// The winner's folder exists at its new path
-		const winner = (fulfilled[0] as PromiseFulfilledResult<any>).value;
+		const fulfilledResult = fulfilled[0];
+		if (!fulfilledResult || fulfilledResult.status !== 'fulfilled') {
+			throw new Error('Expected one fulfilled updateTicket result.');
+		}
+		const winner = fulfilledResult.value;
 		const winnerDir = path.join(worktreeDir, winner.folderName);
 		expect(fs.existsSync(winnerDir)).toBe(true);
 
@@ -1017,6 +1026,8 @@ describe('TicketStore', () => {
 				failed = true;
 				throw new Error('Simulated disk full');
 			}
+			// SAFETY: Vitest exposes overloaded writeFileSync arguments as a variadic
+			// array; this forwards the original call unchanged.
 			return originalWriteFileSync.apply(fs, args as any);
 		});
 
@@ -1853,6 +1864,8 @@ describe('TicketStore', () => {
 				failed = true;
 				throw new Error('Simulated member write failure');
 			}
+			// SAFETY: Vitest exposes overloaded writeFileSync arguments as a variadic
+			// array; this forwards the original call unchanged.
 			return originalWriteFileSync.apply(fs, args as any);
 		});
 
@@ -1893,6 +1906,8 @@ describe('TicketStore', () => {
 				failed = true;
 				throw new Error('Simulated member write failure');
 			}
+			// SAFETY: Vitest exposes overloaded writeFileSync arguments as a variadic
+			// array; this forwards the original call unchanged.
 			return originalWriteFileSync.apply(fs, args as any);
 		});
 
@@ -1985,6 +2000,8 @@ describe('TicketStore', () => {
 				failed = true;
 				throw new Error('Simulated reference cleanup failure');
 			}
+			// SAFETY: Vitest exposes overloaded writeFileSync arguments as a variadic
+			// array; this forwards the original call unchanged.
 			return originalWriteFileSync.apply(fs, args as any);
 		});
 

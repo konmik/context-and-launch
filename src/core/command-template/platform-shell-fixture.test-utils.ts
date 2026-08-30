@@ -56,6 +56,6 @@ export function killIfAlive(pid: number): void {
   try {
     process.kill(pid);
   } catch (e) {
-    if ((e as NodeJS.ErrnoException).code !== "ESRCH") throw e;
+    if (!(e instanceof Error) || !("code" in e) || e.code !== "ESRCH") throw e;
   }
 }

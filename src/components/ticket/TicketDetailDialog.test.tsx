@@ -543,6 +543,14 @@ describe("TicketDetailDialog editable title", () => {
     cleanup();
   });
 
+  function inputByTestId(testId: string): HTMLInputElement {
+    const input = screen.getByTestId(testId);
+    if (!(input instanceof HTMLInputElement)) {
+      throw new Error(`Expected ${testId} to be an input element`);
+    }
+    return input;
+  }
+
   it("Save button appears and saves header changes", async () => {
     mockUpdateTicket.mockResolvedValue({ ok: true, folderName: "t-1-alpha" });
 
@@ -553,7 +561,7 @@ describe("TicketDetailDialog editable title", () => {
     await flush();
     await flush();
 
-    const titleInput = screen.getByTestId("ticket-detail-title-input") as HTMLInputElement;
+    const titleInput = inputByTestId("ticket-detail-title-input");
     fireEvent.input(titleInput, { target: { value: "Beta" } });
     await flush();
 
@@ -575,7 +583,7 @@ describe("TicketDetailDialog editable title", () => {
     await flush();
     await flush();
 
-    const titleInput = screen.getByTestId("ticket-detail-title-input") as HTMLInputElement;
+    const titleInput = inputByTestId("ticket-detail-title-input");
     fireEvent.input(titleInput, { target: { value: "Beta" } });
     await flush();
 
@@ -599,13 +607,13 @@ describe("TicketDetailDialog editable title", () => {
     await flush();
     await flush();
 
-    const titleInput = screen.getByTestId("ticket-detail-title-input") as HTMLInputElement;
+    const titleInput = inputByTestId("ticket-detail-title-input");
     fireEvent.input(titleInput, { target: { value: "Changed" } });
     fireEvent.keyDown(titleInput, { key: "Escape" });
     await flush();
     expect(titleInput.value).toBe("Alpha");
 
-    const numberInput = screen.getByTestId("ticket-detail-number-input") as HTMLInputElement;
+    const numberInput = inputByTestId("ticket-detail-number-input");
     fireEvent.input(numberInput, { target: { value: "X-9" } });
     fireEvent.keyDown(numberInput, { key: "Escape" });
     await flush();

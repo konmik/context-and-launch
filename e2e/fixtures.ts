@@ -388,7 +388,7 @@ export function setCommandTemplateOverride(
   server: TestServer, key: string, script: string,
 ): void {
   const file = path.join(server.dataDir, "config", "command-templates.json");
-  const current = JSON.parse(fs.readFileSync(file, "utf-8")) as Record<string, string>;
+  const current: Record<string, string> = JSON.parse(fs.readFileSync(file, "utf-8"));
   current[key] = script;
   fs.writeFileSync(file, JSON.stringify(current, null, 2));
 }
@@ -583,7 +583,7 @@ export async function clickTicketMenuItem(
   // The menu closes on the pointer press that Playwright's click sends first,
   // so the item has to be activated directly.
   await page.evaluate((id) => {
-    const el = document.querySelector(`[data-testid="${id}"]`) as HTMLElement | null;
+    const el = document.querySelector<HTMLElement>(`[data-testid="${id}"]`);
     if (!el) throw new Error(`${id} not in DOM`);
     el.click();
   }, itemTestId);
@@ -607,7 +607,8 @@ export interface ProjectRegistry {
 
 export function readProjectRegistry(server: TestServer): ProjectRegistry {
   const file = path.join(server.dataDir, "config", "config.json");
-  return JSON.parse(fs.readFileSync(file, "utf-8")) as ProjectRegistry;
+  const registry: ProjectRegistry = JSON.parse(fs.readFileSync(file, "utf-8"));
+  return registry;
 }
 
 export interface PersistedLauncherConfig {
@@ -733,7 +734,7 @@ export function readContextFile(
   try {
     return fs.readFileSync(file, "utf-8");
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return null;
     throw error;
   }
 }
@@ -778,7 +779,9 @@ export function setupE2E(opts: {
   serverOpts?: CreateServerOptions;
 } = {}): E2EContext {
   const viewport = opts.viewport ?? { width: 1200, height: 800 };
-  const ctx = { projects: [] as CreatedProject[] } as E2EContext;
+  const projects: CreatedProject[] = [];
+  // SAFETY: beforeAll assigns testServer, beforeEach assigns page, and newPage is assigned before tests run.
+  const ctx = { projects } as E2EContext;
   const extraPages: Page[] = [];
   let browser: Browser;
   beforeAll(async () => {

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fromPartial } from "@total-typescript/shoehorn";
 import { ConfigPaths } from "../config/config-paths.js";
 import { ConfigRepository } from "../config/config-repository.js";
 import { setAppLogListener } from "../infra/app-logger.js";
@@ -6,7 +7,11 @@ import { makeTempDir, removeTempDirOrWarn } from "../../test-temp.js";
 import { buildReviewFile, buildReviewPromptSnapshot } from "./diff-review-model.js";
 import { DiffReviewStore } from "./diff-review-store.js";
 import { ReviewPromptQueueService } from "./review-prompt-queue.js";
+import type { CommandTemplateExecutor } from "../command-template/command-template-types.js";
+import type { DiffReviewGitService } from "./diff-review-git.js";
 import type { ResolvedDiffReviewTarget } from "./diff-review-target.js";
+import type { DiffReviewTargetResolver } from "./diff-review-target.js";
+import type { ReviewAgentLauncher } from "./review-agent-launcher.js";
 
 const dirs: string[] = [];
 
@@ -65,7 +70,7 @@ function setupQueue() {
 	};
 	const service = new ReviewPromptQueueService(
 		store,
-		{
+		fromPartial<DiffReviewGitService>({
 			loadSnapshot: vi.fn().mockResolvedValue({
 				scope: "working",
 				capturedAt: "2026-07-25T12:00:00.000Z",
@@ -73,9 +78,9 @@ function setupQueue() {
 				worktreeIdentity: "worktree",
 				files: [file],
 			}),
-		} as never,
-		{ resolve: () => target } as never,
-		{ execute } as never,
+		}),
+		fromPartial<DiffReviewTargetResolver>({ resolve: () => target }),
+		fromPartial<CommandTemplateExecutor>({ execute }),
 		launcher,
 	);
 	const agent = {
@@ -198,10 +203,10 @@ describe("ReviewPromptQueueService", () => {
 
 		const restartedService = new ReviewPromptQueueService(
 			store,
-			{ loadSnapshot: vi.fn() } as never,
-			{ resolve: () => target } as never,
-			{ execute: vi.fn() } as never,
-			{ isRunning: vi.fn().mockReturnValue(false), launch: vi.fn() } as never,
+			fromPartial<DiffReviewGitService>({ loadSnapshot: vi.fn() }),
+			fromPartial<DiffReviewTargetResolver>({ resolve: () => target }),
+			fromPartial<CommandTemplateExecutor>({ execute: vi.fn() }),
+			fromPartial<ReviewAgentLauncher>({ isRunning: vi.fn().mockReturnValue(false), launch: vi.fn() }),
 		);
 
 		await restartedService.reconcileProject("project", [{ ...agent, agent_status: "working" }]);
@@ -219,10 +224,10 @@ describe("ReviewPromptQueueService", () => {
 		store.beginDelivery("project", "st-1-ticket", "worktree", item.id);
 		const restartedService = new ReviewPromptQueueService(
 			store,
-			{ loadSnapshot: vi.fn() } as never,
-			{ resolve: () => target } as never,
-			{ execute: vi.fn() } as never,
-			{ isRunning: vi.fn().mockReturnValue(false), launch: vi.fn() } as never,
+			fromPartial<DiffReviewGitService>({ loadSnapshot: vi.fn() }),
+			fromPartial<DiffReviewTargetResolver>({ resolve: () => target }),
+			fromPartial<CommandTemplateExecutor>({ execute: vi.fn() }),
+			fromPartial<ReviewAgentLauncher>({ isRunning: vi.fn().mockReturnValue(false), launch: vi.fn() }),
 			vi.fn().mockResolvedValue(undefined),
 		);
 
@@ -287,9 +292,9 @@ describe("ReviewPromptQueueService", () => {
 			}));
 		const service = new ReviewPromptQueueService(
 			store,
-			{ loadSnapshot: vi.fn() } as never,
-			{ resolve: () => target } as never,
-			{ execute } as never,
+			fromPartial<DiffReviewGitService>({ loadSnapshot: vi.fn() }),
+			fromPartial<DiffReviewTargetResolver>({ resolve: () => target }),
+			fromPartial<CommandTemplateExecutor>({ execute }),
 			launcher,
 			observeProject,
 		);
@@ -394,10 +399,10 @@ describe("ReviewPromptQueueService", () => {
 		await service.launchWithQueueHead("project", "st-1-ticket", "GPT");
 		const restartedService = new ReviewPromptQueueService(
 			store,
-			{ loadSnapshot: vi.fn() } as never,
-			{ resolve: () => target } as never,
-			{ execute: vi.fn() } as never,
-			{ isRunning: vi.fn().mockReturnValue(false), launch: vi.fn() } as never,
+			fromPartial<DiffReviewGitService>({ loadSnapshot: vi.fn() }),
+			fromPartial<DiffReviewTargetResolver>({ resolve: () => target }),
+			fromPartial<CommandTemplateExecutor>({ execute: vi.fn() }),
+			fromPartial<ReviewAgentLauncher>({ isRunning: vi.fn().mockReturnValue(false), launch: vi.fn() }),
 		);
 
 		await expect(restartedService.launchWithQueueHead("project", "st-1-ticket", "GPT"))
@@ -480,9 +485,9 @@ describe("ReviewPromptQueueService", () => {
 		});
 		const service = new ReviewPromptQueueService(
 			store,
-			{ loadSnapshot: vi.fn() } as never,
-			{ resolve: () => target } as never,
-			{ execute: vi.fn() } as never,
+			fromPartial<DiffReviewGitService>({ loadSnapshot: vi.fn() }),
+			fromPartial<DiffReviewTargetResolver>({ resolve: () => target }),
+			fromPartial<CommandTemplateExecutor>({ execute: vi.fn() }),
 			launcher,
 			observeProject,
 		);
@@ -499,9 +504,9 @@ describe("ReviewPromptQueueService", () => {
 		const { store, launcher, snapshot, target } = setupQueue();
 		const service = new ReviewPromptQueueService(
 			store,
-			{ loadSnapshot: vi.fn() } as never,
-			{ resolve: () => target } as never,
-			{ execute: vi.fn() } as never,
+			fromPartial<DiffReviewGitService>({ loadSnapshot: vi.fn() }),
+			fromPartial<DiffReviewTargetResolver>({ resolve: () => target }),
+			fromPartial<CommandTemplateExecutor>({ execute: vi.fn() }),
 			launcher,
 			vi.fn().mockResolvedValue(undefined),
 		);

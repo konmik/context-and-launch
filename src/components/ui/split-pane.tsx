@@ -18,7 +18,8 @@ export function SplitPane(props: {
     setPercent(clamp(((event.clientX - rect.left) / rect.width) * 100));
   }
   function startResize(event: PointerEvent) {
-    const separator = event.currentTarget as HTMLElement;
+    const separator = event.currentTarget;
+    if (!(separator instanceof HTMLElement)) return;
     separator.setPointerCapture(event.pointerId);
     const removeListeners = () => {
       separator.removeEventListener("pointermove", resizeToPointer);

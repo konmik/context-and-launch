@@ -91,10 +91,7 @@ export function resolveDrop(
 export function resolveCursorPosition(
 	event: DndDragEvent,
 ): { x: number; y: number } | null {
-	type WithOverlay = DndDragEvent & {
-		overlay?: { node?: HTMLElement };
-	};
-	const overlay = (event as WithOverlay).overlay;
+	const overlay = event.overlay;
 	const node = event.draggable.node;
 	if (!node) return null;
 

@@ -9,6 +9,9 @@ import type { CommandTemplateDefinition, CommandTemplateEntry } from './command-
 import type { JsonValue } from '../shared/json.js';
 
 type ScriptMap = Record<string, string>;
+type KnownCommandTemplateDefinition = CommandTemplateDefinition & {
+	readonly key: CommandTemplateKey;
+};
 
 const BUNDLED_DEFAULTS_LABEL = 'The bundled Command Template catalog';
 const ScriptRecordSchema = v.record(v.string(), v.unknown());
@@ -130,23 +133,23 @@ export class CommandTemplateStore {
 		return overrides;
 	}
 
-	private requireKnown(key: CommandTemplateKey): CommandTemplateDefinition {
+	private requireKnown(key: CommandTemplateKey): KnownCommandTemplateDefinition {
 		const definition = COMMAND_TEMPLATE_DEFINITION_BY_KEY.get(key);
 		if (!definition) {
 			throw new Error(`Unknown Command Template key '${key}'.`);
 		}
-		return definition;
+		return { ...definition, key };
 	}
 
 	private toEntry(
-		definition: CommandTemplateDefinition,
+		definition: KnownCommandTemplateDefinition,
 		defaults: ScriptMap,
 		overrides: ScriptMap,
 	): CommandTemplateEntry {
 		const isOverridden = Object.hasOwn(overrides, definition.key);
 		return {
 			...definition,
-			key: definition.key as CommandTemplateKey,
+			key: definition.key,
 			script: isOverridden ? overrides[definition.key] : defaults[definition.key],
 			isOverridden,
 		};

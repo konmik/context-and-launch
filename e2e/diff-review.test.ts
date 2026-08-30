@@ -358,7 +358,11 @@ describe("Diff Review (e2e, real server)", () => {
 
 		const rowDrop = await reviewFileDiff(ctx.page, "src/example.ts")
 			.evaluate((host) => {
-				const root = (host.firstElementChild as HTMLElement).shadowRoot!;
+				const child = host.firstElementChild;
+				if (!(child instanceof HTMLElement) || !child.shadowRoot) {
+					throw new Error("diff shadow root not found");
+				}
+				const root = child.shadowRoot;
 				const row = root.querySelector<HTMLElement>(
 					'[data-line][data-line-type="change-addition"]',
 				)!;
@@ -519,12 +523,16 @@ describe("Diff Review (e2e, real server)", () => {
 		await expect.poll(() => addedLines.count(), { timeout: 10_000 }).toBe(4);
 
 		await reviewFileDiff(ctx.page, "many.ts").evaluate((host) => {
-			const root = (host.firstElementChild as HTMLElement).shadowRoot!;
+			const child = host.firstElementChild;
+			if (!(child instanceof HTMLElement) || !child.shadowRoot) {
+				throw new Error("diff shadow root not found");
+			}
+			const root = child.shadowRoot;
 			const lines = root.querySelectorAll<HTMLElement>(
 				'[data-line][data-line-type="change-addition"]',
 			);
-			const selection = (root as ShadowRoot & { getSelection?(): Selection | null })
-				.getSelection?.() ?? document.getSelection()!;
+			const selectionRoot: ShadowRoot & { getSelection?(): Selection | null } = root;
+			const selection = selectionRoot.getSelection?.() ?? document.getSelection()!;
 			const range = document.createRange();
 			range.setStart(lines[0], 0);
 			range.setEnd(lines[2], lines[2].childNodes.length);
@@ -694,15 +702,15 @@ describe("Diff Review (e2e, real server)", () => {
 		).toBe(2);
 		expect(await ctx.page.locator('[data-testid="diff-review-file-section"]')
 			.evaluateAll((sections) => sections.map((section) =>
-				(section as HTMLElement).dataset.filePath))).toEqual([
+				section.getAttribute("data-file-path")))).toEqual([
 			"committed.ts",
 			"pending.ts",
 		]);
 		expect(await ctx.page.locator('[data-testid="diff-review-file-diff"]').count()).toBe(2);
 		expect(await ctx.page.locator('[data-testid="diff-review-file-diff"]')
 			.evaluateAll((diffs) => diffs.map((diff) => {
-				const element = diff as HTMLElement;
-				return !element.hidden && getComputedStyle(element).display !== "none";
+				return diff instanceof HTMLElement
+					&& !diff.hidden && getComputedStyle(diff).display !== "none";
 			}))).toEqual([true, true]);
 		expect(await ctx.page.locator('[data-testid="diff-review-file-diff"]')
 			.evaluateAll((diffs) => diffs.map((diff) =>

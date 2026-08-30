@@ -48,8 +48,8 @@ describe("Ticket detail editor file management (e2e, real server)", () => {
 
     const image = ctx.page.locator(`img[alt="${fileName}"]`);
     await image.waitFor({ state: "visible", timeout: 15000 });
-    await expect.poll(() => image.evaluate(
-      (element) => (element as HTMLImageElement).naturalWidth,
+    await expect.poll(() => image.evaluate<number, HTMLImageElement>(
+      (element) => element.naturalWidth,
     )).toBeGreaterThan(0);
   });
 

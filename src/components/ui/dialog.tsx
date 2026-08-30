@@ -14,7 +14,7 @@ export function DialogRoot(props: {
   ref?: (el: HTMLDivElement) => void;
 }) {
   let content!: HTMLDivElement;
-  let previouslyFocused: Element | null = null;
+  let previouslyFocused: HTMLElement | null = null;
   const open = createMemo(() => props.open);
   const id = createUniqueId();
   const context = {
@@ -24,7 +24,9 @@ export function DialogRoot(props: {
   };
   createEffect(open, (isOpen) => {
     if (!isOpen) return;
-    previouslyFocused = document.activeElement;
+    previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
     queueMicrotask(() => content?.querySelector<HTMLElement>("button, input, select, textarea, [tabindex]:not([tabindex='-1'])")?.focus());
     const keydown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -35,7 +37,10 @@ export function DialogRoot(props: {
       if (event.key !== "Tab") return;
       const focusable = [...content.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])")];
       if (!focusable.length) return;
-      const current = focusable.indexOf(document.activeElement as HTMLElement);
+      const activeElement = document.activeElement;
+      const current = activeElement instanceof HTMLElement
+        ? focusable.indexOf(activeElement)
+        : -1;
       const next = event.shiftKey ? (current <= 0 ? focusable.length - 1 : current - 1) : (current + 1) % focusable.length;
       event.preventDefault();
       focusable[next].focus();
@@ -43,7 +48,7 @@ export function DialogRoot(props: {
     document.addEventListener("keydown", keydown);
     return () => {
       document.removeEventListener("keydown", keydown);
-      (previouslyFocused as HTMLElement | null)?.focus?.();
+      previouslyFocused?.focus();
     };
   });
   return (

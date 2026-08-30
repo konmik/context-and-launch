@@ -182,6 +182,12 @@ export type PlatformCommandTemplateFamily =
 		? Key extends `${infer Family}.${CommandTemplatePlatform}` ? Family : never
 		: never;
 
+function isPlatformCommandTemplateKey<Family extends PlatformCommandTemplateFamily>(
+	key: string,
+): key is Extract<CommandTemplateKey, `${Family}.${CommandTemplatePlatform}`> {
+	return COMMAND_TEMPLATE_DEFINITION_BY_KEY.has(key);
+}
+
 /**
  * Platform-specific actions use flat suffix keys per the catalog contract. This
  * keeps that selection inside the typed catalog instead of letting call sites
@@ -193,7 +199,9 @@ export function platformCommandTemplateKey<Family extends PlatformCommandTemplat
 	family: Family,
 	platform: CommandTemplatePlatform,
 ): Extract<CommandTemplateKey, `${Family}.${CommandTemplatePlatform}`> {
-	return `${family}.${platform}` as Extract<
-		CommandTemplateKey, `${Family}.${CommandTemplatePlatform}`
-	>;
+	const key = `${family}.${platform}`;
+	if (!isPlatformCommandTemplateKey<Family>(key)) {
+		throw new Error(`No Command Template is available for '${family}' on ${platform}.`);
+	}
+	return key;
 }

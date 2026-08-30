@@ -197,10 +197,13 @@ describe("KanbanBoard column color lines", () => {
 
     expect(container.querySelectorAll('[data-testid="status-swatch"]').length).toBe(0);
 
-    const line = (name: string) =>
-      container.querySelector(
+    const line = (name: string): HTMLElement => {
+      const element = container.querySelector<HTMLElement>(
         `[data-testid="kanban-board-column-color-line"][data-column-name="${name}"]`,
-      ) as HTMLElement;
+      );
+      if (!element) throw new Error(`Expected color line for ${name}`);
+      return element;
+    };
     expect(line("todo").style.backgroundColor).toBe("rgb(9, 105, 218)");
     expect(line("done").style.backgroundColor).toBe("transparent");
   });

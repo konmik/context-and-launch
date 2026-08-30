@@ -180,8 +180,10 @@ describe("Forest group lifecycle", () => {
       state: "attached", timeout: 10000,
     });
     await ctx.page.evaluate(() => {
-      const items = document.querySelectorAll('[data-testid="kanban-board-ticket-menu-archive"]');
-      const last = items[items.length - 1] as HTMLElement;
+      const items = document.querySelectorAll<HTMLElement>(
+        '[data-testid="kanban-board-ticket-menu-archive"]',
+      );
+      const last = items[items.length - 1];
       if (last) last.click();
     });
     await waitVisible(ctx.page, "ticket-cleanup-submit");

@@ -7,6 +7,12 @@ interface ComposedRangeSelection {
 	getComposedRanges(options: { shadowRoots: ShadowRoot[] }): StaticRange[];
 }
 
+declare global {
+	interface ShadowRoot {
+		getSelection?(): Selection | null;
+	}
+}
+
 function isComposedRangeSelection(
 	selection: Selection,
 ): selection is Selection & ComposedRangeSelection {
@@ -66,7 +72,7 @@ export function selectedNodes(
 		}
 	}
 	const rootSelection = root instanceof ShadowRoot
-		? (root as ShadowRoot & { getSelection?(): Selection | null }).getSelection?.()
+		? root.getSelection?.()
 		: documentSelection;
 	const anchorNode = rootSelection?.anchorNode;
 	const focusNode = rootSelection?.focusNode;

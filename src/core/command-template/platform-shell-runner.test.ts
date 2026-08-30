@@ -15,6 +15,11 @@ function quoted(executable: string): string {
   return platform === "windows" ? `& ${literal}` : literal;
 }
 
+function requireProcessError(cause: unknown): ProcessError {
+  if (!(cause instanceof ProcessError)) throw new Error("Expected the command to reject with a ProcessError");
+  return cause;
+}
+
 describe("platform shell runner failure classification", () => {
   // Before the wrapper reserved distinct codes, `pwsh -Command` collapsed every
   // non-zero exit to 1, so these two cases were indistinguishable. Callers such
@@ -62,9 +67,9 @@ describe("platform shell runner failure classification", () => {
   it.concurrent("only answers exitedWith for a code the command itself chose", async () => {
     const cwd = makeTempDir();
     const missing = await runCapturedScript("definitely-not-a-real-executable-xyz", cwd)
-      .then(() => { throw new Error("expected a failure"); }, (cause: unknown) => cause as ProcessError);
+      .then(() => { throw new Error("expected a failure"); }, requireProcessError);
     const refused = await runCapturedScript(`${quoted(process.execPath)} -e "process.exit(1)"`, cwd)
-      .then(() => { throw new Error("expected a failure"); }, (cause: unknown) => cause as ProcessError);
+      .then(() => { throw new Error("expected a failure"); }, requireProcessError);
     expect(refused.exitedWith(1)).toBe(true);
     expect(missing.exitedWith(1)).toBe(false);
   });

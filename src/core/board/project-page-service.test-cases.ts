@@ -43,7 +43,8 @@ function stubDeps(overrides: {
 		}),
 	});
 	const fileWatcher = fromPartial<FileWatcher>({ watch: vi.fn() });
-	const ticketSyncManager = overrides.ticketSyncManager ?? ({} as TicketSyncManager);
+	const ticketSyncManager = overrides.ticketSyncManager
+		?? fromPartial<TicketSyncManager>({});
 	const launcherConfigManager = fromPartial<LauncherConfigManager>({
 		resolveWorktreeSettings: vi.fn(() => ({
 			worktreeRootPath: overrides.agentWorktreeRoot ?? '/nonexistent-agent-worktree-root',

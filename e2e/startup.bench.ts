@@ -26,7 +26,11 @@ async function launchAppAndMeasure(
   const app = await _electron.launch({
     args: [path.join(PROJECT_ROOT, "electron", "main.js")],
     cwd: PROJECT_ROOT,
-    env: env as { [key: string]: string },
+    env: Object.fromEntries(
+      Object.entries(env).filter(
+        (entry): entry is [string, string] => entry[1] !== undefined,
+      ),
+    ),
   });
   let stderr = "";
   app.process().stderr?.on("data", (b: Buffer) => { stderr += b.toString(); });

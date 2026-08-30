@@ -104,7 +104,7 @@ export const renameColumn = action(async function renameColumn(input: {
     );
     return actionResult({
       ok: true as const,
-      newName: result.newName as string,
+      newName: result.newName,
       boards: boardConfigManager.listBoards(),
     });
   } catch (e) {

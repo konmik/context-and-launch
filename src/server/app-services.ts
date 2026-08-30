@@ -18,11 +18,7 @@ export function createAppServices(): AppServices {
   };
 }
 
-interface AppServicesGlobal {
-  __contextLaunchServices?: AppServices;
-}
-
 export function publishAppServices(services = createAppServices()): AppServices {
-  (globalThis as AppServicesGlobal).__contextLaunchServices = services;
+  Object.assign(globalThis, { __contextLaunchServices: services });
   return services;
 }

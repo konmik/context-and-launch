@@ -78,6 +78,10 @@ const SCOPE_LABELS = {
 	"last-commit": "Last Commit Changes",
 } satisfies Record<DiffScope, string>;
 
+function isDiffScope(value: string): value is DiffScope {
+	return Object.hasOwn(SCOPE_LABELS, value);
+}
+
 const TREE_WIDTH_DEFAULT = 270;
 const TREE_WIDTH_MIN = 180;
 const TREE_WIDTH_MAX = 480;
@@ -746,7 +750,8 @@ export default function DiffReview(props: {
 							class="input input-sm w-[180px] appearance-none pr-8 text-xs"
 							value={selectedScope() ?? ""}
 							onChange={(event) => {
-				setScope(event.currentTarget.value as DiffScope);
+								const value = event.currentTarget.value;
+								if (isDiffScope(value)) setScope(value);
 								changeComposer();
 							}}
 							data-testid="diff-review-scope"

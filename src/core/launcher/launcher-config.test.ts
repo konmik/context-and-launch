@@ -1,8 +1,12 @@
 import { describe, it, expect, afterEach } from 'vitest';
+import { fromAny } from '@total-typescript/shoehorn';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { LauncherConfigManager, mergeLauncherConfigs } from './launcher-config.js';
+import {
+	LauncherConfigManager, mergeLauncherConfigs,
+	type LauncherProfile, type LauncherShortcut, type LauncherTemplate,
+} from './launcher-config.js';
 import { ConfigPaths } from '../config/config-paths.js';
 import { initializeDataDir } from '../config/initialize.js';
 
@@ -248,12 +252,14 @@ describe('LauncherConfigManager', () => {
 		});
 		// Pass a template with an extra field that is not part of LauncherTemplate
 		mgr.updateTemplate(
-			'app', 'test-project', 'Original', { name: 'Original', text: 'updated', color: 'red' } as any,
+			'app', 'test-project', 'Original', fromAny<LauncherTemplate, LauncherTemplate & { color: string }>({
+				name: 'Original', text: 'updated', color: 'red',
+			}),
 		);
 		const config = mgr.loadAppConfig();
 		const t = config.templates.find(t => t.name === 'Original');
 		expect(t).toEqual({ name: 'Original', text: 'updated' });
-		expect((t as any).color).toBeUndefined();
+		expect(t).not.toHaveProperty('color');
 	});
 
 	it('updateTemplate renames correctly', () => {
@@ -909,12 +915,14 @@ describe('LauncherConfigManager', () => {
 		});
 		mgr.updateProfile(
 			'app', 'test-project', 'Original',
-			{ name: 'Original', command: 'updated', extra: 'junk' } as any,
+			fromAny<LauncherProfile, LauncherProfile & { extra: string }>({
+				name: 'Original', command: 'updated', extra: 'junk',
+			}),
 		);
 		const config = mgr.loadAppConfig();
 		const p = (config.profiles ?? []).find(p => p.name === 'Original');
 		expect(p).toEqual({ name: 'Original', command: 'updated' });
-		expect((p as any).extra).toBeUndefined();
+		expect(p).not.toHaveProperty('extra');
 	});
 
 	it('merge: app profiles + project profiles, project wins on name collision', () => {
@@ -1239,12 +1247,14 @@ describe('LauncherConfigManager', () => {
 		});
 		mgr.updateShortcut(
 			'app', 'test-project', 'Original',
-			{ name: 'Original', command: 'updated', extra: 'junk' } as any,
+			fromAny<LauncherShortcut, LauncherShortcut & { extra: string }>({
+				name: 'Original', command: 'updated', extra: 'junk',
+			}),
 		);
 		const config = mgr.loadAppConfig();
 		const s = (config.shortcuts ?? []).find(s => s.name === 'Original');
 		expect(s).toEqual({ name: 'Original', command: 'updated' });
-		expect((s as any).extra).toBeUndefined();
+		expect(s).not.toHaveProperty('extra');
 	});
 
 	it('updateShortcut with nonexistent name throws', () => {

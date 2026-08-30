@@ -87,6 +87,8 @@ describe('ConfigRepository', () => {
 				originalWriteFileSync(destination, '{"partial"');
 				throw new Error('Simulated interrupted write');
 			}
+			// SAFETY: Vitest exposes overloaded writeFileSync arguments as a variadic
+			// array; this forwards the original call unchanged.
 			return originalWriteFileSync.apply(fs, args as any);
 		});
 

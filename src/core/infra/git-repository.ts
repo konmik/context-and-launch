@@ -13,6 +13,10 @@ function pathsReferToSameEntry(left: string, right: string): boolean {
 	}
 }
 
+function isEnoent(cause: unknown): boolean {
+	return cause instanceof Error && 'code' in cause && cause.code === 'ENOENT';
+}
+
 export class GitRepository {
 	constructor(private readonly commands: CommandTemplateExecutor) {}
 
@@ -34,8 +38,7 @@ export class GitRepository {
 			const match = content.match(/^gitdir:\s*(.+)$/);
 			return match !== null && fs.existsSync(path.resolve(worktreeDir, match[1]));
 		} catch (err: unknown) {
-			if (err instanceof Error && 'code' in err
-				&& (err as NodeJS.ErrnoException).code === 'ENOENT') return false;
+			if (isEnoent(err)) return false;
 			throw err;
 		}
 	}
@@ -50,7 +53,7 @@ export class GitRepository {
 				if (match) return path.resolve(worktreeDir, match[1]);
 			}
 		} catch (err: unknown) {
-			if (!(err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT')) {
+			if (!isEnoent(err)) {
 				console.warn(`resolveGitDir: unexpected error reading ${dotGit}:`, err);
 			}
 		}

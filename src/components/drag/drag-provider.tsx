@@ -88,8 +88,9 @@ export function DragDropProvider(props: {
     activators: (id) => ({
       onPointerDown: (e) => {
         removePointerListeners?.();
-        const node = nodes.get(id) ?? (e.currentTarget as HTMLElement);
-        const target = e.currentTarget as HTMLElement;
+        const target = e.currentTarget;
+        if (!(target instanceof HTMLElement)) return;
+        const node = nodes.get(id) ?? target;
         const start = { x: e.clientX, y: e.clientY };
         const pointerMove = (next: PointerEvent) => {
           if (!activeItem && Math.hypot(next.clientX - start.x, next.clientY - start.y) >= 4) {
@@ -117,7 +118,9 @@ export function DragDropProvider(props: {
         window.addEventListener("pointercancel", pointerCancel);
       },
       onKeyDown: (e) => {
-        const node = nodes.get(id) ?? (e.currentTarget as HTMLElement);
+        const target = e.currentTarget;
+        if (!(target instanceof HTMLElement)) return;
+        const node = nodes.get(id) ?? target;
         if ((e.key === " " || e.key === "Enter") && !activeItem) {
           e.preventDefault();
           const rect = node.getBoundingClientRect();

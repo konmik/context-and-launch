@@ -48,9 +48,9 @@ function surfaceInfo(element: HTMLElement, scopeGroupNumber: string | undefined)
 
 export default function ForestSurface(props: Props) {
   const model = createMemo(() => buildForestFlowModel(props.data.tickets, props.data.scopeGroupNumber, props.data.layout));
-  const [nodes, setNodes] = createStore(
+  const [nodes, setNodes] = createStore<ForestFlowNode[]>(
     () => model().nodes,
-    [] as ForestFlowNode[],
+    [],
     { key: "id" },
   );
   const [viewport, setViewport] = createSignal<ForestViewport>(
@@ -118,11 +118,12 @@ export default function ForestSurface(props: Props) {
     };
     const finish = (event: PointerEvent) => {
       cleanup();
-      const element = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+      const element = document.elementFromPoint(event.clientX, event.clientY);
       const handle = element?.closest<HTMLElement>("[data-connection-handle-end][data-ticket-number]");
       const card = element?.closest<HTMLElement>("[data-forest-card][data-ticket-number]");
       const ticketNumber = handle?.dataset.ticketNumber ?? card?.dataset.ticketNumber;
-      const end = handle?.dataset.connectionHandleEnd as "top" | "bottom" | undefined;
+      const handleEnd = handle?.dataset.connectionHandleEnd;
+      const end = handleEnd === "top" || handleEnd === "bottom" ? handleEnd : undefined;
       if (ticketNumber && ticketNumber !== source.ticketNumber) {
         activateConnection({ ticketNumber, end: end ?? (source.end === "bottom" ? "top" : "bottom") });
       } else if (!ticketNumber) {
@@ -168,7 +169,8 @@ export default function ForestSurface(props: Props) {
     setRaisedNodeId(id);
     if (event.shiftKey) { setSelected((ids) => ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id]); return; }
     const node = nodeById(id)!;
-    const target = event.currentTarget as HTMLElement;
+    const target = event.currentTarget;
+    if (!(target instanceof HTMLElement)) return;
     const origin = { x: event.clientX, y: event.clientY, position: { ...node.position } };
     let dragging = false;
     const move = (next: PointerEvent) => {
@@ -257,7 +259,9 @@ export default function ForestSurface(props: Props) {
     }
     suppressedClick = undefined;
     if (node.data.group) {
-      const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+      const target = event.currentTarget;
+      if (!(target instanceof HTMLElement)) return;
+      const rect = target.getBoundingClientRect();
       props.commands.openGroup(node.id, { x: rect.x, y: rect.y, width: rect.width, height: rect.height });
     } else if (props.connectionSession().kind === "connecting") {
       const session = props.connectionSession();

@@ -342,7 +342,8 @@ describe('AgentWorktreeManager', () => {
 
 		// Every success must return a valid worktreePath
 		for (const s of successes) {
-			const result = (s as PromiseFulfilledResult<any>).value;
+			if (s.status !== 'fulfilled') throw new Error('Expected a fulfilled result.');
+			const result = s.value;
 			expect('worktreePath' in result).toBe(true);
 			if ('worktreePath' in result) {
 				const expected = `${worktreeRoot}/${folderName}`;
@@ -352,8 +353,10 @@ describe('AgentWorktreeManager', () => {
 
 		// Any failure must have a clean git error message (not corruption)
 		for (const f of failures) {
-			const err = (f as PromiseRejectedResult).reason;
+			if (f.status !== 'rejected') throw new Error('Expected a rejected result.');
+			const err = f.reason;
 			expect(err).toBeInstanceOf(Error);
+			if (!(err instanceof Error)) throw new Error('Expected rejected result to contain an Error.');
 			// Git's error for duplicate worktree add contains "already" or "checked out"
 			expect(err.message).toMatch(/already|checked out|exists/i);
 		}
@@ -433,8 +436,9 @@ describe('AgentWorktreeManager', () => {
 		const error = await awm.ensureAgentWorktree(projectDir, 'dup-proj', folderName)
 			.catch((e: Error) => e);
 		expect(error).toBeInstanceOf(Error);
-		expect((error as Error).message).toMatch(/already checked out/i);
-		expect((error as Error).message).toContain('git worktree remove');
+		if (!(error instanceof Error)) throw new Error('Expected duplicate worktree operation to fail with an Error.');
+		expect(error.message).toMatch(/already checked out/i);
+		expect(error.message).toContain('git worktree remove');
 
 		if ('worktreePath' in result1) {
 			expect(fs.existsSync(result1.worktreePath)).toBe(true);
@@ -503,7 +507,8 @@ describe('AgentWorktreeManager', () => {
 			{ branchName: folderName, agentWorktreePath: foreignWorktree },
 		).catch((cause: unknown) => cause);
 		expect(error).toBeInstanceOf(ForeignWorktreeError);
-		expect((error as Error).message).toBe(
+		if (!(error instanceof Error)) throw new Error('Expected foreign worktree operation to fail with an Error.');
+		expect(error.message).toBe(
 			`The saved worktree belongs to a different project: ${foreignWorktree}.`
 			+ ' Remove it from its original project before retrying.',
 		);

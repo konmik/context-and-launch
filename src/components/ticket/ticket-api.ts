@@ -18,7 +18,6 @@ import { runTicketCleanupChecks } from "~/core/worktree/ticket-cleanup-checks.js
 import type { TicketCleanupStatus, TicketCleanupOptions } from "~/core/worktree/ticket-cleanup-checks.js";
 import { findHerdrAgent, stopHerdrAgent } from "~/core/herdr/herdr-control.js";
 import { ValidationError, NotFoundError, errorMessage, errorPayload, errorResult } from "~/core/shared/errors.js";
-import type { ErrorInfo } from "~/core/shared/errors.js";
 import { resolveInitialTicketStatus } from "~/core/board/initial-ticket-status.js";
 import type { LockingProcessInfo } from "~/core/worktree/agent-worktree.js";
 
@@ -401,7 +400,7 @@ export async function worktreeCleanup(
     const payload = errorPayload(e);
     return {
       ok: false as const, type: "error" as const,
-      message: payload.description, errorInfo: payload as ErrorInfo,
+      message: payload.description, errorInfo: payload,
     };
   }
 }

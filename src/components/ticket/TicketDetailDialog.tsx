@@ -24,7 +24,7 @@ import { LauncherTab } from "./ticket-detail-launcher-tab.js";
 import { createAgentLauncherController } from "../launcher/agent-launcher-controller.js";
 import { launchAgentAction } from "../launcher/launcher-api.js";
 import {
-  createTicketDetailState, type Tab, type TicketDetailState, type TicketDetailStateDeps,
+  createTicketDetailState, type TicketDetailState, type TicketDetailStateDeps,
 } from "./ticket-detail-state.js";
 import ErrorDialog from "../shared/ErrorDialog.js";
 
@@ -207,7 +207,9 @@ function TicketDetailContent(props: {
         >
           <Show when={s.initialTabResolved()}>
             <div class="-mx-4 -mb-4">
-              <TabsRoot value={s.activeTab()} onValueChange={(d) => s.switchTab(d.value as Tab)}>
+              <TabsRoot value={s.activeTab()} onValueChange={(d) => {
+                if (d.value === "editor" || d.value === "launcher") s.switchTab(d.value);
+              }}>
                 <TabsList>
                   <TabsTrigger value="editor" data-testid="ticket-detail-tab-editor">File Editor</TabsTrigger>
                   <TabsTrigger value="launcher" data-testid="ticket-detail-tab-launcher">Agent Launcher</TabsTrigger>

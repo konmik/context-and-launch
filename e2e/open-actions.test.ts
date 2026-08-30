@@ -20,7 +20,7 @@ async function clickMenuItem(page: Page, triggerSelector: string, itemSelector: 
   await trigger.click();
   await page.locator(itemSelector).first().waitFor({ state: "attached", timeout: 15000 });
   await page.evaluate((sel) => {
-    const el = document.querySelector(sel) as HTMLElement | null;
+    const el = document.querySelector<HTMLElement>(sel);
     if (!el) throw new Error(`menu item not in DOM: ${sel}`);
     el.click();
   }, itemSelector);

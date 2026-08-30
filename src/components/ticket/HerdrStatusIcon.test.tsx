@@ -8,7 +8,9 @@ function renderIcon(status: HerdrAgentStatus) {
 }
 
 function iconRoot(container: HTMLElement) {
-  return container.querySelector('[data-testid="herdr-status-icon"]') as HTMLElement;
+  const icon = container.querySelector<HTMLElement>('[data-testid="herdr-status-icon"]');
+  if (!icon) throw new Error("Expected Herdr status icon to be rendered");
+  return icon;
 }
 
 function expectGlyph(
@@ -17,7 +19,10 @@ function expectGlyph(
   const icon = iconRoot(container);
   expect(icon.getAttribute("data-herdr-status")).toBe(status);
   expect(icon.getAttribute("title")).toBe(status);
-  const renderedGlyph = icon.firstElementChild as HTMLElement;
+  const renderedGlyph = icon.firstElementChild;
+  if (!(renderedGlyph instanceof HTMLElement)) {
+    throw new Error("Expected Herdr status icon to contain an element glyph");
+  }
   expect(renderedGlyph.textContent).toBe(glyph);
   expect(renderedGlyph.style.color).toBe(color);
 }

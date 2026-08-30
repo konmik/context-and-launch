@@ -144,17 +144,77 @@ interface ItemFields {
   command?: string;
 }
 
+type ItemOperation = "add" | "update" | "remove";
+type ItemMethod = (
+  scope: Scope,
+  projectSlug: string,
+  name: string,
+  fields?: ItemFields,
+) => void;
+
+function requiredField(value: string | undefined, field: string): string {
+  if (value === undefined) throw new ValidationError(`Missing required field: ${field}`);
+  return value;
+}
+
+function textItem(fields: ItemFields | undefined) {
+  return {
+    name: requiredField(fields?.name, "name"),
+    text: requiredField(fields?.text, "text"),
+  };
+}
+
+function commandItem(fields: ItemFields | undefined) {
+  return {
+    name: requiredField(fields?.name, "name"),
+    command: requiredField(fields?.command, "command"),
+  };
+}
+
 const ITEM_METHODS = {
-  template: { add: "addTemplate", update: "updateTemplate", remove: "removeTemplate" },
-  skill:    { add: "addSkill",    update: "updateSkill",    remove: "removeSkill" },
-  profile:  { add: "addProfile",  update: "updateProfile",  remove: "removeProfile" },
-  shortcut: { add: "addShortcut", update: "updateShortcut", remove: "removeShortcut" },
-} satisfies Record<LauncherItemType, { add: string; update: string; remove: string }>;
+  template: {
+    add: (scope, projectSlug, _name, fields) =>
+      launcherConfigManager.addTemplate(scope, projectSlug, textItem(fields)),
+    update: (scope, projectSlug, name, fields) =>
+      launcherConfigManager.updateTemplate(scope, projectSlug, name, textItem(fields)),
+    remove: (scope, projectSlug, name) =>
+      launcherConfigManager.removeTemplate(scope, projectSlug, name),
+  },
+  skill: {
+    add: (scope, projectSlug, _name, fields) =>
+      launcherConfigManager.addSkill(scope, projectSlug, textItem(fields)),
+    update: (scope, projectSlug, name, fields) =>
+      launcherConfigManager.updateSkill(scope, projectSlug, name, textItem(fields)),
+    remove: (scope, projectSlug, name) =>
+      launcherConfigManager.removeSkill(scope, projectSlug, name),
+  },
+  profile: {
+    add: (scope, projectSlug, _name, fields) =>
+      launcherConfigManager.addProfile(scope, projectSlug, commandItem(fields)),
+    update: (scope, projectSlug, name, fields) =>
+      launcherConfigManager.updateProfile(scope, projectSlug, name, commandItem(fields)),
+    remove: (scope, projectSlug, name) =>
+      launcherConfigManager.removeProfile(scope, projectSlug, name),
+  },
+  shortcut: {
+    add: (scope, projectSlug, _name, fields) =>
+      launcherConfigManager.addShortcut(scope, projectSlug, commandItem(fields)),
+    update: (scope, projectSlug, name, fields) =>
+      launcherConfigManager.updateShortcut(scope, projectSlug, name, commandItem(fields)),
+    remove: (scope, projectSlug, name) =>
+      launcherConfigManager.removeShortcut(scope, projectSlug, name),
+  },
+} satisfies Record<LauncherItemType, Record<ItemOperation, ItemMethod>>;
 
 function callItemMethod(
-  methodName: string, scope: Scope, projectSlug: string, ...args: unknown[]
+  itemType: LauncherItemType,
+  operation: ItemOperation,
+  scope: Scope,
+  projectSlug: string,
+  name: string,
+  fields?: ItemFields,
 ) {
-  (launcherConfigManager as any)[methodName](scope, projectSlug, ...args);
+  ITEM_METHODS[itemType][operation](scope, projectSlug, name, fields);
 }
 
 export const addItem = action(async function addItem(input: {
@@ -166,9 +226,11 @@ export const addItem = action(async function addItem(input: {
   "use server";
   try {
     callItemMethod(
-      ITEM_METHODS[input.itemType].add,
+      input.itemType,
+      "add",
       input.scope,
       input.projectSlug,
+      "",
       input.fields,
     );
     return { ok: true as const };
@@ -187,7 +249,8 @@ export const updateItem = action(async function updateItem(input: {
   "use server";
   try {
     callItemMethod(
-      ITEM_METHODS[input.itemType].update,
+      input.itemType,
+      "update",
       input.scope,
       input.projectSlug,
       input.oldName,
@@ -208,7 +271,8 @@ export const deleteItem = action(async function deleteItem(input: {
   "use server";
   try {
     callItemMethod(
-      ITEM_METHODS[input.itemType].remove,
+      input.itemType,
+      "remove",
       input.scope,
       input.projectSlug,
       input.name,

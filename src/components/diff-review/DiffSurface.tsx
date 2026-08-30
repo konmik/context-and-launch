@@ -65,7 +65,7 @@ export default function DiffSurface(props: {
 	let observer: IntersectionObserver | undefined;
 	let previousLines: Map<string, string> | undefined;
 	let previousPath: string | undefined;
-	let surfaceRoot: ParentNode | undefined;
+	let surfaceRoot: ShadowRoot | HTMLElement | undefined;
 	let renderedIdentity: string | undefined;
 	let pointerStartedOnGutter = false;
 	let pointerStartedInside = false;
@@ -127,7 +127,7 @@ export default function DiffSurface(props: {
 		queueMicrotask(() => {
 			if (!ownedByLibrary && root) {
 				const range = reviewLineRangeFromSelection(
-					root as ShadowRoot | HTMLElement,
+					root,
 					document.getSelection(),
 				) ?? reviewLineRangeBetween(clickedLine, clickedLine);
 				props.onSelect(range ?? null);
@@ -168,7 +168,7 @@ export default function DiffSurface(props: {
 		}
 		observer = new Observer((entries) => {
 			for (const entry of entries) {
-				if (entry.isIntersecting) handleVisible(entry.target as HTMLElement);
+				if (entry.isIntersecting && entry.target instanceof HTMLElement) handleVisible(entry.target);
 			}
 		}, { root: props.scrollRoot() });
 		for (const row of rows) observer.observe(row);

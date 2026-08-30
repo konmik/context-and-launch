@@ -334,7 +334,7 @@ export class TicketStore {
 		const current = this.repo.readStatusJson(dir);
 		if (!current) throw new Error(`Ticket not found: ${folderName}`);
 		const { agentWorktreeBranchName, agentWorktreeDir, ...rest } = current;
-		this.repo.writeStatusJson(dir, rest as StatusJson);
+		this.repo.writeStatusJson(dir, rest);
 	}
 
 	getTicketContext(folderName: string, name: string): string | null {

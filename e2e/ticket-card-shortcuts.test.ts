@@ -17,7 +17,7 @@ async function runCardShortcut(page: Page, shortcutName: string): Promise<void> 
     + `[data-shortcut-name="${shortcutName}"]`;
   await page.locator(selector).waitFor({ state: "attached", timeout: 15000 });
   await page.evaluate((sel) => {
-    const el = document.querySelector(sel) as HTMLElement | null;
+    const el = document.querySelector<HTMLElement>(sel);
     if (!el) throw new Error(`shortcut item not in DOM: ${sel}`);
     el.click();
   }, selector);

@@ -2,6 +2,19 @@ import { describe, it, expect } from "vitest";
 import { openProject, setupE2E } from "./fixtures.js";
 import { APP_LAUNCHER, openLauncher, setupLauncherTicket } from "./ticket-detail-launcher-shared.js";
 
+interface CodeMirrorView {
+  state: {
+    doc: { length: number };
+    selection: { main: { anchor: number } };
+  };
+  focus(): void;
+  dispatch(transaction: { selection: { anchor: number } }): void;
+}
+
+interface CodeMirrorContentElement extends HTMLElement {
+  cmTile?: { root?: { view?: CodeMirrorView } };
+}
+
 describe("Ticket detail launcher prompt preview (e2e, real server)", () => {
   const ctx = setupE2E();
   it("prompt preview shows interpolated template text", async () => {
@@ -64,7 +77,7 @@ describe("Ticket detail launcher prompt preview (e2e, real server)", () => {
     await cm.waitFor({ state: "visible", timeout: 15000 });
 
     const docLen = await ctx.page.evaluate(() => {
-      const c = document.querySelector('.cm-content') as any;
+      const c = document.querySelector<CodeMirrorContentElement>('.cm-content');
       const view = c?.cmTile?.root?.view;
       return view ? view.state.doc.length : -1;
     });
@@ -72,7 +85,7 @@ describe("Ticket detail launcher prompt preview (e2e, real server)", () => {
 
     const middleOffset = Math.floor(docLen / 2);
     await ctx.page.evaluate((offset) => {
-      const c = document.querySelector('.cm-content') as any;
+      const c = document.querySelector<CodeMirrorContentElement>('.cm-content');
       const view = c?.cmTile?.root?.view;
       if (!view) throw new Error("CM view not found");
       view.focus();
@@ -80,7 +93,7 @@ describe("Ticket detail launcher prompt preview (e2e, real server)", () => {
     }, middleOffset);
 
     const cursorBefore = await ctx.page.evaluate(() => {
-      const c = document.querySelector('.cm-content') as any;
+      const c = document.querySelector<CodeMirrorContentElement>('.cm-content');
       return c?.cmTile?.root?.view?.state?.selection?.main?.anchor ?? -1;
     });
     expect(cursorBefore).toBe(middleOffset);
@@ -93,7 +106,7 @@ describe("Ticket detail launcher prompt preview (e2e, real server)", () => {
     await ctx.page.waitForTimeout(500);
 
     const cursorAfter = await ctx.page.evaluate(() => {
-      const c = document.querySelector('.cm-content') as any;
+      const c = document.querySelector<CodeMirrorContentElement>('.cm-content');
       return c?.cmTile?.root?.view?.state?.selection?.main?.anchor ?? -1;
     });
 

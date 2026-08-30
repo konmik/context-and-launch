@@ -22,7 +22,10 @@ interface DeliveredPrompt {
 }
 
 function deliveredPrompts(): DeliveredPrompt[] {
-	return JSON.parse(fs.readFileSync(statePath, "utf8")).delivered as DeliveredPrompt[];
+	const state: { delivered: DeliveredPrompt[] } = JSON.parse(
+		fs.readFileSync(statePath, "utf8"),
+	);
+	return state.delivered;
 }
 
 describe("Review Prompt delivery (e2e, real server)", () => {

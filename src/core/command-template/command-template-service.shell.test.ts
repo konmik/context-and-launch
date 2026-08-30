@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
+import { fromPartial } from '@total-typescript/shoehorn';
 import { CommandTemplateService } from './command-template-service.js';
 import type { CommandTemplateStore } from './command-template-store.js';
 import { FixedPlatformShellRunner } from './platform-shell-runner.js';
@@ -18,7 +19,7 @@ describe.runIf(process.platform === 'win32')('trusted Windows Profile scripts', 
 			'Write-Output $args[0]\r\n',
 		);
 		const service = new CommandTemplateService(
-			{} as CommandTemplateStore,
+			fromPartial<CommandTemplateStore>({}),
 			new FixedPlatformShellRunner(),
 			'windows',
 			vi.fn(),

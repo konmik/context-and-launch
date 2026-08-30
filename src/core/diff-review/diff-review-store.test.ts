@@ -168,6 +168,7 @@ describe("DiffReviewStore", () => {
 		);
 		store.removeTicket("project", "st-1-ticket");
 
+		// SAFETY: The store just persisted this file using the DiffReviewProjectState shape under test.
 		const persisted = new ConfigRepository().readJson(
 			paths.diffReviewStateFile("project"),
 		) as DiffReviewProjectState;

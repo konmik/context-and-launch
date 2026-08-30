@@ -92,7 +92,8 @@ export function createFloatingPanelState(options: {
 
   function startGesture(event: PointerEvent, resizing: boolean) {
     stopGesture?.(false);
-    const target = event.currentTarget as HTMLElement;
+    const target = event.currentTarget;
+    if (!(target instanceof HTMLElement)) return;
     const origin = {
       pointer: { x: event.clientX, y: event.clientY },
       position: position(), size: size(),

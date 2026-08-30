@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createRoot, createSignal, flush, type Accessor } from "solid-js";
+import { createRoot, createSignal, flush } from "solid-js";
 import { createAgentLauncherController, type AgentLauncherController } from "./agent-launcher-controller.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { MergedLauncherConfig } from "~/core/launcher/launcher-config.js";
@@ -22,7 +22,7 @@ function makeConfig(editedPrompt: string | undefined): MergedLauncherConfig {
 	return {
 		templates: [{ name: "default", text: "generated", scope: "project", order: 0 }],
 		skills: [],
-		profiles: [{ name: "agent", scope: "project" } as MergedLauncherConfig["profiles"][number]],
+		profiles: [{ name: "agent", command: "agent", scope: "project", order: 0 }],
 		shortcuts: [],
 		columnDefaults: { todo: { templateName: null, profileName: null, checkedSkills: [], editedPrompt } },
 		worktreeRootPath: null,
@@ -35,9 +35,9 @@ function makeConfigWithProfile(profileName: string): MergedLauncherConfig {
 	return {
 		...config,
 		profiles: [
-			{ name: "Claude", scope: "project" },
-			{ name: "GPT", scope: "project" },
-		] as MergedLauncherConfig["profiles"],
+			{ name: "Claude", command: "claude", scope: "project", order: 0 },
+			{ name: "GPT", command: "gpt", scope: "project", order: 1 },
+		] satisfies MergedLauncherConfig["profiles"],
 		columnDefaults: {
 			todo: { ...config.columnDefaults.todo, profileName },
 		},
@@ -59,7 +59,7 @@ function setup(initial: {
 		const [config, setConfig] = createSignal<MergedLauncherConfig | null>(initial.config);
 		const ctrl = createAgentLauncherController({
 			projectSlug: "p",
-			ticket: ticket as Accessor<TicketInfo>,
+			ticket,
 			get config() { return config(); },
 			onDefaultsChange: () => {},
 			useWorktree: false,

@@ -70,7 +70,10 @@ export function MenuContent(props: ComponentProps<"div">) {
     onKeyDown={(event) => {
       const items = [...event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])')];
       if (!items.length) return;
-      const current = items.indexOf(document.activeElement as HTMLElement);
+      const activeElement = document.activeElement;
+      const current = activeElement instanceof HTMLElement
+        ? items.indexOf(activeElement)
+        : -1;
       let next: number | undefined;
       if (event.key === "ArrowDown") next = (current + 1) % items.length;
       if (event.key === "ArrowUp") next = (current <= 0 ? items.length : current) - 1;

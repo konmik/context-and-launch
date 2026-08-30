@@ -559,7 +559,8 @@ describe('WorktreeManager', () => {
 		// Any rejection must have a clear error message (not silent corruption)
 		for (const r of rejected) {
 			expect(r.reason).toBeInstanceOf(Error);
-			expect((r.reason as Error).message.length).toBeGreaterThan(0);
+			if (!(r.reason instanceof Error)) throw new Error('Expected rejected result to contain an Error.');
+			expect(r.reason.message.length).toBeGreaterThan(0);
 		}
 	});
 });

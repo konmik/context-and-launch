@@ -20,7 +20,7 @@ export const StatusJsonSchema = v.looseObject({
 export type StatusJson = v.InferOutput<typeof StatusJsonSchema>;
 
 function isEnoent(cause: unknown): boolean {
-	return (cause as NodeJS.ErrnoException | null)?.code === 'ENOENT';
+	return cause instanceof Error && 'code' in cause && cause.code === 'ENOENT';
 }
 
 interface TransactionState {

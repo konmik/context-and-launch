@@ -5,6 +5,18 @@ import {
 
 export type HerdrAgentStatus = 'idle' | 'working' | 'blocked' | 'done' | 'unknown';
 
+function herdrAgentStatus(status: string): HerdrAgentStatus {
+	switch (status) {
+		case 'idle':
+		case 'working':
+		case 'blocked':
+		case 'done':
+			return status;
+		default:
+			return 'unknown';
+	}
+}
+
 export function ticketStatusesFromPanes(
 	panes: HerdrTicketPane[],
 	) {
@@ -18,7 +30,7 @@ export function ticketStatusesFromPanes(
 		seenFolderNames.add(pane.folderName);
 		if (pane.agentStatuses.length === 0) continue;
 		statuses[pane.folderName] = pane.agentStatuses.length === 1
-			? pane.agentStatuses[0] as HerdrAgentStatus
+			? herdrAgentStatus(pane.agentStatuses[0])
 			: 'unknown';
 	}
 	return statuses;

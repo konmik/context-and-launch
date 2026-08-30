@@ -56,9 +56,9 @@ describe("Forest connection mode", () => {
     await forestCard(ctx.page, "B-1").waitFor({ state: "visible", timeout: 15000 });
     const handle = forestHandle(ctx.page, "B-1", "bottom");
     await handle.waitFor({ state: "attached", timeout: 5000 });
-    await handle.evaluate((el) => {
-      (el as HTMLElement).style.opacity = '1';
-      (el as HTMLElement).style.pointerEvents = 'auto';
+    await handle.evaluate<void, HTMLElement>((el) => {
+      el.style.opacity = '1';
+      el.style.pointerEvents = 'auto';
     });
 
     const sourcePoint = await centerOf(handle);
@@ -181,8 +181,10 @@ describe("Forest connection mode", () => {
 
     expect(geometry.handles).toHaveLength(2);
     for (const handle of geometry.handles) {
-      expect(handle.end === "top" || handle.end === "bottom").toBe(true);
-      expect(handle.centerY).toBeCloseTo(geometry.edges[handle.end as "top" | "bottom"], 0);
+      if (handle.end !== "top" && handle.end !== "bottom") {
+        throw new Error(`unexpected forest handle end: ${handle.end}`);
+      }
+      expect(handle.centerY).toBeCloseTo(geometry.edges[handle.end], 0);
     }
   }, 120000);
 

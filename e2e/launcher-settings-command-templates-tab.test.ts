@@ -20,12 +20,12 @@ describe('Command Templates Settings tab (e2e, real server)', () => {
 		await openLauncherSettingsTab(ctx.page, 'command-templates');
 		const group = testId(ctx.page, "command-template-group").first();
 		await testId(group, "command-template-group-toggle").click();
-		expect(await group.evaluate((element) => (element as HTMLDetailsElement).open)).toBe(true);
+		expect(await group.evaluate<boolean, HTMLDetailsElement>((element) => element.open)).toBe(true);
 
 		await openLauncherSettingsTab(ctx.page, 'misc');
 		await openLauncherSettingsTab(ctx.page, 'command-templates');
 
-		expect(await group.evaluate((element) => (element as HTMLDetailsElement).open)).toBe(true);
+		expect(await group.evaluate<boolean, HTMLDetailsElement>((element) => element.open)).toBe(true);
 	});
 
 	it('lists, edits, persists, reloads, and resets a sparse global override', async () => {
@@ -65,9 +65,13 @@ describe('Command Templates Settings tab (e2e, real server)', () => {
 		expect(grownHeight).toBeGreaterThan(oneLineHeight);
 		await testId(row, "command-template-editor-save").click();
 		const saved = await poll(
-			() => (fs.existsSync(overrideFile)
-				? JSON.parse(fs.readFileSync(overrideFile, 'utf8'))
-				: null) as Record<string, string> | null,
+			() => {
+				if (!fs.existsSync(overrideFile)) return null;
+				const override: Record<string, string> = JSON.parse(
+					fs.readFileSync(overrideFile, 'utf8'),
+				);
+				return override;
+			},
 			(o) => o?.['git.version'] === 'git version\n--build-options\n--no-pager\n--paginate',
 			5000,
 		);
@@ -99,9 +103,13 @@ describe('Command Templates Settings tab (e2e, real server)', () => {
 			100,
 		);
 		const afterReset = await poll(
-			() => (fs.existsSync(overrideFile)
-				? JSON.parse(fs.readFileSync(overrideFile, 'utf8'))
-				: {}) as Record<string, string>,
+			() => {
+				if (!fs.existsSync(overrideFile)) return {};
+				const override: Record<string, string> = JSON.parse(
+					fs.readFileSync(overrideFile, 'utf8'),
+				);
+				return override;
+			},
 			(o) => Object.keys(o).length === 0,
 			15000,
 		);

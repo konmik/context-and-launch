@@ -61,7 +61,7 @@ export class ProjectPageService {
 				try {
 					worktreeNames = new Set(await fs.promises.readdir(worktreeRootPath));
 				} catch (e) {
-					if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
+					if (e instanceof Error && 'code' in e && e.code === 'ENOENT') {
 						worktreeNames = new Set();
 					} else {
 						throw e;

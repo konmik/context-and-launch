@@ -31,12 +31,13 @@ function streamingRequest(url: string, chunks: string[]): Request {
       controller.close();
     },
   });
-  return new Request(url, {
+  const init: RequestInit & { duplex: "half" } = {
     method: "POST",
     body,
     headers: { "content-type": "application/json" },
     duplex: "half",
-  } as RequestInit);
+  };
+  return new Request(url, init);
 }
 
 describe("handleAppRequest", () => {

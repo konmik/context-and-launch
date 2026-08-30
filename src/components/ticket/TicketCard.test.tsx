@@ -40,6 +40,12 @@ function renderCard(props: {
   ));
 }
 
+function requiredElement(container: ParentNode, selector: string): HTMLElement {
+  const element = container.querySelector<HTMLElement>(selector);
+  if (!element) throw new Error(`Expected element matching ${selector}`);
+  return element;
+}
+
 describe("TicketCard overflow menu", () => {
   afterEach(() => cleanup());
 
@@ -47,7 +53,7 @@ describe("TicketCard overflow menu", () => {
     const onArchive = vi.fn();
     const { container } = renderCard({ onArchive });
 
-    const menuBtn = container.querySelector("[aria-label='Ticket actions']") as HTMLElement;
+    const menuBtn = requiredElement(container, "[aria-label='Ticket actions']");
     await fireEvent.click(menuBtn);
 
     await waitFor(() => {
@@ -60,15 +66,15 @@ describe("TicketCard overflow menu", () => {
     const onArchive = vi.fn();
     const { container } = renderCard({ onArchive });
 
-    const menuBtn = container.querySelector("[aria-label='Ticket actions']") as HTMLElement;
+    const menuBtn = requiredElement(container, "[aria-label='Ticket actions']");
     await fireEvent.click(menuBtn);
 
     const archiveItem = await waitFor(() => {
-      const el = [...document.querySelectorAll("[role='menuitem']")].find(
+      const el = [...document.querySelectorAll<HTMLElement>("[role='menuitem']")].find(
         el => el.textContent?.trim() === "Archive"
       );
       if (!el) throw new Error("Archive item not yet rendered");
-      return el as HTMLElement;
+      return el;
     });
     await fireEvent.click(archiveItem);
 
@@ -79,15 +85,15 @@ describe("TicketCard overflow menu", () => {
     const onOpenFolder = vi.fn();
     const { container } = renderCard({ onOpenFolder });
 
-    const menuBtn = container.querySelector("[aria-label='Ticket actions']") as HTMLElement;
+    const menuBtn = requiredElement(container, "[aria-label='Ticket actions']");
     await fireEvent.click(menuBtn);
 
     const openFolderItem = await waitFor(() => {
-      const el = [...document.querySelectorAll("[role='menuitem']")].find(
+      const el = [...document.querySelectorAll<HTMLElement>("[role='menuitem']")].find(
         el => el.textContent?.trim() === "Open ticket folder"
       );
       if (!el) throw new Error("Open ticket folder item not yet rendered");
-      return el as HTMLElement;
+      return el;
     });
     await fireEvent.click(openFolderItem);
 
@@ -98,7 +104,7 @@ describe("TicketCard overflow menu", () => {
     cleanup();
     const { container } = renderCard({});
 
-    const menuBtn = container.querySelector("[aria-label='Ticket actions']") as HTMLElement;
+    const menuBtn = requiredElement(container, "[aria-label='Ticket actions']");
     await fireEvent.click(menuBtn);
 
     await waitFor(() => {
@@ -123,7 +129,7 @@ describe("TicketCard status swatch and herdr icon", () => {
     const { container } = renderCard({
       herdrStatuses: { "t-1-test-ticket": "working" },
     });
-    const icon = container.querySelector('[data-testid="herdr-status-icon"]') as HTMLElement;
+    const icon = requiredElement(container, '[data-testid="herdr-status-icon"]');
     expect(icon).toBeTruthy();
     expect(icon.getAttribute("data-herdr-status")).toBe("working");
   });

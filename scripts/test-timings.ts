@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import * as v from "valibot";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = path.join(root, "temp");
@@ -32,8 +33,14 @@ if (run.status !== 0) {
   process.stderr.write((run.stdout ?? "") + "\n" + (run.stderr ?? "") + "\n");
 }
 
-type FileResult = { name: string; startTime: number; endTime: number; status: string };
-const report = JSON.parse(readFileSync(jsonPath, "utf8")) as { testResults: FileResult[] };
+const FileResultSchema = v.object({
+  name: v.string(),
+  startTime: v.number(),
+  endTime: v.number(),
+  status: v.string(),
+});
+const TestReportSchema = v.object({ testResults: v.array(FileResultSchema) });
+const report = v.parse(TestReportSchema, JSON.parse(readFileSync(jsonPath, "utf8")));
 
 const results = report.testResults
   .map((r) => ({

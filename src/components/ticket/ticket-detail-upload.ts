@@ -15,6 +15,15 @@ export interface FileUploadDeps {
   uploadFile?: typeof uploadFileAction;
 }
 
+interface FileInputEventTarget extends EventTarget {
+  files: FileList | null;
+  value: string;
+}
+
+function isFileInputEventTarget(target: EventTarget | null): target is FileInputEventTarget {
+  return target !== null && "files" in target && "value" in target;
+}
+
 export function createFileUploadState(deps: FileUploadDeps) {
   const [uploading, setUploading] = createSignal(false);
   const [dragging, setDragging] = createSignal(false);
@@ -37,7 +46,8 @@ export function createFileUploadState(deps: FileUploadDeps) {
   }
 
   async function handleFileInputChange(e: Event) {
-    const input = e.target as HTMLInputElement;
+    const input = e.target;
+    if (!isFileInputEventTarget(input)) return;
     const files = input.files;
     if (!files) return;
     for (let i = 0; i < files.length; i++) await processFileForUpload(files[i]);

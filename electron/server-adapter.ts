@@ -31,7 +31,7 @@ export async function startServer(appRoot: string): Promise<ServerHandle> {
   const outputDir = appRoot.replace("app.asar", "app.asar.unpacked");
   const serverEntry = path.resolve(outputDir, "dist", "server", "server.js");
   const clientRoot = path.resolve(outputDir, "dist", "client");
-  const serverModule = await import(pathToFileURL(serverEntry).href) as { default?: FetchHandler };
+  const serverModule = await import(pathToFileURL(serverEntry).href);
   const serverHandler = serverModule.default;
 
   const services = globalThis.__contextLaunchServices;

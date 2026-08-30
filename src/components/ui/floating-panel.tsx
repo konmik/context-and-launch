@@ -62,7 +62,9 @@ export function FloatingPanelRoot(props: FloatingWindowProps) {
     if (!isOpen) return;
     if (!persistRect) panel.reset();
     panel.constrain();
-    previousFocus = document.activeElement as HTMLElement | null;
+    previousFocus = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
     queueMicrotask(() => content?.focus());
     const childOverlayOpen = () => document.querySelector(
       '[data-scope="dialog"][data-part="content"][data-state="open"], [data-scope="menu"][data-part="content"]',
@@ -78,7 +80,10 @@ export function FloatingPanelRoot(props: FloatingWindowProps) {
       const focusable = [...content.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])")]
         .filter((element) => !element.closest("[hidden]"));
       if (!focusable.length) return;
-      const current = focusable.indexOf(document.activeElement as HTMLElement);
+      const activeElement = document.activeElement;
+      const current = activeElement instanceof HTMLElement
+        ? focusable.indexOf(activeElement)
+        : -1;
       const next = event.shiftKey ? (current <= 0 ? focusable.length - 1 : current - 1) : (current + 1) % focusable.length;
       event.preventDefault();
       focusable[next].focus();
