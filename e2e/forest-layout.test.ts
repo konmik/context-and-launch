@@ -97,7 +97,7 @@ describe("Forest layout and persistence", () => {
     const card = forestCard(ctx.page, "D-1");
     await card.waitFor({ state: "visible", timeout: 15000 });
     const start = await centerOf(card);
-    await dragPointer(ctx.page, start, { x: start.x + 150, y: start.y }, { steps: 15, stepDelayMs: 20 });
+    await dragPointer(ctx.page, start, { x: start.x + 150, y: start.y });
 
     await expect.poll(
       () => readForestLayout(ctx.testServer, project.projectSlug)?.["D-1"],
@@ -126,7 +126,7 @@ describe("Forest layout and persistence", () => {
     expect(wrapper).toBeTruthy();
 
     const start = await centerOf(card);
-    await dragPointer(ctx.page, start, { x: start.x + 150, y: start.y }, { steps: 15, stepDelayMs: 20 });
+    await dragPointer(ctx.page, start, { x: start.x + 150, y: start.y });
 
     await expect.poll(
       () => readForestLayout(ctx.testServer, project.projectSlug)?.["D-1"],

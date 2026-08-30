@@ -22,7 +22,7 @@ export function TabsTrigger(props: ComponentProps<"button"> & { value: string })
   const selected = () => tabs.value() === props.value;
   const tabId = () => `${tabs.id}-tab-${props.value}`;
   const panelId = () => `${tabs.id}-panel-${props.value}`;
-  return <button type="button" {...props} id={tabId()} aria-controls={panelId()} role="tab" tabindex={selected() ? 0 : -1} data-scope="tabs" data-part="trigger" data-selected={selected() ? "" : undefined} aria-selected={selected() ? "true" : "false"} onClick={() => tabs.select(props.value)} onKeyDown={(event) => {
+  return <button type="button" {...props} id={tabId()} aria-controls={panelId()} role="tab" tabindex={selected() ? 0 : -1} data-scope="tabs" data-part="trigger" data-selected={selected() ? "" : null} aria-selected={selected() ? "true" : "false"} onClick={() => tabs.select(props.value)} onKeyDown={(event) => {
     const tabs = [...event.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>('[role="tab"]:not([disabled])')];
     const current = tabs.indexOf(event.currentTarget);
     let next: number | undefined;

@@ -1,4 +1,4 @@
-import { createSignal, createEffect } from "solid-js";
+import { createMemo, createSignal } from "solid-js";
 import { createFormDialogController } from "./form-dialog-controller.js";
 
 export interface CreateTicketDeps {
@@ -10,22 +10,20 @@ export interface CreateTicketDeps {
 }
 
 export function createCreateTicketController(deps: CreateTicketDeps) {
-  const initial = deps.open() && deps.suggestedNextNumber()
-    ? deps.suggestedNextNumber()! : "";
-  const [number, setNumber] = createSignal(initial);
+  // The number field shows the board's suggestion until someone picks a number,
+  // then it shows that pick. Deriving it means a late-arriving suggestion still
+  // fills an untouched field, while the revalidation that a regenerate call
+  // triggers cannot put the board's suggestion back over the user's choice.
+  const [chosenNumber, setChosenNumber] = createSignal<string>();
+  const number = createMemo(
+    () => chosenNumber() ?? (deps.open() ? deps.suggestedNextNumber() ?? "" : ""),
+  );
+  const setNumber = (value: string) => setChosenNumber(value);
   const [title, setTitle] = createSignal("");
   const [suggestingNumber, setSuggestingNumber] = createSignal(false);
 
-  createEffect(
-    () => [deps.open(), deps.suggestedNextNumber()] as const,
-    ([isOpen, suggested]) => {
-      if (isOpen && suggested) setNumber(suggested);
-    },
-    { defer: true },
-  );
-
   function resetFields() {
-    setNumber("");
+    setChosenNumber(undefined);
     setTitle("");
   }
 

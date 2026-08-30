@@ -16,20 +16,25 @@ $markerName = ".managed-by-context-launch"
 $activeMarkerName = ".context-launch-test-workspace.json"
 $lockName = ".run-lock"
 
+$mountScript = Join-Path $PSScriptRoot "test-runtime-mount.mjs"
+
 function Mount-TestRuntime {
   param([string]$Directory)
 
-  foreach ($letter in @("Z", "Y", "X", "W", "V", "U")) {
-    $drive = "${letter}:"
-    if (Test-Path "$drive\") {
-      continue
-    }
-    & subst.exe $drive $Directory
-    if ($LASTEXITCODE -eq 0) {
-      return $drive
-    }
+  $drive = (& node $mountScript mount $Directory)
+  if ($LASTEXITCODE -ne 0) {
+    throw "Failed to mount the isolated test runtime at $Directory."
   }
-  throw "No drive letter from U: through Z: is available for the isolated test runtime."
+  return $drive
+}
+
+function Dismount-TestRuntime {
+  param([string]$Drive)
+
+  & node $mountScript unmount $Drive
+  if ($LASTEXITCODE -ne 0) {
+    throw "Failed to remove the test runtime mapping $Drive."
+  }
 }
 
 function Test-RunLockHeld {
@@ -295,11 +300,7 @@ try {
     } else {
       @()
     }
-    if ($testArguments.Count -gt 0) {
-      & pnpm.cmd run $workspaceScripts[$Suite] -- @testArguments
-    } else {
-      & pnpm.cmd run $workspaceScripts[$Suite]
-    }
+    & pnpm.cmd run $workspaceScripts[$Suite] @testArguments
     $suiteExitCode = $LASTEXITCODE
   } finally {
     Pop-Location
@@ -307,10 +308,7 @@ try {
 } finally {
   try {
     if ($mountedRuntimeDrive) {
-      & subst.exe $mountedRuntimeDrive /D
-      if ($LASTEXITCODE -ne 0) {
-        throw "Failed to remove the test runtime mapping $mountedRuntimeDrive."
-      }
+      Dismount-TestRuntime $mountedRuntimeDrive
     }
   } finally {
     if ($lockHandle) {

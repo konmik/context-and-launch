@@ -49,7 +49,7 @@
 - Run all tests: `pnpm run test:all` (tsc + unit + build + e2e). Never skip e2e.
 - During implementation, run only the specific affected test file or test case.
 - Do not run the full test suite when only one test or narrowly scoped area changed. Run only the affected test file or test case.
-- Run the full test suite after broad changes that affect multiple areas are complete.
+- When a test fails, re-run only that single test. Never re-run the whole suite to check one fix.
 - Always run tests through the pnpm scripts (`pnpm run test`, `pnpm run test:e2e`, `pnpm run test:all`). They mirror the source into an isolated workspace with its own temp, cache, data, and home directories. Never fall back to the `:workspace` variants: they run in the source tree and their timings are not comparable.
 - Every test run writes per-test timings (setup, execution, cleanup) to `test-timing.log`. Find it in the run's temp folder: `%LOCALAPPDATA%\context-launch-test-runtime\<project>\<branch>\temp\test-timing.log` under the isolated runner, or `%LOCALAPPDATA%\Temp\test-timing.log` for direct runs. Set the `TEST_TIMING_LOG` env var to store it somewhere else.
 - Do not run tests (unit, e2e, build, or screenshots) for pure design/styling changes (CSS, colors, class tweaks) unless the user explicitly asks. Just make the edit.

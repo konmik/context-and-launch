@@ -450,7 +450,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                     const loaded = () => ld()!;
                     return (
                     <Show when={selectionState().reviewTicket} fallback={
-                      <Show when={viewMode() === 'forest'} fallback={
+                      <Show when={viewMode() === 'forest'} keyed fallback={
                         <ShortcutRunnerContext value={shortcutRunner}>
                           <KanbanBoard
                             board={loaded().board}

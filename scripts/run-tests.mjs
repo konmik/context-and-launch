@@ -83,9 +83,7 @@ try {
     [workspaceEnvironmentName]: workspace,
     [tokenEnvironmentName]: marker.token,
   };
-  const result = spawnSync("pnpm", [
-    "run", workspaceScripts[suite], ...(testArguments.length ? ["--", ...testArguments] : []),
-  ], {
+  const result = spawnSync("pnpm", ["run", workspaceScripts[suite], ...testArguments], {
     cwd: workspace,
     env,
     stdio: "inherit",

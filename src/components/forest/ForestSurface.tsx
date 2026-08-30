@@ -327,7 +327,7 @@ export default function ForestSurface(props: Props) {
     setPopup(undefined);
   }
 
-  return <div ref={surface} class={`solid-flow__wrapper relative h-full w-full overflow-hidden select-none touch-none ${panning() ? "cursor-grabbing" : "cursor-default"}`} data-testid="forest-surface" data-connection-edit-mode={props.connectionSession().kind === "connecting" ? "active" : undefined} onPointerDown={startPan} onWheel={wheel} onClick={surfaceClick}>
+  return <div ref={surface} class={`solid-flow__wrapper relative h-full w-full overflow-hidden select-none touch-none ${panning() ? "cursor-grabbing" : "cursor-default"}`} data-testid="forest-surface" data-connection-edit-mode={props.connectionSession().kind === "connecting" ? "active" : null} onPointerDown={startPan} onWheel={wheel} onClick={surfaceClick}>
     <div class="solid-flow__pane pointer-events-none absolute inset-0" style={{ cursor: panning() ? "grabbing" : "default" }} />
     <div class={`absolute z-20 flex gap-2 ${props.data.scopeGroupNumber === undefined ? "right-3" : "left-3"} top-3`}>
       <button class="btn-secondary" onPointerDown={(e) => e.stopPropagation()} onClick={rearrange} disabled={persisting()} data-testid="forest-rearrange-button">Rearrange</button>

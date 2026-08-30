@@ -1,0 +1,74 @@
+diff --git a/dist/dev.js b/dist/dev.js
+index ced85ea83b0f1e15224409541f5fd0d6e5f04e4c..d77de5561f8d07edcca5b7bd20652aa18317dba1 100644
+--- a/dist/dev.js
++++ b/dist/dev.js
+@@ -1569,21 +1569,27 @@ class GlobalQueue extends Queue {
+       // must not entangle unrelated writes to it; the same rule holds one hop
+       // downstream: propagation never queues pended subscribers as pending
+       // nodes, see propagateAffectsMark, #2893.
++      // A finished transition hands its containers to the batch that replaces
++      // it, so a revived transition can share the very arrays being adopted.
++      // Re-stamp those entries in place: pushing them back into the array under
++      // iteration grows it without end.
++      const sharedPending = batch._pendingNodes === activeTransition._pendingNodes;
+       for (let i = 0; i < batch._pendingNodes.length; i++) {
+         const node = batch._pendingNodes[i];
+         node._transition = activeTransition;
+-        activeTransition._pendingNodes.push(node);
++        if (!sharedPending) activeTransition._pendingNodes.push(node);
+       }
++      const sharedOptimistic = batch._optimisticNodes === activeTransition._optimisticNodes;
+       for (let i = 0; i < batch._optimisticNodes.length; i++) {
+         const node = batch._optimisticNodes[i];
+         node._transition = activeTransition;
+-        activeTransition._optimisticNodes.push(node);
++        if (!sharedOptimistic) activeTransition._optimisticNodes.push(node);
+       }
+-      if (batch._affectsNodes.length) activeTransition._affectsNodes.push(...batch._affectsNodes);
+-      for (const store of batch._optimisticStores) activeTransition._optimisticStores.add(store);
++      if (batch._affectsNodes.length && batch._affectsNodes !== activeTransition._affectsNodes) activeTransition._affectsNodes.push(...batch._affectsNodes);
++      if (batch._optimisticStores !== activeTransition._optimisticStores) for (const store of batch._optimisticStores) activeTransition._optimisticStores.add(store);
+       // Gated readers recorded against the ambient batch move with it: their
+       // replay-at-commit now happens at the transaction's completion.
+-      if (batch._gatedSubs.size) {
++      if (batch._gatedSubs.size && batch._gatedSubs !== activeTransition._gatedSubs) {
+         for (const sub of batch._gatedSubs) activeTransition._gatedSubs.add(sub);
+         batch._gatedSubs.clear();
+       }
+diff --git a/dist/prod/core/scheduler.js b/dist/prod/core/scheduler.js
+index 907cdf37fce7831996a76aef335e29fc58dfdb1a..788d907f104d3d441f1fec723a85ce019792bb76 100644
+--- a/dist/prod/core/scheduler.js
++++ b/dist/prod/core/scheduler.js
+@@ -492,21 +492,27 @@ class GlobalQueue extends Queue {
+             // must not entangle unrelated writes to it; the same rule holds one hop
+             // downstream: propagation never queues pended subscribers as pending
+             // nodes, see propagateAffectsMark, #2893.
++            // A finished transition hands its containers to the batch that replaces
++            // it, so a revived transition can share the very arrays being adopted.
++            // Re-stamp those entries in place: pushing them back into the array
++            // under iteration grows it without end.
++            const sharedPending = t.yt === activeTransition.yt;
+             for (let e = 0; e < t.yt.length; e++) {
+                 const i = t.yt[e];
+                 i._e = activeTransition;
+-                activeTransition.yt.push(i);
++                if (!sharedPending) activeTransition.yt.push(i);
+             }
++            const sharedOptimistic = t.Ke === activeTransition.Ke;
+             for (let e = 0; e < t.Ke.length; e++) {
+                 const i = t.Ke[e];
+                 i._e = activeTransition;
+-                activeTransition.Ke.push(i);
++                if (!sharedOptimistic) activeTransition.Ke.push(i);
+             }
+-            if (t.m.length) activeTransition.m.push(...t.m);
+-            for (const e of t.cn) activeTransition.cn.add(e);
++            if (t.m.length && t.m !== activeTransition.m) activeTransition.m.push(...t.m);
++            if (t.cn !== activeTransition.cn) for (const e of t.cn) activeTransition.cn.add(e);
+             // Gated readers recorded against the ambient batch move with it: their
+             // replay-at-commit now happens at the transaction's completion.
+-                        if (t.ln.size) {
++            if (t.ln.size && t.ln !== activeTransition.ln) {
+                 for (const e of t.ln) activeTransition.ln.add(e);
+                 t.ln.clear();
+             }

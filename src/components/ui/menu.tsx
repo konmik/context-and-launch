@@ -93,7 +93,7 @@ export function MenuItem(props: MenuButtonProps & { value?: string; closeOnSelec
     role="menuitem"
     data-scope="menu"
     data-part="item"
-    data-disabled={props.disabled ? "" : undefined}
+    data-disabled={props.disabled ? "" : null}
     onClick={(event) => {
       props.onClick?.(event);
       if (props.closeOnSelect !== false) menu.close(true);

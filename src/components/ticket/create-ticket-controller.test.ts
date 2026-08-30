@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createRoot, flush, runWithOwner } from "solid-js";
+import { createRoot, createSignal, flush, runWithOwner } from "solid-js";
 import { createCreateTicketController, type CreateTicketDeps } from "./create-ticket-controller.js";
 
 function makeDeps(overrides?: Partial<CreateTicketDeps>): CreateTicketDeps {
@@ -53,6 +53,56 @@ describe("createCreateTicketController", () => {
 			});
 		});
 
+	});
+
+	describe("seeding from the suggested number", () => {
+		it("seeds the number when the dialog opens", async () => {
+			await createRoot(async (dispose) => {
+				try {
+					const [open, setOpen] = createSignal(false);
+					const ctrl = createCreateTicketController(makeDeps({
+						open,
+						suggestedNextNumber: () => "ST-0003",
+					}));
+					flush();
+					expect(ctrl.number()).toBe("");
+
+					runWithOwner(null, () => setOpen(true));
+					flush();
+
+					expect(ctrl.number()).toBe("ST-0003");
+				} finally {
+					dispose();
+				}
+			});
+		});
+
+		it("keeps a regenerated number when the page revalidates while open", async () => {
+			await createRoot(async (dispose) => {
+				try {
+					const [suggested, setSuggested] = createSignal<string | null>("ST-0003");
+					const ctrl = createCreateTicketController(makeDeps({
+						open: () => true,
+						suggestedNextNumber: suggested,
+						onSuggestNumber: async () => "BUG-0002",
+					}));
+					flush();
+
+					await runWithOwner(null, ctrl.suggestNumber);
+					flush();
+					expect(ctrl.number()).toBe("BUG-0002");
+
+					// The server call revalidates the project page, which re-emits the
+					// board-wide suggestion. It must not overwrite what the user has.
+					runWithOwner(null, () => setSuggested("ST-0004"));
+					flush();
+
+					expect(ctrl.number()).toBe("BUG-0002");
+				} finally {
+					dispose();
+				}
+			});
+		});
 	});
 
 	describe("doSubmit", () => {

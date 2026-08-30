@@ -507,11 +507,18 @@ export async function centerOf(locator: Locator): Promise<ScreenPoint> {
 
 export interface DragPointerOptions {
   steps?: number;
-  stepDelayMs?: number;
-  /** Held after pressing, before the first move, to let a drag sensor arm. */
-  holdMs?: number;
-  /** Held at the destination before releasing, to let the drop target settle. */
-  settleMs?: number;
+}
+
+/**
+ * Lets the page finish the work one pointer event started. A pointer handler
+ * updates signals, and the DOM those signals drive is painted on the next
+ * frame, so a drag that waits for frames instead of milliseconds moves in step
+ * with the page however busy the machine is.
+ */
+async function frame(page: Page): Promise<void> {
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  }));
 }
 
 /**
@@ -525,19 +532,22 @@ export async function dragPointer(
   to: ScreenPoint,
   options: DragPointerOptions = {},
 ): Promise<void> {
-  const steps = options.steps ?? 10;
-  const stepDelayMs = options.stepDelayMs ?? 30;
+  // Sampling the path by distance rather than by a fixed count means a drag
+  // reports the same pointer positions to the page however far it travels: a
+  // sensor that arms on a few pixels of movement, and a drop target chosen from
+  // the pointer position, both see every part of the path they care about.
+  const travel = Math.hypot(to.x - from.x, to.y - from.y);
+  const steps = options.steps ?? Math.min(30, Math.max(5, Math.ceil(travel / 4)));
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
-  if (options.holdMs) await page.waitForTimeout(options.holdMs);
+  await frame(page);
   for (let i = 1; i <= steps; i++) {
     await page.mouse.move(
       from.x + (to.x - from.x) * (i / steps),
       from.y + (to.y - from.y) * (i / steps),
     );
-    await page.waitForTimeout(stepDelayMs);
+    await frame(page);
   }
-  if (options.settleMs) await page.waitForTimeout(options.settleMs);
   await page.mouse.up();
 }
 

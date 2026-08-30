@@ -51,7 +51,13 @@ interface GroupingDraft {
 }
 
 export default function ForestView(props: ForestViewProps) {
-  const layout = createMemo(() => getForestLayout(props.projectSlug));
+  const layoutQuery = createMemo(() => getForestLayout(props.projectSlug));
+  // Latch the last loaded layout: the surfaces snapshot their node positions
+  // when they mount, so they mount only once a real layout is available, and
+  // revalidating the query (e.g. after a position save) must not unmount them.
+  const loadedLayout = createMemo<ForestLayout | undefined>(
+    previous => layoutQuery() ?? previous,
+  );
   const [error, setError] = createSignal<ErrorInfo>();
   const [openGroups, setOpenGroups] = createSignal<string[]>([]);
   const [openGroupOrigin, setOpenGroupOrigin] = createSignal<ExpandingOverlayOrigin>();
@@ -245,12 +251,12 @@ export default function ForestView(props: ForestViewProps) {
 
   return (
     <div ref={containerRef} class="relative h-full w-full">
-      <Show when={layout()}>
-        {(loadedLayout) => (
+      <Show when={loadedLayout()}>
+        {(layout) => (
           <>
             <ForestSurface
               data={{
-                ...baseSurfaceData(loadedLayout()),
+                ...baseSurfaceData(layout()),
                 viewport: rootViewport(),
               } satisfies ForestSurfaceData}
               commands={surfaceCommands(undefined, 0)}
@@ -270,7 +276,7 @@ export default function ForestView(props: ForestViewProps) {
                   <div class="h-full w-full">
                     <ForestSurface
                       data={{
-                        ...baseSurfaceData(loadedLayout()),
+                        ...baseSurfaceData(layout()),
                         scopeGroupNumber: groupNumber,
                       } satisfies ForestSurfaceData}
                       commands={surfaceCommands(groupNumber, index() + 1)}

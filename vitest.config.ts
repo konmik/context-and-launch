@@ -16,7 +16,7 @@ export default defineConfig({
     poolOptions: { forks: { maxForks: process.platform === "win32" ? 8 : 24 } },
     reporters: ["default", timingReporter],
     projects: [
-      { ...solidVite(), test: { name: "unit-ts", isolate: false, include: ["src/**/*.test.ts", "electron/**/*.test.ts"], exclude: ["src/server/**/*.test.ts", "**/*.shell.test.ts"], testTimeout: 20000, maxConcurrency: 8, setupFiles: ["src/test-git-env.ts"] } },
+      { ...solidVite(), test: { name: "unit-ts", isolate: false, include: ["src/**/*.test.ts", "electron/**/*.test.ts", "scripts/**/*.test.ts"], exclude: ["src/server/**/*.test.ts", "**/*.shell.test.ts"], testTimeout: 20000, maxConcurrency: 8, setupFiles: ["src/test-git-env.ts"] } },
       { ...solidVite(), test: { name: "unit-tsx", include: ["src/**/*.test.tsx"], environment: "jsdom", setupFiles: ["src/test-setup.ts"] } },
       { ...solidVite(), test: { name: "server", environment: "node", include: ["src/server/**/*.test.ts"], setupFiles: ["src/test-git-env.ts"] } },
       {

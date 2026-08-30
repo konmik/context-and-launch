@@ -85,7 +85,7 @@ export async function shiftDragSelection(
   to: ScreenPoint,
 ): Promise<void> {
   await page.keyboard.down("Shift");
-  await dragPointer(page, from, to, { stepDelayMs: 20 });
+  await dragPointer(page, from, to);
   await page.keyboard.up("Shift");
   await page.waitForTimeout(300);
 }

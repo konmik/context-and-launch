@@ -55,7 +55,7 @@ describe("Forest viewport", () => {
       ctx.page,
       { x: surfaceBox.x + surfaceBox.width - 30, y: surfaceBox.y + surfaceBox.height - 30 },
       { x: surfaceBox.x + surfaceBox.width - 230, y: surfaceBox.y + surfaceBox.height - 180 },
-      { steps: 1, stepDelayMs: 0 },
+      { steps: 1 },
     );
     await centerButton.click();
 
@@ -107,7 +107,7 @@ describe("Forest viewport", () => {
       x: surfaceBox.x + surfaceBox.width - 40,
       y: surfaceBox.y + surfaceBox.height - 40,
     };
-    await dragPointer(ctx.page, start, { x: start.x - 180, y: start.y - 110 }, { steps: 1, stepDelayMs: 0 });
+    await dragPointer(ctx.page, start, { x: start.x - 180, y: start.y - 110 }, { steps: 1 });
     await ctx.page.waitForTimeout(500);
 
     const beforeToggle = await boxOf(card);

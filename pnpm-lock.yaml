@@ -12,6 +12,9 @@ overrides:
   vite-node>vite: 7.3.5
   vitest>vite: 7.3.5
 
+patchedDependencies:
+  '@solidjs/signals@2.0.0-rc.3': 742bed8664083bbb61bf06275739e7940f293338f084683307fba2543391624b
+
 importers:
 
   .:
@@ -4591,7 +4594,7 @@ snapshots:
       '@solidjs/web': 2.0.0-rc.1(solid-js@2.0.0-rc.1)
       solid-js: 2.0.0-rc.1
 
-  '@solidjs/signals@2.0.0-rc.3': {}
+  '@solidjs/signals@2.0.0-rc.3(patch_hash=742bed8664083bbb61bf06275739e7940f293338f084683307fba2543391624b)': {}
 
   '@solidjs/vite-plugin@3.0.0-next.31(@solidjs/web@2.0.0-rc.1(solid-js@2.0.0-rc.1))(@testing-library/jest-dom@6.9.1)(solid-js@2.0.0-rc.1)(supports-color@7.2.0)(vite@7.3.5(@types/node@25.9.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4))':
     dependencies:
@@ -6432,7 +6435,7 @@ snapshots:
 
   solid-js@2.0.0-rc.1:
     dependencies:
-      '@solidjs/signals': 2.0.0-rc.3
+      '@solidjs/signals': 2.0.0-rc.3(patch_hash=742bed8664083bbb61bf06275739e7940f293338f084683307fba2543391624b)
       csstype: 3.2.3
       seroval: 1.5.6
       seroval-plugins: 1.5.6(seroval@1.5.6)

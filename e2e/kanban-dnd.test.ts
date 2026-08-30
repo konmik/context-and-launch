@@ -23,17 +23,11 @@ async function getSortablesByColumn(p: Page) {
 }
 
 /**
- * The board's drag sensor needs a press-and-hold before it arms, and its drop
- * handler runs off the last pointer position, so the pointer settles before it
- * is released.
+ * The board's drop handler runs off the last pointer position, so the card is
+ * carried across the column in small steps rather than one jump.
  */
 function dragCard(p: Page, sourceId: string, targetId: string) {
-  return dragElement(p, sortableItem(p, sourceId), sortableItem(p, targetId), {
-    releaseAt: "top",
-    holdMs: 150,
-    steps: 20,
-    settleMs: 200,
-  });
+  return dragElement(p, sortableItem(p, sourceId), sortableItem(p, targetId), { releaseAt: "top" });
 }
 
 const TICKETS = [
