@@ -14,7 +14,7 @@ The template is copied per Project with one fix-up spawn: `git remote set-url` t
 
 ## Measured effect
 
-Full `npm run test:all` on the T: RAM disk (Windows, 8 forks): 124.7s total, of which the unit projects take 28.8s and the e2e project 57.5s. 131 unit files and 52 e2e files pass.
+Full `npm run test:all` (Windows, 8 forks): 124.7s total, of which the unit projects take 28.8s and the e2e project 57.5s. 131 unit files and 52 e2e files pass.
 
 ## What the template hides, and why that is acceptable
 

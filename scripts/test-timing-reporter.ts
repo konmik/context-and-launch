@@ -6,8 +6,8 @@ import type {
 } from "vitest/node";
 
 // Appends one line per test with setup/execution/cleanup phase timings.
-// Under the official RAM-disk runner the log lands in the run's temp dir on T:
-// (T:\context-launch-tests\<project>\<branch>\temp\test-timing.log).
+// Under the isolated runner the log lands in the run's temp dir
+// (%LOCALAPPDATA%\context-launch-test-runtime\<project>\<branch>\temp\test-timing.log).
 // Override the location with TEST_TIMING_LOG.
 const LOG_PATH = process.env.TEST_TIMING_LOG ?? path.join(os.tmpdir(), "test-timing.log");
 

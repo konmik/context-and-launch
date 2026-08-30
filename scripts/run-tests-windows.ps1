@@ -6,19 +6,15 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-. (Join-Path $PSScriptRoot "ramdisk-drive.ps1")
-
 $source = Split-Path $PSScriptRoot -Parent
 if (-not $env:LOCALAPPDATA) {
   throw "LOCALAPPDATA is not set; the test workspace has nowhere to live."
 }
 $workspaceRoot = Join-Path $env:LOCALAPPDATA "context-launch-tests"
-$ramDiskRuntimeRoot = "T:\context-launch-tests"
-$diskRuntimeRoot = Join-Path $env:LOCALAPPDATA "context-launch-test-runtime"
+$runtimeStorageRoot = Join-Path $env:LOCALAPPDATA "context-launch-test-runtime"
 $markerName = ".managed-by-context-launch"
 $activeMarkerName = ".context-launch-test-workspace.json"
 $lockName = ".run-lock"
-$requiredRuntimeFreeSpace = 200MB
 
 function Mount-TestRuntime {
   param([string]$Directory)
@@ -185,16 +181,6 @@ $lockHandle.Write($lockBytes, 0, $lockBytes.Length)
 $lockHandle.Flush()
 
 try {
-  $driveStatus = Get-TestRamDiskStatus `
-    -DriveInfo (Get-TestRamDiskInfo) `
-    -MinimumAvailableFreeSpace $requiredRuntimeFreeSpace
-  if ($driveStatus -eq "Ready") {
-    $runtimeStorageRoot = $ramDiskRuntimeRoot
-  } else {
-    $runtimeStorageRoot = $diskRuntimeRoot
-    Write-Host "T: RAM runtime unavailable ($driveStatus); using isolated disk storage $runtimeStorageRoot."
-  }
-
   $runtimeStorageRun = Join-Path $runtimeStorageRoot $identity.workspaceKey
   Remove-StaleRuntimeDirectories -KeepDirectory $runtimeStorageRun
 
@@ -203,12 +189,8 @@ try {
     Remove-Item $runtimeStorageRun -Recurse -Force
   }
   Initialize-ManagedDirectory -Directory $runtimeStorageRun -Kind "runtime"
-  if ($driveStatus -eq "Ready") {
-    $runtimeRun = $runtimeStorageRun
-  } else {
-    $mountedRuntimeDrive = Mount-TestRuntime $runtimeStorageRun
-    $runtimeRun = "$mountedRuntimeDrive\"
-  }
+  $mountedRuntimeDrive = Mount-TestRuntime $runtimeStorageRun
+  $runtimeRun = "$mountedRuntimeDrive\"
   New-Item -ItemType Directory -Force $workspace | Out-Null
 
   $excludedDirectories = @(

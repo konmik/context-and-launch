@@ -24,7 +24,6 @@
     "test:shell:workspace": "node scripts/require-test-workspace.mjs && vitest run -c vitest.shell.config.ts",
     "test:all": "node scripts/run-tests.mjs all",
     "test:all:workspace": "node scripts/require-test-workspace.mjs && tsc --noEmit && pnpm run lint && vitest run --exclude 'e2e/**' --exclude '**/*.shell.test.ts' && vite build && tsx scripts/testid-coverage.ts && vitest run --project e2e",
-    "test:ramdisk:create": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create-test-ramdisk.ps1",
     "test:watch": "vitest",
     "electron:build-main": "esbuild electron/main.ts --bundle --platform=node --format=esm --outfile=electron/main.js --external:electron && esbuild electron/preload.ts --bundle --platform=node --format=cjs --outfile=electron/preload.cjs --external:electron",
     "electron:start": "electron electron/main.js",

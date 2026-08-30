@@ -34,7 +34,7 @@ if (process.platform === "win32") {
   const result = spawnSync("powershell.exe", [
     "-NoProfile",
     "-ExecutionPolicy", "Bypass",
-    "-File", path.join(scriptsDirectory, "run-tests-on-ramdisk.ps1"),
+    "-File", path.join(scriptsDirectory, "run-tests-windows.ps1"),
     "-Suite", suite,
   ], {
     env: {

@@ -24,4 +24,4 @@ Long assertion timeouts (10-20s) are crash backstops for parallel-suite contenti
 - Conflict dialog launch: 1500ms sleep replaced by `waitForRequest` on the server call.
 - Forest ticket archive: 3000ms sleep replaced by `poll` on the archived folder appearing.
 - Diff review scope switches: default 1000ms `expect.poll` deadlines (too tight for server-side git diff fetches under load) raised to 15s backstops matching the file's own convention. Under the full parallel suite those tests finish in 1.5s to 3.1s end to end, so the deadline is 5x clear of the slowest observed run.
-- Full e2e suite: 252 tests pass in 57s wall time on the T: RAM disk (Windows, 8 forks).
+- Full e2e suite: 252 tests pass in 57s wall time (Windows, 8 forks).
