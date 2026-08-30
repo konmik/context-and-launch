@@ -3,6 +3,7 @@ import path from 'path';
 import * as v from 'valibot';
 import type { ConfigPaths } from '../config/config-paths.js';
 import { ConfigRepository } from '../config/config-repository.js';
+import type { JsonValue } from '../shared/json.js';
 
 export interface ProjectInfo {
 	path: string;
@@ -40,6 +41,42 @@ export interface ProjectConfig {
 	lastUsedProfileName: string | null;
 	port?: number;
 	browser?: string;
+}
+
+const StoredProjectEntrySchema = v.object({
+	path: v.string(),
+	projectSlug: v.optional(v.string()),
+	slug: v.optional(v.string()),
+	name: v.optional(v.string()),
+	branch: v.optional(v.string()),
+	ticketsPath: v.optional(v.string()),
+	mainBranch: v.optional(v.string()),
+	boardId: v.optional(v.string()),
+});
+const ProjectConfigFileSchema = v.object({
+	projects: v.array(StoredProjectEntrySchema),
+	lastUsedProjectSlug: v.optional(v.nullable(v.string())),
+	lastUsedSlug: v.optional(v.nullable(v.string())),
+	lastUsedProfileName: v.optional(v.nullable(v.string())),
+	port: v.optional(v.pipe(v.number(), v.finite())),
+	browser: v.optional(v.string()),
+});
+const PROJECT_CONFIG_FIELDS = new Set([
+	'projects',
+	'lastUsedProjectSlug',
+	'lastUsedSlug',
+	'lastUsedProfileName',
+	'port',
+	'browser',
+]);
+
+function extraFieldsFrom(raw: JsonValue): Map<string, JsonValue> {
+	if (raw === null || Array.isArray(raw) || typeof raw !== 'object') {
+		throw new Error('Invalid config.json: expected an object');
+	}
+	return new Map(
+		Object.entries(raw).filter(([key]) => !PROJECT_CONFIG_FIELDS.has(key)),
+	);
 }
 
 function isGitRepo(dirPath: string, configRepo: ConfigRepository): boolean {
@@ -108,7 +145,7 @@ export function generateProjectSlug(filePath: string, existingProjectSlugs: Set<
 export class ProjectRegistry {
 	private paths: ConfigPaths;
 	private configRepo: ConfigRepository;
-	private extraFields: Record<string, unknown> = {};
+	private extraFields = new Map<string, JsonValue>();
 
 	constructor(paths: ConfigPaths, configRepo?: ConfigRepository) {
 		this.paths = paths;
@@ -117,68 +154,56 @@ export class ProjectRegistry {
 
 	private load(): ProjectConfig {
 		const configFile = this.paths.projectRegistryFile();
-		const raw = this.configRepo.readJson(configFile) as Record<string, unknown> | null;
+		const raw = this.configRepo.readJson(configFile);
 		if (raw === null) {
 			throw new Error(`config.json not found: ${configFile}`);
 		}
-		if (!Array.isArray(raw.projects)) {
-			throw new Error(
-				`Invalid config.json: "projects" is not an array`
-				+ ` (${configFile})`,
-			);
-		}
-		const lastUsed = (raw.lastUsedProjectSlug ?? raw.lastUsedSlug ?? null) as string | null;
-		const lastUsedProfileName = (raw.lastUsedProfileName ?? null) as string | null;
-		const migratedProjects: ProjectEntry[] = raw.projects.map(
-			(p: Record<string, unknown>) => {
-				const projectSlug = (p.projectSlug ?? p.slug) as string;
-				const entry: ProjectEntry = { path: p.path as string, projectSlug };
-				if (p.name !== undefined) entry.name = p.name as string;
-				if (p.branch !== undefined) entry.branch = p.branch as string;
-				if (p.ticketsPath !== undefined) entry.ticketsPath = p.ticketsPath as string;
-				if (p.mainBranch !== undefined) entry.mainBranch = p.mainBranch as string;
-				if (p.boardId !== undefined) entry.boardId = p.boardId as string;
+		const parsed = v.parse(ProjectConfigFileSchema, raw);
+		const lastUsed = parsed.lastUsedProjectSlug ?? parsed.lastUsedSlug ?? null;
+		const lastUsedProfileName = parsed.lastUsedProfileName ?? null;
+		const migratedProjects: ProjectEntry[] = parsed.projects.map(
+			(p) => {
+				const projectSlug = p.projectSlug ?? p.slug;
+				if (projectSlug === undefined) {
+					throw new Error('Invalid config.json: project is missing projectSlug');
+				}
+				const entry: ProjectEntry = { path: p.path, projectSlug };
+				if (p.name !== undefined) entry.name = p.name;
+				if (p.branch !== undefined) entry.branch = p.branch;
+				if (p.ticketsPath !== undefined) entry.ticketsPath = p.ticketsPath;
+				if (p.mainBranch !== undefined) entry.mainBranch = p.mainBranch;
+				if (p.boardId !== undefined) entry.boardId = p.boardId;
 				return entry;
 			},
 		);
-		const {
-			projects: _, lastUsedProjectSlug: _a, lastUsedSlug: _b,
-			lastUsedProfileName: _c, port, browser, ...extra
-		} = raw;
 		const config: ProjectConfig = {
 			projects: migratedProjects,
 			lastUsedProjectSlug: lastUsed,
 			lastUsedProfileName,
-			port: port as number | undefined,
-			browser: browser as string | undefined,
+			port: parsed.port,
+			browser: parsed.browser,
 		};
-		this.extraFields = extra;
-		const hasLegacyKeys = raw.lastUsedSlug !== undefined
-			|| raw.projects.some((p: Record<string, unknown>) => p.slug !== undefined);
+		this.extraFields = extraFieldsFrom(raw);
+		const hasLegacyKeys = parsed.lastUsedSlug !== undefined
+			|| parsed.projects.some((p) => p.slug !== undefined);
 		if (hasLegacyKeys) {
 			this.save(config);
 		}
 		return config;
 	}
 
-	private currentExtraFields(): Record<string, unknown> {
-		const raw = this.configRepo.readJson(this.paths.projectRegistryFile()) as
-			| Record<string, unknown>
-			| null;
+	private currentExtraFields(): ReadonlyMap<string, JsonValue> {
+		const raw = this.configRepo.readJson(this.paths.projectRegistryFile());
 		if (raw === null) return this.extraFields;
-		const {
-			projects: _, lastUsedProjectSlug: _a, lastUsedSlug: _b,
-			lastUsedProfileName: _c, port: _d, browser: _e, ...extra
-		} = raw;
-		return extra;
+		return extraFieldsFrom(raw);
 	}
 
 	private save(config: ProjectConfig): void {
 		const extraFields = this.currentExtraFields();
-		this.extraFields = extraFields;
+		this.extraFields = new Map(extraFields);
 		this.configRepo.writeJson(
 			this.paths.projectRegistryFile(),
-			{ ...extraFields, ...config },
+			{ ...Object.fromEntries(extraFields), ...config },
 		);
 	}
 

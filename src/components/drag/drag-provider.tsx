@@ -8,7 +8,12 @@ interface DragContextValue {
   active: () => DragItem | undefined;
   position: () => { x: number; y: number } | undefined;
   register(id: DragId, node: HTMLElement): void;
-  activators(id: DragId): Record<string, (event: PointerEvent | KeyboardEvent) => void>;
+  activators(id: DragId): DragActivators;
+}
+
+export interface DragActivators {
+  onPointerDown: JSX.EventHandler<HTMLElement, PointerEvent>;
+  onKeyDown: JSX.EventHandler<HTMLElement, KeyboardEvent>;
 }
 
 const DragContext = createContext<DragContextValue>();
@@ -81,8 +86,7 @@ export function DragDropProvider(props: {
     position,
     register: (id, node) => nodes.set(id, node),
     activators: (id) => ({
-      onPointerDown: (raw) => {
-        const e = raw as PointerEvent;
+      onPointerDown: (e) => {
         removePointerListeners?.();
         const node = nodes.get(id) ?? (e.currentTarget as HTMLElement);
         const target = e.currentTarget as HTMLElement;
@@ -112,8 +116,7 @@ export function DragDropProvider(props: {
         window.addEventListener("pointerup", pointerUp);
         window.addEventListener("pointercancel", pointerCancel);
       },
-      onKeyDown: (raw) => {
-        const e = raw as KeyboardEvent;
+      onKeyDown: (e) => {
         const node = nodes.get(id) ?? (e.currentTarget as HTMLElement);
         if ((e.key === " " || e.key === "Enter") && !activeItem) {
           e.preventDefault();

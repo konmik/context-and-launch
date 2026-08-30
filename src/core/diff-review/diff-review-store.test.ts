@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { ConfigPaths } from "../config/config-paths.js";
 import { ConfigRepository } from "../config/config-repository.js";
+import type { DiffReviewProjectState } from "./diff-review-types.js";
 import { makeTempDir, removeTempDirOrWarn } from "../../test-temp.js";
 import { DiffReviewStore } from "./diff-review-store.js";
 import type { ReviewPromptSnapshot } from "./diff-review-types.js";
@@ -169,7 +170,7 @@ describe("DiffReviewStore", () => {
 
 		const persisted = new ConfigRepository().readJson(
 			paths.diffReviewStateFile("project"),
-		) as { tickets: Record<string, unknown> };
+		) as DiffReviewProjectState;
 		expect(persisted.tickets).toEqual({});
 	});
 });

@@ -2,6 +2,7 @@ import type { CommandTemplateKey } from '../command-template/command-template-de
 import type {
 	CommandTemplateExecutor, CommandTemplateValues,
 } from '../command-template/command-template-types.js';
+import * as v from 'valibot';
 import { ProcessError } from '../shared/errors.js';
 import { HerdrUnavailableError } from './herdr-availability.js';
 
@@ -61,66 +62,69 @@ export function createHerdrExec(commands: CommandTemplateExecutor): HerdrExecFn 
 	};
 }
 
-function parseHerdrJson(output: string, commandTemplateKey: string): Record<string, unknown> {
-	try {
-		return JSON.parse(output) as Record<string, unknown>;
-	} catch {
-		throw new Error(`Could not parse JSON output from '${commandTemplateKey}'.`);
-	}
-}
+const HerdrWorkspaceSchema = v.object({
+	workspace_id: v.string(),
+	label: v.optional(v.string()),
+});
+const HerdrAgentSchema = v.object({
+	workspace_id: v.optional(v.string()),
+	pane_id: v.optional(v.string()),
+	name: v.optional(v.string()),
+	cwd: v.optional(v.string()),
+	foreground_cwd: v.optional(v.string()),
+	agent_status: v.optional(v.string()),
+});
+const HerdrPaneSchema = v.object({
+	workspace_id: v.string(),
+	pane_id: v.string(),
+	label: v.optional(v.string()),
+});
+const missingWorkspaces = "Missing workspaces array in output from 'herdr.workspace.list'.";
+const missingAgents = "Missing agents array in output from 'herdr.agent.list'.";
+const missingPanes = "Missing panes array in output from 'herdr.pane.list'.";
+const HerdrWorkspaceListJsonSchema = v.pipe(
+	v.string(),
+	v.parseJson({}, "Could not parse JSON output from 'herdr.workspace.list'."),
+	v.message(v.object({
+		result: v.object({ workspaces: v.array(HerdrWorkspaceSchema) }),
+	}), missingWorkspaces),
+);
+const HerdrAgentListJsonSchema = v.pipe(
+	v.string(),
+	v.parseJson({}, "Could not parse JSON output from 'herdr.agent.list'."),
+	v.message(v.object({
+		result: v.object({ agents: v.array(HerdrAgentSchema) }),
+	}), missingAgents),
+);
+const HerdrPaneListJsonSchema = v.pipe(
+	v.string(),
+	v.parseJson({}, "Could not parse JSON output from 'herdr.pane.list'."),
+	v.message(v.object({
+		result: v.object({ panes: v.array(HerdrPaneSchema) }),
+	}), missingPanes),
+);
 
-export interface HerdrWorkspace {
-	workspace_id: string;
-	label?: string;
-}
-
-export interface HerdrAgent {
-	workspace_id?: string;
-	pane_id?: string;
-	name?: string;
-	cwd?: string;
-	foreground_cwd?: string;
-	agent_status?: string;
-}
-
-export interface HerdrPane {
-	workspace_id: string;
-	pane_id: string;
-	label?: string;
-}
+export type HerdrWorkspace = v.InferOutput<typeof HerdrWorkspaceSchema>;
+export type HerdrAgent = v.InferOutput<typeof HerdrAgentSchema>;
+export type HerdrPane = v.InferOutput<typeof HerdrPaneSchema>;
 
 export async function listHerdrWorkspaces(
 	exec: HerdrExecFn, values: CommandTemplateValues = {},
 ): Promise<HerdrWorkspace[]> {
 	const output = await exec('herdr.workspace.list', values);
-	const result = (parseHerdrJson(output, 'herdr.workspace.list').result
-		?? {}) as { workspaces?: unknown };
-	if (!Array.isArray(result.workspaces)) {
-		throw new Error("Missing workspaces array in output from 'herdr.workspace.list'.");
-	}
-	return result.workspaces as HerdrWorkspace[];
+	return v.parse(HerdrWorkspaceListJsonSchema, output).result.workspaces;
 }
 
 export async function listHerdrAgents(
 	exec: HerdrExecFn, values: CommandTemplateValues = {},
 ): Promise<HerdrAgent[]> {
 	const output = await exec('herdr.agent.list', values);
-	const result = (parseHerdrJson(output, 'herdr.agent.list').result
-		?? {}) as { agents?: unknown };
-	if (!Array.isArray(result.agents)) {
-		throw new Error("Missing agents array in output from 'herdr.agent.list'.");
-	}
-	return result.agents as HerdrAgent[];
+	return v.parse(HerdrAgentListJsonSchema, output).result.agents;
 }
 
 export async function listHerdrPanes(
 	exec: HerdrExecFn, workspaceId: string,
 ): Promise<HerdrPane[]> {
 	const output = await exec('herdr.pane.list', { workspaceId });
-	const result = (parseHerdrJson(output, 'herdr.pane.list').result
-		?? {}) as { panes?: unknown };
-	if (!Array.isArray(result.panes)) {
-		throw new Error("Missing panes array in output from 'herdr.pane.list'.");
-	}
-	return result.panes as HerdrPane[];
+	return v.parse(HerdrPaneListJsonSchema, output).result.panes;
 }

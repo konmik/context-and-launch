@@ -558,9 +558,9 @@ describe('LauncherConfigManager', () => {
 		mgr.saveColumnDefaults('test-project', '__proto__', defaults);
 
 		// Verify no prototype pollution on a fresh plain object
-		const fresh: Record<string, unknown> = {};
-		expect(fresh['templateName']).toBeUndefined();
-		expect(fresh['checkedSkills']).toBeUndefined();
+		const fresh: Partial<typeof defaults> = {};
+		expect(fresh.templateName).toBeUndefined();
+		expect(fresh.checkedSkills).toBeUndefined();
 
 		// Load the config back and check whether __proto__ column was persisted
 		const config = mgr.loadProjectConfig('test-project');

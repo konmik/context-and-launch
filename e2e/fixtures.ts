@@ -273,7 +273,7 @@ export async function createProject(
   const projectConfigDir = path.join(server.dataDir, "projects", opts.projectSlug, "config");
   fs.mkdirSync(projectConfigDir, { recursive: true });
   const projectLauncherFile = path.join(projectConfigDir, "launcher-config.json");
-  let projectLauncher: Record<string, unknown> = {};
+  let projectLauncher: PersistedLauncherConfig = {};
   if (fs.existsSync(projectLauncherFile)) {
     projectLauncher = JSON.parse(fs.readFileSync(projectLauncherFile, "utf-8"));
   }

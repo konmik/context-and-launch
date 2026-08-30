@@ -2,6 +2,7 @@ import { Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import { GripVertical } from "~/components/ui/icons.js";
 import { DragOverlay } from "~/components/drag/drag-provider.js";
+import type { DragActivators } from "~/components/drag/drag-provider.js";
 import { joinClass } from "~/lib/class-util";
 
 // Shared drag-and-drop visual language, used by both the KanbanBoard (ticket
@@ -40,11 +41,11 @@ export function DragOverlayCard(props: { class?: string; style?: JSX.CSSProperti
 	);
 }
 
-export function DragGrip(props: { gripProps?: Record<string, unknown>; testId: string }) {
+export function DragGrip(props: { gripProps?: DragActivators; testId: string }) {
 	return (
 		<span
-			onPointerDown={props.gripProps?.onPointerDown as JSX.EventHandler<HTMLSpanElement, PointerEvent>}
-			onKeyDown={props.gripProps?.onKeyDown as JSX.EventHandler<HTMLSpanElement, KeyboardEvent>}
+			onPointerDown={props.gripProps?.onPointerDown}
+			onKeyDown={props.gripProps?.onKeyDown}
 			role="button"
 			tabindex="0"
 			aria-label="Drag to reorder"

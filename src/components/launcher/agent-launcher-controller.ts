@@ -119,7 +119,9 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 		},
 	});
 
-	async function launchAgent(extra?: Record<string, unknown>) {
+	async function launchAgent(
+		extra?: Partial<Pick<LaunchArgs, "force" | "skipBehindRemote">>,
+	) {
 		setLaunching(true);
 		setErrorInfo(null);
 		setBehindRemoteMsg("");

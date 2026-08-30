@@ -1,6 +1,7 @@
 import { Show, omit } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import { createSortable } from "~/components/drag/drag-provider.js";
+import type { DragActivators } from "~/components/drag/drag-provider.js";
 import { DragGrip, DragPreview, DND_ACTIVE_CLASS } from "../board/dnd-shared.js";
 import type { MergedLauncherConfig } from "~/core/launcher/launcher-config.js";
 import type { ColumnDefinition } from "~/core/project/board-config.js";
@@ -41,7 +42,7 @@ function CardRowBody(props: {
 	detail?: string;
 	scope?: string;
 	grip?: boolean;
-	gripProps?: Record<string, unknown>;
+	gripProps?: DragActivators;
 	dragHandleTestId?: string;
 	onEdit?: () => void;
 	onDelete?: () => void;
