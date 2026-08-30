@@ -126,10 +126,10 @@ const LauncherColumnDefaultsSchema = v.object({
 });
 const UnknownObjectSchema = v.objectWithRest({}, v.unknown());
 const LauncherConfigSchema = v.object({
-	templates: v.array(v.object({ ...OrderedItemEntries, text: v.string() })),
-	skills: v.array(v.object({ ...OrderedItemEntries, text: v.string() })),
-	profiles: v.optional(v.array(v.object({ ...OrderedItemEntries, command: v.string() }))),
-	shortcuts: v.optional(v.array(v.object({ ...OrderedItemEntries, command: v.string() }))),
+	templates: v.optional(v.array(v.object({ ...OrderedItemEntries, text: v.string() })), () => []),
+	skills: v.optional(v.array(v.object({ ...OrderedItemEntries, text: v.string() })), () => []),
+	profiles: v.optional(v.array(v.object({ ...OrderedItemEntries, command: v.string() })), () => []),
+	shortcuts: v.optional(v.array(v.object({ ...OrderedItemEntries, command: v.string() })), () => []),
 	columnDefaults: v.optional(v.unknown()),
 	worktreeRootPath: v.optional(v.string()),
 	branchPrefix: v.optional(v.string()),

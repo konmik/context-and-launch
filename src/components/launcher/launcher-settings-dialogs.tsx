@@ -1,7 +1,7 @@
 import { For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import { X } from "~/components/ui/icons.js";
-import { DialogRoot, DialogTitle, DialogCloseTrigger } from "../ui/dialog";
+import { DialogRoot, DialogTitle, DialogCloseTrigger, DialogForm } from "../ui/dialog";
 import { modEnterHint } from "~/lib/use-mod-enter-submit";
 import { slugifyColumnName } from "~/lib/slugify.js";
 import { COLUMN_COLOR_PALETTE } from "~/core/project/column-color-palette.js";
@@ -77,7 +77,7 @@ export function ItemFormDialog(props: {
 }) {
 	return (
 		<DialogRoot open={!!props.form} onOpenChange={() => props.setForm(null)} class="max-w-lg p-0">
-			<Show when={props.form}>
+			<DialogForm state={props.form}>
 				{(f) => (<>
 					<DialogHeader title={`${f().mode === "add" ? "Add" : "Edit"} ${itemTypeLabel[f().itemType]}`} />
 					<div class="space-y-3 px-6 py-4">
@@ -202,7 +202,7 @@ export function ItemFormDialog(props: {
 						>{f().mode === "add" ? "Add" : "Save"}</button>
 					</DialogFooter>
 				</>)}
-			</Show>
+			</DialogForm>
 		</DialogRoot>
 	);
 }
@@ -221,7 +221,7 @@ export function ColumnFormDialog(props: {
 			onOpenChange={() => props.setColumnForm(null)}
 			class="max-w-lg p-0"
 		>
-			<Show when={props.columnForm}>
+			<DialogForm state={props.columnForm}>
 				{(cf) => (<>
 					<DialogHeader title={cf().mode === "add" ? "Add Column" : "Edit Column"} />
 					<div class="space-y-3 px-6 py-4">
@@ -314,7 +314,7 @@ export function ColumnFormDialog(props: {
 						>{cf().mode === "add" ? "Add" : "Save"}</button>
 					</DialogFooter>
 				</>)}
-			</Show>
+			</DialogForm>
 		</DialogRoot>
 	);
 }
@@ -327,7 +327,7 @@ export function RenameColumnDialog(props: {
 }) {
 	return (
 		<DialogRoot open={!!props.renameForm} onOpenChange={() => props.setRenameForm(null)} class="max-w-lg p-0">
-			<Show when={props.renameForm}>
+			<DialogForm state={props.renameForm}>
 				{(rf) => (<>
 					<DialogHeader title="Rename Column" />
 					<div class="space-y-3 px-6 py-4">
@@ -388,7 +388,7 @@ export function RenameColumnDialog(props: {
 						>Rename</button>
 					</DialogFooter>
 				</>)}
-			</Show>
+			</DialogForm>
 		</DialogRoot>
 	);
 }
@@ -401,7 +401,7 @@ export function BoardFormDialog(props: {
 }) {
 	return (
 		<DialogRoot open={!!props.boardForm} onOpenChange={() => props.setBoardForm(null)} class="max-w-sm p-0">
-			<Show when={props.boardForm}>
+			<DialogForm state={props.boardForm}>
 				{(bf) => (<>
 					<DialogHeader title="Add Board" />
 					<div class="space-y-3 px-6 py-4">
@@ -433,7 +433,7 @@ export function BoardFormDialog(props: {
 						>Add</button>
 					</DialogFooter>
 				</>)}
-			</Show>
+			</DialogForm>
 		</DialogRoot>
 	);
 }
@@ -446,7 +446,7 @@ export function DeleteConfirmDialog(props: {
 }) {
 	return (
 		<DialogRoot open={!!props.deleteConfirm} onOpenChange={() => props.setDeleteConfirm(null)} class="max-w-sm p-0">
-			<Show when={props.deleteConfirm}>
+			<DialogForm state={props.deleteConfirm}>
 				{(dc) => (<>
 					<DialogHeader title={`Delete ${dc().type === "board" ? "Board" : "Column"}`} />
 					<div class="px-6 py-4">
@@ -470,7 +470,7 @@ export function DeleteConfirmDialog(props: {
 						>Delete</button>
 					</DialogFooter>
 				</>)}
-			</Show>
+			</DialogForm>
 		</DialogRoot>
 	);
 }
@@ -486,7 +486,7 @@ export function ProjectBoardConfirmDialog(props: {
 			onOpenChange={() => props.setProjectBoardConfirm(null)}
 			class="max-w-sm p-0"
 		>
-			<Show when={props.projectBoardConfirm}>
+			<DialogForm state={props.projectBoardConfirm}>
 				{(pbc) => (<>
 					<DialogHeader title="Set Project Board" />
 					<div class="px-6 py-4">
@@ -509,7 +509,7 @@ export function ProjectBoardConfirmDialog(props: {
 						>Set board</button>
 					</DialogFooter>
 				</>)}
-			</Show>
+			</DialogForm>
 		</DialogRoot>
 	);
 }

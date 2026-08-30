@@ -616,8 +616,7 @@ describe('TicketStore', () => {
 		dirs.push(worktreeDir);
 
 		const store = new TicketStore(worktreeDir);
-		// SAFETY: This test intentionally bypasses the typed call signature to verify undefined is defaulted at runtime.
-		const ticket = (store as any).createTicket('UNDEF-S1', 'Status Test', undefined);
+		const ticket = store.createTicket('UNDEF-S1', 'Status Test', undefined);
 
 		// Check the returned ticket object
 		expect(ticket.status).toBe('todo');

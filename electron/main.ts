@@ -247,10 +247,8 @@ if (!gotLock) {
 
     protocol.handle(APP_SCHEME, (request) =>
       handleAppRequest(request, handle.handleRequest).catch((cause: unknown) => {
-        handle.appLog(
-          "app-protocol",
-          `${request.method} ${request.url} failed: ${cause instanceof Error ? cause.stack ?? cause.message : String(cause)}`,
-        );
+        const detail = cause instanceof Error ? cause.stack ?? cause.message : String(cause);
+        handle.appLog("app-protocol", `${request.method} ${request.url} failed: ${detail}`);
         throw cause;
       }));
 

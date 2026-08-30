@@ -96,3 +96,18 @@ export function DialogCloseTrigger(props: ComponentProps<"button">) {
   const dialog = useContext(DialogContext);
   return <button type="button" {...props} data-scope="dialog" data-part="close-trigger" onClick={dialog.close} />;
 }
+
+export function DialogForm<T extends object>(props: {
+  state: T | null | undefined;
+  children: (state: () => T) => JSX.Element;
+}) {
+  return (
+    <Show when={props.state}>
+      {(opened) => {
+        const initial = opened();
+        const state = createMemo<T>((previous) => props.state ?? previous ?? initial);
+        return props.children(state);
+      }}
+    </Show>
+  );
+}

@@ -76,6 +76,24 @@ describe('LauncherConfigManager', () => {
 		expect(loaded.skills).toEqual(config.skills);
 	});
 
+	it('loadProjectConfig reads a file that holds only settings as empty collections', () => {
+		const configDir = tmpDir('lc-');
+		dirs.push(configDir);
+		const projectConfigDir = path.join(configDir, 'projects', 'my-project', 'config');
+		fs.mkdirSync(projectConfigDir, { recursive: true });
+		fs.writeFileSync(
+			path.join(projectConfigDir, 'launcher-config.json'),
+			JSON.stringify({ worktreeRootPath: path.join(configDir, 'worktrees') }),
+		);
+		const mgr = new LauncherConfigManager(new ConfigPaths(configDir));
+		const config = mgr.loadProjectConfig('my-project');
+		expect(config.templates).toEqual([]);
+		expect(config.skills).toEqual([]);
+		expect(config.profiles).toEqual([]);
+		expect(config.shortcuts).toEqual([]);
+		expect(config.worktreeRootPath).toBe(path.join(configDir, 'worktrees'));
+	});
+
 	it('loadProjectConfig returns empty defaults when file is missing', () => {
 		const configDir = tmpDir('lc-');
 		dirs.push(configDir);

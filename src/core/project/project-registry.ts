@@ -3,7 +3,7 @@ import path from 'path';
 import * as v from 'valibot';
 import type { ConfigPaths } from '../config/config-paths.js';
 import { ConfigRepository } from '../config/config-repository.js';
-import type { JsonValue } from '../shared/json.js';
+import { JsonObjectSchema, type JsonValue } from '../shared/json.js';
 
 export interface ProjectInfo {
 	path: string;
@@ -70,12 +70,13 @@ const PROJECT_CONFIG_FIELDS = new Set([
 	'browser',
 ]);
 
-function extraFieldsFrom(raw: JsonValue): Map<string, JsonValue> {
-	if (raw === null || Array.isArray(raw) || typeof raw !== 'object') {
+function extraFieldsFrom(raw: JsonValue): Map<string, unknown> {
+	const parsed = v.safeParse(JsonObjectSchema, raw);
+	if (!parsed.success) {
 		throw new Error('Invalid config.json: expected an object');
 	}
 	return new Map(
-		Object.entries(raw).filter(([key]) => !PROJECT_CONFIG_FIELDS.has(key)),
+		Object.entries(parsed.output).filter(([key]) => !PROJECT_CONFIG_FIELDS.has(key)),
 	);
 }
 
@@ -145,7 +146,7 @@ export function generateProjectSlug(filePath: string, existingProjectSlugs: Set<
 export class ProjectRegistry {
 	private paths: ConfigPaths;
 	private configRepo: ConfigRepository;
-	private extraFields = new Map<string, JsonValue>();
+	private extraFields = new Map<string, unknown>();
 
 	constructor(paths: ConfigPaths, configRepo?: ConfigRepository) {
 		this.paths = paths;
@@ -192,7 +193,7 @@ export class ProjectRegistry {
 		return config;
 	}
 
-	private currentExtraFields(): ReadonlyMap<string, JsonValue> {
+	private currentExtraFields(): ReadonlyMap<string, unknown> {
 		const raw = this.configRepo.readJson(this.paths.projectRegistryFile());
 		if (raw === null) return this.extraFields;
 		return extraFieldsFrom(raw);

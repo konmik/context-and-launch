@@ -31,20 +31,20 @@ describe('fixed platform shell', () => {
 		const before = platform === 'windows' ? "Write-Output 'before'" : "printf 'before\\n'";
 		const after = platform === 'windows' ? "Write-Output 'after'" : "printf 'after\\n'";
 		const invoke = platform === 'windows' ? `& ${node} -e ${failingCode}` : `${node} -e ${failingCode}`;
-		try {
-			await runner.execute({
-				key: 'shell.failure', platform,
-				script: `${before}\n${invoke}\n${after}`,
-				cwd: process.cwd(), environment: {}, mode: 'capture',
-				timeoutMs: 10_000,
-			});
-			throw new Error('expected shell failure');
-		} catch (error) {
-			if (!(error instanceof ProcessError)) throw new Error('Expected shell execution to reject with a ProcessError.');
-			expect(error.exitCode).toBe(7);
-			expect(error.output).toContain('before');
-			expect(error.output).not.toContain('after');
-		}
+		const failure = runner.execute({
+			key: 'shell.failure', platform,
+			script: `${before}\n${invoke}\n${after}`,
+			cwd: process.cwd(), environment: {}, mode: 'capture',
+			timeoutMs: 10_000,
+		});
+		await expect(failure).rejects.toBeInstanceOf(ProcessError);
+		await expect(failure).rejects.toMatchObject({
+			exitCode: 7,
+			output: expect.stringContaining('before'),
+		});
+		await expect(failure).rejects.toMatchObject({
+			output: expect.not.stringContaining('after'),
+		});
 	});
 
 	it.runIf(platform === 'windows')('preserves PowerShell command-not-found details', async () => {
