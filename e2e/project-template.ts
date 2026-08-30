@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { GlobalSetupContext } from "vitest/node";
+import { removeTempDirOrWarn } from "../src/test-temp.js";
 
 export interface ProjectTemplate {
   /** A repo with main and the tickets Orphan Branch, tracking remote. */
@@ -50,7 +51,7 @@ export default async function setup({ provide }: GlobalSetupContext): Promise<()
 
   provide("projectTemplate", { repo, remote });
 
-  return () => {
-    fs.rmSync(base, { recursive: true, force: true });
+  return async () => {
+    await removeTempDirOrWarn(base);
   };
 }

@@ -508,8 +508,10 @@ export function createTicketDetailState(
         props.projectSlug, header.savedFolderName(), paths,
       );
       if (!result.ok) { setError({ title: "Add reference failed", description: result.message }); return; }
-      await refreshTicketFiles();
+      // Show the reference the user just picked before reloading the file list:
+      // the switch is what they asked for, and it must not wait on a refresh.
       if (paths.length > 0) requestFileSwitch({ type: "reference", path: paths[0] });
+      await refreshTicketFiles();
     } catch (e) { setError(errorPayload(e, "Add reference failed")); }
   }
 

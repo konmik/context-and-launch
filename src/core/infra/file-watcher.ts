@@ -47,6 +47,7 @@ interface WatcherState {
 	watcher: FileWatcherHandle;
 	timer: ReturnType<typeof setTimeout> | null;
 	debounceMs: number;
+	scheduleCommit: () => void;
 }
 
 export class FileWatcher {
@@ -75,9 +76,6 @@ export class FileWatcher {
 			return;
 		}
 
-		const state: WatcherState = { watcher, timer: null, debounceMs };
-		this.watchers.set(worktreeDir, state);
-
 		const debouncedCommit = () => {
 			const current = this.watchers.get(worktreeDir);
 			if (!current) return;
@@ -96,6 +94,11 @@ export class FileWatcher {
 				this.onWorktreeChange?.(worktreeDir);
 			}, debounceMs);
 		};
+
+		const state: WatcherState = {
+			watcher, timer: null, debounceMs, scheduleCommit: debouncedCommit,
+		};
+		this.watchers.set(worktreeDir, state);
 
 		const handleEvent = () => {
 			this.onWorktreeChange?.(worktreeDir);
@@ -150,7 +153,13 @@ export class FileWatcher {
 		try {
 			return await task();
 		} finally {
-			if (pausedDebounceMs !== undefined) this.watch(worktreeDir, pausedDebounceMs);
+			if (pausedDebounceMs !== undefined) {
+				this.watch(worktreeDir, pausedDebounceMs);
+				// The task just wrote to a worktree nothing was watching, and the
+				// fresh watcher reports no event for those writes. Schedule the
+				// commit directly so the work cannot sit uncommitted.
+				this.watchers.get(worktreeDir)?.scheduleCommit();
+			}
 		}
 	}
 

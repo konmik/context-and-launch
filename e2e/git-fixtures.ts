@@ -70,6 +70,11 @@ export function porcelainStatus(cwd: string): string {
   return git("status --porcelain", cwd);
 }
 
+/** Files whose committed content differs from upstream, ignoring how many commits carry them. */
+export function upstreamDiff(cwd: string): string {
+  return git("diff @{u}..HEAD --name-only", cwd);
+}
+
 function requireRemote(project: TicketsWorktree): string {
   if (!project.remoteUrl) throw new Error("this fixture Project has no remote");
   return project.remoteUrl;
@@ -103,6 +108,12 @@ export function mutateRemote(project: TicketsWorktree, options: MutateRemoteOpti
     commitAll(cloneDir, options.message);
     git("push", cloneDir);
   } finally {
-    fs.rmSync(cloneDir, { recursive: true, force: true });
+    // git can still hold handles inside the clone just after pushing, and a
+    // leftover temp directory matters far less than failing the caller's test.
+    try {
+      fs.rmSync(cloneDir, { recursive: true, force: true });
+    } catch (err) {
+      console.warn(`mutateRemote: could not remove ${cloneDir}:`, err);
+    }
   }
 }

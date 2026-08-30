@@ -60,9 +60,12 @@ describe("TicketCleanupDialog (e2e, real server)", () => {
     const herdrStatus = testId(ctx.page, "ticket-cleanup-stop-herdr-status");
     expect(await herdrStatus.getAttribute("data-state")).toBe("blocked");
     expect(await herdrStatus.textContent()).toContain("Herdr is not installed");
-    expect(await testId(ctx.page, "ticket-cleanup-delete-worktree-status").textContent())
-      .toContain("No worktree");
+    await expect.poll(
+      () => testId(ctx.page, "ticket-cleanup-delete-worktree-status").textContent(),
+      { timeout: 15000 },
+    ).toContain("No worktree");
 
+    await waitForChecksSettled(ctx.page);
     await testId(ctx.page, "ticket-cleanup-submit").click();
     await waitGone(ctx.page, "ticket-cleanup-submit");
     await poll(
@@ -138,10 +141,13 @@ describe("TicketCleanupDialog (e2e, real server)", () => {
 
     await testId(ctx.page, "ticket-cleanup-delete-worktree-button").click();
     await waitForChecksSettled(ctx.page);
-    expect(await testId(ctx.page, "ticket-cleanup-delete-worktree-status").textContent())
-      .toContain("No worktree");
+    await expect.poll(
+      () => testId(ctx.page, "ticket-cleanup-delete-worktree-status").textContent(),
+      { timeout: 15000 },
+    ).toContain("No worktree");
     expect(worktreeExists(ctx.testServer, project.projectSlug, "t-1-alpha")).toBe(false);
 
+    await waitForChecksSettled(ctx.page);
     await testId(ctx.page, "ticket-cleanup-submit").click();
     await waitGone(ctx.page, "ticket-cleanup-submit");
     await poll(
@@ -192,8 +198,11 @@ describe("TicketCleanupDialog (e2e, real server)", () => {
     await waitForChecksSettled(ctx.page);
     await testId(ctx.page, "ticket-cleanup-delete-worktree-button").click();
     await waitForChecksSettled(ctx.page);
-    expect(await testId(ctx.page, "ticket-cleanup-delete-worktree-status").textContent())
-      .toContain("No worktree");
+    await expect.poll(
+      () => testId(ctx.page, "ticket-cleanup-delete-worktree-status").textContent(),
+      { timeout: 15000 },
+    ).toContain("No worktree");
+    await waitForChecksSettled(ctx.page);
     await testId(ctx.page, "ticket-cleanup-submit").click();
     await waitGone(ctx.page, "ticket-cleanup-submit");
     await poll(
@@ -222,7 +231,10 @@ describe("TicketCleanupDialog (e2e, real server)", () => {
     await waitForChecksSettled(ctx.page);
 
     const localStatus = testId(ctx.page, "ticket-cleanup-delete-local-status");
-    expect(await localStatus.textContent()).toContain("Branch has unmerged commits");
+    await expect.poll(
+      () => localStatus.textContent(),
+      { timeout: 15000 },
+    ).toContain("Branch has unmerged commits");
     expect(branchExists(project.projectPath, "t-1-alpha")).toBe(true);
 
     await testId(ctx.page, "ticket-cleanup-force-delete-branch").click();
@@ -295,8 +307,10 @@ describe("TicketCleanupDialog (e2e, real server)", () => {
     await waitForChecksSettled(ctx.page);
     await testId(ctx.page, "ticket-cleanup-delete-worktree-button").click();
     await waitForChecksSettled(ctx.page);
-    expect(await testId(ctx.page, "ticket-cleanup-delete-worktree-status").textContent())
-      .toContain("No worktree");
+    await expect.poll(
+      () => testId(ctx.page, "ticket-cleanup-delete-worktree-status").textContent(),
+      { timeout: 15000 },
+    ).toContain("No worktree");
     await testId(ctx.page, "ticket-cleanup-cancel").click();
     await waitGone(ctx.page, "ticket-cleanup-submit");
 
@@ -304,7 +318,9 @@ describe("TicketCleanupDialog (e2e, real server)", () => {
     await waitForChecksSettled(ctx.page);
     expect(await testId(ctx.page, "ticket-cleanup-delete-worktree-button").isDisabled())
       .toBe(true);
-    expect(await testId(ctx.page, "ticket-cleanup-delete-worktree-status").textContent())
-      .toContain("No worktree");
+    await expect.poll(
+      () => testId(ctx.page, "ticket-cleanup-delete-worktree-status").textContent(),
+      { timeout: 15000 },
+    ).toContain("No worktree");
   });
 });

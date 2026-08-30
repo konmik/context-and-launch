@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { setupE2E, readTicketStatus, boxOf, centerOf, dragPointer } from "./fixtures.js";
 import {
-  clickHandle, clickPath, deleteDependencyViaPopup, forestCard, forestHandle, forestSurface,
+  clickHandle, deleteDependencyViaPopup, forestCard, forestHandle, forestSurface, openDependencyPopup,
   openForestProject, pathScreenEndpoints,
 } from "./forest-helpers.js";
 import { testId, waitVisible } from "./locators.js";
@@ -132,7 +132,7 @@ describe("Forest connection mode", () => {
     const edge = testId(ctx.page, "forest-dependency").first();
     await edge.waitFor({ state: "attached", timeout: 15000 });
     await ctx.page.waitForTimeout(300);
-    await clickPath(edge, "middle");
+    await openDependencyPopup(ctx.page, edge, "middle");
 
     await deleteDependencyViaPopup(ctx.page);
     await testId(ctx.page, "forest-dependency-delete")

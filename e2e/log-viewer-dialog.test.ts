@@ -41,7 +41,10 @@ async function deferNextLogRead(page: Page): Promise<{
 			await route.fallback();
 			return;
 		}
-		// Solid 2's Vite plugin generates opaque server-function IDs.
+		// Solid 2's Vite plugin generates opaque server-function IDs, so the log
+		// read is identified by being the first server call the panel makes. Every
+		// caller freezes the page clock first, which keeps background polls from
+		// firing and taking this slot.
 		if (captured) {
 			await route.fallback();
 			return;
@@ -135,6 +138,7 @@ describe("Application Logs dialog (e2e, real server)", () => {
 
 	it("shows content when the initial log read completes", async () => {
 		await setupProject("logs-content");
+		await ctx.page.clock.install();
 		seedLogs(ctx.testServer.dataDir, LOG_TEXT);
 		const deferred = await deferNextLogRead(ctx.page);
 
@@ -208,6 +212,7 @@ describe("Application Logs dialog (e2e, real server)", () => {
 
 	it("clear rejects an in-flight initial read", async () => {
 		await setupProject("logs-clear-pending");
+		await ctx.page.clock.install();
 		seedLogs(ctx.testServer.dataDir, LOG_TEXT);
 		const deferred = await deferNextLogRead(ctx.page);
 

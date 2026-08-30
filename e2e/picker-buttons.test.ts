@@ -190,6 +190,11 @@ describe("Picker buttons (e2e, real server)", () => {
     await page.locator("[data-drag-source]").first().click();
     await page.locator('button:has-text("Add file reference")')
       .waitFor({ state: "visible", timeout: 5000 });
+    // The button renders before the panel has loaded its file, and picking a
+    // reference reads that file list, so wait for the editor to settle first.
+    await page.locator(
+      '[data-testid="ticket-detail-editor-pane"]:not([data-state="loading"])',
+    ).waitFor({ state: "attached", timeout: 15000 });
   }
 
   describe("Ticket Detail > Add file reference > remembers last directory", () => {

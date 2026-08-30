@@ -581,15 +581,31 @@ export async function dragElement(
   await dragPointer(page, boxCenter(sourceBox), to, options);
 }
 
+/**
+ * Opens a ticket's menu and waits for one of its items. The board re-renders as
+ * background reads settle, which can swallow the press that opens the menu, so
+ * the trigger is pressed again until the item is there.
+ */
+export async function openTicketMenu(
+  page: Page,
+  trigger: Locator,
+  itemTestId: string,
+): Promise<void> {
+  await expect.poll(async () => {
+    if (await testId(page, itemTestId).count() > 0) return true;
+    await trigger.click();
+    return await testId(page, itemTestId).count() > 0;
+  }, { timeout: WAIT_TIMEOUT_MS }).toBe(true);
+}
+
 export async function clickTicketMenuItem(
   page: Page,
   item: "edit" | "archive" | "delete",
 ): Promise<void> {
   const trigger = testId(page, "kanban-board-ticket-menu-trigger").first();
   await trigger.waitFor({ state: "visible", timeout: WAIT_TIMEOUT_MS });
-  await trigger.click();
   const itemTestId = `kanban-board-ticket-menu-${item}`;
-  await testId(page, itemTestId).waitFor({ state: "attached", timeout: WAIT_TIMEOUT_MS });
+  await openTicketMenu(page, trigger, itemTestId);
   // The menu closes on the pointer press that Playwright's click sends first,
   // so the item has to be activated directly.
   await page.evaluate((id) => {

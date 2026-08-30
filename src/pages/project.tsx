@@ -55,10 +55,43 @@ import { createBoardShortcutRunner } from "~/components/board/board-shortcut-run
 import { ShortcutConfirmationDialog } from "~/components/ticket/ticket-detail-parts.js";
 import { paths } from "~/router.js";
 
-function createDeferredAsync<T>(ready: () => boolean, load: () => Promise<T>, placeholder: T) {
-  return createMemo(() => (ready() ? load() : Promise.resolve(placeholder)), {
-    loadingValue: placeholder,
-  });
+function createDeferredSignal<T>(ready: () => boolean, load: () => Promise<T>, placeholder: T) {
+  const [state, setState] = createSignal({ value: placeholder });
+  const [error, setError] = createSignal<{ cause: unknown }>();
+
+  createEffect(
+    () => ready() ? { promise: load() } : undefined,
+    {
+      effect(request) {
+        if (!request) {
+          setState({ value: placeholder });
+          return;
+        }
+
+        let active = true;
+        void request.promise.then(
+          (next) => {
+            if (!active) return;
+            setError(undefined);
+            setState({ value: next });
+          },
+          (cause: unknown) => {
+            if (active) setError({ cause });
+          },
+        );
+        return () => { active = false; };
+      },
+      error(cause) {
+        setError({ cause });
+      },
+    },
+  );
+
+  return () => {
+    const failure = error();
+    if (failure) throw failure.cause;
+    return state().value;
+  };
 }
 
 export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
@@ -74,7 +107,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
     return () => cancelIdleCallback(handle);
   });
 
-  const syncStatus = createDeferredAsync(
+  const syncStatus = createDeferredSignal(
     deferredPollsReady, () => getSyncStatus(projectSlug()), undefined,
   );
 
@@ -117,7 +150,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
 
   const [logViewerOpen, setLogViewerOpen] = createSignal(false);
   const [projectLauncherOpen, setProjectLauncherOpen] = createSignal(false);
-  const hasPendingChanges = createDeferredAsync(
+  const hasPendingChanges = createDeferredSignal(
     () => deferredPollsReady() && projectSlug() !== "" && data()?.status === "loaded",
     () => getSyncPending(projectSlug()),
     false,
@@ -128,7 +161,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
     return () => clearInterval(timer);
   });
 
-  const herdrStatusesResult = createDeferredAsync(
+  const herdrStatusesResult = createDeferredSignal(
     () => deferredPollsReady() && projectSlug() !== "",
     () => getHerdrAgentStatuses(projectSlug()),
     { kind: "disabled" as const },

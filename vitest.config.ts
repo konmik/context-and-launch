@@ -24,6 +24,11 @@ export default defineConfig({
         test: {
           name: "e2e",
           include: ["e2e/**/*.test.ts"],
+          // Every e2e file runs a real server and a real browser against real git
+          // and real files. Windows serialises far more of that I/O than the core
+          // count suggests, and oversubscribing it starves individual runs until
+          // they miss their deadlines. Unit projects keep the wider default.
+          poolOptions: { forks: { maxForks: process.platform === "win32" ? 4 : 12 } },
           testTimeout: 60000,
           hookTimeout: 60000,
           maxConcurrency: 4,

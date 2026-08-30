@@ -23,7 +23,7 @@ import {
   addDependency,
   createGroupTicket,
   getForestLayout,
-  removeDependency,
+  removeDependencies,
   saveForestPositions,
   ungroupTicket,
 } from "./forest-api.js";
@@ -65,7 +65,7 @@ export default function ForestView(props: ForestViewProps) {
   const [createDialogOpen, setCreateDialogOpen] = createSignal(false);
   const runSaveForestPositions = useAction(saveForestPositions);
   const runAddDependency = useAction(addDependency);
-  const runRemoveDependency = useAction(removeDependency);
+  const runRemoveDependencies = useAction(removeDependencies);
   const runCreateGroupTicket = useAction(createGroupTicket);
   const runUngroupTicket = useAction(ungroupTicket);
   const connection = createForestConnection();
@@ -134,17 +134,14 @@ export default function ForestView(props: ForestViewProps) {
     );
   }
 
-  async function handleRemoveDependency(relation: DependencyRelation) {
+  async function handleRemoveDependency(relations: DependencyRelation[]) {
+    const removals = relations.map(relation => ({
+      folderName: findTicket(relation.fromNumber).folderName,
+      dependencyNumber: relation.toNumber,
+    }));
     try {
-      const dependent = findTicket(relation.fromNumber);
-      const result = await runRemoveDependency({
-        projectSlug: props.projectSlug,
-        folderName: dependent.folderName,
-        dependencyNumber: relation.toNumber,
-      });
-      if (!result.ok) {
-        setError({ description: result.message });
-      }
+      const result = await runRemoveDependencies({ projectSlug: props.projectSlug, removals });
+      if (!result.ok) setError({ description: result.message });
     } finally {
       await revalidate(ticketMutationRevalidateKeys);
     }

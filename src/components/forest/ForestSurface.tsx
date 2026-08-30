@@ -33,7 +33,7 @@ export interface ForestSurfaceCommands {
   persistPositions: (positions: ForestLayout) => Promise<void>;
   persistViewport?: (viewport: ForestViewport) => void;
   registerSurface: (api: ForestSurfaceApi | undefined) => void;
-  removeDependency: (relation: DependencyRelation) => Promise<void>;
+  removeDependency: (relations: DependencyRelation[]) => Promise<void>;
   reportError: (cause: unknown) => void;
   ungroup: (ticketNumber: string) => void;
 }
@@ -353,7 +353,7 @@ export default function ForestSurface(props: Props) {
       <><div class="fixed inset-0 z-40" onClick={() => setPopup(undefined)} /><div class="fixed z-50 rounded-md border border-border bg-popover p-1" onPointerDown={(event) => event.stopPropagation()} style={{ left: `${value.screenX}px`, top: `${value.screenY}px`, transform: "translate(-50%, -50%)" }}><button class="btn-destructive px-3 py-1 text-sm" onClick={(event) => {
         event.stopPropagation();
         void (async () => {
-          for (const relation of value.relations) await props.commands.removeDependency(relation);
+          await props.commands.removeDependency(value.relations);
           setPopup(undefined);
         })().catch(props.commands.reportError);
       }} data-testid="forest-dependency-delete">Delete dependency</button></div></>

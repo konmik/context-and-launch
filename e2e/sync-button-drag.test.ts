@@ -3,7 +3,7 @@ import {
   openProject, dragElement, sortableItem,
   setupE2E, THREE_COLUMN_BOARD,
 } from "./fixtures.js";
-import { aheadCount, porcelainStatus } from "./git-fixtures.js";
+import { porcelainStatus, upstreamDiff } from "./git-fixtures.js";
 import { testId, waitVisible, waitGone } from "./locators.js";
 
 describe("Sync button drag (e2e, real server)", () => {
@@ -58,7 +58,17 @@ describe("Sync button drag (e2e, real server)", () => {
 
     await waitGone(ctx.page, "sync-button-pending-badge");
 
-    expect(porcelainStatus(project.ticketsPath)).toBe("");
-    expect(aheadCount(project.ticketsPath)).toBe(0);
+    // The badge is driven by a poll, so it can clear before the auto-commit that
+    // follows the second drag has finished writing the tree.
+    await expect.poll(
+      () => porcelainStatus(project.ticketsPath),
+      { timeout: 15000 },
+    ).toBe("");
+    // Whether the two moves land in one auto-commit window or two is a matter of
+    // machine speed; what must hold is that the round trip left no net change.
+    await expect.poll(
+      () => upstreamDiff(project.ticketsPath),
+      { timeout: 15000 },
+    ).toBe("");
   });
 });

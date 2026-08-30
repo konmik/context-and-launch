@@ -6,6 +6,7 @@ import path from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
 import { createProject, type CreatedProject } from "./fixtures.js";
 import { pickPort } from "./test-port.js";
+import { removeTempDirOrWarn } from "../src/test-temp.js";
 
 describe("Project window (e2e, Vite development server)", () => {
   let browser: Browser;
@@ -74,14 +75,24 @@ describe("Project window (e2e, Vite development server)", () => {
       }
     });
     page.on("pageerror", (error) => diagnostics.push(error.message));
-  }, 30_000);
+
+    // The Project route pulls in lazily imported chunks that Vite has not seen
+    // yet. Meeting them the first time makes it re-optimize its dependencies and
+    // force a full reload, which detaches whatever a test was reaching for. Walk
+    // the route once here so that reload lands in setup instead of mid-test.
+    await page.goto(`${baseUrl}/project/${project.projectSlug}`);
+    await page.locator('[data-testid="kanban-board-ticket-card"]').first()
+      .click({ timeout: 20_000 });
+    await page.locator('[data-testid="ticket-detail-tab-editor"]')
+      .waitFor({ state: "visible", timeout: 20_000 });
+  }, 60_000);
 
   afterAll(async () => {
     await browser?.close();
     vite?.kill();
     project?.cleanup();
-    fs.rmSync(dataDir, { recursive: true, force: true });
-    fs.rmSync(reposParentDir, { recursive: true, force: true });
+    await removeTempDirOrWarn(dataDir);
+    await removeTempDirOrWarn(reposParentDir);
   });
 
   it("redirects the Home route without Solid lifecycle diagnostics", async () => {

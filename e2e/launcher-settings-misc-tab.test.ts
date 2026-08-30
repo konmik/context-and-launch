@@ -108,9 +108,20 @@ describe("Launcher Settings Misc tab (e2e, real server)", () => {
   it("fits itself back into a smaller viewport", async () => {
     await setup("viewport-resize");
     await ctx.page.setViewportSize({ width: 600, height: 400 });
-    const box = await ctx.page.locator(
-      '[data-scope="floating-panel"][data-part="content"]',
-    ).boundingBox();
+    const content = ctx.page.locator('[data-scope="floating-panel"][data-part="content"]');
+    // The panel refits itself when it sees the resize, so wait for it to land
+    // inside the new viewport instead of measuring it part-way through.
+    await expect.poll(async () => {
+      const current = await content.boundingBox();
+      if (!current) return Number.POSITIVE_INFINITY;
+      return Math.max(
+        current.x + current.width - 600,
+        current.y + current.height - 400,
+        -current.x,
+        -current.y,
+      );
+    }, { timeout: 10_000 }).toBeLessThanOrEqual(0);
+    const box = await content.boundingBox();
 
     expect(box?.x).toBeGreaterThanOrEqual(0);
     expect(box?.y).toBeGreaterThanOrEqual(0);

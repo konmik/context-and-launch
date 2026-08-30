@@ -6,6 +6,7 @@ import {
 } from "./fixtures.js";
 import { createScratchRepo, gitBranches } from "./git-fixtures.js";
 import { countOf, testId, waitVisible } from "./locators.js";
+import { removeTempDirOrWarn } from "../src/test-temp.js";
 
 describe("Add project welcome screen (e2e, real server)", () => {
   const ctx = setupE2E();
@@ -18,8 +19,10 @@ describe("Add project welcome screen (e2e, real server)", () => {
     return dir;
   }
 
-  afterAll(() => {
-    for (const dir of scratchRepos) fs.rmSync(dir, { recursive: true, force: true });
+  afterAll(async () => {
+    // Git leaves handles open for a moment after the last command, so removing a
+    // scratch repo has to tolerate a briefly locked file rather than fail the suite.
+    for (const dir of scratchRepos) await removeTempDirOrWarn(dir);
   });
 
   async function gotoAddProject(): Promise<void> {

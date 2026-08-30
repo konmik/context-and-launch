@@ -125,10 +125,20 @@ export async function clickPath(locator: Locator, at: "start" | "middle" | "end"
     if (!matrix) throw new Error("Path is not rendered on screen");
     const clientX = matrix.a * point.x + matrix.c * point.y + matrix.e;
     const clientY = matrix.b * point.x + matrix.d * point.y + matrix.f;
-    const target = getComputedStyle(path).pointerEvents === "none"
-      ? path.nextElementSibling
+    // The drawn edge ignores pointer events; a wider transparent twin carries the
+    // click handler. Address that twin by its own identity rather than by DOM
+    // adjacency, which breaks while the edge list re-renders.
+    const hit = getComputedStyle(path).pointerEvents === "none"
+      ? path.ownerSVGElement?.querySelector(
+        `[data-testid="forest-dependency-hit"][data-from="${path.dataset.from}"][data-to="${path.dataset.to}"]`,
+      )
       : path;
-    target?.dispatchEvent(new MouseEvent("click", {
+    if (!hit) {
+      throw new Error(
+        `No clickable target for dependency ${path.dataset.from} -> ${path.dataset.to}`,
+      );
+    }
+    hit.dispatchEvent(new MouseEvent("click", {
       bubbles: true,
       clientX,
       clientY,
@@ -143,6 +153,23 @@ export async function pathScreenEndpoints(
     start: await pathScreenPoint(locator, "start"),
     end: await pathScreenPoint(locator, "end"),
   };
+}
+
+/**
+ * Opens a dependency's popup. The edge list re-renders while the board settles,
+ * which can swap the path out from under a single click, so the click is
+ * re-issued until the popup is actually up.
+ */
+export async function openDependencyPopup(
+  page: Page,
+  path: Locator,
+  at: "start" | "middle" | "end" = "middle",
+): Promise<void> {
+  await expect.poll(async () => {
+    if (await testId(page, "forest-dependency-delete").count() > 0) return true;
+    await clickPath(path, at);
+    return await testId(page, "forest-dependency-delete").count() > 0;
+  }, { timeout: 15000 }).toBe(true);
 }
 
 export async function deleteDependencyViaPopup(page: Page): Promise<void> {

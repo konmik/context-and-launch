@@ -13,6 +13,6 @@ export default function ForestDependencyEdge(props: {
   const path = () => verticalBezierPath(props.sourcePoint, props.targetPoint, "down");
   return <>
     <path d={path()} fill="none" class="stroke-muted-foreground" stroke-width="2" pointer-events="none" data-testid="forest-dependency" data-from={props.source} data-to={props.target} />
-    <path d={path()} fill="none" stroke="transparent" stroke-width="32" style={{ "pointer-events": "stroke", cursor: "pointer" }} onPointerDown={(event) => event.stopPropagation()} onClick={props.onClick} />
+    <path d={path()} fill="none" stroke="transparent" stroke-width="32" style={{ "pointer-events": "stroke", cursor: "pointer" }} onPointerDown={(event) => event.stopPropagation()} onClick={props.onClick} data-testid="forest-dependency-hit" data-from={props.source} data-to={props.target} />
   </>;
 }

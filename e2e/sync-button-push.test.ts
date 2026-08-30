@@ -26,6 +26,16 @@ describe("Sync button push behavior (e2e, real server)", () => {
 
   async function syncAndWaitForSuccess(): Promise<void> {
     await testId(ctx.page, "sync-button-trigger").click();
+    // A failed sync reports itself in the error dialog and never shows the check,
+    // so watch for both and let the failure speak instead of timing out silently.
+    const outcome = ctx.page.locator(
+      '[data-testid="sync-button-check-icon"], [data-testid="error-dialog-ok"]',
+    );
+    await outcome.first().waitFor({ state: "visible", timeout: 15000 });
+    const failure = testId(ctx.page, "error-dialog-ok");
+    if (await failure.count() > 0) {
+      throw new Error(`Sync failed: ${await ctx.page.locator("body").innerText()}`);
+    }
     await waitVisible(ctx.page, "sync-button-check-icon");
   }
 

@@ -40,18 +40,30 @@ export const addDependency = action(async function addDependency(
   }
 }, "add-forest-dependency");
 
-export const removeDependency = action(async function removeDependency(
-  input: { projectSlug: string; folderName: string; dependencyNumber: string },
+export const removeDependencies = action(async function removeDependencies(
+  input: { projectSlug: string; removals: Array<{ folderName: string; dependencyNumber: string }> },
 ) {
   "use server";
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(input.projectSlug);
-    new TicketStore(worktreeDir).removeDependency(input.folderName, input.dependencyNumber);
+    const store = new TicketStore(worktreeDir);
+    // One write per ticket: a projected edge can stand for several relations of
+    // the same dependent, and rewriting its status file once per relation both
+    // multiplies file contention and can leave the rest behind if one write fails.
+    const byFolderName = new Map<string, string[]>();
+    for (const removal of input.removals) {
+      const numbers = byFolderName.get(removal.folderName) ?? [];
+      numbers.push(removal.dependencyNumber);
+      byFolderName.set(removal.folderName, numbers);
+    }
+    for (const [folderName, dependencyNumbers] of byFolderName) {
+      store.removeDependencies(folderName, dependencyNumbers);
+    }
     return actionResult({ ok: true as const });
   } catch (e) {
     return actionResult(errorResult(e));
   }
-}, "remove-forest-dependency");
+}, "remove-forest-dependencies");
 
 export const createGroupTicket = action(async function createGroupTicket(input: {
   projectSlug: string;

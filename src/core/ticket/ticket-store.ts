@@ -542,10 +542,15 @@ export class TicketStore {
 	}
 
 	removeDependency(folderName: string, dependencyNumber: string): void {
+		this.removeDependencies(folderName, [dependencyNumber]);
+	}
+
+	removeDependencies(folderName: string, dependencyNumbers: string[]): void {
 		const dir = this.resolveTicketDir(folderName);
 		const status = this.repo.readStatusJson(dir);
 		if (!status) throw new Error(`Malformed ticket: ${folderName}`);
-		const filtered = (status.dependsOn ?? []).filter(n => n !== dependencyNumber);
+		const removed = new Set(dependencyNumbers);
+		const filtered = (status.dependsOn ?? []).filter(n => !removed.has(n));
 		const updated: StatusJson = { ...status, dependsOn: filtered.length > 0 ? filtered : undefined };
 		this.repo.writeStatusJson(dir, updated);
 	}

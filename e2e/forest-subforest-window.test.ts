@@ -91,26 +91,46 @@ describe("Forest sub-forest window", () => {
     });
 
     await openSubforest(ctx.page, "S-G");
-    await ctx.page.waitForTimeout(500);
+
+    // Both connectors are drawn before the Group's viewport transform lands, so
+    // they sit at an untransformed position for a moment. Wait for the internal
+    // line to reach its cards; the endpoints are only meaningful after that.
+    const internalPath = ctx.page.locator(
+      '[data-testid="forest-subforest-backdrop"] [data-testid="forest-dependency"]',
+    );
+    await expect.poll(async () => {
+      const box = await boxOf(forestCard(ctx.page, "S-1"));
+      const endpoints = await pathScreenEndpoints(internalPath);
+      return Math.max(
+        Math.abs(endpoints.start.x - (box.x + box.width / 2)),
+        Math.abs(endpoints.start.y - (box.y + box.height)),
+      );
+    }, { timeout: 15000 }).toBeLessThan(0.05);
 
     const dependentBox = await boxOf(forestCard(ctx.page, "S-1"));
     const dependencyBox = await boxOf(forestCard(ctx.page, "S-2"));
     expect(dependentBox.height).toBeGreaterThan(72);
     expect(dependencyBox.height).toBeGreaterThan(72);
 
-    const internalEndpoints = await pathScreenEndpoints(ctx.page.locator(
-      '[data-testid="forest-subforest-backdrop"] [data-testid="forest-dependency"]',
-    ));
+    const internalEndpoints = await pathScreenEndpoints(internalPath);
     expect(internalEndpoints.start.x).toBeCloseTo(dependentBox.x + dependentBox.width / 2, 1);
     expect(internalEndpoints.start.y).toBeCloseTo(dependentBox.y + dependentBox.height, 1);
     expect(internalEndpoints.end.x).toBeCloseTo(dependencyBox.x + dependencyBox.width / 2, 1);
     expect(internalEndpoints.end.y).toBeCloseTo(dependencyBox.y, 1);
 
-    const externalEndpoints = await pathScreenEndpoints(ctx.page.locator(
+    // The external line is re-anchored as the Group window settles, so wait for
+    // it to reach its member rather than sampling wherever it currently is.
+    const externalPath = ctx.page.locator(
       '[data-testid="forest-subforest-backdrop"] [data-testid="forest-external-dependency"]',
-    ));
-    expect(externalEndpoints.start.x).toBeCloseTo(dependentBox.x + dependentBox.width / 2, 1);
-    expect(externalEndpoints.start.y).toBeCloseTo(dependentBox.y, 1);
+    );
+    await expect.poll(async () => {
+      const box = await boxOf(forestCard(ctx.page, "S-1"));
+      const endpoints = await pathScreenEndpoints(externalPath);
+      return Math.max(
+        Math.abs(endpoints.start.x - (box.x + box.width / 2)),
+        Math.abs(endpoints.start.y - box.y),
+      );
+    }, { timeout: 15000 }).toBeLessThan(0.05);
   }, 120000);
 
   it("attaches pre-existing external lines to the Group window after opening", async () => {

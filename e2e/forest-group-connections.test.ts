@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { setupE2E, readTicketStatus, boxOf, centerOf } from "./fixtures.js";
 import {
-  clickHandle, clickPath, closeSubforest, deleteDependencyViaPopup,
+  clickHandle, closeSubforest, deleteDependencyViaPopup, openDependencyPopup,
   forestHandle, forestSurface, openForestProject, openSubforest,
   pathScreenEndpoints, pathScreenPoint, subforestCloseButton,
 } from "./forest-helpers.js";
@@ -87,7 +87,7 @@ describe("Forest group connections", () => {
     await memberHandle.click();
 
     await expect.poll(
-      () => readTicketStatus(ctx.testServer, project.projectSlug, "s-1-member")?.dependsOn,
+      () => readTicketStatus(ctx.testServer, project.projectSlug, "s-1-member")?.dependsOn ?? [],
       { timeout: 10000 },
     ).toContain("S-OUT");
     await expect.poll(
@@ -122,7 +122,7 @@ describe("Forest group connections", () => {
       '[data-testid="forest-subforest-backdrop"] [data-testid="forest-external-dependency"]',
     );
     await externalDependency.waitFor({ state: "attached", timeout: 10000 });
-    await clickPath(externalDependency, "middle");
+    await openDependencyPopup(ctx.page, externalDependency, "middle");
 
     await deleteDependencyViaPopup(ctx.page);
 
@@ -149,8 +149,7 @@ describe("Forest group connections", () => {
 
     const dependency = testId(ctx.page, "forest-dependency");
     await dependency.waitFor({ state: "attached", timeout: 10000 });
-    await ctx.page.waitForTimeout(300);
-    await clickPath(dependency, "middle");
+    await openDependencyPopup(ctx.page, dependency, "middle");
 
     await deleteDependencyViaPopup(ctx.page);
 
@@ -217,17 +216,19 @@ describe("Forest group connections", () => {
     };
     await ctx.page.mouse.move(pointer.x, pointer.y);
 
-    const endpoints = await pathScreenEndpoints(
-      testId(ctx.page, "forest-connection-preview"),
-    );
     const groupHandle = forestHandle(ctx.page, "S-G", "bottom");
     expect(await groupHandle.getAttribute("data-connection-handle-state")).toBe("source");
-    const expectedStart = await centerOf(groupHandle);
 
+    // Closing the Group re-anchors the preview onto the Group's own handle, so
+    // wait for it to arrive there rather than sampling it part-way.
+    const preview = testId(ctx.page, "forest-connection-preview");
+    await expect.poll(async () => {
+      const endpoints = await pathScreenEndpoints(preview);
+      const start = await centerOf(groupHandle);
+      return Math.hypot(endpoints.start.x - start.x, endpoints.start.y - start.y);
+    }, { timeout: 15000 }).toBeLessThan(4);
+
+    const endpoints = await pathScreenEndpoints(preview);
     expect(Math.hypot(endpoints.end.x - pointer.x, endpoints.end.y - pointer.y)).toBeLessThan(4);
-    expect(Math.hypot(
-      endpoints.start.x - expectedStart.x,
-      endpoints.start.y - expectedStart.y,
-    )).toBeLessThan(4);
   }, 120000);
 }, 120000);

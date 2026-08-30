@@ -25,7 +25,11 @@ export function EditorTab(props: { ctrl: TicketDetailState }) {
         onDrop={s.handleDrop}
         onFileInputChange={s.handleFileInputChange}
       />
-      <div class="min-h-0 flex-1">
+      <div
+        class="min-h-0 flex-1"
+        data-testid="ticket-detail-editor-pane"
+        data-state={s.fileView().kind}
+      >
         <Show
           when={s.fileView().kind !== "loading"}
           fallback={

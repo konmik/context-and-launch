@@ -11,6 +11,7 @@ import {
 	seedProject,
 	setupE2E,
 	uniqueSlug,
+	openTicketMenu,
 } from "./fixtures.js";
 import { testId, waitLocatorVisible } from "./locators.js";
 
@@ -41,10 +42,12 @@ async function openCardReview(page: Page, folderName: string): Promise<void> {
 	const card = page.locator(
 		`[data-testid="kanban-board-ticket-card"][data-folder-name="${folderName}"]`,
 	);
-	await testId(card, "kanban-board-ticket-menu-trigger").click();
-	const action = testId(page, "kanban-board-ticket-menu-review-changes");
-	await action.waitFor({ state: "attached", timeout: 10_000 });
-	await action.click();
+	await openTicketMenu(
+		page,
+		testId(card, "kanban-board-ticket-menu-trigger"),
+		"kanban-board-ticket-menu-review-changes",
+	);
+	await testId(page, "kanban-board-ticket-menu-review-changes").click();
 	await testId(page, "diff-review").waitFor({
 		state: "visible",
 		timeout: 10_000,
@@ -316,6 +319,12 @@ describe("Diff Review (e2e, real server)", () => {
 		await waitLocatorVisible(ctx.page.locator('[data-testid="diff-review-composer"]'));
 		await ctx.page.locator('[data-testid="diff-review-composer-input"]')
 			.fill("Explain this value.");
+		// Send stays disabled until the composer state holds the typed feedback,
+		// so this waits for the prompt to actually include it.
+		await expect.poll(
+			() => ctx.page.locator('[data-testid="diff-review-composer-send"]').isDisabled(),
+			{ timeout: 10_000 },
+		).toBe(false);
 
 		await ctx.page.evaluate(() => {
 			const copied: string[] = [];
@@ -414,6 +423,10 @@ describe("Diff Review (e2e, real server)", () => {
 		await waitLocatorVisible(ctx.page.locator('[data-testid="diff-review-composer"]'));
 		const composerInput = ctx.page.locator('[data-testid="diff-review-composer-input"]');
 		await composerInput.fill("Explain this value.");
+		await expect.poll(
+			() => ctx.page.locator('[data-testid="diff-review-composer-send"]').isDisabled(),
+			{ timeout: 10_000 },
+		).toBe(false);
 
 		await ctx.page.evaluate(() => {
 			const copied: string[] = [];
@@ -834,7 +847,12 @@ describe("Diff Review (e2e, real server)", () => {
 		const profileSelect = ctx.page.locator('[data-testid="diff-review-profile-select"]');
 		await waitLocatorVisible(profileSelect);
 		expect(await profileSelect.isDisabled()).toBe(false);
-		expect(await profileSelect.inputValue()).toBe("Claude");
+		// The select renders before the launcher config arrives, and until it does
+		// it holds the empty "No profiles configured" option.
+		await expect.poll(
+			() => profileSelect.inputValue(),
+			{ timeout: 10_000 },
+		).toBe("Claude");
 		await profileSelect.selectOption("GPT");
 		const config = await poll(
 			() => readProjectLauncherConfig(ctx.testServer, project.projectSlug),
@@ -872,6 +890,10 @@ describe("Diff Review (e2e, real server)", () => {
 		}).click();
 
 		await ctx.page.waitForURL(`**/project/${second.projectSlug}`);
+		// The subject of this test is that the review closes; the board appearing
+		// afterwards only confirms the project it switched to rendered.
+		await ctx.page.locator('[data-testid="diff-review"]')
+			.waitFor({ state: "detached", timeout: 15_000 });
 		await waitLocatorVisible(ctx.page.locator('[data-testid="kanban-board-scroll"]'));
 		expect(await ctx.page.getByText("Something went wrong").count()).toBe(0);
 	});
