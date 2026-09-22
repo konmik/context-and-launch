@@ -24,11 +24,6 @@ export const getSyncStatus = query(async (projectSlug: string) => {
   return projectPageService.loadSyncStatus(projectSlug);
 }, "project-sync-status");
 
-export async function recordProjectFocus(projectSlug: string) {
-  "use server";
-  projectRegistry.setLastUsed(projectSlug);
-}
-
 export const previewProjectPath = query(async (pathValue: string) => {
   "use server";
   const projectSlug = projectRegistry.previewSlug(pathValue);
@@ -80,16 +75,6 @@ export async function deleteProject(projectSlug: string) {
   }
 }
 
-export async function setProjectName(projectSlug: string, name: string) {
-  "use server";
-  try {
-    projectRegistry.setName(projectSlug, name);
-    return { ok: true as const };
-  } catch (e) {
-    return errorResult(e);
-  }
-}
-
 export const setProjectPath = action(async (projectSlug: string, pathValue: string) => {
   "use server";
   try {
@@ -113,13 +98,3 @@ export const setTicketsLocation = action(async (
     return respond(errorResult(e), { revalidate: [] });
   }
 }, "set-tickets-location");
-
-export async function setBoardId(projectSlug: string, boardId: string) {
-  "use server";
-  try {
-    projectRegistry.setBoardId(projectSlug, boardId);
-    return { ok: true as const };
-  } catch (e) {
-    return errorResult(e);
-  }
-}

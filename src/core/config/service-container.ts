@@ -1,5 +1,6 @@
 import { ConfigPaths } from './config-paths.js';
 import { ConfigRepository } from './config-repository.js';
+import { AppConfigStore } from './app-config-store.js';
 import { ProjectRegistry } from '../project/project-registry.js';
 import { BoardConfigManager } from '../project/board-config.js';
 import { WorktreeManager } from '../worktree/worktree-manager.js';
@@ -28,6 +29,7 @@ import { HerdrUnavailableError } from '../herdr/herdr-availability.js';
 export interface ServiceContainer {
 	configPaths: ConfigPaths;
 	configRepo: ConfigRepository;
+	appConfigStore: AppConfigStore;
 	commandTemplateStore: CommandTemplateStore;
 	commandTemplateService: CommandTemplateService;
 	herdrExec: HerdrExecFn;
@@ -67,7 +69,8 @@ export function createServices(options: ServiceOptions = {}): ServiceContainer {
 	const herdrExec = createHerdrExec(commandTemplateService);
 	const gitRepo = new GitRepository(commandTemplateService);
 
-	const projectRegistry = new ProjectRegistry(configPaths, configRepo);
+	const appConfigStore = new AppConfigStore(configPaths, configRepo);
+	const projectRegistry = new ProjectRegistry(configPaths, configRepo, appConfigStore);
 	const boardConfigManager = new BoardConfigManager(configPaths, configRepo);
 	const worktreeManager = new WorktreeManager(
 		configPaths, commandTemplateService, (projectSlug) => projectRegistry.getTicketsPath(projectSlug),
@@ -119,6 +122,7 @@ export function createServices(options: ServiceOptions = {}): ServiceContainer {
 	return {
 		configPaths,
 		configRepo,
+		appConfigStore,
 		commandTemplateStore,
 		commandTemplateService,
 		herdrExec,

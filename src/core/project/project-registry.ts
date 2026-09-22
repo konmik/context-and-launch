@@ -3,27 +3,13 @@ import path from 'path';
 import * as v from 'valibot';
 import type { ConfigPaths } from '../config/config-paths.js';
 import { ConfigRepository } from '../config/config-repository.js';
-import { JsonObjectSchema, type JsonValue } from '../shared/json.js';
+import { AppConfigStore } from '../config/app-config-store.js';
+import type { ProjectEntry } from '../config/app-config-data.js';
+export type { ProjectEntry } from '../config/app-config-data.js';
 
-export interface ProjectInfo {
-	path: string;
-	projectSlug: string;
+export interface ProjectInfo extends ProjectEntry {
 	available: boolean;
 	name: string;
-	branch?: string;
-	ticketsPath?: string;
-	mainBranch?: string;
-	boardId?: string;
-}
-
-export interface ProjectEntry {
-	path: string;
-	projectSlug: string;
-	name?: string;
-	branch?: string;
-	ticketsPath?: string;
-	mainBranch?: string;
-	boardId?: string;
 }
 
 export const AddProjectBody = v.object({
@@ -34,51 +20,6 @@ export const AddProjectBody = v.object({
 	name: v.optional(v.string()),
 });
 export type AddProjectBody = v.InferOutput<typeof AddProjectBody>;
-
-export interface ProjectConfig {
-	projects: ProjectEntry[];
-	lastUsedProjectSlug: string | null;
-	lastUsedProfileName: string | null;
-	port?: number;
-	browser?: string;
-}
-
-const StoredProjectEntrySchema = v.object({
-	path: v.string(),
-	projectSlug: v.optional(v.string()),
-	slug: v.optional(v.string()),
-	name: v.optional(v.string()),
-	branch: v.optional(v.string()),
-	ticketsPath: v.optional(v.string()),
-	mainBranch: v.optional(v.string()),
-	boardId: v.optional(v.string()),
-});
-const ProjectConfigFileSchema = v.object({
-	projects: v.array(StoredProjectEntrySchema),
-	lastUsedProjectSlug: v.optional(v.nullable(v.string())),
-	lastUsedSlug: v.optional(v.nullable(v.string())),
-	lastUsedProfileName: v.optional(v.nullable(v.string())),
-	port: v.optional(v.pipe(v.number(), v.finite())),
-	browser: v.optional(v.string()),
-});
-const PROJECT_CONFIG_FIELDS = new Set([
-	'projects',
-	'lastUsedProjectSlug',
-	'lastUsedSlug',
-	'lastUsedProfileName',
-	'port',
-	'browser',
-]);
-
-function extraFieldsFrom(raw: JsonValue): Map<string, unknown> {
-	const parsed = v.safeParse(JsonObjectSchema, raw);
-	if (!parsed.success) {
-		throw new Error('Invalid config.json: expected an object');
-	}
-	return new Map(
-		Object.entries(parsed.output).filter(([key]) => !PROJECT_CONFIG_FIELDS.has(key)),
-	);
-}
 
 function isGitRepo(dirPath: string, configRepo: ConfigRepository): boolean {
 	try {
@@ -144,72 +85,14 @@ export function generateProjectSlug(filePath: string, existingProjectSlugs: Set<
 }
 
 export class ProjectRegistry {
-	private paths: ConfigPaths;
-	private configRepo: ConfigRepository;
-	private extraFields = new Map<string, unknown>();
-
-	constructor(paths: ConfigPaths, configRepo?: ConfigRepository) {
-		this.paths = paths;
-		this.configRepo = configRepo ?? new ConfigRepository();
-	}
-
-	private load(): ProjectConfig {
-		const configFile = this.paths.projectRegistryFile();
-		const raw = this.configRepo.readJson(configFile);
-		if (raw === null) {
-			throw new Error(`config.json not found: ${configFile}`);
-		}
-		const parsed = v.parse(ProjectConfigFileSchema, raw);
-		const lastUsed = parsed.lastUsedProjectSlug ?? parsed.lastUsedSlug ?? null;
-		const lastUsedProfileName = parsed.lastUsedProfileName ?? null;
-		const migratedProjects: ProjectEntry[] = parsed.projects.map(
-			(p) => {
-				const projectSlug = p.projectSlug ?? p.slug;
-				if (projectSlug === undefined) {
-					throw new Error('Invalid config.json: project is missing projectSlug');
-				}
-				const entry: ProjectEntry = { path: p.path, projectSlug };
-				if (p.name !== undefined) entry.name = p.name;
-				if (p.branch !== undefined) entry.branch = p.branch;
-				if (p.ticketsPath !== undefined) entry.ticketsPath = p.ticketsPath;
-				if (p.mainBranch !== undefined) entry.mainBranch = p.mainBranch;
-				if (p.boardId !== undefined) entry.boardId = p.boardId;
-				return entry;
-			},
-		);
-		const config: ProjectConfig = {
-			projects: migratedProjects,
-			lastUsedProjectSlug: lastUsed,
-			lastUsedProfileName,
-			port: parsed.port,
-			browser: parsed.browser,
-		};
-		this.extraFields = extraFieldsFrom(raw);
-		const hasLegacyKeys = parsed.lastUsedSlug !== undefined
-			|| parsed.projects.some((p) => p.slug !== undefined);
-		if (hasLegacyKeys) {
-			this.save(config);
-		}
-		return config;
-	}
-
-	private currentExtraFields(): ReadonlyMap<string, unknown> {
-		const raw = this.configRepo.readJson(this.paths.projectRegistryFile());
-		if (raw === null) return this.extraFields;
-		return extraFieldsFrom(raw);
-	}
-
-	private save(config: ProjectConfig): void {
-		const extraFields = this.currentExtraFields();
-		this.extraFields = new Map(extraFields);
-		this.configRepo.writeJson(
-			this.paths.projectRegistryFile(),
-			{ ...Object.fromEntries(extraFields), ...config },
-		);
-	}
+	constructor(
+		private paths: ConfigPaths,
+		private configRepo = new ConfigRepository(),
+		private appConfig = new AppConfigStore(paths, configRepo),
+	) {}
 
 	getDefaultProjectSlug(): string | null {
-		const config = this.load();
+		const config = this.appConfig.read();
 		const lastProjectSlug = config.lastUsedProjectSlug;
 		if (lastProjectSlug && config.projects.some((p) => p.projectSlug === lastProjectSlug)) {
 			return lastProjectSlug;
@@ -221,23 +104,23 @@ export class ProjectRegistry {
 	}
 
 	listProjects(): ProjectInfo[] {
-		return this.load().projects.map((entry) => entryToInfo(entry, this.configRepo));
+		return this.appConfig.read().projects.map((entry) => entryToInfo(entry, this.configRepo));
 	}
 
 	hasProject(projectSlug: string): boolean {
-		return this.load().projects.some((p) => p.projectSlug === projectSlug);
+		return this.appConfig.read().projects.some((p) => p.projectSlug === projectSlug);
 	}
 
 	getTicketsPath(projectSlug: string): string | undefined {
-		return this.load().projects.find((p) => p.projectSlug === projectSlug)?.ticketsPath;
+		return this.appConfig.read().projects.find((p) => p.projectSlug === projectSlug)?.ticketsPath;
 	}
 
 	getBoardId(projectSlug: string): string | undefined {
-		return this.load().projects.find((p) => p.projectSlug === projectSlug)?.boardId;
+		return this.appConfig.read().projects.find((p) => p.projectSlug === projectSlug)?.boardId;
 	}
 
 	previewSlug(projectPath: string): string {
-		const existing = new Set(this.load().projects.map((p) => p.projectSlug));
+		const existing = new Set(this.appConfig.read().projects.map((p) => p.projectSlug));
 		return generateProjectSlug(projectPath, existing);
 	}
 
@@ -258,7 +141,7 @@ export class ProjectRegistry {
 			validateBranchName(opts.mainBranch);
 		}
 
-		const config = this.load();
+		const config = this.appConfig.read();
 		const canonicalPath = this.configRepo.realpathSync(projectPath);
 		const alreadyRegistered = config.projects.some((p) => {
 			try {
@@ -285,7 +168,7 @@ export class ProjectRegistry {
 				Object.entries(optionalFields).filter(([, v]) => v !== undefined),
 			),
 		};
-		this.save({
+		this.appConfig.write({
 			...config,
 			projects: [...config.projects, entry],
 			lastUsedProjectSlug: finalProjectSlug,
@@ -295,7 +178,7 @@ export class ProjectRegistry {
 	}
 
 	updateProject(projectSlug: string, newPath?: string, newProjectSlug?: string): ProjectInfo {
-		const config = this.load();
+		const config = this.appConfig.read();
 		const index = config.projects.findIndex((p) => p.projectSlug === projectSlug);
 		if (index < 0) throw new Error(`Project not found: ${projectSlug}`);
 
@@ -324,18 +207,18 @@ export class ProjectRegistry {
 		const newProjects = config.projects.map((p, i) => (i === index ? updated : p));
 		const newLastUsed = config.lastUsedProjectSlug === projectSlug
 			? updatedProjectSlug : config.lastUsedProjectSlug;
-		this.save({ ...config, projects: newProjects, lastUsedProjectSlug: newLastUsed });
+		this.appConfig.write({ ...config, projects: newProjects, lastUsedProjectSlug: newLastUsed });
 
 		return entryToInfo(updated, this.configRepo);
 	}
 
 	removeProject(projectSlug: string): void {
-		const config = this.load();
+		const config = this.appConfig.read();
 		const newProjects = config.projects.filter((p) => p.projectSlug !== projectSlug);
 		const newLastUsed = config.lastUsedProjectSlug === projectSlug
 			? (newProjects[0]?.projectSlug ?? null)
 			: config.lastUsedProjectSlug;
-		this.save({ ...config, projects: newProjects, lastUsedProjectSlug: newLastUsed });
+		this.appConfig.write({ ...config, projects: newProjects, lastUsedProjectSlug: newLastUsed });
 
 		const projectConfigDir = this.paths.projectConfigDir(projectSlug);
 		if (fs.existsSync(projectConfigDir)) {
@@ -344,14 +227,14 @@ export class ProjectRegistry {
 	}
 
 	setLastUsed(projectSlug: string): void {
-		const config = this.load();
+		const config = this.appConfig.read();
 		if (config.projects.some((p) => p.projectSlug === projectSlug) && config.lastUsedProjectSlug !== projectSlug) {
-			this.save({ ...config, lastUsedProjectSlug: projectSlug });
+			this.appConfig.write({ ...config, lastUsedProjectSlug: projectSlug });
 		}
 	}
 
 	getName(projectSlug: string): string {
-		const project = this.load().projects.find((p) => p.projectSlug === projectSlug);
+		const project = this.appConfig.read().projects.find((p) => p.projectSlug === projectSlug);
 		return project?.name || projectSlug;
 	}
 
@@ -359,19 +242,11 @@ export class ProjectRegistry {
 		projectSlug: string,
 		patch: (entry: ProjectEntry) => ProjectEntry,
 	): void {
-		const config = this.load();
+		const config = this.appConfig.read();
 		const index = config.projects.findIndex((p) => p.projectSlug === projectSlug);
 		if (index < 0) throw new Error(`Project not found: ${projectSlug}`);
 		const newProjects = config.projects.map((p, i) => (i === index ? patch({ ...p }) : p));
-		this.save({ ...config, projects: newProjects });
-	}
-
-	setName(projectSlug: string, name: string | undefined): void {
-		this.updateProjectEntry(projectSlug, (entry) => {
-			if (name !== undefined && name.trim()) entry.name = name.trim();
-			else delete entry.name;
-			return entry;
-		});
+		this.appConfig.write({ ...config, projects: newProjects });
 	}
 
 	setTicketsLocation(projectSlug: string, change: { kind: 'path' | 'branch'; value: string }): void {
@@ -393,22 +268,22 @@ export class ProjectRegistry {
 	}
 
 	getPort(): number {
-		return this.load().port ?? 14780;
+		return this.appConfig.read().port ?? 14780;
 	}
 
 	getBrowser(): string {
-		return this.load().browser ?? 'chrome';
+		return this.appConfig.read().browser ?? 'chrome';
 	}
 
 	getLastUsedProfileName(): string | null {
-		return this.load().lastUsedProfileName;
+		return this.appConfig.read().lastUsedProfileName;
 	}
 
 	setLastUsedProfileName(profileName: string): void {
 		if (!profileName) throw new Error('profileName cannot be empty');
-		const config = this.load();
+		const config = this.appConfig.read();
 		if (config.lastUsedProfileName !== profileName) {
-			this.save({ ...config, lastUsedProfileName: profileName });
+			this.appConfig.write({ ...config, lastUsedProfileName: profileName });
 		}
 	}
 }

@@ -1,4 +1,4 @@
-import { createSignal, createEffect, createMemo, flush } from "solid-js";
+import { createSignal, createEffect, createMemo, flush, useContext } from "solid-js";
 import { revalidate, useAction } from "@solidjs/router";
 import type {
   LauncherItemType,
@@ -19,7 +19,6 @@ import {
   deleteColumn, renameColumn, reorderColumns,
 } from "../board/board-api.js";
 import {
-	setProjectName as setProjectNameAction, setBoardId as setBoardIdAction,
 	setProjectPath as setProjectPathAction,
 	setTicketsLocation as setTicketsLocationAction,
 } from "../project/project-api.js";
@@ -30,6 +29,7 @@ import type {
 } from "./launcher-settings-dialogs.js";
 import { validateColumnName, buildFormPayload } from "./launcher-settings-pure.js";
 import type { BoardRef } from "../board/board-api.js";
+import { AppConfigContext } from '../config/app-config-storage.js';
 
 function columnContentPatch(cf: ColumnFormState) {
 	return { description: cf.description, color: cf.color };
@@ -40,6 +40,7 @@ export function createLauncherSettingsState(props: {
 	onOpenChange: (open: boolean) => void;
 	projectSlug: string;
 }) {
+	const appConfig = useContext(AppConfigContext)!;
 	const [config, setConfig] = createSignal<MergedLauncherConfig | null>(null);
 	const [loading, setLoading] = createSignal(false);
 	const [error, setError] = createSignal<ErrorInfo | null>(null);
@@ -187,8 +188,13 @@ export function createLauncherSettingsState(props: {
 	async function saveProjectNameFn() {
 		setError(null);
 		try {
-			const result = await setProjectNameAction(props.projectSlug, projectName());
-			if (!result.ok) setError({ title: "Save failed", description: result.message });
+			const name = projectName().trim() || undefined;
+			const result = await appConfig.update(current => ({
+				...current,
+				projects: current.projects.map(project => project.projectSlug === props.projectSlug
+					? { ...project, name } : project),
+			}));
+			if (result.type === 'Failure') setError({ title: "Save failed", description: result.error });
 		} catch (e) { setError(errorPayload(e, "Save failed")); }
 	}
 
@@ -367,8 +373,15 @@ export function createLauncherSettingsState(props: {
 	async function handleBoardIdChange(boardId: string): Promise<boolean> {
 		setError(null);
 		try {
-			const result = await setBoardIdAction(props.projectSlug, boardId);
-			if (!result.ok) { setError({ title: "Save failed", description: result.message }); return false; }
+			const result = await appConfig.update(current => ({
+				...current,
+				projects: current.projects.map(project => project.projectSlug === props.projectSlug
+					? { ...project, boardId } : project),
+			}));
+			if (result.type === 'Failure') {
+				setError({ title: "Save failed", description: result.error });
+				return false;
+			}
 			await loadConfig(); return true;
 		} catch (e) { setError(errorPayload(e, "Save failed")); return false; }
 	}

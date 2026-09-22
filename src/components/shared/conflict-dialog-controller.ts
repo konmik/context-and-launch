@@ -1,5 +1,6 @@
-import { createSignal, createEffect } from "solid-js";
-import { getMergedLauncherConfig, getLastUsedProfile, saveLastUsedProfile } from "../launcher/launcher-api.js";
+import { createSignal, createEffect, useContext } from "solid-js";
+import { getMergedLauncherConfig } from "../launcher/launcher-api.js";
+import { AppConfigContext } from '../config/app-config-storage.js';
 
 export interface ConflictDialogDeps {
   projectSlug: () => string;
@@ -10,6 +11,7 @@ export interface ConflictDialogDeps {
 }
 
 export function createConflictDialogController(deps: ConflictDialogDeps) {
+  const appConfig = useContext(AppConfigContext)!;
   const [submitting, setSubmitting] = createSignal(false);
   const [errorMsg, setErrorMsg] = createSignal("");
   const [profiles, setProfiles] = createSignal<{ name: string }[]>([]);
@@ -29,12 +31,7 @@ export function createConflictDialogController(deps: ConflictDialogDeps) {
           if (list.length === 0) return;
           const current = selectedProfile();
           if (current && list.some(p => p.name === current)) return;
-          let preferred: string | null = null;
-          try {
-            preferred = await getLastUsedProfile();
-          } catch (e) {
-            console.warn("Failed to load last-used profile:", e);
-          }
+          const preferred = appConfig.get().lastUsedProfileName;
           const match = preferred && list.some(p => p.name === preferred)
             ? preferred
             : list[0].name;
@@ -49,7 +46,8 @@ export function createConflictDialogController(deps: ConflictDialogDeps) {
     setSelectedProfile(name);
     if (!name) return;
     try {
-      await saveLastUsedProfile(name);
+      const result = await appConfig.update(current => ({ ...current, lastUsedProfileName: name }));
+      if (result.type === 'Failure') setErrorMsg(result.error);
     } catch (err) {
       setErrorMsg(
         err instanceof Error ? err.message : "Failed to save last used profile",

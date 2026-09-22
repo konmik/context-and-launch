@@ -300,22 +300,6 @@ export async function reorderItem(
   }
 }
 
-export const getLastUsedProfile = query(async (): Promise<string | null> => {
-  "use server";
-  const profileName = projectRegistry.getLastUsedProfileName();
-  return profileName ?? null;
-}, "last-used-profile");
-
-export async function saveLastUsedProfile(profileName: string) {
-  "use server";
-  try {
-    projectRegistry.setLastUsedProfileName(profileName);
-    return { ok: true as const };
-  } catch (e) {
-    return errorResult(e);
-  }
-}
-
 export async function launchAgentAction(
   projectSlug: string, folderName: string, launchRequest: LaunchRequest,
 ) {

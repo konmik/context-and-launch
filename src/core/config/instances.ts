@@ -29,6 +29,7 @@ const services = globalThis.__serviceContainer ??= createInitializedServices();
 
 export const configPaths = services.configPaths;
 export const configRepo = services.configRepo;
+export const appConfigStore = services.appConfigStore;
 export const commandTemplateStore = services.commandTemplateStore;
 export const commandTemplateService = services.commandTemplateService;
 export const herdrExec = services.herdrExec;

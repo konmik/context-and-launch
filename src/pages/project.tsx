@@ -1,7 +1,8 @@
 import { useParams, useNavigate, revalidate } from "@solidjs/router";
+import { AppConfigContext } from '~/components/config/app-config-storage.js';
 import {
   Show, For, Switch, Match, Errored, Loading,
-  createSignal, createEffect, createMemo, onSettled, lazy, flush,
+  createSignal, createEffect, createMemo, onSettled, lazy, flush, useContext,
 } from "solid-js";
 import { EllipsisVertical } from "~/components/ui/icons.js";
 import { Network } from "~/components/ui/icons.js";
@@ -35,7 +36,7 @@ import LogViewerDialog from "~/components/shared/LogViewerDialog";
 import LauncherSettings from "~/components/launcher/LauncherSettings";
 import { useModEnterSubmit, modEnterHint } from "~/lib/use-mod-enter-submit";
 import {
-  loadProjectPage, getSyncStatus, addProject, recordProjectFocus,
+  loadProjectPage, getSyncStatus, addProject,
 } from "~/components/project/project-api.js";
 import { projectSyncRevalidateKeys } from "~/components/shared/revalidate-keys.js";
 import {
@@ -95,6 +96,7 @@ function createDeferredSignal<T>(ready: () => boolean, load: () => Promise<T>, p
 }
 
 export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
+  const appConfig = useContext(AppConfigContext)!;
   const params = useParams();
   const navigate = useNavigate();
   const projectSlug = () => params.projectSlug ?? "";
@@ -208,8 +210,20 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   const currentProjectName = () => {
     const v = data();
     if (!v) return "";
-    return v.projects.find((p) => p.projectSlug === v.projectSlug)?.name ?? v.projectSlug;
+    return appConfig.get().projects.find((p) => p.projectSlug === v.projectSlug)?.name || v.projectSlug;
   };
+
+  async function recordProjectFocus(projectSlug: string) {
+    const result = await appConfig.update(current => ({
+      ...current,
+      lastUsedProjectSlug: current.projects.some(project => project.projectSlug === projectSlug)
+        ? projectSlug : current.lastUsedProjectSlug,
+    }));
+    if (result.type === 'Failure') setConfigError(result.error);
+    else setConfigError(undefined);
+  }
+
+  const [configError, setConfigError] = createSignal<string>();
 
   let lastReportedProjectSlug: string | null = null;
   createEffect(data, (v) => {
@@ -593,6 +607,10 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
           />
           <ErrorDialog error={shortcutRunner.error()} onClose={() => shortcutRunner.setError(null)} />
           <ErrorDialog error={syncState().syncError} onClose={() => commands.setSyncError(null)} />
+          <ErrorDialog
+            error={configError() ? { title: 'Configuration save failed', description: configError()! } : null}
+            onClose={() => setConfigError(undefined)}
+          />
           <LogViewerDialog open={logViewerOpen()} onOpenChange={setLogViewerOpen} />
         </div>
         );
