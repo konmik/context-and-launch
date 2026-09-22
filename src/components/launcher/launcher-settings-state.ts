@@ -21,6 +21,7 @@ import {
 import {
 	setProjectName as setProjectNameAction, setBoardId as setBoardIdAction,
 	setProjectPath as setProjectPathAction,
+	setTicketsLocation as setTicketsLocationAction,
 } from "../project/project-api.js";
 import { createListReorder, midpointOrder } from "../board/list-reorder.js";
 import type {
@@ -48,6 +49,11 @@ export function createLauncherSettingsState(props: {
 	const [savedProjectPath, setSavedProjectPath] = createSignal("");
 	const [savingProjectPath, setSavingProjectPath] = createSignal(false);
 	const runSetProjectPath = useAction(setProjectPathAction);
+	const [ticketsPath, setTicketsPath] = createSignal("");
+	const [ticketsBranch, setTicketsBranch] = createSignal("");
+	const [savedTicketsLocation, setSavedTicketsLocation] = createSignal({ ticketsPath: "", branch: "" });
+	const [savingTicketsLocation, setSavingTicketsLocation] = createSignal(false);
+	const runSetTicketsLocation = useAction(setTicketsLocationAction);
 	const [worktreeRootPath, setWorktreeRootPath] = createSignal("");
 	const [branchPrefix, setBranchPrefix] = createSignal<string | undefined>(undefined);
 	const [conflictPrompt, setConflictPrompt] = createSignal("");
@@ -95,6 +101,9 @@ export function createLauncherSettingsState(props: {
 			setProjectName(data.projectName ?? "");
 			setProjectPath(data.projectPath);
 			setSavedProjectPath(data.projectPath);
+			setTicketsPath(data.worktreeDir);
+			setTicketsBranch(data.ticketsBranch ?? "");
+			setSavedTicketsLocation({ ticketsPath: data.worktreeDir, branch: data.ticketsBranch ?? "" });
 			setWorktreeRootPath(data.worktreeRootPath ?? "");
 			setBranchPrefix(data.branchPrefix);
 		setConflictPrompt(data.conflictResolutionPrompt ?? "");
@@ -213,6 +222,27 @@ export function createLauncherSettingsState(props: {
 			if (!result.ok) { setError({ title: "Save failed", description: result.message }); return; }
 			await loadConfig();
 		} catch (e) { setError(errorPayload(e, "Save failed")); }
+	}
+
+	async function saveTicketsLocation(kind: "path" | "branch", value: string) {
+		const saved = savedTicketsLocation();
+		if (value.trim() === (kind === "path" ? saved.ticketsPath : saved.branch)) return;
+		if (savingTicketsLocation()) return;
+		setSavingTicketsLocation(true);
+		setError(null);
+		try {
+			const result = await runSetTicketsLocation(props.projectSlug, { kind, value });
+			if (!result.ok) { setError({ title: "Save failed", description: result.message }); return; }
+			if (kind === "path") {
+				setTicketsPath(result.value);
+				setSavedTicketsLocation(prev => ({ ...prev, ticketsPath: result.value }));
+			} else {
+				setTicketsBranch(result.value);
+				setSavedTicketsLocation(prev => ({ ...prev, branch: result.value }));
+			}
+			await revalidate("launcher-config");
+		} catch (e) { setError(errorPayload(e, "Save failed")); }
+		finally { setSavingTicketsLocation(false); }
 	}
 
 	async function saveConflictResolutionFn() {
@@ -424,6 +454,9 @@ export function createLauncherSettingsState(props: {
 		config, loading, error, setError, form, setForm,
 		projectName, setProjectName, worktreeRootPath, setWorktreeRootPath,
 		projectPath, setProjectPath, savingProjectPath, saveProjectPath: saveProjectPathFn,
+		ticketsPath, setTicketsPath, ticketsBranch, setTicketsBranch, savingTicketsLocation,
+		saveTicketsPath: (path = ticketsPath()) => saveTicketsLocation("path", path),
+		saveTicketsBranch: () => saveTicketsLocation("branch", ticketsBranch()),
 		branchPrefix, setBranchPrefix, conflictPrompt, setConflictPrompt, activeTab, setActiveTab,
 		boards, projectBoardId, boardOverride, setBoardOverride,
 		columnForm, setColumnForm, boardForm, setBoardForm, renameForm, setRenameForm,

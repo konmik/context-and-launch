@@ -1,4 +1,7 @@
 import { describe, it, expect } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+import { git } from "./git-fixtures.js";
 import {
   expectOpenConfigDirRequest,
   readProjectLauncherConfig, readProjectRegistry, poll,
@@ -186,6 +189,36 @@ describe("Launcher Settings Misc tab (e2e, real server)", () => {
       (p: { projectSlug: string }) => p.projectSlug === project.projectSlug,
     );
     expect(entry?.name).toBe("Custom Name");
+  });
+
+  it("saves the tickets folder on blur without moving the worktree", async () => {
+    const project = await setup("tickets-path");
+    const input = testId(ctx.page, "launcher-settings-misc-tickets-path-input");
+    expect(await input.inputValue()).toBe(project.ticketsPath);
+    const destination = path.join(ctx.testServer.reposParentDir, "chosen-tickets-folder");
+    await input.fill(destination);
+    await input.blur();
+    await poll(
+      () => readProjectRegistry(ctx.testServer),
+      (r) => r.projects.find(p => p.projectSlug === project.projectSlug)?.ticketsPath === destination,
+      5000,
+    );
+    expect(fs.existsSync(project.ticketsPath)).toBe(true);
+    expect(fs.existsSync(destination)).toBe(false);
+  });
+
+  it("saves the tickets branch on Enter without renaming the Git branch", async () => {
+    const project = await setup("tickets-branch");
+    const input = testId(ctx.page, "launcher-settings-misc-tickets-branch-input");
+    expect(await input.inputValue()).toBe(project.branch);
+    await input.fill("custom-ticket-branch");
+    await input.press("Enter");
+    await poll(
+      () => readProjectRegistry(ctx.testServer),
+      (r) => r.projects.find(p => p.projectSlug === project.projectSlug)?.branch === "custom-ticket-branch",
+      5000,
+    );
+    expect(git("branch --show-current", project.ticketsPath)).toBe(project.branch);
   });
 
   it("saves a blank branch prefix without sending undefined to the server", async () => {

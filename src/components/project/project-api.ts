@@ -1,4 +1,5 @@
 import { action, query } from "@solidjs/router";
+import { respond } from "@solidjs/web";
 import {
   configPaths, projectRegistry, projectPageService, worktreeManager,
   launcherConfigManager, fileWatcher, commandTemplateService,
@@ -98,6 +99,20 @@ export const setProjectPath = action(async (projectSlug: string, pathValue: stri
     return errorResult(e);
   }
 }, "set-project-path");
+
+export const setTicketsLocation = action(async (
+  projectSlug: string, change: { kind: "path" | "branch"; value: string },
+) => {
+  "use server";
+  try {
+    const oldPath = worktreeManager.getWorktreeDir(projectSlug);
+    projectRegistry.setTicketsLocation(projectSlug, change);
+    if (change.kind === "path") await fileWatcher.stop(oldPath);
+    return respond({ ok: true as const, value: change.value.trim() }, { revalidate: [] });
+  } catch (e) {
+    return respond(errorResult(e), { revalidate: [] });
+  }
+}, "set-tickets-location");
 
 export async function setBoardId(projectSlug: string, boardId: string) {
   "use server";

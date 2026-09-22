@@ -145,6 +145,13 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 												setProjectPath={s.setProjectPath}
 												saveProjectPath={s.saveProjectPath}
 												savingProjectPath={s.savingProjectPath()}
+												ticketsPath={s.ticketsPath()}
+												setTicketsPath={s.setTicketsPath}
+												saveTicketsPath={s.saveTicketsPath}
+												ticketsBranch={s.ticketsBranch()}
+												setTicketsBranch={s.setTicketsBranch}
+												saveTicketsBranch={s.saveTicketsBranch}
+												savingTicketsLocation={s.savingTicketsLocation()}
 												worktreeRootPath={s.worktreeRootPath()}
 												setWorktreeRootPath={s.setWorktreeRootPath}
 												saveWorktreeRootPath={s.saveWorktreeRootPath}

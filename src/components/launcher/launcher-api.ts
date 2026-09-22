@@ -25,6 +25,8 @@ export interface MergedLauncherConfigWithMeta extends MergedLauncherConfig {
   projectBoardId: string | null;
   projectName: string;
   projectPath: string;
+  ticketsBranch?: string;
+  ticketsPath?: string;
   worktreeDir: string;
   agentWorktreeDir: string;
 }
@@ -38,6 +40,8 @@ function buildMergedLauncherConfig(projectSlug: string): MergedLauncherConfigWit
     projectBoardId: projectRegistry.getBoardId(projectSlug) ?? null,
     projectName: projectRegistry.getName(projectSlug),
     projectPath: project.path,
+    ticketsBranch: project.branch,
+    ticketsPath: project.ticketsPath,
     worktreeDir: worktreeManager.getWorktreeDir(projectSlug),
     agentWorktreeDir: launcherConfigManager.getAgentWorktreeDir(projectSlug),
   };

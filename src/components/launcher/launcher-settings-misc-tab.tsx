@@ -4,6 +4,7 @@ import { ScopeBadge } from "./launcher-settings-rows.js";
 import DeleteProjectDialog from "../project/DeleteProjectDialog.js";
 import { pickDirectory } from "../shared/directory-picker.js";
 import { errorPayload, type ErrorInfo } from "~/core/shared/errors.js";
+import { SettingsFolderField } from "./settings-folder-field.js";
 
 export function MiscTab(props: {
 	projectName: string;
@@ -13,6 +14,13 @@ export function MiscTab(props: {
 	setProjectPath: (v: string) => void;
 	saveProjectPath: (path?: string) => void;
 	savingProjectPath: boolean;
+	ticketsPath: string;
+	setTicketsPath: (v: string) => void;
+	saveTicketsPath: (path?: string) => void;
+	ticketsBranch: string;
+	setTicketsBranch: (v: string) => void;
+	saveTicketsBranch: () => void;
+	savingTicketsLocation: boolean;
 	worktreeRootPath: string;
 	setWorktreeRootPath: (v: string) => void;
 	saveWorktreeRootPath: (path?: string) => void;
@@ -45,41 +53,39 @@ export function MiscTab(props: {
 						data-testid="launcher-settings-misc-project-name-input"
 					/>
 				</section>
+				<SettingsFolderField
+					label="Project repo folder"
+					testId="launcher-settings-misc-project-path"
+					value={props.projectPath}
+					setValue={props.setProjectPath}
+					save={props.saveProjectPath}
+					saving={props.savingProjectPath}
+					setError={props.setError}
+				/>
+				<SettingsFolderField
+					label="Tickets folder"
+					testId="launcher-settings-misc-tickets-path"
+					value={props.ticketsPath}
+					setValue={props.setTicketsPath}
+					save={props.saveTicketsPath}
+					saving={props.savingTicketsLocation}
+					setError={props.setError}
+				/>
 				<section>
-					<label class="field-label" for="project-repo-path">
-						Project repo folder <ScopeBadge scope="project" />
+					<label class="field-label" for="tickets-branch">
+						Tickets branch <ScopeBadge scope="project" />
 					</label>
-					<div class="flex gap-2">
-						<input
-							id="project-repo-path"
-							type="text"
-							value={props.projectPath}
-							onInput={(e) => props.setProjectPath(e.currentTarget.value)}
-							onBlur={() => props.saveProjectPath()}
-							onKeyDown={(e) => { if (e.key === "Enter") props.saveProjectPath(); }}
-							disabled={props.savingProjectPath}
-							class="input input-sm flex-1"
-							data-testid="launcher-settings-misc-project-path-input"
-						/>
-						<button
-							type="button"
-							class="btn-secondary"
-							disabled={props.savingProjectPath}
-							data-testid="launcher-settings-misc-project-path-browse"
-							onClick={async () => {
-								try {
-									const result = await pickDirectory(props.projectPath);
-									if ("path" in result) {
-										props.setProjectPath(result.path);
-										props.saveProjectPath(result.path);
-									}
-									else if ("error" in result) {
-										props.setError({ title: "Browse failed", description: result.error });
-									}
-								} catch (e) { props.setError(errorPayload(e, "Browse failed")); }
-							}}
-						>Browse</button>
-					</div>
+					<input
+						id="tickets-branch"
+						type="text"
+						value={props.ticketsBranch}
+						onInput={(e) => props.setTicketsBranch(e.currentTarget.value)}
+						onBlur={props.saveTicketsBranch}
+						onKeyDown={(e) => { if (e.key === "Enter") props.saveTicketsBranch(); }}
+						disabled={props.savingTicketsLocation}
+						class="input input-sm"
+						data-testid="launcher-settings-misc-tickets-branch-input"
+					/>
 				</section>
 				<section>
 					<label class="field-label">Agent worktree root path <ScopeBadge scope="project" /></label>

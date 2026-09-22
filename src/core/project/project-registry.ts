@@ -374,6 +374,16 @@ export class ProjectRegistry {
 		});
 	}
 
+	setTicketsLocation(projectSlug: string, change: { kind: 'path' | 'branch'; value: string }): void {
+		const value = change.value.trim();
+		if (!value) throw new Error('Tickets folder and branch cannot be empty.');
+		if (change.kind === 'branch') validateBranchName(value);
+		else if (!path.isAbsolute(value)) throw new Error('Tickets folder must be an absolute path.');
+		this.updateProjectEntry(projectSlug, (entry) => change.kind === 'path'
+			? { ...entry, ticketsPath: value }
+			: { ...entry, branch: value });
+	}
+
 	setBoardId(projectSlug: string, boardId: string | undefined): void {
 		this.updateProjectEntry(projectSlug, (entry) => {
 			if (boardId !== undefined) entry.boardId = boardId;
