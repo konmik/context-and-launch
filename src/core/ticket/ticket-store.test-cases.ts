@@ -898,7 +898,7 @@ describe('TicketStore', () => {
 		const oldFolder = ticket.folderName; // 'md-5-has-stages'
 
 		// Add multiple context files
-		store.saveTicketContext(oldFolder, 'to-do', '# To Do\n- item 1\n- item 2');
+		store.saveTicketContext(oldFolder, 'description', '# Description\n- item 1\n- item 2');
 		store.saveTicketContext(oldFolder, 'product-requirement-document', '# PRD\nRequirements here');
 		store.saveTicketContext(oldFolder, 'design', '# Design\nArchitecture notes');
 
@@ -911,7 +911,7 @@ describe('TicketStore', () => {
 		expect(fs.existsSync(path.join(worktreeDir, newFolder))).toBe(true);
 
 		// Verify all .md files exist at the new path with correct content
-		expect(store.getTicketContext(newFolder, 'to-do')).toBe('# To Do\n- item 1\n- item 2');
+		expect(store.getTicketContext(newFolder, 'description')).toBe('# Description\n- item 1\n- item 2');
 		expect(store.getTicketContext(newFolder, 'product-requirement-document')).toBe('# PRD\nRequirements here');
 		expect(store.getTicketContext(newFolder, 'design')).toBe('# Design\nArchitecture notes');
 
@@ -919,7 +919,7 @@ describe('TicketStore', () => {
 		const tickets = store.listTickets();
 		expect(tickets.length).toBe(1);
 		expect(tickets[0].folderName).toBe(newFolder);
-		expect(tickets[0].contextNames).toContain('to-do');
+		expect(tickets[0].contextNames).toContain('description');
 		expect(tickets[0].contextNames).toContain('product-requirement-document');
 		expect(tickets[0].contextNames).toContain('design');
 		expect(tickets[0].contextNames.length).toBe(3);

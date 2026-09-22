@@ -21,7 +21,7 @@ describe("Ticket detail external worktree changes (e2e, real server)", () => {
     expect(await editorText()).toBe("original");
 
     fs.writeFileSync(
-      ticketContextFile(ctx.testServer, project.projectSlug, "t-1-alpha", "to-do"),
+      ticketContextFile(ctx.testServer, project.projectSlug, "t-1-alpha", "description"),
       "written by the agent",
     );
 
@@ -41,7 +41,7 @@ describe("Ticket detail external worktree changes (e2e, real server)", () => {
     await ctx.page.waitForTimeout(200);
 
     const contextFile = ticketContextFile(
-      ctx.testServer, project.projectSlug, "t-1-alpha", "to-do",
+      ctx.testServer, project.projectSlug, "t-1-alpha", "description",
     );
     fs.writeFileSync(contextFile, "written by the agent");
 
@@ -51,7 +51,7 @@ describe("Ticket detail external worktree changes (e2e, real server)", () => {
 
     await testId(ctx.page, "ticket-detail-save-button").click();
     await waitVisible(ctx.page, "ticket-detail-external-change-overwrite");
-    expect(readContextFile(ctx.testServer, project.projectSlug, "t-1-alpha", "to-do"))
+    expect(readContextFile(ctx.testServer, project.projectSlug, "t-1-alpha", "description"))
       .toBe("written by the agent");
 
     await testId(ctx.page, "ticket-detail-external-change-discard").click();
@@ -74,7 +74,7 @@ describe("Ticket detail external worktree changes (e2e, real server)", () => {
     await ctx.page.waitForTimeout(200);
 
     fs.writeFileSync(
-      ticketContextFile(ctx.testServer, project.projectSlug, "t-1-alpha", "to-do"),
+      ticketContextFile(ctx.testServer, project.projectSlug, "t-1-alpha", "description"),
       "written by the agent",
     );
     await ctx.page.waitForTimeout(4000);
@@ -84,7 +84,7 @@ describe("Ticket detail external worktree changes (e2e, real server)", () => {
     await testId(ctx.page, "ticket-detail-external-change-overwrite").click();
 
     const content = await poll(
-      () => readContextFile(ctx.testServer, project.projectSlug, "t-1-alpha", "to-do"),
+      () => readContextFile(ctx.testServer, project.projectSlug, "t-1-alpha", "description"),
       (c) => c?.includes("mine") ?? false,
       10000,
     );

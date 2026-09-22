@@ -54,7 +54,7 @@ Small changes that an LLM will most likely one-shot in under 3 minutes can go di
 
 The workflow is reflected in columns. Each column represents a separate step.
 
-**TODO** -- Drop ideas in this column. Sometimes just the ticket name is enough; sometimes open the ticket and use the markdown editor to edit `to-do.md` with a short explanation of what has to be done.
+**TODO** -- Drop ideas in this column. Sometimes just the ticket name is enough; sometimes open the ticket and use the markdown editor to edit `description.md` with a short explanation of what has to be done.
 
 **PLAN** -- Launch the agent with Matt Pocock's `/grill-me` skill. It goes over all questions the agent might have BEFORE starting the implementation, which significantly improves the resulting code quality. At the end, it produces a `product-requirement-document.md` with all decisions made, ready for the implementation step.
 

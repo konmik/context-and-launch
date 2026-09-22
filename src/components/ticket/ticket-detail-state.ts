@@ -70,7 +70,7 @@ export function createTicketDetailState(
   props: { ticket: TicketInfo; projectSlug: string; onClose: () => void },
   deps: TicketDetailStateDeps = {},
 ) {
-  const [activeFile, setActiveFile] = createSignal<ActiveFile>({ type: "context", name: "to-do" });
+  const [activeFile, setActiveFile] = createSignal<ActiveFile>({ type: "context", name: "description" });
   const [content, setContent] = createSignal("");
   const [savedContent, setSavedContent] = createSignal("");
   const [saving, setSaving] = createSignal(false);
@@ -181,7 +181,7 @@ export function createTicketDetailState(
 
   const contextOptions = (): ActiveFile[] =>
     buildContextOptions(
-      ["to-do", "product-requirement-document"],
+      ["description", "product-requirement-document"],
       ticketFiles().contextNames,
       extraFiles(),
     );
@@ -310,7 +310,7 @@ export function createTicketDetailState(
 
   onSettled(() => {
     if (cachedConfig) applyInitialTab(cachedConfig);
-    void loadContextContent({ type: "context", name: "to-do" });
+    void loadContextContent({ type: "context", name: "description" });
   });
 
   function fileContentUrl(af: ActiveFile & { type: "file" | "reference" }): string {
@@ -467,7 +467,7 @@ export function createTicketDetailState(
         setExtraFiles((prev) => prev.filter((n) => n !== af.name));
       }
       const remaining = allFileOptions().filter((f) => !isActiveFileMatch(f, af));
-      setActiveFile(remaining[0] ?? { type: "context", name: "to-do" });
+      setActiveFile(remaining[0] ?? { type: "context", name: "description" });
       await refreshTicketFiles();
     } catch (e) { setError(errorPayload(e, "Delete failed")); }
   }

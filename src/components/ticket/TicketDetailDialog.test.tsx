@@ -127,7 +127,7 @@ describe("TicketDetailDialog content loading", () => {
       state.selectFile({ type: "file", name: "shot.png" });
       await flush();
       expect(state.fileView().kind).toBe("image");
-      resolveContext({ content: "to-do text" });
+      resolveContext({ content: "description text" });
       await flush();
       expect(state.fileView().kind).toBe("image");
       expect(state.content()).toBe("");
@@ -480,7 +480,7 @@ describe("TicketDetailDialog context deletion clears extraFiles", () => {
     await flush();
     await flush();
 
-    const currentLabel = screen.getByText("to-do.md");
+    const currentLabel = screen.getByText("description.md");
     fireEvent.click(currentLabel);
     await flush();
 

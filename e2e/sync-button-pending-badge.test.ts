@@ -83,7 +83,7 @@ describe("Sync button pending badge (e2e, real server)", () => {
     mutateRemote(project, {
       message: "remote edit",
       edit: (clone) => fs.writeFileSync(
-        path.join(clone, "r-1-initial", "to-do.md"), "updated remotely",
+        path.join(clone, "r-1-initial", "description.md"), "updated remotely",
       ),
     });
     fetchTickets(project);

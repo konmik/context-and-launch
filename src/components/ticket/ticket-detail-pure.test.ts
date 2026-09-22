@@ -22,7 +22,7 @@ describe("isText", () => {
 
 describe("activeFileLabel", () => {
   it("adds .md for context files", () => {
-    expect(activeFileLabel({ type: "context", name: "to-do" })).toBe("to-do.md");
+    expect(activeFileLabel({ type: "context", name: "description" })).toBe("description.md");
   });
   it("returns name for file entries", () => {
     expect(activeFileLabel({ type: "file", name: "data.json" })).toBe("data.json");
@@ -41,13 +41,13 @@ describe("activeFileLabel", () => {
 describe("isActiveFileMatch", () => {
   it("matches context files by name", () => {
     expect(isActiveFileMatch(
-      { type: "context", name: "to-do" },
-      { type: "context", name: "to-do" },
+      { type: "context", name: "description" },
+      { type: "context", name: "description" },
     )).toBe(true);
   });
   it("does not match different context names", () => {
     expect(isActiveFileMatch(
-      { type: "context", name: "to-do" },
+      { type: "context", name: "description" },
       { type: "context", name: "prd" },
     )).toBe(false);
   });
@@ -65,8 +65,8 @@ describe("isActiveFileMatch", () => {
   });
   it("does not match different types", () => {
     expect(isActiveFileMatch(
-      { type: "context", name: "to-do" },
-      { type: "file", name: "to-do" },
+      { type: "context", name: "description" },
+      { type: "file", name: "description" },
     )).toBe(false);
   });
 });
@@ -74,12 +74,12 @@ describe("isActiveFileMatch", () => {
 describe("buildContextOptions", () => {
   it("includes defaults and deduplicates existing/extra", () => {
     const result = buildContextOptions(
-      ["to-do", "prd"],
-      ["to-do", "notes"],
+      ["description", "prd"],
+      ["description", "notes"],
       ["design"],
     );
     expect(result).toEqual([
-      { type: "context", name: "to-do" },
+      { type: "context", name: "description" },
       { type: "context", name: "prd" },
       { type: "context", name: "notes" },
       { type: "context", name: "design" },
@@ -127,7 +127,7 @@ describe("isReadOnly", () => {
     expect(isReadOnly({ type: "file", name: "data.json" })).toBe(true);
   });
   it("returns false for context", () => {
-    expect(isReadOnly({ type: "context", name: "to-do" })).toBe(false);
+    expect(isReadOnly({ type: "context", name: "description" })).toBe(false);
   });
 });
 
@@ -205,17 +205,17 @@ describe("wouldOverwrite", () => {
     expect(wouldOverwrite("data.json", ["data.json"], [])).toBe(true);
   });
   it("returns true when file name matches context with .md", () => {
-    expect(wouldOverwrite("to-do.md", [], ["to-do"])).toBe(true);
+    expect(wouldOverwrite("description.md", [], ["description"])).toBe(true);
   });
   it("returns false when no match", () => {
-    expect(wouldOverwrite("new.txt", ["data.json"], ["to-do"])).toBe(false);
+    expect(wouldOverwrite("new.txt", ["data.json"], ["description"])).toBe(false);
   });
 });
 
 describe("ticketApiUrl", () => {
   it("builds the correct URL", () => {
-    expect(ticketApiUrl("my-project", "001-ticket", "context/to-do"))
-      .toBe("/api/projects/my-project/board/tickets/001-ticket/context/to-do");
+    expect(ticketApiUrl("my-project", "001-ticket", "context/description"))
+      .toBe("/api/projects/my-project/board/tickets/001-ticket/context/description");
   });
 });
 

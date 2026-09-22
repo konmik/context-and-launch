@@ -319,7 +319,7 @@ export async function createProject(
         path.join(folder, "status.json"),
         JSON.stringify(status, null, 2),
       );
-      fs.writeFileSync(path.join(folder, "to-do.md"), t.body ?? "");
+      fs.writeFileSync(path.join(folder, "description.md"), t.body ?? "");
     }
     if (opts.withTicketOrder) {
       fs.writeFileSync(

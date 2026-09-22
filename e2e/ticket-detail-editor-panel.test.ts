@@ -60,7 +60,7 @@ describe("Ticket detail editor panel and saving (e2e, real server)", () => {
     await ctx.page.waitForTimeout(300);
     await testId(ctx.page, "ticket-detail-save-button").click();
     const content = await poll(
-      () => readContextFile(ctx.testServer, project.projectSlug, "t-1-alpha", "to-do"),
+      () => readContextFile(ctx.testServer, project.projectSlug, "t-1-alpha", "description"),
       (c) => c?.includes("appended text") ?? false,
       5000,
     );
