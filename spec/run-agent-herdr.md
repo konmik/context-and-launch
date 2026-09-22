@@ -35,7 +35,11 @@
   - Run the configured command through the pane's PowerShell shell with its arguments preserved
   - Wait for Herdr to detect exactly one idle or done Agent in the pane
     - No ready Agent is detected before the timeout: report the error and exit as a user error
-  - Rename the Agent with the provided display name
+   - Rename the Agent with a name derived from the provided display name
+     - Convert uppercase letters to lowercase
+     - Replace runs of unsupported characters with a hyphen
+     - Prefix with agent- when the name does not start with a lowercase letter
+     - Limit the name to 32 characters
   - Label the pane with the provided pane label
   - The initial prompt is not blank
     - Wait briefly for the Agent to become interactive

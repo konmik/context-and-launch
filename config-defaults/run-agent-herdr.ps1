@@ -14,6 +14,9 @@ if (-not (Get-Command herdr -ErrorAction SilentlyContinue)) {
 
 $initialPrompt = [string]$args[0]
 $agentDisplayName = [string]$args[1]
+$agentName = $agentDisplayName.ToLowerInvariant() -creplace '[^a-z0-9_-]+', '-'
+if ($agentName -cnotmatch '^[a-z]') { $agentName = 'agent-' + $agentName }
+if ($agentName.Length -gt 32) { $agentName = $agentName.Substring(0, 32) }
 $workspaceLabel = [string]$args[2]
 $ticketPaneLabel = [string]$args[3]
 $agentCommand = @($args[4..($args.Length - 1)] | ForEach-Object { [string]$_ })
@@ -167,7 +170,7 @@ function Start-Agent {
         throw "Herdr did not detect a ready '$($agentCommand[0])' agent in pane '$PaneId'."
     }
 
-    Invoke-Herdr @('agent', 'rename', $PaneId, $agentDisplayName) | Out-Null
+    Invoke-Herdr @('agent', 'rename', $PaneId, $agentName) | Out-Null
     Invoke-Herdr @('pane', 'rename', $PaneId, $ticketPaneLabel) | Out-Null
     if ([string]::IsNullOrWhiteSpace($initialPrompt)) { return $detected }
     Start-Sleep -Milliseconds 1500

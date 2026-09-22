@@ -27,6 +27,7 @@ param(
   [string]$Prompt,
   [string]$WorkspaceLabel,
   [string]$PaneLabel,
+  [string]$DisplayName,
   [Parameter(ValueFromRemainingArguments=$true)][string[]]$AgentCommand
 )
 $global:Calls = @()
@@ -91,6 +92,10 @@ function global:herdr {
   if ($verb -eq 'agent prompt') {
     return '{"id":"test","result":{"agent":{"agent_status":"working"}}}'
   }
+  if ($verb -eq 'agent rename' -and $callArgs[3] -cnotmatch '^[a-z][a-z0-9_-]{0,31}$') {
+    $global:LASTEXITCODE = 1
+    return '{"error":{"message":"invalid agent name"}}'
+  }
   if ($verb -eq 'agent rename' -or $verb -eq 'agent wait') {
     return '{"id":"test","result":{"agent":{"agent_status":"idle"}}}'
   }
@@ -127,7 +132,7 @@ function global:herdr {
 $exitCode = 0
 try {
   Push-Location -LiteralPath $WorkingDir
-  & $TargetScript $Prompt 'Fix login timeout ST-47 - Alpha' $WorkspaceLabel $PaneLabel @AgentCommand
+  & $TargetScript $Prompt $DisplayName $WorkspaceLabel $PaneLabel @AgentCommand
   $exitCode = $LASTEXITCODE
 } finally {
   Pop-Location
@@ -143,13 +148,16 @@ function readHarnessReport(reportPath: string): HarnessReport {
 	return JSON.parse(fs.readFileSync(reportPath, 'utf-8'));
 }
 
-function runHarness(mode: 'create' | 'reuse' | 'duplicate' | 'idle' | 'empty' | 'working') {
+function runHarness(
+	mode: 'create' | 'reuse' | 'duplicate' | 'idle' | 'empty' | 'working',
+	displayName = 'Fix login timeout ST-47 - Alpha',
+) {
 	const files = makeHarness();
 	const prompt = "hello\nmultiline 'world'";
 	const result = spawnSync('powershell', [
 		'-NoProfile', '-File', files.harness,
 		SCRIPT_PATH, files.report, mode, files.dir,
-		prompt, 'alpha', 'alpha--st-47', 'claude', '--flag',
+		prompt, 'alpha', 'alpha--st-47', displayName, 'claude', '--flag',
 	], { encoding: 'utf-8' });
 	return {
 		status: result.status,
@@ -163,7 +171,7 @@ function runHarnessWithoutPrompt(): ReturnType<typeof runHarness> {
 	const result = spawnSync('powershell', [
 		'-NoProfile', '-File', files.harness,
 		SCRIPT_PATH, files.report, 'create', files.dir,
-		'', 'alpha', 'alpha--st-47', 'claude', '--flag',
+		'', 'alpha', 'alpha--st-47', 'Fix login timeout ST-47 - Alpha', 'claude', '--flag',
 	], { encoding: 'utf-8' });
 	return {
 		status: result.status,
@@ -177,7 +185,8 @@ function runOpenCodeHarness(): ReturnType<typeof runHarness> {
 	const result = spawnSync('powershell', [
 		'-NoProfile', '-File', files.harness,
 		SCRIPT_PATH, files.report, 'create', files.dir,
-		"hello\nmultiline 'world'", 'alpha', 'alpha--st-47', 'opencode', '--auto',
+		"hello\nmultiline 'world'", 'alpha', 'alpha--st-47',
+		'Fix login timeout ST-47 - Alpha', 'opencode', '--auto',
 	], { encoding: 'utf-8' });
 	return {
 		status: result.status,
@@ -193,6 +202,19 @@ afterEach(() => {
 });
 
 describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
+	it.each([
+		['Context-launch', 'context-launch'],
+		['47 Fix login!', 'agent-47-fix-login-'],
+		['A'.repeat(40), 'a'.repeat(32)],
+		['valid_name-123', 'valid_name-123'],
+	])('launches with display name %s', (displayName, agentName) => {
+		const result = runHarness('create', displayName);
+		expect(result.status, result.stderr).toBe(0);
+		expect(result.report.calls.map(call => call.args)).toContainEqual([
+			'agent', 'rename', 'w1:p1', agentName,
+		]);
+	});
+
 	it('uses a new workspace root pane for the Ticket agent', () => {
 		const result = runHarness('create');
 		expect(result.status, result.stderr).toBe(0);
@@ -204,7 +226,7 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
 			"& 'claude' '--flag'",
 		);
 		expect(calls).toContainEqual([
-			'agent', 'rename', 'w1:p1', 'Fix login timeout ST-47 - Alpha',
+			'agent', 'rename', 'w1:p1', 'fix-login-timeout-st-47---alpha',
 		]);
 		expect(calls).toContainEqual([
 			'agent', 'prompt', 'w1:p1', "hello\nmultiline 'world'",
@@ -259,7 +281,7 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
 		);
 		expect(calls.some(call => call[0] === 'agent' && call[1] === 'start')).toBe(false);
 		expect(calls).toContainEqual([
-			'agent', 'rename', 'w1:p1', 'Fix login timeout ST-47 - Alpha',
+			'agent', 'rename', 'w1:p1', 'fix-login-timeout-st-47---alpha',
 		]);
 		expect(calls).toContainEqual(['pane', 'rename', 'w1:p1', 'alpha--st-47']);
 		expect(calls).toContainEqual([
