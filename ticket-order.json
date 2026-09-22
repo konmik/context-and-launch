@@ -1,5 +1,7 @@
 {
-  "todo": [],
+  "todo": [
+    "cl-0001-unify-configuration-storage-and-state-data-flow"
+  ],
   "plan": [],
   "in-progress": [],
   "review": [],
