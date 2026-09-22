@@ -9,6 +9,10 @@ export function MiscTab(props: {
 	projectName: string;
 	setProjectName: (v: string) => void;
 	saveProjectName: () => void;
+	projectPath: string;
+	setProjectPath: (v: string) => void;
+	saveProjectPath: (path?: string) => void;
+	savingProjectPath: boolean;
 	worktreeRootPath: string;
 	setWorktreeRootPath: (v: string) => void;
 	saveWorktreeRootPath: (path?: string) => void;
@@ -40,6 +44,42 @@ export function MiscTab(props: {
 						class="input input-sm"
 						data-testid="launcher-settings-misc-project-name-input"
 					/>
+				</section>
+				<section>
+					<label class="field-label" for="project-repo-path">
+						Project repo folder <ScopeBadge scope="project" />
+					</label>
+					<div class="flex gap-2">
+						<input
+							id="project-repo-path"
+							type="text"
+							value={props.projectPath}
+							onInput={(e) => props.setProjectPath(e.currentTarget.value)}
+							onBlur={() => props.saveProjectPath()}
+							onKeyDown={(e) => { if (e.key === "Enter") props.saveProjectPath(); }}
+							disabled={props.savingProjectPath}
+							class="input input-sm flex-1"
+							data-testid="launcher-settings-misc-project-path-input"
+						/>
+						<button
+							type="button"
+							class="btn-secondary"
+							disabled={props.savingProjectPath}
+							data-testid="launcher-settings-misc-project-path-browse"
+							onClick={async () => {
+								try {
+									const result = await pickDirectory(props.projectPath);
+									if ("path" in result) {
+										props.setProjectPath(result.path);
+										props.saveProjectPath(result.path);
+									}
+									else if ("error" in result) {
+										props.setError({ title: "Browse failed", description: result.error });
+									}
+								} catch (e) { props.setError(errorPayload(e, "Browse failed")); }
+							}}
+						>Browse</button>
+					</div>
 				</section>
 				<section>
 					<label class="field-label">Agent worktree root path <ScopeBadge scope="project" /></label>

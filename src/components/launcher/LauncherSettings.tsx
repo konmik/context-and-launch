@@ -141,6 +141,10 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 												projectName={s.projectName()}
 												setProjectName={s.setProjectName}
 												saveProjectName={s.saveProjectName}
+												projectPath={s.projectPath()}
+												setProjectPath={s.setProjectPath}
+												saveProjectPath={s.saveProjectPath}
+												savingProjectPath={s.savingProjectPath()}
 												worktreeRootPath={s.worktreeRootPath()}
 												setWorktreeRootPath={s.setWorktreeRootPath}
 												saveWorktreeRootPath={s.saveWorktreeRootPath}

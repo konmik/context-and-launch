@@ -18,7 +18,10 @@ import {
   listBoards, createBoard, deleteBoard, addColumn, updateColumn,
   deleteColumn, renameColumn, reorderColumns,
 } from "../board/board-api.js";
-import { setProjectName as setProjectNameAction, setBoardId as setBoardIdAction } from "../project/project-api.js";
+import {
+	setProjectName as setProjectNameAction, setBoardId as setBoardIdAction,
+	setProjectPath as setProjectPathAction,
+} from "../project/project-api.js";
 import { createListReorder, midpointOrder } from "../board/list-reorder.js";
 import type {
   ItemType, Scope, ItemFormState, ColumnFormState,
@@ -41,6 +44,10 @@ export function createLauncherSettingsState(props: {
 	const [error, setError] = createSignal<ErrorInfo | null>(null);
 	const [form, setForm] = createSignal<ItemFormState | null>(null);
 	const [projectName, setProjectName] = createSignal("");
+	const [projectPath, setProjectPath] = createSignal("");
+	const [savedProjectPath, setSavedProjectPath] = createSignal("");
+	const [savingProjectPath, setSavingProjectPath] = createSignal(false);
+	const runSetProjectPath = useAction(setProjectPathAction);
 	const [worktreeRootPath, setWorktreeRootPath] = createSignal("");
 	const [branchPrefix, setBranchPrefix] = createSignal<string | undefined>(undefined);
 	const [conflictPrompt, setConflictPrompt] = createSignal("");
@@ -86,6 +93,8 @@ export function createLauncherSettingsState(props: {
 		setConfig(data);
 			setProjectBoardId(data.projectBoardId ?? null);
 			setProjectName(data.projectName ?? "");
+			setProjectPath(data.projectPath);
+			setSavedProjectPath(data.projectPath);
 			setWorktreeRootPath(data.worktreeRootPath ?? "");
 			setBranchPrefix(data.branchPrefix);
 		setConflictPrompt(data.conflictResolutionPrompt ?? "");
@@ -181,6 +190,20 @@ export function createLauncherSettingsState(props: {
 			if (!result.ok) { setError({ title: "Save failed", description: result.message }); return; }
 			await loadConfig();
 		} catch (e) { setError(errorPayload(e, "Save failed")); }
+	}
+
+	async function saveProjectPathFn(path = projectPath()) {
+		if (savingProjectPath() || path.trim() === savedProjectPath()) return;
+		setSavingProjectPath(true);
+		setError(null);
+		try {
+			const result = await runSetProjectPath(props.projectSlug, path);
+			if (!result.ok) { setError({ title: "Save failed", description: result.message }); return; }
+			setProjectPath(result.path);
+			setSavedProjectPath(result.path);
+			await revalidate(["launcher-config", "project-page", "project-sync-status"]);
+		} catch (e) { setError(errorPayload(e, "Save failed")); }
+		finally { setSavingProjectPath(false); }
 	}
 
 	async function saveBranchPrefixFn() {
@@ -400,6 +423,7 @@ export function createLauncherSettingsState(props: {
 	return {
 		config, loading, error, setError, form, setForm,
 		projectName, setProjectName, worktreeRootPath, setWorktreeRootPath,
+		projectPath, setProjectPath, savingProjectPath, saveProjectPath: saveProjectPathFn,
 		branchPrefix, setBranchPrefix, conflictPrompt, setConflictPrompt, activeTab, setActiveTab,
 		boards, projectBoardId, boardOverride, setBoardOverride,
 		columnForm, setColumnForm, boardForm, setBoardForm, renameForm, setRenameForm,

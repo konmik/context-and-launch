@@ -1,4 +1,4 @@
-import { query } from "@solidjs/router";
+import { action, query } from "@solidjs/router";
 import {
   configPaths, projectRegistry, projectPageService, worktreeManager,
   launcherConfigManager, fileWatcher, commandTemplateService,
@@ -88,6 +88,16 @@ export async function setProjectName(projectSlug: string, name: string) {
     return errorResult(e);
   }
 }
+
+export const setProjectPath = action(async (projectSlug: string, pathValue: string) => {
+  "use server";
+  try {
+    const project = projectRegistry.updateProject(projectSlug, pathValue.trim());
+    return { ok: true as const, path: project.path };
+  } catch (e) {
+    return errorResult(e);
+  }
+}, "set-project-path");
 
 export async function setBoardId(projectSlug: string, boardId: string) {
   "use server";

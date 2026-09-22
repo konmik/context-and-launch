@@ -46,10 +46,12 @@ New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 
 $serverProcessFile = Join-Path $logDir "server-$port.process"
 
-if (Test-Path $serverProcessFile) {
-    $recorded = (Get-Content $serverProcessFile -Raw).Trim() -split '\s+'
+$serverProcessFiles = @($serverProcessFile, (Join-Path $scriptDir "dist/server-process"))
+foreach ($processFile in $serverProcessFiles) {
+    if (-not (Test-Path $processFile)) { continue }
+    $recorded = (Get-Content $processFile -Raw).Trim() -split '\s+'
     if ($recorded.Count -ne 2) {
-        throw "$serverProcessFile is not a pid and a port. Delete it after confirming port $port is free."
+        throw "$processFile is not a pid and a port. Delete it after confirming port $port is free."
     } else {
         $previousPid = [int]$recorded[0]
         $previousPort = [int]$recorded[1]
@@ -68,8 +70,6 @@ if (Test-Path $serverProcessFile) {
             if (Get-Process -Id $previousPid -ErrorAction SilentlyContinue) {
                 throw "Process $previousPid did not stop. Cannot safely rebuild dist."
             }
-        } elseif ($owningPid) {
-            throw "Port $previousPort belongs to process $owningPid, not recorded process $previousPid. Cannot safely rebuild dist."
         }
     }
 }

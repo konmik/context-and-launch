@@ -300,7 +300,15 @@ export class ProjectRegistry {
 		if (index < 0) throw new Error(`Project not found: ${projectSlug}`);
 
 		const entry = config.projects[index];
-		const updatedPath = newPath ? this.configRepo.realpathSync(newPath) : entry.path;
+		if (newPath !== undefined) {
+			if (!newPath || !this.configRepo.exists(newPath)) {
+				throw new Error(`Path does not exist: ${newPath}`);
+			}
+			if (!this.configRepo.exists(path.join(newPath, '.git'))) {
+				throw new Error(`Not a git repository: ${newPath}`);
+			}
+		}
+		const updatedPath = newPath !== undefined ? this.configRepo.realpathSync(newPath) : entry.path;
 		const updatedProjectSlug = newProjectSlug ?? entry.projectSlug;
 
 		if (newProjectSlug && newProjectSlug !== projectSlug) {
