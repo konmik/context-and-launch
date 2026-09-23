@@ -79,25 +79,8 @@ export class TicketRepository {
 		try {
 			raw = this.configRepo.readJson(file);
 		} catch (err) {
-			console.warn(`Malformed status.json in ${dir}:`, err);
-			return null;
-		}
-		return this.validateStatusJson(raw, dir);
-	}
-
-	async readStatusJsonAsync(dir: string): Promise<StatusJson | null> {
-		const file = path.join(dir, 'status.json');
-		let text: string;
-		try {
-			text = await fs.promises.readFile(file, 'utf-8');
-		} catch (err) {
 			if (isEnoent(err)) return null;
-			throw err;
-		}
-		let raw: JsonValue;
-		try {
-			raw = JSON.parse(text);
-		} catch (err) {
+			if (err instanceof Error && 'code' in err) throw err;
 			console.warn(`Malformed status.json in ${dir}:`, err);
 			return null;
 		}

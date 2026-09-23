@@ -438,9 +438,8 @@ export class TicketStore {
 		const ticketOrder = this.orderStore.reconcile(tickets, columns);
 
 		const archiveDirs = await this.ticketDirsIn(path.join(this.worktreeDir, 'archive'));
-		const archiveStatuses = (
-			await mapConcurrent(archiveDirs, READ_CONCURRENCY, (dir) => this.repo.readStatusJsonAsync(dir))
-		).filter((s): s is StatusJson => s !== null);
+		const archiveStatuses = archiveDirs.map(dir => this.repo.readStatusJson(dir))
+			.filter((s): s is StatusJson => s !== null);
 
 		const suggestedNextNumber = suggestNextTicketNumber([...tickets, ...archiveStatuses]);
 		return { tickets, ticketOrder, suggestedNextNumber };
@@ -452,7 +451,7 @@ export class TicketStore {
 	}
 
 	private async readTicketAsync(dir: string): Promise<TicketInfo | null> {
-		const status = await this.repo.readStatusJsonAsync(dir);
+		const status = this.repo.readStatusJson(dir);
 		if (!status) return null;
 		const entries = await this.repo.listEntriesAsync(dir);
 		const references = (status.references ?? []).map((ref) => ({
