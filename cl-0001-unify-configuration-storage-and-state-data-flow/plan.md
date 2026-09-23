@@ -4,15 +4,28 @@ Scope: Shared launcher settings, templates, skills, profiles, shortcuts, and col
 
 ## Client store
 
-Reuse `StoredSignal`, `createStoredSignal`, and `Result` from the completed app-config implementation. Create the shared launcher store once in `src/app.tsx` and provide it through Solid context.
+Follow commit `639d391` (`Unify app configuration storage and client state`). Reuse `StoredSignal`, `createStoredSignal`, `Updater`, and `Result` rather than introducing launcher-specific versions. Create the shared launcher store once inside the `AppRouter` child in `src/app.tsx` and provide it through Solid context under the existing `Errored` / `Loading` boundaries.
 
 ```ts
 const SharedLauncherConfigContext = createContext<StoredSignal<LauncherConfig>>();
 
-function createSharedLauncherConfigStorage(): StoredSignal<LauncherConfig>;
+function createSharedLauncherConfigStorage(): StoredSignal<LauncherConfig> {
+  const initial = createMemo(async () => {
+    const result = await readSharedLauncherConfig();
+    if (result.type === 'Failure') throw new Error(result.error);
+    return result.value;
+  });
+  return createStoredSignal(initial, async transform => {
+    const owner = crypto.randomUUID();
+    const current = await readSharedLauncherConfig(owner);
+    if (current.type === 'Failure') return current;
+    return saveSharedLauncherConfig(transform(current.value), owner);
+  });
 ```
 
 Consumers access the store through `useContext(SharedLauncherConfigContext)`. Saving and error UI remain with consumers. Queue client updates sequentially through `createStoredSignal`.
+
+The existing utility already catches transform/persistence exceptions, returns `Failure`, retains the previous signal on failure, and keeps the queue usable. Initialization uses Solid's async memo and the existing loading/error boundaries; it needs no separate resource, loading/error store, or custom context hook.
 
 Store the raw shared `LauncherConfig`. Scope labels, computed ordering, project overrides, and project metadata belong to the derived view rather than the persisted shared data.
 
@@ -31,7 +44,15 @@ saveSharedLauncherConfig(
 ): Promise<Result<LauncherConfig, string>>;
 ```
 
-The server handles file validation, locking, and atomic persistence. Reuse the existing launcher schema/parser and configuration persistence infrastructure. Validate the full submitted config before writing and return the persisted, normalized config. The client sends the complete shared config, never the transform or a merged project view.
+Use plain async functions with `'use server'`, as in `config-api.ts`, rather than Router query/action wrappers. Each function catches server exceptions and converts them with `fail(errorMessage(error))`; successful calls use `succeed`. The save endpoint requires a nonempty owner. The client sends the complete shared config, never the transform or a merged project view.
+
+## Server storage
+
+- Extract launcher data types, decoding, and pure merging into a client-safe data module, following `app-config-data.ts`. Keep filesystem dependencies in the server storage/manager layer.
+- Add a small `SharedLauncherConfigStore`, following `AppConfigStore`, with synchronous `read(owner?)` and `write(config, owner?)` methods. Compose the existing `ConfigPaths`, `ConfigRepository`, and `UpdateLock` directly.
+- Read and decode the file inside `lock.read`. Decode the submitted config and call `ConfigRepository.writeJson` inside `lock.write`, returning the normalized config. Reuse the repository's atomic-write implementation.
+- Preserve extra JSON fields through decoding and spread-based updates using loose schemas, following the last commit's removal of separate extra-field bookkeeping.
+- Create one store in `service-container.ts`, export it through `instances.ts`, and inject that same instance into `LauncherConfigManager`. Replace the manager's shared-file read/write implementation with delegation to this store.
 
 ## Data flow
 
@@ -44,7 +65,8 @@ The server handles file validation, locking, and atomic persistence. Reuse the e
 
 ## Consumers and merged state
 
-- Route app-scoped add, edit, delete, and reorder operations in `launcher-settings-state.ts` through the shared store. Move their config transformations into client-safe helpers, preserving duplicate-name checks, item order, and existing rename/delete reference updates within the shared file.
+- Route app-scoped add, edit, delete, and reorder operations in `launcher-settings-state.ts` through direct `sharedConfig.update(current => ...)` transforms. Extract pure helpers only where transformations are reused or sufficiently complex. Preserve duplicate-name checks, item order, and existing rename/delete reference updates within the shared file.
+- Remove the superseded app-scoped API branches and unused manager mutation methods, following the removal of field-specific config endpoints in the last commit. Retain the paths still needed by project-scoped or server-side operations.
 - Derive the client merged launcher view reactively from the shared signal and the current project's config, using the existing `mergeLauncherConfigs` behavior. Expose project config separately from the current merged response so overridden shared entries remain available in the shared store.
 - Make settings, ticket/project launchers, prompt previews, and shortcut consumers use that reactive merged view. Replace shared-data snapshots and the five-second `latestMergedConfigs` cache as those consumers migrate, so a successful shared edit is reflected immediately.
 - Refresh the project input after existing project-scoped saves. Keep project metadata separate from the persisted shared config.
@@ -58,7 +80,15 @@ Currently, `mergeLauncherConfigs` takes column defaults, worktree root, and bran
 
 ## Locking
 
-The lock covers reading, transforming, and saving and is keyed to the shared launcher file, independently of `config/config.json`. Validate owner identity and lock expiry on save. Abandoned locks expire, including when a client transform throws or a request is interrupted.
+Reuse one `UpdateLock` instance owned by the shared-file store, independently of `config/config.json`. Its existing in-memory lease covers reading, transforming, and saving:
+
+- Reads without an owner remain available during a lease.
+- A read with an owner fails immediately if another lease is active; there is no server-side wait/retry queue.
+- Saves with an owner require the matching, unexpired lease. Server-internal writes may omit the owner only when no lease is active.
+- A validated owner's write releases the lease in `finally`, including validation or persistence failures. A rejected owner cannot release another owner's lease.
+- Abandoned leases expire after the existing 30-second timeout, including when a client transform throws or a request is interrupted.
+
+Use this utility as-is; no begin/cancel endpoints, heartbeat, lock registry, filesystem lock, or additional lock protocol is needed.
 
 Route every shared-file writer through the same locking/persistence boundary, including any retained `LauncherConfigManager.saveAppConfig` and app-scoped mutation paths, so legacy writes cannot bypass an active update lock.
 
@@ -68,3 +98,4 @@ Route every shared-file writer through the same locking/persistence boundary, in
 - Validation or persistence failure leaves the previous file and client signal intact; queued updates continue after failure.
 - Shared item edits and ordering propagate to mounted merged-view consumers while project overrides retain precedence.
 - Rename/delete reference handling and current column-default/settings semantics remain covered by launcher-config tests.
+- Reuse the existing stored-signal tests for queueing and signal publication; add launcher-specific integration coverage rather than duplicating utility tests.
