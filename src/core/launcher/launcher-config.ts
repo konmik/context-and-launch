@@ -1,237 +1,34 @@
 import path from 'path';
-import * as v from 'valibot';
-import type { JsonValue } from '../shared/json.js';
 import type { ConfigPaths } from '../config/config-paths.js';
 import { ConfigRepository } from '../config/config-repository.js';
-
-export interface OrderedLauncherItem {
-	name: string;
-	order?: number;
-}
-
-export type LauncherItemType = "template" | "skill" | "profile" | "shortcut";
-
-export interface LauncherTemplate extends OrderedLauncherItem {
-	name: string;
-	text: string;
-}
-
-export interface LauncherSkill extends OrderedLauncherItem {
-	name: string;
-	text: string;
-}
-
-export interface LauncherProfile extends OrderedLauncherItem {
-	name: string;
-	command: string;
-}
-
-export interface LauncherShortcut extends OrderedLauncherItem {
-	name: string;
-	command: string;
-}
-
-export interface LauncherColumnDefaults {
-	templateName: string | null;
-	checkedSkills: string[];
-	profileName: string | null;
-	lastLayer?: "editor" | "launcher" | "shortcuts";
-	skillOrder?: string[];
-	editedPrompt?: string;
-}
-
-export interface LauncherConfig {
-	templates: LauncherTemplate[];
-	skills: LauncherSkill[];
-	profiles?: LauncherProfile[];
-	shortcuts?: LauncherShortcut[];
-	columnDefaults?: Record<string, LauncherColumnDefaults>;
-	worktreeRootPath?: string;
-	branchPrefix?: string;
-	conflictResolutionPrompt?: string;
-}
-
-export interface MergedLauncherConfig {
-	templates: (LauncherTemplate & { scope: "app" | "project"; order: number })[];
-	skills: (LauncherSkill & { scope: "app" | "project"; order: number })[];
-	profiles: (LauncherProfile & { scope: "app" | "project"; order: number })[];
-	shortcuts: (LauncherShortcut & { scope: "app" | "project"; order: number })[];
-	columnDefaults: Record<string, LauncherColumnDefaults>;
-	worktreeRootPath: string | null;
-	branchPrefix?: string;
-	conflictResolutionPrompt: string;
-}
-
-export const SetBoardIdBody = v.object({
-	boardId: v.pipe(v.string(), v.nonEmpty("Missing required field: boardId")),
-});
-export type SetBoardIdBody = v.InferOutput<typeof SetBoardIdBody>;
-
-export const SetProjectNameBody = v.object({
-	name: v.string(),
-});
-export type SetProjectNameBody = v.InferOutput<typeof SetProjectNameBody>;
-
-export const WorktreeRootPathBody = v.object({
-	worktreeRootPath: v.optional(v.string()),
-});
-export type WorktreeRootPathBody = v.InferOutput<typeof WorktreeRootPathBody>;
-
-export const ConflictResolutionBody = v.object({
-	conflictResolutionPrompt: v.optional(v.string()),
-});
-export type ConflictResolutionBody = v.InferOutput<typeof ConflictResolutionBody>;
-
-export const ColumnDefaultsBody = v.object({
-	column: v.string(),
-	templateName: v.optional(v.nullable(v.string())),
-	checkedSkills: v.optional(v.array(v.string())),
-	profileName: v.optional(v.nullable(v.string())),
-	lastLayer: v.optional(v.picklist(["editor", "launcher", "shortcuts"])),
-	skillOrder: v.optional(v.array(v.string())),
-	editedPrompt: v.optional(v.string()),
-});
-export type ColumnDefaultsBody = v.InferOutput<typeof ColumnDefaultsBody>;
-
-export const ProfileNameBody = v.object({
-	profileName: v.pipe(v.string(), v.nonEmpty("profileName is required")),
-});
-export type ProfileNameBody = v.InferOutput<typeof ProfileNameBody>;
-
-export const ResolveConflictsBody = v.object({
-	profileName: v.pipe(v.string(), v.nonEmpty("No profile selected")),
-});
-export type ResolveConflictsBody = v.InferOutput<typeof ResolveConflictsBody>;
-
-export const RunShortcutBody = v.object({
-	name: v.string(),
-	useWorktree: v.optional(v.boolean(), false),
-	force: v.optional(v.boolean(), false),
-	launchDir: v.string(),
-});
-export type RunShortcutBody = v.InferOutput<typeof RunShortcutBody>;
-
-const FiniteNumberSchema = v.pipe(v.number(), v.finite());
-const OrderedItemEntries = {
-	name: v.string(),
-	order: v.optional(FiniteNumberSchema),
-};
-const LauncherColumnDefaultsSchema = v.object({
-	templateName: v.nullable(v.string()),
-	checkedSkills: v.array(v.string()),
-	profileName: v.nullable(v.string()),
-	lastLayer: v.optional(v.picklist(["editor", "launcher", "shortcuts"])),
-	skillOrder: v.optional(v.array(v.string())),
-	editedPrompt: v.optional(v.string()),
-});
-const UnknownObjectSchema = v.objectWithRest({}, v.unknown());
-const LauncherConfigSchema = v.object({
-	templates: v.optional(v.array(v.object({ ...OrderedItemEntries, text: v.string() })), () => []),
-	skills: v.optional(v.array(v.object({ ...OrderedItemEntries, text: v.string() })), () => []),
-	profiles: v.optional(v.array(v.object({ ...OrderedItemEntries, command: v.string() })), () => []),
-	shortcuts: v.optional(v.array(v.object({ ...OrderedItemEntries, command: v.string() })), () => []),
-	columnDefaults: v.optional(v.unknown()),
-	worktreeRootPath: v.optional(v.string()),
-	branchPrefix: v.optional(v.string()),
-	conflictResolutionPrompt: v.optional(v.string()),
-});
-
-function parseConfig(raw: JsonValue): LauncherConfig {
-	const { columnDefaults, ...config } = v.parse(LauncherConfigSchema, raw);
-	if (columnDefaults === undefined) return config;
-	if (!v.is(UnknownObjectSchema, columnDefaults)) {
-		throw new Error('columnDefaults must be an object.');
-	}
-	const entries = v.parse(
-		v.array(v.tuple([v.string(), LauncherColumnDefaultsSchema])),
-		Object.entries(columnDefaults),
-	);
-	const parsedColumnDefaults: Record<string, LauncherColumnDefaults> = {};
-	for (const [column, defaults] of entries) {
-		Object.defineProperty(parsedColumnDefaults, column, {
-			value: defaults,
-			writable: true,
-			enumerable: true,
-			configurable: true,
-		});
-	}
-	return { ...config, columnDefaults: parsedColumnDefaults };
-}
-
-function mergeByName<T extends { name: string }>(
-	appItems: T[],
-	projectItems: T[],
-): (T & { scope: "app" | "project" })[] {
-	const map = new Map<string, T & { scope: "app" | "project" }>();
-	for (const item of appItems) {
-		map.set(item.name, { ...item, scope: "app" });
-	}
-	for (const item of projectItems) {
-		map.set(item.name, { ...item, scope: "project" });
-	}
-	return [...map.values()];
-}
-
-function mergeOrderedByName<T extends OrderedLauncherItem>(
-	appItems: T[],
-	projectItems: T[],
-): (T & { scope: "app" | "project"; order: number })[] {
-	return mergeByName(appItems, projectItems)
-		.map((item, canonicalIndex) => ({
-			...item,
-			order: item.order ?? canonicalIndex,
-		}))
-		.sort((a, b) => a.order - b.order);
-}
-
-function preserveOrder<T extends OrderedLauncherItem>(existing: T, replacement: T): T {
-	return existing.order === undefined
-		? replacement
-		: { ...replacement, order: existing.order };
-}
-
-export function mergeLauncherConfigs(
-	app: LauncherConfig,
-	project: LauncherConfig,
-): MergedLauncherConfig {
-	const appPrompt = app.conflictResolutionPrompt || '';
-
-	return {
-		templates: mergeOrderedByName(app.templates, project.templates),
-		skills: mergeOrderedByName(app.skills, project.skills),
-		profiles: mergeOrderedByName(app.profiles ?? [], project.profiles ?? []),
-		shortcuts: mergeOrderedByName(app.shortcuts ?? [], project.shortcuts ?? []),
-		columnDefaults: project.columnDefaults ?? {},
-		worktreeRootPath: project.worktreeRootPath ?? null,
-		branchPrefix: project.branchPrefix,
-		conflictResolutionPrompt: project.conflictResolutionPrompt || appPrompt,
-	};
-}
+import { SharedLauncherConfigStore } from './shared-launcher-config-store.js';
+import {
+	decodeLauncherConfig, mergeLauncherConfigs,
+	type LauncherConfig,
+} from './launcher-config-data.js';
+import { UpdateLock } from '~/util/update-lock.js';
+import type { Updater } from '~/util/updater.js';
+export * from './launcher-config-data.js';
 
 export class LauncherConfigManager {
-	private paths: ConfigPaths;
-	private configRepo: ConfigRepository;
+	private readonly projectLocks = new Map<string, UpdateLock>();
 
-	constructor(paths: ConfigPaths, configRepo?: ConfigRepository) {
-		this.paths = paths;
-		this.configRepo = configRepo ?? new ConfigRepository();
+	private projectLock(projectSlug: string): UpdateLock {
+		let lock = this.projectLocks.get(projectSlug);
+		if (!lock) this.projectLocks.set(projectSlug, lock = new UpdateLock());
+		return lock;
 	}
 
-	getAppConfigDir(): string {
-		return this.paths.appConfigDir();
-	}
+	constructor(
+		private paths: ConfigPaths,
+		private configRepo = new ConfigRepository(),
+		private sharedConfig = new SharedLauncherConfigStore(paths, configRepo),
+	) {}
 
-	getConfigDefaultsDir(): string {
-		return this.paths.configDefaults();
-	}
-
-	getProjectDir(projectSlug: string): string {
-		return this.paths.projectDir(projectSlug);
-	}
-
-	getAgentWorktreeDir(projectSlug: string): string {
-		return this.paths.agentWorktreeDir(projectSlug);
-	}
+	getAppConfigDir(): string { return this.paths.appConfigDir(); }
+	getConfigDefaultsDir(): string { return this.paths.configDefaults(); }
+	getProjectDir(projectSlug: string): string { return this.paths.projectDir(projectSlug); }
+	getAgentWorktreeDir(projectSlug: string): string { return this.paths.agentWorktreeDir(projectSlug); }
 
 	resolveWorktreeSettings(projectSlug: string) {
 		const config = this.loadProjectConfig(projectSlug);
@@ -241,463 +38,43 @@ export class LauncherConfigManager {
 		};
 	}
 
-	private appLauncherPath(): string {
-		return this.paths.appLauncherConfigFile();
+	loadAppConfig(): LauncherConfig { return this.sharedConfig.read(); }
+	saveAppConfig(config: LauncherConfig): void { this.sharedConfig.write(config); }
+
+	loadProjectConfig(projectSlug: string, owner?: string): LauncherConfig {
+		return this.projectLock(projectSlug).read(() => this.readProjectConfig(projectSlug), owner);
 	}
 
-	private projectLauncherPath(projectSlug: string): string {
-		return this.paths.projectLauncherConfigFile(projectSlug);
+	releaseProjectConfig(projectSlug: string, owner: string): void {
+		this.projectLock(projectSlug).release(owner);
 	}
 
-	private readLauncherFile(filePath: string): LauncherConfig | null {
-		const raw = this.configRepo.readJson(filePath);
-		if (raw === null) return null;
-		return parseConfig(raw);
+	private readProjectConfig(projectSlug: string): LauncherConfig {
+		const raw = this.configRepo.readJson(this.paths.projectLauncherConfigFile(projectSlug));
+		if (raw !== null) return decodeLauncherConfig(raw);
+		const file = path.join(this.paths.configDefaults(), 'project-launcher-config.json');
+		const defaults = this.configRepo.readJson(file);
+		if (defaults === null) throw new Error(`Default project launcher config not found: ${file}`);
+		return decodeLauncherConfig(defaults);
 	}
 
-	private writeLauncherFile(
-		filePath: string,
-		config: LauncherConfig,
-	): void {
-		this.configRepo.writeJson(filePath, config);
+	saveProjectConfig(projectSlug: string, config: LauncherConfig, owner?: string): LauncherConfig {
+		return this.projectLock(projectSlug).write(() => {
+			const next = decodeLauncherConfig(config);
+			this.configRepo.writeJson(this.paths.projectLauncherConfigFile(projectSlug), next);
+			return next;
+		}, owner);
 	}
 
-	loadAppConfig(): LauncherConfig {
-		const filePath = this.appLauncherPath();
-		const config = this.readLauncherFile(filePath);
-		if (config === null) {
-			throw new Error(
-				`App launcher config not found: ${filePath}`,
-			);
-		}
-		return config;
+	getMergedConfig(projectSlug: string) {
+		return mergeLauncherConfigs(this.sharedConfig.read(), this.loadProjectConfig(projectSlug));
 	}
 
-	loadProjectConfig(projectSlug: string): LauncherConfig {
-		return this.readLauncherFile(this.projectLauncherPath(projectSlug))
-			?? this.readDefaultProjectConfig();
-	}
-
-	private readDefaultProjectConfig(): LauncherConfig {
-		const filePath = path.join(this.paths.configDefaults(), 'project-launcher-config.json');
-		const raw = this.configRepo.readJson(filePath);
-		if (raw === null) {
-			throw new Error(`Default project launcher config not found: ${filePath}`);
-		}
-		return parseConfig(raw);
-	}
-
-	saveAppConfig(config: LauncherConfig): void {
-		this.writeLauncherFile(this.appLauncherPath(), config);
-	}
-
-	saveProjectConfig(
-		projectSlug: string,
-		config: LauncherConfig,
-	): void {
-		this.writeLauncherFile(
-			this.projectLauncherPath(projectSlug),
-			config,
-		);
-	}
-
-	getMergedConfig(projectSlug: string): MergedLauncherConfig {
-		const app = this.loadAppConfig();
-		const project = this.loadProjectConfig(projectSlug);
-		return mergeLauncherConfigs(app, project);
-	}
-
-	saveColumnDefaults(
-		projectSlug: string,
-		column: string,
-		patch: Partial<LauncherColumnDefaults>,
-	): void {
-		const config = this.loadProjectConfig(projectSlug);
-		const columnDefaults = config.columnDefaults ?? {};
-		const existing = Object.prototype.hasOwnProperty.call(
-			columnDefaults,
-			column,
-		)
-			? columnDefaults[column]
-			: {
-				templateName: null,
-				checkedSkills: [],
-				profileName: null,
-			};
-		Object.defineProperty(columnDefaults, column, {
-			value: { ...existing, ...patch },
-			writable: true,
-			enumerable: true,
-			configurable: true,
+	updateProjectConfig(projectSlug: string, transform: Updater<LauncherConfig>): LauncherConfig {
+		return this.projectLock(projectSlug).write(() => {
+			const next = decodeLauncherConfig(transform(this.readProjectConfig(projectSlug)));
+			this.configRepo.writeJson(this.paths.projectLauncherConfigFile(projectSlug), next);
+			return next;
 		});
-		this.saveProjectConfig(projectSlug, {
-			...config,
-			columnDefaults,
-		});
-	}
-
-	private forEachColumnDefault(
-		config: LauncherConfig,
-		fn: (cd: LauncherColumnDefaults) => void,
-	): void {
-		if (!config.columnDefaults) return;
-		for (const col of Object.keys(config.columnDefaults)) {
-			const cd = config.columnDefaults[col];
-			if (cd) fn(cd);
-		}
-	}
-
-	private withConfig(
-		scope: "app" | "project",
-		projectSlug: string,
-		fn: (config: LauncherConfig) => void,
-	): void {
-		const config =
-			scope === "app"
-				? this.loadAppConfig()
-				: this.loadProjectConfig(projectSlug);
-		fn(config);
-		if (scope === "app") {
-			this.saveAppConfig(config);
-		} else {
-			this.saveProjectConfig(projectSlug, config);
-		}
-	}
-
-	addTemplate(
-		scope: "app" | "project",
-		projectSlug: string,
-		template: LauncherTemplate,
-	): void {
-		this.withConfig(scope, projectSlug, (config) => {
-			if (config.templates.some((t) => t.name === template.name)) {
-				throw new Error(
-					`Template with name "${template.name}" already exists`,
-				);
-			}
-			config.templates.push(template);
-		});
-	}
-
-	addSkill(
-		scope: "app" | "project",
-		projectSlug: string,
-		skill: LauncherSkill,
-	): void {
-		this.withConfig(scope, projectSlug, (config) => {
-			if (config.skills.some((s) => s.name === skill.name)) {
-				throw new Error(
-					`Skill with name "${skill.name}" already exists`,
-				);
-			}
-			config.skills.push(skill);
-		});
-	}
-
-	removeTemplate(
-		scope: "app" | "project",
-		projectSlug: string,
-		name: string,
-	): void {
-		this.withConfig(scope, projectSlug, (config) => {
-			config.templates = config.templates.filter(
-				(t) => t.name !== name,
-			);
-			this.forEachColumnDefault(config, (cd) => {
-				if (cd.templateName === name) {
-					cd.templateName = null;
-				}
-			});
-		});
-	}
-
-	removeSkill(
-		scope: "app" | "project",
-		projectSlug: string,
-		name: string,
-	): void {
-		this.withConfig(scope, projectSlug, (config) => {
-			config.skills = config.skills.filter(
-				(s) => s.name !== name,
-			);
-			this.forEachColumnDefault(config, (cd) => {
-				if (cd.checkedSkills) {
-					cd.checkedSkills = cd.checkedSkills.filter(
-						(s) => s !== name,
-					);
-				}
-				if (cd.skillOrder) {
-					cd.skillOrder = cd.skillOrder.filter(
-						(s) => s !== name,
-					);
-				}
-			});
-		});
-	}
-
-	updateTemplate(
-		scope: "app" | "project",
-		projectSlug: string,
-		oldName: string,
-		template: LauncherTemplate,
-	): void {
-		this.withConfig(scope, projectSlug, (config) => {
-			const index = config.templates.findIndex(
-				(t) => t.name === oldName,
-			);
-			if (index < 0) {
-				throw new Error(`Template "${oldName}" not found`);
-			}
-			if (
-				oldName !== template.name
-				&& config.templates.some(
-					(t) => t.name === template.name,
-				)
-			) {
-				throw new Error(
-					`Template with name "${template.name}" already exists`,
-				);
-			}
-			config.templates[index] = preserveOrder(config.templates[index], {
-				name: template.name,
-				text: template.text,
-			});
-			if (oldName !== template.name) {
-				this.forEachColumnDefault(config, (cd) => {
-					if (cd.templateName === oldName) {
-						cd.templateName = template.name;
-					}
-				});
-			}
-		});
-	}
-
-	updateSkill(
-		scope: "app" | "project",
-		projectSlug: string,
-		oldName: string,
-		skill: LauncherSkill,
-	): void {
-		this.withConfig(scope, projectSlug, (config) => {
-			const index = config.skills.findIndex(
-				(s) => s.name === oldName,
-			);
-			if (index < 0) {
-				throw new Error(`Skill "${oldName}" not found`);
-			}
-			if (
-				oldName !== skill.name
-				&& config.skills.some((s) => s.name === skill.name)
-			) {
-				throw new Error(
-					`Skill with name "${skill.name}" already exists`,
-				);
-			}
-			config.skills[index] = preserveOrder(config.skills[index], {
-				name: skill.name,
-				text: skill.text,
-			});
-			if (oldName !== skill.name) {
-				this.forEachColumnDefault(config, (cd) => {
-					if (cd.checkedSkills) {
-						cd.checkedSkills = cd.checkedSkills.map((s) =>
-							s === oldName ? skill.name : s,
-						);
-					}
-					if (cd.skillOrder) {
-						cd.skillOrder = cd.skillOrder.map((s) =>
-							s === oldName ? skill.name : s,
-						);
-					}
-				});
-			}
-		});
-	}
-
-	setItemOrder(
-		scope: "app" | "project",
-		projectSlug: string,
-		itemType: LauncherItemType,
-		name: string,
-		order: number,
-	): void {
-		if (!Number.isFinite(order)) {
-			throw new Error("order must be a finite number");
-		}
-		this.withConfig(scope, projectSlug, (config) => {
-			const collections = {
-				template: config.templates,
-				skill: config.skills,
-				profile: config.profiles ?? [],
-				shortcut: config.shortcuts ?? [],
-			} satisfies Record<LauncherItemType, OrderedLauncherItem[]>;
-			const item = collections[itemType].find((entry) => entry.name === name);
-			if (!item) {
-				const label = itemType[0].toUpperCase() + itemType.slice(1);
-				throw new Error(`${label} "${name}" not found`);
-			}
-			item.order = order;
-		});
-	}
-
-	addProfile(
-		scope: "app" | "project",
-		projectSlug: string,
-		profile: LauncherProfile,
-	): void {
-		this.withConfig(scope, projectSlug, (config) => {
-			if (!config.profiles) config.profiles = [];
-			if (config.profiles.some((p) => p.name === profile.name)) {
-				throw new Error(
-					`Profile with name "${profile.name}" already exists`,
-				);
-			}
-			config.profiles.push(profile);
-		});
-	}
-
-	removeProfile(
-		scope: "app" | "project",
-		projectSlug: string,
-		name: string,
-	): void {
-		this.withConfig(scope, projectSlug, (config) => {
-			config.profiles = (config.profiles ?? []).filter(
-				(p) => p.name !== name,
-			);
-			this.forEachColumnDefault(config, (cd) => {
-				if (cd.profileName === name) {
-					cd.profileName = null;
-				}
-			});
-		});
-	}
-
-	updateProfile(
-		scope: "app" | "project",
-		projectSlug: string,
-		oldName: string,
-		profile: LauncherProfile,
-	): void {
-		this.withConfig(scope, projectSlug, (config) => {
-			if (!config.profiles) config.profiles = [];
-			const index = config.profiles.findIndex(
-				(p) => p.name === oldName,
-			);
-			if (index < 0) {
-				throw new Error(`Profile "${oldName}" not found`);
-			}
-			if (
-				oldName !== profile.name
-				&& config.profiles.some(
-					(p) => p.name === profile.name,
-				)
-			) {
-				throw new Error(
-					`Profile with name "${profile.name}" already exists`,
-				);
-			}
-			config.profiles[index] = preserveOrder(config.profiles[index], {
-				name: profile.name,
-				command: profile.command,
-			});
-			if (oldName !== profile.name) {
-				this.forEachColumnDefault(config, (cd) => {
-					if (cd.profileName === oldName) {
-						cd.profileName = profile.name;
-					}
-				});
-			}
-		});
-	}
-
-	addShortcut(
-		scope: "app" | "project",
-		projectSlug: string,
-		shortcut: LauncherShortcut,
-	): void {
-		this.withConfig(scope, projectSlug, (config) => {
-			if (!config.shortcuts) config.shortcuts = [];
-			if (
-				config.shortcuts.some(
-					(s) => s.name === shortcut.name,
-				)
-			) {
-				throw new Error(
-					`Shortcut with name "${shortcut.name}" already exists`,
-				);
-			}
-			config.shortcuts.push(shortcut);
-		});
-	}
-
-	removeShortcut(
-		scope: "app" | "project",
-		projectSlug: string,
-		name: string,
-	): void {
-		this.withConfig(scope, projectSlug, (config) => {
-			config.shortcuts = (config.shortcuts ?? []).filter(
-				(s) => s.name !== name,
-			);
-		});
-	}
-
-	updateShortcut(
-		scope: "app" | "project",
-		projectSlug: string,
-		oldName: string,
-		shortcut: LauncherShortcut,
-	): void {
-		this.withConfig(scope, projectSlug, (config) => {
-			if (!config.shortcuts) config.shortcuts = [];
-			const index = config.shortcuts.findIndex(
-				(s) => s.name === oldName,
-			);
-			if (index < 0) {
-				throw new Error(`Shortcut "${oldName}" not found`);
-			}
-			if (
-				oldName !== shortcut.name
-				&& config.shortcuts.some(
-					(s) => s.name === shortcut.name,
-				)
-			) {
-				throw new Error(
-					`Shortcut with name "${shortcut.name}" already exists`,
-				);
-			}
-			config.shortcuts[index] = preserveOrder(config.shortcuts[index], {
-				name: shortcut.name,
-				command: shortcut.command,
-			});
-		});
-	}
-
-	saveWorktreeRootPath(
-		projectSlug: string,
-		worktreeRootPath: string | undefined,
-	): void {
-		const config = this.loadProjectConfig(projectSlug);
-		config.worktreeRootPath = worktreeRootPath;
-		this.saveProjectConfig(projectSlug, config);
-	}
-
-	saveBranchPrefix(
-		projectSlug: string,
-		branchPrefix: string | undefined,
-	): void {
-		const config = this.loadProjectConfig(projectSlug);
-		config.branchPrefix = branchPrefix;
-		this.saveProjectConfig(projectSlug, config);
-	}
-
-	saveConflictResolutionSettings(
-		projectSlug: string,
-		prompt: string | undefined,
-	): void {
-		const config = this.loadProjectConfig(projectSlug);
-		config.conflictResolutionPrompt = prompt;
-		this.saveProjectConfig(projectSlug, config);
 	}
 }

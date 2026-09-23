@@ -99,6 +99,23 @@ describe("Launcher Settings Prompts tab (e2e, real server)", () => {
     ).toBe("Existing");
   });
 
+  it('allows correcting a duplicate name and saving immediately', async () => {
+    await setup('duplicate');
+    await testId(ctx.page, 'launcher-settings-prompts-add-button').click();
+    await testId(ctx.page, 'launcher-settings-item-form-name-input').fill('Existing');
+    await testId(ctx.page, 'launcher-settings-item-form-text-input').fill('new text');
+    await testId(ctx.page, 'launcher-settings-item-form-scope-app').click();
+    await testId(ctx.page, 'launcher-settings-item-form-submit').click();
+    await ctx.page.getByText('An item named "Existing" already exists', { exact: true }).waitFor();
+    await testId(ctx.page, 'error-dialog-ok').click();
+    await testId(ctx.page, 'launcher-settings-item-form-name-input').fill('Corrected');
+    await testId(ctx.page, 'launcher-settings-item-form-submit').click();
+    await waitGone(ctx.page, 'launcher-settings-item-form-name-input');
+    expect(readAppLauncherConfig(ctx.testServer)?.templates).toEqual([
+      { name: 'Existing', text: 'existing text' }, { name: 'Corrected', text: 'new text' },
+    ]);
+  });
+
   it("delete button removes template from app config", async () => {
     await setup("delete");
     await testId(ctx.page, "launcher-settings-prompts-delete-button").click();

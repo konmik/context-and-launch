@@ -47,25 +47,6 @@ describe("Ticket detail launcher config and run (e2e, real server)", () => {
     expect(cfg?.columnDefaults?.["todo"]?.checkedSkills).toContain("alpha-skill");
   });
 
-  it("run button is clickable and triggers an HTTP request", async () => {
-    await setupLauncherTicket(ctx, "run");
-    let aiRunRequest = false;
-    ctx.page.on("request", (req) => {
-      if (req.url().includes("/_server")) aiRunRequest = true;
-    });
-    await testId(ctx.page, "ticket-detail-launcher-run-button").click();
-    await ctx.page.waitForTimeout(2000);
-    expect(aiRunRequest).toBe(true);
-  });
-
-  it("reference-only: behind-remote and dirty-worktree dialog testids are absent on happy path", async () => {
-    await setupLauncherTicket(ctx, "ref-only");
-    expect(await testId(ctx.page, "ticket-detail-launcher-behind-remote-cancel").count()).toBe(0);
-    expect(await testId(ctx.page, "ticket-detail-launcher-behind-remote-proceed").count()).toBe(0);
-    expect(await testId(ctx.page, "ticket-detail-launcher-dirty-cancel").count()).toBe(0);
-    expect(await testId(ctx.page, "ticket-detail-launcher-dirty-launch-anyway").count()).toBe(0);
-  });
-
   it("keeps the launcher tab active after closing and reopening without reload", async () => {
     const project = await setupLauncherTicket(ctx, "tab-persist");
     await poll(

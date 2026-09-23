@@ -33,4 +33,8 @@ export class UpdateLock {
 			this.lease = undefined;
 		}
 	}
+
+	release(owner: string): void {
+		if (this.activeLease()?.owner === owner) this.lease = undefined;
+	}
 }

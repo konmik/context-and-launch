@@ -56,9 +56,4 @@ describe("Launcher Settings Skills tab (e2e, real server)", () => {
     );
     expect(app?.skills?.map((s) => s.name)).not.toContain("alpha-skill");
   });
-
-  it("skills drag handle is rendered (reordering covered by launcher-skill-reorder)", async () => {
-    await setup("drag-handle");
-    expect(await testId(ctx.page, "launcher-settings-skills-drag-handle").count()).toBe(1);
-  });
 });

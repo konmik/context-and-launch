@@ -1,6 +1,8 @@
-import { createSignal, createEffect, useContext } from "solid-js";
-import { getMergedLauncherConfig } from "../launcher/launcher-api.js";
+import { createSignal, createEffect, createMemo, useContext } from "solid-js";
+import { getProjectLauncherConfig } from '../launcher/launcher-api.js';
+import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js';
 import { AppConfigContext } from '../config/app-config-storage.js';
+import { LauncherConfigContext } from '../launcher/shared-launcher-config-storage.js';
 
 export interface ConflictDialogDeps {
   projectSlug: () => string;
@@ -14,32 +16,21 @@ export function createConflictDialogController(deps: ConflictDialogDeps) {
   const appConfig = useContext(AppConfigContext)!;
   const [submitting, setSubmitting] = createSignal(false);
   const [errorMsg, setErrorMsg] = createSignal("");
-  const [profiles, setProfiles] = createSignal<{ name: string }[]>([]);
+  const sharedConfig = useContext(LauncherConfigContext)!;
+  const projectConfig = createMemo(() => deps.open() ? getProjectLauncherConfig(deps.projectSlug()) : null,
+    { loadingValue: null });
+  const profiles = createMemo(() => {
+    const project = projectConfig();
+    return project ? mergeLauncherConfigs(sharedConfig.get(), project.projectConfig).profiles : [];
+  });
   const [selectedProfile, setSelectedProfile] = createSignal("");
 
-  createEffect(
-    () => [deps.open(), deps.projectSlug()] as const,
-    ([open, projectSlug]) => {
-    if (open) {
-      let cancelled = false;
-      setErrorMsg("");
-      getMergedLauncherConfig(projectSlug)
-        .then(async data => {
-          if (cancelled) return;
-          const list = data.profiles;
-          setProfiles(list);
-          if (list.length === 0) return;
-          const current = selectedProfile();
-          if (current && list.some(p => p.name === current)) return;
-          const preferred = appConfig.get().lastUsedProfileName;
-          const match = preferred && list.some(p => p.name === preferred)
-            ? preferred
-            : list[0].name;
-          if (!cancelled) setSelectedProfile(match);
-        })
-        .catch(() => { if (!cancelled) setErrorMsg("Failed to load profiles"); });
-      return () => { cancelled = true; };
-    }
+  createEffect(deps.open, open => { if (open) setErrorMsg(''); });
+
+  createEffect(profiles, list => {
+    if (list.some(profile => profile.name === selectedProfile())) return;
+    const preferred = appConfig.get().lastUsedProfileName;
+    setSelectedProfile(list.find(profile => profile.name === preferred)?.name ?? list[0]?.name ?? '');
   });
 
   async function selectProfile(name: string) {

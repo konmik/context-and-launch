@@ -120,6 +120,7 @@ export const THREE_COLUMN_BOARD: SeedBoard[] = [
 ];
 
 export interface SeedAppLauncherConfig {
+  columnDefaults?: import('../src/core/launcher/launcher-config-data.js').LauncherConfig['columnDefaults'];
   templates?: { name: string; text: string; order?: number }[];
   skills?: { name: string; text: string; order?: number }[];
   profiles?: { name: string; command: string; order?: number }[];
@@ -179,6 +180,7 @@ function seedAppConfigFiles(
       profiles: appLauncher.profiles ?? [],
       shortcuts: appLauncher.shortcuts ?? [],
       conflictResolutionPrompt: appLauncher.conflictResolutionPrompt,
+      columnDefaults: appLauncher.columnDefaults,
     };
     fs.writeFileSync(
       path.join(configDir, "launcher-config.json"),

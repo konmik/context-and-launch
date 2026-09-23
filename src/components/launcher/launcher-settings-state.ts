@@ -8,11 +8,7 @@ import type { BoardDefinition, ColumnDefinition } from "~/core/project/board-con
 import { errorPayload, errorMessage, type ErrorInfo } from "~/core/shared/errors.js";
 import { slugifyColumnName } from "~/lib/slugify.js";
 import {
-  getMergedLauncherConfig, type MergedLauncherConfigWithMeta,
-  addItem, updateItem, deleteItem as deleteItemAction,
-  reorderItem, saveWorktreeRootPath as saveWorktreeRootPathAction,
-  saveBranchPrefix as saveBranchPrefixAction,
-  saveConflictResolution as saveConflictResolutionAction,
+  getProjectLauncherConfig, type ProjectLauncherConfigData,
 } from "./launcher-api.js";
 import {
   listBoards, createBoard, deleteBoard, addColumn, updateColumn,
@@ -27,9 +23,17 @@ import type {
   ItemType, Scope, ItemFormState, ColumnFormState,
   RenameFormState, DeleteTarget,
 } from "./launcher-settings-dialogs.js";
-import { validateColumnName, buildFormPayload } from "./launcher-settings-pure.js";
+import { validateColumnName } from "./launcher-settings-pure.js";
 import type { BoardRef } from "../board/board-api.js";
 import { AppConfigContext } from '../config/app-config-storage.js';
+import { LauncherConfigContext } from './shared-launcher-config-storage.js';
+import {
+  mergeLauncherConfigs, type LauncherConfig,
+} from '~/core/launcher/launcher-config-data.js';
+import { updateProjectLauncherConfig } from './project-launcher-config-storage.js';
+import type { Updater } from '~/util/updater.js';
+
+const collections = { template: 'templates', skill: 'skills', profile: 'profiles', shortcut: 'shortcuts' } as const;
 
 function columnContentPatch(cf: ColumnFormState) {
 	return { description: cf.description, color: cf.color };
@@ -41,18 +45,22 @@ export function createLauncherSettingsState(props: {
 	projectSlug: string;
 }) {
 	const appConfig = useContext(AppConfigContext)!;
-	const [config, setConfig] = createSignal<MergedLauncherConfig | null>(null);
+	const sharedConfig = useContext(LauncherConfigContext)!;
+	const projectConfig = createMemo(() => props.open ? getProjectLauncherConfig(props.projectSlug) : null,
+		{ loadingValue: null });
+	const config = createMemo(() => {
+		const project = projectConfig();
+		return project && mergeLauncherConfigs(sharedConfig.get(), project.projectConfig);
+	});
 	const [loading, setLoading] = createSignal(false);
 	const [error, setError] = createSignal<ErrorInfo | null>(null);
 	const [form, setForm] = createSignal<ItemFormState | null>(null);
 	const [projectName, setProjectName] = createSignal("");
 	const [projectPath, setProjectPath] = createSignal("");
-	const [savedProjectPath, setSavedProjectPath] = createSignal("");
 	const [savingProjectPath, setSavingProjectPath] = createSignal(false);
 	const runSetProjectPath = useAction(setProjectPathAction);
 	const [ticketsPath, setTicketsPath] = createSignal("");
 	const [ticketsBranch, setTicketsBranch] = createSignal("");
-	const [savedTicketsLocation, setSavedTicketsLocation] = createSignal({ ticketsPath: "", branch: "" });
 	const [savingTicketsLocation, setSavingTicketsLocation] = createSignal(false);
 	const runSetTicketsLocation = useAction(setTicketsLocationAction);
 	const [worktreeRootPath, setWorktreeRootPath] = createSignal("");
@@ -60,7 +68,7 @@ export function createLauncherSettingsState(props: {
 	const [conflictPrompt, setConflictPrompt] = createSignal("");
 	const [activeTab, setActiveTab] = createSignal<string>("profiles");
 	const [boards, setBoards] = createSignal<BoardDefinition[]>([]);
-	const [projectBoardId, setProjectBoardId] = createSignal<string | null>(null);
+	const projectBoardId = () => projectConfig()?.projectBoardId ?? null;
 	const [boardOverride, setBoardOverride] = createSignal<string | null>(null);
 	const [columnForm, setColumnForm] = createSignal<ColumnFormState | null>(null);
 	const [boardForm, setBoardForm] = createSignal<{ name: string } | null>(null);
@@ -68,9 +76,6 @@ export function createLauncherSettingsState(props: {
 	const [deleteConfirm, setDeleteConfirm] = createSignal<DeleteTarget | null>(null);
 	const [projectBoardConfirm, setProjectBoardConfirm] = createSignal<BoardRef | null>(null);
 	const [columnDialogError, setColumnDialogError] = createSignal("");
-	const runAddItem = useAction(addItem);
-	const runUpdateItem = useAction(updateItem);
-	const runDeleteItem = useAction(deleteItemAction);
 	const runCreateBoard = useAction(createBoard);
 	const runDeleteBoard = useAction(deleteBoard);
 	const runAddColumn = useAction(addColumn);
@@ -96,18 +101,15 @@ export function createLauncherSettingsState(props: {
 		loadConfig();
 	});
 
-	function applyConfig(data: MergedLauncherConfigWithMeta) {
-		setConfig(data);
-			setProjectBoardId(data.projectBoardId ?? null);
-			setProjectName(data.projectName ?? "");
-			setProjectPath(data.projectPath);
-			setSavedProjectPath(data.projectPath);
-			setTicketsPath(data.worktreeDir);
-			setTicketsBranch(data.ticketsBranch ?? "");
-			setSavedTicketsLocation({ ticketsPath: data.worktreeDir, branch: data.ticketsBranch ?? "" });
-			setWorktreeRootPath(data.worktreeRootPath ?? "");
-			setBranchPrefix(data.branchPrefix);
-		setConflictPrompt(data.conflictResolutionPrompt ?? "");
+	function applyConfig(data: ProjectLauncherConfigData) {
+		const merged = mergeLauncherConfigs(sharedConfig.get(), data.projectConfig);
+		setProjectName(data.projectName ?? "");
+		setProjectPath(data.projectPath);
+		setTicketsPath(data.worktreeDir);
+		setTicketsBranch(data.ticketsBranch ?? "");
+		setWorktreeRootPath(merged.worktreeRootPath ?? "");
+		setBranchPrefix(merged.branchPrefix);
+		setConflictPrompt(merged.conflictResolutionPrompt);
 	}
 
 	async function loadConfig() {
@@ -115,7 +117,7 @@ export function createLauncherSettingsState(props: {
 		const [configResult, boardsResult] = await Promise.allSettled([
 			(async () => {
 				await revalidate("launcher-config");
-				return getMergedLauncherConfig(props.projectSlug);
+				return getProjectLauncherConfig(props.projectSlug);
 			})(),
 			(async () => {
 				await revalidate("boards");
@@ -127,15 +129,6 @@ export function createLauncherSettingsState(props: {
 		if (boardsResult.status === "fulfilled") setBoards(boardsResult.value);
 		else setError(errorPayload(boardsResult.reason, "Load failed"));
 		setLoading(false);
-	}
-
-	async function loadBoards() {
-		try {
-			await revalidate("boards");
-			setBoards(await listBoards());
-		} catch (e) {
-			setError(errorPayload(e, "Load failed"));
-		}
 	}
 
 	function startAdd(itemType: ItemType) {
@@ -152,36 +145,64 @@ export function createLauncherSettingsState(props: {
 		if (!f || !f.name.trim()) return;
 		setError(null);
 		try {
-			const payload = buildFormPayload(f);
 			const usesCommand = f.itemType === "profile" || f.itemType === "shortcut";
 			const fields = usesCommand
-				? { name: payload.name!, command: payload.command ?? payload.text }
-				: { name: payload.name!, text: payload.text };
-			if (f.mode === "add") {
-				const input = {
-					projectSlug: props.projectSlug, itemType: f.itemType, scope: f.scope, fields,
+				? { name: f.name, command: f.text }
+				: { name: f.name, text: f.text };
+			const result = await updateConfig(f.scope, current => {
+				const key = collections[f.itemType];
+				const items = current[key] ?? [];
+				if (items.some(item => item.name === fields.name && (f.mode === 'add' || item.name !== f.oldName))) {
+					throw new Error(`An item named "${fields.name}" already exists`);
+				}
+				if (f.mode === 'add') return { ...current, [key]: [...items, fields] };
+				if (!items.some(item => item.name === f.oldName)) throw new Error(`Item "${f.oldName}" not found`);
+				return {
+					...current,
+					[key]: items.map(item => item.name === f.oldName ? { ...item, ...fields } : item),
+					columnDefaults: current.columnDefaults && Object.fromEntries(
+						Object.entries(current.columnDefaults).map(([column, defaults]) => [column, {
+							...defaults,
+							templateName: f.itemType === 'template' && defaults.templateName === f.oldName
+								? f.name : defaults.templateName,
+							profileName: f.itemType === 'profile' && defaults.profileName === f.oldName
+								? f.name : defaults.profileName,
+							checkedSkills: f.itemType === 'skill'
+								? defaults.checkedSkills.map(name => name === f.oldName ? f.name : name)
+								: defaults.checkedSkills,
+							skillOrder: f.itemType === 'skill'
+								? defaults.skillOrder?.map(name => name === f.oldName ? f.name : name)
+								: defaults.skillOrder,
+						}]),
+					),
 				};
-				const result = await runAddItem(input);
-				if (!result.ok) { setError({ title: "Save failed", description: result.message }); return; }
-			} else {
-				const result = await runUpdateItem({
-					projectSlug: props.projectSlug, itemType: f.itemType, scope: f.scope,
-					oldName: f.oldName!, fields,
-				});
-				if (!result.ok) { setError({ title: "Save failed", description: result.message }); return; }
-			}
-			setForm(null); await loadConfig();
+			});
+			if (result.type === 'Failure') { setError({ title: 'Save failed', description: result.error }); return; }
+			setForm(null);
 		} catch (e) { setError(errorPayload(e, "Save failed")); }
 	}
 
 	async function deleteItemFn(itemType: ItemType, scope: Scope, name: string) {
 		setError(null);
 		try {
-			const result = await runDeleteItem({
-				projectSlug: props.projectSlug, itemType, scope, name,
-			});
-			if (!result.ok) { setError({ title: "Delete failed", description: result.message }); return; }
-			await loadConfig();
+			const result = await updateConfig(scope, current => ({
+				...current,
+				[collections[itemType]]: (current[collections[itemType]] ?? []).filter(item => item.name !== name),
+				columnDefaults: current.columnDefaults && Object.fromEntries(
+					Object.entries(current.columnDefaults).map(([column, defaults]) => [column, {
+						...defaults,
+						templateName: itemType === 'template' && defaults.templateName === name
+							? null : defaults.templateName,
+						profileName: itemType === 'profile' && defaults.profileName === name
+							? null : defaults.profileName,
+						checkedSkills: itemType === 'skill'
+							? defaults.checkedSkills.filter(value => value !== name) : defaults.checkedSkills,
+						skillOrder: itemType === 'skill'
+							? defaults.skillOrder?.filter(value => value !== name) : defaults.skillOrder,
+					}]),
+				),
+			}));
+			if (result.type === 'Failure') setError({ title: 'Delete failed', description: result.error });
 		} catch (e) { setError(errorPayload(e, "Delete failed")); }
 	}
 
@@ -201,21 +222,21 @@ export function createLauncherSettingsState(props: {
 	async function saveWorktreeRootPathFn(path = worktreeRootPath()) {
 		setError(null);
 		try {
-			const result = await saveWorktreeRootPathAction(props.projectSlug, path);
-			if (!result.ok) { setError({ title: "Save failed", description: result.message }); return; }
-			await loadConfig();
+			const result = await updateConfig('project', current => ({
+				...current, worktreeRootPath: path.trim() || undefined,
+			}));
+			if (result.type === 'Failure') setError({ title: 'Save failed', description: result.error });
 		} catch (e) { setError(errorPayload(e, "Save failed")); }
 	}
 
 	async function saveProjectPathFn(path = projectPath()) {
-		if (savingProjectPath() || path.trim() === savedProjectPath()) return;
+		if (savingProjectPath() || path.trim() === projectConfig()?.projectPath) return;
 		setSavingProjectPath(true);
 		setError(null);
 		try {
 			const result = await runSetProjectPath(props.projectSlug, path);
 			if (!result.ok) { setError({ title: "Save failed", description: result.message }); return; }
 			setProjectPath(result.path);
-			setSavedProjectPath(result.path);
 			await revalidate(["launcher-config", "project-page", "project-sync-status"]);
 		} catch (e) { setError(errorPayload(e, "Save failed")); }
 		finally { setSavingProjectPath(false); }
@@ -224,15 +245,15 @@ export function createLauncherSettingsState(props: {
 	async function saveBranchPrefixFn() {
 		setError(null);
 		try {
-			const result = await saveBranchPrefixAction(props.projectSlug, branchPrefix() ?? null);
-			if (!result.ok) { setError({ title: "Save failed", description: result.message }); return; }
-			await loadConfig();
+			const value = branchPrefix()?.trim() || undefined;
+			const result = await updateConfig('project', current => ({ ...current, branchPrefix: value }));
+			if (result.type === 'Failure') setError({ title: 'Save failed', description: result.error });
 		} catch (e) { setError(errorPayload(e, "Save failed")); }
 	}
 
 	async function saveTicketsLocation(kind: "path" | "branch", value: string) {
-		const saved = savedTicketsLocation();
-		if (value.trim() === (kind === "path" ? saved.ticketsPath : saved.branch)) return;
+		const saved = projectConfig();
+		if (value.trim() === (kind === "path" ? saved?.worktreeDir : saved?.ticketsBranch ?? '')) return;
 		if (savingTicketsLocation()) return;
 		setSavingTicketsLocation(true);
 		setError(null);
@@ -241,10 +262,8 @@ export function createLauncherSettingsState(props: {
 			if (!result.ok) { setError({ title: "Save failed", description: result.message }); return; }
 			if (kind === "path") {
 				setTicketsPath(result.value);
-				setSavedTicketsLocation(prev => ({ ...prev, ticketsPath: result.value }));
 			} else {
 				setTicketsBranch(result.value);
-				setSavedTicketsLocation(prev => ({ ...prev, branch: result.value }));
 			}
 			await revalidate("launcher-config");
 		} catch (e) { setError(errorPayload(e, "Save failed")); }
@@ -254,9 +273,9 @@ export function createLauncherSettingsState(props: {
 	async function saveConflictResolutionFn() {
 		setError(null);
 		try {
-			const result = await saveConflictResolutionAction(props.projectSlug, conflictPrompt());
-			if (!result.ok) { setError({ title: "Save failed", description: result.message }); return; }
-			await loadConfig();
+			const value = conflictPrompt().trim() || undefined;
+			const result = await updateConfig('project', current => ({ ...current, conflictResolutionPrompt: value }));
+			if (result.type === 'Failure') setError({ title: 'Save failed', description: result.error });
 		} catch (e) { setError(errorPayload(e, "Save failed")); }
 	}
 
@@ -431,12 +450,6 @@ export function createLauncherSettingsState(props: {
 				const after = newIndex < orderedNames.length - 1
 					? orderOf(orderedNames[newIndex + 1]) : undefined;
 				const newOrder = midpointOrder(before, after);
-				const itemMap = new Map(items.map(item => [item.name, item]));
-				const reorderedItems = orderedNames.map(name => {
-					const item = itemMap.get(name)!;
-					return name === dragged.name ? { ...item, order: newOrder } : item;
-				});
-				setConfig(Object.assign({}, cfg, { [collection]: reorderedItems }));
 				saveItemOrderFn(itemType, dragged.scope, dragged.name, newOrder);
 			},
 		});
@@ -455,12 +468,19 @@ export function createLauncherSettingsState(props: {
 	) {
 		setError(null);
 		try {
-			const result = await reorderItem(props.projectSlug, itemType, scope, name, order);
-			if (!result.ok) {
-				setError({ title: "Reorder failed", description: result.message });
-				await loadConfig();
-			}
+			const result = await updateConfig(scope, current => ({
+				...current,
+				[collections[itemType]]: (current[collections[itemType]] ?? [])
+					.map(item => item.name === name ? { ...item, order } : item),
+			}));
+			if (result.type === 'Failure') setError({ title: 'Reorder failed', description: result.error });
 		} catch (e) { setError(errorPayload(e, "Reorder failed")); }
+	}
+
+	async function updateConfig(scope: Scope, transform: Updater<LauncherConfig>) {
+		if (scope === 'app') return sharedConfig.update(transform);
+		const projectSlug = props.projectSlug;
+		return updateProjectLauncherConfig(projectSlug, transform);
 	}
 
 	return {

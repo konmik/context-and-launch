@@ -1,9 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
-	validateColumnName, buildFormPayload, usesWindowsBatchCommand,
+	validateColumnName, usesWindowsBatchCommand,
 } from "./launcher-settings-pure.js";
 import type { ColumnDefinition } from "~/core/project/board-config.js";
-import type { ItemFormState } from "./launcher-settings-dialogs.js";
 
 describe("validateColumnName", () => {
 	const columns: ColumnDefinition[] = [
@@ -27,26 +26,6 @@ describe("validateColumnName", () => {
 	it("rejects 'undefined' as reserved", () => {
 		expect(validateColumnName("undefined", "add", undefined, []))
 			.toBe('Name "undefined" is reserved');
-	});
-});
-
-describe("buildFormPayload", () => {
-	it("builds add payload for template", () => {
-		const form: ItemFormState = {
-			mode: "add", itemType: "template", scope: "app",
-			name: "my-tmpl", text: "content",
-		};
-		expect(buildFormPayload(form)).toEqual({ name: "my-tmpl", text: "content" });
-	});
-
-	it("builds edit payload for profile with command field", () => {
-		const form: ItemFormState = {
-			mode: "edit", itemType: "profile", scope: "app",
-			name: "fast", text: "claude -f", oldName: "old",
-		};
-		expect(buildFormPayload(form)).toEqual({
-			oldName: "old", name: "fast", command: "claude -f",
-		});
 	});
 });
 

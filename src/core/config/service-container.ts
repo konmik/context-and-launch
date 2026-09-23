@@ -1,6 +1,7 @@
 import { ConfigPaths } from './config-paths.js';
 import { ConfigRepository } from './config-repository.js';
 import { AppConfigStore } from './app-config-store.js';
+import { SharedLauncherConfigStore } from '../launcher/shared-launcher-config-store.js';
 import { ProjectRegistry } from '../project/project-registry.js';
 import { BoardConfigManager } from '../project/board-config.js';
 import { WorktreeManager } from '../worktree/worktree-manager.js';
@@ -30,6 +31,7 @@ export interface ServiceContainer {
 	configPaths: ConfigPaths;
 	configRepo: ConfigRepository;
 	appConfigStore: AppConfigStore;
+	sharedLauncherConfigStore: SharedLauncherConfigStore;
 	commandTemplateStore: CommandTemplateStore;
 	commandTemplateService: CommandTemplateService;
 	herdrExec: HerdrExecFn;
@@ -84,7 +86,8 @@ export function createServices(options: ServiceOptions = {}): ServiceContainer {
 		commandTemplateService, (worktreeDir) => worktreeRevisions.bump(worktreeDir),
 		undefined, watchDebounceMs,
 	);
-	const launcherConfigManager = new LauncherConfigManager(configPaths, configRepo);
+	const sharedLauncherConfigStore = new SharedLauncherConfigStore(configPaths, configRepo);
+	const launcherConfigManager = new LauncherConfigManager(configPaths, configRepo, sharedLauncherConfigStore);
 	const agentWorktreeManager = new AgentWorktreeManager(launcherConfigManager, commandTemplateService);
 	const diffReviewStore = new DiffReviewStore(configPaths, configRepo);
 	const diffReviewGitService = new DiffReviewGitService(commandTemplateService);
@@ -123,6 +126,7 @@ export function createServices(options: ServiceOptions = {}): ServiceContainer {
 		configPaths,
 		configRepo,
 		appConfigStore,
+		sharedLauncherConfigStore,
 		commandTemplateStore,
 		commandTemplateService,
 		herdrExec,

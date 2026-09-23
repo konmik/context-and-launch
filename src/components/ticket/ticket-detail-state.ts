@@ -1,8 +1,12 @@
-import { createSignal, createEffect, createMemo, flush, onSettled, untrack } from "solid-js";
+import { createSignal, createEffect, createMemo, flush, onSettled, untrack, useContext } from "solid-js";
+import { LauncherConfigContext } from '../launcher/shared-launcher-config-storage.js';
+import { mergeLauncherConfigs, type LauncherConfig } from '~/core/launcher/launcher-config-data.js';
+import type { StoredSignal } from '~/util/stored-signal.js';
+import { updateProjectLauncherConfig } from '../launcher/project-launcher-config-storage.js';
 import type { Accessor } from "solid-js";
 import { revalidate } from "@solidjs/router";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
-import type { MergedLauncherConfig, LauncherColumnDefaults } from "~/core/launcher/launcher-config.js";
+import type { LauncherColumnDefaults } from "~/core/launcher/launcher-config-data.js";
 import {
   type ActiveFile,
   type FileView,
@@ -37,15 +41,16 @@ import {
 import { ticketMutationRevalidateKeys } from "../shared/revalidate-keys.js";
 import { createWorktreeRevision } from "../shared/worktree-revision.js";
 import {
-  latestMergedLauncherConfig, loadMergedLauncherConfig, saveColumnDefaultsAndReturnConfig,
+  getProjectLauncherConfig,
   runShortcut,
-  type MergedLauncherConfigWithMeta,
+  type ProjectLauncherConfigData,
 } from "../launcher/launcher-api.js";
 import { openNativeFileBrowser as openNativeFileBrowserServer } from "../shared/shared-api.js";
 
 export type Tab = "editor" | "launcher";
 
 export interface TicketDetailStateDeps {
+  sharedConfig?: StoredSignal<LauncherConfig>;
   ticketFiles?: Accessor<TicketFiles>;
   worktreeRevision?: Accessor<number>;
   refreshTicketFiles?: () => Promise<void>;
@@ -60,9 +65,8 @@ export interface TicketDetailStateDeps {
   uploadFile?: typeof uploadFileAction;
   updateTicket?: typeof updateTicket;
   runShortcut?: typeof runShortcut;
-  latestMergedLauncherConfig?: typeof latestMergedLauncherConfig;
-  loadMergedLauncherConfig?: typeof loadMergedLauncherConfig;
-  saveColumnDefaultsAndReturnConfig?: typeof saveColumnDefaultsAndReturnConfig;
+  getProjectLauncherConfig?: (projectSlug: string) => Promise<ProjectLauncherConfigData>;
+  updateProjectLauncherConfig?: typeof updateProjectLauncherConfig;
   openNativeFileBrowser?: typeof openNativeFileBrowserServer;
 }
 
@@ -80,7 +84,13 @@ export function createTicketDetailState(
   const [pendingTab, setPendingTab] = createSignal<Tab | null>(null);
   const [activeTab, setActiveTab] = createSignal<Tab>("editor");
   const [initialTabResolved, setInitialTabResolved] = createSignal(false);
-  const [launcherConfig, setLauncherConfig] = createSignal<MergedLauncherConfigWithMeta | null>(null);
+  const sharedConfig = deps.sharedConfig ?? useContext(LauncherConfigContext)!;
+  const projectConfig = createMemo(() =>
+    (deps.getProjectLauncherConfig ?? getProjectLauncherConfig)(props.projectSlug), { loadingValue: null });
+  const launcherConfig = createMemo(() => {
+    const project = projectConfig();
+    return project && { ...project, ...mergeLauncherConfigs(sharedConfig.get(), project.projectConfig) };
+  });
   const [extraFiles, setExtraFiles] = createSignal<string[]>([]);
   const [newFileDialogOpen, setNewFileDialogOpen] = createSignal(false);
   const [newFileName, setNewFileName] = createSignal("");
@@ -153,8 +163,6 @@ export function createTicketDetailState(
     requestFileSwitch,
     uploadFile: deps.uploadFile,
   });
-
-  const cachedConfig = (deps.latestMergedLauncherConfig ?? latestMergedLauncherConfig)(props.projectSlug);
 
   async function openWorktree() {
     setError(null);
@@ -270,38 +278,31 @@ export function createTicketDetailState(
     }
   }
 
-  function applyInitialTab(data: MergedLauncherConfigWithMeta, status = props.ticket.status) {
-    setLauncherConfig(data);
-    const defaults = data.columnDefaults[status];
-    if (defaults?.lastLayer === "launcher") setActiveTab("launcher");
-    setInitialTabResolved(true);
-  }
-
   createEffect(
-    () => [
-      props.projectSlug,
-      props.ticket.folderName,
-      props.ticket.status,
-      initialTabResolved(),
-    ] as const,
-    ([projectSlug, , status, resolved]) => { void (async () => {
-      if (!projectSlug || resolved) return;
-      try {
-        applyInitialTab(await (deps.loadMergedLauncherConfig ?? loadMergedLauncherConfig)(projectSlug), status);
-      } catch (e) {
-        setError(errorPayload(e, "Load failed"));
-        setInitialTabResolved(true);
-      }
-    })(); }
+    () => [projectConfig(), props.ticket.status, initialTabResolved()] as const,
+    ([data, status, resolved]) => {
+      if (!data || resolved) return;
+      if (data.projectConfig.columnDefaults?.[status]?.lastLayer === 'launcher') setActiveTab('launcher');
+      setInitialTabResolved(true);
+    },
   );
 
   function patchColumnDefaults(patch: Partial<LauncherColumnDefaults>) {
-    (deps.saveColumnDefaultsAndReturnConfig ?? saveColumnDefaultsAndReturnConfig)(
-      props.projectSlug, props.ticket.status, patch,
-    )
+    const column = props.ticket.status;
+    (deps.updateProjectLauncherConfig ?? updateProjectLauncherConfig)(props.projectSlug, current => ({
+      ...current,
+      columnDefaults: {
+        ...current.columnDefaults,
+        [column]: {
+          templateName: null, checkedSkills: [], profileName: null,
+          ...(current.columnDefaults && Object.hasOwn(current.columnDefaults, column)
+            && current.columnDefaults[column]),
+          ...patch,
+        },
+      },
+    }))
       .then((result) => {
-        if (!result.ok) { setError({ title: "Save failed", description: result.message }); return; }
-        setLauncherConfig(result.config);
+        if (result.type === 'Failure') { setError({ title: "Save failed", description: result.error }); return; }
       })
       .catch((e) => {
         setError(errorPayload(e, "Save failed"));
@@ -309,7 +310,6 @@ export function createTicketDetailState(
   }
 
   onSettled(() => {
-    if (cachedConfig) applyInitialTab(cachedConfig);
     void loadContextContent({ type: "context", name: "description" });
   });
 

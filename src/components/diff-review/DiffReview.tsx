@@ -8,6 +8,7 @@ import {
 	createEffect,
 	createMemo,
 	createSignal,
+	useContext,
 	onSettled,
 } from "solid-js";
 import { AlertTriangle } from "~/components/ui/icons.js";
@@ -48,9 +49,10 @@ import {
 	type ReviewChangeLocation,
 } from "~/core/diff-review/review-navigation.js";
 import { useHerdrStatuses } from "../ticket/herdr-statuses-context.js";
+import { LauncherConfigContext } from '../launcher/shared-launcher-config-storage.js';
+import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js';
 import {
-	getMergedLauncherConfig,
-	saveColumnDefaultsAndReturnConfig,
+	getProjectLauncherConfig,
 } from "../launcher/launcher-api.js";
 import {
 	enqueueReviewPrompt,
@@ -377,8 +379,10 @@ export default function DiffReview(props: {
 		getReviewSnapshot(props.projectSlug, props.ticket.folderName, scope() ?? null));
 	const queue = createMemo(() =>
 		getReviewPromptQueue(props.projectSlug, props.ticket.folderName));
-	const launcherConfig = createMemo(() =>
-		getMergedLauncherConfig(props.projectSlug));
+	const sharedConfig = useContext(LauncherConfigContext)!;
+	const projectConfig = createMemo(() =>
+		getProjectLauncherConfig(props.projectSlug));
+	const launcherConfig = createMemo(() => mergeLauncherConfigs(sharedConfig.get(), projectConfig().projectConfig));
 	const agentPresent = () =>
 		!!herdrStatus(props.ticket.folderName) || queue()?.agentRunning === true;
 	const profileNames = () => launcherConfig()?.profiles.map((profile) => profile.name) ?? [];
@@ -620,13 +624,21 @@ export default function DiffReview(props: {
 		setSavingProfile(true);
 		setSendError();
 		try {
-			const result = await saveColumnDefaultsAndReturnConfig(
-				props.projectSlug,
-				props.ticket.status,
-				{ profileName },
-			);
-			if (!result.ok) {
-				setSendError(result.message);
+			const column = props.ticket.status;
+			const result = await updateProjectLauncherConfig(props.projectSlug, current => ({
+				...current,
+				columnDefaults: {
+					...current.columnDefaults,
+					[column]: {
+						templateName: null, checkedSkills: [],
+						...(current.columnDefaults && Object.hasOwn(current.columnDefaults, column)
+							&& current.columnDefaults[column]),
+						profileName,
+					},
+				},
+			}));
+			if (result.type === 'Failure') {
+				setSendError(result.error);
 				return;
 			}
 		} catch (error) {
@@ -1091,3 +1103,4 @@ export default function DiffReview(props: {
 		</div>
 	);
 }
+import { updateProjectLauncherConfig } from '../launcher/project-launcher-config-storage.js';

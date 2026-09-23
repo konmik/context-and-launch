@@ -1,4 +1,6 @@
-import { createSignal, createEffect, untrack } from "solid-js";
+import { createSignal, createMemo, useContext, untrack } from "solid-js";
+import { LauncherConfigContext } from './shared-launcher-config-storage.js';
+import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js';
 import { X } from "~/components/ui/icons.js";
 import {
   FloatingWindow, FloatingWindowHeader, FloatingPanelBody,
@@ -8,40 +10,42 @@ import {
 import { LauncherTab } from "../ticket/ticket-detail-launcher-tab.js";
 import { createAgentLauncherController } from "./agent-launcher-controller.js";
 import {
-  loadMergedLauncherConfig, saveColumnDefaultsAndReturnConfig,
+  getProjectLauncherConfig,
   launchProjectAgentAction,
-  type MergedLauncherConfigWithMeta,
 } from "./launcher-api.js";
 import { PROJECT_LAUNCH_KEY } from "~/core/launcher/launch-keys.js";
 import { errorPayload, type ErrorInfo } from "~/core/shared/errors.js";
 import type { LauncherColumnDefaults } from "~/core/launcher/launcher-config.js";
 import ErrorDialog from "../shared/ErrorDialog.js";
+import { updateProjectLauncherConfig } from './project-launcher-config-storage.js';
 
 export default function ProjectLauncherDialog(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectSlug: string;
 }) {
-  const [config, setConfig] = createSignal<MergedLauncherConfigWithMeta | null>(null);
+  const sharedConfig = useContext(LauncherConfigContext)!;
+  const projectConfig = createMemo(() => props.open ? getProjectLauncherConfig(props.projectSlug) : null,
+    { loadingValue: null });
+  const config = createMemo(() => {
+    const project = projectConfig();
+    return project && { ...project, ...mergeLauncherConfigs(sharedConfig.get(), project.projectConfig) };
+  });
   const [error, setError] = createSignal<ErrorInfo | null>(null);
 
-  createEffect(
-    () => [props.open, props.projectSlug] as const,
-    ([open, projectSlug]) => { void (async () => {
-      if (!open || !projectSlug) return;
-      try {
-        setConfig(await loadMergedLauncherConfig(projectSlug));
-      } catch (e) {
-        setError(errorPayload(e, "Load failed"));
-      }
-    })(); },
-  );
-
   function patchDefaults(patch: Partial<LauncherColumnDefaults>) {
-    saveColumnDefaultsAndReturnConfig(props.projectSlug, PROJECT_LAUNCH_KEY, patch)
+    updateProjectLauncherConfig(props.projectSlug, current => ({
+      ...current,
+      columnDefaults: {
+        ...current.columnDefaults,
+        [PROJECT_LAUNCH_KEY]: {
+          templateName: null, checkedSkills: [], profileName: null,
+          ...current.columnDefaults?.[PROJECT_LAUNCH_KEY], ...patch,
+        },
+      },
+    }))
       .then((result) => {
-        if (!result.ok) { setError({ title: "Save failed", description: result.message }); return; }
-        setConfig(result.config);
+        if (result.type === 'Failure') { setError({ title: "Save failed", description: result.error }); return; }
       })
       .catch((e) => setError(errorPayload(e, "Save failed")));
   }

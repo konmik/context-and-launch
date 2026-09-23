@@ -1,12 +1,16 @@
 import { Errored, Loading } from "solid-js";
 import { AppRouter } from "./router.js";
 import { AppConfigContext, createAppConfigStorage } from './components/config/app-config-storage.js';
+import {
+  LauncherConfigContext, createSharedLauncherConfigStorage,
+} from './components/launcher/shared-launcher-config-storage.js';
 import "./app.css";
 
 export default function App() {
   return (
     <AppRouter>{(props) => {
       const config = createAppConfigStorage();
+      const launcherConfig = createSharedLauncherConfigStorage();
       return (
         <Errored fallback={(error, reset) => (
           <div
@@ -21,7 +25,9 @@ export default function App() {
           </div>
         )}>
           <Loading fallback={<p>Loading...</p>}>
-            <AppConfigContext value={config}>{props.children}</AppConfigContext>
+            <AppConfigContext value={config}>
+              <LauncherConfigContext value={launcherConfig}>{props.children}</LauncherConfigContext>
+            </AppConfigContext>
           </Loading>
         </Errored>
       );

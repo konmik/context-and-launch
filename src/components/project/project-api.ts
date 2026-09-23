@@ -49,10 +49,9 @@ export async function addProject(
       boardId: boardId?.trim() || undefined,
       name: name?.trim() || undefined,
     });
-    launcherConfigManager.saveWorktreeRootPath(
-      project.projectSlug,
-      configPaths.agentWorktreeDir(project.projectSlug),
-    );
+    launcherConfigManager.updateProjectConfig(project.projectSlug, current => ({
+      ...current, worktreeRootPath: configPaths.agentWorktreeDir(project.projectSlug),
+    }));
     return { ok: true as const, projectSlug: project.projectSlug };
   } catch (e) {
     return errorResult(e);

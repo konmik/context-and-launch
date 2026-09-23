@@ -1,5 +1,7 @@
 import { useParams, useNavigate, revalidate } from "@solidjs/router";
 import { AppConfigContext } from '~/components/config/app-config-storage.js';
+import { LauncherConfigContext } from '~/components/launcher/shared-launcher-config-storage.js';
+import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js';
 import {
   Show, For, Switch, Match, Errored, Loading,
   createSignal, createEffect, createMemo, onSettled, lazy, flush, useContext,
@@ -45,7 +47,7 @@ import {
 } from "~/components/project/project-page-controller.js";
 import { getSyncPending } from "~/components/ticket/ticket-api.js";
 import { openConfigDir } from "~/components/shared/shared-api.js";
-import { getMergedLauncherConfig } from "~/components/launcher/launcher-api.js";
+import { getProjectLauncherConfig } from "~/components/launcher/launcher-api.js";
 import {
   getHerdrAgentStatuses,
   reconcileReviewPromptQueue,
@@ -143,10 +145,15 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
     return () => clearInterval(timer);
   });
 
-  const launcherConfig = createMemo(async () => {
+  const sharedLauncherConfig = useContext(LauncherConfigContext)!;
+  const projectLauncherConfig = createMemo(async () => {
     const page = data();
     if (page?.status !== "loaded") return undefined;
-    return getMergedLauncherConfig(page.projectSlug);
+    return getProjectLauncherConfig(page.projectSlug);
+  });
+  const launcherConfig = createMemo(() => {
+    const project = projectLauncherConfig();
+    return project && { ...project, ...mergeLauncherConfigs(sharedLauncherConfig.get(), project.projectConfig) };
   });
   const shortcutRunner = createBoardShortcutRunner({ projectSlug, config: launcherConfig });
 

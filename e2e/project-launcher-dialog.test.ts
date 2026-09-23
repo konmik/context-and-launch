@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   openProject, readProjectLauncherConfig, poll, setupE2E,
+  openLauncherSettings, openLauncherSettingsTab, readAppLauncherConfig,
 } from "./fixtures.js";
 import { testId, waitVisible, waitGone } from "./locators.js";
 
@@ -84,5 +85,25 @@ describe("Project launcher dialog (e2e, real server)", () => {
     await testId(ctx.page, "project-launcher-close-button").click();
     await waitGone(ctx.page, "project-launcher-run-button");
     expect(await testId(ctx.page, "project-launcher-run-button").count()).toBe(0);
+  });
+
+  it("shows a shared profile edit when reopening the launcher without a page reload", async () => {
+    await setup('shared-profile');
+    await openDialog();
+    const select = testId(ctx.page, 'ticket-detail-launcher-profile-select');
+    await select.locator('option[value="Claude"]').waitFor({ state: 'attached' });
+    await testId(ctx.page, 'project-launcher-close-button').click();
+    await openLauncherSettings(ctx.page);
+    await openLauncherSettingsTab(ctx.page, 'launch');
+    const row = testId(ctx.page, 'launcher-settings-launch-profile-row', { 'data-item-name': 'Claude' });
+    await testId(row, 'launcher-settings-launch-profile-edit-button').click();
+    await testId(ctx.page, 'launcher-settings-item-form-name-input').fill('Renamed');
+    await testId(ctx.page, 'launcher-settings-item-form-submit').click();
+    await waitGone(ctx.page, 'launcher-settings-item-form-submit');
+    await testId(ctx.page, 'launcher-settings-close-button').click();
+    await openDialog();
+    await select.locator('option[value="Renamed"]').waitFor({ state: 'attached' });
+    expect(await select.locator('option[value="Claude"]').count()).toBe(0);
+    expect(readAppLauncherConfig(ctx.testServer)?.profiles?.map(profile => profile.name)).toContain('Renamed');
   });
 });

@@ -7,6 +7,8 @@ import {
 } from "./ticket-detail-state.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { TicketFiles } from "./ticket-api.js";
+import { createStoredSignal } from '~/util/stored-signal.js';
+import type { LauncherConfig } from '~/core/launcher/launcher-config-data.js';
 
 const mockGetContext = vi.fn().mockResolvedValue({ content: "" });
 const mockUpdateTicket = vi.fn().mockResolvedValue({ ok: true, folderName: "test" });
@@ -16,6 +18,7 @@ const emptyTicketFiles = { contextNames: [], fileNames: [], references: [] };
 const mockGetTicketFiles = vi.fn().mockResolvedValue(emptyTicketFiles);
 const [worktreeRevision, setWorktreeRevision] = createSignal(0);
 const mockGetMergedLauncherConfig = vi.fn().mockResolvedValue({
+  projectConfig: { templates: [], skills: [] },
   templates: [], skills: [], profiles: [], shortcuts: [],
   columnDefaults: {}, worktreeRootPath: null,
   conflictResolutionPrompt: "",
@@ -47,6 +50,7 @@ function stateDependencies(ticket: TicketInfo): TicketDetailStateDeps {
   });
   return {
     ticketFiles,
+    sharedConfig: { get: () => emptyConfig, update: async () => ({ type: 'Success', value: undefined }) },
     worktreeRevision,
     refreshTicketFiles: async () => {
       setTicketFiles(await mockGetTicketFiles("test-project", ticket.folderName));
@@ -60,11 +64,10 @@ function stateDependencies(ticket: TicketInfo): TicketDetailStateDeps {
     addReferences: async () => ({ ok: true }),
     uploadFile: mockUploadFile,
     updateTicket: mockUpdateTicket,
-    latestMergedLauncherConfig: () => undefined,
-    loadMergedLauncherConfig: mockGetMergedLauncherConfig,
-    saveColumnDefaultsAndReturnConfig: async () => ({
-      ok: true,
-      config: await mockGetMergedLauncherConfig("test-project"),
+    getProjectLauncherConfig: mockGetMergedLauncherConfig,
+    updateProjectLauncherConfig: async (_projectSlug, transform) => ({
+      type: 'Success',
+      value: transform((await mockGetMergedLauncherConfig("test-project")).projectConfig),
     }),
     openNativeFileBrowser: async () => [],
   };
@@ -489,10 +492,68 @@ describe("TicketDetailDialog context deletion clears extraFiles", () => {
   });
 });
 
+describe('TicketDetailDialog shared launcher state', () => {
+  it('reflects project query changes in every open consumer', async () => {
+    const ticket = makeTicket('t-1-alpha', 'T-1', 'Alpha');
+    const { states, setProject, dispose } = createRoot(dispose => {
+      const [project, setProject] = createSignal<LauncherConfig>({
+        ...emptyConfig, profiles: [{ name: 'before', command: 'before' }],
+      });
+      const deps = {
+        ...stateDependencies(ticket),
+        getProjectLauncherConfig: async () => ({
+          projectConfig: project(), projectBoardId: null, projectName: '',
+          projectPath: '', worktreeDir: '', agentWorktreeDir: '',
+        }),
+      };
+      const states = [0, 1].map(() => createTicketDetailState({
+        ticket, projectSlug: 'test-project', onClose: () => {},
+      }, deps));
+      return { states, setProject, dispose };
+    });
+    try {
+      await waitFor(() => expect(states.map(state => state.launcherConfig()?.profiles[0].name))
+        .toEqual(['before', 'before']));
+      setProject({ ...emptyConfig, profiles: [{ name: 'after', command: 'after' }] });
+      await waitFor(() => expect(states.map(state => state.launcherConfig()?.profiles[0].name))
+        .toEqual(['after', 'after']));
+    } finally { dispose(); }
+  });
+
+  it('reacts to shared edits while retaining project overrides without reloading project data', async () => {
+    const ticket = makeTicket('t-1-alpha', 'T-1', 'Alpha');
+    const readProject = vi.fn(async () => ({
+      projectConfig: { templates: [], skills: [], profiles: [{ name: 'overridden', command: 'project' }] },
+      projectBoardId: null, projectName: '', projectPath: '', worktreeDir: '', agentWorktreeDir: '',
+    }));
+    const { state, sharedConfig, dispose } = createRoot(dispose => {
+      let saved: LauncherConfig = { ...emptyConfig, profiles: [{ name: 'overridden', command: 'shared' }] };
+      const sharedConfig = createStoredSignal(() => saved, async transform => {
+        saved = transform(saved);
+        return { type: 'Success', value: saved };
+      });
+      const state = createTicketDetailState({ ticket, projectSlug: 'test-project', onClose: () => {} }, {
+        ...stateDependencies(ticket), sharedConfig, getProjectLauncherConfig: readProject,
+      });
+      return { state, sharedConfig, dispose };
+    });
+    try {
+      await waitFor(() => expect(state.launcherConfig()?.profiles[0].command).toBe('project'));
+      await sharedConfig.update(current => ({
+        ...current, profiles: [{ name: 'overridden', command: 'changed' }, { name: 'new', command: 'new' }],
+      }));
+      await waitFor(() => expect(state.launcherConfig()?.profiles.map(profile => profile.command))
+        .toEqual(['project', 'new']));
+      expect(readProject).toHaveBeenCalledTimes(1);
+    } finally { dispose(); }
+  });
+});
+
 describe("TicketDetailDialog initial tab", () => {
   afterEach(() => {
     cleanup();
     mockGetMergedLauncherConfig.mockResolvedValue({
+      projectConfig: emptyConfig,
       templates: [], skills: [], profiles: [], shortcuts: [],
       columnDefaults: {}, worktreeRootPath: null,
       conflictResolutionPrompt: "",
@@ -513,6 +574,10 @@ describe("TicketDetailDialog initial tab", () => {
   it("shows the configured tab at start without flashing the editor first", async () => {
     mockGetMergedLauncherConfig.mockResolvedValue({
       ...emptyConfig,
+      projectConfig: {
+        ...emptyConfig,
+        columnDefaults: { todo: { lastLayer: 'launcher', templateName: null, checkedSkills: [], profileName: null } },
+      },
       shortcuts: [],
       worktreeRootPath: null,
       conflictResolutionPrompt: "",

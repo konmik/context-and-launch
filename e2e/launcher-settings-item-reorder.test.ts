@@ -73,15 +73,15 @@ describe("Launcher Settings item reorder (e2e, real server)", () => {
 
     await openLauncherSettingsTab(ctx.page, "prompts");
     await dragItem(ctx.page, "template", "Template A", "Template C");
-    expect(await itemNames(ctx.page, "template")).toEqual([
+    await expect.poll(() => itemNames(ctx.page, "template")).toEqual([
       "Template B", "Template C", "Template A",
     ]);
 
     await openLauncherSettingsTab(ctx.page, "launch");
     await dragItem(ctx.page, "profile", "Agent A", "Agent C");
+    await expect.poll(() => itemNames(ctx.page, "profile")).toEqual(["Agent B", "Agent C", "Agent A"]);
     await dragItem(ctx.page, "shortcut", "Shortcut A", "Shortcut C");
-    expect(await itemNames(ctx.page, "profile")).toEqual(["Agent B", "Agent C", "Agent A"]);
-    expect(await itemNames(ctx.page, "shortcut")).toEqual([
+    await expect.poll(() => itemNames(ctx.page, "shortcut")).toEqual([
       "Shortcut B", "Shortcut C", "Shortcut A",
     ]);
 
