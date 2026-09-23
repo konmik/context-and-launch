@@ -1,5 +1,5 @@
 import { createSignal, createEffect, createMemo, useContext } from "solid-js";
-import { getProjectLauncherConfig } from '../launcher/launcher-api.js';
+import { ProjectLauncherConfigContext } from '../launcher/project-launcher-config-storage.js';
 import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js';
 import { AppConfigContext } from '../config/app-config-storage.js';
 import { LauncherConfigContext } from '../launcher/shared-launcher-config-storage.js';
@@ -17,12 +17,8 @@ export function createConflictDialogController(deps: ConflictDialogDeps) {
   const [submitting, setSubmitting] = createSignal(false);
   const [errorMsg, setErrorMsg] = createSignal("");
   const sharedConfig = useContext(LauncherConfigContext)!;
-  const projectConfig = createMemo(() => deps.open() ? getProjectLauncherConfig(deps.projectSlug()) : null,
-    { loadingValue: null });
-  const profiles = createMemo(() => {
-    const project = projectConfig();
-    return project ? mergeLauncherConfigs(sharedConfig.get(), project.projectConfig).profiles : [];
-  });
+  const projectConfig = useContext(ProjectLauncherConfigContext)!;
+  const profiles = createMemo(() => mergeLauncherConfigs(sharedConfig.get(), projectConfig.get()).profiles);
   const [selectedProfile, setSelectedProfile] = createSignal("");
 
   createEffect(deps.open, open => { if (open) setErrorMsg(''); });

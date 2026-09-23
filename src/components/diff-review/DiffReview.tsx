@@ -52,7 +52,6 @@ import { useHerdrStatuses } from "../ticket/herdr-statuses-context.js";
 import { LauncherConfigContext } from '../launcher/shared-launcher-config-storage.js';
 import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js';
 import {
-	getProjectLauncherConfig,
 } from "../launcher/launcher-api.js";
 import {
 	enqueueReviewPrompt,
@@ -380,9 +379,8 @@ export default function DiffReview(props: {
 	const queue = createMemo(() =>
 		getReviewPromptQueue(props.projectSlug, props.ticket.folderName));
 	const sharedConfig = useContext(LauncherConfigContext)!;
-	const projectConfig = createMemo(() =>
-		getProjectLauncherConfig(props.projectSlug));
-	const launcherConfig = createMemo(() => mergeLauncherConfigs(sharedConfig.get(), projectConfig().projectConfig));
+	const projectConfig = useContext(ProjectLauncherConfigContext)!;
+	const launcherConfig = createMemo(() => mergeLauncherConfigs(sharedConfig.get(), projectConfig.get()));
 	const agentPresent = () =>
 		!!herdrStatus(props.ticket.folderName) || queue()?.agentRunning === true;
 	const profileNames = () => launcherConfig()?.profiles.map((profile) => profile.name) ?? [];
@@ -625,7 +623,7 @@ export default function DiffReview(props: {
 		setSendError();
 		try {
 			const column = props.ticket.status;
-			const result = await updateProjectLauncherConfig(props.projectSlug, current => ({
+			const result = await projectConfig.update(current => ({
 				...current,
 				columnDefaults: {
 					...current.columnDefaults,
@@ -1103,4 +1101,4 @@ export default function DiffReview(props: {
 		</div>
 	);
 }
-import { updateProjectLauncherConfig } from '../launcher/project-launcher-config-storage.js';
+import { ProjectLauncherConfigContext } from '../launcher/project-launcher-config-storage.js';

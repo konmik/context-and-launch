@@ -8,6 +8,8 @@ import {
 } from './launcher-config.js';
 import { ConfigPaths } from '../config/config-paths.js';
 import { initializeDataDir } from '../config/initialize.js';
+import { transformConfig } from '~/util/transform-config.js';
+import { succeed } from '~/util/result.js';
 
 const directories: string[] = [];
 afterEach(async () => { await Promise.all(directories.splice(0).map(removeTempDir)); });
@@ -78,6 +80,31 @@ describe('LauncherConfigManager', () => {
 		expect(manager.loadProjectConfig('project')).toMatchObject({
 			profiles: [{ name: 'saved', command: 'cmd' }], branchPrefix: 'saved',
 		});
+	});
+
+	it('transforms the latest file and releases the project lock after invalid data or a failed write', async () => {
+		const { paths, manager } = setup();
+		const file = paths.projectLauncherConfigFile('project');
+		manager.saveProjectConfig('project', { templates: [], skills: [], branchPrefix: 'before/' });
+		const stale = manager.loadProjectConfig('project');
+		fs.writeFileSync(file, JSON.stringify({ ...stale, branchPrefix: 'external/', extra: 'preserved' }));
+		const update = (transform: (current: LauncherConfig) => LauncherConfig) => transformConfig(transform,
+			async owner => succeed(manager.loadProjectConfig('project', owner)),
+			async (json, owner) => succeed(manager.saveProjectConfig('project', JSON.parse(json), owner)),
+			async owner => manager.releaseProjectConfig('project', owner));
+		expect((await update(current => ({ ...current, conflictResolutionPrompt: 'saved' }))).type).toBe('Success');
+		expect(manager.loadProjectConfig('project')).toMatchObject({ branchPrefix: 'external/', extra: 'preserved' });
+		// SAFETY: deliberately malformed external data exercises the runtime decoder and lock cleanup.
+		const invalid = await update(current => ({ ...current, profiles: [{ name: 'invalid' } as never] }));
+		expect(invalid.type).toBe('Failure');
+		expect((await update(current => {
+			fs.unlinkSync(file);
+			fs.mkdirSync(file);
+			return { ...current, branchPrefix: 'fails/' };
+		})).type).toBe('Failure');
+		fs.rmdirSync(file);
+		expect((await update(current => ({ ...current, branchPrefix: 'recovered/' }))).type).toBe('Success');
+		expect(manager.loadProjectConfig('project').branchPrefix).toBe('recovered/');
 	});
 
 	it.each(['todo', '', '__proto__'])('preserves column %j and other columns across partial updates', column => {

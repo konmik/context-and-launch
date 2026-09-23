@@ -1,24 +1,15 @@
-import { Show, createSignal, createEffect, untrack } from "solid-js";
+import { Show, createSignal, createEffect } from "solid-js";
 import { X } from "~/components/ui/icons.js";
 import {
 	FloatingWindow, FloatingWindowHeader, FloatingPanelBody,
 	FloatingPanelCloseTrigger, FloatingPanelTitle,
 } from "../ui/floating-panel";
 import { TabsRoot, TabsList, TabsTrigger } from "../ui/tabs";
-import { useModEnterSubmit } from "~/lib/use-mod-enter-submit";
 import { openConfigDir } from "../shared/shared-api.js";
 import { MiscTab } from "./launcher-settings-misc-tab.js";
 import { PromptsTab } from "./launcher-settings-prompts-tab.js";
 import { LaunchTab } from "./launcher-settings-launch-tab.js";
 import { ColumnsTab } from "./launcher-settings-columns-tab.js";
-import {
-	ItemFormDialog,
-} from "./launcher-settings-dialogs.js";
-import {
-	createLauncherSettingsState,
-	type LauncherSettingsController,
-} from "./launcher-settings-state.js";
-import ErrorDialog from "../shared/ErrorDialog.js";
 import { CommandTemplatesTab } from './launcher-settings-command-templates-tab.js';
 
 interface LauncherSettingsProps {
@@ -26,14 +17,13 @@ interface LauncherSettingsProps {
 	onOpenChange: (open: boolean) => void;
 	projectSlug: string;
 	onDeleteProject?: (projectSlug: string) => Promise<{ error?: string }>;
-	ctrl?: LauncherSettingsController;
 }
 
 export default function LauncherSettings(props: LauncherSettingsProps) {
-	const s = untrack(() => props.ctrl ?? createLauncherSettingsState(props));
+	const [activeTab, setActiveTab] = createSignal('profiles');
 
 	const [visitedTabs, setVisitedTabs] = createSignal<Set<string>>(new Set());
-	createEffect(s.activeTab, (tab) => {
+	createEffect(activeTab, (tab) => {
 		setVisitedTabs((prev) => prev.has(tab) ? prev : new Set(prev).add(tab));
 	});
 	const visited = (tab: string) => visitedTabs().has(tab);
@@ -43,12 +33,6 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 		height: Math.floor((globalThis.window?.innerHeight ?? 800) * 0.8),
 	};
 
-	useModEnterSubmit({
-		onSubmit: s.submitForm,
-		disabled: () => !s.form()?.name.trim(),
-		active: () => !!s.form(),
-	});
-
 	return (<>
 		<FloatingWindow
 			open={props.open}
@@ -57,7 +41,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 			minSize={{ width: 400, height: 300 }}
 			persistRect
 		>
-		<TabsRoot value={s.activeTab()} onValueChange={(d) => s.setActiveTab(d.value)}>
+		<TabsRoot value={activeTab()} onValueChange={(d) => setActiveTab(d.value)}>
 			<FloatingWindowHeader
 				title={<FloatingPanelTitle>Settings</FloatingPanelTitle>}
 				actions={<>
@@ -106,87 +90,19 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 
 			<FloatingPanelBody>
 				<div class="flex-1 overflow-auto px-6 py-4" data-testid="launcher-settings-scroll">
-								<Show when={s.loading() && !s.config()}>
-									<p class="text-sm text-muted-foreground">Loading...</p>
-								</Show>
-
-								<Show when={s.config()}>
-									{(_) => {
-										const cfg = () => s.config()!;
-										return (<>
-										<Show when={visited("misc")}>
-											<MiscTab
-												projectName={s.projectName()}
-												setProjectName={s.setProjectName}
-												saveProjectName={s.saveProjectName}
-												projectPath={s.projectPath()}
-												setProjectPath={s.setProjectPath}
-												saveProjectPath={s.saveProjectPath}
-												savingProjectPath={s.savingProjectPath()}
-												ticketsPath={s.ticketsPath()}
-												setTicketsPath={s.setTicketsPath}
-												saveTicketsPath={s.saveTicketsPath}
-												ticketsBranch={s.ticketsBranch()}
-												setTicketsBranch={s.setTicketsBranch}
-												saveTicketsBranch={s.saveTicketsBranch}
-												savingTicketsLocation={s.savingTicketsLocation()}
-												worktreeRootPath={s.worktreeRootPath()}
-												setWorktreeRootPath={s.setWorktreeRootPath}
-												saveWorktreeRootPath={s.saveWorktreeRootPath}
-												branchPrefix={s.branchPrefix()}
-												setBranchPrefix={s.setBranchPrefix}
-												saveBranchPrefix={s.saveBranchPrefix}
-												conflictPrompt={s.conflictPrompt()}
-												setConflictPrompt={s.setConflictPrompt}
-												saveConflictResolution={s.saveConflictResolution}
-												setError={s.setError}
-												projectSlug={props.projectSlug}
-												onDeleteProject={props.onDeleteProject}
-											/>
-										</Show>
-										<Show when={visited("templates")}>
-											<PromptsTab
-												config={cfg()}
-												templateReorder={s.templateReorder}
-												skillReorder={s.skillReorder}
-												startAdd={s.startAdd}
-												startEdit={s.startEdit}
-												deleteItem={s.deleteItem}
-											/>
-										</Show>
-										<Show when={visited("profiles")}>
-											<LaunchTab
-												config={cfg()}
-												profileReorder={s.profileReorder}
-												shortcutReorder={s.shortcutReorder}
-												startAdd={s.startAdd}
-												startEdit={s.startEdit}
-												deleteItem={s.deleteItem}
-											/>
-										</Show>
-										<Show when={visited("columns")}>
-											<ColumnsTab
-												open={props.open}
-												projectSlug={props.projectSlug}
-												onError={s.setError}
-											/>
-										</Show>
-									</>);
-									}}
-								</Show>
-								<Show when={visited("command-templates")}>
-									<CommandTemplatesTab />
-								</Show>
-							</div>
+					<Show when={visited('misc')}>
+						<MiscTab open={props.open} projectSlug={props.projectSlug}
+							onDeleteProject={props.onDeleteProject} />
+					</Show>
+					<Show when={visited('templates')}><PromptsTab open={props.open} /></Show>
+					<Show when={visited('profiles')}><LaunchTab open={props.open} /></Show>
+					<Show when={visited('columns')}>
+						<ColumnsTab open={props.open} projectSlug={props.projectSlug} />
+					</Show>
+					<Show when={visited('command-templates')}><CommandTemplatesTab /></Show>
+				</div>
 			</FloatingPanelBody>
 		</TabsRoot>
 		</FloatingWindow>
-
-		<ItemFormDialog
-			form={s.form()}
-			setForm={s.setForm}
-			onSubmit={s.submitForm}
-		/>
-		<ErrorDialog error={s.error()} onClose={() => s.setError(null)} />
 	</>);
 }

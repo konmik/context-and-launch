@@ -1,28 +1,23 @@
-import { revalidate } from '@solidjs/router';
+import { createContext, createMemo } from 'solid-js';
 import type { LauncherConfig } from '~/core/launcher/launcher-config-data.js';
-import type { Updater } from '~/util/updater.js';
-import type { Result } from '~/util/result.js';
+import { createStoredSignal, type StoredSignal } from '~/util/stored-signal.js';
 import { transformConfig } from '~/util/transform-config.js';
 import {
-	getProjectLauncherConfig, readProjectLauncherConfig, saveProjectLauncherConfig, releaseProjectLauncherConfig,
+	readProjectLauncherConfig, saveProjectLauncherConfig, releaseProjectLauncherConfig,
 } from './launcher-api.js';
 
-const pending = new Map<string, Promise<Result<LauncherConfig, string>>>();
+export const ProjectLauncherConfigContext = createContext<StoredSignal<LauncherConfig>>();
 
-export function updateProjectLauncherConfig(projectSlug: string, transform: Updater<LauncherConfig>) {
-	const operation = (pending.get(projectSlug) ?? Promise.resolve()).then(async () => {
-		const result = await transformConfig(
-			transform,
-			owner => readProjectLauncherConfig(projectSlug, owner),
-			(json, owner) => saveProjectLauncherConfig(projectSlug, json, owner),
-			owner => releaseProjectLauncherConfig(projectSlug, owner),
-		);
-		if (result.type === 'Success') revalidate(getProjectLauncherConfig.keyFor(projectSlug));
-		return result;
+export function createProjectLauncherConfigStorage(projectSlug: string): StoredSignal<LauncherConfig> {
+	const initial = createMemo(async () => {
+		const result = await readProjectLauncherConfig(projectSlug);
+		if (result.type === 'Failure') throw new Error(result.error);
+		return result.value;
 	});
-	pending.set(projectSlug, operation);
-	void operation.then(() => {
-		if (pending.get(projectSlug) === operation) pending.delete(projectSlug);
-	});
-	return operation;
+	return createStoredSignal(initial, transform => transformConfig(
+		transform,
+		owner => readProjectLauncherConfig(projectSlug, owner),
+		(json, owner) => saveProjectLauncherConfig(projectSlug, json, owner),
+		owner => releaseProjectLauncherConfig(projectSlug, owner),
+	));
 }

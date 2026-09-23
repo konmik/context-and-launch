@@ -13,6 +13,8 @@ import { NameDragOverlay } from "../board/dnd-shared.js";
 import { createListReorder } from '../board/list-reorder.js';
 import { SortableColumnRow, ColumnDropPreview } from "./launcher-settings-rows.js";
 import BoardSelect from "../project/BoardSelect.js";
+import ErrorDialog from '../shared/ErrorDialog.js';
+import { ProjectLauncherConfigContext } from './project-launcher-config-storage.js';
 import {
 	ColumnFormDialog, RenameColumnDialog, BoardFormDialog, DeleteConfirmDialog, ProjectBoardConfirmDialog,
 	type ColumnFormState, type DeleteTarget, type RenameFormState,
@@ -22,9 +24,10 @@ import { validateColumnName as columnValidation } from './launcher-settings-pure
 export function ColumnsTab(props: {
 	open: boolean;
 	projectSlug: string;
-	onError: (error: ErrorInfo) => void;
 }) {
 	const storage = useContext(BoardConfigContext)!;
+	const projectConfig = useContext(ProjectLauncherConfigContext)!;
+	const [error, setError] = createSignal<ErrorInfo | null>(null);
 	const appConfig = useContext(AppConfigContext)!;
 	const boards = storage.get;
 	const projectBoardId = () => appConfig.get().projects.find(p => p.projectSlug === props.projectSlug)?.boardId;
@@ -86,18 +89,28 @@ export function ColumnsTab(props: {
 		setColumnForm(null); setRenameForm(null);
 		if (rename && rename.scope !== 'none') {
 			try {
+				if (rename.scope === 'current' || boardId === (projectBoardId() ?? boards()[0]?.id)) {
+					const migrated = await projectConfig.update(current => {
+						if (!current.columnDefaults || !Object.hasOwn(current.columnDefaults, rename.oldName)) {
+							return current;
+						}
+						const { [rename.oldName]: defaults, ...remaining } = current.columnDefaults;
+						return { ...current, columnDefaults: { ...remaining, [newName]: defaults } };
+					});
+					if (migrated.type === 'Failure') throw new Error(migrated.error);
+				}
 				const migration = await migrateRenamedColumn(
 					boardId, rename.oldName, newName, rename.scope, projectSlug,
 				);
-				if (migration.type === 'Failure') {
-					const rollback = await storage.update(current => current.map(board => board.id === boardId
-						? { ...board, columns: board.columns.map(column => column.name === newName
-							? { ...column, name: rename.oldName } : column) } : board));
-					throw new Error(migration.error
-						+ (rollback.type === 'Failure' ? `; rollback failed: ${rollback.error}` : ''));
-				}
-				await revalidate(['project-page', 'launcher-config']);
-			} catch (error) { props.onError({ title: 'Migration failed', description: errorMessage(error) }); }
+				if (migration.type === 'Failure') throw new Error(migration.error);
+				await revalidate('project-page');
+			} catch (error) {
+				const rollback = await storage.update(current => current.map(board => board.id === boardId
+					? { ...board, columns: board.columns.map(column => column.name === newName
+						? { ...column, name: rename.oldName } : column) } : board));
+				setError({ title: 'Migration failed', description: errorMessage(error)
+					+ (rollback.type === 'Failure' ? `; rollback failed: ${rollback.error}` : '') });
+			}
 		}
 	}
 	async function deleteSelected() {
@@ -109,15 +122,15 @@ export function ColumnsTab(props: {
 				return current.filter(b => b.id !== target.id);
 			});
 		setDeleteConfirm(null);
-		if (result.type === 'Failure') { props.onError({ title: 'Delete failed', description: result.error }); return; }
+		if (result.type === 'Failure') { setError({ title: 'Delete failed', description: result.error }); return; }
 		if (target.type === 'board') {
 			const cleared = await appConfig.update(current => ({ ...current, projects: current.projects.map(project => {
 				if (project.boardId !== target.id) return project;
 				const { boardId: _, ...rest } = project;
 				return rest;
 			}) }));
-			if (cleared.type === 'Failure') props.onError({ title: 'Delete failed', description: cleared.error });
-			await revalidate(['project-page', 'launcher-config']);
+			if (cleared.type === 'Failure') setError({ title: 'Delete failed', description: cleared.error });
+			await revalidate('project-page');
 		}
 	}
 	async function setProjectBoard() {
@@ -125,9 +138,9 @@ export function ColumnsTab(props: {
 		const projectSlug = props.projectSlug;
 		const result = await appConfig.update(current => ({ ...current, projects: current.projects.map(project =>
 			project.projectSlug === projectSlug ? { ...project, boardId: board.id } : project) }));
-		if (result.type === 'Failure') { props.onError({ title: 'Save failed', description: result.error }); return; }
+		if (result.type === 'Failure') { setError({ title: 'Save failed', description: result.error }); return; }
 		setProjectBoardConfirm(null);
-		await revalidate(['project-page', 'launcher-config']);
+		await revalidate('project-page');
 	}
 	const columnReorder = createListReorder<ColumnDefinition>({
 		items: () => selectedBoard().columns, idOf: c => c.name,
@@ -139,7 +152,7 @@ export function ColumnsTab(props: {
 				}
 				return names.map(name => columns.find(c => c.name === name)!);
 			});
-			if (result.type === 'Failure') props.onError({ title: 'Reorder failed', description: result.error });
+			if (result.type === 'Failure') setError({ title: 'Reorder failed', description: result.error });
 		},
 	});
 	useModEnterSubmit({
@@ -282,6 +295,7 @@ export function ColumnsTab(props: {
 				</section>
 			</div>
 		</TabsContent>
+		<ErrorDialog error={error()} onClose={() => setError(null)} />
 		<ColumnFormDialog columnForm={columnForm()} setColumnForm={setColumnForm} renameActive={!!renameForm()}
 			columnError={columnDialogError()} validation={validation()} onSubmit={f => saveColumn(f)} />
 		<RenameColumnDialog renameForm={renameForm()} setRenameForm={setRenameForm}

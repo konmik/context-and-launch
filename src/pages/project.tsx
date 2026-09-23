@@ -48,7 +48,10 @@ import {
 } from "~/components/project/project-page-controller.js";
 import { getSyncPending } from "~/components/ticket/ticket-api.js";
 import { openConfigDir } from "~/components/shared/shared-api.js";
-import { getProjectLauncherConfig } from "~/components/launcher/launcher-api.js";
+import { getProjectLauncherMetadata } from "~/components/launcher/launcher-api.js";
+import {
+  ProjectLauncherConfigContext, createProjectLauncherConfigStorage,
+} from '~/components/launcher/project-launcher-config-storage.js';
 import {
   getHerdrAgentStatuses,
   reconcileReviewPromptQueue,
@@ -99,10 +102,18 @@ function createDeferredSignal<T>(ready: () => boolean, load: () => Promise<T>, p
 }
 
 export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
+  const params = useParams();
+  const storage = createMemo(() => createProjectLauncherConfigStorage(params.projectSlug!));
+  return <ProjectLauncherConfigContext value={{
+    get: () => storage().get(), update: transform => storage().update(transform),
+  }}><ProjectContent {...props} /></ProjectLauncherConfigContext>;
+}
+
+function ProjectContent(props: { ctrl?: ProjectPageController }) {
   const appConfig = useContext(AppConfigContext)!;
   const params = useParams();
   const navigate = useNavigate();
-  const projectSlug = () => params.projectSlug ?? "";
+  const projectSlug = () => params.projectSlug ?? '';
   const boards = useContext(BoardConfigContext)!;
   const data = createDeferredSignal(() => !!projectSlug(), () => loadProjectPage(projectSlug()), undefined);
 
@@ -148,14 +159,15 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   });
 
   const sharedLauncherConfig = useContext(LauncherConfigContext)!;
-  const projectLauncherConfig = createMemo(async () => {
+  const projectLauncherConfig = useContext(ProjectLauncherConfigContext)!;
+  const projectMetadata = createMemo(async () => {
     const page = data();
     if (page?.status !== "loaded") return undefined;
-    return getProjectLauncherConfig(page.projectSlug);
+    return getProjectLauncherMetadata(page.projectSlug);
   });
   const launcherConfig = createMemo(() => {
-    const project = projectLauncherConfig();
-    return project && { ...project, ...mergeLauncherConfigs(sharedLauncherConfig.get(), project.projectConfig) };
+    const project = projectMetadata();
+    return project && { ...project, ...mergeLauncherConfigs(sharedLauncherConfig.get(), projectLauncherConfig.get()) };
   });
   const shortcutRunner = createBoardShortcutRunner({ projectSlug, config: launcherConfig });
 

@@ -18,45 +18,30 @@ import { succeed, fail } from '~/util/result.js';
 import { resolveConflictsWith } from "~/core/launcher/resolve-conflicts.js";
 import type {
   MergedLauncherConfig,
-  LauncherConfig,
 } from "~/core/launcher/launcher-config.js";
 
-export interface ProjectLauncherConfigData {
-  projectConfig: LauncherConfig;
-  projectBoardId: string | null;
-  projectName: string;
+export interface ProjectLauncherMetadata {
   projectPath: string;
   ticketsBranch?: string;
-  ticketsPath?: string;
   worktreeDir: string;
   agentWorktreeDir: string;
 }
 
-export interface MergedLauncherConfigWithMeta extends ProjectLauncherConfigData, MergedLauncherConfig {}
+export interface MergedLauncherConfigWithMeta extends ProjectLauncherMetadata, MergedLauncherConfig {}
 
-function loadProjectLauncherConfig(projectSlug: string): ProjectLauncherConfigData {
+export const getProjectLauncherMetadata = query(async (projectSlug: string): Promise<ProjectLauncherMetadata> => {
+  "use server";
   const project = projectRegistry.listProjects().find(p => p.projectSlug === projectSlug);
   if (!project) throw new Error(`Project not found: ${projectSlug}`);
   return {
-    projectConfig: launcherConfigManager.loadProjectConfig(projectSlug),
-    projectBoardId: project.boardId ?? null,
-    projectName: project.name,
     projectPath: project.path,
     ticketsBranch: project.branch,
-    ticketsPath: project.ticketsPath,
     worktreeDir: worktreeManager.getWorktreeDir(projectSlug),
     agentWorktreeDir: launcherConfigManager.getAgentWorktreeDir(projectSlug),
   };
-}
+}, "launcher-metadata");
 
-export const getProjectLauncherConfig = query(async (
-  projectSlug: string,
-): Promise<ProjectLauncherConfigData> => {
-  "use server";
-  return loadProjectLauncherConfig(projectSlug);
-}, "launcher-config");
-
-export async function readProjectLauncherConfig(projectSlug: string, owner: string) {
+export async function readProjectLauncherConfig(projectSlug: string, owner?: string) {
   "use server";
   try {
     return succeed(launcherConfigManager.loadProjectConfig(projectSlug, owner));

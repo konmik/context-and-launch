@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "~/test-render.js";
-import { createSignal, createRoot } from "solid-js";
+import { createSignal, createRoot, createMemo } from "solid-js";
 import TicketDetailDialog from "./TicketDetailDialog";
 import {
   createTicketDetailState, type TicketDetailStateDeps,
@@ -43,6 +43,7 @@ function makeTicket(folder: string, number: string, title: string): TicketInfo {
 const emptyConfig = { templates: [], skills: [], profiles: [], columnDefaults: {} };
 
 function stateDependencies(ticket: TicketInfo): TicketDetailStateDeps {
+	const initial = createMemo(async () => (await mockGetMergedLauncherConfig()).projectConfig);
   const [ticketFiles, setTicketFiles] = createSignal<TicketFiles>({
     contextNames: ticket.contextNames,
     fileNames: ticket.fileNames,
@@ -64,11 +65,8 @@ function stateDependencies(ticket: TicketInfo): TicketDetailStateDeps {
     addReferences: async () => ({ ok: true }),
     uploadFile: mockUploadFile,
     updateTicket: mockUpdateTicket,
-    getProjectLauncherConfig: mockGetMergedLauncherConfig,
-    updateProjectLauncherConfig: async (_projectSlug, transform) => ({
-      type: 'Success',
-      value: transform((await mockGetMergedLauncherConfig("test-project")).projectConfig),
-    }),
+    getProjectLauncherMetadata: mockGetMergedLauncherConfig,
+    projectConfig: createStoredSignal(initial, async transform => ({ type: 'Success', value: transform(initial()) })),
     openNativeFileBrowser: async () => [],
   };
 }
@@ -493,7 +491,7 @@ describe("TicketDetailDialog context deletion clears extraFiles", () => {
 });
 
 describe('TicketDetailDialog shared launcher state', () => {
-  it('reflects project query changes in every open consumer', async () => {
+  it('reflects project storage changes in every open consumer', async () => {
     const ticket = makeTicket('t-1-alpha', 'T-1', 'Alpha');
     const { states, setProject, dispose } = createRoot(dispose => {
       const [project, setProject] = createSignal<LauncherConfig>({
@@ -501,10 +499,8 @@ describe('TicketDetailDialog shared launcher state', () => {
       });
       const deps = {
         ...stateDependencies(ticket),
-        getProjectLauncherConfig: async () => ({
-          projectConfig: project(), projectBoardId: null, projectName: '',
-          projectPath: '', worktreeDir: '', agentWorktreeDir: '',
-        }),
+        projectConfig: createStoredSignal(project,
+          async transform => ({ type: 'Success', value: transform(project()) })),
       };
       const states = [0, 1].map(() => createTicketDetailState({
         ticket, projectSlug: 'test-project', onClose: () => {},
@@ -533,7 +529,9 @@ describe('TicketDetailDialog shared launcher state', () => {
         return { type: 'Success', value: saved };
       });
       const state = createTicketDetailState({ ticket, projectSlug: 'test-project', onClose: () => {} }, {
-        ...stateDependencies(ticket), sharedConfig, getProjectLauncherConfig: readProject,
+        ...stateDependencies(ticket), sharedConfig,
+        projectConfig: createStoredSignal(createMemo(async () => (await readProject()).projectConfig),
+          async transform => ({ type: 'Success', value: transform((await readProject()).projectConfig) })),
       });
       return { state, sharedConfig, dispose };
     });

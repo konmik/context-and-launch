@@ -2,7 +2,7 @@ import { createSignal, createEffect, createMemo, flush, onSettled, untrack, useC
 import { LauncherConfigContext } from '../launcher/shared-launcher-config-storage.js';
 import { mergeLauncherConfigs, type LauncherConfig } from '~/core/launcher/launcher-config-data.js';
 import type { StoredSignal } from '~/util/stored-signal.js';
-import { updateProjectLauncherConfig } from '../launcher/project-launcher-config-storage.js';
+import { ProjectLauncherConfigContext } from '../launcher/project-launcher-config-storage.js';
 import type { Accessor } from "solid-js";
 import { revalidate } from "@solidjs/router";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
@@ -41,9 +41,8 @@ import {
 import { ticketMutationRevalidateKeys } from "../shared/revalidate-keys.js";
 import { createWorktreeRevision } from "../shared/worktree-revision.js";
 import {
-  getProjectLauncherConfig,
+  getProjectLauncherMetadata,
   runShortcut,
-  type ProjectLauncherConfigData,
 } from "../launcher/launcher-api.js";
 import { openNativeFileBrowser as openNativeFileBrowserServer } from "../shared/shared-api.js";
 
@@ -65,8 +64,8 @@ export interface TicketDetailStateDeps {
   uploadFile?: typeof uploadFileAction;
   updateTicket?: typeof updateTicket;
   runShortcut?: typeof runShortcut;
-  getProjectLauncherConfig?: (projectSlug: string) => Promise<ProjectLauncherConfigData>;
-  updateProjectLauncherConfig?: typeof updateProjectLauncherConfig;
+  projectConfig?: StoredSignal<LauncherConfig>;
+  getProjectLauncherMetadata?: (projectSlug: string) => ReturnType<typeof getProjectLauncherMetadata>;
   openNativeFileBrowser?: typeof openNativeFileBrowserServer;
 }
 
@@ -85,11 +84,12 @@ export function createTicketDetailState(
   const [activeTab, setActiveTab] = createSignal<Tab>("editor");
   const [initialTabResolved, setInitialTabResolved] = createSignal(false);
   const sharedConfig = deps.sharedConfig ?? useContext(LauncherConfigContext)!;
-  const projectConfig = createMemo(() =>
-    (deps.getProjectLauncherConfig ?? getProjectLauncherConfig)(props.projectSlug), { loadingValue: null });
+  const projectConfig = deps.projectConfig ?? useContext(ProjectLauncherConfigContext)!;
+  const metadata = createMemo(() =>
+    (deps.getProjectLauncherMetadata ?? getProjectLauncherMetadata)(props.projectSlug), { loadingValue: null });
   const launcherConfig = createMemo(() => {
-    const project = projectConfig();
-    return project && { ...project, ...mergeLauncherConfigs(sharedConfig.get(), project.projectConfig) };
+    const project = metadata();
+    return project && { ...project, ...mergeLauncherConfigs(sharedConfig.get(), projectConfig.get()) };
   });
   const [extraFiles, setExtraFiles] = createSignal<string[]>([]);
   const [newFileDialogOpen, setNewFileDialogOpen] = createSignal(false);
@@ -279,17 +279,17 @@ export function createTicketDetailState(
   }
 
   createEffect(
-    () => [projectConfig(), props.ticket.status, initialTabResolved()] as const,
+    () => [projectConfig.get(), props.ticket.status, initialTabResolved()] as const,
     ([data, status, resolved]) => {
       if (!data || resolved) return;
-      if (data.projectConfig.columnDefaults?.[status]?.lastLayer === 'launcher') setActiveTab('launcher');
+      if (data.columnDefaults?.[status]?.lastLayer === 'launcher') setActiveTab('launcher');
       setInitialTabResolved(true);
     },
   );
 
   function patchColumnDefaults(patch: Partial<LauncherColumnDefaults>) {
     const column = props.ticket.status;
-    (deps.updateProjectLauncherConfig ?? updateProjectLauncherConfig)(props.projectSlug, current => ({
+    projectConfig.update(current => ({
       ...current,
       columnDefaults: {
         ...current.columnDefaults,

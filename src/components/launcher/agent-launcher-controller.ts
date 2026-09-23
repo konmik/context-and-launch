@@ -99,7 +99,6 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 				setSelectedProfile(defaults.profileName);
 			}
 		},
-		{ defer: true },
 	);
 
 	function toggleSkill(name: string) {

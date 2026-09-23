@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 import {
   setupE2E, seedProject, gotoProject, openLauncherSettings, openLauncherSettingsTab,
   dragElement, sortableItem, poll, readBoardDefinitions, readTicketStatus,
+  openTicketDetail, readProjectLauncherConfig,
 } from './fixtures.js';
 import { testId, waitVisible, waitGone } from './locators.js';
 
@@ -13,6 +14,8 @@ it('uses edited board definitions immediately across settings, tickets, projects
     slugBase: 'board-flow-first',
     withBoards: [{ id: 'shared', name: 'Shared', columns: [{ name: 'todo' }, { name: 'done' }] }],
     withTickets: [{ number: 'T-1', title: 'Alpha', status: 'todo', folderName }],
+    appLauncherConfig: { profiles: [{ name: 'Default', command: 'echo default' },
+      { name: 'Review Agent', command: 'echo review' }] },
   });
   const second = await seedProject(ctx, { slugBase: 'board-flow-second' });
   await gotoProject(ctx.page, ctx.testServer, first.projectSlug);
@@ -52,6 +55,13 @@ it('uses edited board definitions immediately across settings, tickets, projects
     ticket => ticket?.status === 'review', 5000);
   expect(moved?.status).toBe('review');
 
+  await openTicketDetail(ctx.page, folderName);
+  await testId(ctx.page, 'ticket-detail-tab-launcher').click();
+  await testId(ctx.page, 'ticket-detail-launcher-profile-select').selectOption('Review Agent');
+  await poll(() => readProjectLauncherConfig(ctx.testServer, first.projectSlug),
+    config => config?.columnDefaults?.review?.profileName === 'Review Agent', 5000);
+  await testId(ctx.page, 'ticket-detail-close-button').click();
+
   await openLauncherSettings(ctx.page);
   await openLauncherSettingsTab(ctx.page, 'columns');
   const row = testId(ctx.page, 'launcher-settings-columns-row').filter({ hasText: 'review' });
@@ -62,12 +72,19 @@ it('uses edited board definitions immediately across settings, tickets, projects
   await testId(ctx.page, 'launcher-settings-columns-rename-confirm').click();
   await waitGone(ctx.page, 'launcher-settings-columns-name-input');
   await expectBoard('verification');
-  await sortableItem(ctx.page, `verification:${folderName}`).waitFor({ state: 'visible', timeout: 5000 });
   const migrated = await poll(() => readTicketStatus(ctx.testServer, first.projectSlug, folderName),
     ticket => ticket?.status === 'verification', 5000);
   expect(migrated?.status).toBe('verification');
+  await sortableItem(ctx.page, `verification:${folderName}`).waitFor({ state: 'visible', timeout: 5000 });
   await testId(ctx.page, 'launcher-settings-close-button').click();
   await waitGone(ctx.page, 'launcher-settings-columns-board-selector');
+
+  await openTicketDetail(ctx.page, folderName);
+  await testId(ctx.page, 'ticket-detail-tab-launcher').click();
+  await expect.poll(() => testId(ctx.page, 'ticket-detail-launcher-profile-select').inputValue())
+    .toBe('Review Agent');
+  expect(readProjectLauncherConfig(ctx.testServer, first.projectSlug)?.columnDefaults?.review).toBeUndefined();
+  await testId(ctx.page, 'ticket-detail-close-button').click();
 
   await switchProject(second.projectSlug);
   await expectBoard('verification');
