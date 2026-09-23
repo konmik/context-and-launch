@@ -1,48 +1,33 @@
-import { query } from '@solidjs/router';
-import { commandTemplateService } from '~/core/config/instances.js';
-import { errorResult } from '~/core/shared/errors.js';
-import type { CommandTemplateFeatureGroup } from '~/core/command-template/command-template-types.js';
-import type { CommandTemplateKey } from '~/core/command-template/command-template-definitions.js';
+import { commandTemplateStore } from '~/core/config/instances.js';
+import { errorMessage } from '~/core/shared/errors.js';
+import { COMMAND_TEMPLATE_DEFINITIONS } from '~/core/command-template/command-template-definitions.js';
+import {
+	currentCommandTemplatePlatform, type CommandTemplateOverrides,
+} from '~/core/command-template/command-template-types.js';
+import { fail, succeed, type Result } from '~/util/result.js';
 
-export interface CommandTemplateView {
-	key: CommandTemplateKey;
-	label: string;
-	featureGroup: CommandTemplateFeatureGroup;
-	script: string;
-	isOverridden: boolean;
-	knownPlaceholders: string[];
-}
-
-function toView(entry: ReturnType<typeof commandTemplateService.get>): CommandTemplateView {
-	return {
-		key: entry.key,
-		label: entry.label,
-		featureGroup: entry.featureGroup,
-		script: entry.script,
-		isOverridden: entry.isOverridden,
-		knownPlaceholders: [...entry.scalarPlaceholders, ...entry.listPlaceholders],
-	};
-}
-
-export const getCommandTemplates = query(async (): Promise<CommandTemplateView[]> => {
+export async function getCommandTemplateDefinitions() {
 	'use server';
-	return commandTemplateService.entriesForCurrentPlatform().map(toView);
-}, 'command-templates');
+	return COMMAND_TEMPLATE_DEFINITIONS.filter(entry => entry.platforms.includes(currentCommandTemplatePlatform()));
+}
 
-export async function saveCommandTemplate(key: CommandTemplateKey, script: string) {
+export async function readCommandTemplates(owner?: string): Promise<Result<CommandTemplateOverrides, string>> {
+	'use server';
+	try { return succeed(commandTemplateStore.read(owner)); }
+	catch (error) { return fail(errorMessage(error)); }
+}
+
+export async function saveCommandTemplates(
+	json: string, owner: string,
+): Promise<Result<CommandTemplateOverrides, string>> {
 	'use server';
 	try {
-		return { ok: true as const, entry: toView(commandTemplateService.save(key, script)) };
-	} catch (error) {
-		return errorResult(error);
-	}
+		if (!owner) return fail('Configuration update requires a client identity.');
+		return succeed(commandTemplateStore.write(JSON.parse(json), owner));
+	} catch (error) { return fail(errorMessage(error)); }
 }
 
-export async function resetCommandTemplate(key: CommandTemplateKey) {
+export async function releaseCommandTemplates(owner: string): Promise<void> {
 	'use server';
-	try {
-		return { ok: true as const, entry: toView(commandTemplateService.reset(key)) };
-	} catch (error) {
-		return errorResult(error);
-	}
+	commandTemplateStore.release(owner);
 }

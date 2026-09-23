@@ -6,6 +6,9 @@ import {
 } from './components/launcher/shared-launcher-config-storage.js';
 import "./app.css";
 import { BoardConfigContext, createBoardConfigStorage } from './components/board/board-config-storage.js';
+import {
+  CommandTemplateContext, createCommandTemplateStorage,
+} from './components/launcher/command-template-storage.js';
 
 export default function App() {
   return (
@@ -13,6 +16,7 @@ export default function App() {
       const config = createAppConfigStorage();
       const launcherConfig = createSharedLauncherConfigStorage();
       const boards = createBoardConfigStorage();
+      const commandTemplates = createCommandTemplateStorage();
       return (
         <Errored fallback={(error, reset) => (
           <div
@@ -29,7 +33,9 @@ export default function App() {
           <Loading fallback={<p>Loading...</p>}>
             <AppConfigContext value={config}>
               <LauncherConfigContext value={launcherConfig}>
-                <BoardConfigContext value={boards}>{props.children}</BoardConfigContext>
+                <BoardConfigContext value={boards}>
+                  <CommandTemplateContext value={commandTemplates}>{props.children}</CommandTemplateContext>
+                </BoardConfigContext>
               </LauncherConfigContext>
             </AppConfigContext>
           </Loading>

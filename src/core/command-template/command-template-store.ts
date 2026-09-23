@@ -1,157 +1,65 @@
-import bundledDefaults from '../../../config-defaults/command-templates.json' with { type: 'json' };
 import * as v from 'valibot';
 import type { ConfigPaths } from '../config/config-paths.js';
 import type { ConfigRepository } from '../config/config-repository.js';
-import { COMMAND_TEMPLATE_DEFINITION_BY_KEY, COMMAND_TEMPLATE_DEFINITIONS } from './command-template-definitions.js';
+import { COMMAND_TEMPLATE_DEFINITION_BY_KEY, COMMAND_TEMPLATE_DEFAULTS } from './command-template-definitions.js';
 import type { CommandTemplateKey } from './command-template-definitions.js';
 import { undeclaredPlaceholders } from './command-template-interpolation.js';
-import type { CommandTemplateDefinition, CommandTemplateEntry } from './command-template-types.js';
+import type { CommandTemplateEntry, CommandTemplateOverrides } from './command-template-types.js';
+import { UpdateLock } from '~/util/update-lock.js';
 import type { JsonValue } from '../shared/json.js';
 
-type ScriptMap = Record<string, string>;
-type KnownCommandTemplateDefinition = CommandTemplateDefinition & {
-	readonly key: CommandTemplateKey;
-};
-
-const BUNDLED_DEFAULTS_LABEL = 'The bundled Command Template catalog';
-const ScriptRecordSchema = v.record(v.string(), v.unknown());
-const ScriptSchema = v.string();
-
-function validateScriptMap(value: JsonValue, fileLabel: string) {
-	if (Array.isArray(value)) {
-		throw new Error(`${fileLabel} must contain a JSON object of Command Template strings.`);
-	}
-	const parsedRecord = v.safeParse(ScriptRecordSchema, value);
-	if (!parsedRecord.success) {
-		throw new Error(`${fileLabel} must contain a JSON object of Command Template strings.`);
-	}
-	const result: ScriptMap = {};
-	for (const [key, script] of Object.entries(parsedRecord.output)) {
-		const parsedScript = v.safeParse(ScriptSchema, script);
-		if (!parsedScript.success) {
-			throw new Error(`Command Template '${key}' in ${fileLabel} must be a string.`);
-		}
-		result[key] = parsedScript.output;
-	}
-	return result;
-}
-
-function assertDeclaredPlaceholders(
-	definition: CommandTemplateDefinition, script: string, sourceLabel: string,
-): void {
-	const undeclared = undeclaredPlaceholders(
-		script, definition.scalarPlaceholders, definition.listPlaceholders,
-	);
-	if (undeclared.length === 0) return;
-	const declared = [...definition.scalarPlaceholders, ...definition.listPlaceholders];
-	const list = (names: readonly string[]) =>
-		names.length > 0 ? names.map((name) => `{{${name}}}`).join(', ') : 'none';
-	throw new Error(
-		`${sourceLabel} defines Command Template '${definition.key}' with undeclared `
-		+ `placeholders: ${list(undeclared)}. Available placeholders: ${list(declared)}.`,
-	);
-}
-
-function assertKnownKeys(map: ScriptMap, fileLabel: string): void {
-	for (const [key, script] of Object.entries(map)) {
+function validateOverrides(value: JsonValue): CommandTemplateOverrides {
+	if (Array.isArray(value)) throw new Error('Command Template overrides must be a JSON object.');
+	const overrides = v.parse(v.record(v.string(), v.string()), value);
+	for (const [key, script] of Object.entries(overrides)) {
 		const definition = COMMAND_TEMPLATE_DEFINITION_BY_KEY.get(key);
-		if (!definition) {
-			throw new Error(`Unknown Command Template key '${key}' in ${fileLabel}.`);
+		if (!definition) throw new Error(`Unknown Command Template key '${key}'.`);
+		const undeclared = undeclaredPlaceholders(script, definition.scalarPlaceholders, definition.listPlaceholders);
+		if (undeclared.length) {
+			const list = (names: readonly string[]) => names.map(name => `{{${name}}}`).join(', ') || 'none';
+			const declared = [...definition.scalarPlaceholders, ...definition.listPlaceholders];
+			throw new Error(`Command Template '${key}' has undeclared placeholders: ${list(undeclared)}. `
+				+ `Available placeholders: ${list(declared)}.`);
 		}
-		assertDeclaredPlaceholders(definition, script, fileLabel);
 	}
+	return overrides;
 }
 
 export class CommandTemplateStore {
-	private defaults?: ScriptMap;
-
 	constructor(
 		private readonly paths: ConfigPaths,
 		private readonly repository: ConfigRepository,
+		private readonly lock = new UpdateLock(),
 	) {}
 
-	load(): CommandTemplateEntry[] {
-		const defaults = this.loadDefaults();
-		const overrides = this.loadOverrides();
-		return COMMAND_TEMPLATE_DEFINITIONS.map((definition) =>
-			this.toEntry(definition, defaults, overrides),
-		);
+	read(owner?: string): CommandTemplateOverrides {
+		return this.lock.read(() => validateOverrides(
+			this.repository.readJson(this.paths.commandTemplateOverridesFile()) ?? {},
+		), owner);
 	}
+
+	write(value: CommandTemplateOverrides, owner?: string): CommandTemplateOverrides {
+		return this.lock.write(() => {
+			const overrides = validateOverrides(value);
+			// SAFETY: validateOverrides rejects every key absent from the command catalog.
+			for (const key of Object.keys(overrides) as CommandTemplateKey[]) {
+				if (overrides[key] === COMMAND_TEMPLATE_DEFAULTS[key]) delete overrides[key];
+			}
+			this.repository.writeJson(this.paths.commandTemplateOverridesFile(), overrides);
+			return overrides;
+		}, owner);
+	}
+
+	release(owner: string): void { this.lock.release(owner); }
 
 	get(key: CommandTemplateKey): CommandTemplateEntry {
-		const definition = this.requireKnown(key);
-		return this.toEntry(definition, this.loadDefaults(), this.loadOverrides());
-	}
-
-	save(key: CommandTemplateKey, script: string): CommandTemplateEntry {
-		const definition = this.requireKnown(key);
-		assertDeclaredPlaceholders(definition, script, 'The edited script');
-		const defaults = this.loadDefaults();
-		const overrides = this.loadOverrides();
-		if (script === defaults[key]) delete overrides[key];
-		else overrides[key] = script;
-		this.repository.writeJson(this.paths.commandTemplateOverridesFile(), overrides);
-		return this.toEntry(definition, defaults, overrides);
-	}
-
-	reset(key: CommandTemplateKey): CommandTemplateEntry {
-		const definition = this.requireKnown(key);
-		const defaults = this.loadDefaults();
-		const overrides = this.loadOverrides();
-		delete overrides[key];
-		this.repository.writeJson(this.paths.commandTemplateOverridesFile(), overrides);
-		return this.toEntry(definition, defaults, overrides);
-	}
-
-	/**
-	 * The default catalog is compiled into the application bundle, so it always
-	 * ships with the app and can never be missing at runtime. It cannot change
-	 * while the app runs, so it is validated once. The sparse override file is
-	 * deliberately NOT cached: it is user-editable and may be synced externally,
-	 * and every operation must observe the current contents.
-	 */
-	private loadDefaults(): ScriptMap {
-		if (this.defaults) return this.defaults;
-		const defaults = validateScriptMap(bundledDefaults, BUNDLED_DEFAULTS_LABEL);
-		assertKnownKeys(defaults, BUNDLED_DEFAULTS_LABEL);
-		const missing = COMMAND_TEMPLATE_DEFINITIONS
-			.map((definition) => definition.key)
-			.filter((key) => !Object.hasOwn(defaults, key));
-		if (missing.length > 0) {
-			throw new Error(`Bundled Command Templates are missing: ${missing.join(', ')}.`);
-		}
-		this.defaults = defaults;
-		return defaults;
-	}
-
-	private loadOverrides(): ScriptMap {
-		const file = this.paths.commandTemplateOverridesFile();
-		const raw = this.repository.readJson(file);
-		if (raw === null) return {};
-		const overrides = validateScriptMap(raw, file);
-		assertKnownKeys(overrides, file);
-		return overrides;
-	}
-
-	private requireKnown(key: CommandTemplateKey): KnownCommandTemplateDefinition {
 		const definition = COMMAND_TEMPLATE_DEFINITION_BY_KEY.get(key);
-		if (!definition) {
-			throw new Error(`Unknown Command Template key '${key}'.`);
-		}
-		return { ...definition, key };
-	}
-
-	private toEntry(
-		definition: KnownCommandTemplateDefinition,
-		defaults: ScriptMap,
-		overrides: ScriptMap,
-	): CommandTemplateEntry {
-		const isOverridden = Object.hasOwn(overrides, definition.key);
+		if (!definition) throw new Error(`Unknown Command Template key '${key}'.`);
+		const overrides = this.read();
 		return {
-			...definition,
-			key: definition.key,
-			script: isOverridden ? overrides[definition.key] : defaults[definition.key],
-			isOverridden,
+			...definition, key,
+			script: overrides[key] ?? COMMAND_TEMPLATE_DEFAULTS[key],
+			isOverridden: Object.hasOwn(overrides, key),
 		};
 	}
 }

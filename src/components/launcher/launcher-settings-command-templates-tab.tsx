@@ -1,20 +1,39 @@
-import { For, Show } from 'solid-js';
+import { For, Show, createMemo, createSignal, useContext } from 'solid-js';
 import { TabsContent } from '../ui/tabs.js';
 import { COMMAND_TEMPLATE_GROUP_ORDER } from '~/core/command-template/command-template-types.js';
-import type { CommandTemplateSettingsController } from './command-template-settings-state.js';
+import {
+	COMMAND_TEMPLATE_DEFAULTS, type CommandTemplateKey,
+} from '~/core/command-template/command-template-definitions.js';
+import type { CommandTemplateOverrides } from '~/core/command-template/command-template-types.js';
+import type { ErrorInfo } from '~/core/shared/errors.js';
+import { CommandTemplateContext } from './command-template-storage.js';
+import { getCommandTemplateDefinitions } from './command-template-api.js';
+import ErrorDialog from '../shared/ErrorDialog.js';
 
-export function CommandTemplatesTab(props: { controller: CommandTemplateSettingsController }) {
+export function CommandTemplatesTab() {
+	const templates = useContext(CommandTemplateContext)!;
+	const definitions = createMemo(() => getCommandTemplateDefinitions());
+	const [drafts, setDrafts] = createSignal<CommandTemplateOverrides>({});
+	const [error, setError] = createSignal<ErrorInfo | null>(null);
+	const savedScript = (key: CommandTemplateKey) => templates.get()[key] ?? COMMAND_TEMPLATE_DEFAULTS[key];
+	const scriptFor = (key: CommandTemplateKey) => drafts()[key] ?? savedScript(key);
+	async function save(key: CommandTemplateKey, script: string) {
+		const result = await templates.update(current => {
+			const { [key]: _removed, ...rest } = current;
+			return script === COMMAND_TEMPLATE_DEFAULTS[key] ? rest : { ...rest, [key]: script };
+		});
+		if (result.type === 'Failure') setError({ title: 'Save failed', description: result.error });
+		else setDrafts(({ [key]: _removed, ...rest }) => rest);
+	}
 	return (
 		<TabsContent value="command-templates">
-			<Show when={props.controller.loading()}>
-				<p class="text-sm text-muted-foreground">Loading Command Templates...</p>
-			</Show>
+			<ErrorDialog error={error()} onClose={() => setError(null)} />
 			<p class="mb-4 rounded border border-warning/40 bg-warning/10 px-3 py-2 text-xs">
 				Trusted local code: these scripts run with your user permissions in the platform shell.
 			</p>
 			<div class="space-y-3" data-testid="command-template-list">
 				<For each={COMMAND_TEMPLATE_GROUP_ORDER}>{(group) => {
-					const rows = () => props.controller.entries().filter((entry) => entry.featureGroup === group);
+					const rows = () => definitions().filter((entry) => entry.featureGroup === group);
 					return <Show when={rows().length > 0}>
 						<details
 							class="rounded-md border border-border"
@@ -39,32 +58,35 @@ export function CommandTemplatesTab(props: { controller: CommandTemplateSettings
 										<span
 											class="rounded bg-muted px-2 py-0.5 text-xs"
 											data-testid="command-template-override-state"
-										>{entry.isOverridden ? 'Override' : 'Default'}</span>
+										>{Object.hasOwn(templates.get(), entry.key) ? 'Override' : 'Default'}</span>
 									</div>
 									<textarea
 										class="input mt-2 w-full resize-none font-mono text-xs"
 										style={{ 'field-sizing': 'content' }}
 										rows={1}
-										value={props.controller.scriptFor(entry)}
+										value={scriptFor(entry.key)}
 										onInput={(event) =>
-											props.controller.setDraft(entry.key, event.currentTarget.value)}
+											setDrafts(current => ({
+												...current, [entry.key]: event.currentTarget.value,
+											}))}
 										data-testid="command-template-editor-script"
 									/>
 									<p class="mt-2 text-xs text-muted-foreground">
 										Known placeholders:{' '}
-										{entry.knownPlaceholders.map((name) => `{{${name}}}`).join(' ') || 'none'}
+										{[...entry.scalarPlaceholders, ...entry.listPlaceholders]
+											.map((name) => `{{${name}}}`).join(' ') || 'none'}
 									</p>
 									<div class="mt-2 flex justify-end gap-2">
 										<button
 											class="btn-secondary"
-											disabled={!entry.isOverridden}
-											onClick={() => void props.controller.reset(entry.key)}
+											disabled={!Object.hasOwn(templates.get(), entry.key)}
+											onClick={() => void save(entry.key, COMMAND_TEMPLATE_DEFAULTS[entry.key])}
 											data-testid="command-template-reset"
 										>Reset</button>
 										<button
 											class="btn-primary"
-											disabled={!props.controller.isDirty(entry)}
-											onClick={() => void props.controller.save(entry)}
+											disabled={scriptFor(entry.key) === savedScript(entry.key)}
+											onClick={() => void save(entry.key, scriptFor(entry.key))}
 											data-testid="command-template-editor-save"
 										>Save</button>
 									</div>

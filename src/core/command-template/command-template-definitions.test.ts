@@ -7,10 +7,19 @@ import {
 	COMMAND_TEMPLATE_DEFINITIONS,
 	gitEnvironment,
 	remoteGitEnvironment,
+	COMMAND_TEMPLATE_DEFAULTS,
 } from './command-template-definitions.js';
 import { COMMAND_TEMPLATE_GROUP_ORDER } from './command-template-types.js';
+import { undeclaredPlaceholders } from './command-template-interpolation.js';
 
 describe('Command Template catalog', () => {
+	it('declares every placeholder used by the bundled defaults', () => {
+		for (const definition of COMMAND_TEMPLATE_DEFINITIONS) {
+			expect(undeclaredPlaceholders(COMMAND_TEMPLATE_DEFAULTS[definition.key],
+				definition.scalarPlaceholders, definition.listPlaceholders), definition.key).toEqual([]);
+		}
+	});
+
 	it('has a one-to-one key match with the flat bundled script map', () => {
 		const bundled = v.parse(v.record(v.string(), v.string()), JSON.parse(fs.readFileSync(
 			path.resolve('config-defaults/command-templates.json'), 'utf8',

@@ -19,7 +19,6 @@ import {
 	type LauncherSettingsController,
 } from "./launcher-settings-state.js";
 import ErrorDialog from "../shared/ErrorDialog.js";
-import { createCommandTemplateSettingsState } from './command-template-settings-state.js';
 import { CommandTemplatesTab } from './launcher-settings-command-templates-tab.js';
 
 interface LauncherSettingsProps {
@@ -32,7 +31,6 @@ interface LauncherSettingsProps {
 
 export default function LauncherSettings(props: LauncherSettingsProps) {
 	const s = untrack(() => props.ctrl ?? createLauncherSettingsState(props));
-	const commandTemplates = createCommandTemplateSettingsState(props);
 
 	const [visitedTabs, setVisitedTabs] = createSignal<Set<string>>(new Set());
 	createEffect(s.activeTab, (tab) => {
@@ -177,7 +175,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 									}}
 								</Show>
 								<Show when={visited("command-templates")}>
-									<CommandTemplatesTab controller={commandTemplates} />
+									<CommandTemplatesTab />
 								</Show>
 							</div>
 			</FloatingPanelBody>
@@ -190,9 +188,5 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 			onSubmit={s.submitForm}
 		/>
 		<ErrorDialog error={s.error()} onClose={() => s.setError(null)} />
-		<ErrorDialog
-			error={commandTemplates.error()}
-			onClose={() => commandTemplates.setError(null)}
-		/>
 	</>);
 }

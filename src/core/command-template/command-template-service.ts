@@ -71,24 +71,12 @@ export class CommandTemplateService implements CommandTemplateExecutor {
 		private readonly log: CommandTemplateLog = appLog,
 	) {}
 
-	entriesForCurrentPlatform() {
-		return this.store.load().filter((entry) => entry.platforms.includes(this.platform));
-	}
-
 	get(key: CommandTemplateKey) {
 		const entry = this.store.get(key);
 		if (!entry.platforms.includes(this.platform)) {
 			throw new Error(`Command Template '${key}' is not available on ${this.platform}.`);
 		}
 		return entry;
-	}
-
-	save(key: CommandTemplateKey, script: string) {
-		return this.store.save(key, script);
-	}
-
-	reset(key: CommandTemplateKey) {
-		return this.store.reset(key);
 	}
 
 	render(

@@ -172,6 +172,8 @@ export const COMMAND_TEMPLATE_DEFINITIONS = [
  */
 export type CommandTemplateKey = typeof COMMAND_TEMPLATE_DEFINITIONS[number]['key'];
 
+export { default as COMMAND_TEMPLATE_DEFAULTS } from '../../../config-defaults/command-templates.json' with { type: 'json' };
+
 export const COMMAND_TEMPLATE_DEFINITION_BY_KEY: ReadonlyMap<string, CommandTemplateDefinition> = new Map(
 	COMMAND_TEMPLATE_DEFINITIONS.map((item) => [item.key, item]),
 );

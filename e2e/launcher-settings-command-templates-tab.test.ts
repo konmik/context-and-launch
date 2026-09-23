@@ -58,11 +58,22 @@ describe('Command Templates Settings tab (e2e, real server)', () => {
 			.toBe(false);
 		await testId(gitGroup, "command-template-group-toggle").click();
 		const scriptField = testId(row, "command-template-editor-script");
+		const defaultScript = await scriptField.inputValue();
+		await scriptField.fill('{{undeclared}}');
+		await testId(row, 'command-template-editor-save').click();
+		await testId(ctx.page, 'error-dialog-ok').waitFor({ state: 'visible' });
+		expect(await scriptField.inputValue()).toBe('{{undeclared}}');
+		expect(await testId(row, 'command-template-override-state').textContent()).toBe('Default');
+		expect(fs.existsSync(overrideFile)).toBe(false);
+		await testId(ctx.page, 'error-dialog-ok').click();
 		await scriptField.fill('git version');
 		const oneLineHeight = (await scriptField.boundingBox())!.height;
 		await scriptField.fill('git version\n--build-options\n--no-pager\n--paginate');
 		const grownHeight = (await scriptField.boundingBox())!.height;
 		expect(grownHeight).toBeGreaterThan(oneLineHeight);
+		// Another writer edits a different platform after this editor has loaded.
+		const external = { 'picker.files.macos': '# externally edited picker' };
+		fs.writeFileSync(overrideFile, JSON.stringify(external));
 		await testId(row, "command-template-editor-save").click();
 		const saved = await poll(
 			() => {
@@ -76,6 +87,7 @@ describe('Command Templates Settings tab (e2e, real server)', () => {
 			5000,
 		);
 		expect(saved).toEqual({
+			...external,
 			'git.version': 'git version\n--build-options\n--no-pager\n--paginate',
 		});
 		expect(await poll(
@@ -95,6 +107,11 @@ describe('Command Templates Settings tab (e2e, real server)', () => {
 		const reloaded = ctx.page.locator('[data-command-template-key="git.version"]');
 		expect(await testId(reloaded, "command-template-editor-script").inputValue())
 			.toContain('build-options');
+		await ctx.page.reload();
+		await openLauncherSettings(ctx.page);
+		await openLauncherSettingsTab(ctx.page, 'command-templates');
+		await testId(gitGroup, 'command-template-group-toggle').click();
+		expect(await scriptField.inputValue()).toContain('build-options');
 		await testId(reloaded, "command-template-reset").click();
 		await poll(
 			() => testId(reloaded, "command-template-override-state").textContent(),
@@ -110,9 +127,15 @@ describe('Command Templates Settings tab (e2e, real server)', () => {
 				);
 				return override;
 			},
-			(o) => Object.keys(o).length === 0,
+			(o) => !Object.hasOwn(o, 'git.version'),
 			15000,
 		);
-		expect(afterReset).toEqual({});
+		expect(afterReset).toEqual(external);
+		expect(await scriptField.inputValue()).toBe(defaultScript);
+		await ctx.page.reload();
+		await openLauncherSettings(ctx.page);
+		await openLauncherSettingsTab(ctx.page, 'command-templates');
+		await testId(gitGroup, 'command-template-group-toggle').click();
+		expect(await scriptField.inputValue()).toBe(defaultScript);
 	});
 });

@@ -5,6 +5,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { ConfigPaths } from '../config/config-paths.js';
 import { ConfigRepository } from '../config/config-repository.js';
 import { CommandTemplateStore } from './command-template-store.js';
+import { transformConfig } from '~/util/transform-config.js';
+import { succeed } from '~/util/result.js';
+import type { CommandTemplateOverrides } from './command-template-types.js';
 
 const roots: string[] = [];
 afterEach(() => { for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true }); });
@@ -22,21 +25,50 @@ describe('CommandTemplateStore', () => {
 		const original = store.get('git.version');
 		const defaultScript = original.script;
 		expect(original.isOverridden).toBe(false);
-		store.save('git.version', 'custom\nscript');
+		store.write({ ...store.read(), 'git.version': 'custom\nscript' });
 		expect(store.get('git.version')).toMatchObject({ script: 'custom\nscript', isOverridden: true });
 		const sparse = JSON.parse(fs.readFileSync(paths.commandTemplateOverridesFile(), 'utf8'));
 		expect(sparse).toEqual({ 'git.version': 'custom\nscript' });
-		store.save('git.version', defaultScript);
+		store.write({ ...store.read(), 'git.version': defaultScript });
 		expect(store.get('git.version').isOverridden).toBe(false);
 	});
 
 	it('resets one key while preserving another platform override', () => {
 		const { paths, store } = setup();
-		store.save('git.version', 'one');
-		store.save('picker.files.macos', 'two');
-		store.reset('git.version');
+		store.write({ 'git.version': 'one', 'picker.files.macos': 'two' });
+		const { 'git.version': _removed, ...rest } = store.read();
+		store.write(rest);
 		const sparse = JSON.parse(fs.readFileSync(paths.commandTemplateOverridesFile(), 'utf8'));
 		expect(sparse).toEqual({ 'picker.files.macos': 'two' });
+	});
+
+	it('transforms the latest file and preserves overrides added since the editor loaded', async () => {
+		const { paths, store } = setup();
+		expect(store.read()).toEqual({});
+		store.write({ 'picker.files.macos': 'external edit' });
+		const result = await transformConfig<CommandTemplateOverrides>(
+			current => ({ ...current, 'git.version': 'custom version' }),
+			async owner => succeed(store.read(owner)),
+			async (json, owner) => succeed(store.write(JSON.parse(json), owner)),
+			async owner => store.release(owner));
+		expect(result).toEqual(succeed({ 'picker.files.macos': 'external edit', 'git.version': 'custom version' }));
+		expect(new CommandTemplateStore(paths, new ConfigRepository()).read()).toEqual(store.read());
+		expect(store.get('git.version').script).toBe('custom version');
+	});
+
+	it('rejects competing writers and releases a failed write without changing the file', () => {
+		const { store } = setup();
+		store.write({ 'git.version': 'original' });
+		store.read('first');
+		expect(() => store.read('second')).toThrow('being updated');
+		expect(() => store.write({})).toThrow('being updated');
+		expect(() => store.write({}, 'second')).toThrow('missing or expired');
+		expect(() => store.write({ 'git.version': '{{undeclared}}' }, 'first')).toThrow('undeclared');
+		expect(store.read('second')).toEqual({ 'git.version': 'original' });
+		store.release('second');
+		store.read('third');
+		store.write({}, 'third');
+		expect(store.get('git.version').isOverridden).toBe(false);
 	});
 
 	it.each([
@@ -47,7 +79,7 @@ describe('CommandTemplateStore', () => {
 		const { paths, store } = setup();
 		fs.mkdirSync(path.dirname(paths.commandTemplateOverridesFile()), { recursive: true });
 		fs.writeFileSync(paths.commandTemplateOverridesFile(), JSON.stringify(value));
-		expect(() => store.load()).toThrow();
+		expect(() => store.read()).toThrow();
 	});
 
 	it('serves bundled defaults when no override file exists', () => {
@@ -56,9 +88,8 @@ describe('CommandTemplateStore', () => {
 		const paths = new ConfigPaths(base, path.resolve('config-defaults'));
 		const store = new CommandTemplateStore(paths, new ConfigRepository());
 		expect(fs.existsSync(paths.commandTemplateOverridesFile())).toBe(false);
-		const entries = store.load();
-		expect(entries.length).toBeGreaterThan(0);
-		expect(entries.every((entry) => !entry.isOverridden)).toBe(true);
+		expect(store.read()).toEqual({});
+		expect(store.get('git.version').isOverridden).toBe(false);
 		expect(store.get('git.version').script.length).toBeGreaterThan(0);
 	});
 
@@ -66,7 +97,7 @@ describe('CommandTemplateStore', () => {
 		const { paths, store } = setup();
 		fs.mkdirSync(path.dirname(paths.commandTemplateOverridesFile()), { recursive: true });
 		fs.writeFileSync(paths.commandTemplateOverridesFile(), '{');
-		expect(() => store.load()).toThrow(/Failed to parse JSON/);
+		expect(() => store.read()).toThrow(/Failed to parse JSON/);
 	});
 });
 
@@ -74,9 +105,9 @@ describe('CommandTemplateStore placeholder declaration', () => {
 	it('rejects a saved script that references an undeclared placeholder', () => {
 		const { store } = setup();
 		// 'agent-worktree.add-existing' declares worktreePath + branch, not worktreeDir.
-		expect(() => store.save(
-			'agent-worktree.add-existing', 'git worktree add {{worktreeDir}} {{branch}}',
-		)).toThrow(/\{\{worktreeDir\}\}/);
+		expect(() => store.write({
+			'agent-worktree.add-existing': 'git worktree add {{worktreeDir}} {{branch}}',
+		})).toThrow(/\{\{worktreeDir\}\}/);
 		expect(store.get('agent-worktree.add-existing').isOverridden).toBe(false);
 	});
 
@@ -86,12 +117,12 @@ describe('CommandTemplateStore placeholder declaration', () => {
 		fs.writeFileSync(paths.commandTemplateOverridesFile(), JSON.stringify({
 			'git.commit': 'git commit -m {{msg}}',
 		}));
-		expect(() => store.load()).toThrow(/\{\{msg\}\}/);
+		expect(() => store.read()).toThrow(/\{\{msg\}\}/);
 	});
 
 	it('accepts a saved script that uses only declared placeholders', () => {
 		const { store } = setup();
-		store.save('agent-worktree.add-existing', 'git worktree add -f {{worktreePath}} {{branch}}');
+		store.write({ 'agent-worktree.add-existing': 'git worktree add -f {{worktreePath}} {{branch}}' });
 		expect(store.get('agent-worktree.add-existing').isOverridden).toBe(true);
 	});
 });
