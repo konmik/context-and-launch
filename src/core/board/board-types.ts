@@ -1,4 +1,3 @@
-import * as v from "valibot";
 import type { ProjectInfo } from "~/core/project/project-registry.js";
 import type { ColumnDefinition } from "~/core/project/board-config.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
@@ -15,41 +14,6 @@ interface BoardPageBase {
   projectSlug: string;
 }
 
-const RequiredNameBody = v.object({
-  name: v.pipe(v.string(), v.nonEmpty("Missing required field: name")),
-});
-
-export const CreateBoardBody = RequiredNameBody;
-export type CreateBoardBody = v.InferOutput<typeof CreateBoardBody>;
-
-export const RenameBoardBody = RequiredNameBody;
-export type RenameBoardBody = v.InferOutput<typeof RenameBoardBody>;
-
-export const AddColumnBody = v.object({
-  name: v.pipe(v.string(), v.nonEmpty("Missing required field: name")),
-  description: v.optional(v.string()),
-  color: v.optional(v.string()),
-});
-export type AddColumnBody = v.InferOutput<typeof AddColumnBody>;
-
-export const UpdateColumnBody = v.object({
-  description: v.optional(v.string()),
-  color: v.optional(v.string()),
-});
-export type UpdateColumnBody = v.InferOutput<typeof UpdateColumnBody>;
-
-export const ReorderColumnsBody = v.object({
-  columns: v.array(v.string()),
-});
-export type ReorderColumnsBody = v.InferOutput<typeof ReorderColumnsBody>;
-
-export const RenameColumnBody = v.object({
-  newName: v.pipe(v.string(), v.nonEmpty("Missing required field: newName")),
-  scope: v.picklist(["all", "current", "none"]),
-  currentProjectSlug: v.optional(v.string()),
-});
-export type RenameColumnBody = v.InferOutput<typeof RenameColumnBody>;
-
 export interface SyncStatus {
   hasRemote: boolean;
   hasConflict: boolean;
@@ -57,7 +21,7 @@ export interface SyncStatus {
 
 export type ProjectPageData =
   | (BoardPageBase & {
-      status: 'loaded'; board: BoardState; projectPath: string;
+      status: 'loaded'; board: Omit<BoardState, 'columns'>; projectPath: string;
       suggestedNextNumber: string | null;
     })
   | (BoardPageBase & { status: 'not-found' })

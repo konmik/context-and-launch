@@ -1,23 +1,17 @@
-import { Show, createSignal } from "solid-js";
+import { Show, createEffect, useContext } from "solid-js";
 import BoardSelect from "./BoardSelect.js";
-import { listBoards, type BoardRef } from "../board/board-api.js";
+import { BoardConfigContext } from '../board/board-config-storage.js';
 
 interface BoardSelectorProps {
   boardId: string;
   setBoardId: (v: string) => void;
-  onError?: (msg: string) => void;
-  loadBoards?: () => Promise<BoardRef[]>;
 }
 
 export default function BoardSelector(props: BoardSelectorProps) {
-  const [boards, setBoards] = createSignal<BoardRef[]>([]);
-
-  (props.loadBoards ?? listBoards)()
-    .then((data) => {
-      setBoards(data);
-      if (!props.boardId) props.setBoardId(data[0]?.id ?? "");
-    })
-    .catch((err: any) => props.onError?.(err?.message ?? "Failed to load boards"));
+  const boards = useContext(BoardConfigContext)!.get;
+  createEffect(() => [boards(), props.boardId] as const, ([data, id]) => {
+    if (!data.some(board => board.id === id)) props.setBoardId(data[0]?.id ?? '');
+  });
 
   return (
     <Show when={boards().length > 1}>

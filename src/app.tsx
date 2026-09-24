@@ -5,12 +5,14 @@ import {
   LauncherConfigContext, createSharedLauncherConfigStorage,
 } from './components/launcher/shared-launcher-config-storage.js';
 import "./app.css";
+import { BoardConfigContext, createBoardConfigStorage } from './components/board/board-config-storage.js';
 
 export default function App() {
   return (
     <AppRouter>{(props) => {
       const config = createAppConfigStorage();
       const launcherConfig = createSharedLauncherConfigStorage();
+      const boards = createBoardConfigStorage();
       return (
         <Errored fallback={(error, reset) => (
           <div
@@ -26,7 +28,9 @@ export default function App() {
         )}>
           <Loading fallback={<p>Loading...</p>}>
             <AppConfigContext value={config}>
-              <LauncherConfigContext value={launcherConfig}>{props.children}</LauncherConfigContext>
+              <LauncherConfigContext value={launcherConfig}>
+                <BoardConfigContext value={boards}>{props.children}</BoardConfigContext>
+              </LauncherConfigContext>
             </AppConfigContext>
           </Loading>
         </Errored>

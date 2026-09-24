@@ -81,7 +81,7 @@ export class ProjectPageService {
 					status: 'loaded' as const,
 					projects,
 					projectSlug,
-					board: { columns: config.columns, tickets: ticketsWithWorktrees, ticketOrder },
+					board: { tickets: ticketsWithWorktrees, ticketOrder },
 					projectPath: project.path,
 					suggestedNextNumber,
 				};

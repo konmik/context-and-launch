@@ -13,11 +13,6 @@ import { LaunchTab } from "./launcher-settings-launch-tab.js";
 import { ColumnsTab } from "./launcher-settings-columns-tab.js";
 import {
 	ItemFormDialog,
-	ColumnFormDialog,
-	RenameColumnDialog,
-	BoardFormDialog,
-	DeleteConfirmDialog,
-	ProjectBoardConfirmDialog,
 } from "./launcher-settings-dialogs.js";
 import {
 	createLauncherSettingsState,
@@ -54,21 +49,6 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 		onSubmit: s.submitForm,
 		disabled: () => !s.form()?.name.trim(),
 		active: () => !!s.form(),
-	});
-	useModEnterSubmit({
-		onSubmit: s.handleSaveColumn,
-		disabled: () => !s.columnForm()?.name.trim() || !!s.columnNameValidation(),
-		active: () => !!s.columnForm() && !s.renameForm(),
-	});
-	useModEnterSubmit({
-		onSubmit: s.handleRenameColumn,
-		disabled: () => false,
-		active: () => !!s.renameForm(),
-	});
-	useModEnterSubmit({
-		onSubmit: s.handleCreateBoard,
-		disabled: () => !s.boardForm()?.name.trim(),
-		active: () => !!s.boardForm(),
 	});
 
 	return (<>
@@ -188,17 +168,9 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 										</Show>
 										<Show when={visited("columns")}>
 											<ColumnsTab
-												projectBoardId={s.projectBoardId()}
-												boards={s.boards()}
-												selectedBoardId={s.selectedBoardId()}
-												selectedBoard={s.selectedBoard()}
-												columnReorder={s.columnReorder}
-												setBoardOverride={s.setBoardOverride}
-												onProjectBoard={s.setProjectBoardConfirm}
-												setBoardForm={s.setBoardForm}
-												setColumnForm={s.setColumnForm}
-												setDeleteConfirm={s.setDeleteConfirm}
-												setColumnDialogError={s.setColumnDialogError}
+												open={props.open}
+												projectSlug={props.projectSlug}
+												onError={s.setError}
 											/>
 										</Show>
 									</>);
@@ -216,37 +188,6 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
 			form={s.form()}
 			setForm={s.setForm}
 			onSubmit={s.submitForm}
-		/>
-		<ColumnFormDialog
-			columnForm={s.columnForm()}
-			setColumnForm={s.setColumnForm}
-			renameActive={!!s.renameForm()}
-			columnError={s.columnDialogError()}
-			validation={s.columnNameValidation()}
-			onSubmit={s.handleSaveColumn}
-		/>
-		<RenameColumnDialog
-			renameForm={s.renameForm()}
-			setRenameForm={s.setRenameForm}
-			columnError={s.columnDialogError()}
-			onRename={s.handleRenameColumn}
-		/>
-		<BoardFormDialog
-			boardForm={s.boardForm()}
-			setBoardForm={s.setBoardForm}
-			columnError={s.columnDialogError()}
-			onCreate={s.handleCreateBoard}
-		/>
-		<DeleteConfirmDialog
-			deleteConfirm={s.deleteConfirm()}
-			setDeleteConfirm={s.setDeleteConfirm}
-			onDeleteBoard={s.handleDeleteBoard}
-			onDeleteColumn={s.handleDeleteColumn}
-		/>
-		<ProjectBoardConfirmDialog
-			projectBoardConfirm={s.projectBoardConfirm()}
-			setProjectBoardConfirm={s.setProjectBoardConfirm}
-			onConfirm={s.handleSetProjectBoard}
 		/>
 		<ErrorDialog error={s.error()} onClose={() => s.setError(null)} />
 		<ErrorDialog

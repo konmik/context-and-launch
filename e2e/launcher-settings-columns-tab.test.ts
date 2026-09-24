@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   readBoardDefinitions, readProjectRegistry, poll,
-  setupE2E,
+  setupE2E, openProject, openLauncherSettings, openLauncherSettingsTab, readTicketStatus,
 } from "./fixtures.js";
 import { APP_BOARDS, openSettingsTab } from "./launcher-settings-shared.js";
 import { testId, waitVisible, waitGone } from "./locators.js";
@@ -48,8 +48,11 @@ describe("Launcher Settings Columns tab (e2e, real server)", () => {
   });
 
   it("delete-board opens confirm and removes the board", async () => {
-    await setup("del-board");
+    const project = await setup("del-board");
     await ctx.page.selectOption('[data-testid="launcher-settings-columns-board-selector"]', "simple");
+    await testId(ctx.page, "launcher-settings-columns-set-project-board-btn").click();
+    await testId(ctx.page, "launcher-settings-columns-set-project-board-confirm-btn").click();
+    await waitGone(ctx.page, "launcher-settings-columns-set-project-board-message");
     await testId(ctx.page, "launcher-settings-columns-delete-board-btn").click();
     await waitVisible(ctx.page, "launcher-settings-columns-delete-confirm-message");
     expect(
@@ -62,6 +65,12 @@ describe("Launcher Settings Columns tab (e2e, real server)", () => {
       5000,
     );
     expect(boards.map((b) => b.id)).not.toContain("simple");
+    const registry = await poll(() => readProjectRegistry(ctx.testServer), registry =>
+      !registry.projects.find(p => p.projectSlug === project.projectSlug)?.boardId, 5000);
+    expect(registry.projects.find(p => p.projectSlug === project.projectSlug)?.boardId).toBeUndefined();
+    await ctx.page.waitForFunction(() =>
+      document.querySelector<HTMLSelectElement>('[data-testid="launcher-settings-columns-board-selector"]')
+        ?.value === 'kanban');
   });
 
   it("delete-cancel keeps board", async () => {
@@ -92,6 +101,9 @@ describe("Launcher Settings Columns tab (e2e, real server)", () => {
     );
     const kanban = boards.find((b) => b.id === "kanban");
     expect(kanban?.columns.map((c) => c.name)).toContain("code-review");
+    const headers = await poll(() => testId(ctx.page, 'kanban-board-column-header').allTextContents(),
+      names => names.includes('code-review'), 5000);
+    expect(headers).toContain('code-review');
   });
 
   it("validation error for reserved 'undefined' column name", async () => {
@@ -149,6 +161,23 @@ describe("Launcher Settings Columns tab (e2e, real server)", () => {
     const boards = readBoardDefinitions(ctx.testServer);
     const kanban = boards.find((b) => b.id === "kanban");
     expect(kanban?.columns.map((c) => c.name)).toContain("todo");
+  });
+
+  it('migrates ticket status when renaming a column for the current project', async () => {
+    const project = await openProject(ctx, {
+      slugBase: 'lsc-migrate', withBoards: APP_BOARDS,
+      withTickets: [{ number: 'T-1', title: 'Alpha', status: 'todo' }],
+    });
+    await openLauncherSettings(ctx.page);
+    await openLauncherSettingsTab(ctx.page, 'columns');
+    await testId(ctx.page, 'launcher-settings-columns-edit-button').first().click();
+    await testId(ctx.page, 'launcher-settings-columns-name-input').fill('backlog');
+    await testId(ctx.page, 'launcher-settings-columns-form-submit').click();
+    await testId(ctx.page, 'launcher-settings-columns-rename-scope-current').click();
+    await testId(ctx.page, 'launcher-settings-columns-rename-confirm').click();
+    const ticket = await poll(() => readTicketStatus(ctx.testServer, project.projectSlug, 't-1-alpha'),
+      ticket => ticket?.status === 'backlog', 5000);
+    expect(ticket?.status).toBe('backlog');
   });
 
   it("column delete-button removes column", async () => {

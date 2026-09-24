@@ -1,6 +1,8 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, cleanup } from "~/test-render.js";
-import type { ComponentProps } from "solid-js";
+import { render, screen, cleanup, waitFor } from "~/test-render.js";
+import { createSignal, createMemo, Loading, type ComponentProps } from "solid-js";
+import { createStoredSignal } from '~/util/stored-signal.js';
+import { succeed } from '~/util/result.js';
 import KanbanBoard from "./KanbanBoard";
 import type { BoardState } from "~/components/project/project-api.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
@@ -63,6 +65,29 @@ function renderBoard(board: BoardState, opts: {
 }
 
 describe("KanbanBoard rendering", () => {
+  it('updates columns from a reactive board definition', async () => {
+    const [columns, setColumns] = createSignal(testColumns('todo', 'done'));
+    renderBoard({ get columns() { return columns(); }, tickets: [], ticketOrder: {} });
+    setColumns(testColumns('todo', 'done', 'review'));
+    await waitFor(() => expect(screen.getByText('review')).toBeTruthy());
+  });
+
+  it('updates columns after asynchronous storage initialization', async () => {
+    let saved = testColumns('todo', 'done');
+    const initial = createMemo(async () => saved);
+    const storage = createStoredSignal(initial, async transform => {
+      saved = transform(saved);
+      return succeed(saved);
+    });
+    render(() => <Loading><KanbanBoard
+      board={{ columns: storage.get(), tickets: [], ticketOrder: {} }} projectSlug="test"
+      onDelete={noop} onViewDetail={noop} onArchive={noop} onReorder={noop}
+    /></Loading>);
+    await waitFor(() => expect(screen.getByText('todo')).toBeTruthy());
+    await storage.update(columns => [...columns, { name: 'review' }]);
+    await waitFor(() => expect(screen.getByText('review')).toBeTruthy());
+  });
+
   it("renders column headers", () => {
     const board = makeBoard([], testColumns("todo", "in-progress", "done"));
     renderBoard(board);

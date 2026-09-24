@@ -58,7 +58,6 @@ export default function AddProjectForm(props: AddProjectFormProps) {
       <BoardSelector
         boardId={s.boardId()}
         setBoardId={s.setBoardId}
-        onError={s.setLocalError}
       />
       <div class="mb-4">
         <label for="project-main-branch" class="field-label">Main branch</label>

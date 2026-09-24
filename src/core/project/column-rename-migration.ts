@@ -96,37 +96,3 @@ export function migrateColumnRename(
 
 	return { ticketsUpdated, projectsUpdated };
 }
-
-export interface ColumnRenameDeps {
-	boardConfigManager: BoardConfigManager;
-	projectRegistry: ProjectRegistry;
-	launcherConfigManager: LauncherConfigManager;
-	worktreeManager: WorktreeManager;
-}
-
-export function renameColumnWithMigration(
-	boardId: string,
-	columnName: string,
-	newName: string,
-	scope: MigrationScope,
-	currentProjectSlug: string,
-	deps: ColumnRenameDeps,
-) {
-	const result = deps.boardConfigManager.renameColumn(boardId, columnName, newName);
-	let migration;
-	try {
-		migration = migrateColumnRename(boardId, columnName, result.newName, scope, currentProjectSlug, deps);
-	} catch (migrationError) {
-		try {
-			deps.boardConfigManager.renameColumn(boardId, result.newName, columnName);
-		} catch (rollbackError) {
-			console.error('Column rename rollback failed', rollbackError);
-		}
-		throw migrationError;
-	}
-	return {
-		newName: result.newName,
-		ticketsUpdated: migration.ticketsUpdated,
-		projectsUpdated: migration.projectsUpdated,
-	};
-}

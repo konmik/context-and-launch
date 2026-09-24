@@ -1,5 +1,6 @@
 import { useParams, useNavigate, revalidate } from "@solidjs/router";
 import { AppConfigContext } from '~/components/config/app-config-storage.js';
+import { BoardConfigContext } from '~/components/board/board-config-storage.js';
 import { LauncherConfigContext } from '~/components/launcher/shared-launcher-config-storage.js';
 import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js';
 import {
@@ -102,7 +103,8 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   const params = useParams();
   const navigate = useNavigate();
   const projectSlug = () => params.projectSlug ?? "";
-  const data = createMemo(() => loadProjectPage(projectSlug()));
+  const boards = useContext(BoardConfigContext)!;
+  const data = createDeferredSignal(() => !!projectSlug(), () => loadProjectPage(projectSlug()), undefined);
 
   const [deferredPollsReady, setDeferredPollsReady] = createSignal(false);
   createEffect(data, (loaded) => {
@@ -502,12 +504,19 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                 <Match when={ld()}>
                   {(_) => {
                     const loaded = () => ld()!;
+                    const board = () => {
+                      const definitions = boards.get();
+                      const id = appConfig.get().projects.find(p => p.projectSlug === projectSlug())?.boardId;
+                      return {
+                        ...loaded().board, columns: (definitions.find(b => b.id === id) ?? definitions[0]).columns,
+                      };
+                    };
                     return (
                     <Show when={selectionState().reviewTicket} fallback={
                       <Show when={viewMode() === 'forest'} keyed fallback={
                         <ShortcutRunnerContext value={shortcutRunner}>
                           <KanbanBoard
-                            board={loaded().board}
+                            board={board()}
                             projectSlug={d().projectSlug}
                             onDelete={commands.openDelete}
                             onArchive={commands.openArchive}
@@ -519,7 +528,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
                       }>
                         <div class="min-h-0 flex-1">
                           <ForestView
-                            board={loaded().board}
+                            board={board()}
                             projectSlug={d().projectSlug}
                             onViewDetail={commands.openDetail}
                             onClose={toggleViewMode}

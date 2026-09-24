@@ -1,202 +1,44 @@
-import * as v from 'valibot';
 import type { ConfigPaths } from '../config/config-paths.js';
 import { ConfigRepository } from '../config/config-repository.js';
-import { slugifyColumnName } from '../../lib/slugify.js';
-import { requireColumnColor } from './column-color-palette.js';
+import { UpdateLock } from '~/util/update-lock.js';
+import { decodeBoards, validateBoards, type BoardDefinition, type ColumnDefinition } from './board-config-data.js';
 
-export { slugifyColumnName };
-
-export interface ColumnDefinition {
-	name: string;
-	description?: string;
-	color?: string;
-}
-
-export interface ColumnContentPatch {
-	description?: string;
-	color?: string;
-}
-
-function applyColumnContent(column: ColumnDefinition, patch: ColumnContentPatch): void {
-	if (patch.description != null) {
-		column.description = patch.description.trim() || undefined;
-	}
-	if (patch.color != null) {
-		column.color = patch.color === '' ? undefined : requireColumnColor(patch.color);
-	}
-}
-
-export interface BoardDefinition {
-	id: string;
-	name: string;
-	columns: ColumnDefinition[];
-}
-
-export interface BoardConfig {
-	columns: ColumnDefinition[];
-}
-
-const ColumnDefinitionSchema = v.object({
-	name: v.string(),
-	description: v.optional(v.string()),
-	color: v.optional(v.string()),
-});
-const BoardDefinitionsSchema = v.array(v.object({
-	id: v.string(),
-	name: v.string(),
-	columns: v.array(ColumnDefinitionSchema),
-}));
-
-export function validateColumnName(name: string, existingNames: string[], renamingFrom?: string): string {
-	const slugified = slugifyColumnName(name);
-	if (!slugified) {
-		throw new Error('Column name must not be empty');
-	}
-	if (slugified === 'undefined') {
-		throw new Error('Column name "undefined" is reserved');
-	}
-	const others = renamingFrom
-		? existingNames.filter(n => n !== renamingFrom)
-		: existingNames;
-	if (others.includes(slugified)) {
-		throw new Error(`Column name "${slugified}" already exists`);
-	}
-	return slugified;
-}
+export type { BoardDefinition, ColumnDefinition } from './board-config-data.js';
+export { validateColumnName } from './board-config-data.js';
+export { slugifyColumnName } from '../../lib/slugify.js';
+export interface BoardConfig { columns: ColumnDefinition[] }
 
 export class BoardConfigManager {
-	private paths: ConfigPaths;
-	private configRepo: ConfigRepository;
+	constructor(
+		private readonly paths: ConfigPaths,
+		private readonly configRepo = new ConfigRepository(),
+		private readonly lock = new UpdateLock(),
+	) {}
 
-	constructor(paths: ConfigPaths, configRepo?: ConfigRepository) {
-		this.paths = paths;
-		this.configRepo = configRepo ?? new ConfigRepository();
+	read(owner?: string): BoardDefinition[] {
+		return this.lock.read(() => {
+			const file = this.paths.boardsFile();
+			const raw = this.configRepo.readJson(file);
+			if (raw === null) throw new Error(`boards.json not found: ${file}`);
+			return decodeBoards(raw);
+		}, owner);
 	}
 
-	private loadAll(): BoardDefinition[] {
-		const filePath = this.paths.boardsFile();
-		const raw = this.configRepo.readJson(filePath);
-		if (raw === null) {
-			throw new Error(`boards.json not found: ${filePath}`);
-		}
-		const parsed = v.safeParse(BoardDefinitionsSchema, raw);
-		if (!parsed.success || parsed.output.length === 0) {
-			throw new Error(`boards.json is empty or not an array: ${filePath}`);
-		}
-		return parsed.output;
+	write(boards: BoardDefinition[], owner?: string): BoardDefinition[] {
+		return this.lock.write(() => {
+			const next = decodeBoards(boards);
+			validateBoards(next);
+			this.configRepo.writeJson(this.paths.boardsFile(), next);
+			return next;
+		}, owner);
 	}
 
-	private saveAll(boards: BoardDefinition[]): void {
-		this.configRepo.writeJson(this.paths.boardsFile(), boards);
-	}
+	release(owner: string): void { this.lock.release(owner); }
 
-	private findBoard(boardId: string) {
-		const boards = this.loadAll();
-		const index = boards.findIndex(b => b.id === boardId);
-		if (index < 0) throw new Error(`Board not found: ${boardId}`);
-		return { boards, board: boards[index], index };
-	}
-
-	listBoards(): BoardDefinition[] {
-		return this.loadAll();
-	}
-
-	getBoard(boardId: string): BoardDefinition | undefined {
-		return this.loadAll().find(b => b.id === boardId);
-	}
-
-	getDefaultBoardId(): string {
-		return this.loadAll()[0].id;
-	}
+	getDefaultBoardId(): string { return this.read()[0].id; }
 
 	getConfig(boardId?: string | null): BoardConfig {
-		const boards = this.loadAll();
-		const id = boardId || boards[0].id;
-		const board = boards.find(b => b.id === id);
-		if (!board) {
-			return { columns: boards[0].columns };
-		}
-		return { columns: board.columns };
-	}
-
-	createBoard(name: string): BoardDefinition {
-		const id = slugifyColumnName(name);
-		if (!id) throw new Error('Board name must not be empty');
-		if (id === 'undefined') throw new Error('Board name "undefined" is reserved');
-		const boards = this.loadAll();
-		if (boards.some(b => b.id === id)) {
-			throw new Error(`Board with id "${id}" already exists`);
-		}
-		const board: BoardDefinition = { id, name: name.trim(), columns: [] };
-		boards.push(board);
-		this.saveAll(boards);
-		return board;
-	}
-
-	deleteBoard(boardId: string): void {
-		const boards = this.loadAll();
-		if (boards.length <= 1) {
-			throw new Error('Cannot delete the last board');
-		}
-		const index = boards.findIndex(b => b.id === boardId);
-		if (index < 0) throw new Error(`Board not found: ${boardId}`);
-		boards.splice(index, 1);
-		this.saveAll(boards);
-	}
-
-	renameBoard(boardId: string, newName: string): void {
-		const { boards, board } = this.findBoard(boardId);
-		board.name = newName.trim();
-		this.saveAll(boards);
-	}
-
-	addColumn(boardId: string, name: string, patch: ColumnContentPatch = {}): ColumnDefinition {
-		const { boards, board } = this.findBoard(boardId);
-		const existingNames = board.columns.map(c => c.name);
-		const slugified = validateColumnName(name, existingNames);
-		const column: ColumnDefinition = { name: slugified };
-		applyColumnContent(column, patch);
-		board.columns.push(column);
-		this.saveAll(boards);
-		return column;
-	}
-
-	removeColumn(boardId: string, columnName: string): void {
-		const { boards, board } = this.findBoard(boardId);
-		const index = board.columns.findIndex(c => c.name === columnName);
-		if (index < 0) throw new Error(`Column not found: ${columnName}`);
-		board.columns.splice(index, 1);
-		this.saveAll(boards);
-	}
-
-	updateColumn(boardId: string, columnName: string, patch: ColumnContentPatch): void {
-		const { boards, board } = this.findBoard(boardId);
-		const column = board.columns.find(c => c.name === columnName);
-		if (!column) throw new Error(`Column not found: ${columnName}`);
-		applyColumnContent(column, patch);
-		this.saveAll(boards);
-	}
-
-	renameColumn(boardId: string, oldName: string, newName: string) {
-		const { boards, board } = this.findBoard(boardId);
-		const column = board.columns.find(c => c.name === oldName);
-		if (!column) throw new Error(`Column not found: ${oldName}`);
-		const existingNames = board.columns.map(c => c.name);
-		const slugified = validateColumnName(newName, existingNames, oldName);
-		column.name = slugified;
-		this.saveAll(boards);
-		return { oldName, newName: slugified };
-	}
-
-	reorderColumns(boardId: string, orderedNames: string[]): void {
-		const { boards, board } = this.findBoard(boardId);
-		const existing = new Set(board.columns.map(c => c.name));
-		const ordered = new Set(orderedNames);
-		if (existing.size !== ordered.size || ![...existing].every(n => ordered.has(n))) {
-			throw new Error('Ordered names must match existing column names exactly');
-		}
-		const columnMap = new Map(board.columns.map(c => [c.name, c]));
-		board.columns = orderedNames.map(n => columnMap.get(n)!);
-		this.saveAll(boards);
+		const boards = this.read();
+		return { columns: (boards.find(board => board.id === boardId) ?? boards[0]).columns };
 	}
 }
