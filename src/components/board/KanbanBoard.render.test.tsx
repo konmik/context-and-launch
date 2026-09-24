@@ -65,6 +65,19 @@ function renderBoard(board: BoardState, opts: {
 }
 
 describe("KanbanBoard rendering", () => {
+  it('keeps an open ticket menu when refreshed data replaces ticket objects', async () => {
+    const [tickets, setTickets] = createSignal([makeTicket({ folderName: 'ticket' })]);
+    const board = makeBoard(tickets());
+    renderBoard({ ...board, get tickets() { return tickets(); } });
+    const card = screen.getByTestId('kanban-board-ticket-card');
+    screen.getByTestId('kanban-board-ticket-menu-trigger').click();
+    await waitFor(() => expect(screen.getByTestId('kanban-board-ticket-menu-archive')).toBeTruthy());
+    setTickets(current => current.map(ticket => ({ ...ticket, title: 'Refreshed title' })));
+    await waitFor(() => expect(screen.getByText('Refreshed title')).toBeTruthy());
+    expect(screen.getByTestId('kanban-board-ticket-card')).toBe(card);
+    expect(screen.getByTestId('kanban-board-ticket-menu-archive')).toBeTruthy();
+  });
+
   it('updates columns from a reactive board definition', async () => {
     const [columns, setColumns] = createSignal(testColumns('todo', 'done'));
     renderBoard({ get columns() { return columns(); }, tickets: [], ticketOrder: {} });

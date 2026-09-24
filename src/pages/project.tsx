@@ -5,7 +5,7 @@ import { LauncherConfigContext } from '~/components/launcher/shared-launcher-con
 import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js';
 import {
   Show, For, Switch, Match, Errored, Loading,
-  createSignal, createEffect, createMemo, onSettled, lazy, useContext,
+  createSignal, createEffect, createMemo, onSettled, lazy, useContext, flush,
 } from "solid-js";
 import { EllipsisVertical } from "~/components/ui/icons.js";
 import { Network } from "~/components/ui/icons.js";
@@ -147,8 +147,11 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
     props?.ctrl ?? createProjectPageController({ projectSlug, data });
 
   function navigateToProject(nextProjectSlug: string) {
-    commands.closeReview();
-    commands.closeDetail();
+    // Dispose ticket-scoped views before the router starts the next project transition.
+    flush(() => {
+      commands.closeReview();
+      commands.closeDetail();
+    });
     navigate(paths.project(nextProjectSlug)());
   }
 

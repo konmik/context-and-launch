@@ -1,4 +1,4 @@
-import { For, Show } from "solid-js";
+import { For, Show, untrack } from "solid-js";
 import {
 	createSortable,
 	createDroppable,
@@ -35,7 +35,7 @@ function SortableTicketCard(props: {
 	onOpenFolder: (ticket: TicketInfo) => void;
 	onReviewChanges: (ticket: TicketInfo) => void;
 }) {
-	const id = makeId(props.column, props.ticket.folderName);
+	const id = untrack(() => makeId(props.column, props.ticket.folderName));
 	const sortable = createSortable(id);
 	const isActive = () => props.activeId === id;
 
@@ -148,14 +148,14 @@ export function ColumnBody(props: TicketColumnProps & {
 			data-column-name={props.column.name}
 		>
 			<div ref={(el) => props.registerRef(el)} class="flex flex-1 flex-col gap-2 pb-4">
-				<For each={props.tickets}>
+				<For each={props.tickets} keyed={ticket => ticket.folderName}>
 					{(ticket, i) => (
 						<>
 							<Show when={previewAt() === i() && props.activeTicket}>
 								{(t) => <DropPreview ticket={t()} />}
 							</Show>
 							<SortableTicketCard
-								ticket={ticket}
+								ticket={ticket()}
 								column={props.column.name}
 								activeId={props.activeId}
 								onDelete={props.onDelete}
@@ -209,10 +209,10 @@ export function OrphanBody(props: TicketColumnProps & { tickets: TicketInfo[] })
 			data-column-name="undefined"
 		>
 			<div class="flex flex-1 flex-col gap-2">
-				<For each={props.tickets}>
+				<For each={props.tickets} keyed={ticket => ticket.folderName}>
 					{(ticket) => (
 						<SortableTicketCard
-							ticket={ticket}
+							ticket={ticket()}
 							column="undefined"
 							activeId={props.activeId}
 							onDelete={props.onDelete}
@@ -220,7 +220,7 @@ export function OrphanBody(props: TicketColumnProps & { tickets: TicketInfo[] })
 							onViewDetail={props.onViewDetail}
 							onOpenFolder={props.onOpenFolder}
 							onReviewChanges={props.onReviewChanges}
-							orphanedStatus={ticket.status}
+							orphanedStatus={ticket().status}
 						/>
 					)}
 				</For>
