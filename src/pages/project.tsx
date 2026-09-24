@@ -1,9 +1,4 @@
 import { useParams, useNavigate, revalidate } from "@solidjs/router";
-import { createDiffReviewStorage } from '~/components/diff-review/diff-review-storage.js';
-import {
-  readDiffReviewState, saveDiffReviewState, releaseDiffReviewState,
-} from '~/components/diff-review/diff-review-state-api.js';
-import { DiffReviewContext } from '~/components/diff-review/diff-review-context.js';
 import { AppConfigContext } from '~/components/config/app-config-storage.js';
 import { BoardConfigContext } from '~/components/board/board-config-storage.js';
 import { LauncherConfigContext } from '~/components/launcher/shared-launcher-config-storage.js';
@@ -109,20 +104,14 @@ function createDeferredSignal<T>(ready: () => boolean, load: () => Promise<T>, p
 export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   const params = useParams<{ projectSlug: string }>();
   const storage = createProjectLauncherConfigStorage(params);
-  const reviewState = createDiffReviewStorage(params, {
-    read: readDiffReviewState, save: saveDiffReviewState, release: releaseDiffReviewState,
-  });
   return (
     <ProjectLauncherConfigContext value={storage}>
-      <DiffReviewContext value={reviewState}>
-        <ProjectContent {...props} />
-      </DiffReviewContext>
+      <ProjectContent {...props} />
     </ProjectLauncherConfigContext>
   );
 }
 
 function ProjectContent(props: { ctrl?: ProjectPageController }) {
-  const reviewState = useContext(DiffReviewContext)!;
   const appConfig = useContext(AppConfigContext)!;
   const params = useParams();
   const navigate = useNavigate();
@@ -211,11 +200,7 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
     (currentProjectSlug) => {
       if (!currentProjectSlug) return;
       void reconcileReviewPromptQueue(currentProjectSlug)
-        .then(async () => {
-          const result = await reviewState.refresh();
-          if (result.type === "Failure") throw new Error(result.error);
-          revalidate("diff-review-agent");
-        })
+        .then(() => revalidate("diff-review-agent"))
         .catch((cause: unknown) => console.error("Review Prompt Queue reconciliation failed", cause));
     },
   );
@@ -230,8 +215,6 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
           revalidate("herdr-agent-statuses"),
           reconcileReviewPromptQueue(projectSlug()),
         ]);
-        const result = await reviewState.refresh();
-        if (result.type === "Failure") throw new Error(result.error);
         revalidate("diff-review-agent");
 	  } catch (error) {
 		console.error("Herdr polling failed", error);

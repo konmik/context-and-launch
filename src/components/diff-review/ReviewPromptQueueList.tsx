@@ -1,23 +1,23 @@
 import { RotateCcw } from "~/components/ui/icons.js";
 import { Trash2 } from "~/components/ui/icons.js";
-import { For, Show, createEffect, createSignal, untrack, useContext } from "solid-js";
+import { For, Show, createEffect, createSignal, untrack } from "solid-js";
 import { revalidate } from "@solidjs/router";
-import { DiffReviewContext } from "./diff-review-context.js";
 import { retryReviewPrompt } from "./diff-review-api.js";
-import type { ReviewPromptQueueItem } from "~/core/diff-review/diff-review-types.js";
+import type { DiffReviewProjectState, ReviewPromptQueueItem } from "~/core/diff-review/diff-review-types.js";
+import type { StoredSignal } from "~/util/stored-signal.js";
 import { getReviewTicketState } from "~/core/diff-review/diff-review-types.js";
 import VerticalReveal from "./VerticalReveal.js";
 
 type QueueEntry = { item: ReviewPromptQueueItem; shown: boolean };
 
 export default function ReviewPromptQueueList(props: {
+	state: StoredSignal<DiffReviewProjectState>;
 	projectSlug: string;
 	folderName: string;
 	worktreeIdentity: string;
 	profileName: string;
 }) {
-	const { get, update, refresh } = useContext(DiffReviewContext)!;
-	const items = () => getReviewTicketState(get(), props.folderName, props.worktreeIdentity).queue.items;
+	const items = () => getReviewTicketState(props.state.get(), props.folderName, props.worktreeIdentity).queue.items;
 	const [retryingId, setRetryingId] = createSignal<string>();
 	const [removingId, setRemovingId] = createSignal<string>();
 	const [error, setError] = createSignal<string>();
@@ -31,7 +31,7 @@ export default function ReviewPromptQueueList(props: {
 				props.projectSlug, props.folderName, itemId, props.profileName || null,
 			);
 			if (!result.ok) setError(result.message);
-			const refreshed = await refresh();
+			const refreshed = await props.state.refresh();
 			if (refreshed.type === "Failure") setError(refreshed.error);
 			revalidate("diff-review-agent");
 		} finally { setRetryingId(); }
@@ -42,7 +42,7 @@ export default function ReviewPromptQueueList(props: {
 		setRemovingId(itemId);
 		setError();
 		try {
-			const result = await update(current => {
+			const result = await props.state.update(current => {
 				const ticket = getReviewTicketState(current, props.folderName, props.worktreeIdentity);
 				const item = ticket.queue.items.find(item => item.id === itemId);
 				if (!item) throw new Error("That Review Prompt is no longer in the queue.");

@@ -1,39 +1,61 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { flush } from "solid-js";
+import { createSignal, flush } from "solid-js";
 import { createReviewedLineTracker } from "./create-reviewed-line-tracker.js";
 import { fail, succeed, type Result } from "~/util/result.js";
+import { createStoredSignal } from "~/util/stored-signal.js";
+import type { DiffReviewProjectState } from "~/core/diff-review/diff-review-types.js";
 
-afterEach(() => {
-	vi.useRealTimers();
-});
+afterEach(() => vi.useRealTimers());
+
+function setup() {
+	let persisted: DiffReviewProjectState = { version: 2, tickets: {
+		ticket: { worktreeIdentity: "worktree", reviewedLines: {}, queue: { items: [] } },
+		other: { worktreeIdentity: "other", reviewedLines: {}, queue: { items: [] } },
+	} };
+	const [initial, setInitial] = createSignal(persisted);
+	const persist = vi.fn(async (next: DiffReviewProjectState): Promise<Result<DiffReviewProjectState, string>> =>
+		succeed(next));
+	const state = createStoredSignal(initial, async transform => {
+		const result = await persist(transform(persisted));
+		if (result.type === "Success") persisted = result.value;
+		return result;
+	});
+	const onError = vi.fn();
+	const tracker = createReviewedLineTracker({ state, folderName: "ticket", worktreeIdentity: "worktree", onError });
+	return { state, tracker, persist, onError, acknowledge() {
+		persisted = { ...persisted, tickets: { ...persisted.tickets, ticket: { ...persisted.tickets.ticket,
+			reviewedLines: { "line-1": { path: "src/a.ts", reviewedAt: "2026-09-25T00:00:00.000Z" } },
+		} } };
+		setInitial(persisted);
+		flush();
+	} };
+}
 
 describe("createReviewedLineTracker", () => {
 	it("does not resubmit lines already acknowledged by the server", async () => {
 		vi.useFakeTimers();
-		const persist = vi.fn().mockResolvedValue(succeed(undefined));
-		const tracker = createReviewedLineTracker({ saved: () => new Set(["line-1"]), persist, onError: vi.fn() });
+		const { tracker, persist, acknowledge } = setup();
+		acknowledge();
 		tracker.markVisible({ id: "line-1", path: "src/a.ts" });
 		await vi.advanceTimersByTimeAsync(400);
 		expect(persist).not.toHaveBeenCalled();
 	});
 
-	it("batches visible lines and acknowledges a successful write", async () => {
+	it("batches visible lines without changing another ticket", async () => {
 		vi.useFakeTimers();
-		const saved = new Set<string>();
-		const persist = vi.fn(async (lines: { id: string }[]) => {
-			for (const line of lines) saved.add(line.id);
-			return succeed(undefined);
-		});
-		const tracker = createReviewedLineTracker({ saved: () => saved, persist, onError: vi.fn() });
+		const { tracker, persist, state } = setup();
+		const other = state.get().tickets.other;
 		tracker.markVisible({ id: "line-1", path: "src/a.ts" });
 		tracker.markVisible({ id: "line-2", path: "src/b.ts" });
 		flush();
 		expect([...tracker.reviewedLineIds()]).toEqual(["line-1", "line-2"]);
 		await vi.advanceTimersByTimeAsync(400);
-		expect(persist).toHaveBeenCalledWith([
-			{ id: "line-1", path: "src/a.ts" },
-			{ id: "line-2", path: "src/b.ts" },
-		]);
+		flush();
+		expect(state.get().tickets.ticket.reviewedLines).toEqual({
+			"line-1": { path: "src/a.ts", reviewedAt: expect.any(String) },
+			"line-2": { path: "src/b.ts", reviewedAt: expect.any(String) },
+		});
+		expect(state.get().tickets.other).toEqual(other);
 		tracker.markVisible({ id: "line-1", path: "src/a.ts" });
 		await vi.advanceTimersByTimeAsync(400);
 		expect(persist).toHaveBeenCalledTimes(1);
@@ -41,13 +63,11 @@ describe("createReviewedLineTracker", () => {
 
 	it("rolls back a failed write and retries when the line is visible again", async () => {
 		vi.useFakeTimers();
-		const persist = vi.fn()
-			.mockResolvedValueOnce(fail("disk full"))
-			.mockResolvedValueOnce(succeed(undefined));
-		const onError = vi.fn();
-		const tracker = createReviewedLineTracker({ saved: () => new Set(), persist, onError });
+		const { tracker, persist, onError } = setup();
+		persist.mockResolvedValueOnce(fail("disk full"));
 		tracker.markVisible({ id: "line-1", path: "src/a.ts" });
 		await vi.advanceTimersByTimeAsync(400);
+		flush();
 		expect([...tracker.reviewedLineIds()]).toEqual([]);
 		expect(onError).toHaveBeenCalledWith("disk full");
 		tracker.markVisible({ id: "line-1", path: "src/a.ts" });
@@ -56,55 +76,34 @@ describe("createReviewedLineTracker", () => {
 	});
 
 	it("keeps a server acknowledgment received while a write is in flight", async () => {
+		const { tracker, persist, acknowledge } = setup();
 		let rejectWrite!: (error: Error) => void;
-		const persist = vi.fn(() => new Promise<Result<void, string>>((_resolve, reject) => {
-			rejectWrite = reject;
-		}));
-		const saved = new Set<string>();
-		const tracker = createReviewedLineTracker({ saved: () => saved, persist, onError: vi.fn() });
+		persist.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectWrite = reject; }));
 		tracker.markVisible({ id: "line-1", path: "src/a.ts" });
 		const writing = tracker.flush();
-		saved.add("line-1");
+		await Promise.resolve();
+		acknowledge();
 		rejectWrite(new Error("late failure"));
 		await writing;
+		flush();
 		expect([...tracker.reviewedLineIds()]).toEqual(["line-1"]);
 	});
 
-	it("serializes a line that appears while another batch is in flight", async () => {
-		vi.useFakeTimers();
-		let resolveFirst!: (value: Result<void, string>) => void;
-		const persist = vi.fn()
-			.mockImplementationOnce(() => new Promise<Result<void, string>>((resolve) => {
-				resolveFirst = resolve;
-			}))
-			.mockResolvedValueOnce(succeed(undefined));
-		const tracker = createReviewedLineTracker({ saved: () => new Set(), persist, onError: vi.fn(), debounceMs: 1 });
+	it.each([false, true])("drains an in-flight batch and pending lines (closing: %s)", async closing => {
+		const { tracker, persist, state } = setup();
+		let finish!: () => void;
+		persist.mockImplementationOnce(next => new Promise(resolve => { finish = () => resolve(succeed(next)); }));
 		tracker.markVisible({ id: "line-1", path: "src/a.ts" });
 		const first = tracker.flush();
+		await Promise.resolve();
 		tracker.markVisible({ id: "line-1", path: "src/a.ts" });
 		tracker.markVisible({ id: "line-2", path: "src/b.ts" });
-		const joined = tracker.flush();
+		const joined = closing ? tracker.dispose() : tracker.flush();
 		expect(persist).toHaveBeenCalledTimes(1);
-		resolveFirst(succeed(undefined));
+		finish();
 		await Promise.all([first, joined]);
-		await vi.advanceTimersByTimeAsync(1);
-		expect(persist).toHaveBeenNthCalledWith(2, [{ id: "line-2", path: "src/b.ts" }]);
-	});
-
-	it("persists pending lines when disposed during an in-flight write", async () => {
-		let resolveFirst!: (value: Result<void, string>) => void;
-		const persist = vi.fn()
-			.mockImplementationOnce(() => new Promise<Result<void, string>>((resolve) => {
-				resolveFirst = resolve;
-			}))
-			.mockResolvedValueOnce(succeed(undefined));
-		const tracker = createReviewedLineTracker({ saved: () => new Set(), persist, onError: vi.fn() });
-		tracker.markVisible({ id: "line-1", path: "src/a.ts" });
-		const first = tracker.flush();
-		tracker.markVisible({ id: "line-2", path: "src/b.ts" });
-		const disposed = tracker.dispose();
-		resolveFirst(succeed(undefined));
-		await Promise.all([first, disposed]);
-		expect(persist).toHaveBeenNthCalledWith(2, [{ id: "line-2", path: "src/b.ts" }]);
+		flush();
+		expect(persist).toHaveBeenCalledTimes(2);
+		expect(Object.keys(state.get().tickets.ticket.reviewedLines)).toEqual(["line-1", "line-2"]);
 	});
 });

@@ -52,8 +52,7 @@ import { useHerdrStatuses } from "../ticket/herdr-statuses-context.js";
 import { LauncherConfigContext } from '../launcher/shared-launcher-config-storage.js';
 import { ProjectLauncherConfigContext } from '../launcher/project-launcher-config-storage.js';
 import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js';
-import { DiffReviewContext } from "./diff-review-context.js";
-import { getReviewTicketState } from "~/core/diff-review/diff-review-types.js";
+import { createDiffReviewStorage } from "./diff-review-storage.js";
 import {
 	enqueueReviewPrompt,
 	getReviewAgentStatus,
@@ -359,29 +358,15 @@ export default function DiffReview(props: {
 	let scrollRef: HTMLDivElement | undefined;
 	let scrollFrame: number | undefined;
 	const sectionRefs = new Map<string, HTMLElement>();
-	const { get, update, refresh: refreshState } = useContext(DiffReviewContext)!;
+	const state = createDiffReviewStorage(props.projectSlug);
 	const agentStatus = createMemo(() =>
 		getReviewAgentStatus(props.projectSlug, props.ticket.folderName));
 	const worktreeIdentity = createMemo(() => agentStatus().worktreeIdentity);
 	const reviewedLines = createMemo(() => {
-		const folderName = props.ticket.folderName;
-		const identity = worktreeIdentity();
-		const saved = createMemo(() => new Set(Object.keys(
-			getReviewTicketState(get(), folderName, identity).reviewedLines,
-		)));
 		const tracker = createReviewedLineTracker({
-			saved,
-			persist: lines => {
-				const reviewedAt = new Date().toISOString();
-				return update(current => {
-					const ticket = getReviewTicketState(current, folderName, identity);
-					return { ...current, tickets: { ...current.tickets, [folderName]: { ...ticket,
-						reviewedLines: { ...ticket.reviewedLines, ...Object.fromEntries(
-							lines.map(line => [line.id, { path: line.path, reviewedAt }]),
-						) },
-					} } };
-				});
-			},
+			state,
+			folderName: props.ticket.folderName,
+			worktreeIdentity: worktreeIdentity(),
 			onError: setReviewError,
 		});
 		onCleanup(() => void tracker.dispose());
@@ -505,7 +490,7 @@ export default function DiffReview(props: {
 	// Review Prompt, so the Diff Review rereads it while it is open.
 	onSettled(() => {
 		const timer = setInterval(() => {
-			void refreshState().then(result => { if (result.type === "Failure") setReviewError(result.error); });
+			void state.refresh().then(result => { if (result.type === "Failure") setReviewError(result.error); });
 			revalidate("diff-review-agent");
 		}, 1_200);
 		return () => {
@@ -601,7 +586,7 @@ export default function DiffReview(props: {
 				return false;
 			}
 			setFeedback("");
-			const refreshed = await refreshState();
+			const refreshed = await state.refresh();
 			if (refreshed.type === "Failure") setReviewError(refreshed.error);
 			revalidate("diff-review-agent");
 			return true;
@@ -1055,7 +1040,8 @@ export default function DiffReview(props: {
 				onError={setSendError}
 				onSend={sendFeedback}
 			>
-				<ReviewPromptQueueList projectSlug={props.projectSlug} folderName={props.ticket.folderName}
+				<ReviewPromptQueueList state={state} projectSlug={props.projectSlug}
+					folderName={props.ticket.folderName}
 					worktreeIdentity={agentStatus().worktreeIdentity} profileName={selectedProfile()} />
 			</ReviewPromptComposer>
 

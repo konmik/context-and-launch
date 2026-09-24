@@ -1,5 +1,6 @@
 import { createMemo, createSignal } from "solid-js";
-import type { Result } from "~/util/result.js";
+import type { StoredSignal } from "~/util/stored-signal.js";
+import { getReviewTicketState, type DiffReviewProjectState } from "~/core/diff-review/diff-review-types.js";
 
 export interface ReviewedLineRef {
 	id: string;
@@ -7,14 +8,18 @@ export interface ReviewedLineRef {
 }
 
 export function createReviewedLineTracker(options: {
-	saved(): ReadonlySet<string>;
-	persist(lines: ReviewedLineRef[]): Promise<Result<void, string>>;
+	state: StoredSignal<DiffReviewProjectState>;
+	folderName: string;
+	worktreeIdentity: string;
 	onError(message: string): void;
-	debounceMs?: number;
 }) {
+	const { state, folderName, worktreeIdentity } = options;
+	const saved = createMemo(() => new Set(Object.keys(
+		getReviewTicketState(state.get(), folderName, worktreeIdentity).reviewedLines,
+	)));
 	const pending = new Map<string, string>();
 	const [optimistic, setOptimistic] = createSignal<ReadonlySet<string>>(new Set());
-	const reviewedLineIds = createMemo(() => new Set([...options.saved(), ...optimistic()]));
+	const reviewedLineIds = createMemo(() => new Set([...saved(), ...optimistic()]));
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	let flushing: Promise<void> | undefined;
 	let disposed = false;
@@ -22,10 +27,7 @@ export function createReviewedLineTracker(options: {
 	const publish = () => setOptimistic(new Set(pending.keys()));
 	const schedule = () => {
 		if (disposed || flushing || timer !== undefined || pending.size === 0) return;
-		timer = setTimeout(() => {
-			timer = undefined;
-			void flush();
-		}, options.debounceMs ?? 400);
+		timer = setTimeout(() => void flush(), 400);
 	};
 
 	async function flush(): Promise<void> {
@@ -36,14 +38,22 @@ export function createReviewedLineTracker(options: {
 		}
 		flushing = (async () => {
 			while (pending.size > 0) {
-				const batch = [...pending].map(([id, path]) => ({ id, path }));
+				const batch = [...pending];
 				try {
-					const result = await options.persist(batch);
+					const reviewedAt = new Date().toISOString();
+					const result = await state.update(current => {
+						const ticket = getReviewTicketState(current, folderName, worktreeIdentity);
+						return { ...current, tickets: { ...current.tickets, [folderName]: { ...ticket,
+							reviewedLines: { ...ticket.reviewedLines, ...Object.fromEntries(
+								batch.map(([id, path]) => [id, { path, reviewedAt }]),
+							) },
+						} } };
+					});
 					if (result.type === "Failure") throw new Error(result.error);
 				} catch (error) {
 					options.onError(error instanceof Error ? error.message : String(error));
 				} finally {
-					for (const line of batch) pending.delete(line.id);
+					for (const [id] of batch) pending.delete(id);
 					publish();
 				}
 			}
@@ -63,17 +73,15 @@ export function createReviewedLineTracker(options: {
 		reviewedLineIds,
 		markVisible(line: ReviewedLineRef) {
 			if (disposed) return;
-			if (options.saved().has(line.id) || pending.has(line.id)) return;
+			if (saved().has(line.id) || pending.has(line.id)) return;
 			pending.set(line.id, line.path);
 			publish();
 			schedule();
 		},
 		flush,
-		async dispose() {
+		dispose() {
 			disposed = true;
-			if (timer !== undefined) clearTimeout(timer);
-			timer = undefined;
-			await flush();
+			return flush();
 		},
 	};
 }
