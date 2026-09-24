@@ -1,7 +1,7 @@
 import { createContext, createMemo } from 'solid-js';
 import type { LauncherConfig } from '~/core/launcher/launcher-config-data.js';
-import { createStoredSignal, type StoredSignal } from '~/util/stored-signal.js';
-import { transformConfig } from '~/util/transform-config.js';
+import type { StoredSignal } from '~/util/stored-signal.js';
+import { createStoredConfig } from '~/util/stored-config.js';
 import {
 	readProjectLauncherConfig, saveProjectLauncherConfig, releaseProjectLauncherConfig,
 } from './launcher-api.js';
@@ -15,16 +15,11 @@ export function createProjectLauncherConfigStorage(props: { projectSlug: string 
 }): StoredSignal<LauncherConfig> {
 	const project = createMemo(() => {
 		const slug = props.projectSlug;
-		return createStoredSignal(async () => {
-			const result = await persistence.read(slug);
-			if (result.type === 'Failure') throw new Error(result.error);
-			return result.value;
-		}, transform => transformConfig(
-			transform,
+		return createStoredConfig(
 			owner => persistence.read(slug, owner),
 			(json, owner) => persistence.save(slug, json, owner),
 			owner => persistence.release(slug, owner),
-		));
+		);
 	});
 	return {
 		get: () => project().get(),

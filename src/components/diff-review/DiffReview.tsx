@@ -361,18 +361,16 @@ export default function DiffReview(props: {
 	const state = createDiffReviewStorage(props.projectSlug);
 	const agentStatus = createMemo(() =>
 		getReviewAgentStatus(props.projectSlug, props.ticket.folderName));
-	const worktreeIdentity = createMemo(() => agentStatus().worktreeIdentity);
 	const reviewedLines = createMemo(() => {
 		const tracker = createReviewedLineTracker({
 			state,
 			folderName: props.ticket.folderName,
-			worktreeIdentity: worktreeIdentity(),
+			worktreeIdentity: agentStatus().worktreeIdentity,
 			onError: setReviewError,
 		});
 		onCleanup(() => void tracker.dispose());
 		return tracker;
 	});
-	const reviewedLineIds = () => reviewedLines().reviewedLineIds();
 
 	const review = createMemo(() =>
 		getReviewSnapshot(props.projectSlug, props.ticket.folderName, scope() ?? null));
@@ -505,7 +503,7 @@ export default function DiffReview(props: {
 		return selected ? SCOPE_LABELS[selected] : "changes";
 	};
 	const unseenChanges = createMemo(() =>
-		unreviewedChangeCount(orderedFiles(), reviewedLineIds()));
+		unreviewedChangeCount(orderedFiles(), reviewedLines().reviewedLineIds()));
 	const selectionStale = createMemo(() => {
 		const selected = selection();
 		if (!selected) return false;
@@ -541,7 +539,7 @@ export default function DiffReview(props: {
 	}
 
 	function statusFor(file: ReviewFileSnapshot): FileReviewStatus {
-		return fileIsReviewed(file, reviewedLineIds()) ? "reviewed" : "unreviewed";
+		return fileIsReviewed(file, reviewedLines().reviewedLineIds()) ? "reviewed" : "unreviewed";
 	}
 
 	function onChangedLineVisible(filePath: string, lineId: string) {
@@ -628,7 +626,7 @@ export default function DiffReview(props: {
 	function jumpToNextChange() {
 		const location = nextUnreviewedChange(
 			orderedFiles(),
-			reviewedLineIds(),
+			reviewedLines().reviewedLineIds(),
 			activePath(),
 		);
 		if (!location) return;

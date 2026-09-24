@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { ConfigPaths } from '../config/config-paths.js';
 import { ConfigRepository } from '../config/config-repository.js';
 import { CommandTemplateStore } from './command-template-store.js';
-import { transformConfig } from '~/util/transform-config.js';
+import { createStoredConfig } from '~/util/stored-config.js';
 import { succeed } from '~/util/result.js';
 import type { CommandTemplateOverrides } from './command-template-types.js';
 
@@ -46,12 +46,13 @@ describe('CommandTemplateStore', () => {
 		const { paths, store } = setup();
 		expect(store.read()).toEqual({});
 		store.write({ 'picker.files.macos': 'external edit' });
-		const result = await transformConfig<CommandTemplateOverrides>(
-			current => ({ ...current, 'git.version': 'custom version' }),
+		const storage = createStoredConfig<CommandTemplateOverrides>(
 			async owner => succeed(store.read(owner)),
 			async (json, owner) => succeed(store.write(JSON.parse(json), owner)),
 			async owner => store.release(owner));
-		expect(result).toEqual(succeed({ 'picker.files.macos': 'external edit', 'git.version': 'custom version' }));
+		expect(await storage.update(current => ({ ...current, 'git.version': 'custom version' })))
+			.toEqual(succeed(undefined));
+		expect(store.read()).toEqual({ 'picker.files.macos': 'external edit', 'git.version': 'custom version' });
 		expect(new CommandTemplateStore(paths, new ConfigRepository()).read()).toEqual(store.read());
 		expect(store.get('git.version').script).toBe('custom version');
 	});

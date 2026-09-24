@@ -6,7 +6,7 @@ import { BoardConfigManager } from './board-config.js';
 import { validateColumnName, type BoardDefinition } from './board-config-data.js';
 import { ConfigPaths } from '../config/config-paths.js';
 import { initializeDataDir } from '../config/initialize.js';
-import { transformConfig } from '~/util/transform-config.js';
+import { createStoredConfig } from '~/util/stored-config.js';
 import { succeed } from '~/util/result.js';
 
 const dirs: string[] = [];
@@ -33,12 +33,12 @@ describe('board configuration storage', () => {
 			{ name: 'todo', color: '#0969da', extra: 42 },
 		] }];
 		fs.writeFileSync(paths.boardsFile(), JSON.stringify(original));
-		const result = await transformConfig<BoardDefinition[]>(
-			current => current.map(board => ({ ...board, name: 'Renamed' })),
+		const storage = createStoredConfig<BoardDefinition[]>(
 			async owner => succeed(store.read(owner)),
 			async (json, owner) => succeed(store.write(JSON.parse(json), owner)),
 			async owner => store.release(owner));
-		expect(result.type).toBe('Success');
+		expect((await storage.update(current => current.map(board => ({ ...board, name: 'Renamed' }))))
+			.type).toBe('Success');
 		expect(new BoardConfigManager(paths).read()).toEqual([{ ...original[0], name: 'Renamed' }]);
 	});
 
@@ -58,10 +58,12 @@ describe('board configuration storage', () => {
 	it('releases the lock after failed transforms and rejects invalid writes without changing disk', async () => {
 		const { store, paths } = setup();
 		const before = fs.readFileSync(paths.boardsFile(), 'utf8');
-		await expect(transformConfig(() => { throw new Error('bad edit'); },
+		const storage = createStoredConfig(
 			async owner => succeed(store.read(owner)),
 			async (json, owner) => succeed(store.write(JSON.parse(json), owner)),
-			async owner => store.release(owner))).resolves.toEqual({ type: 'Failure', error: 'bad edit' });
+			async owner => store.release(owner));
+		await expect(storage.update(() => { throw new Error('bad edit'); }))
+			.resolves.toEqual({ type: 'Failure', error: 'bad edit' });
 		const boards = store.read('next');
 		expect(() => store.write([], 'next')).toThrow('empty');
 		expect(() => store.write([...boards, boards[0]])).toThrow('already exists');

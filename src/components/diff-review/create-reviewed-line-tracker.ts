@@ -39,23 +39,18 @@ export function createReviewedLineTracker(options: {
 		flushing = (async () => {
 			while (pending.size > 0) {
 				const batch = [...pending];
-				try {
-					const reviewedAt = new Date().toISOString();
-					const result = await state.update(current => {
-						const ticket = getReviewTicketState(current, folderName, worktreeIdentity);
-						return { ...current, tickets: { ...current.tickets, [folderName]: { ...ticket,
-							reviewedLines: { ...ticket.reviewedLines, ...Object.fromEntries(
-								batch.map(([id, path]) => [id, { path, reviewedAt }]),
-							) },
-						} } };
-					});
-					if (result.type === "Failure") throw new Error(result.error);
-				} catch (error) {
-					options.onError(error instanceof Error ? error.message : String(error));
-				} finally {
-					for (const [id] of batch) pending.delete(id);
-					publish();
-				}
+				const reviewedAt = new Date().toISOString();
+				const result = await state.update(current => {
+					const ticket = getReviewTicketState(current, folderName, worktreeIdentity);
+					return { ...current, tickets: { ...current.tickets, [folderName]: { ...ticket,
+						reviewedLines: { ...ticket.reviewedLines, ...Object.fromEntries(
+							batch.map(([id, path]) => [id, { path, reviewedAt }]),
+						) },
+					} } };
+				});
+				for (const [id] of batch) pending.delete(id);
+				publish();
+				if (result.type === "Failure") options.onError(result.error);
 			}
 		})();
 		try {

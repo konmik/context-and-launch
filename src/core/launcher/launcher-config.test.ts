@@ -8,7 +8,7 @@ import {
 } from './launcher-config.js';
 import { ConfigPaths } from '../config/config-paths.js';
 import { initializeDataDir } from '../config/initialize.js';
-import { transformConfig } from '~/util/transform-config.js';
+import { createStoredConfig } from '~/util/stored-config.js';
 import { succeed } from '~/util/result.js';
 
 const directories: string[] = [];
@@ -88,7 +88,7 @@ describe('LauncherConfigManager', () => {
 		manager.saveProjectConfig('project', { templates: [], skills: [], branchPrefix: 'before/' });
 		const stale = manager.loadProjectConfig('project');
 		fs.writeFileSync(file, JSON.stringify({ ...stale, branchPrefix: 'external/', extra: 'preserved' }));
-		const update = (transform: (current: LauncherConfig) => LauncherConfig) => transformConfig(transform,
+		const { update } = createStoredConfig<LauncherConfig>(
 			async owner => succeed(manager.loadProjectConfig('project', owner)),
 			async (json, owner) => succeed(manager.saveProjectConfig('project', JSON.parse(json), owner)),
 			async owner => manager.releaseProjectConfig('project', owner));
