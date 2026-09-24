@@ -1,8 +1,22 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, cleanup } from "~/test-render.js";
-import { createSignal, flush } from "solid-js";
+import { createSignal, flush, type Accessor } from "solid-js";
 import ReviewPromptQueueList from "./ReviewPromptQueueList.js";
-import type { ReviewPromptQueueItem } from "~/core/diff-review/diff-review-types.js";
+import type { DiffReviewProjectState, ReviewPromptQueueItem } from "~/core/diff-review/diff-review-types.js";
+import { DiffReviewContext } from "./diff-review-context.js";
+import { succeed } from "~/util/result.js";
+import { createStoredSignal } from "~/util/stored-signal.js";
+
+function Queue(props: { items: ReviewPromptQueueItem[] }) {
+	return <DiffReviewContext value={{
+		get: () => ({ version: 2, tickets: {
+			ticket: { worktreeIdentity: "worktree", reviewedLines: {}, queue: { items: props.items } },
+		} }),
+		update: async () => succeed(undefined),
+		refresh: async () => succeed(undefined),
+	}}><ReviewPromptQueueList projectSlug="project" folderName="ticket" worktreeIdentity="worktree" profileName="" />
+	</DiffReviewContext>;
+}
 
 function makeItem(overrides: {
 	id?: string;
@@ -39,17 +53,58 @@ function bodyOf(item: HTMLElement) {
 describe("ReviewPromptQueueList", () => {
 	afterEach(() => cleanup());
 
+	it("removes from the latest queue and clears only the removed head's launch request", async () => {
+		let saved: DiffReviewProjectState = { version: 2, tickets: { ticket: {
+			worktreeIdentity: "worktree", reviewedLines: {}, queue: {
+			items: [makeItem({ id: "a" }), makeItem({ id: "b" })], requestedAgentProfileName: "agent",
+		} } } };
+		let get!: Accessor<DiffReviewProjectState>;
+		const { container } = render(() => {
+			const state = createStoredSignal(() => saved, async transform => succeed(saved = transform(saved)));
+			get = state.get;
+			return <DiffReviewContext value={state}>
+				<ReviewPromptQueueList projectSlug="project" folderName="ticket"
+					worktreeIdentity="worktree" profileName="agent" />
+			</DiffReviewContext>;
+		});
+		const buttons = container.querySelectorAll<HTMLButtonElement>('[data-testid="diff-review-queue-remove"]');
+		buttons[1].click();
+		await expect.poll(() => saved.tickets.ticket.queue.items.map(item => item.id)).toEqual(["a"]);
+		expect(saved.tickets.ticket.queue.requestedAgentProfileName).toBe("agent");
+		buttons[0].click();
+		await expect.poll(() => saved.tickets.ticket.queue.items).toEqual([]);
+		expect(saved.tickets.ticket.queue.requestedAgentProfileName).toBeUndefined();
+		expect(get().tickets.ticket.queue.items).toEqual([]);
+	});
+
+	it("refuses to remove a prompt that started delivery after the last render", async () => {
+		let saved: DiffReviewProjectState = { version: 2, tickets: { ticket: {
+			worktreeIdentity: "worktree", reviewedLines: {}, queue: {
+			items: [makeItem({ id: "a" })],
+		} } } };
+		const { container } = render(() => {
+			const state = createStoredSignal(() => saved, async transform => succeed(saved = transform(saved)));
+			return <DiffReviewContext value={state}>
+				<ReviewPromptQueueList projectSlug="project" folderName="ticket"
+					worktreeIdentity="worktree" profileName="" />
+			</DiffReviewContext>;
+		});
+		saved = { ...saved, tickets: { ticket: { ...saved.tickets.ticket,
+			queue: { items: [{ ...saved.tickets.ticket.queue.items[0],
+			state: "delivering", deliveryStartedAt: new Date().toISOString(),
+		}] } } } };
+		container.querySelector<HTMLButtonElement>('[data-testid="diff-review-queue-remove"]')!.click();
+		await expect.poll(() => container.querySelector('[role="alert"]')?.textContent).toContain("already delivering");
+		expect(saved.tickets.ticket.queue.items[0].state).toBe("delivering");
+	});
+
 	it("keeps each item on its own DOM node while another item is removed", () => {
 		const [items, setItems] = createSignal([
 			makeItem({ id: "a", feedback: "alpha" }),
 			makeItem({ id: "b", feedback: "beta" }),
 		]);
 		const { container } = render(() => (
-			<ReviewPromptQueueList
-				items={items()}
-				onRetry={() => {}}
-				onRemove={() => {}}
-			/>
+			<Queue items={items()} />
 		));
 		const betaBefore = itemByFeedback(container, "beta");
 		expect(betaBefore).toBeTruthy();
@@ -72,11 +127,7 @@ describe("ReviewPromptQueueList", () => {
 			makeItem({ id: "b", feedback: "beta" }),
 		]);
 		const { container } = render(() => (
-			<ReviewPromptQueueList
-				items={items()}
-				onRetry={() => {}}
-				onRemove={() => {}}
-			/>
+			<Queue items={items()} />
 		));
 		const betaBefore = itemByFeedback(container, "beta");
 		expect(betaBefore).toBeTruthy();
@@ -102,11 +153,7 @@ describe("ReviewPromptQueueList", () => {
 			makeItem({ id: "a", feedback: "alpha", state: "waiting" }),
 		]);
 		const { container } = render(() => (
-			<ReviewPromptQueueList
-				items={items()}
-				onRetry={() => {}}
-				onRemove={() => {}}
-			/>
+			<Queue items={items()} />
 		));
 		expect(container.querySelector('[data-testid="diff-review-queue-remove"]')).toBeTruthy();
 

@@ -1,11 +1,16 @@
 import { useParams, useNavigate, revalidate } from "@solidjs/router";
+import { createDiffReviewStorage } from '~/components/diff-review/diff-review-storage.js';
+import {
+  readDiffReviewState, saveDiffReviewState, releaseDiffReviewState,
+} from '~/components/diff-review/diff-review-state-api.js';
+import { DiffReviewContext } from '~/components/diff-review/diff-review-context.js';
 import { AppConfigContext } from '~/components/config/app-config-storage.js';
 import { BoardConfigContext } from '~/components/board/board-config-storage.js';
 import { LauncherConfigContext } from '~/components/launcher/shared-launcher-config-storage.js';
 import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js';
 import {
   Show, For, Switch, Match, Errored, Loading,
-  createSignal, createEffect, createMemo, onSettled, lazy, flush, useContext,
+  createSignal, createEffect, createMemo, onSettled, lazy, useContext,
 } from "solid-js";
 import { EllipsisVertical } from "~/components/ui/icons.js";
 import { Network } from "~/components/ui/icons.js";
@@ -102,14 +107,22 @@ function createDeferredSignal<T>(ready: () => boolean, load: () => Promise<T>, p
 }
 
 export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
-  const params = useParams();
-  const storage = createMemo(() => createProjectLauncherConfigStorage(params.projectSlug!));
-  return <ProjectLauncherConfigContext value={{
-    get: () => storage().get(), update: transform => storage().update(transform),
-  }}><ProjectContent {...props} /></ProjectLauncherConfigContext>;
+  const params = useParams<{ projectSlug: string }>();
+  const storage = createProjectLauncherConfigStorage(params);
+  const reviewState = createDiffReviewStorage(params, {
+    read: readDiffReviewState, save: saveDiffReviewState, release: releaseDiffReviewState,
+  });
+  return (
+    <ProjectLauncherConfigContext value={storage}>
+      <DiffReviewContext value={reviewState}>
+        <ProjectContent {...props} />
+      </DiffReviewContext>
+    </ProjectLauncherConfigContext>
+  );
 }
 
 function ProjectContent(props: { ctrl?: ProjectPageController }) {
+  const reviewState = useContext(DiffReviewContext)!;
   const appConfig = useContext(AppConfigContext)!;
   const params = useParams();
   const navigate = useNavigate();
@@ -147,8 +160,6 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
   function navigateToProject(nextProjectSlug: string) {
     commands.closeReview();
     commands.closeDetail();
-    // Dispose the open project overlays before the router replaces their owner.
-    flush();
     navigate(paths.project(nextProjectSlug)());
   }
 
@@ -167,7 +178,9 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
   });
   const launcherConfig = createMemo(() => {
     const project = projectMetadata();
-    return project && { ...project, ...mergeLauncherConfigs(sharedLauncherConfig.get(), projectLauncherConfig.get()) };
+    return project && {
+      ...project, ...mergeLauncherConfigs(sharedLauncherConfig.get(), projectLauncherConfig.get()),
+    };
   });
   const shortcutRunner = createBoardShortcutRunner({ projectSlug, config: launcherConfig });
 
@@ -198,7 +211,11 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
     (currentProjectSlug) => {
       if (!currentProjectSlug) return;
       void reconcileReviewPromptQueue(currentProjectSlug)
-        .then(() => revalidate("diff-review-queue"))
+        .then(async () => {
+          const result = await reviewState.refresh();
+          if (result.type === "Failure") throw new Error(result.error);
+          revalidate("diff-review-agent");
+        })
         .catch((cause: unknown) => console.error("Review Prompt Queue reconciliation failed", cause));
     },
   );
@@ -213,7 +230,9 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
           revalidate("herdr-agent-statuses"),
           reconcileReviewPromptQueue(projectSlug()),
         ]);
-        await revalidate("diff-review-queue");
+        const result = await reviewState.refresh();
+        if (result.type === "Failure") throw new Error(result.error);
+        revalidate("diff-review-agent");
 	  } catch (error) {
 		console.error("Herdr polling failed", error);
       } finally {

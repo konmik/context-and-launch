@@ -1,38 +1,27 @@
-import { createSignal, type Accessor } from "solid-js";
+import { createMemo, createSignal } from "solid-js";
+import type { Result } from "~/util/result.js";
 
 export interface ReviewedLineRef {
 	id: string;
 	path: string;
 }
 
-export interface ReviewedLineTracker {
-	reviewedLineIds: Accessor<ReadonlySet<string>>;
-	mergeAcknowledged(lineIds: readonly string[]): void;
-	markVisible(line: ReviewedLineRef): void;
-	flush(): Promise<void>;
-	dispose(): Promise<void>;
-}
-
 export function createReviewedLineTracker(options: {
-	persist(lines: ReviewedLineRef[]): Promise<{ ok: boolean; message?: string }>;
+	saved(): ReadonlySet<string>;
+	persist(lines: ReviewedLineRef[]): Promise<Result<void, string>>;
 	onError(message: string): void;
 	debounceMs?: number;
-}): ReviewedLineTracker {
-	const acknowledged = new Set<string>();
+}) {
 	const pending = new Map<string, string>();
-	const inFlight = new Map<string, string>();
-	const [reviewedLineIds, setReviewedLineIds] = createSignal<ReadonlySet<string>>(new Set());
+	const [optimistic, setOptimistic] = createSignal<ReadonlySet<string>>(new Set());
+	const reviewedLineIds = createMemo(() => new Set([...options.saved(), ...optimistic()]));
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	let flushing: Promise<void> | undefined;
 	let disposed = false;
 
-	const publish = () => setReviewedLineIds(new Set([
-		...acknowledged,
-		...pending.keys(),
-		...inFlight.keys(),
-	]));
+	const publish = () => setOptimistic(new Set(pending.keys()));
 	const schedule = () => {
-		if (disposed || timer !== undefined || pending.size === 0) return;
+		if (disposed || flushing || timer !== undefined || pending.size === 0) return;
 		timer = setTimeout(() => {
 			timer = undefined;
 			void flush();
@@ -48,17 +37,13 @@ export function createReviewedLineTracker(options: {
 		flushing = (async () => {
 			while (pending.size > 0) {
 				const batch = [...pending].map(([id, path]) => ({ id, path }));
-				pending.clear();
-				for (const line of batch) inFlight.set(line.id, line.path);
-				publish();
 				try {
 					const result = await options.persist(batch);
-					if (!result.ok) throw new Error(result.message ?? "Could not save reviewed lines.");
-					for (const line of batch) acknowledged.add(line.id);
+					if (result.type === "Failure") throw new Error(result.error);
 				} catch (error) {
 					options.onError(error instanceof Error ? error.message : String(error));
 				} finally {
-					for (const line of batch) inFlight.delete(line.id);
+					for (const line of batch) pending.delete(line.id);
 					publish();
 				}
 			}
@@ -76,17 +61,9 @@ export function createReviewedLineTracker(options: {
 
 	return {
 		reviewedLineIds,
-		mergeAcknowledged(lineIds) {
-			for (const lineId of lineIds) {
-				acknowledged.add(lineId);
-				pending.delete(lineId);
-				inFlight.delete(lineId);
-			}
-			publish();
-		},
-		markVisible(line) {
+		markVisible(line: ReviewedLineRef) {
 			if (disposed) return;
-			if (acknowledged.has(line.id) || pending.has(line.id) || inFlight.has(line.id)) return;
+			if (options.saved().has(line.id) || pending.has(line.id)) return;
 			pending.set(line.id, line.path);
 			publish();
 			schedule();

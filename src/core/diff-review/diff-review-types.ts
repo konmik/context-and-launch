@@ -118,3 +118,11 @@ export interface DiffReviewProjectState {
 	version: 2;
 	tickets: Record<string, DiffReviewTicketState>;
 }
+
+export function getReviewTicketState(
+	project: DiffReviewProjectState, folderName: string, worktreeIdentity: string,
+): DiffReviewTicketState {
+	const ticket = project.tickets[folderName];
+	return ticket?.worktreeIdentity === worktreeIdentity
+		? ticket : { worktreeIdentity, reviewedLines: {}, queue: { items: [] } };
+}

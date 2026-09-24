@@ -52,9 +52,7 @@ type TicketAgentObservation =
 
 export class ReviewPromptQueueService {
 	private readonly recoveredProjects = new Set<string>();
-	private readonly processingTickets = new Set<string>();
-	private readonly ticketFinished = new Map<string, Promise<void>>();
-	private readonly finishTicket = new Map<string, () => void>();
+	private readonly processingTickets = new Map<string, Promise<void>>();
 	private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
 	private readonly agentSnapshots = new Map<
 		string,
@@ -77,7 +75,7 @@ export class ReviewPromptQueueService {
 		observation?: HerdrAgent[] | { agents: HerdrAgent[]; observedAt: number },
 	): Promise<void> {
 		if (!this.recoveredProjects.has(projectSlug)) {
-			this.store.recoverInterrupted(projectSlug);
+			await this.store.whenWritable(projectSlug, () => this.store.recoverInterrupted(projectSlug));
 			this.recoveredProjects.add(projectSlug);
 		}
 		const observed = Array.isArray(observation)
@@ -154,9 +152,9 @@ export class ReviewPromptQueueService {
 		return this.withTicketLock(projectSlug, folderName, async () => {
 			const target = this.targets.resolve(projectSlug, folderName);
 			const agentsKnown = await this.refreshAgentSnapshot(projectSlug);
-			const item = this.store.enqueue(
+			const item = await this.store.whenWritable(projectSlug, () => this.store.enqueue(
 				projectSlug, folderName, target.worktreeIdentity, feedback, snapshot,
-			);
+			));
 			if (
 				profileName
 				&& (!agentsKnown || !this.agentRunningFor(target))
@@ -176,7 +174,8 @@ export class ReviewPromptQueueService {
 		await this.withTicketLock(projectSlug, folderName, async () => {
 			const target = this.targets.resolve(projectSlug, folderName);
 			const agentsKnown = await this.refreshAgentSnapshot(projectSlug);
-			this.store.retry(projectSlug, folderName, target.worktreeIdentity, itemId);
+			await this.store.whenWritable(projectSlug, () =>
+				this.store.retry(projectSlug, folderName, target.worktreeIdentity, itemId));
 			if (
 				profileName
 				&& (!agentsKnown || !this.agentRunningFor(target))
@@ -195,9 +194,11 @@ export class ReviewPromptQueueService {
 			target.projectSlug, target.folderName, target.worktreeIdentity,
 		);
 		if (current.queue.items[0]?.state !== "waiting" || this.launchReserved(current)) return;
-		const ticket = this.store.requestAgentLaunch(
-			target.projectSlug, target.folderName, target.worktreeIdentity, profileName,
-		);
+		if (!profileName.trim()) throw new Error("An Agent launch requires a profile.");
+		const ticket = await this.store.whenWritable(target.projectSlug, () => this.store.updateTicket(
+			target.projectSlug, target.folderName, target.worktreeIdentity,
+			ticket => ({ ...ticket, queue: { ...ticket.queue, requestedAgentProfileName: profileName } }),
+		));
 		if (!agentsKnown) return;
 		const cooldownRemaining = this.cooldownRemainingMs(ticket);
 		if (cooldownRemaining > 0) {
@@ -244,26 +245,32 @@ export class ReviewPromptQueueService {
 				+ " Review Prompt Queue hands it the next Review Prompt on its own.",
 			);
 		}
-		this.store.clearAgentLaunchRequest(
-			projectSlug, folderName, target.worktreeIdentity,
-		);
 		if (head) {
-			await this.deliver(target, head, this.agentLaunchDelivery(target, profileName));
+			await this.deliver(target, head, {
+				send: prompt => this.launcher.launch(target, prompt, profileName),
+				cooldownMs: AGENT_STARTUP_COOLDOWN_MS,
+			});
 			return;
 		}
 		const reservedUntil = new Date(Date.now() + AGENT_STARTUP_COOLDOWN_MS);
-		this.store.reserveAgentLaunch(
+		await this.store.whenWritable(projectSlug, () => this.store.reserveAgentLaunch(
 			projectSlug, folderName, target.worktreeIdentity, reservedUntil,
-		);
+		));
 		try {
 			await this.launcher.launch(target, "", profileName);
 		} catch (error) {
-			this.store.clearAgentLaunchReservation(projectSlug, folderName, target.worktreeIdentity);
+			await this.store.whenWritable(projectSlug, () => this.store.updateTicket(
+				projectSlug, folderName, target.worktreeIdentity,
+				ticket => ({ ...ticket, queue: { ...ticket.queue, agentLaunchReservedUntil: undefined } }),
+			));
 			throw error;
 		}
-		this.store.completeAgentLaunch(
-			projectSlug, folderName, target.worktreeIdentity, reservedUntil,
-		);
+		await this.store.whenWritable(projectSlug, () => this.store.updateTicket(
+			projectSlug, folderName, target.worktreeIdentity,
+			ticket => ({ ...ticket, queue: { ...ticket.queue,
+				agentLaunchReservedUntil: undefined, cooldownUntil: reservedUntil.toISOString(),
+			} }),
+		));
 	}
 
 	private async withTicketLock<T>(
@@ -272,44 +279,17 @@ export class ReviewPromptQueueService {
 		run: () => Promise<T>,
 	): Promise<T> {
 		const processingKey = ticketKey(projectSlug, folderName);
-		await this.acquireTicket(processingKey);
+		while (this.processingTickets.has(processingKey)) {
+			await this.processingTickets.get(processingKey);
+		}
+		let finish!: () => void;
+		this.processingTickets.set(processingKey, new Promise<void>(resolve => { finish = resolve; }));
 		try {
 			return await run();
 		} finally {
-			this.releaseTicket(processingKey);
+			this.processingTickets.delete(processingKey);
+			finish();
 		}
-	}
-
-	private async acquireTicket(processingKey: string): Promise<void> {
-		while (this.processingTickets.has(processingKey)) {
-			await this.ticketFinished.get(processingKey);
-		}
-		this.processingTickets.add(processingKey);
-		this.ticketFinished.set(processingKey, new Promise((resolve) => {
-			this.finishTicket.set(processingKey, resolve);
-		}));
-	}
-
-	private releaseTicket(processingKey: string): void {
-		this.processingTickets.delete(processingKey);
-		this.finishTicket.get(processingKey)?.();
-		this.finishTicket.delete(processingKey);
-		this.ticketFinished.delete(processingKey);
-	}
-
-	/**
-	 * Starting an Agent is a delivery like any other: the prompt travels as the
-	 * Agent's first input, and the queue waits out the Agent's startup before it
-	 * considers delivering the next one.
-	 */
-	private agentLaunchDelivery(
-		target: ResolvedDiffReviewTarget,
-		profileName: string,
-	) {
-		return {
-			send: (prompt: string) => this.launcher.launch(target, prompt, profileName),
-			cooldownMs: AGENT_STARTUP_COOLDOWN_MS,
-		};
 	}
 
 	private async processTicket(
@@ -320,8 +300,7 @@ export class ReviewPromptQueueService {
 	): Promise<void> {
 		const processingKey = ticketKey(projectSlug, folderName);
 		if (this.processingTickets.has(processingKey)) return;
-		await this.acquireTicket(processingKey);
-		try {
+		await this.withTicketLock(projectSlug, folderName, async () => {
 			let target: ResolvedDiffReviewTarget;
 			try {
 				target = this.targets.resolve(projectSlug, folderName);
@@ -353,23 +332,23 @@ export class ReviewPromptQueueService {
 				}
 				if (agentsReadAt <= sentAt) return;
 				if (agent.kind === "absent") {
-					this.store.failSentDelivery(
+					await this.store.whenWritable(projectSlug, () => this.store.failSentDelivery(
 						projectSlug,
 						folderName,
 						target.worktreeIdentity,
 						head.id,
 						"The Agent that received this Review Prompt is no longer running."
 							+ " Retry it if the work was not completed.",
-					);
+					));
 					return;
 				}
 				if (agent.kind !== "herdr" || !agentIsFree(agent.agent)) return;
-				this.store.acknowledgeSent(
+				await this.store.whenWritable(projectSlug, () => this.store.acknowledgeSent(
 					projectSlug,
 					folderName,
 					target.worktreeIdentity,
 					head.id,
-				);
+				));
 				this.scheduleTicket(`${processingKey}:advance`, 0, projectSlug, folderName);
 				return;
 			}
@@ -386,9 +365,10 @@ export class ReviewPromptQueueService {
 				return;
 			}
 			if (agent.kind !== "absent" && ticket.queue.requestedAgentProfileName) {
-				this.store.clearAgentLaunchRequest(
+				await this.store.whenWritable(projectSlug, () => this.store.updateTicket(
 					projectSlug, folderName, target.worktreeIdentity,
-				);
+					ticket => ({ ...ticket, queue: { ...ticket.queue, requestedAgentProfileName: undefined } }),
+				));
 			}
 			// Starting an Agent opens a terminal on the user's machine, so only the
 			// user starts one. With no Herdr Agent to deliver to, the Review Prompt
@@ -405,9 +385,7 @@ export class ReviewPromptQueueService {
 				).then(() => undefined),
 				cooldownMs: DELIVERY_COOLDOWN_MS,
 			});
-		} finally {
-			this.releaseTicket(processingKey);
-		}
+		});
 	}
 
 	private async processTicketIsolated(
@@ -446,45 +424,45 @@ export class ReviewPromptQueueService {
 		item: ReviewPromptQueueItem,
 		delivery: { send(prompt: string): Promise<void>; cooldownMs: number },
 	): Promise<void> {
-		this.store.beginDelivery(
+		await this.store.whenWritable(target.projectSlug, () => this.store.beginDelivery(
 			target.projectSlug,
 			target.folderName,
 			target.worktreeIdentity,
 			item.id,
-		);
+		));
 		try {
 			const freshness = item.snapshot
 				? await this.checkFreshness(target, item.snapshot)
 				: { stale: false };
 			await delivery.send(renderReviewPrompt(item, freshness));
 		} catch (error) {
-			this.store.failDelivery(
+			await this.store.whenWritable(target.projectSlug, () => this.store.failDelivery(
 				target.projectSlug,
 				target.folderName,
 				target.worktreeIdentity,
 				item.id,
 				errorMessage(error),
-			);
+			));
 			return;
 		}
 		const sentAt = new Date();
 		try {
-			this.store.completeDelivery(
+			await this.store.whenWritable(target.projectSlug, () => this.store.completeDelivery(
 				target.projectSlug,
 				target.folderName,
 				target.worktreeIdentity,
 				item.id,
 				sentAt,
 				delivery.cooldownMs,
-			);
+			));
 		} catch (error) {
-			this.store.markDeliveryUncertain(
+			await this.store.whenWritable(target.projectSlug, () => this.store.markDeliveryUncertain(
 				target.projectSlug,
 				target.folderName,
 				target.worktreeIdentity,
 				item.id,
 				`The Agent accepted this Review Prompt, but its queue state could not be saved: ${errorMessage(error)}`,
-			);
+			));
 			return;
 		}
 		const key = ticketKey(target.projectSlug, target.folderName);

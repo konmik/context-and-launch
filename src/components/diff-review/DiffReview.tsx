@@ -1,7 +1,6 @@
 import type { SelectedLineRange } from "@pierre/diffs";
 import { revalidate } from "@solidjs/router";
 import {
-	type Accessor,
 	Errored,
 	For,
 	Show,
@@ -10,6 +9,7 @@ import {
 	createSignal,
 	useContext,
 	onSettled,
+	onCleanup,
 } from "solid-js";
 import { AlertTriangle } from "~/components/ui/icons.js";
 import { ArrowDownToLine } from "~/components/ui/icons.js";
@@ -50,17 +50,14 @@ import {
 } from "~/core/diff-review/review-navigation.js";
 import { useHerdrStatuses } from "../ticket/herdr-statuses-context.js";
 import { LauncherConfigContext } from '../launcher/shared-launcher-config-storage.js';
+import { ProjectLauncherConfigContext } from '../launcher/project-launcher-config-storage.js';
 import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js';
-import {
-} from "../launcher/launcher-api.js";
+import { DiffReviewContext } from "./diff-review-context.js";
+import { getReviewTicketState } from "~/core/diff-review/diff-review-types.js";
 import {
 	enqueueReviewPrompt,
-	getReviewPromptQueue,
+	getReviewAgentStatus,
 	getReviewSnapshot,
-	launchReviewAgent,
-	markReviewLinesReviewed,
-	removeReviewPrompt,
-	retryReviewPrompt,
 } from "./diff-review-api.js";
 import {
 	buildDiffReviewFileTree,
@@ -71,6 +68,7 @@ import { buildFileTypeTotals } from "./diff-review-file-type-totals.js";
 import { createReviewedLineTracker } from "./create-reviewed-line-tracker.js";
 import DiffSurface from "./DiffSurface.js";
 import ReviewPromptComposer, { type ActiveSelection } from "./ReviewPromptComposer.js";
+import ReviewPromptQueueList from "./ReviewPromptQueueList.js";
 
 const SCOPE_LABELS = {
 	all: "All Changes",
@@ -354,9 +352,6 @@ export default function DiffReview(props: {
 	const [sendError, setSendError] = createSignal<string>();
 	const [sending, setSending] = createSignal(false);
 	const [refreshing, setRefreshing] = createSignal(false);
-	const [retryingId, setRetryingId] = createSignal<string>();
-	const [removingId, setRemovingId] = createSignal<string>();
-	const [launching, setLaunching] = createSignal(false);
 	const [savingProfile, setSavingProfile] = createSignal(false);
 	const [selectedProfile, setSelectedProfile] = createSignal("");
 	const [reviewError, setReviewError] = createSignal<string>();
@@ -364,25 +359,43 @@ export default function DiffReview(props: {
 	let scrollRef: HTMLDivElement | undefined;
 	let scrollFrame: number | undefined;
 	const sectionRefs = new Map<string, HTMLElement>();
-	const reviewedLines = createReviewedLineTracker({
-		persist: (lines) => markReviewLinesReviewed(
-			props.projectSlug,
-			props.ticket.folderName,
-			lines,
-		),
-		onError: setReviewError,
+	const { get, update, refresh: refreshState } = useContext(DiffReviewContext)!;
+	const agentStatus = createMemo(() =>
+		getReviewAgentStatus(props.projectSlug, props.ticket.folderName));
+	const worktreeIdentity = createMemo(() => agentStatus().worktreeIdentity);
+	const reviewedLines = createMemo(() => {
+		const folderName = props.ticket.folderName;
+		const identity = worktreeIdentity();
+		const saved = createMemo(() => new Set(Object.keys(
+			getReviewTicketState(get(), folderName, identity).reviewedLines,
+		)));
+		const tracker = createReviewedLineTracker({
+			saved,
+			persist: lines => {
+				const reviewedAt = new Date().toISOString();
+				return update(current => {
+					const ticket = getReviewTicketState(current, folderName, identity);
+					return { ...current, tickets: { ...current.tickets, [folderName]: { ...ticket,
+						reviewedLines: { ...ticket.reviewedLines, ...Object.fromEntries(
+							lines.map(line => [line.id, { path: line.path, reviewedAt }]),
+						) },
+					} } };
+				});
+			},
+			onError: setReviewError,
+		});
+		onCleanup(() => void tracker.dispose());
+		return tracker;
 	});
-	const reviewedLineIds = reviewedLines.reviewedLineIds;
+	const reviewedLineIds = () => reviewedLines().reviewedLineIds();
 
 	const review = createMemo(() =>
 		getReviewSnapshot(props.projectSlug, props.ticket.folderName, scope() ?? null));
-	const queue = createMemo(() =>
-		getReviewPromptQueue(props.projectSlug, props.ticket.folderName));
 	const sharedConfig = useContext(LauncherConfigContext)!;
 	const projectConfig = useContext(ProjectLauncherConfigContext)!;
 	const launcherConfig = createMemo(() => mergeLauncherConfigs(sharedConfig.get(), projectConfig.get()));
 	const agentPresent = () =>
-		!!herdrStatus(props.ticket.folderName) || queue()?.agentRunning === true;
+		!!herdrStatus(props.ticket.folderName) || agentStatus()?.agentRunning === true;
 	const profileNames = () => launcherConfig()?.profiles.map((profile) => profile.name) ?? [];
 	createEffect(launcherConfig, (config) => {
 		if (!config) return;
@@ -462,7 +475,6 @@ export default function DiffReview(props: {
 
 	createEffect(() => [scopedSnapshot(), activePath()] as const, ([current, currentPath]) => {
 		if (!current) return;
-		reviewedLines.mergeAcknowledged(current.reviewedLineIds);
 		if (!current.files.some((file) => file.path === currentPath)) {
 			setActivePath(filePaths()[0] ?? "");
 		}
@@ -492,12 +504,14 @@ export default function DiffReview(props: {
 	// The queue advances on the server as the Agent picks up and finishes each
 	// Review Prompt, so the Diff Review rereads it while it is open.
 	onSettled(() => {
-		const timer = setInterval(() => void revalidate("diff-review-queue"), 1_200);
+		const timer = setInterval(() => {
+			void refreshState().then(result => { if (result.type === "Failure") setReviewError(result.error); });
+			revalidate("diff-review-agent");
+		}, 1_200);
 		return () => {
 			clearInterval(timer);
 			if (scrollFrame !== undefined) cancelAnimationFrame(scrollFrame);
 			endTreeResize();
-			void reviewedLines.dispose();
 		};
 	});
 
@@ -546,7 +560,7 @@ export default function DiffReview(props: {
 	}
 
 	function onChangedLineVisible(filePath: string, lineId: string) {
-		reviewedLines.markVisible({ id: lineId, path: filePath });
+		reviewedLines().markVisible({ id: lineId, path: filePath });
 	}
 
 	function selectLines(file: ReviewFileSnapshot, range: SelectedLineRange | null) {
@@ -587,32 +601,12 @@ export default function DiffReview(props: {
 				return false;
 			}
 			setFeedback("");
-			await revalidate("diff-review-queue");
+			const refreshed = await refreshState();
+			if (refreshed.type === "Failure") setReviewError(refreshed.error);
+			revalidate("diff-review-agent");
 			return true;
 		} finally {
 			setSending(false);
-		}
-	}
-
-	// A queue action ignores a second click while its own kind is still running,
-	// reports its failure in the Diff Review error bar, and leaves the queue on
-	// screen showing what the server now holds.
-	async function launchAgent() {
-		const profileName = selectedProfile();
-		if (!profileName) {
-			setReviewError("Choose an Agent profile before launching.");
-			return;
-		}
-		if (launching()) return;
-		setLaunching(true);
-		try {
-			const result = await launchReviewAgent(
-				props.projectSlug, props.ticket.folderName, profileName,
-			);
-			if (!result.ok) setReviewError(result.message);
-			await revalidate("diff-review-queue");
-		} finally {
-			setLaunching(false);
 		}
 	}
 
@@ -643,37 +637,6 @@ export default function DiffReview(props: {
 			setSendError(error instanceof Error ? error.message : String(error));
 		} finally {
 			setSavingProfile(false);
-		}
-	}
-
-	// Sending and retrying are the moments the user asks for the Review Prompt to
-	// move, so they start an Agent when the Ticket has none and a profile is configured.
-	async function retry(itemId: string) {
-		if (retryingId()) return;
-		setRetryingId(itemId);
-		try {
-			const result = await retryReviewPrompt(
-				props.projectSlug,
-				props.ticket.folderName,
-				itemId,
-				selectedProfile() || null,
-			);
-			if (!result.ok) setReviewError(result.message);
-			await revalidate("diff-review-queue");
-		} finally {
-			setRetryingId();
-		}
-	}
-
-	async function removePrompt(itemId: string) {
-		if (removingId()) return;
-		setRemovingId(itemId);
-		try {
-			const result = await removeReviewPrompt(props.projectSlug, props.ticket.folderName, itemId);
-			if (!result.ok) setReviewError(result.message);
-			await revalidate("diff-review-queue");
-		} finally {
-			setRemovingId();
 		}
 	}
 
@@ -1083,22 +1046,19 @@ export default function DiffReview(props: {
 				onProfileChange={(profileName) => void changeProfile(profileName)}
 				sending={sending()}
 				error={sendError()}
-				queueItems={queue()?.items ?? []}
 				agentStatus={herdrStatus(props.ticket.folderName)}
 				agentPresent={agentPresent()}
-				retryingId={retryingId()}
-				removingId={removingId()}
-				onRetry={(itemId) => void retry(itemId)}
-				onRemove={(itemId) => void removePrompt(itemId)}
-					onCancel={() => {
+				onCancel={() => {
 					changeComposer();
 					setSendError();
 				}}
 				onError={setSendError}
 				onSend={sendFeedback}
-			/>
+			>
+				<ReviewPromptQueueList projectSlug={props.projectSlug} folderName={props.ticket.folderName}
+					worktreeIdentity={agentStatus().worktreeIdentity} profileName={selectedProfile()} />
+			</ReviewPromptComposer>
 
 		</div>
 	);
 }
-import { ProjectLauncherConfigContext } from '../launcher/project-launcher-config-storage.js';

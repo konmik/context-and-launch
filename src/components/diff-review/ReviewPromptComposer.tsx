@@ -1,18 +1,16 @@
 import { For, Show, createEffect } from "solid-js";
-import { Portal } from "@solidjs/web";
+import { Portal, type JSX } from "@solidjs/web";
 import { AlertTriangle } from "~/components/ui/icons.js";
 import { GripVertical } from "~/components/ui/icons.js";
 import { Send } from "~/components/ui/icons.js";
 import { X } from "~/components/ui/icons.js";
 import type {
 	ReviewLineRange,
-	ReviewPromptQueueItem,
 	ReviewPromptSnapshot,
 } from "~/core/diff-review/diff-review-types.js";
 import type { HerdrAgentStatus } from "~/core/herdr/herdr-client.js";
 import { modEnterHint } from "~/lib/use-mod-enter-submit.js";
 import HerdrStatusIcon from "../ticket/HerdrStatusIcon.js";
-import ReviewPromptQueueList from "./ReviewPromptQueueList.js";
 import VerticalReveal from "./VerticalReveal.js";
 
 export interface ActiveSelection {
@@ -48,16 +46,14 @@ function selectionLabel(selection: ActiveSelection): string {
 }
 
 export default function ReviewPromptComposer(props: {
+	children?: JSX.Element;
 	open: boolean;
 	selection?: ActiveSelection;
 	stale: boolean;
 	sending: boolean;
 	error?: string;
-	queueItems: ReviewPromptQueueItem[];
 	agentStatus?: HerdrAgentStatus;
 	agentPresent: boolean;
-	retryingId?: string;
-	removingId?: string;
 	feedback: string;
 	completePrompt: string;
 	dragText?: string;
@@ -66,8 +62,6 @@ export default function ReviewPromptComposer(props: {
 	savingProfile: boolean;
 	onFeedbackChange(feedback: string): void;
 	onProfileChange(profileName: string): void;
-	onRetry(itemId: string): void;
-	onRemove(itemId: string): void;
 	onCancel(): void;
 	onError(message: string): void;
 	onSend(feedback: string): Promise<boolean>;
@@ -115,13 +109,7 @@ export default function ReviewPromptComposer(props: {
 					}}
 					data-testid="diff-review-composer"
 				>
-					<ReviewPromptQueueList
-						items={props.queueItems}
-						retryingId={props.retryingId}
-						removingId={props.removingId}
-						onRetry={props.onRetry}
-						onRemove={props.onRemove}
-					/>
+					{props.children}
 					<div class="flex items-start justify-between gap-2">
 						<div class="min-w-0">
 							<div class="text-xs font-semibold">

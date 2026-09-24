@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Locator, Page } from "playwright";
+import type { DiffReviewProjectState } from "../src/core/diff-review/diff-review-types.js";
 import {
 	gotoProject,
 	openTicketDetail,
@@ -168,9 +169,23 @@ describe("Diff Review (e2e, real server)", () => {
 			() => ctx.page.locator('[data-testid="diff-review-queue-item"]').allTextContents(),
 		).toEqual([expect.stringContaining("Please explain why this value changed.")]);
 		expect(await composerInput.inputValue()).toBe("");
+		const statePath = path.join(
+			ctx.testServer.dataDir, "projects", project.projectSlug, "config", "diff-review.json",
+		);
+		const saved: DiffReviewProjectState = JSON.parse(fs.readFileSync(statePath, "utf8"));
+		saved.tickets[folderName].queue.items[0].feedback = "Updated outside the browser";
+		saved.tickets.other = { worktreeIdentity: "other-worktree", reviewedLines: {}, queue: { items: [] } };
+		fs.writeFileSync(statePath, JSON.stringify(saved));
+		await expect.poll(() => ctx.page.locator('[data-testid="diff-review-queue-item"]').allTextContents(),
+			{ timeout: 10_000 })
+			.toEqual([expect.stringContaining("Updated outside the browser")]);
 		await ctx.page.locator('[data-testid="diff-review-queue-remove"]').click();
 		await ctx.page.locator('[data-testid="diff-review-queue"]')
 			.waitFor({ state: "detached", timeout: 10_000 });
+		const afterRemoval: DiffReviewProjectState = JSON.parse(fs.readFileSync(statePath, "utf8"));
+		expect(afterRemoval.tickets.other).toEqual(saved.tickets.other);
+		expect(afterRemoval.tickets[folderName].reviewedLines).toMatchObject(saved.tickets[folderName].reviewedLines);
+		expect(afterRemoval.tickets[folderName].queue.items).toEqual([]);
 
 		await ctx.page.locator(
 			'[data-testid="diff-review-composer"] [aria-label="Close Review Prompt composer"]',

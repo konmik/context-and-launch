@@ -1,7 +1,6 @@
 import { query } from "@solidjs/router";
 import {
 	diffReviewGitService,
-	diffReviewStore,
 	diffReviewTargetResolver,
 	reviewPromptQueueService,
 } from "~/core/config/instances.js";
@@ -40,72 +39,25 @@ export const getReviewSnapshot = query(async (
 	} catch (error) {
 		return { scopes, scope, error: errorMessage(error) };
 	}
-	const state = diffReviewStore.ensureTicket(
-		projectSlug,
-		folderName,
-		target.worktreeIdentity,
-	);
-	return {
-		scopes,
-		scope,
-		snapshot: {
-			...snapshot,
-			reviewedLineIds: Object.keys(state.reviewedLines),
-		},
-	};
+	return { scopes, scope, snapshot };
 }, "diff-review-snapshot");
 
 /**
- * The queue travels with whether an Agent is running for the Ticket. Herdr is
- * not the only Agent this Ticket can have: the queue starts one from the
+ * Herdr is not the only Agent this Ticket can have: the queue starts one from the
  * launcher profile, and that Agent leaves a marker rather than a Herdr report.
  * The queue service answers from both, so a running Agent of either kind never
  * reads as no Agent.
  */
-export const getReviewPromptQueue = query(async (
+export const getReviewAgentStatus = query(async (
 	projectSlug: string,
 	folderName: string,
 ) => {
 	"use server";
-	const target = diffReviewTargetResolver.resolve(projectSlug, folderName);
-	const queue = diffReviewStore.getTicket(
-		projectSlug,
-		folderName,
-		target.worktreeIdentity,
-	).queue;
 	return {
-		...queue,
+		worktreeIdentity: diffReviewTargetResolver.resolve(projectSlug, folderName).worktreeIdentity,
 		agentRunning: reviewPromptQueueService.isAgentRunning(projectSlug, folderName),
 	};
-}, "diff-review-queue");
-
-/**
- * Every Diff Review mutation resolves the Ticket the same way and reports a
- * failure the same way, so each one only has to say what it does to the store.
- */
-async function withResolvedTicket<T>(
-	projectSlug: string,
-	folderName: string,
-	run: (worktreeIdentity: string) => T,
-) {
-	try {
-		const target = diffReviewTargetResolver.resolve(projectSlug, folderName);
-		return { ok: true as const, value: run(target.worktreeIdentity) };
-	} catch (error) {
-		return errorResult(error);
-	}
-}
-
-export async function markReviewLinesReviewed(
-	projectSlug: string,
-	folderName: string,
-	lines: { id: string; path: string }[],
-) {
-	"use server";
-	return withResolvedTicket(projectSlug, folderName, (worktreeIdentity) => {
-		diffReviewStore.markLinesReviewed(projectSlug, folderName, worktreeIdentity, lines);
-	});
-}
+}, "diff-review-agent");
 
 export async function enqueueReviewPrompt(
 	projectSlug: string,
@@ -123,31 +75,6 @@ export async function enqueueReviewPrompt(
 	} catch (error) {
 		return errorResult(error);
 	}
-}
-
-export async function launchReviewAgent(
-	projectSlug: string,
-	folderName: string,
-	profileName: string,
-) {
-	"use server";
-	try {
-		await reviewPromptQueueService.launchWithQueueHead(projectSlug, folderName, profileName);
-		return { ok: true as const };
-	} catch (error) {
-		return errorResult(error);
-	}
-}
-
-export async function removeReviewPrompt(
-	projectSlug: string,
-	folderName: string,
-	itemId: string,
-) {
-	"use server";
-	return withResolvedTicket(projectSlug, folderName, (worktreeIdentity) => {
-		diffReviewStore.removeQueueItem(projectSlug, folderName, worktreeIdentity, itemId);
-	});
 }
 
 export async function retryReviewPrompt(

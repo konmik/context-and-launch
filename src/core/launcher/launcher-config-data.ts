@@ -66,6 +66,20 @@ export function decodeLauncherConfig(raw: JsonValue): LauncherConfig {
 	};
 }
 
+export function updateLauncherReferences(
+	defaults: LauncherConfig['columnDefaults'], type: LauncherItemType, name: string, replacement: string | null,
+): LauncherConfig['columnDefaults'] {
+	const updateNames = (names: string[]) => names.flatMap(value =>
+		value === name ? replacement === null ? [] : [replacement] : [value]);
+	return defaults && Object.fromEntries(Object.entries(defaults).map(([column, value]) => [column, {
+		...value,
+		templateName: type === 'template' && value.templateName === name ? replacement : value.templateName,
+		profileName: type === 'profile' && value.profileName === name ? replacement : value.profileName,
+		checkedSkills: type === 'skill' ? updateNames(value.checkedSkills) : value.checkedSkills,
+		skillOrder: type === 'skill' && value.skillOrder ? updateNames(value.skillOrder) : value.skillOrder,
+	}]));
+}
+
 function mergeItems<T extends OrderedLauncherItem>(app: T[], project: T[]) {
 	const items = new Map<string, T & { scope: 'app' | 'project' }>();
 	for (const item of app) items.set(item.name, { ...item, scope: 'app' });

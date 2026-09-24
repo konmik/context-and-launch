@@ -92,6 +92,33 @@ function setupQueue() {
 }
 
 describe("ReviewPromptQueueService", () => {
+	it("finishes an accepted delivery after a browser releases its state update lease", async () => {
+		const { store, service, execute, agent } = setupQueue();
+		store.enqueue("project", "st-1-ticket", "worktree", "First");
+		let finishDelivery!: (output: string) => void;
+		let started!: () => void;
+		const delivering = new Promise<void>(resolve => { started = resolve; });
+		execute.mockImplementation(() => {
+			started();
+			return new Promise<string>(resolve => { finishDelivery = resolve; });
+		});
+		const processing = service.reconcileProject("project", [agent]);
+		await delivering;
+		const current = store.getTicket("project", "st-1-ticket", "worktree", "browser");
+		finishDelivery("");
+		await vi.advanceTimersByTimeAsync(20);
+		expect(store.getTicket("project", "st-1-ticket", "worktree").queue.items[0].state).toBe("delivering");
+		store.updateTicket("project", "st-1-ticket", "worktree", () => ({ ...current,
+			reviewedLines: { line: { path: "a.ts", reviewedAt: new Date().toISOString() } },
+		}), "browser");
+		await vi.advanceTimersByTimeAsync(10);
+		await processing;
+		const saved = store.getTicket("project", "st-1-ticket", "worktree");
+		expect(saved.queue.items[0].state).toBe("sent");
+		expect(Object.keys(saved.reviewedLines)).toEqual(["line"]);
+		expect(execute).toHaveBeenCalledTimes(1);
+	});
+
 	it("keeps the delivered head until the Agent is free, then delivers the next one", async () => {
 		const { store, service, execute, agent, snapshot } = setupQueue();
 		store.enqueue("project", "st-1-ticket", "worktree", "First", snapshot);
@@ -392,6 +419,9 @@ describe("ReviewPromptQueueService", () => {
 		});
 
 		await service.launchWithQueueHead("project", "st-1-ticket", "GPT");
+		const queue = store.getTicket("project", "st-1-ticket", "worktree").queue;
+		expect(queue.agentLaunchReservedUntil).toBeUndefined();
+		expect(queue.cooldownUntil).toBe("2026-07-25T12:00:45.000Z");
 	});
 
 	it("keeps a second service from repeating a recent empty launch", async () => {

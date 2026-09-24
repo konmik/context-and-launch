@@ -12,7 +12,7 @@ import type {
 } from "./launcher-settings-dialogs.js";
 import { LauncherConfigContext } from './shared-launcher-config-storage.js';
 import {
-  mergeLauncherConfigs,
+  mergeLauncherConfigs, updateLauncherReferences,
 } from '~/core/launcher/launcher-config-data.js';
 import { ProjectLauncherConfigContext } from './project-launcher-config-storage.js';
 
@@ -73,21 +73,7 @@ export function ItemSection(props: {
 				return {
 					...current,
 					[key]: items.map(item => item.name === f.oldName ? { ...item, ...fields } : item),
-					columnDefaults: current.columnDefaults && Object.fromEntries(
-						Object.entries(current.columnDefaults).map(([column, defaults]) => [column, {
-							...defaults,
-							templateName: f.itemType === 'template' && defaults.templateName === f.oldName
-								? f.name : defaults.templateName,
-							profileName: f.itemType === 'profile' && defaults.profileName === f.oldName
-								? f.name : defaults.profileName,
-							checkedSkills: f.itemType === 'skill'
-								? defaults.checkedSkills.map(name => name === f.oldName ? f.name : name)
-								: defaults.checkedSkills,
-							skillOrder: f.itemType === 'skill'
-								? defaults.skillOrder?.map(name => name === f.oldName ? f.name : name)
-								: defaults.skillOrder,
-						}]),
-					),
+					columnDefaults: updateLauncherReferences(current.columnDefaults, f.itemType, f.oldName!, f.name),
 				};
 			});
 			if (result.type === 'Failure') { setError({ title: 'Save failed', description: result.error }); return; }
@@ -101,19 +87,7 @@ export function ItemSection(props: {
 			const result = await (scope === 'app' ? sharedConfig : projectConfig).update(current => ({
 				...current,
 				[collections[itemType]]: (current[collections[itemType]] ?? []).filter(item => item.name !== name),
-				columnDefaults: current.columnDefaults && Object.fromEntries(
-					Object.entries(current.columnDefaults).map(([column, defaults]) => [column, {
-						...defaults,
-						templateName: itemType === 'template' && defaults.templateName === name
-							? null : defaults.templateName,
-						profileName: itemType === 'profile' && defaults.profileName === name
-							? null : defaults.profileName,
-						checkedSkills: itemType === 'skill'
-							? defaults.checkedSkills.filter(value => value !== name) : defaults.checkedSkills,
-						skillOrder: itemType === 'skill'
-							? defaults.skillOrder?.filter(value => value !== name) : defaults.skillOrder,
-					}]),
-				),
+				columnDefaults: updateLauncherReferences(current.columnDefaults, itemType, name, null),
 			}));
 			if (result.type === 'Failure') setError({ title: 'Delete failed', description: result.error });
 		} catch (e) { setError(errorPayload(e, "Delete failed")); }

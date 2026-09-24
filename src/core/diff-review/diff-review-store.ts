@@ -3,6 +3,8 @@ import * as v from "valibot";
 import type { ConfigPaths } from "../config/config-paths.js";
 import type { ConfigRepository } from "../config/config-repository.js";
 import { requireSafeSlug } from "../config/config-paths.js";
+import { UpdateLock } from "~/util/update-lock.js";
+import { getReviewTicketState } from "./diff-review-types.js";
 import type {
 	DiffReviewProjectState,
 	DiffReviewTicketState,
@@ -71,29 +73,49 @@ const LegacyProjectStateSchema = v.object({
 	),
 });
 
-function emptyProjectState(): DiffReviewProjectState {
-	return { version: 2, tickets: {} };
-}
-
-function emptyTicketState(worktreeIdentity: string): DiffReviewTicketState {
-	return {
-		worktreeIdentity,
-		reviewedLines: {},
-		queue: { items: [] },
-	};
-}
-
 export class DiffReviewStore {
+	private readonly locks = new Map<string, UpdateLock>();
+
+	private lock(projectSlug: string): UpdateLock {
+		requireSafeSlug(projectSlug);
+		let lock = this.locks.get(projectSlug);
+		if (!lock) this.locks.set(projectSlug, lock = new UpdateLock());
+		return lock;
+	}
+
+	whenWritable<T>(projectSlug: string, write: () => T): Promise<T> {
+		return this.lock(projectSlug).writeWhenAvailable(write);
+	}
+
+	release(projectSlug: string, owner: string): void {
+		this.lock(projectSlug).release(owner);
+	}
 	constructor(
 		private readonly paths: ConfigPaths,
 		private readonly repository: ConfigRepository,
 	) {}
 
-	loadProject(projectSlug: string): DiffReviewProjectState {
+	loadProject(projectSlug: string, owner?: string): DiffReviewProjectState {
+		return this.lock(projectSlug).read(() => this.readProject(projectSlug), owner);
+	}
+
+	updateProject(
+		projectSlug: string,
+		transform: (current: DiffReviewProjectState) => DiffReviewProjectState,
+		owner?: string,
+	): DiffReviewProjectState {
+		return this.lock(projectSlug).write(() => {
+			const next = v.parse(ProjectStateSchema, transform(this.readProject(projectSlug)));
+			this.repository.writeJson(this.paths.diffReviewStateFile(projectSlug), next);
+			return next;
+		}, owner);
+	}
+
+	private readProject(projectSlug: string): DiffReviewProjectState {
 		requireSafeSlug(projectSlug);
 		const filePath = this.paths.diffReviewStateFile(projectSlug);
 		const raw = this.repository.readJson(filePath);
-		if (raw === null) return emptyProjectState();
+		if (raw === null) return { version: 2, tickets: {} };
 		const parsed = v.safeParse(ProjectStateSchema, raw);
 		if (parsed.success) return parsed.output;
 		const legacy = v.safeParse(LegacyProjectStateSchema, raw);
@@ -112,42 +134,10 @@ export class DiffReviewStore {
 		projectSlug: string,
 		folderName: string,
 		worktreeIdentity: string,
+		owner?: string,
 	): DiffReviewTicketState {
 		requireSafeSlug(folderName);
-		const project = this.loadProject(projectSlug);
-		const existing = project.tickets[folderName];
-		return existing?.worktreeIdentity === worktreeIdentity
-			? structuredClone(existing)
-			: emptyTicketState(worktreeIdentity);
-	}
-
-	ensureTicket(
-		projectSlug: string,
-		folderName: string,
-		worktreeIdentity: string,
-	): DiffReviewTicketState {
-		requireSafeSlug(folderName);
-		const project = this.loadProject(projectSlug);
-		const existing = project.tickets[folderName];
-		if (existing?.worktreeIdentity === worktreeIdentity) {
-			return structuredClone(existing);
-		}
-		return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => ticket);
-	}
-
-	markLinesReviewed(
-		projectSlug: string,
-		folderName: string,
-		worktreeIdentity: string,
-		lines: { id: string; path: string }[],
-	): DiffReviewTicketState {
-		const reviewedAt = new Date().toISOString();
-		return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
-			for (const line of lines) {
-				ticket.reviewedLines[line.id] = { path: line.path, reviewedAt };
-			}
-			return ticket;
-		});
+		return getReviewTicketState(this.loadProject(projectSlug, owner), folderName, worktreeIdentity);
 	}
 
 	enqueue(
@@ -162,19 +152,16 @@ export class DiffReviewStore {
 		if (snapshot && snapshot.selectedLines.length === 0) {
 			throw new Error("A Review Prompt with a Review Selection must contain lines.");
 		}
-		let created: ReviewPromptQueueItem | undefined;
-		this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
-			created = {
-				id: randomUUID(),
-				createdAt: new Date().toISOString(),
-				feedback: normalizedFeedback,
-				snapshot: snapshot ? structuredClone(snapshot) : undefined,
-				state: "waiting",
-			};
-			ticket.queue.items.push(created);
-			return ticket;
-		});
-		return created!;
+		const created: ReviewPromptQueueItem = {
+			id: randomUUID(),
+			createdAt: new Date().toISOString(),
+			feedback: normalizedFeedback,
+			snapshot,
+			state: "waiting",
+		};
+		return this.updateTicket(projectSlug, folderName, worktreeIdentity, ticket => ({
+			...ticket, queue: { ...ticket.queue, items: [...ticket.queue.items, created] },
+		})).queue.items.at(-1)!;
 	}
 
 	retry(
@@ -197,55 +184,6 @@ export class DiffReviewStore {
 		});
 	}
 
-	requestAgentLaunch(
-		projectSlug: string,
-		folderName: string,
-		worktreeIdentity: string,
-		profileName: string,
-	): DiffReviewTicketState {
-		if (!profileName.trim()) throw new Error("An Agent launch requires a profile.");
-		return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
-			ticket.queue.requestedAgentProfileName = profileName;
-			return ticket;
-		});
-	}
-
-	clearAgentLaunchRequest(
-		projectSlug: string,
-		folderName: string,
-		worktreeIdentity: string,
-	): DiffReviewTicketState {
-		return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
-			delete ticket.queue.requestedAgentProfileName;
-			return ticket;
-		});
-	}
-
-	removeQueueItem(
-		projectSlug: string,
-		folderName: string,
-		worktreeIdentity: string,
-		itemId: string,
-	): DiffReviewTicketState {
-		return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
-			const removedHead = ticket.queue.items[0]?.id === itemId;
-			const item = ticket.queue.items.find((candidate) => candidate.id === itemId);
-			if (!item) throw new Error("That Review Prompt is no longer in the queue.");
-			if (
-				item.state !== "waiting"
-				&& item.state !== "error"
-				&& item.state !== "uncertain"
-			) {
-				throw new Error(
-					`This Review Prompt is already ${item.state} and can no longer be removed.`,
-				);
-			}
-			ticket.queue.items = ticket.queue.items.filter((candidate) => candidate.id !== itemId);
-			if (removedHead) delete ticket.queue.requestedAgentProfileName;
-			return ticket;
-		});
-	}
-
 	beginDelivery(
 		projectSlug: string,
 		folderName: string,
@@ -261,6 +199,7 @@ export class DiffReviewStore {
 				state: "delivering",
 				deliveryStartedAt: new Date().toISOString(),
 			});
+			delete ticket.queue.requestedAgentProfileName;
 			return ticket;
 		});
 	}
@@ -366,75 +305,55 @@ export class DiffReviewStore {
 				throw new Error("An Agent launch is already in progress for this Ticket.");
 			}
 			ticket.queue.agentLaunchReservedUntil = reservedUntil.toISOString();
-			return ticket;
-		});
-	}
-
-	completeAgentLaunch(
-		projectSlug: string,
-		folderName: string,
-		worktreeIdentity: string,
-		cooldownUntil: Date,
-	): DiffReviewTicketState {
-		return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
-			delete ticket.queue.agentLaunchReservedUntil;
-			ticket.queue.cooldownUntil = cooldownUntil.toISOString();
-			return ticket;
-		});
-	}
-
-	clearAgentLaunchReservation(
-		projectSlug: string,
-		folderName: string,
-		worktreeIdentity: string,
-	): DiffReviewTicketState {
-		return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
-			delete ticket.queue.agentLaunchReservedUntil;
+			delete ticket.queue.requestedAgentProfileName;
 			return ticket;
 		});
 	}
 
 	recoverInterrupted(projectSlug: string): void {
-		const project = this.loadProject(projectSlug);
-		let changed = false;
-		for (const ticket of Object.values(project.tickets)) {
-			for (let index = 0; index < ticket.queue.items.length; index += 1) {
-				const item = ticket.queue.items[index];
-				if (item.state !== "delivering") continue;
-				ticket.queue.items[index] = this.withState(item, {
-					state: "uncertain",
-					error: "Delivery was interrupted and may have reached the Agent. Retry only if needed.",
-				});
-				changed = true;
+		this.lock(projectSlug).write(() => {
+			const project = this.loadProject(projectSlug);
+			let changed = false;
+			for (const ticket of Object.values(project.tickets)) {
+				for (let index = 0; index < ticket.queue.items.length; index += 1) {
+					const item = ticket.queue.items[index];
+					if (item.state !== "delivering") continue;
+					ticket.queue.items[index] = this.withState(item, {
+						state: "uncertain",
+						error: "Delivery was interrupted and may have reached the Agent. Retry only if needed.",
+					});
+					changed = true;
+				}
 			}
-		}
-		if (changed) this.saveProject(projectSlug, project);
+			if (changed) this.repository.writeJson(this.paths.diffReviewStateFile(projectSlug), project);
+		});
 	}
 
-	removeTicket(projectSlug: string, folderName: string): void {
+	async removeTicket(projectSlug: string, folderName: string): Promise<void> {
 		requireSafeSlug(folderName);
-		const project = this.loadProject(projectSlug);
-		if (!Object.hasOwn(project.tickets, folderName)) return;
-		delete project.tickets[folderName];
-		this.saveProject(projectSlug, project);
+		await this.lock(projectSlug).writeWhenAvailable(() => {
+			const project = this.loadProject(projectSlug);
+			if (!Object.hasOwn(project.tickets, folderName)) return;
+			delete project.tickets[folderName];
+			this.repository.writeJson(this.paths.diffReviewStateFile(projectSlug), project);
+		});
 	}
 
-	private updateTicket(
+	updateTicket(
 		projectSlug: string,
 		folderName: string,
 		worktreeIdentity: string,
 		update: (ticket: DiffReviewTicketState) => DiffReviewTicketState,
+		owner?: string,
 	): DiffReviewTicketState {
 		requireSafeSlug(folderName);
-		const project = this.loadProject(projectSlug);
-		const existing = project.tickets[folderName];
-		const ticket = existing?.worktreeIdentity === worktreeIdentity
-			? structuredClone(existing)
-			: emptyTicketState(worktreeIdentity);
-		const updated = update(ticket);
-		project.tickets[folderName] = updated;
-		this.saveProject(projectSlug, project);
-		return structuredClone(updated);
+		return this.updateProject(projectSlug, project => {
+			const updated = update(getReviewTicketState(project, folderName, worktreeIdentity));
+			if (updated.worktreeIdentity !== worktreeIdentity) {
+				throw new Error("The Ticket worktree changed. Refresh Diff Review.");
+			}
+			return { ...project, tickets: { ...project.tickets, [folderName]: updated } };
+		}, owner).tickets[folderName];
 	}
 
 	private withState(
@@ -453,9 +372,5 @@ export class DiffReviewStore {
 			snapshot: item.snapshot,
 			...state,
 		};
-	}
-
-	private saveProject(projectSlug: string, project: DiffReviewProjectState): void {
-		this.repository.writeJson(this.paths.diffReviewStateFile(projectSlug), project);
 	}
 }

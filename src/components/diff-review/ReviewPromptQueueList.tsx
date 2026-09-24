@@ -1,24 +1,71 @@
 import { RotateCcw } from "~/components/ui/icons.js";
 import { Trash2 } from "~/components/ui/icons.js";
-import { For, Show, createEffect, createSignal, untrack } from "solid-js";
+import { For, Show, createEffect, createSignal, untrack, useContext } from "solid-js";
+import { revalidate } from "@solidjs/router";
+import { DiffReviewContext } from "./diff-review-context.js";
+import { retryReviewPrompt } from "./diff-review-api.js";
 import type { ReviewPromptQueueItem } from "~/core/diff-review/diff-review-types.js";
+import { getReviewTicketState } from "~/core/diff-review/diff-review-types.js";
 import VerticalReveal from "./VerticalReveal.js";
 
 type QueueEntry = { item: ReviewPromptQueueItem; shown: boolean };
 
 export default function ReviewPromptQueueList(props: {
-	items: ReviewPromptQueueItem[];
-	retryingId?: string;
-	removingId?: string;
-	onRetry(itemId: string): void;
-	onRemove(itemId: string): void;
+	projectSlug: string;
+	folderName: string;
+	worktreeIdentity: string;
+	profileName: string;
 }) {
+	const { get, update, refresh } = useContext(DiffReviewContext)!;
+	const items = () => getReviewTicketState(get(), props.folderName, props.worktreeIdentity).queue.items;
+	const [retryingId, setRetryingId] = createSignal<string>();
+	const [removingId, setRemovingId] = createSignal<string>();
+	const [error, setError] = createSignal<string>();
+
+	async function retry(itemId: string) {
+		if (retryingId()) return;
+		setRetryingId(itemId);
+		setError();
+		try {
+			const result = await retryReviewPrompt(
+				props.projectSlug, props.folderName, itemId, props.profileName || null,
+			);
+			if (!result.ok) setError(result.message);
+			const refreshed = await refresh();
+			if (refreshed.type === "Failure") setError(refreshed.error);
+			revalidate("diff-review-agent");
+		} finally { setRetryingId(); }
+	}
+
+	async function remove(itemId: string) {
+		if (removingId()) return;
+		setRemovingId(itemId);
+		setError();
+		try {
+			const result = await update(current => {
+				const ticket = getReviewTicketState(current, props.folderName, props.worktreeIdentity);
+				const item = ticket.queue.items.find(item => item.id === itemId);
+				if (!item) throw new Error("That Review Prompt is no longer in the queue.");
+				if (!["waiting", "error", "uncertain"].includes(item.state)) {
+					throw new Error(`This Review Prompt is already ${item.state} and can no longer be removed.`);
+				}
+				return { ...current, tickets: { ...current.tickets, [props.folderName]: { ...ticket,
+					queue: { ...ticket.queue,
+						items: ticket.queue.items.filter(item => item.id !== itemId),
+						requestedAgentProfileName: ticket.queue.items[0]?.id === itemId
+							? undefined : ticket.queue.requestedAgentProfileName,
+					},
+				} } };
+			});
+			if (result.type === "Failure") setError(result.error);
+		} finally { setRemovingId(); }
+	}
 	let bodyRef: HTMLDivElement | undefined;
 	const [entries, setEntries] = createSignal<QueueEntry[]>([]);
 	const itemError = (item: ReviewPromptQueueItem) =>
 		item.state === "error" || item.state === "uncertain" ? item.error : undefined;
 
-	createEffect(() => props.items, (incoming) => {
+	createEffect(items, (incoming) => {
 		const current = untrack(entries);
 		const next = incoming.map((item) => ({ item, shown: true }));
 		const incomingIds = new Set(incoming.map((item) => item.id));
@@ -28,7 +75,7 @@ export default function ReviewPromptQueueList(props: {
 		setEntries(next);
 	});
 
-	createEffect(() => props.items.length, () => {
+	createEffect(() => items().length, () => {
 		queueMicrotask(() => {
 			const body = bodyRef;
 			if (body) body.scrollTop = 0;
@@ -47,9 +94,10 @@ export default function ReviewPromptQueueList(props: {
 						REVIEW PROMPT QUEUE
 					</span>
 					<span class="rounded-full bg-muted px-1.5 py-0.5 font-mono text-[9px]">
-						{props.items.length}
+						{items().length}
 					</span>
 				</div>
+				<Show when={error()}><p class="px-2.5 text-xs text-destructive" role="alert">{error()}</p></Show>
 				<div
 					ref={bodyRef}
 					class="max-h-[132px] overflow-y-auto border-t border-border"
@@ -91,8 +139,8 @@ export default function ReviewPromptQueueList(props: {
 													type="button"
 													class="btn-secondary btn-sm shrink-0 gap-1.5"
 													title="Send this Review Prompt to the Agent again"
-													disabled={props.retryingId === id()}
-													onClick={() => props.onRetry(id())}
+													disabled={retryingId() === id()}
+													onClick={() => void retry(id())}
 													data-testid="diff-review-queue-retry"
 												>
 													<RotateCcw size={12} />
@@ -109,8 +157,8 @@ export default function ReviewPromptQueueList(props: {
 													class="btn-ghost-icon h-6 w-6 shrink-0"
 													aria-label="Remove this Review Prompt from the queue"
 													title="Remove this Review Prompt from the queue"
-												disabled={props.removingId === id()}
-												onClick={() => props.onRemove(id())}
+												disabled={removingId() === id()}
+												onClick={() => void remove(id())}
 													data-testid="diff-review-queue-remove"
 												>
 													<Trash2 size={12} />

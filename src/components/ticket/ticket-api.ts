@@ -76,7 +76,7 @@ export async function deleteTicket(projectSlug: string, folderName: string) {
   "use server";
   try {
     await mutateTicketsExclusive(projectSlug, store => store.deleteTicket(folderName));
-    diffReviewStore.removeTicket(projectSlug, folderName);
+    await diffReviewStore.removeTicket(projectSlug, folderName);
     return { ok: true as const };
   } catch (e) {
     return errorResult(e);
@@ -385,7 +385,7 @@ export async function worktreeCleanup(
       );
     } finally {
       if (options.deleteWorktree && !fs.existsSync(worktreePath)) {
-        diffReviewStore.removeTicket(projectSlug, folderName);
+        await diffReviewStore.removeTicket(projectSlug, folderName);
       }
     }
     if (ticket?.agentWorktreeBranchName
@@ -393,7 +393,7 @@ export async function worktreeCleanup(
       store.clearAgentWorktreeInfo(folderName);
     }
     if (options.deleteLocalBranch) {
-      diffReviewStore.removeTicket(projectSlug, folderName);
+      await diffReviewStore.removeTicket(projectSlug, folderName);
     }
     return { ok: true as const };
   } catch (e) {
@@ -444,7 +444,7 @@ export async function forceDeleteLocalBranch(
     if (ticket?.agentWorktreeBranchName) {
       store.clearAgentWorktreeInfo(folderName);
     }
-    diffReviewStore.removeTicket(projectSlug, folderName);
+    await diffReviewStore.removeTicket(projectSlug, folderName);
     return {};
   } catch (e: any) {
     return { error: e?.message ?? 'Failed to force-delete branch' };

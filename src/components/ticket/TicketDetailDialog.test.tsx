@@ -51,7 +51,9 @@ function stateDependencies(ticket: TicketInfo): TicketDetailStateDeps {
   });
   return {
     ticketFiles,
-    sharedConfig: { get: () => emptyConfig, update: async () => ({ type: 'Success', value: undefined }) },
+    sharedConfig: createStoredSignal(() => emptyConfig, async transform => ({
+      type: 'Success', value: transform(emptyConfig),
+    })),
     worktreeRevision,
     refreshTicketFiles: async () => {
       setTicketFiles(await mockGetTicketFiles("test-project", ticket.folderName));

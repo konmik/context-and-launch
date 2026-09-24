@@ -146,11 +146,12 @@ export function ColumnsTab(props: {
 		items: () => selectedBoard().columns, idOf: c => c.name,
 		onReorder: async names => {
 			const result = await updateColumns(columns => {
+				const byName = new Map(columns.map(column => [column.name, column]));
 				if (names.length !== columns.length || new Set(names).size !== columns.length
-					|| columns.some(c => !names.includes(c.name))) {
+					|| names.some(name => !byName.has(name))) {
 					throw new Error('Ordered names must match existing column names exactly');
 				}
-				return names.map(name => columns.find(c => c.name === name)!);
+				return names.map(name => byName.get(name)!);
 			});
 			if (result.type === 'Failure') setError({ title: 'Reorder failed', description: result.error });
 		},

@@ -37,4 +37,10 @@ export class UpdateLock {
 	release(owner: string): void {
 		if (this.activeLease()?.owner === owner) this.lease = undefined;
 	}
+
+	async writeWhenAvailable<T>(write: () => T): Promise<T> {
+		// Yield while a client owns the lease; the callback itself must write synchronously.
+		while (this.activeLease()) await new Promise(resolve => setTimeout(resolve, 10));
+		return this.write(write);
+	}
 }

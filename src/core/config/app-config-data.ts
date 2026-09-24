@@ -39,22 +39,20 @@ const AppConfigSchema = v.looseObject({
 	browser: v.optional(v.string()),
 });
 
-export function decodeAppConfig(raw: JsonValue): AppConfigData {
+export function decodeAppConfig(raw: JsonValue) {
 	const parsed = v.parse(AppConfigSchema, raw);
 	const { lastUsedSlug, ...config } = parsed;
 	return {
-		...config,
-		projects: parsed.projects.map(({ slug, ...entry }) => {
-			const projectSlug = entry.projectSlug ?? slug;
-			if (projectSlug === undefined) throw new Error('Invalid config.json: project is missing projectSlug');
-			return { ...entry, projectSlug };
-		}),
-		lastUsedProjectSlug: parsed.lastUsedProjectSlug ?? lastUsedSlug ?? null,
-		lastUsedProfileName: parsed.lastUsedProfileName ?? null,
+		legacy: lastUsedSlug !== undefined || parsed.projects.some(project => project.slug !== undefined),
+		config: {
+			...config,
+			projects: parsed.projects.map(({ slug, ...entry }) => {
+				const projectSlug = entry.projectSlug ?? slug;
+				if (projectSlug === undefined) throw new Error('Invalid config.json: project is missing projectSlug');
+				return { ...entry, projectSlug };
+			}),
+			lastUsedProjectSlug: parsed.lastUsedProjectSlug ?? lastUsedSlug ?? null,
+			lastUsedProfileName: parsed.lastUsedProfileName ?? null,
+		} satisfies AppConfigData,
 	};
-}
-
-export function hasLegacyConfigKeys(raw: JsonValue): boolean {
-	const parsed = v.parse(AppConfigSchema, raw);
-	return parsed.lastUsedSlug !== undefined || parsed.projects.some(project => project.slug !== undefined);
 }

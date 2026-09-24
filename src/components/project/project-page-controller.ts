@@ -216,8 +216,8 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     openDetail,
     openReview,
     // Callers navigate immediately after these commands and need overlays disposed first.
-    closeReview: () => flush(() => setReviewTicket(null)),
-    closeDetail: () => flush(() => setDetailTicket(null)),
+    closeReview: () => setReviewTicket(null),
+    closeDetail: () => setDetailTicket(null),
     handleSync,
     handleConflictResolve,
     handleConflictAbort,

@@ -8,16 +8,27 @@ import {
 
 export const ProjectLauncherConfigContext = createContext<StoredSignal<LauncherConfig>>();
 
-export function createProjectLauncherConfigStorage(projectSlug: string): StoredSignal<LauncherConfig> {
-	const initial = createMemo(async () => {
-		const result = await readProjectLauncherConfig(projectSlug);
-		if (result.type === 'Failure') throw new Error(result.error);
-		return result.value;
+export function createProjectLauncherConfigStorage(props: { projectSlug: string }, persistence = {
+	read: readProjectLauncherConfig,
+	save: saveProjectLauncherConfig,
+	release: releaseProjectLauncherConfig,
+}): StoredSignal<LauncherConfig> {
+	const project = createMemo(() => {
+		const slug = props.projectSlug;
+		return createStoredSignal(async () => {
+			const result = await persistence.read(slug);
+			if (result.type === 'Failure') throw new Error(result.error);
+			return result.value;
+		}, transform => transformConfig(
+			transform,
+			owner => persistence.read(slug, owner),
+			(json, owner) => persistence.save(slug, json, owner),
+			owner => persistence.release(slug, owner),
+		));
 	});
-	return createStoredSignal(initial, transform => transformConfig(
-		transform,
-		owner => readProjectLauncherConfig(projectSlug, owner),
-		(json, owner) => saveProjectLauncherConfig(projectSlug, json, owner),
-		owner => releaseProjectLauncherConfig(projectSlug, owner),
-	));
+	return {
+		get: () => project().get(),
+		update: transform => project().update(transform),
+		refresh: () => project().refresh(),
+	};
 }
