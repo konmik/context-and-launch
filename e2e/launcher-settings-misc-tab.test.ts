@@ -173,7 +173,7 @@ describe("Launcher Settings Misc tab (e2e, real server)", () => {
     expect(await scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
   });
 
-  it("project name input persists on blur", async () => {
+  it("project name input persists and clears on blur", async () => {
     const project = await setup("pname");
     const input = testId(ctx.page, "launcher-settings-misc-project-name-input");
     await input.fill("Custom Name");
@@ -189,6 +189,14 @@ describe("Launcher Settings Misc tab (e2e, real server)", () => {
       (p: { projectSlug: string }) => p.projectSlug === project.projectSlug,
     );
     expect(entry?.name).toBe("Custom Name");
+    await input.fill("");
+    await input.blur();
+    const cleared = await poll(
+      () => readProjectRegistry(ctx.testServer),
+      r => !Object.hasOwn(r.projects.find(p => p.projectSlug === project.projectSlug)!, "name"),
+      5000,
+    );
+    expect(cleared.projects.find(p => p.projectSlug === project.projectSlug)).not.toHaveProperty("name");
   });
 
   it("saves the tickets folder on blur without moving the worktree", async () => {

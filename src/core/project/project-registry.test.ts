@@ -424,29 +424,6 @@ describe('ProjectRegistry', () => {
 		expect(slugs).toHaveLength(3);
 	});
 
-	it('setLastUsed picks up externally-added project from disk', () => {
-		const configDir = initConfigDir();
-		const projectDir = tmpDir('registry-project-');
-		dirs.push(projectDir);
-
-		fs.mkdirSync(path.join(projectDir, '.git'));
-
-		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		expect(registry.listProjects()).toHaveLength(0);
-
-		const configFile = path.join(configDir, 'config', 'config.json');
-		fs.mkdirSync(path.join(configDir, 'config'), { recursive: true });
-		fs.writeFileSync(configFile, JSON.stringify({
-			projects: [{ path: projectDir, projectSlug: 'disk-only' }],
-			lastUsedProjectSlug: null
-		}));
-
-		registry.setLastUsed('disk-only');
-
-		const onDisk = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
-		expect(onDisk.lastUsedProjectSlug).toBe('disk-only');
-	});
-
 	it('updateProject preserves port and browser fields', () => {
 		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
@@ -575,39 +552,7 @@ describe('ProjectRegistry', () => {
 		expect(() => validateBranchName('a@{b')).toThrow('"@{"');
 	});
 
-	it('getLastUsedProfileName returns null for a fresh config and the stored value after set', () => {
-		const configDir = initConfigDir();
-		const projectDir = tmpDir('registry-project-');
-		dirs.push(projectDir);
-
-		fs.mkdirSync(path.join(projectDir, '.git'));
-		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir, { projectSlug: 'profile-proj' });
-
-		expect(registry.getLastUsedProfileName()).toBeNull();
-
-		registry.setLastUsedProfileName('Claude');
-		expect(registry.getLastUsedProfileName()).toBe('Claude');
-
-		const onDisk = JSON.parse(
-			fs.readFileSync(path.join(configDir, 'config', 'config.json'), 'utf-8')
-		);
-		expect(onDisk.lastUsedProfileName).toBe('Claude');
-	});
-
-	it('setLastUsedProfileName rejects an empty profile name', () => {
-		const configDir = initConfigDir();
-		const projectDir = tmpDir('registry-project-');
-		dirs.push(projectDir);
-
-		fs.mkdirSync(path.join(projectDir, '.git'));
-		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir, { projectSlug: 'profile-proj' });
-
-		expect(() => registry.setLastUsedProfileName('')).toThrow('profileName cannot be empty');
-	});
-
-	it('lastUsedProfileName survives add/update/remove/setLastUsed round-trips', () => {
+	it('lastUsedProfileName survives project registration, rename, and removal', () => {
 		const configDir = initConfigDir();
 		const projectDir1 = tmpDir('registry-project1-');
 		const projectDir2 = tmpDir('registry-project2-');
@@ -618,68 +563,22 @@ describe('ProjectRegistry', () => {
 
 		const registry = new ProjectRegistry(new ConfigPaths(configDir));
 		registry.addProject(projectDir1, { projectSlug: 'alpha' });
-		registry.setLastUsedProfileName('Claude');
+		const configFile = path.join(configDir, 'config', 'config.json');
+		const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+		fs.writeFileSync(configFile, JSON.stringify({ ...config, lastUsedProfileName: 'Claude' }));
 
 		registry.addProject(projectDir2, { projectSlug: 'beta' });
-		expect(registry.getLastUsedProfileName()).toBe('Claude');
+		expect(JSON.parse(fs.readFileSync(configFile, 'utf8')).lastUsedProfileName).toBe('Claude');
 
 		registry.updateProject('beta', undefined, 'beta-renamed');
-		expect(registry.getLastUsedProfileName()).toBe('Claude');
-
-		registry.setLastUsed('alpha');
-		expect(registry.getLastUsedProfileName()).toBe('Claude');
+		expect(JSON.parse(fs.readFileSync(configFile, 'utf8')).lastUsedProfileName).toBe('Claude');
 
 		registry.removeProject('alpha');
-		expect(registry.getLastUsedProfileName()).toBe('Claude');
 
 		const onDisk = JSON.parse(
 			fs.readFileSync(path.join(configDir, 'config', 'config.json'), 'utf-8')
 		);
 		expect(onDisk.lastUsedProfileName).toBe('Claude');
-	});
-
-	it('external-config-edit-clobbered-by-set: external field written after load is dropped on set', () => {
-		const configDir = initConfigDir();
-		const projectDir = tmpDir('registry-project-');
-		dirs.push(projectDir);
-
-		fs.mkdirSync(path.join(projectDir, '.git'));
-		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir, { projectSlug: 'alpha' });
-
-		const configFile = path.join(configDir, 'config', 'config.json');
-		const onDisk = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
-		onDisk.theme = 'dark';
-		fs.writeFileSync(configFile, JSON.stringify(onDisk, null, 2));
-
-		registry.setLastUsedProfileName('Codex');
-
-		const afterSave = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
-		expect(afterSave.theme).toBe('dark');
-		expect(afterSave.lastUsedProfileName).toBe('Codex');
-	});
-
-	it('setLastUsedProfileName preserves unknown external fields', () => {
-		const configDir = initConfigDir();
-		const projectDir = tmpDir('registry-project-');
-		dirs.push(projectDir);
-
-		fs.mkdirSync(path.join(projectDir, '.git'));
-		fs.mkdirSync(path.join(configDir, 'config'), { recursive: true });
-
-		const configFile = path.join(configDir, 'config', 'config.json');
-		fs.writeFileSync(configFile, JSON.stringify({
-			projects: [],
-			lastUsedProjectSlug: null,
-			theme: 'dark'
-		}));
-
-		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.setLastUsedProfileName('Codex');
-
-		const afterSave = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
-		expect(afterSave.theme).toBe('dark');
-		expect(afterSave.lastUsedProfileName).toBe('Codex');
 	});
 
 	it('addProject stores mainBranch and boardId when provided', () => {
@@ -741,37 +640,6 @@ describe('ProjectRegistry', () => {
 		expect(registry.listProjects()).toHaveLength(0);
 	});
 
-	it('setBoardId persists boardId to config.json', () => {
-		const configDir = initConfigDir();
-		const projectDir = tmpDir('registry-project-');
-		dirs.push(projectDir);
-
-		fs.mkdirSync(path.join(projectDir, '.git'));
-		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir, { projectSlug: 'my-proj', branch: 'tickets', mainBranch: 'main' });
-
-		registry.setBoardId('my-proj', 'simple');
-
-		const configFile = path.join(configDir, 'config', 'config.json');
-		const onDisk = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
-		expect(onDisk.projects[0].boardId).toBe('simple');
-		expect(onDisk.projects[0].projectSlug).toBe('my-proj');
-		expect(onDisk.projects[0].branch).toBe('tickets');
-		expect(onDisk.projects[0].mainBranch).toBe('main');
-	});
-
-	it('setBoardId throws for unknown project', () => {
-		const configDir = initConfigDir();
-		const projectDir = tmpDir('registry-project-');
-		dirs.push(projectDir);
-
-		fs.mkdirSync(path.join(projectDir, '.git'));
-		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.addProject(projectDir, { projectSlug: 'existing' });
-
-		expect(() => registry.setBoardId('nonexistent', 'kanban')).toThrow('Project not found');
-	});
-
 	it('removeProject deletes per-project config directory', () => {
 		const configDir = initConfigDir();
 		const projectDir = tmpDir('registry-project-');
@@ -827,31 +695,4 @@ describe('ProjectRegistry', () => {
 		expect(fs.existsSync(projectConfigDir)).toBe(false);
 	});
 
-	it('setLastUsed preserves port and browser fields', () => {
-		const configDir = initConfigDir();
-		const projectDir = tmpDir('registry-project-');
-		dirs.push(projectDir);
-
-		fs.mkdirSync(path.join(projectDir, '.git'));
-		fs.mkdirSync(path.join(configDir, 'config'), { recursive: true });
-
-		const configFile = path.join(configDir, 'config', 'config.json');
-		fs.writeFileSync(configFile, JSON.stringify({
-			projects: [
-				{ path: fs.realpathSync(projectDir), projectSlug: 'alpha' },
-				{ path: '/fake/beta', projectSlug: 'beta' }
-			],
-			lastUsedProjectSlug: 'alpha',
-			port: 5555,
-			browser: 'edge'
-		}));
-
-		const registry = new ProjectRegistry(new ConfigPaths(configDir));
-		registry.setLastUsed('beta');
-
-		const afterSet = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
-		expect(afterSet.port).toBe(5555);
-		expect(afterSet.browser).toBe('edge');
-		expect(afterSet.lastUsedProjectSlug).toBe('beta');
-	});
 });

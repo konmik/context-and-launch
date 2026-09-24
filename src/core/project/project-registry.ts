@@ -107,10 +107,6 @@ export class ProjectRegistry {
 		return this.appConfig.read().projects.map((entry) => entryToInfo(entry, this.configRepo));
 	}
 
-	hasProject(projectSlug: string): boolean {
-		return this.appConfig.read().projects.some((p) => p.projectSlug === projectSlug);
-	}
-
 	getTicketsPath(projectSlug: string): string | undefined {
 		return this.appConfig.read().projects.find((p) => p.projectSlug === projectSlug)?.ticketsPath;
 	}
@@ -141,95 +137,70 @@ export class ProjectRegistry {
 			validateBranchName(opts.mainBranch);
 		}
 
-		const config = this.appConfig.read();
 		const canonicalPath = this.configRepo.realpathSync(projectPath);
-		const alreadyRegistered = config.projects.some((p) => {
-			try {
-				return this.configRepo.realpathSync(p.path) === canonicalPath;
-			} catch {
-				return false;
-			}
-		});
-		if (alreadyRegistered) {
-			throw new Error(`Project already registered: ${projectPath}`);
-		}
-
-		const existingProjectSlugs = new Set(config.projects.map((p) => p.projectSlug));
-		const finalProjectSlug = opts.projectSlug ?? generateProjectSlug(projectPath, existingProjectSlugs);
-		if (existingProjectSlugs.has(finalProjectSlug)) {
-			throw new Error(`Project slug already exists: ${finalProjectSlug}`);
-		}
-
-		const { projectSlug: _, ...optionalFields } = opts;
-		const entry: ProjectEntry = {
-			path: canonicalPath,
-			projectSlug: finalProjectSlug,
-			...Object.fromEntries(
-				Object.entries(optionalFields).filter(([, v]) => v !== undefined),
-			),
-		};
-		this.appConfig.write({
-			...config,
-			projects: [...config.projects, entry],
-			lastUsedProjectSlug: finalProjectSlug,
+		const saved = this.appConfig.update(config => {
+			const alreadyRegistered = config.projects.some(project => {
+				try {
+					return this.configRepo.realpathSync(project.path) === canonicalPath;
+				} catch {
+					return false;
+				}
+			});
+			if (alreadyRegistered) throw new Error(`Project already registered: ${projectPath}`);
+			const existingProjectSlugs = new Set(config.projects.map(project => project.projectSlug));
+			const projectSlug = opts.projectSlug ?? generateProjectSlug(projectPath, existingProjectSlugs);
+			if (existingProjectSlugs.has(projectSlug)) throw new Error(`Project slug already exists: ${projectSlug}`);
+			return {
+				...config,
+				projects: [...config.projects, { ...opts, path: canonicalPath, projectSlug }],
+				lastUsedProjectSlug: projectSlug,
+			};
 		});
 
-		return entryToInfo(entry, this.configRepo);
+		return entryToInfo(saved.projects.at(-1)!, this.configRepo);
 	}
 
 	updateProject(projectSlug: string, newPath?: string, newProjectSlug?: string): ProjectInfo {
-		const config = this.appConfig.read();
-		const index = config.projects.findIndex((p) => p.projectSlug === projectSlug);
-		if (index < 0) throw new Error(`Project not found: ${projectSlug}`);
-
-		const entry = config.projects[index];
-		if (newPath !== undefined) {
-			if (!newPath || !this.configRepo.exists(newPath)) {
-				throw new Error(`Path does not exist: ${newPath}`);
+		const updatedProjectSlug = newProjectSlug ?? projectSlug;
+		const saved = this.appConfig.update(config => {
+			const index = config.projects.findIndex(project => project.projectSlug === projectSlug);
+			if (index < 0) throw new Error(`Project not found: ${projectSlug}`);
+			const entry = config.projects[index];
+			if (newPath !== undefined) {
+				if (!newPath || !this.configRepo.exists(newPath)) throw new Error(`Path does not exist: ${newPath}`);
+				if (!this.configRepo.exists(path.join(newPath, '.git'))) {
+					throw new Error(`Not a git repository: ${newPath}`);
+				}
 			}
-			if (!this.configRepo.exists(path.join(newPath, '.git'))) {
-				throw new Error(`Not a git repository: ${newPath}`);
+			if (newProjectSlug && config.projects.some((project, i) =>
+				i !== index && project.projectSlug === newProjectSlug)) {
+				throw new Error(`Project slug already exists: ${newProjectSlug}`);
 			}
-		}
-		const updatedPath = newPath !== undefined ? this.configRepo.realpathSync(newPath) : entry.path;
-		const updatedProjectSlug = newProjectSlug ?? entry.projectSlug;
-
-		if (newProjectSlug && newProjectSlug !== projectSlug) {
-			const otherProjectSlugs = new Set(
-				config.projects.filter((_, i) => i !== index).map((p) => p.projectSlug)
-			);
-			if (otherProjectSlugs.has(updatedProjectSlug)) {
-				throw new Error(`Project slug already exists: ${updatedProjectSlug}`);
-			}
-		}
-
-		const updated: ProjectEntry = { ...entry, path: updatedPath, projectSlug: updatedProjectSlug };
-		const newProjects = config.projects.map((p, i) => (i === index ? updated : p));
-		const newLastUsed = config.lastUsedProjectSlug === projectSlug
-			? updatedProjectSlug : config.lastUsedProjectSlug;
-		this.appConfig.write({ ...config, projects: newProjects, lastUsedProjectSlug: newLastUsed });
-
+			const updated = {
+				...entry, projectSlug: updatedProjectSlug,
+				path: newPath === undefined ? entry.path : this.configRepo.realpathSync(newPath),
+			};
+			return {
+				...config,
+				projects: config.projects.map((project, i) => i === index ? updated : project),
+				lastUsedProjectSlug: config.lastUsedProjectSlug === projectSlug
+					? updatedProjectSlug : config.lastUsedProjectSlug,
+			};
+		});
+		const updated = saved.projects.find(project => project.projectSlug === updatedProjectSlug)!;
 		return entryToInfo(updated, this.configRepo);
 	}
 
 	removeProject(projectSlug: string): void {
-		const config = this.appConfig.read();
-		const newProjects = config.projects.filter((p) => p.projectSlug !== projectSlug);
-		const newLastUsed = config.lastUsedProjectSlug === projectSlug
-			? (newProjects[0]?.projectSlug ?? null)
-			: config.lastUsedProjectSlug;
-		this.appConfig.write({ ...config, projects: newProjects, lastUsedProjectSlug: newLastUsed });
+		this.appConfig.update(config => {
+			const projects = config.projects.filter(project => project.projectSlug !== projectSlug);
+			return { ...config, projects, lastUsedProjectSlug: config.lastUsedProjectSlug === projectSlug
+				? projects[0]?.projectSlug ?? null : config.lastUsedProjectSlug };
+		});
 
 		const projectConfigDir = this.paths.projectConfigDir(projectSlug);
 		if (fs.existsSync(projectConfigDir)) {
 			fs.rmSync(projectConfigDir, { recursive: true });
-		}
-	}
-
-	setLastUsed(projectSlug: string): void {
-		const config = this.appConfig.read();
-		if (config.projects.some((p) => p.projectSlug === projectSlug) && config.lastUsedProjectSlug !== projectSlug) {
-			this.appConfig.write({ ...config, lastUsedProjectSlug: projectSlug });
 		}
 	}
 
@@ -238,32 +209,17 @@ export class ProjectRegistry {
 		return project?.name || projectSlug;
 	}
 
-	private updateProjectEntry(
-		projectSlug: string,
-		patch: (entry: ProjectEntry) => ProjectEntry,
-	): void {
-		const config = this.appConfig.read();
-		const index = config.projects.findIndex((p) => p.projectSlug === projectSlug);
-		if (index < 0) throw new Error(`Project not found: ${projectSlug}`);
-		const newProjects = config.projects.map((p, i) => (i === index ? patch({ ...p }) : p));
-		this.appConfig.write({ ...config, projects: newProjects });
-	}
-
 	setTicketsLocation(projectSlug: string, change: { kind: 'path' | 'branch'; value: string }): void {
 		const value = change.value.trim();
 		if (!value) throw new Error('Tickets folder and branch cannot be empty.');
 		if (change.kind === 'branch') validateBranchName(value);
 		else if (!path.isAbsolute(value)) throw new Error('Tickets folder must be an absolute path.');
-		this.updateProjectEntry(projectSlug, (entry) => change.kind === 'path'
-			? { ...entry, ticketsPath: value }
-			: { ...entry, branch: value });
-	}
-
-	setBoardId(projectSlug: string, boardId: string | undefined): void {
-		this.updateProjectEntry(projectSlug, (entry) => {
-			if (boardId !== undefined) entry.boardId = boardId;
-			else delete entry.boardId;
-			return entry;
+		this.appConfig.update(config => {
+			if (!config.projects.some(project => project.projectSlug === projectSlug)) {
+				throw new Error(`Project not found: ${projectSlug}`);
+			}
+			return { ...config, projects: config.projects.map(project => project.projectSlug !== projectSlug ? project
+				: { ...project, [change.kind === 'path' ? 'ticketsPath' : 'branch']: value }) };
 		});
 	}
 
@@ -273,17 +229,5 @@ export class ProjectRegistry {
 
 	getBrowser(): string {
 		return this.appConfig.read().browser ?? 'chrome';
-	}
-
-	getLastUsedProfileName(): string | null {
-		return this.appConfig.read().lastUsedProfileName;
-	}
-
-	setLastUsedProfileName(profileName: string): void {
-		if (!profileName) throw new Error('profileName cannot be empty');
-		const config = this.appConfig.read();
-		if (config.lastUsedProfileName !== profileName) {
-			this.appConfig.write({ ...config, lastUsedProfileName: profileName });
-		}
 	}
 }
