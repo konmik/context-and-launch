@@ -1,5 +1,6 @@
 /* eslint-disable max-len */
-import { For, Show, createMemo, createSignal, createStore, onSettled, untrack, type Accessor } from "solid-js";
+import { For, Show, createMemo, createSignal, createStore, onSettled, untrack, useContext, type Accessor } from "solid-js";
+import { ForestLayoutContext } from "./forest-layout-storage.js";
 import { X } from "~/components/ui/icons.js";
 import type { OverlayRect } from "../shared/ExpandingOverlay";
 import ForestCard, { ForestCardCommandsContext, ForestCardColumnsContext, ForestConnectionSessionContext, type ForestCardCommands } from "./ForestCard.js";
@@ -15,7 +16,6 @@ import type { ForestLayout } from "~/core/ticket/forest-layout-store.js";
 
 export interface ForestSurfaceData {
   tickets: ForestTicket[];
-  layout: ForestLayout;
   columns: SwatchColumn[];
   scopeGroupNumber?: string;
   viewport?: ForestViewport;
@@ -30,7 +30,6 @@ export interface ForestSurfaceCommands {
   openGroup: (ticketNumber: string, cardRect: OverlayRect) => void;
   onClose?: () => void;
   openTicket: (ticketNumber: string) => void;
-  persistPositions: (positions: ForestLayout) => Promise<void>;
   persistViewport?: (viewport: ForestViewport) => void;
   registerSurface: (api: ForestSurfaceApi | undefined) => void;
   removeDependency: (relations: DependencyRelation[]) => Promise<void>;
@@ -47,7 +46,8 @@ function surfaceInfo(element: HTMLElement, scopeGroupNumber: string | undefined)
 }
 
 export default function ForestSurface(props: Props) {
-  const model = createMemo(() => buildForestFlowModel(props.data.tickets, props.data.scopeGroupNumber, props.data.layout));
+  const layout = useContext(ForestLayoutContext)!;
+  const model = createMemo(() => buildForestFlowModel(props.data.tickets, props.data.scopeGroupNumber, layout.get()));
   const [nodes, setNodes] = createStore<ForestFlowNode[]>(
     () => model().nodes,
     [],
@@ -143,7 +143,10 @@ export default function ForestSurface(props: Props) {
 
   async function persistPositions(positions: ForestLayout) {
     setPersisting(true);
-    try { await props.commands.persistPositions(positions); } catch (error) { props.commands.reportError(error); } finally { setPersisting(false); }
+    try {
+      const result = await layout.update(current => ({ ...current, ...positions }));
+      if (result.type === 'Failure') props.commands.reportError(result.error);
+    } finally { setPersisting(false); }
   }
   function bounds(ids = nodes.map((node) => node.id)) {
     const chosen = nodes.filter((node) => ids.includes(node.id));

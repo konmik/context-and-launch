@@ -1802,7 +1802,8 @@ describe('TicketStore', () => {
 		const group = store.createGroup('G-1', 'Group', 'todo', ['a-1-alpha', 'b-1-beta'],
 			undefined, { x: 100, y: 200 });
 
-		store.forestLayoutStore.savePositions({
+		store.forestLayoutStore.write({
+			...store.forestLayoutStore.read(),
 			'A-1': { x: 50, y: 30 },
 		});
 
@@ -1819,7 +1820,7 @@ describe('TicketStore', () => {
 		const store = new TicketStore(worktreeDir);
 		store.createTicket('A-1', 'Alpha');
 		store.createTicket('B-1', 'Beta');
-		store.forestLayoutStore.savePositions({
+		store.forestLayoutStore.write({
 			'A-1': { x: 130, y: 240 },
 			'B-1': { x: 180, y: 275 },
 		});
@@ -1887,7 +1888,7 @@ describe('TicketStore', () => {
 		const store = new TicketStore(worktreeDir);
 		store.createTicket('A-1', 'Alpha');
 		store.createTicket('B-1', 'Beta');
-		store.forestLayoutStore.savePositions({
+		store.forestLayoutStore.write({
 			'A-1': { x: 130, y: 240 },
 			'B-1': { x: 180, y: 275 },
 		});
@@ -1928,7 +1929,7 @@ describe('TicketStore', () => {
 		store.createTicket('A-1', 'Alpha');
 		store.createTicket('B-1', 'Beta');
 		store.addDependency('b-1-beta', 'A-1');
-		store.forestLayoutStore.savePositions({ 'A-1': { x: 10, y: 20 } });
+		store.forestLayoutStore.write({ 'A-1': { x: 10, y: 20 } });
 
 		store.updateTicket('a-1-alpha', 'A-99', null, null);
 
@@ -1968,7 +1969,7 @@ describe('TicketStore', () => {
 		store.createTicket('A-1', 'Alpha');
 		store.createTicket('B-1', 'Beta');
 		store.addDependency('b-1-beta', 'A-1');
-		store.forestLayoutStore.savePositions({ 'A-1': { x: 10, y: 20 } });
+		store.forestLayoutStore.write({ 'A-1': { x: 10, y: 20 } });
 
 		store.deleteTicket('a-1-alpha');
 
@@ -1988,7 +1989,7 @@ describe('TicketStore', () => {
 		store.createTicket('A-1', 'Alpha');
 		store.createTicket('B-1', 'Beta');
 		store.addDependency('b-1-beta', 'A-1');
-		store.forestLayoutStore.savePositions({ 'A-1': { x: 10, y: 20 } });
+		store.forestLayoutStore.write({ 'A-1': { x: 10, y: 20 } });
 
 		const originalWriteFileSync = fs.writeFileSync;
 		let failed = false;
@@ -2033,7 +2034,7 @@ describe('TicketStore', () => {
 			JSON.stringify({ ...bStatus, memberOf: 'G-1' }, null, 2)
 		);
 
-		store.forestLayoutStore.savePositions({ 'B-1': { x: 5, y: 10 } });
+		store.forestLayoutStore.write({ 'B-1': { x: 5, y: 10 } });
 
 		store.archiveTicket('b-1-beta');
 

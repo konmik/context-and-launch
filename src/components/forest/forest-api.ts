@@ -1,31 +1,30 @@
-import { action, query } from "@solidjs/router";
+import { action } from "@solidjs/router";
 import { respond } from "@solidjs/web";
 import { worktreeManager, projectRegistry, boardConfigManager } from "~/core/config/instances.js";
 import { TicketStore } from "~/core/ticket/ticket-store.js";
-import { errorResult } from "~/core/shared/errors.js";
+import { errorMessage, errorResult } from "~/core/shared/errors.js";
+import { fail, succeed } from "~/util/result.js";
 import { resolveInitialTicketStatus } from "~/core/board/initial-ticket-status.js";
 import { ForestLayoutStore, type ForestLayout } from "~/core/ticket/forest-layout-store.js";
 
-export const getForestLayout = query(async (projectSlug: string): Promise<ForestLayout> => {
+export async function readForestLayout(projectSlug: string): Promise<ForestLayout> {
   "use server";
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
   return new ForestLayoutStore(worktreeDir).read();
-}, "forest-layout");
+}
 
 const actionResult = <T>(value: T) => respond(value, { revalidate: [] });
 
-export const saveForestPositions = action(async function saveForestPositions(
-  input: { projectSlug: string; positions: ForestLayout },
-) {
+export async function saveForestLayout(projectSlug: string, expected: ForestLayout, layout: ForestLayout) {
   "use server";
   try {
-    const worktreeDir = worktreeManager.getWorktreeDir(input.projectSlug);
-    new ForestLayoutStore(worktreeDir).savePositions(input.positions);
-    return actionResult({ ok: true as const });
+    const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
+    new ForestLayoutStore(worktreeDir).write(layout, expected);
+    return succeed(layout);
   } catch (e) {
-    return actionResult(errorResult(e));
+    return fail(errorMessage(e));
   }
-}, "save-forest-positions");
+}
 
 export const addDependency = action(async function addDependency(
   input: { projectSlug: string; folderName: string; dependencyNumber: string },

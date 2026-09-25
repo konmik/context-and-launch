@@ -24,10 +24,6 @@ export class ForestLayoutStore {
 		return result;
 	}
 
-	savePositions(positions: ForestLayout): void {
-		this.write({ ...this.read(), ...positions });
-	}
-
 	renameTicket(oldTicketNumber: string, newTicketNumber: string): void {
 		const layout = this.read();
 		if (!(oldTicketNumber in layout)) return;
@@ -80,7 +76,10 @@ export class ForestLayoutStore {
 		this.write(next);
 	}
 
-	private write(layout: ForestLayout): void {
+	write(layout: ForestLayout, expected?: ForestLayout): void {
+		if (expected && JSON.stringify(this.read()) !== JSON.stringify(expected)) {
+			throw new Error('Forest layout changed in another request. Try again.');
+		}
 		this.repo.writeWorktreeJson(this.worktreeDir, 'forest-layout.json', layout);
 	}
 }

@@ -61,29 +61,40 @@ describe('ForestLayoutStore', () => {
 		});
 	});
 
-	it('savePositions merges with existing', () => {
+	it('write replaces the saved layout', () => {
 		const dir = tmpDir('fls-');
 		dirs.push(dir);
 		fs.writeFileSync(path.join(dir, 'forest-layout.json'), JSON.stringify({
 			'A-1': { x: 10, y: 20 },
 		}));
 		const store = new ForestLayoutStore(dir);
-		store.savePositions({ 'B-2': { x: 30, y: 40 } });
+		store.write({ 'B-2': { x: 30, y: 40 } });
 		expect(store.read()).toEqual({
-			'A-1': { x: 10, y: 20 },
 			'B-2': { x: 30, y: 40 },
 		});
 	});
 
-	it('savePositions overwrites existing entry', () => {
+	it('write overwrites existing entry', () => {
 		const dir = tmpDir('fls-');
 		dirs.push(dir);
 		fs.writeFileSync(path.join(dir, 'forest-layout.json'), JSON.stringify({
 			'A-1': { x: 10, y: 20 },
 		}));
 		const store = new ForestLayoutStore(dir);
-		store.savePositions({ 'A-1': { x: 99, y: 99 } });
+		store.write({ 'A-1': { x: 99, y: 99 } });
 		expect(store.read()).toEqual({ 'A-1': { x: 99, y: 99 } });
+	});
+
+	it('write rejects a stale layout without losing another writer\'s positions', () => {
+		const dir = tmpDir('fls-');
+		dirs.push(dir);
+		const store = new ForestLayoutStore(dir);
+		const expected = store.read();
+		store.write({ 'A-1': { x: 10, y: 20 } });
+		expect(() => store.write({ 'B-2': { x: 30, y: 40 } }, expected)).toThrow('Forest layout changed');
+		expect(store.read()).toEqual({ 'A-1': { x: 10, y: 20 } });
+		store.write({ 'B-2': { x: 30, y: 40 } }, store.read());
+		expect(store.read()).toEqual({ 'B-2': { x: 30, y: 40 } });
 	});
 
 	it('renameTicket moves entry', () => {

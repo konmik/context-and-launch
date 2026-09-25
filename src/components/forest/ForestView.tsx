@@ -4,6 +4,7 @@ import {
   createSignal,
   For,
   Show,
+  useContext,
 } from "solid-js";
 import { X } from "~/components/ui/icons.js";
 import CreateTicketDialog from "../ticket/CreateTicketDialog";
@@ -12,28 +13,24 @@ import ExpandingOverlay, { type ExpandingOverlayOrigin, type OverlayRect } from 
 import ForestSurface, {
   type ForestSurfaceApi,
   type ForestSurfaceCommands,
-  type ForestSurfaceData,
 } from "./ForestSurface.js";
 import {
   connectionPreviewPath,
   createForestConnection,
-  type ConnectionEndpoint,
 } from "./forest-connections.js";
 import {
   addDependency,
   createGroupTicket,
-  getForestLayout,
   removeDependencies,
-  saveForestPositions,
   ungroupTicket,
 } from "./forest-api.js";
 import { getForestViewport, setForestViewport } from "./forest-local-state.js";
-import type { DependencyRelation, ForestTicket } from "./forest-graph.js";
+import type { DependencyRelation } from "./forest-graph.js";
 import { useEscapeKey } from "~/lib/use-escape-key.js";
 import { ticketMutationRevalidateKeys } from "../shared/revalidate-keys.js";
 import type { BoardState } from "~/core/board/board-types.js";
 import { errorPayload, type ErrorInfo } from "~/core/shared/errors.js";
-import type { ForestLayout } from "~/core/ticket/forest-layout-store.js";
+import { createForestLayoutStorage, ForestLayoutContext } from "./forest-layout-storage.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 
 interface ForestViewProps {
@@ -51,19 +48,20 @@ interface GroupingDraft {
 }
 
 export default function ForestView(props: ForestViewProps) {
-  const layoutQuery = createMemo(() => getForestLayout(props.projectSlug));
-  // Latch the last loaded layout: the surfaces snapshot their node positions
-  // when they mount, so they mount only once a real layout is available, and
-  // revalidating the query (e.g. after a position save) must not unmount them.
-  const loadedLayout = createMemo<ForestLayout | undefined>(
-    previous => layoutQuery() ?? previous,
-  );
+  return <Show when={props.projectSlug} keyed>{projectSlug =>
+    <ForestLayoutContext value={createForestLayoutStorage(projectSlug)}>
+      <ForestContent {...props} />
+    </ForestLayoutContext>
+  }</Show>;
+}
+
+function ForestContent(props: ForestViewProps) {
+  const layout = useContext(ForestLayoutContext)!;
   const [error, setError] = createSignal<ErrorInfo>();
   const [openGroups, setOpenGroups] = createSignal<string[]>([]);
   const [openGroupOrigin, setOpenGroupOrigin] = createSignal<ExpandingOverlayOrigin>();
   const [groupingDraft, setGroupingDraft] = createSignal<GroupingDraft>();
   const [createDialogOpen, setCreateDialogOpen] = createSignal(false);
-  const runSaveForestPositions = useAction(saveForestPositions);
   const runAddDependency = useAction(addDependency);
   const runRemoveDependencies = useAction(removeDependencies);
   const runCreateGroupTicket = useAction(createGroupTicket);
@@ -71,15 +69,6 @@ export default function ForestView(props: ForestViewProps) {
   const connection = createForestConnection();
   const surfaceApis = new Map<string, ForestSurfaceApi>();
   let containerRef: HTMLDivElement | undefined;
-
-  const tickets = createMemo<ForestTicket[]>(() => props.board.tickets.map(ticket => ({
-    number: ticket.number,
-    title: ticket.title,
-    status: ticket.status,
-    folderName: ticket.folderName,
-    dependsOn: ticket.dependsOn,
-    memberOf: ticket.memberOf,
-  })));
 
   function requireContainer(): HTMLDivElement {
     if (!containerRef) throw new Error("Forest view is not mounted");
@@ -102,35 +91,26 @@ export default function ForestView(props: ForestViewProps) {
     else surfaceApis.delete(key);
   }
 
-  async function runMutation(
+  async function mutateAndRefreshTickets(
     mutate: () => Promise<{ ok: true } | { ok: false; message: string }>,
-    revalidateKeys: string[],
   ): Promise<boolean> {
     const result = await mutate();
     if (!result.ok) {
       setError({ description: result.message });
       return false;
     }
-    await revalidate(revalidateKeys);
+    await revalidate(ticketMutationRevalidateKeys);
     return true;
-  }
-
-  async function persistPositions(positions: ForestLayout) {
-    await runMutation(
-      () => runSaveForestPositions({ projectSlug: props.projectSlug, positions }),
-      ["forest-layout"],
-    );
   }
 
   function handleAddDependency(dependentNumber: string, dependencyNumber: string) {
     const dependent = findTicket(dependentNumber);
-    return runMutation(
+    return mutateAndRefreshTickets(
       () => runAddDependency({
         projectSlug: props.projectSlug,
         folderName: dependent.folderName,
         dependencyNumber,
       }),
-      ticketMutationRevalidateKeys,
     );
   }
 
@@ -149,10 +129,13 @@ export default function ForestView(props: ForestViewProps) {
 
   async function handleUngroup(ticketNumber: string) {
     const group = findTicket(ticketNumber);
-    await runMutation(
+    const changed = await mutateAndRefreshTickets(
       () => runUngroupTicket({ projectSlug: props.projectSlug, folderName: group.folderName }),
-      [...ticketMutationRevalidateKeys, "forest-layout"],
     );
+    if (changed) {
+      const result = await layout.refresh();
+      if (result.type === 'Failure') reportError(result.error);
+    }
   }
 
   function openGroup(
@@ -202,7 +185,9 @@ export default function ForestView(props: ForestViewProps) {
     if (!result.ok) return { error: result.message };
     surfaceApis.get(draft.ownerGroupNumber ?? "root")?.clearSelection();
     setGroupingDraft(undefined);
-    await revalidate([...ticketMutationRevalidateKeys, "forest-layout"]);
+    const refreshed = await layout.refresh();
+    if (refreshed.type === 'Failure') reportError(refreshed.error);
+    await revalidate(ticketMutationRevalidateKeys);
     return {};
   }
 
@@ -219,7 +204,6 @@ export default function ForestView(props: ForestViewProps) {
       onClose: scopeGroupNumber === undefined ? props.onClose : undefined,
       openGroup: (ticketNumber, cardRect) => openGroup(ticketNumber, cardRect, depth),
       openTicket: ticketNumber => props.onViewDetail(findTicket(ticketNumber)),
-      persistPositions,
       persistViewport: scopeGroupNumber === undefined
         ? (viewport) => setForestViewport(localStorage, props.projectSlug, viewport)
         : undefined,
@@ -240,60 +224,50 @@ export default function ForestView(props: ForestViewProps) {
 
   const rootViewport = createMemo(() => getForestViewport(localStorage, props.projectSlug));
 
-  const baseSurfaceData = (loadedLayout: ForestLayout) => ({
-    tickets: tickets(),
-    layout: loadedLayout,
-    columns: props.board.columns,
-  });
-
   return (
     <div ref={containerRef} class="relative h-full w-full">
-      <Show when={loadedLayout()}>
-        {(layout) => (
-          <>
-            <ForestSurface
-              data={{
-                ...baseSurfaceData(layout()),
-                viewport: rootViewport(),
-              } satisfies ForestSurfaceData}
-              commands={surfaceCommands(undefined, 0)}
-              connectionSession={connection.session}
-              connectionCommands={connection.commands}
-            />
+      <ForestSurface
+        data={{
+          tickets: props.board.tickets,
+          columns: props.board.columns,
+          viewport: rootViewport(),
+        }}
+        commands={surfaceCommands(undefined, 0)}
+        connectionSession={connection.session}
+        connectionCommands={connection.commands}
+      />
 
-            <For each={openGroups()}>
-              {(groupNumber, index) => (
-                <ExpandingOverlay
-                  origin={index() === openGroups().length - 1 ? openGroupOrigin() : undefined}
-                  onClose={() => closeGroup(index())}
-                  backdropAttributes={{ "data-testid": "forest-subforest-backdrop" }}
-                  panelAttributes={{ "data-forest-connection-boundary": "" }}
-                  panelClass="absolute rounded-lg border border-border bg-background"
-                >
-                  <div class="h-full w-full">
-                    <ForestSurface
-                      data={{
-                        ...baseSurfaceData(layout()),
-                        scopeGroupNumber: groupNumber,
-                      } satisfies ForestSurfaceData}
-                      commands={surfaceCommands(groupNumber, index() + 1)}
-                      connectionSession={connection.session}
-                      connectionCommands={connection.commands}
-                    />
-                  </div>
-                  <button
-                    class="btn-icon absolute right-2 top-2"
-                    onClick={() => closeGroup(index())}
-                    data-testid="forest-subforest-close"
-                  >
-                    <X size={16} />
-                  </button>
-                </ExpandingOverlay>
-              )}
-            </For>
-          </>
+      <For each={openGroups()}>
+        {(groupNumber, index) => (
+          <ExpandingOverlay
+            origin={index() === openGroups().length - 1 ? openGroupOrigin() : undefined}
+            onClose={() => closeGroup(index())}
+            backdropAttributes={{ "data-testid": "forest-subforest-backdrop" }}
+            panelAttributes={{ "data-forest-connection-boundary": "" }}
+            panelClass="absolute rounded-lg border border-border bg-background"
+          >
+            <div class="h-full w-full">
+              <ForestSurface
+                data={{
+                  tickets: props.board.tickets,
+                  columns: props.board.columns,
+                  scopeGroupNumber: groupNumber,
+                }}
+                commands={surfaceCommands(groupNumber, index() + 1)}
+                connectionSession={connection.session}
+                connectionCommands={connection.commands}
+              />
+            </div>
+            <button
+              class="btn-icon absolute right-2 top-2"
+              onClick={() => closeGroup(index())}
+              data-testid="forest-subforest-close"
+            >
+              <X size={16} />
+            </button>
+          </ExpandingOverlay>
         )}
-      </Show>
+      </For>
 
       <Show when={previewPath()}>
         {(path) => (
