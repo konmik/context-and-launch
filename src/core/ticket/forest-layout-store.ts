@@ -7,17 +7,13 @@ const PositionSchema = v.object({ x: v.number(), y: v.number() });
 const ForestLayoutRecordSchema = v.record(v.string(), v.unknown());
 
 export class ForestLayoutStore {
-	private worktreeDir: string;
-	private repo: TicketRepository;
-
-	constructor(worktreeDir: string, repo?: TicketRepository) {
-		this.worktreeDir = worktreeDir;
-		this.repo = repo ?? new TicketRepository();
-	}
+	constructor(
+		private readonly worktreeDir: string,
+		private readonly repo = new TicketRepository(),
+	) {}
 
 	read() {
 		const raw = this.repo.readWorktreeJson(this.worktreeDir, 'forest-layout.json');
-		if (raw === null || Array.isArray(raw)) return {};
 		const record = v.safeParse(ForestLayoutRecordSchema, raw);
 		if (!record.success) return {};
 		const result: ForestLayout = {};
@@ -32,20 +28,17 @@ export class ForestLayoutStore {
 		this.write({ ...this.read(), ...positions });
 	}
 
-	renameTicket(oldNumber: string, newNumber: string): void {
+	renameTicket(oldTicketNumber: string, newTicketNumber: string): void {
 		const layout = this.read();
-		if (!(oldNumber in layout)) return;
-		const pos = layout[oldNumber];
-		delete layout[oldNumber];
-		layout[newNumber] = pos;
-		this.write(layout);
+		if (!(oldTicketNumber in layout)) return;
+		const { [oldTicketNumber]: position, ...remaining } = layout;
+		this.write({ ...remaining, [newTicketNumber]: position });
 	}
 
 	removeTicket(ticketNumber: string): void {
 		const layout = this.read();
 		if (!(ticketNumber in layout)) return;
-		delete layout[ticketNumber];
-		this.write(layout);
+		this.write(Object.fromEntries(Object.entries(layout).filter(([number]) => number !== ticketNumber)));
 	}
 
 	translateIntoGroup(
@@ -54,28 +47,27 @@ export class ForestLayoutStore {
 		memberNumbers: string[],
 	): void {
 		const layout = this.read();
-		const updates = { [groupNumber]: groupPosition } satisfies ForestLayout;
+		const next = { ...layout, [groupNumber]: groupPosition };
 		for (const memberNumber of memberNumbers) {
 			const memberPosition = layout[memberNumber];
 			if (memberPosition) {
-				updates[memberNumber] = {
+				next[memberNumber] = {
 					x: memberPosition.x - groupPosition.x,
 					y: memberPosition.y - groupPosition.y,
 				};
 			}
 		}
-		this.write({ ...layout, ...updates });
+		this.write(next);
 	}
 
 	translateOutOfGroup(groupNumber: string, memberNumbers: string[]): void {
 		const layout = this.read();
 		const groupPosition = layout[groupNumber];
 		const next = { ...layout };
-		let changed = false;
-		for (const memberNumber of memberNumbers) {
+		const positionedMembers = memberNumbers.filter(number => layout[number]);
+		if (!positionedMembers.length) return;
+		for (const memberNumber of positionedMembers) {
 			const memberPosition = layout[memberNumber];
-			if (!memberPosition) continue;
-			changed = true;
 			if (groupPosition) {
 				next[memberNumber] = {
 					x: groupPosition.x + memberPosition.x,
@@ -85,7 +77,7 @@ export class ForestLayoutStore {
 				delete next[memberNumber];
 			}
 		}
-		if (changed) this.write(next);
+		this.write(next);
 	}
 
 	private write(layout: ForestLayout): void {

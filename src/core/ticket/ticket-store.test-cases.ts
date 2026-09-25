@@ -3,7 +3,6 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { TicketStore, toKebabCase } from './ticket-store.js';
-import { ForestLayoutStore } from './forest-layout-store.js';
 import { git, gitSync } from '~/test-git.js';
 import { ValidationError } from '../shared/errors.js';
 import { cloneFromTemplate, lazyTemplate } from '~/test-temp.js';
@@ -1711,7 +1710,7 @@ describe('TicketStore', () => {
 
 		store.createGroup('G-1', 'Group', 'todo', ['a-1-alpha'], undefined, { x: 100, y: 200 });
 
-		const layout = store.readForestLayoutStore().read();
+		const layout = store.forestLayoutStore.read();
 		expect(layout['G-1']).toEqual({ x: 100, y: 200 });
 	});
 
@@ -1803,13 +1802,13 @@ describe('TicketStore', () => {
 		const group = store.createGroup('G-1', 'Group', 'todo', ['a-1-alpha', 'b-1-beta'],
 			undefined, { x: 100, y: 200 });
 
-		store.readForestLayoutStore().savePositions({
+		store.forestLayoutStore.savePositions({
 			'A-1': { x: 50, y: 30 },
 		});
 
 		store.ungroup(group.folderName);
 
-		const layout = store.readForestLayoutStore().read();
+		const layout = store.forestLayoutStore.read();
 		expect(layout['A-1']).toEqual({ x: 150, y: 230 });
 	});
 
@@ -1820,7 +1819,7 @@ describe('TicketStore', () => {
 		const store = new TicketStore(worktreeDir);
 		store.createTicket('A-1', 'Alpha');
 		store.createTicket('B-1', 'Beta');
-		store.readForestLayoutStore().savePositions({
+		store.forestLayoutStore.savePositions({
 			'A-1': { x: 130, y: 240 },
 			'B-1': { x: 180, y: 275 },
 		});
@@ -1834,7 +1833,7 @@ describe('TicketStore', () => {
 			{ x: 100, y: 200 }
 		);
 
-		expect(store.readForestLayoutStore().read()).toMatchObject({
+		expect(store.forestLayoutStore.read()).toMatchObject({
 			'A-1': { x: 30, y: 40 },
 			'B-1': { x: 80, y: 75 },
 			'G-1': { x: 100, y: 200 },
@@ -1842,7 +1841,7 @@ describe('TicketStore', () => {
 
 		store.ungroup(group.folderName);
 
-		expect(store.readForestLayoutStore().read()).toMatchObject({
+		expect(store.forestLayoutStore.read()).toMatchObject({
 			'A-1': { x: 130, y: 240 },
 			'B-1': { x: 180, y: 275 },
 		});
@@ -1888,14 +1887,14 @@ describe('TicketStore', () => {
 		const store = new TicketStore(worktreeDir);
 		store.createTicket('A-1', 'Alpha');
 		store.createTicket('B-1', 'Beta');
-		store.readForestLayoutStore().savePositions({
+		store.forestLayoutStore.savePositions({
 			'A-1': { x: 130, y: 240 },
 			'B-1': { x: 180, y: 275 },
 		});
 		const group = store.createGroup(
 			'G-1', 'Group', 'todo', ['a-1-alpha', 'b-1-beta'], undefined, { x: 100, y: 200 },
 		);
-		const groupedLayout = store.readForestLayoutStore().read();
+		const groupedLayout = store.forestLayoutStore.read();
 
 		const originalWriteFileSync = fs.writeFileSync;
 		let failed = false;
@@ -1918,7 +1917,7 @@ describe('TicketStore', () => {
 
 		expect(store.getTicket('a-1-alpha')?.memberOf).toBe('G-1');
 		expect(store.getTicket('b-1-beta')?.memberOf).toBe('G-1');
-		expect(store.readForestLayoutStore().read()).toEqual(groupedLayout);
+		expect(store.forestLayoutStore.read()).toEqual(groupedLayout);
 	});
 
 	it.concurrent('number edit rewrites inbound dependsOn and renames layout key', async () => {
@@ -1929,7 +1928,7 @@ describe('TicketStore', () => {
 		store.createTicket('A-1', 'Alpha');
 		store.createTicket('B-1', 'Beta');
 		store.addDependency('b-1-beta', 'A-1');
-		store.readForestLayoutStore().savePositions({ 'A-1': { x: 10, y: 20 } });
+		store.forestLayoutStore.savePositions({ 'A-1': { x: 10, y: 20 } });
 
 		store.updateTicket('a-1-alpha', 'A-99', null, null);
 
@@ -1938,7 +1937,7 @@ describe('TicketStore', () => {
 		);
 		expect(rawB.dependsOn).toEqual(['A-99']);
 
-		const layout = store.readForestLayoutStore().read();
+		const layout = store.forestLayoutStore.read();
 		expect(layout['A-99']).toEqual({ x: 10, y: 20 });
 		expect(layout['A-1']).toBeUndefined();
 	});
@@ -1969,7 +1968,7 @@ describe('TicketStore', () => {
 		store.createTicket('A-1', 'Alpha');
 		store.createTicket('B-1', 'Beta');
 		store.addDependency('b-1-beta', 'A-1');
-		store.readForestLayoutStore().savePositions({ 'A-1': { x: 10, y: 20 } });
+		store.forestLayoutStore.savePositions({ 'A-1': { x: 10, y: 20 } });
 
 		store.deleteTicket('a-1-alpha');
 
@@ -1978,7 +1977,7 @@ describe('TicketStore', () => {
 		);
 		expect(rawB.dependsOn).toBeUndefined();
 
-		const layout = store.readForestLayoutStore().read();
+		const layout = store.forestLayoutStore.read();
 		expect(layout['A-1']).toBeUndefined();
 	});
 
@@ -1989,7 +1988,7 @@ describe('TicketStore', () => {
 		store.createTicket('A-1', 'Alpha');
 		store.createTicket('B-1', 'Beta');
 		store.addDependency('b-1-beta', 'A-1');
-		store.readForestLayoutStore().savePositions({ 'A-1': { x: 10, y: 20 } });
+		store.forestLayoutStore.savePositions({ 'A-1': { x: 10, y: 20 } });
 
 		const originalWriteFileSync = fs.writeFileSync;
 		let failed = false;
@@ -2015,7 +2014,7 @@ describe('TicketStore', () => {
 		expect(store.getTicket('a-1-alpha')?.number).toBe('A-1');
 		expect(store.getTicket('b-1-beta')?.dependsOn).toEqual(['A-1']);
 		expect(store.readOrderStore().read().todo).toEqual(['a-1-alpha', 'b-1-beta']);
-		expect(store.readForestLayoutStore().read()['A-1']).toEqual({ x: 10, y: 20 });
+		expect(store.forestLayoutStore.read()['A-1']).toEqual({ x: 10, y: 20 });
 	});
 
 	it.concurrent('archive leaves dependsOn, memberOf, and layout untouched', async () => {
@@ -2034,7 +2033,7 @@ describe('TicketStore', () => {
 			JSON.stringify({ ...bStatus, memberOf: 'G-1' }, null, 2)
 		);
 
-		store.readForestLayoutStore().savePositions({ 'B-1': { x: 5, y: 10 } });
+		store.forestLayoutStore.savePositions({ 'B-1': { x: 5, y: 10 } });
 
 		store.archiveTicket('b-1-beta');
 
@@ -2049,7 +2048,7 @@ describe('TicketStore', () => {
 		expect(archivedB.dependsOn).toEqual(['A-1']);
 		expect(archivedB.memberOf).toBe('G-1');
 
-		const layout = store.readForestLayoutStore().read();
+		const layout = store.forestLayoutStore.read();
 		expect(layout['B-1']).toEqual({ x: 5, y: 10 });
 	});
 

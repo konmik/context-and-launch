@@ -86,7 +86,7 @@ export type ReorderTicketBody = v.InferOutput<typeof ReorderTicketBody>;
 export class TicketStore {
 	private worktreeDir: string;
 	private orderStore: TicketOrderStore;
-	private forestLayoutStore: ForestLayoutStore;
+	readonly forestLayoutStore: ForestLayoutStore;
 	private repo: TicketRepository;
 	private worktreeRootWithSep?: string;
 
@@ -138,10 +138,6 @@ export class TicketStore {
 
 	readOrderStore(): TicketOrderStore {
 		return this.orderStore;
-	}
-
-	readForestLayoutStore(): ForestLayoutStore {
-		return this.forestLayoutStore;
 	}
 
 	moveTicket(folderName: string, fromColumn: string, toColumn: string, newIndex: number): void {

@@ -4,12 +4,12 @@ import { worktreeManager, projectRegistry, boardConfigManager } from "~/core/con
 import { TicketStore } from "~/core/ticket/ticket-store.js";
 import { errorResult } from "~/core/shared/errors.js";
 import { resolveInitialTicketStatus } from "~/core/board/initial-ticket-status.js";
-import type { ForestLayout } from "~/core/ticket/forest-layout-store.js";
+import { ForestLayoutStore, type ForestLayout } from "~/core/ticket/forest-layout-store.js";
 
 export const getForestLayout = query(async (projectSlug: string): Promise<ForestLayout> => {
   "use server";
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
-  return new TicketStore(worktreeDir).readForestLayoutStore().read();
+  return new ForestLayoutStore(worktreeDir).read();
 }, "forest-layout");
 
 const actionResult = <T>(value: T) => respond(value, { revalidate: [] });
@@ -20,7 +20,7 @@ export const saveForestPositions = action(async function saveForestPositions(
   "use server";
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(input.projectSlug);
-    new TicketStore(worktreeDir).readForestLayoutStore().savePositions(input.positions);
+    new ForestLayoutStore(worktreeDir).savePositions(input.positions);
     return actionResult({ ok: true as const });
   } catch (e) {
     return actionResult(errorResult(e));
