@@ -7,7 +7,7 @@ import {
 
 export function createDiffReviewStorage(projectSlug: string): StoredSignal<DiffReviewProjectState> {
 	return createStoredConfig(
-		owner => readDiffReviewState(projectSlug, owner),
-		(json, owner) => saveDiffReviewState(projectSlug, json, owner),
-		owner => releaseDiffReviewState(projectSlug, owner));
+		readDiffReviewState.bind(null, projectSlug),
+		saveDiffReviewState.bind(null, projectSlug),
+		releaseDiffReviewState.bind(null, projectSlug));
 }

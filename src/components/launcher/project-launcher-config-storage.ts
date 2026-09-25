@@ -14,11 +14,11 @@ export function createProjectLauncherConfigStorage(props: { projectSlug: string 
 	release: releaseProjectLauncherConfig,
 }): StoredSignal<LauncherConfig> {
 	const project = createMemo(() => {
-		const slug = props.projectSlug;
+		const projectSlug = props.projectSlug;
 		return createStoredConfig(
-			owner => persistence.read(slug, owner),
-			(json, owner) => persistence.save(slug, json, owner),
-			owner => persistence.release(slug, owner),
+			persistence.read.bind(persistence, projectSlug),
+			persistence.save.bind(persistence, projectSlug),
+			persistence.release.bind(persistence, projectSlug),
 		);
 	});
 	return {
