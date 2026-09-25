@@ -197,7 +197,8 @@ export class TicketStore {
 		folderName: string,
 		number?: string | null,
 		title?: string | null,
-		status?: string | null
+		status?: string | null,
+		details: Partial<Pick<StatusJson, 'useWorktree' | 'references'>> = {},
 	): TicketInfo {
 		return this.repo.runInTransaction(this.worktreeDir, () => {
 		const dir = this.resolveTicketDir(folderName);
@@ -208,7 +209,9 @@ export class TicketStore {
 		const updatedTitle = title != null ? requireNonBlank(title, 'Ticket title') : current.title;
 		const updatedStatus = status ?? current.status;
 
-		const updated: StatusJson = { ...current, number: updatedNumber, title: updatedTitle, status: updatedStatus };
+		const updated: StatusJson = {
+			...current, ...details, number: updatedNumber, title: updatedTitle, status: updatedStatus,
+		};
 
 		const numberChanged = number != null && number.trim() !== current.number;
 		const numberIdentityChanged = number != null

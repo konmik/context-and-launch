@@ -10,7 +10,8 @@ import {
   diffReviewStore,
 } from "~/core/config/instances.js";
 import { openInOs } from "~/core/infra/open-in-os.js";
-import { TicketStore } from "~/core/ticket/ticket-store.js";
+import { TicketStore, type TicketInfo } from "~/core/ticket/ticket-store.js";
+import type { StatusJson } from '~/core/ticket/ticket-repository.js';
 import type { TicketOrder } from '~/core/ticket/ticket-order-data.js';
 import { fail, succeed } from '~/util/result.js';
 import { extractPrefixFromInput } from "~/core/ticket/ticket-number.js";
@@ -112,25 +113,23 @@ export async function saveTicketOrder(projectSlug: string, expected: TicketOrder
   } catch (error) { return fail(errorMessage(error)); }
 }
 
-export interface TicketFiles {
-  contextNames: string[];
-  fileNames: string[];
-  references: { path: string; exists: boolean }[];
+function withAgentWorktreeStatus(projectSlug: string, ticket: TicketInfo): TicketInfo {
+  const { worktreePath } = resolveAgentWorktreeLocation(
+    ticket.folderName, launcherConfigManager.resolveWorktreeSettings(projectSlug),
+    { savedWorktreePath: ticket.agentWorktreeDir },
+  );
+  return { ...ticket, hasAgentWorktree: fs.existsSync(worktreePath) };
 }
 
-export const getTicketFiles = query(async (
+export const getTicket = query(async (
   projectSlug: string, folderName: string,
-): Promise<TicketFiles> => {
+): Promise<TicketInfo> => {
   "use server";
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug);
   const ticket = new TicketStore(worktreeDir).getTicket(folderName);
   if (!ticket) throw new NotFoundError(`Ticket not found: ${folderName}`);
-  return {
-    contextNames: ticket.contextNames,
-    fileNames: ticket.fileNames,
-    references: ticket.references,
-  };
-}, "ticket-files");
+  return withAgentWorktreeStatus(projectSlug, ticket);
+}, "ticket-detail");
 
 export async function getContext(
   projectSlug: string, folderName: string, contextFileName: string,
@@ -215,43 +214,40 @@ export async function uploadFile(
   }
 }
 
-export async function addReferences(
-  projectSlug: string, folderName: string, paths: string[],
-) {
+export const saveTicketStatus = action(async (
+  projectSlug: string, previousJson: string, nextJson: string,
+) => {
   "use server";
   try {
-    mutateTickets(projectSlug, store => {
-      for (const p of paths) store.addReference(folderName, p);
+    const previous: TicketInfo = JSON.parse(previousJson);
+    const next: TicketInfo = JSON.parse(nextJson);
+    const updated = await mutateTicketsExclusive(projectSlug, store => {
+      const details: Partial<Pick<StatusJson, 'useWorktree' | 'references'>> = {};
+      if (next.useWorktree !== previous.useWorktree) details.useWorktree = next.useWorktree;
+      const removed = previous.references.filter(ref => !next.references.some(nextRef => nextRef.path === ref.path));
+      const added = next.references.filter(ref =>
+        !previous.references.some(previousRef => previousRef.path === ref.path));
+      const current = store.getTicket(previous.folderName);
+      if (!current) throw new NotFoundError(`Ticket not found: ${previous.folderName}`);
+      if (!removed.length && !added.length && next.useWorktree === previous.useWorktree
+        && next.number === previous.number && next.title === previous.title && next.status === previous.status) {
+        return current;
+      }
+      if (removed.length || added.length) {
+        details.references = [...new Set([
+          ...current.references.filter(ref => !removed.some(removedRef => removedRef.path === ref.path)), ...added,
+        ]
+          .map(reference => reference.path))].map(path => ({ path }));
+      }
+      return store.updateTicket(previous.folderName,
+        next.number !== previous.number ? next.number : undefined,
+        next.title !== previous.title ? next.title : undefined,
+        next.status !== previous.status ? next.status : undefined, details,
+      );
     });
-    return { ok: true as const };
-  } catch (e) {
-    return errorResult(e);
-  }
-}
-
-export async function removeReference(
-  projectSlug: string, folderName: string, refPath: string,
-) {
-  "use server";
-  try {
-    mutateTickets(projectSlug, store => store.removeReference(folderName, refPath));
-    return { ok: true as const };
-  } catch (e) {
-    return errorResult(e);
-  }
-}
-
-export async function setUseWorktree(
-  projectSlug: string, folderName: string, useWorktree: boolean,
-) {
-  "use server";
-  try {
-    mutateTickets(projectSlug, store => store.setUseWorktree(folderName, useWorktree));
-    return { ok: true as const };
-  } catch (e) {
-    return errorResult(e);
-  }
-}
+    return respond(succeed(withAgentWorktreeStatus(projectSlug, updated)), { revalidate: [] });
+  } catch (error) { return respond(fail(errorMessage(error)), { revalidate: [] }); }
+}, 'save-ticket-status');
 
 export const syncTickets = action(async function syncTickets(projectSlug: string) {
   "use server";

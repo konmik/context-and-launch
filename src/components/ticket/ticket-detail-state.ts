@@ -26,17 +26,14 @@ import {
   showSaveButton as showSaveButtonPure,
 } from "./ticket-detail-pure.js";
 import { createFileUploadState } from "./ticket-detail-upload.js";
-import { createHeaderEditState } from "./ticket-detail-header.js";
+import { TicketStatusContext } from './ticket-status-storage.js';
 import { createShortcutState } from "./ticket-detail-shortcuts.js";
 import { errorPayload, type ErrorInfo } from "~/core/shared/errors.js";
 import { computeLaunchDir } from "../launcher/agent-launcher-pure.js";
 import {
-  getContext as getContextAction, getTicketFiles, saveContext as saveContextAction,
+  getContext as getContextAction, saveContext as saveContextAction,
   deleteContext as deleteContextAction, deleteFile as deleteFileAction,
-  removeReference as removeReferenceAction, setUseWorktree as setUseWorktreeAction,
-  addReferences as addReferencesAction, openTicketWorktree,
-  uploadFile as uploadFileAction, updateTicket,
-  type TicketFiles,
+  openTicketWorktree, uploadFile as uploadFileAction,
 } from "./ticket-api.js";
 import { ticketMutationRevalidateKeys } from "../shared/revalidate-keys.js";
 import { createWorktreeRevision } from "../shared/worktree-revision.js";
@@ -50,19 +47,14 @@ export type Tab = "editor" | "launcher";
 
 export interface TicketDetailStateDeps {
   sharedConfig?: StoredSignal<LauncherConfig>;
-  ticketFiles?: Accessor<TicketFiles>;
+  ticketStatus?: StoredSignal<TicketInfo>;
   worktreeRevision?: Accessor<number>;
-  refreshTicketFiles?: () => Promise<void>;
   getContext?: typeof getContextAction;
   saveContext?: typeof saveContextAction;
   deleteContext?: typeof deleteContextAction;
   deleteFile?: typeof deleteFileAction;
-  removeReference?: typeof removeReferenceAction;
-  setUseWorktree?: typeof setUseWorktreeAction;
-  addReferences?: typeof addReferencesAction;
   openTicketWorktree?: typeof openTicketWorktree;
   uploadFile?: typeof uploadFileAction;
-  updateTicket?: typeof updateTicket;
   runShortcut?: typeof runShortcut;
   projectConfig?: StoredSignal<LauncherConfig>;
   getProjectLauncherMetadata?: (projectSlug: string) => ReturnType<typeof getProjectLauncherMetadata>;
@@ -70,7 +62,7 @@ export interface TicketDetailStateDeps {
 }
 
 export function createTicketDetailState(
-  props: { ticket: TicketInfo; projectSlug: string; onClose: () => void },
+  props: { projectSlug: string; onClose: () => void },
   deps: TicketDetailStateDeps = {},
 ) {
   const [activeFile, setActiveFile] = createSignal<ActiveFile>({ type: "context", name: "description" });
@@ -99,40 +91,38 @@ export function createTicketDetailState(
   const [dropdownOpen, setDropdownOpen] = createSignal(false);
   const [browsing, setBrowsing] = createSignal(false);
   const [fileView, setFileView] = createSignal<FileView>({ kind: "loading" });
-  const [useWorktree, setUseWorktree] = createSignal(() => props.ticket.useWorktree);
+  const ticketStatus = deps.ticketStatus ?? useContext(TicketStatusContext)!;
+  const ticket = ticketStatus.get;
+  const folderName = () => ticket().folderName;
+  const useWorktree = () => ticket().useWorktree;
   const [externallyChanged, setExternallyChanged] = createSignal(false);
   const [confirmingExternalChange, setConfirmingExternalChange] = createSignal(false);
 
   const worktreeRevision = deps.worktreeRevision ?? createWorktreeRevision(() => props.projectSlug);
 
-  const header = createHeaderEditState({
-    projectSlug: props.projectSlug,
-    ticket: props.ticket,
-    setError,
-    updateTicket: deps.updateTicket,
-  });
+  const [editedNumber, setEditedNumber] = createSignal(() => ticket().number);
+  const [editedTitle, setEditedTitle] = createSignal(() => ticket().title);
+  const hasUnsavedHeaderChanges = () =>
+    editedNumber().trim() !== ticket().number || editedTitle().trim() !== ticket().title;
 
-  const ticketFiles = deps.ticketFiles ?? createMemo(
-    () => getTicketFiles(props.projectSlug, header.savedFolderName()),
-    {
-      loadingValue: {
-        contextNames: props.ticket.contextNames ?? [],
-        fileNames: props.ticket.fileNames ?? [],
-        references: props.ticket.references ?? [],
-      },
-    },
-  );
+  async function saveTicketHeader() {
+    const number = editedNumber().trim() || ticket().number;
+    const title = editedTitle().trim() || ticket().title;
+    setEditedNumber(number);
+    setEditedTitle(title);
+    if (number === ticket().number && title === ticket().title) return;
+    const result = await ticketStatus.update(current => ({ ...current, number, title }));
+    if (result.type === 'Failure') setError({ title: "Save failed", description: result.error });
+  }
 
-  async function refreshTicketFiles() {
-    if (deps.refreshTicketFiles) {
-      await deps.refreshTicketFiles();
-      return;
-    }
-    await revalidate(["ticket-files", ...ticketMutationRevalidateKeys]);
+  async function refreshTicket() {
+    await revalidate(["ticket-detail", ...ticketMutationRevalidateKeys]);
+    const result = await ticketStatus.refresh();
+    if (result.type === 'Failure') setError({ title: "Load failed", description: result.error });
   }
 
   function ticketUrl(suffix: string): string {
-    return ticketApiUrl(props.projectSlug, header.savedFolderName(), suffix);
+    return ticketApiUrl(props.projectSlug, folderName(), suffix);
   }
 
   const launchDir = createMemo(() => computeLaunchDir({
@@ -140,13 +130,13 @@ export function createTicketDetailState(
     projectPath: launcherConfig()?.projectPath ?? "",
     worktreeRootPath: launcherConfig()?.worktreeRootPath ?? null,
     agentWorktreeDir: launcherConfig()?.agentWorktreeDir ?? "",
-    folderName: header.savedFolderName(),
-    savedAgentWorktreeDir: props.ticket.agentWorktreeDir,
+    folderName: folderName(),
+    savedAgentWorktreeDir: ticket().agentWorktreeDir,
   }));
 
   const shortcuts = createShortcutState({
     projectSlug: () => props.projectSlug,
-    folderName: header.savedFolderName,
+    folderName,
     useWorktree,
     launchDir,
     setError,
@@ -155,11 +145,11 @@ export function createTicketDetailState(
 
   const upload = createFileUploadState({
     projectSlug: props.projectSlug,
-    folderName: header.savedFolderName,
+    folderName,
     setError,
-    ticketFileNames: () => ticketFiles().fileNames,
-    contextNames: () => ticketFiles().contextNames,
-    refreshFiles: refreshTicketFiles,
+    ticketFileNames: () => ticket().fileNames,
+    contextNames: () => ticket().contextNames,
+    refreshFiles: refreshTicket,
     requestFileSwitch,
     uploadFile: deps.uploadFile,
   });
@@ -168,7 +158,7 @@ export function createTicketDetailState(
     setError(null);
     try {
       const result = await (deps.openTicketWorktree ?? openTicketWorktree)(
-        props.projectSlug, header.savedFolderName(),
+        props.projectSlug, folderName(),
       );
       if (!result.ok) setError(result.errorInfo);
     } catch (e) {
@@ -176,29 +166,18 @@ export function createTicketDetailState(
     }
   }
 
-  function persistWorktree(value: boolean) {
-    setUseWorktree(value);
-    (deps.setUseWorktree ?? setUseWorktreeAction)(props.projectSlug, header.savedFolderName(), value)
-      .then((result) => {
-        if (!result.ok) setError({ title: "Save failed", description: result.message });
-      })
-      .catch((err) => {
-        setError(errorPayload(err, "Save failed"));
-      });
-  }
-
   const contextOptions = (): ActiveFile[] =>
     buildContextOptions(
       ["description", "product-requirement-document"],
-      ticketFiles().contextNames,
+      ticket().contextNames,
       extraFiles(),
     );
 
   const fileEntryOptions = (): ActiveFile[] =>
-    buildFileEntryOptions(ticketFiles().fileNames);
+    buildFileEntryOptions(ticket().fileNames);
 
   const referenceOptions = (): ActiveFile[] =>
-    buildReferenceOptions(ticketFiles().references);
+    buildReferenceOptions(ticket().references);
 
   const allFileOptions = createMemo(() =>
     buildAllFileOptions(contextOptions(), fileEntryOptions(), referenceOptions()));
@@ -208,7 +187,7 @@ export function createTicketDetailState(
   }
 
   function isReferenceStale(refPath: string): boolean {
-    return checkReferenceStale(ticketFiles().references, refPath);
+    return checkReferenceStale(ticket().references, refPath);
   }
 
   const hasUnsavedFileChanges = () =>
@@ -217,7 +196,7 @@ export function createTicketDetailState(
     );
 
   const hasAnyUnsavedChanges = () =>
-    hasUnsavedFileChanges() || header.hasUnsavedHeaderChanges();
+    hasUnsavedFileChanges() || hasUnsavedHeaderChanges();
 
   function handleBeforeUnload(e: BeforeUnloadEvent) {
     if (hasAnyUnsavedChanges()) e.preventDefault();
@@ -241,7 +220,7 @@ export function createTicketDetailState(
     if (!background) setFileView({ kind: "loading" });
     try {
       const data = await (deps.getContext ?? getContextAction)(
-        props.projectSlug, header.savedFolderName(), af.name,
+        props.projectSlug, folderName(), af.name,
       );
       if (seq !== loadSeq) return;
       const normalized = data ? normalizeLineEndings(data.content) : "";
@@ -279,7 +258,7 @@ export function createTicketDetailState(
   }
 
   createEffect(
-    () => [projectConfig.get(), props.ticket.status, initialTabResolved()] as const,
+    () => [projectConfig.get(), ticket().status, initialTabResolved()] as const,
     ([data, status, resolved]) => {
       if (!data || resolved) return;
       if (data.columnDefaults?.[status]?.lastLayer === 'launcher') setActiveTab('launcher');
@@ -288,7 +267,7 @@ export function createTicketDetailState(
   );
 
   function patchColumnDefaults(patch: Partial<LauncherColumnDefaults>) {
-    const column = props.ticket.status;
+    const column = ticket().status;
     projectConfig.update(current => ({
       ...current,
       columnDefaults: {
@@ -322,7 +301,7 @@ export function createTicketDetailState(
   async function readFileText(af: ActiveFile): Promise<string> {
     if (af.type === "context") {
       const data = await (deps.getContext ?? getContextAction)(
-        props.projectSlug, header.savedFolderName(), af.name,
+        props.projectSlug, folderName(), af.name,
       );
       return data ? normalizeLineEndings(data.content) : "";
     }
@@ -376,7 +355,7 @@ export function createTicketDetailState(
       ] as const);
     },
     ([, tab, hasUnsavedChanges, af]) => {
-    void revalidate("ticket-files");
+    void refreshTicket();
     if (tab !== "editor") return;
     if (hasUnsavedChanges) { void untrack(() => detectExternalChange(af)); return; }
     void untrack(() => loadActiveFile(af, true));
@@ -388,7 +367,7 @@ export function createTicketDetailState(
     setSaving(true);
     try {
       const result = await (deps.saveContext ?? saveContextAction)(
-        props.projectSlug, header.savedFolderName(), af.name, content(),
+        props.projectSlug, folderName(), af.name, content(),
       );
       if (result.ok) setSavedContent(content());
       else setError({ title: "Save failed", description: result.message });
@@ -450,25 +429,25 @@ export function createTicketDetailState(
     setConfirmingDelete(false);
     try {
       if (af.type === "reference") {
-        const result = await (deps.removeReference ?? removeReferenceAction)(
-          props.projectSlug, header.savedFolderName(), af.path,
-        );
-        if (!result.ok) { setError({ title: "Delete failed", description: result.message }); return; }
+        const result = await ticketStatus.update(current => ({
+          ...current, references: current.references.filter(reference => reference.path !== af.path),
+        }));
+        if (result.type === 'Failure') { setError({ title: "Delete failed", description: result.error }); return; }
       } else if (af.type === "file") {
         const result = await (deps.deleteFile ?? deleteFileAction)(
-          props.projectSlug, header.savedFolderName(), af.name,
+          props.projectSlug, folderName(), af.name,
         );
         if (!result.ok) { setError({ title: "Delete failed", description: result.message }); return; }
       } else {
         const result = await (deps.deleteContext ?? deleteContextAction)(
-          props.projectSlug, header.savedFolderName(), af.name,
+          props.projectSlug, folderName(), af.name,
         );
         if (!result.ok) { setError({ title: "Delete failed", description: result.message }); return; }
         setExtraFiles((prev) => prev.filter((n) => n !== af.name));
       }
       const remaining = allFileOptions().filter((f) => !isActiveFileMatch(f, af));
       setActiveFile(remaining[0] ?? { type: "context", name: "description" });
-      await refreshTicketFiles();
+      await refreshTicket();
     } catch (e) { setError(errorPayload(e, "Delete failed")); }
   }
 
@@ -487,7 +466,7 @@ export function createTicketDetailState(
     setBrowsing(true); setError(null);
     try {
       const remembered = localStorage.getItem("picker:references:lastDir") ?? "";
-      const refs = ticketFiles().references;
+      const refs = ticket().references;
       const lastRef = refs[refs.length - 1]?.path;
       const fallback = lastRef ? lastRef.replace(/\/[^/]*$/, "") : "";
       const startDir = remembered || fallback;
@@ -504,14 +483,15 @@ export function createTicketDetailState(
   async function handleReferencesSelected(paths: string[]) {
     setError(null);
     try {
-      const result = await (deps.addReferences ?? addReferencesAction)(
-        props.projectSlug, header.savedFolderName(), paths,
-      );
-      if (!result.ok) { setError({ title: "Add reference failed", description: result.message }); return; }
+      const result = await ticketStatus.update(current => ({
+        ...current, references: [...new Set([...current.references.map(reference => reference.path), ...paths])]
+          .map(path => ({ path, exists: true })),
+      }));
+      if (result.type === 'Failure') { setError({ title: "Add reference failed", description: result.error }); return; }
       // Show the reference the user just picked before reloading the file list:
       // the switch is what they asked for, and it must not wait on a refresh.
       if (paths.length > 0) requestFileSwitch({ type: "reference", path: paths[0] });
-      await refreshTicketFiles();
+      await refreshTicket();
     } catch (e) { setError(errorPayload(e, "Add reference failed")); }
   }
 
@@ -520,11 +500,9 @@ export function createTicketDetailState(
       setConfirmingExternalChange(true);
       return;
     }
-    await Promise.all([
-      header.hasUnsavedHeaderChanges() ? header.saveTicketHeader() : undefined,
-      hasUnsavedFileChanges() ? saveFileContent() : undefined,
-    ]);
-    await refreshTicketFiles();
+    if (hasUnsavedHeaderChanges()) await saveTicketHeader();
+    if (hasUnsavedFileChanges()) await saveFileContent();
+    await refreshTicket();
   }
 
   async function overwriteExternalChange() {
@@ -545,11 +523,7 @@ export function createTicketDetailState(
   return {
     activeFile, content, setContent, saving, confirmingClose, setConfirmingClose,
     confirmingFileSwitch, activeTab, initialTabResolved, launcherConfig,
-    editedNumber: header.editedNumber, setEditedNumber: header.setEditedNumber,
-    editedTitle: header.editedTitle, setEditedTitle: header.setEditedTitle,
-    savedNumber: header.savedNumber, savedTitle: header.savedTitle,
-    savedFolderName: header.savedFolderName,
-    hasUnsavedHeaderChanges: header.hasUnsavedHeaderChanges,
+    editedNumber, setEditedNumber, editedTitle, setEditedTitle, hasUnsavedHeaderChanges,
     hasAnyUnsavedChanges, saveAll,
     newFileDialogOpen, setNewFileDialogOpen, newFileName, setNewFileName,
     confirmingDelete, setConfirmingDelete, error, setError, dropdownOpen, setDropdownOpen,
@@ -560,8 +534,8 @@ export function createTicketDetailState(
     shortcutConfirmation: shortcuts.shortcutConfirmation,
     setShortcutConfirmation: shortcuts.setShortcutConfirmation,
     runShortcut: shortcuts.runShortcut,
-    useWorktree, launchDir, allFileOptions, isReferenceStale, hasUnsavedFileChanges, isCurrentReadOnly,
-    showSaveButton, persistWorktree, openWorktree,
+    launchDir, allFileOptions, isReferenceStale, hasUnsavedFileChanges, isCurrentReadOnly,
+    showSaveButton, openWorktree,
     externallyChanged, confirmingExternalChange,
     overwriteExternalChange, discardExternalChange,
     switchTab, selectFile, openNewFileDialog,

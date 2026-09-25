@@ -6,12 +6,11 @@ import {
   createTicketDetailState, type TicketDetailStateDeps,
 } from "./ticket-detail-state.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
-import type { TicketFiles } from "./ticket-api.js";
 import { createStoredSignal } from '~/util/stored-signal.js';
 import type { LauncherConfig } from '~/core/launcher/launcher-config-data.js';
 
 const mockGetContext = vi.fn().mockResolvedValue({ content: "" });
-const mockUpdateTicket = vi.fn().mockResolvedValue({ ok: true, folderName: "test" });
+const mockUpdateTicket = vi.fn();
 const mockDeleteContext = vi.fn().mockResolvedValue({ ok: true });
 const mockUploadFile = vi.fn().mockResolvedValue({ ok: true, results: [] });
 const emptyTicketFiles = { contextNames: [], fileNames: [], references: [] };
@@ -44,29 +43,29 @@ const emptyConfig = { templates: [], skills: [], profiles: [], columnDefaults: {
 
 function stateDependencies(ticket: TicketInfo): TicketDetailStateDeps {
 	const initial = createMemo(async () => (await mockGetMergedLauncherConfig()).projectConfig);
-  const [ticketFiles, setTicketFiles] = createSignal<TicketFiles>({
-    contextNames: ticket.contextNames,
-    fileNames: ticket.fileNames,
-    references: ticket.references,
+  let saved = ticket;
+  const ticketStatus = createStoredSignal(() => saved, async transform => {
+    saved = transform(saved);
+    mockUpdateTicket(saved);
+    return { type: 'Success', value: saved };
   });
   return {
-    ticketFiles,
+    ticketStatus: {
+      ...ticketStatus,
+      refresh: async () => {
+        const files = await mockGetTicketFiles("test-project", saved.folderName);
+        return ticketStatus.update(current => ({ ...current, ...files }));
+      },
+    },
     sharedConfig: createStoredSignal(() => emptyConfig, async transform => ({
       type: 'Success', value: transform(emptyConfig),
     })),
     worktreeRevision,
-    refreshTicketFiles: async () => {
-      setTicketFiles(await mockGetTicketFiles("test-project", ticket.folderName));
-    },
     getContext: mockGetContext,
     saveContext: async () => ({ ok: true }),
     deleteContext: mockDeleteContext,
     deleteFile: async () => ({ ok: true }),
-    removeReference: async () => ({ ok: true }),
-    setUseWorktree: async () => ({ ok: true }),
-    addReferences: async () => ({ ok: true }),
     uploadFile: mockUploadFile,
-    updateTicket: mockUpdateTicket,
     getProjectLauncherMetadata: mockGetMergedLauncherConfig,
     projectConfig: createStoredSignal(initial, async transform => ({ type: 'Success', value: transform(initial()) })),
     openNativeFileBrowser: async () => [],
@@ -120,7 +119,7 @@ describe("TicketDetailDialog content loading", () => {
 
     const { state, dispose } = createRoot((disposeRoot) => ({
       state: createTicketDetailState(
-        { ticket, projectSlug: "test-project", onClose: () => {} },
+        { projectSlug: "test-project", onClose: () => {} },
         stateDependencies(ticket),
       ),
       dispose: disposeRoot,
@@ -173,7 +172,7 @@ describe("TicketDetailDialog external worktree changes", () => {
 
     const { state, dispose } = createRoot((disposeRoot) => ({
       state: createTicketDetailState(
-        { ticket, projectSlug: "test-project", onClose: () => {} },
+        { projectSlug: "test-project", onClose: () => {} },
         stateDependencies(ticket),
       ),
       dispose: disposeRoot,
@@ -206,7 +205,7 @@ describe("TicketDetailDialog external worktree changes", () => {
 
     const { state, dispose } = createRoot((disposeRoot) => ({
       state: createTicketDetailState(
-        { ticket, projectSlug: "test-project", onClose: () => {} },
+        { projectSlug: "test-project", onClose: () => {} },
         stateDependencies(ticket),
       ),
       dispose: disposeRoot,
@@ -505,7 +504,7 @@ describe('TicketDetailDialog shared launcher state', () => {
           async transform => ({ type: 'Success', value: transform(project()) })),
       };
       const states = [0, 1].map(() => createTicketDetailState({
-        ticket, projectSlug: 'test-project', onClose: () => {},
+        projectSlug: 'test-project', onClose: () => {},
       }, deps));
       return { states, setProject, dispose };
     });
@@ -530,7 +529,7 @@ describe('TicketDetailDialog shared launcher state', () => {
         saved = transform(saved);
         return { type: 'Success', value: saved };
       });
-      const state = createTicketDetailState({ ticket, projectSlug: 'test-project', onClose: () => {} }, {
+      const state = createTicketDetailState({ projectSlug: 'test-project', onClose: () => {} }, {
         ...stateDependencies(ticket), sharedConfig,
         projectConfig: createStoredSignal(createMemo(async () => (await readProject()).projectConfig),
           async transform => ({ type: 'Success', value: transform((await readProject()).projectConfig) })),
@@ -601,7 +600,6 @@ describe("TicketDetailDialog initial tab", () => {
 describe("TicketDetailDialog editable title", () => {
   beforeEach(() => {
     mockUpdateTicket.mockClear();
-    mockUpdateTicket.mockResolvedValue({ ok: true, folderName: "test" });
   });
 
   afterEach(() => {
@@ -617,8 +615,6 @@ describe("TicketDetailDialog editable title", () => {
   }
 
   it("Save button appears and saves header changes", async () => {
-    mockUpdateTicket.mockResolvedValue({ ok: true, folderName: "t-1-alpha" });
-
     const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
 
     renderTicket(ticket);
@@ -633,14 +629,10 @@ describe("TicketDetailDialog editable title", () => {
     fireEvent.click(screen.getByTestId("ticket-detail-save-button"));
     await flush();
 
-    expect(mockUpdateTicket).toHaveBeenCalledWith(
-      "test-project", "t-1-alpha", null, "Beta", null,
-    );
+    expect(mockUpdateTicket).toHaveBeenCalledWith(expect.objectContaining({ title: "Beta" }));
   });
 
   it("Escape after save reverts to saved value, not original prop", async () => {
-    mockUpdateTicket.mockResolvedValue({ ok: true, folderName: "t-1-beta" });
-
     const ticket = makeTicket("t-1-alpha", "T-1", "Alpha");
 
     renderTicket(ticket);

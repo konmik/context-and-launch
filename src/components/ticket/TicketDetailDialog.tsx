@@ -1,4 +1,4 @@
-import { Show, For, untrack } from "solid-js";
+import { Show, For, untrack, useContext } from "solid-js";
 import { X } from "~/components/ui/icons.js";
 import { Copy } from "~/components/ui/icons.js";
 import { Zap } from "~/components/ui/icons.js";
@@ -24,9 +24,10 @@ import { LauncherTab } from "./ticket-detail-launcher-tab.js";
 import { createAgentLauncherController } from "../launcher/agent-launcher-controller.js";
 import { launchAgentAction } from "../launcher/launcher-api.js";
 import {
-  createTicketDetailState, type TicketDetailState, type TicketDetailStateDeps,
+  createTicketDetailState, type TicketDetailStateDeps,
 } from "./ticket-detail-state.js";
 import ErrorDialog from "../shared/ErrorDialog.js";
+import { createTicketStatusStorage, TicketStatusContext } from './ticket-status-storage.js';
 
 interface TicketDetailDialogProps {
   onClose: () => void;
@@ -41,48 +42,44 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps) {
   return (
     <Show when={props.ticket} keyed>
       {(ticket) => (
-        <TicketDetailContent
-          ticket={ticket}
-          onClose={props.onClose}
-          projectSlug={props.projectSlug}
-          onReviewChanges={props.onReviewChanges}
-          stateDeps={props.stateDeps}
-          launchAgent={props.launchAgent}
-        />
+        <TicketStatusContext value={props.stateDeps?.ticketStatus
+          ?? createTicketStatusStorage(props.projectSlug, ticket.folderName)}>
+          <TicketDetailContent
+            onClose={props.onClose}
+            projectSlug={props.projectSlug}
+            onReviewChanges={props.onReviewChanges}
+            stateDeps={props.stateDeps}
+            launchAgent={props.launchAgent}
+          />
+        </TicketStatusContext>
       )}
     </Show>
   );
 }
 
 function TicketDetailContent(props: {
-  ticket: TicketInfo;
   onClose: () => void;
   projectSlug: string;
   onReviewChanges?: (ticket: TicketInfo) => void;
-  ctrl?: TicketDetailState;
   stateDeps?: TicketDetailStateDeps;
   launchAgent?: typeof launchAgentAction;
 }) {
-  const s = untrack(() => props.ctrl ?? createTicketDetailState(props, props.stateDeps));
+  const s = untrack(() => createTicketDetailState(props, props.stateDeps));
+  const ticketStatus = useContext(TicketStatusContext)!;
+  const ticket = ticketStatus.get;
 
-  const ticketAccessor = () => ({
-    ...props.ticket,
-    folderName: s.savedFolderName(),
-    number: s.savedNumber(),
-    title: s.savedTitle(),
-  });
   const launcherDeps = untrack(() => ({
     projectSlug: props.projectSlug,
-    ticket: ticketAccessor,
+    ticket,
     get config() { return s.launcherConfig(); },
     onDefaultsChange: s.patchColumnDefaults,
-    get useWorktree() { return s.useWorktree(); },
+    get useWorktree() { return ticket().useWorktree; },
     get projectPath() { return s.launcherConfig()?.projectPath ?? ""; },
     get worktreeDir() { return s.launcherConfig()?.worktreeDir ?? ""; },
     launchDir: s.launchDir,
     launch: (args: Parameters<typeof launchAgentAction>[2]) =>
       (props.launchAgent ?? launchAgentAction)(
-        props.projectSlug, ticketAccessor().folderName, args,
+        props.projectSlug, ticket().folderName, args,
       ),
   }));
   const launcherCtrl = untrack(() => createAgentLauncherController(launcherDeps));
@@ -126,7 +123,7 @@ function TicketDetailContent(props: {
               value={s.editedNumber()}
               onInput={(e) => s.setEditedNumber(e.currentTarget.value)}
               onKeyDown={(e) => {
-                if (e.key === "Escape") { s.setEditedNumber(s.savedNumber()); e.currentTarget.blur(); }
+                if (e.key === "Escape") { s.setEditedNumber(ticket().number); e.currentTarget.blur(); }
               }}
               class="shrink-0 bg-transparent outline-none focus:border-b focus:border-accent-foreground"
               style={{ "field-sizing": "content" }}
@@ -138,14 +135,14 @@ function TicketDetailContent(props: {
               value={s.editedTitle()}
               onInput={(e) => s.setEditedTitle(e.currentTarget.value)}
               onKeyDown={(e) => {
-                if (e.key === "Escape") { s.setEditedTitle(s.savedTitle()); e.currentTarget.blur(); }
+                if (e.key === "Escape") { s.setEditedTitle(ticket().title); e.currentTarget.blur(); }
               }}
               class="min-w-0 flex-1 bg-transparent outline-none focus:border-b focus:border-accent-foreground"
             />
           </>}
           actions={
             <div class="flex items-center gap-1">
-              <Show when={props.ticket.hasAgentWorktree || (s.launcherConfig()?.shortcuts.length ?? 0) > 0}>
+              <Show when={ticket().hasAgentWorktree || (s.launcherConfig()?.shortcuts.length ?? 0) > 0}>
                 <MenuRoot
                   trigger={
                     <MenuTrigger
@@ -158,7 +155,7 @@ function TicketDetailContent(props: {
                   }
                 >
                   <MenuContent>
-                    <Show when={props.ticket.hasAgentWorktree}>
+                    <Show when={ticket().hasAgentWorktree}>
                       <MenuItem
                         value="open-worktree"
                         data-testid="ticket-detail-open-worktree-menu-item"
@@ -171,7 +168,7 @@ function TicketDetailContent(props: {
                           disabled={s.hasAnyUnsavedChanges()}
                           onClick={() => {
                             props.onClose();
-                            props.onReviewChanges?.(props.ticket);
+                            props.onReviewChanges?.(ticket());
                           }}
                         >Diff Review</MenuItem>
                       </Show>
@@ -279,8 +276,14 @@ function TicketDetailContent(props: {
                       <label class="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
                         <input
                           type="checkbox"
-                          checked={s.useWorktree()}
-                          onChange={(e) => s.persistWorktree(e.currentTarget.checked)}
+                          checked={ticket().useWorktree}
+                          onChange={async (e) => {
+                            const useWorktree = e.currentTarget.checked;
+                            const result = await ticketStatus.update(current => ({ ...current, useWorktree }));
+                            if (result.type === 'Failure') {
+                              s.setError({ title: "Save failed", description: result.error });
+                            }
+                          }}
                           class="rounded border-input"
                           data-testid="ticket-detail-use-worktree-checkbox"
                         />

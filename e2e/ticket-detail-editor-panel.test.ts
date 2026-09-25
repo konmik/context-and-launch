@@ -94,10 +94,11 @@ describe("Ticket detail editor panel and saving (e2e, real server)", () => {
     expect(status?.useWorktree).toBe(true);
   });
 
-  it("editing title and clicking Save persists it", async () => {
+  it("editing title persists it and subsequent updates use the renamed folder", async () => {
     const project = await setupEditorTicket(ctx, "edit-title");
     const input = testId(ctx.page, "ticket-detail-title-input");
     await input.waitFor({ state: "visible", timeout: 15000 });
+    await ctx.page.locator('.cm-content').fill('Saved with renamed ticket');
     await input.fill("Renamed");
     await testId(ctx.page, "ticket-detail-save-button").click();
     const status = await poll(
@@ -106,6 +107,12 @@ describe("Ticket detail editor panel and saving (e2e, real server)", () => {
       5000,
     );
     expect(status?.title).toBe("Renamed");
+    await expect.poll(() => readContextFile(ctx.testServer, project.projectSlug, 't-1-renamed', 'description'))
+      .toBe('Saved with renamed ticket');
+    await testId(ctx.page, "ticket-detail-use-worktree-checkbox").check();
+    await expect.poll(async () =>
+      (await readTicketStatus(ctx.testServer, project.projectSlug, "t-1-renamed"))?.useWorktree,
+    ).toBe(true);
   });
 
   it("editing number and clicking Save persists it", async () => {

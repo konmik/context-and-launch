@@ -131,6 +131,7 @@ describe("Picker buttons (e2e, real server)", () => {
   });
 
   let projectSlug: string;
+  let statusFile: string;
 
   beforeAll(async () => {
     const project = await seedProject(ctx, {
@@ -141,6 +142,7 @@ describe("Picker buttons (e2e, real server)", () => {
       }],
     });
     projectSlug = project.projectSlug;
+    statusFile = path.join(project.ticketsPath, 't-1-picker-test', 'status.json');
   });
 
   afterAll(async () => {
@@ -225,5 +227,30 @@ describe("Picker buttons (e2e, real server)", () => {
     assertFilesAdded: async (p) => {
       await expect.poll(() => hasFileReferenceButton(p), { timeout: 5000 }).toBe(true);
     },
+  });
+
+  it('preserves external status fields and references when adding and removing a reference', async () => {
+    const pickedPath = path.join(stubDir, 'picked.ts');
+    const externalPath = path.join(stubDir, 'external.ts');
+    fs.writeFileSync(pickedPath, 'picked');
+    fs.writeFileSync(externalPath, 'external');
+    setFilePickerStub(pickedPath);
+    await goToTicketDetail(ctx.page);
+    const current = JSON.parse(fs.readFileSync(statusFile, 'utf8'));
+    fs.writeFileSync(statusFile, JSON.stringify({
+      ...current, agentWorktreeBranchName: 'external-branch',
+      references: [...(current.references ?? []), { path: externalPath }],
+    }));
+    await testId(ctx.page, 'ticket-detail-editor-add-reference-button').click();
+    const references = () => JSON.parse(fs.readFileSync(statusFile, 'utf8')).references;
+    await expect.poll(references).toEqual(expect.arrayContaining([{ path: pickedPath }, { path: externalPath }]));
+    const modifiedAt = fs.statSync(statusFile).mtimeMs;
+    await testId(ctx.page, 'ticket-detail-editor-add-reference-button').click();
+    await expect.poll(() => testId(ctx.page, 'ticket-detail-editor-add-reference-button').isEnabled()).toBe(true);
+    expect(fs.statSync(statusFile).mtimeMs).toBe(modifiedAt);
+    await testId(ctx.page, 'ticket-detail-editor-trash-button').click();
+    await expect.poll(references).not.toContainEqual({ path: pickedPath });
+    expect(references()).toContainEqual({ path: externalPath });
+    expect(JSON.parse(fs.readFileSync(statusFile, 'utf8')).agentWorktreeBranchName).toBe('external-branch');
   });
 });
