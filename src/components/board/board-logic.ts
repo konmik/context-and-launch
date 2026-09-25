@@ -48,21 +48,6 @@ export function resolveTicketsForColumn(
 	return result;
 }
 
-export function applyDrop(
-	order: Record<string, string[]>,
-	fromColumn: string,
-	folderName: string,
-	toColumn: string,
-	newIndex: number,
-) {
-	const updated = { ...order };
-	updated[fromColumn] = (updated[fromColumn] ?? [])
-		.filter(fn => fn !== folderName);
-	updated[toColumn] = [...(updated[toColumn] ?? [])];
-	updated[toColumn].splice(newIndex, 0, folderName);
-	return updated;
-}
-
 export function resolveDrop(
 	activeId: string | null,
 	hoverTarget: HoverTarget | null,

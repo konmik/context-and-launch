@@ -1,6 +1,7 @@
 import { useParams, useNavigate, revalidate } from "@solidjs/router";
 import { AppConfigContext } from '~/components/config/app-config-storage.js';
 import { BoardConfigContext } from '~/components/board/board-config-storage.js';
+import { TicketOrderContext, createTicketOrderStorage } from '~/components/board/ticket-order-storage.js';
 import { LauncherConfigContext } from '~/components/launcher/shared-launcher-config-storage.js';
 import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js';
 import {
@@ -521,6 +522,10 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
                 <Match when={ld()}>
                   {(_) => {
                     const loaded = () => ld()!;
+                    const ticketOrder = createTicketOrderStorage({
+                      get projectSlug() { return loaded().projectSlug; },
+                      get order() { return loaded().board.ticketOrder; },
+                    });
                     const board = () => {
                       const definitions = boards.get();
                       const id = appConfig.get().projects.find(p => p.projectSlug === projectSlug())?.boardId;
@@ -532,15 +537,16 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
                     <Show when={selectionState().reviewTicket} fallback={
                       <Show when={viewMode() === 'forest'} keyed fallback={
                         <ShortcutRunnerContext value={shortcutRunner}>
-                          <KanbanBoard
-                            board={board()}
-                            projectSlug={d().projectSlug}
-                            onDelete={commands.openDelete}
-                            onArchive={commands.openArchive}
-                            onViewDetail={commands.openDetail}
-                            onReviewChanges={commands.openReview}
-                            onReorder={commands.handleReorder}
-                          />
+                          <TicketOrderContext value={ticketOrder}>
+                            <KanbanBoard
+                              board={board()}
+                              projectSlug={d().projectSlug}
+                              onDelete={commands.openDelete}
+                              onArchive={commands.openArchive}
+                              onViewDetail={commands.openDetail}
+                              onReviewChanges={commands.openReview}
+                            />
+                          </TicketOrderContext>
                         </ShortcutRunnerContext>
                       }>
                         <div class="min-h-0 flex-1">

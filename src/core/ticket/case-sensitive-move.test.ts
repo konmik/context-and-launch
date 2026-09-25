@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { TicketStore } from './ticket-store.js';
+import { moveTicketInOrder } from './ticket-order-data.js';
 import { git } from '~/test-git.js';
 
 function tmpDir(prefix: string): string {
@@ -41,7 +42,7 @@ describe('case-sensitive column move', () => {
 		cleanups.length = 0;
 	});
 
-	it('moveTicket with fromColumn="Todo" toColumn="todo" creates duplicate column keys in order file', async () => {
+	it('moving from "Todo" to "todo" updates status without duplicating column keys', async () => {
 		const { projectDir, worktreeDir } = await createWorktreeDir();
 		cleanups.push(async () => {
 			try {
@@ -69,7 +70,8 @@ describe('case-sensitive column move', () => {
 		expect(orderBefore['Todo']).toContain(ticket.folderName);
 
 		// Now move with case-different column names: "Todo" -> "todo"
-		store.moveTicket(ticket.folderName, 'Todo', 'todo', 0);
+		store.updateTicket(ticket.folderName, null, null, 'todo');
+		orderStore.write(moveTicketInOrder(orderBefore, ticket.folderName, 'Todo', 'todo', 0));
 
 		// Check status.json - should now be "todo"
 		const statusAfter = JSON.parse(

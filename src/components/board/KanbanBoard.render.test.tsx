@@ -4,6 +4,7 @@ import { createSignal, createMemo, Loading, type ComponentProps } from "solid-js
 import { createStoredSignal } from '~/util/stored-signal.js';
 import { succeed } from '~/util/result.js';
 import KanbanBoard from "./KanbanBoard";
+import { TicketOrderContext } from './ticket-order-storage.js';
 import type { BoardState } from "~/components/project/project-api.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { ColumnDefinition } from "~/core/project/board-config.js";
@@ -50,16 +51,19 @@ function renderBoard(board: BoardState, opts: {
 } = {}) {
   return render(() => (
     <HerdrStatusesContext value={(folderName) => opts.herdrStatuses?.[folderName]}>
+      <TicketOrderContext value={createStoredSignal(
+        () => board.ticketOrder, async transform => succeed(transform(board.ticketOrder)),
+      )}>
       <KanbanBoard
         board={board}
         projectSlug="test"
         onDelete={noop}
         onViewDetail={noop}
         onArchive={noop}
-        onReorder={noop}
         dragState={opts.dragState}
         activeTicket={opts.activeTicket}
       />
+      </TicketOrderContext>
     </HerdrStatusesContext>
   ));
 }
@@ -92,10 +96,12 @@ describe("KanbanBoard rendering", () => {
       saved = transform(saved);
       return succeed(saved);
     });
-    render(() => <Loading><KanbanBoard
+    render(() => <Loading><TicketOrderContext value={createStoredSignal(
+      () => ({}), async transform => succeed(transform({})),
+    )}><KanbanBoard
       board={{ columns: storage.get(), tickets: [], ticketOrder: {} }} projectSlug="test"
-      onDelete={noop} onViewDetail={noop} onArchive={noop} onReorder={noop}
-    /></Loading>);
+      onDelete={noop} onViewDetail={noop} onArchive={noop}
+    /></TicketOrderContext></Loading>);
     await waitFor(() => expect(screen.getByText('todo')).toBeTruthy());
     await storage.update(columns => [...columns, { name: 'review' }]);
     await waitFor(() => expect(screen.getByText('review')).toBeTruthy());

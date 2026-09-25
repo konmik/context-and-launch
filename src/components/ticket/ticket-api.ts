@@ -11,6 +11,8 @@ import {
 } from "~/core/config/instances.js";
 import { openInOs } from "~/core/infra/open-in-os.js";
 import { TicketStore } from "~/core/ticket/ticket-store.js";
+import type { TicketOrder } from '~/core/ticket/ticket-order-data.js';
+import { fail, succeed } from '~/util/result.js';
 import { extractPrefixFromInput } from "~/core/ticket/ticket-number.js";
 import { WorktreeCleanupService } from "~/core/worktree/worktree-cleanup.js";
 import { resolveAgentWorktreeLocation } from "~/core/worktree/worktree-naming.js";
@@ -93,20 +95,21 @@ export async function archiveTicket(projectSlug: string, folderName: string) {
   }
 }
 
-export async function reorderTicket(
-  projectSlug: string, folderName: string,
-  fromColumn: string, toColumn: string, newIndex: number,
-) {
+export async function readTicketOrder(projectSlug: string) {
   "use server";
   try {
-    mutateTickets(
-      projectSlug,
-      store => store.moveTicket(folderName, fromColumn, toColumn, newIndex),
-    );
-    return { ok: true as const };
-  } catch (e) {
-    return errorResult(e);
-  }
+    return succeed(new TicketStore(worktreeManager.getWorktreeDir(projectSlug)).orderStore.read());
+  } catch (error) { return fail(errorMessage(error)); }
+}
+
+export async function saveTicketOrder(projectSlug: string, expected: TicketOrder, order: TicketOrder) {
+  "use server";
+  try {
+    return succeed(mutateTickets(projectSlug, store => {
+      store.orderStore.write(order, expected);
+      return order;
+    }));
+  } catch (error) { return fail(errorMessage(error)); }
 }
 
 export interface TicketFiles {

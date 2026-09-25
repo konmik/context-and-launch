@@ -2,8 +2,7 @@ import * as v from 'valibot';
 import { reconcileOrder } from './ticket-order-reconcile.js';
 import { TicketRepository } from './ticket-repository.js';
 import type { TicketInfo } from './ticket-store.js';
-
-export type TicketOrder = Record<string, string[]>;
+import type { TicketOrder } from './ticket-order-data.js';
 
 const TicketOrderSchema = v.record(v.string(), v.array(v.string()));
 
@@ -19,8 +18,11 @@ export class TicketOrderStore {
 		return result.success ? result.output : {};
 	}
 
-	write(order: TicketOrder): void {
-		this.repo.writeWorktreeJson(this.worktreeDir, 'ticket-order.json', order);
+	write(order: TicketOrder, expected?: TicketOrder): void {
+		if (expected && JSON.stringify(this.read()) !== JSON.stringify(expected)) {
+			throw new Error('Ticket order changed in another request. Try again.');
+		}
+		this.repo.writeWorktreeJson(this.worktreeDir, 'ticket-order.json', v.parse(TicketOrderSchema, order));
 	}
 
 	reconcileAndSave(tickets: TicketInfo[], columns: string[]): TicketOrder {
@@ -28,24 +30,6 @@ export class TicketOrderStore {
 		const { order, changed } = reconcileOrder(existing, tickets, columns);
 		if (changed) this.write(order);
 		return order;
-	}
-
-	moveTicket(folderName: string, fromColumn: string, toColumn: string, newIndex: number): void {
-		const order = this.read();
-		const targetExisted = Object.hasOwn(order, toColumn);
-		const next = { ...order };
-
-		if (order[fromColumn]) {
-			next[fromColumn] = order[fromColumn].filter(folder => folder !== folderName);
-			if (next[fromColumn].length === 0 && fromColumn !== toColumn && !targetExisted) {
-				delete next[fromColumn];
-			}
-		}
-
-		const destination = (order[toColumn] ?? []).filter(folder => folder !== folderName);
-		const insertionIndex = Math.max(0, Math.min(newIndex, destination.length));
-		destination.splice(insertionIndex, 0, folderName);
-		this.write({ ...next, [toColumn]: destination });
 	}
 
 	appendTicket(folderName: string, column: string): void {

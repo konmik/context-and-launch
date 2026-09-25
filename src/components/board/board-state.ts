@@ -1,16 +1,13 @@
-import { createSignal, createMemo, type Accessor } from "solid-js";
+import { createSignal, createMemo } from "solid-js";
 import type { DragEvent as DndDragEvent } from "~/components/drag/drag-types.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { BoardState } from "~/components/project/project-api.js";
 import type { HoverTarget } from "./drop-index.js";
 import {
-	type DropResult,
 	buildTicketMap,
 	computeOrphans,
 	resolveActiveTicket,
-	resolveTicketsForColumn,
 	resolveDrop,
-	applyDrop,
 	computeDragMoveTarget,
 } from "./board-logic.js";
 
@@ -27,34 +24,10 @@ export interface DragState {
 	hoverTarget: HoverTarget | null;
 }
 
-export interface BoardCommands {
-	startDrag: (id: string) => void;
-	updateHover: (target: HoverTarget | null) => void;
-	handleDragMove: (event: DndDragEvent) => void;
-	endDrag: () => DropResult | null;
-	cancelDrag: () => void;
-	registerColumnRef: (columnName: string, el: HTMLDivElement) => void;
-}
-
-interface OrderOverride {
-	order: Record<string, string[]>;
-	basedOn: Record<string, string[]>;
-}
-
-export interface BoardDnd {
-	board: Accessor<BoardView>;
-	drag: Accessor<DragState>;
-	currentOrder: Accessor<Record<string, string[]>>;
-	activeTicket: Accessor<TicketInfo | null>;
-	commands: BoardCommands;
-}
-
-export function createBoardDnd(getBoard: () => BoardState): BoardDnd {
+export function createBoardDnd(getBoard: () => BoardState) {
 	const [activeId, setActiveId] = createSignal<string | null>(null);
 	const [hoverTarget, setHoverTarget] =
 		createSignal<HoverTarget | null>(null);
-	const [orderOverride, setOrderOverride] =
-		createSignal<OrderOverride | null>(null);
 	const columnRefs = new Map<string, HTMLDivElement>();
 
 	const board = createMemo((): BoardView => {
@@ -72,12 +45,7 @@ export function createBoardDnd(getBoard: () => BoardState): BoardDnd {
 		hoverTarget: hoverTarget(),
 	}));
 
-	const currentOrder = createMemo(() => {
-		const override = orderOverride();
-		const base = getBoard().ticketOrder;
-		return override && override.basedOn === base
-			? override.order : base;
-	});
+	const currentOrder = () => getBoard().ticketOrder;
 
 	const activeTicket = createMemo(() =>
 		resolveActiveTicket(activeId(), board().ticketMap),
@@ -88,13 +56,13 @@ export function createBoardDnd(getBoard: () => BoardState): BoardDnd {
 		setHoverTarget(null);
 	};
 
-	const commands: BoardCommands = {
-		startDrag: (id) => setActiveId(id),
-		updateHover: (target) => setHoverTarget(target),
+	const commands = {
+		startDrag: (id: string) => setActiveId(id),
+		updateHover: (target: HoverTarget | null) => setHoverTarget(target),
 		cancelDrag,
-		registerColumnRef: (col, el) => columnRefs.set(col, el),
+		registerColumnRef: (col: string, el: HTMLDivElement) => columnRefs.set(col, el),
 
-		handleDragMove: (e) => {
+		handleDragMove: (e: DndDragEvent) => {
 			const { ticketMap, orphanFolderNames } = board();
 			setHoverTarget(
 				computeDragMoveTarget(
@@ -110,15 +78,6 @@ export function createBoardDnd(getBoard: () => BoardState): BoardDnd {
 				activeId(), hoverTarget(), currentOrder(),
 				ticketMap, orphanFolderNames,
 			);
-			if (result) {
-				const order = applyDrop(
-					currentOrder(), result.fromColumn,
-					result.folderName, result.toColumn, result.newIndex,
-				);
-				setOrderOverride({
-					order, basedOn: getBoard().ticketOrder,
-				});
-			}
 			cancelDrag();
 			return result;
 		},

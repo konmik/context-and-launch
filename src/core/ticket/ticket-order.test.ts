@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { TicketOrderStore } from './ticket-order.js';
+import { moveTicketInOrder } from './ticket-order-data.js';
 import { TicketStore } from './ticket-store.js';
 import { git } from '~/test-git.js';
 import type { TicketInfo } from './ticket-store.js';
@@ -87,7 +88,7 @@ describe('TicketOrderStore', () => {
 		const dir = await createGitWorktree(); dirs.push(dir);
 		const store = new TicketOrderStore(dir);
 		store.write({ todo: ['a', 'b', 'c'] });
-		store.moveTicket('a', 'todo', 'todo', 2);
+		store.write(moveTicketInOrder(store.read(), 'a', 'todo', 'todo', 2));
 		expect(store.read()['todo']).toEqual(['b', 'c', 'a']);
 	});
 
@@ -95,7 +96,7 @@ describe('TicketOrderStore', () => {
 		const dir = await createGitWorktree(); dirs.push(dir);
 		const store = new TicketOrderStore(dir);
 		store.write({ todo: ['a', 'b'], done: ['c'] });
-		store.moveTicket('a', 'todo', 'done', 0);
+		store.write(moveTicketInOrder(store.read(), 'a', 'todo', 'done', 0));
 		const result = store.read();
 		expect(result['todo']).toEqual(['b']);
 		expect(result['done']).toEqual(['a', 'c']);
@@ -107,8 +108,8 @@ describe('TicketOrderStore', () => {
 		store.write({ todo: ['a'], 'in-progress': [], done: [] });
 		const before = fs.readFileSync(path.join(dir, 'ticket-order.json'), 'utf-8');
 
-		store.moveTicket('a', 'todo', 'in-progress', 0);
-		store.moveTicket('a', 'in-progress', 'todo', 0);
+		store.write(moveTicketInOrder(store.read(), 'a', 'todo', 'in-progress', 0));
+		store.write(moveTicketInOrder(store.read(), 'a', 'in-progress', 'todo', 0));
 
 		expect(fs.readFileSync(path.join(dir, 'ticket-order.json'), 'utf-8')).toBe(before);
 	});
@@ -119,6 +120,18 @@ describe('TicketOrderStore', () => {
 		store.write({ todo: ['a'] });
 		store.appendTicket('b', 'todo');
 		expect(store.read()['todo']).toEqual(['a', 'b']);
+	});
+
+	it.concurrent('rejects a stale replacement without overwriting another writer', async () => {
+		const dir = await createGitWorktree(); dirs.push(dir);
+		const store = new TicketOrderStore(dir);
+		store.write({ todo: ['a'] });
+		const expected = store.read();
+		new TicketOrderStore(dir).appendTicket('b', 'todo');
+		expect(() => store.write({ todo: ['a'], done: [] }, expected)).toThrow('changed in another request');
+		expect(store.read()).toEqual({ todo: ['a', 'b'] });
+		store.write({ todo: ['b', 'a'] }, store.read());
+		expect(store.read()).toEqual({ todo: ['b', 'a'] });
 	});
 
 	it.concurrent('removeTicket removes from all columns', async () => {
@@ -180,7 +193,7 @@ describe('TicketStore + TicketOrderStore integration', () => {
 	});
 });
 
-describe('TicketStore.moveTicket (deepened interface)', () => {
+describe('ticket status and order persistence', () => {
 	const dirs: string[] = [];
 	afterAll(() => { cleanup(...dirs); dirs.length = 0; });
 
@@ -190,7 +203,8 @@ describe('TicketStore.moveTicket (deepened interface)', () => {
 		store.createTicket('X-1', 'Cross', 'todo');
 		store.createTicket('Y-2', 'Stays', 'done');
 
-		store.moveTicket('x-1-cross', 'todo', 'done', 0);
+		store.updateTicket('x-1-cross', null, null, 'done');
+		store.orderStore.write(moveTicketInOrder(store.orderStore.read(), 'x-1-cross', 'todo', 'done', 0));
 
 		const status = JSON.parse(fs.readFileSync(path.join(dir, 'x-1-cross', 'status.json'), 'utf-8'));
 		expect(status.status).toBe('done');
@@ -206,7 +220,7 @@ describe('TicketStore.moveTicket (deepened interface)', () => {
 		store.createTicket('B-2', 'Bravo', 'todo');
 		const statusBefore = fs.readFileSync(path.join(dir, 'a-1-alpha', 'status.json'), 'utf-8');
 
-		store.moveTicket('a-1-alpha', 'todo', 'todo', 1);
+		store.orderStore.write(moveTicketInOrder(store.orderStore.read(), 'a-1-alpha', 'todo', 'todo', 1));
 
 		expect(store.orderStore.read()['todo']).toEqual(['b-2-bravo', 'a-1-alpha']);
 		expect(fs.readFileSync(path.join(dir, 'a-1-alpha', 'status.json'), 'utf-8')).toBe(statusBefore);

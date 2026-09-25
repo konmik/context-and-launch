@@ -4,7 +4,7 @@ import type { TicketInfo } from "~/core/ticket/ticket-store.js";
 import type { ErrorInfo } from "~/core/shared/errors.js";
 import {
   createTicket, deleteTicket, archiveTicket,
-  reorderTicket, syncTickets, worktreeCleanup,
+  syncTickets, worktreeCleanup,
 } from "../ticket/ticket-api.js";
 import { deleteProject, getSyncStatus } from "./project-api.js";
 import {
@@ -158,13 +158,6 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     return result.ok ? {} : { error: result.message };
   }
 
-  async function handleReorder(
-    folderName: string, fromColumn: string, toColumn: string, newIndex: number,
-  ) {
-    const result = await reorderTicket(deps.projectSlug(), folderName, fromColumn, toColumn, newIndex);
-    if (result.ok) revalidate(ticketMutationRevalidateKeys);
-  }
-
   async function handleCleanupSubmit(
     folderName: string,
   ) {
@@ -221,7 +214,6 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     handleSync,
     handleConflictResolve,
     handleConflictAbort,
-    handleReorder,
     handleCreateTicket,
     handleCleanupAction,
     handleCleanupSubmit,

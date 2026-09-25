@@ -1,7 +1,7 @@
 import type { ProjectInfo } from "~/core/project/project-registry.js";
 import type { ColumnDefinition } from "~/core/project/board-config.js";
 import type { TicketInfo } from "~/core/ticket/ticket-store.js";
-import type { TicketOrder } from "~/core/ticket/ticket-order.js";
+import type { TicketOrder } from "~/core/ticket/ticket-order-data.js";
 
 export interface BoardState {
   columns: ColumnDefinition[];

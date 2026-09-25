@@ -16,7 +16,7 @@ import {
 	type TicketRelation,
 } from './ticket-relations.js';
 import type { StatusJson } from './ticket-repository.js';
-import type { TicketOrder } from './ticket-order.js';
+import type { TicketOrder } from './ticket-order-data.js';
 
 export { toKebabCase } from './ticket-naming.js';
 
@@ -75,14 +75,6 @@ export const RemoveReferenceBody = v.object({
 });
 export type RemoveReferenceBody = v.InferOutput<typeof RemoveReferenceBody>;
 
-export const ReorderTicketBody = v.object({
-	folderName: v.string(),
-	fromColumn: v.string(),
-	toColumn: v.string(),
-	newIndex: v.number(),
-});
-export type ReorderTicketBody = v.InferOutput<typeof ReorderTicketBody>;
-
 export class TicketStore {
 	private worktreeDir: string;
 	readonly orderStore: TicketOrderStore;
@@ -134,13 +126,6 @@ export class TicketStore {
 			this.worktreeRootWithSep = this.resolveRootWithSep(this.worktreeDir);
 		}
 		return this.worktreeRootWithSep;
-	}
-
-	moveTicket(folderName: string, fromColumn: string, toColumn: string, newIndex: number): void {
-		if (fromColumn !== toColumn) {
-			this.updateTicket(folderName, null, null, toColumn);
-		}
-		this.orderStore.moveTicket(folderName, fromColumn, toColumn, newIndex);
 	}
 
 	private resolveTicketDir(folderName: string): string {

@@ -1,4 +1,7 @@
-import { For, Show } from "solid-js";
+import { For, Show, createSignal, useContext } from "solid-js";
+import { revalidate } from '@solidjs/router';
+import { TicketOrderContext } from './ticket-order-storage.js';
+import { ticketMutationRevalidateKeys } from '../shared/revalidate-keys.js';
 import {
 	DragDropProvider,
 	DragOverlay,
@@ -8,11 +11,12 @@ import type { BoardState } from "~/components/project/project-api.js";
 import TicketCard from "../ticket/TicketCard";
 import { DragOverlayCard } from "./dnd-shared.js";
 import { ColumnHeader, ColumnBody, OrphanHeader, OrphanBody } from "./kanban-columns.js";
-import { resolveTicketsForColumn } from "./board-logic.js";
-import { createBoardDnd, type BoardCommands } from "./board-state.js";
+import { resolveTicketsForColumn, type DropResult } from "./board-logic.js";
+import { moveTicketInOrder } from '~/core/ticket/ticket-order-data.js';
+import { createBoardDnd } from "./board-state.js";
 import type { Accessor } from "solid-js";
-import type { BoardView, DragState } from "./board-state.js";
-import { openTicketFolder } from "../ticket/ticket-api.js";
+import type { DragState } from "./board-state.js";
+import { openTicketFolder, updateTicket } from "../ticket/ticket-api.js";
 
 interface KanbanBoardProps {
 	board: BoardState;
@@ -21,30 +25,38 @@ interface KanbanBoardProps {
 	onArchive: (ticket: TicketInfo) => void;
 	onViewDetail: (ticket: TicketInfo) => void;
 	onReviewChanges?: (ticket: TicketInfo) => void;
-	onReorder: (
-		folderName: string, fromColumn: string,
-		toColumn: string, newIndex: number,
-	) => void;
-	boardView?: Accessor<BoardView>;
 	dragState?: Accessor<DragState>;
-	currentOrder?: Accessor<Record<string, string[]>>;
 	activeTicket?: Accessor<TicketInfo | null>;
-	commands?: BoardCommands;
 }
 
 export default function KanbanBoard(props: KanbanBoardProps) {
-	const dnd = createBoardDnd(() => props.board);
-	const board = props.boardView ?? dnd.board;
+	const order = useContext(TicketOrderContext)!;
+	const [saveError, setSaveError] = createSignal<string>();
+	const dnd = createBoardDnd(() => ({ ...props.board, ticketOrder: order.get() }));
+	const board = dnd.board;
 	const drag = props.dragState ?? dnd.drag;
-	const currentOrder = props.currentOrder ?? dnd.currentOrder;
 	const activeTicket = props.activeTicket ?? dnd.activeTicket;
-	const commands = props.commands ?? dnd.commands;
+	const commands = dnd.commands;
+	async function saveDrop(drop: DropResult) {
+		const projectSlug = props.projectSlug;
+		setSaveError(undefined);
+		if (drop.fromColumn !== drop.toColumn) {
+			const status = await updateTicket(projectSlug, drop.folderName, null, null, drop.toColumn);
+			if (props.projectSlug !== projectSlug) return;
+			if (!status.ok) { setSaveError(status.message); return; }
+		}
+		const result = await order.update(current => moveTicketInOrder(
+			current, drop.folderName, drop.fromColumn, drop.toColumn, drop.newIndex,
+		));
+		if (result.type === 'Failure') setSaveError(result.error);
+		await revalidate(ticketMutationRevalidateKeys);
+	}
 	const openFolder = (ticket: TicketInfo) => {
 		void openTicketFolder(props.projectSlug, ticket.folderName);
 	};
 
 	const ticketsFor = (column: string) => resolveTicketsForColumn(
-		column, currentOrder(), board().ticketMap, board().orphanFolderNames,
+		column, order.get(), board().ticketMap, board().orphanFolderNames,
 	);
 
 	let headerRow!: HTMLDivElement;
@@ -61,15 +73,11 @@ export default function KanbanBoard(props: KanbanBoardProps) {
 			onDragMove={(e) => commands.handleDragMove(e)}
 			onDragEnd={() => {
 				const drop = commands.endDrag();
-				if (drop) {
-					props.onReorder(
-						drop.folderName, drop.fromColumn,
-						drop.toColumn, drop.newIndex,
-					);
-				}
+				if (drop) void saveDrop(drop);
 			}}
 		>
 			<div class="flex min-h-0 flex-1 flex-col">
+				<Show when={saveError()}>{error => <p role="alert" class="px-4 text-destructive">{error()}</p>}</Show>
 				<div
 					ref={headerRow}
 					class="shrink-0 overflow-hidden px-4"

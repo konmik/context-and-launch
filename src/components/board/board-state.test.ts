@@ -220,7 +220,7 @@ describe("createBoardDnd endDrag", () => {
 		});
 	});
 
-	it("applies optimistic order after drop", () => {
+	it("leaves persisted order with its owner after drop", () => {
 		createRoot(dispose => {
 			const tickets = [
 				makeTicket({ folderName: "t-1-alpha", status: "todo" }),
@@ -231,15 +231,15 @@ describe("createBoardDnd endDrag", () => {
 			invoke(() => commands.startDrag("todo:t-1-alpha"));
 			invoke(() => commands.updateHover({ column: "done", index: 1 }));
 			invoke(commands.endDrag);
-			expect(currentOrder()["todo"]).toEqual([]);
-			expect(currentOrder()["done"]).toEqual(["t-2-bravo", "t-1-alpha"]);
+			expect(currentOrder()["todo"]).toEqual(["t-1-alpha"]);
+			expect(currentOrder()["done"]).toEqual(["t-2-bravo"]);
 			dispose();
 		});
 	});
 });
 
 describe("createBoardDnd server sync", () => {
-	it("clears optimistic override when ticketOrder changes", () => {
+	it("reads replacement ticket order", () => {
 		createRoot(dispose => {
 			const tickets = [
 				makeTicket({ folderName: "t-1-alpha", status: "todo" }),
@@ -253,7 +253,7 @@ describe("createBoardDnd server sync", () => {
 			invoke(() => commands.updateHover({ column: "done", index: 0 }));
 			invoke(commands.endDrag);
 			expect(currentOrder()["done"])
-				.toEqual(["t-1-alpha", "t-2-bravo", "t-3-charlie"]);
+				.toEqual(["t-2-bravo", "t-3-charlie"]);
 
 			const serverOrder = {
 				todo: [],

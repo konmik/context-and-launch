@@ -1,5 +1,5 @@
 import type { TicketInfo } from './ticket-store.js';
-import type { TicketOrder } from './ticket-order.js';
+import type { TicketOrder } from './ticket-order-data.js';
 
 export function reconcileOrder(
 	existing: TicketOrder,
