@@ -1603,7 +1603,7 @@ describe('TicketStore', () => {
 		);
 		expect(raw.dependsOn).toEqual(['A-1']);
 
-		store.removeDependency('b-1-beta', 'A-1');
+		store.removeDependencies('b-1-beta', ['A-1']);
 
 		const raw2 = JSON.parse(
 			fs.readFileSync(path.join(worktreeDir, 'b-1-beta', 'status.json'), 'utf-8')

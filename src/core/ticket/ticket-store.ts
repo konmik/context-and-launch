@@ -260,16 +260,14 @@ export class TicketStore {
 		}
 
 		if (numberChanged) {
-			const oldNumber = current.number;
-			const newNumber = updatedNumber;
 			for (const ticketDir of this.ticketDirs(true)) {
 				if (ticketDir === finalDir) continue;
 				const status = this.repo.readStatusJson(ticketDir);
 				if (!status) continue;
-				const rewritten = rewriteInboundReferences(status, oldNumber, newNumber);
+				const rewritten = rewriteInboundReferences(status, current.number, updatedNumber);
 				if (rewritten) this.repo.writeStatusJson(ticketDir, rewritten);
 			}
-			this.forestLayoutStore.renameTicket(oldNumber, newNumber);
+			this.forestLayoutStore.renameTicket(current.number, updatedNumber);
 		}
 
 		return this.readTicket(finalDir)!;
@@ -498,52 +496,49 @@ export class TicketStore {
 		return this.repo.readFile(filePath);
 	}
 
-	addReference(folderName: string, refPath: string): void {
+	private updateStatus(folderName: string, transform: (current: StatusJson) => StatusJson): void {
 		const dir = this.resolveTicketDir(folderName);
-		const status = this.repo.readStatusJson(dir);
-		if (!status) throw new Error(`Malformed ticket: ${folderName}`);
-		const refs = status.references ?? [];
-		if (refs.some((r) => r.path === refPath)) return;
-		refs.push({ path: refPath });
-		this.repo.writeStatusJson(dir, { ...status, references: refs });
+		const current = this.repo.readStatusJson(dir);
+		if (!current) throw new Error(`Malformed ticket: ${folderName}`);
+		const next = transform(current);
+		if (next !== current) this.repo.writeStatusJson(dir, next);
+	}
+
+	addReference(folderName: string, refPath: string): void {
+		this.updateStatus(folderName, current => {
+			const references = current.references ?? [];
+			return references.some(reference => reference.path === refPath) ? current
+				: { ...current, references: [...references, { path: refPath }] };
+		});
 	}
 
 	removeReference(folderName: string, refPath: string): void {
-		const dir = this.resolveTicketDir(folderName);
-		const status = this.repo.readStatusJson(dir);
-		if (!status) throw new Error(`Malformed ticket: ${folderName}`);
-		const refs = (status.references ?? []).filter((r) => r.path !== refPath);
-		this.repo.writeStatusJson(dir, { ...status, references: refs });
+		this.updateStatus(folderName, current => ({
+			...current, references: (current.references ?? []).filter(reference => reference.path !== refPath),
+		}));
 	}
 
 	addDependency(folderName: string, dependencyNumber: string): void {
-		const dir = this.resolveTicketDir(folderName);
-		const status = this.repo.readStatusJson(dir);
-		if (!status) throw new Error(`Malformed ticket: ${folderName}`);
-		const tickets = this.listTickets();
-		if (!tickets.some(t => t.number === dependencyNumber)) {
-			throw new ValidationError(`Dependency target does not exist: ${dependencyNumber}`);
-		}
-		const existing = status.dependsOn ?? [];
-		if (existing.includes(dependencyNumber)) return;
-		if (wouldCreateDependencyCycle(tickets, status.number, dependencyNumber)) {
-			throw new ValidationError('Dependency would create a cycle');
-		}
-		this.repo.writeStatusJson(dir, { ...status, dependsOn: [...existing, dependencyNumber] });
-	}
-
-	removeDependency(folderName: string, dependencyNumber: string): void {
-		this.removeDependencies(folderName, [dependencyNumber]);
+		this.updateStatus(folderName, current => {
+			const tickets = this.listTickets();
+			if (!tickets.some(ticket => ticket.number === dependencyNumber)) {
+				throw new ValidationError(`Dependency target does not exist: ${dependencyNumber}`);
+			}
+			const existing = current.dependsOn ?? [];
+			if (existing.includes(dependencyNumber)) return current;
+			if (wouldCreateDependencyCycle(tickets, current.number, dependencyNumber)) {
+				throw new ValidationError('Dependency would create a cycle');
+			}
+			return { ...current, dependsOn: [...existing, dependencyNumber] };
+		});
 	}
 
 	removeDependencies(folderName: string, dependencyNumbers: string[]): void {
-		const dir = this.resolveTicketDir(folderName);
-		const status = this.repo.readStatusJson(dir);
-		if (!status) throw new Error(`Malformed ticket: ${folderName}`);
-		const removed = new Set(dependencyNumbers);
-		const filtered = (status.dependsOn ?? []).filter(n => !removed.has(n));
-		const updated: StatusJson = { ...status, dependsOn: filtered.length > 0 ? filtered : undefined };
-		this.repo.writeStatusJson(dir, updated);
+		this.updateStatus(folderName, current => {
+			const removed = new Set(dependencyNumbers);
+			const remaining = (current.dependsOn ?? []).filter(number => !removed.has(number));
+			return { ...current, dependsOn: remaining.length > 0 ? remaining : undefined };
+		});
 	}
 
 	createGroup(

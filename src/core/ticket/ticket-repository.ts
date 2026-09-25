@@ -30,12 +30,9 @@ interface TransactionState {
 }
 
 export class TicketRepository {
-	private configRepo: ConfigRepository;
 	private transactionState: TransactionState | null = null;
 
-	constructor(configRepo?: ConfigRepository) {
-		this.configRepo = configRepo ?? new ConfigRepository();
-	}
+	constructor(private readonly configRepo = new ConfigRepository()) {}
 
 	runInTransaction<T>(root: string, operation: () => T): T {
 		const normalizedRoot = path.resolve(root);
@@ -84,10 +81,6 @@ export class TicketRepository {
 			console.warn(`Malformed status.json in ${dir}:`, err);
 			return null;
 		}
-		return this.validateStatusJson(raw, dir);
-	}
-
-	private validateStatusJson(raw: JsonValue, dir: string): StatusJson | null {
 		if (raw === null) return null;
 		const parsed = v.safeParse(StatusJsonSchema, raw);
 		if (!parsed.success) {
@@ -171,14 +164,7 @@ export class TicketRepository {
 	}
 
 	writeFile(filePath: string, content: Buffer | string): void {
-		const before = this.captureFile(filePath);
-		try {
-			fs.writeFileSync(filePath, content);
-		} catch (error) {
-			this.restoreFile(filePath, before);
-			throw error;
-		}
-		this.recordFileUndo(filePath, before);
+		this.writeWithUndo(filePath, () => fs.writeFileSync(filePath, content));
 	}
 
 	deleteFile(filePath: string): void {
@@ -205,9 +191,13 @@ export class TicketRepository {
 	}
 
 	private writeJson<Data extends object>(filePath: string, data: Data): void {
+		this.writeWithUndo(filePath, () => this.configRepo.writeJson(filePath, data));
+	}
+
+	private writeWithUndo(filePath: string, write: () => void): void {
 		const before = this.captureFile(filePath);
 		try {
-			this.configRepo.writeJson(filePath, data);
+			write();
 		} catch (error) {
 			this.restoreFile(filePath, before);
 			throw error;
