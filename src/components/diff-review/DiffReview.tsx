@@ -52,7 +52,9 @@ import { useHerdrStatuses } from "../ticket/herdr-statuses-context.js";
 import { LauncherConfigContext } from '../launcher/shared-launcher-config-storage.js';
 import { ProjectLauncherConfigContext } from '../launcher/project-launcher-config-storage.js';
 import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js';
-import { createDiffReviewStorage } from "./diff-review-storage.js";
+import { DiffReviewContext, createReviewedLineTracker } from "./diff-review-storage.js";
+import { createStoredConfig } from '~/util/stored-config.js';
+import { readDiffReviewState, saveDiffReviewState, releaseDiffReviewState } from './diff-review-state-api.js';
 import {
 	enqueueReviewPrompt,
 	getReviewAgentStatus,
@@ -64,7 +66,6 @@ import {
 	type DiffReviewFileTreeNode,
 } from "./diff-review-file-tree.js";
 import { buildFileTypeTotals } from "./diff-review-file-type-totals.js";
-import { createReviewedLineTracker } from "./create-reviewed-line-tracker.js";
 import DiffSurface from "./DiffSurface.js";
 import ReviewPromptComposer, { type ActiveSelection } from "./ReviewPromptComposer.js";
 import ReviewPromptQueueList from "./ReviewPromptQueueList.js";
@@ -358,14 +359,17 @@ export default function DiffReview(props: {
 	let scrollRef: HTMLDivElement | undefined;
 	let scrollFrame: number | undefined;
 	const sectionRefs = new Map<string, HTMLElement>();
-	const state = createDiffReviewStorage(props.projectSlug);
+	const state = createStoredConfig(
+		readDiffReviewState.bind(null, props.projectSlug), saveDiffReviewState.bind(null, props.projectSlug),
+		releaseDiffReviewState.bind(null, props.projectSlug));
 	const agentStatus = createMemo(() =>
 		getReviewAgentStatus(props.projectSlug, props.ticket.folderName));
+	const worktreeIdentity = createMemo(() => agentStatus().worktreeIdentity);
 	const reviewedLines = createMemo(() => {
 		const tracker = createReviewedLineTracker({
 			state,
 			folderName: props.ticket.folderName,
-			worktreeIdentity: agentStatus().worktreeIdentity,
+			worktreeIdentity: worktreeIdentity(),
 			onError: setReviewError,
 		});
 		onCleanup(() => void tracker.dispose());
@@ -1038,9 +1042,11 @@ export default function DiffReview(props: {
 				onError={setSendError}
 				onSend={sendFeedback}
 			>
-				<ReviewPromptQueueList state={state} projectSlug={props.projectSlug}
-					folderName={props.ticket.folderName}
-					worktreeIdentity={agentStatus().worktreeIdentity} profileName={selectedProfile()} />
+				<DiffReviewContext value={state}>
+					<ReviewPromptQueueList projectSlug={props.projectSlug}
+						folderName={props.ticket.folderName}
+						worktreeIdentity={agentStatus().worktreeIdentity} profileName={selectedProfile()} />
+				</DiffReviewContext>
 			</ReviewPromptComposer>
 
 		</div>

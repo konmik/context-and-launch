@@ -5,15 +5,17 @@ import ReviewPromptQueueList from "./ReviewPromptQueueList.js";
 import type { DiffReviewProjectState, ReviewPromptQueueItem } from "~/core/diff-review/diff-review-types.js";
 import { succeed } from "~/util/result.js";
 import { createStoredSignal } from "~/util/stored-signal.js";
+import { DiffReviewContext } from './diff-review-storage.js';
 
 function Queue(props: { items: ReviewPromptQueueItem[] }) {
-	return <ReviewPromptQueueList state={{
+	return <DiffReviewContext value={{
 		get: () => ({ version: 2, tickets: {
 			ticket: { worktreeIdentity: "worktree", reviewedLines: {}, queue: { items: props.items } },
 		} }),
 		update: async () => succeed(undefined),
 		refresh: async () => succeed(undefined),
-	}} projectSlug="project" folderName="ticket" worktreeIdentity="worktree" profileName="" />;
+	}}><ReviewPromptQueueList projectSlug="project" folderName="ticket" worktreeIdentity="worktree" profileName="" />
+	</DiffReviewContext>;
 }
 
 function makeItem(overrides: {
@@ -60,8 +62,8 @@ describe("ReviewPromptQueueList", () => {
 		const { container } = render(() => {
 			const state = createStoredSignal(() => saved, async transform => succeed(saved = transform(saved)));
 			get = state.get;
-			return <ReviewPromptQueueList state={state} projectSlug="project" folderName="ticket"
-				worktreeIdentity="worktree" profileName="agent" />;
+			return <DiffReviewContext value={state}><ReviewPromptQueueList projectSlug="project" folderName="ticket"
+				worktreeIdentity="worktree" profileName="agent" /></DiffReviewContext>;
 		});
 		const buttons = container.querySelectorAll<HTMLButtonElement>('[data-testid="diff-review-queue-remove"]');
 		buttons[1].click();
@@ -80,8 +82,8 @@ describe("ReviewPromptQueueList", () => {
 		} } } };
 		const { container } = render(() => {
 			const state = createStoredSignal(() => saved, async transform => succeed(saved = transform(saved)));
-			return <ReviewPromptQueueList state={state} projectSlug="project" folderName="ticket"
-				worktreeIdentity="worktree" profileName="" />;
+			return <DiffReviewContext value={state}><ReviewPromptQueueList projectSlug="project" folderName="ticket"
+				worktreeIdentity="worktree" profileName="" /></DiffReviewContext>;
 		});
 		saved = { ...saved, tickets: { ticket: { ...saved.tickets.ticket,
 			queue: { items: [{ ...saved.tickets.ticket.queue.items[0],
