@@ -62,7 +62,7 @@ describe('TicketOrderStore', () => {
 		const store = new TicketOrderStore(dir);
 		store.write({ todo: ['c', 'a', 'deleted'] });
 
-		const result = store.reconcile([
+		const result = store.reconcileAndSave([
 			ticket('a', 'todo'),
 			ticket('c', 'todo'),
 			ticket('new-one', 'todo'),
@@ -78,7 +78,7 @@ describe('TicketOrderStore', () => {
 		const store = new TicketOrderStore(dir);
 		store.write({ todo: ['a'], done: [] });
 
-		const result = store.reconcile([ticket('a', 'done')], ['todo', 'done']);
+		const result = store.reconcileAndSave([ticket('a', 'done')], ['todo', 'done']);
 		expect(result['todo']).toEqual([]);
 		expect(result['done']).toEqual(['a']);
 	});
@@ -141,7 +141,7 @@ describe('TicketOrderStore', () => {
 	it.concurrent('reconcile with empty columns and one ticket returns empty order without crashing', async () => {
 		const dir = await createGitWorktree(); dirs.push(dir);
 		const store = new TicketOrderStore(dir);
-		const result = store.reconcile([ticket('a', 'todo')], []);
+		const result = store.reconcileAndSave([ticket('a', 'todo')], []);
 		expect(result).toEqual({});
 	});
 });
@@ -155,7 +155,7 @@ describe('TicketStore + TicketOrderStore integration', () => {
 		const store = new TicketStore(dir);
 		store.createTicket('A-1', 'First', 'todo');
 		store.createTicket('B-2', 'Second', 'done');
-		const order = store.readOrderStore().read();
+		const order = store.orderStore.read();
 		expect(order['todo']).toEqual(['a-1-first']);
 		expect(order['done']).toEqual(['b-2-second']);
 	});
@@ -166,7 +166,7 @@ describe('TicketStore + TicketOrderStore integration', () => {
 		store.createTicket('A-1', 'First', 'todo');
 		store.createTicket('B-2', 'Second', 'todo');
 		store.deleteTicket('a-1-first');
-		expect(store.readOrderStore().read()['todo']).toEqual(['b-2-second']);
+		expect(store.orderStore.read()['todo']).toEqual(['b-2-second']);
 	});
 
 	it.concurrent('updateTicket with rename updates order', async () => {
@@ -174,7 +174,7 @@ describe('TicketStore + TicketOrderStore integration', () => {
 		const store = new TicketStore(dir);
 		store.createTicket('A-1', 'Old Title', 'todo');
 		store.updateTicket('a-1-old-title', null, 'New Title', null);
-		const order = store.readOrderStore().read();
+		const order = store.orderStore.read();
 		expect(order['todo']).toContain('a-1-new-title');
 		expect(order['todo']).not.toContain('a-1-old-title');
 	});
@@ -194,7 +194,7 @@ describe('TicketStore.moveTicket (deepened interface)', () => {
 
 		const status = JSON.parse(fs.readFileSync(path.join(dir, 'x-1-cross', 'status.json'), 'utf-8'));
 		expect(status.status).toBe('done');
-		const order = store.readOrderStore().read();
+		const order = store.orderStore.read();
 		expect(order['todo'] ?? []).not.toContain('x-1-cross');
 		expect(order['done']).toEqual(['x-1-cross', 'y-2-stays']);
 	});
@@ -208,7 +208,7 @@ describe('TicketStore.moveTicket (deepened interface)', () => {
 
 		store.moveTicket('a-1-alpha', 'todo', 'todo', 1);
 
-		expect(store.readOrderStore().read()['todo']).toEqual(['b-2-bravo', 'a-1-alpha']);
+		expect(store.orderStore.read()['todo']).toEqual(['b-2-bravo', 'a-1-alpha']);
 		expect(fs.readFileSync(path.join(dir, 'a-1-alpha', 'status.json'), 'utf-8')).toBe(statusBefore);
 	});
 

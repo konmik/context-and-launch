@@ -3,7 +3,6 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { TicketStore } from './ticket-store.js';
-import { TicketOrderStore } from './ticket-order.js';
 import { git } from '~/test-git.js';
 
 function tmpDir(prefix: string): string {
@@ -65,7 +64,7 @@ describe('case-sensitive column move', () => {
 		expect(statusBefore.status).toBe('Todo');
 
 		// Read the order file to see the initial state
-		const orderStore = store.readOrderStore();
+		const orderStore = store.orderStore;
 		const orderBefore = orderStore.read();
 		expect(orderBefore['Todo']).toContain(ticket.folderName);
 

@@ -1878,7 +1878,7 @@ describe('TicketStore', () => {
 		expect(store.listTickets().map(ticket => ticket.number)).toEqual(['A-1', 'B-1']);
 		expect(store.getTicket('a-1-alpha')?.memberOf).toBeUndefined();
 		expect(store.getTicket('b-1-beta')?.memberOf).toBeUndefined();
-		expect(store.readOrderStore().read().todo).toEqual(['a-1-alpha', 'b-1-beta']);
+		expect(store.orderStore.read().todo).toEqual(['a-1-alpha', 'b-1-beta']);
 	});
 
 	it('ungroup rolls back layout and memberships when a member write fails', async () => {
@@ -2013,7 +2013,7 @@ describe('TicketStore', () => {
 
 		expect(store.getTicket('a-1-alpha')?.number).toBe('A-1');
 		expect(store.getTicket('b-1-beta')?.dependsOn).toEqual(['A-1']);
-		expect(store.readOrderStore().read().todo).toEqual(['a-1-alpha', 'b-1-beta']);
+		expect(store.orderStore.read().todo).toEqual(['a-1-alpha', 'b-1-beta']);
 		expect(store.forestLayoutStore.read()['A-1']).toEqual({ x: 10, y: 20 });
 	});
 

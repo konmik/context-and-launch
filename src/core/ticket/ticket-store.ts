@@ -85,7 +85,7 @@ export type ReorderTicketBody = v.InferOutput<typeof ReorderTicketBody>;
 
 export class TicketStore {
 	private worktreeDir: string;
-	private orderStore: TicketOrderStore;
+	readonly orderStore: TicketOrderStore;
 	readonly forestLayoutStore: ForestLayoutStore;
 	private repo: TicketRepository;
 	private worktreeRootWithSep?: string;
@@ -134,10 +134,6 @@ export class TicketStore {
 			this.worktreeRootWithSep = this.resolveRootWithSep(this.worktreeDir);
 		}
 		return this.worktreeRootWithSep;
-	}
-
-	readOrderStore(): TicketOrderStore {
-		return this.orderStore;
 	}
 
 	moveTicket(folderName: string, fromColumn: string, toColumn: string, newIndex: number): void {
@@ -431,7 +427,7 @@ export class TicketStore {
 			(await mapConcurrent(activeDirs, READ_CONCURRENCY, (dir) => this.readTicketAsync(dir)))
 				.filter((t): t is TicketInfo => t !== null),
 		);
-		const ticketOrder = this.orderStore.reconcile(tickets, columns);
+		const ticketOrder = this.orderStore.reconcileAndSave(tickets, columns);
 
 		const archiveDirs = await this.ticketDirsIn(path.join(this.worktreeDir, 'archive'));
 		const archiveStatuses = archiveDirs.map(dir => this.repo.readStatusJson(dir))

@@ -8,18 +8,13 @@ export type TicketOrder = Record<string, string[]>;
 const TicketOrderSchema = v.record(v.string(), v.array(v.string()));
 
 export class TicketOrderStore {
-	private worktreeDir: string;
-	private repo: TicketRepository;
-
-	constructor(worktreeDir: string, repo?: TicketRepository) {
-		this.worktreeDir = worktreeDir;
-		this.repo = repo ?? new TicketRepository();
-	}
+	constructor(
+		private readonly worktreeDir: string,
+		private readonly repo = new TicketRepository(),
+	) {}
 
 	read(): TicketOrder {
 		const parsed = this.repo.readWorktreeJson(this.worktreeDir, 'ticket-order.json');
-		if (parsed === null) return {};
-		if (Array.isArray(parsed)) return {};
 		const result = v.safeParse(TicketOrderSchema, parsed);
 		return result.success ? result.output : {};
 	}
@@ -28,76 +23,50 @@ export class TicketOrderStore {
 		this.repo.writeWorktreeJson(this.worktreeDir, 'ticket-order.json', order);
 	}
 
-	reconcile(tickets: TicketInfo[], columns: string[]): TicketOrder {
+	reconcileAndSave(tickets: TicketInfo[], columns: string[]): TicketOrder {
 		const existing = this.read();
 		const { order, changed } = reconcileOrder(existing, tickets, columns);
-		if (changed) {
-			this.write(order);
-		}
+		if (changed) this.write(order);
 		return order;
 	}
 
 	moveTicket(folderName: string, fromColumn: string, toColumn: string, newIndex: number): void {
 		const order = this.read();
 		const targetExisted = Object.hasOwn(order, toColumn);
+		const next = { ...order };
 
 		if (order[fromColumn]) {
-			order[fromColumn] = order[fromColumn].filter(fn => fn !== folderName);
-			if (order[fromColumn].length === 0 && fromColumn !== toColumn && !targetExisted) {
-				delete order[fromColumn];
+			next[fromColumn] = order[fromColumn].filter(folder => folder !== folderName);
+			if (next[fromColumn].length === 0 && fromColumn !== toColumn && !targetExisted) {
+				delete next[fromColumn];
 			}
 		}
 
-		if (!order[toColumn]) {
-			order[toColumn] = [];
-		}
-
-		// Deduplicate: the ticket may already be listed in the target column
-		// if the order file drifted out of sync with the actual ticket status
-		order[toColumn] = order[toColumn].filter(fn => fn !== folderName);
-
-		const idx = Math.max(0, Math.min(newIndex, order[toColumn].length));
-		order[toColumn].splice(idx, 0, folderName);
-
-		this.write(order);
+		const destination = (order[toColumn] ?? []).filter(folder => folder !== folderName);
+		const insertionIndex = Math.max(0, Math.min(newIndex, destination.length));
+		destination.splice(insertionIndex, 0, folderName);
+		this.write({ ...next, [toColumn]: destination });
 	}
 
 	appendTicket(folderName: string, column: string): void {
 		const order = this.read();
-		if (!order[column]) {
-			order[column] = [];
-		}
-		if (!order[column].includes(folderName)) {
-			order[column].push(folderName);
-		}
-		this.write(order);
+		const folders = order[column] ?? [];
+		this.write({ ...order, [column]: folders.includes(folderName) ? folders : [...folders, folderName] });
 	}
 
 	removeTicket(folderName: string): void {
 		const order = this.read();
-		let changed = false;
-		for (const col of Object.keys(order)) {
-			const before = order[col].length;
-			order[col] = order[col].filter(fn => fn !== folderName);
-			if (order[col].length !== before) changed = true;
-		}
-		if (changed) {
-			this.write(order);
-		}
+		if (!Object.values(order).some(folders => folders.includes(folderName))) return;
+		this.write(Object.fromEntries(Object.entries(order).map(([column, folders]) =>
+			[column, folders.filter(folder => folder !== folderName)])));
 	}
 
 	renameTicket(oldFolderName: string, newFolderName: string): void {
 		const order = this.read();
-		let changed = false;
-		for (const col of Object.keys(order)) {
-			const idx = order[col].indexOf(oldFolderName);
-			if (idx !== -1) {
-				order[col][idx] = newFolderName;
-				changed = true;
-			}
-		}
-		if (changed) {
-			this.write(order);
-		}
+		if (!Object.values(order).some(folders => folders.includes(oldFolderName))) return;
+		this.write(Object.fromEntries(Object.entries(order).map(([column, folders]) => {
+			const renamedIndex = folders.indexOf(oldFolderName);
+			return [column, folders.map((folder, index) => index === renamedIndex ? newFolderName : folder)];
+		})));
 	}
 }
