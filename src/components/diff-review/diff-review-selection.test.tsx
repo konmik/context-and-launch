@@ -28,7 +28,6 @@ describe('Diff Review text selection', () => {
     const diff = renderSplitDiff()
     const from = diff.line('deletions', '4').firstChild
     const to = diff.line('deletions', '5').firstChild
-
     expect(lineElementAt(from)).toBe(diff.line('deletions', '4'))
     expect(reviewLineRangeBetween(from, to)).toEqual({
       start: 4,
@@ -37,7 +36,6 @@ describe('Diff Review text selection', () => {
       endSide: 'deletions',
     })
   })
-
   it("normalizes a backwards selection and keeps each end's side", () => {
     const diff = renderSplitDiff()
     expect(reviewLineRangeBetween(diff.line('additions', '5'), diff.line('deletions', '4'))).toEqual({
@@ -47,7 +45,6 @@ describe('Diff Review text selection', () => {
       endSide: 'additions',
     })
   })
-
   it('selects a single line when the selection is collapsed on it', () => {
     const diff = renderSplitDiff()
     expect(reviewLineRangeBetween(diff.line('additions', '4'), undefined)).toEqual({
@@ -57,25 +54,21 @@ describe('Diff Review text selection', () => {
       endSide: 'additions',
     })
   })
-
   it("takes a context line's side from its code column", () => {
     const diff = renderSplitDiff()
     expect(lineSideOf(diff.line('deletions', '5'))).toBe('deletions')
     expect(lineSideOf(diff.line('additions', '5'))).toBe('additions')
   })
-
   it('recognizes the line-number gutter so the library keeps owning it', () => {
     const diff = renderSplitDiff()
     const gutter = diff.host.querySelector<HTMLElement>('[data-column-number]')!
     expect(isGutterPath([gutter, diff.host])).toBe(true)
     expect(isGutterPath([diff.line('additions', '4'), diff.host])).toBe(false)
   })
-
   it('ignores nodes outside any diff line', () => {
     renderSplitDiff()
     expect(reviewLineRangeBetween(document.body, document.body)).toBeUndefined()
   })
-
   it('ignores selections that cross between file surfaces', () => {
     const first = renderSplitDiff()
     const second = document.createElement('div')
@@ -87,7 +80,6 @@ describe('Diff Review text selection', () => {
     const selection = document.getSelection()!
     selection.removeAllRanges()
     selection.addRange(range)
-
     expect(reviewLineRangeFromSelection(first.host, selection)).toBeUndefined()
   })
 })

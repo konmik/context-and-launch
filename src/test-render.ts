@@ -11,7 +11,11 @@ export function render(view: () => Element) {
     dispose()
     container.remove()
   })
-  return { container, unmount: dispose, ...getQueriesForElement(container) }
+  return {
+    container,
+    unmount: dispose,
+    ...getQueriesForElement(container),
+  }
 }
 
 export function cleanup() {

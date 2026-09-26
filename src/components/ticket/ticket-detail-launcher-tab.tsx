@@ -28,9 +28,9 @@ export function LauncherTab(props: {
 }) {
   const saved = readSavedSizes()
   const ctrl = props.ctrl
-
   let splitterPersistTimer: ReturnType<typeof setTimeout> | undefined
   onSettled(() => () => clearTimeout(splitterPersistTimer))
+
   function persistSplitterSizes(sizes: number[]) {
     if (sizes.length === 2) {
       clearTimeout(splitterPersistTimer)

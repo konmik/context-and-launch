@@ -52,10 +52,16 @@ async function mutateTicketsExclusive<T>(projectSlug: string, mutation: (store: 
 
 export async function createTicket(projectSlug: string, number: string, title: string) {
   'use server'
+
   try {
-    const initialStatus = resolveInitialTicketStatus(projectSlug, { projectRegistry, boardConfigManager })
+    const initialStatus = resolveInitialTicketStatus(projectSlug, {
+      projectRegistry,
+      boardConfigManager,
+    })
     mutateTickets(projectSlug, (store) => store.createTicket(number, title, initialStatus))
-    return { ok: true as const }
+    return {
+      ok: true as const,
+    }
   } catch (e) {
     return errorResult(e)
   }
@@ -69,9 +75,13 @@ export async function updateTicket(
   status: string | null,
 ) {
   'use server'
+
   try {
     const updated = await mutateTicketsExclusive(projectSlug, (store) => store.updateTicket(folderName, number, title, status))
-    return { ok: true as const, folderName: updated.folderName }
+    return {
+      ok: true as const,
+      folderName: updated.folderName,
+    }
   } catch (e) {
     return errorResult(e)
   }
@@ -79,10 +89,13 @@ export async function updateTicket(
 
 export async function deleteTicket(projectSlug: string, folderName: string) {
   'use server'
+
   try {
     await mutateTicketsExclusive(projectSlug, (store) => store.deleteTicket(folderName))
     await diffReviewStore.removeTicket(projectSlug, folderName)
-    return { ok: true as const }
+    return {
+      ok: true as const,
+    }
   } catch (e) {
     return errorResult(e)
   }
@@ -90,9 +103,12 @@ export async function deleteTicket(projectSlug: string, folderName: string) {
 
 export async function archiveTicket(projectSlug: string, folderName: string) {
   'use server'
+
   try {
     await mutateTicketsExclusive(projectSlug, (store) => store.archiveTicket(folderName))
-    return { ok: true as const }
+    return {
+      ok: true as const,
+    }
   } catch (e) {
     return errorResult(e)
   }
@@ -100,6 +116,7 @@ export async function archiveTicket(projectSlug: string, folderName: string) {
 
 export async function readTicketOrder(projectSlug: string) {
   'use server'
+
   try {
     return succeed(new TicketStore(worktreeManager.getWorktreeDir(projectSlug)).orderStore.read())
   } catch (error) {
@@ -109,6 +126,7 @@ export async function readTicketOrder(projectSlug: string) {
 
 export async function saveTicketOrder(projectSlug: string, expected: TicketOrder, order: TicketOrder) {
   'use server'
+
   try {
     return succeed(
       mutateTickets(projectSlug, (store) => {
@@ -125,31 +143,47 @@ function withAgentWorktreeStatus(projectSlug: string, ticket: TicketInfo): Ticke
   const { worktreePath } = resolveAgentWorktreeLocation(ticket.folderName, launcherConfigManager.resolveWorktreeSettings(projectSlug), {
     savedWorktreePath: ticket.agentWorktreeDir,
   })
-  return { ...ticket, hasAgentWorktree: fs.existsSync(worktreePath) }
+  return {
+    ...ticket,
+    hasAgentWorktree: fs.existsSync(worktreePath),
+  }
 }
 
 export const getTicket = query(async (projectSlug: string, folderName: string): Promise<TicketInfo> => {
   'use server'
+
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
   const ticket = new TicketStore(worktreeDir).getTicket(folderName)
   if (!ticket) throw new NotFoundError(`Ticket not found: ${folderName}`)
   return withAgentWorktreeStatus(projectSlug, ticket)
 }, 'ticket-detail')
 
-export async function getContext(projectSlug: string, folderName: string, contextFileName: string): Promise<{ content: string } | null> {
+export async function getContext(
+  projectSlug: string,
+  folderName: string,
+  contextFileName: string,
+): Promise<{
+  content: string
+} | null> {
   'use server'
+
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
   const store = new TicketStore(worktreeDir)
   const content = store.getTicketContext(folderName, contextFileName)
   if (content === null) return null
-  return { content }
+  return {
+    content,
+  }
 }
 
 export async function saveContext(projectSlug: string, folderName: string, contextFileName: string, content: string) {
   'use server'
+
   try {
     mutateTickets(projectSlug, (store) => store.saveTicketContext(folderName, contextFileName, content))
-    return { ok: true as const }
+    return {
+      ok: true as const,
+    }
   } catch (e) {
     return errorResult(e)
   }
@@ -157,9 +191,12 @@ export async function saveContext(projectSlug: string, folderName: string, conte
 
 export async function deleteContext(projectSlug: string, folderName: string, contextFileName: string) {
   'use server'
+
   try {
     mutateTickets(projectSlug, (store) => store.deleteTicketContext(folderName, contextFileName))
-    return { ok: true as const }
+    return {
+      ok: true as const,
+    }
   } catch (e) {
     return errorResult(e)
   }
@@ -167,9 +204,12 @@ export async function deleteContext(projectSlug: string, folderName: string, con
 
 export async function deleteFile(projectSlug: string, folderName: string, fileName: string) {
   'use server'
+
   try {
     mutateTickets(projectSlug, (store) => store.deleteTicketFile(folderName, fileName))
-    return { ok: true as const }
+    return {
+      ok: true as const,
+    }
   } catch (e) {
     return errorResult(e)
   }
@@ -177,11 +217,16 @@ export async function deleteFile(projectSlug: string, folderName: string, fileNa
 
 export async function uploadFile(projectSlug: string, folderName: string, formData: FormData) {
   'use server'
+
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
     try {
       const store = new TicketStore(worktreeDir)
-      const results: { name: string; ok: boolean; error?: string }[] = []
+      const results: {
+        name: string
+        ok: boolean
+        error?: string
+      }[] = []
       for (const [, value] of formData.entries()) {
         if (!(value instanceof File)) continue
         const fileName = value.name
@@ -189,12 +234,22 @@ export async function uploadFile(projectSlug: string, folderName: string, formDa
           const arrayBuffer = await value.arrayBuffer()
           const buffer = Buffer.from(arrayBuffer)
           store.copyFileToTicket(folderName, fileName, buffer)
-          results.push({ name: fileName, ok: true })
+          results.push({
+            name: fileName,
+            ok: true,
+          })
         } catch (e) {
-          results.push({ name: fileName, ok: false, error: errorMessage(e) })
+          results.push({
+            name: fileName,
+            ok: false,
+            error: errorMessage(e),
+          })
         }
       }
-      return { ok: true as const, results }
+      return {
+        ok: true as const,
+        results,
+      }
     } finally {
       worktreeRevisions.bump(worktreeDir)
     }
@@ -205,6 +260,7 @@ export async function uploadFile(projectSlug: string, folderName: string, formDa
 
 export const saveTicketStatus = action(async (projectSlug: string, previousJson: string, nextJson: string) => {
   'use server'
+
   try {
     const previous: TicketInfo = JSON.parse(previousJson)
     const next: TicketInfo = JSON.parse(nextJson)
@@ -232,7 +288,9 @@ export const saveTicketStatus = action(async (projectSlug: string, previousJson:
               (reference) => reference.path,
             ),
           ),
-        ].map((path) => ({ path }))
+        ].map((path) => ({
+          path,
+        }))
       }
       return store.updateTicket(
         previous.folderName,
@@ -242,40 +300,52 @@ export const saveTicketStatus = action(async (projectSlug: string, previousJson:
         details,
       )
     })
-    return respond(succeed(withAgentWorktreeStatus(projectSlug, updated)), { revalidate: [] })
+    return respond(succeed(withAgentWorktreeStatus(projectSlug, updated)), {
+      revalidate: [],
+    })
   } catch (error) {
-    return respond(fail(errorMessage(error)), { revalidate: [] })
+    return respond(fail(errorMessage(error)), {
+      revalidate: [],
+    })
   }
 }, 'save-ticket-status')
-
 export const syncTickets = action(async function syncTickets(projectSlug: string) {
   'use server'
+
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
     const result = await fileWatcher.runWithWatchPaused(worktreeDir, async () => {
       const result = await operationTracker.track(ticketSyncManager.sync(worktreeDir))
       worktreeRevisions.bump(worktreeDir)
-      return { ok: true as const, ...result }
+      return {
+        ok: true as const,
+        ...result,
+      }
     })
-    return respond(result, { revalidate: [] })
+    return respond(result, {
+      revalidate: [],
+    })
   } catch (e) {
-    return respond(errorResult(e), { revalidate: [] })
+    return respond(errorResult(e), {
+      revalidate: [],
+    })
   }
 }, 'sync-tickets')
-
 export const getWorktreeRevision = query(async (projectSlug: string): Promise<number> => {
   'use server'
+
   return worktreeRevisions.current(worktreeManager.getWorktreeDir(projectSlug))
 }, 'worktree-revision')
-
 export const getSyncPending = query(async (projectSlug: string): Promise<boolean> => {
   'use server'
+
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
   return syncPendingTracker.hasPendingChanges(worktreeDir)
 }, 'sync-pending')
 
 export async function suggestTicketNumber(projectSlug: string, numberInput: string): Promise<string | null> {
   'use server'
+
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
   const store = new TicketStore(worktreeDir)
   const prefix = extractPrefixFromInput(numberInput)
@@ -295,18 +365,27 @@ function resolveTicketCleanupTarget(projectSlug: string, folderName: string) {
       savedBranchName: ticket?.agentWorktreeBranchName ?? undefined,
     },
   )
-  return { project, store, ticket, worktreePath, branchName }
+  return {
+    project,
+    store,
+    ticket,
+    worktreePath,
+    branchName,
+  }
 }
 
 export async function openTicketWorktree(projectSlug: string, folderName: string) {
   'use server'
+
   try {
     const { worktreePath } = resolveTicketCleanupTarget(projectSlug, folderName)
     if (!fs.existsSync(worktreePath)) {
       throw new NotFoundError(`Worktree does not exist: ${worktreePath}`)
     }
     await openInOs(worktreePath, commandTemplateService)
-    return { ok: true as const }
+    return {
+      ok: true as const,
+    }
   } catch (e) {
     return errorResult(e)
   }
@@ -314,6 +393,7 @@ export async function openTicketWorktree(projectSlug: string, folderName: string
 
 export async function openTicketFolder(projectSlug: string, folderName: string): Promise<void> {
   'use server'
+
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
   const store = new TicketStore(worktreeDir)
   if (!store.getTicket(folderName)) throw new NotFoundError(`Ticket not found: ${folderName}`)
@@ -322,6 +402,7 @@ export async function openTicketFolder(projectSlug: string, folderName: string):
 
 export async function getCleanupStatus(projectSlug: string, folderName: string): Promise<TicketCleanupStatus> {
   'use server'
+
   const { project, worktreePath, branchName } = resolveTicketCleanupTarget(projectSlug, folderName)
   return runTicketCleanupChecks(
     {
@@ -348,6 +429,7 @@ export async function getCleanupStatus(projectSlug: string, folderName: string):
 
 export async function worktreeCleanup(projectSlug: string, folderName: string, options: TicketCleanupOptions) {
   'use server'
+
   try {
     const { project, store, ticket, worktreePath, branchName } = resolveTicketCleanupTarget(projectSlug, folderName)
     if (options.stopHerdrAgent) {
@@ -389,7 +471,9 @@ export async function worktreeCleanup(projectSlug: string, folderName: string, o
     if (options.deleteLocalBranch) {
       await diffReviewStore.removeTicket(projectSlug, folderName)
     }
-    return { ok: true as const }
+    return {
+      ok: true as const,
+    }
   } catch (e) {
     const payload = errorPayload(e)
     return {
@@ -403,12 +487,20 @@ export async function worktreeCleanup(projectSlug: string, folderName: string, o
 
 export async function getWorktreeLockingProcesses(projectSlug: string, folderName: string): Promise<LockingProcessInfo[]> {
   'use server'
+
   const { worktreePath } = resolveTicketCleanupTarget(projectSlug, folderName)
   return agentWorktreeManager.findLockingProcesses(worktreePath)
 }
 
-export async function killWorktreeLockingProcesses(projectSlug: string, folderName: string, pids: number[]): Promise<{ error?: string }> {
+export async function killWorktreeLockingProcesses(
+  projectSlug: string,
+  folderName: string,
+  pids: number[],
+): Promise<{
+  error?: string
+}> {
   'use server'
+
   const failed: string[] = []
   for (const pid of pids) {
     if (pid < 2 || pid === process.pid) continue
@@ -419,14 +511,22 @@ export async function killWorktreeLockingProcesses(projectSlug: string, folderNa
     }
   }
   if (failed.length > 0) {
-    return { error: `Failed to kill: ${failed.join(', ')}` }
+    return {
+      error: `Failed to kill: ${failed.join(', ')}`,
+    }
   }
   await new Promise((resolve) => setTimeout(resolve, 500))
   return {}
 }
 
-export async function forceDeleteLocalBranch(projectSlug: string, folderName: string): Promise<{ error?: string }> {
+export async function forceDeleteLocalBranch(
+  projectSlug: string,
+  folderName: string,
+): Promise<{
+  error?: string
+}> {
   'use server'
+
   try {
     const { project, store, ticket, branchName } = resolveTicketCleanupTarget(projectSlug, folderName)
     await agentWorktreeManager.forceDeleteLocalBranch(project.path, branchName)
@@ -436,6 +536,8 @@ export async function forceDeleteLocalBranch(projectSlug: string, folderName: st
     await diffReviewStore.removeTicket(projectSlug, folderName)
     return {}
   } catch (e: any) {
-    return { error: e?.message ?? 'Failed to force-delete branch' }
+    return {
+      error: e?.message ?? 'Failed to force-delete branch',
+    }
   }
 }

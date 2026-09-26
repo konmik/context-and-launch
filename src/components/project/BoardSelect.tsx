@@ -4,7 +4,11 @@ import type { BoardRef } from '../board/board-api.js'
 export interface BoardSelectProps {
   boards: BoardRef[]
   value: string
-  onChange: (e: Event & { currentTarget: HTMLSelectElement }) => void
+  onChange: (
+    e: Event & {
+      currentTarget: HTMLSelectElement
+    },
+  ) => void
   class?: string
   testId?: string
   id?: string

@@ -2,7 +2,12 @@ import { createMemo, createSignal } from 'solid-js'
 import { createFormDialogController } from './form-dialog-controller.js'
 
 export interface CreateTicketDeps {
-  onSubmit: (number: string, title: string) => Promise<{ error?: string }>
+  onSubmit: (
+    number: string,
+    title: string,
+  ) => Promise<{
+    error?: string
+  }>
   onOpenChange: (open: boolean) => void
   suggestedNextNumber: () => string | null | undefined
   open: () => boolean

@@ -32,7 +32,6 @@ async function launchAppAndMeasure(env: NodeJS.ProcessEnv, projects: CreatedProj
   try {
     const firstPage = await app.firstWindow()
     const windowMs = performance.now() - start
-
     const pagesDeadline = performance.now() + 30000
     const trackedPages = () => {
       const set = new Set([firstPage, ...app.windows(), ...app.context().pages()])
@@ -51,10 +50,18 @@ async function launchAppAndMeasure(env: NodeJS.ProcessEnv, projects: CreatedProj
     }
     const pages = trackedPages()
     await Promise.all(
-      pages.map((page) => page.waitForSelector('[data-testid="kanban-board-ticket-card"]', { state: 'visible', timeout: 60000 })),
+      pages.map((page) =>
+        page.waitForSelector('[data-testid="kanban-board-ticket-card"]', {
+          state: 'visible',
+          timeout: 60000,
+        }),
+      ),
     )
     const allBoardsMs = performance.now() - start
-    return { windowMs, allBoardsMs }
+    return {
+      windowMs,
+      allBoardsMs,
+    }
   } finally {
     await app.close()
   }
@@ -62,22 +69,28 @@ async function launchAppAndMeasure(env: NodeJS.ProcessEnv, projects: CreatedProj
 
 describe('Startup benchmark (real Electron app)', () => {
   it('reports launch-to-window and launch-to-boards timings', async () => {
-    execSync('pnpm run electron:build-main', { cwd: PROJECT_ROOT, stdio: 'ignore' })
-
+    execSync('pnpm run electron:build-main', {
+      cwd: PROJECT_ROOT,
+      stdio: 'ignore',
+    })
     const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cl-bench-app-data-'))
     const reposParentDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cl-bench-app-repos-'))
     const appDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cl-bench-app-appdata-'))
-    fs.mkdirSync(path.join(dataDir, 'config'), { recursive: true })
+    fs.mkdirSync(path.join(dataDir, 'config'), {
+      recursive: true,
+    })
     for (const file of fs.readdirSync(path.join(PROJECT_ROOT, 'config-defaults'))) {
       fs.copyFileSync(path.join(PROJECT_ROOT, 'config-defaults', file), path.join(dataDir, 'config', file))
     }
-
     try {
       const projects: CreatedProject[] = []
       for (let p = 0; p < PROJECT_COUNT; p++) {
         projects.push(
           await createProject(
-            { dataDir, reposParentDir },
+            {
+              dataDir,
+              reposParentDir,
+            },
             {
               projectSlug: uniqueSlug(`bench-app-${p}`),
               withRemote: true,
@@ -85,34 +98,54 @@ describe('Startup benchmark (real Electron app)', () => {
                 {
                   id: 'kanban',
                   name: 'Kanban',
-                  columns: [{ name: 'todo' }, { name: 'in-progress' }, { name: 'done' }],
+                  columns: [
+                    {
+                      name: 'todo',
+                    },
+                    {
+                      name: 'in-progress',
+                    },
+                    {
+                      name: 'done',
+                    },
+                  ],
                 },
               ],
-              withTickets: Array.from({ length: TICKETS_PER_PROJECT }, (_, i) => ({
-                number: `B-${i + 1}`,
-                title: `Benchmark ticket ${i + 1}`,
-                folderName: `b-${i + 1}-benchmark-ticket-${i + 1}`,
-                status: STATUSES[i % STATUSES.length],
-                body: `# Benchmark ticket ${i + 1}\n\nSome body text for ticket ${i + 1}.\n`,
-              })),
+              withTickets: Array.from(
+                {
+                  length: TICKETS_PER_PROJECT,
+                },
+                (_, i) => ({
+                  number: `B-${i + 1}`,
+                  title: `Benchmark ticket ${i + 1}`,
+                  folderName: `b-${i + 1}-benchmark-ticket-${i + 1}`,
+                  status: STATUSES[i % STATUSES.length],
+                  body: `# Benchmark ticket ${i + 1}\n\nSome body text for ticket ${i + 1}.\n`,
+                }),
+              ),
             },
           ),
         )
       }
-
       const userDataDir = path.join(appDataDir, 'user-data')
-      fs.mkdirSync(userDataDir, { recursive: true })
+      fs.mkdirSync(userDataDir, {
+        recursive: true,
+      })
       fs.writeFileSync(
         path.join(userDataDir, 'window-state.json'),
         JSON.stringify({
           windows: projects.map((project, i) => ({
             projectSlug: project.projectSlug,
-            bounds: { x: 40 * i, y: 40 * i, width: 1280, height: 800 },
+            bounds: {
+              x: 40 * i,
+              y: 40 * i,
+              width: 1280,
+              height: 800,
+            },
             maximized: false,
           })),
         }),
       )
-
       const env: NodeJS.ProcessEnv = {
         ...process.env,
         CONTEXT_LAUNCH_USER_DATA_DIR: userDataDir,
@@ -121,10 +154,8 @@ describe('Startup benchmark (real Electron app)', () => {
         CONTEXT_FILE_PICKER_STUB: '__cancel__',
         CONTEXT_OPEN_IN_OS_STUB: '__noop__',
       }
-
       const first = await launchAppAndMeasure(env, projects)
       const second = await launchAppAndMeasure(env, projects)
-
       console.log(
         `[startup-benchmark] ${PROJECT_COUNT} windows, ${TICKETS_PER_PROJECT} tickets each | ` +
           `first launch: window ${first.windowMs.toFixed(0)} ms, ` +
@@ -132,7 +163,6 @@ describe('Startup benchmark (real Electron app)', () => {
           `second launch: window ${second.windowMs.toFixed(0)} ms, ` +
           `all boards ${second.allBoardsMs.toFixed(0)} ms`,
       )
-
       expect(first.allBoardsMs).toBeLessThan(60000)
       expect(second.allBoardsMs).toBeLessThan(60000)
     } finally {

@@ -1,6 +1,10 @@
 import type { StatusJson } from './ticket-repository.js'
 
-export type TicketRelation = { number: string; dependsOn?: string[]; memberOf?: string }
+export type TicketRelation = {
+  number: string
+  dependsOn?: string[]
+  memberOf?: string
+}
 
 export function wouldCreateDependencyCycle(tickets: TicketRelation[], dependentNumber: string, dependencyNumber: string): boolean {
   if (dependentNumber === dependencyNumber) return true
@@ -56,7 +60,11 @@ function mapInboundReferences(status: StatusJson, mapNumber: (referencedNumber: 
     }
   }
   if (!changed) return undefined
-  return { ...status, dependsOn: newDependsOn, memberOf: newMemberOf }
+  return {
+    ...status,
+    dependsOn: newDependsOn,
+    memberOf: newMemberOf,
+  }
 }
 
 export function rewriteInboundReferences(status: StatusJson, oldNumber: string, newNumber: string): StatusJson | undefined {

@@ -12,15 +12,16 @@ interface AgentLauncherProps {
   config: MergedLauncherConfig | null
   onDefaultsChange: (patch: Partial<LauncherColumnDefaults>) => void
   ctrl: AgentLauncherController
-}
+} // The Agent and the Prompt Template are both picked from a list of named
 
-// The Agent and the Prompt Template are both picked from a list of named
 // entries, and picking one both moves the launcher to it and records it as the
 // column's default.
 function NamedEntrySelect(props: {
   label: string
   value: string
-  options: { name: string }[]
+  options: {
+    name: string
+  }[]
   testId: string
   onChange(name: string): void
 }) {
@@ -76,7 +77,6 @@ function LauncherSkillDropPreview(props: { skill: MergedSkill }) {
 
 export default function AgentLauncher(props: AgentLauncherProps) {
   const c = props.ctrl
-
   return (
     <div class="flex h-full flex-col gap-4 overflow-auto px-4 pb-4">
       <Show when={props.config} fallback={<p class="text-sm text-muted-foreground">Loading config...</p>}>
@@ -90,7 +90,9 @@ export default function AgentLauncher(props: AgentLauncherProps) {
                 testId="ticket-detail-launcher-profile-select"
                 onChange={(name) => {
                   c.setSelectedProfile(name)
-                  props.onDefaultsChange({ profileName: name })
+                  props.onDefaultsChange({
+                    profileName: name,
+                  })
                 }}
               />
               <NamedEntrySelect
@@ -100,7 +102,9 @@ export default function AgentLauncher(props: AgentLauncherProps) {
                 testId="ticket-detail-launcher-template-select"
                 onChange={(name) => {
                   c.setSelectedTemplate(name)
-                  props.onDefaultsChange({ templateName: name })
+                  props.onDefaultsChange({
+                    templateName: name,
+                  })
                 }}
               />
               <Show when={cfg().skills.length > 0}>
@@ -152,7 +156,9 @@ export default function AgentLauncher(props: AgentLauncherProps) {
           <button
             onClick={() => {
               c.setBehindRemoteMsg('')
-              c.launchAgent({ skipBehindRemote: true })
+              c.launchAgent({
+                skipBehindRemote: true,
+              })
             }}
             disabled={c.launching()}
             class="btn-primary"
@@ -173,7 +179,9 @@ export default function AgentLauncher(props: AgentLauncherProps) {
           <button
             onClick={() => {
               c.setDirtyWorktreeMsg('')
-              c.launchAgent({ force: true })
+              c.launchAgent({
+                force: true,
+              })
             }}
             disabled={c.launching()}
             class="btn-primary"

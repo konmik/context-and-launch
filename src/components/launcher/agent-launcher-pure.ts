@@ -3,7 +3,12 @@ import type { ErrorInfo } from '~/core/shared/errors.js'
 import { worktreeFolderName } from '~/core/worktree/worktree-naming.js'
 
 export function launchErrorInfo(result: { message: string; errorInfo?: ErrorInfo }): ErrorInfo {
-  return { ...(result.errorInfo ?? { description: result.message }), title: 'Launch failed' }
+  return {
+    ...(result.errorInfo ?? {
+      description: result.message,
+    }),
+    title: 'Launch failed',
+  }
 }
 
 export interface LauncherDefaults {
@@ -16,7 +21,13 @@ export interface LauncherDefaults {
 
 export function resolveDefaults(config: MergedLauncherConfig | null, ticketStatus: string): LauncherDefaults {
   if (!config) {
-    return { templateName: '', profileName: '', checkedSkills: [], skillOrder: [], editedPrompt: undefined }
+    return {
+      templateName: '',
+      profileName: '',
+      checkedSkills: [],
+      skillOrder: [],
+      editedPrompt: undefined,
+    }
   }
   const defaults = config.columnDefaults[ticketStatus]
   return {

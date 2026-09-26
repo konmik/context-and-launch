@@ -21,7 +21,6 @@ export function DiscardConfirmation(props: { open: boolean; message: string; onC
     disabled: () => false,
     active: () => props.open,
   })
-
   return (
     <DialogRoot open={props.open} onOpenChange={props.onCancel} onMouseDown={(e: MouseEvent) => e.preventDefault()}>
       <DialogTitle>Unsaved Changes</DialogTitle>
@@ -67,7 +66,6 @@ export function FileToolbar(props: {
 }) {
   let dropdownBtnRef: HTMLButtonElement | undefined
   let fileInputRef: HTMLInputElement | undefined
-
   return (
     <>
       <div class="flex items-center gap-2 pt-4 pb-2">

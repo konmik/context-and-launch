@@ -1,8 +1,7 @@
 import { PATH_SUFFIX_SOURCE, PLACEHOLDER_SOURCE } from './command-template-interpolation.js'
 import type { CommandTemplateListValues, CommandTemplateValues } from './command-template-types.js'
 
-const placeholderToken = new RegExp(`^${PLACEHOLDER_SOURCE}$`)
-// A scalar placeholder at the start of a token followed by a static path suffix,
+const placeholderToken = new RegExp(`^${PLACEHOLDER_SOURCE}$`) // A scalar placeholder at the start of a token followed by a static path suffix,
 // composed from the interpolation grammar so {{configDefaultsDir}}/run-agent.ps1
 // folds into one argv entry instead of forcing the shell-string fallback.
 const placeholderWithPathSuffixToken = new RegExp(`^${PLACEHOLDER_SOURCE}(${PATH_SUFFIX_SOURCE})$`)
@@ -18,8 +17,7 @@ export function buildDirectInvocationArgv(
 ): readonly string[] | undefined {
   const line = script.trim()
   if (!line || /[\r\n]/.test(line)) return undefined
-  const tokens = line.split(/\s+/)
-  // The program itself may be a placeholder (the Herdr executable is supplied at
+  const tokens = line.split(/\s+/) // The program itself may be a placeholder (the Herdr executable is supplied at
   // runtime). Its resolved value is validated below like any other token.
   if (!plainToken.test(tokens[0]) && !placeholderToken.test(tokens[0])) return undefined
   const scalarNames = new Set(knownScalarPlaceholders)

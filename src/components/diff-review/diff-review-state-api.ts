@@ -6,14 +6,15 @@ import { fail, succeed } from '~/util/result.js'
 
 export const readReviewAgentStatus = GET(async (projectSlug: string, folderName: string) => {
   'use server'
+
   return {
     worktreeIdentity: diffReviewTargetResolver.resolve(projectSlug, folderName).worktreeIdentity,
     agentRunning: reviewPromptQueueService.isAgentRunning(projectSlug, folderName),
   }
 })
-
 export const readDiffReviewState = GET(async (projectSlug: string, owner?: string) => {
   'use server'
+
   try {
     return succeed(diffReviewStore.loadProject(projectSlug, owner))
   } catch (error) {
@@ -23,6 +24,7 @@ export const readDiffReviewState = GET(async (projectSlug: string, owner?: strin
 
 export async function saveDiffReviewState(projectSlug: string, json: string, owner: string) {
   'use server'
+
   try {
     if (!owner) return fail('Configuration update requires a client identity.')
     return succeed(
@@ -49,5 +51,6 @@ export async function saveDiffReviewState(projectSlug: string, json: string, own
 
 export async function releaseDiffReviewState(projectSlug: string, owner: string) {
   'use server'
+
   diffReviewStore.release(projectSlug, owner)
 }

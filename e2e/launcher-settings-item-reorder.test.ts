@@ -29,7 +29,9 @@ const ITEM_SELECTORS = {
 type ItemType = keyof typeof ITEM_SELECTORS
 
 function itemRow(page: Page, itemType: ItemType, name: string): Locator {
-  return testId(page, ITEM_SELECTORS[itemType].row, { 'data-item-name': name })
+  return testId(page, ITEM_SELECTORS[itemType].row, {
+    'data-item-name': name,
+  })
 }
 
 async function dragItem(page: Page, itemType: ItemType, fromName: string, toName: string) {
@@ -47,40 +49,63 @@ async function itemNames(page: Page, itemType: ItemType): Promise<string[]> {
 
 describe('Launcher Settings item reorder (e2e, real server)', () => {
   const ctx = setupE2E()
-
   it('reorders prompt templates, agents, and shortcuts and persists their order', async () => {
     await openProject(ctx, {
       slugBase: 'settings-item-reorder',
       appLauncherConfig: {
         templates: [
-          { name: 'Template A', text: 'a' },
-          { name: 'Template B', text: 'b' },
-          { name: 'Template C', text: 'c' },
+          {
+            name: 'Template A',
+            text: 'a',
+          },
+          {
+            name: 'Template B',
+            text: 'b',
+          },
+          {
+            name: 'Template C',
+            text: 'c',
+          },
         ],
         profiles: [
-          { name: 'Agent A', command: 'echo a' },
-          { name: 'Agent B', command: 'echo b' },
-          { name: 'Agent C', command: 'echo c' },
+          {
+            name: 'Agent A',
+            command: 'echo a',
+          },
+          {
+            name: 'Agent B',
+            command: 'echo b',
+          },
+          {
+            name: 'Agent C',
+            command: 'echo c',
+          },
         ],
         shortcuts: [
-          { name: 'Shortcut A', command: 'echo a' },
-          { name: 'Shortcut B', command: 'echo b' },
-          { name: 'Shortcut C', command: 'echo c' },
+          {
+            name: 'Shortcut A',
+            command: 'echo a',
+          },
+          {
+            name: 'Shortcut B',
+            command: 'echo b',
+          },
+          {
+            name: 'Shortcut C',
+            command: 'echo c',
+          },
         ],
       },
     })
     await openLauncherSettings(ctx.page)
-
     await openLauncherSettingsTab(ctx.page, 'prompts')
     await dragItem(ctx.page, 'template', 'Template A', 'Template C')
     await expect.poll(() => itemNames(ctx.page, 'template')).toEqual(['Template B', 'Template C', 'Template A'])
-
     await openLauncherSettingsTab(ctx.page, 'launch')
     await dragItem(ctx.page, 'profile', 'Agent A', 'Agent C')
     await expect.poll(() => itemNames(ctx.page, 'profile')).toEqual(['Agent B', 'Agent C', 'Agent A'])
     await dragItem(ctx.page, 'shortcut', 'Shortcut A', 'Shortcut C')
     await expect.poll(() => itemNames(ctx.page, 'shortcut')).toEqual(['Shortcut B', 'Shortcut C', 'Shortcut A'])
-
     const appConfig = await poll(
       () => readAppLauncherConfig(ctx.testServer),
       (config) =>

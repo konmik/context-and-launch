@@ -9,7 +9,6 @@ import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
 export function createBoardShortcutRunner(deps: { projectSlug: () => string; config: () => MergedLauncherConfigWithMeta | undefined }) {
   const [activeTicket, setActiveTicket] = createSignal<TicketInfo>()
   const [error, setError] = createSignal<ErrorInfo | null>(null)
-
   const launchDir = createMemo(() => {
     const ticket = activeTicket()
     const config = deps.config()
@@ -23,7 +22,6 @@ export function createBoardShortcutRunner(deps: { projectSlug: () => string; con
       savedAgentWorktreeDir: ticket.agentWorktreeDir,
     })
   })
-
   const shortcutState = createShortcutState({
     projectSlug: deps.projectSlug,
     folderName: () => activeTicket()?.folderName ?? '',
@@ -33,8 +31,7 @@ export function createBoardShortcutRunner(deps: { projectSlug: () => string; con
   })
 
   function run(ticket: TicketInfo, name: string) {
-    setActiveTicket(ticket)
-    // The shortcut command imperatively reads the ticket selected by this same event.
+    setActiveTicket(ticket) // The shortcut command imperatively reads the ticket selected by this same event.
     flush()
     void shortcutState.runShortcut(name)
   }

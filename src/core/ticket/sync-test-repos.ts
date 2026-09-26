@@ -16,7 +16,6 @@ export function createTicketSyncManager(): TicketSyncManager {
 const getNoUpstreamTemplate = lazyTemplate(() => {
   const bareDir = makeTempDir('sync-orphan-bare-tpl-')
   gitSync(bareDir, 'init', '--bare')
-
   const seedDir = makeTempDir('sync-orphan-seed-tpl-')
   gitSync(seedDir, 'init')
   fs.writeFileSync(path.join(seedDir, 'remote-only.txt'), 'from remote')
@@ -25,7 +24,6 @@ const getNoUpstreamTemplate = lazyTemplate(() => {
   gitSync(seedDir, 'commit', '-m', 'seed')
   gitSync(seedDir, 'remote', 'add', 'origin', bareDir)
   gitSync(seedDir, 'push', '-u', 'origin', 'master')
-
   const worktreeDir = makeTempDir('sync-orphan-worktree-tpl-')
   gitSync(worktreeDir, 'init')
   fs.writeFileSync(path.join(worktreeDir, 'shared.txt'), 'shared')
@@ -33,8 +31,10 @@ const getNoUpstreamTemplate = lazyTemplate(() => {
   gitSync(worktreeDir, 'add', '-A')
   gitSync(worktreeDir, 'commit', '-m', 'local init')
   gitSync(worktreeDir, 'remote', 'add', 'origin', bareDir)
-
-  return { bareDir, worktreeDir }
+  return {
+    bareDir,
+    worktreeDir,
+  }
 })
 
 export function createNoUpstreamRepoWithExistingRemoteBranch(dirs: string[]) {
@@ -43,7 +43,10 @@ export function createNoUpstreamRepoWithExistingRemoteBranch(dirs: string[]) {
   const worktreeDir = cloneFromTemplate(template.worktreeDir, 'sync-orphan-')
   setGitOriginUrl(worktreeDir, remoteDir)
   dirs.push(remoteDir, worktreeDir)
-  return { worktreeDir, remoteDir }
+  return {
+    worktreeDir,
+    remoteDir,
+  }
 }
 
 export function cleanup(...dirs: string[]): Promise<void> {
@@ -58,7 +61,10 @@ const getRemoteRepoTemplate = lazyTemplate(() => {
   gitSync(worktreeDir, 'commit', '--allow-empty', '-m', 'init')
   gitSync(worktreeDir, 'remote', 'add', 'origin', bareDir)
   gitSync(worktreeDir, 'push', '-u', 'origin', 'master')
-  return { bareDir, worktreeDir }
+  return {
+    bareDir,
+    worktreeDir,
+  }
 })
 
 export function createRepoWithRemote() {
@@ -66,7 +72,10 @@ export function createRepoWithRemote() {
   const remoteDir = cloneFromTemplate(template.bareDir, 'sync-remote-')
   const worktreeDir = cloneFromTemplate(template.worktreeDir, 'sync-worktree-')
   setGitOriginUrl(worktreeDir, remoteDir)
-  return { worktreeDir, remoteDir }
+  return {
+    worktreeDir,
+    remoteDir,
+  }
 }
 
 export function conflictResolveDir(worktreeDir: string): string {
@@ -74,7 +83,10 @@ export function conflictResolveDir(worktreeDir: string): string {
 }
 
 export async function pushRemoteConflict(remoteDir: string, _dirs: string[], extraFiles: Record<string, string> = {}): Promise<void> {
-  const files = { 'conflict.txt': 'remote content', ...extraFiles }
+  const files = {
+    'conflict.txt': 'remote content',
+    ...extraFiles,
+  }
   const chunks = [
     'feature done\n',
     'commit refs/heads/master\n',
@@ -86,6 +98,5 @@ export async function pushRemoteConflict(remoteDir: string, _dirs: string[], ext
     chunks.push(`M 100644 inline ${JSON.stringify(relativePath.replace(/\\/g, '/'))}\n`, `data ${Buffer.byteLength(content)}\n${content}\n`)
   }
   chunks.push('done\n')
-
   await gitFastImport(remoteDir, chunks.join(''))
 }

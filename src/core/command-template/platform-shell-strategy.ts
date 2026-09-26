@@ -23,9 +23,8 @@ export interface PlatformShellStrategy {
   buildShellInvocation(script: string): ShellInvocation
   newlineArgvRejection(program: string): string | undefined
   detachSpawnedChild(): boolean
-}
+} // `pwsh -Command` collapses any non-zero native exit to 1, and a statement
 
-// `pwsh -Command` collapses any non-zero native exit to 1, and a statement
 // terminating engine error (CommandNotFoundException) is indistinguishable from
 // a command that deliberately exited 1. The trap re-widens both: it re-raises the
 // native command's real code, and maps engine failures onto the reserved codes.
@@ -87,9 +86,8 @@ export function windowsPowerShellExecutable(): string {
     if (fs.existsSync(file)) return file
   }
   return 'pwsh'
-}
+} // .bat/.cmd need a shell (Node refuses to execFile them), so only these formats
 
-// .bat/.cmd need a shell (Node refuses to execFile them), so only these formats
 // can run interpreter-free on Windows.
 const WINDOWS_DIRECT_EXECUTABLE_EXTENSIONS = ['.exe', '.com']
 const WINDOWS_BATCH_EXTENSIONS = ['.cmd', '.bat']
@@ -137,9 +135,8 @@ export function resolveDirectExecutable(program: string, platform: CommandTempla
     directExecutableCache.set(cacheKey, searchExecutableOnPath(program, strategy, strategy.directExecutableExtensions()))
   }
   return directExecutableCache.get(cacheKey)
-}
+} // The shell resolves an extensionless program via PATHEXT, where .com/.exe win
 
-// The shell resolves an extensionless program via PATHEXT, where .com/.exe win
 // over .bat/.cmd, so a batch script is the target only when no direct
 // executable shadows it.
 function isWindowsBatchTarget(program: string): boolean {
@@ -170,18 +167,20 @@ const windowsShellStrategy: PlatformShellStrategy = {
   },
   detachSpawnedChild: () => false,
 }
-
 const posixShellStrategy: PlatformShellStrategy = {
   directExecutableExtensions: () => [],
   isExecutableFile(file) {
     const stats = executableFileStats(file)
-    return stats !== undefined && (stats.mode & 0o111) !== 0
+    return stats !== undefined && (stats.mode & 73) !== 0
   },
   // Bash already exits 127 for an unresolvable command and propagates a failing
   // command's own code under errexit, so only pipefail needs adding.
   buildShellInvocation(script) {
     const wrapper = `set -e\nset -o pipefail\n${script}`
-    return { executable: '/bin/bash', args: ['-c', wrapper] }
+    return {
+      executable: '/bin/bash',
+      args: ['-c', wrapper],
+    }
   },
   newlineArgvRejection: () => undefined,
   detachSpawnedChild: () => true,

@@ -39,7 +39,10 @@ export default function ForestCard(props: { data: ForestNodeData; selected?: boo
   }
 
   function ConnectionHandle(handleProps: { end: 'top' | 'bottom' }) {
-    const endpoint = (): ConnectionEndpoint => ({ ticketNumber: ticketNumber(), end: handleProps.end })
+    const endpoint = (): ConnectionEndpoint => ({
+      ticketNumber: ticketNumber(),
+      end: handleProps.end,
+    })
     const state = () => handleState(endpoint())
     const visible = () => state() !== 'hidden'
     return (
@@ -47,9 +50,7 @@ export default function ForestCard(props: { data: ForestNodeData; selected?: boo
         type="button"
         class={`rounded-full border border-background bg-primary cursor-crosshair
           absolute left-1/2 -translate-x-1/2 ${handleProps.end === 'top' ? '-top-1.5' : '-bottom-1.5'}
-          transition-[opacity,transform,box-shadow] pointer-events-auto ${visible() ? 'opacity-100' : 'opacity-0'}${
-            state() === 'source' ? ' ring-4 ring-primary/30 scale-125' : ''
-          }`}
+          transition-[opacity,transform,box-shadow] pointer-events-auto ${visible() ? 'opacity-100' : 'opacity-0'}${state() === 'source' ? ' ring-4 ring-primary/30 scale-125' : ''}`}
         style={{
           width: '12px',
           height: '12px',
@@ -75,7 +76,9 @@ export default function ForestCard(props: { data: ForestNodeData; selected?: boo
   return (
     <div
       class="relative min-h-[72px] select-none"
-      style={{ width: `${CARD_WIDTH}px` }}
+      style={{
+        width: `${CARD_WIDTH}px`,
+      }}
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
       data-testid={props.data.group ? 'forest-group-card' : 'forest-ticket-card'}
@@ -83,9 +86,7 @@ export default function ForestCard(props: { data: ForestNodeData; selected?: boo
       data-ticket-number={ticketNumber()}
     >
       <div
-        class={`forest-card-surface min-h-[72px] rounded-md bg-card/75 backdrop-blur-[2px] ${
-          props.data.group ? 'border-2 border-dashed' : 'border'
-        }${props.selected ? ' ring-2 ring-primary' : ''}`}
+        class={`forest-card-surface min-h-[72px] rounded-md bg-card/75 backdrop-blur-[2px] ${props.data.group ? 'border-2 border-dashed' : 'border'}${props.selected ? ' ring-2 ring-primary' : ''}`}
       >
         <div class="flex items-start gap-1 p-2">
           <div class="min-w-0 flex-1">

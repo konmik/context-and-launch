@@ -20,17 +20,30 @@ describe('launchErrorInfo', () => {
       output: "Ticket 'st-47' already has a Herdr agent (idle).",
     })
   })
-
   it('falls back to the message when no structured error is present', () => {
-    const result = launchErrorInfo({ message: 'Already started' })
-    expect(result).toEqual({ title: 'Launch failed', description: 'Already started' })
+    const result = launchErrorInfo({
+      message: 'Already started',
+    })
+    expect(result).toEqual({
+      title: 'Launch failed',
+      description: 'Already started',
+    })
   })
 })
-
 describe('resolveDefaults', () => {
   const config = fromPartial<MergedLauncherConfig>({
-    templates: [{ name: 'default', text: '' }],
-    profiles: [{ name: 'fast', command: '' }],
+    templates: [
+      {
+        name: 'default',
+        text: '',
+      },
+    ],
+    profiles: [
+      {
+        name: 'fast',
+        command: '',
+      },
+    ],
     skills: [],
     shortcuts: [],
     columnDefaults: {
@@ -42,7 +55,6 @@ describe('resolveDefaults', () => {
       },
     },
   })
-
   it('returns column defaults when they exist', () => {
     const result = resolveDefaults(config, 'todo')
     expect(result).toEqual({
@@ -53,7 +65,6 @@ describe('resolveDefaults', () => {
       editedPrompt: undefined,
     })
   })
-
   it('falls back to first template/profile when no column defaults', () => {
     const result = resolveDefaults(config, 'done')
     expect(result).toEqual({
@@ -64,7 +75,6 @@ describe('resolveDefaults', () => {
       editedPrompt: undefined,
     })
   })
-
   it('returns empty defaults for null config', () => {
     const result = resolveDefaults(null, 'todo')
     expect(result).toEqual({
@@ -76,7 +86,6 @@ describe('resolveDefaults', () => {
     })
   })
 })
-
 describe('computeLaunchDir', () => {
   it('useWorktree off returns projectPath', () => {
     const result = computeLaunchDir({
@@ -88,7 +97,6 @@ describe('computeLaunchDir', () => {
     })
     expect(result).toBe('/my/project')
   })
-
   it('useWorktree on with explicit worktreeRootPath uses it', () => {
     const result = computeLaunchDir({
       useWorktree: true,
@@ -99,7 +107,6 @@ describe('computeLaunchDir', () => {
     })
     expect(result).toBe('/custom/root/t-1-alpha')
   })
-
   it('useWorktree on with null worktreeRootPath falls back to agentWorktreeDir', () => {
     const result = computeLaunchDir({
       useWorktree: true,
@@ -110,7 +117,6 @@ describe('computeLaunchDir', () => {
     })
     expect(result).toBe('/default/worktrees/t-1-alpha')
   })
-
   it('long folderName is truncated by worktreeFolderName', () => {
     const longName = 't-1-' + 'a'.repeat(60)
     const result = computeLaunchDir({
@@ -123,7 +129,6 @@ describe('computeLaunchDir', () => {
     expect(result.length).toBeLessThan('/root/'.length + longName.length)
     expect(result.startsWith('/root/')).toBe(true)
   })
-
   it('trailing slashes on root path are stripped', () => {
     const result = computeLaunchDir({
       useWorktree: true,
@@ -134,7 +139,6 @@ describe('computeLaunchDir', () => {
     })
     expect(result).toBe('/custom/root/t-1-alpha')
   })
-
   it('empty string worktreeRootPath falls back to agentWorktreeDir', () => {
     const result = computeLaunchDir({
       useWorktree: true,

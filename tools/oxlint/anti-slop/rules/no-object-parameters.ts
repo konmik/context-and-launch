@@ -1,10 +1,9 @@
 import { defineRule } from '@oxlint/plugins'
-
 import type { ESTree, SourceCode } from '@oxlint/plugins'
-
 import { lexicalTypeParameterNames } from '../shared/lexical-type-parameters.ts'
 
 type Parameter = ESTree.ParamPattern
+
 type ParameterOwner =
   | ESTree.ArrowFunctionExpression
   | ESTree.Function
@@ -45,7 +44,6 @@ export const noObjectParametersRule = defineRule({
   },
   createOnce(context) {
     const aliases = new Map<string, ESTree.TSType>()
-
     const resolvesToObject = (type: ESTree.TSType, shadowedAliases: ReadonlySet<string>, visited = new Set<string>()): boolean => {
       if (type.type === 'TSObjectKeyword') return true
       if (type.type === 'TSParenthesizedType') return resolvesToObject(type.typeAnnotation, shadowedAliases, visited)
@@ -67,7 +65,6 @@ export const noObjectParametersRule = defineRule({
       nextVisited.add(type.typeName.name)
       return resolvesToObject(alias, shadowedAliases, nextVisited)
     }
-
     const checkParameters = (node: ParameterOwner) => {
       const shadowedAliases = lexicalTypeParameterNames(node, context.sourceCode.visitorKeys)
       for (const parameter of node.params) {
@@ -77,11 +74,12 @@ export const noObjectParametersRule = defineRule({
         context.report({
           node: annotation.typeAnnotation,
           messageId: 'objectParameter',
-          data: { parameter: parameterName(parameter, context.sourceCode) },
+          data: {
+            parameter: parameterName(parameter, context.sourceCode),
+          },
         })
       }
     }
-
     return {
       Program(node) {
         aliases.clear()

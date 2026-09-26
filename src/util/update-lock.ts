@@ -7,7 +7,7 @@ export class UpdateLock {
   private lease?: Lease
 
   constructor(
-    private readonly leaseMs = 30_000,
+    private readonly leaseMs = 30000,
     private readonly now = Date.now,
   ) {}
 
@@ -19,7 +19,11 @@ export class UpdateLock {
   read<T>(read: () => T, owner?: string): T {
     if (owner && this.activeLease()) throw new Error('File is being updated in another request. Try again.')
     const value = read()
-    if (owner) this.lease = { owner, expiresAt: this.now() + this.leaseMs }
+    if (owner)
+      this.lease = {
+        owner,
+        expiresAt: this.now() + this.leaseMs,
+      }
     return value
   }
 

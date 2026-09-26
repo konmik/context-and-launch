@@ -21,11 +21,13 @@ export async function listHerdrTicketPanes(projectSlug: string, exec: HerdrExecF
 }
 
 export async function listHerdrTicketPaneState(projectSlug: string, exec: HerdrExecFn): Promise<HerdrTicketPaneState> {
-  const workspaces = (await listHerdrWorkspaces(exec)).filter((workspace) => workspace.label === projectSlug)
-  // Without a workspace for this project Herdr cannot be hosting any of its
+  const workspaces = (await listHerdrWorkspaces(exec)).filter((workspace) => workspace.label === projectSlug) // Without a workspace for this project Herdr cannot be hosting any of its
   // agents, so the answer is known without spawning a second Herdr process.
-  if (workspaces.length === 0) return { ticketPanes: [], agents: [] }
-
+  if (workspaces.length === 0)
+    return {
+      ticketPanes: [],
+      agents: [],
+    }
   const workspaceId = workspaces[0].workspace_id
   const [panes, agents] = await Promise.all([listHerdrPanes(exec, workspaceId), listHerdrAgents(exec)])
   const workspaceAgents = agents.filter((agent) => agent.workspace_id === workspaceId)
@@ -36,7 +38,6 @@ export async function listHerdrTicketPaneState(projectSlug: string, exec: HerdrE
     paneAgents.push(agent)
     agentsByPaneId.set(agent.pane_id, paneAgents)
   }
-
   const labelPrefix = `${projectSlug}--`
   const ticketPanes: HerdrTicketPane[] = []
   for (const pane of panes) {
@@ -49,5 +50,8 @@ export async function listHerdrTicketPaneState(projectSlug: string, exec: HerdrE
       agentStatuses: paneAgents.map((agent) => agent.agent_status ?? 'unknown'),
     })
   }
-  return { ticketPanes, agents: workspaceAgents }
+  return {
+    ticketPanes,
+    agents: workspaceAgents,
+  }
 }

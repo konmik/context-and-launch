@@ -2,9 +2,9 @@ import type { CommandTemplateListValues, CommandTemplatePlatform, CommandTemplat
 
 export const PLACEHOLDER_SOURCE = '\\{\\{([^{}]+)\\}\\}'
 export const PATH_SUFFIX_SOURCE = '[\\\\/][^\\s"\'`|;&(){}\\[\\]]*'
-
 const PLACEHOLDER_PATTERN = new RegExp(PLACEHOLDER_SOURCE, 'g')
 const PLACEHOLDER_WITH_PATH_SUFFIX_PATTERN = new RegExp(`${PLACEHOLDER_SOURCE}(${PATH_SUFFIX_SOURCE})?`, 'g')
+
 /**
  * Names a script references that the action does not declare. A template body is
  * edited by hand, so a misspelled name would otherwise survive interpolation as
@@ -41,8 +41,7 @@ export function interpolateCommandTemplate(
   platform: CommandTemplatePlatform,
 ): string {
   const scalarNames = new Set(knownScalarPlaceholders)
-  const listNames = new Set(knownListPlaceholders)
-  // Render from the original script in one pass. Repeated replaceAll calls would
+  const listNames = new Set(knownListPlaceholders) // Render from the original script in one pass. Repeated replaceAll calls would
   // rescan an already escaped runtime value, so a literal value such as
   // "{{otherKnownValue}}" could accidentally be interpreted as template syntax.
   return script.replace(PLACEHOLDER_WITH_PATH_SUFFIX_PATTERN, (placeholder, name: string, pathSuffix: string | undefined) => {
@@ -53,8 +52,7 @@ export function interpolateCommandTemplate(
     }
     if (!listNames.has(name)) return placeholder
     const value = listValues[name]
-    if (value === undefined) return placeholder
-    // PowerShell does not concatenate a quoted argument with an adjacent path
+    if (value === undefined) return placeholder // PowerShell does not concatenate a quoted argument with an adjacent path
     // suffix: 'C:\dir'/tool.ps1 becomes two argv entries. Fold a static suffix
     // into scalar values before quoting so existing Profile bodies such as
     // {{configDefaultsDir}}/run-agent.ps1 remain one safely escaped argument.

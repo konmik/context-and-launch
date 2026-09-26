@@ -8,7 +8,12 @@ export async function mapConcurrent<T, R>(items: T[], limit: number, fn: (item: 
       results[index] = await fn(items[index])
     }
   }
-  const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker())
+  const workers = Array.from(
+    {
+      length: Math.min(limit, items.length),
+    },
+    () => worker(),
+  )
   await Promise.all(workers)
   return results
 }

@@ -8,7 +8,10 @@ const PERSIST_DEBOUNCE_MS = 400
 export interface PromptPreviewDeps {
   selectedTemplate: () => string
   checkedSkills: () => Set<string>
-  orderedSkills: () => { name: string; text: string }[]
+  orderedSkills: () => {
+    name: string
+    text: string
+  }[]
   config: () => MergedLauncherConfig | null
   /** Omitted for a project-level launch: ticket placeholders are then unavailable. */
   ticket?: () => TicketInfo
@@ -23,9 +26,9 @@ export interface PromptPreviewDeps {
 export function createPromptPreviewController(deps: PromptPreviewDeps) {
   const [editMode, setEditModeRaw] = createSignal(deps.initialEditedPrompt !== undefined)
   const [editedPrompt, setEditedPromptRaw] = createSignal(deps.initialEditedPrompt ?? '')
-
   let persistTimer: ReturnType<typeof setTimeout> | undefined
   onSettled(() => () => clearTimeout(persistTimer))
+
   function persist(value: string | undefined) {
     clearTimeout(persistTimer)
     persistTimer = setTimeout(() => deps.onEditedPromptChange(value), PERSIST_DEBOUNCE_MS)
@@ -60,7 +63,6 @@ export function createPromptPreviewController(deps: PromptPreviewDeps) {
     }
     return interpolatePrompt(templateText, variables)
   })
-
   const currentPrompt = createMemo(() => (editMode() ? editedPrompt() : generatedPrompt()))
 
   function setEditedPrompt(value: string) {

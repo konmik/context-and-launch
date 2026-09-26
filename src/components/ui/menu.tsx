@@ -1,4 +1,3 @@
-/* eslint-disable max-len */
 import { Show, createContext, createEffect, createSignal, useContext } from 'solid-js'
 import { Portal, type ComponentProps, type JSX } from '@solidjs/web'
 
@@ -6,7 +5,10 @@ interface MenuContextValue {
   open: () => boolean
   toggle(): void
   close(restoreFocus?: boolean): void
-  position(): { left: number; top: number }
+  position(): {
+    left: number
+    top: number
+  }
   trigger?: HTMLButtonElement
   content?: HTMLDivElement
 }
@@ -79,6 +81,7 @@ export function MenuTrigger(props: MenuButtonProps) {
     />
   )
 }
+
 export function MenuContent(props: ComponentProps<'div'>) {
   const menu = useContext(MenuContext)
   return (
@@ -90,7 +93,11 @@ export function MenuContent(props: ComponentProps<'div'>) {
       role="menu"
       data-scope="menu"
       data-part="content"
-      style={{ position: 'fixed', left: `${menu.position().left}px`, top: `${menu.position().top}px` }}
+      style={{
+        position: 'fixed',
+        left: `${menu.position().left}px`,
+        top: `${menu.position().top}px`,
+      }}
       onPointerDown={(e) => e.stopPropagation()}
       onKeyDown={(event) => {
         const items = [...event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])')]
@@ -109,7 +116,13 @@ export function MenuContent(props: ComponentProps<'div'>) {
     />
   )
 }
-export function MenuItem(props: MenuButtonProps & { value?: string; closeOnSelect?: boolean }) {
+
+export function MenuItem(
+  props: MenuButtonProps & {
+    value?: string
+    closeOnSelect?: boolean
+  },
+) {
   const menu = useContext(MenuContext)
   return (
     <button
@@ -126,6 +139,7 @@ export function MenuItem(props: MenuButtonProps & { value?: string; closeOnSelec
     />
   )
 }
+
 export function MenuSeparator(props: ComponentProps<'div'>) {
   return <div {...props} role="separator" data-scope="menu" data-part="separator" />
 }

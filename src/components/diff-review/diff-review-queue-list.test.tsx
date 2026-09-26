@@ -11,7 +11,10 @@ function TicketQueue(props: { profileName: string }) {
   return (
     <ReviewAgentStatusContext
       value={{
-        get: () => ({ worktreeIdentity: 'worktree', agentRunning: false }),
+        get: () => ({
+          worktreeIdentity: 'worktree',
+          agentRunning: false,
+        }),
         refresh: async () => {},
       }}
     >
@@ -27,7 +30,13 @@ function Queue(props: { items: ReviewPromptQueueItem[] }) {
         get: () => ({
           version: 2,
           tickets: {
-            ticket: { worktreeIdentity: 'worktree', reviewedLines: {}, queue: { items: props.items } },
+            ticket: {
+              worktreeIdentity: 'worktree',
+              reviewedLines: {},
+              queue: {
+                items: props.items,
+              },
+            },
           },
         }),
         update: async () => succeed(undefined),
@@ -46,8 +55,17 @@ function makeItem(overrides: { id?: string; feedback?: string; state?: 'waiting'
     feedback: 'Please review this.',
   }
   return overrides.state === 'sent'
-    ? { ...base, ...overrides, state: 'sent', sentAt: '2026-08-13T00:01:00.000Z' }
-    : { ...base, ...overrides, state: 'waiting' }
+    ? {
+        ...base,
+        ...overrides,
+        state: 'sent',
+        sentAt: '2026-08-13T00:01:00.000Z',
+      }
+    : {
+        ...base,
+        ...overrides,
+        state: 'waiting',
+      }
 }
 
 function itemByFeedback(container: HTMLElement, feedback: string) {
@@ -56,8 +74,12 @@ function itemByFeedback(container: HTMLElement, feedback: string) {
 }
 
 function fireAnimationEnd(element: Element, animationName: string) {
-  const event = new Event('animationend', { bubbles: false })
-  Object.defineProperty(event, 'animationName', { value: animationName })
+  const event = new Event('animationend', {
+    bubbles: false,
+  })
+  Object.defineProperty(event, 'animationName', {
+    value: animationName,
+  })
   element.dispatchEvent(event)
 }
 
@@ -69,7 +91,6 @@ function bodyOf(item: HTMLElement) {
 
 describe('ReviewPromptQueueList', () => {
   afterEach(() => cleanup())
-
   it("removes from the latest queue and clears only the removed head's launch request", async () => {
     let saved: DiffReviewProjectState = {
       version: 2,
@@ -78,7 +99,14 @@ describe('ReviewPromptQueueList', () => {
           worktreeIdentity: 'worktree',
           reviewedLines: {},
           queue: {
-            items: [makeItem({ id: 'a' }), makeItem({ id: 'b' })],
+            items: [
+              makeItem({
+                id: 'a',
+              }),
+              makeItem({
+                id: 'b',
+              }),
+            ],
             requestedAgentProfileName: 'agent',
           },
         },
@@ -106,7 +134,6 @@ describe('ReviewPromptQueueList', () => {
     expect(saved.tickets.ticket.queue.requestedAgentProfileName).toBeUndefined()
     expect(get().tickets.ticket.queue.items).toEqual([])
   })
-
   it('refuses to remove a prompt that started delivery after the last render', async () => {
     let saved: DiffReviewProjectState = {
       version: 2,
@@ -115,7 +142,11 @@ describe('ReviewPromptQueueList', () => {
           worktreeIdentity: 'worktree',
           reviewedLines: {},
           queue: {
-            items: [makeItem({ id: 'a' })],
+            items: [
+              makeItem({
+                id: 'a',
+              }),
+            ],
           },
         },
       },
@@ -136,7 +167,15 @@ describe('ReviewPromptQueueList', () => {
       tickets: {
         ticket: {
           ...saved.tickets.ticket,
-          queue: { items: [{ ...saved.tickets.ticket.queue.items[0], state: 'delivering', deliveryStartedAt: new Date().toISOString() }] },
+          queue: {
+            items: [
+              {
+                ...saved.tickets.ticket.queue.items[0],
+                state: 'delivering',
+                deliveryStartedAt: new Date().toISOString(),
+              },
+            ],
+          },
         },
       },
     }
@@ -144,53 +183,74 @@ describe('ReviewPromptQueueList', () => {
     await expect.poll(() => container.querySelector('[role="alert"]')?.textContent).toContain('already delivering')
     expect(saved.tickets.ticket.queue.items[0].state).toBe('delivering')
   })
-
   it('keeps each item on its own DOM node while another item is removed', () => {
-    const [items, setItems] = createSignal([makeItem({ id: 'a', feedback: 'alpha' }), makeItem({ id: 'b', feedback: 'beta' })])
+    const [items, setItems] = createSignal([
+      makeItem({
+        id: 'a',
+        feedback: 'alpha',
+      }),
+      makeItem({
+        id: 'b',
+        feedback: 'beta',
+      }),
+    ])
     const { container } = render(() => <Queue items={items()} />)
     const betaBefore = itemByFeedback(container, 'beta')
     expect(betaBefore).toBeTruthy()
-
     setItems((list) => list.filter((item) => item.id !== 'a'))
     flush()
     const alpha = itemByFeedback(container, 'alpha')
     expect(alpha).toBeTruthy()
     fireAnimationEnd(bodyOf(alpha!), 'vertical-reveal-close')
     flush()
-
     const betaAfter = itemByFeedback(container, 'beta')
     expect(betaAfter).toBeTruthy()
     expect(betaAfter!.isSameNode(betaBefore!)).toBe(true)
   })
-
   it('collapses every leaving item when several are removed at once', () => {
-    const [items, setItems] = createSignal([makeItem({ id: 'a', feedback: 'alpha' }), makeItem({ id: 'b', feedback: 'beta' })])
+    const [items, setItems] = createSignal([
+      makeItem({
+        id: 'a',
+        feedback: 'alpha',
+      }),
+      makeItem({
+        id: 'b',
+        feedback: 'beta',
+      }),
+    ])
     const { container } = render(() => <Queue items={items()} />)
     const betaBefore = itemByFeedback(container, 'beta')
     expect(betaBefore).toBeTruthy()
-
     setItems(() => [])
     flush()
     const alpha = itemByFeedback(container, 'alpha')
     expect(alpha).toBeTruthy()
     fireAnimationEnd(bodyOf(alpha!), 'vertical-reveal-close')
     flush()
-
     const betaWhileLeaving = itemByFeedback(container, 'beta')
     expect(betaWhileLeaving).toBeTruthy()
     expect(betaWhileLeaving!.isSameNode(betaBefore!)).toBe(true)
-
     fireAnimationEnd(bodyOf(betaWhileLeaving!), 'vertical-reveal-close')
     flush()
     expect(container.querySelector('[data-testid="diff-review-queue"]')).toBeNull()
   })
-
   it("updates an item's content in place when its data changes", () => {
-    const [items, setItems] = createSignal([makeItem({ id: 'a', feedback: 'alpha', state: 'waiting' })])
+    const [items, setItems] = createSignal([
+      makeItem({
+        id: 'a',
+        feedback: 'alpha',
+        state: 'waiting',
+      }),
+    ])
     const { container } = render(() => <Queue items={items()} />)
     expect(container.querySelector('[data-testid="diff-review-queue-remove"]')).toBeTruthy()
-
-    setItems([makeItem({ id: 'a', feedback: 'alpha updated', state: 'sent' })])
+    setItems([
+      makeItem({
+        id: 'a',
+        feedback: 'alpha updated',
+        state: 'sent',
+      }),
+    ])
     flush()
     const updated = itemByFeedback(container, 'alpha updated')
     expect(updated).toBeTruthy()

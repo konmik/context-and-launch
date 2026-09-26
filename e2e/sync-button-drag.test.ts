@@ -5,9 +5,11 @@ import { testId, waitVisible, waitGone } from './locators.js'
 
 describe('Sync button drag (e2e, real server)', () => {
   const ctx = setupE2E()
-
   it('pending badge appears after creating a ticket', async () => {
-    await openProject(ctx, { slugBase: 'sb-pending-appear', withRemote: true })
+    await openProject(ctx, {
+      slugBase: 'sb-pending-appear',
+      withRemote: true,
+    })
     await testId(ctx.page, 'project-header-new-ticket-button').click()
     await waitVisible(ctx.page, 'create-ticket-number-input')
     await testId(ctx.page, 'create-ticket-number-input').fill('P-1')
@@ -15,48 +17,66 @@ describe('Sync button drag (e2e, real server)', () => {
     await testId(ctx.page, 'create-ticket-submit').click()
     await waitVisible(ctx.page, 'sync-button-pending-badge')
   })
-
   it('pending badge disappears after sync', async () => {
-    await openProject(ctx, { slugBase: 'sb-pending-sync', withRemote: true })
+    await openProject(ctx, {
+      slugBase: 'sb-pending-sync',
+      withRemote: true,
+    })
     await waitVisible(ctx.page, 'sync-button-pending-badge')
     await testId(ctx.page, 'sync-button-trigger').click()
     await waitGone(ctx.page, 'sync-button-pending-badge')
   })
-
   it('pending badge clears after dragging a ticket there and back', async () => {
     const project = await openProject(ctx, {
       slugBase: 'sb-pending-dragback',
       withRemote: true,
       seedRemoteBaseline: true,
       withBoards: THREE_COLUMN_BOARD,
-      withTickets: [{ number: 'B-1', title: 'Boomerang', status: 'todo', folderName: 'b-1-boomerang' }],
+      withTickets: [
+        {
+          number: 'B-1',
+          title: 'Boomerang',
+          status: 'todo',
+          folderName: 'b-1-boomerang',
+        },
+      ],
       withTicketOrder: {
         todo: ['b-1-boomerang'],
         'in-progress': [],
         done: [],
       },
     })
-
     await dragElement(
       ctx.page,
       sortableItem(ctx.page, 'todo:b-1-boomerang'),
-      testId(ctx.page, 'kanban-board-empty-dropzone', { 'data-column-name': 'in-progress' }),
+      testId(ctx.page, 'kanban-board-empty-dropzone', {
+        'data-column-name': 'in-progress',
+      }),
     )
-    await sortableItem(ctx.page, 'in-progress:b-1-boomerang').waitFor({ state: 'visible', timeout: 15000 })
+    await sortableItem(ctx.page, 'in-progress:b-1-boomerang').waitFor({
+      state: 'visible',
+      timeout: 15000,
+    })
     await waitVisible(ctx.page, 'sync-button-pending-badge')
     await dragElement(
       ctx.page,
       sortableItem(ctx.page, 'in-progress:b-1-boomerang'),
-      testId(ctx.page, 'kanban-board-empty-dropzone', { 'data-column-name': 'todo' }),
+      testId(ctx.page, 'kanban-board-empty-dropzone', {
+        'data-column-name': 'todo',
+      }),
     )
-
-    await waitGone(ctx.page, 'sync-button-pending-badge')
-
-    // The badge is driven by a poll, so it can clear before the auto-commit that
+    await waitGone(ctx.page, 'sync-button-pending-badge') // The badge is driven by a poll, so it can clear before the auto-commit that
     // follows the second drag has finished writing the tree.
-    await expect.poll(() => porcelainStatus(project.ticketsPath), { timeout: 15000 }).toBe('')
-    // Whether the two moves land in one auto-commit window or two is a matter of
+    await expect
+      .poll(() => porcelainStatus(project.ticketsPath), {
+        timeout: 15000,
+      })
+      .toBe('') // Whether the two moves land in one auto-commit window or two is a matter of
     // machine speed; what must hold is that the round trip left no net change.
-    await expect.poll(() => upstreamDiff(project.ticketsPath), { timeout: 15000 }).toBe('')
+    await expect
+      .poll(() => upstreamDiff(project.ticketsPath), {
+        timeout: 15000,
+      })
+      .toBe('')
   })
 })

@@ -1,7 +1,6 @@
 import { createSignal, createMemo, type Accessor } from 'solid-js'
-import type { DragEvent as DndDragEvent } from '~/components/drag/drag-types.js'
+import type { DragEvent as DndDragEvent } from '~/components/drag/drag-types.js' // Fractional sort key for an item dropped between two neighbours, given their
 
-// Fractional sort key for an item dropped between two neighbours, given their
 // orders (undefined when the item lands at an end of the list). Picking the
 // midpoint means only the moved item's order changes, never its neighbours'.
 export function midpointOrder(before: number | undefined, after: number | undefined): number {
@@ -11,7 +10,11 @@ export function midpointOrder(before: number | undefined, after: number | undefi
   return (before + after) / 2
 }
 
-export function orderByNameList<T extends { name: string }>(items: T[], preferredNames: string[]): T[] {
+export function orderByNameList<
+  T extends {
+    name: string
+  },
+>(items: T[], preferredNames: string[]): T[] {
   if (preferredNames.length === 0) return items
   const rank = new Map(preferredNames.map((name, i) => [name, i]))
   return [...items].sort((a, b) => {
@@ -23,13 +26,15 @@ export function orderByNameList<T extends { name: string }>(items: T[], preferre
 
 export interface ListReorder<T> {
   activeId: Accessor<string | null>
-  dropPreview: Accessor<{ insertBefore: number; item: T } | null>
+  dropPreview: Accessor<{
+    insertBefore: number
+    item: T
+  } | null>
   onDragStart: (event: DndDragEvent) => void
   onDragOver: (event: DndDragEvent) => void
   onDragEnd: (event: DndDragEvent) => void
-}
+} // Shared drag-to-reorder state machine for a flat list of uniquely-keyed items.
 
-// Shared drag-to-reorder state machine for a flat list of uniquely-keyed items.
 // Both the column list and the skill list use it; they differ only in how the
 // resulting order is persisted (onReorder receives the new id order plus the
 // dragged item). The DnD visual language lives in dnd-shared.
@@ -39,10 +44,11 @@ export function createListReorder<T>(opts: {
   onReorder: (orderedIds: string[], dragged: T) => void
 }): ListReorder<T> {
   const [activeId, setActiveId] = createSignal<string | null>(null)
-  const [overId, setOverId] = createSignal<string | null>(null)
-
-  // The faded ghost row marking where the dragged item will land.
-  const dropPreview = createMemo<{ insertBefore: number; item: T } | null>(() => {
+  const [overId, setOverId] = createSignal<string | null>(null) // The faded ghost row marking where the dragged item will land.
+  const dropPreview = createMemo<{
+    insertBefore: number
+    item: T
+  } | null>(() => {
     const list = opts.items()
     const active = activeId()
     const over = overId()
@@ -52,7 +58,10 @@ export function createListReorder<T>(opts: {
     const overIdx = ids.indexOf(over)
     if (fromIdx < 0 || overIdx < 0) return null
     const insertBefore = fromIdx < overIdx ? overIdx + 1 : overIdx
-    return { insertBefore, item: list[fromIdx] }
+    return {
+      insertBefore,
+      item: list[fromIdx],
+    }
   })
 
   function onDragStart(event: DndDragEvent) {
@@ -81,5 +90,11 @@ export function createListReorder<T>(opts: {
     opts.onReorder(newOrder, list[fromIdx])
   }
 
-  return { activeId, dropPreview, onDragStart, onDragOver, onDragEnd }
+  return {
+    activeId,
+    dropPreview,
+    onDragStart,
+    onDragOver,
+    onDragEnd,
+  }
 }

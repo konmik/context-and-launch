@@ -38,7 +38,12 @@ import {
 } from 'lucide'
 
 type IconNode = readonly (readonly [string, Record<string, string | number | undefined>])[]
-type IconProps = ComponentProps<'svg'> & { size?: number | string; color?: string; strokeWidth?: number | string }
+
+type IconProps = ComponentProps<'svg'> & {
+  size?: number | string
+  color?: string
+  strokeWidth?: number | string
+}
 
 function icon(node: IconNode, name: string) {
   return function Icon(props: IconProps) {

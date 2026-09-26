@@ -7,7 +7,9 @@ import { readProjectLauncherConfig, saveProjectLauncherConfig, releaseProjectLau
 export const ProjectLauncherConfigContext = createContext<StoredSignal<LauncherConfig>>()
 
 export function createProjectLauncherConfigStorage(
-  props: { projectSlug: string },
+  props: {
+    projectSlug: string
+  },
   persistence = {
     read: readProjectLauncherConfig,
     save: saveProjectLauncherConfig,

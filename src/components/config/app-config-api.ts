@@ -5,6 +5,7 @@ import { errorMessage } from '~/core/shared/errors.js'
 
 export async function readAppConfig(owner?: string): Promise<Result<AppConfigData, string>> {
   'use server'
+
   try {
     return succeed(appConfigStore.read(owner))
   } catch (error) {
@@ -14,6 +15,7 @@ export async function readAppConfig(owner?: string): Promise<Result<AppConfigDat
 
 export async function saveAppConfig(configJson: string, owner: string): Promise<Result<AppConfigData, string>> {
   'use server'
+
   try {
     return owner
       ? succeed(appConfigStore.update(() => JSON.parse(configJson), owner))
@@ -25,11 +27,13 @@ export async function saveAppConfig(configJson: string, owner: string): Promise<
 
 export async function releaseAppConfig(owner: string): Promise<void> {
   'use server'
+
   appConfigStore.release(owner)
 }
 
 export async function recordAppProjectFocus(projectSlug: string): Promise<Result<AppConfigData, string>> {
   'use server'
+
   try {
     return succeed(await appConfigStore.recordProjectFocus(projectSlug))
   } catch (error) {

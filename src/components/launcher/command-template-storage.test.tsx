@@ -10,7 +10,6 @@ import { CommandTemplatesTab } from './launcher-settings-command-templates-tab.j
 import { TabsRoot } from '../ui/tabs.js'
 
 afterEach(cleanup)
-
 it('shares saved overrides between editors, retaining a failed draft and propagating reset', async () => {
   let persisted: CommandTemplateOverrides = {}
   let reject = false
@@ -38,20 +37,30 @@ it('shares saved overrides between editors, retaining a failed draft and propaga
   const buttons = (id: string) =>
     container.querySelectorAll<HTMLButtonElement>(`[data-command-template-key="git.version"] [data-testid="${id}"]`)
   await waitFor(() => expect(fields()).toHaveLength(2))
-  fireEvent.input(fields()[0], { target: { value: 'custom version' } })
+  fireEvent.input(fields()[0], {
+    target: {
+      value: 'custom version',
+    },
+  })
   await waitFor(() => expect(buttons('command-template-editor-save')[0].disabled).toBe(false))
   fireEvent.click(buttons('command-template-editor-save')[0])
   await waitFor(() => expect(fields().map((field) => field.value)).toEqual(['custom version', 'custom version']))
-  expect(persisted).toEqual({ 'git.version': 'custom version' })
-
+  expect(persisted).toEqual({
+    'git.version': 'custom version',
+  })
   reject = true
-  fireEvent.input(fields()[0], { target: { value: 'failed draft' } })
+  fireEvent.input(fields()[0], {
+    target: {
+      value: 'failed draft',
+    },
+  })
   await waitFor(() => expect(buttons('command-template-editor-save')[0].disabled).toBe(false))
   fireEvent.click(buttons('command-template-editor-save')[0])
   await waitFor(() => expect(document.body.textContent).toContain('write failed'))
   expect(fields().map((field) => field.value)).toEqual(['failed draft', 'custom version'])
-  expect(storage.get()).toEqual({ 'git.version': 'custom version' })
-
+  expect(storage.get()).toEqual({
+    'git.version': 'custom version',
+  })
   reject = false
   fireEvent.click(buttons('command-template-reset')[0])
   await waitFor(() =>

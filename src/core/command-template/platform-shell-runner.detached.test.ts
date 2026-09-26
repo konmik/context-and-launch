@@ -7,8 +7,9 @@ import { isAlive } from '../launcher/process-utils.js'
 import { AppError, ProcessError } from '../shared/errors.js'
 import { killIfAlive, useTempDirs, waitForFile } from './platform-shell-fixture.test-utils.js'
 
-const makeTempDir = useTempDirs('platform-shell-runner-detached-test-', { cleanupAfterAll: true })
-
+const makeTempDir = useTempDirs('platform-shell-runner-detached-test-', {
+  cleanupAfterAll: true,
+})
 describe.runIf(process.platform === 'win32')('platform shell runner windows batch newline guard', () => {
   it.concurrent('rejects a newline argv value for a .cmd target without spawning', async () => {
     const cwd = makeTempDir()
@@ -18,7 +19,6 @@ describe.runIf(process.platform === 'win32')('platform shell runner windows batc
     await expect(promise).rejects.toBeInstanceOf(ProcessError)
     await expect(promise).rejects.toThrow(/newline/i)
   })
-
   it.concurrent('rejects a newline argv value for an extensionless path resolving to a .cmd target', async () => {
     const cwd = makeTempDir()
     fs.writeFileSync(path.join(cwd, 'tool.cmd'), '@echo off\r\n')
@@ -27,25 +27,21 @@ describe.runIf(process.platform === 'win32')('platform shell runner windows batc
     await expect(promise).rejects.toThrow(/newline/i)
   })
 })
-
 describe('platform shell runner error/success contract', () => {
   it.concurrent('resolves when the process exits 0 before the detach delay', async () => {
     const cwd = makeTempDir()
     await expect(runDetachedProcess(process.execPath, ['-e', 'process.exit(0)'], cwd)).resolves.toBeUndefined()
   })
-
   it.concurrent('rejects with ProcessError when the process exits non-zero', async () => {
     const cwd = makeTempDir()
     const promise = runDetachedProcess(process.execPath, ['-e', "console.error('boom'); process.exit(3)"], cwd)
     await expect(promise).rejects.toBeInstanceOf(ProcessError)
     await expect(promise).rejects.toThrow(/boom/)
   })
-
   it.concurrent('rejects with ProcessError when the executable does not exist', async () => {
     const cwd = makeTempDir()
     await expect(runDetachedProcess('definitely-not-a-real-executable-xyz', [], cwd)).rejects.toBeInstanceOf(ProcessError)
   })
-
   it.concurrent('rejects with AppError carrying stderr as the message on the user-error exit code', async () => {
     const cwd = makeTempDir()
     const script = `console.error('Ticket is busy.'); process.exit(${USER_ERROR_EXIT_CODE})`
@@ -53,14 +49,12 @@ describe('platform shell runner error/success contract', () => {
     await expect(promise).rejects.toBeInstanceOf(AppError)
     await expect(promise).rejects.toThrow('Ticket is busy.')
   })
-
   it.concurrent('rejects with ProcessError on the user-error exit code when stderr is empty', async () => {
     const cwd = makeTempDir()
     const promise = runDetachedProcess(process.execPath, ['-e', `process.exit(${USER_ERROR_EXIT_CODE})`], cwd)
     await expect(promise).rejects.toBeInstanceOf(ProcessError)
   })
 })
-
 describe('platform shell runner stderr temp file cleanup', () => {
   it('removes the stderr temp file once settled via the detach timeout', async () => {
     const cwd = makeTempDir()
@@ -68,7 +62,11 @@ describe('platform shell runner stderr temp file cleanup', () => {
     const pidFile = path.join(cwd, 'child.pid')
     const script =
       "require('fs').writeFileSync(process.argv[1], String(process.pid));" + "console.error('chatty');" + 'setTimeout(() => {}, 30000);'
-    const savedEnv = { TMPDIR: process.env.TMPDIR, TEMP: process.env.TEMP, TMP: process.env.TMP }
+    const savedEnv = {
+      TMPDIR: process.env.TMPDIR,
+      TEMP: process.env.TEMP,
+      TMP: process.env.TMP,
+    }
     process.env.TMPDIR = isolatedTmp
     process.env.TEMP = isolatedTmp
     process.env.TMP = isolatedTmp

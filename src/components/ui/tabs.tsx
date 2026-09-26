@@ -1,8 +1,11 @@
-/* eslint-disable max-len */
 import { createContext, createUniqueId, useContext } from 'solid-js'
 import type { ComponentProps, JSX } from '@solidjs/web'
 
-const TabsContext = createContext<{ id: string; value: () => string; select(value: string): void }>()
+const TabsContext = createContext<{
+  id: string
+  value: () => string
+  select(value: string): void
+}>()
 
 export function TabsRoot(props: {
   value: string
@@ -13,13 +16,23 @@ export function TabsRoot(props: {
 }) {
   const id = createUniqueId()
   return (
-    <TabsContext value={{ id, value: () => props.value, select: (value) => props.onValueChange({ value }) }}>
+    <TabsContext
+      value={{
+        id,
+        value: () => props.value,
+        select: (value) =>
+          props.onValueChange({
+            value,
+          }),
+      }}
+    >
       <div class={props.class} onMouseDown={props.onMouseDown} data-scope="tabs" data-part="root">
         {props.children}
       </div>
     </TabsContext>
   )
 }
+
 export function TabsList(props: { children: JSX.Element }) {
   return (
     <div role="tablist" data-scope="tabs" data-part="list">
@@ -27,7 +40,12 @@ export function TabsList(props: { children: JSX.Element }) {
     </div>
   )
 }
-export function TabsTrigger(props: ComponentProps<'button'> & { value: string }) {
+
+export function TabsTrigger(
+  props: ComponentProps<'button'> & {
+    value: string
+  },
+) {
   const tabs = useContext(TabsContext)
   const selected = () => tabs.value() === props.value
   const tabId = () => `${tabs.id}-tab-${props.value}`
@@ -61,7 +79,12 @@ export function TabsTrigger(props: ComponentProps<'button'> & { value: string })
     />
   )
 }
-export function TabsContent(props: ComponentProps<'div'> & { value: string }) {
+
+export function TabsContent(
+  props: ComponentProps<'div'> & {
+    value: string
+  },
+) {
   const tabs = useContext(TabsContext)
   return (
     <div

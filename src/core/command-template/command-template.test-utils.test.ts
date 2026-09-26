@@ -16,18 +16,18 @@ describe('withTestGitEnvironment', () => {
         GIT_CONFIG_VALUE_0: 'true',
       },
       mode: 'capture',
-      timeoutMs: 30_000,
+      timeoutMs: 30000,
     }
-
     const result = withTestGitEnvironment(request)
     const count = Number(result.environment.GIT_CONFIG_COUNT)
     const config = Object.fromEntries(
-      Array.from({ length: count }, (_, index) => [
-        result.environment[`GIT_CONFIG_KEY_${index}`],
-        result.environment[`GIT_CONFIG_VALUE_${index}`],
-      ]),
+      Array.from(
+        {
+          length: count,
+        },
+        (_, index) => [result.environment[`GIT_CONFIG_KEY_${index}`], result.environment[`GIT_CONFIG_VALUE_${index}`]],
+      ),
     )
-
     expect(result.environment.GIT_TERMINAL_PROMPT).toBe('0')
     expect(config).toEqual({
       'core.longpaths': 'true',

@@ -8,44 +8,49 @@ import { testId, waitVisible, waitGone } from './locators.js'
 
 describe('Launcher Settings Misc tab (e2e, real server)', () => {
   const ctx = setupE2E()
-
   const setup = (suffix: string) =>
     openSettingsTab(ctx, {
       slugBase: `lsg-${suffix}`,
       tab: 'misc',
       withBoards: APP_BOARDS,
     })
-
   it('opens settings panel and shows Misc tab', async () => {
     await setup('opens')
     expect(await testId(ctx.page, 'launcher-settings-tab-misc').count()).toBe(1)
   })
-
   it('opens as a labelled dialog and moves focus inside', async () => {
     await setup('accessible-dialog')
-    const dialog = ctx.page.getByRole('dialog', { name: 'Settings' })
-
+    const dialog = ctx.page.getByRole('dialog', {
+      name: 'Settings',
+    })
     expect(await dialog.count()).toBe(1)
-    expect(await dialog.getByRole('button', { name: 'Close window' }).count()).toBe(1)
+    expect(
+      await dialog
+        .getByRole('button', {
+          name: 'Close window',
+        })
+        .count(),
+    ).toBe(1)
     expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true)
   })
-
   it('traps focus among controls in the active tab', async () => {
     await setup('focus-trap')
-    const dialog = ctx.page.getByRole('dialog', { name: 'Settings' })
+    const dialog = ctx.page.getByRole('dialog', {
+      name: 'Settings',
+    })
     const focusable = dialog
       .locator(
         'button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
           "textarea:not([disabled]), [tabindex]:not([tabindex='-1'])",
       )
-      .filter({ visible: true })
+      .filter({
+        visible: true,
+      })
     const first = focusable.first()
     await focusable.last().focus()
     await ctx.page.keyboard.press('Tab')
-
     expect(await first.evaluate((element) => element === document.activeElement)).toBe(true)
   })
-
   it('keeps the window inside the viewport when dragged', async () => {
     await setup('drag-bounds')
     const panel = ctx.page.locator('[data-scope="floating-panel"][data-part="content"]')
@@ -56,16 +61,16 @@ describe('Launcher Settings Misc tab (e2e, real server)', () => {
     const startY = stripBox.y + stripBox.height / 2
     await ctx.page.mouse.move(startX, startY)
     await ctx.page.mouse.down()
-    await ctx.page.mouse.move(startX + 2_000, startY + 2_000, { steps: 20 })
+    await ctx.page.mouse.move(startX + 2000, startY + 2000, {
+      steps: 20,
+    })
     await ctx.page.mouse.up()
-
     const box = await panel.boundingBox()
     const viewport = ctx.page.viewportSize()
     if (!box || !viewport) throw new Error('Settings window geometry is unavailable')
     expect(box.x + box.width).toBeLessThanOrEqual(viewport.width)
     expect(box.y + box.height).toBeLessThanOrEqual(viewport.height)
   })
-
   it('Escape cancels an active resize without closing Settings', async () => {
     await setup('cancel-resize')
     const panel = ctx.page.locator('[data-scope="floating-panel"][data-part="content"]')
@@ -77,16 +82,22 @@ describe('Launcher Settings Misc tab (e2e, real server)', () => {
     const startY = handleBox.y + handleBox.height / 2
     await ctx.page.mouse.move(startX, startY)
     await ctx.page.mouse.down()
-    await ctx.page.mouse.move(startX - 80, startY - 80, { steps: 10 })
+    await ctx.page.mouse.move(startX - 80, startY - 80, {
+      steps: 10,
+    })
     await ctx.page.keyboard.press('Escape')
     await ctx.page.mouse.up()
-
     const after = await panel.boundingBox()
-    expect(await ctx.page.getByRole('dialog', { name: 'Settings' }).count()).toBe(1)
+    expect(
+      await ctx.page
+        .getByRole('dialog', {
+          name: 'Settings',
+        })
+        .count(),
+    ).toBe(1)
     expect(after?.width).toBe(before.width)
     expect(after?.height).toBe(before.height)
   })
-
   it('preserves its resized geometry after closing and reopening', async () => {
     await setup('persists-geometry')
     const panel = ctx.page.locator('[data-scope="floating-panel"][data-part="content"]')
@@ -95,23 +106,24 @@ describe('Launcher Settings Misc tab (e2e, real server)', () => {
     if (!handleBox) throw new Error('Settings resize control is not visible')
     await ctx.page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2)
     await ctx.page.mouse.down()
-    await ctx.page.mouse.move(handleBox.x - 60, handleBox.y - 60, { steps: 10 })
+    await ctx.page.mouse.move(handleBox.x - 60, handleBox.y - 60, {
+      steps: 10,
+    })
     await ctx.page.mouse.up()
     const resized = await panel.boundingBox()
-
     await testId(ctx.page, 'launcher-settings-close-button').click()
     await testId(ctx.page, 'project-header-settings-button').click()
     const reopened = await panel.boundingBox()
-
     expect(reopened?.width).toBe(resized?.width)
     expect(reopened?.height).toBe(resized?.height)
   })
-
   it('fits itself back into a smaller viewport', async () => {
     await setup('viewport-resize')
-    await ctx.page.setViewportSize({ width: 600, height: 400 })
-    const content = ctx.page.locator('[data-scope="floating-panel"][data-part="content"]')
-    // The panel refits itself when it sees the resize, so wait for it to land
+    await ctx.page.setViewportSize({
+      width: 600,
+      height: 400,
+    })
+    const content = ctx.page.locator('[data-scope="floating-panel"][data-part="content"]') // The panel refits itself when it sees the resize, so wait for it to land
     // inside the new viewport instead of measuring it part-way through.
     await expect
       .poll(
@@ -120,27 +132,31 @@ describe('Launcher Settings Misc tab (e2e, real server)', () => {
           if (!current) return Number.POSITIVE_INFINITY
           return Math.max(current.x + current.width - 600, current.y + current.height - 400, -current.x, -current.y)
         },
-        { timeout: 10_000 },
+        {
+          timeout: 10000,
+        },
       )
       .toBeLessThanOrEqual(0)
     const box = await content.boundingBox()
-
     expect(box?.x).toBeGreaterThanOrEqual(0)
     expect(box?.y).toBeGreaterThanOrEqual(0)
     expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(600)
     expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(400)
   })
-
   it('clips settings content to the floating window border', async () => {
     await setup('clips-content')
     const boundary = await ctx.page.locator('[data-scope="floating-panel"][data-part="viewport"]').evaluate((element) => {
       const style = getComputedStyle(element)
-      return { overflow: style.overflow, padding: style.padding }
+      return {
+        overflow: style.overflow,
+        padding: style.padding,
+      }
     })
-
-    expect(boundary).toEqual({ overflow: 'clip', padding: '1px' })
+    expect(boundary).toEqual({
+      overflow: 'clip',
+      padding: '1px',
+    })
   })
-
   it('keeps overflowing settings content scrollable', async () => {
     await setup('scrolls-content')
     const panel = ctx.page.locator('[data-scope="floating-panel"][data-part="content"]')
@@ -152,9 +168,10 @@ describe('Launcher Settings Misc tab (e2e, real server)', () => {
     const startY = handleBox.y + handleBox.height / 2
     await ctx.page.mouse.move(startX, startY)
     await ctx.page.mouse.down()
-    await ctx.page.mouse.move(startX, startY - 300, { steps: 20 })
+    await ctx.page.mouse.move(startX, startY - 300, {
+      steps: 20,
+    })
     await ctx.page.mouse.up()
-
     const afterResize = await panel.boundingBox()
     const scroller = testId(ctx.page, 'launcher-settings-scroll')
     const dimensions = await scroller.evaluate((element) => ({
@@ -164,12 +181,10 @@ describe('Launcher Settings Misc tab (e2e, real server)', () => {
     await scroller.evaluate((element) => {
       element.scrollTop = element.scrollHeight
     })
-
     expect(afterResize?.height).toBeLessThan(beforeResize.height)
     expect(dimensions.scrollHeight).toBeGreaterThan(dimensions.clientHeight)
     expect(await scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
   })
-
   it('project name input persists and clears on blur', async () => {
     const project = await setup('pname')
     const input = testId(ctx.page, 'launcher-settings-misc-project-name-input')
@@ -191,7 +206,6 @@ describe('Launcher Settings Misc tab (e2e, real server)', () => {
     )
     expect(cleared.projects.find((p) => p.projectSlug === project.projectSlug)).not.toHaveProperty('name')
   })
-
   it('saves the tickets folder on blur without moving the worktree', async () => {
     const project = await setup('tickets-path')
     const input = testId(ctx.page, 'launcher-settings-misc-tickets-path-input')
@@ -207,7 +221,6 @@ describe('Launcher Settings Misc tab (e2e, real server)', () => {
     expect(fs.existsSync(project.ticketsPath)).toBe(true)
     expect(fs.existsSync(destination)).toBe(false)
   })
-
   it('saves the tickets branch on Enter without renaming the Git branch', async () => {
     const project = await setup('tickets-branch')
     const input = testId(ctx.page, 'launcher-settings-misc-tickets-branch-input')
@@ -221,11 +234,14 @@ describe('Launcher Settings Misc tab (e2e, real server)', () => {
     )
     expect(git('branch --show-current', project.ticketsPath)).toBe(project.branch)
   })
-
   it('saves a blank branch prefix without sending undefined to the server', async () => {
     await setup('serializable-save-arguments')
     const input = testId(ctx.page, 'launcher-settings-misc-branch-prefix-input')
-    const titleBox = await ctx.page.getByRole('heading', { name: 'Settings' }).boundingBox()
+    const titleBox = await ctx.page
+      .getByRole('heading', {
+        name: 'Settings',
+      })
+      .boundingBox()
     if (!titleBox) throw new Error('Settings title is not visible')
     await input.focus()
     const saveResponse = ctx.page.waitForResponse(
@@ -233,26 +249,27 @@ describe('Launcher Settings Misc tab (e2e, real server)', () => {
     )
     await ctx.page.mouse.click(titleBox.x + titleBox.width / 2, titleBox.y + titleBox.height / 2)
     await saveResponse
-
-    expect(await ctx.page.getByText('Server function arguments are sent as JSON', { exact: false }).count()).toBe(0)
+    expect(
+      await ctx.page
+        .getByText('Server function arguments are sent as JSON', {
+          exact: false,
+        })
+        .count(),
+    ).toBe(0)
   })
-
   it('launcher-settings-open-user-config fires open-config-dir request', async () => {
     await setup('open-user')
     await expectOpenConfigDirRequest(ctx.page, () => ctx.page.click('[data-testid="launcher-settings-open-user-config"]'))
   })
-
   it('launcher-settings-open-project-config fires open-config-dir request', async () => {
     await setup('open-proj')
     await expectOpenConfigDirRequest(ctx.page, () => ctx.page.click('[data-testid="launcher-settings-open-project-config"]'))
   })
-
   it('launcher-settings-close-button hides the floating panel', async () => {
     await setup('close')
     await testId(ctx.page, 'launcher-settings-close-button').click()
     await waitGone(ctx.page, 'launcher-settings-tab-misc')
   })
-
   it('launcher-settings-misc-worktree-input persists on Enter', async () => {
     const project = await setup('wt-input')
     await testId(ctx.page, 'launcher-settings-misc-worktree-input').fill('/tmp/some-wt-path-for-test')
@@ -264,13 +281,11 @@ describe('Launcher Settings Misc tab (e2e, real server)', () => {
     )
     expect(cfg?.worktreeRootPath).toBe('/tmp/some-wt-path-for-test')
   })
-
   it('launcher-settings-misc-worktree-browse button exists', async () => {
     await setup('wt-browse')
     await waitVisible(ctx.page, 'launcher-settings-misc-worktree-browse')
     expect(await testId(ctx.page, 'launcher-settings-misc-worktree-browse').count()).toBe(1)
   })
-
   it('branch prefix input persists on blur', async () => {
     const project = await setup('bprefix')
     const input = ctx.page.locator('[data-testid="launcher-settings-misc-branch-prefix-input"]')
@@ -283,7 +298,6 @@ describe('Launcher Settings Misc tab (e2e, real server)', () => {
     )
     expect(cfg?.branchPrefix).toBe('feature/')
   })
-
   it('launcher-settings-misc-conflict-prompt persists on blur', async () => {
     const project = await setup('cprompt')
     await testId(ctx.page, 'launcher-settings-misc-conflict-prompt').fill('my custom prompt')

@@ -28,8 +28,15 @@ interface TicketCleanupDialogProps {
   projectSlug: string
   ticket: TicketInfo | null
   action: 'archive' | 'delete'
-  onCleanup: (folderName: string, cleanup: TicketCleanupOptions) => Promise<{ error?: ErrorInfo }>
-  onSubmit: (folderName: string) => Promise<{ error?: ErrorInfo }>
+  onCleanup: (
+    folderName: string,
+    cleanup: TicketCleanupOptions,
+  ) => Promise<{
+    error?: ErrorInfo
+  }>
+  onSubmit: (folderName: string) => Promise<{
+    error?: ErrorInfo
+  }>
   ctrl?: TicketCleanupController
 }
 
@@ -80,20 +87,17 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps) {
       killLockingProcesses: killWorktreeLockingProcesses,
       forceDeleteLocalBranch,
     })
-
   createEffect(
     () => [props.open, props.ticket] as const,
     ([open, ticket]) => {
       if (open && ticket) void s.startChecks()
     },
   )
-
   useModEnterSubmit({
     onSubmit: () => void s.doSubmit(),
     disabled: s.busy,
     active: () => props.open && !!props.ticket,
   })
-
   return (
     <>
       <FloatingWindow
@@ -101,8 +105,14 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps) {
         onOpenChange={(d) => {
           if (!d.open) s.close()
         }}
-        defaultSize={{ width: 480, height: 460 }}
-        minSize={{ width: 380, height: 300 }}
+        defaultSize={{
+          width: 480,
+          height: 460,
+        }}
+        minSize={{
+          width: 380,
+          height: 300,
+        }}
         persistRect
       >
         <FloatingWindowHeader

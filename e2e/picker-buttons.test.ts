@@ -5,16 +5,14 @@ import path from 'node:path'
 import os from 'node:os'
 import { gotoProject, seedProject, setupE2E, type E2EContext } from './fixtures.js'
 import { rmTemp } from './real-server.js'
-import { testId } from './locators.js'
+import { testId } from './locators.js' // The stubs live outside the data dir so their paths can go into the server's
 
-// The stubs live outside the data dir so their paths can go into the server's
 // environment before the fixture creates that dir.
 const stubDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cl-picker-stubs-'))
 const pickerStubFile = path.join(stubDir, 'picker-stub')
 const filePickerStubFile = path.join(stubDir, 'file-picker-stub')
 fs.writeFileSync(pickerStubFile, '__cancel__')
 fs.writeFileSync(filePickerStubFile, '__cancel__')
-
 const PICKED_DIR = path.join(os.tmpdir(), 'e2e-picked-dir')
 const PICKED_FILES = [path.join(os.tmpdir(), 'e2e-ref-a.ts'), path.join(os.tmpdir(), 'e2e-ref-b.ts')]
 
@@ -40,9 +38,12 @@ function testDirectoryPicker(ctx: E2EContext, spec: DirectoryPickerSpec) {
       setPickerStub(PICKED_DIR)
       await spec.setup(ctx.page)
       await spec.button(ctx.page).click()
-      await expect.poll(() => spec.input(ctx.page).inputValue(), { timeout: 5000 }).toBe(PICKED_DIR)
+      await expect
+        .poll(() => spec.input(ctx.page).inputValue(), {
+          timeout: 5000,
+        })
+        .toBe(PICKED_DIR)
     })
-
     it('leaves the input unchanged and shows no error when the user cancels', async () => {
       setPickerStub('__cancel__')
       await spec.setup(ctx.page)
@@ -52,19 +53,25 @@ function testDirectoryPicker(ctx: E2EContext, spec: DirectoryPickerSpec) {
       expect(await spec.input(ctx.page).inputValue()).toBe(before)
       expect(await spec.errorContainer(ctx.page).count()).toBe(0)
     })
-
     it('shows an error when no picker is available', async () => {
       setPickerStub('__unavailable__')
       await spec.setup(ctx.page)
       await spec.button(ctx.page).click()
-      await expect.poll(() => spec.errorContainer(ctx.page).textContent(), { timeout: 5000 }).toBeTruthy()
+      await expect
+        .poll(() => spec.errorContainer(ctx.page).textContent(), {
+          timeout: 5000,
+        })
+        .toBeTruthy()
     })
-
     it('shows an error when the picker fails (not cancel)', async () => {
       setPickerStub('__error__')
       await spec.setup(ctx.page)
       await spec.button(ctx.page).click()
-      await expect.poll(() => spec.errorContainer(ctx.page).textContent(), { timeout: 5000 }).toBeTruthy()
+      await expect
+        .poll(() => spec.errorContainer(ctx.page).textContent(), {
+          timeout: 5000,
+        })
+        .toBeTruthy()
     })
   })
 }
@@ -85,19 +92,21 @@ function testFilePicker(ctx: E2EContext, spec: FilePickerSpec) {
       await spec.button(ctx.page).click()
       await spec.assertFilesAdded(ctx.page)
     })
-
     it('does nothing when the user cancels', async () => {
       setFilePickerStub('__cancel__')
       await spec.setup(ctx.page)
       await spec.button(ctx.page).click()
       await ctx.page.waitForTimeout(500)
     })
-
     it('shows an error when the file picker fails', async () => {
       setFilePickerStub('__error__')
       await spec.setup(ctx.page)
       await spec.button(ctx.page).click()
-      await expect.poll(() => spec.errorContainer(ctx.page).isVisible(), { timeout: 5000 }).toBe(true)
+      await expect
+        .poll(() => spec.errorContainer(ctx.page).isVisible(), {
+          timeout: 5000,
+        })
+        .toBe(true)
     })
   })
 }
@@ -116,14 +125,22 @@ describe('Picker buttons (e2e, real server)', () => {
       },
     },
   })
-
   let projectSlug: string
   let statusFile: string
-
   beforeAll(async () => {
     const project = await seedProject(ctx, {
       slugBase: 'picker',
-      withBoards: [{ id: 'default', name: 'Default', columns: [{ name: 'todo' }] }],
+      withBoards: [
+        {
+          id: 'default',
+          name: 'Default',
+          columns: [
+            {
+              name: 'todo',
+            },
+          ],
+        },
+      ],
       withTickets: [
         {
           number: 'T-1',
@@ -136,16 +153,16 @@ describe('Picker buttons (e2e, real server)', () => {
     projectSlug = project.projectSlug
     statusFile = path.join(project.ticketsPath, 't-1-picker-test', 'status.json')
   })
-
   afterAll(async () => {
     await rmTemp(stubDir, 'picker-buttons stubDir')
-  })
-
-  // --- Add Project page: project path directory picker ---
+  }) // --- Add Project page: project path directory picker ---
 
   async function goToAddProject(page: Page) {
     await page.goto(`${ctx.testServer.baseUrl}/add-project`)
-    await page.locator('#project-path').waitFor({ state: 'visible', timeout: 10000 })
+    await page.locator('#project-path').waitFor({
+      state: 'visible',
+      timeout: 10000,
+    })
   }
 
   testDirectoryPicker(ctx, {
@@ -154,17 +171,21 @@ describe('Picker buttons (e2e, real server)', () => {
     button: (p) => p.locator('#project-path + button'),
     input: (p) => p.locator('#project-path'),
     errorContainer: (p) => p.locator('form p.text-destructive'),
-  })
-
-  // --- Settings panel: worktree root directory picker ---
-
+  }) // --- Settings panel: worktree root directory picker ---
   const WORKTREE_BROWSE = 'launcher-settings-misc-worktree-browse'
+
   async function goToSettingsMisc(page: Page) {
     await page.goto(`${ctx.testServer.baseUrl}/project/${projectSlug}`)
-    await page.locator('button[title="Settings"]').waitFor({ state: 'visible', timeout: 15000 })
+    await page.locator('button[title="Settings"]').waitFor({
+      state: 'visible',
+      timeout: 15000,
+    })
     await page.locator('button[title="Settings"]').click()
     await testId(page, 'launcher-settings-tab-misc').click()
-    await testId(page, WORKTREE_BROWSE).waitFor({ state: 'visible', timeout: 5000 })
+    await testId(page, WORKTREE_BROWSE).waitFor({
+      state: 'visible',
+      timeout: 5000,
+    })
   }
 
   testDirectoryPicker(ctx, {
@@ -173,20 +194,24 @@ describe('Picker buttons (e2e, real server)', () => {
     button: (p) => testId(p, WORKTREE_BROWSE),
     input: (p) => testId(p, WORKTREE_BROWSE).locator('xpath=preceding-sibling::input'),
     errorContainer: (p) => testId(p, 'error-dialog-ok'),
-  })
-
-  // --- Ticket detail: file reference picker ---
+  }) // --- Ticket detail: file reference picker ---
 
   async function goToTicketDetail(page: Page) {
     await gotoProject(page, ctx.testServer, projectSlug)
-    await page.locator('[data-drag-source]').first().waitFor({ state: 'visible', timeout: 15000 })
+    await page.locator('[data-drag-source]').first().waitFor({
+      state: 'visible',
+      timeout: 15000,
+    })
     await page.locator('[data-drag-source]').first().click()
-    await page.locator('button:has-text("Add file reference")').waitFor({ state: 'visible', timeout: 5000 })
-    // The button renders before the panel has loaded its file, and picking a
+    await page.locator('button:has-text("Add file reference")').waitFor({
+      state: 'visible',
+      timeout: 5000,
+    }) // The button renders before the panel has loaded its file, and picking a
     // reference reads that file list, so wait for the editor to settle first.
-    await page
-      .locator('[data-testid="ticket-detail-editor-pane"]:not([data-state="loading"])')
-      .waitFor({ state: 'attached', timeout: 15000 })
+    await page.locator('[data-testid="ticket-detail-editor-pane"]:not([data-state="loading"])').waitFor({
+      state: 'attached',
+      timeout: 15000,
+    })
   }
 
   describe('Ticket Detail > Add file reference > remembers last directory', () => {
@@ -201,12 +226,14 @@ describe('Picker buttons (e2e, real server)', () => {
       })
       const firstFile = path.join(os.tmpdir(), 'dir-A', 'file1.ts')
       const secondFile = path.join(os.tmpdir(), 'dir-B', 'file2.ts')
-
       setFilePickerStub(firstFile)
       await goToTicketDetail(ctx.page)
       await ctx.page.locator('button:has-text("Add file reference")').click()
-      await expect.poll(() => hasFileReferenceButton(ctx.page), { timeout: 5000 }).toBe(true)
-
+      await expect
+        .poll(() => hasFileReferenceButton(ctx.page), {
+          timeout: 5000,
+        })
+        .toBe(true)
       setFilePickerStub(secondFile)
       await ctx.page.locator('button:has-text("Add file reference")').click()
       await ctx.page.waitForTimeout(2000)
@@ -214,17 +241,19 @@ describe('Picker buttons (e2e, real server)', () => {
       expect(labels.filter((t) => t.includes('REFERENCE')).length).toBeGreaterThanOrEqual(1)
     })
   })
-
   testFilePicker(ctx, {
     name: 'Ticket Detail > Add file reference',
     setup: goToTicketDetail,
     button: (p) => p.locator('button:has-text("Add file reference")'),
     errorContainer: (p) => testId(p, 'error-dialog-ok'),
     assertFilesAdded: async (p) => {
-      await expect.poll(() => hasFileReferenceButton(p), { timeout: 5000 }).toBe(true)
+      await expect
+        .poll(() => hasFileReferenceButton(p), {
+          timeout: 5000,
+        })
+        .toBe(true)
     },
   })
-
   it('preserves external status fields and references when adding and removing a reference', async () => {
     const pickedPath = path.join(stubDir, 'picked.ts')
     const externalPath = path.join(stubDir, 'external.ts')
@@ -238,19 +267,37 @@ describe('Picker buttons (e2e, real server)', () => {
       JSON.stringify({
         ...current,
         agentWorktreeBranchName: 'external-branch',
-        references: [...(current.references ?? []), { path: externalPath }],
+        references: [
+          ...(current.references ?? []),
+          {
+            path: externalPath,
+          },
+        ],
       }),
     )
     await testId(ctx.page, 'ticket-detail-editor-add-reference-button').click()
     const references = () => JSON.parse(fs.readFileSync(statusFile, 'utf8')).references
-    await expect.poll(references).toEqual(expect.arrayContaining([{ path: pickedPath }, { path: externalPath }]))
+    await expect.poll(references).toEqual(
+      expect.arrayContaining([
+        {
+          path: pickedPath,
+        },
+        {
+          path: externalPath,
+        },
+      ]),
+    )
     const modifiedAt = fs.statSync(statusFile).mtimeMs
     await testId(ctx.page, 'ticket-detail-editor-add-reference-button').click()
     await expect.poll(() => testId(ctx.page, 'ticket-detail-editor-add-reference-button').isEnabled()).toBe(true)
     expect(fs.statSync(statusFile).mtimeMs).toBe(modifiedAt)
     await testId(ctx.page, 'ticket-detail-editor-trash-button').click()
-    await expect.poll(references).not.toContainEqual({ path: pickedPath })
-    expect(references()).toContainEqual({ path: externalPath })
+    await expect.poll(references).not.toContainEqual({
+      path: pickedPath,
+    })
+    expect(references()).toContainEqual({
+      path: externalPath,
+    })
     expect(JSON.parse(fs.readFileSync(statusFile, 'utf8')).agentWorktreeBranchName).toBe('external-branch')
   })
 })

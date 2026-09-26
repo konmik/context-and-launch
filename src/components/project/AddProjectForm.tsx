@@ -18,7 +18,6 @@ export default function AddProjectForm(props: AddProjectFormProps) {
       onSuccess: props.onSuccess,
       errorMessage: props.errorMessage,
     })
-
   return (
     <form onSubmit={s.handleSubmit}>
       <div class="mb-4">

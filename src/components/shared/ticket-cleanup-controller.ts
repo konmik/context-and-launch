@@ -16,12 +16,30 @@ export interface TicketCleanupDeps {
   ticket: () => TicketInfo | null
   action: () => 'archive' | 'delete'
   loadStatus: (projectSlug: string, folderName: string) => Promise<TicketCleanupStatus>
-  onCleanup: (folderName: string, cleanup: TicketCleanupOptions) => Promise<{ error?: ErrorInfo }>
-  onSubmit: (folderName: string) => Promise<{ error?: ErrorInfo }>
+  onCleanup: (
+    folderName: string,
+    cleanup: TicketCleanupOptions,
+  ) => Promise<{
+    error?: ErrorInfo
+  }>
+  onSubmit: (folderName: string) => Promise<{
+    error?: ErrorInfo
+  }>
   onOpenChange: (open: boolean) => void
   loadLockingProcesses: (projectSlug: string, folderName: string) => Promise<LockingProcessInfo[]>
-  killLockingProcesses: (projectSlug: string, folderName: string, pids: number[]) => Promise<{ error?: string }>
-  forceDeleteLocalBranch: (projectSlug: string, folderName: string) => Promise<{ error?: string }>
+  killLockingProcesses: (
+    projectSlug: string,
+    folderName: string,
+    pids: number[],
+  ) => Promise<{
+    error?: string
+  }>
+  forceDeleteLocalBranch: (
+    projectSlug: string,
+    folderName: string,
+  ) => Promise<{
+    error?: string
+  }>
 }
 
 export function createTicketCleanupController(deps: TicketCleanupDeps) {
@@ -34,7 +52,6 @@ export function createTicketCleanupController(deps: TicketCleanupDeps) {
   const [killingProcesses, setKillingProcesses] = createSignal(false)
   const [forceDeleteDialogOpen, setForceDeleteDialogOpen] = createSignal(false)
   const [forceDeleting, setForceDeleting] = createSignal(false)
-
   let requestToken = 0
   let lifecycleToken = 0
 
@@ -128,7 +145,10 @@ export function createTicketCleanupController(deps: TicketCleanupDeps) {
         ticket.folderName,
         processes.map((p) => p.pid),
       )
-      if (result.error) actionError = { description: result.error }
+      if (result.error)
+        actionError = {
+          description: result.error,
+        }
     } catch (err) {
       actionError = errorPayload(err, 'Failed to kill processes')
     }
@@ -153,7 +173,10 @@ export function createTicketCleanupController(deps: TicketCleanupDeps) {
     let actionError: ErrorInfo | undefined
     try {
       const result = await deps.forceDeleteLocalBranch(deps.projectSlug(), ticket.folderName)
-      if (result.error) actionError = { description: result.error }
+      if (result.error)
+        actionError = {
+          description: result.error,
+        }
     } catch (err) {
       actionError = errorPayload(err, 'Failed to force-delete branch')
     }

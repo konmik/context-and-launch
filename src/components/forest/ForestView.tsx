@@ -27,7 +27,10 @@ interface ForestViewProps {
 interface GroupingDraft {
   ownerGroupNumber?: string
   memberNumbers: string[]
-  position: { x: number; y: number }
+  position: {
+    x: number
+    y: number
+  }
 }
 
 export default function ForestView(props: ForestViewProps) {
@@ -78,10 +81,22 @@ function ForestContent(props: ForestViewProps) {
     else surfaceApis.delete(key)
   }
 
-  async function mutateAndRefreshTickets(mutate: () => Promise<{ ok: true } | { ok: false; message: string }>): Promise<boolean> {
+  async function mutateAndRefreshTickets(
+    mutate: () => Promise<
+      | {
+          ok: true
+        }
+      | {
+          ok: false
+          message: string
+        }
+    >,
+  ): Promise<boolean> {
     const result = await mutate()
     if (!result.ok) {
-      setError({ description: result.message })
+      setError({
+        description: result.message,
+      })
       return false
     }
     await revalidate(ticketMutationRevalidateKeys)
@@ -105,8 +120,14 @@ function ForestContent(props: ForestViewProps) {
       dependencyNumber: relation.toNumber,
     }))
     try {
-      const result = await runRemoveDependencies({ projectSlug: props.projectSlug, removals })
-      if (!result.ok) setError({ description: result.message })
+      const result = await runRemoveDependencies({
+        projectSlug: props.projectSlug,
+        removals,
+      })
+      if (!result.ok)
+        setError({
+          description: result.message,
+        })
     } finally {
       await revalidate(ticketMutationRevalidateKeys)
     }
@@ -114,7 +135,12 @@ function ForestContent(props: ForestViewProps) {
 
   async function handleUngroup(ticketNumber: string) {
     const group = findTicket(ticketNumber)
-    const changed = await mutateAndRefreshTickets(() => runUngroupTicket({ projectSlug: props.projectSlug, folderName: group.folderName }))
+    const changed = await mutateAndRefreshTickets(() =>
+      runUngroupTicket({
+        projectSlug: props.projectSlug,
+        folderName: group.folderName,
+      }),
+    )
     if (changed) {
       const result = await layout.refresh()
       if (result.type === 'Failure') reportError(result.error)
@@ -146,9 +172,17 @@ function ForestContent(props: ForestViewProps) {
     setOpenGroups(groups.slice(0, index))
   }
 
-  async function handleGroupCreate(number: string, title: string): Promise<{ error?: string }> {
+  async function handleGroupCreate(
+    number: string,
+    title: string,
+  ): Promise<{
+    error?: string
+  }> {
     const draft = groupingDraft()
-    if (!draft) return { error: 'No members selected' }
+    if (!draft)
+      return {
+        error: 'No members selected',
+      }
     const memberFolderNames = draft.memberNumbers.map((memberNumber) => findTicket(memberNumber).folderName)
     const result = await runCreateGroupTicket({
       projectSlug: props.projectSlug,
@@ -158,7 +192,10 @@ function ForestContent(props: ForestViewProps) {
       parentGroupNumber: draft.ownerGroupNumber ?? null,
       position: draft.position,
     })
-    if (!result.ok) return { error: result.message }
+    if (!result.ok)
+      return {
+        error: result.message,
+      }
     surfaceApis.get(draft.ownerGroupNumber ?? 'root')?.clearSelection()
     setGroupingDraft(undefined)
     const refreshed = await layout.refresh()
@@ -171,7 +208,11 @@ function ForestContent(props: ForestViewProps) {
     return {
       addDependency: handleAddDependency,
       groupSelection: (memberNumbers, position) => {
-        setGroupingDraft({ ownerGroupNumber: scopeGroupNumber, memberNumbers, position })
+        setGroupingDraft({
+          ownerGroupNumber: scopeGroupNumber,
+          memberNumbers,
+          position,
+        })
         setCreateDialogOpen(true)
       },
       onClose: scopeGroupNumber === undefined ? props.onClose : undefined,
@@ -191,11 +232,8 @@ function ForestContent(props: ForestViewProps) {
     if (!containerRef) return undefined
     return connectionPreviewPath(session, containerRef.getBoundingClientRect())
   })
-
   useEscapeKey(() => connection.commands.cancel())
-
   const rootViewport = createMemo(() => getForestViewport(localStorage, props.projectSlug))
-
   return (
     <div ref={containerRef} class="relative h-full w-full">
       <ForestSurface
@@ -214,8 +252,12 @@ function ForestContent(props: ForestViewProps) {
           <ExpandingOverlay
             origin={index() === openGroups().length - 1 ? openGroupOrigin() : undefined}
             onClose={() => closeGroup(index())}
-            backdropAttributes={{ 'data-testid': 'forest-subforest-backdrop' }}
-            panelAttributes={{ 'data-forest-connection-boundary': '' }}
+            backdropAttributes={{
+              'data-testid': 'forest-subforest-backdrop',
+            }}
+            panelAttributes={{
+              'data-forest-connection-boundary': '',
+            }}
             panelClass="absolute rounded-lg border border-border bg-background"
           >
             <div class="h-full w-full">

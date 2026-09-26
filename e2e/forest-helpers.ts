@@ -13,14 +13,35 @@ import {
 } from './fixtures.js'
 import { countOf, testId, waitGone, waitVisible } from './locators.js'
 
-const forestBoards = [{ id: 'default', name: 'Default', columns: [{ name: 'todo' }, { name: 'done' }] }]
+const forestBoards = [
+  {
+    id: 'default',
+    name: 'Default',
+    columns: [
+      {
+        name: 'todo',
+      },
+      {
+        name: 'done',
+      },
+    ],
+  },
+]
 
-export type ForestSeedTicket = Omit<SeedTicket, 'status'> & { status?: string }
+export type ForestSeedTicket = Omit<SeedTicket, 'status'> & {
+  status?: string
+}
 
 export interface OpenForestOptions {
   slugBase: string
   tickets: ForestSeedTicket[]
-  layout?: Record<string, { x: number; y: number }>
+  layout?: Record<
+    string,
+    {
+      x: number
+      y: number
+    }
+  >
   view?: 'forest' | 'kanban'
 }
 
@@ -28,7 +49,10 @@ export async function openForestProject(ctx: E2EContext, options: OpenForestOpti
   const project = await seedProject(ctx, {
     slugBase: options.slugBase,
     withBoards: forestBoards,
-    withTickets: options.tickets.map((ticket) => ({ status: 'todo', ...ticket })),
+    withTickets: options.tickets.map((ticket) => ({
+      status: 'todo',
+      ...ticket,
+    })),
   })
   if (options.layout) {
     fs.writeFileSync(path.join(project.ticketsPath, 'forest-layout.json'), JSON.stringify(options.layout))
@@ -49,7 +73,11 @@ export async function toggleToKanban(page: Page): Promise<void> {
 }
 
 export async function waitForForestTicketCount(page: Page, expected: number): Promise<void> {
-  await expect.poll(() => countOf(page, 'forest-ticket-card'), { timeout: 15000 }).toBe(expected)
+  await expect
+    .poll(() => countOf(page, 'forest-ticket-card'), {
+      timeout: 15000,
+    })
+    .toBe(expected)
 }
 
 export function forestSurface(page: Page): Locator {
@@ -57,15 +85,23 @@ export function forestSurface(page: Page): Locator {
 }
 
 export function forestCard(page: Page, ticketNumber: string): Locator {
-  return testId(page, 'forest-ticket-card', { 'data-ticket-number': ticketNumber })
+  return testId(page, 'forest-ticket-card', {
+    'data-ticket-number': ticketNumber,
+  })
 }
 
 export function forestGroupCard(page: Page, ticketNumber?: string): Locator {
-  return ticketNumber ? testId(page, 'forest-group-card', { 'data-ticket-number': ticketNumber }) : testId(page, 'forest-group-card')
+  return ticketNumber
+    ? testId(page, 'forest-group-card', {
+        'data-ticket-number': ticketNumber,
+      })
+    : testId(page, 'forest-group-card')
 }
 
 export function forestHandle(page: Page, ticketNumber: string, end: 'top' | 'bottom'): Locator {
-  return testId(page, `forest-handle-${end}`, { 'data-ticket-number': ticketNumber })
+  return testId(page, `forest-handle-${end}`, {
+    'data-ticket-number': ticketNumber,
+  })
 }
 
 export async function shiftDragSelection(page: Page, from: ScreenPoint, to: ScreenPoint): Promise<void> {
@@ -102,8 +138,7 @@ export async function clickPath(locator: Locator, at: 'start' | 'middle' | 'end'
     const matrix = path.getScreenCTM()
     if (!matrix) throw new Error('Path is not rendered on screen')
     const clientX = matrix.a * point.x + matrix.c * point.y + matrix.e
-    const clientY = matrix.b * point.x + matrix.d * point.y + matrix.f
-    // The drawn edge ignores pointer events; a wider transparent twin carries the
+    const clientY = matrix.b * point.x + matrix.d * point.y + matrix.f // The drawn edge ignores pointer events; a wider transparent twin carries the
     // click handler. Address that twin by its own identity rather than by DOM
     // adjacency, which breaks while the edge list re-renders.
     const hit =
@@ -125,7 +160,10 @@ export async function clickPath(locator: Locator, at: 'start' | 'middle' | 'end'
   }, at)
 }
 
-export async function pathScreenEndpoints(locator: Locator): Promise<{ start: ScreenPoint; end: ScreenPoint }> {
+export async function pathScreenEndpoints(locator: Locator): Promise<{
+  start: ScreenPoint
+  end: ScreenPoint
+}> {
   return {
     start: await pathScreenPoint(locator, 'start'),
     end: await pathScreenPoint(locator, 'end'),
@@ -145,7 +183,9 @@ export async function openDependencyPopup(page: Page, path: Locator, at: 'start'
         await clickPath(path, at)
         return (await testId(page, 'forest-dependency-delete').count()) > 0
       },
-      { timeout: 15000 },
+      {
+        timeout: 15000,
+      },
     )
     .toBe(true)
 }

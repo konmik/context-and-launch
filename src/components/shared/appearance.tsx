@@ -18,7 +18,10 @@ export function AppearanceRoot(props: { children: JSX.Element }) {
   const projectSlug = createMemo(() => projectSlugFromPath(location.pathname))
   const appearance = createMemo(() => createAppearanceStorage(localStorage, projectSlug()))
   createEffect(
-    () => ({ palette: appearance().palette.get(), mode: appearance().mode.get() }),
+    () => ({
+      palette: appearance().palette.get(),
+      mode: appearance().mode.get(),
+    }),
     ({ palette, mode }) => {
       document.documentElement.dataset.palette = palette
       const dark = isDarkMode(mode, window.matchMedia('(prefers-color-scheme: dark)').matches)

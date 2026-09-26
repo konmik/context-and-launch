@@ -57,7 +57,9 @@ export class ProcessError extends Error {
   }
 }
 
-const ErrorMessageSchema = v.object({ message: v.string() })
+const ErrorMessageSchema = v.object({
+  message: v.string(),
+})
 
 export function errorMessage(cause: unknown): string {
   if (cause instanceof Error) return cause.message
@@ -69,7 +71,12 @@ export function errorMessage(cause: unknown): string {
 }
 
 export function errorResult(cause: unknown) {
-  return { ok: false as const, type: 'error' as const, message: errorMessage(cause), errorInfo: errorPayload(cause) }
+  return {
+    ok: false as const,
+    type: 'error' as const,
+    message: errorMessage(cause),
+    errorInfo: errorPayload(cause),
+  }
 }
 
 export function errorPayload(cause: unknown, title?: string): ErrorInfo {
@@ -81,5 +88,8 @@ export function errorPayload(cause: unknown, title?: string): ErrorInfo {
       output: cause.output,
     }
   }
-  return { title, description: errorMessage(cause) }
+  return {
+    title,
+    description: errorMessage(cause),
+  }
 }

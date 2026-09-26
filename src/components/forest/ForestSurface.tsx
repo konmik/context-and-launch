@@ -1,4 +1,3 @@
-/* eslint-disable max-len */
 import { For, Show, createMemo, createSignal, createStore, onSettled, untrack, useContext, type Accessor } from 'solid-js'
 import { ForestLayoutContext } from './forest-layout-storage.js'
 import { X } from '~/components/ui/icons.js'
@@ -39,13 +38,21 @@ export interface ForestSurfaceData {
   scopeGroupNumber?: string
   viewport?: ForestViewport
 }
+
 export interface ForestSurfaceApi {
   clearSelection: () => void
   connectionAnchor: (endpoint: ConnectionEndpoint) => ConnectionAnchor | undefined
 }
+
 export interface ForestSurfaceCommands {
   addDependency: (dependentNumber: string, dependencyNumber: string) => Promise<boolean>
-  groupSelection: (memberNumbers: string[], position: { x: number; y: number }) => void
+  groupSelection: (
+    memberNumbers: string[],
+    position: {
+      x: number
+      y: number
+    },
+  ) => void
   openGroup: (ticketNumber: string, cardRect: OverlayRect) => void
   onClose?: () => void
   openTicket: (ticketNumber: string) => void
@@ -55,12 +62,14 @@ export interface ForestSurfaceCommands {
   reportError: (cause: unknown) => void
   ungroup: (ticketNumber: string) => void
 }
+
 interface Props {
   data: ForestSurfaceData
   commands: ForestSurfaceCommands
   connectionSession: Accessor<ForestConnectionSession>
   connectionCommands: ForestConnectionCommands
 }
+
 interface Popup {
   relations: DependencyRelation[]
   screenX: number
@@ -70,48 +79,96 @@ interface Popup {
 function surfaceInfo(element: HTMLElement, scopeGroupNumber: string | undefined): ConnectionSurface {
   const boundary = element.closest<HTMLElement>('[data-forest-connection-boundary]') ?? element
   const bounds = boundary.getBoundingClientRect()
-  return { scopeGroupNumber, bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height } }
+  return {
+    scopeGroupNumber,
+    bounds: {
+      x: bounds.x,
+      y: bounds.y,
+      width: bounds.width,
+      height: bounds.height,
+    },
+  }
 }
 
 export default function ForestSurface(props: Props) {
   const layout = useContext(ForestLayoutContext)!
   const model = createMemo(() => buildForestFlowModel(props.data.tickets, props.data.scopeGroupNumber, layout.get()))
-  const [nodes, setNodes] = createStore<ForestFlowNode[]>(() => model().nodes, [], { key: 'id' })
-  const [viewport, setViewport] = createSignal<ForestViewport>(untrack(() => props.data.viewport) ?? { x: 0, y: 0, zoom: 1 })
+  const [nodes, setNodes] = createStore<ForestFlowNode[]>(() => model().nodes, [], {
+    key: 'id',
+  })
+  const [viewport, setViewport] = createSignal<ForestViewport>(
+    untrack(() => props.data.viewport) ?? {
+      x: 0,
+      y: 0,
+      zoom: 1,
+    },
+  )
   const [selected, setSelected] = createSignal<string[]>([])
   const [popup, setPopup] = createSignal<Popup>()
   const [persisting, setPersisting] = createSignal(false)
   const [panning, setPanning] = createSignal(false)
-  const [selectionRect, setSelectionRect] = createSignal<{ x: number; y: number; width: number; height: number }>()
+  const [selectionRect, setSelectionRect] = createSignal<{
+    x: number
+    y: number
+    width: number
+    height: number
+  }>()
   const [geometryRevision, setGeometryRevision] = createSignal(0)
   const [raisedNodeId, setRaisedNodeId] = createSignal<string>()
   let surface!: HTMLDivElement
   let measured = false
-  let suppressedClick: { id: string; until: number } | undefined
-
-  const screenPoint = (point: { x: number; y: number }, current = viewport()) => ({
+  let suppressedClick:
+    | {
+        id: string
+        until: number
+      }
+    | undefined
+  const screenPoint = (
+    point: {
+      x: number
+      y: number
+    },
+    current = viewport(),
+  ) => ({
     x: point.x * current.zoom + current.x,
     y: point.y * current.zoom + current.y,
   })
   const nodeById = (id: string) => nodes.find((node) => node.id === id)
+
   function endpoint(id: string, end: 'top' | 'bottom') {
     geometryRevision()
     const node = nodeById(id)
-    if (!node) return { x: 0, y: 0 }
+    if (!node)
+      return {
+        x: 0,
+        y: 0,
+      }
     const card = surface?.querySelector<HTMLElement>(`[data-forest-card][data-ticket-number="${CSS.escape(id)}"]`)
-    if (!card) return { x: node.position.x + CARD_WIDTH / 2, y: node.position.y + (end === 'bottom' ? CARD_HEIGHT : 0) }
+    if (!card)
+      return {
+        x: node.position.x + CARD_WIDTH / 2,
+        y: node.position.y + (end === 'bottom' ? CARD_HEIGHT : 0),
+      }
     return {
       x: node.position.x + card.offsetWidth / 2,
       y: node.position.y + (end === 'bottom' ? card.offsetHeight : 0),
     }
   }
+
   function connectionAnchor(connection: ConnectionEndpoint, current = viewport()): ConnectionAnchor | undefined {
     const representative = representativeInScope(model().lookup, connection.ticketNumber, props.data.scopeGroupNumber)
     if (!representative || !nodeById(representative)) return undefined
     const local = screenPoint(endpoint(representative, connection.end), current)
     const rect = surface.getBoundingClientRect()
-    return { screenPoint: { x: rect.left + local.x, y: rect.top + local.y }, surface: surfaceInfo(surface, props.data.scopeGroupNumber) }
+    return {
+      screenPoint: {
+        x: rect.left + local.x,
+        y: rect.top + local.y,
+      },
+      surface: surfaceInfo(surface, props.data.scopeGroupNumber),
+    }
   }
+
   function refreshAnchor(current = viewport()) {
     const session = props.connectionSession()
     if (session.kind === 'connecting') {
@@ -119,10 +176,12 @@ export default function ForestSurface(props: Props) {
       if (anchor) props.connectionCommands.reanchorSource(anchor)
     }
   }
+
   function beginConnection(endpoint: ConnectionEndpoint) {
     const anchor = connectionAnchor(endpoint)
     if (anchor) props.connectionCommands.begin(endpoint, anchor)
   }
+
   function activateConnection(target: ConnectionEndpoint) {
     const session = props.connectionSession()
     if (session.kind !== 'connecting') {
@@ -134,6 +193,7 @@ export default function ForestSurface(props: Props) {
     props.connectionCommands.cancel()
     void props.commands.addDependency(dependentNumber, dependencyNumber).catch(props.commands.reportError)
   }
+
   function dragConnection(source: ConnectionEndpoint) {
     if (props.connectionSession().kind === 'connecting') return
     beginConnection(source)
@@ -150,7 +210,10 @@ export default function ForestSurface(props: Props) {
       const handleEnd = handle?.dataset.connectionHandleEnd
       const end = handleEnd === 'top' || handleEnd === 'bottom' ? handleEnd : undefined
       if (ticketNumber && ticketNumber !== source.ticketNumber) {
-        activateConnection({ ticketNumber, end: end ?? (source.end === 'bottom' ? 'top' : 'bottom') })
+        activateConnection({
+          ticketNumber,
+          end: end ?? (source.end === 'bottom' ? 'top' : 'bottom'),
+        })
       } else if (!ticketNumber) {
         props.connectionCommands.cancel()
       }
@@ -162,6 +225,7 @@ export default function ForestSurface(props: Props) {
     window.addEventListener('pointerup', finish)
     window.addEventListener('pointercancel', cancel)
   }
+
   const cardCommands: ForestCardCommands = untrack(() => ({
     activateConnection,
     dragConnection,
@@ -172,12 +236,16 @@ export default function ForestSurface(props: Props) {
   async function persistPositions(positions: ForestLayout) {
     setPersisting(true)
     try {
-      const result = await layout.update((current) => ({ ...current, ...positions }))
+      const result = await layout.update((current) => ({
+        ...current,
+        ...positions,
+      }))
       if (result.type === 'Failure') props.commands.reportError(result.error)
     } finally {
       setPersisting(false)
     }
   }
+
   function bounds(ids = nodes.map((node) => node.id)) {
     const chosen = nodes.filter((node) => ids.includes(node.id))
     if (!chosen.length) return undefined
@@ -185,14 +253,21 @@ export default function ForestSurface(props: Props) {
     const minY = Math.min(...chosen.map((node) => node.position.y))
     const maxX = Math.max(...chosen.map((node) => node.position.x + CARD_WIDTH))
     const maxY = Math.max(...chosen.map((node) => node.position.y + CARD_HEIGHT))
-    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY,
+    }
   }
+
   function center() {
     const next = viewportForLayout(positionsFromNodes(nodes), surface.clientWidth, surface.clientHeight)
     setViewport(next)
     props.commands.persistViewport?.(next)
     refreshAnchor(next)
   }
+
   function rearrange() {
     if (persisting()) return
     const positions = rearrangedForestPositions(props.data.tickets, props.data.scopeGroupNumber)
@@ -201,6 +276,7 @@ export default function ForestSurface(props: Props) {
     })
     void persistPositions(positions)
   }
+
   function startNodeDrag(event: PointerEvent, id: string) {
     event.stopPropagation()
     setRaisedNodeId(id)
@@ -211,7 +287,13 @@ export default function ForestSurface(props: Props) {
     const node = nodeById(id)!
     const target = event.currentTarget
     if (!(target instanceof HTMLElement)) return
-    const origin = { x: event.clientX, y: event.clientY, position: { ...node.position } }
+    const origin = {
+      x: event.clientX,
+      y: event.clientY,
+      position: {
+        ...node.position,
+      },
+    }
     let dragging = false
     const move = (next: PointerEvent) => {
       if (!dragging && Math.hypot(next.clientX - origin.x, next.clientY - origin.y) < 4) return
@@ -233,8 +315,15 @@ export default function ForestSurface(props: Props) {
     const end = () => {
       cleanup()
       if (dragging) {
-        suppressedClick = { id, until: performance.now() + 1000 }
-        void persistPositions({ [id]: { ...nodeById(id)!.position } })
+        suppressedClick = {
+          id,
+          until: performance.now() + 1000,
+        }
+        void persistPositions({
+          [id]: {
+            ...nodeById(id)!.position,
+          },
+        })
         refreshAnchor()
       }
     }
@@ -243,9 +332,14 @@ export default function ForestSurface(props: Props) {
     window.addEventListener('pointerup', end)
     window.addEventListener('pointercancel', cancel)
   }
+
   function startPan(event: PointerEvent) {
     if (event.button !== 0) return
-    const origin = { x: event.clientX, y: event.clientY, viewport: viewport() }
+    const origin = {
+      x: event.clientX,
+      y: event.clientY,
+      viewport: viewport(),
+    }
     let moved = false
     surface.setPointerCapture(event.pointerId)
     setPanning(!event.shiftKey)
@@ -306,10 +400,14 @@ export default function ForestSurface(props: Props) {
     surface.addEventListener('pointerup', end)
     surface.addEventListener('pointercancel', cancel)
   }
+
   function wheel(event: WheelEvent) {
     event.preventDefault()
     const rect = surface.getBoundingClientRect()
-    const point = { x: event.clientX - rect.left, y: event.clientY - rect.top }
+    const point = {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    }
     const previous = viewport()
     const zoom = Math.max(0.2, Math.min(2.5, previous.zoom * Math.exp(-event.deltaY * 0.001)))
     const next = {
@@ -321,6 +419,7 @@ export default function ForestSurface(props: Props) {
     props.commands.persistViewport?.(next)
     refreshAnchor(next)
   }
+
   function clickNode(event: MouseEvent, node: ForestFlowNode) {
     event.stopPropagation()
     if (event.shiftKey) return
@@ -333,16 +432,25 @@ export default function ForestSurface(props: Props) {
       const target = event.currentTarget
       if (!(target instanceof HTMLElement)) return
       const rect = target.getBoundingClientRect()
-      props.commands.openGroup(node.id, { x: rect.x, y: rect.y, width: rect.width, height: rect.height })
+      props.commands.openGroup(node.id, {
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+      })
     } else if (props.connectionSession().kind === 'connecting') {
       const session = props.connectionSession()
       if (session.kind !== 'connecting') return
       const source = session.source
-      const target = { ticketNumber: node.id, end: source.end === 'bottom' ? ('top' as const) : ('bottom' as const) }
+      const target = {
+        ticketNumber: node.id,
+        end: source.end === 'bottom' ? ('top' as const) : ('bottom' as const),
+      }
       if (isConnectionTarget(source, target)) activateConnection(target)
       else props.connectionCommands.cancel()
     } else props.commands.openTicket(node.id)
   }
+
   function nodeZIndex(node: ForestFlowNode) {
     const session = props.connectionSession()
     if (session.kind === 'connecting') {
@@ -350,14 +458,18 @@ export default function ForestSurface(props: Props) {
     }
     return raisedNodeId() === node.id ? 1 : 0
   }
+
   function showPopup(relations: DependencyRelation[], event: MouseEvent) {
     event.stopPropagation()
     setPopup({
-      relations: relations.map((relation) => ({ ...relation })),
+      relations: relations.map((relation) => ({
+        ...relation,
+      })),
       screenX: event.clientX,
       screenY: event.clientY,
     })
   }
+
   useEscapeKey(() => setPopup(undefined))
   onSettled(() => {
     const resize = () => {
@@ -370,27 +482,40 @@ export default function ForestSurface(props: Props) {
     }
     const movePointer = (event: PointerEvent) => {
       if (props.connectionSession().kind === 'connecting') {
-        props.connectionCommands.movePointer({ x: event.clientX, y: event.clientY }, surfaceInfo(surface, props.data.scopeGroupNumber))
+        props.connectionCommands.movePointer(
+          {
+            x: event.clientX,
+            y: event.clientY,
+          },
+          surfaceInfo(surface, props.data.scopeGroupNumber),
+        )
       }
     }
     const observer = new ResizeObserver(resize)
     observer.observe(surface)
     resize()
     surface.addEventListener('pointermove', movePointer)
-    props.commands.registerSurface({ clearSelection: () => setSelected([]), connectionAnchor })
+    props.commands.registerSurface({
+      clearSelection: () => setSelected([]),
+      connectionAnchor,
+    })
     return () => {
       observer.disconnect()
       surface.removeEventListener('pointermove', movePointer)
       props.commands.registerSurface(undefined)
     }
   })
-
   const externalPaths = createMemo(() =>
     model().externalDependencies.map((dependency) => {
       const start = endpoint(dependency.memberNumber, dependency.direction === 'down' ? 'bottom' : 'top')
       const boundaryScreenY = dependency.direction === 'down' ? (surface?.clientHeight ?? 0) : 0
       const targetY = (boundaryScreenY - viewport().y) / viewport().zoom
-      return { ...dependency, start, targetY, d: externalDependencyPath(start, dependency.direction, targetY) }
+      return {
+        ...dependency,
+        start,
+        targetY,
+        d: externalDependencyPath(start, dependency.direction, targetY),
+      }
     }),
   )
 
@@ -420,7 +545,12 @@ export default function ForestSurface(props: Props) {
       onWheel={wheel}
       onClick={surfaceClick}
     >
-      <div class="solid-flow__pane pointer-events-none absolute inset-0" style={{ cursor: panning() ? 'grabbing' : 'default' }} />
+      <div
+        class="solid-flow__pane pointer-events-none absolute inset-0"
+        style={{
+          cursor: panning() ? 'grabbing' : 'default',
+        }}
+      />
       <div class={`absolute z-20 flex gap-2 ${props.data.scopeGroupNumber === undefined ? 'right-3' : 'left-3'} top-3`}>
         <button
           class="btn-secondary"
@@ -438,7 +568,10 @@ export default function ForestSurface(props: Props) {
           {(close) => (
             <button
               class="btn-icon"
-              style={{ height: '2.5rem', width: '2.5rem' }}
+              style={{
+                height: '2.5rem',
+                width: '2.5rem',
+              }}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={() => close()()}
               title="Close forest view"
@@ -471,7 +604,12 @@ export default function ForestSurface(props: Props) {
         {(rect) => (
           <div
             class="solid-flow__selection pointer-events-none fixed border border-primary bg-primary/10"
-            style={{ left: `${rect().x}px`, top: `${rect().y}px`, width: `${rect().width}px`, height: `${rect().height}px` }}
+            style={{
+              left: `${rect().x}px`,
+              top: `${rect().y}px`,
+              width: `${rect().width}px`,
+              height: `${rect().height}px`,
+            }}
           />
         )}
       </Show>
@@ -480,7 +618,9 @@ export default function ForestSurface(props: Props) {
           <ForestCardCommandsContext value={cardCommands}>
             <div
               class="absolute left-0 top-0 origin-top-left"
-              style={{ transform: `translate(${viewport().x}px, ${viewport().y}px) scale(${viewport().zoom})` }}
+              style={{
+                transform: `translate(${viewport().x}px, ${viewport().y}px) scale(${viewport().zoom})`,
+              }}
             >
               <svg class="absolute left-0 top-0 overflow-visible" width="1" height="1" aria-hidden="true">
                 <For each={model().edges}>
@@ -504,7 +644,10 @@ export default function ForestSurface(props: Props) {
                         class="stroke-muted-foreground"
                         stroke-width="1"
                         stroke-dasharray="6 4"
-                        style={{ 'pointer-events': 'stroke', cursor: 'pointer' }}
+                        style={{
+                          'pointer-events': 'stroke',
+                          cursor: 'pointer',
+                        }}
                         onPointerDown={(event) => event.stopPropagation()}
                         onClick={(event) => showPopup(dependency.relations, event)}
                         data-testid="forest-external-dependency"
@@ -516,7 +659,10 @@ export default function ForestSurface(props: Props) {
                         fill="none"
                         stroke="transparent"
                         stroke-width="32"
-                        style={{ 'pointer-events': 'stroke', cursor: 'pointer' }}
+                        style={{
+                          'pointer-events': 'stroke',
+                          cursor: 'pointer',
+                        }}
                         onPointerDown={(event) => event.stopPropagation()}
                         onClick={(event) => showPopup(dependency.relations, event)}
                       />
@@ -528,7 +674,11 @@ export default function ForestSurface(props: Props) {
                 {(node) => (
                   <div
                     class="absolute"
-                    style={{ left: `${node.position.x}px`, top: `${node.position.y}px`, 'z-index': nodeZIndex(node) }}
+                    style={{
+                      left: `${node.position.x}px`,
+                      top: `${node.position.y}px`,
+                      'z-index': nodeZIndex(node),
+                    }}
                     onPointerDown={(event) => startNodeDrag(event, node.id)}
                     onClick={(event) => clickNode(event, node)}
                   >
@@ -547,7 +697,11 @@ export default function ForestSurface(props: Props) {
             <div
               class="fixed z-50 rounded-md border border-border bg-popover p-1"
               onPointerDown={(event) => event.stopPropagation()}
-              style={{ left: `${value.screenX}px`, top: `${value.screenY}px`, transform: 'translate(-50%, -50%)' }}
+              style={{
+                left: `${value.screenX}px`,
+                top: `${value.screenY}px`,
+                transform: 'translate(-50%, -50%)',
+              }}
             >
               <button
                 class="btn-destructive px-3 py-1 text-sm"

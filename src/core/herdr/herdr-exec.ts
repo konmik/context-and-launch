@@ -81,7 +81,9 @@ const HerdrWorkspaceListJsonSchema = v.pipe(
   v.parseJson({}, "Could not parse JSON output from 'herdr.workspace.list'."),
   v.message(
     v.object({
-      result: v.object({ workspaces: v.array(HerdrWorkspaceSchema) }),
+      result: v.object({
+        workspaces: v.array(HerdrWorkspaceSchema),
+      }),
     }),
     missingWorkspaces,
   ),
@@ -91,7 +93,9 @@ const HerdrAgentListJsonSchema = v.pipe(
   v.parseJson({}, "Could not parse JSON output from 'herdr.agent.list'."),
   v.message(
     v.object({
-      result: v.object({ agents: v.array(HerdrAgentSchema) }),
+      result: v.object({
+        agents: v.array(HerdrAgentSchema),
+      }),
     }),
     missingAgents,
   ),
@@ -101,14 +105,18 @@ const HerdrPaneListJsonSchema = v.pipe(
   v.parseJson({}, "Could not parse JSON output from 'herdr.pane.list'."),
   v.message(
     v.object({
-      result: v.object({ panes: v.array(HerdrPaneSchema) }),
+      result: v.object({
+        panes: v.array(HerdrPaneSchema),
+      }),
     }),
     missingPanes,
   ),
 )
 
 export type HerdrWorkspace = v.InferOutput<typeof HerdrWorkspaceSchema>
+
 export type HerdrAgent = v.InferOutput<typeof HerdrAgentSchema>
+
 export type HerdrPane = v.InferOutput<typeof HerdrPaneSchema>
 
 export async function listHerdrWorkspaces(exec: HerdrExecFn, values: CommandTemplateValues = {}): Promise<HerdrWorkspace[]> {
@@ -122,6 +130,8 @@ export async function listHerdrAgents(exec: HerdrExecFn, values: CommandTemplate
 }
 
 export async function listHerdrPanes(exec: HerdrExecFn, workspaceId: string): Promise<HerdrPane[]> {
-  const output = await exec('herdr.pane.list', { workspaceId })
+  const output = await exec('herdr.pane.list', {
+    workspaceId,
+  })
   return v.parse(HerdrPaneListJsonSchema, output).result.panes
 }

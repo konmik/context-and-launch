@@ -8,17 +8,20 @@ import { activeMarkerName, createActiveMarker, createWorkspaceKey, getWorkspaceI
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const guardPath = path.join(repoRoot, 'scripts', 'require-test-workspace.mjs')
-
 const temporaryDirectories: string[] = []
-
 afterEach(() => {
   for (const directory of temporaryDirectories.splice(0)) {
-    fs.rmSync(directory, { recursive: true, force: true })
+    fs.rmSync(directory, {
+      recursive: true,
+      force: true,
+    })
   }
 })
 
 function guardEnvironment(workspace?: string, token?: string): NodeJS.ProcessEnv {
-  const env = { ...process.env }
+  const env = {
+    ...process.env,
+  }
   delete env.CONTEXT_LAUNCH_TEST_WORKSPACE
   delete env.CONTEXT_LAUNCH_TEST_TOKEN
   if (workspace) env.CONTEXT_LAUNCH_TEST_WORKSPACE = workspace
@@ -31,7 +34,10 @@ function managedWorkspace() {
   temporaryDirectories.push(workspace)
   const marker = createActiveMarker(workspace, getWorkspaceIdentity(repoRoot))
   fs.writeFileSync(path.join(workspace, activeMarkerName), JSON.stringify(marker))
-  return { workspace, marker }
+  return {
+    workspace,
+    marker,
+  }
 }
 
 function runGuard(workspace?: string, token?: string) {
@@ -45,44 +51,39 @@ function runGuard(workspace?: string, token?: string) {
 describe('test workspace isolation', () => {
   it('keys workspaces by the complete source path and ref', () => {
     const key = createWorkspaceKey('/one/project', 'refs/heads/feature/one')
-
     expect(createWorkspaceKey('/two/project', 'refs/heads/feature/one')).not.toBe(key)
     expect(createWorkspaceKey('/one/project', 'refs/heads/feature/two')).not.toBe(key)
   })
-
   it('rejects internal test commands in the source workspace', () => {
     const result = runGuard()
-
     expect(result.status).toBe(1)
     expect(result.stderr).toContain('Run the public pnpm test command instead')
   })
-
   it('accepts the managed isolated workspace', () => {
     const { workspace, marker } = managedWorkspace()
     const result = runGuard(workspace, marker.token)
-
     expect(result.status, result.stderr).toBe(0)
   })
-
   it('rejects a workspace without the active token', () => {
     const { workspace } = managedWorkspace()
     const result = runGuard(workspace)
-
     expect(result.status).toBe(1)
   })
-
   it('rejects a token that does not own the active workspace', () => {
     const { workspace } = managedWorkspace()
     const result = runGuard(workspace, 'a'.repeat(64))
-
     expect(result.status).toBe(1)
   })
-
   it('rejects an inactive ownership marker', () => {
     const { workspace, marker } = managedWorkspace()
-    fs.writeFileSync(path.join(workspace, activeMarkerName), JSON.stringify({ ...marker, active: false }))
+    fs.writeFileSync(
+      path.join(workspace, activeMarkerName),
+      JSON.stringify({
+        ...marker,
+        active: false,
+      }),
+    )
     const result = runGuard(workspace, marker.token)
-
     expect(result.status).toBe(1)
   })
 })

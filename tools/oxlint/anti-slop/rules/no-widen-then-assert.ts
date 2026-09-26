@@ -47,13 +47,11 @@ function isBroadRecordKeyType(type: ESTree.TSType): boolean {
 
 function isBroadRecordType(type: ESTree.TSType): boolean {
   const unwrapped = unwrapTypeParentheses(type)
-
   if (unwrapped.type === 'TSTypeReference') {
     if (typeReferenceName(unwrapped) === 'Readonly') {
       const [inner] = unwrapped.typeArguments?.params ?? []
       return inner !== undefined && isBroadRecordType(inner)
     }
-
     if (typeReferenceName(unwrapped) !== 'Record') return false
     const parameters = unwrapped.typeArguments?.params ?? []
     return (
@@ -64,7 +62,6 @@ function isBroadRecordType(type: ESTree.TSType): boolean {
       isUnknownOrAnyType(parameters[1])
     )
   }
-
   if (unwrapped.type !== 'TSTypeLiteral' || unwrapped.members.length !== 1) return false
   const [member] = unwrapped.members
   const [parameter] = member?.type === 'TSIndexSignature' ? member.parameters : []
@@ -130,14 +127,12 @@ function isDefinitelyNarrowerRecordType(type: ESTree.TSType): boolean {
   if (unwrapped.type === 'TSTypeLiteral') {
     return unwrapped.members.some((member) => member.type !== 'TSIndexSignature')
   }
-
   if (unwrapped.type !== 'TSTypeReference') return false
   if (typeReferenceName(unwrapped) === 'Readonly') {
     const [inner] = unwrapped.typeArguments?.params ?? []
     return inner !== undefined && isDefinitelyNarrowerRecordType(inner)
   }
   if (typeReferenceName(unwrapped) !== 'Record') return false
-
   const parameters = unwrapped.typeArguments?.params ?? []
   return parameters.length === 2 && parameters[1] !== undefined && !isUnknownOrAnyType(parameters[1])
 }
@@ -185,16 +180,17 @@ function knownValueEvidence(
   visitedVariables: ReadonlySet<Variable>,
 ): KnownValueEvidence | null {
   const unwrapped = unwrapExpressionParentheses(expression)
-
   if (unwrapped.type === 'TSAsExpression' || unwrapped.type === 'TSTypeAssertion') {
     if (broadTypeKind(unwrapped.typeAnnotation) !== null) return null
-    return { type: unwrapped.typeAnnotation }
+    return {
+      type: unwrapped.typeAnnotation,
+    }
   }
-
   if (unwrapped.type === 'Literal' || unwrapped.type === 'TemplateLiteral') {
-    return { type: null }
+    return {
+      type: null,
+    }
   }
-
   if (
     unwrapped.type === 'ArrayExpression' ||
     unwrapped.type === 'ArrowFunctionExpression' ||
@@ -203,13 +199,13 @@ function knownValueEvidence(
     unwrapped.type === 'NewExpression' ||
     unwrapped.type === 'ObjectExpression'
   ) {
-    return { type: null }
+    return {
+      type: null,
+    }
   }
-
   if (unwrapped.type !== 'Identifier') return null
   const variable = resolvedVariableForIdentifier(scopes, unwrapped)
   if (variable === null || visitedVariables.has(variable)) return null
-
   const annotatedIdentifier = variable.identifiers.find(
     (identifier) => identifier.typeAnnotation !== null && identifier.typeAnnotation !== undefined,
   )
@@ -218,9 +214,10 @@ function knownValueEvidence(
     if (functionBoundary(annotatedIdentifier) !== boundary || broadTypeKind(annotation) !== null) {
       return null
     }
-    return { type: annotation }
+    return {
+      type: annotation,
+    }
   }
-
   const declarator = variableDeclarator(variable)
   if (
     declarator === null ||
@@ -232,7 +229,6 @@ function knownValueEvidence(
   ) {
     return null
   }
-
   return knownValueEvidence(declarator.init, scopes, boundary, new Set([...visitedVariables, variable]))
 }
 
@@ -256,7 +252,6 @@ function widenedBinding(
   ) {
     return null
   }
-
   const boundary = functionBoundary(declarator)
   const declaredType = declarator.id.typeAnnotation?.typeAnnotation
   const initializerAssertion = assertionFromExpression(declarator.init)
@@ -264,11 +259,17 @@ function widenedBinding(
   const declaredBroadKind = declaredType === undefined ? null : broadTypeKind(declaredType)
   const broadKind = declaredBroadKind ?? initializerBroadKind
   if (broadKind === null) return null
-
   const originalExpression =
     initializerAssertion !== null && initializerBroadKind !== null ? assertedExpression(initializerAssertion) : declarator.init
   const evidence = knownValueEvidence(originalExpression, scopes, boundary, new Set([variable]))
-  return evidence === null ? null : { broadKind, evidence, declaredAt: declarator.end, boundary }
+  return evidence === null
+    ? null
+    : {
+        broadKind,
+        evidence,
+        declaredAt: declarator.end,
+        boundary,
+      }
 }
 
 function assertionIsNarrower(
@@ -299,11 +300,9 @@ export const noWidenThenAssertRule = defineRule({
   },
   createOnce(context) {
     let scopes: Parameters<typeof resolvedVariableForIdentifier>[0] = []
-
     const checkAssertion = (node: ESTree.TSAsExpression | ESTree.TSTypeAssertion) => {
       const expression = assertedExpression(node)
       if (expression.type !== 'Identifier') return
-
       const variable = resolvedVariableForIdentifier(scopes, expression)
       if (variable === null) return
       const widened = widenedBinding(variable, scopes)
@@ -315,14 +314,14 @@ export const noWidenThenAssertRule = defineRule({
       ) {
         return
       }
-
       context.report({
         node,
         messageId: 'widenThenAssert',
-        data: { name: expression.name },
+        data: {
+          name: expression.name,
+        },
       })
     }
-
     return {
       Program() {
         scopes = context.sourceCode.scopeManager.scopes

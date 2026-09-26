@@ -1,12 +1,10 @@
 import { defineRule } from '@oxlint/plugins'
-
 import {
   classifyUnsafeDictionary,
   classifyUnsafeDictionaryValue,
   createTypeEnvironment,
   type TypeEnvironment,
 } from '../shared/dictionary-types.ts'
-
 import type { ESTree } from '@oxlint/plugins'
 
 const typeNodeKinds: ReadonlySet<string> = new Set([
@@ -99,7 +97,13 @@ export const noUnsafeDictionaryTypeRule = defineRule({
   createOnce(context) {
     let environment: TypeEnvironment | null = null
     const report = (node: ESTree.Node, value: string) => {
-      context.report({ node, messageId: 'unsafeDictionary', data: { value } })
+      context.report({
+        node,
+        messageId: 'unsafeDictionary',
+        data: {
+          value,
+        },
+      })
     }
     const reportIfUnsafe = (node: ESTree.TSType) => {
       if (environment === null || !shouldReportType(node, environment)) return
@@ -107,7 +111,6 @@ export const noUnsafeDictionaryTypeRule = defineRule({
       if (unsafe === null) return
       report(node, unsafe.unsafeValue)
     }
-
     return {
       Program(node) {
         environment = createTypeEnvironment(node)

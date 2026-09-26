@@ -135,9 +135,7 @@ function FileTreeNodes(props: {
                 <li>
                   <button
                     type="button"
-                    class={`flex w-full items-start gap-1.5 rounded-md px-2 py-1.5 text-left ${
-                      props.activePath === node.filePath ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/60'
-                    }`}
+                    class={`flex w-full items-start gap-1.5 rounded-md px-2 py-1.5 text-left ${props.activePath === node.filePath ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/60'}`}
                     onClick={() => props.onSelect(node.filePath)}
                     data-testid="diff-review-file"
                     data-file-path={node.filePath}
@@ -182,6 +180,7 @@ function FileTree(props: {
   const [collapsedDirectoryPaths, setCollapsedDirectoryPaths] = createSignal(new Set<string>())
   const fileByPath = createMemo(() => new Map(props.files.map((file) => [file.path, file])))
   const totalsByFileType = createMemo(() => buildFileTypeTotals(props.files))
+
   function toggleDirectory(directoryPath: string) {
     setCollapsedDirectoryPaths((current) => {
       const next = new Set(current)
@@ -190,9 +189,12 @@ function FileTree(props: {
       return next
     })
   }
+
   return (
     <nav
-      style={{ width: `${props.width}px` }}
+      style={{
+        width: `${props.width}px`,
+      }}
       class="flex min-h-0 shrink-0 flex-col border-r border-border bg-card/35"
       aria-label="Changed files"
       data-testid="diff-review-file-tree"
@@ -248,9 +250,8 @@ function DiffLoadError(props: { error: unknown; onRetry(): void }) {
       </div>
     </div>
   )
-}
+} // What stands in for the files while the selected Diff Scope has none to show:
 
-// What stands in for the files while the selected Diff Scope has none to show:
 // Git is still calculating it, or Git answered that it cannot.
 function DiffScopeUnavailable(props: { error?: string; label: string; onRetry(): void }) {
   return (
@@ -293,14 +294,15 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
     saveDiffReviewState.bind(null, props.projectSlug),
     releaseDiffReviewState.bind(null, props.projectSlug),
   )
-  const readAgentStatus = () => readReviewAgentStatus(props.projectSlug, props.ticket.folderName)
-  // Publish completed background reads without suspending the composer on each poll.
+  const readAgentStatus = () => readReviewAgentStatus(props.projectSlug, props.ticket.folderName) // Publish completed background reads without suspending the composer on each poll.
   const agentState = createStoredState(readAgentStatus)
   const agentStatus = agentState.get
+
   async function refreshAgentStatus() {
     const result = await agentState.enqueueAndPublish(async () => succeed(await readAgentStatus()))
     if (result.type === 'Failure') setReviewError(result.error)
   }
+
   const worktreeIdentity = createMemo(() => agentStatus().worktreeIdentity)
   const reviewedLines = createMemo(() => {
     const tracker = createReviewedLineTracker({
@@ -312,7 +314,6 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
     onCleanup(() => void tracker.dispose())
     return tracker
   })
-
   const review = createMemo(() => getReviewSnapshot(props.projectSlug, props.ticket.folderName, scope() ?? null))
   const sharedConfig = useContext(LauncherConfigContext)!
   const projectConfig = useContext(ProjectLauncherConfigContext)!
@@ -327,11 +328,9 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
       return configured && names.includes(configured) ? configured : (names[0] ?? '')
     })
   })
-  const scopes = () => review()?.scopes ?? []
-  // Before the user picks one, the selected Diff Scope is the one the server
+  const scopes = () => review()?.scopes ?? [] // Before the user picks one, the selected Diff Scope is the one the server
   // opened the Diff Review with.
-  const selectedScope = () => scope() ?? review()?.scope
-  // Git's answer belongs to the Diff Scope it was calculated for, so an answer
+  const selectedScope = () => scope() ?? review()?.scope // Git's answer belongs to the Diff Scope it was calculated for, so an answer
   // for another scope never reaches the screen: while a newly selected scope
   // loads, the Diff Review shows its loading state instead of the files of the
   // scope the user just left. A scope Git cannot calculate answers with an
@@ -345,7 +344,9 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
   const files = createMemo<ReviewFileSnapshot[]>((previous) => reuseUnchangedFiles(previous ?? [], scopedSnapshot()?.files ?? []), {
     loadingValue: [],
   })
-  const snapshotFilePaths = createMemo<string[]>((previous) => reuseFilePaths(previous ?? [], files()), { loadingValue: [] })
+  const snapshotFilePaths = createMemo<string[]>((previous) => reuseFilePaths(previous ?? [], files()), {
+    loadingValue: [],
+  })
   const fileTree = createMemo(() => buildDiffReviewFileTree(snapshotFilePaths()))
   const filePaths = createMemo(() => diffReviewFilePathsInTreeOrder(fileTree()))
   const fileByPath = createMemo(() => new Map(files().map((file) => [file.path, file])))
@@ -387,7 +388,9 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
     const section = sectionRefs.get(filePath)
     if (!section?.isConnected) return
     setActivePath(filePath)
-    section.scrollIntoView({ block: 'start' })
+    section.scrollIntoView({
+      block: 'start',
+    })
     scheduleActivePathUpdate()
   }
 
@@ -401,7 +404,6 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
       queueMicrotask(scheduleActivePathUpdate)
     },
   )
-
   createEffect(pace, (currentPace) => {
     if (currentPace !== 'live') return
     let disposed = false
@@ -415,16 +417,14 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
           setReviewError(error instanceof Error ? error.message : String(error))
         }
         scheduleNext()
-      }, 1_200)
+      }, 1200)
     }
     scheduleNext()
     return () => {
       disposed = true
       if (timer !== undefined) clearTimeout(timer)
     }
-  })
-
-  // The queue advances on the server as the Agent picks up and finishes each
+  }) // The queue advances on the server as the Agent picks up and finishes each
   // Review Prompt, so the Diff Review rereads it while it is open.
   onSettled(() => {
     const timer = setInterval(() => {
@@ -432,14 +432,13 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
         if (result.type === 'Failure') setReviewError(result.error)
       })
       void refreshAgentStatus()
-    }, 1_200)
+    }, 1200)
     return () => {
       clearInterval(timer)
       if (scrollFrame !== undefined) cancelAnimationFrame(scrollFrame)
       endTreeResize()
     }
   })
-
   const scopeLabel = () => {
     const selected = selectedScope()
     return selected ? SCOPE_LABELS[selected] : 'changes'
@@ -455,16 +454,22 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
   function changeComposer(next?: ActiveComposer) {
     setComposer(next)
     setFeedback('')
-  }
+  } // The complete message the queue delivers to the Agent for the current
 
-  // The complete message the queue delivers to the Agent for the current
   // Composer: identical to what the server sends when the user hits Send.
   function completePromptText(): string {
     const selected = selection()
-    return renderReviewPrompt({ feedback: feedback().trim(), snapshot: selected?.snapshot }, { stale: selectionStale() })
-  }
+    return renderReviewPrompt(
+      {
+        feedback: feedback().trim(),
+        snapshot: selected?.snapshot,
+      },
+      {
+        stale: selectionStale(),
+      },
+    )
+  } // The text every drag source hands to another window: identical to what the
 
-  // The text every drag source hands to another window: identical to what the
   // queue delivers to the Agent for the same Review Selection.
   function promptDragText(): string | undefined {
     if (!selection()) return undefined
@@ -480,7 +485,10 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
   }
 
   function onChangedLineVisible(filePath: string, lineId: string) {
-    reviewedLines().markVisible({ id: lineId, path: filePath })
+    reviewedLines().markVisible({
+      id: lineId,
+      path: filePath,
+    })
   }
 
   function selectLines(file: ReviewFileSnapshot, range: SelectedLineRange | null) {
@@ -577,7 +585,12 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
     }
   }
 
-  let treeResizeState: { startX: number; startWidth: number } | undefined
+  let treeResizeState:
+    | {
+        startX: number
+        startWidth: number
+      }
+    | undefined
 
   function onTreeResizePointerMove(event: PointerEvent) {
     if (!treeResizeState) return
@@ -597,7 +610,10 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
 
   function startTreeResize(event: PointerEvent) {
     event.preventDefault()
-    treeResizeState = { startX: event.clientX, startWidth: treeWidth() }
+    treeResizeState = {
+      startX: event.clientX,
+      startWidth: treeWidth(),
+    }
     document.body.style.cursor = 'col-resize'
     document.body.style.userSelect = 'none'
     window.addEventListener('pointermove', onTreeResizePointerMove)
@@ -644,9 +660,7 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
           <div class="flex rounded-md border border-input bg-background p-0.5">
             <button
               type="button"
-              class={`h-7 rounded-sm px-2.5 font-mono text-[11px] ${
-                pace() === 'live' ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
-              }`}
+              class={`h-7 rounded-sm px-2.5 font-mono text-[11px] ${pace() === 'live' ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`}
               onClick={() => setPace('live')}
               aria-pressed={pace() === 'live' ? 'true' : 'false'}
               data-testid="diff-review-pace-live"
@@ -656,9 +670,7 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
             </button>
             <button
               type="button"
-              class={`h-7 rounded-sm px-2.5 font-mono text-[11px] ${
-                pace() === 'step-by-step' ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
-              }`}
+              class={`h-7 rounded-sm px-2.5 font-mono text-[11px] ${pace() === 'step-by-step' ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`}
               onClick={() => setPace('step-by-step')}
               aria-pressed={pace() === 'step-by-step' ? 'true' : 'false'}
               data-testid="diff-review-pace-step"
@@ -710,9 +722,7 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
               {(value) => (
                 <button
                   type="button"
-                  class={`h-7 rounded-sm px-2 font-mono text-[10px] ${
-                    layout() === value ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
-                  }`}
+                  class={`h-7 rounded-sm px-2 font-mono text-[10px] ${layout() === value ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`}
                   onClick={() => setLayout(value)}
                   aria-pressed={layout() === value ? 'true' : 'false'}
                 >
@@ -879,7 +889,12 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
         </div>
       </Show>
 
-      <ReviewAgentStatusContext value={{ get: agentStatus, refresh: refreshAgentStatus }}>
+      <ReviewAgentStatusContext
+        value={{
+          get: agentStatus,
+          refresh: refreshAgentStatus,
+        }}
+      >
         <ReviewPromptComposer
           open={composer() !== undefined}
           selection={selection()}

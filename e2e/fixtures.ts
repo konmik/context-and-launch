@@ -14,8 +14,7 @@ import { removeTempDir } from '../src/test-temp.js'
  * The board re-checks Sync Pending on this client timer, so a test with a faked
  * clock sees no refresh until it advances past the interval.
  */
-const SYNC_PENDING_POLL_MS = 10_000
-
+const SYNC_PENDING_POLL_MS = 10000
 /**
  * The deferred work the project page schedules through requestIdleCallback,
  * which Playwright's clock fakes as a 50ms timer.
@@ -53,7 +52,9 @@ export async function createServer(opts: CreateServerOptions = {}): Promise<Test
   const startPort = pickPort()
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), opts.dataDirPrefix ?? 'cl-e2e-data-'))
   const reposParentDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cl-e2e-repos-'))
-  fs.mkdirSync(path.join(dataDir, 'config'), { recursive: true })
+  fs.mkdirSync(path.join(dataDir, 'config'), {
+    recursive: true,
+  })
   fs.writeFileSync(
     path.join(dataDir, 'config', 'command-templates.json'),
     JSON.stringify(
@@ -123,15 +124,45 @@ export interface SeedBoard {
 
 /** The board a test wants when it needs somewhere to drag a ticket to. */
 export const THREE_COLUMN_BOARD: SeedBoard[] = [
-  { id: 'standard', name: 'Standard', columns: [{ name: 'todo' }, { name: 'in-progress' }, { name: 'done' }] },
+  {
+    id: 'standard',
+    name: 'Standard',
+    columns: [
+      {
+        name: 'todo',
+      },
+      {
+        name: 'in-progress',
+      },
+      {
+        name: 'done',
+      },
+    ],
+  },
 ]
 
 export interface SeedAppLauncherConfig {
   columnDefaults?: import('../src/core/launcher/launcher-config-data.js').LauncherConfig['columnDefaults']
-  templates?: { name: string; text: string; order?: number }[]
-  skills?: { name: string; text: string; order?: number }[]
-  profiles?: { name: string; command: string; order?: number }[]
-  shortcuts?: { name: string; command: string; order?: number }[]
+  templates?: {
+    name: string
+    text: string
+    order?: number
+  }[]
+  skills?: {
+    name: string
+    text: string
+    order?: number
+  }[]
+  profiles?: {
+    name: string
+    command: string
+    order?: number
+  }[]
+  shortcuts?: {
+    name: string
+    command: string
+    order?: number
+  }[]
   conflictResolutionPrompt?: string
 }
 
@@ -143,7 +174,9 @@ export interface CreateProjectOptions {
   withTickets?: SeedTicket[]
   withTicketOrder?: Record<string, string[]>
   seedRemoteBaseline?: boolean
-  withWorktrees?: { folderName: string }[]
+  withWorktrees?: {
+    folderName: string
+  }[]
   worktreeRootPath?: string
   mainBranch?: string
   appLauncherConfig?: SeedAppLauncherConfig
@@ -169,7 +202,9 @@ function toKebab(value: string): string {
 
 function seedAppConfigFiles(dataDir: string, boards: SeedBoard[] | undefined, appLauncher: SeedAppLauncherConfig | undefined): void {
   const configDir = path.join(dataDir, 'config')
-  fs.mkdirSync(configDir, { recursive: true })
+  fs.mkdirSync(configDir, {
+    recursive: true,
+  })
   if (boards) {
     fs.writeFileSync(path.join(configDir, 'boards.json'), JSON.stringify(boards, null, 2))
   }
@@ -188,11 +223,18 @@ function seedAppConfigFiles(dataDir: string, boards: SeedBoard[] | undefined, ap
 
 function makeRepoDir(projectSlug: string, parentDir: string): string {
   const dir = path.join(parentDir, projectSlug)
-  fs.mkdirSync(parentDir, { recursive: true })
+  fs.mkdirSync(parentDir, {
+    recursive: true,
+  })
   if (fs.existsSync(dir)) {
-    fs.rmSync(dir, { recursive: true, force: true })
+    fs.rmSync(dir, {
+      recursive: true,
+      force: true,
+    })
   }
-  fs.mkdirSync(dir, { recursive: false })
+  fs.mkdirSync(dir, {
+    recursive: false,
+  })
   return dir
 }
 
@@ -210,14 +252,10 @@ function setupBareRemote(repoPath: string, branch: string, pushMain = true): str
 
 export async function createProject(server: ProjectDirs, opts: CreateProjectOptions): Promise<CreatedProject> {
   seedAppConfigFiles(server.dataDir, opts.withBoards, opts.appLauncherConfig)
-
-  const projectPath = makeRepoDir(opts.projectSlug, server.reposParentDir)
-
-  // seedRemoteBaseline needs a remote that starts without the Orphan Branch, a
+  const projectPath = makeRepoDir(opts.projectSlug, server.reposParentDir) // seedRemoteBaseline needs a remote that starts without the Orphan Branch, a
   // shape the template does not hold, so that one runs the git ceremony.
   const fromTemplate = !opts.seedRemoteBaseline
   const seedsTickets = Boolean(opts.withRemote || opts.withTickets?.length || opts.withTicketOrder)
-
   let remoteUrl: string | null = null
   if (!fromTemplate) {
     initGitRepo(projectPath)
@@ -226,26 +264,33 @@ export async function createProject(server: ProjectDirs, opts: CreateProjectOpti
     }
   } else {
     const template = projectTemplate()
-    fs.cpSync(template.repo, projectPath, { recursive: true })
+    fs.cpSync(template.repo, projectPath, {
+      recursive: true,
+    })
     if (opts.withRemote) {
       remoteUrl = remoteDirFor(projectPath)
-      fs.cpSync(template.remote, remoteUrl, { recursive: true })
+      fs.cpSync(template.remote, remoteUrl, {
+        recursive: true,
+      })
       git(`remote set-url origin "${remoteUrl}"`, projectPath)
     } else {
       git('remote remove origin', projectPath)
     }
   }
-
   const ticketsPath = path.join(server.dataDir, 'projects', opts.projectSlug, 'tickets')
   const worktreeRootPath =
     opts.worktreeRootPath ??
     (opts.withWorktrees && opts.withWorktrees.length > 0 ? path.join(server.dataDir, 'projects', opts.projectSlug, 'worktrees') : null)
-
   const canonicalProjectPath = fs.realpathSync(projectPath)
   const configDir = path.join(server.dataDir, 'config')
   const configFile = path.join(configDir, 'config.json')
-  fs.mkdirSync(configDir, { recursive: true })
-  let registry: ProjectRegistry = { projects: [], lastUsedProjectSlug: null }
+  fs.mkdirSync(configDir, {
+    recursive: true,
+  })
+  let registry: ProjectRegistry = {
+    projects: [],
+    lastUsedProjectSlug: null,
+  }
   if (fs.existsSync(configFile)) {
     registry = JSON.parse(fs.readFileSync(configFile, 'utf-8'))
   }
@@ -254,16 +299,19 @@ export async function createProject(server: ProjectDirs, opts: CreateProjectOpti
     projectSlug: opts.projectSlug,
     branch: TICKETS_BRANCH,
   }
-  if (opts.mainBranch) Object.assign(projectEntry, { mainBranch: opts.mainBranch })
+  if (opts.mainBranch)
+    Object.assign(projectEntry, {
+      mainBranch: opts.mainBranch,
+    })
   registry.projects.push(projectEntry)
   registry.lastUsedProjectSlug = opts.projectSlug
   fs.writeFileSync(configFile, JSON.stringify(registry, null, 2))
-
   const defaultWorktreeRoot = path.join(server.dataDir, 'projects', opts.projectSlug, 'worktrees')
   const effectiveWorktreeRootPath = worktreeRootPath ?? defaultWorktreeRoot
-
   const projectConfigDir = path.join(server.dataDir, 'projects', opts.projectSlug, 'config')
-  fs.mkdirSync(projectConfigDir, { recursive: true })
+  fs.mkdirSync(projectConfigDir, {
+    recursive: true,
+  })
   const projectLauncherFile = path.join(projectConfigDir, 'launcher-config.json')
   let projectLauncher: PersistedLauncherConfig = {}
   if (fs.existsSync(projectLauncherFile)) {
@@ -274,7 +322,9 @@ export async function createProject(server: ProjectDirs, opts: CreateProjectOpti
 
   function ensureTicketsWorktree(): void {
     if (fs.existsSync(path.join(ticketsPath, '.git'))) return
-    fs.mkdirSync(path.dirname(ticketsPath), { recursive: true })
+    fs.mkdirSync(path.dirname(ticketsPath), {
+      recursive: true,
+    })
     if (fromTemplate) {
       // The copy already carries the Orphan Branch and its upstream tracking,
       // so registering a worktree for it takes one command.
@@ -288,22 +338,32 @@ export async function createProject(server: ProjectDirs, opts: CreateProjectOpti
   if (seedsTickets) {
     ensureTicketsWorktree()
   }
-
   if ((opts.withTickets && opts.withTickets.length > 0) || opts.withTicketOrder) {
     const useWorktreeFolders = new Set((opts.withWorktrees ?? []).map((w) => w.folderName))
     for (const t of opts.withTickets ?? []) {
       const folderName = t.folderName ?? toKebab(`${t.number}-${t.title}`)
       const folder = path.join(ticketsPath, folderName)
-      fs.mkdirSync(folder, { recursive: true })
+      fs.mkdirSync(folder, {
+        recursive: true,
+      })
       const status = {
         number: t.number,
         title: t.title,
         status: t.status,
         useWorktree: t.useWorktree ?? useWorktreeFolders.has(folderName),
       }
-      if (t.createdAt) Object.assign(status, { createdAt: t.createdAt })
-      if (t.dependsOn) Object.assign(status, { dependsOn: t.dependsOn })
-      if (t.memberOf) Object.assign(status, { memberOf: t.memberOf })
+      if (t.createdAt)
+        Object.assign(status, {
+          createdAt: t.createdAt,
+        })
+      if (t.dependsOn)
+        Object.assign(status, {
+          dependsOn: t.dependsOn,
+        })
+      if (t.memberOf)
+        Object.assign(status, {
+          memberOf: t.memberOf,
+        })
       fs.writeFileSync(path.join(folder, 'status.json'), JSON.stringify(status, null, 2))
       fs.writeFileSync(path.join(folder, 'description.md'), t.body ?? '')
     }
@@ -312,20 +372,19 @@ export async function createProject(server: ProjectDirs, opts: CreateProjectOpti
     }
     commitAll(ticketsPath, 'seed')
   }
-
   if (opts.withRemote && !fromTemplate) {
     git(`push -u origin "${TICKETS_BRANCH}"`, ticketsPath)
   }
-
   if (opts.withWorktrees && opts.withWorktrees.length > 0 && worktreeRootPath) {
     for (const w of opts.withWorktrees) {
       const wtPath = path.join(worktreeRootPath, w.folderName)
       const wtBranch = w.folderName
-      fs.mkdirSync(path.dirname(wtPath), { recursive: true })
+      fs.mkdirSync(path.dirname(wtPath), {
+        recursive: true,
+      })
       git(`worktree add "${wtPath}" -b "${wtBranch}"`, projectPath)
     }
   }
-
   const cleanup = () => {
     if (opts.withWorktrees && worktreeRootPath) {
       for (const w of opts.withWorktrees) {
@@ -339,19 +398,24 @@ export async function createProject(server: ProjectDirs, opts: CreateProjectOpti
       }
     }
     try {
-      fs.rmSync(projectPath, { recursive: true, force: true })
+      fs.rmSync(projectPath, {
+        recursive: true,
+        force: true,
+      })
     } catch (err) {
       console.warn('projectPath cleanup failed:', err)
     }
     if (remoteUrl) {
       try {
-        fs.rmSync(remoteUrl, { recursive: true, force: true })
+        fs.rmSync(remoteUrl, {
+          recursive: true,
+          force: true,
+        })
       } catch (err) {
         console.warn('remoteUrl cleanup failed:', err)
       }
     }
   }
-
   return {
     projectSlug: opts.projectSlug,
     projectPath,
@@ -364,6 +428,7 @@ export async function createProject(server: ProjectDirs, opts: CreateProjectOpti
 }
 
 const slugCounters = new Map<string, number>()
+
 export function uniqueSlug(base: string): string {
   const safe = toKebab(base)
   const n = slugCounters.get(safe) ?? 0
@@ -405,7 +470,9 @@ export async function fastForwardUntilVisible(page: Page, id: string, timeoutMs 
         await fastForwardPastSyncPoll(page)
         return testId(page, id).isVisible()
       },
-      { timeout: timeoutMs },
+      {
+        timeout: timeoutMs,
+      },
     )
     .toBe(true)
 }
@@ -422,8 +489,13 @@ export async function openConflictDialog(page: Page): Promise<void> {
 }
 
 export async function openTicketDetail(page: Page, folderName: string): Promise<void> {
-  const card = testId(page, 'kanban-board-ticket-card', { 'data-folder-name': folderName })
-  await card.waitFor({ state: 'visible', timeout: WAIT_TIMEOUT_MS })
+  const card = testId(page, 'kanban-board-ticket-card', {
+    'data-folder-name': folderName,
+  })
+  await card.waitFor({
+    state: 'visible',
+    timeout: WAIT_TIMEOUT_MS,
+  })
   await card.click()
   await waitVisibleAny(page, ['ticket-detail-loading', 'ticket-detail-tab-editor'])
   try {
@@ -437,7 +509,10 @@ export async function openTicketDetail(page: Page, folderName: string): Promise<
 
 export async function openLauncherSettings(page: Page): Promise<void> {
   await testId(page, 'project-header-settings-button').click()
-  await page.locator('[data-scope="floating-panel"][data-part="content"]').waitFor({ state: 'visible', timeout: WAIT_TIMEOUT_MS })
+  await page.locator('[data-scope="floating-panel"][data-part="content"]').waitFor({
+    state: 'visible',
+    timeout: WAIT_TIMEOUT_MS,
+  })
   await waitVisible(page, 'launcher-settings-tab-misc')
 }
 
@@ -478,7 +553,10 @@ export async function boxOf(locator: Locator): Promise<ScreenBox> {
 }
 
 function boxCenter(box: ScreenBox): ScreenPoint {
-  return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+  return {
+    x: box.x + box.width / 2,
+    y: box.y + box.height / 2,
+  }
 }
 
 export async function centerOf(locator: Locator): Promise<ScreenPoint> {
@@ -541,11 +619,23 @@ export interface DragElementOptions extends DragPointerOptions {
  * without this helper knowing how any of them are identified.
  */
 export async function dragElement(page: Page, source: Locator, target: Locator, options: DragElementOptions = {}): Promise<void> {
-  await source.waitFor({ state: 'visible', timeout: WAIT_TIMEOUT_MS })
-  await target.waitFor({ state: 'visible', timeout: WAIT_TIMEOUT_MS })
+  await source.waitFor({
+    state: 'visible',
+    timeout: WAIT_TIMEOUT_MS,
+  })
+  await target.waitFor({
+    state: 'visible',
+    timeout: WAIT_TIMEOUT_MS,
+  })
   const sourceBox = await boxOf(source)
   const targetBox = await boxOf(target)
-  const to = options.releaseAt === 'top' ? { x: targetBox.x + targetBox.width / 2, y: targetBox.y + 5 } : boxCenter(targetBox)
+  const to =
+    options.releaseAt === 'top'
+      ? {
+          x: targetBox.x + targetBox.width / 2,
+          y: targetBox.y + 5,
+        }
+      : boxCenter(targetBox)
   await dragPointer(page, boxCenter(sourceBox), to, options)
 }
 
@@ -562,17 +652,21 @@ export async function openTicketMenu(page: Page, trigger: Locator, itemTestId: s
         await trigger.click()
         return (await testId(page, itemTestId).count()) > 0
       },
-      { timeout: WAIT_TIMEOUT_MS },
+      {
+        timeout: WAIT_TIMEOUT_MS,
+      },
     )
     .toBe(true)
 }
 
 export async function clickTicketMenuItem(page: Page, item: 'edit' | 'archive' | 'delete'): Promise<void> {
   const trigger = testId(page, 'kanban-board-ticket-menu-trigger').first()
-  await trigger.waitFor({ state: 'visible', timeout: WAIT_TIMEOUT_MS })
+  await trigger.waitFor({
+    state: 'visible',
+    timeout: WAIT_TIMEOUT_MS,
+  })
   const itemTestId = `kanban-board-ticket-menu-${item}`
-  await openTicketMenu(page, trigger, itemTestId)
-  // The menu closes on the pointer press that Playwright's click sends first,
+  await openTicketMenu(page, trigger, itemTestId) // The menu closes on the pointer press that Playwright's click sends first,
   // so the item has to be activated directly.
   await page.evaluate((id) => {
     const el = document.querySelector<HTMLElement>(`[data-testid="${id}"]`)
@@ -604,10 +698,26 @@ export function readProjectRegistry(server: TestServer): ProjectRegistry {
 }
 
 export interface PersistedLauncherConfig {
-  templates?: { name: string; text: string; order?: number }[]
-  skills?: { name: string; text: string; order?: number }[]
-  profiles?: { name: string; command: string; order?: number }[]
-  shortcuts?: { name: string; command: string; order?: number }[]
+  templates?: {
+    name: string
+    text: string
+    order?: number
+  }[]
+  skills?: {
+    name: string
+    text: string
+    order?: number
+  }[]
+  profiles?: {
+    name: string
+    command: string
+    order?: number
+  }[]
+  shortcuts?: {
+    name: string
+    command: string
+    order?: number
+  }[]
   columnDefaults?: Record<
     string,
     {
@@ -639,7 +749,11 @@ export function readProjectLauncherConfig(server: TestServer, projectSlug: strin
 export interface PersistedBoardDefinition {
   id: string
   name: string
-  columns: { name: string; description?: string; color?: string }[]
+  columns: {
+    name: string
+    description?: string
+    color?: string
+  }[]
 }
 
 export function readBoardDefinitions(server: TestServer): PersistedBoardDefinition[] {
@@ -663,7 +777,16 @@ export function readTicketStatus(server: TestServer, projectSlug: string, folder
   return JSON.parse(fs.readFileSync(file, 'utf-8'))
 }
 
-export function readForestLayout(server: TestServer, projectSlug: string): Record<string, { x: number; y: number }> | null {
+export function readForestLayout(
+  server: TestServer,
+  projectSlug: string,
+): Record<
+  string,
+  {
+    x: number
+    y: number
+  }
+> | null {
   const file = path.join(server.dataDir, 'projects', projectSlug, 'tickets', 'forest-layout.json')
   if (!fs.existsSync(file)) return null
   return JSON.parse(fs.readFileSync(file, 'utf-8'))
@@ -673,7 +796,9 @@ export function listTicketFolders(server: TestServer, projectSlug: string): stri
   const dir = path.join(server.dataDir, 'projects', projectSlug, 'tickets')
   if (!fs.existsSync(dir)) return []
   return fs
-    .readdirSync(dir, { withFileTypes: true })
+    .readdirSync(dir, {
+      withFileTypes: true,
+    })
     .filter((d) => d.isDirectory() && d.name !== '.git')
     .map((d) => d.name)
 }
@@ -734,19 +859,28 @@ export interface E2EContext {
 
 export function setupE2E(
   opts: {
-    viewport?: { width: number; height: number }
+    viewport?: {
+      width: number
+      height: number
+    }
     serverOpts?: CreateServerOptions
   } = {},
 ): E2EContext {
-  const viewport = opts.viewport ?? { width: 1200, height: 800 }
-  const projects: CreatedProject[] = []
-  // SAFETY: beforeAll assigns testServer, beforeEach assigns page, and newPage is assigned before tests run.
-  const ctx = { projects } as E2EContext
+  const viewport = opts.viewport ?? {
+    width: 1200,
+    height: 800,
+  }
+  const projects: CreatedProject[] = [] // SAFETY: beforeAll assigns testServer, beforeEach assigns page, and newPage is assigned before tests run.
+  const ctx = {
+    projects,
+  } as E2EContext
   const extraPages: Page[] = []
   let browser: Browser
   beforeAll(async () => {
     ctx.testServer = await createServer(opts.serverOpts)
-    browser = await chromium.launch({ headless: true })
+    browser = await chromium.launch({
+      headless: true,
+    })
   }, 60000)
   beforeEach(async () => {
     if (ctx.page && !ctx.page.isClosed()) {
@@ -755,10 +889,14 @@ export function setupE2E(
           ' Drop .concurrent from this test, or open a second page with ctx.newPage().',
       )
     }
-    ctx.page = await browser.newPage({ viewport })
+    ctx.page = await browser.newPage({
+      viewport,
+    })
   })
   ctx.newPage = async () => {
-    const p = await browser.newPage({ viewport })
+    const p = await browser.newPage({
+      viewport,
+    })
     extraPages.push(p)
     return p
   }
@@ -820,7 +958,9 @@ export async function openProject(ctx: E2EContext, options: OpenProjectOptions):
 }
 
 export async function expectOpenConfigDirRequest(page: Page, trigger: () => Promise<void>): Promise<void> {
-  const serverCall = page.waitForRequest((r) => r.url().includes('/_server'), { timeout: 5000 })
+  const serverCall = page.waitForRequest((r) => r.url().includes('/_server'), {
+    timeout: 5000,
+  })
   await trigger()
   await serverCall
 }

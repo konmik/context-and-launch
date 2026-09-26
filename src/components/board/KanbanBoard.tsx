@@ -29,11 +29,15 @@ interface KanbanBoardProps {
 export default function KanbanBoard(props: KanbanBoardProps) {
   const order = useContext(TicketOrderContext)!
   const [saveError, setSaveError] = createSignal<string>()
-  const dnd = createBoardDnd(() => ({ ...props.board, ticketOrder: order.get() }))
+  const dnd = createBoardDnd(() => ({
+    ...props.board,
+    ticketOrder: order.get(),
+  }))
   const board = dnd.board
   const drag = props.dragState ?? dnd.drag
   const activeTicket = props.activeTicket ?? dnd.activeTicket
   const commands = dnd.commands
+
   async function saveDrop(drop: DropResult) {
     const projectSlug = props.projectSlug
     setSaveError(undefined)
@@ -51,18 +55,16 @@ export default function KanbanBoard(props: KanbanBoardProps) {
     if (result.type === 'Failure') setSaveError(result.error)
     await revalidate(ticketMutationRevalidateKeys)
   }
+
   const openFolder = (ticket: TicketInfo) => {
     void openTicketFolder(props.projectSlug, ticket.folderName)
   }
-
   const ticketsFor = (column: string) => resolveTicketsForColumn(column, order.get(), board().ticketMap, board().orphanFolderNames)
-
   let headerRow!: HTMLDivElement
   let scrollBody!: HTMLDivElement
   const syncHeaderScroll = () => {
     headerRow.scrollLeft = scrollBody.scrollLeft
   }
-
   return (
     <DragDropProvider
       onDragStart={(e) => commands.startDrag(String(e.draggable.id))}
@@ -80,7 +82,13 @@ export default function KanbanBoard(props: KanbanBoardProps) {
             </p>
           )}
         </Show>
-        <div ref={headerRow} class="shrink-0 overflow-hidden px-4" style={{ 'scrollbar-gutter': 'stable' }}>
+        <div
+          ref={headerRow}
+          class="shrink-0 overflow-hidden px-4"
+          style={{
+            'scrollbar-gutter': 'stable',
+          }}
+        >
           <div class="flex divide-x divide-border">
             <For each={props.board.columns}>
               {(column, i) => (
@@ -100,7 +108,9 @@ export default function KanbanBoard(props: KanbanBoardProps) {
         <div
           ref={scrollBody}
           class="min-h-0 flex-1 overflow-auto px-4"
-          style={{ 'scrollbar-gutter': 'stable' }}
+          style={{
+            'scrollbar-gutter': 'stable',
+          }}
           data-testid="kanban-board-scroll"
           onScroll={syncHeaderScroll}
         >
@@ -142,7 +152,11 @@ export default function KanbanBoard(props: KanbanBoardProps) {
         {() => (
           <Show when={activeTicket()}>
             {(t) => (
-              <DragOverlayCard style={{ width: '250px' }}>
+              <DragOverlayCard
+                style={{
+                  width: '250px',
+                }}
+              >
                 <TicketCard ticket={t()} onDelete={() => {}} onArchive={() => {}} onViewDetail={() => {}} onReviewChanges={() => {}} />
               </DragOverlayCard>
             )}

@@ -68,7 +68,6 @@ export function createServices(options: ServiceOptions = {}): ServiceContainer {
   const commandTemplateService = new CommandTemplateService(commandTemplateStore, new FixedPlatformShellRunner())
   const herdrExec = createHerdrExec(commandTemplateService)
   const gitRepo = new GitRepository(commandTemplateService)
-
   const appConfigStore = new AppConfigStore(configPaths, configRepo)
   const projectRegistry = new ProjectRegistry(configPaths, configRepo, appConfigStore)
   const boardConfigManager = new BoardConfigManager(configPaths, configRepo)
@@ -102,10 +101,18 @@ export function createServices(options: ServiceOptions = {}): ServiceContainer {
       const observedAt = Date.now()
       try {
         const state = await fetchHerdrTicketState(projectSlug, herdrExec)
-        return { agents: state.agents, observedAt }
+        return {
+          agents: state.agents,
+          observedAt,
+        }
       } catch (error) {
         if (error instanceof HerdrUnavailableError) {
-          return error.reason === 'cli-missing' ? { agents: [], observedAt } : undefined
+          return error.reason === 'cli-missing'
+            ? {
+                agents: [],
+                observedAt,
+              }
+            : undefined
         }
         throw error
       }
@@ -121,7 +128,6 @@ export function createServices(options: ServiceOptions = {}): ServiceContainer {
     ticketSyncManager,
     launcherConfigManager,
   )
-
   return {
     configPaths,
     configRepo,

@@ -10,7 +10,6 @@ import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search'
 
 const MONO_FONT = 'var(--font-mono)'
-
 const theme = EditorView.theme({
   '&': {
     height: '100%',
@@ -55,15 +54,47 @@ const theme = EditorView.theme({
     fontFamily: MONO_FONT,
   },
 })
-
 const markdownStyle = HighlightStyle.define([
-  { tag: tags.heading1, fontFamily: MONO_FONT, fontSize: '1.6em', fontWeight: '700', color: 'var(--primary)' },
-  { tag: tags.heading2, fontFamily: MONO_FONT, fontSize: '1.4em', fontWeight: '700', color: 'var(--primary)' },
-  { tag: tags.heading3, fontFamily: MONO_FONT, fontSize: '1.2em', fontWeight: '700', color: 'var(--primary)' },
-  { tag: tags.heading4, fontFamily: MONO_FONT, fontSize: '1.1em', fontWeight: '700', color: 'var(--primary)' },
-  { tag: tags.emphasis, fontStyle: 'italic' },
-  { tag: tags.strong, fontWeight: '700' },
-  { tag: tags.strikethrough, textDecoration: 'line-through' },
+  {
+    tag: tags.heading1,
+    fontFamily: MONO_FONT,
+    fontSize: '1.6em',
+    fontWeight: '700',
+    color: 'var(--primary)',
+  },
+  {
+    tag: tags.heading2,
+    fontFamily: MONO_FONT,
+    fontSize: '1.4em',
+    fontWeight: '700',
+    color: 'var(--primary)',
+  },
+  {
+    tag: tags.heading3,
+    fontFamily: MONO_FONT,
+    fontSize: '1.2em',
+    fontWeight: '700',
+    color: 'var(--primary)',
+  },
+  {
+    tag: tags.heading4,
+    fontFamily: MONO_FONT,
+    fontSize: '1.1em',
+    fontWeight: '700',
+    color: 'var(--primary)',
+  },
+  {
+    tag: tags.emphasis,
+    fontStyle: 'italic',
+  },
+  {
+    tag: tags.strong,
+    fontWeight: '700',
+  },
+  {
+    tag: tags.strikethrough,
+    textDecoration: 'line-through',
+  },
   {
     tag: tags.monospace,
     fontFamily: MONO_FONT,
@@ -72,14 +103,33 @@ const markdownStyle = HighlightStyle.define([
     borderRadius: '3px',
     padding: '1px 3px',
   },
-  { tag: tags.link, color: 'var(--ring)', textDecoration: 'underline' },
-  { tag: tags.url, color: 'var(--ring)' },
-  { tag: tags.quote, color: 'var(--muted-foreground)', fontStyle: 'italic' },
-  { tag: tags.list, color: 'var(--muted-foreground)' },
-  { tag: tags.processingInstruction, fontWeight: '700', color: 'var(--muted-foreground)' },
+  {
+    tag: tags.link,
+    color: 'var(--ring)',
+    textDecoration: 'underline',
+  },
+  {
+    tag: tags.url,
+    color: 'var(--ring)',
+  },
+  {
+    tag: tags.quote,
+    color: 'var(--muted-foreground)',
+    fontStyle: 'italic',
+  },
+  {
+    tag: tags.list,
+    color: 'var(--muted-foreground)',
+  },
+  {
+    tag: tags.processingInstruction,
+    fontWeight: '700',
+    color: 'var(--muted-foreground)',
+  },
 ])
-
-const codeBlockDeco = Decoration.line({ class: 'cm-codeblock' })
+const codeBlockDeco = Decoration.line({
+  class: 'cm-codeblock',
+})
 
 function buildCodeBlockDecos(view: EditorView) {
   const decos: Range<Decoration>[] = []
@@ -100,14 +150,18 @@ function buildCodeBlockDecos(view: EditorView) {
 const codeBlockPlugin = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet
+
     constructor(view: EditorView) {
       this.decorations = buildCodeBlockDecos(view)
     }
+
     update(update: { docChanged: boolean; view: EditorView }) {
       if (update.docChanged) this.decorations = buildCodeBlockDecos(update.view)
     }
   },
-  { decorations: (v) => v.decorations },
+  {
+    decorations: (v) => v.decorations,
+  },
 )
 
 interface MarkdownEditorProps {
@@ -133,7 +187,6 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
     readOnly: !!props.readOnly,
     plain: !!props.plain,
   }))
-
   onSettled(() => {
     const saveKeymap = initial.onSave
       ? [
@@ -153,7 +206,6 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
           },
         ]
       : []
-
     const extensions = [
       keymap.of([...saveKeymap, ...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap]),
       history(),
@@ -163,13 +215,19 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
       ...(initial.plain
         ? []
         : [
-            syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+            syntaxHighlighting(defaultHighlightStyle, {
+              fallback: true,
+            }),
             syntaxHighlighting(markdownStyle),
-            markdown({ codeLanguages: languages }),
+            markdown({
+              codeLanguages: languages,
+            }),
             codeBlockPlugin,
           ]),
       EditorView.lineWrapping,
-      EditorView.contentAttributes.of({ spellcheck: initial.plain ? 'false' : 'true' }),
+      EditorView.contentAttributes.of({
+        spellcheck: initial.plain ? 'false' : 'true',
+      }),
       theme,
       cmPlaceholder(initial.placeholder),
       EditorView.updateListener.of((update) => {
@@ -180,16 +238,16 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
       }),
       readOnlyCompartment.of([EditorState.readOnly.of(initial.readOnly), EditorView.editable.of(!initial.readOnly)]),
     ]
-
     const state = EditorState.create({
       doc: initial.value,
       extensions,
     })
-
-    view = new EditorView({ state, parent: containerRef! })
+    view = new EditorView({
+      state,
+      parent: containerRef!,
+    })
     return () => view?.destroy()
   })
-
   createEffect(
     () => !!props.readOnly,
     (ro) => {
@@ -199,7 +257,6 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
       })
     },
   )
-
   createEffect(
     () => props.value,
     (val) => {
@@ -223,7 +280,11 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
           applyingExternalValue = true
           try {
             view.dispatch({
-              changes: { from: prefixLen, to: oldEnd, insert: val.slice(prefixLen, newEnd) },
+              changes: {
+                from: prefixLen,
+                to: oldEnd,
+                insert: val.slice(prefixLen, newEnd),
+              },
             })
           } finally {
             applyingExternalValue = false
@@ -232,6 +293,5 @@ export default function MarkdownEditor(props: MarkdownEditorProps) {
       }
     },
   )
-
   return <div ref={(el) => (containerRef = el)} class="h-full w-full overflow-hidden rounded-md border border-input bg-background" />
 }

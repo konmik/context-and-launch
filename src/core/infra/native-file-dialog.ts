@@ -33,7 +33,9 @@ function readStub(inlineVariable: string, fileVariable: string): string | undefi
 function runPicker(commands: CommandTemplateExecutor, family: 'picker.files' | 'picker.directory', startDir: string): Promise<string> {
   const directory = startDir || process.cwd()
   const key = platformCommandTemplateKey(family, currentCommandTemplatePlatform())
-  return commands.execute(key, directory, { startDir: directory })
+  return commands.execute(key, directory, {
+    startDir: directory,
+  })
 }
 
 export async function openFileDialog(startDir: string | undefined, commands: CommandTemplateExecutor): Promise<string[]> {
@@ -54,24 +56,58 @@ export async function openFileDialog(startDir: string | undefined, commands: Com
   }
 }
 
-export type DirectoryPickerResult = { path: string } | { cancelled: true } | { error: string }
+export type DirectoryPickerResult =
+  | {
+      path: string
+    }
+  | {
+      cancelled: true
+    }
+  | {
+      error: string
+    }
 
 export async function openDirectoryDialog(preselect: string, commands: CommandTemplateExecutor): Promise<DirectoryPickerResult> {
   const stub = readStub('CONTEXT_PICKER_STUB', 'CONTEXT_PICKER_STUB_FILE')
-  if (stub === '__cancel__') return { cancelled: true }
-  if (stub === '__unavailable__') return { error: unavailableMessage() }
-  if (stub === '__error__') return { error: 'Stubbed picker error' }
-  if (stub) return { path: stub }
-
+  if (stub === '__cancel__')
+    return {
+      cancelled: true,
+    }
+  if (stub === '__unavailable__')
+    return {
+      error: unavailableMessage(),
+    }
+  if (stub === '__error__')
+    return {
+      error: 'Stubbed picker error',
+    }
+  if (stub)
+    return {
+      path: stub,
+    }
   try {
     const stdout = await runPicker(commands, 'picker.directory', preselect)
     const picked = currentCommandTemplatePlatform() === 'macos' ? normalizeMacPickedPath(stdout) : stdout.trim()
-    return picked ? { path: picked } : { cancelled: true }
+    return picked
+      ? {
+          path: picked,
+        }
+      : {
+          cancelled: true,
+        }
   } catch (error) {
-    if (isCancellation(error)) return { cancelled: true }
+    if (isCancellation(error))
+      return {
+        cancelled: true,
+      }
     const unavailable = unavailableReason(error)
-    if (unavailable) return { error: unavailable }
-    return { error: error instanceof Error ? error.message : String(error) }
+    if (unavailable)
+      return {
+        error: unavailable,
+      }
+    return {
+      error: error instanceof Error ? error.message : String(error),
+    }
   }
 }
 

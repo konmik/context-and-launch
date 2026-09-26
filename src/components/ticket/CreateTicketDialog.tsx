@@ -8,7 +8,12 @@ import { suggestTicketNumber } from './ticket-api.js'
 interface CreateTicketDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit: (number: string, title: string) => Promise<{ error?: string }>
+  onSubmit: (
+    number: string,
+    title: string,
+  ) => Promise<{
+    error?: string
+  }>
   suggestedNextNumber?: string | null
   projectSlug: string
   ctrl?: CreateTicketController
@@ -26,13 +31,11 @@ export default function CreateTicketDialog(props: CreateTicketDialogProps) {
         onSuggestNumber: (numberInput: string) => suggestTicketNumber(props.projectSlug, numberInput),
       }),
   )
-
   useModEnterSubmit({
     onSubmit: s.doSubmit,
     disabled: () => s.submitting() || s.suggestingNumber() || !s.number().trim() || !s.title().trim(),
     active: () => props.open,
   })
-
   return (
     <DialogRoot open={props.open} onOpenChange={s.close}>
       <DialogTitle>New Ticket</DialogTitle>

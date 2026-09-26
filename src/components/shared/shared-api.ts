@@ -6,6 +6,7 @@ import { NotFoundError, errorMessage } from '~/core/shared/errors.js'
 
 export async function openConfigDir(scope?: string, projectSlug?: string): Promise<void> {
   'use server'
+
   let dir: string
   if (scope === 'tickets' && projectSlug) dir = worktreeManager.getWorktreeDir(projectSlug)
   else if (scope === 'project' && projectSlug) dir = launcherConfigManager.getProjectDir(projectSlug)
@@ -20,10 +21,22 @@ export async function openConfigDir(scope?: string, projectSlug?: string): Promi
 
 export async function openNativeFileBrowser(startDir: string | null): Promise<string[]> {
   'use server'
+
   return openFileDialog(startDir ?? undefined, commandTemplateService)
 }
 
-export async function pickDirectory(preselect: string): Promise<{ path: string } | { cancelled: true } | { error: string }> {
+export async function pickDirectory(preselect: string): Promise<
+  | {
+      path: string
+    }
+  | {
+      cancelled: true
+    }
+  | {
+      error: string
+    }
+> {
   'use server'
+
   return openDirectoryDialog(preselect, commandTemplateService)
 }

@@ -48,44 +48,40 @@ function requiredElement(container: ParentNode, selector: string): HTMLElement {
 
 describe('TicketCard overflow menu', () => {
   afterEach(() => cleanup())
-
   it('shows Archive option in the overflow menu', async () => {
     const onArchive = vi.fn()
-    const { container } = renderCard({ onArchive })
-
+    const { container } = renderCard({
+      onArchive,
+    })
     const menuBtn = requiredElement(container, "[aria-label='Ticket actions']")
     await fireEvent.click(menuBtn)
-
     await waitFor(() => {
       const items = [...document.querySelectorAll("[role='menuitem']")].map((el) => el.textContent?.trim())
       expect(items).toContain('Archive')
     })
   })
-
   it('calls onArchive when Archive is clicked', async () => {
     const onArchive = vi.fn()
-    const { container } = renderCard({ onArchive })
-
+    const { container } = renderCard({
+      onArchive,
+    })
     const menuBtn = requiredElement(container, "[aria-label='Ticket actions']")
     await fireEvent.click(menuBtn)
-
     const archiveItem = await waitFor(() => {
       const el = [...document.querySelectorAll<HTMLElement>("[role='menuitem']")].find((el) => el.textContent?.trim() === 'Archive')
       if (!el) throw new Error('Archive item not yet rendered')
       return el
     })
     await fireEvent.click(archiveItem)
-
     expect(onArchive).toHaveBeenCalledWith(makeTicket())
   })
-
   it('calls onOpenFolder when Open ticket folder is clicked', async () => {
     const onOpenFolder = vi.fn()
-    const { container } = renderCard({ onOpenFolder })
-
+    const { container } = renderCard({
+      onOpenFolder,
+    })
     const menuBtn = requiredElement(container, "[aria-label='Ticket actions']")
     await fireEvent.click(menuBtn)
-
     const openFolderItem = await waitFor(() => {
       const el = [...document.querySelectorAll<HTMLElement>("[role='menuitem']")].find(
         (el) => el.textContent?.trim() === 'Open ticket folder',
@@ -94,17 +90,13 @@ describe('TicketCard overflow menu', () => {
       return el
     })
     await fireEvent.click(openFolderItem)
-
     expect(onOpenFolder).toHaveBeenCalledWith(makeTicket())
   })
-
   it('shows both menu options', async () => {
     cleanup()
     const { container } = renderCard({})
-
     const menuBtn = requiredElement(container, "[aria-label='Ticket actions']")
     await fireEvent.click(menuBtn)
-
     await waitFor(() => {
       const items = [...document.querySelectorAll("[role='menuitem']")].map((el) => el.textContent?.trim())
       expect(items).not.toContain('Edit')
@@ -114,24 +106,26 @@ describe('TicketCard overflow menu', () => {
     })
   })
 })
-
 describe('TicketCard status swatch and herdr icon', () => {
   afterEach(() => cleanup())
-
   it('renders no status swatch', () => {
-    const { container } = renderCard({ ticket: { status: 'todo' } })
+    const { container } = renderCard({
+      ticket: {
+        status: 'todo',
+      },
+    })
     expect(container.querySelector('[data-testid="status-swatch"]')).toBeNull()
   })
-
   it('renders the herdr icon when the ticket has a status', () => {
     const { container } = renderCard({
-      herdrStatuses: { 't-1-test-ticket': 'working' },
+      herdrStatuses: {
+        't-1-test-ticket': 'working',
+      },
     })
     const icon = requiredElement(container, '[data-testid="herdr-status-icon"]')
     expect(icon).toBeTruthy()
     expect(icon.getAttribute('data-herdr-status')).toBe('working')
   })
-
   it('renders no herdr icon without a status', () => {
     const { container } = renderCard({})
     expect(container.querySelector('[data-testid="herdr-status-icon"]')).toBeNull()

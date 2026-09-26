@@ -6,11 +6,13 @@ import { fail, succeed, type Result } from '~/util/result.js'
 
 export async function getCommandTemplateDefinitions() {
   'use server'
+
   return COMMAND_TEMPLATE_DEFINITIONS.filter((entry) => entry.platforms.includes(currentCommandTemplatePlatform()))
 }
 
 export async function readCommandTemplates(owner?: string): Promise<Result<CommandTemplateOverrides, string>> {
   'use server'
+
   try {
     return succeed(commandTemplateStore.read(owner))
   } catch (error) {
@@ -20,6 +22,7 @@ export async function readCommandTemplates(owner?: string): Promise<Result<Comma
 
 export async function saveCommandTemplates(json: string, owner: string): Promise<Result<CommandTemplateOverrides, string>> {
   'use server'
+
   try {
     if (!owner) return fail('Configuration update requires a client identity.')
     return succeed(commandTemplateStore.write(JSON.parse(json), owner))
@@ -30,5 +33,6 @@ export async function saveCommandTemplates(json: string, owner: string): Promise
 
 export async function releaseCommandTemplates(owner: string): Promise<void> {
   'use server'
+
   commandTemplateStore.release(owner)
 }

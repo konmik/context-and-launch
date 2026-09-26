@@ -2,7 +2,9 @@ import { createEffect } from 'solid-js'
 
 declare global {
   interface Navigator {
-    readonly userAgentData?: { readonly platform?: string }
+    readonly userAgentData?: {
+      readonly platform?: string
+    }
   }
 }
 
@@ -19,12 +21,9 @@ export function useModEnterSubmit(options: UseModEnterSubmitOptions) {
     function handler(e: KeyboardEvent) {
       if (e.defaultPrevented) return
       if (e.key !== 'Enter') return
-      if (!e.metaKey && !e.ctrlKey) return
-
-      // Always consume the event when the topmost dialog is active,
+      if (!e.metaKey && !e.ctrlKey) return // Always consume the event when the topmost dialog is active,
       // even if disabled, to prevent lower dialogs from firing.
       e.preventDefault()
-
       if (!options.disabled()) {
         options.onSubmit()
       }

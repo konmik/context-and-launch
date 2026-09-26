@@ -9,14 +9,19 @@ import { ForestLayoutStore, type ForestLayout } from '~/core/ticket/forest-layou
 
 export async function readForestLayout(projectSlug: string): Promise<ForestLayout> {
   'use server'
+
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
   return new ForestLayoutStore(worktreeDir).read()
 }
 
-const actionResult = <T>(value: T) => respond(value, { revalidate: [] })
+const actionResult = <T>(value: T) =>
+  respond(value, {
+    revalidate: [],
+  })
 
 export async function saveForestLayout(projectSlug: string, expected: ForestLayout, layout: ForestLayout) {
   'use server'
+
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
     new ForestLayoutStore(worktreeDir).write(layout, expected)
@@ -32,24 +37,29 @@ export const addDependency = action(async function addDependency(input: {
   dependencyNumber: string
 }) {
   'use server'
+
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(input.projectSlug)
     new TicketStore(worktreeDir).addDependency(input.folderName, input.dependencyNumber)
-    return actionResult({ ok: true as const })
+    return actionResult({
+      ok: true as const,
+    })
   } catch (e) {
     return actionResult(errorResult(e))
   }
 }, 'add-forest-dependency')
-
 export const removeDependencies = action(async function removeDependencies(input: {
   projectSlug: string
-  removals: Array<{ folderName: string; dependencyNumber: string }>
+  removals: Array<{
+    folderName: string
+    dependencyNumber: string
+  }>
 }) {
   'use server'
+
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(input.projectSlug)
-    const store = new TicketStore(worktreeDir)
-    // One write per ticket: a projected edge can stand for several relations of
+    const store = new TicketStore(worktreeDir) // One write per ticket: a projected edge can stand for several relations of
     // the same dependent, and rewriting its status file once per relation both
     // multiplies file contention and can leave the rest behind if one write fails.
     const byFolderName = new Map<string, string[]>()
@@ -61,24 +71,32 @@ export const removeDependencies = action(async function removeDependencies(input
     for (const [folderName, dependencyNumbers] of byFolderName) {
       store.removeDependencies(folderName, dependencyNumbers)
     }
-    return actionResult({ ok: true as const })
+    return actionResult({
+      ok: true as const,
+    })
   } catch (e) {
     return actionResult(errorResult(e))
   }
 }, 'remove-forest-dependencies')
-
 export const createGroupTicket = action(async function createGroupTicket(input: {
   projectSlug: string
   number: string
   title: string
   memberFolderNames: string[]
   parentGroupNumber: string | null
-  position: { x: number; y: number } | null
+  position: {
+    x: number
+    y: number
+  } | null
 }) {
   'use server'
+
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(input.projectSlug)
-    const initialStatus = resolveInitialTicketStatus(input.projectSlug, { projectRegistry, boardConfigManager })
+    const initialStatus = resolveInitialTicketStatus(input.projectSlug, {
+      projectRegistry,
+      boardConfigManager,
+    })
     const group = new TicketStore(worktreeDir).createGroup(
       input.number,
       input.title,
@@ -87,18 +105,23 @@ export const createGroupTicket = action(async function createGroupTicket(input: 
       input.parentGroupNumber ?? undefined,
       input.position ?? undefined,
     )
-    return actionResult({ ok: true as const, folderName: group.folderName })
+    return actionResult({
+      ok: true as const,
+      folderName: group.folderName,
+    })
   } catch (e) {
     return actionResult(errorResult(e))
   }
 }, 'create-forest-group')
-
 export const ungroupTicket = action(async function ungroupTicket(input: { projectSlug: string; folderName: string }) {
   'use server'
+
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(input.projectSlug)
     new TicketStore(worktreeDir).ungroup(input.folderName)
-    return actionResult({ ok: true as const })
+    return actionResult({
+      ok: true as const,
+    })
   } catch (e) {
     return actionResult(errorResult(e))
   }

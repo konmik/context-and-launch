@@ -10,7 +10,6 @@ const localStorage = {
   },
 }
 beforeEach(() => values.clear())
-
 describe('appearance storage', () => {
   it('pins a selected inherited palette without pinning the inherited mode', async () => {
     await createRoot(async (dispose) => {
@@ -32,7 +31,6 @@ describe('appearance storage', () => {
       }
     })
   })
-
   it('queues mode changes against current storage and publishes the saved result', async () => {
     await createRoot(async (dispose) => {
       try {

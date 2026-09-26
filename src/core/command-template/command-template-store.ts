@@ -39,8 +39,7 @@ export class CommandTemplateStore {
 
   write(value: CommandTemplateOverrides, owner?: string): CommandTemplateOverrides {
     return this.lock.write(() => {
-      const overrides = validateOverrides(value)
-      // SAFETY: validateOverrides rejects every key absent from the command catalog.
+      const overrides = validateOverrides(value) // SAFETY: validateOverrides rejects every key absent from the command catalog.
       for (const key of Object.keys(overrides) as CommandTemplateKey[]) {
         if (overrides[key] === COMMAND_TEMPLATE_DEFAULTS[key]) delete overrides[key]
       }

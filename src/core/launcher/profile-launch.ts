@@ -7,7 +7,6 @@ import { isAlive } from './process-utils.js'
 
 const TITLE_SUFFIX = ' -- AI'
 const MARKER_START_TOLERANCE_SEC = 5
-
 const AgentMarkerSchema = v.object({
   pid: v.number(),
   startSec: v.optional(v.number()),
@@ -18,15 +17,33 @@ export function agentMarkerPathIn(appConfigDir: string, projectSlug: string, mar
 }
 
 export function buildAgentDisplayName(
-  ticket: { number: string; title: string },
-  context: { projectName: string } | { worktreePath: string },
+  ticket: {
+    number: string
+    title: string
+  },
+  context:
+    | {
+        projectName: string
+      }
+    | {
+        worktreePath: string
+      },
 ): string {
   return 'worktreePath' in context ? path.basename(context.worktreePath) : `${ticket.title} ${ticket.number} - ${context.projectName}`
 }
 
 export function buildWindowTitle(
-  ticket: { number: string; title: string },
-  context: { projectName: string } | { worktreePath: string },
+  ticket: {
+    number: string
+    title: string
+  },
+  context:
+    | {
+        projectName: string
+      }
+    | {
+        worktreePath: string
+      },
 ): string {
   return buildAgentDisplayName(ticket, context) + TITLE_SUFFIX
 }
@@ -42,7 +59,10 @@ export async function runLauncherProfile(
   cwd: string,
 ): Promise<void> {
   await commands.executeTrustedScript({
-    source: { kind: 'profile', profileName: profile.name },
+    source: {
+      kind: 'profile',
+      profileName: profile.name,
+    },
     script: profile.command,
     values: commandVars,
     knownScalarPlaceholders: Object.keys(commandVars),
@@ -66,7 +86,9 @@ function processStartSec(commands: CommandTemplateService, pid: number): number 
         .executeSync(
           process.platform === 'darwin' ? 'agent-launch.process-start.macos' : 'agent-launch.process-start.windows',
           process.cwd(),
-          { pid: String(pid) },
+          {
+            pid: String(pid),
+          },
         )
         .trim()
       return Math.floor(new Date(out).getTime() / 1000)
@@ -79,7 +101,9 @@ function processStartSec(commands: CommandTemplateService, pid: number): number 
 
 function reapMarker(markerPath: string): void {
   try {
-    fs.rmSync(markerPath, { force: true })
+    fs.rmSync(markerPath, {
+      force: true,
+    })
   } catch (e) {
     console.warn(`Failed to reap stale agent marker ${markerPath}:`, e)
   }

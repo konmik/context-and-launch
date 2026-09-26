@@ -15,7 +15,10 @@ function tmpDir(prefix: string): string {
 function cleanup(...dirs: string[]) {
   for (const d of dirs) {
     try {
-      fs.rmSync(d, { recursive: true, force: true })
+      fs.rmSync(d, {
+        recursive: true,
+        force: true,
+      })
     } catch (err) {
       console.warn(`cleanup ${d}: ${err instanceof Error ? err.message : String(err)}`)
     }
@@ -51,124 +54,152 @@ describe('TicketOrderStore', () => {
     cleanup(...dirs)
     dirs.length = 0
   })
-
   it.concurrent('read returns empty object when file is missing', async () => {
     const dir = await createGitWorktree()
     dirs.push(dir)
     expect(new TicketOrderStore(dir).read()).toEqual({})
   })
-
   it.concurrent('write persists to disk without committing', async () => {
     const dir = await createGitWorktree(true)
     dirs.push(dir)
     const store = new TicketOrderStore(dir)
-    store.write({ todo: ['a', 'b'], done: ['c'] })
-    expect(JSON.parse(fs.readFileSync(path.join(dir, 'ticket-order.json'), 'utf-8'))).toEqual({ todo: ['a', 'b'], done: ['c'] })
-    // No autoCommit: changes remain uncommitted
+    store.write({
+      todo: ['a', 'b'],
+      done: ['c'],
+    })
+    expect(JSON.parse(fs.readFileSync(path.join(dir, 'ticket-order.json'), 'utf-8'))).toEqual({
+      todo: ['a', 'b'],
+      done: ['c'],
+    }) // No autoCommit: changes remain uncommitted
     const status = await git(dir, 'status', '--porcelain')
     expect(status.trim()).not.toBe('')
   })
-
   it.concurrent('reconcile groups by status, preserves order, appends new, removes stale', async () => {
     const dir = await createGitWorktree()
     dirs.push(dir)
     const store = new TicketOrderStore(dir)
-    store.write({ todo: ['c', 'a', 'deleted'] })
-
+    store.write({
+      todo: ['c', 'a', 'deleted'],
+    })
     const result = store.reconcileAndSave(
       [ticket('a', 'todo'), ticket('c', 'todo'), ticket('new-one', 'todo'), ticket('d', 'done')],
       ['todo', 'done'],
     )
-
     expect(result['todo']).toEqual(['c', 'a', 'new-one'])
     expect(result['done']).toEqual(['d'])
   })
-
   it.concurrent('reconcile moves ticket when status disagrees with order', async () => {
     const dir = await createGitWorktree()
     dirs.push(dir)
     const store = new TicketOrderStore(dir)
-    store.write({ todo: ['a'], done: [] })
-
+    store.write({
+      todo: ['a'],
+      done: [],
+    })
     const result = store.reconcileAndSave([ticket('a', 'done')], ['todo', 'done'])
     expect(result['todo']).toEqual([])
     expect(result['done']).toEqual(['a'])
   })
-
   it.concurrent('moveTicket within same column', async () => {
     const dir = await createGitWorktree()
     dirs.push(dir)
     const store = new TicketOrderStore(dir)
-    store.write({ todo: ['a', 'b', 'c'] })
+    store.write({
+      todo: ['a', 'b', 'c'],
+    })
     store.write(moveTicketInOrder(store.read(), 'a', 'todo', 'todo', 2))
     expect(store.read()['todo']).toEqual(['b', 'c', 'a'])
   })
-
   it.concurrent('moveTicket between columns', async () => {
     const dir = await createGitWorktree()
     dirs.push(dir)
     const store = new TicketOrderStore(dir)
-    store.write({ todo: ['a', 'b'], done: ['c'] })
+    store.write({
+      todo: ['a', 'b'],
+      done: ['c'],
+    })
     store.write(moveTicketInOrder(store.read(), 'a', 'todo', 'done', 0))
     const result = store.read()
     expect(result['todo']).toEqual(['b'])
     expect(result['done']).toEqual(['a', 'c'])
   })
-
   it.concurrent('round trip preserves configured empty columns and serialized order', async () => {
     const dir = await createGitWorktree()
     dirs.push(dir)
     const store = new TicketOrderStore(dir)
-    store.write({ todo: ['a'], 'in-progress': [], done: [] })
+    store.write({
+      todo: ['a'],
+      'in-progress': [],
+      done: [],
+    })
     const before = fs.readFileSync(path.join(dir, 'ticket-order.json'), 'utf-8')
-
     store.write(moveTicketInOrder(store.read(), 'a', 'todo', 'in-progress', 0))
     store.write(moveTicketInOrder(store.read(), 'a', 'in-progress', 'todo', 0))
-
     expect(fs.readFileSync(path.join(dir, 'ticket-order.json'), 'utf-8')).toBe(before)
   })
-
   it.concurrent('appendTicket adds to end', async () => {
     const dir = await createGitWorktree()
     dirs.push(dir)
     const store = new TicketOrderStore(dir)
-    store.write({ todo: ['a'] })
+    store.write({
+      todo: ['a'],
+    })
     store.appendTicket('b', 'todo')
     expect(store.read()['todo']).toEqual(['a', 'b'])
   })
-
   it.concurrent('rejects a stale replacement without overwriting another writer', async () => {
     const dir = await createGitWorktree()
     dirs.push(dir)
     const store = new TicketOrderStore(dir)
-    store.write({ todo: ['a'] })
+    store.write({
+      todo: ['a'],
+    })
     const expected = store.read()
     new TicketOrderStore(dir).appendTicket('b', 'todo')
-    expect(() => store.write({ todo: ['a'], done: [] }, expected)).toThrow('changed in another request')
-    expect(store.read()).toEqual({ todo: ['a', 'b'] })
-    store.write({ todo: ['b', 'a'] }, store.read())
-    expect(store.read()).toEqual({ todo: ['b', 'a'] })
+    expect(() =>
+      store.write(
+        {
+          todo: ['a'],
+          done: [],
+        },
+        expected,
+      ),
+    ).toThrow('changed in another request')
+    expect(store.read()).toEqual({
+      todo: ['a', 'b'],
+    })
+    store.write(
+      {
+        todo: ['b', 'a'],
+      },
+      store.read(),
+    )
+    expect(store.read()).toEqual({
+      todo: ['b', 'a'],
+    })
   })
-
   it.concurrent('removeTicket removes from all columns', async () => {
     const dir = await createGitWorktree()
     dirs.push(dir)
     const store = new TicketOrderStore(dir)
-    store.write({ todo: ['a', 'b'], done: ['a', 'c'] })
+    store.write({
+      todo: ['a', 'b'],
+      done: ['a', 'c'],
+    })
     store.removeTicket('a')
     expect(store.read()['todo']).toEqual(['b'])
     expect(store.read()['done']).toEqual(['c'])
   })
-
   it.concurrent('renameTicket updates folder name in place', async () => {
     const dir = await createGitWorktree()
     dirs.push(dir)
     const store = new TicketOrderStore(dir)
-    store.write({ todo: ['old', 'b'] })
+    store.write({
+      todo: ['old', 'b'],
+    })
     store.renameTicket('old', 'new')
     expect(store.read()['todo']).toEqual(['new', 'b'])
   })
-
   it.concurrent('reconcile with empty columns and one ticket returns empty order without crashing', async () => {
     const dir = await createGitWorktree()
     dirs.push(dir)
@@ -177,14 +208,12 @@ describe('TicketOrderStore', () => {
     expect(result).toEqual({})
   })
 })
-
 describe('TicketStore + TicketOrderStore integration', () => {
   const dirs: string[] = []
   afterAll(() => {
     cleanup(...dirs)
     dirs.length = 0
   })
-
   it.concurrent('createTicket appends to order', async () => {
     const dir = await createGitWorktree()
     dirs.push(dir)
@@ -195,7 +224,6 @@ describe('TicketStore + TicketOrderStore integration', () => {
     expect(order['todo']).toEqual(['a-1-first'])
     expect(order['done']).toEqual(['b-2-second'])
   })
-
   it.concurrent('deleteTicket removes from order', async () => {
     const dir = await createGitWorktree()
     dirs.push(dir)
@@ -205,7 +233,6 @@ describe('TicketStore + TicketOrderStore integration', () => {
     store.deleteTicket('a-1-first')
     expect(store.orderStore.read()['todo']).toEqual(['b-2-second'])
   })
-
   it.concurrent('updateTicket with rename updates order', async () => {
     const dir = await createGitWorktree()
     dirs.push(dir)
@@ -217,21 +244,18 @@ describe('TicketStore + TicketOrderStore integration', () => {
     expect(order['todo']).not.toContain('a-1-old-title')
   })
 })
-
 describe('ticket status and order persistence', () => {
   const dirs: string[] = []
   afterAll(() => {
     cleanup(...dirs)
     dirs.length = 0
   })
-
   it.concurrent('loadBoardSnapshot returns tickets and reconciled order', async () => {
     const dir = await createGitWorktree()
     dirs.push(dir)
     const store = new TicketStore(dir)
     store.createTicket('L-1', 'First', 'todo')
     store.createTicket('L-2', 'Second', 'done')
-
     const { tickets, ticketOrder } = await store.loadBoardSnapshot(['todo', 'done'])
     expect(tickets.length).toBe(2)
     expect(ticketOrder['todo']).toEqual(['l-1-first'])

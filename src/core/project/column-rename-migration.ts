@@ -25,9 +25,11 @@ export function migrateColumnRename(
   },
 ): MigrationResult {
   if (scope === 'none') {
-    return { ticketsUpdated: 0, projectsUpdated: 0 }
+    return {
+      ticketsUpdated: 0,
+      projectsUpdated: 0,
+    }
   }
-
   let projectSlugs: string[]
   if (scope === 'current') {
     projectSlugs = [currentProjectSlug]
@@ -46,10 +48,8 @@ export function migrateColumnRename(
       projectSlugs = []
     }
   }
-
   let ticketsUpdated = 0
   let projectsUpdated = 0
-
   for (const projectSlug of projectSlugs) {
     let worktreeDir: string
     try {
@@ -58,9 +58,7 @@ export function migrateColumnRename(
       console.warn(`Skipping project "${projectSlug}" during column rename migration: worktree not resolved`, e)
       continue
     }
-
     let projectChanged = false
-
     try {
       const store = new TicketStore(worktreeDir)
       const tickets = store.listTickets()
@@ -74,7 +72,6 @@ export function migrateColumnRename(
     } catch (e) {
       console.warn(`Skipping ticket migration for project "${projectSlug}": ticket store inaccessible`, e)
     }
-
     try {
       const projectConfig = deps.launcherConfigManager.loadProjectConfig(projectSlug)
       if (projectConfig.columnDefaults && Object.prototype.hasOwnProperty.call(projectConfig.columnDefaults, oldColumnName)) {
@@ -87,11 +84,12 @@ export function migrateColumnRename(
     } catch (e) {
       console.warn(`Skipping columnDefaults re-keying for project "${projectSlug}"`, e)
     }
-
     if (projectChanged) {
       projectsUpdated++
     }
   }
-
-  return { ticketsUpdated, projectsUpdated }
+  return {
+    ticketsUpdated,
+    projectsUpdated,
+  }
 }

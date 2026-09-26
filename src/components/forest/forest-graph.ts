@@ -110,7 +110,10 @@ export function projectDependencies(
     const fromRep = representativeInScope(lookup, ticket.number, scopeGroupNumber, representativeCache)
     for (const dep of ticket.dependsOn) {
       const toRep = representativeInScope(lookup, dep, scopeGroupNumber, representativeCache)
-      const relation = { fromNumber: ticket.number, toNumber: dep }
+      const relation = {
+        fromNumber: ticket.number,
+        toNumber: dep,
+      }
       if (fromRep && toRep && fromRep !== toRep) {
         upsert(internal, `${fromRep}->${toRep}`, () => ({
           fromNumber: fromRep,
@@ -214,44 +217,46 @@ export function autoLayoutPositions(nodes: ForestTicket[], dependencies: Depende
   const nodeNumbers = nodes.map((n) => n.number)
   const depths = computeDepths(nodeNumbers, dependencies)
   const outgoing = buildOutgoing(nodeNumbers, dependencies)
-
   const maxDepth = Math.max(0, ...Array.from(depths.values()))
   const rows: Map<number, string[]> = new Map()
   for (const node of nodeNumbers) {
     const d = depths.get(node) ?? 0
     upsert(rows, d, () => []).push(node)
   }
-
   const result: ForestLayout = {}
-
   for (let d = 0; d <= maxDepth; d++) {
     const row = [...(rows.get(d) ?? [])].sort((a, b) => a.localeCompare(b))
     const y = d > 0 ? -d * ROW_GAP : 0
-
     const occupiedInRow: number[] = []
     let runningMax = 0
     for (const node of row) {
       const deps = outgoing.get(node)
       let candidateX = occupiedInRow.length > 0 ? runningMax + H_GAP : 0
-
       if (deps?.length) {
         const depPositions = deps
           .map((dep) => result[dep])
-          .filter((position): position is { x: number; y: number } => position !== undefined)
+          .filter(
+            (
+              position,
+            ): position is {
+              x: number
+              y: number
+            } => position !== undefined,
+          )
         if (depPositions.length > 0) {
           candidateX = depPositions.reduce((sum, position) => sum + position.x, 0) / depPositions.length
         }
       }
-
       while (firstOccupiedAbove(occupiedInRow, candidateX - H_GAP) < candidateX + H_GAP) {
         candidateX += H_GAP
       }
-
-      result[node] = { x: candidateX, y }
+      result[node] = {
+        x: candidateX,
+        y,
+      }
       insertSorted(occupiedInRow, candidateX)
       if (candidateX > runningMax) runningMax = candidateX
     }
   }
-
   return result
 }

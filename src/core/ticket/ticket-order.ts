@@ -35,7 +35,10 @@ export class TicketOrderStore {
   appendTicket(folderName: string, column: string): void {
     const order = this.read()
     const folders = order[column] ?? []
-    this.write({ ...order, [column]: folders.includes(folderName) ? folders : [...folders, folderName] })
+    this.write({
+      ...order,
+      [column]: folders.includes(folderName) ? folders : [...folders, folderName],
+    })
   }
 
   removeTicket(folderName: string): void {

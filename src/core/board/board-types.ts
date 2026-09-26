@@ -26,6 +26,15 @@ export type ProjectPageData =
       projectPath: string
       suggestedNextNumber: string | null
     })
-  | (BoardPageBase & { status: 'not-found' })
-  | (BoardPageBase & { status: 'unavailable'; projectPath: string })
-  | (BoardPageBase & { status: 'error'; projectPath: string; error: string })
+  | (BoardPageBase & {
+      status: 'not-found'
+    })
+  | (BoardPageBase & {
+      status: 'unavailable'
+      projectPath: string
+    })
+  | (BoardPageBase & {
+      status: 'error'
+      projectPath: string
+      error: string
+    })

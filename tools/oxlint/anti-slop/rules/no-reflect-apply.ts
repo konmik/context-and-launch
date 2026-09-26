@@ -1,5 +1,4 @@
 import { defineRule } from '@oxlint/plugins'
-
 import { isGlobalReflectMethodCall } from '../shared/reflect-method.ts'
 
 /** Ban Reflect.apply, which bypasses ordinary typed function calls. */
@@ -18,7 +17,10 @@ export const noReflectApplyRule = defineRule({
       CallExpression(node) {
         if (node.callee.type === 'Super' || node.callee.type === 'V8IntrinsicExpression') return
         if (isGlobalReflectMethodCall(context.sourceCode, node.callee, 'apply')) {
-          context.report({ node, messageId: 'reflectApply' })
+          context.report({
+            node,
+            messageId: 'reflectApply',
+          })
         }
       },
     }

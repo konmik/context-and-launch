@@ -1,9 +1,14 @@
 import type { it as vitestIt } from 'vitest'
 
 type TestApi = typeof vitestIt
+
 type Registrar = TestApi['concurrent']
+
 type RegistrarCall = (...args: Parameters<Registrar>) => ReturnType<Registrar>
-type ConditionalRegistrar = RegistrarCall & { concurrent: RegistrarCall }
+
+type ConditionalRegistrar = RegistrarCall & {
+  concurrent: RegistrarCall
+}
 
 /**
  * Distributes declarations from one integration suite across test files.
@@ -18,7 +23,6 @@ export function shardTestCases(base: TestApi, shard: number | readonly number[],
   if (!Number.isInteger(total) || total <= 0 || shards.length === 0 || new Set(shards).size !== shards.length || invalidShard) {
     throw new Error(`Invalid test shard ${shards.join(',')}/${total}.`)
   }
-
   let index = 0
   const selected =
     (registrar: Registrar): RegistrarCall =>
@@ -29,8 +33,9 @@ export function shardTestCases(base: TestApi, shard: number | readonly number[],
       return base.skip(...args)
     }
   const conditional = (registrar: Registrar): ConditionalRegistrar =>
-    Object.assign(selected(registrar), { concurrent: selected(registrar.concurrent) })
-
+    Object.assign(selected(registrar), {
+      concurrent: selected(registrar.concurrent),
+    })
   return Object.assign(selected(base), base, {
     concurrent: selected(base.concurrent),
     runIf: (condition: boolean) => conditional(base.runIf(condition)),

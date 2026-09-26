@@ -16,7 +16,9 @@ import { setProjectPath as setProjectPathAction, setTicketsLocation } from '../p
 export function MiscTab(props: {
   open: boolean
   projectSlug: string
-  onDeleteProject?: (projectSlug: string) => Promise<{ error?: string }>
+  onDeleteProject?: (projectSlug: string) => Promise<{
+    error?: string
+  }>
 }) {
   const appConfig = useContext(AppConfigContext)!
   const sharedConfig = useContext(LauncherConfigContext)!
@@ -63,15 +65,35 @@ export function MiscTab(props: {
     const name = projectName().trim() || undefined
     const result = await appConfig.update((current) => ({
       ...current,
-      projects: current.projects.map((project) => (project.projectSlug === props.projectSlug ? { ...project, name } : project)),
+      projects: current.projects.map((project) =>
+        project.projectSlug === props.projectSlug
+          ? {
+              ...project,
+              name,
+            }
+          : project,
+      ),
     }))
-    if (result.type === 'Failure') setError({ title: 'Save failed', description: result.error })
+    if (result.type === 'Failure')
+      setError({
+        title: 'Save failed',
+        description: result.error,
+      })
   }
+
   async function saveOverride(key: 'worktreeRootPath' | 'branchPrefix' | 'conflictResolutionPrompt', value: string) {
     setError(null)
-    const result = await projectConfig.update((current) => ({ ...current, [key]: value.trim() || undefined }))
-    if (result.type === 'Failure') setError({ title: 'Save failed', description: result.error })
+    const result = await projectConfig.update((current) => ({
+      ...current,
+      [key]: value.trim() || undefined,
+    }))
+    if (result.type === 'Failure')
+      setError({
+        title: 'Save failed',
+        description: result.error,
+      })
   }
+
   async function saveProjectPath(path = projectPath()) {
     if (savingProjectPath() || path.trim() === metadata().projectPath) return
     setSavingProjectPath(true)
@@ -79,7 +101,10 @@ export function MiscTab(props: {
     try {
       const result = await runSetProjectPath(props.projectSlug, path)
       if (!result.ok) {
-        setError({ title: 'Save failed', description: result.message })
+        setError({
+          title: 'Save failed',
+          description: result.message,
+        })
         return
       }
       setProjectPath(result.path)
@@ -90,15 +115,22 @@ export function MiscTab(props: {
       setSavingProjectPath(false)
     }
   }
+
   async function saveTicketsLocation(kind: 'path' | 'branch', value: string) {
     const saved = kind === 'path' ? metadata().worktreeDir : (metadata().ticketsBranch ?? '')
     if (savingTicketsLocation() || value.trim() === saved) return
     setSavingTicketsLocation(true)
     setError(null)
     try {
-      const result = await runSetTicketsLocation(props.projectSlug, { kind, value })
+      const result = await runSetTicketsLocation(props.projectSlug, {
+        kind,
+        value,
+      })
       if (!result.ok) {
-        setError({ title: 'Save failed', description: result.message })
+        setError({
+          title: 'Save failed',
+          description: result.message,
+        })
         return
       }
       if (kind === 'path') setTicketsPath(result.value)

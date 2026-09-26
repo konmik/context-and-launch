@@ -10,17 +10,14 @@ describe('palette backgrounds', () => {
       expect(entry.dark).toMatch(/^#[0-9a-f]{6}$/i)
     }
   })
-
   it('defines no extra palettes beyond PALETTES', () => {
     expect(Object.keys(PALETTE_BACKGROUNDS).sort()).toEqual([...PALETTES].sort())
   })
-
   it('isPaletteName validates against the known list', () => {
     expect(isPaletteName('dracula')).toBe(true)
     expect(isPaletteName('solarized')).toBe(false)
     expect(isPaletteName(42)).toBe(false)
   })
-
   it('paletteBackground selects light or dark', () => {
     expect(paletteBackground('tokyo-night', true)).toBe('#1a1b26')
     expect(paletteBackground('tokyo-night', false)).toBe('#e1e2e7')

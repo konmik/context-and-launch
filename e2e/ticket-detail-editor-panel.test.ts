@@ -11,29 +11,27 @@ describe('Ticket detail editor panel and saving (e2e, real server)', () => {
     expect(await testId(ctx.page, 'ticket-detail-tab-launcher').count()).toBe(1)
     expect(await testId(ctx.page, 'ticket-detail-tab-shortcuts').count()).toBe(0)
   })
-
   it('editor-copy and add-reference buttons exist', async () => {
     await setupEditorTicket(ctx, 'buttons')
     expect(await testId(ctx.page, 'ticket-detail-editor-copy-button').count()).toBe(1)
     expect(await testId(ctx.page, 'ticket-detail-editor-add-reference-button').count()).toBe(1)
   })
-
   it('ticket-detail-close-window-button closes the panel when no unsaved changes', async () => {
     await setupEditorTicket(ctx, 'close-window')
     await testId(ctx.page, 'ticket-detail-close-window-button').click()
     await waitGone(ctx.page, 'ticket-detail-tab-editor')
   })
-
   it('ticket-detail-close-button closes when no unsaved changes', async () => {
     await setupEditorTicket(ctx, 'close-footer')
     await testId(ctx.page, 'ticket-detail-close-button').click()
     await waitGone(ctx.page, 'ticket-detail-tab-editor')
   })
-
   it('discard dialog appears with unsaved changes; cancel keeps panel open, discard closes it', async () => {
     await setupEditorTicket(ctx, 'discard-cancel')
     const editor = ctx.page.locator('.cm-content')
-    await editor.waitFor({ timeout: 15000 })
+    await editor.waitFor({
+      timeout: 15000,
+    })
     await editor.click()
     await ctx.page.keyboard.type('dirty ')
     await ctx.page.waitForTimeout(200)
@@ -47,11 +45,12 @@ describe('Ticket detail editor panel and saving (e2e, real server)', () => {
     await testId(ctx.page, 'ticket-detail-discard-discard').click()
     await waitGone(ctx.page, 'ticket-detail-tab-editor')
   })
-
   it('ticket-detail-save-button writes context file to disk', async () => {
     const project = await setupEditorTicket(ctx, 'save')
     const editor = ctx.page.locator('.cm-content')
-    await editor.waitFor({ timeout: 15000 })
+    await editor.waitFor({
+      timeout: 15000,
+    })
     await editor.click()
     await ctx.page.keyboard.type('appended text')
     await ctx.page.waitForTimeout(300)
@@ -63,20 +62,39 @@ describe('Ticket detail editor panel and saving (e2e, real server)', () => {
     )
     expect(content?.includes('appended text')).toBe(true)
   })
-
   it('ticket-detail-use-worktree-checkbox persists useWorktree to status.json', async () => {
     const project = await seedProject(ctx, {
       slugBase: 'tde-wt',
-      withTickets: [{ number: 'T-1', title: 'Alpha', status: 'todo', folderName: 't-1-alpha' }],
+      withTickets: [
+        {
+          number: 'T-1',
+          title: 'Alpha',
+          status: 'todo',
+          folderName: 't-1-alpha',
+        },
+      ],
       worktreeRootPath: undefined,
     })
     const fs = await import('node:fs')
     const path = await import('node:path')
     const wtRoot = path.join(ctx.testServer.dataDir, 'wt-root')
-    fs.mkdirSync(wtRoot, { recursive: true })
+    fs.mkdirSync(wtRoot, {
+      recursive: true,
+    })
     const cfgFile = path.join(ctx.testServer.dataDir, 'projects', project.projectSlug, 'config', 'launcher-config.json')
-    fs.mkdirSync(path.dirname(cfgFile), { recursive: true })
-    fs.writeFileSync(cfgFile, JSON.stringify({ worktreeRootPath: wtRoot }, null, 2))
+    fs.mkdirSync(path.dirname(cfgFile), {
+      recursive: true,
+    })
+    fs.writeFileSync(
+      cfgFile,
+      JSON.stringify(
+        {
+          worktreeRootPath: wtRoot,
+        },
+        null,
+        2,
+      ),
+    )
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
     await openTicketDetail(ctx.page, 't-1-alpha')
     await waitVisible(ctx.page, 'ticket-detail-use-worktree-checkbox')
@@ -88,11 +106,13 @@ describe('Ticket detail editor panel and saving (e2e, real server)', () => {
     )
     expect(status?.useWorktree).toBe(true)
   })
-
   it('editing title persists it and subsequent updates use the renamed folder', async () => {
     const project = await setupEditorTicket(ctx, 'edit-title')
     const input = testId(ctx.page, 'ticket-detail-title-input')
-    await input.waitFor({ state: 'visible', timeout: 15000 })
+    await input.waitFor({
+      state: 'visible',
+      timeout: 15000,
+    })
     await ctx.page.locator('.cm-content').fill('Saved with renamed ticket')
     await input.fill('Renamed')
     await testId(ctx.page, 'ticket-detail-save-button').click()
@@ -108,11 +128,13 @@ describe('Ticket detail editor panel and saving (e2e, real server)', () => {
     await testId(ctx.page, 'ticket-detail-use-worktree-checkbox').check()
     await expect.poll(async () => (await readTicketStatus(ctx.testServer, project.projectSlug, 't-1-renamed'))?.useWorktree).toBe(true)
   })
-
   it('editing number and clicking Save persists it', async () => {
     const project = await setupEditorTicket(ctx, 'edit-number')
     const input = testId(ctx.page, 'ticket-detail-number-input')
-    await input.waitFor({ state: 'visible', timeout: 15000 })
+    await input.waitFor({
+      state: 'visible',
+      timeout: 15000,
+    })
     await input.fill('T-99')
     await testId(ctx.page, 'ticket-detail-save-button').click()
     const status = await poll(

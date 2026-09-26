@@ -19,8 +19,15 @@ export interface LaunchArgs {
 }
 
 export type LaunchOutcome =
-  | { ok: true }
-  | { ok: false; type: 'behindRemote' | 'dirtyWorktree' | 'error'; message: string; errorInfo?: ErrorInfo }
+  | {
+      ok: true
+    }
+  | {
+      ok: false
+      type: 'behindRemote' | 'dirtyWorktree' | 'error'
+      message: string
+      errorInfo?: ErrorInfo
+    }
 
 export type LaunchInvoker = (args: LaunchArgs) => Promise<LaunchOutcome>
 
@@ -40,7 +47,6 @@ export interface AgentLauncherDeps {
 export function createAgentLauncherController(props: AgentLauncherDeps) {
   const defaultsKey = () => (props.ticket ? props.ticket().status : PROJECT_LAUNCH_KEY)
   const resetKey = () => (props.ticket ? props.ticket().folderName : PROJECT_LAUNCH_KEY)
-
   const initial = resolveDefaults(props.config, defaultsKey())
   const [selectedTemplate, setSelectedTemplate] = createSignal(initial.templateName)
   const [selectedProfile, setSelectedProfile] = createSignal(initial.profileName)
@@ -50,9 +56,7 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
   const [errorInfo, setErrorInfo] = createSignal<ErrorInfo | null>(null)
   const [behindRemoteMsg, setBehindRemoteMsg] = createSignal('')
   const [dirtyWorktreeMsg, setDirtyWorktreeMsg] = createSignal('')
-
   const orderedSkills = createMemo(() => orderByNameList(props.config?.skills ?? [], skillOrder()))
-
   const preview = createPromptPreviewController({
     selectedTemplate,
     checkedSkills,
@@ -64,9 +68,11 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
     projectSlug: props.projectSlug,
     launchDir: props.launchDir,
     initialEditedPrompt: initial.editedPrompt,
-    onEditedPromptChange: (editedPrompt) => props.onDefaultsChange({ editedPrompt }),
+    onEditedPromptChange: (editedPrompt) =>
+      props.onDefaultsChange({
+        editedPrompt,
+      }),
   })
-
   const initialConfig = props.config
   const initialResetKey = resetKey()
   createEffect(
@@ -104,7 +110,9 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
     if (next.has(name)) next.delete(name)
     else next.add(name)
     setCheckedSkills(next)
-    props.onDefaultsChange({ checkedSkills: [...next] })
+    props.onDefaultsChange({
+      checkedSkills: [...next],
+    })
   }
 
   const skillReorder = createListReorder<MergedSkill>({
@@ -112,7 +120,9 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
     idOf: (s) => s.name,
     onReorder: (orderedNames) => {
       setSkillOrder(orderedNames)
-      props.onDefaultsChange({ skillOrder: orderedNames })
+      props.onDefaultsChange({
+        skillOrder: orderedNames,
+      })
     },
   })
 
@@ -143,7 +153,10 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
           break
       }
     } catch (e: unknown) {
-      setErrorInfo({ title: 'Launch failed', description: e instanceof Error ? e.message : 'Network error' })
+      setErrorInfo({
+        title: 'Launch failed',
+        description: e instanceof Error ? e.message : 'Network error',
+      })
     } finally {
       setLaunching(false)
     }

@@ -3,11 +3,21 @@ import { findHerdrAgent, stopHerdrAgent, type HerdrExecFn } from './herdr-contro
 import { ProcessError } from '../shared/errors.js'
 import { HerdrUnavailableError } from './herdr-availability.js'
 
-const TARGET = { projectSlug: 'alpha', folderName: 'st-1' }
+const TARGET = {
+  projectSlug: 'alpha',
+  folderName: 'st-1',
+}
 
 interface FakeExecOptions {
-  workspaces?: { workspace_id: string; label?: string }[]
-  panes?: { workspace_id: string; pane_id: string; label?: string }[]
+  workspaces?: {
+    workspace_id: string
+    label?: string
+  }[]
+  panes?: {
+    workspace_id: string
+    pane_id: string
+    label?: string
+  }[]
   agents?: {
     workspace_id: string
     pane_id?: string
@@ -24,17 +34,32 @@ function fakeExec(opts: FakeExecOptions) {
     if (key === 'herdr.workspace.list') {
       if (opts.workspaceListError) throw opts.workspaceListError
       if (opts.workspaceListRaw !== undefined) return opts.workspaceListRaw
-      return JSON.stringify({ result: { workspaces: opts.workspaces ?? [] } })
+      return JSON.stringify({
+        result: {
+          workspaces: opts.workspaces ?? [],
+        },
+      })
     }
     if (key === 'herdr.pane.list') {
-      return JSON.stringify({ result: { panes: opts.panes ?? [] } })
+      return JSON.stringify({
+        result: {
+          panes: opts.panes ?? [],
+        },
+      })
     }
     if (key === 'herdr.agent.list') {
-      return JSON.stringify({ result: { agents: opts.agents ?? [] } })
+      return JSON.stringify({
+        result: {
+          agents: opts.agents ?? [],
+        },
+      })
     }
     throw new Error(`unexpected call: ${key}`)
   }
-  return { exec, calls }
+  return {
+    exec,
+    calls,
+  }
 }
 
 describe('findHerdrAgent', () => {
@@ -48,34 +73,64 @@ describe('findHerdrAgent', () => {
       message: 'Herdr is not running.',
     })
   })
-
   it('does not treat a herdr that ran and failed as unavailable', async () => {
     const exec: HerdrExecFn = async () => {
       throw new ProcessError('herdr', 1, "'herdr' is not recognized", undefined, 'exited')
     }
     await expect(findHerdrAgent(TARGET, exec)).rejects.toBeInstanceOf(ProcessError)
   })
-
   it('returns no-agent for an empty workspace list', async () => {
-    const { exec, calls } = fakeExec({ workspaces: [] })
-    expect(await findHerdrAgent(TARGET, exec)).toEqual({ kind: 'no-agent' })
+    const { exec, calls } = fakeExec({
+      workspaces: [],
+    })
+    expect(await findHerdrAgent(TARGET, exec)).toEqual({
+      kind: 'no-agent',
+    })
     expect(calls).toEqual(['herdr.workspace.list'])
   })
-
   it('returns no-agent when the Ticket pane has no agent', async () => {
     const { exec } = fakeExec({
-      workspaces: [{ workspace_id: 'w1', label: 'alpha' }],
-      panes: [{ workspace_id: 'w1', pane_id: 'w1:p2', label: 'alpha--st-1' }],
+      workspaces: [
+        {
+          workspace_id: 'w1',
+          label: 'alpha',
+        },
+      ],
+      panes: [
+        {
+          workspace_id: 'w1',
+          pane_id: 'w1:p2',
+          label: 'alpha--st-1',
+        },
+      ],
       agents: [],
     })
-    expect(await findHerdrAgent(TARGET, exec)).toEqual({ kind: 'no-agent' })
+    expect(await findHerdrAgent(TARGET, exec)).toEqual({
+      kind: 'no-agent',
+    })
   })
-
   it('returns the agent joined to the Ticket pane', async () => {
     const { exec } = fakeExec({
-      workspaces: [{ workspace_id: 'w1', label: 'alpha' }],
-      panes: [{ workspace_id: 'w1', pane_id: 'w1:p2', label: 'alpha--st-1' }],
-      agents: [{ workspace_id: 'w1', pane_id: 'w1:p2', agent_status: 'working' }],
+      workspaces: [
+        {
+          workspace_id: 'w1',
+          label: 'alpha',
+        },
+      ],
+      panes: [
+        {
+          workspace_id: 'w1',
+          pane_id: 'w1:p2',
+          label: 'alpha--st-1',
+        },
+      ],
+      agents: [
+        {
+          workspace_id: 'w1',
+          pane_id: 'w1:p2',
+          agent_status: 'working',
+        },
+      ],
     })
     expect(await findHerdrAgent(TARGET, exec)).toEqual({
       kind: 'agent',
@@ -83,12 +138,27 @@ describe('findHerdrAgent', () => {
       agentStatus: 'working',
     })
   })
-
   it('uses unknown when the matched agent has no status', async () => {
     const { exec } = fakeExec({
-      workspaces: [{ workspace_id: 'w1', label: 'alpha' }],
-      panes: [{ workspace_id: 'w1', pane_id: 'w1:p2', label: 'alpha--st-1' }],
-      agents: [{ workspace_id: 'w1', pane_id: 'w1:p2' }],
+      workspaces: [
+        {
+          workspace_id: 'w1',
+          label: 'alpha',
+        },
+      ],
+      panes: [
+        {
+          workspace_id: 'w1',
+          pane_id: 'w1:p2',
+          label: 'alpha--st-1',
+        },
+      ],
+      agents: [
+        {
+          workspace_id: 'w1',
+          pane_id: 'w1:p2',
+        },
+      ],
     })
     expect(await findHerdrAgent(TARGET, exec)).toEqual({
       kind: 'agent',
@@ -96,23 +166,52 @@ describe('findHerdrAgent', () => {
       agentStatus: 'unknown',
     })
   })
-
   it('matches workspace and pane labels case-sensitively', async () => {
     const { exec } = fakeExec({
-      workspaces: [{ workspace_id: 'w1', label: 'Alpha' }],
-      panes: [{ workspace_id: 'w1', pane_id: 'w1:p2', label: 'alpha--st-1' }],
+      workspaces: [
+        {
+          workspace_id: 'w1',
+          label: 'Alpha',
+        },
+      ],
+      panes: [
+        {
+          workspace_id: 'w1',
+          pane_id: 'w1:p2',
+          label: 'alpha--st-1',
+        },
+      ],
     })
-    expect(await findHerdrAgent(TARGET, exec)).toEqual({ kind: 'no-agent' })
+    expect(await findHerdrAgent(TARGET, exec)).toEqual({
+      kind: 'no-agent',
+    })
   })
-
   it('uses the first workspace when two share the Project label', async () => {
     const { exec } = fakeExec({
       workspaces: [
-        { workspace_id: 'w1', label: 'alpha' },
-        { workspace_id: 'w2', label: 'alpha' },
+        {
+          workspace_id: 'w1',
+          label: 'alpha',
+        },
+        {
+          workspace_id: 'w2',
+          label: 'alpha',
+        },
       ],
-      panes: [{ workspace_id: 'w1', pane_id: 'w1:p1', label: 'alpha--st-1' }],
-      agents: [{ workspace_id: 'w1', pane_id: 'w1:p1', agent_status: 'working' }],
+      panes: [
+        {
+          workspace_id: 'w1',
+          pane_id: 'w1:p1',
+          label: 'alpha--st-1',
+        },
+      ],
+      agents: [
+        {
+          workspace_id: 'w1',
+          pane_id: 'w1:p1',
+          agent_status: 'working',
+        },
+      ],
     })
     expect(await findHerdrAgent(TARGET, exec)).toEqual({
       kind: 'agent',
@@ -120,27 +219,61 @@ describe('findHerdrAgent', () => {
       agentStatus: 'working',
     })
   })
-
   it('rejects when two panes share the Ticket label', async () => {
     const { exec } = fakeExec({
-      workspaces: [{ workspace_id: 'w1', label: 'alpha' }],
+      workspaces: [
+        {
+          workspace_id: 'w1',
+          label: 'alpha',
+        },
+      ],
       panes: [
-        { workspace_id: 'w1', pane_id: 'w1:p1', label: 'alpha--st-1' },
-        { workspace_id: 'w1', pane_id: 'w1:p2', label: 'alpha--st-1' },
+        {
+          workspace_id: 'w1',
+          pane_id: 'w1:p1',
+          label: 'alpha--st-1',
+        },
+        {
+          workspace_id: 'w1',
+          pane_id: 'w1:p2',
+          label: 'alpha--st-1',
+        },
       ],
     })
     await expect(findHerdrAgent(TARGET, exec)).rejects.toThrow("Ticket 'st-1' has multiple Herdr panes.")
   })
-
   it('ignores duplicate panes belonging to another Ticket', async () => {
     const { exec } = fakeExec({
-      workspaces: [{ workspace_id: 'w1', label: 'alpha' }],
-      panes: [
-        { workspace_id: 'w1', pane_id: 'w1:p1', label: 'alpha--st-1' },
-        { workspace_id: 'w1', pane_id: 'w1:p2', label: 'alpha--st-2' },
-        { workspace_id: 'w1', pane_id: 'w1:p3', label: 'alpha--st-2' },
+      workspaces: [
+        {
+          workspace_id: 'w1',
+          label: 'alpha',
+        },
       ],
-      agents: [{ workspace_id: 'w1', pane_id: 'w1:p1', agent_status: 'working' }],
+      panes: [
+        {
+          workspace_id: 'w1',
+          pane_id: 'w1:p1',
+          label: 'alpha--st-1',
+        },
+        {
+          workspace_id: 'w1',
+          pane_id: 'w1:p2',
+          label: 'alpha--st-2',
+        },
+        {
+          workspace_id: 'w1',
+          pane_id: 'w1:p3',
+          label: 'alpha--st-2',
+        },
+      ],
+      agents: [
+        {
+          workspace_id: 'w1',
+          pane_id: 'w1:p1',
+          agent_status: 'working',
+        },
+      ],
     })
     expect(await findHerdrAgent(TARGET, exec)).toEqual({
       kind: 'agent',
@@ -148,25 +281,43 @@ describe('findHerdrAgent', () => {
       agentStatus: 'working',
     })
   })
-
   it('rejects when the Ticket pane has multiple agents', async () => {
     const { exec } = fakeExec({
-      workspaces: [{ workspace_id: 'w1', label: 'alpha' }],
-      panes: [{ workspace_id: 'w1', pane_id: 'w1:p1', label: 'alpha--st-1' }],
+      workspaces: [
+        {
+          workspace_id: 'w1',
+          label: 'alpha',
+        },
+      ],
+      panes: [
+        {
+          workspace_id: 'w1',
+          pane_id: 'w1:p1',
+          label: 'alpha--st-1',
+        },
+      ],
       agents: [
-        { workspace_id: 'w1', pane_id: 'w1:p1', agent_status: 'working' },
-        { workspace_id: 'w1', pane_id: 'w1:p1', agent_status: 'idle' },
+        {
+          workspace_id: 'w1',
+          pane_id: 'w1:p1',
+          agent_status: 'working',
+        },
+        {
+          workspace_id: 'w1',
+          pane_id: 'w1:p1',
+          agent_status: 'idle',
+        },
       ],
     })
     await expect(findHerdrAgent(TARGET, exec)).rejects.toThrow("Herdr pane 'w1:p1' has multiple agents.")
   })
-
   it('propagates malformed JSON', async () => {
-    const { exec } = fakeExec({ workspaceListRaw: 'not json' })
+    const { exec } = fakeExec({
+      workspaceListRaw: 'not json',
+    })
     await expect(findHerdrAgent(TARGET, exec)).rejects.toThrow("Could not parse JSON output from 'herdr.workspace.list'.")
   })
 })
-
 describe('stopHerdrAgent', () => {
   it('invokes the stop action with the pane id', async () => {
     const calls: [string, unknown][] = []
@@ -175,9 +326,15 @@ describe('stopHerdrAgent', () => {
       return ''
     }
     await stopHerdrAgent('w1:p2', exec)
-    expect(calls).toEqual([['herdr.agent.stop', { paneId: 'w1:p2' }]])
+    expect(calls).toEqual([
+      [
+        'herdr.agent.stop',
+        {
+          paneId: 'w1:p2',
+        },
+      ],
+    ])
   })
-
   it('propagates exec failure', async () => {
     const exec: HerdrExecFn = async () => {
       throw new Error('close failed')

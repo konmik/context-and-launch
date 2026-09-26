@@ -11,6 +11,8 @@ export function initializeDataDir(paths: ConfigPaths): void {
 
 function copyIfMissing(src: string, dest: string): void {
   if (fs.existsSync(dest)) return
-  fs.mkdirSync(path.dirname(dest), { recursive: true })
+  fs.mkdirSync(path.dirname(dest), {
+    recursive: true,
+  })
   fs.copyFileSync(src, dest)
 }

@@ -1,7 +1,11 @@
 export type DiffScope = 'all' | 'branch' | 'working' | 'last-commit'
+
 export type ReviewPace = 'live' | 'step-by-step'
+
 export type DiffLayout = 'split' | 'unified'
+
 export type DiffLineOverflow = 'scroll' | 'wrap'
+
 export type ReviewLineSide = 'deletions' | 'additions'
 
 export interface ReviewLineRange {
@@ -89,11 +93,25 @@ interface ReviewPromptQueueItemBase {
 
 export type ReviewPromptQueueItem = ReviewPromptQueueItemBase &
   (
-    | { state: 'waiting' }
-    | { state: 'delivering'; deliveryStartedAt: string }
-    | { state: 'sent'; sentAt: string }
-    | { state: 'error'; error: string }
-    | { state: 'uncertain'; error: string }
+    | {
+        state: 'waiting'
+      }
+    | {
+        state: 'delivering'
+        deliveryStartedAt: string
+      }
+    | {
+        state: 'sent'
+        sentAt: string
+      }
+    | {
+        state: 'error'
+        error: string
+      }
+    | {
+        state: 'uncertain'
+        error: string
+      }
   )
 
 export interface ReviewPromptQueue {
@@ -105,7 +123,13 @@ export interface ReviewPromptQueue {
 
 export interface DiffReviewTicketState {
   worktreeIdentity: string
-  reviewedLines: Record<string, { path: string; reviewedAt: string }>
+  reviewedLines: Record<
+    string,
+    {
+      path: string
+      reviewedAt: string
+    }
+  >
   queue: ReviewPromptQueue
 }
 
@@ -116,5 +140,13 @@ export interface DiffReviewProjectState {
 
 export function getReviewTicketState(project: DiffReviewProjectState, folderName: string, worktreeIdentity: string): DiffReviewTicketState {
   const ticket = project.tickets[folderName]
-  return ticket?.worktreeIdentity === worktreeIdentity ? ticket : { worktreeIdentity, reviewedLines: {}, queue: { items: [] } }
+  return ticket?.worktreeIdentity === worktreeIdentity
+    ? ticket
+    : {
+        worktreeIdentity,
+        reviewedLines: {},
+        queue: {
+          items: [],
+        },
+      }
 }

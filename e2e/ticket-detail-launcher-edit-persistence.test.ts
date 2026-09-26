@@ -8,7 +8,10 @@ describe('Ticket detail launcher edit persistence (e2e, real server)', () => {
   it('edit toggle freezes preview', async () => {
     await setupLauncherTicket(ctx, 'edit-freeze')
     const cm = ctx.page.locator('.cm-content')
-    await cm.waitFor({ state: 'visible', timeout: 15000 })
+    await cm.waitFor({
+      state: 'visible',
+      timeout: 15000,
+    })
     const toggle = testId(ctx.page, 'prompt-preview-edit-toggle')
     await toggle.check()
     await ctx.page.waitForTimeout(200)
@@ -18,11 +21,13 @@ describe('Ticket detail launcher edit persistence (e2e, real server)', () => {
     const textAfter = await cm.textContent()
     expect(textAfter).toBe(textBefore)
   })
-
   it('edit toggle off discards edits', async () => {
     await setupLauncherTicket(ctx, 'edit-discard')
     const cm = ctx.page.locator('.cm-content')
-    await cm.waitFor({ state: 'visible', timeout: 15000 })
+    await cm.waitFor({
+      state: 'visible',
+      timeout: 15000,
+    })
     const originalText = await cm.textContent()
     const toggle = testId(ctx.page, 'prompt-preview-edit-toggle')
     await toggle.check()
@@ -38,11 +43,13 @@ describe('Ticket detail launcher edit persistence (e2e, real server)', () => {
     expect(revertedText).not.toContain('EXTRA TEXT')
     expect(revertedText).toBe(originalText)
   })
-
   it('edited prompt persists to project launcher config', async () => {
     const project = await setupLauncherTicket(ctx, 'edit-persist')
     const cm = ctx.page.locator('.cm-content')
-    await cm.waitFor({ state: 'visible', timeout: 15000 })
+    await cm.waitFor({
+      state: 'visible',
+      timeout: 15000,
+    })
     const toggle = testId(ctx.page, 'prompt-preview-edit-toggle')
     await toggle.check()
     await ctx.page.waitForTimeout(200)
@@ -55,11 +62,13 @@ describe('Ticket detail launcher edit persistence (e2e, real server)', () => {
     )
     expect(cfg?.columnDefaults?.['todo']?.editedPrompt).toContain('PERSISTED EDIT')
   })
-
   it('edited prompt is restored after reopening the ticket', async () => {
     const project = await setupLauncherTicket(ctx, 'edit-restore')
     const cm = ctx.page.locator('.cm-content')
-    await cm.waitFor({ state: 'visible', timeout: 15000 })
+    await cm.waitFor({
+      state: 'visible',
+      timeout: 15000,
+    })
     const toggle = testId(ctx.page, 'prompt-preview-edit-toggle')
     await toggle.check()
     await ctx.page.waitForTimeout(200)
@@ -70,24 +79,34 @@ describe('Ticket detail launcher edit persistence (e2e, real server)', () => {
       (c) => c?.columnDefaults?.['todo']?.editedPrompt?.includes('RESTORED EDIT') ?? false,
       5000,
     )
-
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
     await openLauncher(ctx)
-
     const cmReopened = ctx.page.locator('.cm-content')
-    await cmReopened.waitFor({ state: 'visible', timeout: 15000 })
+    await cmReopened.waitFor({
+      state: 'visible',
+      timeout: 15000,
+    })
     const toggleReopened = testId(ctx.page, 'prompt-preview-edit-toggle')
-    await expect.poll(() => toggleReopened.isChecked(), { timeout: 10_000 }).toBe(true)
-    await expect.poll(() => cmReopened.textContent(), { timeout: 10_000 }).toContain('RESTORED EDIT')
-
+    await expect
+      .poll(() => toggleReopened.isChecked(), {
+        timeout: 10000,
+      })
+      .toBe(true)
+    await expect
+      .poll(() => cmReopened.textContent(), {
+        timeout: 10000,
+      })
+      .toContain('RESTORED EDIT')
     const cfg = readProjectLauncherConfig(ctx.testServer, project.projectSlug)
     expect(cfg?.columnDefaults?.['todo']?.editedPrompt).toContain('RESTORED EDIT')
   })
-
   it('turning edit off clears the persisted edited prompt', async () => {
     const project = await setupLauncherTicket(ctx, 'edit-clear')
     const cm = ctx.page.locator('.cm-content')
-    await cm.waitFor({ state: 'visible', timeout: 15000 })
+    await cm.waitFor({
+      state: 'visible',
+      timeout: 15000,
+    })
     const toggle = testId(ctx.page, 'prompt-preview-edit-toggle')
     await toggle.check()
     await ctx.page.waitForTimeout(200)

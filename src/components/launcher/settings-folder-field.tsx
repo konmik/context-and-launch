@@ -45,7 +45,10 @@ export function SettingsFolderField(props: {
                 props.setValue(result.path)
                 props.save(result.path)
               } else if ('error' in result) {
-                props.setError({ title: 'Browse failed', description: result.error })
+                props.setError({
+                  title: 'Browse failed',
+                  description: result.error,
+                })
               }
             } catch (e) {
               props.setError(errorPayload(e, 'Browse failed'))

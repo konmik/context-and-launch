@@ -22,7 +22,6 @@ const DEFAULT_ADAPTERS: FileWatcherAdapters = {
   setTimer: (callback, delayMs) => setTimeout(callback, delayMs),
   clearTimer: (timer) => clearTimeout(timer),
 }
-
 const DEFAULT_DEBOUNCE_MS = 2000
 
 function hasDotSegment(relativePath: string): boolean {
@@ -59,7 +58,6 @@ export class FileWatcher {
 
   watch(worktreeDir: string, debounceMs = this.defaultDebounceMs): void {
     if (this.watchers.has(worktreeDir)) return
-
     let watcher: FileWatcherHandle
     try {
       watcher = this.adapters.createWatcher(worktreeDir, {
@@ -72,7 +70,6 @@ export class FileWatcher {
       console.warn(`FileWatcher: failed to watch ${worktreeDir}:`, err)
       return
     }
-
     const debouncedCommit = () => {
       const current = this.watchers.get(worktreeDir)
       if (!current) return
@@ -83,7 +80,9 @@ export class FileWatcher {
           this.commands.executeSync('git.stage-all', worktreeDir)
           const status = this.commands.executeSync('git.status', worktreeDir)
           if (status.trim()) {
-            this.commands.executeSync('git.commit', worktreeDir, { message: 'auto: external changes' })
+            this.commands.executeSync('git.commit', worktreeDir, {
+              message: 'auto: external changes',
+            })
           }
         } catch (err) {
           console.warn(`FileWatcher: auto-commit failed for ${worktreeDir}:`, err)
@@ -91,7 +90,6 @@ export class FileWatcher {
         this.onWorktreeChange?.(worktreeDir)
       }, debounceMs)
     }
-
     const state: WatcherState = {
       watcher,
       timer: null,
@@ -99,13 +97,10 @@ export class FileWatcher {
       scheduleCommit: debouncedCommit,
     }
     this.watchers.set(worktreeDir, state)
-
     const handleEvent = () => {
       this.onWorktreeChange?.(worktreeDir)
       debouncedCommit()
-    }
-
-    // Files written before the initial scan completes are treated as initial
+    } // Files written before the initial scan completes are treated as initial
     // content by chokidar and never produce events; commit them on ready.
     // Dot paths are filtered like the event stream filters them, so a
     // dotfile-only change never triggers the catch-up commit.
@@ -155,8 +150,7 @@ export class FileWatcher {
       return await task()
     } finally {
       if (pausedDebounceMs !== undefined) {
-        this.watch(worktreeDir, pausedDebounceMs)
-        // The task just wrote to a worktree nothing was watching, and the
+        this.watch(worktreeDir, pausedDebounceMs) // The task just wrote to a worktree nothing was watching, and the
         // fresh watcher reports no event for those writes. Schedule the
         // commit directly so the work cannot sit uncommitted.
         this.watchers.get(worktreeDir)?.scheduleCommit()

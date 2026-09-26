@@ -6,9 +6,20 @@ import { foreignWorktreeMessage, type WorktreeOwnership } from './agent-worktree
 export type CleanupItemKey = 'stopHerdrAgent' | 'deleteWorktree' | 'deleteLocalBranch' | 'deleteRemoteBranch'
 
 export type CleanupCheckItem =
-  | { state: 'ready' }
-  | { state: 'blocked'; reason: string; warning?: true; killable?: true; forceDeleteable?: true }
-  | { state: 'error'; error: ErrorInfo }
+  | {
+      state: 'ready'
+    }
+  | {
+      state: 'blocked'
+      reason: string
+      warning?: true
+      killable?: true
+      forceDeleteable?: true
+    }
+  | {
+      state: 'error'
+      error: ErrorInfo
+    }
 
 export type TicketCleanupStatus = Record<CleanupItemKey, CleanupCheckItem>
 
@@ -39,7 +50,10 @@ async function guard(body: () => Promise<CleanupCheckItem>): Promise<CleanupChec
   try {
     return await body()
   } catch (e) {
-    return { state: 'error', error: errorPayload(e) }
+    return {
+      state: 'error',
+      error: errorPayload(e),
+    }
   }
 }
 
@@ -49,24 +63,41 @@ export async function runTicketCleanupChecks(target: TicketCleanupCheckTarget, d
       projectSlug: target.projectSlug,
       folderName: target.folderName,
     })
-    if (found.kind === 'herdr-unavailable') return { state: 'blocked', reason: found.message }
-    if (found.kind === 'no-agent') return { state: 'blocked', reason: 'No Herdr agent' }
-    return { state: 'ready' }
+    if (found.kind === 'herdr-unavailable')
+      return {
+        state: 'blocked',
+        reason: found.message,
+      }
+    if (found.kind === 'no-agent')
+      return {
+        state: 'blocked',
+        reason: 'No Herdr agent',
+      }
+    return {
+      state: 'ready',
+    }
   })
-
   const deleteWorktree = guard(async () => {
     if (!deps.worktreeExists(target.worktreePath)) {
-      return { state: 'blocked', reason: 'No worktree' }
+      return {
+        state: 'blocked',
+        reason: 'No worktree',
+      }
     }
     const ownership = await deps.getWorktreeOwnership(target.projectPath, target.worktreePath)
     if (ownership.kind === 'different-project') {
       return {
         state: 'error',
-        error: { description: foreignWorktreeMessage(target.worktreePath) },
+        error: {
+          description: foreignWorktreeMessage(target.worktreePath),
+        },
       }
     }
     if (deps.isGitWorktree(target.worktreePath) && !(await deps.isWorktreeClean(target.worktreePath))) {
-      return { state: 'blocked', reason: 'Worktree has uncommitted changes' }
+      return {
+        state: 'blocked',
+        reason: 'Worktree has uncommitted changes',
+      }
     }
     if (await deps.isWorktreeBusy(target.worktreePath)) {
       const herdr = await stopHerdrAgent
@@ -80,26 +111,40 @@ export async function runTicketCleanupChecks(target: TicketCleanupCheckTarget, d
             : 'Worktree is in use by another process',
       }
     }
-    return { state: 'ready' }
+    return {
+      state: 'ready',
+    }
   })
-
   const deleteLocalBranch = guard(async () => {
     if (!(await deps.localBranchExists(target.projectPath, target.branchName))) {
-      return { state: 'blocked', reason: 'No local branch' }
+      return {
+        state: 'blocked',
+        reason: 'No local branch',
+      }
     }
     if (!(await deps.isBranchMerged(target.projectPath, target.branchName, target.configuredMainBranch))) {
-      return { state: 'blocked', reason: 'Branch has unmerged commits', warning: true, forceDeleteable: true }
+      return {
+        state: 'blocked',
+        reason: 'Branch has unmerged commits',
+        warning: true,
+        forceDeleteable: true,
+      }
     }
-    return { state: 'ready' }
+    return {
+      state: 'ready',
+    }
   })
-
   const deleteRemoteBranch = guard(async () => {
     if (!(await deps.hasRemoteBranch(target.projectPath, target.branchName))) {
-      return { state: 'blocked', reason: 'No remote branch' }
+      return {
+        state: 'blocked',
+        reason: 'No remote branch',
+      }
     }
-    return { state: 'ready' }
+    return {
+      state: 'ready',
+    }
   })
-
   const [herdr, worktree, local, remote] = await Promise.all([stopHerdrAgent, deleteWorktree, deleteLocalBranch, deleteRemoteBranch])
   return {
     stopHerdrAgent: herdr,

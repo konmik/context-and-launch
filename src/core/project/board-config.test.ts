@@ -11,14 +11,22 @@ import { succeed } from '~/util/result.js'
 
 const dirs: string[] = []
 afterEach(() => {
-  for (const dir of dirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true })
+  for (const dir of dirs.splice(0))
+    fs.rmSync(dir, {
+      recursive: true,
+      force: true,
+    })
 })
+
 function setup() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'board-config-'))
   dirs.push(dir)
   const paths = new ConfigPaths(dir)
   initializeDataDir(paths)
-  return { paths, store: new BoardConfigManager(paths) }
+  return {
+    paths,
+    store: new BoardConfigManager(paths),
+  }
 }
 
 describe('board configuration storage', () => {
@@ -28,20 +36,47 @@ describe('board configuration storage', () => {
     expect(store.getConfig('simple').columns).toEqual(boards[1].columns)
     for (const id of [undefined, null, 'missing']) expect(store.getConfig(id).columns).toEqual(boards[0].columns)
   })
-
   it('preserves unknown board and column fields through a locked transform', async () => {
     const { store, paths } = setup()
-    const original = [{ id: 'custom', name: 'Custom', extra: { keep: true }, columns: [{ name: 'todo', color: '#0969da', extra: 42 }] }]
+    const original = [
+      {
+        id: 'custom',
+        name: 'Custom',
+        extra: {
+          keep: true,
+        },
+        columns: [
+          {
+            name: 'todo',
+            color: '#0969da',
+            extra: 42,
+          },
+        ],
+      },
+    ]
     fs.writeFileSync(paths.boardsFile(), JSON.stringify(original))
     const storage = createStoredConfig<BoardDefinition[]>(
       async (owner) => succeed(store.read(owner)),
       async (json, owner) => succeed(store.write(JSON.parse(json), owner)),
       async (owner) => store.release(owner),
     )
-    expect((await storage.update((current) => current.map((board) => ({ ...board, name: 'Renamed' })))).type).toBe('Success')
-    expect(new BoardConfigManager(paths).read()).toEqual([{ ...original[0], name: 'Renamed' }])
+    expect(
+      (
+        await storage.update((current) =>
+          current.map((board) => ({
+            ...board,
+            name: 'Renamed',
+          })),
+        )
+      ).type,
+    ).toBe('Success')
+    expect(new BoardConfigManager(paths).read()).toEqual([
+      {
+        ...original[0],
+        name: 'Renamed',
+      },
+    ])
   })
-
   it('rejects concurrent and expired writers without overwriting data', () => {
     const { store } = setup()
     const original = store.read('first')
@@ -54,7 +89,6 @@ describe('board configuration storage', () => {
     store.write(original, 'second')
     expect(store.read()).toEqual(original)
   })
-
   it('releases the lock after failed transforms and rejects invalid writes without changing disk', async () => {
     const { store, paths } = setup()
     const before = fs.readFileSync(paths.boardsFile(), 'utf8')
@@ -67,14 +101,28 @@ describe('board configuration storage', () => {
       storage.update(() => {
         throw new Error('bad edit')
       }),
-    ).resolves.toEqual({ type: 'Failure', error: 'bad edit' })
+    ).resolves.toEqual({
+      type: 'Failure',
+      error: 'bad edit',
+    })
     const boards = store.read('next')
     expect(() => store.write([], 'next')).toThrow('empty')
     expect(() => store.write([...boards, boards[0]])).toThrow('already exists')
-    expect(() => store.write([{ ...boards[0], columns: [{ name: 'todo', color: '#123456' }] }])).toThrow('palette')
+    expect(() =>
+      store.write([
+        {
+          ...boards[0],
+          columns: [
+            {
+              name: 'todo',
+              color: '#123456',
+            },
+          ],
+        },
+      ]),
+    ).toThrow('palette')
     expect(fs.readFileSync(paths.boardsFile(), 'utf8')).toBe(before)
   })
-
   it('reports missing, malformed, and empty files', () => {
     const { store, paths } = setup()
     for (const raw of ['not json', '[]', '{}']) {
@@ -85,7 +133,6 @@ describe('board configuration storage', () => {
     expect(() => store.read()).toThrow('not found')
   })
 })
-
 it('slugifies column names and rejects reserved, empty, and duplicate names', () => {
   expect(validateColumnName('In Progress', [])).toBe('in-progress')
   expect(validateColumnName('todo', ['todo'], 'todo')).toBe('todo')

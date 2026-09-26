@@ -19,7 +19,9 @@ declare module 'vitest' {
 }
 
 function git(command: string, cwd: string): void {
-  execSync(command, { cwd })
+  execSync(command, {
+    cwd,
+  })
 }
 
 /**
@@ -33,8 +35,9 @@ export default async function setup({ provide }: GlobalSetupContext): Promise<()
   const repo = path.join(base, 'repo')
   const remote = path.join(base, 'remote.git')
   const tickets = path.join(base, 'tickets')
-
-  fs.mkdirSync(repo, { recursive: true })
+  fs.mkdirSync(repo, {
+    recursive: true,
+  })
   git('git init -b main', repo)
   git('git config user.email test@test.com', repo)
   git('git config user.name Test', repo)
@@ -44,13 +47,13 @@ export default async function setup({ provide }: GlobalSetupContext): Promise<()
   git('git push -u origin main', repo)
   git(`git worktree add --orphan -b tickets "${tickets}"`, repo)
   git('git commit --allow-empty -m init', tickets)
-  git('git push -u origin tickets', tickets)
-  // A copy must not inherit a worktree registration that points into the
+  git('git push -u origin tickets', tickets) // A copy must not inherit a worktree registration that points into the
   // template, so the template keeps the Orphan Branch and drops the worktree.
   git(`git worktree remove "${tickets}"`, repo)
-
-  provide('projectTemplate', { repo, remote })
-
+  provide('projectTemplate', {
+    repo,
+    remote,
+  })
   return async () => {
     await removeTempDirOrWarn(base)
   }

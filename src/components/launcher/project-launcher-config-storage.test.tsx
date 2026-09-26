@@ -9,10 +9,26 @@ import { LauncherConfigContext } from './shared-launcher-config-storage.js'
 import { ItemSection } from './launcher-settings-item-section.js'
 
 afterEach(cleanup)
-
 it('switches the project store without remounting the editor and edits the selected project', async () => {
-  const initial: LauncherConfig = { templates: [], skills: [], profiles: [{ name: 'Agent', command: 'first' }] }
-  const secondConfig = { ...initial, profiles: [{ name: 'Agent', command: 'second' }] }
+  const initial: LauncherConfig = {
+    templates: [],
+    skills: [],
+    profiles: [
+      {
+        name: 'Agent',
+        command: 'first',
+      },
+    ],
+  }
+  const secondConfig = {
+    ...initial,
+    profiles: [
+      {
+        name: 'Agent',
+        command: 'second',
+      },
+    ],
+  }
   const saved = new Map<string, LauncherConfig>([
     ['first', initial],
     ['second', secondConfig],
@@ -20,8 +36,17 @@ it('switches the project store without remounting the editor and edits the selec
   let completeRead!: () => void
   const release = vi.fn(async () => {})
   const shared = createStoredSignal<LauncherConfig>(
-    () => ({ templates: [], skills: [] }),
-    async (transform) => succeed(transform({ templates: [], skills: [] })),
+    () => ({
+      templates: [],
+      skills: [],
+    }),
+    async (transform) =>
+      succeed(
+        transform({
+          templates: [],
+          skills: [],
+        }),
+      ),
   )
   const [selected, setSelected] = createSignal('first')
   const storage = createProjectLauncherConfigStorage(
@@ -46,6 +71,7 @@ it('switches the project store without remounting the editor and edits the selec
     },
   )
   let mounts = 0
+
   function Editor() {
     mounts++
     return (
@@ -61,6 +87,7 @@ it('switches the project store without remounting the editor and edits the selec
       />
     )
   }
+
   render(() => (
     <LauncherConfigContext value={shared}>
       <ProjectLauncherConfigContext value={storage}>
@@ -69,7 +96,10 @@ it('switches the project store without remounting the editor and edits the selec
     </LauncherConfigContext>
   ))
   await waitFor(() => expect(screen.getByTestId('row').textContent).toContain('first'))
-  const pending = storage.update((current) => ({ ...current, branchPrefix: 'first-only/' }))
+  const pending = storage.update((current) => ({
+    ...current,
+    branchPrefix: 'first-only/',
+  }))
   await waitFor(() => expect(completeRead).toBeTypeOf('function'))
   setSelected('second')
   await waitFor(() => expect(screen.getByTestId('row').textContent).toContain('second'))
@@ -83,9 +113,17 @@ it('switches the project store without remounting the editor and edits the selec
   await waitFor(() => expect(saved.get('second')?.profiles).toEqual([]))
   expect(saved.get('first')?.profiles).toEqual(initial.profiles)
 })
-
 it('shares successful edits, isolates projects, and retains failed drafts', async () => {
-  const initial: LauncherConfig = { templates: [], skills: [], profiles: [{ name: 'Agent', command: 'before' }] }
+  const initial: LauncherConfig = {
+    templates: [],
+    skills: [],
+    profiles: [
+      {
+        name: 'Agent',
+        command: 'before',
+      },
+    ],
+  }
   let persisted = initial
   let reject = false
   const storage = createStoredSignal(
@@ -101,9 +139,19 @@ it('shares successful edits, isolates projects, and retains failed drafts', asyn
     async (transform) => succeed(transform(initial)),
   )
   const shared = createStoredSignal<LauncherConfig>(
-    () => ({ templates: [], skills: [] }),
-    async (transform) => succeed(transform({ templates: [], skills: [] })),
+    () => ({
+      templates: [],
+      skills: [],
+    }),
+    async (transform) =>
+      succeed(
+        transform({
+          templates: [],
+          skills: [],
+        }),
+      ),
   )
+
   function Editor() {
     return (
       <ItemSection
@@ -118,6 +166,7 @@ it('shares successful edits, isolates projects, and retains failed drafts', asyn
       />
     )
   }
+
   const { container } = render(() => (
     <LauncherConfigContext value={shared}>
       <ProjectLauncherConfigContext value={storage}>
@@ -130,13 +179,18 @@ it('shares successful edits, isolates projects, and retains failed drafts', asyn
     </LauncherConfigContext>
   ))
   const rows = () => [...container.querySelectorAll('[data-testid="row"]')].map((row) => row.textContent)
-  await waitFor(() => expect(rows()).toHaveLength(3))
-
-  // A different writer changes the file after these editors have mounted.
-  persisted = { ...persisted, branchPrefix: 'external/' }
+  await waitFor(() => expect(rows()).toHaveLength(3)) // A different writer changes the file after these editors have mounted.
+  persisted = {
+    ...persisted,
+    branchPrefix: 'external/',
+  }
   fireEvent.click(screen.getAllByTestId('edit')[0])
   await waitFor(() => expect(screen.getByTestId('launcher-settings-item-form-text-input')).toBeTruthy())
-  fireEvent.input(screen.getByTestId('launcher-settings-item-form-text-input'), { target: { value: 'after' } })
+  fireEvent.input(screen.getByTestId('launcher-settings-item-form-text-input'), {
+    target: {
+      value: 'after',
+    },
+  })
   flush()
   fireEvent.click(screen.getByTestId('launcher-settings-item-form-submit'))
   await waitFor(() =>
@@ -144,11 +198,14 @@ it('shares successful edits, isolates projects, and retains failed drafts', asyn
   )
   expect(persisted.branchPrefix).toBe('external/')
   await waitFor(() => expect(screen.queryByTestId('launcher-settings-item-form-text-input')).toBeNull())
-
   reject = true
   fireEvent.click(screen.getAllByTestId('edit')[0])
   await waitFor(() => expect(screen.getByTestId('launcher-settings-item-form-text-input')).toBeTruthy())
-  fireEvent.input(screen.getByTestId('launcher-settings-item-form-text-input'), { target: { value: 'failed draft' } })
+  fireEvent.input(screen.getByTestId('launcher-settings-item-form-text-input'), {
+    target: {
+      value: 'failed draft',
+    },
+  })
   flush()
   fireEvent.click(screen.getByTestId('launcher-settings-item-form-submit'))
   await waitFor(() => expect(document.body.textContent).toContain('write failed'))

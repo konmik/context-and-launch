@@ -1,8 +1,11 @@
-/* eslint-disable max-len */
 import { Show, createContext, createEffect, createMemo, createUniqueId, useContext } from 'solid-js'
 import { Portal, type ComponentProps, type JSX } from '@solidjs/web'
 
-const DialogContext = createContext<{ close(): void; titleId: string; descriptionId: string }>()
+const DialogContext = createContext<{
+  close(): void
+  titleId: string
+  descriptionId: string
+}>()
 
 export function DialogRoot(props: {
   open: boolean
@@ -93,10 +96,12 @@ export function DialogTitle(props: ComponentProps<'h2'>) {
   const dialog = useContext(DialogContext)
   return <h2 {...props} id={dialog.titleId} data-scope="dialog" data-part="title" />
 }
+
 export function DialogDescription(props: ComponentProps<'p'>) {
   const dialog = useContext(DialogContext)
   return <p {...props} id={dialog.descriptionId} data-scope="dialog" data-part="description" />
 }
+
 export function DialogCloseTrigger(props: ComponentProps<'button'>) {
   const dialog = useContext(DialogContext)
   return <button type="button" {...props} data-scope="dialog" data-part="close-trigger" onClick={dialog.close} />

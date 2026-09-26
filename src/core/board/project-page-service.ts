@@ -38,9 +38,12 @@ export class ProjectPageService {
   async loadProjectPage(projectSlug: string): Promise<ProjectPageData> {
     const projects = this.projectRegistry.listProjects()
     const project = projects.find((p) => p.projectSlug === projectSlug)
-
     if (!project) {
-      return { status: 'not-found' as const, projects, projectSlug }
+      return {
+        status: 'not-found' as const,
+        projects,
+        projectSlug,
+      }
     }
     if (!project.available) {
       return {
@@ -50,7 +53,6 @@ export class ProjectPageService {
         projectPath: project.path,
       }
     }
-
     try {
       return await this.runOnProjectGitQueue(projectSlug, async () => {
         const worktreeDir = await this.worktreeManager.ensureWorktree(project.path, projectSlug, project.branch)
@@ -78,13 +80,19 @@ export class ProjectPageService {
           const hasAgentWorktree = isDefaultLocation
             ? worktreeNames.has(worktreeFolderName(ticket.folderName))
             : fs.existsSync(worktreePath)
-          return { ...ticket, hasAgentWorktree }
+          return {
+            ...ticket,
+            hasAgentWorktree,
+          }
         })
         return {
           status: 'loaded' as const,
           projects,
           projectSlug,
-          board: { tickets: ticketsWithWorktrees, ticketOrder },
+          board: {
+            tickets: ticketsWithWorktrees,
+            ticketOrder,
+          },
           projectPath: project.path,
           suggestedNextNumber,
         }
@@ -103,13 +111,19 @@ export class ProjectPageService {
   async loadSyncStatus(projectSlug: string): Promise<SyncStatus> {
     const project = this.projectRegistry.listProjects().find((p) => p.projectSlug === projectSlug)
     if (!project || !project.available) {
-      return { hasRemote: false, hasConflict: false }
+      return {
+        hasRemote: false,
+        hasConflict: false,
+      }
     }
     return this.runOnProjectGitQueue(projectSlug, async () => {
       const worktreeDir = await this.worktreeManager.ensureWorktree(project.path, projectSlug, project.branch)
       const hasRemote = await this.ticketSyncManager.hasRemote(worktreeDir)
       const hasConflict = await this.ticketSyncManager.detectConflict(worktreeDir)
-      return { hasRemote, hasConflict }
+      return {
+        hasRemote,
+        hasConflict,
+      }
     })
   }
 }

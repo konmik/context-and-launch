@@ -4,18 +4,14 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const repoRoot = path.resolve(__dirname, '..')
-
-// The built entry exports a request handler and binds no port, so only
+const repoRoot = path.resolve(__dirname, '..') // The built entry exports a request handler and binds no port, so only
 // scripts/serve.mjs can turn it into a listening server. A launch script that
 // spawns the built entry directly leaves nothing listening.
 const launchScripts = ['run.sh', 'run.ps1']
-
 describe('launch scripts', () => {
   for (const name of launchScripts) {
     it(`${name} starts the server through scripts/serve.mjs`, () => {
-      const contents = fs.readFileSync(path.join(repoRoot, name), 'utf8')
-      // A start command spans several lines through a continuation, so the
+      const contents = fs.readFileSync(path.join(repoRoot, name), 'utf8') // A start command spans several lines through a continuation, so the
       // statements are read back as whole commands before they are matched.
       const startLines = contents
         .replace(/[`\\]\r?\n\s*/g, ' ')
@@ -23,7 +19,6 @@ describe('launch scripts', () => {
         .filter((line) => /\bnode\b/.test(line) && /serve\.mjs/.test(line))
       expect(startLines.join('\n')).toMatch(/scripts[/\\]serve\.mjs/)
     })
-
     it(`${name} distinguishes missing, stale, and current build artifacts`, () => {
       const contents = fs.readFileSync(path.join(repoRoot, name), 'utf8')
       expect(contents).toContain('BUILD=yes REASON=')

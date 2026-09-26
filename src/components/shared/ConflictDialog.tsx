@@ -23,7 +23,6 @@ export default function ConflictDialog(props: ConflictDialogProps) {
       onAbort: props.onAbort,
       onOpenChange: props.onOpenChange,
     })
-
   return (
     <DialogRoot open={props.open} onOpenChange={s.close} closeOnInteractOutside={false}>
       <DialogTitle>Sync Conflicts Detected</DialogTitle>
@@ -56,7 +55,7 @@ export default function ConflictDialog(props: ConflictDialogProps) {
           title="Open tickets directory"
           data-testid="conflict-dialog-open-tickets-repo"
         >
-          Tickets repo &#8599;
+          Tickets repo ↗
         </button>
         <div class="flex gap-2">
           <button type="button" onClick={s.close} disabled={s.submitting()} class="btn-secondary" data-testid="conflict-dialog-close">

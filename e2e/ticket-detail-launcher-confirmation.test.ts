@@ -7,7 +7,6 @@ import { testId } from './locators.js'
 
 describe('Ticket launcher confirmations (e2e, real server)', () => {
   const ctx = setupE2E()
-
   for (const condition of ['dirty', 'behind'] as const) {
     it(`can cancel and confirm launching from a ${condition} main branch`, async () => {
       const project = await seedProject(ctx, {
@@ -58,15 +57,27 @@ describe('Ticket launcher confirmations (e2e, real server)', () => {
         await openTicketDetail(ctx.page, folder)
         await testId(ctx.page, 'ticket-detail-tab-launcher').click()
         await testId(ctx.page, 'ticket-detail-use-worktree-checkbox').check()
-        await expect.poll(() => testId(ctx.page, 'launch-dir-display').textContent(), { timeout: 10_000 }).toContain(folder)
+        await expect
+          .poll(() => testId(ctx.page, 'launch-dir-display').textContent(), {
+            timeout: 10000,
+          })
+          .toContain(folder)
         await testId(ctx.page, 'ticket-detail-launcher-run-button').click()
-        await cancel.waitFor({ state: 'visible' })
+        await cancel.waitFor({
+          state: 'visible',
+        })
         const marker = path.join(worktreeRoot, folder, 'launched.txt')
         expect(fs.existsSync(marker)).toBe(false)
         await (action === 'cancel' ? cancel : proceed).click()
-        await cancel.waitFor({ state: 'hidden' })
+        await cancel.waitFor({
+          state: 'hidden',
+        })
         if (action === 'proceed') {
-          await expect.poll(() => fs.existsSync(marker), { timeout: 15_000 }).toBe(true)
+          await expect
+            .poll(() => fs.existsSync(marker), {
+              timeout: 15000,
+            })
+            .toBe(true)
           expect(fs.readFileSync(marker, 'utf8')).toBe('launched')
         } else {
           expect(fs.existsSync(marker)).toBe(false)

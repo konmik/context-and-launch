@@ -49,7 +49,11 @@ export function parseNameStatus(value: string): ChangedPath[] {
     const filePath = parts[index++]
     if (!filePath) throw new Error(`Git returned an incomplete '${status}' status.`)
     const changeType: ReviewFileChangeType = code === 'A' ? 'added' : code === 'D' ? 'deleted' : code === 'T' ? 'type-changed' : 'modified'
-    files.push({ status, path: filePath, changeType })
+    files.push({
+      status,
+      path: filePath,
+      changeType,
+    })
   }
   return files
 }
@@ -93,7 +97,12 @@ export class DiffReviewGitService {
     const key = `${commitIdentity}:${blobPath}`
     const cached = this.blobCache.get(key)
     if (cached) return cached
-    const contents = Buffer.from(await this.commands.execute('diff-review.file.read', worktreePath, { refPath }), 'utf8')
+    const contents = Buffer.from(
+      await this.commands.execute('diff-review.file.read', worktreePath, {
+        refPath,
+      }),
+      'utf8',
+    )
     if (this.blobCache.size >= BLOB_CACHE_LIMIT) {
       const oldest = this.blobCache.keys().next()
       if (!oldest.done) this.blobCache.delete(oldest.value)
@@ -105,14 +114,12 @@ export class DiffReviewGitService {
   async loadSnapshot(target: DiffReviewTarget, scope: DiffScope): Promise<Omit<ReviewSnapshot, 'reviewedLineIds'>> {
     if (!fs.existsSync(target.worktreePath)) {
       throw new Error(`Agent Worktree does not exist: ${target.worktreePath}`)
-    }
-    // The HEAD revision does not gate the file list, so both reads run together.
+    } // The HEAD revision does not gate the file list, so both reads run together.
     const [head, { baseRef, changed }] = await Promise.all([
       this.commands.execute('diff-review.head.resolve', target.worktreePath).then((out) => out.trim()),
       this.resolveChanged(target, scope),
     ])
     if (!head) throw new Error('Git did not return an Agent Worktree HEAD revision.')
-
     const readNewFromWorktree = scope === 'all' || scope === 'working'
     const baseIdentity = baseRef === 'HEAD' ? head : baseRef === 'HEAD^' ? `${head}^` : baseRef
     const files = await mapConcurrent(changed, 8, (file) =>
@@ -128,7 +135,13 @@ export class DiffReviewGitService {
     }
   }
 
-  private async resolveChanged(target: DiffReviewTarget, scope: DiffScope): Promise<{ baseRef: string; changed: ChangedPath[] }> {
+  private async resolveChanged(
+    target: DiffReviewTarget,
+    scope: DiffScope,
+  ): Promise<{
+    baseRef: string
+    changed: ChangedPath[]
+  }> {
     if (scope === 'last-commit') {
       return {
         baseRef: 'HEAD^',
@@ -139,23 +152,35 @@ export class DiffReviewGitService {
       const baseRef = await this.resolveMergeBase(target, scope)
       return {
         baseRef,
-        changed: parseNameStatus(await this.commands.execute('diff-review.branch.files', target.worktreePath, { baseRef })),
+        changed: parseNameStatus(
+          await this.commands.execute('diff-review.branch.files', target.worktreePath, {
+            baseRef,
+          }),
+        ),
       }
     }
-
     const baseRef = scope === 'working' ? 'HEAD' : await this.resolveMergeBase(target, scope)
     const [trackedOut, untrackedOut] = await Promise.all([
-      this.commands.execute('diff-review.tracked.files', target.worktreePath, { baseRef }),
+      this.commands.execute('diff-review.tracked.files', target.worktreePath, {
+        baseRef,
+      }),
       this.commands.execute('diff-review.untracked.files', target.worktreePath),
     ])
     const changed = parseNameStatus(trackedOut)
     const trackedPaths = new Set(changed.map((file) => file.path))
     for (const filePath of parseZeroSeparated(untrackedOut)) {
       if (!trackedPaths.has(filePath)) {
-        changed.push({ status: 'A', path: filePath, changeType: 'added' })
+        changed.push({
+          status: 'A',
+          path: filePath,
+          changeType: 'added',
+        })
       }
     }
-    return { baseRef, changed }
+    return {
+      baseRef,
+      changed,
+    }
   }
 
   private async resolveMergeBase(target: DiffReviewTarget, scope: DiffScope): Promise<string> {
@@ -163,7 +188,9 @@ export class DiffReviewGitService {
       throw new Error(`${scope === 'all' ? 'All Changes' : 'Branch Changes'}` + ' requires a configured main branch.')
     }
     const baseRef = (
-      await this.commands.execute('diff-review.merge-base.resolve', target.worktreePath, { mainBranch: target.mainBranch })
+      await this.commands.execute('diff-review.merge-base.resolve', target.worktreePath, {
+        mainBranch: target.mainBranch,
+      })
     ).trim()
     if (!baseRef) {
       throw new Error(`No merge-base is available for '${target.mainBranch}'.`)
@@ -203,7 +230,6 @@ export class DiffReviewGitService {
     } else {
       newContents = await this.readBlob(worktreePath, head, `HEAD:${file.path}`, file.path)
     }
-
     if (isBinary(oldContents) || isBinary(newContents)) {
       return buildBinaryReviewFile({
         path: file.path,

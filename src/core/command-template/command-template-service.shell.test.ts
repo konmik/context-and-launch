@@ -8,7 +8,6 @@ import { FixedPlatformShellRunner } from './platform-shell-runner.js'
 import { useTempDirs } from './platform-shell-fixture.test-utils.js'
 
 const makeTempDir = useTempDirs('command-template-service-shell-test-')
-
 describe.runIf(process.platform === 'win32')('trusted Windows Profile scripts', () => {
   it('keeps a path suffix attached to an interpolated directory placeholder', async () => {
     const cwd = makeTempDir()
@@ -16,12 +15,17 @@ describe.runIf(process.platform === 'win32')('trusted Windows Profile scripts', 
     fs.mkdirSync(defaultsDir)
     fs.writeFileSync(path.join(defaultsDir, 'probe.ps1'), 'Write-Output $args[0]\r\n')
     const service = new CommandTemplateService(fromPartial<CommandTemplateStore>({}), new FixedPlatformShellRunner(), 'windows', vi.fn())
-
     await expect(
       service.executeTrustedScript({
-        source: { kind: 'profile', profileName: 'Windows probe' },
+        source: {
+          kind: 'profile',
+          profileName: 'Windows probe',
+        },
         script: 'powershell -NoProfile -File {{configDefaultsDir}}/probe.ps1 {{message}}',
-        values: { configDefaultsDir: defaultsDir, message: 'profile launched' },
+        values: {
+          configDefaultsDir: defaultsDir,
+          message: 'profile launched',
+        },
         knownScalarPlaceholders: ['configDefaultsDir', 'message'],
         cwd,
         mode: 'capture',

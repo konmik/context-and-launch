@@ -1,4 +1,3 @@
-/* eslint-disable max-len */
 import { Portal } from '@solidjs/web'
 import { Show, createContext, createSignal, onSettled, useContext } from 'solid-js'
 import type { JSX } from '@solidjs/web'
@@ -6,7 +5,12 @@ import type { DragEvent, DragId, DragItem } from './drag-types.js'
 
 interface DragContextValue {
   active: () => DragItem | undefined
-  position: () => { x: number; y: number } | undefined
+  position: () =>
+    | {
+        x: number
+        y: number
+      }
+    | undefined
   register(id: DragId, node: HTMLElement): void
   activators(id: DragId): DragActivators
 }
@@ -28,7 +32,10 @@ export function DragDropProvider(props: {
   const nodes = new Map<DragId, HTMLElement>()
   const measuredRects = new Map<DragId, DOMRect>()
   const [active, setActive] = createSignal<DragItem>()
-  const [position, setPosition] = createSignal<{ x: number; y: number }>()
+  const [position, setPosition] = createSignal<{
+    x: number
+    y: number
+  }>()
   let activeItem: DragItem | undefined
   let dropTarget: DragItem | undefined
   let removePointerListeners: (() => void) | undefined
@@ -42,14 +49,23 @@ export function DragDropProvider(props: {
       const next = Math.hypot(x - (rect.left + rect.width / 2), y - (rect.top + rect.height / 2))
       if (next < distance) {
         distance = next
-        winner = { id, node }
+        winner = {
+          id,
+          node,
+        }
       }
     }
     return winner
   }
+
   function currentDragEvent(intent: DragEvent['intent']): DragEvent {
-    return { draggable: activeItem!, droppable: dropTarget, intent }
+    return {
+      draggable: activeItem!,
+      droppable: dropTarget,
+      intent,
+    }
   }
+
   function resetDrag() {
     activeItem = undefined
     setActive(undefined)
@@ -57,33 +73,56 @@ export function DragDropProvider(props: {
     dropTarget = undefined
     measuredRects.clear()
   }
+
   function beginDrag(id: DragId, node: HTMLElement, x: number, y: number, intent: DragEvent['intent']) {
     measuredRects.clear()
     for (const [nodeId, candidate] of nodes) {
       if (candidate.isConnected) measuredRects.set(nodeId, candidate.getBoundingClientRect())
     }
-    const item = { id, node, transform: { x: 0, y: 0 } }
+    const item = {
+      id,
+      node,
+      transform: {
+        x: 0,
+        y: 0,
+      },
+    }
     activeItem = item
     setActive(item)
-    setPosition({ x, y })
-    props.onDragStart?.({ draggable: item, intent })
+    setPosition({
+      x,
+      y,
+    })
+    props.onDragStart?.({
+      draggable: item,
+      intent,
+    })
   }
+
   function moveDrag(x: number, y: number, intent: DragEvent['intent']) {
     const item = activeItem
     if (!item) return
     const rect = item.node!.getBoundingClientRect()
-    item.transform = { x: x - (rect.left + rect.width / 2), y: y - (rect.top + rect.height / 2) }
-    setPosition({ x, y })
+    item.transform = {
+      x: x - (rect.left + rect.width / 2),
+      y: y - (rect.top + rect.height / 2),
+    }
+    setPosition({
+      x,
+      y,
+    })
     dropTarget = closestDropTarget(x, y, item.id)
     props.onDragMove?.(currentDragEvent(intent))
     props.onDragOver?.(currentDragEvent(intent))
   }
+
   function finishDrag(intent: DragEvent['intent']) {
     if (!activeItem) return
     const final = currentDragEvent(intent)
     props.onDragEnd?.(final)
     resetDrag()
   }
+
   const context: DragContextValue = {
     active,
     position,
@@ -94,7 +133,10 @@ export function DragDropProvider(props: {
         const target = e.currentTarget
         if (!(target instanceof HTMLElement)) return
         const node = nodes.get(id) ?? target
-        const start = { x: e.clientX, y: e.clientY }
+        const start = {
+          x: e.clientX,
+          y: e.clientY,
+        }
         const pointerMove = (next: PointerEvent) => {
           if (!activeItem && Math.hypot(next.clientX - start.x, next.clientY - start.y) >= 4) {
             beginDrag(id, node, start.x, start.y, 'pointer')
@@ -137,7 +179,10 @@ export function DragDropProvider(props: {
           const direction = e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 1
           const target = ordered[(current + direction + ordered.length) % ordered.length]
           if (target) {
-            dropTarget = { id: target[0], node: target[1] }
+            dropTarget = {
+              id: target[0],
+              node: target[1],
+            }
             props.onDragOver?.(currentDragEvent('keyboard'))
           }
         } else if (activeItem && (e.key === ' ' || e.key === 'Enter')) {
@@ -157,19 +202,32 @@ export function DragDropProvider(props: {
 
 export function createSortable(id: DragId) {
   const drag = useContext(DragContext)
-  return { ref: (node: HTMLElement) => drag.register(id, node), dragActivators: drag.activators(id) }
+  return {
+    ref: (node: HTMLElement) => drag.register(id, node),
+    dragActivators: drag.activators(id),
+  }
 }
+
 export function createDroppable(id: DragId) {
   const drag = useContext(DragContext)
-  return { ref: (node: HTMLElement) => drag.register(id, node) }
+  return {
+    ref: (node: HTMLElement) => drag.register(id, node),
+  }
 }
+
 export function DragOverlay(props: { children: (active?: DragItem) => JSX.Element }) {
   const drag = useContext(DragContext)
   return (
     <Show when={drag.active()}>
       {(item) => (
         <Portal>
-          <div class="pointer-events-none fixed" style={{ left: `${drag.position()?.x ?? 0}px`, top: `${drag.position()?.y ?? 0}px` }}>
+          <div
+            class="pointer-events-none fixed"
+            style={{
+              left: `${drag.position()?.x ?? 0}px`,
+              top: `${drag.position()?.y ?? 0}px`,
+            }}
+          >
             {props.children(item())}
           </div>
         </Portal>

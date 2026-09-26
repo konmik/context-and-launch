@@ -1,9 +1,19 @@
 import { createSignal, onCleanup, untrack } from 'solid-js'
 
-export type FloatingPanelSize = { width: number; height: number }
-export type FloatingPanelPosition = { x: number; y: number }
+export type FloatingPanelSize = {
+  width: number
+  height: number
+}
 
-type Rect = { position: FloatingPanelPosition; size: FloatingPanelSize }
+export type FloatingPanelPosition = {
+  x: number
+  y: number
+}
+
+type Rect = {
+  position: FloatingPanelPosition
+  size: FloatingPanelSize
+}
 
 export function constrainFloatingPanelRect(
   rect: Rect,
@@ -46,7 +56,10 @@ export function resizeFloatingPanelRect(
   return constrainFloatingPanelRect(
     {
       position: rect.position,
-      size: { width: rect.size.width + delta.width, height: rect.size.height + delta.height },
+      size: {
+        width: rect.size.width + delta.width,
+        height: rect.size.height + delta.height,
+      },
     },
     viewport,
     minSize,
@@ -68,7 +81,10 @@ export function createFloatingPanelState(options: {
 }) {
   const initialRect = () =>
     constrainFloatingPanelRect(
-      { position: options.initialPosition, size: options.initialSize },
+      {
+        position: options.initialPosition,
+        size: options.initialSize,
+      },
       options.viewport(),
       options.minSize(),
       options.maxSize(),
@@ -80,7 +96,15 @@ export function createFloatingPanelState(options: {
 
   function constrain() {
     const next = untrack(() =>
-      constrainFloatingPanelRect({ position: position(), size: size() }, options.viewport(), options.minSize(), options.maxSize()),
+      constrainFloatingPanelRect(
+        {
+          position: position(),
+          size: size(),
+        },
+        options.viewport(),
+        options.minSize(),
+        options.maxSize(),
+      ),
     )
     setPosition(next.position)
     setSize(next.size)
@@ -97,27 +121,41 @@ export function createFloatingPanelState(options: {
     const target = event.currentTarget
     if (!(target instanceof HTMLElement)) return
     const origin = {
-      pointer: { x: event.clientX, y: event.clientY },
+      pointer: {
+        x: event.clientX,
+        y: event.clientY,
+      },
       position: position(),
       size: size(),
     }
     event.preventDefault()
     target.setPointerCapture(event.pointerId)
-
     const move = (next: PointerEvent) => {
       if (next.pointerId !== event.pointerId) return
       const dx = next.clientX - origin.pointer.x
       const dy = next.clientY - origin.pointer.y
       const rect = resizing
         ? resizeFloatingPanelRect(
-            { position: origin.position, size: origin.size },
-            { width: dx, height: dy },
+            {
+              position: origin.position,
+              size: origin.size,
+            },
+            {
+              width: dx,
+              height: dy,
+            },
             options.viewport(),
             options.minSize(),
             options.maxSize(),
           )
         : constrainFloatingPanelRect(
-            { position: { x: origin.position.x + dx, y: origin.position.y + dy }, size: origin.size },
+            {
+              position: {
+                x: origin.position.x + dx,
+                y: origin.position.y + dy,
+              },
+              size: origin.size,
+            },
             options.viewport(),
             options.minSize(),
             options.maxSize(),

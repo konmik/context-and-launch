@@ -1,9 +1,17 @@
-export function parseTicketNumber(raw: string): { prefix: string; num: number; paddingWidth: number } | null {
+export function parseTicketNumber(raw: string): {
+  prefix: string
+  num: number
+  paddingWidth: number
+} | null {
   const match = raw.match(/^([A-Z]+)-(\d+)$/)
   if (!match) return null
   const prefix = match[1]
   const digits = match[2]
-  return { prefix, num: parseInt(digits, 10), paddingWidth: digits.length }
+  return {
+    prefix,
+    num: parseInt(digits, 10),
+    paddingWidth: digits.length,
+  }
 }
 
 export function formatTicketNumber(prefix: string, num: number, paddingWidth: number): string {
@@ -16,7 +24,14 @@ export function extractPrefixFromInput(raw: string): string | null {
   return match[0].toUpperCase()
 }
 
-function nextNumberForPrefix(parsed: Array<{ prefix: string; num: number; paddingWidth: number }>, prefix: string): string {
+function nextNumberForPrefix(
+  parsed: Array<{
+    prefix: string
+    num: number
+    paddingWidth: number
+  }>,
+  prefix: string,
+): string {
   const samePrefix = parsed.filter((p) => p.prefix === prefix)
   if (samePrefix.length === 0) return formatTicketNumber(prefix, 1, 4)
   let highest = samePrefix[0]
@@ -26,18 +41,26 @@ function nextNumberForPrefix(parsed: Array<{ prefix: string; num: number; paddin
   return formatTicketNumber(prefix, highest.num + 1, highest.paddingWidth)
 }
 
-export function suggestNextTicketNumber(tickets: Array<{ number: string; createdAt?: string }>, prefix?: string | null): string | null {
+export function suggestNextTicketNumber(
+  tickets: Array<{
+    number: string
+    createdAt?: string
+  }>,
+  prefix?: string | null,
+): string | null {
   const parsed = tickets
     .map((t) => {
       const p = parseTicketNumber(t.number)
-      return p ? { ...p, createdAt: t.createdAt } : null
+      return p
+        ? {
+            ...p,
+            createdAt: t.createdAt,
+          }
+        : null
     })
     .filter((p): p is NonNullable<typeof p> => p != null)
-
   if (prefix != null) return nextNumberForPrefix(parsed, prefix)
-
   if (parsed.length === 0) return null
-
   parsed.sort((a, b) => {
     if (!a.createdAt && !b.createdAt) return 0
     if (!a.createdAt) return -1
@@ -45,6 +68,5 @@ export function suggestNextTicketNumber(tickets: Array<{ number: string; created
     return a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0
   })
   const mostRecent = parsed[parsed.length - 1]
-
   return nextNumberForPrefix(parsed, mostRecent.prefix)
 }

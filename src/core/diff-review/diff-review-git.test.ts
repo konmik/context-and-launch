@@ -38,17 +38,14 @@ describe('DiffReviewGitService', () => {
       worktreeIdentity: 'worktree',
       mainBranch: 'main',
     }
-
     const working = await service.loadSnapshot(target, 'working')
     expect(working.files.map((file) => file.path)).toEqual(['staged.txt', 'tracked.txt', 'untracked.txt'])
     const lastCommit = await service.loadSnapshot(target, 'last-commit')
     expect(lastCommit.files.map((file) => file.path)).toEqual(['tracked.txt'])
     expect(lastCommit.files[0].newContents).toBe('base\n')
-
     await git(repoDir, 'add', '-A')
     await git(repoDir, 'commit', '-m', 'feature')
     fs.writeFileSync(path.join(repoDir, 'after-commit.txt'), 'working after commit\n')
-
     const all = await service.loadSnapshot(target, 'all')
     expect(all.files.map((file) => file.path)).toEqual(['after-commit.txt', 'staged.txt', 'tracked.txt', 'untracked.txt'])
     const branch = await service.loadSnapshot(target, 'branch')
@@ -57,7 +54,6 @@ describe('DiffReviewGitService', () => {
     const committed = await service.loadSnapshot(target, 'last-commit')
     expect(committed.files.some((file) => file.path === 'after-commit.txt')).toBe(false)
   })
-
   it('compares base revisions in the working tree line-ending representation', async () => {
     const repoDir = makeTempDir('diff-review-eol-')
     dirs.push(repoDir)
@@ -73,7 +69,6 @@ describe('DiffReviewGitService', () => {
     fs.writeFileSync(path.join(repoDir, 'tracked.txt'), 'one\r\ntwo changed\r\nthree\r\n')
     await git(repoDir, 'add', '-A')
     await git(repoDir, 'commit', '-m', 'feature')
-
     const service = new DiffReviewGitService(createTestCommandTemplateService())
     const snapshot = await service.loadSnapshot(
       {
@@ -87,7 +82,6 @@ describe('DiffReviewGitService', () => {
     expect(file?.additions).toBe(1)
     expect(file?.deletions).toBe(1)
   })
-
   it('does not show a whole CRLF file as rewritten when the working tree drops its carriage returns', async () => {
     const repoDir = makeTempDir('diff-review-eol-mixed-')
     dirs.push(repoDir)
@@ -101,7 +95,6 @@ describe('DiffReviewGitService', () => {
     await git(repoDir, 'commit', '-m', 'base')
     await git(repoDir, 'checkout', '-b', 'feature')
     fs.writeFileSync(path.join(repoDir, 'tracked.txt'), 'one\ntwo changed\nthree\n')
-
     const service = new DiffReviewGitService(createTestCommandTemplateService())
     const snapshot = await service.loadSnapshot(
       {
@@ -116,12 +109,10 @@ describe('DiffReviewGitService', () => {
     expect(file?.deletions).toBe(1)
     expect(file?.lines.some((line) => line.text.includes('\r'))).toBe(false)
   })
-
   it('keeps invalid UTF-8 assets non-selectable without requiring a NUL byte', async () => {
     const repoDir = await createRepository()
-    fs.writeFileSync(path.join(repoDir, 'asset.bin'), Buffer.from([0xff, 0xfe, 0xfd, 0xfc]))
+    fs.writeFileSync(path.join(repoDir, 'asset.bin'), Buffer.from([255, 254, 253, 252]))
     const service = new DiffReviewGitService(createTestCommandTemplateService())
-
     const snapshot = await service.loadSnapshot(
       {
         worktreePath: repoDir,
@@ -130,11 +121,9 @@ describe('DiffReviewGitService', () => {
       },
       'working',
     )
-
     expect(snapshot.files[0].binary).toBe(true)
     expect(snapshot.files[0].lines).toEqual([])
   })
-
   it('reports a missing configured main branch instead of substituting a scope', async () => {
     const repoDir = await createRepository()
     const service = new DiffReviewGitService(createTestCommandTemplateService())

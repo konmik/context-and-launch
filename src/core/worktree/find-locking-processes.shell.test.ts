@@ -6,7 +6,10 @@ import path from 'path'
 
 const SCRIPT_PATH = path.resolve(__dirname, '../../../config-defaults/find-locking-processes.ps1')
 
-function runFinder(dir: string): Array<{ pid: number; processName: string }> {
+function runFinder(dir: string): Array<{
+  pid: number
+  processName: string
+}> {
   const result = spawnSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', SCRIPT_PATH, dir], {
     encoding: 'utf-8',
     timeout: 30000,
@@ -16,14 +19,20 @@ function runFinder(dir: string): Array<{ pid: number; processName: string }> {
     .split('\n')
     .map((line) => line.trim().split('\t'))
     .filter((parts) => parts.length >= 2)
-    .map((parts) => ({ pid: Number(parts[0]), processName: parts[1] }))
+    .map((parts) => ({
+      pid: Number(parts[0]),
+      processName: parts[1],
+    }))
 }
 
 async function removeDirRetry(dir: string): Promise<void> {
   let lastErr: unknown
   for (let attempt = 0; attempt < 20; attempt++) {
     try {
-      fs.rmSync(dir, { recursive: true, force: true })
+      fs.rmSync(dir, {
+        recursive: true,
+        force: true,
+      })
       return
     } catch (err) {
       lastErr = err
@@ -51,7 +60,10 @@ describe.runIf(process.platform === 'win32')('find-locking-processes.ps1', () =>
         '-Command',
         `$f = [System.IO.File]::Open('${filePath}', 'Open', 'Read', 'None');` + ` Write-Output ready; Start-Sleep 60`,
       ],
-      { cwd: os.homedir(), stdio: ['ignore', 'pipe', 'ignore'] },
+      {
+        cwd: os.homedir(),
+        stdio: ['ignore', 'pipe', 'ignore'],
+      },
     )
     holders.push(child.pid!)
     await new Promise<void>((resolve, reject) => {
@@ -74,16 +86,13 @@ describe.runIf(process.platform === 'win32')('find-locking-processes.ps1', () =>
       await removeDirRetry(dir)
     }
   })
-
   it('reports a process holding an open file handle from another directory', async () => {
     const dir = makeTempDir()
     const filePath = path.join(dir, 'held.txt')
     fs.writeFileSync(filePath, 'held')
     const holderPid = await holdOpenFile(filePath)
-
     expect(runFinder(dir).map((p) => p.pid)).toContain(holderPid)
   }, 60000)
-
   it('reports nothing for a directory no process is using', () => {
     expect(runFinder(makeTempDir())).toEqual([])
   }, 30000)

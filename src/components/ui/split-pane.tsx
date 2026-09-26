@@ -13,10 +13,12 @@ export function SplitPane(props: {
   const clamp = (value: number) => Math.max(min, Math.min(100 - min, value))
   const [percent, setPercent] = createSignal(clamp(props.initialPercent))
   let root!: HTMLDivElement
+
   function resizeToPointer(event: PointerEvent) {
     const rect = root.getBoundingClientRect()
     setPercent(clamp(((event.clientX - rect.left) / rect.width) * 100))
   }
+
   function startResize(event: PointerEvent) {
     const separator = event.currentTarget
     if (!(separator instanceof HTMLElement)) return
@@ -35,6 +37,7 @@ export function SplitPane(props: {
     separator.addEventListener('pointerup', end)
     separator.addEventListener('pointercancel', cancel)
   }
+
   function resizeWithKeyboard(event: KeyboardEvent) {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
     event.preventDefault()
@@ -42,9 +45,16 @@ export function SplitPane(props: {
     setPercent(next)
     props.onChangeEnd?.([next, 100 - next])
   }
+
   return (
     <div ref={root} class="flex h-full">
-      <div style={{ width: `${percent()}%` }}>{props.first}</div>
+      <div
+        style={{
+          width: `${percent()}%`,
+        }}
+      >
+        {props.first}
+      </div>
       <div
         role="separator"
         tabindex="0"
@@ -56,7 +66,13 @@ export function SplitPane(props: {
         onPointerDown={startResize}
         onKeyDown={resizeWithKeyboard}
       />
-      <div style={{ width: `${100 - percent()}%` }}>{props.second}</div>
+      <div
+        style={{
+          width: `${100 - percent()}%`,
+        }}
+      >
+        {props.second}
+      </div>
     </div>
   )
 }

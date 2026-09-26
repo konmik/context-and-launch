@@ -19,23 +19,22 @@ interface LauncherSettingsProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   projectSlug: string
-  onDeleteProject?: (projectSlug: string) => Promise<{ error?: string }>
+  onDeleteProject?: (projectSlug: string) => Promise<{
+    error?: string
+  }>
 }
 
 export default function LauncherSettings(props: LauncherSettingsProps) {
   const [activeTab, setActiveTab] = createSignal('profiles')
-
   const [visitedTabs, setVisitedTabs] = createSignal<Set<string>>(new Set())
   createEffect(activeTab, (tab) => {
     setVisitedTabs((prev) => (prev.has(tab) ? prev : new Set(prev).add(tab)))
   })
   const visited = (tab: string) => visitedTabs().has(tab)
-
   const defaultSize = {
     width: 672,
     height: Math.floor((globalThis.window?.innerHeight ?? 800) * 0.8),
   }
-
   return (
     <>
       <FloatingWindow
@@ -44,7 +43,10 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
           if (!d.open) props.onOpenChange(false)
         }}
         defaultSize={defaultSize}
-        minSize={{ width: 400, height: 300 }}
+        minSize={{
+          width: 400,
+          height: 300,
+        }}
         persistRect
       >
         <TabsRoot value={activeTab()} onValueChange={(d) => setActiveTab(d.value)}>
@@ -58,7 +60,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
                   class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
                   title="Open user config directory"
                 >
-                  User&#8599;
+                  User↗
                 </button>
                 <button
                   data-testid="launcher-settings-open-project-config"
@@ -66,7 +68,7 @@ export default function LauncherSettings(props: LauncherSettingsProps) {
                   class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
                   title="Open project config directory"
                 >
-                  Project&#8599;
+                  Project↗
                 </button>
                 <FloatingPanelCloseTrigger data-testid="launcher-settings-close-button">
                   <X size={16} />

@@ -11,7 +11,13 @@ function stubLanguageDataOnServer() {
   return {
     name: 'stub-codemirror-language-data-on-server',
     enforce: 'pre' as const,
-    resolveId(id: string, _importer: string | undefined, options?: { ssr?: boolean }) {
+    resolveId(
+      id: string,
+      _importer: string | undefined,
+      options?: {
+        ssr?: boolean
+      },
+    ) {
       return options?.ssr && id === '@codemirror/language-data' ? LANGUAGE_DATA_STUB : null
     },
     load(id: string) {
@@ -24,17 +30,32 @@ export default defineConfig({
   plugins: [
     solidPlugin({
       compiler: 'babel',
-      start: { middleware: './src/server/middleware.ts', devtools: false },
-      serverFunctions: { configure: './src/server-config.ts' },
+      start: {
+        middleware: './src/server/middleware.ts',
+        devtools: false,
+      },
+      serverFunctions: {
+        configure: './src/server-config.ts',
+      },
     }),
     stubLanguageDataOnServer(),
     tailwindcss(),
   ],
-  build: { target: 'esnext' },
-  ssr: { noExternal: true },
-  server: { watch: { ignored: ['**/dist-electron/**'] } },
+  build: {
+    target: 'esnext',
+  },
+  ssr: {
+    noExternal: true,
+  },
+  server: {
+    watch: {
+      ignored: ['**/dist-electron/**'],
+    },
+  },
   optimizeDeps: {
-    esbuildOptions: { target: 'esnext' },
+    esbuildOptions: {
+      target: 'esnext',
+    },
     include: [
       '@codemirror/view',
       '@codemirror/state',
@@ -47,5 +68,9 @@ export default defineConfig({
       '@lezer/highlight',
     ],
   },
-  resolve: { alias: { '~': path.resolve(root, 'src') } },
+  resolve: {
+    alias: {
+      '~': path.resolve(root, 'src'),
+    },
+  },
 })

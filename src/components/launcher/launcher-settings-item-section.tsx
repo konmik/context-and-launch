@@ -12,7 +12,12 @@ import { LauncherConfigContext } from './shared-launcher-config-storage.js'
 import { mergeLauncherConfigs, updateLauncherReferences } from '~/core/launcher/launcher-config-data.js'
 import { ProjectLauncherConfigContext } from './project-launcher-config-storage.js'
 
-const collections = { template: 'templates', skill: 'skills', profile: 'profiles', shortcut: 'shortcuts' } as const
+const collections = {
+  template: 'templates',
+  skill: 'skills',
+  profile: 'profiles',
+  shortcut: 'shortcuts',
+} as const
 
 export function ItemSection(props: {
   open: boolean
@@ -33,8 +38,11 @@ export function ItemSection(props: {
   const [form, setForm] = createSignal<ItemFormState | null>(null)
   const items = () => config()[collections[props.itemType]]
   const detailOf = (item: MergedLauncherItem) => ('text' in item ? item.text : item.command)
-  useModEnterSubmit({ onSubmit: submitForm, disabled: () => !form()?.name.trim(), active: () => !!form() })
-
+  useModEnterSubmit({
+    onSubmit: submitForm,
+    disabled: () => !form()?.name.trim(),
+    active: () => !!form(),
+  })
   createEffect(
     () => props.open,
     (open) => {
@@ -45,10 +53,24 @@ export function ItemSection(props: {
   )
 
   function startAdd(itemType: ItemType) {
-    setForm({ mode: 'add', itemType, scope: 'app', name: '', text: '' })
+    setForm({
+      mode: 'add',
+      itemType,
+      scope: 'app',
+      name: '',
+      text: '',
+    })
   }
+
   function startEdit(itemType: ItemType, scope: Scope, name: string, text: string) {
-    setForm({ mode: 'edit', itemType, scope, name, text, oldName: name })
+    setForm({
+      mode: 'edit',
+      itemType,
+      scope,
+      name,
+      text,
+      oldName: name,
+    })
   }
 
   async function submitForm(submittedForm?: ItemFormState) {
@@ -57,23 +79,45 @@ export function ItemSection(props: {
     setError(null)
     try {
       const usesCommand = f.itemType === 'profile' || f.itemType === 'shortcut'
-      const fields = usesCommand ? { name: f.name, command: f.text } : { name: f.name, text: f.text }
+      const fields = usesCommand
+        ? {
+            name: f.name,
+            command: f.text,
+          }
+        : {
+            name: f.name,
+            text: f.text,
+          }
       const result = await (f.scope === 'app' ? sharedConfig : projectConfig).update((current) => {
         const key = collections[f.itemType]
         const items = current[key] ?? []
         if (items.some((item) => item.name === fields.name && (f.mode === 'add' || item.name !== f.oldName))) {
           throw new Error(`An item named "${fields.name}" already exists`)
         }
-        if (f.mode === 'add') return { ...current, [key]: [...items, fields] }
+        if (f.mode === 'add')
+          return {
+            ...current,
+            [key]: [...items, fields],
+          }
         if (!items.some((item) => item.name === f.oldName)) throw new Error(`Item "${f.oldName}" not found`)
         return {
           ...current,
-          [key]: items.map((item) => (item.name === f.oldName ? { ...item, ...fields } : item)),
+          [key]: items.map((item) =>
+            item.name === f.oldName
+              ? {
+                  ...item,
+                  ...fields,
+                }
+              : item,
+          ),
           columnDefaults: updateLauncherReferences(current.columnDefaults, f.itemType, f.oldName!, f.name),
         }
       })
       if (result.type === 'Failure') {
-        setError({ title: 'Save failed', description: result.error })
+        setError({
+          title: 'Save failed',
+          description: result.error,
+        })
         return
       }
       setForm(null)
@@ -90,7 +134,11 @@ export function ItemSection(props: {
         [collections[itemType]]: (current[collections[itemType]] ?? []).filter((item) => item.name !== name),
         columnDefaults: updateLauncherReferences(current.columnDefaults, itemType, name, null),
       }))
-      if (result.type === 'Failure') setError({ title: 'Delete failed', description: result.error })
+      if (result.type === 'Failure')
+        setError({
+          title: 'Delete failed',
+          description: result.error,
+        })
     } catch (e) {
       setError(errorPayload(e, 'Delete failed'))
     }
@@ -115,10 +163,19 @@ export function ItemSection(props: {
       const result = await (scope === 'app' ? sharedConfig : projectConfig).update((current) => ({
         ...current,
         [collections[props.itemType]]: (current[collections[props.itemType]] ?? []).map((item) =>
-          item.name === name ? { ...item, order } : item,
+          item.name === name
+            ? {
+                ...item,
+                order,
+              }
+            : item,
         ),
       }))
-      if (result.type === 'Failure') setError({ title: 'Reorder failed', description: result.error })
+      if (result.type === 'Failure')
+        setError({
+          title: 'Reorder failed',
+          description: result.error,
+        })
     } catch (e) {
       setError(errorPayload(e, 'Reorder failed'))
     }

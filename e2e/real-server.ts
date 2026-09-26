@@ -16,7 +16,13 @@ async function startRealServerOnce(
   port: number,
   dataDir: string,
   extraEnv: NodeJS.ProcessEnv,
-): Promise<RealServer | { addrInUse: true; stderr: string }> {
+): Promise<
+  | RealServer
+  | {
+      addrInUse: true
+      stderr: string
+    }
+> {
   const baseUrl = `http://localhost:${port}`
   const proc = spawn(process.execPath, [SERVER_ENTRY], {
     env: {
@@ -31,19 +37,25 @@ async function startRealServerOnce(
   proc.stderr?.on('data', (b: Buffer) => {
     stderr += b.toString()
   })
-
   const deadline = Date.now() + 20000
   let lastErr: unknown
   while (Date.now() < deadline) {
     if (proc.exitCode !== null) {
       if (stderr.includes('EADDRINUSE')) {
-        return { addrInUse: true, stderr }
+        return {
+          addrInUse: true,
+          stderr,
+        }
       }
       throw new Error(`Real server exited early (code ${proc.exitCode}):\n${stderr}`)
     }
     try {
       const res = await fetch(baseUrl)
-      if (res.status < 500) return { process: proc, baseUrl }
+      if (res.status < 500)
+        return {
+          process: proc,
+          baseUrl,
+        }
     } catch (e) {
       lastErr = e
     }

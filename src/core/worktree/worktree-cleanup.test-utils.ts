@@ -12,7 +12,14 @@ export function makeCleanupEnv() {
     initGitRepo(projectDir)
     const { configDir, worktreeRoot, lcm, awm } = makeProjectEnv('wcs', dirs)
     const service = new WorktreeCleanupService(awm)
-    return { configDir, projectDir, worktreeRoot, lcm, awm, service }
+    return {
+      configDir,
+      projectDir,
+      worktreeRoot,
+      lcm,
+      awm,
+      service,
+    }
   }
 
   function cleanupAll(): Promise<void> {
@@ -21,5 +28,9 @@ export function makeCleanupEnv() {
     return cleanup(...pending)
   }
 
-  return { dirs, setup, cleanupAll }
+  return {
+    dirs,
+    setup,
+    cleanupAll,
+  }
 }

@@ -11,8 +11,33 @@ import {
 
 /** Two boards, so a test can prove a board switch actually changed something. */
 export const APP_BOARDS: SeedBoard[] = [
-  { id: 'kanban', name: 'Kanban', columns: [{ name: 'todo' }, { name: 'in-progress' }, { name: 'done' }] },
-  { id: 'simple', name: 'Simple', columns: [{ name: 'todo' }, { name: 'done' }] },
+  {
+    id: 'kanban',
+    name: 'Kanban',
+    columns: [
+      {
+        name: 'todo',
+      },
+      {
+        name: 'in-progress',
+      },
+      {
+        name: 'done',
+      },
+    ],
+  },
+  {
+    id: 'simple',
+    name: 'Simple',
+    columns: [
+      {
+        name: 'todo',
+      },
+      {
+        name: 'done',
+      },
+    ],
+  },
 ]
 
 export interface OpenSettingsTabOptions {

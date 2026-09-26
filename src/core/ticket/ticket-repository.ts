@@ -11,12 +11,19 @@ export const StatusJsonSchema = v.looseObject({
   status: v.string(),
   useWorktree: v.optional(v.boolean(), false),
   createdAt: v.optional(v.string()),
-  references: v.optional(v.array(v.looseObject({ path: v.string() }))),
+  references: v.optional(
+    v.array(
+      v.looseObject({
+        path: v.string(),
+      }),
+    ),
+  ),
   agentWorktreeBranchName: v.optional(v.string()),
   agentWorktreeDir: v.optional(v.string()),
   dependsOn: v.optional(v.array(v.string())),
   memberOf: v.optional(v.string()),
 })
+
 export type StatusJson = v.InferOutput<typeof StatusJsonSchema>
 
 function isEnoent(cause: unknown): boolean {
@@ -42,8 +49,11 @@ export class TicketRepository {
       }
       return operation()
     }
-
-    const state: TransactionState = { root: normalizedRoot, undo: [], finalize: [] }
+    const state: TransactionState = {
+      root: normalizedRoot,
+      undo: [],
+      finalize: [],
+    }
     this.transactionState = state
     try {
       const result = operation()
@@ -107,7 +117,9 @@ export class TicketRepository {
 
   listEntries(parentDir: string): fs.Dirent[] {
     try {
-      return fs.readdirSync(parentDir, { withFileTypes: true })
+      return fs.readdirSync(parentDir, {
+        withFileTypes: true,
+      })
     } catch (err) {
       if (isEnoent(err)) return []
       throw err
@@ -116,7 +128,9 @@ export class TicketRepository {
 
   async listEntriesAsync(parentDir: string): Promise<fs.Dirent[]> {
     try {
-      return await fs.promises.readdir(parentDir, { withFileTypes: true })
+      return await fs.promises.readdir(parentDir, {
+        withFileTypes: true,
+      })
     } catch (err) {
       if (isEnoent(err)) return []
       throw err
@@ -125,9 +139,16 @@ export class TicketRepository {
 
   createDirectory(dir: string): void {
     const existed = fs.existsSync(dir)
-    fs.mkdirSync(dir, { recursive: true })
+    fs.mkdirSync(dir, {
+      recursive: true,
+    })
     if (!existed && this.transactionState) {
-      this.transactionState.undo.push(() => fs.rmSync(dir, { recursive: true, force: true }))
+      this.transactionState.undo.push(() =>
+        fs.rmSync(dir, {
+          recursive: true,
+          force: true,
+        }),
+      )
     }
   }
 
@@ -136,10 +157,18 @@ export class TicketRepository {
       const stagedPath = path.join(path.dirname(dir), `.context-launch-transaction-${randomUUID()}`)
       fs.renameSync(dir, stagedPath)
       this.transactionState.undo.push(() => fs.renameSync(stagedPath, dir))
-      this.transactionState.finalize.push(() => fs.rmSync(stagedPath, { recursive: true, force: true }))
+      this.transactionState.finalize.push(() =>
+        fs.rmSync(stagedPath, {
+          recursive: true,
+          force: true,
+        }),
+      )
       return
     }
-    fs.rmSync(dir, { recursive: true, force: true })
+    fs.rmSync(dir, {
+      recursive: true,
+      force: true,
+    })
   }
 
   renameDirectory(from: string, to: string): void {
@@ -214,7 +243,9 @@ export class TicketRepository {
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
       return
     }
-    fs.mkdirSync(path.dirname(filePath), { recursive: true })
+    fs.mkdirSync(path.dirname(filePath), {
+      recursive: true,
+    })
     fs.writeFileSync(filePath, before)
   }
 }

@@ -32,12 +32,12 @@ export function createProjectPageController(deps: ProjectPageDeps) {
   const [conflictDetected, setConflictDetected] = createSignal(false)
   const runSyncTickets = deps.runSyncTickets ?? useAction(syncTickets)
   let syncInProgress = false
+
   async function handleSync() {
     if (syncInProgress) return
     const d = deps.data()
     if (!d || d.status !== 'loaded') return
-    syncInProgress = true
-    // Paint the imperative sync lock before starting filesystem and network work.
+    syncInProgress = true // Paint the imperative sync lock before starting filesystem and network work.
     flush(() => {
       setSyncing(true)
       setSyncError(null)
@@ -61,7 +61,10 @@ export function createProjectPageController(deps: ProjectPageDeps) {
       }
       const result = await runSyncTickets(deps.projectSlug())
       if (!result.ok) {
-        setSyncError({ title: 'Sync failed', description: result.message })
+        setSyncError({
+          title: 'Sync failed',
+          description: result.message,
+        })
       } else {
         const parsed = parseSyncResult(result)
         if (parsed.type === 'success') {
@@ -77,11 +80,17 @@ export function createProjectPageController(deps: ProjectPageDeps) {
           await revalidate(projectSyncRevalidateKeys)
           setConflictDialogOpen(true)
         } else {
-          setSyncError({ title: 'Sync failed', description: parsed.message })
+          setSyncError({
+            title: 'Sync failed',
+            description: parsed.message,
+          })
         }
       }
     } catch (err) {
-      setSyncError({ title: 'Sync failed', description: err instanceof Error ? err.message : 'Sync failed' })
+      setSyncError({
+        title: 'Sync failed',
+        description: err instanceof Error ? err.message : 'Sync failed',
+      })
     } finally {
       if (!showSuccess) {
         setSyncing(false)
@@ -122,8 +131,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
   function openReview(ticket: TicketInfo) {
     if (!ticket.hasAgentWorktree) return
     if (detailTicket()) setDetailTicket(null)
-    setReviewTicket(ticket)
-    // Opening Diff Review replaces the board that owns this event handler.
+    setReviewTicket(ticket) // Opening Diff Review replaces the board that owns this event handler.
     // Commit the selection before that dynamic subtree is disposed.
     flush()
   }
@@ -131,25 +139,45 @@ export function createProjectPageController(deps: ProjectPageDeps) {
   async function handleCreateTicket(number: string, title: string) {
     const result = await createTicket(deps.projectSlug(), number, title)
     if (result.ok) revalidate(ticketMutationRevalidateKeys)
-    return result.ok ? {} : { error: result.message }
+    return result.ok
+      ? {}
+      : {
+          error: result.message,
+        }
   }
 
   async function handleArchiveTicket(folderName: string) {
     const result = await archiveTicket(deps.projectSlug(), folderName)
     if (result.ok) revalidate(ticketMutationRevalidateKeys)
-    return result.ok ? {} : { error: { description: result.message } }
+    return result.ok
+      ? {}
+      : {
+          error: {
+            description: result.message,
+          },
+        }
   }
 
   async function handleDeleteTicket(folderName: string) {
     const result = await deleteTicket(deps.projectSlug(), folderName)
     if (result.ok) revalidate(ticketMutationRevalidateKeys)
-    return result.ok ? {} : { error: { description: result.message } }
+    return result.ok
+      ? {}
+      : {
+          error: {
+            description: result.message,
+          },
+        }
   }
 
   async function handleDeleteProject(projectSlug: string) {
     const result = await deleteProject(projectSlug)
     if (result.ok) revalidate('project-page')
-    return result.ok ? {} : { error: result.message }
+    return result.ok
+      ? {}
+      : {
+          error: result.message,
+        }
   }
 
   async function handleCleanupSubmit(folderName: string) {
@@ -160,7 +188,11 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     const cleanupResult = await worktreeCleanup(deps.projectSlug(), folderName, options)
     if (!cleanupResult.ok) {
       const info = 'errorInfo' in cleanupResult ? cleanupResult.errorInfo : undefined
-      return { error: info ?? { description: cleanupResult.message } }
+      return {
+        error: info ?? {
+          description: cleanupResult.message,
+        },
+      }
     }
     return {}
   }
@@ -173,14 +205,12 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     addProjectDialogOpen: addProjectDialogOpen(),
     conflictDialogOpen: conflictDialogOpen(),
   })
-
   const syncState = () => ({
     syncing: syncing(),
     syncSuccess: syncSuccess(),
     syncError: syncError(),
     conflictDetected: conflictDetected(),
   })
-
   const selectionState = () => {
     return {
       selectedTicket: selectedTicket(),
@@ -188,7 +218,6 @@ export function createProjectPageController(deps: ProjectPageDeps) {
       reviewTicket: reviewTicket(),
     }
   }
-
   const commands = {
     openCreate: () => setCreateTicketOpen(true),
     openDelete,
@@ -214,8 +243,12 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     setConflictDialogOpen,
     setSyncError,
   }
-
-  return { dialogState, syncState, selectionState, commands }
+  return {
+    dialogState,
+    syncState,
+    selectionState,
+    commands,
+  }
 }
 
 export type ProjectPageController = ReturnType<typeof createProjectPageController>

@@ -5,7 +5,12 @@ import fs from 'fs'
 import path from 'path'
 import { makeTempDir, removeTempDir } from '~/test-temp.js'
 
-export function useTempDirs(prefix: string, options: { cleanupAfterAll?: boolean } = {}): () => string {
+export function useTempDirs(
+  prefix: string,
+  options: {
+    cleanupAfterAll?: boolean
+  } = {},
+): () => string {
   const tempDirs: string[] = []
   const cleanupAll = async () => {
     while (tempDirs.length > 0) {

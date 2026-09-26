@@ -7,7 +7,6 @@ export const HERDR_STATUS_COLORS = {
   done: '#94e2d5',
   unknown: '#6c7086',
 } satisfies Record<HerdrAgentStatus, string>
-
 const HERDR_STATUS_GLYPHS = {
   working: '●',
   blocked: '●',

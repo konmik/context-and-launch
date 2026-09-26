@@ -1,7 +1,9 @@
 import { createSignal } from 'solid-js'
 
 export interface FormDialogDeps<TSubmitArgs extends unknown[]> {
-  onSubmit: (...args: TSubmitArgs) => Promise<{ error?: string }>
+  onSubmit: (...args: TSubmitArgs) => Promise<{
+    error?: string
+  }>
   onOpenChange: (open: boolean) => void
 }
 
@@ -28,5 +30,11 @@ export function createFormDialogController<TSubmitArgs extends unknown[]>(deps: 
     }
   }
 
-  return { submitting, errorMsg, close, doSubmit, setErrorMsg }
+  return {
+    submitting,
+    errorMsg,
+    close,
+    doSubmit,
+    setErrorMsg,
+  }
 }

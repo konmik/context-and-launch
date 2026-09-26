@@ -8,11 +8,18 @@ import type { BoardDefinition } from '~/core/project/board-config-data.js'
 import BoardSelector from './BoardSelector.js'
 
 afterEach(cleanup)
-
 it('shares successful edits across mounted selectors and keeps failed edits unpublished', async () => {
   let saved: BoardDefinition[] = [
-    { id: 'first', name: 'First', columns: [] },
-    { id: 'second', name: 'Second', columns: [] },
+    {
+      id: 'first',
+      name: 'First',
+      columns: [],
+    },
+    {
+      id: 'second',
+      name: 'Second',
+      columns: [],
+    },
   ]
   let reject = false
   const initial = createMemo(async () => saved)
@@ -21,10 +28,12 @@ it('shares successful edits across mounted selectors and keeps failed edits unpu
     saved = transform(saved)
     return succeed(saved)
   })
+
   function Selector() {
     const [id, setId] = createSignal('second')
     return <BoardSelector boardId={id()} setBoardId={setId} />
   }
+
   render(() => (
     <Loading>
       <BoardConfigContext value={storage}>
@@ -36,13 +45,39 @@ it('shares successful edits across mounted selectors and keeps failed edits unpu
   const selects = () =>
     screen.getAllByRole('combobox').filter((element): element is HTMLSelectElement => element instanceof HTMLSelectElement)
   await waitFor(() => expect(selects().map((s) => s.value)).toEqual(['second', 'second']))
-  await storage.update((boards) => boards.map((b) => (b.id === 'second' ? { ...b, name: 'Updated' } : b)))
-  await waitFor(() => expect(screen.getAllByRole('option', { name: 'Updated' })).toHaveLength(2))
+  await storage.update((boards) =>
+    boards.map((b) =>
+      b.id === 'second'
+        ? {
+            ...b,
+            name: 'Updated',
+          }
+        : b,
+    ),
+  )
+  await waitFor(() =>
+    expect(
+      screen.getAllByRole('option', {
+        name: 'Updated',
+      }),
+    ).toHaveLength(2),
+  )
   reject = true
   expect(await storage.update((boards) => boards.filter((b) => b.id !== 'second'))).toEqual(fail('write failed'))
   expect(selects().map((s) => s.value)).toEqual(['second', 'second'])
   reject = false
-  await storage.update((boards) => [...boards.filter((b) => b.id !== 'second'), { id: 'third', name: 'Third', columns: [] }])
+  await storage.update((boards) => [
+    ...boards.filter((b) => b.id !== 'second'),
+    {
+      id: 'third',
+      name: 'Third',
+      columns: [],
+    },
+  ])
   await waitFor(() => expect(selects().map((s) => s.value)).toEqual(['first', 'first']))
-  expect(screen.queryByRole('option', { name: 'Updated' })).toBeNull()
+  expect(
+    screen.queryByRole('option', {
+      name: 'Updated',
+    }),
+  ).toBeNull()
 })

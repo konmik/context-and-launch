@@ -1,6 +1,31 @@
-export type ActiveFile = { type: 'context'; name: string } | { type: 'file'; name: string } | { type: 'reference'; path: string }
+export type ActiveFile =
+  | {
+      type: 'context'
+      name: string
+    }
+  | {
+      type: 'file'
+      name: string
+    }
+  | {
+      type: 'reference'
+      path: string
+    }
 
-export type FileView = { kind: 'loading' } | { kind: 'editor' } | { kind: 'image'; url: string } | { kind: 'unsupported' }
+export type FileView =
+  | {
+      kind: 'loading'
+    }
+  | {
+      kind: 'editor'
+    }
+  | {
+      kind: 'image'
+      url: string
+    }
+  | {
+      kind: 'unsupported'
+    }
 
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'])
 const TEXT_EXTENSIONS = new Set(['.txt', '.md'])
@@ -45,15 +70,31 @@ export function buildContextOptions(defaultNames: string[], existingNames: strin
   for (const name of [...existingNames, ...extraFileNames]) {
     if (!all.includes(name)) all.push(name)
   }
-  return all.map((name) => ({ type: 'context' as const, name }))
+  return all.map((name) => ({
+    type: 'context' as const,
+    name,
+  }))
 }
 
 export function buildFileEntryOptions(fileNames: string[]): ActiveFile[] {
-  return fileNames.filter((n) => !n.endsWith('.md') && n !== 'status.json').map((name) => ({ type: 'file' as const, name }))
+  return fileNames
+    .filter((n) => !n.endsWith('.md') && n !== 'status.json')
+    .map((name) => ({
+      type: 'file' as const,
+      name,
+    }))
 }
 
-export function buildReferenceOptions(references: { path: string; exists: boolean }[]): ActiveFile[] {
-  return references.map((ref) => ({ type: 'reference' as const, path: ref.path }))
+export function buildReferenceOptions(
+  references: {
+    path: string
+    exists: boolean
+  }[],
+): ActiveFile[] {
+  return references.map((ref) => ({
+    type: 'reference' as const,
+    path: ref.path,
+  }))
 }
 
 export function buildAllFileOptions(contextOpts: ActiveFile[], fileOpts: ActiveFile[], refOpts: ActiveFile[]): ActiveFile[] {
@@ -64,7 +105,13 @@ export function isReadOnly(activeFile: ActiveFile): boolean {
   return activeFile.type === 'reference' || activeFile.type === 'file'
 }
 
-export function checkReferenceStale(references: { path: string; exists: boolean }[], refPath: string): boolean {
+export function checkReferenceStale(
+  references: {
+    path: string
+    exists: boolean
+  }[],
+  refPath: string,
+): boolean {
   const ref = references.find((r) => r.path === refPath)
   return ref ? !ref.exists : false
 }

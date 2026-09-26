@@ -1,9 +1,18 @@
 import * as v from 'valibot'
 import { TicketRepository } from './ticket-repository.js'
 
-export type ForestLayout = Record<string, { x: number; y: number }>
+export type ForestLayout = Record<
+  string,
+  {
+    x: number
+    y: number
+  }
+>
 
-const PositionSchema = v.object({ x: v.number(), y: v.number() })
+const PositionSchema = v.object({
+  x: v.number(),
+  y: v.number(),
+})
 const ForestLayoutRecordSchema = v.record(v.string(), v.unknown())
 
 export class ForestLayoutStore {
@@ -28,7 +37,10 @@ export class ForestLayoutStore {
     const layout = this.read()
     if (!(oldTicketNumber in layout)) return
     const { [oldTicketNumber]: position, ...remaining } = layout
-    this.write({ ...remaining, [newTicketNumber]: position })
+    this.write({
+      ...remaining,
+      [newTicketNumber]: position,
+    })
   }
 
   removeTicket(ticketNumber: string): void {
@@ -37,9 +49,19 @@ export class ForestLayoutStore {
     this.write(Object.fromEntries(Object.entries(layout).filter(([number]) => number !== ticketNumber)))
   }
 
-  translateIntoGroup(groupNumber: string, groupPosition: { x: number; y: number }, memberNumbers: string[]): void {
+  translateIntoGroup(
+    groupNumber: string,
+    groupPosition: {
+      x: number
+      y: number
+    },
+    memberNumbers: string[],
+  ): void {
     const layout = this.read()
-    const next = { ...layout, [groupNumber]: groupPosition }
+    const next = {
+      ...layout,
+      [groupNumber]: groupPosition,
+    }
     for (const memberNumber of memberNumbers) {
       const memberPosition = layout[memberNumber]
       if (memberPosition) {
@@ -55,7 +77,9 @@ export class ForestLayoutStore {
   translateOutOfGroup(groupNumber: string, memberNumbers: string[]): void {
     const layout = this.read()
     const groupPosition = layout[groupNumber]
-    const next = { ...layout }
+    const next = {
+      ...layout,
+    }
     const positionedMembers = memberNumbers.filter((number) => layout[number])
     if (!positionedMembers.length) return
     for (const memberNumber of positionedMembers) {

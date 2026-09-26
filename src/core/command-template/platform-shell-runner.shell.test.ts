@@ -7,7 +7,6 @@ import { ProcessError } from '../shared/errors.js'
 import { killIfAlive, runSurvivalFixture, useTempDirs, waitForFile } from './platform-shell-fixture.test-utils.js'
 
 const makeTempDir = useTempDirs('platform-shell-runner-shell-test-')
-
 describe.runIf(process.platform === 'win32')('platform shell runner windows powershell job breakaway', () => {
   it('process started by a non-detached powershell keeps running after the app process exits', async () => {
     const pidFile = path.join(makeTempDir(), 'grandchild.pid')
@@ -15,7 +14,6 @@ describe.runIf(process.platform === 'win32')('platform shell runner windows powe
     await waitForFile(pidFile, () => `pid file never appeared, parent stderr: ${parentStderr}`)
     const grandchildPid = Number(fs.readFileSync(pidFile, 'utf-8').trim())
     expect(Number.isInteger(grandchildPid)).toBe(true)
-
     try {
       await new Promise((r) => setTimeout(r, 500))
       expect(isAlive(grandchildPid), 'powershell grandchild died after parent exit').toBe(true)
@@ -24,7 +22,6 @@ describe.runIf(process.platform === 'win32')('platform shell runner windows powe
     }
   }, 30000)
 })
-
 describe.runIf(process.platform === 'win32')('platform shell runner windows .cmd shims', () => {
   it('launches an explicit .cmd path containing spaces', async () => {
     const cwd = makeTempDir()
@@ -36,7 +33,6 @@ describe.runIf(process.platform === 'win32')('platform shell runner windows .cmd
     const out = fs.readFileSync(path.join(cwd, 'out.txt'), 'utf-8')
     expect(out).toContain('fake path')
   })
-
   it('rejects a multiline arg to a .cmd target instead of silently no-oping', async () => {
     const cwd = makeTempDir()
     const shimPath = path.join(makeTempDir(), 'tool.cmd')
@@ -46,7 +42,6 @@ describe.runIf(process.platform === 'win32')('platform shell runner windows .cmd
     await expect(promise).rejects.toThrow(/newline/i)
     expect(fs.existsSync(path.join(cwd, 'out.txt'))).toBe(false)
   })
-
   it('resolves a bare command name to a .cmd on PATH', async () => {
     const cwd = makeTempDir()
     const shimDir = makeTempDir()

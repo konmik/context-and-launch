@@ -42,14 +42,12 @@ export function buildDiffReviewFileTree(filePaths: readonly string[]): DiffRevie
     directories: new Map(),
     files: [],
   }
-
   for (const filePath of filePaths) {
     const parts = filePath.split('/')
     const name = parts.pop()
     if (!name || parts.some((part) => !part)) {
       throw new Error(`Invalid Diff Review file path: ${filePath}`)
     }
-
     let directory = root
     let directoryPath = ''
     for (const part of parts) {
@@ -66,9 +64,12 @@ export function buildDiffReviewFileTree(filePaths: readonly string[]): DiffRevie
       }
       directory = child
     }
-    directory.files.push({ kind: 'file', filePath, name })
+    directory.files.push({
+      kind: 'file',
+      filePath,
+      name,
+    })
   }
-
   return materializeDirectory(root)
 }
 

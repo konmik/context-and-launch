@@ -5,19 +5,45 @@ import { testId, waitGone } from './locators.js'
 
 describe('launcher reference transforms', () => {
   const ctx = setupE2E()
-
   it.each([
-    { tab: 'prompts', prefix: 'prompts', field: 'templateName' },
-    { tab: 'launch', prefix: 'launch-profile', field: 'profileName' },
-    { tab: 'prompts', prefix: 'skills', field: 'checkedSkills' },
+    {
+      tab: 'prompts',
+      prefix: 'prompts',
+      field: 'templateName',
+    },
+    {
+      tab: 'launch',
+      prefix: 'launch-profile',
+      field: 'profileName',
+    },
+    {
+      tab: 'prompts',
+      prefix: 'skills',
+      field: 'checkedSkills',
+    },
   ] as const)('renames and removes $field references through settings', async ({ tab, prefix, field }) => {
     await openSettingsTab(ctx, {
       slugBase: `references-${prefix}`,
       tab,
       appLauncherConfig: {
-        templates: [{ name: 'old', text: 'text' }],
-        skills: [{ name: 'old', text: 'text' }],
-        profiles: [{ name: 'old', command: 'echo test' }],
+        templates: [
+          {
+            name: 'old',
+            text: 'text',
+          },
+        ],
+        skills: [
+          {
+            name: 'old',
+            text: 'text',
+          },
+        ],
+        profiles: [
+          {
+            name: 'old',
+            command: 'echo test',
+          },
+        ],
         columnDefaults: {
           todo: {
             templateName: 'old',
@@ -42,7 +68,9 @@ describe('launcher reference transforms', () => {
     expect(removed).toEqual({
       ...renamed,
       [field]: field === 'checkedSkills' ? ['other'] : null,
-      ...(field === 'checkedSkills' && { skillOrder: ['other'] }),
+      ...(field === 'checkedSkills' && {
+        skillOrder: ['other'],
+      }),
     })
     expect(removed?.editedPrompt).toBe('keep')
   })

@@ -5,6 +5,7 @@ import { errorMessage } from '~/core/shared/errors.js'
 
 export async function readSharedLauncherConfig(owner?: string): Promise<Result<LauncherConfig, string>> {
   'use server'
+
   try {
     return succeed(sharedLauncherConfigStore.read(owner))
   } catch (error) {
@@ -14,11 +15,13 @@ export async function readSharedLauncherConfig(owner?: string): Promise<Result<L
 
 export async function releaseSharedLauncherConfig(owner: string): Promise<void> {
   'use server'
+
   sharedLauncherConfigStore.release(owner)
 }
 
 export async function saveSharedLauncherConfig(json: string, owner: string): Promise<Result<LauncherConfig, string>> {
   'use server'
+
   try {
     return owner
       ? succeed(sharedLauncherConfigStore.write(JSON.parse(json), owner))

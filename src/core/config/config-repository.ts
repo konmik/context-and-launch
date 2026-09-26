@@ -1,9 +1,8 @@
 import fs from 'fs'
 import path from 'path'
 import { randomUUID } from 'node:crypto'
-import type { JsonValue } from '../shared/json.js'
+import type { JsonValue } from '../shared/json.js' // Windows refuses to rename over a file while any other handle holds it, which
 
-// Windows refuses to rename over a file while any other handle holds it, which
 // a watcher or a scanner does for a few milliseconds after every write. The
 // condition clears on its own, so back off briefly before letting the caller
 // see the error. Only the rename retries: the wait blocks the thread the server
@@ -29,7 +28,9 @@ export class ConfigRepository {
 
   writeJson<Data extends object>(filePath: string, data: Data): void {
     const parentDir = path.dirname(filePath)
-    fs.mkdirSync(parentDir, { recursive: true })
+    fs.mkdirSync(parentDir, {
+      recursive: true,
+    })
     const payload = JSON.stringify(data, null, 2)
     const deadline = Date.now() + CONTENTION_RETRY_BUDGET_MS
     let delay = 1
@@ -40,7 +41,9 @@ export class ConfigRepository {
       const temporaryPath = path.join(parentDir, `.${path.basename(filePath)}.${randomUUID()}.tmp`)
       let descriptor: number | null = null
       try {
-        fs.writeFileSync(temporaryPath, payload, { flag: 'wx' })
+        fs.writeFileSync(temporaryPath, payload, {
+          flag: 'wx',
+        })
         descriptor = fs.openSync(temporaryPath, 'r+')
         fs.fsyncSync(descriptor)
         fs.closeSync(descriptor)
@@ -49,8 +52,9 @@ export class ConfigRepository {
         return
       } catch (error) {
         if (descriptor !== null) fs.closeSync(descriptor)
-        fs.rmSync(temporaryPath, { force: true })
-        // SAFETY: node:fs reports failures as an ErrnoException; anything
+        fs.rmSync(temporaryPath, {
+          force: true,
+        }) // SAFETY: node:fs reports failures as an ErrnoException; anything
         // without a contention code is rethrown untouched.
         const code = (error as NodeJS.ErrnoException).code
         if (code === undefined || !CONTENTION_CODES.has(code) || Date.now() >= deadline) throw error
@@ -65,7 +69,9 @@ export class ConfigRepository {
   }
 
   ensureDir(dirPath: string): void {
-    fs.mkdirSync(dirPath, { recursive: true })
+    fs.mkdirSync(dirPath, {
+      recursive: true,
+    })
   }
 
   realpathSync(filePath: string): string {

@@ -2,6 +2,7 @@ import { defineRule } from '@oxlint/plugins'
 import type { ESTree } from '@oxlint/plugins'
 
 type Parameter = ESTree.ParamPattern
+
 type ParameterOwner =
   | ESTree.ArrowFunctionExpression
   | ESTree.Function
@@ -59,11 +60,12 @@ export const noUnknownParametersRule = defineRule({
         context.report({
           node: annotation.typeAnnotation,
           messageId: 'unknownParameter',
-          data: { parameter: name },
+          data: {
+            parameter: name,
+          },
         })
       }
     }
-
     return {
       ArrowFunctionExpression: checkParameters,
       FunctionDeclaration: checkParameters,

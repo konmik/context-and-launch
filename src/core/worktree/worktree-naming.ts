@@ -18,8 +18,14 @@ export interface AgentWorktreeLocation {
 
 export function resolveAgentWorktreeLocation(
   ticketFolderName: string,
-  settings: { worktreeRootPath: string; branchPrefix?: string },
-  saved?: { savedWorktreePath?: string; savedBranchName?: string },
+  settings: {
+    worktreeRootPath: string
+    branchPrefix?: string
+  },
+  saved?: {
+    savedWorktreePath?: string
+    savedBranchName?: string
+  },
 ): AgentWorktreeLocation {
   const defaultPath = `${settings.worktreeRootPath}/${worktreeFolderName(ticketFolderName)}`
   const worktreePath = saved?.savedWorktreePath ?? defaultPath

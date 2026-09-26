@@ -13,7 +13,10 @@ export async function removeTempDir(dir: string): Promise<void> {
   const deadline = Date.now() + 5000
   for (;;) {
     try {
-      fs.rmSync(dir, { recursive: true, force: true })
+      fs.rmSync(dir, {
+        recursive: true,
+        force: true,
+      })
       return
     } catch (e) {
       const parsedCode = e instanceof Error && 'code' in e ? v.safeParse(v.string(), e.code) : undefined
@@ -47,6 +50,8 @@ export function lazyTemplate<T>(build: () => T): () => T {
 
 export function cloneFromTemplate(templateDir: string, prefix: string): string {
   const dir = makeTempDir(prefix)
-  fs.cpSync(templateDir, dir, { recursive: true })
+  fs.cpSync(templateDir, dir, {
+    recursive: true,
+  })
   return dir
 }

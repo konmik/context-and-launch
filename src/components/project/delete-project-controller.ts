@@ -1,7 +1,9 @@
 import { createFormDialogController } from '../ticket/form-dialog-controller.js'
 
 export interface DeleteProjectDeps {
-  onSubmit: (projectSlug: string) => Promise<{ error?: string }>
+  onSubmit: (projectSlug: string) => Promise<{
+    error?: string
+  }>
   onOpenChange: (open: boolean) => void
   projectSlug: () => string
 }

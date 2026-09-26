@@ -1,12 +1,17 @@
-/* eslint-disable max-len */
 import type { DependencyRelation } from './forest-graph.js'
 import { verticalBezierPath } from './forest-viewport.js'
 
 export default function ForestDependencyEdge(props: {
   source: string
   target: string
-  sourcePoint: { x: number; y: number }
-  targetPoint: { x: number; y: number }
+  sourcePoint: {
+    x: number
+    y: number
+  }
+  targetPoint: {
+    x: number
+    y: number
+  }
   relations: DependencyRelation[]
   onClick: (event: MouseEvent) => void
 }) {
@@ -28,7 +33,10 @@ export default function ForestDependencyEdge(props: {
         fill="none"
         stroke="transparent"
         stroke-width="32"
-        style={{ 'pointer-events': 'stroke', cursor: 'pointer' }}
+        style={{
+          'pointer-events': 'stroke',
+          cursor: 'pointer',
+        }}
         onPointerDown={(event) => event.stopPropagation()}
         onClick={props.onClick}
         data-testid="forest-dependency-hit"

@@ -1,4 +1,3 @@
-/* eslint-disable max-len -- one-line catalog declarations are intentionally scan-friendly */
 import type {
   CommandTemplateDefinition,
   CommandTemplateFeatureGroup,
@@ -33,7 +32,9 @@ function definition<Key extends string>(
   featureGroup: CommandTemplateFeatureGroup,
   scalarPlaceholders: readonly string[] = [],
   options: DefinitionOptions = {},
-): CommandTemplateDefinition & { readonly key: Key } {
+): CommandTemplateDefinition & {
+  readonly key: Key
+} {
   return {
     key,
     label,
@@ -43,7 +44,7 @@ function definition<Key extends string>(
     listPlaceholders: options.listPlaceholders ?? [],
     environment: options.git === 'remote' ? remoteGitEnvironment : options.git === 'local' ? gitEnvironment : {},
     mode: options.mode ?? 'capture',
-    timeoutMs: options.timeoutMs ?? 30_000,
+    timeoutMs: options.timeoutMs ?? 30000,
     detachDelayMs: options.detachDelayMs,
   }
 }
@@ -57,9 +58,13 @@ const HERDR: CommandTemplateFeatureGroup = 'Herdr integration'
 const LAUNCH: CommandTemplateFeatureGroup = 'Agent launching and process inspection'
 const PICKER: CommandTemplateFeatureGroup = 'File and directory pickers'
 const OPEN: CommandTemplateFeatureGroup = 'Operating-system open actions'
-const gitOptions = { git: 'local' } as const
-const remoteGitOptions = { git: 'remote', timeoutMs: 600_000 } as const
-
+const gitOptions = {
+  git: 'local',
+} as const
+const remoteGitOptions = {
+  git: 'remote',
+  timeoutMs: 600000,
+} as const
 export const COMMAND_TEMPLATE_DEFINITIONS = [
   definition('git.version', 'Git version', GIT, [], gitOptions),
   definition('git.common-dir.resolve', 'Resolve common Git directory', GIT, [], gitOptions),
@@ -76,7 +81,6 @@ export const COMMAND_TEMPLATE_DEFINITIONS = [
   definition('diff-review.last-commit.files', 'List last-commit Diff Review files', GIT, [], gitOptions),
   definition('diff-review.untracked.files', 'List untracked Diff Review files', GIT, [], gitOptions),
   definition('diff-review.file.read', 'Read Diff Review file at revision', GIT, ['refPath'], gitOptions),
-
   definition('ticket-sync.remote.list', 'List remotes', SYNC, [], gitOptions),
   definition('ticket-sync.upstream.resolve', 'Resolve upstream', SYNC, [], gitOptions),
   definition('ticket-sync.branch.current', 'Resolve current branch', SYNC, [], gitOptions),
@@ -96,13 +100,11 @@ export const COMMAND_TEMPLATE_DEFINITIONS = [
     listPlaceholders: ['signArgs'],
   }),
   definition('ticket-sync.reset-hard', 'Hard reset', SYNC, ['ref'], gitOptions),
-
   definition('ticket-sync.staged-files', 'List staged files', SYNC, [], gitOptions),
   definition('ticket-sync.ancestor.probe', 'Probe commit ancestry', SYNC, ['ancestor', 'descendant'], gitOptions),
   definition('ticket-sync.ahead-count', 'Count commits ahead', SYNC, ['range'], gitOptions),
   definition('ticket-sync.conflict-marker.probe', 'Probe conflict markers', SYNC, [], gitOptions),
   definition('ticket-sync.gpg-signing.read', 'Read commit signing setting', SYNC, [], gitOptions),
-
   definition('conflict-resolution.upstream.resolve', 'Resolve conflict upstream', CONFLICT, [], gitOptions),
   definition('conflict-resolution.scratch.create', 'Create scratch worktree', CONFLICT, ['scratch', 'ref'], gitOptions),
   definition('conflict-resolution.fetch', 'Fetch conflict upstream', CONFLICT, [], remoteGitOptions),
@@ -119,7 +121,6 @@ export const COMMAND_TEMPLATE_DEFINITIONS = [
   ),
   definition('conflict-resolution.rebase.abort', 'Abort rebase', CONFLICT, [], gitOptions),
   definition('conflict-resolution.scratch.remove', 'Remove scratch worktree', CONFLICT, ['scratch'], gitOptions),
-
   definition('worktree.branch.local-list', 'List local worktree branch', WORKTREE, ['branch'], gitOptions),
   definition('worktree.add-existing', 'Add existing branch worktree', WORKTREE, ['worktreeDir', 'branch'], gitOptions),
   definition('worktree.create-orphan', 'Create orphan worktree', WORKTREE, ['worktreeDir', 'branch', 'message'], gitOptions),
@@ -134,7 +135,6 @@ export const COMMAND_TEMPLATE_DEFINITIONS = [
   ),
   definition('worktree.prune', 'Prune worktrees', WORKTREE, [], gitOptions),
   definition('worktree.list', 'List worktrees', WORKTREE, [], gitOptions),
-
   definition('agent-worktree.list', 'List Agent Worktrees', AGENT_WORKTREE, [], gitOptions),
   definition('agent-worktree.branch.local-list', 'List local Agent Worktree branch', AGENT_WORKTREE, ['branch'], gitOptions),
   definition('agent-worktree.add-existing', 'Add existing Agent Worktree', AGENT_WORKTREE, ['worktreePath', 'branch'], gitOptions),
@@ -145,11 +145,11 @@ export const COMMAND_TEMPLATE_DEFINITIONS = [
   definition('agent-worktree.remote-branch.probe', 'Probe remote Agent Worktree branch', AGENT_WORKTREE, ['branch'], remoteGitOptions),
   definition('agent-worktree.busy.probe.macos', 'Probe busy Agent Worktree on macOS', AGENT_WORKTREE, ['worktreePath'], {
     platforms: ['macos'],
-    timeoutMs: 5_000,
+    timeoutMs: 5000,
   }),
   definition('agent-worktree.busy.probe.linux', 'Probe busy Agent Worktree on Linux', AGENT_WORKTREE, ['worktreePath'], {
     platforms: ['linux'],
-    timeoutMs: 5_000,
+    timeoutMs: 5000,
   }),
   definition('agent-worktree.branch.remote', 'Resolve Agent Worktree remote', AGENT_WORKTREE, ['configKey'], gitOptions),
   definition('agent-worktree.prune', 'Prune Agent Worktrees', AGENT_WORKTREE, [], gitOptions),
@@ -166,27 +166,48 @@ export const COMMAND_TEMPLATE_DEFINITIONS = [
     'Find processes locking Agent Worktree on Windows',
     AGENT_WORKTREE,
     ['scriptPath', 'worktreePath'],
-    { platforms: ['windows'], timeoutMs: 10_000 },
+    {
+      platforms: ['windows'],
+      timeoutMs: 10000,
+    },
   ),
   definition('agent-worktree.branch.delete-remote', 'Delete remote Agent Worktree branch', AGENT_WORKTREE, ['branch'], remoteGitOptions),
-
   definition('herdr.status.server', 'Check Herdr server status', HERDR),
   definition('herdr.workspace.list', 'List Herdr workspaces', HERDR),
   definition('herdr.pane.list', 'List Herdr panes', HERDR, ['workspaceId']),
   definition('herdr.agent.list', 'List Herdr agents', HERDR),
   definition('herdr.agent.stop', 'Stop Herdr agent', HERDR, ['paneId']),
   definition('herdr.review-prompt.deliver', 'Deliver Review Prompt', HERDR, ['paneId', 'prompt']),
-
-  definition('agent-launch.process-start.windows', 'Read Windows process start time', LAUNCH, ['pid'], { platforms: ['windows'] }),
-  definition('agent-launch.process-start.macos', 'Read macOS process start time', LAUNCH, ['pid'], { platforms: ['macos'] }),
-
-  definition('picker.files.windows', 'Pick files on Windows', PICKER, ['startDir'], { platforms: ['windows'], timeoutMs: 600_000 }),
-  definition('picker.files.macos', 'Pick files on macOS', PICKER, ['startDir'], { platforms: ['macos'], timeoutMs: 600_000 }),
-  definition('picker.files.linux', 'Pick files on Linux', PICKER, ['startDir'], { platforms: ['linux'], timeoutMs: 600_000 }),
-  definition('picker.directory.windows', 'Pick directory on Windows', PICKER, ['startDir'], { platforms: ['windows'], timeoutMs: 600_000 }),
-  definition('picker.directory.macos', 'Pick directory on macOS', PICKER, ['startDir'], { platforms: ['macos'], timeoutMs: 600_000 }),
-  definition('picker.directory.linux', 'Pick directory on Linux', PICKER, ['startDir'], { platforms: ['linux'], timeoutMs: 600_000 }),
-
+  definition('agent-launch.process-start.windows', 'Read Windows process start time', LAUNCH, ['pid'], {
+    platforms: ['windows'],
+  }),
+  definition('agent-launch.process-start.macos', 'Read macOS process start time', LAUNCH, ['pid'], {
+    platforms: ['macos'],
+  }),
+  definition('picker.files.windows', 'Pick files on Windows', PICKER, ['startDir'], {
+    platforms: ['windows'],
+    timeoutMs: 600000,
+  }),
+  definition('picker.files.macos', 'Pick files on macOS', PICKER, ['startDir'], {
+    platforms: ['macos'],
+    timeoutMs: 600000,
+  }),
+  definition('picker.files.linux', 'Pick files on Linux', PICKER, ['startDir'], {
+    platforms: ['linux'],
+    timeoutMs: 600000,
+  }),
+  definition('picker.directory.windows', 'Pick directory on Windows', PICKER, ['startDir'], {
+    platforms: ['windows'],
+    timeoutMs: 600000,
+  }),
+  definition('picker.directory.macos', 'Pick directory on macOS', PICKER, ['startDir'], {
+    platforms: ['macos'],
+    timeoutMs: 600000,
+  }),
+  definition('picker.directory.linux', 'Pick directory on Linux', PICKER, ['startDir'], {
+    platforms: ['linux'],
+    timeoutMs: 600000,
+  }),
   definition('open.directory.windows', 'Open directory on Windows', OPEN, ['directory'], {
     platforms: ['windows'],
     mode: 'detached',
@@ -212,7 +233,6 @@ export const COMMAND_TEMPLATE_DEFINITIONS = [
 export type CommandTemplateKey = (typeof COMMAND_TEMPLATE_DEFINITIONS)[number]['key']
 
 export { default as COMMAND_TEMPLATE_DEFAULTS } from '../../../config-defaults/command-templates.json' with { type: 'json' }
-
 export const COMMAND_TEMPLATE_DEFINITION_BY_KEY: ReadonlyMap<string, CommandTemplateDefinition> = new Map(
   COMMAND_TEMPLATE_DEFINITIONS.map((item) => [item.key, item]),
 )

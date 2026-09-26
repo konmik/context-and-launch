@@ -4,7 +4,6 @@ import { EditorView, keymap } from '@codemirror/view'
 import { searchKeymap } from '@codemirror/search'
 
 const FOLLOW_TAIL_THRESHOLD = 40
-
 const logTheme = EditorView.theme({
   '&': {
     height: '100%',
@@ -38,14 +37,12 @@ function findTextChange(previous: string, next: string) {
   while (from < sharedLength && previous.charCodeAt(from) === next.charCodeAt(from)) {
     from += 1
   }
-
   let previousEnd = previous.length
   let nextEnd = next.length
   while (previousEnd > from && nextEnd > from && previous.charCodeAt(previousEnd - 1) === next.charCodeAt(nextEnd - 1)) {
     previousEnd -= 1
     nextEnd -= 1
   }
-
   return {
     from,
     to: previousEnd,
@@ -58,14 +55,14 @@ export default function LogTextView(props: { text: string }) {
   let view: EditorView | undefined
   let renderedText = props.text
   let initialScrollFrame: number | undefined
-
   const scrollToBottom = () => {
     if (!view) return
     view.dispatch({
-      effects: EditorView.scrollIntoView(view.state.doc.length, { y: 'end' }),
+      effects: EditorView.scrollIntoView(view.state.doc.length, {
+        y: 'end',
+      }),
     })
   }
-
   onSettled(() => {
     const state = EditorState.create({
       doc: renderedText,
@@ -81,7 +78,10 @@ export default function LogTextView(props: { text: string }) {
         logTheme,
       ],
     })
-    view = new EditorView({ state, parent: containerRef! })
+    view = new EditorView({
+      state,
+      parent: containerRef!,
+    })
     initialScrollFrame = requestAnimationFrame(scrollToBottom)
     return () => {
       if (initialScrollFrame !== undefined) {
@@ -91,7 +91,6 @@ export default function LogTextView(props: { text: string }) {
       view = undefined
     }
   })
-
   createEffect(
     () => props.text,
     (nextText) => {
@@ -100,11 +99,12 @@ export default function LogTextView(props: { text: string }) {
       const shouldFollowTail = scrollDOM.scrollHeight - scrollDOM.scrollTop - scrollDOM.clientHeight < FOLLOW_TAIL_THRESHOLD
       const change = findTextChange(renderedText, nextText)
       renderedText = nextText
-      view.dispatch({ changes: change })
+      view.dispatch({
+        changes: change,
+      })
       if (shouldFollowTail) scrollToBottom()
     },
   )
-
   return (
     <div
       ref={(element) => (containerRef = element)}

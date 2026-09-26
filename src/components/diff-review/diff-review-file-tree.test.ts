@@ -8,7 +8,13 @@ describe('Diff Review file tree', () => {
         kind: 'directory',
         directoryPath: 'docs',
         name: 'docs',
-        children: [{ kind: 'file', filePath: 'docs/guide.md', name: 'guide.md' }],
+        children: [
+          {
+            kind: 'file',
+            filePath: 'docs/guide.md',
+            name: 'guide.md',
+          },
+        ],
       },
       {
         kind: 'directory',
@@ -27,20 +33,25 @@ describe('Diff Review file tree', () => {
               },
             ],
           },
-          { kind: 'file', filePath: 'src/app.ts', name: 'app.ts' },
+          {
+            kind: 'file',
+            filePath: 'src/app.ts',
+            name: 'app.ts',
+          },
         ],
       },
-      { kind: 'file', filePath: 'README.md', name: 'README.md' },
+      {
+        kind: 'file',
+        filePath: 'README.md',
+        name: 'README.md',
+      },
     ])
   })
-
   it('rejects paths without a file name', () => {
     expect(() => buildDiffReviewFileTree(['src/'])).toThrow('Invalid Diff Review file path: src/')
   })
-
   it('lists files in the same order as the tree', () => {
     const tree = buildDiffReviewFileTree(['README.md', 'src/routes/index.tsx', 'src/app.ts', 'docs/guide.md'])
-
     expect(diffReviewFilePathsInTreeOrder(tree)).toEqual(['docs/guide.md', 'src/routes/index.tsx', 'src/app.ts', 'README.md'])
   })
 })

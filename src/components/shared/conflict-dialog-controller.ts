@@ -20,13 +20,15 @@ export function createConflictDialogController(deps: ConflictDialogDeps) {
   const projectConfig = useContext(ProjectLauncherConfigContext)!
   const profiles = createMemo(() => mergeLauncherConfigs(sharedConfig.get(), projectConfig.get()).profiles)
   const [selectedProfile, setSelectedProfile] = createSignal('')
-
   createEffect(deps.open, (open) => {
     if (open) setErrorMsg('')
   })
-
   createEffect(
-    () => ({ list: profiles(), selected: selectedProfile(), preferred: appConfig.get().lastUsedProfileName }),
+    () => ({
+      list: profiles(),
+      selected: selectedProfile(),
+      preferred: appConfig.get().lastUsedProfileName,
+    }),
     ({ list, selected, preferred }) => {
       if (list.some((profile) => profile.name === selected)) return
       setSelectedProfile(list.find((profile) => profile.name === preferred)?.name ?? list[0]?.name ?? '')
@@ -37,7 +39,10 @@ export function createConflictDialogController(deps: ConflictDialogDeps) {
     setSelectedProfile(name)
     if (!name) return
     try {
-      const result = await appConfig.update((current) => ({ ...current, lastUsedProfileName: name }))
+      const result = await appConfig.update((current) => ({
+        ...current,
+        lastUsedProfileName: name,
+      }))
       if (result.type === 'Failure') setErrorMsg(result.error)
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Failed to save last used profile')

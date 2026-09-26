@@ -7,7 +7,10 @@ import { DiffReviewContext, ReviewAgentStatusContext } from './diff-review-stora
 import { getReviewTicketState } from '~/core/diff-review/diff-review-types.js'
 import VerticalReveal from './VerticalReveal.js'
 
-type QueueEntry = { item: ReviewPromptQueueItem; shown: boolean }
+type QueueEntry = {
+  item: ReviewPromptQueueItem
+  shown: boolean
+}
 
 export default function ReviewPromptQueueList(props: { projectSlug: string; folderName: string; profileName: string }) {
   const state = useContext(DiffReviewContext)
@@ -65,20 +68,26 @@ export default function ReviewPromptQueueList(props: { projectSlug: string; fold
       setRemovingId()
     }
   }
+
   let bodyRef: HTMLDivElement | undefined
   const [entries, setEntries] = createSignal<QueueEntry[]>([])
   const itemError = (item: ReviewPromptQueueItem) => (item.state === 'error' || item.state === 'uncertain' ? item.error : undefined)
-
   createEffect(items, (incoming) => {
     const current = untrack(entries)
-    const next = incoming.map((item) => ({ item, shown: true }))
+    const next = incoming.map((item) => ({
+      item,
+      shown: true,
+    }))
     const incomingIds = new Set(incoming.map((item) => item.id))
     for (const entry of current) {
-      if (!incomingIds.has(entry.item.id)) next.push({ item: entry.item, shown: false })
+      if (!incomingIds.has(entry.item.id))
+        next.push({
+          item: entry.item,
+          shown: false,
+        })
     }
     setEntries(next)
   })
-
   createEffect(
     () => items().length,
     () => {
@@ -88,7 +97,6 @@ export default function ReviewPromptQueueList(props: { projectSlug: string; fold
       })
     },
   )
-
   return (
     <Show when={entries().length > 0}>
       <section class="mb-3 rounded-md border border-border bg-card" aria-label="Review Prompt Queue" data-testid="diff-review-queue">

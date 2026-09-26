@@ -37,7 +37,10 @@ export interface HerdrTicketState {
 
 export async function fetchHerdrTicketState(projectSlug: string, exec: HerdrExecFn): Promise<HerdrTicketState> {
   const { ticketPanes, agents } = await listHerdrTicketPaneState(projectSlug, exec)
-  return { statusesByFolderName: ticketStatusesFromPanes(ticketPanes), agents }
+  return {
+    statusesByFolderName: ticketStatusesFromPanes(ticketPanes),
+    agents,
+  }
 }
 
 export async function fetchHerdrTicketStatuses(projectSlug: string, exec: HerdrExecFn): Promise<Record<string, HerdrAgentStatus>> {

@@ -7,7 +7,9 @@ interface DeleteProjectDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   projectSlug: string
-  onSubmit: (projectSlug: string) => Promise<{ error?: string }>
+  onSubmit: (projectSlug: string) => Promise<{
+    error?: string
+  }>
   ctrl?: DeleteProjectController
 }
 
@@ -19,13 +21,11 @@ export default function DeleteProjectDialog(props: DeleteProjectDialogProps) {
       onOpenChange: props.onOpenChange,
       projectSlug: () => props.projectSlug,
     })
-
   useModEnterSubmit({
     onSubmit: s.doSubmit,
     disabled: () => s.submitting(),
     active: () => props.open,
   })
-
   return (
     <DialogRoot open={props.open} onOpenChange={s.close}>
       <DialogTitle>Delete Project</DialogTitle>

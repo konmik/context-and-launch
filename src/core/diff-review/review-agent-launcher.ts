@@ -29,7 +29,9 @@ export class ProfileReviewAgentLauncher implements ReviewAgentLauncher {
       profile,
       {
         initialPrompt,
-        windowTitle: buildWindowTitle(target.ticket, { worktreePath: target.worktreePath }),
+        windowTitle: buildWindowTitle(target.ticket, {
+          worktreePath: target.worktreePath,
+        }),
         markerPath: this.markerPath(target),
         appConfigDir: this.launcherConfig.getAppConfigDir(),
         configDefaultsDir: this.launcherConfig.getConfigDefaultsDir(),

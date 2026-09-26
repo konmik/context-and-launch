@@ -1,6 +1,7 @@
 import type { CommandTemplateKey } from './command-template-definitions.js'
 
 export type { CommandTemplateKey }
+
 export type CommandTemplateOverrides = Partial<Record<CommandTemplateKey, string>>
 
 export type CommandTemplatePlatform = 'windows' | 'macos' | 'linux'
@@ -22,6 +23,7 @@ export const COMMAND_TEMPLATE_GROUP_ORDER = [
 export type CommandTemplateFeatureGroup = (typeof COMMAND_TEMPLATE_GROUP_ORDER)[number]
 
 export type CommandTemplateValues = Readonly<Record<string, string>>
+
 export type CommandTemplateListValues = Readonly<Record<string, readonly string[]>>
 
 export interface CommandTemplateDefinition {

@@ -8,12 +8,16 @@ export function parseMode(value: JsonValue | undefined): AppMode | undefined {
 
 export function modeStorageKey(projectSlug?: string): string {
   return projectSlug === undefined ? 'theme' : `theme:${projectSlug}`
-}
+} // The persisted appearance mode: an explicit user override, or "system" to
 
-// The persisted appearance mode: an explicit user override, or "system" to
 // follow the OS. Absence of a stored value means the user never toggled, so the
 // mode follows the OS.
-export function getStoredMode(storage: { getItem(key: string): string | null }, projectSlug?: string): AppMode {
+export function getStoredMode(
+  storage: {
+    getItem(key: string): string | null
+  },
+  projectSlug?: string,
+): AppMode {
   try {
     const scoped = projectSlug === undefined ? null : storage.getItem(modeStorageKey(projectSlug))
     return parseMode(scoped ?? storage.getItem(modeStorageKey())) ?? 'system'

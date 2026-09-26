@@ -15,7 +15,6 @@ import {
 import type { PlatformShellRunner, ShellExecutionRequest } from './command-template-types.js'
 
 export { COMMAND_NOT_FOUND_EXIT_CODE, INTERPRETER_FAILURE_EXIT_CODE, windowsPowerShellExecutable }
-
 export const USER_ERROR_EXIT_CODE = 64
 
 function classifyExitCode(exitCode: number | undefined): ProcessFailureKind {
@@ -28,7 +27,11 @@ function buildInvocation(request: ShellExecutionRequest): ShellInvocation {
   const strategy = shellStrategyFor(request.platform)
   if (request.argv && request.argv.length > 0) {
     const executable = resolveDirectExecutable(request.argv[0], request.platform)
-    if (executable) return { executable, args: request.argv.slice(1) }
+    if (executable)
+      return {
+        executable,
+        args: request.argv.slice(1),
+      }
     if (request.argv.some((value) => /[\r\n]/.test(value))) {
       const rejection = strategy.newlineArgvRejection(request.argv[0])
       if (rejection) {
@@ -44,7 +47,10 @@ function displayCommand(request: ShellExecutionRequest): string {
 }
 
 function executionEnvironment(request: ShellExecutionRequest): NodeJS.ProcessEnv {
-  return { ...process.env, ...request.environment }
+  return {
+    ...process.env,
+    ...request.environment,
+  }
 }
 
 function createProcessError(
@@ -150,13 +156,13 @@ export class FixedPlatformShellRunner implements PlatformShellRunner {
       stdio: ['ignore', 'ignore', descriptor],
     })
     fs.closeSync(descriptor)
-
     const takeStderr = (): string => {
       const value = fs.existsSync(stderrFile) ? fs.readFileSync(stderrFile, 'utf8') : ''
-      fs.rmSync(stderrFile, { force: true })
+      fs.rmSync(stderrFile, {
+        force: true,
+      })
       return value
     }
-
     return new Promise((resolve, reject) => {
       let settled = false
       child.once('error', (error: NodeJS.ErrnoException) => {

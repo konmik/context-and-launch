@@ -13,7 +13,10 @@ const PromptLineSchema = v.object({
   oldLineNumber: v.optional(v.number()),
   newLineNumber: v.optional(v.number()),
 })
-const RangeSchema = v.object({ start: v.number(), end: v.number() })
+const RangeSchema = v.object({
+  start: v.number(),
+  end: v.number(),
+})
 const PromptSnapshotSchema = v.object({
   scope: v.picklist(['all', 'branch', 'working', 'last-commit']),
   filePath: v.string(),
@@ -32,15 +35,30 @@ const QueueItemBaseSchema = {
   snapshot: v.optional(PromptSnapshotSchema),
 }
 const QueueItemSchema = v.union([
-  v.object({ ...QueueItemBaseSchema, state: v.literal('waiting') }),
+  v.object({
+    ...QueueItemBaseSchema,
+    state: v.literal('waiting'),
+  }),
   v.object({
     ...QueueItemBaseSchema,
     state: v.literal('delivering'),
     deliveryStartedAt: v.string(),
   }),
-  v.object({ ...QueueItemBaseSchema, state: v.literal('sent'), sentAt: v.string() }),
-  v.object({ ...QueueItemBaseSchema, state: v.literal('error'), error: v.string() }),
-  v.object({ ...QueueItemBaseSchema, state: v.literal('uncertain'), error: v.string() }),
+  v.object({
+    ...QueueItemBaseSchema,
+    state: v.literal('sent'),
+    sentAt: v.string(),
+  }),
+  v.object({
+    ...QueueItemBaseSchema,
+    state: v.literal('error'),
+    error: v.string(),
+  }),
+  v.object({
+    ...QueueItemBaseSchema,
+    state: v.literal('uncertain'),
+    error: v.string(),
+  }),
 ])
 const QueueSchema = v.object({
   items: v.array(QueueItemSchema),
@@ -50,7 +68,13 @@ const QueueSchema = v.object({
 })
 const TicketStateSchema = v.object({
   worktreeIdentity: v.string(),
-  reviewedLines: v.record(v.string(), v.object({ path: v.string(), reviewedAt: v.string() })),
+  reviewedLines: v.record(
+    v.string(),
+    v.object({
+      path: v.string(),
+      reviewedAt: v.string(),
+    }),
+  ),
   queue: QueueSchema,
 })
 const ProjectStateSchema = v.object({
@@ -59,7 +83,13 @@ const ProjectStateSchema = v.object({
 })
 const LegacyProjectStateSchema = v.object({
   version: v.literal(1),
-  tickets: v.record(v.string(), v.object({ worktreeIdentity: v.string(), queue: QueueSchema })),
+  tickets: v.record(
+    v.string(),
+    v.object({
+      worktreeIdentity: v.string(),
+      queue: QueueSchema,
+    }),
+  ),
 })
 
 export class DiffReviewStore {
@@ -79,6 +109,7 @@ export class DiffReviewStore {
   release(projectSlug: string, owner: string): void {
     this.lock(projectSlug).release(owner)
   }
+
   constructor(
     private readonly paths: ConfigPaths,
     private readonly repository: ConfigRepository,
@@ -104,7 +135,11 @@ export class DiffReviewStore {
     requireSafeSlug(projectSlug)
     const filePath = this.paths.diffReviewStateFile(projectSlug)
     const raw = this.repository.readJson(filePath)
-    if (raw === null) return { version: 2, tickets: {} }
+    if (raw === null)
+      return {
+        version: 2,
+        tickets: {},
+      }
     const parsed = v.safeParse(ProjectStateSchema, raw)
     if (parsed.success) return parsed.output
     const legacy = v.safeParse(LegacyProjectStateSchema, raw)
@@ -114,7 +149,13 @@ export class DiffReviewStore {
     return {
       version: 2,
       tickets: Object.fromEntries(
-        Object.entries(legacy.output.tickets).map(([folderName, ticket]) => [folderName, { ...ticket, reviewedLines: {} }]),
+        Object.entries(legacy.output.tickets).map(([folderName, ticket]) => [
+          folderName,
+          {
+            ...ticket,
+            reviewedLines: {},
+          },
+        ]),
       ),
     }
   }
@@ -145,7 +186,10 @@ export class DiffReviewStore {
     }
     return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => ({
       ...ticket,
-      queue: { ...ticket.queue, items: [...ticket.queue.items, created] },
+      queue: {
+        ...ticket.queue,
+        items: [...ticket.queue.items, created],
+      },
     })).queue.items.at(-1)!
   }
 
@@ -155,7 +199,9 @@ export class DiffReviewStore {
       if (!head || head.id !== itemId || (head.state !== 'error' && head.state !== 'sent' && head.state !== 'uncertain')) {
         throw new Error('Only a failed, uncertain, or delivered head Review Prompt can be retried.')
       }
-      ticket.queue.items[0] = this.withState(head, { state: 'waiting' })
+      ticket.queue.items[0] = this.withState(head, {
+        state: 'waiting',
+      })
       return ticket
     })
   }
@@ -203,7 +249,10 @@ export class DiffReviewStore {
       if (!head || head.id !== itemId || head.state !== 'delivering') {
         throw new Error('Review Prompt queue head changed during failed delivery.')
       }
-      ticket.queue.items[0] = this.withState(head, { state: 'error', error })
+      ticket.queue.items[0] = this.withState(head, {
+        state: 'error',
+        error,
+      })
       return ticket
     })
   }
@@ -220,7 +269,10 @@ export class DiffReviewStore {
       if (!head || head.id !== itemId || head.state !== 'sent') {
         throw new Error('Only a delivered head Review Prompt can lose its Agent.')
       }
-      ticket.queue.items[0] = this.withState(head, { state: 'error', error })
+      ticket.queue.items[0] = this.withState(head, {
+        state: 'error',
+        error,
+      })
       return ticket
     })
   }
@@ -237,7 +289,10 @@ export class DiffReviewStore {
       if (!head || head.id !== itemId || head.state !== 'delivering') {
         throw new Error('Only a delivering head Review Prompt can have an uncertain outcome.')
       }
-      ticket.queue.items[0] = this.withState(head, { state: 'uncertain', error })
+      ticket.queue.items[0] = this.withState(head, {
+        state: 'uncertain',
+        error,
+      })
       return ticket
     })
   }
@@ -309,7 +364,13 @@ export class DiffReviewStore {
         if (updated.worktreeIdentity !== worktreeIdentity) {
           throw new Error('The Ticket worktree changed. Refresh Diff Review.')
         }
-        return { ...project, tickets: { ...project.tickets, [folderName]: updated } }
+        return {
+          ...project,
+          tickets: {
+            ...project.tickets,
+            [folderName]: updated,
+          },
+        }
       },
       owner,
     ).tickets[folderName]
@@ -318,11 +379,25 @@ export class DiffReviewStore {
   private withState(
     item: ReviewPromptQueueItem,
     state:
-      | { state: 'waiting' }
-      | { state: 'delivering'; deliveryStartedAt: string }
-      | { state: 'sent'; sentAt: string }
-      | { state: 'error'; error: string }
-      | { state: 'uncertain'; error: string },
+      | {
+          state: 'waiting'
+        }
+      | {
+          state: 'delivering'
+          deliveryStartedAt: string
+        }
+      | {
+          state: 'sent'
+          sentAt: string
+        }
+      | {
+          state: 'error'
+          error: string
+        }
+      | {
+          state: 'uncertain'
+          error: string
+        },
   ): ReviewPromptQueueItem {
     return {
       id: item.id,

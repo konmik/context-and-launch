@@ -4,7 +4,6 @@ import { testId, waitVisible } from './locators.js'
 
 describe('Kanban board (e2e, real server)', () => {
   const ctx = setupE2E()
-
   it('renders kanban-board-column-header and kanban-board-column-description', async () => {
     await openProject(ctx, {
       slugBase: 'kb-cols',
@@ -12,7 +11,15 @@ describe('Kanban board (e2e, real server)', () => {
         {
           id: 'kanban',
           name: 'Kanban',
-          columns: [{ name: 'todo', description: 'Things to do' }, { name: 'done' }],
+          columns: [
+            {
+              name: 'todo',
+              description: 'Things to do',
+            },
+            {
+              name: 'done',
+            },
+          ],
         },
       ],
     })
@@ -21,18 +28,24 @@ describe('Kanban board (e2e, real server)', () => {
     const desc = testId(ctx.page, 'kanban-board-column-description').first()
     expect(await desc.textContent()).toBe('Things to do')
   })
-
   it('kanban-board-empty-dropzone renders for empty columns', async () => {
-    await openProject(ctx, { slugBase: 'kb-empty' })
+    await openProject(ctx, {
+      slugBase: 'kb-empty',
+    })
     expect(await testId(ctx.page, 'kanban-board-empty-dropzone').count()).toBeGreaterThan(0)
   })
-
   it('kanban-board-ticket-card click opens ticket detail dialog within 500ms', async () => {
     await openProject(ctx, {
       slugBase: 'kb-click',
-      withTickets: [{ number: 'T-1', title: 'Alpha', status: 'todo', folderName: 't-1-alpha' }],
-    })
-    // Measure from the actual click, excluding Playwright's actionability wait.
+      withTickets: [
+        {
+          number: 'T-1',
+          title: 'Alpha',
+          status: 'todo',
+          folderName: 't-1-alpha',
+        },
+      ],
+    }) // Measure from the actual click, excluding Playwright's actionability wait.
     await ctx.page.evaluate(() => {
       document.addEventListener(
         'click',
@@ -44,9 +57,16 @@ describe('Kanban board (e2e, real server)', () => {
             performance.measure('ticket-open', 'ticket-open-start')
             observer.disconnect()
           })
-          observer.observe(document.body, { childList: true, subtree: true, attributes: true })
+          observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+          })
         },
-        { once: true, capture: true },
+        {
+          once: true,
+          capture: true,
+        },
       )
     })
     await testId(ctx.page, 'kanban-board-ticket-card').first().click()
@@ -54,11 +74,17 @@ describe('Kanban board (e2e, real server)', () => {
     const duration = await ctx.page.evaluate(() => performance.getEntriesByName('ticket-open')[0].duration)
     expect(duration).toBeLessThan(500)
   })
-
   it('kanban-board-ticket-menu-trigger opens menu with archive/delete items', async () => {
     await openProject(ctx, {
       slugBase: 'kb-menu',
-      withTickets: [{ number: 'T-1', title: 'Alpha', status: 'todo', folderName: 't-1-alpha' }],
+      withTickets: [
+        {
+          number: 'T-1',
+          title: 'Alpha',
+          status: 'todo',
+          folderName: 't-1-alpha',
+        },
+      ],
     })
     const trigger = testId(ctx.page, 'kanban-board-ticket-menu-trigger').first()
     await trigger.click()
@@ -71,25 +97,36 @@ describe('Kanban board (e2e, real server)', () => {
     expect(await testId(ctx.page, 'kanban-board-ticket-menu-archive').count()).toBe(1)
     expect(await testId(ctx.page, 'kanban-board-ticket-menu-delete').count()).toBe(1)
   })
-
   it('kanban-board-ticket-menu-archive opens Archive Ticket dialog', async () => {
     await openProject(ctx, {
       slugBase: 'kb-arch-menu',
-      withTickets: [{ number: 'T-1', title: 'Alpha', status: 'todo', folderName: 't-1-alpha' }],
+      withTickets: [
+        {
+          number: 'T-1',
+          title: 'Alpha',
+          status: 'todo',
+          folderName: 't-1-alpha',
+        },
+      ],
     })
     await clickTicketMenuItem(ctx.page, 'archive')
     await waitVisible(ctx.page, 'ticket-cleanup-submit')
   })
-
   it('kanban-board-ticket-menu-delete opens Delete Ticket dialog', async () => {
     await openProject(ctx, {
       slugBase: 'kb-del-menu',
-      withTickets: [{ number: 'T-1', title: 'Alpha', status: 'todo', folderName: 't-1-alpha' }],
+      withTickets: [
+        {
+          number: 'T-1',
+          title: 'Alpha',
+          status: 'todo',
+          folderName: 't-1-alpha',
+        },
+      ],
     })
     await clickTicketMenuItem(ctx.page, 'delete')
     await waitVisible(ctx.page, 'ticket-cleanup-submit')
   })
-
   it('kanban-board-undefined-column and related testids render for orphan-status tickets', async () => {
     await openProject(ctx, {
       slugBase: 'kb-orphan',
@@ -97,7 +134,14 @@ describe('Kanban board (e2e, real server)', () => {
         {
           id: 'kanban',
           name: 'Kanban',
-          columns: [{ name: 'todo' }, { name: 'done' }],
+          columns: [
+            {
+              name: 'todo',
+            },
+            {
+              name: 'done',
+            },
+          ],
         },
       ],
       withTickets: [

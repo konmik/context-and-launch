@@ -43,9 +43,12 @@ function realAdapters(onReady: () => void): FileWatcherAdapters {
 }
 
 afterAll(() => {
-  for (const dir of dirs) fs.rmSync(dir, { recursive: true, force: true })
+  for (const dir of dirs)
+    fs.rmSync(dir, {
+      recursive: true,
+      force: true,
+    })
 })
-
 describe('FileWatcher real chokidar contract', () => {
   it('observes real add/change events, commits them, and excludes dot-only changes', async () => {
     const dir = tempDir()
@@ -62,19 +65,16 @@ describe('FileWatcher real chokidar contract', () => {
     try {
       watcher.watch(dir, 20)
       await waitFor(() => ready)
-
       const observed = path.join(dir, 'observed.txt')
       fs.writeFileSync(observed, 'added')
       await waitFor(async () => (await git(dir, 'log', '--oneline')).includes('auto: external changes'))
       fs.writeFileSync(observed, 'changed')
       await waitFor(async () => (await git(dir, 'log', '--oneline')).trim().split('\n').length === 3)
-
       const callsAfterVisibleChanges = onChange.mock.calls.length
       fs.writeFileSync(path.join(dir, '.hidden'), 'ignored')
       fs.mkdirSync(path.join(dir, '.cache'))
       fs.writeFileSync(path.join(dir, '.cache', 'entry.txt'), 'ignored')
       await new Promise((resolve) => setTimeout(resolve, 100))
-
       expect(onChange).toHaveBeenCalledWith(dir)
       expect(onChange.mock.calls).toHaveLength(callsAfterVisibleChanges)
       expect(await git(dir, 'status', '--porcelain')).toContain('.hidden')
@@ -82,7 +82,6 @@ describe('FileWatcher real chokidar contract', () => {
       watcher.stopAll()
     }
   })
-
   it('restart creates a fresh observer and watching a second directory is additive', async () => {
     const dirA = tempDir()
     const dirB = tempDir()
@@ -107,7 +106,6 @@ describe('FileWatcher real chokidar contract', () => {
       watcher.watch(dirA, 20)
       watcher.watch(dirB, 20)
       await waitFor(() => ready.has(dirA) && ready.has(dirB))
-
       fs.writeFileSync(path.join(dirA, 'after-restart.txt'), 'A')
       fs.writeFileSync(path.join(dirB, 'additive.txt'), 'B')
       await waitFor(
@@ -115,7 +113,6 @@ describe('FileWatcher real chokidar contract', () => {
           (await git(dirA, 'log', '--oneline')).includes('auto: external changes') &&
           (await git(dirB, 'log', '--oneline')).includes('auto: external changes'),
       )
-
       expect(await git(dirA, 'status', '--porcelain')).toBe('')
       expect(await git(dirB, 'status', '--porcelain')).toBe('')
     } finally {

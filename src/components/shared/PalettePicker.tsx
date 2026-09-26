@@ -12,9 +12,17 @@ export default function PalettePicker() {
   const appearance = useContext(AppearanceContext)!
   const dark = () => isDarkMode(appearance().mode.get(), window.matchMedia('(prefers-color-scheme: dark)').matches)
   const [error, setError] = createSignal<ErrorInfo | null>(null)
+
   async function showSaveError(completion: Promise<Result<void, string>>) {
     const result = await completion
-    setError(result.type === 'Failure' ? { title: 'Save appearance failed', description: result.error } : null)
+    setError(
+      result.type === 'Failure'
+        ? {
+            title: 'Save appearance failed',
+            description: result.error,
+          }
+        : null,
+    )
   }
 
   return (
@@ -23,7 +31,11 @@ export default function PalettePicker() {
         trigger={
           <MenuTrigger
             class="btn-secondary btn-sm label-mono w-auto items-center gap-2.5 whitespace-nowrap"
-            style={{ height: '2.25rem', 'padding-left': '0.75rem', 'padding-right': '0.75rem' }}
+            style={{
+              height: '2.25rem',
+              'padding-left': '0.75rem',
+              'padding-right': '0.75rem',
+            }}
             data-testid="palette-picker-trigger"
           >
             {appearance().palette.get()}

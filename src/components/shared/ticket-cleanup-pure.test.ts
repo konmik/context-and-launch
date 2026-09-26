@@ -11,7 +11,6 @@ describe('noCleanupOptions', () => {
     })
   })
 })
-
 describe('singleCleanupOption', () => {
   it('enables only the requested cleanup item', () => {
     expect(singleCleanupOption('deleteWorktree')).toEqual({
@@ -22,24 +21,44 @@ describe('singleCleanupOption', () => {
     })
   })
 })
-
 describe('allChecking / allError', () => {
   it('produces all four keys checking', () => {
     expect(allChecking()).toEqual({
-      stopHerdrAgent: { state: 'checking' },
-      deleteWorktree: { state: 'checking' },
-      deleteLocalBranch: { state: 'checking' },
-      deleteRemoteBranch: { state: 'checking' },
+      stopHerdrAgent: {
+        state: 'checking',
+      },
+      deleteWorktree: {
+        state: 'checking',
+      },
+      deleteLocalBranch: {
+        state: 'checking',
+      },
+      deleteRemoteBranch: {
+        state: 'checking',
+      },
     })
   })
-
   it('produces all four keys in error', () => {
-    const error = { description: 'failed' }
+    const error = {
+      description: 'failed',
+    }
     expect(allError(error)).toEqual({
-      stopHerdrAgent: { state: 'error', error },
-      deleteWorktree: { state: 'error', error },
-      deleteLocalBranch: { state: 'error', error },
-      deleteRemoteBranch: { state: 'error', error },
+      stopHerdrAgent: {
+        state: 'error',
+        error,
+      },
+      deleteWorktree: {
+        state: 'error',
+        error,
+      },
+      deleteLocalBranch: {
+        state: 'error',
+        error,
+      },
+      deleteRemoteBranch: {
+        state: 'error',
+        error,
+      },
     })
   })
 })

@@ -29,7 +29,6 @@ const ProjectEntrySchema = v.looseObject({
   mainBranch: v.optional(v.string()),
   boardId: v.optional(v.string()),
 })
-
 const AppConfigSchema = v.looseObject({
   projects: v.array(ProjectEntrySchema),
   lastUsedProjectSlug: v.optional(v.nullable(v.string())),
@@ -49,7 +48,10 @@ export function decodeAppConfig(raw: JsonValue) {
       projects: parsed.projects.map(({ slug, ...entry }) => {
         const projectSlug = entry.projectSlug ?? slug
         if (projectSlug === undefined) throw new Error('Invalid config.json: project is missing projectSlug')
-        return { ...entry, projectSlug }
+        return {
+          ...entry,
+          projectSlug,
+        }
       }),
       lastUsedProjectSlug: parsed.lastUsedProjectSlug ?? lastUsedSlug ?? null,
       lastUsedProfileName: parsed.lastUsedProfileName ?? null,

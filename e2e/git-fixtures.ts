@@ -7,7 +7,10 @@ import path from 'node:path'
 export const TICKETS_BRANCH = 'tickets'
 
 export function git(command: string, cwd: string): string {
-  return execSync(`git ${command}`, { cwd, encoding: 'utf-8' }).trim()
+  return execSync(`git ${command}`, {
+    cwd,
+    encoding: 'utf-8',
+  }).trim()
 }
 
 /**
@@ -43,7 +46,10 @@ export function gitBranches(repoPath: string): string[] {
 
 export function branchExists(repoPath: string, branch: string): boolean {
   try {
-    execSync(`git rev-parse --verify refs/heads/${branch}`, { cwd: repoPath, stdio: 'ignore' })
+    execSync(`git rev-parse --verify refs/heads/${branch}`, {
+      cwd: repoPath,
+      stdio: 'ignore',
+    })
     return true
   } catch {
     return false
@@ -113,7 +119,10 @@ export function mutateRemote(project: TicketsWorktree, options: MutateRemoteOpti
     // git can still hold handles inside the clone just after pushing, and a
     // leftover temp directory matters far less than failing the caller's test.
     try {
-      fs.rmSync(cloneDir, { recursive: true, force: true })
+      fs.rmSync(cloneDir, {
+        recursive: true,
+        force: true,
+      })
     } catch (err) {
       console.warn(`mutateRemote: could not remove ${cloneDir}:`, err)
     }

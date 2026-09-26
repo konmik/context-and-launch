@@ -36,6 +36,7 @@ export interface MergedLauncherConfigWithMeta extends ProjectLauncherMetadata, M
 
 export const getProjectLauncherMetadata = query(async (projectSlug: string): Promise<ProjectLauncherMetadata> => {
   'use server'
+
   const project = projectRegistry.listProjects().find((p) => p.projectSlug === projectSlug)
   if (!project) throw new Error(`Project not found: ${projectSlug}`)
   return {
@@ -48,6 +49,7 @@ export const getProjectLauncherMetadata = query(async (projectSlug: string): Pro
 
 export async function readProjectLauncherConfig(projectSlug: string, owner?: string) {
   'use server'
+
   try {
     return succeed(launcherConfigManager.loadProjectConfig(projectSlug, owner))
   } catch (e) {
@@ -57,11 +59,13 @@ export async function readProjectLauncherConfig(projectSlug: string, owner?: str
 
 export async function releaseProjectLauncherConfig(projectSlug: string, owner: string): Promise<void> {
   'use server'
+
   launcherConfigManager.releaseProjectConfig(projectSlug, owner)
 }
 
 export async function saveProjectLauncherConfig(projectSlug: string, json: string, owner: string) {
   'use server'
+
   try {
     return owner
       ? succeed(launcherConfigManager.saveProjectConfig(projectSlug, JSON.parse(json), owner))
@@ -73,10 +77,15 @@ export async function saveProjectLauncherConfig(projectSlug: string, json: strin
 
 export async function launchAgentAction(projectSlug: string, folderName: string, launchRequest: LaunchRequest) {
   'use server'
+
   try {
     const { ticket, project, worktreeDir } = resolveTicketAndProject(projectSlug, folderName)
     if (agentRunning(projectSlug, folderName)) {
-      return { ok: false as const, type: 'error' as const, message: 'Already started' }
+      return {
+        ok: false as const,
+        type: 'error' as const,
+        message: 'Already started',
+      }
     }
     if (!launchRequest.launchDir) {
       throw new ValidationError('launchDir is required')
@@ -88,14 +97,23 @@ export async function launchAgentAction(projectSlug: string, folderName: string,
       project.path,
       ticket,
       worktreeDir,
-      { skipDirtyCheck: launchRequest.force, skipBehindRemote: launchRequest.skipBehindRemote },
+      {
+        skipDirtyCheck: launchRequest.force,
+        skipBehindRemote: launchRequest.skipBehindRemote,
+      },
       project.mainBranch,
     )
     if (!resolved.ok) {
-      return { ok: false as const, type: resolved.type, message: resolved.message }
+      return {
+        ok: false as const,
+        type: resolved.type,
+        message: resolved.message,
+      }
     }
     await launchAgentCore(projectSlug, ticket, launchRequest, launchRequest.launchDir)
-    return { ok: true as const }
+    return {
+      ok: true as const,
+    }
   } catch (e) {
     return errorResult(e)
   }
@@ -103,14 +121,21 @@ export async function launchAgentAction(projectSlug: string, folderName: string,
 
 export async function launchProjectAgentAction(projectSlug: string, launchRequest: LaunchRequest) {
   'use server'
+
   try {
     const project = projectRegistry.listProjects().find((p) => p.projectSlug === projectSlug)
     if (!project) throw new NotFoundError(`Project not found: ${projectSlug}`)
     if (agentRunning(projectSlug, PROJECT_LAUNCH_KEY)) {
-      return { ok: false as const, type: 'error' as const, message: 'Already started' }
+      return {
+        ok: false as const,
+        type: 'error' as const,
+        message: 'Already started',
+      }
     }
     await launchProjectAgentCore(projectSlug, projectRegistry.getName(projectSlug), launchRequest, project.path)
-    return { ok: true as const }
+    return {
+      ok: true as const,
+    }
   } catch (e) {
     return errorResult(e)
   }
@@ -125,6 +150,7 @@ export async function runShortcut(
   launchDir: string,
 ) {
   'use server'
+
   try {
     if (!launchDir) throw new ValidationError('launchDir is required')
     const { ticket, project, worktreeDir } = resolveTicketAndProject(projectSlug, folderName)
@@ -138,11 +164,18 @@ export async function runShortcut(
       project.path,
       ticket,
       worktreeDir,
-      { skipDirtyCheck: force, skipBehindRemote: force },
+      {
+        skipDirtyCheck: force,
+        skipBehindRemote: force,
+      },
       project.mainBranch,
     )
     if (!resolved.ok) {
-      return { ok: false as const, type: resolved.type, message: resolved.message }
+      return {
+        ok: false as const,
+        type: resolved.type,
+        message: resolved.message,
+      }
     }
     const commandVars = {
       ticketDir: path.resolve(worktreeDir, ticket.folderName),
@@ -155,14 +188,19 @@ export async function runShortcut(
       launchDir,
     }
     await commandTemplateService.executeTrustedScript({
-      source: { kind: 'shortcut', shortcutName: shortcut.name },
+      source: {
+        kind: 'shortcut',
+        shortcutName: shortcut.name,
+      },
       script: shortcut.command,
       values: commandVars,
       knownScalarPlaceholders: Object.keys(commandVars),
       cwd: launchDir,
       mode: 'detached',
     })
-    return { ok: true as const }
+    return {
+      ok: true as const,
+    }
   } catch (e) {
     return errorResult(e)
   }
@@ -170,6 +208,7 @@ export async function runShortcut(
 
 export async function resolveConflicts(projectSlug: string, profileName: string) {
   'use server'
+
   try {
     await resolveConflictsWith(
       {
@@ -185,7 +224,9 @@ export async function resolveConflicts(projectSlug: string, profileName: string)
       projectSlug,
       profileName,
     )
-    return { ok: true as const }
+    return {
+      ok: true as const,
+    }
   } catch (e) {
     return errorResult(e)
   }
@@ -193,11 +234,14 @@ export async function resolveConflicts(projectSlug: string, profileName: string)
 
 export async function abortRebase(projectSlug: string) {
   'use server'
+
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
     await operationTracker.track(ticketSyncManager.abort(worktreeDir))
     worktreeRevisions.bump(worktreeDir)
-    return { ok: true as const }
+    return {
+      ok: true as const,
+    }
   } catch (e) {
     return errorResult(e)
   }

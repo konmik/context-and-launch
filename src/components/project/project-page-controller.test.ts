@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createRoot, flush } from 'solid-js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
-
 import { createProjectPageController } from './project-page-controller.js'
 
 function ticket(): TicketInfo {
@@ -30,22 +29,26 @@ describe('ProjectPageController ticket detail', () => {
           projectSlug: 'test-project',
           projectPath: '/repo',
           suggestedNextNumber: null,
-          board: { columns: [], tickets: [clicked], ticketOrder: {} },
+          board: {
+            columns: [],
+            tickets: [clicked],
+            ticketOrder: {},
+          },
         }),
         runSyncTickets: () => new Promise(() => {}),
       }),
       dispose,
     }))
-
     void controller.commands.openDetail(clicked)
     flush()
-
     expect(controller.selectionState().detailTicket).toBe(clicked)
     dispose()
   })
-
   it('selects a worktree ticket for review', () => {
-    const clicked = { ...ticket(), hasAgentWorktree: true }
+    const clicked = {
+      ...ticket(),
+      hasAgentWorktree: true,
+    }
     const { controller, dispose } = createRoot((dispose) => ({
       controller: createProjectPageController({
         projectSlug: () => 'test-project',
@@ -55,16 +58,18 @@ describe('ProjectPageController ticket detail', () => {
           projectSlug: 'test-project',
           projectPath: '/repo',
           suggestedNextNumber: null,
-          board: { columns: [], tickets: [clicked], ticketOrder: {} },
+          board: {
+            columns: [],
+            tickets: [clicked],
+            ticketOrder: {},
+          },
         }),
         runSyncTickets: () => new Promise(() => {}),
       }),
       dispose,
     }))
-
     controller.commands.openReview(clicked)
     flush()
-
     expect(controller.selectionState().reviewTicket).toBe(clicked)
     dispose()
   })

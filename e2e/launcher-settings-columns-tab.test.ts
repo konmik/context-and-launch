@@ -14,14 +14,12 @@ import { testId, waitVisible, waitGone } from './locators.js'
 
 describe('Launcher Settings Columns tab (e2e, real server)', () => {
   const ctx = setupE2E()
-
   const setup = (suffix: string) =>
     openSettingsTab(ctx, {
       slugBase: `lsc-${suffix}`,
       tab: 'columns',
       withBoards: APP_BOARDS,
     })
-
   it('renders board selector, action buttons, column rows', async () => {
     await setup('renders')
     expect(await testId(ctx.page, 'launcher-settings-columns-board-selector').count()).toBe(1)
@@ -31,7 +29,6 @@ describe('Launcher Settings Columns tab (e2e, real server)', () => {
     expect(await testId(ctx.page, 'launcher-settings-columns-add-column-btn').count()).toBe(1)
     expect(await testId(ctx.page, 'launcher-settings-columns-row').count()).toBeGreaterThan(0)
   })
-
   it('add-board opens form; submit creates new board', async () => {
     await setup('add-board')
     await testId(ctx.page, 'launcher-settings-columns-add-board-btn').click()
@@ -45,7 +42,6 @@ describe('Launcher Settings Columns tab (e2e, real server)', () => {
     )
     expect(boards.map((b) => b.name)).toContain('Sprint Board')
   })
-
   it('board form cancel closes without writing', async () => {
     await setup('add-board-cancel')
     await testId(ctx.page, 'launcher-settings-columns-add-board-btn').click()
@@ -53,7 +49,6 @@ describe('Launcher Settings Columns tab (e2e, real server)', () => {
     await testId(ctx.page, 'launcher-settings-columns-board-form-cancel').click()
     await waitGone(ctx.page, 'launcher-settings-columns-board-name-input')
   })
-
   it('delete-board opens confirm and removes the board', async () => {
     const project = await setup('del-board')
     await ctx.page.selectOption('[data-testid="launcher-settings-columns-board-selector"]', 'simple')
@@ -80,7 +75,6 @@ describe('Launcher Settings Columns tab (e2e, real server)', () => {
       () => document.querySelector<HTMLSelectElement>('[data-testid="launcher-settings-columns-board-selector"]')?.value === 'kanban',
     )
   })
-
   it('delete-cancel keeps board', async () => {
     await setup('del-cancel')
     await ctx.page.selectOption('[data-testid="launcher-settings-columns-board-selector"]', 'simple')
@@ -91,7 +85,6 @@ describe('Launcher Settings Columns tab (e2e, real server)', () => {
     const boards = readBoardDefinitions(ctx.testServer)
     expect(boards.map((b) => b.id)).toContain('simple')
   })
-
   it('add-column opens form; submit adds new column to current board', async () => {
     await setup('add-col')
     await testId(ctx.page, 'launcher-settings-columns-add-column-btn').click()
@@ -118,7 +111,6 @@ describe('Launcher Settings Columns tab (e2e, real server)', () => {
     )
     expect(headers).toContain('code-review')
   })
-
   it("validation error for reserved 'undefined' column name", async () => {
     await setup('validate-undef')
     await testId(ctx.page, 'launcher-settings-columns-add-column-btn').click()
@@ -126,7 +118,6 @@ describe('Launcher Settings Columns tab (e2e, real server)', () => {
     await testId(ctx.page, 'launcher-settings-columns-name-input').fill('undefined')
     expect(await ctx.page.textContent('[data-testid="launcher-settings-columns-name-error"]')).toContain('reserved')
   })
-
   it('form-cancel closes column form', async () => {
     await setup('form-cancel')
     await testId(ctx.page, 'launcher-settings-columns-add-column-btn').click()
@@ -134,7 +125,6 @@ describe('Launcher Settings Columns tab (e2e, real server)', () => {
     await testId(ctx.page, 'launcher-settings-columns-form-cancel').click()
     await waitGone(ctx.page, 'launcher-settings-columns-name-input')
   })
-
   it('column edit opens form; rename flow shows scope options and confirm renames', async () => {
     const project = await setup('rename')
     await testId(ctx.page, 'launcher-settings-columns-edit-button').first().click()
@@ -159,7 +149,6 @@ describe('Launcher Settings Columns tab (e2e, real server)', () => {
     expect(kanban?.columns.map((c) => c.name)).toContain('backlog')
     void project
   })
-
   it('rename dialog cancel keeps column name', async () => {
     await setup('rename-cancel')
     await testId(ctx.page, 'launcher-settings-columns-edit-button').first().click()
@@ -173,12 +162,17 @@ describe('Launcher Settings Columns tab (e2e, real server)', () => {
     const kanban = boards.find((b) => b.id === 'kanban')
     expect(kanban?.columns.map((c) => c.name)).toContain('todo')
   })
-
   it('migrates ticket status when renaming a column for the current project', async () => {
     const project = await openProject(ctx, {
       slugBase: 'lsc-migrate',
       withBoards: APP_BOARDS,
-      withTickets: [{ number: 'T-1', title: 'Alpha', status: 'todo' }],
+      withTickets: [
+        {
+          number: 'T-1',
+          title: 'Alpha',
+          status: 'todo',
+        },
+      ],
     })
     await openLauncherSettings(ctx.page)
     await openLauncherSettingsTab(ctx.page, 'columns')
@@ -194,7 +188,6 @@ describe('Launcher Settings Columns tab (e2e, real server)', () => {
     )
     expect(ticket?.status).toBe('backlog')
   })
-
   it('column delete-button removes column', async () => {
     await setup('delete-col')
     const beforeBoards = readBoardDefinitions(ctx.testServer)
@@ -211,7 +204,6 @@ describe('Launcher Settings Columns tab (e2e, real server)', () => {
     const kanbanAfter = after.find((b) => b.id === 'kanban')
     expect(kanbanAfter?.columns.length).toBe(initialCount - 1)
   })
-
   it('set-project-board-btn opens confirm; confirm sets project boardId, cancel does not', async () => {
     const project = await setup('setproj')
     await ctx.page.selectOption('[data-testid="launcher-settings-columns-board-selector"]', 'simple')
@@ -225,23 +217,19 @@ describe('Launcher Settings Columns tab (e2e, real server)', () => {
     const registryBefore = readProjectRegistry(ctx.testServer)
     const entryBefore = registryBefore.projects.find((p) => p.projectSlug === project.projectSlug)
     expect(entryBefore?.boardId).toBeFalsy()
-
     await testId(ctx.page, 'launcher-settings-columns-set-project-board-btn').click()
     await waitVisible(ctx.page, 'launcher-settings-columns-set-project-board-confirm-btn')
-    await testId(ctx.page, 'launcher-settings-columns-set-project-board-confirm-btn').click()
-    // The dialog closes only after the save resolves, so its disappearance is the
+    await testId(ctx.page, 'launcher-settings-columns-set-project-board-confirm-btn').click() // The dialog closes only after the save resolves, so its disappearance is the
     // app's own signal that the registry has been written.
     await waitGone(ctx.page, 'launcher-settings-columns-set-project-board-message')
     const registryAfter = readProjectRegistry(ctx.testServer)
     const entryAfter = registryAfter.projects.find((p) => p.projectSlug === project.projectSlug)
     expect(entryAfter?.boardId).toBe('simple')
   })
-
   it('columns drag handle exists (reordering covered elsewhere)', async () => {
     await setup('drag-handle')
     expect(await testId(ctx.page, 'launcher-settings-columns-drag-handle').count()).toBeGreaterThan(0)
   })
-
   it('tab triggers for all 4 launcher settings tabs exist', async () => {
     await setup('tabs')
     expect(await testId(ctx.page, 'launcher-settings-tab-launch').count()).toBe(1)

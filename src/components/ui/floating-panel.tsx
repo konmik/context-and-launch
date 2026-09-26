@@ -1,4 +1,3 @@
-/* eslint-disable max-len */
 import { Show, createEffect, createUniqueId, omit, useContext } from 'solid-js'
 import { Portal, type ComponentProps, type JSX } from '@solidjs/web'
 import { createFloatingPanelState, type FloatingPanelPosition as Position, type FloatingPanelSize as Size } from './floating-panel-state.js'
@@ -18,13 +17,23 @@ type FloatingWindowProps = {
   children: JSX.Element
 }
 
-export const FLOATING_WINDOW_MIN_SIZE = { width: 400, height: 300 }
+export const FLOATING_WINDOW_MIN_SIZE = {
+  width: 400,
+  height: 300,
+}
+
 export function tallWindowDefaultSize() {
-  return { width: 768, height: Math.floor((globalThis.window?.innerHeight ?? 800) * 0.8) }
+  return {
+    width: 768,
+    height: Math.floor((globalThis.window?.innerHeight ?? 800) * 0.8),
+  }
 }
 
 export function FloatingPanelRoot(props: FloatingWindowProps) {
-  const initialSize = props.defaultSize ?? { width: 768, height: 600 }
+  const initialSize = props.defaultSize ?? {
+    width: 768,
+    height: 600,
+  }
   const initialPosition = props.defaultPosition ?? {
     x: Math.max(0, ((globalThis.window?.innerWidth ?? 1024) - initialSize.width) / 2),
     y: Math.max(0, ((globalThis.window?.innerHeight ?? 800) - initialSize.height) / 2),
@@ -35,21 +44,35 @@ export function FloatingPanelRoot(props: FloatingWindowProps) {
     initialSize,
     minSize: () => props.minSize ?? FLOATING_WINDOW_MIN_SIZE,
     maxSize: () => props.maxSize,
-    viewport: () => ({ width: innerWidth, height: innerHeight }),
-    onPositionChangeEnd: (position) => props.onPositionChangeEnd?.({ position }),
-    onSizeChangeEnd: (size) => props.onSizeChangeEnd?.({ size }),
+    viewport: () => ({
+      width: innerWidth,
+      height: innerHeight,
+    }),
+    onPositionChangeEnd: (position) =>
+      props.onPositionChangeEnd?.({
+        position,
+      }),
+    onSizeChangeEnd: (size) =>
+      props.onSizeChangeEnd?.({
+        size,
+      }),
   })
   let content!: HTMLDivElement
   let previousFocus: HTMLElement | null = null
   const context = {
-    close: () => props.onOpenChange?.({ open: false }),
+    close: () =>
+      props.onOpenChange?.({
+        open: false,
+      }),
     startMove: panel.startMove,
     startResize: panel.startResize,
     titleId: `${id}-title`,
   }
-
   createEffect(
-    () => ({ open: props.open, persistRect: props.persistRect }),
+    () => ({
+      open: props.open,
+      persistRect: props.persistRect,
+    }),
     ({ open: isOpen, persistRect }) => {
       if (!isOpen) return
       if (!persistRect) panel.reset()
@@ -89,7 +112,6 @@ export function FloatingPanelRoot(props: FloatingWindowProps) {
       }
     },
   )
-
   return (
     <PanelContext value={context}>
       <Show when={props.open}>
@@ -98,7 +120,10 @@ export function FloatingPanelRoot(props: FloatingWindowProps) {
           <div
             data-scope="floating-panel"
             data-part="positioner"
-            style={{ left: `${panel.position().x}px`, top: `${panel.position().y}px` }}
+            style={{
+              left: `${panel.position().x}px`,
+              top: `${panel.position().y}px`,
+            }}
           >
             <div
               ref={content}
@@ -129,9 +154,11 @@ export function FloatingPanelTitle(props: ComponentProps<'h2'>) {
   const panel = useContext(PanelContext)
   return <h2 {...props} id={panel.titleId} data-scope="floating-panel" data-part="title" />
 }
+
 export function FloatingPanelBody(props: ComponentProps<'div'>) {
   return <div {...props} data-scope="floating-panel" data-part="body" />
 }
+
 export function FloatingPanelDragStrip(props?: { 'data-testid'?: string }) {
   const panel = useContext(PanelContext)
   return (
@@ -146,6 +173,7 @@ export function FloatingPanelDragStrip(props?: { 'data-testid'?: string }) {
     />
   )
 }
+
 export function FloatingPanelCloseTrigger(props: ComponentProps<'button'>) {
   const panel = useContext(PanelContext)
   return (
@@ -159,11 +187,16 @@ export function FloatingPanelCloseTrigger(props: ComponentProps<'button'>) {
     />
   )
 }
+
 function FloatingPanelResizeTrigger() {
   const panel = useContext(PanelContext)
   return (
     <div
-      style={{ position: 'absolute', right: 0, bottom: 0 }}
+      style={{
+        position: 'absolute',
+        right: 0,
+        bottom: 0,
+      }}
       data-scope="floating-panel"
       data-part="resize-trigger"
       data-axis="se"
@@ -171,6 +204,7 @@ function FloatingPanelResizeTrigger() {
     />
   )
 }
+
 export function FloatingWindow(props: FloatingWindowProps) {
   const rootProps = omit(props, 'children')
   return (
@@ -183,6 +217,7 @@ export function FloatingWindow(props: FloatingWindowProps) {
     </FloatingPanelRoot>
   )
 }
+
 export function FloatingWindowHeader(props: { title?: JSX.Element; actions?: JSX.Element; children?: JSX.Element }) {
   return (
     <div data-scope="floating-panel" data-part="header">

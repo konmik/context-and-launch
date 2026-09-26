@@ -24,10 +24,8 @@ describe('createCreateTicketController', () => {
             },
           })
           const ctrl = createCreateTicketController(deps)
-
           await runWithOwner(null, ctrl.suggestNumber)
           flush()
-
           expect(ctrl.errorMsg()).toBe('server broke')
           expect(ctrl.suggestingNumber()).toBe(false)
         } finally {
@@ -35,7 +33,6 @@ describe('createCreateTicketController', () => {
         }
       })
     })
-
     it('resets suggestingNumber after successful suggestion', async () => {
       await createRoot(async (dispose) => {
         try {
@@ -43,10 +40,8 @@ describe('createCreateTicketController', () => {
             onSuggestNumber: async () => 'T-42',
           })
           const ctrl = createCreateTicketController(deps)
-
           await runWithOwner(null, ctrl.suggestNumber)
           flush()
-
           expect(ctrl.number()).toBe('T-42')
           expect(ctrl.suggestingNumber()).toBe(false)
         } finally {
@@ -55,7 +50,6 @@ describe('createCreateTicketController', () => {
       })
     })
   })
-
   describe('seeding from the suggested number', () => {
     it('seeds the number when the dialog opens', async () => {
       await createRoot(async (dispose) => {
@@ -69,17 +63,14 @@ describe('createCreateTicketController', () => {
           )
           flush()
           expect(ctrl.number()).toBe('')
-
           runWithOwner(null, () => setOpen(true))
           flush()
-
           expect(ctrl.number()).toBe('ST-0003')
         } finally {
           dispose()
         }
       })
     })
-
     it('keeps a regenerated number when the page revalidates while open', async () => {
       await createRoot(async (dispose) => {
         try {
@@ -92,16 +83,12 @@ describe('createCreateTicketController', () => {
             }),
           )
           flush()
-
           await runWithOwner(null, ctrl.suggestNumber)
           flush()
-          expect(ctrl.number()).toBe('BUG-0002')
-
-          // The server call revalidates the project page, which re-emits the
+          expect(ctrl.number()).toBe('BUG-0002') // The server call revalidates the project page, which re-emits the
           // board-wide suggestion. It must not overwrite what the user has.
           runWithOwner(null, () => setSuggested('ST-0004'))
           flush()
-
           expect(ctrl.number()).toBe('BUG-0002')
         } finally {
           dispose()
@@ -109,12 +96,12 @@ describe('createCreateTicketController', () => {
       })
     })
   })
-
   describe('doSubmit', () => {
     it('does not call onSubmit while suggestingNumber is true', async () => {
       let resolveSuggest!: (v: string | null) => void
-      const submitSpy = { called: false }
-
+      const submitSpy = {
+        called: false,
+      }
       await createRoot(async (dispose) => {
         try {
           const deps = makeDeps({
@@ -128,20 +115,16 @@ describe('createCreateTicketController', () => {
               }),
           })
           const ctrl = createCreateTicketController(deps)
-
           const suggestPromise = runWithOwner(null, ctrl.suggestNumber)
           flush()
           expect(ctrl.suggestingNumber()).toBe(true)
-
           runWithOwner(null, () => {
             ctrl.setNumber('T-1')
             ctrl.setTitle('Some title')
           })
           flush()
           await runWithOwner(null, ctrl.doSubmit)
-
           expect(submitSpy.called).toBe(false)
-
           resolveSuggest(null)
           await suggestPromise
         } finally {

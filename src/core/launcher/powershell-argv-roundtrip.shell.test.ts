@@ -5,7 +5,6 @@ import { runDetachedProcess } from '../command-template/platform-shell-runner.te
 import { useTempDirs } from '../command-template/platform-shell-fixture.test-utils.js'
 
 const makeTempDir = useTempDirs('ps-argv-roundtrip-')
-
 describe.runIf(process.platform === 'win32')('powershell -File argv round-trip (agent-launch quoting)', () => {
   it('Start-Process round-trips a title containing double quotes', async () => {
     const dir = makeTempDir()
@@ -34,7 +33,6 @@ describe.runIf(process.platform === 'win32')('powershell -File argv round-trip (
     const received: string[] = JSON.parse(fs.readFileSync(outPath, 'utf-8'))
     expect(received[0]).toBe(title)
   }, 30000)
-
   it('delivers quote-laden ticket-title args intact and in position', async () => {
     const dir = makeTempDir()
     const probePath = path.join(dir, 'probe.ps1')

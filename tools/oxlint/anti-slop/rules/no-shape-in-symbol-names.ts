@@ -19,15 +19,20 @@ export const noForbiddenTermInSymbolNamesRule = defineRule({
     },
   },
   createOnce(context) {
-    const reportForbiddenSymbolName = (node: ESTree.Node & { name: string }) => {
+    const reportForbiddenSymbolName = (
+      node: ESTree.Node & {
+        name: string
+      },
+    ) => {
       if (!containsForbiddenSymbolName(node.name)) return
       context.report({
         node,
         messageId: 'forbiddenSymbolName',
-        data: { name: node.name },
+        data: {
+          name: node.name,
+        },
       })
     }
-
     return {
       Identifier: reportForbiddenSymbolName,
       PrivateIdentifier: reportForbiddenSymbolName,

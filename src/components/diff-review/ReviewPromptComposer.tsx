@@ -20,8 +20,7 @@ function setPromptDragData(event: DragEvent, text: string, onError: (message: st
   if (!event.dataTransfer) {
     onError('The drag carried no data, so the Review Prompt was not attached to it.')
     return
-  }
-  // Chromium seeds a selection drag with text/html as well, so the markup has to
+  } // Chromium seeds a selection drag with text/html as well, so the markup has to
   // go before the prompt is attached or rich-text targets paste the diff instead.
   event.dataTransfer.clearData()
   event.dataTransfer.effectAllowed = 'copy'
@@ -56,7 +55,6 @@ export default function ReviewPromptComposer(props: {
   onSend(feedback: string): Promise<boolean>
 }) {
   let inputRef: HTMLTextAreaElement | undefined
-
   const agentStatus = useContext(ReviewAgentStatusContext)!.get
   const agentPresent = () => !!props.herdrStatus || agentStatus().agentRunning
 

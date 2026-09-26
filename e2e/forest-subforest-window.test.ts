@@ -13,55 +13,100 @@ import { testId } from './locators.js'
 
 declare global {
   interface Window {
-    __lineSamples: { dx: number; dy: number; dyEnd: number }[]
+    __lineSamples: {
+      dx: number
+      dy: number
+      dyEnd: number
+    }[]
   }
 }
 
 describe('Forest sub-forest window', () => {
   const ctx = setupE2E()
-
   it('sub-forest opens and closes', async () => {
     await openForestProject(ctx, {
       slugBase: 'fg-sub',
       tickets: [
-        { number: 'S-1', title: 'Member One', memberOf: 'S-G' },
-        { number: 'S-2', title: 'Member Two', memberOf: 'S-G' },
-        { number: 'S-G', title: 'Group' },
+        {
+          number: 'S-1',
+          title: 'Member One',
+          memberOf: 'S-G',
+        },
+        {
+          number: 'S-2',
+          title: 'Member Two',
+          memberOf: 'S-G',
+        },
+        {
+          number: 'S-G',
+          title: 'Group',
+        },
       ],
     })
-
-    await forestGroupCard(ctx.page).waitFor({ state: 'visible', timeout: 15000 })
+    await forestGroupCard(ctx.page).waitFor({
+      state: 'visible',
+      timeout: 15000,
+    })
     await openSubforest(ctx.page)
     await closeSubforest(ctx.page)
     expect(await subforestCloseButton(ctx.page).count()).toBe(0)
   }, 120000)
-
   it('centers only the tickets inside the open Group', async () => {
     await openForestProject(ctx, {
       slugBase: 'fg-center-scope',
       tickets: [
-        { number: 'S-1', title: 'First member', memberOf: 'S-G' },
-        { number: 'S-2', title: 'Second member', memberOf: 'S-G' },
-        { number: 'S-G', title: 'Target Group' },
-        { number: 'O-1', title: 'Distant member', memberOf: 'O-G' },
-        { number: 'O-G', title: 'Other Group' },
+        {
+          number: 'S-1',
+          title: 'First member',
+          memberOf: 'S-G',
+        },
+        {
+          number: 'S-2',
+          title: 'Second member',
+          memberOf: 'S-G',
+        },
+        {
+          number: 'S-G',
+          title: 'Target Group',
+        },
+        {
+          number: 'O-1',
+          title: 'Distant member',
+          memberOf: 'O-G',
+        },
+        {
+          number: 'O-G',
+          title: 'Other Group',
+        },
       ],
       layout: {
-        'S-1': { x: 0, y: 0 },
-        'S-2': { x: 300, y: 0 },
-        'S-G': { x: 2500, y: 0 },
-        'O-G': { x: 2800, y: 0 },
-        'O-1': { x: 5000, y: 0 },
+        'S-1': {
+          x: 0,
+          y: 0,
+        },
+        'S-2': {
+          x: 300,
+          y: 0,
+        },
+        'S-G': {
+          x: 2500,
+          y: 0,
+        },
+        'O-G': {
+          x: 2800,
+          y: 0,
+        },
+        'O-1': {
+          x: 5000,
+          y: 0,
+        },
       },
     })
-
     await openSubforest(ctx.page, 'S-G')
     const subforest = testId(ctx.page, 'forest-subforest-backdrop')
     const surface = testId(subforest, 'forest-surface')
-
     await ctx.page.waitForTimeout(300)
     await testId(surface, 'forest-center-button').click()
-
     const surfaceBox = await boxOf(surface)
     const cardBoxes = await testId(subforest, 'forest-ticket-card').evaluateAll((elements) =>
       elements.map((element) => element.getBoundingClientRect().toJSON()),
@@ -71,7 +116,6 @@ describe('Forest sub-forest window', () => {
     const right = Math.max(...cardBoxes.map((box) => box.x + box.width))
     expect((left + right) / 2).toBeCloseTo(surfaceBox.x + surfaceBox.width / 2, 0)
   }, 120000)
-
   it('keeps internal and external connectors attached after a Group finishes opening', async () => {
     await openForestProject(ctx, {
       slugBase: 'fg-open-connector-alignment',
@@ -87,18 +131,28 @@ describe('Forest sub-forest window', () => {
           title: 'A dependency title long enough to wrap onto another line',
           memberOf: 'S-G',
         },
-        { number: 'S-G', title: 'Group' },
-        { number: 'S-OUT', title: 'Outside', dependsOn: ['S-1'] },
+        {
+          number: 'S-G',
+          title: 'Group',
+        },
+        {
+          number: 'S-OUT',
+          title: 'Outside',
+          dependsOn: ['S-1'],
+        },
       ],
       layout: {
-        'S-1': { x: -166.6666259765625, y: -245.33331298828125 },
-        'S-2': { x: 221.3333740234375, y: -64 },
+        'S-1': {
+          x: -166.6666259765625,
+          y: -245.33331298828125,
+        },
+        'S-2': {
+          x: 221.3333740234375,
+          y: -64,
+        },
       },
     })
-
-    await openSubforest(ctx.page, 'S-G')
-
-    // Both connectors are drawn before the Group's viewport transform lands, so
+    await openSubforest(ctx.page, 'S-G') // Both connectors are drawn before the Group's viewport transform lands, so
     // they sit at an untransformed position for a moment. Wait for the internal
     // line to reach its cards; the endpoints are only meaningful after that.
     const internalPath = ctx.page.locator('[data-testid="forest-subforest-backdrop"] [data-testid="forest-dependency"]')
@@ -109,22 +163,20 @@ describe('Forest sub-forest window', () => {
           const endpoints = await pathScreenEndpoints(internalPath)
           return Math.max(Math.abs(endpoints.start.x - (box.x + box.width / 2)), Math.abs(endpoints.start.y - (box.y + box.height)))
         },
-        { timeout: 15000 },
+        {
+          timeout: 15000,
+        },
       )
       .toBeLessThan(0.05)
-
     const dependentBox = await boxOf(forestCard(ctx.page, 'S-1'))
     const dependencyBox = await boxOf(forestCard(ctx.page, 'S-2'))
     expect(dependentBox.height).toBeGreaterThan(72)
     expect(dependencyBox.height).toBeGreaterThan(72)
-
     const internalEndpoints = await pathScreenEndpoints(internalPath)
     expect(internalEndpoints.start.x).toBeCloseTo(dependentBox.x + dependentBox.width / 2, 1)
     expect(internalEndpoints.start.y).toBeCloseTo(dependentBox.y + dependentBox.height, 1)
     expect(internalEndpoints.end.x).toBeCloseTo(dependencyBox.x + dependencyBox.width / 2, 1)
-    expect(internalEndpoints.end.y).toBeCloseTo(dependencyBox.y, 1)
-
-    // The external line is re-anchored as the Group window settles, so wait for
+    expect(internalEndpoints.end.y).toBeCloseTo(dependencyBox.y, 1) // The external line is re-anchored as the Group window settles, so wait for
     // it to reach its member rather than sampling wherever it currently is.
     const externalPath = ctx.page.locator('[data-testid="forest-subforest-backdrop"] [data-testid="forest-external-dependency"]')
     await expect
@@ -134,29 +186,48 @@ describe('Forest sub-forest window', () => {
           const endpoints = await pathScreenEndpoints(externalPath)
           return Math.max(Math.abs(endpoints.start.x - (box.x + box.width / 2)), Math.abs(endpoints.start.y - box.y))
         },
-        { timeout: 15000 },
+        {
+          timeout: 15000,
+        },
       )
       .toBeLessThan(0.05)
   }, 120000)
-
   it('attaches pre-existing external lines to the Group window after opening', async () => {
     await openForestProject(ctx, {
       slugBase: 'fg-open-down-line',
       tickets: [
-        { number: 'S-1', title: 'Member', memberOf: 'S-G', dependsOn: ['S-OUT'] },
-        { number: 'S-G', title: 'Group' },
-        { number: 'S-OUT', title: 'Outside' },
+        {
+          number: 'S-1',
+          title: 'Member',
+          memberOf: 'S-G',
+          dependsOn: ['S-OUT'],
+        },
+        {
+          number: 'S-G',
+          title: 'Group',
+        },
+        {
+          number: 'S-OUT',
+          title: 'Outside',
+        },
       ],
       layout: {
-        'S-1': { x: 0, y: 0 },
-        'S-G': { x: 0, y: -160 },
-        'S-OUT': { x: 248, y: 0 },
+        'S-1': {
+          x: 0,
+          y: 0,
+        },
+        'S-G': {
+          x: 0,
+          y: -160,
+        },
+        'S-OUT': {
+          x: 248,
+          y: 0,
+        },
       },
     })
-
     await openSubforest(ctx.page, 'S-G')
     await ctx.page.waitForTimeout(500)
-
     const memberBox = await boxOf(forestCard(ctx.page, 'S-1'))
     const windowBox = await boxOf(subforestCloseButton(ctx.page).locator('..'))
     const endpoints = await pathScreenEndpoints(testId(ctx.page, 'forest-external-dependency'))
@@ -165,24 +236,46 @@ describe('Forest sub-forest window', () => {
     expect(Math.abs(top - (memberBox.y + memberBox.height))).toBeLessThan(4)
     expect(Math.abs(bottom - (windowBox.y + windowBox.height))).toBeLessThan(4)
   }, 120000)
-
   it('keeps external lines attached to their member on every frame while the Group opens', async () => {
     await openForestProject(ctx, {
       slugBase: 'fg-open-line-frames',
       tickets: [
-        { number: 'S-1', title: 'Member', memberOf: 'S-G', dependsOn: ['S-OUT'] },
-        { number: 'S-G', title: 'Group' },
-        { number: 'S-OUT', title: 'Outside' },
+        {
+          number: 'S-1',
+          title: 'Member',
+          memberOf: 'S-G',
+          dependsOn: ['S-OUT'],
+        },
+        {
+          number: 'S-G',
+          title: 'Group',
+        },
+        {
+          number: 'S-OUT',
+          title: 'Outside',
+        },
       ],
       layout: {
-        'S-1': { x: 0, y: 0 },
-        'S-G': { x: 0, y: -160 },
-        'S-OUT': { x: 248, y: 0 },
+        'S-1': {
+          x: 0,
+          y: 0,
+        },
+        'S-G': {
+          x: 0,
+          y: -160,
+        },
+        'S-OUT': {
+          x: 248,
+          y: 0,
+        },
       },
     })
-
     await ctx.page.evaluate(() => {
-      const samples: { dx: number; dy: number; dyEnd: number }[] = []
+      const samples: {
+        dx: number
+        dy: number
+        dyEnd: number
+      }[] = []
       window.__lineSamples = samples
       const deadline = performance.now() + 2000
       const sample = () => {
@@ -216,7 +309,6 @@ describe('Forest sub-forest window', () => {
     await forestGroupCard(ctx.page, 'S-G').click()
     await ctx.page.waitForTimeout(1200)
     const samples = await ctx.page.evaluate(() => window.__lineSamples)
-
     expect(samples.length).toBeGreaterThan(5)
     for (const sample of samples) {
       expect(Math.abs(sample.dx)).toBeLessThan(5)
@@ -224,21 +316,27 @@ describe('Forest sub-forest window', () => {
       expect(Math.abs(sample.dyEnd)).toBeLessThan(5)
     }
   }, 120000)
-
   it('clicking outside an open Group closes it', async () => {
     await openForestProject(ctx, {
       slugBase: 'fg-outside-close',
       tickets: [
-        { number: 'S-1', title: 'Member', memberOf: 'S-G' },
-        { number: 'S-G', title: 'Group' },
+        {
+          number: 'S-1',
+          title: 'Member',
+          memberOf: 'S-G',
+        },
+        {
+          number: 'S-G',
+          title: 'Group',
+        },
       ],
     })
-
     await openSubforest(ctx.page)
     const backdropBox = await boxOf(testId(ctx.page, 'forest-subforest-backdrop'))
-
     await ctx.page.mouse.click(backdropBox.x + 10, backdropBox.y + 10)
-
-    await subforestCloseButton(ctx.page).waitFor({ state: 'detached', timeout: 10000 })
+    await subforestCloseButton(ctx.page).waitFor({
+      state: 'detached',
+      timeout: 10000,
+    })
   }, 120000)
 }, 120000)

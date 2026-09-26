@@ -25,9 +25,7 @@ export class WorktreeManager {
     if (!fs.existsSync(projectPath)) {
       throw new Error(`Project path does not exist: ${projectPath}`)
     }
-
     const canonicalPath = fs.realpathSync(projectPath)
-
     const lockKey = canonicalPath
     const prev = this.locks.get(lockKey) ?? Promise.resolve()
     const next = prev.then(
@@ -35,37 +33,41 @@ export class WorktreeManager {
       () => this.doEnsureWorktree(canonicalPath, projectSlug, branch),
     )
     this.locks.set(lockKey, next)
-
     return next
   }
 
   private async doEnsureWorktree(projectPath: string, projectSlug: string, branch: string): Promise<string> {
     const worktreeDir = this.resolveTicketsDir(projectSlug)
-
     if (fs.existsSync(worktreeDir) && this.isValidWorktree(worktreeDir)) {
       return worktreeDir
     }
-
     if (fs.existsSync(worktreeDir)) {
       throw new Error(
         `Worktree directory exists but has invalid git metadata: ${worktreeDir}.` + ` Inspect and remove it manually, then try again.`,
       )
     }
-
-    fs.mkdirSync(path.dirname(worktreeDir), { recursive: true })
-
-    const localList = await this.commands.execute('worktree.branch.local-list', projectPath, { branch })
+    fs.mkdirSync(path.dirname(worktreeDir), {
+      recursive: true,
+    })
+    const localList = await this.commands.execute('worktree.branch.local-list', projectPath, {
+      branch,
+    })
     if (localList.trim().length > 0) {
       await this.releaseBranchWorktree(projectPath, worktreeDir, branch)
-      await this.commands.execute('worktree.add-existing', projectPath, { worktreeDir, branch })
+      await this.commands.execute('worktree.add-existing', projectPath, {
+        worktreeDir,
+        branch,
+      })
       return worktreeDir
     }
-
     if (await this.tryAdoptRemoteBranch(projectPath, worktreeDir, branch)) {
       return worktreeDir
     }
-
-    await this.commands.execute('worktree.create-orphan', projectPath, { worktreeDir, branch, message: `init ${branch}` })
+    await this.commands.execute('worktree.create-orphan', projectPath, {
+      worktreeDir,
+      branch,
+      message: `init ${branch}`,
+    })
     return worktreeDir
   }
 
@@ -73,7 +75,10 @@ export class WorktreeManager {
     const remote = await this.defaultRemote(projectPath)
     if (!remote) return false
     try {
-      const remoteHeads = await this.commands.execute('worktree.remote-branch.probe', projectPath, { remote, branch })
+      const remoteHeads = await this.commands.execute('worktree.remote-branch.probe', projectPath, {
+        remote,
+        branch,
+      })
       if (remoteHeads.trim().length === 0) return false
       await this.commands.execute('worktree.adopt-remote', projectPath, {
         remote,
@@ -128,30 +133,24 @@ export class WorktreeManager {
     if (!fs.existsSync(dotGit)) return false
     const stat = fs.statSync(dotGit)
     if (!stat.isFile()) return false
-
     const content = fs.readFileSync(dotGit, 'utf-8').trim()
     const gitDir = content.replace(/^gitdir:\s*/, '')
     const resolved = path.resolve(dir, gitDir)
     if (!fs.existsSync(resolved)) return false
-
     return this.headResolves(resolved)
   }
 
   private headResolves(gitDir: string): boolean {
     const headPath = path.join(gitDir, 'HEAD')
     if (!fs.existsSync(headPath)) return false
-
     const head = fs.readFileSync(headPath, 'utf-8').trim()
     if (!head.startsWith('ref: ')) {
       return true
     }
-
     const ref = head.slice(5)
     const commondirPath = path.join(gitDir, 'commondir')
     const commondir = fs.existsSync(commondirPath) ? path.resolve(gitDir, fs.readFileSync(commondirPath, 'utf-8').trim()) : gitDir
-
     if (fs.existsSync(path.join(commondir, ref))) return true
-
     const packedRefsPath = path.join(commondir, 'packed-refs')
     if (fs.existsSync(packedRefsPath)) {
       const packedRefs = fs.readFileSync(packedRefsPath, 'utf-8')
@@ -159,7 +158,6 @@ export class WorktreeManager {
         return true
       }
     }
-
     return false
   }
 }

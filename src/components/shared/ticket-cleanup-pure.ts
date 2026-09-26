@@ -3,15 +3,25 @@ import type { CleanupCheckItem, CleanupItemKey, TicketCleanupOptions } from '~/c
 
 export type { TicketCleanupOptions }
 
-export type CleanupItemClientState = { state: 'checking' } | CleanupCheckItem
+export type CleanupItemClientState =
+  | {
+      state: 'checking'
+    }
+  | CleanupCheckItem
+
 export type TicketCleanupItemStates = Record<CleanupItemKey, CleanupItemClientState>
 
 export function allChecking(): TicketCleanupItemStates {
-  return buildStates(() => ({ state: 'checking' }))
+  return buildStates(() => ({
+    state: 'checking',
+  }))
 }
 
 export function allError(error: ErrorInfo): TicketCleanupItemStates {
-  return buildStates(() => ({ state: 'error', error }))
+  return buildStates(() => ({
+    state: 'error',
+    error,
+  }))
 }
 
 export function noCleanupOptions(): TicketCleanupOptions {

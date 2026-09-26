@@ -4,16 +4,25 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-const alias = { '~': path.resolve(__dirname, 'src') }
-const solidVite = () => ({ plugins: solidPlugin(), resolve: { alias } })
+const alias = {
+  '~': path.resolve(__dirname, 'src'),
+}
+const solidVite = () => ({
+  plugins: solidPlugin(),
+  resolve: {
+    alias,
+  },
+})
 const timingReporter = fileURLToPath(new URL('./scripts/test-timing-reporter.ts', import.meta.url))
 const projectTemplate = fileURLToPath(new URL('./e2e/project-template.ts', import.meta.url))
-
 export default defineConfig({
   ...solidVite(),
   test: {
-    poolOptions: { forks: { maxForks: process.platform === 'win32' ? 8 : 24 } },
+    poolOptions: {
+      forks: {
+        maxForks: process.platform === 'win32' ? 8 : 24,
+      },
+    },
     reporters: ['default', timingReporter],
     projects: [
       {
@@ -30,14 +39,26 @@ export default defineConfig({
       },
       {
         ...solidVite(),
-        test: { name: 'unit-tsx', include: ['src/**/*.test.tsx'], environment: 'jsdom', setupFiles: ['src/test-setup.ts'] },
+        test: {
+          name: 'unit-tsx',
+          include: ['src/**/*.test.tsx'],
+          environment: 'jsdom',
+          setupFiles: ['src/test-setup.ts'],
+        },
       },
       {
         ...solidVite(),
-        test: { name: 'server', environment: 'node', include: ['src/server/**/*.test.ts'], setupFiles: ['src/test-git-env.ts'] },
+        test: {
+          name: 'server',
+          environment: 'node',
+          include: ['src/server/**/*.test.ts'],
+          setupFiles: ['src/test-git-env.ts'],
+        },
       },
       {
-        resolve: { alias },
+        resolve: {
+          alias,
+        },
         test: {
           name: 'e2e',
           include: ['e2e/**/*.test.ts'],
@@ -45,7 +66,11 @@ export default defineConfig({
           // and real files. Windows serialises far more of that I/O than the core
           // count suggests, and oversubscribing it starves individual runs until
           // they miss their deadlines. Unit projects keep the wider default.
-          poolOptions: { forks: { maxForks: process.platform === 'win32' ? 4 : 12 } },
+          poolOptions: {
+            forks: {
+              maxForks: process.platform === 'win32' ? 4 : 12,
+            },
+          },
           testTimeout: 60000,
           hookTimeout: 60000,
           maxConcurrency: 4,
@@ -54,7 +79,9 @@ export default defineConfig({
         },
       },
       {
-        resolve: { alias },
+        resolve: {
+          alias,
+        },
         test: {
           name: 'bench',
           include: ['e2e/**/*.bench.ts'],

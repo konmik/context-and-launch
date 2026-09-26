@@ -40,27 +40,50 @@ export function agentRunning(projectSlug: string, folderName: string): boolean {
 }
 
 export type ResolveLaunchDirResult =
-  | { ok: true; launchDir: string }
-  | { ok: false; type: 'dirtyWorktree'; message: string }
-  | { ok: false; type: 'behindRemote'; message: string }
+  | {
+      ok: true
+      launchDir: string
+    }
+  | {
+      ok: false
+      type: 'dirtyWorktree'
+      message: string
+    }
+  | {
+      ok: false
+      type: 'behindRemote'
+      message: string
+    }
 
 export async function ensureLaunchDir(
   projectSlug: string,
   folderName: string,
   useWorktree: boolean,
   projectPath: string,
-  ticket: { agentWorktreeBranchName?: string; agentWorktreeDir?: string },
+  ticket: {
+    agentWorktreeBranchName?: string
+    agentWorktreeDir?: string
+  },
   worktreeDir: string,
-  opts?: { skipDirtyCheck?: boolean; skipBehindRemote?: boolean },
+  opts?: {
+    skipDirtyCheck?: boolean
+    skipBehindRemote?: boolean
+  },
   mainBranch?: string,
 ): Promise<ResolveLaunchDirResult> {
-  if (!useWorktree) return { ok: true, launchDir: projectPath }
+  if (!useWorktree)
+    return {
+      ok: true,
+      launchDir: projectPath,
+    }
   const savedInfo = toSavedWorktreeInfo(ticket)
   const result = await agentWorktreeManager.ensureAgentWorktree(
     projectPath,
     projectSlug,
     folderName,
-    { skipDirtyCheck: opts?.skipDirtyCheck },
+    {
+      skipDirtyCheck: opts?.skipDirtyCheck,
+    },
     mainBranch,
     savedInfo,
   )
@@ -81,7 +104,10 @@ export async function ensureLaunchDir(
   if (!ticket.agentWorktreeBranchName) {
     new TicketStore(worktreeDir).saveAgentWorktreeInfo(folderName, result.branchName, result.worktreePath)
   }
-  return { ok: true, launchDir: result.worktreePath }
+  return {
+    ok: true,
+    launchDir: result.worktreePath,
+  }
 }
 
 export function resolveTicketAndProject(projectSlug: string, folderName: string) {
@@ -89,11 +115,13 @@ export function resolveTicketAndProject(projectSlug: string, folderName: string)
   const store = new TicketStore(worktreeDir)
   const ticket = store.getTicket(folderName)
   if (!ticket) throw new NotFoundError(`Ticket not found: ${folderName}`)
-
   const project = projectRegistry.listProjects().find((p) => p.projectSlug === projectSlug)
   if (!project) throw new NotFoundError(`Project not found: ${projectSlug}`)
-
-  return { ticket, project, worktreeDir }
+  return {
+    ticket,
+    project,
+    worktreeDir,
+  }
 }
 
 export async function spawnProfile(profile: LauncherProfile, commandVars: Record<string, string>, cwd: string): Promise<void> {
@@ -109,13 +137,10 @@ async function spawnAgent(
   launchDir: string,
 ): Promise<void> {
   const merged = launcherConfigManager.getMergedConfig(projectSlug)
-
   const profile = merged.profiles.find((p) => p.name === launchRequest.profileName) ?? merged.profiles[0]
-
   if (!profile || !profile.command.trim()) {
     throw new Error('No valid profile configured for launch')
   }
-
   const commandVars = {
     initialPrompt: launchRequest.initialPrompt,
     windowTitle,
@@ -130,7 +155,13 @@ async function spawnAgent(
 }
 
 export async function launchAgent(projectSlug: string, ticket: TicketInfo, launchRequest: LaunchRequest, launchDir: string): Promise<void> {
-  const context = launchRequest.useWorktree ? { worktreePath: launchDir } : { projectName: projectRegistry.getName(projectSlug) }
+  const context = launchRequest.useWorktree
+    ? {
+        worktreePath: launchDir,
+      }
+    : {
+        projectName: projectRegistry.getName(projectSlug),
+      }
   const agentDisplayName = buildAgentDisplayName(ticket, context)
   const windowTitle = buildWindowTitle(ticket, context)
   await spawnAgent(projectSlug, ticket.folderName, windowTitle, agentDisplayName, launchRequest, launchDir)

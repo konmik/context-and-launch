@@ -5,6 +5,7 @@ import { SharedLauncherConfigStore } from './shared-launcher-config-store.js'
 import { decodeLauncherConfig, mergeLauncherConfigs, type LauncherConfig } from './launcher-config-data.js'
 import { UpdateLock } from '~/util/update-lock.js'
 import type { Updater } from '~/util/updater.js'
+
 export * from './launcher-config-data.js'
 
 export class LauncherConfigManager {
@@ -25,12 +26,15 @@ export class LauncherConfigManager {
   getAppConfigDir(): string {
     return this.paths.appConfigDir()
   }
+
   getConfigDefaultsDir(): string {
     return this.paths.configDefaults()
   }
+
   getProjectDir(projectSlug: string): string {
     return this.paths.projectDir(projectSlug)
   }
+
   getAgentWorktreeDir(projectSlug: string): string {
     return this.paths.agentWorktreeDir(projectSlug)
   }
@@ -46,6 +50,7 @@ export class LauncherConfigManager {
   loadAppConfig(): LauncherConfig {
     return this.sharedConfig.read()
   }
+
   saveAppConfig(config: LauncherConfig): void {
     this.sharedConfig.write(config)
   }

@@ -11,7 +11,9 @@ const SECOND_REFRESH_TEXT = 'alternate completed log snapshot'
 
 function seedLogs(dataDir: string, text: string): void {
   const logDir = path.join(dataDir, 'logs')
-  fs.mkdirSync(logDir, { recursive: true })
+  fs.mkdirSync(logDir, {
+    recursive: true,
+  })
   for (const file of fs.readdirSync(logDir)) {
     if (file.startsWith('app-') && file.endsWith('.log')) {
       fs.unlinkSync(path.join(logDir, file))
@@ -44,8 +46,7 @@ async function deferNextLogRead(page: Page): Promise<{
     if (!serverIdHeader) {
       await route.fallback()
       return
-    }
-    // Solid 2's Vite plugin generates opaque server-function IDs, so the log
+    } // Solid 2's Vite plugin generates opaque server-function IDs, so the log
     // read is identified by being the first server call the panel makes. Every
     // caller freezes the page clock first, which keeps background polls from
     // firing and taking this slot.
@@ -58,7 +59,9 @@ async function deferNextLogRead(page: Page): Promise<{
     try {
       await released
       const response = await route.fetch()
-      await route.fulfill({ response })
+      await route.fulfill({
+        response,
+      })
       await page.unroute('**/_server*', handler)
       resolveHandled()
     } catch (error) {
@@ -77,17 +80,28 @@ async function deferNextLogRead(page: Page): Promise<{
 
 async function openLogs(page: Page): Promise<void> {
   await testId(page, 'project-header-logs-button').click()
-  await logPanel(page).waitFor({ state: 'visible' })
+  await logPanel(page).waitFor({
+    state: 'visible',
+  })
 }
 
 async function closeLogs(page: Page): Promise<void> {
   const panel = logPanel(page)
-  await panel.getByRole('button', { name: 'Close', exact: true }).click()
-  await panel.waitFor({ state: 'hidden' })
+  await panel
+    .getByRole('button', {
+      name: 'Close',
+      exact: true,
+    })
+    .click()
+  await panel.waitFor({
+    state: 'hidden',
+  })
 }
 
 function logPanel(page: Page): Locator {
-  return page.locator('[data-scope="floating-panel"][data-part="content"]').filter({ hasText: 'Application Logs' })
+  return page.locator('[data-scope="floating-panel"][data-part="content"]').filter({
+    hasText: 'Application Logs',
+  })
 }
 
 function loadingStatus(page: Page): Locator {
@@ -95,7 +109,9 @@ function loadingStatus(page: Page): Locator {
 }
 
 async function waitForLoadingStatus(page: Page): Promise<void> {
-  await loadingStatus(page).waitFor({ state: 'visible' })
+  await loadingStatus(page).waitFor({
+    state: 'visible',
+  })
 }
 
 async function waitForEmptyStatus(page: Page): Promise<void> {
@@ -107,10 +123,20 @@ async function expectStatusAbsent(status: Locator): Promise<void> {
 }
 
 async function waitForPanelText(page: Page, text: string): Promise<void> {
-  await expect.poll(async () => logPanel(page).innerText(), { timeout: 10000 }).toContain(text)
+  await expect
+    .poll(async () => logPanel(page).innerText(), {
+      timeout: 10000,
+    })
+    .toContain(text)
 }
 
-async function resizeLogPanel(page: Page, delta: { x: number; y: number }): Promise<void> {
+async function resizeLogPanel(
+  page: Page,
+  delta: {
+    x: number
+    y: number
+  },
+): Promise<void> {
   const handle = logPanel(page).locator('[data-part="resize-trigger"][data-axis="se"]')
   const box = await handle.boundingBox()
   if (!box) throw new Error('Log viewer resize handle is not visible')
@@ -118,7 +144,9 @@ async function resizeLogPanel(page: Page, delta: { x: number; y: number }): Prom
   const startY = box.y + box.height / 2
   await page.mouse.move(startX, startY)
   await page.mouse.down()
-  await page.mouse.move(startX + delta.x, startY + delta.y, { steps: 20 })
+  await page.mouse.move(startX + delta.x, startY + delta.y, {
+    steps: 20,
+  })
   await page.mouse.up()
 }
 
@@ -130,7 +158,9 @@ describe('Application Logs dialog (e2e, real server)', () => {
   const ctx = setupE2E()
 
   async function setupProject(prefix: string): Promise<void> {
-    await openProject(ctx, { slugBase: prefix })
+    await openProject(ctx, {
+      slugBase: prefix,
+    })
   }
 
   it('shows content when the initial log read completes', async () => {
@@ -138,7 +168,6 @@ describe('Application Logs dialog (e2e, real server)', () => {
     await ctx.page.clock.install()
     seedLogs(ctx.testServer.dataDir, LOG_TEXT)
     const deferred = await deferNextLogRead(ctx.page)
-
     await openLogs(ctx.page)
     await deferred.requestUrl
     try {
@@ -150,7 +179,6 @@ describe('Application Logs dialog (e2e, real server)', () => {
     await waitForPanelText(ctx.page, LOG_TEXT)
     await expectStatusAbsent(loadingStatus(ctx.page))
   })
-
   it('retains completed content while a refresh is pending', async () => {
     await setupProject('logs-refresh')
     await ctx.page.clock.install()
@@ -159,12 +187,10 @@ describe('Application Logs dialog (e2e, real server)', () => {
     await waitForPanelText(ctx.page, LOG_TEXT)
     seedLogs(ctx.testServer.dataDir, '')
     const deferred = await deferNextLogRead(ctx.page)
-
     await ctx.page.clock.runFor(10000)
     await deferred.requestUrl
     const refreshPendingText = await logPanel(ctx.page).innerText()
     expect(refreshPendingText).toContain(LOG_TEXT)
-
     seedLogs(ctx.testServer.dataDir, REFRESH_TEXT)
     await deferred.release()
     await waitForPanelText(ctx.page, REFRESH_TEXT)
@@ -177,18 +203,19 @@ describe('Application Logs dialog (e2e, real server)', () => {
     await nextRefresh.release()
     await waitForPanelText(ctx.page, SECOND_REFRESH_TEXT)
   })
-
   it('clear stays loaded-empty and close rejects a late read and stops polling', async () => {
     await setupProject('logs-close')
     await ctx.page.clock.install()
     seedLogs(ctx.testServer.dataDir, LOG_TEXT)
     await openLogs(ctx.page)
     await waitForPanelText(ctx.page, LOG_TEXT)
-
-    await logPanel(ctx.page).getByRole('button', { name: 'Clear logs' }).click()
+    await logPanel(ctx.page)
+      .getByRole('button', {
+        name: 'Clear logs',
+      })
+      .click()
     await waitForEmptyStatus(ctx.page)
     await closeLogs(ctx.page)
-
     seedLogs(ctx.testServer.dataDir, REFRESH_TEXT)
     const deferred = await deferNextLogRead(ctx.page)
     await openLogs(ctx.page)
@@ -204,26 +231,32 @@ describe('Application Logs dialog (e2e, real server)', () => {
     await ctx.page.clock.runFor(30000)
     ctx.page.off('request', countReads)
     expect(laterReads).toBe(0)
-    expect(await logPanel(ctx.page).getByText(REFRESH_TEXT, { exact: true }).count()).toBe(0)
+    expect(
+      await logPanel(ctx.page)
+        .getByText(REFRESH_TEXT, {
+          exact: true,
+        })
+        .count(),
+    ).toBe(0)
   })
-
   it('clear rejects an in-flight initial read', async () => {
     await setupProject('logs-clear-pending')
     await ctx.page.clock.install()
     seedLogs(ctx.testServer.dataDir, LOG_TEXT)
     const deferred = await deferNextLogRead(ctx.page)
-
     await openLogs(ctx.page)
     await deferred.requestUrl
-    await logPanel(ctx.page).getByRole('button', { name: 'Clear logs' }).click()
+    await logPanel(ctx.page)
+      .getByRole('button', {
+        name: 'Clear logs',
+      })
+      .click()
     await waitForEmptyStatus(ctx.page)
-
     await deferred.release()
     await ctx.page.waitForTimeout(100)
     await waitForEmptyStatus(ctx.page)
     expect(await logPanel(ctx.page).innerText()).not.toContain(LOG_TEXT)
   })
-
   it('renders only viewport-sized content for a full log history', async () => {
     await setupProject('logs-resize')
     const line = '2026-07-24T10:00:00.000Z [app] realistic application log output for resize performance\n'
@@ -231,12 +264,13 @@ describe('Application Logs dialog (e2e, real server)', () => {
     seedLogs(ctx.testServer.dataDir, line.repeat(historyLines))
     await openLogs(ctx.page)
     await waitForPanelText(ctx.page, 'realistic application log output')
-
     const beforeResize = await renderedLineCount(ctx.page)
     expect(beforeResize).toBeGreaterThan(0)
     expect(beforeResize).toBeLessThan(historyLines / 10)
-
-    await resizeLogPanel(ctx.page, { x: -160, y: -80 })
+    await resizeLogPanel(ctx.page, {
+      x: -160,
+      y: -80,
+    })
     const afterResize = await renderedLineCount(ctx.page)
     expect(afterResize).toBeGreaterThan(0)
     expect(afterResize).toBeLessThan(historyLines / 10)

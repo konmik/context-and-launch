@@ -44,9 +44,7 @@ export default function VerticalReveal(props: { show: boolean; class?: string; c
   return (
     <Show when={mounted()}>
       <div
-        class={`${props.class ?? ''} vertical-reveal-body ${
-          phase() === 'entering' ? 'vertical-reveal-enter' : ''
-        } ${phase() === 'leaving' ? 'vertical-reveal-leave' : ''}`}
+        class={`${props.class ?? ''} vertical-reveal-body ${phase() === 'entering' ? 'vertical-reveal-enter' : ''} ${phase() === 'leaving' ? 'vertical-reveal-leave' : ''}`}
         onAnimationEnd={onRevealEnd}
       >
         <div>{props.children}</div>

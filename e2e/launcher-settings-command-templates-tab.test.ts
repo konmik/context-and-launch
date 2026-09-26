@@ -6,7 +6,6 @@ import { createProject, gotoProject, openLauncherSettings, openLauncherSettingsT
 
 describe('Command Templates Settings tab (e2e, real server)', () => {
   const ctx = setupE2E()
-
   it('preserves expanded groups while switching Settings tabs', async () => {
     const project = await createProject(ctx.testServer, {
       projectSlug: uniqueSlug('command-template-tab-state'),
@@ -18,21 +17,19 @@ describe('Command Templates Settings tab (e2e, real server)', () => {
     const group = testId(ctx.page, 'command-template-group').first()
     await testId(group, 'command-template-group-toggle').click()
     expect(await group.evaluate<boolean, HTMLDetailsElement>((element) => element.open)).toBe(true)
-
     await openLauncherSettingsTab(ctx.page, 'misc')
     await openLauncherSettingsTab(ctx.page, 'command-templates')
-
     expect(await group.evaluate<boolean, HTMLDetailsElement>((element) => element.open)).toBe(true)
   })
-
   it('lists, edits, persists, reloads, and resets a sparse global override', async () => {
     const project = await createProject(ctx.testServer, {
       projectSlug: uniqueSlug('command-templates'),
     })
     ctx.projects.push(project)
     const overrideFile = path.join(ctx.testServer.dataDir, 'config', 'command-templates.json')
-    fs.rmSync(overrideFile, { force: true })
-
+    fs.rmSync(overrideFile, {
+      force: true,
+    })
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
     await openLauncherSettings(ctx.page)
     expect(await ctx.page.locator('[data-testid="launcher-settings-tab-command-templates"]').count()).toBe(1)
@@ -41,7 +38,6 @@ describe('Command Templates Settings tab (e2e, real server)', () => {
     expect(await testId(ctx.page, 'command-template-group').count()).toBeGreaterThan(0)
     expect(await testId(ctx.page, 'command-template-row').count()).toBeGreaterThan(0)
     expect(await testId(ctx.page, 'command-template-override-state').first().textContent()).toBe('Default')
-
     const gitGroup = ctx.page.locator('[data-command-template-group="Git and repository checks"]')
     const row = ctx.page.locator('[data-command-template-key="git.version"]')
     expect(await testId(row, 'command-template-editor-script').isVisible()).toBe(false)
@@ -50,7 +46,9 @@ describe('Command Templates Settings tab (e2e, real server)', () => {
     const defaultScript = await scriptField.inputValue()
     await scriptField.fill('{{undeclared}}')
     await testId(row, 'command-template-editor-save').click()
-    await testId(ctx.page, 'error-dialog-ok').waitFor({ state: 'visible' })
+    await testId(ctx.page, 'error-dialog-ok').waitFor({
+      state: 'visible',
+    })
     expect(await scriptField.inputValue()).toBe('{{undeclared}}')
     expect(await testId(row, 'command-template-override-state').textContent()).toBe('Default')
     expect(fs.existsSync(overrideFile)).toBe(false)
@@ -59,9 +57,10 @@ describe('Command Templates Settings tab (e2e, real server)', () => {
     const oneLineHeight = (await scriptField.boundingBox())!.height
     await scriptField.fill('git version\n--build-options\n--no-pager\n--paginate')
     const grownHeight = (await scriptField.boundingBox())!.height
-    expect(grownHeight).toBeGreaterThan(oneLineHeight)
-    // Another writer edits a different platform after this editor has loaded.
-    const external = { 'picker.files.macos': '# externally edited picker' }
+    expect(grownHeight).toBeGreaterThan(oneLineHeight) // Another writer edits a different platform after this editor has loaded.
+    const external = {
+      'picker.files.macos': '# externally edited picker',
+    }
     fs.writeFileSync(overrideFile, JSON.stringify(external))
     await testId(row, 'command-template-editor-save').click()
     const saved = await poll(
@@ -85,7 +84,6 @@ describe('Command Templates Settings tab (e2e, real server)', () => {
         100,
       ),
     ).toBe('Override')
-
     await testId(ctx.page, 'launcher-settings-close-button').click()
     await openLauncherSettings(ctx.page)
     await openLauncherSettingsTab(ctx.page, 'command-templates')

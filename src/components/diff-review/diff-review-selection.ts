@@ -40,19 +40,37 @@ export function reviewLineRangeBetween(startNode: Node | null | undefined, endNo
   const start = Number(head.getAttribute('data-line'))
   const end = Number(tail.getAttribute('data-line'))
   if (!Number.isFinite(start) || !Number.isFinite(end)) return undefined
-  return { start, side: lineSideOf(head), end, endSide: lineSideOf(tail) }
+  return {
+    start,
+    side: lineSideOf(head),
+    end,
+    endSide: lineSideOf(tail),
+  }
 }
 
-export function selectedNodes(root: ShadowRoot | HTMLElement, documentSelection: Selection | null): { start: Node; end: Node } | undefined {
+export function selectedNodes(
+  root: ShadowRoot | HTMLElement,
+  documentSelection: Selection | null,
+):
+  | {
+      start: Node
+      end: Node
+    }
+  | undefined {
   const shadowRoots = root instanceof ShadowRoot ? [root] : []
   if (documentSelection && isComposedRangeSelection(documentSelection)) {
-    const [range] = documentSelection.getComposedRanges({ shadowRoots })
+    const [range] = documentSelection.getComposedRanges({
+      shadowRoots,
+    })
     if (
       range &&
       root.contains(lineElementAt(range.startContainer) ?? range.startContainer) &&
       root.contains(lineElementAt(range.endContainer) ?? range.endContainer)
     ) {
-      return { start: range.startContainer, end: range.endContainer }
+      return {
+        start: range.startContainer,
+        end: range.endContainer,
+      }
     }
   }
   const rootSelection = root instanceof ShadowRoot ? root.getSelection?.() : documentSelection
@@ -60,7 +78,10 @@ export function selectedNodes(root: ShadowRoot | HTMLElement, documentSelection:
   const focusNode = rootSelection?.focusNode
   if (!anchorNode || !focusNode) return undefined
   if (!root.contains(lineElementAt(anchorNode) ?? anchorNode) || !root.contains(lineElementAt(focusNode) ?? focusNode)) return undefined
-  return { start: anchorNode, end: focusNode }
+  return {
+    start: anchorNode,
+    end: focusNode,
+  }
 }
 
 export function reviewLineRangeFromSelection(

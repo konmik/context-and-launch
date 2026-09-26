@@ -10,6 +10,7 @@ export function createWorktreeRevision(projectSlug: () => string) {
     const timer = setInterval(() => void revalidate('worktree-revision'), WORKTREE_REVISION_POLL_MS)
     return () => clearInterval(timer)
   })
-
-  return createMemo(() => (projectSlug() ? getWorktreeRevision(projectSlug()) : Promise.resolve(0)), { loadingValue: 0 })
+  return createMemo(() => (projectSlug() ? getWorktreeRevision(projectSlug()) : Promise.resolve(0)), {
+    loadingValue: 0,
+  })
 }

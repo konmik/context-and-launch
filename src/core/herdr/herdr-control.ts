@@ -6,9 +6,19 @@ import { listHerdrTicketPanes } from './herdr-ticket-panes.js'
 export type { HerdrExecFn } from './herdr-exec.js'
 
 export type FindHerdrAgentResult =
-  | { kind: 'herdr-unavailable'; reason: HerdrUnavailableReason; message: string }
-  | { kind: 'no-agent' }
-  | { kind: 'agent'; paneId: string; agentStatus: string }
+  | {
+      kind: 'herdr-unavailable'
+      reason: HerdrUnavailableReason
+      message: string
+    }
+  | {
+      kind: 'no-agent'
+    }
+  | {
+      kind: 'agent'
+      paneId: string
+      agentStatus: string
+    }
 
 export interface HerdrAgentTarget {
   projectSlug: string
@@ -39,25 +49,36 @@ export async function findHerdrAgent(target: HerdrAgentTarget, exec: HerdrExecFn
     ticketPanes = await listHerdrTicketPanes(target.projectSlug, exec)
   } catch (err) {
     if (err instanceof HerdrUnavailableError) {
-      return { kind: 'herdr-unavailable', reason: err.reason, message: err.message }
+      return {
+        kind: 'herdr-unavailable',
+        reason: err.reason,
+        message: err.message,
+      }
     }
     throw err
   }
-
   const panes = ticketPanes.filter((candidate) => candidate.folderName === target.folderName)
   if (panes.length > 1) {
     throw new Error(`Ticket '${target.folderName}' has multiple Herdr panes. Rename or close duplicates first.`)
   }
   if (panes.length === 0 || panes[0].agentStatuses.length === 0) {
-    return { kind: 'no-agent' }
+    return {
+      kind: 'no-agent',
+    }
   }
   const pane = panes[0]
   if (pane.agentStatuses.length > 1) {
     throw new Error(`Herdr pane '${pane.paneId}' has multiple agents.`)
   }
-  return { kind: 'agent', paneId: pane.paneId, agentStatus: pane.agentStatuses[0] }
+  return {
+    kind: 'agent',
+    paneId: pane.paneId,
+    agentStatus: pane.agentStatuses[0],
+  }
 }
 
 export async function stopHerdrAgent(paneId: string, exec: HerdrExecFn): Promise<void> {
-  await exec('herdr.agent.stop', { paneId })
+  await exec('herdr.agent.stop', {
+    paneId,
+  })
 }

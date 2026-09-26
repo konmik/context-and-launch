@@ -6,6 +6,7 @@ import { decodeBoards, validateBoards, type BoardDefinition, type ColumnDefiniti
 export type { BoardDefinition, ColumnDefinition } from './board-config-data.js'
 export { validateColumnName } from './board-config-data.js'
 export { slugifyColumnName } from '../../lib/slugify.js'
+
 export interface BoardConfig {
   columns: ColumnDefinition[]
 }
@@ -45,6 +46,8 @@ export class BoardConfigManager {
 
   getConfig(boardId?: string | null): BoardConfig {
     const boards = this.read()
-    return { columns: (boards.find((board) => board.id === boardId) ?? boards[0]).columns }
+    return {
+      columns: (boards.find((board) => board.id === boardId) ?? boards[0]).columns,
+    }
   }
 }

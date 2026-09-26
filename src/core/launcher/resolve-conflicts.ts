@@ -22,7 +22,6 @@ export async function resolveConflictsWith(deps: ResolveConflictsDeps, projectSl
   const worktreeDir = deps.getWorktreeDir(projectSlug)
   const plan = await deps.trackOperation(deps.prepareResolution(worktreeDir))
   if (!plan.needsAgent) return
-
   const initialPrompt =
     `${merged.conflictResolutionPrompt}\n\n` + `When the rebase is complete, push your result with:\n${plan.pushCommand}`
   await deps.spawnProfile(

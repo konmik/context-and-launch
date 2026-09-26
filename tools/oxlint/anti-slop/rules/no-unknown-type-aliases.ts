@@ -1,5 +1,4 @@
 import { defineRule } from '@oxlint/plugins'
-
 import type { ESTree } from '@oxlint/plugins'
 
 function referencedAliasName(type: ESTree.TSType): string | null {
@@ -24,7 +23,6 @@ export const noUnknownTypeAliasesRule = defineRule({
   },
   createOnce(context) {
     const aliases = new Map<string, ESTree.TSTypeAliasDeclaration>()
-
     const resolvesToUnknown = (type: ESTree.TSType, visited = new Set<string>()): boolean => {
       if (type.type === 'TSUnknownKeyword') return true
       if (type.type === 'TSParenthesizedType') return resolvesToUnknown(type.typeAnnotation, visited)
@@ -38,7 +36,6 @@ export const noUnknownTypeAliasesRule = defineRule({
       nextVisited.add(name)
       return resolvesToUnknown(alias.typeAnnotation, nextVisited)
     }
-
     return {
       Program(node) {
         aliases.clear()
@@ -53,7 +50,9 @@ export const noUnknownTypeAliasesRule = defineRule({
           context.report({
             node: alias.id,
             messageId: 'unknownAlias',
-            data: { alias: alias.id.name },
+            data: {
+              alias: alias.id.name,
+            },
           })
         }
       },

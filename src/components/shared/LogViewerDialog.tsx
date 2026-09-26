@@ -13,7 +13,6 @@ export interface LogViewerDialogDeps {
 export default function LogViewerDialog(props: { open: boolean; onOpenChange: (open: boolean) => void; deps?: LogViewerDialogDeps }) {
   const [logText, setLogText] = createSignal<string>()
   let loadVersion = 0
-
   createEffect(
     () => props.open,
     (open) => {
@@ -34,15 +33,20 @@ export default function LogViewerDialog(props: { open: boolean; onOpenChange: (o
       }
     },
   )
-
   return (
     <FloatingWindow
       open={props.open}
       onOpenChange={(d) => {
         if (!d.open) props.onOpenChange(false)
       }}
-      defaultSize={{ width: 960, height: 720 }}
-      minSize={{ width: 320, height: 200 }}
+      defaultSize={{
+        width: 960,
+        height: 720,
+      }}
+      minSize={{
+        width: 320,
+        height: 200,
+      }}
       persistRect
     >
       <FloatingWindowHeader

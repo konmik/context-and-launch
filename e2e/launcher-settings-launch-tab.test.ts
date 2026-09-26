@@ -5,17 +5,25 @@ import { testId, waitVisible } from './locators.js'
 
 describe('Launcher Settings Launch tab (e2e, real server)', () => {
   const ctx = setupE2E()
-
   const setup = (suffix: string) =>
     openSettingsTab(ctx, {
       slugBase: `lsl-${suffix}`,
       tab: 'launch',
       appLauncherConfig: {
-        profiles: [{ name: 'Claude', command: 'echo claude' }],
-        shortcuts: [{ name: 'Editor', command: 'echo editor' }],
+        profiles: [
+          {
+            name: 'Claude',
+            command: 'echo claude',
+          },
+        ],
+        shortcuts: [
+          {
+            name: 'Editor',
+            command: 'echo editor',
+          },
+        ],
       },
     })
-
   it('renders profile and shortcut sections with add/edit/delete buttons', async () => {
     await setup('renders')
     expect(await testId(ctx.page, 'launcher-settings-launch-add-profile-button').count()).toBe(1)
@@ -25,7 +33,6 @@ describe('Launcher Settings Launch tab (e2e, real server)', () => {
     expect(await testId(ctx.page, 'launcher-settings-launch-shortcut-edit-button').count()).toBe(1)
     expect(await testId(ctx.page, 'launcher-settings-launch-shortcut-delete-button').count()).toBe(1)
   })
-
   it('add-profile opens form and submit adds a profile', async () => {
     await setup('add-profile')
     await testId(ctx.page, 'launcher-settings-launch-add-profile-button').click()
@@ -41,24 +48,20 @@ describe('Launcher Settings Launch tab (e2e, real server)', () => {
     )
     expect(app?.profiles?.map((p) => p.name)).toContain('GPT')
   })
-
   it('warns when a command uses a CMD or batch file', async () => {
     await setup('batch-warning')
     await testId(ctx.page, 'launcher-settings-launch-add-profile-button').click()
     const command = testId(ctx.page, 'launcher-settings-item-form-text-input')
     const warning = testId(ctx.page, 'launcher-settings-item-form-batch-warning')
-
     await command.fill(
       'powershell -File {{configDefaultsDir}}/run-agent.ps1 ' +
         '{{initialPrompt}} {{windowTitle}} {{markerPath}} claude1.cmd --dangerously-skip-permissions',
     )
     expect(await warning.count()).toBe(1)
     expect(await warning.textContent()).toContain('Use an .exe or PowerShell script (.ps1) instead.')
-
     await command.fill('powershell -File run-agent.ps1 {{initialPrompt}}')
     expect(await warning.count()).toBe(0)
   })
-
   it('add-shortcut opens form and submit adds a shortcut', async () => {
     await setup('add-shortcut')
     await testId(ctx.page, 'launcher-settings-launch-add-shortcut-button').click()
@@ -74,34 +77,40 @@ describe('Launcher Settings Launch tab (e2e, real server)', () => {
     )
     expect(app?.shortcuts?.map((s) => s.name)).toContain('Browse')
   })
-
   it('delete-profile removes profile from config', async () => {
     await setup('delete-profile')
     await testId(ctx.page, 'launcher-settings-launch-profile-delete-button').click()
     await testId(ctx.page, 'launcher-settings-launch-profile-row')
-      .filter({ hasText: 'Claude' })
-      .waitFor({ state: 'detached', timeout: 15_000 })
+      .filter({
+        hasText: 'Claude',
+      })
+      .waitFor({
+        state: 'detached',
+        timeout: 15000,
+      })
     const app = readAppLauncherConfig(ctx.testServer)
     expect(app?.profiles?.map((p) => p.name)).not.toContain('Claude')
   })
-
   it('delete-shortcut removes shortcut from config', async () => {
     await setup('delete-shortcut')
     await testId(ctx.page, 'launcher-settings-launch-shortcut-delete-button').click()
     await testId(ctx.page, 'launcher-settings-launch-shortcut-row')
-      .filter({ hasText: 'Editor' })
-      .waitFor({ state: 'detached', timeout: 15_000 })
+      .filter({
+        hasText: 'Editor',
+      })
+      .waitFor({
+        state: 'detached',
+        timeout: 15000,
+      })
     const app = readAppLauncherConfig(ctx.testServer)
     expect(app?.shortcuts?.map((s) => s.name)).not.toContain('Editor')
   })
-
   it('edit-profile prefills name', async () => {
     await setup('edit-profile')
     await testId(ctx.page, 'launcher-settings-launch-profile-edit-button').click()
     await waitVisible(ctx.page, 'launcher-settings-item-form-name-input')
     expect(await ctx.page.inputValue('[data-testid="launcher-settings-item-form-name-input"]')).toBe('Claude')
   })
-
   it('edit-shortcut prefills name', async () => {
     await setup('edit-shortcut')
     await testId(ctx.page, 'launcher-settings-launch-shortcut-edit-button').click()

@@ -53,29 +53,35 @@ export function resolveDrop(
   orphanFolderNames: Set<string>,
 ): DropResult | null {
   if (!activeId || !hoverTarget) return null
-
   const { column: fromColumn, folderName } = parseId(activeId)
   const { column: toColumn, index: newIndex } = hoverTarget
-
   if (toColumn === 'undefined') return null
-
   if (fromColumn === toColumn) {
     const colTickets = resolveTicketsForColumn(toColumn, currentOrder, ticketMap, orphanFolderNames)
     const fromIdx = colTickets.findIndex((t) => t.folderName === folderName)
     if (fromIdx === newIndex) return null
   }
-
-  return { folderName, fromColumn, toColumn, newIndex }
+  return {
+    folderName,
+    fromColumn,
+    toColumn,
+    newIndex,
+  }
 }
 
-export function resolveCursorPosition(event: DndDragEvent): { x: number; y: number } | null {
+export function resolveCursorPosition(event: DndDragEvent): {
+  x: number
+  y: number
+} | null {
   const overlay = event.overlay
   const node = event.draggable.node
   if (!node) return null
-
   if (overlay?.node) {
     const r = overlay.node.getBoundingClientRect()
-    return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+    return {
+      x: r.left + r.width / 2,
+      y: r.top + r.height / 2,
+    }
   }
   const rect = node.getBoundingClientRect()
   const t = event.draggable.transform
@@ -86,20 +92,44 @@ export function resolveCursorPosition(event: DndDragEvent): { x: number; y: numb
 }
 
 export function collectColumnRects(columnRefs: Map<string, HTMLDivElement>) {
-  const colRects = new Map<string, { left: number; right: number }>()
-  const cardRectsByCol = new Map<string, { top: number; height: number }[]>()
+  const colRects = new Map<
+    string,
+    {
+      left: number
+      right: number
+    }
+  >()
+  const cardRectsByCol = new Map<
+    string,
+    {
+      top: number
+      height: number
+    }[]
+  >()
   for (const [col, el] of columnRefs) {
     const r = el.getBoundingClientRect()
-    colRects.set(col, { left: r.left, right: r.right })
+    colRects.set(col, {
+      left: r.left,
+      right: r.right,
+    })
     const cards = el.querySelectorAll<HTMLElement>('[data-drag-source]:not([data-drop-preview] *)')
-    const rects: { top: number; height: number }[] = []
+    const rects: {
+      top: number
+      height: number
+    }[] = []
     for (const card of cards) {
       const cr = card.getBoundingClientRect()
-      rects.push({ top: cr.top, height: cr.height })
+      rects.push({
+        top: cr.top,
+        height: cr.height,
+      })
     }
     cardRectsByCol.set(col, rects)
   }
-  return { colRects, cardRectsByCol }
+  return {
+    colRects,
+    cardRectsByCol,
+  }
 }
 
 export function resolveDragSource(
@@ -107,12 +137,22 @@ export function resolveDragSource(
   order: Record<string, string[]>,
   ticketMap: Map<string, TicketInfo>,
   orphanFolderNames: Set<string>,
-): { column: string; index: number } | undefined {
+):
+  | {
+      column: string
+      index: number
+    }
+  | undefined {
   if (!dragId) return undefined
   const { column, folderName } = parseId(dragId)
   const tickets = resolveTicketsForColumn(column, order, ticketMap, orphanFolderNames)
   const idx = tickets.findIndex((t) => t.folderName === folderName)
-  return idx !== -1 ? { column, index: idx } : undefined
+  return idx !== -1
+    ? {
+        column,
+        index: idx,
+      }
+    : undefined
 }
 
 export function computeDragMoveTarget(

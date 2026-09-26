@@ -2,7 +2,14 @@ import { ProcessError } from '../shared/errors.js'
 import type { CommandTemplateKey } from '../command-template/command-template-definitions.js'
 import type { CommandTemplateExecutor, CommandTemplateValues } from '../command-template/command-template-types.js'
 
-export type MergeTreeResult = { status: 'clean'; tree: string } | { status: 'conflicted' }
+export type MergeTreeResult =
+  | {
+      status: 'clean'
+      tree: string
+    }
+  | {
+      status: 'conflicted'
+    }
 
 /**
  * Compute the tree produced by merging two refs without touching the index or worktree.
@@ -19,10 +26,15 @@ export async function writeMergeTree(
 ): Promise<MergeTreeResult> {
   try {
     const tree = (await commands.execute(templateKey, cwd, values)).trim().split('\n')[0]
-    return { status: 'clean', tree }
+    return {
+      status: 'clean',
+      tree,
+    }
   } catch (error) {
     if (error instanceof ProcessError && error.exitedWith(1)) {
-      return { status: 'conflicted' }
+      return {
+        status: 'conflicted',
+      }
     }
     throw error
   }

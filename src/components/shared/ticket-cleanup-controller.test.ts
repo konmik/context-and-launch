@@ -19,10 +19,18 @@ function makeTicket(folderName: string): TicketInfo {
 }
 
 const allReady: TicketCleanupStatus = {
-  stopHerdrAgent: { state: 'ready' },
-  deleteWorktree: { state: 'ready' },
-  deleteLocalBranch: { state: 'ready' },
-  deleteRemoteBranch: { state: 'ready' },
+  stopHerdrAgent: {
+    state: 'ready',
+  },
+  deleteWorktree: {
+    state: 'ready',
+  },
+  deleteLocalBranch: {
+    state: 'ready',
+  },
+  deleteRemoteBranch: {
+    state: 'ready',
+  },
 }
 
 function invoke<T>(fn: () => T): T {
@@ -70,26 +78,40 @@ describe('createTicketCleanupController', () => {
       }
     })
   })
-
   it('loads ready and blocked action states', async () => {
     await createRoot(async (dispose) => {
       try {
         const status: TicketCleanupStatus = {
           ...allReady,
-          deleteRemoteBranch: { state: 'blocked', reason: 'No remote branch' },
+          deleteRemoteBranch: {
+            state: 'blocked',
+            reason: 'No remote branch',
+          },
         }
-        const ctrl = createTicketCleanupController(makeDeps({ loadStatus: async () => status }))
+        const ctrl = createTicketCleanupController(
+          makeDeps({
+            loadStatus: async () => status,
+          }),
+        )
         await invoke(ctrl.startChecks)
-        expect(ctrl.items().deleteRemoteBranch).toEqual({ state: 'blocked', reason: 'No remote branch' })
-        expect(ctrl.items().stopHerdrAgent).toEqual({ state: 'ready' })
-        expect(ctrl.items().deleteWorktree).toEqual({ state: 'ready' })
-        expect(ctrl.items().deleteLocalBranch).toEqual({ state: 'ready' })
+        expect(ctrl.items().deleteRemoteBranch).toEqual({
+          state: 'blocked',
+          reason: 'No remote branch',
+        })
+        expect(ctrl.items().stopHerdrAgent).toEqual({
+          state: 'ready',
+        })
+        expect(ctrl.items().deleteWorktree).toEqual({
+          state: 'ready',
+        })
+        expect(ctrl.items().deleteLocalBranch).toEqual({
+          state: 'ready',
+        })
       } finally {
         dispose()
       }
     })
   })
-
   it('puts all items in error when loadStatus rejects', async () => {
     await createRoot(async (dispose) => {
       try {
@@ -103,7 +125,9 @@ describe('createTicketCleanupController', () => {
         await invoke(ctrl.startChecks)
         expect(ctrl.items().stopHerdrAgent).toEqual({
           state: 'error',
-          error: { description: 'server down' },
+          error: {
+            description: 'server down',
+          },
         })
         expect(ctrl.items().deleteRemoteBranch.state).toBe('error')
       } finally {
@@ -111,14 +135,16 @@ describe('createTicketCleanupController', () => {
       }
     })
   })
-
   it('ignores a stale response for a superseded ticket', async () => {
     await createRoot(async (dispose) => {
       try {
         let resolveA!: (v: TicketCleanupStatus) => void
         const statusB: TicketCleanupStatus = {
           ...allReady,
-          deleteWorktree: { state: 'blocked', reason: 'No worktree' },
+          deleteWorktree: {
+            state: 'blocked',
+            reason: 'No worktree',
+          },
         }
         let call = 0
         const ctrl = createTicketCleanupController(
@@ -138,13 +164,15 @@ describe('createTicketCleanupController', () => {
         await pB
         resolveA(allReady)
         await pA
-        expect(ctrl.items().deleteWorktree).toEqual({ state: 'blocked', reason: 'No worktree' })
+        expect(ctrl.items().deleteWorktree).toEqual({
+          state: 'blocked',
+          reason: 'No worktree',
+        })
       } finally {
         dispose()
       }
     })
   })
-
   it('runs one cleanup action and refreshes all statuses', async () => {
     await createRoot(async (dispose) => {
       try {
@@ -152,7 +180,10 @@ describe('createTicketCleanupController', () => {
         let checks = 0
         const refreshed: TicketCleanupStatus = {
           ...allReady,
-          deleteWorktree: { state: 'blocked', reason: 'No worktree' },
+          deleteWorktree: {
+            state: 'blocked',
+            reason: 'No worktree',
+          },
         }
         const ctrl = createTicketCleanupController(
           makeDeps({
@@ -178,7 +209,6 @@ describe('createTicketCleanupController', () => {
       }
     })
   })
-
   it('submits the final ticket action without cleanup options', async () => {
     await createRoot(async (dispose) => {
       try {
@@ -199,7 +229,6 @@ describe('createTicketCleanupController', () => {
       }
     })
   })
-
   it('surfaces submit errors and keeps the dialog open', async () => {
     await createRoot(async (dispose) => {
       try {
@@ -209,19 +238,24 @@ describe('createTicketCleanupController', () => {
             onOpenChange: (open) => {
               closedWith = open
             },
-            onSubmit: async () => ({ error: { description: 'cleanup failed' } }),
+            onSubmit: async () => ({
+              error: {
+                description: 'cleanup failed',
+              },
+            }),
           }),
         )
         await invoke(ctrl.startChecks)
         await invoke(ctrl.doSubmit)
-        expect(ctrl.errorInfo()).toEqual({ description: 'cleanup failed' })
+        expect(ctrl.errorInfo()).toEqual({
+          description: 'cleanup failed',
+        })
         expect(closedWith).toBeUndefined()
       } finally {
         dispose()
       }
     })
   })
-
   it('closes the dialog on a successful submit', async () => {
     await createRoot(async (dispose) => {
       try {
@@ -242,11 +276,14 @@ describe('createTicketCleanupController', () => {
       }
     })
   })
-
   it('tracks submitting during an in-flight submit', async () => {
     await createRoot(async (dispose) => {
       try {
-        let resolve!: (v: { error?: { description: string } }) => void
+        let resolve!: (v: {
+          error?: {
+            description: string
+          }
+        }) => void
         const ctrl = createTicketCleanupController(
           makeDeps({
             onSubmit: () =>
@@ -266,11 +303,14 @@ describe('createTicketCleanupController', () => {
       }
     })
   })
-
   it('tracks a running cleanup and refreshes after it settles', async () => {
     await createRoot(async (dispose) => {
       try {
-        let resolve!: (v: { error?: { description: string } }) => void
+        let resolve!: (v: {
+          error?: {
+            description: string
+          }
+        }) => void
         const ctrl = createTicketCleanupController(
           makeDeps({
             onCleanup: () =>
@@ -292,7 +332,6 @@ describe('createTicketCleanupController', () => {
       }
     })
   })
-
   it('refreshes statuses and surfaces a cleanup action error', async () => {
     await createRoot(async (dispose) => {
       try {
@@ -303,13 +342,19 @@ describe('createTicketCleanupController', () => {
               checks++
               return allReady
             },
-            onCleanup: async () => ({ error: { description: 'action failed' } }),
+            onCleanup: async () => ({
+              error: {
+                description: 'action failed',
+              },
+            }),
           }),
         )
         await invoke(ctrl.startChecks)
         await invoke(() => ctrl.runCleanup('deleteWorktree'))
         expect(checks).toBe(2)
-        expect(ctrl.errorInfo()).toEqual({ description: 'action failed' })
+        expect(ctrl.errorInfo()).toEqual({
+          description: 'action failed',
+        })
       } finally {
         dispose()
       }

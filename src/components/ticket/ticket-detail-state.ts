@@ -61,8 +61,17 @@ export interface TicketDetailStateDeps {
   openNativeFileBrowser?: typeof openNativeFileBrowserServer
 }
 
-export function createTicketDetailState(props: { projectSlug: string; onClose: () => void }, deps: TicketDetailStateDeps = {}) {
-  const [activeFile, setActiveFile] = createSignal<ActiveFile>({ type: 'context', name: 'description' })
+export function createTicketDetailState(
+  props: {
+    projectSlug: string
+    onClose: () => void
+  },
+  deps: TicketDetailStateDeps = {},
+) {
+  const [activeFile, setActiveFile] = createSignal<ActiveFile>({
+    type: 'context',
+    name: 'description',
+  })
   const [content, setContent] = createSignal('')
   const [savedContent, setSavedContent] = createSignal('')
   const [saving, setSaving] = createSignal(false)
@@ -79,7 +88,12 @@ export function createTicketDetailState(props: { projectSlug: string; onClose: (
   })
   const launcherConfig = createMemo(() => {
     const project = metadata()
-    return project && { ...project, ...mergeLauncherConfigs(sharedConfig.get(), projectConfig.get()) }
+    return (
+      project && {
+        ...project,
+        ...mergeLauncherConfigs(sharedConfig.get(), projectConfig.get()),
+      }
+    )
   })
   const [extraFiles, setExtraFiles] = createSignal<string[]>([])
   const [newFileDialogOpen, setNewFileDialogOpen] = createSignal(false)
@@ -88,16 +102,16 @@ export function createTicketDetailState(props: { projectSlug: string; onClose: (
   const [error, setError] = createSignal<ErrorInfo | null>(null)
   const [dropdownOpen, setDropdownOpen] = createSignal(false)
   const [browsing, setBrowsing] = createSignal(false)
-  const [fileView, setFileView] = createSignal<FileView>({ kind: 'loading' })
+  const [fileView, setFileView] = createSignal<FileView>({
+    kind: 'loading',
+  })
   const ticketStatus = deps.ticketStatus ?? useContext(TicketStatusContext)!
   const ticket = ticketStatus.get
   const folderName = () => ticket().folderName
   const useWorktree = () => ticket().useWorktree
   const [externallyChanged, setExternallyChanged] = createSignal(false)
   const [confirmingExternalChange, setConfirmingExternalChange] = createSignal(false)
-
   const worktreeRevision = deps.worktreeRevision ?? createWorktreeRevision(() => props.projectSlug)
-
   const [editedNumber, setEditedNumber] = createSignal(() => ticket().number)
   const [editedTitle, setEditedTitle] = createSignal(() => ticket().title)
   const hasUnsavedHeaderChanges = () => editedNumber().trim() !== ticket().number || editedTitle().trim() !== ticket().title
@@ -108,14 +122,26 @@ export function createTicketDetailState(props: { projectSlug: string; onClose: (
     setEditedNumber(number)
     setEditedTitle(title)
     if (number === ticket().number && title === ticket().title) return
-    const result = await ticketStatus.update((current) => ({ ...current, number, title }))
-    if (result.type === 'Failure') setError({ title: 'Save failed', description: result.error })
+    const result = await ticketStatus.update((current) => ({
+      ...current,
+      number,
+      title,
+    }))
+    if (result.type === 'Failure')
+      setError({
+        title: 'Save failed',
+        description: result.error,
+      })
   }
 
   async function refreshTicket() {
     await revalidate(['ticket-detail', ...ticketMutationRevalidateKeys])
     const result = await ticketStatus.refresh()
-    if (result.type === 'Failure') setError({ title: 'Load failed', description: result.error })
+    if (result.type === 'Failure')
+      setError({
+        title: 'Load failed',
+        description: result.error,
+      })
   }
 
   function ticketUrl(suffix: string): string {
@@ -132,7 +158,6 @@ export function createTicketDetailState(props: { projectSlug: string; onClose: (
       savedAgentWorktreeDir: ticket().agentWorktreeDir,
     }),
   )
-
   const shortcuts = createShortcutState({
     projectSlug: () => props.projectSlug,
     folderName,
@@ -141,7 +166,6 @@ export function createTicketDetailState(props: { projectSlug: string; onClose: (
     setError,
     runShortcut: deps.runShortcut,
   })
-
   const upload = createFileUploadState({
     projectSlug: props.projectSlug,
     folderName,
@@ -165,11 +189,8 @@ export function createTicketDetailState(props: { projectSlug: string; onClose: (
 
   const contextOptions = (): ActiveFile[] =>
     buildContextOptions(['description', 'product-requirement-document'], ticket().contextNames, extraFiles())
-
   const fileEntryOptions = (): ActiveFile[] => buildFileEntryOptions(ticket().fileNames)
-
   const referenceOptions = (): ActiveFile[] => buildReferenceOptions(ticket().references)
-
   const allFileOptions = createMemo(() => buildAllFileOptions(contextOptions(), fileEntryOptions(), referenceOptions()))
 
   function isCurrentReadOnly(): boolean {
@@ -181,27 +202,33 @@ export function createTicketDetailState(props: { projectSlug: string; onClose: (
   }
 
   const hasUnsavedFileChanges = () => hasUnsavedEditorChanges(activeTab(), fileView().kind, isCurrentReadOnly(), content(), savedContent())
-
   const hasAnyUnsavedChanges = () => hasUnsavedFileChanges() || hasUnsavedHeaderChanges()
 
   function handleBeforeUnload(e: BeforeUnloadEvent) {
     if (hasAnyUnsavedChanges()) e.preventDefault()
   }
+
   onSettled(() => {
     const browserWindow = globalThis.window
     if (!browserWindow) return
     browserWindow.addEventListener('beforeunload', handleBeforeUnload)
     return () => browserWindow.removeEventListener('beforeunload', handleBeforeUnload)
-  })
-
-  // Only the newest load may touch the view state: a slow response for a file
+  }) // Only the newest load may touch the view state: a slow response for a file
   // the user has already navigated away from must not clobber the current view
   // or content.
   let loadSeq = 0
 
-  async function loadContextContent(af: ActiveFile & { type: 'context' }, background = false): Promise<void> {
+  async function loadContextContent(
+    af: ActiveFile & {
+      type: 'context'
+    },
+    background = false,
+  ): Promise<void> {
     const seq = ++loadSeq
-    if (!background) setFileView({ kind: 'loading' })
+    if (!background)
+      setFileView({
+        kind: 'loading',
+      })
     try {
       const data = await (deps.getContext ?? getContextAction)(props.projectSlug, folderName(), af.name)
       if (seq !== loadSeq) return
@@ -214,7 +241,10 @@ export function createTicketDetailState(props: { projectSlug: string; onClose: (
       setSavedContent('')
       setError(errorPayload(e, 'Load failed'))
     } finally {
-      if (seq === loadSeq) setFileView({ kind: 'editor' })
+      if (seq === loadSeq)
+        setFileView({
+          kind: 'editor',
+        })
     }
   }
 
@@ -226,9 +256,15 @@ export function createTicketDetailState(props: { projectSlug: string; onClose: (
       setSavedContent('')
     }
     if (mode === 'image') {
-      setFileView({ kind: 'image', url })
+      setFileView({
+        kind: 'image',
+        url,
+      })
     } else if (mode === 'editor') {
-      if (!background) setFileView({ kind: 'loading' })
+      if (!background)
+        setFileView({
+          kind: 'loading',
+        })
       fetch(url)
         .then(async (res) => {
           const text = res.ok ? normalizeLineEndings(await res.text()) : ''
@@ -241,10 +277,15 @@ export function createTicketDetailState(props: { projectSlug: string; onClose: (
           setError(errorPayload(e, 'Load failed'))
         })
         .finally(() => {
-          if (seq === loadSeq) setFileView({ kind: 'editor' })
+          if (seq === loadSeq)
+            setFileView({
+              kind: 'editor',
+            })
         })
     } else {
-      setFileView({ kind: 'unsupported' })
+      setFileView({
+        kind: 'unsupported',
+      })
     }
   }
 
@@ -275,7 +316,10 @@ export function createTicketDetailState(props: { projectSlug: string; onClose: (
       }))
       .then((result) => {
         if (result.type === 'Failure') {
-          setError({ title: 'Save failed', description: result.error })
+          setError({
+            title: 'Save failed',
+            description: result.error,
+          })
           return
         }
       })
@@ -285,10 +329,17 @@ export function createTicketDetailState(props: { projectSlug: string; onClose: (
   }
 
   onSettled(() => {
-    void loadContextContent({ type: 'context', name: 'description' })
+    void loadContextContent({
+      type: 'context',
+      name: 'description',
+    })
   })
 
-  function fileContentUrl(af: ActiveFile & { type: 'file' | 'reference' }): string {
+  function fileContentUrl(
+    af: ActiveFile & {
+      type: 'file' | 'reference'
+    },
+  ): string {
     return af.type === 'file'
       ? ticketUrl(`files/${encodeURIComponent(af.name)}`)
       : ticketUrl(`references/content?path=${encodeURIComponent(af.path)}`)
@@ -341,9 +392,10 @@ export function createTicketDetailState(props: { projectSlug: string; onClose: (
         await untrack(() => loadActiveFile(af))
       })()
     },
-    { defer: true },
+    {
+      defer: true,
+    },
   )
-
   createEffect(
     () => {
       const revision = worktreeRevision()
@@ -358,7 +410,9 @@ export function createTicketDetailState(props: { projectSlug: string; onClose: (
       }
       void untrack(() => loadActiveFile(af, true))
     },
-    { defer: true },
+    {
+      defer: true,
+    },
   )
 
   async function saveFileContent() {
@@ -368,7 +422,11 @@ export function createTicketDetailState(props: { projectSlug: string; onClose: (
     try {
       const result = await (deps.saveContext ?? saveContextAction)(props.projectSlug, folderName(), af.name, content())
       if (result.ok) setSavedContent(content())
-      else setError({ title: 'Save failed', description: result.message })
+      else
+        setError({
+          title: 'Save failed',
+          description: result.message,
+        })
     } catch (e) {
       setError(errorPayload(e, 'Save failed'))
     } finally {
@@ -397,10 +455,14 @@ export function createTicketDetailState(props: { projectSlug: string; onClose: (
         return
       }
       setActiveTab(tab)
-      patchColumnDefaults({ lastLayer: tab })
+      patchColumnDefaults({
+        lastLayer: tab,
+      })
     } else {
       setActiveTab('editor')
-      patchColumnDefaults({ lastLayer: 'editor' })
+      patchColumnDefaults({
+        lastLayer: 'editor',
+      })
     }
   }
 
@@ -412,7 +474,9 @@ export function createTicketDetailState(props: { projectSlug: string; onClose: (
     setPendingTab(null)
     if (toTab) {
       setActiveTab(toTab)
-      patchColumnDefaults({ lastLayer: toTab })
+      patchColumnDefaults({
+        lastLayer: toTab,
+      })
     } else if (file) {
       setActiveTab('editor')
       setActiveFile(file)
@@ -437,7 +501,10 @@ export function createTicketDetailState(props: { projectSlug: string; onClose: (
     setNewFileDialogOpen(false)
     if (!contextOptions().some((o) => o.type === 'context' && o.name === contextFileName))
       setExtraFiles((prev) => [...prev, contextFileName])
-    requestFileSwitch({ type: 'context', name: contextFileName })
+    requestFileSwitch({
+      type: 'context',
+      name: contextFileName,
+    })
   }
 
   async function deleteOrRemoveFile() {
@@ -450,25 +517,39 @@ export function createTicketDetailState(props: { projectSlug: string; onClose: (
           references: current.references.filter((reference) => reference.path !== af.path),
         }))
         if (result.type === 'Failure') {
-          setError({ title: 'Delete failed', description: result.error })
+          setError({
+            title: 'Delete failed',
+            description: result.error,
+          })
           return
         }
       } else if (af.type === 'file') {
         const result = await (deps.deleteFile ?? deleteFileAction)(props.projectSlug, folderName(), af.name)
         if (!result.ok) {
-          setError({ title: 'Delete failed', description: result.message })
+          setError({
+            title: 'Delete failed',
+            description: result.message,
+          })
           return
         }
       } else {
         const result = await (deps.deleteContext ?? deleteContextAction)(props.projectSlug, folderName(), af.name)
         if (!result.ok) {
-          setError({ title: 'Delete failed', description: result.message })
+          setError({
+            title: 'Delete failed',
+            description: result.message,
+          })
           return
         }
         setExtraFiles((prev) => prev.filter((n) => n !== af.name))
       }
       const remaining = allFileOptions().filter((f) => !isActiveFileMatch(f, af))
-      setActiveFile(remaining[0] ?? { type: 'context', name: 'description' })
+      setActiveFile(
+        remaining[0] ?? {
+          type: 'context',
+          name: 'description',
+        },
+      )
       await refreshTicket()
     } catch (e) {
       setError(errorPayload(e, 'Delete failed'))
@@ -487,6 +568,7 @@ export function createTicketDetailState(props: { projectSlug: string; onClose: (
     }
     props.onClose()
   }
+
   function forceClose() {
     setConfirmingClose(false)
     props.onClose()
@@ -525,12 +607,18 @@ export function createTicketDetailState(props: { projectSlug: string; onClose: (
         })),
       }))
       if (result.type === 'Failure') {
-        setError({ title: 'Add reference failed', description: result.error })
+        setError({
+          title: 'Add reference failed',
+          description: result.error,
+        })
         return
-      }
-      // Show the reference the user just picked before reloading the file list:
+      } // Show the reference the user just picked before reloading the file list:
       // the switch is what they asked for, and it must not wait on a refresh.
-      if (paths.length > 0) requestFileSwitch({ type: 'reference', path: paths[0] })
+      if (paths.length > 0)
+        requestFileSwitch({
+          type: 'reference',
+          path: paths[0],
+        })
       await refreshTicket()
     } catch (e) {
       setError(errorPayload(e, 'Add reference failed'))
@@ -549,8 +637,7 @@ export function createTicketDetailState(props: { projectSlug: string; onClose: (
 
   async function overwriteExternalChange() {
     setConfirmingExternalChange(false)
-    setExternallyChanged(false)
-    // saveAll must observe the user's explicit overwrite choice in this event turn.
+    setExternallyChanged(false) // saveAll must observe the user's explicit overwrite choice in this event turn.
     flush()
     await saveAll()
   }
@@ -561,7 +648,6 @@ export function createTicketDetailState(props: { projectSlug: string; onClose: (
   }
 
   const showSaveButton = () => showSaveButtonPure(activeTab(), activeFile().type)
-
   return {
     activeFile,
     content,

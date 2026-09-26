@@ -11,7 +11,10 @@ function tmpDir(prefix: string): string {
 function cleanup(...dirs: string[]) {
   for (const d of dirs) {
     try {
-      fs.rmSync(d, { recursive: true, force: true })
+      fs.rmSync(d, {
+        recursive: true,
+        force: true,
+      })
     } catch (err) {
       console.warn(`cleanup ${d}: ${err instanceof Error ? err.message : String(err)}`)
     }
@@ -20,28 +23,26 @@ function cleanup(...dirs: string[]) {
 
 describe('ConfigRepository', () => {
   const dirs: string[] = []
-
   afterEach(() => {
     cleanup(...dirs)
     dirs.length = 0
   })
-
   it('readJson returns null for missing file', () => {
     const dir = tmpDir('config-repo-')
     dirs.push(dir)
     const repo = new ConfigRepository()
     expect(repo.readJson(path.join(dir, 'missing.json'))).toBeNull()
   })
-
   it('readJson parses valid JSON', () => {
     const dir = tmpDir('config-repo-')
     dirs.push(dir)
     const filePath = path.join(dir, 'data.json')
     fs.writeFileSync(filePath, '{"key": "value"}')
     const repo = new ConfigRepository()
-    expect(repo.readJson(filePath)).toEqual({ key: 'value' })
+    expect(repo.readJson(filePath)).toEqual({
+      key: 'value',
+    })
   })
-
   it('readJson throws with file path context on invalid JSON', () => {
     const dir = tmpDir('config-repo-')
     dirs.push(dir)
@@ -50,33 +51,47 @@ describe('ConfigRepository', () => {
     const repo = new ConfigRepository()
     expect(() => repo.readJson(filePath)).toThrow(filePath)
   })
-
   it('writeJson creates parent directories and writes formatted JSON', () => {
     const dir = tmpDir('config-repo-')
     dirs.push(dir)
     const filePath = path.join(dir, 'sub', 'dir', 'data.json')
     const repo = new ConfigRepository()
-    repo.writeJson(filePath, { key: 'value' })
+    repo.writeJson(filePath, {
+      key: 'value',
+    })
     const raw = fs.readFileSync(filePath, 'utf-8')
-    expect(JSON.parse(raw)).toEqual({ key: 'value' })
+    expect(JSON.parse(raw)).toEqual({
+      key: 'value',
+    })
     expect(raw).toContain('\n')
   })
-
   it('readJson then writeJson roundtrips correctly', () => {
     const dir = tmpDir('config-repo-')
     dirs.push(dir)
     const filePath = path.join(dir, 'roundtrip.json')
-    const data = { projects: [{ path: '/test', projectSlug: 'test' }], count: 42 }
+    const data = {
+      projects: [
+        {
+          path: '/test',
+          projectSlug: 'test',
+        },
+      ],
+      count: 42,
+    }
     const repo = new ConfigRepository()
     repo.writeJson(filePath, data)
     expect(repo.readJson(filePath)).toEqual(data)
   })
-
   it('writeJson preserves the previous file when the replacement write fails', () => {
     const dir = tmpDir('config-repo-')
     dirs.push(dir)
     const filePath = path.join(dir, 'data.json')
-    fs.writeFileSync(filePath, JSON.stringify({ version: 'before' }))
+    fs.writeFileSync(
+      filePath,
+      JSON.stringify({
+        version: 'before',
+      }),
+    )
     const repo = new ConfigRepository()
     const originalWriteFileSync = fs.writeFileSync
     let failed = false
@@ -86,15 +101,19 @@ describe('ConfigRepository', () => {
         failed = true
         originalWriteFileSync(destination, '{"partial"')
         throw new Error('Simulated interrupted write')
-      }
-      // SAFETY: Vitest exposes overloaded writeFileSync arguments as a variadic
+      } // SAFETY: Vitest exposes overloaded writeFileSync arguments as a variadic
       // array; this forwards the original call unchanged.
       return originalWriteFileSync.apply(fs, args as any)
     })
-
     try {
-      expect(() => repo.writeJson(filePath, { version: 'after' })).toThrow('Simulated interrupted write')
-      expect(repo.readJson(filePath)).toEqual({ version: 'before' })
+      expect(() =>
+        repo.writeJson(filePath, {
+          version: 'after',
+        }),
+      ).toThrow('Simulated interrupted write')
+      expect(repo.readJson(filePath)).toEqual({
+        version: 'before',
+      })
     } finally {
       spy.mockRestore()
     }

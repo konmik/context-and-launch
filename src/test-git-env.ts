@@ -24,7 +24,6 @@ export function buildTestGitEnvironment(environment: Readonly<Record<string, str
     if (key !== undefined && value !== undefined) config.set(key, value)
   }
   for (const [key, value] of Object.entries(testGitConfig)) config.set(key, value)
-
   const merged = Object.fromEntries(Object.entries(environment).filter(([key]) => !/^GIT_CONFIG_(?:COUNT|KEY_\d+|VALUE_\d+)$/.test(key)))
   merged.GIT_CONFIG_COUNT = String(config.size)
   Array.from(config).forEach(([key, value], index) => {

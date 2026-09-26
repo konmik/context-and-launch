@@ -1,5 +1,4 @@
 import { defineRule } from '@oxlint/plugins'
-
 import type { ESTree } from '@oxlint/plugins'
 
 type RuntimeFunction = ESTree.ArrowFunctionExpression | ESTree.Function
@@ -34,12 +33,18 @@ export const noRuntimeTypeofRule = defineRule({
       {
         type: 'object',
         properties: {
-          allowInTypeGuards: { type: 'boolean' },
+          allowInTypeGuards: {
+            type: 'boolean',
+          },
         },
         additionalProperties: false,
       },
     ],
-    defaultOptions: [{ allowInTypeGuards: false }],
+    defaultOptions: [
+      {
+        allowInTypeGuards: false,
+      },
+    ],
   },
   createOnce(context) {
     return {
@@ -48,7 +53,10 @@ export const noRuntimeTypeofRule = defineRule({
         const allowInTypeGuards =
           typeof option === 'object' && option !== null && !Array.isArray(option) && option.allowInTypeGuards === true
         if (node.operator === 'typeof' && (!allowInTypeGuards || !isInsideTypeGuard(node))) {
-          context.report({ node, messageId: 'runtimeTypeof' })
+          context.report({
+            node,
+            messageId: 'runtimeTypeof',
+          })
         }
       },
     }

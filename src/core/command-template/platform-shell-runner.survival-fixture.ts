@@ -18,7 +18,6 @@ const writingScript = [
   '}, 100);',
 ].join('\n')
 const detachDelayMs = 100
-
 if (mode === 'powershell-grandchild') {
   const psCommand =
     `$p = Start-Process -FilePath '${process.execPath}' ` +

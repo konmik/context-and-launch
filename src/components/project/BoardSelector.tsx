@@ -15,7 +15,6 @@ export default function BoardSelector(props: BoardSelectorProps) {
       if (!data.some((board) => board.id === id)) props.setBoardId(data[0]?.id ?? '')
     },
   )
-
   return (
     <Show when={boards().length > 1}>
       <div class="mb-4">

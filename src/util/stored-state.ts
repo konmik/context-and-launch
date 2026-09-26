@@ -9,14 +9,19 @@ export interface StoredState<T> {
 
 export function createStoredState<T>(read: () => T | Promise<T>): StoredState<T> {
   const initial = createMemo(read)
-  const [saved, setSaved] = createSignal<{ value: T }>()
+  const [saved, setSaved] = createSignal<{
+    value: T
+  }>()
   let pending = Promise.resolve()
+
   function enqueueAndPublish(operation: () => Promise<Result<T, string>>): Promise<Result<void, string>> {
     const completion = pending.then(async (): Promise<Result<void, string>> => {
       try {
         const next = await operation()
         if (next.type === 'Failure') return next
-        setSaved({ value: next.value })
+        setSaved({
+          value: next.value,
+        })
         return succeed(undefined)
       } catch (error) {
         return fail(errorMessage(error))
@@ -25,6 +30,7 @@ export function createStoredState<T>(read: () => T | Promise<T>): StoredState<T>
     pending = completion.then(() => {})
     return completion
   }
+
   return {
     get: () => saved()?.value ?? initial(),
     enqueueAndPublish,

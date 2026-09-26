@@ -29,7 +29,6 @@ function SortableTicketCard(props: {
   const id = untrack(() => makeId(props.column, props.ticket.folderName))
   const sortable = createSortable(id)
   const isActive = () => props.activeId === id
-
   return (
     <div
       ref={sortable.ref}
@@ -76,7 +75,9 @@ export function ColumnHeader(props: { column: ColumnDefinition; count: number; e
     <div class={COLUMN_CELL_CLASS} data-testid="kanban-board-column-header-cell" data-column-name={props.column.name}>
       <div
         class={`mb-3 h-2 ${props.edgeLeft ? '-ml-8' : '-ml-4'} ${props.edgeRight ? '-mr-8' : '-mr-4'}`}
-        style={{ 'background-color': props.column.color ?? 'transparent' }}
+        style={{
+          'background-color': props.column.color ?? 'transparent',
+        }}
         data-testid="kanban-board-column-color-line"
         data-column-name={props.column.name}
       />
@@ -158,7 +159,11 @@ export function OrphanHeader() {
   )
 }
 
-export function OrphanBody(props: TicketColumnProps & { tickets: TicketInfo[] }) {
+export function OrphanBody(
+  props: TicketColumnProps & {
+    tickets: TicketInfo[]
+  },
+) {
   return (
     <div
       class={'flex min-w-[250px] flex-1 flex-col rounded-b-md ' + 'border border-t-0 border-destructive px-3 pb-3'}

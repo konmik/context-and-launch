@@ -8,7 +8,9 @@ const SCRIPT_PATH = path.resolve(__dirname, '../../../config-defaults/run-agent-
 const tempDirs: string[] = []
 
 interface HarnessReport {
-  calls: { args: string[] }[]
+  calls: {
+    args: string[]
+  }[]
 }
 
 function makeHarness() {
@@ -142,7 +144,11 @@ try {
 exit $exitCode
 `,
   )
-  return { dir, harness, report }
+  return {
+    dir,
+    harness,
+    report,
+  }
 }
 
 function readHarnessReport(reportPath: string): HarnessReport {
@@ -172,7 +178,9 @@ function runHarness(
       'claude',
       '--flag',
     ],
-    { encoding: 'utf-8' },
+    {
+      encoding: 'utf-8',
+    },
   )
   return {
     status: result.status,
@@ -200,7 +208,9 @@ function runHarnessWithoutPrompt(): ReturnType<typeof runHarness> {
       'claude',
       '--flag',
     ],
-    { encoding: 'utf-8' },
+    {
+      encoding: 'utf-8',
+    },
   )
   return {
     status: result.status,
@@ -228,7 +238,9 @@ function runOpenCodeHarness(): ReturnType<typeof runHarness> {
       'opencode',
       '--auto',
     ],
-    { encoding: 'utf-8' },
+    {
+      encoding: 'utf-8',
+    },
   )
   return {
     status: result.status,
@@ -239,10 +251,12 @@ function runOpenCodeHarness(): ReturnType<typeof runHarness> {
 
 afterEach(() => {
   while (tempDirs.length > 0) {
-    fs.rmSync(tempDirs.pop()!, { recursive: true, force: true })
+    fs.rmSync(tempDirs.pop()!, {
+      recursive: true,
+      force: true,
+    })
   }
 })
-
 describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
   it.each([
     ['Context-launch', 'context-launch'],
@@ -254,7 +268,6 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
     expect(result.status, result.stderr).toBe(0)
     expect(result.report.calls.map((call) => call.args)).toContainEqual(['agent', 'rename', 'w1:p1', agentName])
   })
-
   it('uses a new workspace root pane for the Ticket agent', () => {
     const result = runHarness('create')
     expect(result.status, result.stderr).toBe(0)
@@ -267,7 +280,6 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
     expect(calls).toContainEqual(['agent', 'prompt', 'w1:p1', "hello\nmultiline 'world'"])
     expect(calls.some((call) => call.includes('--cwd') && call[0] === 'agent')).toBe(false)
   })
-
   it('splits a Ticket pane in an existing Project workspace', () => {
     const result = runHarness('reuse')
     expect(result.status, result.stderr).toBe(0)
@@ -276,7 +288,6 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
     expect(calls).toContainEqual(['pane', 'split', 'w1:p1', '--direction', 'right', '--cwd', expect.any(String), '--no-focus'])
     expect(calls.some((call) => call[0] === 'pane' && call[1] === 'run' && call[2] === 'w1:p2')).toBe(true)
   })
-
   it('uses the first matching Project workspace when labels are duplicated', () => {
     const result = runHarness('duplicate')
     expect(result.status, result.stderr).toBe(0)
@@ -284,7 +295,6 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
     expect(calls).toContainEqual(['pane', 'list', '--workspace', 'w1'])
     expect(calls.map((call) => call.slice(0, 2).join(' '))).not.toContain('workspace create')
   })
-
   it('starts without prompting when the initial prompt is empty', () => {
     const result = runHarnessWithoutPrompt()
     expect(result.status, result.stderr).toBe(0)
@@ -292,7 +302,6 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
     expect(calls.some((call) => call[0] === 'pane' && call[1] === 'run')).toBe(true)
     expect(calls.some((call) => call[0] === 'agent' && call[1] === 'prompt')).toBe(false)
   })
-
   it('runs the configured OpenCode command through the pane shell', () => {
     const result = runOpenCodeHarness()
     expect(result.status, result.stderr).toBe(0)
@@ -307,7 +316,6 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
     expect(calls).toContainEqual(['pane', 'rename', 'w1:p1', 'alpha--st-47'])
     expect(calls).toContainEqual(['agent', 'prompt', 'w1:p1', "hello\nmultiline 'world'"])
   })
-
   it('restarts an idle agent process inside the same pane', () => {
     const result = runHarness('idle')
     expect(result.status, result.stderr).toBe(0)
@@ -319,22 +327,19 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
     expect(calls.some((call) => call[0] === 'pane' && call[1] === 'run' && call[2] === 'w1:p9' && call[3] !== '/quit')).toBe(true)
     expect(calls).toContainEqual(['agent', 'prompt', 'w1:p9', "hello\nmultiline 'world'"])
   })
-
   it('starts an agent in an empty persistent Ticket pane', () => {
     const result = runHarness('empty')
     expect(result.status, result.stderr).toBe(0)
     const calls = result.report.calls.map((call) => call.args)
     expect(calls.some((call) => call[0] === 'pane' && call[1] === 'run' && call[2] === 'w1:p9')).toBe(true)
   })
-
   it('rejects a working agent', () => {
     const result = runHarness('working')
     expect(result.status).toBe(64)
     expect(result.stderr).toContain("Ticket pane 'alpha--st-47' already has a Herdr agent (working)")
   })
-})
+}) // The mocked-function harness above cannot see how PowerShell treats a real
 
-// The mocked-function harness above cannot see how PowerShell treats a real
 // program that writes to stderr, which is exactly where a failing Herdr call
 // used to lose its context. These cases put a native `herdr` on PATH instead.
 function runWithNativeStub(serverStatus: 'running' | 'not running', stderrLine: string) {
@@ -360,10 +365,16 @@ function runWithNativeStub(serverStatus: 'running' | 'not running', stderrLine: 
     {
       encoding: 'utf-8',
       cwd: dir,
-      env: { ...process.env, PATH: `${dir}${path.delimiter}${process.env.PATH ?? ''}` },
+      env: {
+        ...process.env,
+        PATH: `${dir}${path.delimiter}${process.env.PATH ?? ''}`,
+      },
     },
   )
-  return { status: result.status, stderr: result.stderr }
+  return {
+    status: result.status,
+    stderr: result.stderr,
+  }
 }
 
 describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1 Herdr failures', () => {
@@ -377,7 +388,6 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1 Herdr failures
     expect(result.stderr).toContain('herdr workspace list exited 1')
     expect(result.stderr).toContain('kind: NotFound')
   })
-
   it('keeps the failing command with a failure Herdr itself reported', () => {
     const result = runWithNativeStub('running', '{"error":{"code":"internal","message":"workspace list is broken"}}')
     expect(result.status).toBe(64)

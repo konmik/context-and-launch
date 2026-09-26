@@ -11,12 +11,12 @@ import type {
 } from './diff-review-types.js'
 
 function stableHash(value: string): string {
-  let first = 0x811c9dc5
-  let second = 0x9e3779b9
+  let first = 2166136261
+  let second = 2654435769
   for (let index = 0; index < value.length; index++) {
     const code = value.charCodeAt(index)
-    first = Math.imul(first ^ code, 0x01000193)
-    second = Math.imul(second ^ code, 0x85ebca6b)
+    first = Math.imul(first ^ code, 16777619)
+    second = Math.imul(second ^ code, 2246822507)
   }
   return `${(first >>> 0).toString(36)}${(second >>> 0).toString(36)}`
 }
@@ -27,9 +27,8 @@ export function reviewContentHash(oldContents: string, newContents: string): str
 
 function lineSignature(type: ReviewDiffLine['type'], text: string): string {
   return `${type}:${text}`
-}
+} // Git stores text with LF endings and normalizes CRLF at the index boundary,
 
-// Git stores text with LF endings and normalizes CRLF at the index boundary,
 // while the working file on disk may carry the platform's own endings. The two
 // sides of a Diff Review reach the model through different pipelines, so line
 // endings must be normalized here or a CRLF-versus-LF file reads as a change to
@@ -109,7 +108,6 @@ export function buildReviewFile(input: BuildReviewFileInput): ReviewFileSnapshot
       lines: [],
     }
   }
-
   const diff = parseDiffFromFile(
     {
       name: input.previousPath ?? input.path,
@@ -121,7 +119,9 @@ export function buildReviewFile(input: BuildReviewFileInput): ReviewFileSnapshot
       contents: newContents,
       cacheKey: `${contentHash}:new`,
     },
-    { context: 3 },
+    {
+      context: 3,
+    },
     true,
   )
   const hunks: ReviewHunk[] = []
@@ -138,7 +138,6 @@ export function buildReviewFile(input: BuildReviewFileInput): ReviewFileSnapshot
       signatureCounts.set(signature, (signatureCounts.get(signature) ?? 0) + 1)
     }
   }
-
   for (let hunkIndex = 0; hunkIndex < diff.hunks.length; hunkIndex++) {
     const sourceHunk = diff.hunks[hunkIndex]
     const rawLines = rawHunks[hunkIndex]
@@ -146,14 +145,12 @@ export function buildReviewFile(input: BuildReviewFileInput): ReviewFileSnapshot
     const occurrence = fingerprintOccurrences.get(baseFingerprint) ?? 0
     fingerprintOccurrences.set(baseFingerprint, occurrence + 1)
     const hunkId = `${baseFingerprint}-${occurrence}`
-
     for (const line of rawLines) {
       if (line.type === 'addition') additions++
       if (line.type === 'deletion') deletions++
       const signature = lineSignature(line.type, line.text)
       const lineOccurrence = lineOccurrences.get(signature) ?? 0
-      lineOccurrences.set(signature, lineOccurrence + 1)
-      // Equal diff lines have no intrinsic identity. Tie ambiguous occurrences
+      lineOccurrences.set(signature, lineOccurrence + 1) // Equal diff lines have no intrinsic identity. Tie ambiguous occurrences
       // to this revision so removing one cannot transfer reviewed state to another.
       const identity = signatureCounts.get(signature) === 1 ? `${input.path}\0${signature}` : `${input.path}\0${signature}\0${contentHash}`
       lines.push({
@@ -162,7 +159,6 @@ export function buildReviewFile(input: BuildReviewFileInput): ReviewFileSnapshot
         hunkId,
       })
     }
-
     hunks.push({
       id: hunkId,
       oldStart: sourceHunk.deletionStart,
@@ -171,7 +167,6 @@ export function buildReviewFile(input: BuildReviewFileInput): ReviewFileSnapshot
       newCount: sourceHunk.additionCount,
     })
   }
-
   return {
     path: input.path,
     previousPath: input.previousPath,
@@ -225,10 +220,21 @@ function promptLine(line: ReviewDiffLine): ReviewPromptLine {
   return prompt
 }
 
-function rangeFor(lines: ReviewDiffLine[], side: 'oldLineNumber' | 'newLineNumber'): { start: number; end: number } | undefined {
+function rangeFor(
+  lines: ReviewDiffLine[],
+  side: 'oldLineNumber' | 'newLineNumber',
+):
+  | {
+      start: number
+      end: number
+    }
+  | undefined {
   const numbers = lines.map((line) => line[side]).filter((value): value is number => value !== undefined)
   if (numbers.length === 0) return undefined
-  return { start: Math.min(...numbers), end: Math.max(...numbers) }
+  return {
+    start: Math.min(...numbers),
+    end: Math.max(...numbers),
+  }
 }
 
 function selectionSignature(lines: Pick<ReviewPromptLine, 'type' | 'text'>[]): string {

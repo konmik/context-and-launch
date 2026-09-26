@@ -5,7 +5,7 @@ import type { Locator, Page } from 'playwright'
  * vitest testTimeout; this one exists only so a broken test reports the element
  * it was waiting for instead of hanging until the suite gives up.
  */
-export const WAIT_TIMEOUT_MS = 15_000
+export const WAIT_TIMEOUT_MS = 15000
 
 /** Extra attributes narrowing a test id, e.g. `{ "data-column-name": "todo" }`. */
 export type TestIdAttributes = Record<string, string>
@@ -32,7 +32,10 @@ export function testId(root: LocatorRoot, id: string, attrs: TestIdAttributes = 
  */
 async function waitForState(page: Page, id: string, attrs: TestIdAttributes, state: 'visible' | 'detached' | 'hidden'): Promise<Locator> {
   const locator = testId(page, id, attrs)
-  await locator.first().waitFor({ state, timeout: WAIT_TIMEOUT_MS })
+  await locator.first().waitFor({
+    state,
+    timeout: WAIT_TIMEOUT_MS,
+  })
   return locator
 }
 
@@ -50,7 +53,10 @@ export async function waitHidden(page: Page, id: string, attrs: TestIdAttributes
 
 /** Waits on an already-built locator, for targets a test id alone cannot express. */
 export async function waitLocatorVisible(locator: Locator): Promise<void> {
-  await locator.first().waitFor({ state: 'visible', timeout: WAIT_TIMEOUT_MS })
+  await locator.first().waitFor({
+    state: 'visible',
+    timeout: WAIT_TIMEOUT_MS,
+  })
 }
 
 export function countOf(page: Page, id: string, attrs: TestIdAttributes = {}): Promise<number> {
@@ -62,5 +68,8 @@ export async function waitVisibleAny(page: Page, ids: string[]): Promise<void> {
   await page
     .locator(ids.map((id) => testIdSelector(id)).join(', '))
     .first()
-    .waitFor({ state: 'visible', timeout: WAIT_TIMEOUT_MS })
+    .waitFor({
+      state: 'visible',
+      timeout: WAIT_TIMEOUT_MS,
+    })
 }

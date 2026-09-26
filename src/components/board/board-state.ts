@@ -22,42 +22,38 @@ export function createBoardDnd(getBoard: () => BoardState) {
   const [activeId, setActiveId] = createSignal<string | null>(null)
   const [hoverTarget, setHoverTarget] = createSignal<HoverTarget | null>(null)
   const columnRefs = new Map<string, HTMLDivElement>()
-
   const board = createMemo((): BoardView => {
     const b = getBoard()
     const ticketMap = buildTicketMap(b.tickets)
     const orphanedTickets = computeOrphans(b)
     const orphanFolderNames = new Set(orphanedTickets.map((t) => t.folderName))
-    return { ticketMap, orphanedTickets, orphanFolderNames }
+    return {
+      ticketMap,
+      orphanedTickets,
+      orphanFolderNames,
+    }
   })
-
   const drag = createMemo(
     (): DragState => ({
       activeId: activeId(),
       hoverTarget: hoverTarget(),
     }),
   )
-
   const currentOrder = () => getBoard().ticketOrder
-
   const activeTicket = createMemo(() => resolveActiveTicket(activeId(), board().ticketMap))
-
   const cancelDrag = () => {
     setActiveId(null)
     setHoverTarget(null)
   }
-
   const commands = {
     startDrag: (id: string) => setActiveId(id),
     updateHover: (target: HoverTarget | null) => setHoverTarget(target),
     cancelDrag,
     registerColumnRef: (col: string, el: HTMLDivElement) => columnRefs.set(col, el),
-
     handleDragMove: (e: DndDragEvent) => {
       const { ticketMap, orphanFolderNames } = board()
       setHoverTarget(computeDragMoveTarget(e, activeId(), columnRefs, currentOrder(), ticketMap, orphanFolderNames))
     },
-
     endDrag: () => {
       const { ticketMap, orphanFolderNames } = board()
       const result = resolveDrop(activeId(), hoverTarget(), currentOrder(), ticketMap, orphanFolderNames)
@@ -65,6 +61,11 @@ export function createBoardDnd(getBoard: () => BoardState) {
       return result
     },
   }
-
-  return { board, drag, currentOrder, activeTicket, commands }
+  return {
+    board,
+    drag,
+    currentOrder,
+    activeTicket,
+    commands,
+  }
 }

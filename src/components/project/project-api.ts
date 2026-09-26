@@ -13,24 +13,24 @@ import { detectMainBranch } from '~/core/infra/git.js'
 import { errorResult } from '~/core/shared/errors.js'
 
 export type { BoardState, ProjectPageData, SyncStatus } from '~/core/board/board-types.js'
-
 export const getDefaultProjectSlug = query(async (): Promise<string | null> => {
   'use server'
+
   return projectRegistry.getDefaultProjectSlug()
 }, 'default-project-slug')
-
 export const loadProjectPage = query(async (projectSlug: string) => {
   'use server'
+
   return projectPageService.loadProjectPage(projectSlug)
 }, 'project-page')
-
 export const getSyncStatus = query(async (projectSlug: string) => {
   'use server'
+
   return projectPageService.loadSyncStatus(projectSlug)
 }, 'project-sync-status')
-
 export const previewProjectPath = query(async (pathValue: string) => {
   'use server'
+
   const projectSlug = projectRegistry.previewSlug(pathValue)
   let mainBranch: string | undefined
   try {
@@ -38,11 +38,15 @@ export const previewProjectPath = query(async (pathValue: string) => {
   } catch (err) {
     console.warn('detectMainBranch failed for preview:', err instanceof Error ? err.message : err)
   }
-  return { projectSlug, mainBranch }
+  return {
+    projectSlug,
+    mainBranch,
+  }
 }, 'preview-project-path')
 
 export async function addProject(pathValue: string, branch: string, mainBranch: string, boardId: string, name: string) {
   'use server'
+
   try {
     const projectSlug = projectRegistry.previewSlug(pathValue)
     await worktreeManager.ensureWorktree(pathValue, projectSlug, branch || undefined)
@@ -56,7 +60,10 @@ export async function addProject(pathValue: string, branch: string, mainBranch: 
       ...current,
       worktreeRootPath: configPaths.agentWorktreeDir(project.projectSlug),
     }))
-    return { ok: true as const, projectSlug: project.projectSlug }
+    return {
+      ok: true as const,
+      projectSlug: project.projectSlug,
+    }
   } catch (e) {
     return errorResult(e)
   }
@@ -64,15 +71,22 @@ export async function addProject(pathValue: string, branch: string, mainBranch: 
 
 export async function deleteProject(projectSlug: string) {
   'use server'
+
   try {
     const exists = projectRegistry.listProjects().some((p) => p.projectSlug === projectSlug)
     if (!exists) {
-      return { ok: false as const, type: 'error' as const, message: `Project not found: ${projectSlug}` }
+      return {
+        ok: false as const,
+        type: 'error' as const,
+        message: `Project not found: ${projectSlug}`,
+      }
     }
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
     projectRegistry.removeProject(projectSlug)
     await fileWatcher.stop(worktreeDir)
-    return { ok: true as const }
+    return {
+      ok: true as const,
+    }
   } catch (e) {
     return errorResult(e)
   }
@@ -80,22 +94,45 @@ export async function deleteProject(projectSlug: string) {
 
 export const setProjectPath = action(async (projectSlug: string, pathValue: string) => {
   'use server'
+
   try {
     const project = projectRegistry.updateProject(projectSlug, pathValue.trim())
-    return { ok: true as const, path: project.path }
+    return {
+      ok: true as const,
+      path: project.path,
+    }
   } catch (e) {
     return errorResult(e)
   }
 }, 'set-project-path')
+export const setTicketsLocation = action(
+  async (
+    projectSlug: string,
+    change: {
+      kind: 'path' | 'branch'
+      value: string
+    },
+  ) => {
+    'use server'
 
-export const setTicketsLocation = action(async (projectSlug: string, change: { kind: 'path' | 'branch'; value: string }) => {
-  'use server'
-  try {
-    const oldPath = worktreeManager.getWorktreeDir(projectSlug)
-    projectRegistry.setTicketsLocation(projectSlug, change)
-    if (change.kind === 'path') await fileWatcher.stop(oldPath)
-    return respond({ ok: true as const, value: change.value.trim() }, { revalidate: [] })
-  } catch (e) {
-    return respond(errorResult(e), { revalidate: [] })
-  }
-}, 'set-tickets-location')
+    try {
+      const oldPath = worktreeManager.getWorktreeDir(projectSlug)
+      projectRegistry.setTicketsLocation(projectSlug, change)
+      if (change.kind === 'path') await fileWatcher.stop(oldPath)
+      return respond(
+        {
+          ok: true as const,
+          value: change.value.trim(),
+        },
+        {
+          revalidate: [],
+        },
+      )
+    } catch (e) {
+      return respond(errorResult(e), {
+        revalidate: [],
+      })
+    }
+  },
+  'set-tickets-location',
+)

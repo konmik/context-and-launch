@@ -7,7 +7,9 @@ const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 function walk(dir: string, filter: (p: string) => boolean): string[] {
   const out: string[] = []
   if (!fs.existsSync(dir)) return out
-  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+  for (const e of fs.readdirSync(dir, {
+    withFileTypes: true,
+  })) {
     const p = path.join(dir, e.name)
     if (e.isDirectory()) {
       if (e.name === 'node_modules' || e.name === 'dist' || e.name === 'dist-electron') continue
@@ -32,8 +34,7 @@ function scanReferences(file: string): Set<string> {
   const text = fs.readFileSync(file, 'utf-8')
   const found = new Set<string>()
   const patterns: RegExp[] = [
-    /data-testid=\\?["']([a-z0-9-]+)\\?["']/g,
-    // The e2e locator helpers, which name a testid as their first argument:
+    /data-testid=\\?["']([a-z0-9-]+)\\?["']/g, // The e2e locator helpers, which name a testid as their first argument:
     // testId(page, "x"), waitVisible(page, "x"), waitGone(page, "x"), ...
     /\b(?:testId|waitVisible|waitAttached|waitGone|waitHidden|countOf|fastForwardUntilVisible)\(\s*[\w.]+\s*,\s*["']([a-z0-9-]+)["']/g,
     /testId:\s*["']([a-z0-9-]+)["']/g,
@@ -53,8 +54,7 @@ function scanReferences(file: string): Set<string> {
   ]
   for (const re of patterns) {
     for (const m of text.matchAll(re)) found.add(m[1])
-  }
-  // waitVisibleAny(page, ["x", "y"]) names several testids at once.
+  } // waitVisibleAny(page, ["x", "y"]) names several testids at once.
   for (const m of text.matchAll(/\bwaitVisibleAny\(\s*[\w.]+\s*,\s*\[([^\]]*)\]/g)) {
     for (const id of m[1].matchAll(/["']([a-z0-9-]+)["']/g)) found.add(id[1])
   }
@@ -62,30 +62,23 @@ function scanReferences(file: string): Set<string> {
 }
 
 const srcFiles = walk(path.join(REPO, 'src'), (p) => p.endsWith('.tsx') && !p.endsWith('.test.tsx') && !p.endsWith('.render.test.tsx'))
-
 const e2eFiles = walk(path.join(REPO, 'e2e'), (p) => p.endsWith('.ts'))
-
 const required = new Set<string>()
 for (const f of srcFiles) {
   for (const id of scanLiterals(f)) required.add(id)
 }
-
 for (const f of srcFiles) {
   for (const id of scanReferences(f)) required.add(id)
 }
-
 const referenced = new Set<string>()
 for (const f of e2eFiles) {
   for (const id of scanReferences(f)) referenced.add(id)
 }
-
 const missing = [...required].filter((id) => !referenced.has(id)).sort()
-
 if (missing.length > 0) {
   console.error('Coverage gate failed: src data-testid values with no e2e reference:')
   for (const id of missing) console.error('  -', id)
   console.error('\nAdd a test that references the testid, or remove it from src.')
   process.exit(1)
 }
-
 console.log(`Coverage gate passed: ${required.size} testids, all referenced.`)

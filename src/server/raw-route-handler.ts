@@ -31,15 +31,27 @@ export function createRawRouteHandler(deps: RawRouteDeps) {
         content = store.getFileContent(decodeURIComponent(folderName), fileName)
       } else {
         const refPath = url.searchParams.get('path')
-        if (!refPath) return new Response('Missing path parameter', { status: 400 })
+        if (!refPath)
+          return new Response('Missing path parameter', {
+            status: 400,
+          })
         fileName = refPath
         content = store.getReferencedFileContent(decodeURIComponent(folderName), refPath)
       }
       return new Response(request.method === 'HEAD' ? null : new Uint8Array(content), {
-        headers: { 'Content-Type': getMimeType(fileName) ?? 'application/octet-stream' },
+        headers: {
+          'Content-Type': getMimeType(fileName) ?? 'application/octet-stream',
+        },
       })
     } catch (error) {
-      return Response.json({ error: errorMessage(error) }, { status: 500 })
+      return Response.json(
+        {
+          error: errorMessage(error),
+        },
+        {
+          status: 500,
+        },
+      )
     }
   }
 }

@@ -1,7 +1,5 @@
 import { defineRule } from '@oxlint/plugins'
-
 import type { ESTree } from '@oxlint/plugins'
-
 import { lexicalTypeParameterNames } from '../shared/lexical-type-parameters.ts'
 
 type FunctionWithReturnType =
@@ -34,7 +32,6 @@ export const noUnknownReturnsRule = defineRule({
   },
   createOnce(context) {
     const aliases = new Map<string, ESTree.TSTypeAliasDeclaration>()
-
     const resolvesToUnknown = (type: ESTree.TSType, shadowedAliases: ReadonlySet<string>, visited = new Set<string>()): boolean => {
       if (type.type === 'TSUnknownKeyword') return true
       if (type.type === 'TSParenthesizedType') {
@@ -61,16 +58,17 @@ export const noUnknownReturnsRule = defineRule({
       nextVisited.add(name)
       return resolvesToUnknown(alias.typeAnnotation, shadowedAliases, nextVisited)
     }
-
     const checkReturnType = (node: FunctionWithReturnType) => {
       const annotation = node.returnType
       if (annotation === null || annotation === undefined) return
       if (!resolvesToUnknown(annotation.typeAnnotation, lexicalTypeParameterNames(node, context.sourceCode.visitorKeys))) {
         return
       }
-      context.report({ node: annotation.typeAnnotation, messageId: 'unknownReturn' })
+      context.report({
+        node: annotation.typeAnnotation,
+        messageId: 'unknownReturn',
+      })
     }
-
     return {
       Program(node) {
         aliases.clear()

@@ -5,6 +5,7 @@ import type { ConfigPaths } from '../config/config-paths.js'
 import { ConfigRepository } from '../config/config-repository.js'
 import { AppConfigStore } from '../config/app-config-store.js'
 import type { ProjectEntry } from '../config/app-config-data.js'
+
 export type { ProjectEntry } from '../config/app-config-data.js'
 
 export interface ProjectInfo extends ProjectEntry {
@@ -19,6 +20,7 @@ export const AddProjectBody = v.object({
   boardId: v.optional(v.string()),
   name: v.optional(v.string()),
 })
+
 export type AddProjectBody = v.InferOutput<typeof AddProjectBody>
 
 function isGitRepo(dirPath: string, configRepo: ConfigRepository): boolean {
@@ -74,11 +76,9 @@ export function generateProjectSlug(filePath: string, existingProjectSlugs: Set<
   const parsed = path.parse(filePath)
   const name = toSlugSegment(parsed.base) || 'project'
   if (!existingProjectSlugs.has(name)) return name
-
   const parentName = parsed.dir ? toSlugSegment(path.basename(parsed.dir)) : ''
   const base = parentName ? `${parentName}-${name}` : name
   if (!existingProjectSlugs.has(base)) return base
-
   let i = 2
   while (existingProjectSlugs.has(`${base}-${i}`)) i++
   return `${base}-${i}`
@@ -133,7 +133,6 @@ export class ProjectRegistry {
     if (opts.mainBranch !== undefined) {
       validateBranchName(opts.mainBranch)
     }
-
     const canonicalPath = this.configRepo.realpathSync(projectPath)
     const saved = this.appConfig.update((config) => {
       const alreadyRegistered = config.projects.some((project) => {
@@ -149,11 +148,17 @@ export class ProjectRegistry {
       if (existingProjectSlugs.has(projectSlug)) throw new Error(`Project slug already exists: ${projectSlug}`)
       return {
         ...config,
-        projects: [...config.projects, { ...opts, path: canonicalPath, projectSlug }],
+        projects: [
+          ...config.projects,
+          {
+            ...opts,
+            path: canonicalPath,
+            projectSlug,
+          },
+        ],
         lastUsedProjectSlug: projectSlug,
       }
     })
-
     return entryToInfo(saved.projects.at(-1)!, this.configRepo)
   }
 
@@ -196,10 +201,11 @@ export class ProjectRegistry {
         lastUsedProjectSlug: config.lastUsedProjectSlug === projectSlug ? (projects[0]?.projectSlug ?? null) : config.lastUsedProjectSlug,
       }
     })
-
     const projectConfigDir = this.paths.projectConfigDir(projectSlug)
     if (fs.existsSync(projectConfigDir)) {
-      fs.rmSync(projectConfigDir, { recursive: true })
+      fs.rmSync(projectConfigDir, {
+        recursive: true,
+      })
     }
   }
 
@@ -208,7 +214,13 @@ export class ProjectRegistry {
     return project?.name || projectSlug
   }
 
-  setTicketsLocation(projectSlug: string, change: { kind: 'path' | 'branch'; value: string }): void {
+  setTicketsLocation(
+    projectSlug: string,
+    change: {
+      kind: 'path' | 'branch'
+      value: string
+    },
+  ): void {
     const value = change.value.trim()
     if (!value) throw new Error('Tickets folder and branch cannot be empty.')
     if (change.kind === 'branch') validateBranchName(value)
@@ -220,7 +232,12 @@ export class ProjectRegistry {
       return {
         ...config,
         projects: config.projects.map((project) =>
-          project.projectSlug !== projectSlug ? project : { ...project, [change.kind === 'path' ? 'ticketsPath' : 'branch']: value },
+          project.projectSlug !== projectSlug
+            ? project
+            : {
+                ...project,
+                [change.kind === 'path' ? 'ticketsPath' : 'branch']: value,
+              },
         ),
       }
     })

@@ -24,13 +24,21 @@ describe('DragDropProvider keyboard dragging', () => {
         <Sortable id="three" />
       </DragDropProvider>
     ))
-    const source = view.getByRole('button', { name: 'one' })
-
-    fireEvent.keyDown(source, { key: 'Enter' })
-    fireEvent.keyDown(source, { key: 'ArrowDown' })
-    fireEvent.keyDown(source, { key: 'ArrowDown' })
-    fireEvent.keyDown(source, { key: 'Enter' })
-
+    const source = view.getByRole('button', {
+      name: 'one',
+    })
+    fireEvent.keyDown(source, {
+      key: 'Enter',
+    })
+    fireEvent.keyDown(source, {
+      key: 'ArrowDown',
+    })
+    fireEvent.keyDown(source, {
+      key: 'ArrowDown',
+    })
+    fireEvent.keyDown(source, {
+      key: 'Enter',
+    })
     expect(onDragOver.mock.calls.map(([event]) => event.droppable.id)).toEqual(['two', 'three'])
     expect(onDragEnd.mock.calls[0][0].droppable.id).toBe('three')
   })

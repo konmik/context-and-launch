@@ -5,4 +5,6 @@ import { AppRouter } from './router.js'
 import { publishAppServices } from './server/app-services.js'
 
 publishAppServices()
-configureServerFunctionsServer({ collectFlightData: createFlightDataCollector(AppRouter) })
+configureServerFunctionsServer({
+  collectFlightData: createFlightDataCollector(AppRouter),
+})

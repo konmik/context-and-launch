@@ -11,8 +11,8 @@ import type { DiffReviewTargetResolver, ResolvedDiffReviewTarget } from './diff-
 import type { ReviewAgentLauncher } from './review-agent-launcher.js'
 import type { DiffReviewTicketState, ReviewPromptQueueItem, ReviewPromptSnapshot } from './diff-review-types.js'
 
-const DELIVERY_COOLDOWN_MS = 3_000
-const AGENT_STARTUP_COOLDOWN_MS = 45_000
+const DELIVERY_COOLDOWN_MS = 3000
+const AGENT_STARTUP_COOLDOWN_MS = 45000
 
 function ticketKey(projectSlug: string, folderName: string): string {
   return `${projectSlug}\0${folderName}`
@@ -40,13 +40,32 @@ function agentIsFree(agent: HerdrAgent): boolean {
   return agent.agent_status === 'idle' || agent.agent_status === 'done'
 }
 
-type TicketAgentObservation = { kind: 'herdr'; agent: HerdrAgent } | { kind: 'profile' } | { kind: 'absent' } | { kind: 'ambiguous' }
+type TicketAgentObservation =
+  | {
+      kind: 'herdr'
+      agent: HerdrAgent
+    }
+  | {
+      kind: 'profile'
+    }
+  | {
+      kind: 'absent'
+    }
+  | {
+      kind: 'ambiguous'
+    }
 
 export class ReviewPromptQueueService {
   private readonly recoveredProjects = new Set<string>()
   private readonly processingTickets = new Map<string, Promise<void>>()
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>()
-  private readonly agentSnapshots = new Map<string, { agents: HerdrAgent[]; readAt: number }>()
+  private readonly agentSnapshots = new Map<
+    string,
+    {
+      agents: HerdrAgent[]
+      readAt: number
+    }
+  >()
 
   constructor(
     private readonly store: DiffReviewStore,
@@ -54,19 +73,39 @@ export class ReviewPromptQueueService {
     private readonly targets: DiffReviewTargetResolver,
     private readonly commands: CommandTemplateExecutor,
     private readonly launcher: ReviewAgentLauncher,
-    private readonly observeProject?: (projectSlug: string) => Promise<{ agents: HerdrAgent[]; observedAt: number } | undefined>,
+    private readonly observeProject?: (projectSlug: string) => Promise<
+      | {
+          agents: HerdrAgent[]
+          observedAt: number
+        }
+      | undefined
+    >,
   ) {}
 
-  async reconcileProject(projectSlug: string, observation?: HerdrAgent[] | { agents: HerdrAgent[]; observedAt: number }): Promise<void> {
+  async reconcileProject(
+    projectSlug: string,
+    observation?:
+      | HerdrAgent[]
+      | {
+          agents: HerdrAgent[]
+          observedAt: number
+        },
+  ): Promise<void> {
     if (!this.recoveredProjects.has(projectSlug)) {
       await this.store.whenWritable(projectSlug, () => this.store.recoverInterrupted(projectSlug))
       this.recoveredProjects.add(projectSlug)
     }
     const observed = Array.isArray(observation)
-      ? { agents: observation, observedAt: Date.now() }
+      ? {
+          agents: observation,
+          observedAt: Date.now(),
+        }
       : (observation ?? (await this.observeProject?.(projectSlug)))
     if (!observed) return
-    const snapshot = { agents: observed.agents, readAt: observed.observedAt }
+    const snapshot = {
+      agents: observed.agents,
+      readAt: observed.observedAt,
+    }
     this.agentSnapshots.set(projectSlug, snapshot)
     const pending: Promise<void>[] = []
     const state = this.store.loadProject(projectSlug)
@@ -96,9 +135,22 @@ export class ReviewPromptQueueService {
 
   private observeTicketAgent(target: ResolvedDiffReviewTarget, agents: HerdrAgent[]): TicketAgentObservation {
     const matching = agents.filter((agent) => agentMatchesTarget(agent, target))
-    if (matching.length > 1) return { kind: 'ambiguous' }
-    if (matching[0]) return { kind: 'herdr', agent: matching[0] }
-    return this.launcher.isRunning(target) ? { kind: 'profile' } : { kind: 'absent' }
+    if (matching.length > 1)
+      return {
+        kind: 'ambiguous',
+      }
+    if (matching[0])
+      return {
+        kind: 'herdr',
+        agent: matching[0],
+      }
+    return this.launcher.isRunning(target)
+      ? {
+          kind: 'profile',
+        }
+      : {
+          kind: 'absent',
+        }
   }
 
   /**
@@ -154,7 +206,10 @@ export class ReviewPromptQueueService {
     const ticket = await this.store.whenWritable(target.projectSlug, () =>
       this.store.updateTicket(target.projectSlug, target.folderName, target.worktreeIdentity, (ticket) => ({
         ...ticket,
-        queue: { ...ticket.queue, requestedAgentProfileName: profileName },
+        queue: {
+          ...ticket.queue,
+          requestedAgentProfileName: profileName,
+        },
       })),
     )
     if (!agentsKnown) return
@@ -212,7 +267,10 @@ export class ReviewPromptQueueService {
       await this.store.whenWritable(projectSlug, () =>
         this.store.updateTicket(projectSlug, folderName, target.worktreeIdentity, (ticket) => ({
           ...ticket,
-          queue: { ...ticket.queue, agentLaunchReservedUntil: undefined },
+          queue: {
+            ...ticket.queue,
+            agentLaunchReservedUntil: undefined,
+          },
         })),
       )
       throw error
@@ -220,7 +278,11 @@ export class ReviewPromptQueueService {
     await this.store.whenWritable(projectSlug, () =>
       this.store.updateTicket(projectSlug, folderName, target.worktreeIdentity, (ticket) => ({
         ...ticket,
-        queue: { ...ticket.queue, agentLaunchReservedUntil: undefined, cooldownUntil: reservedUntil.toISOString() },
+        queue: {
+          ...ticket.queue,
+          agentLaunchReservedUntil: undefined,
+          cooldownUntil: reservedUntil.toISOString(),
+        },
       })),
     )
   }
@@ -263,8 +325,7 @@ export class ReviewPromptQueueService {
       const head = ticket.queue.items[0]
       if (!head) return
       if (head.state !== 'waiting' && head.state !== 'sent') return
-      const agent = this.observeTicketAgent(target, agents)
-      // A delivered Review Prompt stays at the head of the queue for as long as
+      const agent = this.observeTicketAgent(target, agents) // A delivered Review Prompt stays at the head of the queue for as long as
       // the Agent works on it, so the queue shows what the Agent is running and
       // hands over the next Review Prompt only once the Agent is free again. Only
       // an Agent report read after the delivery can say that: an older one still
@@ -308,11 +369,13 @@ export class ReviewPromptQueueService {
         await this.store.whenWritable(projectSlug, () =>
           this.store.updateTicket(projectSlug, folderName, target.worktreeIdentity, (ticket) => ({
             ...ticket,
-            queue: { ...ticket.queue, requestedAgentProfileName: undefined },
+            queue: {
+              ...ticket.queue,
+              requestedAgentProfileName: undefined,
+            },
           })),
         )
-      }
-      // Starting an Agent opens a terminal on the user's machine, so only the
+      } // Starting an Agent opens a terminal on the user's machine, so only the
       // user starts one. With no Herdr Agent to deliver to, the Review Prompt
       // keeps its place and waits for one.
       if (agent.kind !== 'herdr') return
@@ -321,7 +384,12 @@ export class ReviewPromptQueueService {
       const paneId = agent.agent.pane_id
       await this.deliver(target, head, {
         send: (prompt) =>
-          this.commands.execute('herdr.review-prompt.deliver', target.worktreePath, { paneId, prompt }).then(() => undefined),
+          this.commands
+            .execute('herdr.review-prompt.deliver', target.worktreePath, {
+              paneId,
+              prompt,
+            })
+            .then(() => undefined),
         cooldownMs: DELIVERY_COOLDOWN_MS,
       })
     })
@@ -330,7 +398,10 @@ export class ReviewPromptQueueService {
   private async processTicketIsolated(
     projectSlug: string,
     folderName: string,
-    snapshot: { agents: HerdrAgent[]; readAt: number },
+    snapshot: {
+      agents: HerdrAgent[]
+      readAt: number
+    },
   ): Promise<void> {
     try {
       await this.processTicket(projectSlug, folderName, snapshot.agents, snapshot.readAt)
@@ -361,13 +432,20 @@ export class ReviewPromptQueueService {
   private async deliver(
     target: ResolvedDiffReviewTarget,
     item: ReviewPromptQueueItem,
-    delivery: { send(prompt: string): Promise<void>; cooldownMs: number },
+    delivery: {
+      send(prompt: string): Promise<void>
+      cooldownMs: number
+    },
   ): Promise<void> {
     await this.store.whenWritable(target.projectSlug, () =>
       this.store.beginDelivery(target.projectSlug, target.folderName, target.worktreeIdentity, item.id),
     )
     try {
-      const freshness = item.snapshot ? await this.checkFreshness(target, item.snapshot) : { stale: false }
+      const freshness = item.snapshot
+        ? await this.checkFreshness(target, item.snapshot)
+        : {
+            stale: false,
+          }
       await delivery.send(renderReviewPrompt(item, freshness))
     } catch (error) {
       await this.store.whenWritable(target.projectSlug, () =>
@@ -399,11 +477,16 @@ export class ReviewPromptQueueService {
   private async checkFreshness(
     target: ResolvedDiffReviewTarget,
     snapshot: ReviewPromptSnapshot,
-  ): Promise<{ stale: boolean; verificationError?: string }> {
+  ): Promise<{
+    stale: boolean
+    verificationError?: string
+  }> {
     try {
       const current = await this.git.loadSnapshot(target, snapshot.scope)
       const file = current.files.find((candidate) => candidate.path === snapshot.filePath)
-      return { stale: !reviewSelectionStillExists(file, snapshot) }
+      return {
+        stale: !reviewSelectionStillExists(file, snapshot),
+      }
     } catch (error) {
       return {
         stale: false,

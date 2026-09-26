@@ -54,36 +54,54 @@ import { ShortcutConfirmationDialog } from '~/components/ticket/ticket-detail-pa
 import { paths } from '~/router.js'
 
 function createDeferredSignal<T>(ready: () => boolean, load: () => Promise<T>, placeholder: T) {
-  const [state, setState] = createSignal({ value: placeholder })
-  const [error, setError] = createSignal<{ cause: unknown }>()
-
-  createEffect(() => (ready() ? { promise: load() } : undefined), {
-    effect(request) {
-      if (!request) {
-        setState({ value: placeholder })
-        return
-      }
-
-      let active = true
-      void request.promise.then(
-        (next) => {
-          if (!active) return
-          setError(undefined)
-          setState({ value: next })
-        },
-        (cause: unknown) => {
-          if (active) setError({ cause })
-        },
-      )
-      return () => {
-        active = false
-      }
-    },
-    error(cause) {
-      setError({ cause })
-    },
+  const [state, setState] = createSignal({
+    value: placeholder,
   })
-
+  const [error, setError] = createSignal<{
+    cause: unknown
+  }>()
+  createEffect(
+    () =>
+      ready()
+        ? {
+            promise: load(),
+          }
+        : undefined,
+    {
+      effect(request) {
+        if (!request) {
+          setState({
+            value: placeholder,
+          })
+          return
+        }
+        let active = true
+        void request.promise.then(
+          (next) => {
+            if (!active) return
+            setError(undefined)
+            setState({
+              value: next,
+            })
+          },
+          (cause: unknown) => {
+            if (active)
+              setError({
+                cause,
+              })
+          },
+        )
+        return () => {
+          active = false
+        }
+      },
+      error(cause) {
+        setError({
+          cause,
+        })
+      },
+    },
+  )
   return () => {
     const failure = error()
     if (failure) throw failure.cause
@@ -92,11 +110,17 @@ function createDeferredSignal<T>(ready: () => boolean, load: () => Promise<T>, p
 }
 
 export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
-  const params = useParams<{ projectSlug: string }>()
+  const params = useParams<{
+    projectSlug: string
+  }>()
   return (
     <Show when={params.projectSlug} keyed>
       {(projectSlug) => (
-        <ProjectLauncherConfigContext value={createProjectLauncherConfigStorage({ projectSlug })}>
+        <ProjectLauncherConfigContext
+          value={createProjectLauncherConfigStorage({
+            projectSlug,
+          })}
+        >
           <ProjectContent {...props} />
         </ProjectLauncherConfigContext>
       )}
@@ -115,21 +139,19 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
     () => loadProjectPage(projectSlug()),
     undefined,
   )
-
   const [deferredPollsReady, setDeferredPollsReady] = createSignal(false)
   createEffect(data, (loaded) => {
     if (!loaded) return
     const handle = requestIdleCallback(() => setDeferredPollsReady(true))
     return () => cancelIdleCallback(handle)
   })
-
   const syncStatus = createDeferredSignal(deferredPollsReady, () => getSyncStatus(projectSlug()), undefined)
-
   const [viewMode, setViewModeSignal] = createSignal<'kanban' | 'forest'>('kanban')
   createEffect(projectSlug, (ps) => {
     if (!ps) return
     setViewModeSignal(getViewMode(localStorage, ps))
   })
+
   function toggleViewMode() {
     const ps = projectSlug()
     if (!ps) return
@@ -138,14 +160,17 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
     setViewModeSignal(next)
   }
 
-  const { dialogState, syncState, selectionState, commands } = props?.ctrl ?? createProjectPageController({ projectSlug, data })
-
+  const { dialogState, syncState, selectionState, commands } =
+    props?.ctrl ??
+    createProjectPageController({
+      projectSlug,
+      data,
+    })
   createEffect(deferredPollsReady, (ready) => {
     if (!ready) return
-    const timer = setInterval(() => void revalidate('project-page'), 30_000)
+    const timer = setInterval(() => void revalidate('project-page'), 30000)
     return () => clearInterval(timer)
   })
-
   const sharedLauncherConfig = useContext(LauncherConfigContext)!
   const projectLauncherConfig = useContext(ProjectLauncherConfigContext)!
   const projectMetadata = createMemo(async () => {
@@ -162,8 +187,10 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
       }
     )
   })
-  const shortcutRunner = createBoardShortcutRunner({ projectSlug, config: launcherConfig })
-
+  const shortcutRunner = createBoardShortcutRunner({
+    projectSlug,
+    config: launcherConfig,
+  })
   const [logViewerOpen, setLogViewerOpen] = createSignal(false)
   const [projectLauncherOpen, setProjectLauncherOpen] = createSignal(false)
   const hasPendingChanges = createDeferredSignal(
@@ -176,11 +203,12 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
     const timer = setInterval(() => void revalidate('sync-pending'), 10000)
     return () => clearInterval(timer)
   })
-
   const herdrStatusesResult = createDeferredSignal(
     () => deferredPollsReady() && projectSlug() !== '',
     () => getHerdrAgentStatuses(projectSlug()),
-    { kind: 'disabled' as const },
+    {
+      kind: 'disabled' as const,
+    },
   )
   const herdrPollingActive = createMemo(() => {
     const result = herdrStatusesResult()
@@ -216,7 +244,6 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
     const result = herdrStatusesResult()
     return result?.kind === 'available' ? result.statusesByFolderName : {}
   }
-
   const currentProjectName = () => {
     const v = data()
     if (!v) return ''
@@ -230,7 +257,6 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
   }
 
   const [configError, setConfigError] = createSignal<string>()
-
   let lastReportedProjectSlug: string | null = null
   createEffect(data, (v) => {
     if (v?.status === 'loaded' && v.projectSlug !== lastReportedProjectSlug) {
@@ -238,7 +264,6 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
       void recordProjectFocus(v.projectSlug)
     }
   })
-
   onSettled(() => {
     const handler = () => {
       const v = data()
@@ -247,7 +272,6 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
     window.addEventListener('focus', handler)
     return () => window.removeEventListener('focus', handler)
   })
-
   createEffect(currentProjectName, (name) => {
     if (name) document.title = `${name} - Context & Launch`
   })
@@ -332,7 +356,6 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
     disabled: () => false,
     active: () => dialogState().addProjectDialogOpen,
   })
-
   return (
     <>
       <Show when={data()} fallback={<p>Loading...</p>}>
@@ -356,7 +379,9 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
                 <div class="flex items-center justify-start">
                   <button
                     class="btn-primary"
-                    style={{ height: '2.25rem' }}
+                    style={{
+                      height: '2.25rem',
+                    }}
                     onClick={commands.openCreate}
                     data-testid="project-header-new-ticket-button"
                   >
@@ -435,9 +460,7 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
                           <MenuItem
                             value={`project-${project.projectSlug}`}
                             disabled={!project.available}
-                            class={`flex items-center justify-between gap-2 ${
-                              project.projectSlug === d().projectSlug ? 'font-semibold' : ''
-                            }`}
+                            class={`flex items-center justify-between gap-2 ${project.projectSlug === d().projectSlug ? 'font-semibold' : ''}`}
                             onClick={() => navigate(paths.project(project.projectSlug)())}
                             data-testid="project-header-project-item"
                           >
@@ -607,8 +630,14 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
                 onOpenChange={(d) => {
                   if (!d.open) commands.closeAddProject()
                 }}
-                defaultSize={{ width: 480, height: 560 }}
-                minSize={{ width: 360, height: 320 }}
+                defaultSize={{
+                  width: 480,
+                  height: 560,
+                }}
+                minSize={{
+                  width: 360,
+                  height: 320,
+                }}
                 fitContent
                 persistRect
               >
@@ -646,7 +675,14 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
               <ErrorDialog error={shortcutRunner.error()} onClose={() => shortcutRunner.setError(null)} />
               <ErrorDialog error={syncState().syncError} onClose={() => commands.setSyncError(null)} />
               <ErrorDialog
-                error={configError() ? { title: 'Configuration save failed', description: configError()! } : null}
+                error={
+                  configError()
+                    ? {
+                        title: 'Configuration save failed',
+                        description: configError()!,
+                      }
+                    : null
+                }
                 onClose={() => setConfigError(undefined)}
               />
               <LogViewerDialog open={logViewerOpen()} onOpenChange={setLogViewerOpen} />
@@ -671,7 +707,9 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
               commands.closeSettings()
               const remaining = data()?.projects.filter((project) => project.projectSlug !== deletedProjectSlug) ?? []
               await revalidate()
-              navigate(remaining[0] ? paths.project(remaining[0].projectSlug)() : paths['add-project'](), { replace: true })
+              navigate(remaining[0] ? paths.project(remaining[0].projectSlug)() : paths['add-project'](), {
+                replace: true,
+              })
             }
             return result
           }}
@@ -680,4 +718,5 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
     </>
   )
 }
+
 import { recordAppProjectFocus } from '~/components/config/app-config-api.js'

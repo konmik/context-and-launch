@@ -15,14 +15,25 @@ export function CommandTemplatesTab() {
   const [error, setError] = createSignal<ErrorInfo | null>(null)
   const savedScript = (key: CommandTemplateKey) => templates.get()[key] ?? COMMAND_TEMPLATE_DEFAULTS[key]
   const scriptFor = (key: CommandTemplateKey) => drafts()[key] ?? savedScript(key)
+
   async function save(key: CommandTemplateKey, script: string) {
     const result = await templates.update((current) => {
       const { [key]: _removed, ...rest } = current
-      return script === COMMAND_TEMPLATE_DEFAULTS[key] ? rest : { ...rest, [key]: script }
+      return script === COMMAND_TEMPLATE_DEFAULTS[key]
+        ? rest
+        : {
+            ...rest,
+            [key]: script,
+          }
     })
-    if (result.type === 'Failure') setError({ title: 'Save failed', description: result.error })
+    if (result.type === 'Failure')
+      setError({
+        title: 'Save failed',
+        description: result.error,
+      })
     else setDrafts(({ [key]: _removed, ...rest }) => rest)
   }
+
   return (
     <TabsContent value="command-templates">
       <ErrorDialog error={error()} onClose={() => setError(null)} />
@@ -54,7 +65,9 @@ export function CommandTemplatesTab() {
                           </div>
                           <textarea
                             class="input mt-2 w-full resize-none font-mono text-xs"
-                            style={{ 'field-sizing': 'content' }}
+                            style={{
+                              'field-sizing': 'content',
+                            }}
                             rows={1}
                             value={scriptFor(entry.key)}
                             onInput={(event) =>

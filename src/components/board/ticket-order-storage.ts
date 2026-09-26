@@ -6,8 +6,14 @@ import { readTicketOrder, saveTicketOrder } from '../ticket/ticket-api.js'
 export const TicketOrderContext = createContext<StoredSignal<TicketOrder>>()
 
 export function createTicketOrderStorage(
-  props: { projectSlug: string; order: TicketOrder },
-  persistence = { read: readTicketOrder, save: saveTicketOrder },
+  props: {
+    projectSlug: string
+    order: TicketOrder
+  },
+  persistence = {
+    read: readTicketOrder,
+    save: saveTicketOrder,
+  },
 ): StoredSignal<TicketOrder> {
   const project = createMemo(() => {
     const projectSlug = props.projectSlug
@@ -21,7 +27,10 @@ export function createTicketOrderStorage(
     )
   })
   createEffect(
-    () => ({ order: props.order, storage: project() }),
+    () => ({
+      order: props.order,
+      storage: project(),
+    }),
     ({ storage }) => {
       void storage.refresh()
     },

@@ -31,8 +31,7 @@ function setPromptDragData(event: DragEvent, text: string, onError: (message: st
   if (!event.dataTransfer) {
     onError('The drag carried no data, so the Review Prompt was not attached to it.')
     return
-  }
-  // Chromium seeds a selection drag with text/html as well, so the markup has to
+  } // Chromium seeds a selection drag with text/html as well, so the markup has to
   // go before the prompt is attached or rich-text targets paste the diff instead.
   event.dataTransfer.clearData()
   event.dataTransfer.effectAllowed = 'copy'
@@ -80,25 +79,26 @@ export default function DiffSurface(props: {
     if (!target || target.filePath !== props.file.path) return
     const row = changedRow(target.side, target.lineNumber)
     if (!row) return
-    row.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    row.scrollIntoView({
+      block: 'center',
+      behavior: 'smooth',
+    })
     props.onJumpApplied()
   }
 
   function handlePointerDown(event: PointerEvent) {
     pointerStartedInside = true
     pointerStartedOnGutter = isGutterPath(event.composedPath())
-  }
+  } // Dragging the highlighted rows is a native text-selection drag: Chromium
 
-  // Dragging the highlighted rows is a native text-selection drag: Chromium
   // fires dragstart with the raw selected text, and drag events cross the
   // shadow boundary, so the host can swap in the full Review Prompt.
   function handleDragStart(event: DragEvent) {
     const text = props.dragText()
     if (!text) return
     setPromptDragData(event, text, props.onError)
-  }
+  } // A native drag swallows the pointerup, so the gesture has to be closed out
 
-  // A native drag swallows the pointerup, so the gesture has to be closed out
   // here or renders stay deferred forever.
   function handleDragEnd() {
     pointerStartedInside = false
@@ -160,14 +160,19 @@ export default function DiffSurface(props: {
           if (entry.isIntersecting && entry.target instanceof HTMLElement) handleVisible(entry.target)
         }
       },
-      { root: props.scrollRoot() },
+      {
+        root: props.scrollRoot(),
+      },
     )
     for (const row of rows) observer.observe(row)
   }
 
   function options(blinkKeys: Set<string>) {
     return {
-      theme: { dark: 'github-dark', light: 'github-light' },
+      theme: {
+        dark: 'github-dark',
+        light: 'github-light',
+      },
       themeType: document.documentElement.classList.contains('dark') ? ('dark' as const) : ('light' as const),
       diffStyle: props.layout,
       diffIndicators: 'bars' as const,
@@ -269,7 +274,16 @@ export default function DiffSurface(props: {
   createEffect(
     () => props.selection,
     (range) => {
-      diff?.setSelectedLines(range ? { ...range } : null, { notify: false })
+      diff?.setSelectedLines(
+        range
+          ? {
+              ...range,
+            }
+          : null,
+        {
+          notify: false,
+        },
+      )
     },
   )
   createEffect(

@@ -13,6 +13,7 @@ export const WorktreeCleanupBody = v.object({
   folderName: v.string(),
   options: CleanupOptionsSchema,
 })
+
 export type WorktreeCleanupBody = v.InferOutput<typeof WorktreeCleanupBody>
 
 export class WorktreeCleanupService {
@@ -44,29 +45,24 @@ export class WorktreeCleanupService {
         )
       }
     }
-
     if (options.deleteLocalBranch) {
       const merged = await this.agentWorktreeManager.isBranchMerged(projectPath, branchName, configuredBranch)
       if (!merged) {
         throw new Error(`Branch '${branchName}' has unmerged commits.` + ' Merge or force-delete the branch before cleanup.')
       }
     }
-
     if (options.deleteRemoteBranch) {
       const exists = await this.agentWorktreeManager.hasRemoteBranch(projectPath, branchName)
       if (!exists) {
         throw new Error(`Remote branch ${branchName} does not exist.`)
       }
     }
-
     if (options.deleteWorktree) {
       await this.agentWorktreeManager.removeWorktree(projectPath, worktreePath)
     }
-
     if (options.deleteLocalBranch) {
       await this.agentWorktreeManager.deleteLocalBranch(projectPath, branchName, configuredBranch)
     }
-
     if (options.deleteRemoteBranch) {
       await this.agentWorktreeManager.deleteRemoteBranch(projectPath, branchName)
     }

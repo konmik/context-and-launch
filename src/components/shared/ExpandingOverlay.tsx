@@ -42,12 +42,10 @@ export default function ExpandingOverlay(props: ExpandingOverlayProps) {
     ].join(' ')
   }
   const [transform, setTransform] = createSignal(initialTransform())
-
   onSettled(() => {
     if (!transform()) return
     requestAnimationFrame(() => requestAnimationFrame(() => setTransform(undefined)))
   })
-
   return (
     <div
       {...props.backdropAttributes}

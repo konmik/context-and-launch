@@ -19,6 +19,8 @@ export function createAppServices(): AppServices {
 }
 
 export function publishAppServices(services = createAppServices()): AppServices {
-  Object.assign(globalThis, { __contextLaunchServices: services })
+  Object.assign(globalThis, {
+    __contextLaunchServices: services,
+  })
   return services
 }

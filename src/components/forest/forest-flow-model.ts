@@ -26,9 +26,13 @@ export interface ForestEdgeData {
 
 export interface ForestFlowNode {
   id: string
-  position: { x: number; y: number }
+  position: {
+    x: number
+    y: number
+  }
   data: ForestNodeData
 }
+
 export interface ForestFlowEdge {
   id: string
   source: string
@@ -71,12 +75,19 @@ export function buildForestFlowModel(
     if (position) savedScopePositions[ticket.number] = position
     else allSaved = false
   }
-  const positions: ForestLayout = allSaved ? savedScopePositions : { ...autoLayoutPositions(scopeNodes, internal), ...savedScopePositions }
-
+  const positions: ForestLayout = allSaved
+    ? savedScopePositions
+    : {
+        ...autoLayoutPositions(scopeNodes, internal),
+        ...savedScopePositions,
+      }
   return {
     nodes: scopeNodes.map((ticket) => ({
       id: ticket.number,
-      position: positions[ticket.number] ?? { x: 0, y: 0 },
+      position: positions[ticket.number] ?? {
+        x: 0,
+        y: 0,
+      },
       data: {
         ticket,
         representedTicketNumbers: representedByScopeNode.get(ticket.number) ?? [],
@@ -87,7 +98,9 @@ export function buildForestFlowModel(
       id: `dependency:${dependency.fromNumber}:${dependency.toNumber}`,
       source: dependency.fromNumber,
       target: dependency.toNumber,
-      data: { relations: dependency.relations },
+      data: {
+        relations: dependency.relations,
+      },
     })),
     externalDependencies: external,
     lookup,
@@ -103,7 +116,14 @@ export function rearrangedForestPositions(tickets: ForestTicket[], scopeGroupNum
 }
 
 export function positionsFromNodes(nodes: readonly ForestFlowNode[]): ForestLayout {
-  return Object.fromEntries(nodes.map((node) => [node.id, { ...node.position }]))
+  return Object.fromEntries(
+    nodes.map((node) => [
+      node.id,
+      {
+        ...node.position,
+      },
+    ]),
+  )
 }
 
 export function groupPosition(bounds: { x: number; y: number; width: number; height: number }) {

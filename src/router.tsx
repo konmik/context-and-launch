@@ -7,7 +7,6 @@ const redirectFromHome = query(async (): Promise<Response> => {
   const projectSlug = await getDefaultProjectSlug()
   return redirect(projectSlug ? paths.project(projectSlug)() : paths['add-project']())
 }, 'home-redirect')
-
 export const routes = defineRoutes([
   {
     path: '/',
@@ -24,6 +23,8 @@ export const routes = defineRoutes([
     component: lazy(() => import('./pages/project.js'), undefined),
   },
 ])
-
-export const AppRouter = createRouter({ routes, singleFlight: true })
+export const AppRouter = createRouter({
+  routes,
+  singleFlight: true,
+})
 export const paths = AppRouter.paths

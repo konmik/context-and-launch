@@ -24,54 +24,71 @@ export function cleanup(...dirs: string[]): Promise<void> {
 function pruneWorktreeRegistrations(dir: string): Promise<void> {
   if (!fs.existsSync(path.join(dir, '.git', 'worktrees'))) return Promise.resolve()
   return new Promise((resolve) => {
-    execFile('git', ['worktree', 'prune'], { cwd: dir, timeout: 5000 }, (error) => {
-      if (error) console.warn(`worktree prune ${dir}: ${error.message}`)
-      resolve()
-    })
+    execFile(
+      'git',
+      ['worktree', 'prune'],
+      {
+        cwd: dir,
+        timeout: 5000,
+      },
+      (error) => {
+        if (error) console.warn(`worktree prune ${dir}: ${error.message}`)
+        resolve()
+      },
+    )
   })
 }
 
 const gitRepoTemplate = keyedTemplate((branch: string) => {
   const template = makeTempDir(`git-tpl-${branch}-`)
-  execSync(`git init -b ${branch}`, { cwd: template, timeout: 5000 })
+  execSync(`git init -b ${branch}`, {
+    cwd: template,
+    timeout: 5000,
+  })
   fs.writeFileSync(path.join(template, 'README.md'), '# test')
-  execSync('git add .', { cwd: template, timeout: 5000 })
-  execSync('git commit -m "init"', { cwd: template, timeout: 5000 })
+  execSync('git add .', {
+    cwd: template,
+    timeout: 5000,
+  })
+  execSync('git commit -m "init"', {
+    cwd: template,
+    timeout: 5000,
+  })
   return template
 })
 
 export function initGitRepo(dir: string, branch = 'main'): void {
-  fs.cpSync(gitRepoTemplate(branch), dir, { recursive: true })
+  fs.cpSync(gitRepoTemplate(branch), dir, {
+    recursive: true,
+  })
 }
 
 const getBehindRemoteTemplate = lazyTemplate(() => {
   const bareDir = makeTempDir('awm-bare-tpl-')
   gitSync(bareDir, 'init', '--bare', '-b', 'main')
-
   const projectDir = makeTempDir('awm-behind-tpl-')
   gitSync(os.tmpdir(), 'clone', bareDir, projectDir)
   fs.writeFileSync(path.join(projectDir, 'README.md'), '# test')
   gitSync(projectDir, 'add', '.')
   gitSync(projectDir, 'commit', '-m', 'init')
   gitSync(projectDir, 'push', '-u', 'origin', 'main')
-
   const pusherDir = makeTempDir('awm-pusher-tpl-')
   gitSync(os.tmpdir(), 'clone', bareDir, pusherDir)
   fs.writeFileSync(path.join(pusherDir, 'ahead.txt'), 'ahead')
   gitSync(pusherDir, 'add', '.')
   gitSync(pusherDir, 'commit', '-m', 'ahead commit')
   gitSync(pusherDir, 'push')
-
   gitSync(projectDir, 'fetch')
-
-  return { bareDir, projectDir }
+  return {
+    bareDir,
+    projectDir,
+  }
 })
 
 export function makeProjectEnv(prefixBase: string, dirs: string[]) {
   const configDir = makeTempDir(`${prefixBase}-config-`)
   const worktreeRoot = makeTempDir(`${prefixBase}-worktrees-`)
   dirs.push(configDir, worktreeRoot)
-
   const paths = new ConfigPaths(configDir)
   initializeDataDir(paths)
   const lcm = new LauncherConfigManager(paths)
@@ -80,9 +97,14 @@ export function makeProjectEnv(prefixBase: string, dirs: string[]) {
     skills: [],
     worktreeRootPath: worktreeRoot,
   })
-
   const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService())
-  return { configDir, worktreeRoot, paths, lcm, awm }
+  return {
+    configDir,
+    worktreeRoot,
+    paths,
+    lcm,
+    awm,
+  }
 }
 
 export function makeWorktreeEnv() {
@@ -93,10 +115,16 @@ export function makeWorktreeEnv() {
     dirs.push(projectDir)
     initGitRepo(projectDir, branch)
     const { configDir, worktreeRoot, paths, lcm, awm } = makeProjectEnv('awm', dirs)
-    return { configDir, projectDir, worktreeRoot, lcm, awm, paths }
-  }
+    return {
+      configDir,
+      projectDir,
+      worktreeRoot,
+      lcm,
+      awm,
+      paths,
+    }
+  } // Sets up a project whose local main is one commit behind its upstream.
 
-  // Sets up a project whose local main is one commit behind its upstream.
   function setupBehindRemote() {
     const template = getBehindRemoteTemplate()
     const bareDir = cloneFromTemplate(template.bareDir, 'awm-bare-')
@@ -104,7 +132,10 @@ export function makeWorktreeEnv() {
     setGitOriginUrl(projectDir, bareDir)
     dirs.push(bareDir, projectDir)
     const { awm } = makeProjectEnv('awm', dirs)
-    return { projectDir, awm }
+    return {
+      projectDir,
+      awm,
+    }
   }
 
   function cleanupAll(): Promise<void> {
@@ -113,5 +144,10 @@ export function makeWorktreeEnv() {
     return cleanup(...pending)
   }
 
-  return { dirs, setup, setupBehindRemote, cleanupAll }
+  return {
+    dirs,
+    setup,
+    setupBehindRemote,
+    cleanupAll,
+  }
 }

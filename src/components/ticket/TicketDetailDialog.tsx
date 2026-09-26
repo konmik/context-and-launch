@@ -69,7 +69,6 @@ function TicketDetailContent(props: {
   const s = untrack(() => createTicketDetailState(props, props.stateDeps))
   const ticketStatus = useContext(TicketStatusContext)!
   const ticket = ticketStatus.get
-
   const launcherDeps = untrack(() => ({
     projectSlug: props.projectSlug,
     ticket,
@@ -91,25 +90,21 @@ function TicketDetailContent(props: {
       (props.launchAgent ?? launchAgentAction)(props.projectSlug, ticket().folderName, args),
   }))
   const launcherCtrl = untrack(() => createAgentLauncherController(launcherDeps))
-
   useModEnterSubmit({
     onSubmit: s.submitNewFile,
     disabled: () => !s.newFileName().trim(),
     active: () => s.newFileDialogOpen(),
   })
-
   useModEnterSubmit({
     onSubmit: s.deleteOrRemoveFile,
     disabled: () => false,
     active: () => s.confirmingDelete(),
   })
-
   useModEnterSubmit({
     onSubmit: s.saveAll,
     disabled: () => s.saving() || !s.hasAnyUnsavedChanges(),
     active: () => !s.newFileDialogOpen() && !s.confirmingDelete() && !s.confirmingFileSwitch() && !s.confirmingClose(),
   })
-
   return (
     <>
       <FloatingWindow
@@ -136,7 +131,9 @@ function TicketDetailContent(props: {
                   }
                 }}
                 class="shrink-0 bg-transparent outline-none focus:border-b focus:border-accent-foreground"
-                style={{ 'field-sizing': 'content' }}
+                style={{
+                  'field-sizing': 'content',
+                }}
               />
               <span class="shrink-0">-</span>
               <input
@@ -284,9 +281,15 @@ function TicketDetailContent(props: {
                           checked={ticket().useWorktree}
                           onChange={async (e) => {
                             const useWorktree = e.currentTarget.checked
-                            const result = await ticketStatus.update((current) => ({ ...current, useWorktree }))
+                            const result = await ticketStatus.update((current) => ({
+                              ...current,
+                              useWorktree,
+                            }))
                             if (result.type === 'Failure') {
-                              s.setError({ title: 'Save failed', description: result.error })
+                              s.setError({
+                                title: 'Save failed',
+                                description: result.error,
+                              })
                             }
                           }}
                           class="rounded border-input"
@@ -295,7 +298,13 @@ function TicketDetailContent(props: {
                         Launch in worktree
                       </label>
                     </div>
-                    <span class="block truncate text-xs text-muted-foreground" dir="rtl" style={{ 'text-align': 'left' }}>
+                    <span
+                      class="block truncate text-xs text-muted-foreground"
+                      dir="rtl"
+                      style={{
+                        'text-align': 'left',
+                      }}
+                    >
                       {s.launchDir()}
                     </span>
                   </div>

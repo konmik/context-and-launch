@@ -10,6 +10,7 @@ import { usesWindowsBatchCommand } from './launcher-settings-pure.js'
 import type { LauncherItemType } from '~/core/launcher/launcher-config.js'
 
 export type ItemType = LauncherItemType
+
 export type Scope = 'app' | 'project'
 
 export interface ItemFormState {
@@ -244,7 +245,12 @@ export function ColumnFormDialog(props: {
                   ref={(el) => setTimeout(() => el.focus())}
                   type="text"
                   value={cf().name}
-                  onInput={(e) => props.setColumnForm({ ...cf(), name: e.currentTarget.value })}
+                  onInput={(e) =>
+                    props.setColumnForm({
+                      ...cf(),
+                      name: e.currentTarget.value,
+                    })
+                  }
                   class="input input-sm"
                   data-testid="launcher-settings-columns-name-input"
                   placeholder="e.g. In Progress"
@@ -264,7 +270,12 @@ export function ColumnFormDialog(props: {
                 <label class="field-label">Description (optional)</label>
                 <textarea
                   value={cf().description}
-                  onInput={(e) => props.setColumnForm({ ...cf(), description: e.currentTarget.value })}
+                  onInput={(e) =>
+                    props.setColumnForm({
+                      ...cf(),
+                      description: e.currentTarget.value,
+                    })
+                  }
                   class="input min-h-[60px]"
                   data-testid="launcher-settings-columns-desc-input"
                   placeholder="Brief description of this column"
@@ -275,7 +286,12 @@ export function ColumnFormDialog(props: {
                 <div class="flex flex-wrap items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={() => props.setColumnForm({ ...cf(), color: '' })}
+                    onClick={() =>
+                      props.setColumnForm({
+                        ...cf(),
+                        color: '',
+                      })
+                    }
                     class={
                       'flex h-6 w-6 items-center justify-center rounded-md border border-border ' +
                       `text-muted-foreground ${cf().color === '' ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`
@@ -290,11 +306,16 @@ export function ColumnFormDialog(props: {
                     {(option) => (
                       <button
                         type="button"
-                        onClick={() => props.setColumnForm({ ...cf(), color: option.hex })}
-                        class={`h-6 w-6 rounded-md border border-border ${
-                          cf().color === option.hex ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''
-                        }`}
-                        style={{ 'background-color': option.hex }}
+                        onClick={() =>
+                          props.setColumnForm({
+                            ...cf(),
+                            color: option.hex,
+                          })
+                        }
+                        class={`h-6 w-6 rounded-md border border-border ${cf().color === option.hex ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
+                        style={{
+                          'background-color': option.hex,
+                        }}
                         data-testid="launcher-settings-columns-color-option"
                         data-color-hex={option.hex}
                         title={option.name}
@@ -413,8 +434,14 @@ export function RenameColumnDialog(props: {
 }
 
 export function BoardFormDialog(props: {
-  boardForm: { name: string } | null
-  setBoardForm: (form: { name: string } | null) => void
+  boardForm: {
+    name: string
+  } | null
+  setBoardForm: (
+    form: {
+      name: string
+    } | null,
+  ) => void
   columnError: string
   onCreate: () => void
 }) {
@@ -431,7 +458,11 @@ export function BoardFormDialog(props: {
                 <input
                   type="text"
                   value={bf().name}
-                  onInput={(e) => props.setBoardForm({ name: e.currentTarget.value })}
+                  onInput={(e) =>
+                    props.setBoardForm({
+                      name: e.currentTarget.value,
+                    })
+                  }
                   class="input input-sm"
                   data-testid="launcher-settings-columns-board-name-input"
                   placeholder="e.g. Development"

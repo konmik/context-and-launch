@@ -28,7 +28,10 @@ function executor(handlers: Partial<Record<string, () => Promise<string>>>) {
       throw new Error('not used')
     },
   }
-  return { executor: commands, calls }
+  return {
+    executor: commands,
+    calls,
+  }
 }
 
 describe('createHerdrExec', () => {
@@ -46,7 +49,6 @@ describe('createHerdrExec', () => {
     })
     expect(calls).toEqual(['herdr.workspace.list', 'herdr.status.server'])
   })
-
   it('keeps the original failure when the Herdr server is running', async () => {
     const { executor: commands } = executor({
       'herdr.workspace.list': async () => {
@@ -57,7 +59,6 @@ describe('createHerdrExec', () => {
     const exec = createHerdrExec(commands)
     await expect(exec('herdr.workspace.list')).rejects.toBe(SOCKET_FAILURE)
   })
-
   it('reports an unresolvable Herdr CLI as unavailable without probing', async () => {
     const { executor: commands, calls } = executor({
       'herdr.workspace.list': async () => {
@@ -68,7 +69,6 @@ describe('createHerdrExec', () => {
     await expect(exec('herdr.workspace.list')).rejects.toBeInstanceOf(HerdrUnavailableError)
     expect(calls).toEqual(['herdr.workspace.list'])
   })
-
   it('reports a Herdr CLI that disappeared before the probe as unavailable', async () => {
     const { executor: commands } = executor({
       'herdr.workspace.list': async () => {
@@ -79,9 +79,10 @@ describe('createHerdrExec', () => {
       },
     })
     const exec = createHerdrExec(commands)
-    await expect(exec('herdr.workspace.list')).rejects.toMatchObject({ reason: 'cli-missing' })
+    await expect(exec('herdr.workspace.list')).rejects.toMatchObject({
+      reason: 'cli-missing',
+    })
   })
-
   it('keeps a timed-out Herdr command a failure', async () => {
     const timeout = new ProcessError('herdr', undefined, undefined, 'Timed out', 'timeout')
     const { executor: commands, calls } = executor({

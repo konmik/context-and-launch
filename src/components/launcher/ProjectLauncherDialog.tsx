@@ -23,10 +23,17 @@ import { ProjectLauncherConfigContext } from './project-launcher-config-storage.
 export default function ProjectLauncherDialog(props: { open: boolean; onOpenChange: (open: boolean) => void; projectSlug: string }) {
   const sharedConfig = useContext(LauncherConfigContext)!
   const projectConfig = useContext(ProjectLauncherConfigContext)!
-  const metadata = createMemo(() => (props.open ? getProjectLauncherMetadata(props.projectSlug) : null), { loadingValue: null })
+  const metadata = createMemo(() => (props.open ? getProjectLauncherMetadata(props.projectSlug) : null), {
+    loadingValue: null,
+  })
   const config = createMemo(() => {
     const project = metadata()
-    return project && { ...project, ...mergeLauncherConfigs(sharedConfig.get(), projectConfig.get()) }
+    return (
+      project && {
+        ...project,
+        ...mergeLauncherConfigs(sharedConfig.get(), projectConfig.get()),
+      }
+    )
   })
   const [error, setError] = createSignal<ErrorInfo | null>(null)
 
@@ -47,7 +54,10 @@ export default function ProjectLauncherDialog(props: { open: boolean; onOpenChan
       }))
       .then((result) => {
         if (result.type === 'Failure') {
-          setError({ title: 'Save failed', description: result.error })
+          setError({
+            title: 'Save failed',
+            description: result.error,
+          })
           return
         }
       })
@@ -100,7 +110,13 @@ export default function ProjectLauncherDialog(props: { open: boolean; onOpenChan
           <div class="flex items-end gap-2 border-t border-border px-4 py-3">
             <div class="min-w-0 flex-1" data-testid="project-launcher-dir-display">
               <span class="block text-xs text-muted-foreground">Launch directory</span>
-              <span class="block truncate text-xs text-muted-foreground" dir="rtl" style={{ 'text-align': 'left' }}>
+              <span
+                class="block truncate text-xs text-muted-foreground"
+                dir="rtl"
+                style={{
+                  'text-align': 'left',
+                }}
+              >
                 {config()?.projectPath ?? ''}
               </span>
             </div>

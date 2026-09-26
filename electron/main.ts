@@ -35,16 +35,18 @@ if (process.env.CONTEXT_LAUNCH_USER_DATA_DIR) {
   app.setPath('userData', process.env.CONTEXT_LAUNCH_USER_DATA_DIR)
 }
 const windowStateFile = path.join(app.getPath('userData'), 'window-state.json')
-
 protocol.registerSchemesAsPrivileged([
   {
     scheme: APP_SCHEME,
-    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true },
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,
+    },
   },
 ])
-
 const SYNC_WINDOW_DELAY_MS = 5000
-
 const windowsById = new Map<number, BrowserWindow>()
 let sessionWindows: SessionWindow[] = []
 let focusOrder: number[] = []
@@ -78,14 +80,20 @@ function applyWindowBackgrounds(): void {
 function currentBounds(win: BrowserWindow) {
   const maximized = win.isMaximized()
   const bounds = maximized ? win.getNormalBounds() : win.getBounds()
-  return { bounds, maximized }
+  return {
+    bounds,
+    maximized,
+  }
 }
 
 function snapshotAllWindows(): void {
   for (const [windowId, win] of windowsById) {
     if (win.isDestroyed()) continue
     const { bounds, maximized } = currentBounds(win)
-    sessionWindows = updateSessionWindow(sessionWindows, windowId, { bounds, maximized })
+    sessionWindows = updateSessionWindow(sessionWindows, windowId, {
+      bounds,
+      maximized,
+    })
   }
   writeWindowState()
 }
@@ -110,7 +118,6 @@ function createProjectWindow(opts: { url: string; bounds: WindowBounds; maximize
       webSecurity: true,
     },
   })
-
   const windowId = win.id
   windowsById.set(windowId, win)
   sessionWindows = addSessionWindow(sessionWindows, {
@@ -121,11 +128,9 @@ function createProjectWindow(opts: { url: string; bounds: WindowBounds; maximize
   })
   focusOrder = recordFocus(focusOrder, windowId)
   writeWindowState()
-
   win.on('focus', () => {
     focusOrder = recordFocus(focusOrder, windowId)
   })
-
   const onNavigate = (navigatedUrl: string) => {
     const navigatedProjectSlug = projectSlugFromUrl(navigatedUrl)
     const entry = sessionWindows.find((w) => w.windowId === windowId)
@@ -137,36 +142,41 @@ function createProjectWindow(opts: { url: string; bounds: WindowBounds; maximize
   }
   win.webContents.on('did-navigate', (_event, navigatedUrl) => onNavigate(navigatedUrl))
   win.webContents.on('did-navigate-in-page', (_event, navigatedUrl) => onNavigate(navigatedUrl))
-
   win.on('close', () => {
     if (quitting) return
     const { bounds: b, maximized: m } = currentBounds(win)
     sessionWindows = closeSessionWindow(sessionWindows, windowId, b, m)
     writeWindowState()
   })
-
   win.on('closed', () => {
     windowsById.delete(windowId)
     focusOrder = removeFromFocusOrder(focusOrder, windowId)
   })
-
   win.webContents.setWindowOpenHandler(({ url: popupUrl }) => handleWindowOpen(win, popupUrl))
-
   if (maximized) win.maximize()
   win
     .loadURL(url)
     .then(() => win.show())
     .catch((err) => console.error('Project Window failed to load:', err))
-
   return win
 }
 
-function handleWindowOpen(opener: BrowserWindow, url: string): { action: 'allow' } | { action: 'deny' } {
+function handleWindowOpen(
+  opener: BrowserWindow,
+  url: string,
+):
+  | {
+      action: 'allow'
+    }
+  | {
+      action: 'deny'
+    } {
   const targetProjectSlug = projectSlugFromUrl(url)
   if (targetProjectSlug === null) {
-    return { action: 'allow' }
+    return {
+      action: 'allow',
+    }
   }
-
   for (const id of focusOrder) {
     const entry = sessionWindows.find((w) => w.windowId === id)
     if (entry && entry.projectSlug === targetProjectSlug) {
@@ -174,20 +184,26 @@ function handleWindowOpen(opener: BrowserWindow, url: string): { action: 'allow'
       if (existing && !existing.isDestroyed()) {
         if (existing.isMinimized()) existing.restore()
         existing.focus()
-        return { action: 'deny' }
+        return {
+          action: 'deny',
+        }
       }
     }
   }
-
   const workArea = screen.getDisplayMatching(opener.getBounds()).workArea
   const bounds = cascadeFrom(opener.getBounds(), workArea)
-  createProjectWindow({ url, bounds, maximized: false })
-  return { action: 'deny' }
+  createProjectWindow({
+    url,
+    bounds,
+    maximized: false,
+  })
+  return {
+    action: 'deny',
+  }
 }
 
 const execMtimeAtStart = fs.statSync(process.execPath).mtimeMs
 const gotLock = app.requestSingleInstanceLock()
-
 if (!gotLock) {
   app.quit()
 } else {
@@ -207,12 +223,10 @@ if (!gotLock) {
       win.focus()
     }
   })
-
   app.on('ready', async () => {
     serverHandle = await startServer(appRoot)
     const handle = serverHandle
     const base = APP_ORIGIN
-
     protocol.handle(APP_SCHEME, (request) =>
       handleAppRequest(request, handle.handleRequest).catch((cause: unknown) => {
         const detail = cause instanceof Error ? (cause.stack ?? cause.message) : String(cause)
@@ -220,8 +234,10 @@ if (!gotLock) {
         throw cause
       }),
     )
-
-    let raw: { palette?: JsonValue; mode?: JsonValue } | null = null
+    let raw: {
+      palette?: JsonValue
+      mode?: JsonValue
+    } | null = null
     try {
       raw = JSON.parse(fs.readFileSync(windowStateFile, 'utf-8'))
     } catch {
@@ -239,14 +255,15 @@ if (!gotLock) {
       entries = [
         {
           projectSlug: null,
-          bounds: { width: DEFAULT_WINDOW_WIDTH, height: DEFAULT_WINDOW_HEIGHT },
+          bounds: {
+            width: DEFAULT_WINDOW_WIDTH,
+            height: DEFAULT_WINDOW_HEIGHT,
+          },
           maximized: false,
         } satisfies WindowStateEntry,
       ]
     }
-
     nativeTheme.on('updated', applyWindowBackgrounds)
-
     ipcMain.on('context-launch:set-appearance', (_event, palette?: JsonValue, mode?: JsonValue) => {
       const parsedMode = parseMode(mode)
       if (isPaletteName(palette) && parsedMode && (palette !== currentPalette || parsedMode !== currentMode)) {
@@ -256,7 +273,6 @@ if (!gotLock) {
         writeWindowState()
       }
     })
-
     ipcMain.handle('context-launch:pick-directory', async (event, preselect: JsonValue | undefined) => {
       const owner = BrowserWindow.fromWebContents(event.sender)
       const options: OpenDialogOptions = {
@@ -267,40 +283,42 @@ if (!gotLock) {
         options.defaultPath = parsedPreselect.output.trim()
       }
       const result = owner ? await dialog.showOpenDialog(owner, options) : await dialog.showOpenDialog(options)
-      return result.canceled || result.filePaths.length === 0 ? { cancelled: true } : { path: result.filePaths[0] }
+      return result.canceled || result.filePaths.length === 0
+        ? {
+            cancelled: true,
+          }
+        : {
+            path: result.filePaths[0],
+          }
     })
-
     for (const entry of entries) {
       const url = entry.projectSlug ? `${base}/project/${encodeURIComponent(entry.projectSlug)}` : base
-      createProjectWindow({ url, bounds: entry.bounds, maximized: entry.maximized })
+      createProjectWindow({
+        url,
+        bounds: entry.bounds,
+        maximized: entry.maximized,
+      })
     }
   })
-
   app.on('before-quit', () => {
     if (!quitting && windowsById.size > 0) {
       snapshotAllWindows()
     }
     quitting = true
   })
-
   app.on('window-all-closed', async () => {
     if (!serverHandle) {
       app.quit()
       return
     }
-
     serverHandle.shutdown()
-
     const opsFinished = serverHandle.waitForPendingOps()
     const delayed = new Promise<'timeout'>((r) => setTimeout(() => r('timeout'), SYNC_WINDOW_DELAY_MS))
-
     const race = await Promise.race([opsFinished.then(() => 'done' as const), delayed])
-
     if (race === 'done') {
       app.quit()
       return
     }
-
     const syncWindow = new BrowserWindow({
       width: 320,
       height: 120,
@@ -315,21 +333,12 @@ if (!gotLock) {
         webSecurity: true,
       },
     })
-
     syncWindow.loadURL(
-      `data:text/html,${encodeURIComponent(
-        `<html><body style="font-family:system-ui;display:flex;flex-direction:column;align-items:center;` +
-          `justify-content:center;height:100%;margin:0">` +
-          `<p>Finishing sync...</p>` +
-          `<button onclick="window.close()" style="padding:6px 16px;cursor:pointer">Force Quit</button>` +
-          `</body></html>`,
-      )}`,
+      `data:text/html,${encodeURIComponent(`<html><body style="font-family:system-ui;display:flex;flex-direction:column;align-items:center;` + `justify-content:center;height:100%;margin:0">` + `<p>Finishing sync...</p>` + `<button onclick="window.close()" style="padding:6px 16px;cursor:pointer">Force Quit</button>` + `</body></html>`)}`,
     )
-
     syncWindow.on('closed', () => {
       app.quit()
     })
-
     await opsFinished
     if (!syncWindow.isDestroyed()) syncWindow.close()
   })

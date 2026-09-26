@@ -27,27 +27,22 @@ function expectGlyph(container: HTMLElement, status: HerdrAgentStatus, glyph: st
 
 describe('HerdrStatusIcon', () => {
   afterEach(() => cleanup())
-
   it("renders the working state as herdr's filled dot in the herdr yellow", () => {
     const { container } = renderIcon('working')
     expectGlyph(container, 'working', '●', 'rgb(249, 226, 175)')
   })
-
   it("renders the blocked state as herdr's filled dot in the herdr red", () => {
     const { container } = renderIcon('blocked')
     expectGlyph(container, 'blocked', '●', 'rgb(243, 139, 168)')
   })
-
   it("renders the idle state as herdr's hollow dot in the herdr green", () => {
     const { container } = renderIcon('idle')
     expectGlyph(container, 'idle', '○', 'rgb(166, 227, 161)')
   })
-
   it("renders the done state as herdr's filled dot in the herdr teal", () => {
     const { container } = renderIcon('done')
     expectGlyph(container, 'done', '●', 'rgb(148, 226, 213)')
   })
-
   it("renders the unknown state as herdr's middle dot in the herdr overlay gray", () => {
     const { container } = renderIcon('unknown')
     expectGlyph(container, 'unknown', '·', 'rgb(108, 112, 134)')

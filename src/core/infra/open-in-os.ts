@@ -7,5 +7,7 @@ export async function openInOs(directory: string, commands: CommandTemplateExecu
   if (process.env.CONTEXT_OPEN_IN_OS_STUB === '__noop__') return
   const nativePath = path.normalize(directory)
   const key = platformCommandTemplateKey('open.directory', currentCommandTemplatePlatform())
-  await commands.execute(key, nativePath, { directory: nativePath })
+  await commands.execute(key, nativePath, {
+    directory: nativePath,
+  })
 }

@@ -22,7 +22,15 @@ export type CommandTemplateLog = (category: string, message: string, context?: A
  * identity is a pair, not two optional fields that any caller could mix. Making
  * it a union means the runner identity and the selected name cannot disagree.
  */
-export type TrustedScriptSource = { kind: 'profile'; profileName: string } | { kind: 'shortcut'; shortcutName: string }
+export type TrustedScriptSource =
+  | {
+      kind: 'profile'
+      profileName: string
+    }
+  | {
+      kind: 'shortcut'
+      shortcutName: string
+    }
 
 const TRUSTED_SCRIPT_IDENTITY = {
   profile: 'agent-launch.profile',
@@ -55,8 +63,14 @@ function failureLogMessage(cause: unknown): string {
 
 function trustedScriptContext(source: TrustedScriptSource): AppLogContext {
   return source.kind === 'profile'
-    ? { commandTemplateKey: TRUSTED_SCRIPT_IDENTITY.profile, profileName: source.profileName }
-    : { commandTemplateKey: TRUSTED_SCRIPT_IDENTITY.shortcut, shortcutName: source.shortcutName }
+    ? {
+        commandTemplateKey: TRUSTED_SCRIPT_IDENTITY.profile,
+        profileName: source.profileName,
+      }
+    : {
+        commandTemplateKey: TRUSTED_SCRIPT_IDENTITY.shortcut,
+        shortcutName: source.shortcutName,
+      }
 }
 
 export class CommandTemplateService implements CommandTemplateExecutor {
@@ -96,10 +110,14 @@ export class CommandTemplateService implements CommandTemplateExecutor {
     listValues: CommandTemplateListValues = {},
   ): string {
     const request = this.buildExecutionRequest(key, cwd, values, listValues)
-    this.log('command-template', 'start', { commandTemplateKey: key })
+    this.log('command-template', 'start', {
+      commandTemplateKey: key,
+    })
     try {
       const stdout = this.runner.executeSync(request)
-      this.log('command-template', 'success', { commandTemplateKey: key })
+      this.log('command-template', 'success', {
+        commandTemplateKey: key,
+      })
       return stdout
     } catch (error) {
       this.logFailure(key, error)
@@ -131,7 +149,7 @@ export class CommandTemplateService implements CommandTemplateExecutor {
       cwd: options.cwd,
       environment: {},
       mode: options.mode ?? 'detached',
-      timeoutMs: options.timeoutMs ?? 10_000,
+      timeoutMs: options.timeoutMs ?? 10000,
     }
     return this.executeRequest(request, context)
   }
@@ -158,7 +176,9 @@ export class CommandTemplateService implements CommandTemplateExecutor {
 
   private async executeRequest(
     request: ShellExecutionRequest,
-    context: AppLogContext = { commandTemplateKey: request.key },
+    context: AppLogContext = {
+      commandTemplateKey: request.key,
+    },
   ): Promise<string> {
     this.log('command-template', 'start', context)
     try {
@@ -172,6 +192,9 @@ export class CommandTemplateService implements CommandTemplateExecutor {
   }
 
   private logFailure(key: string, cause: unknown, extra: AppLogContext = {}): void {
-    this.log('command-template', failureLogMessage(cause), { ...extra, commandTemplateKey: key })
+    this.log('command-template', failureLogMessage(cause), {
+      ...extra,
+      commandTemplateKey: key,
+    })
   }
 }

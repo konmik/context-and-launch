@@ -12,7 +12,9 @@ class RollingLogger {
 
   constructor(logDir: string) {
     this.logDir = logDir
-    fs.mkdirSync(this.logDir, { recursive: true })
+    fs.mkdirSync(this.logDir, {
+      recursive: true,
+    })
     const files = this.listFiles()
     const last = files.at(-1)
     if (last && this.fileSize(path.join(this.logDir, last)) < MAX_FILE_BYTES) {
@@ -92,7 +94,9 @@ function getLogger(): RollingLogger {
 }
 
 export type AppLogContext = Readonly<Record<string, string | number | boolean | undefined>>
+
 type LogListener = (category: string, message: string, context?: AppLogContext) => void
+
 let listener: LogListener | undefined
 
 export function setAppLogListener(fn: LogListener | undefined): void {

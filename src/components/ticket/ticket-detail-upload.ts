@@ -27,8 +27,15 @@ function isFileInputEventTarget(target: EventTarget | null): target is FileInput
 export function createFileUploadState(deps: FileUploadDeps) {
   const [uploading, setUploading] = createSignal(false)
   const [dragging, setDragging] = createSignal(false)
-  const [confirmOverwrite, setConfirmOverwrite] = createSignal<{ fileName: string; file: File } | null>(null)
-  const [confirmSize, setConfirmSize] = createSignal<{ fileName: string; file: File; size: number } | null>(null)
+  const [confirmOverwrite, setConfirmOverwrite] = createSignal<{
+    fileName: string
+    file: File
+  } | null>(null)
+  const [confirmSize, setConfirmSize] = createSignal<{
+    fileName: string
+    file: File
+    size: number
+  } | null>(null)
   let resolveUploadConfirm: ((confirmed: boolean) => void) | null = null
 
   function handleDragOver(e: DragEvent) {
@@ -36,6 +43,7 @@ export function createFileUploadState(deps: FileUploadDeps) {
     e.stopPropagation()
     setDragging(true)
   }
+
   function handleDragLeave(e: DragEvent) {
     e.preventDefault()
     e.stopPropagation()
@@ -69,16 +77,26 @@ export function createFileUploadState(deps: FileUploadDeps) {
 
   async function processFileForUpload(file: File) {
     if (file.name === 'status.json') {
-      deps.setError({ title: 'Upload failed', description: 'Cannot overwrite status.json' })
+      deps.setError({
+        title: 'Upload failed',
+        description: 'Cannot overwrite status.json',
+      })
       return
     }
     if (file.size > 10240) {
-      const proceed = await awaitUploadConfirm(setConfirmSize, { fileName: file.name, file, size: file.size })
+      const proceed = await awaitUploadConfirm(setConfirmSize, {
+        fileName: file.name,
+        file,
+        size: file.size,
+      })
       setConfirmSize(null)
       if (!proceed) return
     }
     if (wouldOverwrite(file.name, deps.ticketFileNames(), deps.contextNames())) {
-      const proceed = await awaitUploadConfirm(setConfirmOverwrite, { fileName: file.name, file })
+      const proceed = await awaitUploadConfirm(setConfirmOverwrite, {
+        fileName: file.name,
+        file,
+      })
       setConfirmOverwrite(null)
       if (!proceed) return
     }
@@ -93,20 +111,34 @@ export function createFileUploadState(deps: FileUploadDeps) {
       formData.append('file', file)
       const result = await (deps.uploadFile ?? uploadFileAction)(deps.projectSlug, deps.folderName(), formData)
       if (!result.ok) {
-        deps.setError({ title: 'Upload failed', description: result.message })
+        deps.setError({
+          title: 'Upload failed',
+          description: result.message,
+        })
         return
       }
       let anySucceeded = false
       for (const r of result.results) {
         if (r.ok) anySucceeded = true
         else {
-          deps.setError({ title: 'Upload failed', description: r.error || `Failed to upload ${r.name}` })
+          deps.setError({
+            title: 'Upload failed',
+            description: r.error || `Failed to upload ${r.name}`,
+          })
         }
       }
       if (anySucceeded) {
         await deps.refreshFiles()
-        if (file.name.endsWith('.md')) deps.requestFileSwitch({ type: 'context', name: file.name.replace(/\.md$/, '') })
-        else deps.requestFileSwitch({ type: 'file', name: file.name })
+        if (file.name.endsWith('.md'))
+          deps.requestFileSwitch({
+            type: 'context',
+            name: file.name.replace(/\.md$/, ''),
+          })
+        else
+          deps.requestFileSwitch({
+            type: 'file',
+            name: file.name,
+          })
       }
     } catch (e) {
       deps.setError(errorPayload(e, 'Upload failed'))
@@ -119,6 +151,7 @@ export function createFileUploadState(deps: FileUploadDeps) {
     resolveUploadConfirm?.(true)
     resolveUploadConfirm = null
   }
+
   function cancelUpload() {
     resolveUploadConfirm?.(false)
     resolveUploadConfirm = null

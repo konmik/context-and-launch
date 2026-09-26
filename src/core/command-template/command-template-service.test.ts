@@ -23,9 +23,11 @@ describe('CommandTemplateService', () => {
         platforms: ['windows'],
         scalarPlaceholders: ['message'],
         listPlaceholders: [],
-        environment: { GIT_TERMINAL_PROMPT: '0' },
+        environment: {
+          GIT_TERMINAL_PROMPT: '0',
+        },
         mode: 'capture',
-        timeoutMs: 30_000,
+        timeoutMs: 30000,
         script: 'git commit -m {{message}}',
         isOverridden: true,
       }),
@@ -33,17 +35,24 @@ describe('CommandTemplateService', () => {
     const partialStore = fromPartial<CommandTemplateStore>(store)
     const log = vi.fn()
     const service = new CommandTemplateService(partialStore, runner, 'windows', log)
-    expect(await service.execute('git.commit', path.resolve('.'), { message: "it's ready" })).toBe('ok')
+    expect(
+      await service.execute('git.commit', path.resolve('.'), {
+        message: "it's ready",
+      }),
+    ).toBe('ok')
     expect(requests[0]).toMatchObject({
       key: 'git.commit',
       mode: 'capture',
-      timeoutMs: 30_000,
-      environment: { GIT_TERMINAL_PROMPT: '0' },
+      timeoutMs: 30000,
+      environment: {
+        GIT_TERMINAL_PROMPT: '0',
+      },
     })
     expect(requests[0].script).toContain("'it''s ready'")
-    expect(log).toHaveBeenCalledWith('command-template', 'start', { commandTemplateKey: 'git.commit' })
+    expect(log).toHaveBeenCalledWith('command-template', 'start', {
+      commandTemplateKey: 'git.commit',
+    })
   })
-
   it('routes a tokenizable trusted profile through direct argv, not a shell string', async () => {
     const requests: ShellExecutionRequest[] = []
     const runner: PlatformShellRunner = {
@@ -56,7 +65,10 @@ describe('CommandTemplateService', () => {
     const service = new CommandTemplateService(fromPartial<CommandTemplateStore>({}), runner, 'windows', vi.fn())
     const prompt = 'Check "C:\\Users\\me\\Downloads\\Release notes _ Doc.pdf"'
     await service.executeTrustedScript({
-      source: { kind: 'profile', profileName: 'Claude Windows' },
+      source: {
+        kind: 'profile',
+        profileName: 'Claude Windows',
+      },
       script:
         'powershell -File {{configDefaultsDir}}/run-agent.ps1 {{initialPrompt}} {{windowTitle}}' +
         ' {{markerPath}} claude --dangerously-skip-permissions',

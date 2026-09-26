@@ -7,7 +7,9 @@ import { describe, expect, it } from 'vitest'
 describe('useEscapeKey development lifecycle', () => {
   it('settles without registering cleanup in a forbidden scope', () => {
     const cacheRoot = path.resolve('node_modules/.cache')
-    fs.mkdirSync(cacheRoot, { recursive: true })
+    fs.mkdirSync(cacheRoot, {
+      recursive: true,
+    })
     const tempDir = fs.mkdtempSync(path.join(cacheRoot, 'escape-key-dev-'))
     const bundlePath = path.join(tempDir, 'use-escape-key.mjs')
     const build = spawnSync(
@@ -21,7 +23,9 @@ describe('useEscapeKey development lifecycle', () => {
         `--outfile=${bundlePath}`,
         '--platform=browser',
       ],
-      { encoding: 'utf8' },
+      {
+        encoding: 'utf8',
+      },
     )
     expect(build.status, build.stderr).toBe(0)
     const script = `
@@ -38,9 +42,11 @@ describe('useEscapeKey development lifecycle', () => {
         encoding: 'utf8',
       })
     } finally {
-      fs.rmSync(tempDir, { recursive: true, force: true })
+      fs.rmSync(tempDir, {
+        recursive: true,
+        force: true,
+      })
     }
-
     expect(result.status, result.stderr).toBe(0)
   })
 })

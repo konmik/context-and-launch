@@ -1,5 +1,4 @@
 import { defineRule } from '@oxlint/plugins'
-
 import type { ESTree, Scope, SourceCode, Variable } from '@oxlint/plugins'
 
 const moduleMockMethods = new Set(['doMock', 'mock', 'unstable_mockModule'])
@@ -24,7 +23,6 @@ function isTestFrameworkObject(sourceCode: SourceCode, expression: ESTree.Expres
   if ((expression.name === 'vi' || expression.name === 'jest') && sourceCode.isGlobalReference(expression)) {
     return true
   }
-
   const variable = resolveVariable(sourceCode, expression)
   if (variable === null || variable.defs.length === 0) {
     return expression.name === 'vi' || expression.name === 'jest'
@@ -70,7 +68,10 @@ export const noModuleMockingRule = defineRule({
       CallExpression(node) {
         if (node.callee.type === 'Super' || node.callee.type === 'V8IntrinsicExpression') return
         if (moduleMockCall(context.sourceCode, node.callee)) {
-          context.report({ node, messageId: 'moduleMock' })
+          context.report({
+            node,
+            messageId: 'moduleMock',
+          })
         }
       },
     }

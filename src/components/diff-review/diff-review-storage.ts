@@ -23,7 +23,6 @@ export function createReviewedLineTracker(options: {
   let timer: ReturnType<typeof setTimeout> | undefined
   let flushing: Promise<void> | undefined
   let disposed = false
-
   const publish = () => setOptimistic(new Set(pending.keys()))
   const schedule = () => {
     if (disposed || flushing || timer !== undefined || pending.size === 0) return
@@ -48,7 +47,18 @@ export function createReviewedLineTracker(options: {
               ...current.tickets,
               [folderName]: {
                 ...ticket,
-                reviewedLines: { ...ticket.reviewedLines, ...Object.fromEntries(batch.map(([id, path]) => [id, { path, reviewedAt }])) },
+                reviewedLines: {
+                  ...ticket.reviewedLines,
+                  ...Object.fromEntries(
+                    batch.map(([id, path]) => [
+                      id,
+                      {
+                        path,
+                        reviewedAt,
+                      },
+                    ]),
+                  ),
+                },
               },
             },
           }

@@ -21,7 +21,6 @@ describe('Command Template catalog', () => {
       ).toEqual([])
     }
   })
-
   it('has a one-to-one key match with the flat bundled script map', () => {
     const bundled = v.parse(
       v.record(v.string(), v.string()),
@@ -31,7 +30,6 @@ describe('Command Template catalog', () => {
     expect(Object.keys(bundled).sort()).toEqual(definitionKeys)
     expect(new Set(definitionKeys).size).toBe(definitionKeys.length)
   })
-
   it('uses valid groups and flat suffix platform keys', () => {
     for (const definition of COMMAND_TEMPLATE_DEFINITIONS) {
       expect(COMMAND_TEMPLATE_GROUP_ORDER).toContain(definition.featureGroup)
@@ -41,7 +39,6 @@ describe('Command Template catalog', () => {
       }
     }
   })
-
   it('gives remote Git commands credential interaction without terminal prompts', () => {
     const remoteKeys = new Set([
       'ticket-sync.push.set-upstream',
@@ -61,7 +58,7 @@ describe('Command Template catalog', () => {
     for (const definition of gitCommands) {
       if (remoteKeys.has(definition.key)) {
         expect(definition.environment).toBe(remoteGitEnvironment)
-        expect(definition.timeoutMs).toBe(600_000)
+        expect(definition.timeoutMs).toBe(600000)
       } else {
         expect(definition.environment).toBe(gitEnvironment)
       }
@@ -78,7 +75,6 @@ describe('Command Template catalog', () => {
       GCM_INTERACTIVE: 'auto',
     })
   })
-
   it('delivers a Review Prompt through the agent surface, not the raw pane', () => {
     const bundled = v.parse(
       v.record(v.string(), v.string()),
@@ -86,13 +82,14 @@ describe('Command Template catalog', () => {
     )
     expect(bundled['herdr.review-prompt.deliver']).toBe('herdr agent prompt {{paneId}} {{prompt}}')
   })
-
   it('returns operating-system open actions as soon as the shell spawns', () => {
     for (const platform of ['windows', 'macos', 'linux']) {
-      expect(COMMAND_TEMPLATE_DEFINITION_BY_KEY.get(`open.directory.${platform}`)).toMatchObject({ mode: 'detached', detachDelayMs: 0 })
+      expect(COMMAND_TEMPLATE_DEFINITION_BY_KEY.get(`open.directory.${platform}`)).toMatchObject({
+        mode: 'detached',
+        detachDelayMs: 0,
+      })
     }
   })
-
   it('owns Windows picker dialogs so they cannot open behind the browser', () => {
     const bundled = v.parse(
       v.record(v.string(), v.string()),

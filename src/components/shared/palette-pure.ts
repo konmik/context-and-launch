@@ -10,7 +10,9 @@ export function projectSlugFromPath(pathname: string): string | undefined {
 }
 
 export const PALETTES = ['terminal', 'graphite', 'tokyo-night', 'catppuccin', 'dracula', 'nord', 'gruvbox'] as const
+
 export type PaletteName = (typeof PALETTES)[number]
+
 export const DEFAULT_PALETTE: PaletteName = 'terminal'
 const PaletteNameSchema = v.picklist(PALETTES)
 
@@ -22,7 +24,12 @@ export function paletteStorageKey(projectSlug?: string): string {
   return projectSlug === undefined ? 'palette' : `palette:${projectSlug}`
 }
 
-export function getStoredPalette(storage: { getItem(key: string): string | null }, projectSlug?: string): PaletteName {
+export function getStoredPalette(
+  storage: {
+    getItem(key: string): string | null
+  },
+  projectSlug?: string,
+): PaletteName {
   try {
     const scoped = projectSlug === undefined ? null : storage.getItem(paletteStorageKey(projectSlug))
     const stored = scoped ?? storage.getItem(paletteStorageKey())
@@ -31,25 +38,50 @@ export function getStoredPalette(storage: { getItem(key: string): string | null 
     /* localStorage may throw in some environments */
   }
   return DEFAULT_PALETTE
-}
+} // Hex form of the --background oklch tokens in src/app.css; parity is enforced by palette-backgrounds.test.ts.
 
-// Hex form of the --background oklch tokens in src/app.css; parity is enforced by palette-backgrounds.test.ts.
 export const PALETTE_BACKGROUNDS = {
-  terminal: { light: '#ffffff', dark: '#000000' },
-  graphite: { light: '#ffffff', dark: '#000000' },
-  'tokyo-night': { light: '#e1e2e7', dark: '#1a1b26' },
-  catppuccin: { light: '#eff1f5', dark: '#1e1e2e' },
-  dracula: { light: '#f8f8f2', dark: '#282a36' },
-  nord: { light: '#eceff4', dark: '#2e3440' },
-  gruvbox: { light: '#fbf1c8', dark: '#282828' },
-} satisfies Record<PaletteName, { light: string; dark: string }>
+  terminal: {
+    light: '#ffffff',
+    dark: '#000000',
+  },
+  graphite: {
+    light: '#ffffff',
+    dark: '#000000',
+  },
+  'tokyo-night': {
+    light: '#e1e2e7',
+    dark: '#1a1b26',
+  },
+  catppuccin: {
+    light: '#eff1f5',
+    dark: '#1e1e2e',
+  },
+  dracula: {
+    light: '#f8f8f2',
+    dark: '#282a36',
+  },
+  nord: {
+    light: '#eceff4',
+    dark: '#2e3440',
+  },
+  gruvbox: {
+    light: '#fbf1c8',
+    dark: '#282828',
+  },
+} satisfies Record<
+  PaletteName,
+  {
+    light: string
+    dark: string
+  }
+>
 
 export function paletteBackground(palette: PaletteName, dark: boolean): string {
   const entry = PALETTE_BACKGROUNDS[palette]
   return dark ? entry.dark : entry.light
-}
+} // Blocking critical CSS painted before the main stylesheet loads, so the first
 
-// Blocking critical CSS painted before the main stylesheet loads, so the first
 // frame in a browser uses the correct palette background instead of UA white.
 // color-scheme makes the browser's own canvas (the background shown around and
 // before content paints, scrollbars, form controls) match the mode, which is
@@ -66,9 +98,8 @@ export function criticalBackgroundCss(): string {
     rules.push(`html[data-palette="${palette}"].dark{background:${bg.dark}}`)
   }
   return rules.join('')
-}
+} // Blocking inline script that applies the stored appearance to <html> before
 
-// Blocking inline script that applies the stored appearance to <html> before
 // first paint. It restates getStoredMode/isDarkMode and the palette check as a
 // string because it must run before any module loads; parity with those
 // functions is enforced by palette-pure.test.ts.

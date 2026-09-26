@@ -1,5 +1,4 @@
 import { defineRule } from '@oxlint/plugins'
-
 import {
   classifyWideningTarget,
   createTypeEnvironment,
@@ -7,7 +6,6 @@ import {
   type TypeEnvironment,
   type WideningTarget,
 } from '../shared/dictionary-types.ts'
-
 import type { ESTree, Scope, SourceCode, Variable } from '@oxlint/plugins'
 
 type FunctionExpression = ESTree.ArrowFunctionExpression | ESTree.Function
@@ -122,7 +120,6 @@ export const noKnownValueWideningRule = defineRule({
   },
   createOnce(context) {
     let environment: TypeEnvironment | null = null
-
     const reportFlow = (expression: ESTree.Expression, destination: WideningTarget | null, subject: string) => {
       if (destination === null) return
       if (isDictionaryAccumulatorTarget(destination) && isEmptyObjectExpression(expression)) {
@@ -132,13 +129,14 @@ export const noKnownValueWideningRule = defineRule({
       context.report({
         node: expression,
         messageId: 'widening',
-        data: { subject, target: destination.kind },
+        data: {
+          subject,
+          target: destination.kind,
+        },
       })
     }
-
     const targetFromAnnotation = (annotation: ESTree.TSTypeAnnotation | null | undefined) =>
       environment === null ? null : annotationTarget(annotation, environment)
-
     return {
       Program(node) {
         environment = createTypeEnvironment(node)

@@ -17,7 +17,6 @@ describe('Ticket detail launcher config and run (e2e, real server)', () => {
     expect(cfg?.columnDefaults?.['todo']?.profileName).toBe('GPT')
     await expect.poll(() => profileSelect.inputValue()).toBe('GPT')
   })
-
   it('template select persists selection to project launcher config', async () => {
     const project = await setupLauncherTicket(ctx, 'template')
     await ctx.page.selectOption('[data-testid="ticket-detail-launcher-template-select"]', 'Other')
@@ -28,11 +27,13 @@ describe('Ticket detail launcher config and run (e2e, real server)', () => {
     )
     expect(cfg?.columnDefaults?.['todo']?.templateName).toBe('Other')
   })
-
   it('skill checkbox toggle persists to project launcher config', async () => {
     const project = await setupLauncherTicket(ctx, 'skill-toggle')
     const cb = ctx.page.locator('[data-testid="ticket-detail-launcher-skill-checkbox"][data-skill-name="alpha-skill"]')
-    await cb.waitFor({ state: 'visible', timeout: 15000 })
+    await cb.waitFor({
+      state: 'visible',
+      timeout: 15000,
+    })
     await cb.check()
     const cfg = await poll(
       () => readProjectLauncherConfig(ctx.testServer, project.projectSlug),
@@ -41,7 +42,6 @@ describe('Ticket detail launcher config and run (e2e, real server)', () => {
     )
     expect(cfg?.columnDefaults?.['todo']?.checkedSkills).toContain('alpha-skill')
   })
-
   it('keeps the launcher tab active after closing and reopening without reload', async () => {
     const project = await setupLauncherTicket(ctx, 'tab-persist')
     await poll(
@@ -54,30 +54,42 @@ describe('Ticket detail launcher config and run (e2e, real server)', () => {
     await openTicketDetail(ctx.page, 't-1-alpha')
     await waitVisible(ctx.page, 'ticket-detail-launcher-run-button')
   })
-
   it('launch dir display shows project path when worktree is off', async () => {
     const project = await setupLauncherTicket(ctx, 'dir-off')
     const display = testId(ctx.page, 'launch-dir-display')
-    await display.waitFor({ state: 'visible', timeout: 15000 })
+    await display.waitFor({
+      state: 'visible',
+      timeout: 15000,
+    })
     const text = await display.textContent()
     expect(text).toContain(project.projectPath)
     expect(await testId(ctx.page, 'launch-dir-copy-button').count()).toBe(1)
   })
-
   it('launch dir display updates when worktree toggle changes', async () => {
     const project = await setupLauncherTicket(ctx, 'dir-toggle')
     const display = testId(ctx.page, 'launch-dir-display')
-    await display.waitFor({ state: 'visible', timeout: 15000 })
+    await display.waitFor({
+      state: 'visible',
+      timeout: 15000,
+    })
     const textBefore = await display.textContent()
     expect(textBefore).toContain(project.projectPath)
     const cb = testId(ctx.page, 'ticket-detail-use-worktree-checkbox')
     await cb.check()
-    await expect.poll(() => display.textContent(), { timeout: 10_000 }).toContain('t-1-alpha')
+    await expect
+      .poll(() => display.textContent(), {
+        timeout: 10000,
+      })
+      .toContain('t-1-alpha')
     const textAfter = await display.textContent()
     expect(textAfter).toContain('t-1-alpha')
     expect(textAfter).not.toContain(project.projectPath)
     await cb.uncheck()
-    await expect.poll(() => display.textContent(), { timeout: 10_000 }).toContain(project.projectPath)
+    await expect
+      .poll(() => display.textContent(), {
+        timeout: 10000,
+      })
+      .toContain(project.projectPath)
     const textReverted = await display.textContent()
     expect(textReverted).toContain(project.projectPath)
   })

@@ -18,7 +18,6 @@ const LaunchRequestSchema = v.object({
   skipBehindRemote: v.fallback(v.boolean(), false),
   launchDir: v.fallback(v.string(), ''),
 })
-
 const emptyLaunchRequest = (): LaunchRequest => ({
   initialPrompt: '',
   useWorktree: false,

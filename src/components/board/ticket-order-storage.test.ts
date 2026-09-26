@@ -6,9 +6,13 @@ import { fail, succeed } from '~/util/result.js'
 
 it('updates fresh disk order, publishes only successful writes, and follows refreshed snapshots', async () => {
   let dispose!: () => void
-  let disk: TicketOrder = { todo: ['a', 'b', 'external'] }
+  let disk: TicketOrder = {
+    todo: ['a', 'b', 'external'],
+  }
   let reject = false
-  const [snapshot, setSnapshot] = createSignal<TicketOrder>({ todo: ['a', 'b'] })
+  const [snapshot, setSnapshot] = createSignal<TicketOrder>({
+    todo: ['a', 'b'],
+  })
   const storage = createRoot((cleanup) => {
     dispose = cleanup
     return createTicketOrderStorage(
@@ -32,18 +36,25 @@ it('updates fresh disk order, publishes only successful writes, and follows refr
   try {
     flush()
     await storage.update((current) => moveTicketInOrder(current, 'a', 'todo', 'todo', 2))
-    expect(storage.get()).toEqual({ todo: ['b', 'external', 'a'] })
+    expect(storage.get()).toEqual({
+      todo: ['b', 'external', 'a'],
+    })
     reject = true
     expect(await storage.update(() => ({}))).toEqual(fail('conflict'))
     expect(storage.get()).toEqual(disk)
-    flush(() => setSnapshot({ done: ['external'] }))
+    flush(() =>
+      setSnapshot({
+        done: ['external'],
+      }),
+    )
     await storage.refresh()
-    expect(storage.get()).toEqual({ done: ['external'] })
+    expect(storage.get()).toEqual({
+      done: ['external'],
+    })
   } finally {
     dispose()
   }
 })
-
 it('keeps an in-flight save with its original project when navigation changes the context', async () => {
   let dispose!: () => void
   let finishRead!: () => void
@@ -55,8 +66,18 @@ it('keeps an in-flight save with its original project when navigation changes th
     finishRead = resolve
   })
   const saved = new Map<string, TicketOrder>([
-    ['first', { todo: ['a'] }],
-    ['second', { todo: ['b'] }],
+    [
+      'first',
+      {
+        todo: ['a'],
+      },
+    ],
+    [
+      'second',
+      {
+        todo: ['b'],
+      },
+    ],
   ])
   const [selected, setSelected] = createSignal('first')
   const storage = createRoot((cleanup) => {
@@ -85,13 +106,19 @@ it('keeps an in-flight save with its original project when navigation changes th
   })
   try {
     flush()
-    const completion = storage.update((current) => ({ todo: [...current.todo, 'new'] }))
+    const completion = storage.update((current) => ({
+      todo: [...current.todo, 'new'],
+    }))
     await reading
     flush(() => setSelected('second'))
     finishRead()
     await completion
-    expect(saved.get('first')).toEqual({ todo: ['a', 'new'] })
-    expect(storage.get()).toEqual({ todo: ['b'] })
+    expect(saved.get('first')).toEqual({
+      todo: ['a', 'new'],
+    })
+    expect(storage.get()).toEqual({
+      todo: ['b'],
+    })
   } finally {
     dispose()
   }

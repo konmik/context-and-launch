@@ -1,12 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { chromium, type Browser, type Page } from 'playwright'
 import { createServer, createProject, uniqueSlug, type TestServer, type CreatedProject, type SeedTicket } from './fixtures.js'
-import { testId, waitVisible } from './locators.js'
+import { testId, waitVisible } from './locators.js' // Ranks the slowest user-facing areas against a real server + real browser and
 
-// Ranks the slowest user-facing areas against a real server + real browser and
 // splits board load into time-to-first-column-header vs time-to-all-cards.
 // Re-run after a change to compare: `pnpm run bench`.
-
 const COLUMNS = ['todo', 'in-progress', 'review', 'blocked', 'qa', 'done']
 const TICKET_COUNT = Number(process.env.BENCH_TICKETS ?? 300)
 const RUNS = Number(process.env.BENCH_RUNS ?? 5)
@@ -56,8 +54,12 @@ function summarize(label: string, samples: number[], fails: number): Stat {
 
 describe('Area benchmark (real server + real browser)', () => {
   it('measures and ranks the slowest user-facing areas', async () => {
-    const server: TestServer = await createServer({ dataDirPrefix: 'cl-areabench-' })
-    const browser: Browser = await chromium.launch({ headless: true })
+    const server: TestServer = await createServer({
+      dataDirPrefix: 'cl-areabench-',
+    })
+    const browser: Browser = await chromium.launch({
+      headless: true,
+    })
     let project: CreatedProject | undefined
     const stats: Stat[] = []
 
@@ -65,7 +67,12 @@ describe('Area benchmark (real server + real browser)', () => {
       const samples: number[] = []
       let fails = 0
       for (let r = 0; r < RUNS; r++) {
-        const page = await browser.newPage({ viewport: { width: 1400, height: 900 } })
+        const page = await browser.newPage({
+          viewport: {
+            width: 1400,
+            height: 900,
+          },
+        })
         try {
           if (setup) await setup(page)
           const start = performance.now()
@@ -96,22 +103,31 @@ describe('Area benchmark (real server + real browser)', () => {
       project = await createProject(server, {
         projectSlug: uniqueSlug('area-bench'),
         withRemote: true,
-        withBoards: [{ id: 'kanban', name: 'Kanban', columns: COLUMNS.map((name) => ({ name })) }],
+        withBoards: [
+          {
+            id: 'kanban',
+            name: 'Kanban',
+            columns: COLUMNS.map((name) => ({
+              name,
+            })),
+          },
+        ],
         withTickets: seedTickets(TICKET_COUNT),
       })
-      slug = project.projectSlug
-
-      // Area 1: full board load (cold navigation, all cards rendered).
+      slug = project.projectSlug // Area 1: full board load (cold navigation, all cards rendered).
       await measure('board-load', async (page) => {
         await gotoBoard(page)
-      })
-
-      // Board-load decomposition: time-to-first-column-header vs time-to-all-cards.
+      }) // Board-load decomposition: time-to-first-column-header vs time-to-all-cards.
       {
         const headerSamples: number[] = []
         const cardSamples: number[] = []
         for (let r = 0; r < RUNS; r++) {
-          const page = await browser.newPage({ viewport: { width: 1400, height: 900 } })
+          const page = await browser.newPage({
+            viewport: {
+              width: 1400,
+              height: 900,
+            },
+          })
           try {
             const start = performance.now()
             await page.goto(`${base}/project/${slug}`)
@@ -120,7 +136,9 @@ describe('Area benchmark (real server + real browser)', () => {
             await page.waitForFunction(
               (n) => document.querySelectorAll('[data-testid="kanban-board-ticket-card"]').length >= n,
               TICKET_COUNT,
-              { timeout: 30000 },
+              {
+                timeout: 30000,
+              },
             )
             cardSamples.push(performance.now() - start)
           } finally {
@@ -133,9 +151,7 @@ describe('Area benchmark (real server + real browser)', () => {
           `[area-benchmark] board-load split | first-header ${h.median.toFixed(0)} ms ` +
             `| all-cards ${c.median.toFixed(0)} ms | header-to-cards delta ~${(c.median - h.median).toFixed(0)} ms`,
         )
-      }
-
-      // Area 2: ticket detail dialog open.
+      } // Area 2: ticket detail dialog open.
       await measure(
         'ticket-detail-open',
         async (page) => {
@@ -143,9 +159,7 @@ describe('Area benchmark (real server + real browser)', () => {
           await waitVisible(page, 'ticket-detail-number-input')
         },
         gotoBoard,
-      )
-
-      // Area 3: Forest View first render.
+      ) // Area 3: Forest View first render.
       await measure(
         'forest-view-render',
         async (page) => {
@@ -156,9 +170,7 @@ describe('Area benchmark (real server + real browser)', () => {
           })
         },
         gotoBoard,
-      )
-
-      // Area 4: Settings (Launcher Config) dialog open.
+      ) // Area 4: Settings (Launcher Config) dialog open.
       await measure(
         'settings-open',
         async (page) => {
@@ -166,9 +178,7 @@ describe('Area benchmark (real server + real browser)', () => {
           await waitVisible(page, 'launcher-settings-tab-misc')
         },
         gotoBoard,
-      )
-
-      // Area 5: Create-ticket dialog open.
+      ) // Area 5: Create-ticket dialog open.
       await measure(
         'create-ticket-open',
         async (page) => {
@@ -176,9 +186,7 @@ describe('Area benchmark (real server + real browser)', () => {
           await waitVisible(page, 'create-ticket-number-input')
         },
         gotoBoard,
-      )
-
-      // Area 6: Palette switch (client restyle of the whole board).
+      ) // Area 6: Palette switch (client restyle of the whole board).
       await measure(
         'palette-switch',
         async (page) => {
@@ -187,9 +195,7 @@ describe('Area benchmark (real server + real browser)', () => {
           await page.waitForTimeout(50)
         },
         gotoBoard,
-      )
-
-      // Area 7: Sync pending check.
+      ) // Area 7: Sync pending check.
       await measure(
         'sync-pending-check',
         async (page) => {
@@ -200,7 +206,6 @@ describe('Area benchmark (real server + real browser)', () => {
         },
         gotoBoard,
       )
-
       stats.sort((a, b) => b.median - a.median)
       const lines = stats.map(
         (s, i) =>
@@ -211,7 +216,6 @@ describe('Area benchmark (real server + real browser)', () => {
         `\n[area-benchmark] ${TICKET_COUNT} tickets, ${COLUMNS.length} columns, ${RUNS} runs each\n` +
           `Slowest areas (ranked by median):\n${lines.join('\n')}\n`,
       )
-
       for (const s of stats) {
         expect(s.fails, `${s.label} had ${s.fails} failed runs`).toBe(0)
         expect(s.median, `${s.label} median regressed badly`).toBeLessThan(30000)

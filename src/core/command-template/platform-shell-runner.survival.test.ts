@@ -4,8 +4,9 @@ import path from 'path'
 import { isAlive } from '../launcher/process-utils.js'
 import { killIfAlive, runSurvivalFixture, useTempDirs, waitForFile } from './platform-shell-fixture.test-utils.js'
 
-const makeTempDir = useTempDirs('platform-shell-runner-survival-test-', { cleanupAfterAll: true })
-
+const makeTempDir = useTempDirs('platform-shell-runner-survival-test-', {
+  cleanupAfterAll: true,
+})
 describe('platform shell runner parent-exit survival', () => {
   it.concurrent(
     'child keeps running after its parent process exits',
@@ -15,7 +16,6 @@ describe('platform shell runner parent-exit survival', () => {
       await waitForFile(pidFile, () => `pid file never appeared, parent stderr: ${parentStderr}`)
       const grandchildPid = Number(fs.readFileSync(pidFile, 'utf-8').trim())
       expect(Number.isInteger(grandchildPid)).toBe(true)
-
       try {
         await new Promise((r) => setTimeout(r, 500))
         expect(isAlive(grandchildPid), 'grandchild died after parent exit').toBe(true)
@@ -25,7 +25,6 @@ describe('platform shell runner parent-exit survival', () => {
     },
     30000,
   )
-
   it.concurrent(
     'child writing to stdout/stderr after parent exit stays alive',
     async () => {
@@ -35,7 +34,6 @@ describe('platform shell runner parent-exit survival', () => {
       const parentStderr = await runSurvivalFixture([pidFile, 'writing', doneFile])
       await waitForFile(pidFile, () => `pid file never appeared, parent stderr: ${parentStderr}`)
       const grandchildPid = Number(fs.readFileSync(pidFile, 'utf-8').trim())
-
       try {
         await waitForFile(
           doneFile,

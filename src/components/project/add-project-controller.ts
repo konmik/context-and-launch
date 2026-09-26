@@ -8,7 +8,17 @@ export type AddProjectAction = (
   mainBranch: string,
   boardId: string,
   name: string,
-) => Promise<{ ok: true; projectSlug: string } | { ok: false; type: string; message: string }>
+) => Promise<
+  | {
+      ok: true
+      projectSlug: string
+    }
+  | {
+      ok: false
+      type: string
+      message: string
+    }
+>
 
 export interface AddProjectControllerDeps {
   action: AddProjectAction
@@ -25,7 +35,6 @@ export function createAddProjectController(deps: AddProjectControllerDeps) {
   const [boardId, setBoardId] = createSignal('')
   const [submitting, setSubmitting] = createSignal(false)
   const [localError, setLocalError] = createSignal(deps.errorMessage ?? '')
-
   const [debouncedPath, setDebouncedPath] = createSignal('')
   createEffect(
     () => pathValue().trim(),
@@ -34,7 +43,6 @@ export function createAddProjectController(deps: AddProjectControllerDeps) {
       return () => clearTimeout(handle)
     },
   )
-
   createEffect(debouncedPath, (p) => {
     if (!p) {
       setMainBranchValue('')

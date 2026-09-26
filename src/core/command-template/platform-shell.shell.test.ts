@@ -7,15 +7,18 @@ import { COMMAND_NOT_FOUND_EXIT_CODE, FixedPlatformShellRunner } from './platfor
 describe('fixed platform shell', () => {
   const platform = currentCommandTemplatePlatform()
   const runner = new FixedPlatformShellRunner()
-
   it('round-trips scalar and list arguments', async () => {
     const code = 'console.log(JSON.stringify(process.argv.slice(1)))'
     const executable = shellLiteral(process.execPath, platform)
     const template = `${platform === 'windows' ? '& ' : ''}${executable} -e ` + `${shellLiteral(code, platform)} {{scalar}} {{items}}`
     const script = interpolateCommandTemplate(
       template,
-      { scalar: "a b'$;&`{}\nline" },
-      { items: ['', 'two words'] },
+      {
+        scalar: "a b'$;&`{}\nline",
+      },
+      {
+        items: ['', 'two words'],
+      },
       ['scalar'],
       ['items'],
       platform,
@@ -27,11 +30,10 @@ describe('fixed platform shell', () => {
       cwd: process.cwd(),
       environment: {},
       mode: 'capture',
-      timeoutMs: 10_000,
+      timeoutMs: 10000,
     })
     expect(JSON.parse(result.trim())).toEqual(["a b'$;&`{}\nline", '', 'two words'])
   })
-
   it('stops a multiline script at the first native failure and preserves its exit code', async () => {
     const node = shellLiteral(process.execPath, platform)
     const failingCode = shellLiteral('process.exit(7)', platform)
@@ -45,7 +47,7 @@ describe('fixed platform shell', () => {
       cwd: process.cwd(),
       environment: {},
       mode: 'capture',
-      timeoutMs: 10_000,
+      timeoutMs: 10000,
     })
     await expect(failure).rejects.toBeInstanceOf(ProcessError)
     await expect(failure).rejects.toMatchObject({
@@ -56,7 +58,6 @@ describe('fixed platform shell', () => {
       output: expect.not.stringContaining('after'),
     })
   })
-
   it.runIf(platform === 'windows')('preserves PowerShell command-not-found details', async () => {
     await expect(
       runner.execute({
@@ -66,7 +67,7 @@ describe('fixed platform shell', () => {
         cwd: process.cwd(),
         environment: {},
         mode: 'capture',
-        timeoutMs: 10_000,
+        timeoutMs: 10000,
       }),
     ).rejects.toMatchObject({
       exitCode: COMMAND_NOT_FOUND_EXIT_CODE,

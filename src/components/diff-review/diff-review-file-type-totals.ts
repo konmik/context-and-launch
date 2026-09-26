@@ -18,7 +18,11 @@ export function buildFileTypeTotals(files: readonly ReviewFileSnapshot[]): FileT
   const totals = new Map<string, FileTypeTotals>()
   for (const file of files) {
     const fileType = fileTypeOf(file.path)
-    const entry = totals.get(fileType) ?? { fileType, additions: 0, deletions: 0 }
+    const entry = totals.get(fileType) ?? {
+      fileType,
+      additions: 0,
+      deletions: 0,
+    }
     entry.additions += file.additions
     entry.deletions += file.deletions
     totals.set(fileType, entry)

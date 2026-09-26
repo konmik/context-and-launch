@@ -1,7 +1,6 @@
 import { isPaletteName, type PaletteName } from '../src/components/shared/palette-pure.js'
-import { parseMode, type AppMode } from '../src/components/shared/theme-toggle-pure.js'
+import { parseMode, type AppMode } from '../src/components/shared/theme-toggle-pure.js' // The renderer loads the app from a fixed custom-scheme origin. localStorage
 
-// The renderer loads the app from a fixed custom-scheme origin. localStorage
 // (and all other web storage) is keyed by origin, so the origin must be
 // identical across launches. The main process answers app:// requests by
 // invoking the server's request handler in-process: the server bundle is
@@ -26,9 +25,8 @@ export async function handleAppRequest(request: Request, handleRequest: AppReque
       body,
     }),
   )
-}
+} // One-time migration of the appearance persisted by the main process
 
-// One-time migration of the appearance persisted by the main process
 // (window-state.json) into the app-origin localStorage: the main process
 // passes its stored palette and mode to the preload script via
 // additionalArguments, and the preload seeds any keys the renderer has not

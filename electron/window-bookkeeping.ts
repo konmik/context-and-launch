@@ -24,7 +24,6 @@ export interface SessionWindow {
 export const DEFAULT_WINDOW_WIDTH = 1400
 export const DEFAULT_WINDOW_HEIGHT = 900
 export const CASCADE_STEP = 32
-
 const FiniteNumberSchema = v.pipe(v.number(), v.finite())
 const WindowBoundsSchema = v.object({
   x: v.optional(FiniteNumberSchema),
@@ -59,7 +58,13 @@ export function migrateWindowState(raw: JsonValue): WindowStateEntry[] {
   }
   const parsedBounds = v.safeParse(WindowBoundsSchema, r)
   if (parsedBounds.success) {
-    return [{ projectSlug: null, bounds: parsedBounds.output, maximized: !!r.maximized }]
+    return [
+      {
+        projectSlug: null,
+        bounds: parsedBounds.output,
+        maximized: !!r.maximized,
+      },
+    ]
   }
   return []
 }
@@ -93,7 +98,6 @@ export function clampToDisplays(bounds: WindowBounds, displayWorkAreas: WindowBo
     if (bounds.y !== undefined) result.y = bounds.y
     return result
   }
-
   let best = displayWorkAreas[0]
   let bestArea = -1
   for (const wa of displayWorkAreas) {
@@ -103,7 +107,6 @@ export function clampToDisplays(bounds: WindowBounds, displayWorkAreas: WindowBo
       best = wa
     }
   }
-
   const width = Math.min(bounds.width, best.width)
   const height = Math.min(bounds.height, best.height)
   const waX = best.x ?? 0
@@ -112,7 +115,12 @@ export function clampToDisplays(bounds: WindowBounds, displayWorkAreas: WindowBo
   const maxY = waY + best.height - height
   const x = Math.min(Math.max(bounds.x, waX), maxX)
   const y = Math.min(Math.max(bounds.y, waY), maxY)
-  return { x, y, width, height }
+  return {
+    x,
+    y,
+    width,
+    height,
+  }
 }
 
 export function cascadeFrom(openerBounds: Required<WindowBounds>, workArea: WindowBounds): WindowBounds {
@@ -136,7 +144,14 @@ export function updateSessionWindow(
   windowId: number,
   patch: Partial<Omit<SessionWindow, 'windowId'>>,
 ): SessionWindow[] {
-  return list.map((w) => (w.windowId === windowId ? { ...w, ...patch } : w))
+  return list.map((w) =>
+    w.windowId === windowId
+      ? {
+          ...w,
+          ...patch,
+        }
+      : w,
+  )
 }
 
 export function closeSessionWindow(
@@ -146,7 +161,15 @@ export function closeSessionWindow(
   maximized: boolean,
 ): SessionWindow[] {
   if (list.length <= 1) {
-    return list.map((w) => (w.windowId === windowId ? { ...w, bounds: finalBounds, maximized } : w))
+    return list.map((w) =>
+      w.windowId === windowId
+        ? {
+            ...w,
+            bounds: finalBounds,
+            maximized,
+          }
+        : w,
+    )
   }
   return list.filter((w) => w.windowId !== windowId)
 }
@@ -178,7 +201,10 @@ export function restoreEntries(
 ): WindowStateEntry[] {
   return entries
     .filter((e) => e.projectSlug === null || registeredProjectSlugs.has(e.projectSlug))
-    .map((e) => ({ ...e, bounds: clampToDisplays(e.bounds, displayWorkAreas) }))
+    .map((e) => ({
+      ...e,
+      bounds: clampToDisplays(e.bounds, displayWorkAreas),
+    }))
 }
 
 export function projectSlugFromUrl(url: string): string | null {

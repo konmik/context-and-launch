@@ -15,7 +15,12 @@ export interface ScreenPoint {
 
 export interface ConnectionSurface {
   scopeGroupNumber?: string
-  bounds: { x: number; y: number; width: number; height: number }
+  bounds: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
 }
 
 export interface ConnectionAnchor {
@@ -24,7 +29,9 @@ export interface ConnectionAnchor {
 }
 
 export type ForestConnectionSession =
-  | { kind: 'idle' }
+  | {
+      kind: 'idle'
+    }
   | {
       kind: 'connecting'
       source: ConnectionEndpoint
@@ -42,7 +49,9 @@ export interface ForestConnectionCommands {
 }
 
 export function createForestConnection() {
-  const [session, setSession] = createSignal<ForestConnectionSession>({ kind: 'idle' })
+  const [session, setSession] = createSignal<ForestConnectionSession>({
+    kind: 'idle',
+  })
 
   function begin(source: ConnectionEndpoint, anchor: ConnectionAnchor) {
     setSession({
@@ -80,11 +89,21 @@ export function createForestConnection() {
   }
 
   function cancel() {
-    setSession({ kind: 'idle' })
+    setSession({
+      kind: 'idle',
+    })
   }
 
-  const commands: ForestConnectionCommands = { begin, movePointer, reanchorSource, cancel }
-  return { session, commands }
+  const commands: ForestConnectionCommands = {
+    begin,
+    movePointer,
+    reanchorSource,
+    cancel,
+  }
+  return {
+    session,
+    commands,
+  }
 }
 
 export function isConnectionTarget(source: ConnectionEndpoint, target: ConnectionEndpoint): boolean {
@@ -94,15 +113,29 @@ export function isConnectionTarget(source: ConnectionEndpoint, target: Connectio
 export function dependencyFromEndpoints(
   source: ConnectionEndpoint,
   target: ConnectionEndpoint,
-): { dependentNumber: string; dependencyNumber: string } {
+): {
+  dependentNumber: string
+  dependencyNumber: string
+} {
   return source.end === 'bottom'
-    ? { dependentNumber: source.ticketNumber, dependencyNumber: target.ticketNumber }
-    : { dependentNumber: target.ticketNumber, dependencyNumber: source.ticketNumber }
+    ? {
+        dependentNumber: source.ticketNumber,
+        dependencyNumber: target.ticketNumber,
+      }
+    : {
+        dependentNumber: target.ticketNumber,
+        dependencyNumber: source.ticketNumber,
+      }
 }
 
-export function connectionPreviewPath(session: ForestConnectionSession, containerRect: { left: number; top: number }): string | undefined {
+export function connectionPreviewPath(
+  session: ForestConnectionSession,
+  containerRect: {
+    left: number
+    top: number
+  },
+): string | undefined {
   if (session.kind !== 'connecting') return undefined
-
   let visibleStart = session.sourceScreenPoint
   let visibleEnd = session.pointerScreenPoint
   if (session.sourceSurface.scopeGroupNumber !== session.pointerSurface.scopeGroupNumber) {
@@ -120,10 +153,19 @@ export function connectionPreviewPath(session: ForestConnectionSession, containe
       }
     }
   }
-
   const startX = visibleStart.x - containerRect.left
   const startY = visibleStart.y - containerRect.top
   const endX = visibleEnd.x - containerRect.left
   const endY = visibleEnd.y - containerRect.top
-  return verticalBezierPath({ x: startX, y: startY }, { x: endX, y: endY }, session.source.end === 'bottom' ? 'down' : 'up')
+  return verticalBezierPath(
+    {
+      x: startX,
+      y: startY,
+    },
+    {
+      x: endX,
+      y: endY,
+    },
+    session.source.end === 'bottom' ? 'down' : 'up',
+  )
 }

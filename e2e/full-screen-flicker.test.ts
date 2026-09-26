@@ -1,9 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import type { Page } from 'playwright'
 import { gotoProject, seedProject, setupE2E } from './fixtures.js'
-import { waitVisible } from './locators.js'
+import { waitVisible } from './locators.js' // Counts detachments of the full app UI. A loading-state collapse to the root
 
-// Counts detachments of the full app UI. A loading-state collapse to the root
 // boundary removes the subtree containing <header> from the DOM, which is the
 // full-screen flicker as a DOM fact, independent of frame timing.
 const DETACH_COUNTER = `
@@ -55,24 +54,40 @@ function trackServerResponses(page: Page): string[] {
 
 describe('Full-screen flicker (e2e, real server)', () => {
   const ctx = setupE2E()
-
   it('keeps the UI attached while deferred background reads load after start', async () => {
     const project = await seedProject(ctx, {
       slugBase: 'flicker-start',
-      withTickets: [{ number: 'T-1', title: 'Alpha', status: 'todo', folderName: 't-1-alpha' }],
+      withTickets: [
+        {
+          number: 'T-1',
+          title: 'Alpha',
+          status: 'todo',
+          folderName: 't-1-alpha',
+        },
+      ],
     })
     await ctx.page.addInitScript(DETACH_COUNTER)
     const responses = trackServerResponses(ctx.page)
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
-    await expect.poll(() => responses.length, { timeout: 15000 }).toBeGreaterThanOrEqual(2)
+    await expect
+      .poll(() => responses.length, {
+        timeout: 15000,
+      })
+      .toBeGreaterThanOrEqual(2)
     expect(await observerActive(ctx.page)).toBe(true)
     expect(await detachCount(ctx.page)).toBe(0)
   })
-
   it('keeps the UI attached when opening a ticket', async () => {
     const project = await seedProject(ctx, {
       slugBase: 'flicker-open-ticket',
-      withTickets: [{ number: 'T-1', title: 'Alpha', status: 'todo', folderName: 't-1-alpha' }],
+      withTickets: [
+        {
+          number: 'T-1',
+          title: 'Alpha',
+          status: 'todo',
+          folderName: 't-1-alpha',
+        },
+      ],
     })
     await ctx.page.addInitScript(DETACH_COUNTER)
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
