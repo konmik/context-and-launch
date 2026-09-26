@@ -29,6 +29,7 @@ Scope: the nine mutable file-backed data sources and the explicit palette/theme 
 - [x] Audited retained domain writers and refresh paths. Ticket dependency/group operations revalidate ticket data, group operations refresh layout, and ticket detail refreshes on worktree revisions.
 - [x] Verified failure handling, queue recovery, lease conflicts/release, and order/layout expected-state conflicts in the passing unit/integration suite.
 - [x] Verified launcher precedence/reference handling and appearance isolation through unit and browser tests.
-- [ ] Resolve the final audit's Diff Review E2E failure: queued feedback did not clear on the initial run; the targeted rerun stalled with Send disabled after entering feedback. Determine the cause and pass the existing scenario before closing the ticket.
+- [x] Resolve the final audit's Diff Review E2E failure: isolated the stalled composer updates to periodic async agent-status refresh. Publish completed status reads through `createStoredState`; retain polling and explicit refresh after send/retry. All 13 existing Diff Review browser scenarios pass with unchanged assertions.
+- [ ] Finish full E2E verification and commit the audit fixes and test cleanup.
 
 Detailed findings, test cleanup, and the final browser-run result are recorded in `audit.md`.
