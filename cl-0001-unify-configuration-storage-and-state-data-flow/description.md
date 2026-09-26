@@ -34,18 +34,20 @@ Fact-checked against application commit `e17d100`. Paths were checked against `C
 
 Source paths below are relative to `src/`.
 
-| Persisted data | Verified implementation | Provider scope/location |
-| --- | --- | --- |
-| `config/config.json` | `createStoredConfig` in `components/config/app-config-storage.ts` | App, `app.tsx` |
-| `config/launcher-config.json` | `createStoredConfig` in `components/launcher/shared-launcher-config-storage.ts` | App, `app.tsx` |
-| `config/boards.json` | `createStoredConfig` in `components/board/board-config-storage.ts` | App, `app.tsx` |
-| `config/command-templates.json` | `createStoredConfig` in `components/launcher/command-template-storage.ts` | App, `app.tsx` |
-| `projects/{projectSlug}/config/launcher-config.json` | `createStoredConfig` in `components/launcher/project-launcher-config-storage.ts` | Project, `pages/project.tsx` |
-| `projects/{projectSlug}/config/diff-review.json` | `createStoredConfig` in `components/diff-review/DiffReview.tsx`; context in `diff-review-storage.ts` | Mounted Diff Review, `DiffReview.tsx` |
-| `{ticketsPath}/ticket-order.json` | `createStoredSignal` in `components/board/ticket-order-storage.ts` | Project, `pages/project.tsx` |
-| `{ticketsPath}/forest-layout.json` | `createStoredSignal` in `components/forest/forest-layout-storage.ts` | Mounted Forest View, `components/forest/ForestView.tsx` |
-| `{ticketsPath}/{ticketFolder}/status.json` | `createStoredSignal` in `components/ticket/ticket-status-storage.ts` | Ticket detail, `components/ticket/TicketDetailDialog.tsx`; domain actions also write this file |
-| Appearance preferences | `createStoredSignal` in `components/shared/appearance.tsx` | `AppearanceRoot` in `app.tsx`, selects global/project storage by route |
+| Persisted data | Uses StoredSignal AND useContext | Verified implementation | Provider scope/location |
+| --- | --- | --- | --- |
+| `config/config.json` | Yes | `createStoredConfig` in `components/config/app-config-storage.ts` | App, `app.tsx` |
+| `config/launcher-config.json` | Yes | `createStoredConfig` in `components/launcher/shared-launcher-config-storage.ts` | App, `app.tsx` |
+| `config/boards.json` | Yes | `createStoredConfig` in `components/board/board-config-storage.ts` | App, `app.tsx` |
+| `config/command-templates.json` | Yes | `createStoredConfig` in `components/launcher/command-template-storage.ts` | App, `app.tsx` |
+| `projects/{projectSlug}/config/launcher-config.json` | Yes | `createStoredConfig` in `components/launcher/project-launcher-config-storage.ts` | Project, `pages/project.tsx` |
+| `projects/{projectSlug}/config/diff-review.json` | Yes | `createStoredConfig` in `components/diff-review/DiffReview.tsx`; context in `diff-review-storage.ts` | Mounted Diff Review, `DiffReview.tsx` |
+| `{ticketsPath}/ticket-order.json` | Yes | `createStoredSignal` in `components/board/ticket-order-storage.ts` | Project, `pages/project.tsx` |
+| `{ticketsPath}/forest-layout.json` | Yes | `createStoredSignal` in `components/forest/forest-layout-storage.ts` | Mounted Forest View, `components/forest/ForestView.tsx` |
+| `{ticketsPath}/{ticketFolder}/status.json` | Yes | `createStoredSignal` in `components/ticket/ticket-status-storage.ts` | Ticket detail, `components/ticket/TicketDetailDialog.tsx`; domain actions also write this file |
+| Appearance preferences | Yes | `createStoredSignal` in `components/shared/appearance.tsx` | `AppearanceRoot` in `app.tsx`, selects global/project storage by route |
+
+"Yes" means the data has a `StoredSignal`-compatible store and a consumer reads that store using `useContext`; it does not mean every operation goes through that store.
 
 `createStoredConfig` implements the `StoredSignal` interface through the shared `createStoredState` queue; it does not call `createStoredSignal` directly.
 
