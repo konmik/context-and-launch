@@ -8,7 +8,6 @@ export default tseslint.config(
       parser: tseslint.parser,
     },
     rules: {
-      "max-len": ["error", { code: 120, ignoreUrls: true }],
       "no-restricted-imports": ["error", {
         paths: [
           {
