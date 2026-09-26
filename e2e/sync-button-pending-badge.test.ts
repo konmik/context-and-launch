@@ -54,6 +54,7 @@ describe("Sync button pending badge (e2e, real server)", () => {
     );
 
     // The badge refresh after the auto-commit waits for the next poll.
+    await expect.poll(() => git("diff @{u}", project.ticketsPath), { timeout: 10_000 }).toBe("");
     await fastForwardPastSyncPoll(ctx.page);
     await waitGone(ctx.page, "sync-button-pending-badge");
 

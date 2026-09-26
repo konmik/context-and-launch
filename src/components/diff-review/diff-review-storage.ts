@@ -1,12 +1,13 @@
-import { createContext, createMemo, createSignal, type SourceAccessor } from "solid-js";
+import { createContext, createMemo, createSignal, type Accessor } from "solid-js";
 import type { StoredSignal } from "~/util/stored-signal.js";
 import { getReviewTicketState, type DiffReviewProjectState } from "~/core/diff-review/diff-review-types.js";
 import type { readReviewAgentStatus } from './diff-review-state-api.js';
 
 export const DiffReviewContext = createContext<StoredSignal<DiffReviewProjectState>>();
-export const ReviewAgentStatusContext = createContext<SourceAccessor<
-	Awaited<ReturnType<typeof readReviewAgentStatus>>
->>();
+export const ReviewAgentStatusContext = createContext<{
+	get: Accessor<Awaited<ReturnType<typeof readReviewAgentStatus>>>;
+	refresh(): Promise<void>;
+}>();
 
 export function createReviewedLineTracker(options: {
 	state: StoredSignal<DiffReviewProjectState>;

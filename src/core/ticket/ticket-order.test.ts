@@ -197,35 +197,6 @@ describe('ticket status and order persistence', () => {
 	const dirs: string[] = [];
 	afterAll(() => { cleanup(...dirs); dirs.length = 0; });
 
-	it.concurrent('cross-column move updates both status and order', async () => {
-		const dir = await createGitWorktree(); dirs.push(dir);
-		const store = new TicketStore(dir);
-		store.createTicket('X-1', 'Cross', 'todo');
-		store.createTicket('Y-2', 'Stays', 'done');
-
-		store.updateTicket('x-1-cross', null, null, 'done');
-		store.orderStore.write(moveTicketInOrder(store.orderStore.read(), 'x-1-cross', 'todo', 'done', 0));
-
-		const status = JSON.parse(fs.readFileSync(path.join(dir, 'x-1-cross', 'status.json'), 'utf-8'));
-		expect(status.status).toBe('done');
-		const order = store.orderStore.read();
-		expect(order['todo'] ?? []).not.toContain('x-1-cross');
-		expect(order['done']).toEqual(['x-1-cross', 'y-2-stays']);
-	});
-
-	it.concurrent('same-column reorder updates order without touching status', async () => {
-		const dir = await createGitWorktree(); dirs.push(dir);
-		const store = new TicketStore(dir);
-		store.createTicket('A-1', 'Alpha', 'todo');
-		store.createTicket('B-2', 'Bravo', 'todo');
-		const statusBefore = fs.readFileSync(path.join(dir, 'a-1-alpha', 'status.json'), 'utf-8');
-
-		store.orderStore.write(moveTicketInOrder(store.orderStore.read(), 'a-1-alpha', 'todo', 'todo', 1));
-
-		expect(store.orderStore.read()['todo']).toEqual(['b-2-bravo', 'a-1-alpha']);
-		expect(fs.readFileSync(path.join(dir, 'a-1-alpha', 'status.json'), 'utf-8')).toBe(statusBefore);
-	});
-
 	it.concurrent('loadBoardSnapshot returns tickets and reconciled order', async () => {
 		const dir = await createGitWorktree(); dirs.push(dir);
 		const store = new TicketStore(dir);

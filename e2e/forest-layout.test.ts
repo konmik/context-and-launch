@@ -85,7 +85,7 @@ describe("Forest layout and persistence", () => {
     expect(boxB.y).toBeLessThan(boxA.y);
   }, 120000);
 
-  it("drag card persists to forest-layout.json", async () => {
+  it("drag persists without remounting and retains positions after a dependency update", async () => {
     const project = await openForestProject(ctx, {
       slugBase: "fv-drag",
       tickets: [
@@ -96,6 +96,8 @@ describe("Forest layout and persistence", () => {
 
     const card = forestCard(ctx.page, "D-1");
     await card.waitFor({ state: "visible", timeout: 15000 });
+    const surface = await testId(ctx.page, "forest-surface").elementHandle();
+    expect(surface).toBeTruthy();
     const start = await centerOf(card);
     await dragPointer(ctx.page, start, { x: start.x + 150, y: start.y });
 
@@ -104,6 +106,7 @@ describe("Forest layout and persistence", () => {
       { timeout: 10000 },
     ).toEqual({ x: expect.any(Number), y: expect.any(Number) });
 
+    expect(await surface!.evaluate(element => element.isConnected)).toBe(true);
     const movedBox = await boxOf(card);
     await clickHandle(ctx.page, "D-1", "bottom");
     await forestHandle(ctx.page, "T-1", "top").click();
@@ -112,29 +115,6 @@ describe("Forest layout and persistence", () => {
       { timeout: 10000 },
     ).toContain("T-1");
     await expect.poll(async () => (await card.boundingBox())?.x).toBeCloseTo(movedBox.x, 0);
-  }, 120000);
-
-  it("does not remount the forest after a drag persists", async () => {
-    const project = await openForestProject(ctx, {
-      slugBase: "fv-noremount",
-      tickets: [{ number: "D-1", title: "Draggable", folderName: "d-1-draggable" }],
-    });
-
-    const card = forestCard(ctx.page, "D-1");
-    await card.waitFor({ state: "visible", timeout: 15000 });
-    const wrapper = await ctx.page.locator('[data-testid="forest-surface"]').elementHandle();
-    expect(wrapper).toBeTruthy();
-
-    const start = await centerOf(card);
-    await dragPointer(ctx.page, start, { x: start.x + 150, y: start.y });
-
-    await expect.poll(
-      () => readForestLayout(ctx.testServer, project.projectSlug)?.["D-1"],
-      { timeout: 10000 },
-    ).toEqual({ x: expect.any(Number), y: expect.any(Number) });
-
-    const stillConnected = await wrapper!.evaluate((element) => element.isConnected);
-    expect(stillConnected).toBe(true);
   }, 120000);
 
   it("rearrange writes all positions to forest-layout.json", async () => {

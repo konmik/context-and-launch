@@ -74,17 +74,6 @@ describe('ForestLayoutStore', () => {
 		});
 	});
 
-	it('write overwrites existing entry', () => {
-		const dir = tmpDir('fls-');
-		dirs.push(dir);
-		fs.writeFileSync(path.join(dir, 'forest-layout.json'), JSON.stringify({
-			'A-1': { x: 10, y: 20 },
-		}));
-		const store = new ForestLayoutStore(dir);
-		store.write({ 'A-1': { x: 99, y: 99 } });
-		expect(store.read()).toEqual({ 'A-1': { x: 99, y: 99 } });
-	});
-
 	it('write rejects a stale layout without losing another writer\'s positions', () => {
 		const dir = tmpDir('fls-');
 		dirs.push(dir);

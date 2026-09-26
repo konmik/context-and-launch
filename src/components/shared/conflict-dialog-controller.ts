@@ -23,11 +23,13 @@ export function createConflictDialogController(deps: ConflictDialogDeps) {
 
   createEffect(deps.open, open => { if (open) setErrorMsg(''); });
 
-  createEffect(profiles, list => {
-    if (list.some(profile => profile.name === selectedProfile())) return;
-    const preferred = appConfig.get().lastUsedProfileName;
-    setSelectedProfile(list.find(profile => profile.name === preferred)?.name ?? list[0]?.name ?? '');
-  });
+  createEffect(
+    () => ({ list: profiles(), selected: selectedProfile(), preferred: appConfig.get().lastUsedProfileName }),
+    ({ list, selected, preferred }) => {
+      if (list.some(profile => profile.name === selected)) return;
+      setSelectedProfile(list.find(profile => profile.name === preferred)?.name ?? list[0]?.name ?? '');
+    },
+  );
 
   async function selectProfile(name: string) {
     setSelectedProfile(name);

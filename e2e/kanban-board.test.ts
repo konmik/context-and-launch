@@ -34,10 +34,23 @@ describe("Kanban board (e2e, real server)", () => {
       slugBase: "kb-click",
       withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
     });
-    const startedAt = performance.now();
+    // Measure from the actual click, excluding Playwright's actionability wait.
+    await ctx.page.evaluate(() => {
+      document.addEventListener("click", () => {
+        performance.mark("ticket-open-start");
+        const observer = new MutationObserver(() => {
+          const input = document.querySelector('[data-testid="ticket-detail-number-input"]');
+          if (!(input instanceof HTMLElement) || !input.checkVisibility()) return;
+          performance.measure("ticket-open", "ticket-open-start");
+          observer.disconnect();
+        });
+        observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+      }, { once: true, capture: true });
+    });
     await testId(ctx.page, "kanban-board-ticket-card").first().click();
     await waitVisible(ctx.page, "ticket-detail-number-input");
-    expect(performance.now() - startedAt).toBeLessThan(500);
+    const duration = await ctx.page.evaluate(() => performance.getEntriesByName("ticket-open")[0].duration);
+    expect(duration).toBeLessThan(500);
   });
 
   it("kanban-board-ticket-menu-trigger opens menu with archive/delete items", async () => {

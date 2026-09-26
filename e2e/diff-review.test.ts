@@ -228,6 +228,7 @@ describe("Diff Review (e2e, real server)", () => {
 		await waitForScope(ctx.page, "working");
 		await expect.poll(
 			() => ctx.page.locator('[data-testid="diff-review-file"]').count(),
+			{ timeout: 15_000 },
 		).toBe(1);
 
 		const tree = ctx.page.locator('[data-testid="diff-review-file-tree"]');

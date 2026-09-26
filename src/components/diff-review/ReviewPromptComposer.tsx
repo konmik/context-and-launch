@@ -68,7 +68,7 @@ export default function ReviewPromptComposer(props: {
 }) {
 	let inputRef: HTMLTextAreaElement | undefined;
 
-	const agentStatus = useContext(ReviewAgentStatusContext)!;
+	const agentStatus = useContext(ReviewAgentStatusContext)!.get;
 	const agentPresent = () => !!props.herdrStatus || agentStatus().agentRunning;
 
 	async function copyPrompt(text: string) {

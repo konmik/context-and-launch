@@ -1,6 +1,6 @@
 import { RotateCcw } from "~/components/ui/icons.js";
 import { Trash2 } from "~/components/ui/icons.js";
-import { For, Show, createEffect, createSignal, refresh, untrack, useContext } from "solid-js";
+import { For, Show, createEffect, createSignal, untrack, useContext } from "solid-js";
 import { retryReviewPrompt } from "./diff-review-api.js";
 import type { ReviewPromptQueueItem } from "~/core/diff-review/diff-review-types.js";
 import { DiffReviewContext, ReviewAgentStatusContext } from './diff-review-storage.js';
@@ -15,7 +15,8 @@ export default function ReviewPromptQueueList(props: {
 	profileName: string;
 }) {
 	const state = useContext(DiffReviewContext);
-	const agentStatus = useContext(ReviewAgentStatusContext)!;
+	const agentState = useContext(ReviewAgentStatusContext)!;
+	const agentStatus = agentState.get;
 	const items = () =>
 		getReviewTicketState(state.get(), props.folderName, agentStatus().worktreeIdentity).queue.items;
 	const [retryingId, setRetryingId] = createSignal<string>();
@@ -33,7 +34,7 @@ export default function ReviewPromptQueueList(props: {
 			if (!result.ok) setError(result.message);
 			const refreshed = await state.refresh();
 			if (refreshed.type === "Failure") setError(refreshed.error);
-			refresh(agentStatus);
+			await agentState.refresh();
 		} finally { setRetryingId(); }
 	}
 

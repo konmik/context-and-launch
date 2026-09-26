@@ -127,7 +127,8 @@ describe("Project window (e2e, Vite development server)", () => {
     const panelStat = fs.statSync(panelModule);
     fs.utimesSync(panelModule, panelStat.atime, new Date());
     await hotUpdate;
-    await page.waitForTimeout(250);
+    await expect.poll(() => page.locator('[data-testid="ticket-detail-close-window-button"]').count(),
+      { timeout: 10_000 }).toBe(1);
     diagnostics.length = 0;
 
     await page.locator('[data-testid="ticket-detail-close-window-button"]').click();

@@ -10,8 +10,9 @@ import {
 	useContext,
 	onSettled,
 	onCleanup,
-	refresh,
 } from "solid-js";
+import { createStoredState } from "~/util/stored-state.js";
+import { succeed } from "~/util/result.js";
 import { AlertTriangle } from "~/components/ui/icons.js";
 import { ArrowDownToLine } from "~/components/ui/icons.js";
 import { Check } from "~/components/ui/icons.js";
@@ -364,7 +365,14 @@ export default function DiffReview(props: {
 	const state = createStoredConfig(
 		readDiffReviewState.bind(null, props.projectSlug), saveDiffReviewState.bind(null, props.projectSlug),
 		releaseDiffReviewState.bind(null, props.projectSlug));
-	const agentStatus = createMemo(() => readReviewAgentStatus(props.projectSlug, props.ticket.folderName));
+	const readAgentStatus = () => readReviewAgentStatus(props.projectSlug, props.ticket.folderName);
+	// Publish completed background reads without suspending the composer on each poll.
+	const agentState = createStoredState(readAgentStatus);
+	const agentStatus = agentState.get;
+	async function refreshAgentStatus() {
+		const result = await agentState.enqueueAndPublish(async () => succeed(await readAgentStatus()));
+		if (result.type === "Failure") setReviewError(result.error);
+	}
 	const worktreeIdentity = createMemo(() => agentStatus().worktreeIdentity);
 	const reviewedLines = createMemo(() => {
 		const tracker = createReviewedLineTracker({
@@ -492,7 +500,7 @@ export default function DiffReview(props: {
 	onSettled(() => {
 		const timer = setInterval(() => {
 			void state.refresh().then(result => { if (result.type === "Failure") setReviewError(result.error); });
-			refresh(agentStatus);
+			void refreshAgentStatus();
 		}, 1_200);
 		return () => {
 			clearInterval(timer);
@@ -589,7 +597,7 @@ export default function DiffReview(props: {
 			setFeedback("");
 			const refreshed = await state.refresh();
 			if (refreshed.type === "Failure") setReviewError(refreshed.error);
-			refresh(agentStatus);
+			void refreshAgentStatus();
 			return true;
 		} finally {
 			setSending(false);
@@ -1018,7 +1026,7 @@ export default function DiffReview(props: {
 				</div>
 			</Show>
 
-			<ReviewAgentStatusContext value={agentStatus}>
+			<ReviewAgentStatusContext value={{ get: agentStatus, refresh: refreshAgentStatus }}>
 				<ReviewPromptComposer
 					open={composer() !== undefined}
 					selection={selection()}

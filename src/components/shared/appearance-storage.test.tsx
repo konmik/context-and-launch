@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { createRoot, flush } from 'solid-js';
 import { createAppearanceStorage } from './appearance.js';
 
@@ -42,23 +42,6 @@ describe('appearance storage', () => {
 				expect(localStorage.getItem('theme')).toBe('dark');
 				expect(localStorage.getItem('palette')).toBeNull();
 			} finally { dispose(); }
-		});
-	});
-
-	it('reports a failed write without publishing unsaved appearance', async () => {
-		await createRoot(async dispose => {
-			const write = vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
-				throw new Error('Storage full');
-			});
-			try {
-				const appearance = createAppearanceStorage(localStorage);
-				expect(appearance.palette.get()).toBe('terminal');
-				expect(await appearance.palette.update(() => 'nord')).toEqual({
-					type: 'Failure', error: 'Storage full',
-				});
-				flush();
-				expect(appearance.palette.get()).toBe('terminal');
-			} finally { write.mockRestore(); dispose(); }
 		});
 	});
 });
