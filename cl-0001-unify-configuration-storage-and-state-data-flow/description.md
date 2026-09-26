@@ -37,3 +37,24 @@ Paths are relative to `~/.context-launch/`, unless otherwise stated. `CONTEXT_LA
 - `config-defaults/project-launcher-config.json`
 - `config-defaults/boards.json`
 - `config-defaults/command-templates.json`
+
+## Current refactoring state
+
+| JSON file path/name | Current refactoring state |
+| --- | --- |
+| `config/config.json` | Uses `StoredSignal` through `createAppConfigStorage` → `createStoredConfig`, with owner-lease read/save/release updates. |
+| `config/launcher-config.json` | Uses `StoredSignal` through `createSharedLauncherConfigStorage` → `createStoredConfig`, with owner-lease read/save/release updates. |
+| `config/boards.json` | Uses `StoredSignal` through `createBoardConfigStorage` → `createStoredConfig`, with owner-lease read/save/release updates. |
+| `config/command-templates.json` | Uses `StoredSignal` through `createCommandTemplateStorage` → `createStoredConfig`, with owner-lease read/save/release updates. |
+| `projects/{projectSlug}/config/launcher-config.json` | Uses `StoredSignal` through `createProjectLauncherConfigStorage` → `createStoredConfig`, with owner-lease read/save/release updates. |
+| `projects/{projectSlug}/config/diff-review.json` | Uses `StoredSignal` through `createStoredConfig` in `DiffReview.tsx`, with owner-lease read/save/release updates. |
+| `{ticketsPath}/ticket-order.json` | Uses `createStoredSignal` through `createTicketOrderStorage`; persistence reads the current order and submits current/next values, rather than using `createStoredConfig`. |
+| `{ticketsPath}/forest-layout.json` | Uses `createStoredSignal` through `createForestLayoutStorage`; persistence reads the current layout and submits current/next values, rather than using `createStoredConfig`. |
+| `{ticketsPath}/{ticketFolder}/status.json` | Uses `createStoredSignal` through `createTicketStatusStorage`; persistence submits current/next ticket values through a Router action, rather than using `createStoredConfig`. |
+| `config/running/{projectSlug}/{ticketFolder}.json` | Runtime agent marker; remains outside `StoredSignal` storage. |
+| `{Electron userData}/window-state.json` | Remains outside `StoredSignal` storage; read and written directly through the filesystem in `electron/main.ts`. |
+| `config-defaults/config.json` | Static initialization default; no independent `StoredSignal` store. |
+| `config-defaults/launcher-config.json` | Static initialization default; no independent `StoredSignal` store. |
+| `config-defaults/project-launcher-config.json` | Static fallback for missing project launcher config; no independent `StoredSignal` store. |
+| `config-defaults/boards.json` | Static initialization default; no independent `StoredSignal` store. |
+| `config-defaults/command-templates.json` | Imported built-in Command Template defaults; no independent `StoredSignal` store. |
