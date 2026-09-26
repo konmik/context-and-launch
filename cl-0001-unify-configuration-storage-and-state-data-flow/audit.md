@@ -35,4 +35,5 @@ Six standalone test cases removed, retaining the meaningful coverage:
 
 - `pnpm test`: passed type-checking, ESLint/Oxlint, and 1,123 tests across 149 files. The runner reported 663 skipped cases in its sharded test collection.
 - After consolidating the Forest E2E scenario: `pnpm exec eslint e2e/forest-layout.test.ts`, `pnpm exec tsc --noEmit`, and `git diff --check` passed.
-- Production build and 12 scoped E2E files: running; result pending.
+- Production build passed. The first scoped E2E run passed 68 of 69 tests across 12 files. The failed Diff Review assertion assumed that a visible queued prompt meant the send response had already cleared the composer; background queue polling can display it earlier. Replaced the immediate assertion with `expect.poll`, preserving the empty-composer expectation. Targeted Diff Review rerun pending.
+- ESLint and Oxlint passed for the final E2E test edits.
