@@ -12,18 +12,11 @@ import {
   workspaceEnvironmentName,
 } from './test-workspace.mjs'
 
-const workspaceScripts = {
-  unit: 'test:workspace',
-  gate: 'test:gate:workspace',
-  e2e: 'test:e2e:workspace',
-  all: 'test:all:workspace',
-  shell: 'test:shell:workspace',
-  bench: 'bench:workspace',
-}
+const suites = ['unit', 'e2e', 'all', 'shell', 'bench']
 const suite = process.argv[2]
 const testArguments = process.argv.slice(3)
-if (!Object.hasOwn(workspaceScripts, suite)) {
-  console.error(`Usage: node scripts/run-tests.mjs <${Object.keys(workspaceScripts).join('|')}>`)
+if (!suites.includes(suite)) {
+  console.error(`Usage: node scripts/run-tests.mjs <${suites.join('|')}>`)
   process.exit(1)
 }
 
@@ -80,7 +73,7 @@ try {
     [workspaceEnvironmentName]: workspace,
     [tokenEnvironmentName]: marker.token,
   }
-  const result = spawnSync('pnpm', ['run', workspaceScripts[suite], ...testArguments], {
+  const result = spawnSync(process.execPath, ['scripts/run-test-suite.mjs', suite, ...testArguments], {
     cwd: workspace,
     env,
     stdio: 'inherit',

@@ -45,17 +45,19 @@
 
 ## Testing
 
+- Follow `AGENTS.md` for formatting, checks, and test selection.
 - Run dev server: `pnpm run dev`.
-- Run all tests: `pnpm run test:all` (tsc + unit + build + e2e). Never skip e2e.
+- Run all tests only when explicitly requested: `pnpm test` (unit + build + test-ID coverage + e2e). Never skip e2e when running the full suite.
+- Never add tests unless the user explicitly requests them.
 - During implementation, run only the specific affected test file or test case.
 - Do not run the full test suite when only one test or narrowly scoped area changed. Run only the affected test file or test case.
 - When a test fails, re-run only that single test. Never re-run the whole suite to check one fix.
-- Always run tests through the pnpm scripts (`pnpm run test`, `pnpm run test:e2e`, `pnpm run test:all`). They mirror the source into an isolated workspace with its own temp, cache, data, and home directories. Never fall back to the `:workspace` variants: they run in the source tree and their timings are not comparable.
+- Always run tests through `pnpm test <affected-test-file>...` or `pnpm run check <affected-test-file>...`. They mirror the source into an isolated workspace with its own temp, cache, data, and home directories.
 - Every test run writes per-test timings (setup, execution, cleanup) to `test-timing.log`. Find it in the run's temp folder: `%LOCALAPPDATA%\context-launch-test-runtime\<project>\<branch>\temp\test-timing.log` under the isolated runner, or `%LOCALAPPDATA%\Temp\test-timing.log` for direct runs. Set the `TEST_TIMING_LOG` env var to store it somewhere else.
 - Do not run tests (unit, e2e, build, or screenshots) for pure design/styling changes (CSS, colors, class tweaks) unless the user explicitly asks. Just make the edit.
 - Never run shell tests unless the user explicitly asks you to run them.
-- Never run benchmarks (e2e/*.bench.ts) unless the user asks for them. Benchmarks open the real Electron app on screen; they only run via `vitest bench` (or `--benchmark`), never in a plain `pnpm exec vitest run`. Scope runs explicitly to keep them fast: `pnpm exec vitest run --project unit-ts --project unit-tsx --project e2e` (or use `test:all:workspace`).
-- Any test that launches a terminal or console-host process (powershell, cmd, wt) is a shell test. Name it *.shell.test.ts so it runs only via `pnpm run test:shell`, never in test or test:all.
+- Never run benchmarks (e2e/*.bench.ts) unless the user asks for them. Benchmarks open the real Electron app on screen; run them through `pnpm run bench`.
+- Any test that launches a terminal or console-host process (powershell, cmd, wt) is a shell test. Name it *.shell.test.ts so it runs only when explicitly selected with `pnpm test <shell-test-file>...`, never in the default suite.
 - Tests must never run the real herdr binary or launch a real agent. Every herdr boundary is faked: e2e points the herdr command templates at fake-herdr.mjs (or a stub that resolves to "not installed"), unit tests mock herdrExec, and shell tests intercept the herdr command inside the harness so the real CLI and real agents are never reached.
 - Write UI tests with playwright.
 - e2e tests run the real server against a sandboxed CONTEXT_LAUNCH_DATA_DIR temp dir and a scratch git repo, drive the UI with playwright, and assert on real side effects (config.json contents, git branches/worktrees). Use the e2e/real-server.ts harness. Never stub the app's own server functions; mock only true external boundaries.

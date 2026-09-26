@@ -115,15 +115,4 @@ pnpm install
 pnpm run dev
 ```
 
-The frontend uses a pinned Solid 2 prerelease cohort (`solid-js`, `@solidjs/web`,
-Router, and the Vite plugin). Update those packages together rather than
-upgrading one independently.
-
-Run `pnpm run format` to format the code, or `pnpm run format:check` to check it.
-TypeScript files (`.ts`, `.tsx`, `.mts`, and `.cts`) are normalized through Babel,
-formatted with Prettier, and given the declaration-spacing rules from
-`scripts/typescript-spacing-config.mjs`. Imports stay together, declarations and
-class methods get separating blank lines, and function overloads stay together.
-The formatting check also runs as part of `pnpm run lint`.
-
 If you wish to contribute, please create an issue first. PRs from unknown contributors will be ignored.

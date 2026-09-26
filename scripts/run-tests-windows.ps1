@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet("unit", "gate", "e2e", "all", "shell", "bench")]
+  [ValidateSet("unit", "e2e", "all", "shell", "bench")]
   [string]$Suite
 )
 
@@ -284,15 +284,6 @@ try {
   Set-Content -Path (Join-Path $workspace $activeMarkerName) -Value ($activeMarker | ConvertTo-Json -Compress) -NoNewline
   $env:CONTEXT_LAUNCH_TEST_TOKEN = $activeToken
 
-  $workspaceScripts = @{
-    unit = "test:workspace"
-    gate = "test:gate:workspace"
-    e2e = "test:e2e:workspace"
-    all = "test:all:workspace"
-    shell = "test:shell:workspace"
-    bench = "bench:workspace"
-  }
-
   Push-Location $workspace
   try {
     $testArguments = if ($env:CONTEXT_LAUNCH_TEST_ARGUMENTS) {
@@ -300,7 +291,7 @@ try {
     } else {
       @()
     }
-    & pnpm.cmd run $workspaceScripts[$Suite] @testArguments
+    & node scripts/run-test-suite.mjs $Suite @testArguments
     $suiteExitCode = $LASTEXITCODE
   } finally {
     Pop-Location
