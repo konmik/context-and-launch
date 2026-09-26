@@ -78,9 +78,7 @@ describe('KanbanBoard drag-and-drop (e2e, real server)', () => {
       5000,
     )
 
-    const after = await getSortablesByColumn(ctx.page)
-    const ipAfter = after.get('in-progress') ?? []
-    expect(ipAfter.some((id) => id.includes(movedFolder))).toBe(true)
+    await sortableItem(ctx.page, `in-progress:${movedFolder}`).waitFor({ state: 'visible' })
     expect(status?.status).toBe('in-progress')
   })
 

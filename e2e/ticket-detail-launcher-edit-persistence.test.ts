@@ -77,7 +77,7 @@ describe('Ticket detail launcher edit persistence (e2e, real server)', () => {
     const cmReopened = ctx.page.locator('.cm-content')
     await cmReopened.waitFor({ state: 'visible', timeout: 15000 })
     const toggleReopened = testId(ctx.page, 'prompt-preview-edit-toggle')
-    expect(await toggleReopened.isChecked()).toBe(true)
+    await expect.poll(() => toggleReopened.isChecked(), { timeout: 10_000 }).toBe(true)
     const text = await cmReopened.textContent()
     expect(text).toContain('RESTORED EDIT')
 

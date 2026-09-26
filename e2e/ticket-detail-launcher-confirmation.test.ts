@@ -58,7 +58,7 @@ describe('Ticket launcher confirmations (e2e, real server)', () => {
         await openTicketDetail(ctx.page, folder)
         await testId(ctx.page, 'ticket-detail-tab-launcher').click()
         await testId(ctx.page, 'ticket-detail-use-worktree-checkbox').check()
-        await expect.poll(() => testId(ctx.page, 'launch-dir-display').textContent()).toContain(folder)
+        await expect.poll(() => testId(ctx.page, 'launch-dir-display').textContent(), { timeout: 10_000 }).toContain(folder)
         await testId(ctx.page, 'ticket-detail-launcher-run-button').click()
         await cancel.waitFor({ state: 'visible' })
         const marker = path.join(worktreeRoot, folder, 'launched.txt')

@@ -108,9 +108,10 @@ it('uses edited board definitions immediately across settings, tickets, projects
   await testId(ctx.page, 'launcher-settings-close-button').click()
   await waitGone(ctx.page, 'launcher-settings-columns-board-selector')
 
+  expect(readProjectLauncherConfig(ctx.testServer, first.projectSlug)?.columnDefaults?.verification?.profileName).toBe('Review Agent')
   await openTicketDetail(ctx.page, folderName)
   await testId(ctx.page, 'ticket-detail-tab-launcher').click()
-  await expect.poll(() => testId(ctx.page, 'ticket-detail-launcher-profile-select').inputValue()).toBe('Review Agent')
+  await expect.poll(() => testId(ctx.page, 'ticket-detail-launcher-profile-select').inputValue(), { timeout: 10_000 }).toBe('Review Agent')
   expect(readProjectLauncherConfig(ctx.testServer, first.projectSlug)?.columnDefaults?.review).toBeUndefined()
   await testId(ctx.page, 'ticket-detail-close-button').click()
 

@@ -140,7 +140,7 @@ describe('Diff Review (e2e, real server)', () => {
     await expect
       .poll(() => ctx.page.locator('[data-testid="diff-review-queue-item"]').allTextContents())
       .toEqual([expect.stringContaining('Please explain why this value changed.')])
-    expect(await composerInput.inputValue()).toBe('')
+    await expect.poll(() => composerInput.inputValue()).toBe('')
     const statePath = path.join(ctx.testServer.dataDir, 'projects', project.projectSlug, 'config', 'diff-review.json')
     const saved: DiffReviewProjectState = JSON.parse(fs.readFileSync(statePath, 'utf8'))
     saved.tickets[folderName].queue.items[0].feedback = 'Updated outside the browser'
@@ -251,7 +251,8 @@ describe('Diff Review (e2e, real server)', () => {
 
     fs.rmSync(goingPath)
     await ctx.page.clock.fastForward(1_300)
-    await expect.poll(() => ctx.page.locator('[data-testid="diff-review-file"]').count()).toBe(1)
+    await ctx.page.locator('[data-testid="diff-review-file"][data-file-path="src/going.ts"]').waitFor({ state: 'detached' })
+    expect(await ctx.page.locator('[data-testid="diff-review-file"]').count()).toBe(1)
 
     await waitLocatorVisible(ctx.page.locator('[data-testid="diff-review-composer"]'))
     expect(await composerInput.inputValue()).toBe('Explain why this line exists.')
@@ -781,7 +782,7 @@ describe('Diff Review (e2e, real server)', () => {
     fs.mkdirSync(path.dirname(markerPath), { recursive: true })
     fs.writeFileSync(markerPath, JSON.stringify({ pid: process.pid }))
     await expect.poll(() => profileSelect.isDisabled()).toBe(true)
-    expect(await statusIcon.getAttribute('data-herdr-status')).toBe('working')
+    await expect.poll(() => statusIcon.getAttribute('data-herdr-status')).toBe('working')
   })
 
   it('closes Diff Review when switching projects', async () => {

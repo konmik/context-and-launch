@@ -120,6 +120,9 @@ public class LockingProcessFinder {
         int count;
         IntPtr buf = HandleSnapshot(out count);
         try {
+            string resolvedDir = DosPathOf(self);
+            if (resolvedDir == null) throw new Exception("Cannot resolve directory handle for " + dir);
+            dir = resolvedDir.TrimEnd('\\');
             ushort fileType = FileObjectTypeIndex(buf, count, selfPid, self);
             IntPtr selfProc = GetCurrentProcess();
             SortedDictionary<int, string> holders = new SortedDictionary<int, string>();

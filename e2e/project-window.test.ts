@@ -140,7 +140,11 @@ describe('Project window (e2e, real server)', () => {
     fs.writeFileSync(configFile, JSON.stringify(registry, null, 2))
 
     await gotoProject(ctx.page, ctx.testServer, e.projectSlug)
-    await testId(ctx.page, 'project-header-project-dropdown-trigger').click()
+    try {
+      await testId(ctx.page, 'project-header-project-dropdown-trigger').click()
+    } catch (cause) {
+      throw new Error(await ctx.page.locator('[data-scope="dialog"][data-part="positioner"]').innerText(), { cause })
+    }
     const goneRow = ctx.page.locator('[data-testid="project-header-project-item"]', {
       hasText: 'gone-x',
     })

@@ -98,6 +98,17 @@ function flush() {
 }
 
 describe('TicketDetailDialog content loading', () => {
+  it('preserves an unsaved title when the board refreshes the same ticket', async () => {
+    const initial = makeTicket('t-1-alpha', 'T-1', 'Alpha')
+    const [ticket, setTicket] = createSignal(initial)
+    const stateDeps = stateDependencies(initial)
+    render(() => <TicketDetailDialog onClose={() => {}} projectSlug="test-project" ticket={ticket()} stateDeps={stateDeps} />)
+    const title = await screen.findByTestId('ticket-detail-title-input')
+    fireEvent.input(title, { target: { value: 'Unsaved title' } })
+    setTicket({ ...initial })
+    await flush()
+    expect(screen.getByTestId('ticket-detail-title-input')).toMatchObject({ value: 'Unsaved title' })
+  })
   afterEach(() => {
     cleanup()
     mockGetContext.mockResolvedValue({ content: '' })

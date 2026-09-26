@@ -1,0 +1,40 @@
+diff --git a/dist/cjs/index.cjs b/dist/cjs/index.cjs
+index ca80c1df9887c2f71ca9b8f5f77913936dcc0225..2a5dec952f8b5185b2f5f4e32760d9f69e0ae155 100644
+--- a/dist/cjs/index.cjs
++++ b/dist/cjs/index.cjs
+@@ -1079,6 +1079,7 @@ function serverFunctions(options = {}, internal = {}) {
+             const response = internal.ssrHandler ? await handler.handleRequest(webRequestFromNode(req, dispatchUrl, res), dispatchOptions) : await handler.handleServerFunctionRequest(webRequestFromNode(req, dispatchUrl, res), dispatchOptions);
+             await sendWebResponse(res, response);
+           })().catch(error => {
++            if (req.aborted) return;
+             if (error instanceof Error) server.ssrFixStacktrace(error);
+             next(error);
+           });
+@@ -2076,6 +2077,7 @@ function startServe(options, internal = {}) {
+             if (response.headers.has(DEV_FALLTHROUGH_HEADER)) return next();
+             await sendWebResponse(res, response);
+           })().catch(error => {
++            if (req.aborted) return;
+             if (error instanceof Error) server.ssrFixStacktrace(error);
+             // Vite's error middleware renders the overlay-enabled 500 page.
+             next(error);
+diff --git a/dist/esm/index.mjs b/dist/esm/index.mjs
+index e4774fbcd6da85da78d9c1e14c70b1b500347992..9b146e9872c073624daebee3d08c87b6499405f0 100644
+--- a/dist/esm/index.mjs
++++ b/dist/esm/index.mjs
+@@ -1055,6 +1055,7 @@ function serverFunctions(options = {}, internal = {}) {
+             const response = internal.ssrHandler ? await handler.handleRequest(webRequestFromNode(req, dispatchUrl, res), dispatchOptions) : await handler.handleServerFunctionRequest(webRequestFromNode(req, dispatchUrl, res), dispatchOptions);
+             await sendWebResponse(res, response);
+           })().catch(error => {
++            if (req.aborted) return;
+             if (error instanceof Error) server.ssrFixStacktrace(error);
+             next(error);
+           });
+@@ -2052,6 +2053,7 @@ function startServe(options, internal = {}) {
+             if (response.headers.has(DEV_FALLTHROUGH_HEADER)) return next();
+             await sendWebResponse(res, response);
+           })().catch(error => {
++            if (req.aborted) return;
+             if (error instanceof Error) server.ssrFixStacktrace(error);
+             // Vite's error middleware renders the overlay-enabled 500 page.
+             next(error);

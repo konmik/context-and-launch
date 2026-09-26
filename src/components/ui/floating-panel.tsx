@@ -1,7 +1,8 @@
 /* eslint-disable max-len */
-import { Show, createContext, createEffect, createUniqueId, omit, useContext } from 'solid-js'
+import { Show, createEffect, createUniqueId, omit, useContext } from 'solid-js'
 import { Portal, type ComponentProps, type JSX } from '@solidjs/web'
 import { createFloatingPanelState, type FloatingPanelPosition as Position, type FloatingPanelSize as Size } from './floating-panel-state.js'
+import { PanelContext } from './floating-panel-context.js'
 
 type FloatingWindowProps = {
   open: boolean
@@ -16,13 +17,6 @@ type FloatingWindowProps = {
   fitContent?: boolean
   children: JSX.Element
 }
-
-const PanelContext = createContext<{
-  close(): void
-  startMove(event: PointerEvent): void
-  startResize(event: PointerEvent): void
-  titleId: string
-}>()
 
 export const FLOATING_WINDOW_MIN_SIZE = { width: 400, height: 300 }
 export function tallWindowDefaultSize() {

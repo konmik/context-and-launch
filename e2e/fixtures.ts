@@ -8,6 +8,7 @@ import { startRealServer, stopRealServer } from './real-server.js'
 import type { ProjectTemplate } from './project-template.js'
 import { TICKETS_BRANCH, commitAll, git, initGitRepo } from './git-fixtures.js'
 import { testId, waitVisible, waitVisibleAny, WAIT_TIMEOUT_MS } from './locators.js'
+import { removeTempDir } from '../src/test-temp.js'
 
 /**
  * The board re-checks Sync Pending on this client timer, so a test with a faked
@@ -83,12 +84,12 @@ export async function createServer(opts: CreateServerOptions = {}): Promise<Test
     stop: async () => {
       await stopRealServer(server)
       try {
-        fs.rmSync(dataDir, { recursive: true, force: true })
+        await removeTempDir(dataDir)
       } catch (err) {
         console.warn('fixtures.stop dataDir cleanup:', err)
       }
       try {
-        fs.rmSync(reposParentDir, { recursive: true, force: true })
+        await removeTempDir(reposParentDir)
       } catch (err) {
         console.warn('fixtures.stop reposParentDir cleanup:', err)
       }
