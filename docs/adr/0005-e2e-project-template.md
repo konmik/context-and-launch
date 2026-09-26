@@ -8,7 +8,7 @@ E2e Projects are created by copying a pre-built git template instead of running 
 
 The ceremony was the dominant per-test cost: 12 sequential git spawns at 50-300ms each (Windows process spawn plus antivirus variance) put every Project-creating test over the 3s isolation budget. A copy costs about 200ms and the observable state is identical: same commits, same upstream tracking, same worktree layout.
 
-The template is copied per Project with one fix-up spawn: `git remote set-url` to point at that Project's own copy of the remote, or `git remote remove` for a Project without one, plus `git worktree add` to register the tickets Worktree when the Project seeds tickets. The template drops its own worktree registration with `git worktree remove` after pushing, so a copy never carries a registration that points into the template.
+The template is copied per Project with one fix-up spawn for remote-backed Projects: `git remote set-url` points at that Project's own copy of the remote. A second template has its remote removed once during global setup, so local-only Projects need no remote fix-up. `git worktree add` registers the tickets Worktree when the Project seeds tickets. The template drops its own worktree registration with `git worktree remove` after pushing, so a copy never carries a registration that points into the template.
 
 `seedRemoteBaseline: true` needs a remote that starts without the Orphan Branch, a shape the template does not hold, so those fixtures run the ceremony per Project.
 

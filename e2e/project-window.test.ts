@@ -32,11 +32,9 @@ describe('Project window (e2e, real server)', () => {
     const b = await seedProject(ctx, {
       slugBase: 'pw-live-b',
     })
-    ctx.projects.push(a, b)
+    ctx.projects.push(a)
     await ctx.page.clock.install()
     await gotoProjectOnFakeClock(ctx.page, ctx.testServer, a.projectSlug)
-    await testId(ctx.page, 'sync-button-trigger').click()
-    await waitVisible(ctx.page, 'sync-button-check-icon')
     const page2 = await ctx.newPage()
     await gotoProject(page2, ctx.testServer, b.projectSlug) // Project B loaded last. On the old single-window model B's load stopped A's
     // watcher, so this external change to A would never auto-commit and A's
@@ -64,7 +62,6 @@ describe('Project window (e2e, real server)', () => {
     const g = await seedProject(ctx, {
       slugBase: 'pw-focus-g',
     })
-    ctx.projects.push(f, g)
     await gotoProject(ctx.page, ctx.testServer, f.projectSlug)
     const page2 = await ctx.newPage()
     await gotoProject(page2, ctx.testServer, g.projectSlug)
@@ -90,7 +87,6 @@ describe('Project window (e2e, real server)', () => {
     const d = await seedProject(ctx, {
       slugBase: 'pw-open-d',
     })
-    ctx.projects.push(c, d)
     await gotoProject(ctx.page, ctx.testServer, c.projectSlug)
     expect(await ctx.page.title()).toContain(c.projectSlug)
     const openRowButton = async () => {
@@ -129,12 +125,13 @@ describe('Project window (e2e, real server)', () => {
     expect(await popup.title()).toContain(d.projectSlug)
     expect(ctx.page.url()).toContain(`/project/${c.projectSlug}`)
     const pagesBefore = ctx.page.context().pages().length
-    await (
-      await openRowButton()
-    ).click({
-      force: true,
-    })
-    await ctx.page.waitForTimeout(1000)
+    const reopenButton = await openRowButton()
+    await Promise.all([
+      popup.waitForEvent('domcontentloaded'),
+      reopenButton.click({
+        force: true,
+      }),
+    ])
     expect(ctx.page.context().pages().length).toBe(pagesBefore)
     expect(popup.url().endsWith(`/project/${d.projectSlug}`)).toBe(true)
     await popup.close()
@@ -143,7 +140,6 @@ describe('Project window (e2e, real server)', () => {
     const e = await seedProject(ctx, {
       slugBase: 'pw-open-e',
     })
-    ctx.projects.push(e)
     const configFile = path.join(ctx.testServer.dataDir, 'config', 'config.json')
     const registry = JSON.parse(fs.readFileSync(configFile, 'utf-8'))
     registry.projects.push({

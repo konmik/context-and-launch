@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { activeMarkerName, createActiveMarker, createWorkspaceKey, getWorkspaceIdentity } from '../scripts/test-workspace.mjs'
+import { activeMarkerName, createActiveMarker, createWorkspaceKey, getWorkspaceIdentity } from './test-workspace.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const guardPath = path.join(repoRoot, 'scripts', 'require-test-workspace.mjs')

@@ -28,41 +28,50 @@ async function startRealServerOnce(
     env: {
       ...process.env,
       PORT: String(port),
+      HOST: '127.0.0.1',
       CONTEXT_LAUNCH_DATA_DIR: dataDir,
+      CONTEXT_LAUNCH_SERVER_PROCESS_FILE: path.join(dataDir, 'server-process'),
       ...extraEnv,
     },
-    stdio: ['ignore', 'ignore', 'pipe'],
+    stdio: ['ignore', 'pipe', 'pipe'],
   })
   let stderr = ''
   proc.stderr?.on('data', (b: Buffer) => {
     stderr += b.toString()
   })
-  const deadline = Date.now() + 20000
-  let lastErr: unknown
-  while (Date.now() < deadline) {
-    if (proc.exitCode !== null) {
-      if (stderr.includes('EADDRINUSE')) {
-        return {
+  return new Promise((resolve, reject) => {
+    let stdout = ''
+    const onError = (error: Error) => {
+      cleanup()
+      reject(error)
+    }
+    const onClose = (code: number | null) => {
+      cleanup()
+      if (stderr.includes('EADDRINUSE'))
+        resolve({
           addrInUse: true,
           stderr,
-        }
-      }
-      throw new Error(`Real server exited early (code ${proc.exitCode}):\n${stderr}`)
+        })
+      else reject(new Error(`Real server exited early (code ${code}):\n${stderr}`))
     }
-    try {
-      const res = await fetch(baseUrl)
-      if (res.status < 500)
-        return {
-          process: proc,
-          baseUrl,
-        }
-    } catch (e) {
-      lastErr = e
+    const onData = (chunk: Buffer) => {
+      stdout += chunk.toString()
+      if (!stdout.includes(`Listening on http://127.0.0.1:${port}`)) return
+      cleanup()
+      resolve({
+        process: proc,
+        baseUrl,
+      })
     }
-    await new Promise((r) => setTimeout(r, 200))
-  }
-  proc.kill()
-  throw new Error(`Real server did not start at ${baseUrl} within 20s: ${String(lastErr)}\n${stderr}`)
+    const cleanup = () => {
+      proc.off('error', onError)
+      proc.off('close', onClose)
+      proc.stdout.off('data', onData)
+    }
+    proc.once('error', onError)
+    proc.once('close', onClose)
+    proc.stdout.on('data', onData)
+  })
 }
 
 export async function startRealServer(port: number, dataDir: string, extraEnv: NodeJS.ProcessEnv = {}): Promise<RealServer> {
@@ -87,13 +96,16 @@ export async function rmTemp(dir: string, label: string): Promise<void> {
 }
 
 export function stopRealServer(server: RealServer): Promise<void> {
-  return new Promise((resolve) => {
-    if (server.process.exitCode !== null) {
+  return new Promise((resolve, reject) => {
+    if (server.process.exitCode !== null || server.process.signalCode !== null) {
       resolve()
       return
     }
-    server.process.once('exit', () => resolve())
+    server.process.once('error', reject)
+    server.process.once('close', () => {
+      server.process.off('error', reject)
+      resolve()
+    })
     server.process.kill()
-    setTimeout(resolve, 3000)
   })
 }

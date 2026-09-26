@@ -6,6 +6,7 @@ import type { GlobalSetupContext } from 'vitest/node'
 import { removeTempDirOrWarn } from '../src/test-temp.js'
 
 export interface ProjectTemplate {
+  localRepo: string
   /** A repo with main and the tickets Orphan Branch, tracking remote. */
   repo: string
   /** A bare remote holding main and the tickets Orphan Branch. */
@@ -50,7 +51,13 @@ export default async function setup({ provide }: GlobalSetupContext): Promise<()
   git('git push -u origin tickets', tickets) // A copy must not inherit a worktree registration that points into the
   // template, so the template keeps the Orphan Branch and drops the worktree.
   git(`git worktree remove "${tickets}"`, repo)
+  const localRepo = path.join(base, 'local-repo')
+  fs.cpSync(repo, localRepo, {
+    recursive: true,
+  })
+  git('git remote remove origin', localRepo)
   provide('projectTemplate', {
+    localRepo,
     repo,
     remote,
   })

@@ -51,7 +51,7 @@ export interface CreateServerOptions {
 export async function createServer(opts: CreateServerOptions = {}): Promise<TestServer> {
   const startPort = pickPort()
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), opts.dataDirPrefix ?? 'cl-e2e-data-'))
-  const reposParentDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cl-e2e-repos-'))
+  let reposParentDir: string | undefined
   fs.mkdirSync(path.join(dataDir, 'config'), {
     recursive: true,
   })
@@ -75,13 +75,18 @@ export async function createServer(opts: CreateServerOptions = {}): Promise<Test
     CONTEXT_PICKER_STUB: '__cancel__',
     CONTEXT_FILE_PICKER_STUB: '__cancel__',
     CONTEXT_OPEN_IN_OS_STUB: '__noop__',
-    ...(opts.env ?? {}),
+    ...opts.env,
   }
-  const server = await startRealServer(startPort, dataDir, safeEnv)
+  const server = await startRealServer(startPort, dataDir, safeEnv).catch(async (error) => {
+    await removeTempDir(dataDir)
+    throw error
+  })
   return {
     baseUrl: server.baseUrl,
     dataDir,
-    reposParentDir,
+    get reposParentDir() {
+      return (reposParentDir ??= fs.mkdtempSync(path.join(os.tmpdir(), 'cl-e2e-repos-')))
+    },
     stop: async () => {
       await stopRealServer(server)
       try {
@@ -90,7 +95,7 @@ export async function createServer(opts: CreateServerOptions = {}): Promise<Test
         console.warn('fixtures.stop dataDir cleanup:', err)
       }
       try {
-        await removeTempDir(reposParentDir)
+        if (reposParentDir) await removeTempDir(reposParentDir)
       } catch (err) {
         console.warn('fixtures.stop reposParentDir cleanup:', err)
       }
@@ -227,10 +232,7 @@ function makeRepoDir(projectSlug: string, parentDir: string): string {
     recursive: true,
   })
   if (fs.existsSync(dir)) {
-    fs.rmSync(dir, {
-      recursive: true,
-      force: true,
-    })
+    throw new Error(`Project fixture directory already exists: ${dir}. Use a unique Project Slug.`)
   }
   fs.mkdirSync(dir, {
     recursive: false,
@@ -264,7 +266,7 @@ export async function createProject(server: ProjectDirs, opts: CreateProjectOpti
     }
   } else {
     const template = projectTemplate()
-    fs.cpSync(template.repo, projectPath, {
+    fs.cpSync(opts.withRemote ? template.repo : template.localRepo, projectPath, {
       recursive: true,
     })
     if (opts.withRemote) {
@@ -273,8 +275,6 @@ export async function createProject(server: ProjectDirs, opts: CreateProjectOpti
         recursive: true,
       })
       git(`remote set-url origin "${remoteUrl}"`, projectPath)
-    } else {
-      git('remote remove origin', projectPath)
     }
   }
   const ticketsPath = path.join(server.dataDir, 'projects', opts.projectSlug, 'tickets')
@@ -884,10 +884,21 @@ export function setupE2E(
   const extraPages: Page[] = []
   let browser: Browser
   beforeAll(async () => {
-    ctx.testServer = await createServer(opts.serverOpts)
-    browser = await chromium.launch({
-      headless: true,
-    })
+    const resources = await Promise.allSettled([
+      createServer(opts.serverOpts).then((server) => {
+        ctx.testServer = server
+      }),
+      chromium
+        .launch({
+          headless: true,
+        })
+        .then((createdBrowser) => {
+          browser = createdBrowser
+        }),
+    ])
+    for (const resource of resources) {
+      if (resource.status === 'rejected') throw resource.reason
+    }
   }, 60000)
   beforeEach(async () => {
     if (ctx.page && !ctx.page.isClosed()) {
@@ -919,12 +930,12 @@ export function setupE2E(
       }
     }
     extraPages.length = 0
-    await ctx.page?.close()
+    await ctx.page?.context().close()
   })
   afterAll(async () => {
     await browser?.close()
     await ctx.testServer?.stop()
-    for (const p of ctx.projects) p.cleanup()
+    ctx.projects.length = 0
   }, 20000)
   return ctx
 }

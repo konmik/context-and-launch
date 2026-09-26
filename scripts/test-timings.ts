@@ -18,6 +18,8 @@ const run = spawnSync(
     'vitest',
     'run',
     '--project',
+    'unit-node',
+    '--project',
     'unit-ts',
     '--project',
     'unit-tsx',

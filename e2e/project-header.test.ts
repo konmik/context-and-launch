@@ -74,7 +74,6 @@ describe('Project page header toolbar (e2e, real server)', () => {
     const b = await seedProject(ctx, {
       slugBase: 'hdr-nav-b',
     })
-    ctx.projects.push(a, b)
     await gotoProject(ctx.page, ctx.testServer, a.projectSlug)
     await testId(ctx.page, 'project-header-project-dropdown-trigger').click()
     const item = ctx.page

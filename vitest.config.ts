@@ -15,6 +15,7 @@ const solidVite = () => ({
 })
 const timingReporter = fileURLToPath(new URL('./scripts/test-timing-reporter.ts', import.meta.url))
 const projectTemplate = fileURLToPath(new URL('./e2e/project-template.ts', import.meta.url))
+const nodeTests = ['src/core/**/*.test.ts', 'electron/**/*.test.ts', 'scripts/**/*.test.ts']
 export default defineConfig({
   ...solidVite(),
   test: {
@@ -26,12 +27,28 @@ export default defineConfig({
     reporters: ['default', timingReporter],
     projects: [
       {
+        resolve: {
+          alias,
+        },
+        test: {
+          name: 'unit-node',
+          environment: 'node',
+          isolate: false,
+          include: nodeTests,
+          exclude: ['**/*.shell.test.ts'],
+          testTimeout: 20000,
+          maxConcurrency: 8,
+          setupFiles: ['src/test-git-env.ts'],
+        },
+      },
+      {
         ...solidVite(),
         test: {
           name: 'unit-ts',
           isolate: false,
-          include: ['src/**/*.test.ts', 'electron/**/*.test.ts', 'scripts/**/*.test.ts'],
-          exclude: ['src/server/**/*.test.ts', '**/*.shell.test.ts'],
+          environment: 'jsdom',
+          include: ['src/**/*.test.ts'],
+          exclude: [...nodeTests, 'src/server/**/*.test.ts', '**/*.shell.test.ts'],
           testTimeout: 20000,
           maxConcurrency: 8,
           setupFiles: ['src/test-git-env.ts'],
