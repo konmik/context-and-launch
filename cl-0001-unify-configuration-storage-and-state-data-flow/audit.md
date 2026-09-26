@@ -4,7 +4,7 @@ Audited application commit `e17d100` and the associated test cleanup on 2026-09-
 
 ## Verdict
 
-The scoped storage/context migration is implemented, but a clean completion sign-off is blocked by the Diff Review send scenario below. No production code was changed during this audit.
+The scoped storage/context migration is implemented. The Diff Review send failure was resolved by completed-read agent-status publication (see follow-up). Final completion remains pending E2E verification, including development-mode reactive diagnostics.
 
 ### Original verification failure: Diff Review composer/send
 
@@ -13,7 +13,7 @@ The scoped storage/context migration is implemented, but a clean completion sign
 1. In the 12-file run, the queued prompt appeared, but the composer still contained the sent text at line 171.
 2. A diagnostic attempt changed that assertion to `expect.poll` because background polling can display a queued item before the send response returns. The targeted rerun failed earlier at line 160: after filling feedback, Send remained disabled for the entire 30-second click timeout.
 
-The polling-only change was reverted. The failure is not established to be merely an assertion timing issue; investigate live-refresh/input reactivity and the send lifecycle before closing the ticket. The useful failing test remains intact. No root cause is claimed from these two different failure symptoms.
+The polling-only change was reverted and the useful failing test retained. Subsequent investigation and the production fix are recorded below.
 
 ### Finish follow-up
 
