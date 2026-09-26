@@ -1,7 +1,7 @@
 {
   "number": "CL-0001",
   "title": "Unify configuration storage and state data flow",
-  "status": "review",
+  "status": "done",
   "useWorktree": false,
   "createdAt": "2026-09-22T23:26:06.109Z"
 }
