@@ -17,8 +17,10 @@ declare module '*.json?raw' {
 
 interface Window {
   contextLaunch?: {
-    setPalette(name: string): void;
-    setMode(mode: string): void;
+    setAppearance(
+      palette: import('./components/shared/palette-pure.js').PaletteName,
+      mode: import('./components/shared/theme-toggle-pure.js').AppMode,
+    ): void;
 		pickDirectory(preselect: string): Promise<
 			{ path: string } | { cancelled: true } | { error: string }
 		>;

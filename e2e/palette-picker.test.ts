@@ -55,7 +55,7 @@ describe("Palette picker (e2e, real server)", () => {
     expect(draculaDarkBg).not.toBe(draculaBg);
   });
 
-  it("keeps one project's palette out of another project", async () => {
+  it("restores each project's appearance during client-side navigation", async () => {
     const { page, testServer } = ctx;
     const first = await createProject(testServer, { projectSlug: uniqueSlug("pal-first") });
     const second = await createProject(testServer, { projectSlug: uniqueSlug("pal-second") });
@@ -70,13 +70,25 @@ describe("Palette picker (e2e, real server)", () => {
     );
     expect(await getLocalStorageItem(page, `palette:${first.projectSlug}`)).toBe("dracula");
 
-    await gotoProject(page, testServer, second.projectSlug);
+    await testId(page, 'project-header-project-dropdown-trigger').click();
+    await testId(page, 'project-header-project-item').filter({ hasText: second.projectSlug }).click();
+    await page.waitForURL(`**/project/${second.projectSlug}`);
+    await page.waitForFunction(() => document.documentElement.dataset.palette !== 'dracula');
     expect(
       await page.evaluate(() => document.documentElement.dataset.palette),
     ).not.toBe("dracula");
     expect(await getLocalStorageItem(page, `palette:${second.projectSlug}`)).toBeNull();
 
-    await gotoProject(page, testServer, first.projectSlug);
+    await testId(page, 'palette-picker-trigger').click();
+    await testId(page, 'palette-picker-mode-toggle').click();
+    await page.waitForFunction(() => document.documentElement.classList.contains('dark'));
+    await testId(page, 'palette-picker-trigger').click();
+
+    await testId(page, 'project-header-project-dropdown-trigger').click();
+    await testId(page, 'project-header-project-item').filter({ hasText: first.projectSlug }).click();
+    await page.waitForURL(`**/project/${first.projectSlug}`);
+    await page.waitForFunction(() => document.documentElement.dataset.palette === 'dracula'
+      && !document.documentElement.classList.contains('dark'));
     expect(
       await page.evaluate(() => document.documentElement.dataset.palette),
     ).toBe("dracula");

@@ -1,101 +1,65 @@
-import { createSignal, createEffect, For, untrack } from "solid-js";
-import { useLocation } from "@solidjs/router";
-import { Palette } from "~/components/ui/icons.js";
-import { Sun } from "~/components/ui/icons.js";
-import { Moon } from "~/components/ui/icons.js";
+import { createSignal, For, useContext } from "solid-js";
+import { Palette, Sun, Moon } from "~/components/ui/icons.js";
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from "~/components/ui/menu";
-import {
-  PALETTES, getStoredPalette, setStoredPalette, projectSlugFromPath,
-  isPaletteName, type PaletteName,
-} from "./palette-pure.js";
-import { getStoredMode, setStoredMode, isDarkMode } from "./theme-toggle-pure.js";
-
-function showPalette(name: PaletteName) {
-  document.documentElement.dataset.palette = name;
-  queueMicrotask(() => window.contextLaunch?.setPalette(name));
-}
-
-function showMode(dark: boolean) {
-  document.documentElement.classList.toggle("dark", dark);
-}
-
-function initialPalette(projectSlug: string | undefined): PaletteName {
-  const applied = document.documentElement.dataset.palette;
-  if (isPaletteName(applied)) return applied;
-  return getStoredPalette(localStorage, projectSlug);
-}
+import { PALETTES } from "./palette-pure.js";
+import { isDarkMode } from "./theme-toggle-pure.js";
+import { AppearanceContext } from './appearance.js';
+import type { Result } from '~/util/result.js';
+import ErrorDialog from './ErrorDialog.js';
+import type { ErrorInfo } from '~/core/shared/errors.js';
 
 export default function PalettePicker() {
-  const location = useLocation();
-  const projectSlug = () => projectSlugFromPath(location.pathname);
-  const [active, setActive] = createSignal<PaletteName>(initialPalette(untrack(projectSlug)));
-  const [theme, setTheme] = createSignal<"light" | "dark">("light");
-
-  createEffect(projectSlug, (slug) => {
-    const stored = getStoredPalette(localStorage, slug);
-    setActive(stored);
-    if (document.documentElement.dataset.palette !== stored) showPalette(stored);
-
-    const mode = getStoredMode(localStorage, slug);
-    const matchesDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const dark = isDarkMode(mode, matchesDark);
-    setTheme(dark ? "dark" : "light");
-    showMode(dark);
-    window.contextLaunch?.setMode(mode);
-  });
-
-  function select(name: PaletteName) {
-    setStoredPalette(localStorage, projectSlug(), name);
-    showPalette(name);
-    setActive(name);
-  }
-
-  function toggleMode() {
-    const next = theme() === "dark" ? "light" : "dark";
-    setStoredMode(localStorage, projectSlug(), next);
-    setTheme(next);
-    showMode(next === "dark");
-    window.contextLaunch?.setMode(next);
+  const appearance = useContext(AppearanceContext)!;
+  const dark = () => isDarkMode(appearance().mode.get(), window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const [error, setError] = createSignal<ErrorInfo | null>(null);
+  async function showSaveError(completion: Promise<Result<void, string>>) {
+    const result = await completion;
+    setError(result.type === 'Failure' ? { title: 'Save appearance failed', description: result.error } : null);
   }
 
   return (
-    <MenuRoot
-      trigger={
-        <MenuTrigger
-          class="btn-secondary btn-sm label-mono w-auto items-center gap-2.5 whitespace-nowrap"
-          style={{ height: "2.25rem", "padding-left": "0.75rem", "padding-right": "0.75rem" }}
-          data-testid="palette-picker-trigger"
-        >{active()}<Palette size={16} /></MenuTrigger>
-      }
-    >
-      <MenuContent class="min-w-[160px]">
-        <MenuItem
-          value="__mode-toggle"
-          closeOnSelect={false}
-          class="label-mono flex items-center gap-2"
-          onClick={toggleMode}
-          data-testid="palette-picker-mode-toggle"
-        >
-          <span class="flex w-4 justify-center">
-            {theme() === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-          </span>
-          {theme() === "dark" ? "Dark → Light" : "Light → Dark"}
-        </MenuItem>
-        <MenuSeparator />
-        <For each={PALETTES}>
-          {(name) => (
-            <MenuItem
-              value={name}
-              class={`label-mono flex items-center gap-2 ${name === active() ? "font-semibold text-foreground" : ""}`}
-              onClick={() => select(name)}
-              data-testid={`palette-picker-item-${name}`}
-            >
-              <span class="w-4 text-center">{name === active() ? "#" : ""}</span>
-              {name}
-            </MenuItem>
-          )}
-        </For>
-      </MenuContent>
-    </MenuRoot>
+    <>
+      <MenuRoot
+        trigger={
+          <MenuTrigger
+            class="btn-secondary btn-sm label-mono w-auto items-center gap-2.5 whitespace-nowrap"
+            style={{ height: "2.25rem", "padding-left": "0.75rem", "padding-right": "0.75rem" }}
+            data-testid="palette-picker-trigger"
+          >{appearance().palette.get()}<Palette size={16} /></MenuTrigger>
+        }
+      >
+        <MenuContent class="min-w-[160px]">
+          <MenuItem
+            value="__mode-toggle"
+            closeOnSelect={false}
+            class="label-mono flex items-center gap-2"
+            onClick={() => showSaveError(appearance().mode.update(mode =>
+              isDarkMode(mode, window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'light' : 'dark'))}
+            data-testid="palette-picker-mode-toggle"
+          >
+            <span class="flex w-4 justify-center">
+              {dark() ? <Sun size={16} /> : <Moon size={16} />}
+            </span>
+            {dark() ? "Dark → Light" : "Light → Dark"}
+          </MenuItem>
+          <MenuSeparator />
+          <For each={PALETTES}>
+            {(name) => (
+              <MenuItem
+                value={name}
+                class={`label-mono flex items-center gap-2 ${
+                  name === appearance().palette.get() ? "font-semibold text-foreground" : ""}`}
+                onClick={() => showSaveError(appearance().palette.update(() => name))}
+                data-testid={`palette-picker-item-${name}`}
+              >
+                <span class="w-4 text-center">{name === appearance().palette.get() ? "#" : ""}</span>
+                {name}
+              </MenuItem>
+            )}
+          </For>
+        </MenuContent>
+      </MenuRoot>
+      <ErrorDialog error={error()} onClose={() => setError(null)} />
+    </>
   );
 }

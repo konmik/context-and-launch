@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  getStoredPalette, setStoredPalette, paletteStorageKey,
+  getStoredPalette, paletteStorageKey,
   DEFAULT_PALETTE, PALETTES, PALETTE_BACKGROUNDS,
   criticalBackgroundCss, criticalAppearanceScript,
 } from "./palette-pure.js";
@@ -42,16 +42,6 @@ describe("getStoredPalette", () => {
   it("ignores another project's palette", () => {
     const stored = Object.fromEntries([["palette:other", "nord"]]);
     expect(getStoredPalette({ getItem: (k) => stored[k] ?? null }, "proj")).toBe(DEFAULT_PALETTE);
-  });
-});
-
-describe("setStoredPalette", () => {
-  it("writes the project's own key, leaving the app-level one alone", () => {
-    const written: Record<string, string> = {};
-    const storage = { setItem: (k: string, v: string) => { written[k] = v; } };
-    setStoredPalette(storage, "proj", "dracula");
-    setStoredPalette(storage, undefined, "nord");
-    expect(written).toEqual({ "palette:proj": "dracula", "palette": "nord" });
   });
 });
 

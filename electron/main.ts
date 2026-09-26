@@ -61,10 +61,6 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 const SYNC_WINDOW_DELAY_MS = 5000;
-const AppearanceStateSchema = v.object({
-  palette: v.optional(v.unknown()),
-  mode: v.optional(v.unknown()),
-});
 
 const windowsById = new Map<number, BrowserWindow>();
 let sessionWindows: SessionWindow[] = [];
@@ -94,11 +90,6 @@ function applyWindowBackgrounds(): void {
   for (const win of windowsById.values()) {
     if (!win.isDestroyed()) win.setBackgroundColor(bg);
   }
-}
-
-function applyAppearance(): void {
-  applyWindowBackgrounds();
-  writeWindowState();
 }
 
 function currentBounds(win: BrowserWindow) {
@@ -252,22 +243,14 @@ if (!gotLock) {
         throw cause;
       }));
 
-    let raw: JsonValue = null;
+    let raw: { palette?: JsonValue; mode?: JsonValue } | null = null;
     try {
       raw = JSON.parse(fs.readFileSync(windowStateFile, "utf-8"));
     } catch {
       raw = null;
     }
-    const appearanceState = v.safeParse(AppearanceStateSchema, raw);
-    if (appearanceState.success) {
-      const storedPalette = v.safeParse(v.string(), appearanceState.output.palette);
-      if (storedPalette.success && isPaletteName(storedPalette.output)) {
-        currentPalette = storedPalette.output;
-      }
-      const storedModeInput = v.safeParse(v.string(), appearanceState.output.mode);
-      const storedMode = storedModeInput.success ? parseMode(storedModeInput.output) : undefined;
-      if (storedMode) currentMode = storedMode;
-    }
+    if (isPaletteName(raw?.palette)) currentPalette = raw.palette;
+    currentMode = parseMode(raw?.mode) ?? 'system';
     let entries = migrateWindowState(raw);
     entries = restoreEntries(
       entries,
@@ -282,22 +265,15 @@ if (!gotLock) {
       } satisfies WindowStateEntry];
     }
 
-    nativeTheme.on("updated", () => {
-      applyWindowBackgrounds();
-    });
+    nativeTheme.on("updated", applyWindowBackgrounds);
 
-    ipcMain.on("context-launch:set-palette", (_event, name: JsonValue | undefined) => {
-      if (isPaletteName(name) && name !== currentPalette) {
-        currentPalette = name;
-        applyAppearance();
-      }
-    });
-
-    ipcMain.on("context-launch:set-mode", (_event, mode: JsonValue | undefined) => {
-      const parsed = parseMode(mode);
-      if (parsed && parsed !== currentMode) {
-        currentMode = parsed;
-        applyAppearance();
+    ipcMain.on("context-launch:set-appearance", (_event, palette?: JsonValue, mode?: JsonValue) => {
+      const parsedMode = parseMode(mode);
+      if (isPaletteName(palette) && parsedMode && (palette !== currentPalette || parsedMode !== currentMode)) {
+        currentPalette = palette;
+        currentMode = parsedMode;
+        applyWindowBackgrounds();
+        writeWindowState();
       }
     });
 

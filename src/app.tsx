@@ -1,5 +1,6 @@
 import { Errored, Loading } from "solid-js";
 import { AppRouter } from "./router.js";
+import { AppearanceRoot } from './components/shared/appearance.js';
 import { AppConfigContext, createAppConfigStorage } from './components/config/app-config-storage.js';
 import {
   LauncherConfigContext, createSharedLauncherConfigStorage,
@@ -34,7 +35,9 @@ export default function App() {
             <AppConfigContext value={config}>
               <LauncherConfigContext value={launcherConfig}>
                 <BoardConfigContext value={boards}>
-                  <CommandTemplateContext value={commandTemplates}>{props.children}</CommandTemplateContext>
+                  <CommandTemplateContext value={commandTemplates}>
+                    <AppearanceRoot>{props.children}</AppearanceRoot>
+                  </CommandTemplateContext>
                 </BoardConfigContext>
               </LauncherConfigContext>
             </AppConfigContext>

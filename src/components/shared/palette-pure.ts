@@ -36,14 +36,6 @@ export function getStoredPalette(
   return DEFAULT_PALETTE;
 }
 
-export function setStoredPalette(
-  storage: { setItem(key: string, value: string): void },
-  projectSlug: string | undefined,
-  palette: PaletteName,
-): void {
-  storage.setItem(paletteStorageKey(projectSlug), palette);
-}
-
 // Hex form of the --background oklch tokens in src/app.css; parity is enforced by palette-backgrounds.test.ts.
 export const PALETTE_BACKGROUNDS = {
   "terminal": { light: "#ffffff", dark: "#000000" },

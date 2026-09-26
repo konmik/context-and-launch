@@ -4,8 +4,7 @@ import { seedAppearance } from "./app-protocol.js";
 seedAppearance(window.localStorage, process.argv);
 
 contextBridge.exposeInMainWorld("contextLaunch", {
-  setPalette: (name: string) => ipcRenderer.send("context-launch:set-palette", name),
-  setMode: (mode: string) => ipcRenderer.send("context-launch:set-mode", mode),
+  setAppearance: (palette: string, mode: string) => ipcRenderer.send("context-launch:set-appearance", palette, mode),
   pickDirectory: (preselect: string) =>
     ipcRenderer.invoke("context-launch:pick-directory", preselect),
 });

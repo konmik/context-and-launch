@@ -26,14 +26,6 @@ export function getStoredMode(
   return "system";
 }
 
-export function setStoredMode(
-  storage: { setItem(key: string, value: string): void },
-  projectSlug: string | undefined,
-  mode: AppMode,
-): void {
-  storage.setItem(modeStorageKey(projectSlug), mode);
-}
-
 export function isDarkMode(mode: AppMode, systemPrefersDark: boolean): boolean {
   if (mode === "dark") return true;
   if (mode === "light") return false;

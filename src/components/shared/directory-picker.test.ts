@@ -9,8 +9,7 @@ describe("pickDirectory", () => {
 	it("uses Electron's native directory picker when the desktop bridge is available", async () => {
 		const nativePicker = vi.fn().mockResolvedValue({ path: "C:\\worktrees" });
 		window.contextLaunch = {
-			setPalette: vi.fn(),
-			setMode: vi.fn(),
+			setAppearance: vi.fn(),
 			pickDirectory: nativePicker,
 		};
 
