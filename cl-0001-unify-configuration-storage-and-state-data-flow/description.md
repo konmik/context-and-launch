@@ -51,4 +51,4 @@ Source paths below are relative to `src/`.
 
 `createStoredConfig` implements the `StoredSignal` interface through the shared `createStoredState` queue; it does not call `createStoredSignal` directly.
 
-The ticket-status store covers detail edits (number, title, status, references, and `useWorktree`). Dependency/group operations still use domain actions in `components/forest/forest-api.ts`; the original unqualified "Yes" did not establish full-file migration.
+The ticket-status store covers detail edits (number, title, status, references, and `useWorktree`). Dependency/group operations use domain actions in `components/forest/forest-api.ts`. The final code audit verified their refresh paths: Forest revalidates ticket data and refreshes layout after group changes; ticket detail refreshes on worktree revisions. These domain actions are not an outstanding migration requirement. See `audit.md` for evidence and verification results.

@@ -22,12 +22,12 @@ Scope: the nine mutable file-backed data sources and the explicit palette/theme 
 - Preserve extra JSON fields, item ordering, duplicate-name checks, and rename/delete reference handling.
 - Preserve existing precedence: project entries override same-named shared entries; column defaults, worktree root, and branch prefix come from project config; the conflict-resolution prompt falls back to shared config.
 
-## Remaining completion audit
+## Completion audit
 
-- [ ] Check migrated consumers for duplicate writable snapshots and stale caches; successful updates should reach consumers sharing the relevant provider.
-- [ ] Check refresh and navigation behavior at the actual provider lifetimes, especially project changes and externally changed ticket state.
-- [ ] Audit retained domain actions and server writers against their persistence boundaries. In particular, ticket dependency/group actions still write `status.json` outside the ticket-detail store; verify how those changes reach mounted consumers before calling that row fully migrated.
-- [ ] Verify failure handling and queue recovery, configuration lease conflicts/release, and expected-state conflicts for order/layout using the relevant existing tests.
-- [ ] Verify launcher precedence/reference handling and appearance preference isolation remain intact.
+- [x] Reviewed shared-state consumers and derived launcher views; the superseded merged-config cache is absent.
+- [x] Verified navigation isolation through project-store tests and browser navigation scenarios; reviewed explicit refresh paths and mounted-view lifetimes.
+- [x] Audited retained domain writers and refresh paths. Ticket dependency/group operations revalidate ticket data, group operations refresh layout, and ticket detail refreshes on worktree revisions.
+- [x] Verified failure handling, queue recovery, lease conflicts/release, and order/layout expected-state conflicts in the passing unit/integration suite.
+- [x] Verified launcher precedence/reference handling and appearance isolation through unit and browser tests.
 
-Completion means the scoped data flow is consistent and the remaining audit is resolved; the existence of a store/context alone is not a completion claim.
+Detailed findings, test cleanup, and the final browser-run result are recorded in `audit.md`.
