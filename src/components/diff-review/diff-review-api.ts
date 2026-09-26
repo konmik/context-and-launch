@@ -42,23 +42,6 @@ export const getReviewSnapshot = query(async (
 	return { scopes, scope, snapshot };
 }, "diff-review-snapshot");
 
-/**
- * Herdr is not the only Agent this Ticket can have: the queue starts one from the
- * launcher profile, and that Agent leaves a marker rather than a Herdr report.
- * The queue service answers from both, so a running Agent of either kind never
- * reads as no Agent.
- */
-export const getReviewAgentStatus = query(async (
-	projectSlug: string,
-	folderName: string,
-) => {
-	"use server";
-	return {
-		worktreeIdentity: diffReviewTargetResolver.resolve(projectSlug, folderName).worktreeIdentity,
-		agentRunning: reviewPromptQueueService.isAgentRunning(projectSlug, folderName),
-	};
-}, "diff-review-agent");
-
 export async function enqueueReviewPrompt(
 	projectSlug: string,
 	folderName: string,

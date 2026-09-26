@@ -1,11 +1,18 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, cleanup } from "~/test-render.js";
-import { createSignal, flush, type Accessor } from "solid-js";
+import { createMemo, createSignal, flush, type Accessor } from "solid-js";
 import ReviewPromptQueueList from "./ReviewPromptQueueList.js";
 import type { DiffReviewProjectState, ReviewPromptQueueItem } from "~/core/diff-review/diff-review-types.js";
 import { succeed } from "~/util/result.js";
 import { createStoredSignal } from "~/util/stored-signal.js";
-import { DiffReviewContext } from './diff-review-storage.js';
+import { DiffReviewContext, ReviewAgentStatusContext } from './diff-review-storage.js';
+
+function TicketQueue(props: { profileName: string }) {
+	return <ReviewAgentStatusContext value={createMemo(() => ({
+		worktreeIdentity: 'worktree', agentRunning: false,
+	}))}><ReviewPromptQueueList projectSlug="project" folderName="ticket" profileName={props.profileName} />
+	</ReviewAgentStatusContext>;
+}
 
 function Queue(props: { items: ReviewPromptQueueItem[] }) {
 	return <DiffReviewContext value={{
@@ -14,7 +21,7 @@ function Queue(props: { items: ReviewPromptQueueItem[] }) {
 		} }),
 		update: async () => succeed(undefined),
 		refresh: async () => succeed(undefined),
-	}}><ReviewPromptQueueList projectSlug="project" folderName="ticket" worktreeIdentity="worktree" profileName="" />
+	}}><TicketQueue profileName="" />
 	</DiffReviewContext>;
 }
 
@@ -62,8 +69,7 @@ describe("ReviewPromptQueueList", () => {
 		const { container } = render(() => {
 			const state = createStoredSignal(() => saved, async transform => succeed(saved = transform(saved)));
 			get = state.get;
-			return <DiffReviewContext value={state}><ReviewPromptQueueList projectSlug="project" folderName="ticket"
-				worktreeIdentity="worktree" profileName="agent" /></DiffReviewContext>;
+			return <DiffReviewContext value={state}><TicketQueue profileName="agent" /></DiffReviewContext>;
 		});
 		const buttons = container.querySelectorAll<HTMLButtonElement>('[data-testid="diff-review-queue-remove"]');
 		buttons[1].click();
@@ -82,8 +88,7 @@ describe("ReviewPromptQueueList", () => {
 		} } } };
 		const { container } = render(() => {
 			const state = createStoredSignal(() => saved, async transform => succeed(saved = transform(saved)));
-			return <DiffReviewContext value={state}><ReviewPromptQueueList projectSlug="project" folderName="ticket"
-				worktreeIdentity="worktree" profileName="" /></DiffReviewContext>;
+			return <DiffReviewContext value={state}><TicketQueue profileName="" /></DiffReviewContext>;
 		});
 		saved = { ...saved, tickets: { ticket: { ...saved.tickets.ticket,
 			queue: { items: [{ ...saved.tickets.ticket.queue.items[0],

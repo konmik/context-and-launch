@@ -6,7 +6,7 @@ import { LauncherConfigContext } from '~/components/launcher/shared-launcher-con
 import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js';
 import {
   Show, For, Switch, Match, Errored, Loading,
-  createSignal, createEffect, createMemo, onSettled, lazy, useContext, flush,
+  createSignal, createEffect, createMemo, onSettled, lazy, useContext,
 } from "solid-js";
 import { EllipsisVertical } from "~/components/ui/icons.js";
 import { Network } from "~/components/ui/icons.js";
@@ -104,11 +104,14 @@ function createDeferredSignal<T>(ready: () => boolean, load: () => Promise<T>, p
 
 export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   const params = useParams<{ projectSlug: string }>();
-  const storage = createProjectLauncherConfigStorage(params);
   return (
-    <ProjectLauncherConfigContext value={storage}>
-      <ProjectContent {...props} />
-    </ProjectLauncherConfigContext>
+    <Show when={params.projectSlug} keyed>
+      {(projectSlug) => (
+        <ProjectLauncherConfigContext value={createProjectLauncherConfigStorage({ projectSlug })}>
+          <ProjectContent {...props} />
+        </ProjectLauncherConfigContext>
+      )}
+    </Show>
   );
 }
 
@@ -146,15 +149,6 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
 
   const { dialogState, syncState, selectionState, commands } =
     props?.ctrl ?? createProjectPageController({ projectSlug, data });
-
-  function navigateToProject(nextProjectSlug: string) {
-    // Dispose ticket-scoped views before the router starts the next project transition.
-    flush(() => {
-      commands.closeReview();
-      commands.closeDetail();
-    });
-    navigate(paths.project(nextProjectSlug)());
-  }
 
   createEffect(deferredPollsReady, (ready) => {
     if (!ready) return;
@@ -204,7 +198,6 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
     (currentProjectSlug) => {
       if (!currentProjectSlug) return;
       void reconcileReviewPromptQueue(currentProjectSlug)
-        .then(() => revalidate("diff-review-agent"))
         .catch((cause: unknown) => console.error("Review Prompt Queue reconciliation failed", cause));
     },
   );
@@ -219,7 +212,6 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
           revalidate("herdr-agent-statuses"),
           reconcileReviewPromptQueue(projectSlug()),
         ]);
-        revalidate("diff-review-agent");
 	  } catch (error) {
 		console.error("Herdr polling failed", error);
       } finally {
@@ -451,7 +443,7 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
                         class={`flex items-center justify-between gap-2 ${
                           project.projectSlug === d().projectSlug ? "font-semibold" : ""
                         }`}
-                        onClick={() => navigateToProject(project.projectSlug)}
+                        onClick={() => navigate(paths.project(project.projectSlug)())}
                         data-testid="project-header-project-item"
                       >
                         <span class="flex min-w-0 items-center gap-1.5">
@@ -630,7 +622,7 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
                   action={addProject}
                   onSuccess={(s) => {
                     commands.closeAddProject();
-                    navigateToProject(s);
+                    navigate(paths.project(s)());
                   }}
                   submitTitle={modEnterHint()}
                 />

@@ -1,4 +1,4 @@
-import { For, Show, createEffect } from "solid-js";
+import { For, Show, createEffect, useContext } from "solid-js";
 import { Portal, type JSX } from "@solidjs/web";
 import { AlertTriangle } from "~/components/ui/icons.js";
 import { GripVertical } from "~/components/ui/icons.js";
@@ -12,6 +12,7 @@ import type { HerdrAgentStatus } from "~/core/herdr/herdr-client.js";
 import { modEnterHint } from "~/lib/use-mod-enter-submit.js";
 import HerdrStatusIcon from "../ticket/HerdrStatusIcon.js";
 import VerticalReveal from "./VerticalReveal.js";
+import { ReviewAgentStatusContext } from './diff-review-storage.js';
 
 export interface ActiveSelection {
 	range: ReviewLineRange;
@@ -52,8 +53,7 @@ export default function ReviewPromptComposer(props: {
 	stale: boolean;
 	sending: boolean;
 	error?: string;
-	agentStatus?: HerdrAgentStatus;
-	agentPresent: boolean;
+	herdrStatus?: HerdrAgentStatus;
 	feedback: string;
 	completePrompt: string;
 	dragText?: string;
@@ -68,10 +68,8 @@ export default function ReviewPromptComposer(props: {
 }) {
 	let inputRef: HTMLTextAreaElement | undefined;
 
-	const composerAgentStatus = (): HerdrAgentStatus => {
-		if (props.agentStatus) return props.agentStatus;
-		return props.agentPresent ? "working" : "unknown";
-	};
+	const agentStatus = useContext(ReviewAgentStatusContext)!;
+	const agentPresent = () => !!props.herdrStatus || agentStatus().agentRunning;
 
 	async function copyPrompt(text: string) {
 		try {
@@ -118,8 +116,8 @@ export default function ReviewPromptComposer(props: {
 							<div class="mt-1 truncate font-mono text-[9px] text-primary">
 								{props.selection
 									? selectionLabel(props.selection!)
-									: `Agent: ${props.agentStatus
-										?? (props.agentPresent ? "running" : "not started")}`}
+									: `Agent: ${props.herdrStatus
+										?? (agentPresent() ? "running" : "not started")}`}
 							</div>
 						</div>
 						<button
@@ -140,7 +138,7 @@ export default function ReviewPromptComposer(props: {
 								disabled={
 									props.profileNames.length === 0
 									|| props.savingProfile
-									|| props.agentPresent
+									|| agentPresent()
 								}
 								onChange={(event) => props.onProfileChange(event.currentTarget.value)}
 								data-testid="diff-review-profile-select"
@@ -154,7 +152,8 @@ export default function ReviewPromptComposer(props: {
 								</Show>
 							</select>
 							<span class="flex shrink-0 items-center px-1.5">
-								<HerdrStatusIcon status={composerAgentStatus()} size={16} />
+								<HerdrStatusIcon
+									status={props.herdrStatus ?? (agentPresent() ? "working" : "unknown")} size={16} />
 							</span>
 						</div>
 					</div>

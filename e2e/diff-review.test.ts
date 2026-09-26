@@ -875,6 +875,13 @@ describe("Diff Review (e2e, real server)", () => {
 			5_000,
 		);
 		expect(config?.columnDefaults?.todo?.profileName).toBe("GPT");
+		const markerPath = path.join(
+			ctx.testServer.dataDir, "config", "running", project.projectSlug, `${folderName}.json`,
+		);
+		fs.mkdirSync(path.dirname(markerPath), { recursive: true });
+		fs.writeFileSync(markerPath, JSON.stringify({ pid: process.pid }));
+		await expect.poll(() => profileSelect.isDisabled()).toBe(true);
+		expect(await statusIcon.getAttribute("data-herdr-status")).toBe("working");
 	});
 
 	it("closes Diff Review when switching projects", async () => {

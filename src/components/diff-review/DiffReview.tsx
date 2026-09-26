@@ -10,6 +10,7 @@ import {
 	useContext,
 	onSettled,
 	onCleanup,
+	refresh,
 } from "solid-js";
 import { AlertTriangle } from "~/components/ui/icons.js";
 import { ArrowDownToLine } from "~/components/ui/icons.js";
@@ -52,12 +53,13 @@ import { useHerdrStatuses } from "../ticket/herdr-statuses-context.js";
 import { LauncherConfigContext } from '../launcher/shared-launcher-config-storage.js';
 import { ProjectLauncherConfigContext } from '../launcher/project-launcher-config-storage.js';
 import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js';
-import { DiffReviewContext, createReviewedLineTracker } from "./diff-review-storage.js";
+import { DiffReviewContext, ReviewAgentStatusContext, createReviewedLineTracker } from "./diff-review-storage.js";
 import { createStoredConfig } from '~/util/stored-config.js';
-import { readDiffReviewState, saveDiffReviewState, releaseDiffReviewState } from './diff-review-state-api.js';
+import {
+	readDiffReviewState, saveDiffReviewState, releaseDiffReviewState, readReviewAgentStatus,
+} from './diff-review-state-api.js';
 import {
 	enqueueReviewPrompt,
-	getReviewAgentStatus,
 	getReviewSnapshot,
 } from "./diff-review-api.js";
 import {
@@ -362,8 +364,7 @@ export default function DiffReview(props: {
 	const state = createStoredConfig(
 		readDiffReviewState.bind(null, props.projectSlug), saveDiffReviewState.bind(null, props.projectSlug),
 		releaseDiffReviewState.bind(null, props.projectSlug));
-	const agentStatus = createMemo(() =>
-		getReviewAgentStatus(props.projectSlug, props.ticket.folderName));
+	const agentStatus = createMemo(() => readReviewAgentStatus(props.projectSlug, props.ticket.folderName));
 	const worktreeIdentity = createMemo(() => agentStatus().worktreeIdentity);
 	const reviewedLines = createMemo(() => {
 		const tracker = createReviewedLineTracker({
@@ -381,8 +382,6 @@ export default function DiffReview(props: {
 	const sharedConfig = useContext(LauncherConfigContext)!;
 	const projectConfig = useContext(ProjectLauncherConfigContext)!;
 	const launcherConfig = createMemo(() => mergeLauncherConfigs(sharedConfig.get(), projectConfig.get()));
-	const agentPresent = () =>
-		!!herdrStatus(props.ticket.folderName) || agentStatus()?.agentRunning === true;
 	const profileNames = () => launcherConfig()?.profiles.map((profile) => profile.name) ?? [];
 	createEffect(launcherConfig, (config) => {
 		if (!config) return;
@@ -493,7 +492,7 @@ export default function DiffReview(props: {
 	onSettled(() => {
 		const timer = setInterval(() => {
 			void state.refresh().then(result => { if (result.type === "Failure") setReviewError(result.error); });
-			revalidate("diff-review-agent");
+			refresh(agentStatus);
 		}, 1_200);
 		return () => {
 			clearInterval(timer);
@@ -590,7 +589,7 @@ export default function DiffReview(props: {
 			setFeedback("");
 			const refreshed = await state.refresh();
 			if (refreshed.type === "Failure") setReviewError(refreshed.error);
-			revalidate("diff-review-agent");
+			refresh(agentStatus);
 			return true;
 		} finally {
 			setSending(false);
@@ -638,7 +637,7 @@ export default function DiffReview(props: {
 		setJumpTarget(location);
 	}
 
-	async function refresh() {
+	async function refreshDiffSnapshot() {
 		if (refreshing()) return;
 		setRefreshing(true);
 		try {
@@ -795,7 +794,7 @@ export default function DiffReview(props: {
 						type="button"
 						class="btn-secondary btn-sm gap-1.5"
 						disabled={refreshing()}
-						onClick={() => void refresh()}
+						onClick={() => void refreshDiffSnapshot()}
 						data-testid="diff-review-refresh"
 					>
 						<RefreshCw size={12} />
@@ -1019,35 +1018,35 @@ export default function DiffReview(props: {
 				</div>
 			</Show>
 
-			<ReviewPromptComposer
-				open={composer() !== undefined}
-				selection={selection()}
-				stale={selectionStale()}
-				feedback={feedback()}
-				completePrompt={completePromptText()}
-				dragText={promptDragText()}
-				profileNames={profileNames()}
-				selectedProfile={selectedProfile()}
-				savingProfile={savingProfile()}
-				onFeedbackChange={setFeedback}
-				onProfileChange={(profileName) => void changeProfile(profileName)}
-				sending={sending()}
-				error={sendError()}
-				agentStatus={herdrStatus(props.ticket.folderName)}
-				agentPresent={agentPresent()}
-				onCancel={() => {
-					changeComposer();
-					setSendError();
-				}}
-				onError={setSendError}
-				onSend={sendFeedback}
-			>
-				<DiffReviewContext value={state}>
-					<ReviewPromptQueueList projectSlug={props.projectSlug}
-						folderName={props.ticket.folderName}
-						worktreeIdentity={agentStatus().worktreeIdentity} profileName={selectedProfile()} />
-				</DiffReviewContext>
-			</ReviewPromptComposer>
+			<ReviewAgentStatusContext value={agentStatus}>
+				<ReviewPromptComposer
+					open={composer() !== undefined}
+					selection={selection()}
+					stale={selectionStale()}
+					feedback={feedback()}
+					completePrompt={completePromptText()}
+					dragText={promptDragText()}
+					profileNames={profileNames()}
+					selectedProfile={selectedProfile()}
+					savingProfile={savingProfile()}
+					onFeedbackChange={setFeedback}
+					onProfileChange={(profileName) => void changeProfile(profileName)}
+					sending={sending()}
+					error={sendError()}
+					herdrStatus={herdrStatus(props.ticket.folderName)}
+					onCancel={() => {
+						changeComposer();
+						setSendError();
+					}}
+					onError={setSendError}
+					onSend={sendFeedback}
+				>
+					<DiffReviewContext value={state}>
+						<ReviewPromptQueueList projectSlug={props.projectSlug}
+							folderName={props.ticket.folderName} profileName={selectedProfile()} />
+					</DiffReviewContext>
+				</ReviewPromptComposer>
+			</ReviewAgentStatusContext>
 
 		</div>
 	);

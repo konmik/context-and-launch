@@ -8,11 +8,6 @@ import { isAlive } from "./process-utils.js";
 const TITLE_SUFFIX = " -- AI";
 const MARKER_START_TOLERANCE_SEC = 5;
 
-interface AgentMarker {
-	pid: number;
-	startSec?: number;
-}
-
 const AgentMarkerSchema = v.object({
 	pid: v.number(),
 	startSec: v.optional(v.number()),
@@ -100,26 +95,18 @@ export function isProfileAgentRunning(
 	commands: CommandTemplateService,
 	markerPath: string,
 ): boolean {
-	let raw: unknown;
+	let marker: v.InferOutput<typeof AgentMarkerSchema>;
 	try {
-		raw = JSON.parse(fs.readFileSync(markerPath, "utf-8"));
+		marker = v.parse(AgentMarkerSchema, JSON.parse(fs.readFileSync(markerPath, "utf-8")));
 	} catch {
 		return false;
 	}
-	const parsed = v.safeParse(AgentMarkerSchema, raw);
-	if (!parsed.success) return false;
-	const marker: AgentMarker = parsed.output;
-	if (!isAlive(marker.pid)) {
+	const alive = isAlive(marker.pid);
+	const osSec = alive && marker.startSec !== undefined ? processStartSec(commands, marker.pid) : null;
+	if (!alive || (osSec !== null && marker.startSec !== undefined
+		&& Math.abs(osSec - marker.startSec) > MARKER_START_TOLERANCE_SEC)) {
 		reapMarker(markerPath);
 		return false;
-	}
-	if (marker.startSec !== undefined) {
-		const osSec = processStartSec(commands, marker.pid);
-		if (osSec !== null
-			&& Math.abs(osSec - marker.startSec) > MARKER_START_TOLERANCE_SEC) {
-			reapMarker(markerPath);
-			return false;
-		}
 	}
 	return true;
 }

@@ -1,8 +1,16 @@
 import { GET } from "@solidjs/web/server-functions";
-import { diffReviewStore, diffReviewTargetResolver } from "~/core/config/instances.js";
+import { diffReviewStore, diffReviewTargetResolver, reviewPromptQueueService } from "~/core/config/instances.js";
 import type { DiffReviewProjectState } from "~/core/diff-review/diff-review-types.js";
 import { errorMessage } from "~/core/shared/errors.js";
 import { fail, succeed } from "~/util/result.js";
+
+export const readReviewAgentStatus = GET(async (projectSlug: string, folderName: string) => {
+	"use server";
+	return {
+		worktreeIdentity: diffReviewTargetResolver.resolve(projectSlug, folderName).worktreeIdentity,
+		agentRunning: reviewPromptQueueService.isAgentRunning(projectSlug, folderName),
+	};
+});
 
 export const readDiffReviewState = GET(async (projectSlug: string, owner?: string) => {
 	"use server";
