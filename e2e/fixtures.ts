@@ -639,6 +639,13 @@ export async function dragElement(page: Page, source: Locator, target: Locator, 
   await dragPointer(page, boxCenter(sourceBox), to, options)
 }
 
+export async function installPausedClock(page: Page): Promise<void> {
+  await page.clock.install({
+    time: new Date('2026-01-01T00:00:00Z'),
+  })
+  await page.clock.pauseAt(new Date('2026-01-01T00:01:00Z'))
+}
+
 /**
  * Opens a ticket's menu and waits for one of its items. The board re-renders as
  * background reads settle, which can swallow the press that opens the menu, so

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
-import type { Locator, Page, Route } from 'playwright'
-import { setupE2E, openProject } from './fixtures.js'
+import type { Locator, Page, Request, Route } from 'playwright'
+import { setupE2E, openProject, installPausedClock } from './fixtures.js'
 import { testId } from './locators.js'
 
 const LOG_TEXT = 'distinctive log viewer e2e entry'
@@ -23,7 +23,7 @@ function seedLogs(dataDir: string, text: string): void {
 }
 
 async function deferNextLogRead(page: Page): Promise<{
-  requestUrl: Promise<string>
+  requestId: Promise<string>
   release: () => Promise<void>
 }> {
   let releaseGate!: () => void
@@ -37,7 +37,7 @@ async function deferNextLogRead(page: Page): Promise<{
     rejectHandled = reject
   })
   let observed!: (url: string) => void
-  const requestUrl = new Promise<string>((resolve) => {
+  const requestId = new Promise<string>((resolve) => {
     observed = resolve
   })
   let captured = false
@@ -55,7 +55,7 @@ async function deferNextLogRead(page: Page): Promise<{
       return
     }
     captured = true
-    observed(route.request().url())
+    observed(serverIdHeader)
     try {
       await released
       const response = await route.fetch()
@@ -70,7 +70,7 @@ async function deferNextLogRead(page: Page): Promise<{
   }
   await page.route('**/_server*', handler)
   return {
-    requestUrl,
+    requestId,
     release: async () => {
       releaseGate()
       await handled
@@ -157,19 +157,19 @@ async function renderedLineCount(page: Page): Promise<number> {
 describe('Application Logs dialog (e2e, real server)', () => {
   const ctx = setupE2E()
 
-  async function setupProject(prefix: string): Promise<void> {
+  async function setupProject(prefix: string, pausedClock = false): Promise<void> {
+    if (pausedClock) await installPausedClock(ctx.page)
     await openProject(ctx, {
       slugBase: prefix,
     })
   }
 
   it('shows content when the initial log read completes', async () => {
-    await setupProject('logs-content')
-    await ctx.page.clock.install()
+    await setupProject('logs-content', true)
     seedLogs(ctx.testServer.dataDir, LOG_TEXT)
     const deferred = await deferNextLogRead(ctx.page)
     await openLogs(ctx.page)
-    await deferred.requestUrl
+    await deferred.requestId
     try {
       await waitForLoadingStatus(ctx.page)
     } finally {
@@ -180,15 +180,14 @@ describe('Application Logs dialog (e2e, real server)', () => {
     await expectStatusAbsent(loadingStatus(ctx.page))
   })
   it('retains completed content while a refresh is pending', async () => {
-    await setupProject('logs-refresh')
-    await ctx.page.clock.install()
+    await setupProject('logs-refresh', true)
     seedLogs(ctx.testServer.dataDir, LOG_TEXT)
     await openLogs(ctx.page)
     await waitForPanelText(ctx.page, LOG_TEXT)
     seedLogs(ctx.testServer.dataDir, '')
     const deferred = await deferNextLogRead(ctx.page)
     await ctx.page.clock.runFor(10000)
-    await deferred.requestUrl
+    await deferred.requestId
     const refreshPendingText = await logPanel(ctx.page).innerText()
     expect(refreshPendingText).toContain(LOG_TEXT)
     seedLogs(ctx.testServer.dataDir, REFRESH_TEXT)
@@ -197,15 +196,14 @@ describe('Application Logs dialog (e2e, real server)', () => {
     seedLogs(ctx.testServer.dataDir, SECOND_REFRESH_TEXT)
     const nextRefresh = await deferNextLogRead(ctx.page)
     await ctx.page.clock.runFor(10000)
-    await nextRefresh.requestUrl
+    await nextRefresh.requestId
     expect(await logPanel(ctx.page).innerText()).toContain(REFRESH_TEXT)
     seedLogs(ctx.testServer.dataDir, SECOND_REFRESH_TEXT)
     await nextRefresh.release()
     await waitForPanelText(ctx.page, SECOND_REFRESH_TEXT)
   })
   it('clear stays loaded-empty and close rejects a late read and stops polling', async () => {
-    await setupProject('logs-close')
-    await ctx.page.clock.install()
+    await setupProject('logs-close', true)
     seedLogs(ctx.testServer.dataDir, LOG_TEXT)
     await openLogs(ctx.page)
     await waitForPanelText(ctx.page, LOG_TEXT)
@@ -219,11 +217,11 @@ describe('Application Logs dialog (e2e, real server)', () => {
     seedLogs(ctx.testServer.dataDir, REFRESH_TEXT)
     const deferred = await deferNextLogRead(ctx.page)
     await openLogs(ctx.page)
-    const requestUrl = await deferred.requestUrl
+    const requestId = await deferred.requestId
     await waitForLoadingStatus(ctx.page)
     let laterReads = 0
-    const countReads = (request: { url(): string }) => {
-      if (request.url() === requestUrl) laterReads += 1
+    const countReads = (request: Request) => {
+      if (request.headers()['x-server-function-id'] === requestId) laterReads += 1
     }
     ctx.page.on('request', countReads)
     await closeLogs(ctx.page)
@@ -240,12 +238,11 @@ describe('Application Logs dialog (e2e, real server)', () => {
     ).toBe(0)
   })
   it('clear rejects an in-flight initial read', async () => {
-    await setupProject('logs-clear-pending')
-    await ctx.page.clock.install()
+    await setupProject('logs-clear-pending', true)
     seedLogs(ctx.testServer.dataDir, LOG_TEXT)
     const deferred = await deferNextLogRead(ctx.page)
     await openLogs(ctx.page)
-    await deferred.requestUrl
+    await deferred.requestId
     await logPanel(ctx.page)
       .getByRole('button', {
         name: 'Clear logs',

@@ -130,6 +130,9 @@ describe('Ticket detail editor panel and saving (e2e, real server)', () => {
   })
   it('editing number and clicking Save persists it', async () => {
     const project = await setupEditorTicket(ctx, 'edit-number')
+    await ctx.page.locator('.cm-content').waitFor({
+      state: 'visible',
+    })
     const input = testId(ctx.page, 'ticket-detail-number-input')
     await input.waitFor({
       state: 'visible',

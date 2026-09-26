@@ -197,6 +197,42 @@ describe('FileWatcher', () => {
     ).rejects.toThrow('boom')
     expect(harness.adapters.createWatcher).toHaveBeenCalledTimes(2)
   })
+  it('serializes overlapping tasks and defers watch requests until both finish', async () => {
+    const harness = createHarness(' M ticket.json')
+    const watcher = new FileWatcher(harness.commands, undefined, harness.adapters)
+    watcher.watch('/repo', 10)
+    let releaseFirst!: () => void
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve
+    })
+    let firstStarted!: () => void
+    const started = new Promise<void>((resolve) => {
+      firstStarted = resolve
+    })
+    const first = watcher.runWithWatchPaused('/repo', async () => {
+      firstStarted()
+      await firstGate
+    })
+    await started
+    const secondTask = vi.fn(() => {
+      watcher.watch('/repo', 10)
+      vi.runAllTimers()
+      expect(harness.commands.executeSync).not.toHaveBeenCalled()
+    })
+    const second = watcher.runWithWatchPaused('/repo', secondTask)
+    watcher.watch('/repo', 10)
+    vi.runAllTimers()
+    expect(secondTask).not.toHaveBeenCalled()
+    expect(harness.adapters.createWatcher).toHaveBeenCalledTimes(1)
+    releaseFirst()
+    await Promise.all([first, second])
+    expect(secondTask).toHaveBeenCalledOnce()
+    expect(harness.adapters.createWatcher).toHaveBeenCalledTimes(2)
+    vi.runAllTimers()
+    expect(harness.commands.executeSync).toHaveBeenCalledWith('git.commit', '/repo', {
+      message: 'auto: external changes',
+    })
+  })
   it('runs an exclusive task without touching watchers when nothing is watched', async () => {
     const harness = createHarness()
     const watcher = new FileWatcher(harness.commands, undefined, harness.adapters)

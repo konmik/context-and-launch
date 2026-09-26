@@ -13,6 +13,7 @@ import {
   setupE2E,
   uniqueSlug,
   openTicketMenu,
+  installPausedClock,
 } from './fixtures.js'
 import { testId, waitLocatorVisible } from './locators.js'
 
@@ -852,6 +853,7 @@ describe('Diff Review (e2e, real server)', () => {
     expect(await ctx.page.locator('[data-testid="diff-review-file"]').allTextContents()).toEqual([expect.stringContaining('pending.ts')])
   })
   it('selects the Agent profile from the Review Prompt composer', async () => {
+    await installPausedClock(ctx.page)
     const folderName = 't-7-launch-agent'
     const project = await seedProject(ctx, {
       slugBase: 'diff-review-launch',
@@ -918,6 +920,7 @@ describe('Diff Review (e2e, real server)', () => {
         pid: process.pid,
       }),
     )
+    await ctx.page.clock.runFor(1200)
     await expect.poll(() => profileSelect.isDisabled()).toBe(true)
     await expect.poll(() => statusIcon.getAttribute('data-herdr-status')).toBe('working')
   })

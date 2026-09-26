@@ -46,8 +46,15 @@ interface WatcherState {
   scheduleCommit: () => void
 }
 
+interface PausedWatch {
+  debounceMs?: number
+  pending: number
+  tail: Promise<void>
+}
+
 export class FileWatcher {
   private watchers = new Map<string, WatcherState>()
+  private pausedWatches = new Map<string, PausedWatch>()
 
   constructor(
     private readonly commands: CommandTemplateExecutor,
@@ -57,6 +64,11 @@ export class FileWatcher {
   ) {}
 
   watch(worktreeDir: string, debounceMs = this.defaultDebounceMs): void {
+    const paused = this.pausedWatches.get(worktreeDir)
+    if (paused) {
+      paused.debounceMs = debounceMs
+      return
+    }
     if (this.watchers.has(worktreeDir)) return
     let watcher: FileWatcherHandle
     try {
@@ -144,17 +156,32 @@ export class FileWatcher {
   }
 
   async runWithWatchPaused<T>(worktreeDir: string, task: () => T | Promise<T>): Promise<T> {
-    const pausedDebounceMs = this.watchers.get(worktreeDir)?.debounceMs
-    if (pausedDebounceMs !== undefined) await this.stop(worktreeDir)
+    const paused = this.pausedWatches.get(worktreeDir) ?? {
+      debounceMs: this.watchers.get(worktreeDir)?.debounceMs,
+      pending: 0,
+      tail: Promise.resolve(),
+    }
+    const previous = paused.tail
+    let release!: () => void
+    paused.tail = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    paused.pending += 1
+    this.pausedWatches.set(worktreeDir, paused)
     try {
+      await previous
+      await this.stop(worktreeDir)
       return await task()
     } finally {
-      if (pausedDebounceMs !== undefined) {
-        this.watch(worktreeDir, pausedDebounceMs) // The task just wrote to a worktree nothing was watching, and the
-        // fresh watcher reports no event for those writes. Schedule the
-        // commit directly so the work cannot sit uncommitted.
-        this.watchers.get(worktreeDir)?.scheduleCommit()
+      paused.pending -= 1
+      if (paused.pending === 0) {
+        this.pausedWatches.delete(worktreeDir)
+        if (paused.debounceMs !== undefined) {
+          this.watch(worktreeDir, paused.debounceMs)
+          this.watchers.get(worktreeDir)?.scheduleCommit()
+        }
       }
+      release()
     }
   }
 
