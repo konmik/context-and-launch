@@ -2,6 +2,19 @@
 
 Audited application commit `e17d100` and the associated test cleanup on 2026-09-26.
 
+## Verdict
+
+The scoped storage/context migration is implemented, but a clean completion sign-off is blocked by the Diff Review send scenario below. No production code was changed during this audit.
+
+### Unresolved verification failure: Diff Review composer/send
+
+`e2e/diff-review.test.ts`, scenario `reviews a worktree change and preserves a queued prompt snapshot`, failed on both runs:
+
+1. In the 12-file run, the queued prompt appeared, but the composer still contained the sent text at line 171.
+2. A diagnostic attempt changed that assertion to `expect.poll` because background polling can display a queued item before the send response returns. The targeted rerun failed earlier at line 160: after filling feedback, Send remained disabled for the entire 30-second click timeout.
+
+The polling-only change was reverted. The failure is not established to be merely an assertion timing issue; investigate live-refresh/input reactivity and the send lifecycle before closing the ticket. The useful failing test remains intact. No root cause is claimed from these two different failure symptoms.
+
 ## Data-flow review
 
 | Area | Finding | Evidence |
@@ -35,5 +48,6 @@ Six standalone test cases removed, retaining the meaningful coverage:
 
 - `pnpm test`: passed type-checking, ESLint/Oxlint, and 1,123 tests across 149 files. The runner reported 663 skipped cases in its sharded test collection.
 - After consolidating the Forest E2E scenario: `pnpm exec eslint e2e/forest-layout.test.ts`, `pnpm exec tsc --noEmit`, and `git diff --check` passed.
-- Production build passed. The first scoped E2E run passed 68 of 69 tests across 12 files. The failed Diff Review assertion assumed that a visible queued prompt meant the send response had already cleared the composer; background queue polling can display it earlier. Replaced the immediate assertion with `expect.poll`, preserving the empty-composer expectation. Targeted Diff Review rerun pending.
-- ESLint and Oxlint passed for the final E2E test edits.
+- Production build passed. The scoped E2E run passed 68 of 69 tests across 12 files; only the Diff Review scenario above failed.
+- `pnpm test:e2e e2e/diff-review.test.ts`: the diagnostic rerun passed 12 of 13 tests and failed at the disabled Send button. The experimental assertion change was then reverted.
+- ESLint and Oxlint passed for the E2E test edits.
