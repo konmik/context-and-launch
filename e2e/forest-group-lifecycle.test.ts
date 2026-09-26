@@ -201,9 +201,7 @@ describe('Forest group lifecycle', () => {
     expect(fs.existsSync(archived)).toBe(true)
 
     await toggleToForest(ctx.page)
-    await ctx.page.waitForTimeout(500)
-
-    expect(await testId(ctx.page, 'forest-ticket-card').count()).toBe(1)
-    expect(await testId(ctx.page, 'forest-external-dependency').count()).toBe(0)
+    await expect.poll(() => testId(ctx.page, 'forest-ticket-card').count(), { timeout: 10_000 }).toBe(1)
+    await expect.poll(() => testId(ctx.page, 'forest-external-dependency').count(), { timeout: 10_000 }).toBe(0)
   }, 120000)
 }, 120000)

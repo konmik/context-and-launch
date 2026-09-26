@@ -224,12 +224,7 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
   }
 
   async function recordProjectFocus(projectSlug: string) {
-    const result = await appConfig.update((current) => ({
-      ...current,
-      lastUsedProjectSlug: current.projects.some((project) => project.projectSlug === projectSlug)
-        ? projectSlug
-        : current.lastUsedProjectSlug,
-    }))
+    const result = await recordAppProjectFocus(projectSlug)
     if (result.type === 'Failure') setConfigError(result.error)
     else setConfigError(undefined)
   }
@@ -685,3 +680,4 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
     </>
   )
 }
+import { recordAppProjectFocus } from '~/components/config/app-config-api.js'

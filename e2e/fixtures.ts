@@ -762,7 +762,10 @@ export function setupE2E(
     extraPages.push(p)
     return p
   }
-  afterEach(async () => {
+  afterEach(async (context) => {
+    if (context.task.result?.state === 'fail' && ctx.page && !ctx.page.isClosed()) {
+      console.error('Dialogs at failure:', await ctx.page.locator('[data-scope="dialog"][data-part="positioner"]').allTextContents())
+    }
     for (const p of extraPages) {
       try {
         await p.context().close()

@@ -36,16 +36,16 @@ describe('Forest connection mode', () => {
     const dependencyPath = ctx.page.locator('[data-testid="forest-dependency"][data-from="B-1"][data-to="A-1"]')
     await dependencyPath.waitFor({ state: 'attached', timeout: 15000 })
 
-    const dependencyBox = await boxOf(forestCard(ctx.page, 'A-1'))
-    const dependentBox = await boxOf(forestCard(ctx.page, 'B-1'))
-    expect(dependencyBox.height).toBeGreaterThan(72)
-    expect(dependentBox.height).toBeGreaterThan(72)
-
-    const endpoints = await pathScreenEndpoints(dependencyPath)
-    expect(endpoints.start.x).toBeCloseTo(dependentBox.x + dependentBox.width / 2, 1)
-    expect(endpoints.start.y).toBeCloseTo(dependentBox.y + dependentBox.height, 1)
-    expect(endpoints.end.x).toBeCloseTo(dependencyBox.x + dependencyBox.width / 2, 1)
-    expect(endpoints.end.y).toBeCloseTo(dependencyBox.y, 1)
+    await expect.poll(async () => {
+      const dependencyBox = await boxOf(forestCard(ctx.page, 'A-1'))
+      const dependentBox = await boxOf(forestCard(ctx.page, 'B-1'))
+      const endpoints = await pathScreenEndpoints(dependencyPath)
+      return dependencyBox.height > 72 && dependentBox.height > 72 &&
+        Math.abs(endpoints.start.x - dependentBox.x - dependentBox.width / 2) < 0.05 &&
+        Math.abs(endpoints.start.y - dependentBox.y - dependentBox.height) < 0.05 &&
+        Math.abs(endpoints.end.x - dependencyBox.x - dependencyBox.width / 2) < 0.05 &&
+        Math.abs(endpoints.end.y - dependencyBox.y) < 0.05
+    }, { timeout: 10_000 }).toBe(true)
   }, 120000)
 
   it('connects on a target handle and cancels a drag released on empty space', async () => {

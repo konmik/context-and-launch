@@ -33,4 +33,13 @@ export class AppConfigStore {
   release(owner: string): void {
     this.lock.release(owner)
   }
+
+  recordProjectFocus(projectSlug: string): Promise<AppConfigData> {
+    return this.lock.writeWhenAvailable(() => this.update((current) => ({
+      ...current,
+      lastUsedProjectSlug: current.projects.some((project) => project.projectSlug === projectSlug)
+        ? projectSlug
+        : current.lastUsedProjectSlug,
+    })))
+  }
 }

@@ -45,7 +45,7 @@ describe('Sync button pending badge (e2e, real server)', () => {
     })
     expect(await poll(ahead, (c) => c > 0, 10000, 250), 'auto-commit did not run within 10s').toBeGreaterThan(0)
 
-    await dragElement(ctx.page, sortableItem(ctx.page, 'in-progress:c-1-boomerang'), sortableItem(ctx.page, 'todo:c-2-stay-todo'), {
+    await dragElement(ctx.page, sortableItem(ctx.page, 'in-progress:c-1-boomerang'), testId(ctx.page, 'kanban-board-column-header', { 'data-column-name': 'todo' }), {
       releaseAt: 'top',
     })
 

@@ -38,6 +38,19 @@ function setup() {
 }
 
 describe('AppConfigStore', () => {
+  it('queues window focus behind a config edit and preserves both updates', async () => {
+    const { store } = setup()
+    store.update((current) => ({ ...current, projects: [{ projectSlug: 'first', path: '/first', branch: 'tickets' }, { projectSlug: 'second', path: '/second', branch: 'tickets' }] }))
+    const editing = store.read('settings')
+    const first = store.recordProjectFocus('first')
+    const second = store.recordProjectFocus('second')
+    expect(store.read().lastUsedProjectSlug).toBeNull()
+    store.update(() => ({ ...editing, browser: 'firefox' }), 'settings')
+    await Promise.all([first, second])
+    expect(store.read()).toMatchObject({ lastUsedProjectSlug: 'second', browser: 'firefox' })
+    await store.recordProjectFocus('missing')
+    expect(store.read().lastUsedProjectSlug).toBe('second')
+  })
   it('excludes other clients and registry writers until the owner saves', () => {
     const { store, registry, config } = setup()
     expect(store.read('first')).toEqual(config)

@@ -27,3 +27,12 @@ export async function releaseAppConfig(owner: string): Promise<void> {
   'use server'
   appConfigStore.release(owner)
 }
+
+export async function recordAppProjectFocus(projectSlug: string): Promise<Result<AppConfigData, string>> {
+  'use server'
+  try {
+    return succeed(await appConfigStore.recordProjectFocus(projectSlug))
+  } catch (error) {
+    return fail(errorMessage(error))
+  }
+}
