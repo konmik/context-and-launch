@@ -22,6 +22,14 @@
       "specifier": "./tools/oxlint/anti-slop/index.ts"
     }
   ],
+  "overrides": [
+    {
+      "files": ["scripts/format-typescript.mjs"],
+      "rules": {
+        "anti-slop/no-runtime-typeof": "off"
+      }
+    }
+  ],
   "rules": {
     "anti-slop/no-chained-type-assertions": "error",
     "anti-slop/no-conditional-empty-object-spread": "error",
