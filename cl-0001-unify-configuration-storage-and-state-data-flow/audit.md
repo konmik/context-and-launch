@@ -6,7 +6,7 @@ Audited application commit `e17d100` and the associated test cleanup on 2026-09-
 
 The scoped storage/context migration is implemented, but a clean completion sign-off is blocked by the Diff Review send scenario below. No production code was changed during this audit.
 
-### Unresolved verification failure: Diff Review composer/send
+### Original verification failure: Diff Review composer/send
 
 `e2e/diff-review.test.ts`, scenario `reviews a worktree change and preserves a queued prompt snapshot`, failed on both runs:
 
@@ -14,6 +14,12 @@ The scoped storage/context migration is implemented, but a clean completion sign
 2. A diagnostic attempt changed that assertion to `expect.poll` because background polling can display a queued item before the send response returns. The targeted rerun failed earlier at line 160: after filling feedback, Send remained disabled for the entire 30-second click timeout.
 
 The polling-only change was reverted. The failure is not established to be merely an assertion timing issue; investigate live-refresh/input reactivity and the send lifecycle before closing the ticket. The useful failing test remains intact. No root cause is claimed from these two different failure symptoms.
+
+### Finish follow-up
+
+Input/network instrumentation reproduced the disabled Send button: the input handler ran, all background requests completed, but the feedback signal's effect did not commit. Disabling only the periodic `refresh(agentStatus)` made the original scenario pass. Agent status now uses `createStoredState` to publish completed background reads, with an explicit `get`/`refresh` context shared by the composer and queue. This retains status polling and refresh after send/retry without repeatedly refreshing an async memo in the interactive graph. All instrumentation was removed; the original E2E assertions remain unchanged. The 13 Diff Review E2E scenarios passed with completed-read publication.
+
+The first `pnpm test:all` run also exposed missing E2E references for the four existing launcher confirmation buttons. Real-server scenarios were added for cancel/proceed on dirty and behind-upstream main branches, including a profile that records actual launch in the worktree. Full-suite verification is in progress.
 
 ## Data-flow review
 
