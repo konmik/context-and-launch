@@ -1,3 +1,3 @@
-import { registerTicketStoreTests } from "./ticket-store.test-cases.js";
+import { registerTicketStoreTests } from './ticket-store.test-cases.js'
 
-registerTicketStoreTests(1, 2);
+registerTicketStoreTests(1, 2)

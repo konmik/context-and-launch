@@ -1,2 +1,2 @@
-import { registerWorktreeManagerTests } from './worktree-manager.test-cases.js';
-registerWorktreeManagerTests(6, 8);
+import { registerWorktreeManagerTests } from './worktree-manager.test-cases.js'
+registerWorktreeManagerTests(6, 8)

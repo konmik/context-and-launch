@@ -1,46 +1,46 @@
-import { createSignal } from "solid-js";
-import type { JSX } from "@solidjs/web";
+import { createSignal } from 'solid-js'
+import type { JSX } from '@solidjs/web'
 
 export function SplitPane(props: {
-  initialPercent: number;
-  minPercent?: number;
-  onChangeEnd?: (sizes: [number, number]) => void;
-  first: JSX.Element;
-  second: JSX.Element;
-  separatorClass?: string;
+  initialPercent: number
+  minPercent?: number
+  onChangeEnd?: (sizes: [number, number]) => void
+  first: JSX.Element
+  second: JSX.Element
+  separatorClass?: string
 }) {
-  const min = props.minPercent ?? 20;
-  const clamp = (value: number) => Math.max(min, Math.min(100 - min, value));
-  const [percent, setPercent] = createSignal(clamp(props.initialPercent));
-  let root!: HTMLDivElement;
+  const min = props.minPercent ?? 20
+  const clamp = (value: number) => Math.max(min, Math.min(100 - min, value))
+  const [percent, setPercent] = createSignal(clamp(props.initialPercent))
+  let root!: HTMLDivElement
   function resizeToPointer(event: PointerEvent) {
-    const rect = root.getBoundingClientRect();
-    setPercent(clamp(((event.clientX - rect.left) / rect.width) * 100));
+    const rect = root.getBoundingClientRect()
+    setPercent(clamp(((event.clientX - rect.left) / rect.width) * 100))
   }
   function startResize(event: PointerEvent) {
-    const separator = event.currentTarget;
-    if (!(separator instanceof HTMLElement)) return;
-    separator.setPointerCapture(event.pointerId);
+    const separator = event.currentTarget
+    if (!(separator instanceof HTMLElement)) return
+    separator.setPointerCapture(event.pointerId)
     const removeListeners = () => {
-      separator.removeEventListener("pointermove", resizeToPointer);
-      separator.removeEventListener("pointerup", end);
-      separator.removeEventListener("pointercancel", cancel);
-    };
+      separator.removeEventListener('pointermove', resizeToPointer)
+      separator.removeEventListener('pointerup', end)
+      separator.removeEventListener('pointercancel', cancel)
+    }
     const end = () => {
-      removeListeners();
-      props.onChangeEnd?.([percent(), 100 - percent()]);
-    };
-    const cancel = () => removeListeners();
-    separator.addEventListener("pointermove", resizeToPointer);
-    separator.addEventListener("pointerup", end);
-    separator.addEventListener("pointercancel", cancel);
+      removeListeners()
+      props.onChangeEnd?.([percent(), 100 - percent()])
+    }
+    const cancel = () => removeListeners()
+    separator.addEventListener('pointermove', resizeToPointer)
+    separator.addEventListener('pointerup', end)
+    separator.addEventListener('pointercancel', cancel)
   }
   function resizeWithKeyboard(event: KeyboardEvent) {
-    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-    event.preventDefault();
-    const next = clamp(percent() + (event.key === "ArrowLeft" ? -2 : 2));
-    setPercent(next);
-    props.onChangeEnd?.([next, 100 - next]);
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+    event.preventDefault()
+    const next = clamp(percent() + (event.key === 'ArrowLeft' ? -2 : 2))
+    setPercent(next)
+    props.onChangeEnd?.([next, 100 - next])
   }
   return (
     <div ref={root} class="flex h-full">
@@ -58,5 +58,5 @@ export function SplitPane(props: {
       />
       <div style={{ width: `${100 - percent()}%` }}>{props.second}</div>
     </div>
-  );
+  )
 }

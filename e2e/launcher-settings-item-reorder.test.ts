@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import type { Locator, Page } from "playwright";
+import { describe, expect, it } from 'vitest'
+import type { Locator, Page } from 'playwright'
 import {
   dragElement,
   openLauncherSettings,
@@ -8,94 +8,89 @@ import {
   readAppLauncherConfig,
   openProject,
   setupE2E,
-} from "./fixtures.js";
-import { testId } from "./locators.js";
+} from './fixtures.js'
+import { testId } from './locators.js'
 
 const ITEM_SELECTORS = {
   template: {
-    row: "launcher-settings-prompts-row",
-    handle: "launcher-settings-prompts-drag-handle",
+    row: 'launcher-settings-prompts-row',
+    handle: 'launcher-settings-prompts-drag-handle',
   },
   profile: {
-    row: "launcher-settings-launch-profile-row",
-    handle: "launcher-settings-launch-profile-drag-handle",
+    row: 'launcher-settings-launch-profile-row',
+    handle: 'launcher-settings-launch-profile-drag-handle',
   },
   shortcut: {
-    row: "launcher-settings-launch-shortcut-row",
-    handle: "launcher-settings-launch-shortcut-drag-handle",
+    row: 'launcher-settings-launch-shortcut-row',
+    handle: 'launcher-settings-launch-shortcut-drag-handle',
   },
-} as const;
+} as const
 
-type ItemType = keyof typeof ITEM_SELECTORS;
+type ItemType = keyof typeof ITEM_SELECTORS
 
 function itemRow(page: Page, itemType: ItemType, name: string): Locator {
-  return testId(page, ITEM_SELECTORS[itemType].row, { "data-item-name": name });
+  return testId(page, ITEM_SELECTORS[itemType].row, { 'data-item-name': name })
 }
 
 async function dragItem(page: Page, itemType: ItemType, fromName: string, toName: string) {
-  const source = testId(itemRow(page, itemType, fromName), ITEM_SELECTORS[itemType].handle);
-  const target = itemRow(page, itemType, toName);
-  await target.scrollIntoViewIfNeeded();
-  await dragElement(page, source, target);
+  const source = testId(itemRow(page, itemType, fromName), ITEM_SELECTORS[itemType].handle)
+  const target = itemRow(page, itemType, toName)
+  await target.scrollIntoViewIfNeeded()
+  await dragElement(page, source, target)
 }
 
 async function itemNames(page: Page, itemType: ItemType): Promise<string[]> {
-  return testId(page, ITEM_SELECTORS[itemType].row).evaluateAll(
-    (elements) => elements.map(element => element.getAttribute("data-item-name") ?? ""),
-  );
+  return testId(page, ITEM_SELECTORS[itemType].row).evaluateAll((elements) =>
+    elements.map((element) => element.getAttribute('data-item-name') ?? ''),
+  )
 }
 
-describe("Launcher Settings item reorder (e2e, real server)", () => {
-  const ctx = setupE2E();
+describe('Launcher Settings item reorder (e2e, real server)', () => {
+  const ctx = setupE2E()
 
-  it("reorders prompt templates, agents, and shortcuts and persists their order", async () => {
+  it('reorders prompt templates, agents, and shortcuts and persists their order', async () => {
     await openProject(ctx, {
-      slugBase: "settings-item-reorder",
+      slugBase: 'settings-item-reorder',
       appLauncherConfig: {
         templates: [
-          { name: "Template A", text: "a" },
-          { name: "Template B", text: "b" },
-          { name: "Template C", text: "c" },
+          { name: 'Template A', text: 'a' },
+          { name: 'Template B', text: 'b' },
+          { name: 'Template C', text: 'c' },
         ],
         profiles: [
-          { name: "Agent A", command: "echo a" },
-          { name: "Agent B", command: "echo b" },
-          { name: "Agent C", command: "echo c" },
+          { name: 'Agent A', command: 'echo a' },
+          { name: 'Agent B', command: 'echo b' },
+          { name: 'Agent C', command: 'echo c' },
         ],
         shortcuts: [
-          { name: "Shortcut A", command: "echo a" },
-          { name: "Shortcut B", command: "echo b" },
-          { name: "Shortcut C", command: "echo c" },
+          { name: 'Shortcut A', command: 'echo a' },
+          { name: 'Shortcut B', command: 'echo b' },
+          { name: 'Shortcut C', command: 'echo c' },
         ],
       },
-    });
-    await openLauncherSettings(ctx.page);
+    })
+    await openLauncherSettings(ctx.page)
 
-    await openLauncherSettingsTab(ctx.page, "prompts");
-    await dragItem(ctx.page, "template", "Template A", "Template C");
-    await expect.poll(() => itemNames(ctx.page, "template")).toEqual([
-      "Template B", "Template C", "Template A",
-    ]);
+    await openLauncherSettingsTab(ctx.page, 'prompts')
+    await dragItem(ctx.page, 'template', 'Template A', 'Template C')
+    await expect.poll(() => itemNames(ctx.page, 'template')).toEqual(['Template B', 'Template C', 'Template A'])
 
-    await openLauncherSettingsTab(ctx.page, "launch");
-    await dragItem(ctx.page, "profile", "Agent A", "Agent C");
-    await expect.poll(() => itemNames(ctx.page, "profile")).toEqual(["Agent B", "Agent C", "Agent A"]);
-    await dragItem(ctx.page, "shortcut", "Shortcut A", "Shortcut C");
-    await expect.poll(() => itemNames(ctx.page, "shortcut")).toEqual([
-      "Shortcut B", "Shortcut C", "Shortcut A",
-    ]);
+    await openLauncherSettingsTab(ctx.page, 'launch')
+    await dragItem(ctx.page, 'profile', 'Agent A', 'Agent C')
+    await expect.poll(() => itemNames(ctx.page, 'profile')).toEqual(['Agent B', 'Agent C', 'Agent A'])
+    await dragItem(ctx.page, 'shortcut', 'Shortcut A', 'Shortcut C')
+    await expect.poll(() => itemNames(ctx.page, 'shortcut')).toEqual(['Shortcut B', 'Shortcut C', 'Shortcut A'])
 
     const appConfig = await poll(
       () => readAppLauncherConfig(ctx.testServer),
-      config => (
-        config?.templates?.find(item => item.name === "Template A")?.order === 3
-        && config?.profiles?.find(item => item.name === "Agent A")?.order === 3
-        && config?.shortcuts?.find(item => item.name === "Shortcut A")?.order === 3
-      ),
+      (config) =>
+        config?.templates?.find((item) => item.name === 'Template A')?.order === 3 &&
+        config?.profiles?.find((item) => item.name === 'Agent A')?.order === 3 &&
+        config?.shortcuts?.find((item) => item.name === 'Shortcut A')?.order === 3,
       5000,
-    );
-    expect(appConfig?.templates?.find(item => item.name === "Template A")?.order).toBe(3);
-    expect(appConfig?.profiles?.find(item => item.name === "Agent A")?.order).toBe(3);
-    expect(appConfig?.shortcuts?.find(item => item.name === "Shortcut A")?.order).toBe(3);
-  });
-});
+    )
+    expect(appConfig?.templates?.find((item) => item.name === 'Template A')?.order).toBe(3)
+    expect(appConfig?.profiles?.find((item) => item.name === 'Agent A')?.order).toBe(3)
+    expect(appConfig?.shortcuts?.find((item) => item.name === 'Shortcut A')?.order).toBe(3)
+  })
+})

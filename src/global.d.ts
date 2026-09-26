@@ -1,18 +1,18 @@
 /// <reference types="@solidjs/vite-plugin/boundary-modules" />
 
 declare module '*.ps1?raw' {
-  const content: string;
-  export default content;
+  const content: string
+  export default content
 }
 
 declare module '*.sh?raw' {
-  const content: string;
-  export default content;
+  const content: string
+  export default content
 }
 
 declare module '*.json?raw' {
-  const content: string;
-  export default content;
+  const content: string
+  export default content
 }
 
 interface Window {
@@ -20,9 +20,7 @@ interface Window {
     setAppearance(
       palette: import('./components/shared/palette-pure.js').PaletteName,
       mode: import('./components/shared/theme-toggle-pure.js').AppMode,
-    ): void;
-		pickDirectory(preselect: string): Promise<
-			{ path: string } | { cancelled: true } | { error: string }
-		>;
-  };
+    ): void
+    pickDirectory(preselect: string): Promise<{ path: string } | { cancelled: true } | { error: string }>
+  }
 }

@@ -1,7 +1,7 @@
-import fs from "fs";
-import { execSync } from "child_process";
+import fs from 'fs'
+import { execSync } from 'child_process'
 
-const DIST_DIR = "dist-electron";
+const DIST_DIR = 'dist-electron'
 
 const CLEANUP_PATTERNS = [
   /-unpacked$/,
@@ -11,22 +11,17 @@ const CLEANUP_PATTERNS = [
   /\.blockmap$/,
   /^builder-debug\.yml$/,
   /^builder-effective-config\.yaml$/,
-];
+]
 
-fs.rmSync(DIST_DIR, { recursive: true, force: true });
+fs.rmSync(DIST_DIR, { recursive: true, force: true })
 
-const steps = [
-  "vite build",
-  "node scripts/verify-electron-server-bundle.mjs",
-  "pnpm run electron:build-main",
-  "pnpm exec electron-builder",
-];
+const steps = ['vite build', 'node scripts/verify-electron-server-bundle.mjs', 'pnpm run electron:build-main', 'pnpm exec electron-builder']
 for (const cmd of steps) {
-  execSync(cmd, { stdio: "inherit" });
+  execSync(cmd, { stdio: 'inherit' })
 }
 
 for (const entry of fs.readdirSync(DIST_DIR)) {
   if (CLEANUP_PATTERNS.some((p) => p.test(entry))) {
-    fs.rmSync(`${DIST_DIR}/${entry}`, { recursive: true, force: true });
+    fs.rmSync(`${DIST_DIR}/${entry}`, { recursive: true, force: true })
   }
 }

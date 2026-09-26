@@ -1,515 +1,542 @@
-import { For, Show } from "solid-js";
-import type { JSX } from "@solidjs/web";
-import { X } from "~/components/ui/icons.js";
-import { DialogRoot, DialogTitle, DialogCloseTrigger, DialogForm } from "../ui/dialog";
-import { modEnterHint } from "~/lib/use-mod-enter-submit";
-import { slugifyColumnName } from "~/lib/slugify.js";
-import { COLUMN_COLOR_PALETTE } from "~/core/project/column-color-palette.js";
-import type { BoardRef } from "../board/board-api.js";
-import { usesWindowsBatchCommand } from "./launcher-settings-pure.js";
-import type { LauncherItemType } from "~/core/launcher/launcher-config.js";
+import { For, Show } from 'solid-js'
+import type { JSX } from '@solidjs/web'
+import { X } from '~/components/ui/icons.js'
+import { DialogRoot, DialogTitle, DialogCloseTrigger, DialogForm } from '../ui/dialog'
+import { modEnterHint } from '~/lib/use-mod-enter-submit'
+import { slugifyColumnName } from '~/lib/slugify.js'
+import { COLUMN_COLOR_PALETTE } from '~/core/project/column-color-palette.js'
+import type { BoardRef } from '../board/board-api.js'
+import { usesWindowsBatchCommand } from './launcher-settings-pure.js'
+import type { LauncherItemType } from '~/core/launcher/launcher-config.js'
 
-export type ItemType = LauncherItemType;
-export type Scope = "app" | "project";
+export type ItemType = LauncherItemType
+export type Scope = 'app' | 'project'
 
 export interface ItemFormState {
-	mode: "add" | "edit";
-	itemType: ItemType;
-	scope: Scope;
-	name: string;
-	text: string;
-	oldName?: string;
+  mode: 'add' | 'edit'
+  itemType: ItemType
+  scope: Scope
+  name: string
+  text: string
+  oldName?: string
 }
 
 export interface ColumnFormState {
-	mode: "add" | "edit";
-	name: string;
-	description: string;
-	color: string;
-	oldName?: string;
+  mode: 'add' | 'edit'
+  name: string
+  description: string
+  color: string
+  oldName?: string
 }
 
 export interface RenameFormState {
-	oldName: string;
-	newName: string;
-	scope: "all" | "current" | "none";
+  oldName: string
+  newName: string
+  scope: 'all' | 'current' | 'none'
 }
 
 export interface DeleteTarget {
-	type: "board" | "column";
-	id: string;
-	name: string;
+  type: 'board' | 'column'
+  id: string
+  name: string
 }
 
 function DialogHeader(props: { title: string }) {
-	return (
-		<div class="flex items-center justify-between border-b border-border px-6 py-4">
-			<DialogTitle class="mb-0">{props.title}</DialogTitle>
-			<DialogCloseTrigger>
-				<X size={16} />
-			</DialogCloseTrigger>
-		</div>
-	);
+  return (
+    <div class="flex items-center justify-between border-b border-border px-6 py-4">
+      <DialogTitle class="mb-0">{props.title}</DialogTitle>
+      <DialogCloseTrigger>
+        <X size={16} />
+      </DialogCloseTrigger>
+    </div>
+  )
 }
 
 function ErrorBanner(props: { message: string }) {
-	return (
-		<Show when={props.message}>
-			<div class="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-				{props.message}
-			</div>
-		</Show>
-	);
+  return (
+    <Show when={props.message}>
+      <div class="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{props.message}</div>
+    </Show>
+  )
 }
 
 function DialogFooter(props: { children: JSX.Element }) {
-	return <div class="flex justify-end gap-2 border-t border-border px-6 py-3">{props.children}</div>;
+  return <div class="flex justify-end gap-2 border-t border-border px-6 py-3">{props.children}</div>
 }
 
 const itemTypeLabel = {
-	template: "Prompt Template", skill: "Skill", profile: "Launch", shortcut: "Shortcut",
-} satisfies Record<ItemType, string>;
+  template: 'Prompt Template',
+  skill: 'Skill',
+  profile: 'Launch',
+  shortcut: 'Shortcut',
+} satisfies Record<ItemType, string>
 
 export function ItemFormDialog(props: {
-	form: ItemFormState | null;
-	setForm: (form: ItemFormState | null) => void;
-	onSubmit: (form: ItemFormState) => void;
+  form: ItemFormState | null
+  setForm: (form: ItemFormState | null) => void
+  onSubmit: (form: ItemFormState) => void
 }) {
-	return (
-		<DialogRoot open={!!props.form} onOpenChange={() => props.setForm(null)} class="max-w-lg p-0">
-			<DialogForm state={props.form}>
-				{(f) => (<>
-					<DialogHeader title={`${f().mode === "add" ? "Add" : "Edit"} ${itemTypeLabel[f().itemType]}`} />
-					<div class="space-y-3 px-6 py-4">
-						<div>
-							<label class="field-label">Name</label>
-							<input
-								type="text"
-								value={f().name}
-								onInput={(e) => props.setForm({
-									...f(), name: e.currentTarget.value,
-								})}
-								class="input input-sm"
-								data-testid="launcher-settings-item-form-name-input"
-								placeholder={
-									f().itemType === "profile" ? "Launch name"
-									: f().itemType === "skill" ? "Skill name"
-									: f().itemType === "shortcut" ? "Shortcut name"
-									: "Prompt name"
-								}
-							/>
-						</div>
-						<div>
-							<label class="field-label">
-								{f().itemType === "shortcut" || f().itemType === "profile"
-									? "Command" : "Prompt"}
-							</label>
-							<textarea
-								value={f().text}
-								onInput={(e) => props.setForm({
-									...f(), text: e.currentTarget.value,
-								})}
-								class="input min-h-[280px]"
-								data-testid="launcher-settings-item-form-text-input"
-								placeholder={
-									f().itemType === "profile"
-										? "e.g. bash run-agent.sh or powershell -File run-agent.ps1"
-									: f().itemType === "shortcut"
-										? "e.g. code {{projectPath}}"
-									: "Prompt text with {{placeholders}}"
-								}
-							/>
-							<p class="mt-1 text-xs text-muted-foreground">
-								{f().itemType === "profile"
-									? "{{initialPrompt}} {{windowTitle}} {{agentDisplayName}} "
-										+ "{{herdrWorkspaceLabel}} {{herdrPaneLabel}} {{markerPath}} "
-										+ "{{configDefaultsDir}} {{appConfigDir}}"
-								: f().itemType === "shortcut"
-									? [
-										"{{ticketDir}} {{ticketSlug}}",
-										"{{ticketTitle}} {{ticketNumber}}",
-										"{{ticketStatus}} {{projectPath}}",
-										"{{projectSlug}} {{launchDir}}",
-									].join(" ")
-								: f().itemType === "template"
-									? [
-										"{{ticketDir}} {{ticketSlug}}",
-										"{{ticketTitle}} {{ticketNumber}}",
-										"{{ticketStatus}} {{projectPath}}",
-										"{{projectSlug}} {{skills}}",
-									].join(" ")
-								: [
-										"{{ticketDir}} {{ticketSlug}}",
-										"{{ticketTitle}} {{ticketNumber}}",
-										"{{ticketStatus}} {{projectPath}}",
-										"{{projectSlug}}",
-									].join(" ")}
-							</p>
-							<Show when={
-								(f().itemType === "profile" || f().itemType === "shortcut")
-								&& usesWindowsBatchCommand(f().text)
-							}>
-								<p
-									class={"mt-2 rounded-md border border-warning/40 bg-warning/10 "
-										+ "px-3 py-2 text-xs"}
-									data-testid="launcher-settings-item-form-batch-warning"
-								>
-									Windows CMD (.cmd) and batch (.bat) files cannot receive multi-line arguments.
-									 Use an .exe or PowerShell script (.ps1) instead.
-								</p>
-							</Show>
-						</div>
-						<Show when={f().mode === "add"}>
-							<div>
-								<label class="field-label">Scope</label>
-								<div class="flex gap-4">
-									<label class="flex items-center gap-1.5 text-sm">
-										<input
-											type="radio" name="scope"
-											checked={f().scope === "app"}
-											onChange={() => props.setForm({
-												...f(), scope: "app",
-											})}
-											data-testid="launcher-settings-item-form-scope-app"
-										/> User
-									</label>
-									<label class="flex items-center gap-1.5 text-sm">
-										<input
-											type="radio" name="scope"
-											checked={f().scope === "project"}
-											onChange={() => props.setForm({
-												...f(), scope: "project",
-											})}
-											data-testid="launcher-settings-item-form-scope-project"
-										/> Project
-									</label>
-								</div>
-							</div>
-						</Show>
-					</div>
-					<DialogFooter>
-						<button
-							onClick={() => props.setForm(null)}
-							class="btn-secondary"
-							data-testid="launcher-settings-item-form-cancel"
-						>Cancel</button>
-						<button
-							onClick={() => props.onSubmit(f())}
-							disabled={!f().name.trim()}
-							title={modEnterHint()}
-							class="btn-primary"
-							data-testid="launcher-settings-item-form-submit"
-						>{f().mode === "add" ? "Add" : "Save"}</button>
-					</DialogFooter>
-				</>)}
-			</DialogForm>
-		</DialogRoot>
-	);
+  return (
+    <DialogRoot open={!!props.form} onOpenChange={() => props.setForm(null)} class="max-w-lg p-0">
+      <DialogForm state={props.form}>
+        {(f) => (
+          <>
+            <DialogHeader title={`${f().mode === 'add' ? 'Add' : 'Edit'} ${itemTypeLabel[f().itemType]}`} />
+            <div class="space-y-3 px-6 py-4">
+              <div>
+                <label class="field-label">Name</label>
+                <input
+                  type="text"
+                  value={f().name}
+                  onInput={(e) =>
+                    props.setForm({
+                      ...f(),
+                      name: e.currentTarget.value,
+                    })
+                  }
+                  class="input input-sm"
+                  data-testid="launcher-settings-item-form-name-input"
+                  placeholder={
+                    f().itemType === 'profile'
+                      ? 'Launch name'
+                      : f().itemType === 'skill'
+                        ? 'Skill name'
+                        : f().itemType === 'shortcut'
+                          ? 'Shortcut name'
+                          : 'Prompt name'
+                  }
+                />
+              </div>
+              <div>
+                <label class="field-label">{f().itemType === 'shortcut' || f().itemType === 'profile' ? 'Command' : 'Prompt'}</label>
+                <textarea
+                  value={f().text}
+                  onInput={(e) =>
+                    props.setForm({
+                      ...f(),
+                      text: e.currentTarget.value,
+                    })
+                  }
+                  class="input min-h-[280px]"
+                  data-testid="launcher-settings-item-form-text-input"
+                  placeholder={
+                    f().itemType === 'profile'
+                      ? 'e.g. bash run-agent.sh or powershell -File run-agent.ps1'
+                      : f().itemType === 'shortcut'
+                        ? 'e.g. code {{projectPath}}'
+                        : 'Prompt text with {{placeholders}}'
+                  }
+                />
+                <p class="mt-1 text-xs text-muted-foreground">
+                  {f().itemType === 'profile'
+                    ? '{{initialPrompt}} {{windowTitle}} {{agentDisplayName}} ' +
+                      '{{herdrWorkspaceLabel}} {{herdrPaneLabel}} {{markerPath}} ' +
+                      '{{configDefaultsDir}} {{appConfigDir}}'
+                    : f().itemType === 'shortcut'
+                      ? [
+                          '{{ticketDir}} {{ticketSlug}}',
+                          '{{ticketTitle}} {{ticketNumber}}',
+                          '{{ticketStatus}} {{projectPath}}',
+                          '{{projectSlug}} {{launchDir}}',
+                        ].join(' ')
+                      : f().itemType === 'template'
+                        ? [
+                            '{{ticketDir}} {{ticketSlug}}',
+                            '{{ticketTitle}} {{ticketNumber}}',
+                            '{{ticketStatus}} {{projectPath}}',
+                            '{{projectSlug}} {{skills}}',
+                          ].join(' ')
+                        : [
+                            '{{ticketDir}} {{ticketSlug}}',
+                            '{{ticketTitle}} {{ticketNumber}}',
+                            '{{ticketStatus}} {{projectPath}}',
+                            '{{projectSlug}}',
+                          ].join(' ')}
+                </p>
+                <Show when={(f().itemType === 'profile' || f().itemType === 'shortcut') && usesWindowsBatchCommand(f().text)}>
+                  <p
+                    class={'mt-2 rounded-md border border-warning/40 bg-warning/10 ' + 'px-3 py-2 text-xs'}
+                    data-testid="launcher-settings-item-form-batch-warning"
+                  >
+                    Windows CMD (.cmd) and batch (.bat) files cannot receive multi-line arguments. Use an .exe or PowerShell script (.ps1)
+                    instead.
+                  </p>
+                </Show>
+              </div>
+              <Show when={f().mode === 'add'}>
+                <div>
+                  <label class="field-label">Scope</label>
+                  <div class="flex gap-4">
+                    <label class="flex items-center gap-1.5 text-sm">
+                      <input
+                        type="radio"
+                        name="scope"
+                        checked={f().scope === 'app'}
+                        onChange={() =>
+                          props.setForm({
+                            ...f(),
+                            scope: 'app',
+                          })
+                        }
+                        data-testid="launcher-settings-item-form-scope-app"
+                      />{' '}
+                      User
+                    </label>
+                    <label class="flex items-center gap-1.5 text-sm">
+                      <input
+                        type="radio"
+                        name="scope"
+                        checked={f().scope === 'project'}
+                        onChange={() =>
+                          props.setForm({
+                            ...f(),
+                            scope: 'project',
+                          })
+                        }
+                        data-testid="launcher-settings-item-form-scope-project"
+                      />{' '}
+                      Project
+                    </label>
+                  </div>
+                </div>
+              </Show>
+            </div>
+            <DialogFooter>
+              <button onClick={() => props.setForm(null)} class="btn-secondary" data-testid="launcher-settings-item-form-cancel">
+                Cancel
+              </button>
+              <button
+                onClick={() => props.onSubmit(f())}
+                disabled={!f().name.trim()}
+                title={modEnterHint()}
+                class="btn-primary"
+                data-testid="launcher-settings-item-form-submit"
+              >
+                {f().mode === 'add' ? 'Add' : 'Save'}
+              </button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogForm>
+    </DialogRoot>
+  )
 }
 
 export function ColumnFormDialog(props: {
-	columnForm: ColumnFormState | null;
-	setColumnForm: (form: ColumnFormState | null) => void;
-	renameActive: boolean;
-	columnError: string;
-	validation: string;
-	onSubmit: (form: ColumnFormState) => void;
+  columnForm: ColumnFormState | null
+  setColumnForm: (form: ColumnFormState | null) => void
+  renameActive: boolean
+  columnError: string
+  validation: string
+  onSubmit: (form: ColumnFormState) => void
 }) {
-	return (
-		<DialogRoot
-			open={!!props.columnForm && !props.renameActive}
-			onOpenChange={() => props.setColumnForm(null)}
-			class="max-w-lg p-0"
-		>
-			<DialogForm state={props.columnForm}>
-				{(cf) => (<>
-					<DialogHeader title={cf().mode === "add" ? "Add Column" : "Edit Column"} />
-					<div class="space-y-3 px-6 py-4">
-						<ErrorBanner message={props.columnError} />
-						<div>
-							<label class="field-label">Name</label>
-							<input
-								ref={(el) => setTimeout(() => el.focus())}
-								type="text"
-								value={cf().name}
-								onInput={(e) => props.setColumnForm({ ...cf(), name: e.currentTarget.value })}
-								class="input input-sm"
-								data-testid="launcher-settings-columns-name-input"
-								placeholder="e.g. In Progress"
-							/>
-							<Show when={cf().name.trim()}>
-								<p
-									class="mt-1 text-xs text-muted-foreground"
-									data-testid="launcher-settings-columns-slug-preview"
-								>
-									Column slug: {slugifyColumnName(cf().name)}
-								</p>
-							</Show>
-							<Show when={props.validation}>
-								<p
-									class="mt-1 text-xs text-destructive"
-									data-testid="launcher-settings-columns-name-error"
-								>{props.validation}</p>
-							</Show>
-						</div>
-						<div>
-							<label class="field-label">Description (optional)</label>
-							<textarea
-								value={cf().description}
-								onInput={(e) => props.setColumnForm({ ...cf(), description: e.currentTarget.value })}
-								class="input min-h-[60px]"
-								data-testid="launcher-settings-columns-desc-input"
-								placeholder="Brief description of this column"
-							/>
-						</div>
-						<div>
-							<label class="field-label">Color (optional)</label>
-							<div class="flex flex-wrap items-center gap-1.5">
-								<button
-									type="button"
-									onClick={() => props.setColumnForm({ ...cf(), color: "" })}
-									class={
-										"flex h-6 w-6 items-center justify-center rounded-md border border-border "
-										+ `text-muted-foreground ${cf().color === ""
-											? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`
-									}
-									data-testid="launcher-settings-columns-color-none"
-									title="None"
-									aria-label="No color"
-								>
-									<X size={14} />
-								</button>
-								<For each={COLUMN_COLOR_PALETTE}>
-									{(option) => (
-										<button
-											type="button"
-											onClick={() => props.setColumnForm({ ...cf(), color: option.hex })}
-											class={`h-6 w-6 rounded-md border border-border ${
-												cf().color === option.hex
-													? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""
-											}`}
-											style={{ "background-color": option.hex }}
-											data-testid="launcher-settings-columns-color-option"
-											data-color-hex={option.hex}
-											title={option.name}
-											aria-label={option.name}
-										/>
-									)}
-								</For>
-							</div>
-						</div>
-					</div>
-					<DialogFooter>
-						<button
-							onClick={() => props.setColumnForm(null)}
-							class="btn-secondary"
-							data-testid="launcher-settings-columns-form-cancel"
-						>Cancel</button>
-						<button
-							onClick={() => props.onSubmit(cf())}
-							disabled={!cf().name.trim() || !!props.validation}
-							title={modEnterHint()}
-							class="btn-primary"
-							data-testid="launcher-settings-columns-form-submit"
-						>{cf().mode === "add" ? "Add" : "Save"}</button>
-					</DialogFooter>
-				</>)}
-			</DialogForm>
-		</DialogRoot>
-	);
+  return (
+    <DialogRoot open={!!props.columnForm && !props.renameActive} onOpenChange={() => props.setColumnForm(null)} class="max-w-lg p-0">
+      <DialogForm state={props.columnForm}>
+        {(cf) => (
+          <>
+            <DialogHeader title={cf().mode === 'add' ? 'Add Column' : 'Edit Column'} />
+            <div class="space-y-3 px-6 py-4">
+              <ErrorBanner message={props.columnError} />
+              <div>
+                <label class="field-label">Name</label>
+                <input
+                  ref={(el) => setTimeout(() => el.focus())}
+                  type="text"
+                  value={cf().name}
+                  onInput={(e) => props.setColumnForm({ ...cf(), name: e.currentTarget.value })}
+                  class="input input-sm"
+                  data-testid="launcher-settings-columns-name-input"
+                  placeholder="e.g. In Progress"
+                />
+                <Show when={cf().name.trim()}>
+                  <p class="mt-1 text-xs text-muted-foreground" data-testid="launcher-settings-columns-slug-preview">
+                    Column slug: {slugifyColumnName(cf().name)}
+                  </p>
+                </Show>
+                <Show when={props.validation}>
+                  <p class="mt-1 text-xs text-destructive" data-testid="launcher-settings-columns-name-error">
+                    {props.validation}
+                  </p>
+                </Show>
+              </div>
+              <div>
+                <label class="field-label">Description (optional)</label>
+                <textarea
+                  value={cf().description}
+                  onInput={(e) => props.setColumnForm({ ...cf(), description: e.currentTarget.value })}
+                  class="input min-h-[60px]"
+                  data-testid="launcher-settings-columns-desc-input"
+                  placeholder="Brief description of this column"
+                />
+              </div>
+              <div>
+                <label class="field-label">Color (optional)</label>
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => props.setColumnForm({ ...cf(), color: '' })}
+                    class={
+                      'flex h-6 w-6 items-center justify-center rounded-md border border-border ' +
+                      `text-muted-foreground ${cf().color === '' ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`
+                    }
+                    data-testid="launcher-settings-columns-color-none"
+                    title="None"
+                    aria-label="No color"
+                  >
+                    <X size={14} />
+                  </button>
+                  <For each={COLUMN_COLOR_PALETTE}>
+                    {(option) => (
+                      <button
+                        type="button"
+                        onClick={() => props.setColumnForm({ ...cf(), color: option.hex })}
+                        class={`h-6 w-6 rounded-md border border-border ${
+                          cf().color === option.hex ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''
+                        }`}
+                        style={{ 'background-color': option.hex }}
+                        data-testid="launcher-settings-columns-color-option"
+                        data-color-hex={option.hex}
+                        title={option.name}
+                        aria-label={option.name}
+                      />
+                    )}
+                  </For>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <button onClick={() => props.setColumnForm(null)} class="btn-secondary" data-testid="launcher-settings-columns-form-cancel">
+                Cancel
+              </button>
+              <button
+                onClick={() => props.onSubmit(cf())}
+                disabled={!cf().name.trim() || !!props.validation}
+                title={modEnterHint()}
+                class="btn-primary"
+                data-testid="launcher-settings-columns-form-submit"
+              >
+                {cf().mode === 'add' ? 'Add' : 'Save'}
+              </button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogForm>
+    </DialogRoot>
+  )
 }
 
 export function RenameColumnDialog(props: {
-	renameForm: RenameFormState | null;
-	setRenameForm: (form: RenameFormState | null) => void;
-	columnError: string;
-	onRename: (form: RenameFormState) => void;
+  renameForm: RenameFormState | null
+  setRenameForm: (form: RenameFormState | null) => void
+  columnError: string
+  onRename: (form: RenameFormState) => void
 }) {
-	return (
-		<DialogRoot open={!!props.renameForm} onOpenChange={() => props.setRenameForm(null)} class="max-w-lg p-0">
-			<DialogForm state={props.renameForm}>
-				{(rf) => (<>
-					<DialogHeader title="Rename Column" />
-					<div class="space-y-3 px-6 py-4">
-						<ErrorBanner message={props.columnError} />
-						<p class="text-sm">
-							Renaming "{rf().oldName}" to "{slugifyColumnName(rf().newName)}".
-						</p>
-						<p class="text-sm text-muted-foreground">
-							Update ticket statuses and column defaults?
-						</p>
-						<div class="space-y-2">
-							<label class="flex items-center gap-2 text-sm">
-								<input
-								type="radio" name="rename-scope"
-								checked={rf().scope === "all"}
-								onChange={() => props.setRenameForm({
-									...rf(), scope: "all",
-								})}
-								data-testid="launcher-settings-columns-rename-scope-all"
-							/>
-								All projects using this board
-							</label>
-							<label class="flex items-center gap-2 text-sm">
-								<input
-								type="radio" name="rename-scope"
-								checked={rf().scope === "current"}
-								onChange={() => props.setRenameForm({
-									...rf(), scope: "current",
-								})}
-								data-testid="launcher-settings-columns-rename-scope-current"
-							/>
-								Current project only
-							</label>
-							<label class="flex items-center gap-2 text-sm">
-								<input
-								type="radio" name="rename-scope"
-								checked={rf().scope === "none"}
-								onChange={() => props.setRenameForm({
-									...rf(), scope: "none",
-								})}
-								data-testid="launcher-settings-columns-rename-scope-none"
-							/>
-								None (rename column only)
-							</label>
-						</div>
-					</div>
-					<DialogFooter>
-						<button
-							onClick={() => props.setRenameForm(null)}
-							class="btn-secondary"
-							data-testid="launcher-settings-columns-rename-cancel"
-						>Cancel</button>
-						<button
-							onClick={() => props.onRename(rf())}
-							title={modEnterHint()}
-							class="btn-primary"
-							data-testid="launcher-settings-columns-rename-confirm"
-						>Rename</button>
-					</DialogFooter>
-				</>)}
-			</DialogForm>
-		</DialogRoot>
-	);
+  return (
+    <DialogRoot open={!!props.renameForm} onOpenChange={() => props.setRenameForm(null)} class="max-w-lg p-0">
+      <DialogForm state={props.renameForm}>
+        {(rf) => (
+          <>
+            <DialogHeader title="Rename Column" />
+            <div class="space-y-3 px-6 py-4">
+              <ErrorBanner message={props.columnError} />
+              <p class="text-sm">
+                Renaming "{rf().oldName}" to "{slugifyColumnName(rf().newName)}".
+              </p>
+              <p class="text-sm text-muted-foreground">Update ticket statuses and column defaults?</p>
+              <div class="space-y-2">
+                <label class="flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="rename-scope"
+                    checked={rf().scope === 'all'}
+                    onChange={() =>
+                      props.setRenameForm({
+                        ...rf(),
+                        scope: 'all',
+                      })
+                    }
+                    data-testid="launcher-settings-columns-rename-scope-all"
+                  />
+                  All projects using this board
+                </label>
+                <label class="flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="rename-scope"
+                    checked={rf().scope === 'current'}
+                    onChange={() =>
+                      props.setRenameForm({
+                        ...rf(),
+                        scope: 'current',
+                      })
+                    }
+                    data-testid="launcher-settings-columns-rename-scope-current"
+                  />
+                  Current project only
+                </label>
+                <label class="flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="rename-scope"
+                    checked={rf().scope === 'none'}
+                    onChange={() =>
+                      props.setRenameForm({
+                        ...rf(),
+                        scope: 'none',
+                      })
+                    }
+                    data-testid="launcher-settings-columns-rename-scope-none"
+                  />
+                  None (rename column only)
+                </label>
+              </div>
+            </div>
+            <DialogFooter>
+              <button onClick={() => props.setRenameForm(null)} class="btn-secondary" data-testid="launcher-settings-columns-rename-cancel">
+                Cancel
+              </button>
+              <button
+                onClick={() => props.onRename(rf())}
+                title={modEnterHint()}
+                class="btn-primary"
+                data-testid="launcher-settings-columns-rename-confirm"
+              >
+                Rename
+              </button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogForm>
+    </DialogRoot>
+  )
 }
 
 export function BoardFormDialog(props: {
-	boardForm: { name: string } | null;
-	setBoardForm: (form: { name: string } | null) => void;
-	columnError: string;
-	onCreate: () => void;
+  boardForm: { name: string } | null
+  setBoardForm: (form: { name: string } | null) => void
+  columnError: string
+  onCreate: () => void
 }) {
-	return (
-		<DialogRoot open={!!props.boardForm} onOpenChange={() => props.setBoardForm(null)} class="max-w-sm p-0">
-			<DialogForm state={props.boardForm}>
-				{(bf) => (<>
-					<DialogHeader title="Add Board" />
-					<div class="space-y-3 px-6 py-4">
-						<ErrorBanner message={props.columnError} />
-						<div>
-							<label class="field-label">Board name</label>
-							<input
-								type="text"
-								value={bf().name}
-								onInput={(e) => props.setBoardForm({ name: e.currentTarget.value })}
-								class="input input-sm"
-								data-testid="launcher-settings-columns-board-name-input"
-								placeholder="e.g. Development"
-							/>
-						</div>
-					</div>
-					<DialogFooter>
-						<button
-							onClick={() => props.setBoardForm(null)}
-							class="btn-secondary"
-							data-testid="launcher-settings-columns-board-form-cancel"
-						>Cancel</button>
-						<button
-							onClick={props.onCreate}
-							disabled={!bf().name.trim()}
-							title={modEnterHint()}
-							class="btn-primary"
-							data-testid="launcher-settings-columns-board-form-submit"
-						>Add</button>
-					</DialogFooter>
-				</>)}
-			</DialogForm>
-		</DialogRoot>
-	);
+  return (
+    <DialogRoot open={!!props.boardForm} onOpenChange={() => props.setBoardForm(null)} class="max-w-sm p-0">
+      <DialogForm state={props.boardForm}>
+        {(bf) => (
+          <>
+            <DialogHeader title="Add Board" />
+            <div class="space-y-3 px-6 py-4">
+              <ErrorBanner message={props.columnError} />
+              <div>
+                <label class="field-label">Board name</label>
+                <input
+                  type="text"
+                  value={bf().name}
+                  onInput={(e) => props.setBoardForm({ name: e.currentTarget.value })}
+                  class="input input-sm"
+                  data-testid="launcher-settings-columns-board-name-input"
+                  placeholder="e.g. Development"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <button
+                onClick={() => props.setBoardForm(null)}
+                class="btn-secondary"
+                data-testid="launcher-settings-columns-board-form-cancel"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={props.onCreate}
+                disabled={!bf().name.trim()}
+                title={modEnterHint()}
+                class="btn-primary"
+                data-testid="launcher-settings-columns-board-form-submit"
+              >
+                Add
+              </button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogForm>
+    </DialogRoot>
+  )
 }
 
 export function DeleteConfirmDialog(props: {
-	deleteConfirm: DeleteTarget | null;
-	setDeleteConfirm: (target: DeleteTarget | null) => void;
-	onDeleteBoard: () => void;
-	onDeleteColumn: () => void;
+  deleteConfirm: DeleteTarget | null
+  setDeleteConfirm: (target: DeleteTarget | null) => void
+  onDeleteBoard: () => void
+  onDeleteColumn: () => void
 }) {
-	return (
-		<DialogRoot open={!!props.deleteConfirm} onOpenChange={() => props.setDeleteConfirm(null)} class="max-w-sm p-0">
-			<DialogForm state={props.deleteConfirm}>
-				{(dc) => (<>
-					<DialogHeader title={`Delete ${dc().type === "board" ? "Board" : "Column"}`} />
-					<div class="px-6 py-4">
-						<p class="text-sm" data-testid="launcher-settings-columns-delete-confirm-message">
-							{dc().type === "board"
-								? `Delete board "${dc().name}"? This cannot be undone.`
-								: `Delete column "${dc().name}"? Tickets with this status `
-									+ "will appear in the undefined column."}
-						</p>
-					</div>
-					<DialogFooter>
-						<button
-							onClick={() => props.setDeleteConfirm(null)}
-							class="btn-secondary"
-							data-testid="launcher-settings-columns-delete-cancel"
-						>Cancel</button>
-						<button
-							onClick={dc().type === "board" ? props.onDeleteBoard : props.onDeleteColumn}
-							class="btn-primary bg-destructive text-destructive-foreground hover:bg-destructive/90"
-							data-testid="launcher-settings-columns-delete-confirm-btn"
-						>Delete</button>
-					</DialogFooter>
-				</>)}
-			</DialogForm>
-		</DialogRoot>
-	);
+  return (
+    <DialogRoot open={!!props.deleteConfirm} onOpenChange={() => props.setDeleteConfirm(null)} class="max-w-sm p-0">
+      <DialogForm state={props.deleteConfirm}>
+        {(dc) => (
+          <>
+            <DialogHeader title={`Delete ${dc().type === 'board' ? 'Board' : 'Column'}`} />
+            <div class="px-6 py-4">
+              <p class="text-sm" data-testid="launcher-settings-columns-delete-confirm-message">
+                {dc().type === 'board'
+                  ? `Delete board "${dc().name}"? This cannot be undone.`
+                  : `Delete column "${dc().name}"? Tickets with this status ` + 'will appear in the undefined column.'}
+              </p>
+            </div>
+            <DialogFooter>
+              <button
+                onClick={() => props.setDeleteConfirm(null)}
+                class="btn-secondary"
+                data-testid="launcher-settings-columns-delete-cancel"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={dc().type === 'board' ? props.onDeleteBoard : props.onDeleteColumn}
+                class="btn-primary bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                data-testid="launcher-settings-columns-delete-confirm-btn"
+              >
+                Delete
+              </button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogForm>
+    </DialogRoot>
+  )
 }
 
 export function ProjectBoardConfirmDialog(props: {
-	projectBoardConfirm: BoardRef | null;
-	setProjectBoardConfirm: (target: BoardRef | null) => void;
-	onConfirm: () => void;
+  projectBoardConfirm: BoardRef | null
+  setProjectBoardConfirm: (target: BoardRef | null) => void
+  onConfirm: () => void
 }) {
-	return (
-		<DialogRoot
-			open={!!props.projectBoardConfirm}
-			onOpenChange={() => props.setProjectBoardConfirm(null)}
-			class="max-w-sm p-0"
-		>
-			<DialogForm state={props.projectBoardConfirm}>
-				{(pbc) => (<>
-					<DialogHeader title="Set Project Board" />
-					<div class="px-6 py-4">
-						<p class="text-sm" data-testid="launcher-settings-columns-set-project-board-message">
-							Set "{pbc().name}" as the board for this project? Tickets whose
-							status is not a column in this board will appear in the undefined
-							column and must be updated manually.
-						</p>
-					</div>
-					<DialogFooter>
-						<button
-							onClick={() => props.setProjectBoardConfirm(null)}
-							class="btn-secondary"
-							data-testid="launcher-settings-columns-set-project-board-cancel-btn"
-						>Cancel</button>
-						<button
-							onClick={props.onConfirm}
-							class="btn-primary"
-							data-testid="launcher-settings-columns-set-project-board-confirm-btn"
-						>Set board</button>
-					</DialogFooter>
-				</>)}
-			</DialogForm>
-		</DialogRoot>
-	);
+  return (
+    <DialogRoot open={!!props.projectBoardConfirm} onOpenChange={() => props.setProjectBoardConfirm(null)} class="max-w-sm p-0">
+      <DialogForm state={props.projectBoardConfirm}>
+        {(pbc) => (
+          <>
+            <DialogHeader title="Set Project Board" />
+            <div class="px-6 py-4">
+              <p class="text-sm" data-testid="launcher-settings-columns-set-project-board-message">
+                Set "{pbc().name}" as the board for this project? Tickets whose status is not a column in this board will appear in the
+                undefined column and must be updated manually.
+              </p>
+            </div>
+            <DialogFooter>
+              <button
+                onClick={() => props.setProjectBoardConfirm(null)}
+                class="btn-secondary"
+                data-testid="launcher-settings-columns-set-project-board-cancel-btn"
+              >
+                Cancel
+              </button>
+              <button onClick={props.onConfirm} class="btn-primary" data-testid="launcher-settings-columns-set-project-board-confirm-btn">
+                Set board
+              </button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogForm>
+    </DialogRoot>
+  )
 }

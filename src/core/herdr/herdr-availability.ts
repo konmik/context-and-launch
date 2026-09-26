@@ -1,11 +1,11 @@
-import { AppError } from '../shared/errors.js';
+import { AppError } from '../shared/errors.js'
 
-export type HerdrUnavailableReason = 'cli-missing' | 'server-not-running';
+export type HerdrUnavailableReason = 'cli-missing' | 'server-not-running'
 
 const MESSAGE_BY_REASON = {
-	'cli-missing': 'Herdr is not installed or is not available on PATH.',
-	'server-not-running': 'Herdr is not running.',
-} satisfies Record<HerdrUnavailableReason, string>;
+  'cli-missing': 'Herdr is not installed or is not available on PATH.',
+  'server-not-running': 'Herdr is not running.',
+} satisfies Record<HerdrUnavailableReason, string>
 
 /**
  * Herdr produced no answer because Herdr itself is not there. Every Herdr
@@ -14,7 +14,7 @@ const MESSAGE_BY_REASON = {
  * Callers whose only question is which agents exist may read this as "none".
  */
 export class HerdrUnavailableError extends AppError {
-	constructor(readonly reason: HerdrUnavailableReason) {
-		super(MESSAGE_BY_REASON[reason]);
-	}
+  constructor(readonly reason: HerdrUnavailableReason) {
+    super(MESSAGE_BY_REASON[reason])
+  }
 }

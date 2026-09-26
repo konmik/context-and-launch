@@ -1,3 +1,3 @@
 export function joinClass(base: string, extra?: string): string {
-	return extra ? `${base} ${extra}` : base;
+  return extra ? `${base} ${extra}` : base
 }

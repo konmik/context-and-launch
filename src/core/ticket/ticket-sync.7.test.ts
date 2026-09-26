@@ -1,2 +1,2 @@
-import { registerTicketSyncTests } from "./ticket-sync.test-cases.js";
-registerTicketSyncTests(7, 13);
+import { registerTicketSyncTests } from './ticket-sync.test-cases.js'
+registerTicketSyncTests(7, 13)

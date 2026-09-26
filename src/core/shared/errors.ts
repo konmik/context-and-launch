@@ -1,24 +1,28 @@
-import * as v from 'valibot';
+import * as v from 'valibot'
 
 export interface ErrorInfo {
-	title?: string;
-	description: string;
-	command?: string;
-	output?: string;
+  title?: string
+  description: string
+  command?: string
+  output?: string
 }
 
 export class AppError extends Error {
-	constructor(message: string) {
-		super(message);
-	}
+  constructor(message: string) {
+    super(message)
+  }
 }
 
 export class ValidationError extends AppError {
-	constructor(message: string) { super(message); }
+  constructor(message: string) {
+    super(message)
+  }
 }
 
 export class NotFoundError extends AppError {
-	constructor(message: string) { super(message); }
+  constructor(message: string) {
+    super(message)
+  }
 }
 
 /**
@@ -30,57 +34,52 @@ export class NotFoundError extends AppError {
  * caller cannot tell "git says these commits are unrelated" from "git is not
  * installed", because both surface as a non-zero exit.
  */
-export type ProcessFailureKind =
-	| 'exited'
-	| 'command-not-found'
-	| 'interpreter-failure'
-	| 'timeout'
-	| 'spawn-error';
+export type ProcessFailureKind = 'exited' | 'command-not-found' | 'interpreter-failure' | 'timeout' | 'spawn-error'
 
 export class ProcessError extends Error {
-	readonly shortDescription: string;
+  readonly shortDescription: string
 
-	constructor(
-		public readonly command: string,
-		public readonly exitCode: number | undefined,
-		public readonly output: string | undefined,
-		description?: string,
-		public readonly kind: ProcessFailureKind = 'exited',
-	) {
-		const desc = description ?? `${command} failed${exitCode != null ? ` (exit ${exitCode})` : ''}`;
-		super(output ? `${desc}: ${output}` : desc);
-		this.shortDescription = desc;
-	}
+  constructor(
+    public readonly command: string,
+    public readonly exitCode: number | undefined,
+    public readonly output: string | undefined,
+    description?: string,
+    public readonly kind: ProcessFailureKind = 'exited',
+  ) {
+    const desc = description ?? `${command} failed${exitCode != null ? ` (exit ${exitCode})` : ''}`
+    super(output ? `${desc}: ${output}` : desc)
+    this.shortDescription = desc
+  }
 
-	/** True when the command ran to completion and chose `code` itself. */
-	exitedWith(code: number): boolean {
-		return this.kind === 'exited' && this.exitCode === code;
-	}
+  /** True when the command ran to completion and chose `code` itself. */
+  exitedWith(code: number): boolean {
+    return this.kind === 'exited' && this.exitCode === code
+  }
 }
 
-const ErrorMessageSchema = v.object({ message: v.string() });
+const ErrorMessageSchema = v.object({ message: v.string() })
 
 export function errorMessage(cause: unknown): string {
-	if (cause instanceof Error) return cause.message;
-	const stringResult = v.safeParse(v.string(), cause);
-	if (stringResult.success) return stringResult.output;
-	const objectResult = v.safeParse(ErrorMessageSchema, cause);
-	if (objectResult.success) return objectResult.output.message;
-	return 'Unknown error';
+  if (cause instanceof Error) return cause.message
+  const stringResult = v.safeParse(v.string(), cause)
+  if (stringResult.success) return stringResult.output
+  const objectResult = v.safeParse(ErrorMessageSchema, cause)
+  if (objectResult.success) return objectResult.output.message
+  return 'Unknown error'
 }
 
 export function errorResult(cause: unknown) {
-	return { ok: false as const, type: "error" as const, message: errorMessage(cause), errorInfo: errorPayload(cause) };
+  return { ok: false as const, type: 'error' as const, message: errorMessage(cause), errorInfo: errorPayload(cause) }
 }
 
 export function errorPayload(cause: unknown, title?: string): ErrorInfo {
-	if (cause instanceof ProcessError) {
-		return {
-			title,
-			description: cause.shortDescription,
-			command: cause.command,
-			output: cause.output,
-		};
-	}
-	return { title, description: errorMessage(cause) };
+  if (cause instanceof ProcessError) {
+    return {
+      title,
+      description: cause.shortDescription,
+      command: cause.command,
+      output: cause.output,
+    }
+  }
+  return { title, description: errorMessage(cause) }
 }

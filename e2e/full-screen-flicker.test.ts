@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
-import type { Page } from "playwright";
-import { gotoProject, seedProject, setupE2E } from "./fixtures.js";
-import { waitVisible } from "./locators.js";
+import { describe, it, expect } from 'vitest'
+import type { Page } from 'playwright'
+import { gotoProject, seedProject, setupE2E } from './fixtures.js'
+import { waitVisible } from './locators.js'
 
 // Counts detachments of the full app UI. A loading-state collapse to the root
 // boundary removes the subtree containing <header> from the DOM, which is the
@@ -28,63 +28,60 @@ window.__observerActive = false;
   if (document.documentElement) start();
   else document.addEventListener("DOMContentLoaded", start);
 })();
-`;
+`
 
 declare global {
   interface Window {
-    __fullUiDetachCount: number;
-    __observerActive: boolean;
+    __fullUiDetachCount: number
+    __observerActive: boolean
   }
 }
 
 function detachCount(page: Page): Promise<number> {
-  return page.evaluate(() => window.__fullUiDetachCount);
+  return page.evaluate(() => window.__fullUiDetachCount)
 }
 
 function observerActive(page: Page): Promise<boolean> {
-  return page.evaluate(() => window.__observerActive);
+  return page.evaluate(() => window.__observerActive)
 }
 
 function trackServerResponses(page: Page): string[] {
-  const responses: string[] = [];
-  page.on("response", (res) => {
-    if (res.url().includes("/_server")) responses.push(res.url());
-  });
-  return responses;
+  const responses: string[] = []
+  page.on('response', (res) => {
+    if (res.url().includes('/_server')) responses.push(res.url())
+  })
+  return responses
 }
 
-describe("Full-screen flicker (e2e, real server)", () => {
-  const ctx = setupE2E();
+describe('Full-screen flicker (e2e, real server)', () => {
+  const ctx = setupE2E()
 
-  it("keeps the UI attached while deferred background reads load after start", async () => {
+  it('keeps the UI attached while deferred background reads load after start', async () => {
     const project = await seedProject(ctx, {
-      slugBase: "flicker-start",
-      withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
-    });
-    await ctx.page.addInitScript(DETACH_COUNTER);
-    const responses = trackServerResponses(ctx.page);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
-    await expect.poll(
-      () => responses.length,
-      { timeout: 15000 },
-    ).toBeGreaterThanOrEqual(2);
-    expect(await observerActive(ctx.page)).toBe(true);
-    expect(await detachCount(ctx.page)).toBe(0);
-  });
+      slugBase: 'flicker-start',
+      withTickets: [{ number: 'T-1', title: 'Alpha', status: 'todo', folderName: 't-1-alpha' }],
+    })
+    await ctx.page.addInitScript(DETACH_COUNTER)
+    const responses = trackServerResponses(ctx.page)
+    await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
+    await expect.poll(() => responses.length, { timeout: 15000 }).toBeGreaterThanOrEqual(2)
+    expect(await observerActive(ctx.page)).toBe(true)
+    expect(await detachCount(ctx.page)).toBe(0)
+  })
 
-  it("keeps the UI attached when opening a ticket", async () => {
+  it('keeps the UI attached when opening a ticket', async () => {
     const project = await seedProject(ctx, {
-      slugBase: "flicker-open-ticket",
-      withTickets: [{ number: "T-1", title: "Alpha", status: "todo", folderName: "t-1-alpha" }],
-    });
-    await ctx.page.addInitScript(DETACH_COUNTER);
-    await gotoProject(ctx.page, ctx.testServer, project.projectSlug);
+      slugBase: 'flicker-open-ticket',
+      withTickets: [{ number: 'T-1', title: 'Alpha', status: 'todo', folderName: 't-1-alpha' }],
+    })
+    await ctx.page.addInitScript(DETACH_COUNTER)
+    await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
     await ctx.page.evaluate(() => {
-      window.__fullUiDetachCount = 0;
-    });
-    await ctx.page.click('[data-testid="kanban-board-ticket-card"][data-folder-name="t-1-alpha"]');
-    await waitVisible(ctx.page, "ticket-detail-tab-editor");
-    expect(await observerActive(ctx.page)).toBe(true);
-    expect(await detachCount(ctx.page)).toBe(0);
-  });
-});
+      window.__fullUiDetachCount = 0
+    })
+    await ctx.page.click('[data-testid="kanban-board-ticket-card"][data-folder-name="t-1-alpha"]')
+    await waitVisible(ctx.page, 'ticket-detail-tab-editor')
+    expect(await observerActive(ctx.page)).toBe(true)
+    expect(await detachCount(ctx.page)).toBe(0)
+  })
+})

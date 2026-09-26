@@ -1,102 +1,102 @@
-import { describe, it, expect } from "vitest";
-import { spawnSync } from "node:child_process";
-import path from "node:path";
-import fs from "node:fs";
-import os from "node:os";
-import { fileURLToPath } from "node:url";
-import { pickPort } from "./test-port.js";
+import { describe, it, expect } from 'vitest'
+import { spawnSync } from 'node:child_process'
+import path from 'node:path'
+import fs from 'node:fs'
+import os from 'node:os'
+import { fileURLToPath } from 'node:url'
+import { pickPort } from './test-port.js'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(__dirname, "..");
-const realScript = path.join(repoRoot, "run.sh");
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const repoRoot = path.resolve(__dirname, '..')
+const realScript = path.join(repoRoot, 'run.sh')
 
 type Layout = {
-  hasBuild: boolean;
-  sourceMtimeOffsetMs: number; // mtime of src/file relative to dist/server/server.js
-};
+  hasBuild: boolean
+  sourceMtimeOffsetMs: number // mtime of src/file relative to dist/server/server.js
+}
 
 function makeFakeProject(layout: Layout) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "run-sh-stale-"));
-  fs.mkdirSync(path.join(dir, "src"));
-  fs.writeFileSync(path.join(dir, "src", "app.tsx"), "// fake source\n");
-  fs.writeFileSync(path.join(dir, "vite.config.ts"), "// fake config\n");
-  fs.writeFileSync(path.join(dir, "package.json"), "{}\n");
-  fs.writeFileSync(path.join(dir, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
-  fs.writeFileSync(path.join(dir, "pnpm-workspace.yaml"), "saveExact: true\n");
-  fs.mkdirSync(path.join(dir, "node_modules"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'run-sh-stale-'))
+  fs.mkdirSync(path.join(dir, 'src'))
+  fs.writeFileSync(path.join(dir, 'src', 'app.tsx'), '// fake source\n')
+  fs.writeFileSync(path.join(dir, 'vite.config.ts'), '// fake config\n')
+  fs.writeFileSync(path.join(dir, 'package.json'), '{}\n')
+  fs.writeFileSync(path.join(dir, 'pnpm-lock.yaml'), "lockfileVersion: '9.0'\n")
+  fs.writeFileSync(path.join(dir, 'pnpm-workspace.yaml'), 'saveExact: true\n')
+  fs.mkdirSync(path.join(dir, 'node_modules'))
 
   if (layout.hasBuild) {
-    fs.mkdirSync(path.join(dir, "dist", "server"), { recursive: true });
-    fs.mkdirSync(path.join(dir, "dist", "client"), { recursive: true });
-    const marker = path.join(dir, "dist", "server", "server.js");
-    fs.writeFileSync(marker, "// fake built entry\n");
-    fs.writeFileSync(path.join(dir, "dist", "client", "index.html"), "<!doctype html>\n");
-    const baseSec = Math.floor(Date.now() / 1000);
-    const markerTime = new Date(baseSec * 1000);
-    fs.utimesSync(marker, markerTime, markerTime);
-    const sourceTime = new Date((baseSec + Math.round(layout.sourceMtimeOffsetMs / 1000)) * 1000);
-    for (const rel of ["src/app.tsx", "vite.config.ts", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"]) {
-      fs.utimesSync(path.join(dir, rel), sourceTime, sourceTime);
+    fs.mkdirSync(path.join(dir, 'dist', 'server'), { recursive: true })
+    fs.mkdirSync(path.join(dir, 'dist', 'client'), { recursive: true })
+    const marker = path.join(dir, 'dist', 'server', 'server.js')
+    fs.writeFileSync(marker, '// fake built entry\n')
+    fs.writeFileSync(path.join(dir, 'dist', 'client', 'index.html'), '<!doctype html>\n')
+    const baseSec = Math.floor(Date.now() / 1000)
+    const markerTime = new Date(baseSec * 1000)
+    fs.utimesSync(marker, markerTime, markerTime)
+    const sourceTime = new Date((baseSec + Math.round(layout.sourceMtimeOffsetMs / 1000)) * 1000)
+    for (const rel of ['src/app.tsx', 'vite.config.ts', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml']) {
+      fs.utimesSync(path.join(dir, rel), sourceTime, sourceTime)
     }
     // src/ directory mtime can be incidentally bumped by file writes; pin it too.
-    fs.utimesSync(path.join(dir, "src"), sourceTime, sourceTime);
+    fs.utimesSync(path.join(dir, 'src'), sourceTime, sourceTime)
   }
 
-  const scriptPath = path.join(dir, "run.sh");
-  fs.copyFileSync(realScript, scriptPath);
-  fs.chmodSync(scriptPath, 0o755);
-  return { dir, scriptPath };
+  const scriptPath = path.join(dir, 'run.sh')
+  fs.copyFileSync(realScript, scriptPath)
+  fs.chmodSync(scriptPath, 0o755)
+  return { dir, scriptPath }
 }
 
 function runDry(dir: string, scriptPath: string) {
   // Use a random port that no real server is listening on so the script enters the build gate.
-  const port = pickPort();
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "run-sh-home-"));
-  const cfgDir = path.join(home, ".context-launch");
-  fs.mkdirSync(cfgDir);
-  fs.writeFileSync(path.join(cfgDir, "config.json"), JSON.stringify({ port }));
-  return spawnSync("/bin/bash", [scriptPath], {
+  const port = pickPort()
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'run-sh-home-'))
+  const cfgDir = path.join(home, '.context-launch')
+  fs.mkdirSync(cfgDir)
+  fs.writeFileSync(path.join(cfgDir, 'config.json'), JSON.stringify({ port }))
+  return spawnSync('/bin/bash', [scriptPath], {
     cwd: dir,
     env: {
-      PATH: process.env.PATH ?? "/usr/bin:/bin",
+      PATH: process.env.PATH ?? '/usr/bin:/bin',
       HOME: home,
-      RUN_SH_DRY_RUN: "1",
+      RUN_SH_DRY_RUN: '1',
     },
-    encoding: "utf8",
+    encoding: 'utf8',
     timeout: 15_000,
-  });
+  })
 }
 
-describe.runIf(process.platform !== "win32")("run.sh stale build detection", () => {
-  it("rebuilds when a source file is newer than dist/server/server.js", () => {
+describe.runIf(process.platform !== 'win32')('run.sh stale build detection', () => {
+  it('rebuilds when a source file is newer than dist/server/server.js', () => {
     const { dir, scriptPath } = makeFakeProject({
       hasBuild: true,
       sourceMtimeOffsetMs: 120_000, // sources are 2 minutes newer than the marker
-    });
-    const result = runDry(dir, scriptPath);
-    expect(result.status, `stdout=${result.stdout}\nstderr=${result.stderr}`).toBe(0);
-    expect(result.stdout).toMatch(/BUILD=yes REASON=stale/);
-    expect(result.stdout).toMatch(/Source files are newer than dist, rebuilding/);
-  });
+    })
+    const result = runDry(dir, scriptPath)
+    expect(result.status, `stdout=${result.stdout}\nstderr=${result.stderr}`).toBe(0)
+    expect(result.stdout).toMatch(/BUILD=yes REASON=stale/)
+    expect(result.stdout).toMatch(/Source files are newer than dist, rebuilding/)
+  })
 
-  it("skips build when dist is fresh", () => {
+  it('skips build when dist is fresh', () => {
     const { dir, scriptPath } = makeFakeProject({
       hasBuild: true,
       sourceMtimeOffsetMs: -120_000, // sources are 2 minutes older than the marker
-    });
-    const result = runDry(dir, scriptPath);
-    expect(result.status, `stdout=${result.stdout}\nstderr=${result.stderr}`).toBe(0);
-    expect(result.stdout).toMatch(/BUILD=no/);
-    expect(result.stdout).not.toMatch(/REASON=stale/);
-  });
+    })
+    const result = runDry(dir, scriptPath)
+    expect(result.status, `stdout=${result.stdout}\nstderr=${result.stderr}`).toBe(0)
+    expect(result.stdout).toMatch(/BUILD=no/)
+    expect(result.stdout).not.toMatch(/REASON=stale/)
+  })
 
-  it("builds when dist is missing entirely", () => {
+  it('builds when dist is missing entirely', () => {
     const { dir, scriptPath } = makeFakeProject({
       hasBuild: false,
       sourceMtimeOffsetMs: 0,
-    });
-    const result = runDry(dir, scriptPath);
-    expect(result.status, `stdout=${result.stdout}\nstderr=${result.stderr}`).toBe(0);
-    expect(result.stdout).toMatch(/BUILD=yes REASON=missing/);
-  });
-});
+    })
+    const result = runDry(dir, scriptPath)
+    expect(result.status, `stdout=${result.stdout}\nstderr=${result.stderr}`).toBe(0)
+    expect(result.stdout).toMatch(/BUILD=yes REASON=missing/)
+  })
+})

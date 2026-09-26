@@ -1,28 +1,20 @@
-import type { ColumnDefinition } from "~/core/project/board-config.js";
-import { slugifyColumnName } from "~/lib/slugify.js";
+import type { ColumnDefinition } from '~/core/project/board-config.js'
+import { slugifyColumnName } from '~/lib/slugify.js'
 
 export function usesWindowsBatchCommand(command: string): boolean {
-	const tokens = command.match(/"[^"]*"|'[^']*'|\S+/g) ?? [];
-	return tokens.some((token) => {
-		const value = token.replace(/^["']|["']$/g, "").toLowerCase();
-		const basename = value.split(/[\\/]/).at(-1);
-		return basename === "cmd" || basename === "cmd.exe"
-			|| value.endsWith(".cmd") || value.endsWith(".bat");
-	});
+  const tokens = command.match(/"[^"]*"|'[^']*'|\S+/g) ?? []
+  return tokens.some((token) => {
+    const value = token.replace(/^["']|["']$/g, '').toLowerCase()
+    const basename = value.split(/[\\/]/).at(-1)
+    return basename === 'cmd' || basename === 'cmd.exe' || value.endsWith('.cmd') || value.endsWith('.bat')
+  })
 }
 
-export function validateColumnName(
-	name: string,
-	mode: "add" | "edit",
-	oldName: string | undefined,
-	columns: ColumnDefinition[],
-): string {
-	const slugified = slugifyColumnName(name);
-	if (!slugified) return name.trim() ? "Name resolves to empty after slugification" : "";
-	if (slugified === "undefined") return 'Name "undefined" is reserved';
-	const others = mode === "edit" && oldName
-		? columns.filter(c => c.name !== oldName)
-		: columns;
-	if (others.some(c => c.name === slugified)) return `Name "${slugified}" already exists`;
-	return "";
+export function validateColumnName(name: string, mode: 'add' | 'edit', oldName: string | undefined, columns: ColumnDefinition[]): string {
+  const slugified = slugifyColumnName(name)
+  if (!slugified) return name.trim() ? 'Name resolves to empty after slugification' : ''
+  if (slugified === 'undefined') return 'Name "undefined" is reserved'
+  const others = mode === 'edit' && oldName ? columns.filter((c) => c.name !== oldName) : columns
+  if (others.some((c) => c.name === slugified)) return `Name "${slugified}" already exists`
+  return ''
 }

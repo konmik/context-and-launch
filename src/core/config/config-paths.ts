@@ -1,79 +1,72 @@
-import path from 'path';
-import os from 'os';
+import path from 'path'
+import os from 'os'
 
 export function requireSafeSlug(slug: string): void {
-	if (
-		slug === '.' ||
-		slug === '..' ||
-		slug.includes('/') ||
-		slug.includes('\\') ||
-		slug.includes('\0')
-	) {
-		throw new Error(`Invalid slug: ${slug}`);
-	}
+  if (slug === '.' || slug === '..' || slug.includes('/') || slug.includes('\\') || slug.includes('\0')) {
+    throw new Error(`Invalid slug: ${slug}`)
+  }
 }
 
 export class ConfigPaths {
-	readonly baseDir: string;
-	readonly configDefaultsDir: string;
+  readonly baseDir: string
+  readonly configDefaultsDir: string
 
-	constructor(baseDir?: string, configDefaultsDir?: string) {
-		this.baseDir = baseDir ?? path.join(os.homedir(), '.context-launch');
-		this.configDefaultsDir = configDefaultsDir ?? path.join(process.cwd(), 'config-defaults');
-	}
+  constructor(baseDir?: string, configDefaultsDir?: string) {
+    this.baseDir = baseDir ?? path.join(os.homedir(), '.context-launch')
+    this.configDefaultsDir = configDefaultsDir ?? path.join(process.cwd(), 'config-defaults')
+  }
 
-	appConfigDir(): string {
-		return path.join(this.baseDir, 'config');
-	}
+  appConfigDir(): string {
+    return path.join(this.baseDir, 'config')
+  }
 
-	configDefaults(): string {
-		return this.configDefaultsDir;
-	}
+  configDefaults(): string {
+    return this.configDefaultsDir
+  }
 
-	projectRegistryFile(): string {
-		return path.join(this.baseDir, 'config', 'config.json');
-	}
+  projectRegistryFile(): string {
+    return path.join(this.baseDir, 'config', 'config.json')
+  }
 
-	appLauncherConfigFile(): string {
-		return path.join(this.baseDir, 'config', 'launcher-config.json');
-	}
+  appLauncherConfigFile(): string {
+    return path.join(this.baseDir, 'config', 'launcher-config.json')
+  }
 
-	boardsFile(): string {
-		return path.join(this.baseDir, 'config', 'boards.json');
-	}
+  boardsFile(): string {
+    return path.join(this.baseDir, 'config', 'boards.json')
+  }
 
-	commandTemplateOverridesFile(): string {
-		return path.join(this.baseDir, 'config', 'command-templates.json');
-	}
+  commandTemplateOverridesFile(): string {
+    return path.join(this.baseDir, 'config', 'command-templates.json')
+  }
 
-	diffReviewStateFile(projectSlug: string): string {
-		requireSafeSlug(projectSlug);
-		return path.join(this.baseDir, 'projects', projectSlug, 'config', 'diff-review.json');
-	}
+  diffReviewStateFile(projectSlug: string): string {
+    requireSafeSlug(projectSlug)
+    return path.join(this.baseDir, 'projects', projectSlug, 'config', 'diff-review.json')
+  }
 
-	projectDir(projectSlug: string): string {
-		requireSafeSlug(projectSlug);
-		return path.join(this.baseDir, 'projects', projectSlug);
-	}
+  projectDir(projectSlug: string): string {
+    requireSafeSlug(projectSlug)
+    return path.join(this.baseDir, 'projects', projectSlug)
+  }
 
-	projectConfigDir(projectSlug: string): string {
-		requireSafeSlug(projectSlug);
-		return path.join(this.baseDir, 'projects', projectSlug, 'config');
-	}
+  projectConfigDir(projectSlug: string): string {
+    requireSafeSlug(projectSlug)
+    return path.join(this.baseDir, 'projects', projectSlug, 'config')
+  }
 
-	projectLauncherConfigFile(projectSlug: string): string {
-		requireSafeSlug(projectSlug);
-		return path.join(this.baseDir, 'projects', projectSlug, 'config', 'launcher-config.json');
-	}
+  projectLauncherConfigFile(projectSlug: string): string {
+    requireSafeSlug(projectSlug)
+    return path.join(this.baseDir, 'projects', projectSlug, 'config', 'launcher-config.json')
+  }
 
-	ticketWorktreeDir(projectSlug: string): string {
-		requireSafeSlug(projectSlug);
-		return path.join(this.baseDir, 'projects', projectSlug, 'tickets');
-	}
+  ticketWorktreeDir(projectSlug: string): string {
+    requireSafeSlug(projectSlug)
+    return path.join(this.baseDir, 'projects', projectSlug, 'tickets')
+  }
 
-	agentWorktreeDir(projectSlug: string): string {
-		requireSafeSlug(projectSlug);
-		return path.join(this.baseDir, 'projects', projectSlug, 'worktrees');
-	}
-
+  agentWorktreeDir(projectSlug: string): string {
+    requireSafeSlug(projectSlug)
+    return path.join(this.baseDir, 'projects', projectSlug, 'worktrees')
+  }
 }

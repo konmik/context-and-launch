@@ -1,174 +1,175 @@
-import path from 'path';
-import chokidar from 'chokidar';
-import type { CommandTemplateExecutor } from '../command-template/command-template-types.js';
+import path from 'path'
+import chokidar from 'chokidar'
+import type { CommandTemplateExecutor } from '../command-template/command-template-types.js'
 
-type WatcherEvent = 'ready' | 'error' | 'add' | 'change' | 'unlink' | 'addDir' | 'unlinkDir';
+type WatcherEvent = 'ready' | 'error' | 'add' | 'change' | 'unlink' | 'addDir' | 'unlinkDir'
 
 export interface FileWatcherHandle {
-	on(event: 'ready', callback: () => void): FileWatcherHandle;
-	on(event: 'error', callback: (cause: unknown) => void): FileWatcherHandle;
-	on(event: Exclude<WatcherEvent, 'ready' | 'error'>, callback: () => void): FileWatcherHandle;
-	close(): Promise<void>;
+  on(event: 'ready', callback: () => void): FileWatcherHandle
+  on(event: 'error', callback: (cause: unknown) => void): FileWatcherHandle
+  on(event: Exclude<WatcherEvent, 'ready' | 'error'>, callback: () => void): FileWatcherHandle
+  close(): Promise<void>
 }
 
 export interface FileWatcherAdapters {
-	createWatcher(
-		worktreeDir: string,
-		options: Parameters<typeof chokidar.watch>[1],
-	): FileWatcherHandle;
-	setTimer(callback: () => void, delayMs: number): ReturnType<typeof setTimeout>;
-	clearTimer(timer: ReturnType<typeof setTimeout>): void;
+  createWatcher(worktreeDir: string, options: Parameters<typeof chokidar.watch>[1]): FileWatcherHandle
+  setTimer(callback: () => void, delayMs: number): ReturnType<typeof setTimeout>
+  clearTimer(timer: ReturnType<typeof setTimeout>): void
 }
 
 const DEFAULT_ADAPTERS: FileWatcherAdapters = {
-	createWatcher: (worktreeDir, options) => chokidar.watch(worktreeDir, options),
-	setTimer: (callback, delayMs) => setTimeout(callback, delayMs),
-	clearTimer: (timer) => clearTimeout(timer),
-};
+  createWatcher: (worktreeDir, options) => chokidar.watch(worktreeDir, options),
+  setTimer: (callback, delayMs) => setTimeout(callback, delayMs),
+  clearTimer: (timer) => clearTimeout(timer),
+}
 
-const DEFAULT_DEBOUNCE_MS = 2000;
+const DEFAULT_DEBOUNCE_MS = 2000
 
 function hasDotSegment(relativePath: string): boolean {
-	return relativePath.split(/[/\\]/).some((segment) => segment.startsWith('.'));
+  return relativePath.split(/[/\\]/).some((segment) => segment.startsWith('.'))
 }
 
 function isDotPathInside(worktreeDir: string, filePath: string): boolean {
-	return hasDotSegment(path.relative(worktreeDir, filePath));
+  return hasDotSegment(path.relative(worktreeDir, filePath))
 }
 
 function statusEntryPath(statusLine: string): string | undefined {
-	const entry = statusLine.slice(3);
-	if (!entry) return undefined;
-	const renameParts = entry.split(' -> ');
-	return renameParts[renameParts.length - 1].replace(/^"(.*)"$/, '$1');
+  const entry = statusLine.slice(3)
+  if (!entry) return undefined
+  const renameParts = entry.split(' -> ')
+  return renameParts[renameParts.length - 1].replace(/^"(.*)"$/, '$1')
 }
 
 interface WatcherState {
-	watcher: FileWatcherHandle;
-	timer: ReturnType<typeof setTimeout> | null;
-	debounceMs: number;
-	scheduleCommit: () => void;
+  watcher: FileWatcherHandle
+  timer: ReturnType<typeof setTimeout> | null
+  debounceMs: number
+  scheduleCommit: () => void
 }
 
 export class FileWatcher {
-	private watchers = new Map<string, WatcherState>();
+  private watchers = new Map<string, WatcherState>()
 
-	constructor(
-		private readonly commands: CommandTemplateExecutor,
-		private readonly onWorktreeChange?: (worktreeDir: string) => void,
-		private readonly adapters: FileWatcherAdapters = DEFAULT_ADAPTERS,
-		private readonly defaultDebounceMs: number = DEFAULT_DEBOUNCE_MS,
-	) {}
+  constructor(
+    private readonly commands: CommandTemplateExecutor,
+    private readonly onWorktreeChange?: (worktreeDir: string) => void,
+    private readonly adapters: FileWatcherAdapters = DEFAULT_ADAPTERS,
+    private readonly defaultDebounceMs: number = DEFAULT_DEBOUNCE_MS,
+  ) {}
 
-	watch(worktreeDir: string, debounceMs = this.defaultDebounceMs): void {
-		if (this.watchers.has(worktreeDir)) return;
+  watch(worktreeDir: string, debounceMs = this.defaultDebounceMs): void {
+    if (this.watchers.has(worktreeDir)) return
 
-		let watcher: FileWatcherHandle;
-		try {
-			watcher = this.adapters.createWatcher(worktreeDir, {
-				ignoreInitial: true,
-				ignored: (filePath: string) => isDotPathInside(worktreeDir, filePath),
-				persistent: true,
-				depth: 10
-			});
-		} catch (err) {
-			console.warn(`FileWatcher: failed to watch ${worktreeDir}:`, err);
-			return;
-		}
+    let watcher: FileWatcherHandle
+    try {
+      watcher = this.adapters.createWatcher(worktreeDir, {
+        ignoreInitial: true,
+        ignored: (filePath: string) => isDotPathInside(worktreeDir, filePath),
+        persistent: true,
+        depth: 10,
+      })
+    } catch (err) {
+      console.warn(`FileWatcher: failed to watch ${worktreeDir}:`, err)
+      return
+    }
 
-		const debouncedCommit = () => {
-			const current = this.watchers.get(worktreeDir);
-			if (!current) return;
-			if (current.timer) this.adapters.clearTimer(current.timer);
-			current.timer = this.adapters.setTimer(() => {
-				if (!this.watchers.has(worktreeDir)) return;
-				try {
-					this.commands.executeSync('git.stage-all', worktreeDir);
-					const status = this.commands.executeSync('git.status', worktreeDir);
-					if (status.trim()) {
-						this.commands.executeSync('git.commit', worktreeDir, { message: 'auto: external changes' });
-					}
-				} catch (err) {
-					console.warn(`FileWatcher: auto-commit failed for ${worktreeDir}:`, err);
-				}
-				this.onWorktreeChange?.(worktreeDir);
-			}, debounceMs);
-		};
+    const debouncedCommit = () => {
+      const current = this.watchers.get(worktreeDir)
+      if (!current) return
+      if (current.timer) this.adapters.clearTimer(current.timer)
+      current.timer = this.adapters.setTimer(() => {
+        if (!this.watchers.has(worktreeDir)) return
+        try {
+          this.commands.executeSync('git.stage-all', worktreeDir)
+          const status = this.commands.executeSync('git.status', worktreeDir)
+          if (status.trim()) {
+            this.commands.executeSync('git.commit', worktreeDir, { message: 'auto: external changes' })
+          }
+        } catch (err) {
+          console.warn(`FileWatcher: auto-commit failed for ${worktreeDir}:`, err)
+        }
+        this.onWorktreeChange?.(worktreeDir)
+      }, debounceMs)
+    }
 
-		const state: WatcherState = {
-			watcher, timer: null, debounceMs, scheduleCommit: debouncedCommit,
-		};
-		this.watchers.set(worktreeDir, state);
+    const state: WatcherState = {
+      watcher,
+      timer: null,
+      debounceMs,
+      scheduleCommit: debouncedCommit,
+    }
+    this.watchers.set(worktreeDir, state)
 
-		const handleEvent = () => {
-			this.onWorktreeChange?.(worktreeDir);
-			debouncedCommit();
-		};
+    const handleEvent = () => {
+      this.onWorktreeChange?.(worktreeDir)
+      debouncedCommit()
+    }
 
-		// Files written before the initial scan completes are treated as initial
-		// content by chokidar and never produce events; commit them on ready.
-		// Dot paths are filtered like the event stream filters them, so a
-		// dotfile-only change never triggers the catch-up commit.
-		watcher.on('ready', () => {
-			try {
-				const hasNonDotChange = this.commands.executeSync('git.status', worktreeDir)
-					.split('\n')
-					.some((line) => {
-						const entry = statusEntryPath(line);
-						return entry !== undefined && !hasDotSegment(entry);
-					});
-				if (hasNonDotChange) {
-					debouncedCommit();
-				}
-			} catch (err) {
-				console.warn(`FileWatcher: catch-up check failed for ${worktreeDir}:`, err);
-			}
-		});
-		watcher.on('error', (err) => {
-			console.warn(`FileWatcher: watcher error for ${worktreeDir}:`, err);
-		});
-		watcher.on('add', handleEvent);
-		watcher.on('change', handleEvent);
-		watcher.on('unlink', handleEvent);
-		watcher.on('addDir', handleEvent);
-		watcher.on('unlinkDir', handleEvent);
-	}
+    // Files written before the initial scan completes are treated as initial
+    // content by chokidar and never produce events; commit them on ready.
+    // Dot paths are filtered like the event stream filters them, so a
+    // dotfile-only change never triggers the catch-up commit.
+    watcher.on('ready', () => {
+      try {
+        const hasNonDotChange = this.commands
+          .executeSync('git.status', worktreeDir)
+          .split('\n')
+          .some((line) => {
+            const entry = statusEntryPath(line)
+            return entry !== undefined && !hasDotSegment(entry)
+          })
+        if (hasNonDotChange) {
+          debouncedCommit()
+        }
+      } catch (err) {
+        console.warn(`FileWatcher: catch-up check failed for ${worktreeDir}:`, err)
+      }
+    })
+    watcher.on('error', (err) => {
+      console.warn(`FileWatcher: watcher error for ${worktreeDir}:`, err)
+    })
+    watcher.on('add', handleEvent)
+    watcher.on('change', handleEvent)
+    watcher.on('unlink', handleEvent)
+    watcher.on('addDir', handleEvent)
+    watcher.on('unlinkDir', handleEvent)
+  }
 
-	async stop(worktreeDir: string): Promise<void> {
-		const state = this.watchers.get(worktreeDir);
-		if (!state) return;
-		this.watchers.delete(worktreeDir);
-		await this.tearDown(state);
-	}
+  async stop(worktreeDir: string): Promise<void> {
+    const state = this.watchers.get(worktreeDir)
+    if (!state) return
+    this.watchers.delete(worktreeDir)
+    await this.tearDown(state)
+  }
 
-	async stopAll(): Promise<void> {
-		const states = [...this.watchers.values()];
-		this.watchers.clear();
-		await Promise.all(states.map((state) => this.tearDown(state)));
-	}
+  async stopAll(): Promise<void> {
+    const states = [...this.watchers.values()]
+    this.watchers.clear()
+    await Promise.all(states.map((state) => this.tearDown(state)))
+  }
 
-	async runWithWatchPaused<T>(worktreeDir: string, task: () => T | Promise<T>): Promise<T> {
-		const pausedDebounceMs = this.watchers.get(worktreeDir)?.debounceMs;
-		if (pausedDebounceMs !== undefined) await this.stop(worktreeDir);
-		try {
-			return await task();
-		} finally {
-			if (pausedDebounceMs !== undefined) {
-				this.watch(worktreeDir, pausedDebounceMs);
-				// The task just wrote to a worktree nothing was watching, and the
-				// fresh watcher reports no event for those writes. Schedule the
-				// commit directly so the work cannot sit uncommitted.
-				this.watchers.get(worktreeDir)?.scheduleCommit();
-			}
-		}
-	}
+  async runWithWatchPaused<T>(worktreeDir: string, task: () => T | Promise<T>): Promise<T> {
+    const pausedDebounceMs = this.watchers.get(worktreeDir)?.debounceMs
+    if (pausedDebounceMs !== undefined) await this.stop(worktreeDir)
+    try {
+      return await task()
+    } finally {
+      if (pausedDebounceMs !== undefined) {
+        this.watch(worktreeDir, pausedDebounceMs)
+        // The task just wrote to a worktree nothing was watching, and the
+        // fresh watcher reports no event for those writes. Schedule the
+        // commit directly so the work cannot sit uncommitted.
+        this.watchers.get(worktreeDir)?.scheduleCommit()
+      }
+    }
+  }
 
-	private async tearDown(state: WatcherState): Promise<void> {
-		if (state.timer) this.adapters.clearTimer(state.timer);
-		try {
-			await state.watcher.close();
-		} catch (err) {
-			console.warn('FileWatcher: failed to close watcher:', err);
-		}
-	}
+  private async tearDown(state: WatcherState): Promise<void> {
+    if (state.timer) this.adapters.clearTimer(state.timer)
+    try {
+      await state.watcher.close()
+    } catch (err) {
+      console.warn('FileWatcher: failed to close watcher:', err)
+    }
+  }
 }

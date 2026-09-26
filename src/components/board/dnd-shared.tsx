@@ -1,9 +1,9 @@
-import { Show } from "solid-js";
-import type { JSX } from "@solidjs/web";
-import { GripVertical } from "~/components/ui/icons.js";
-import { DragOverlay } from "~/components/drag/drag-provider.js";
-import type { DragActivators } from "~/components/drag/drag-provider.js";
-import { joinClass } from "~/lib/class-util";
+import { Show } from 'solid-js'
+import type { JSX } from '@solidjs/web'
+import { GripVertical } from '~/components/ui/icons.js'
+import { DragOverlay } from '~/components/drag/drag-provider.js'
+import type { DragActivators } from '~/components/drag/drag-provider.js'
+import { joinClass } from '~/lib/class-util'
 
 // Shared drag-and-drop visual language, used by both the KanbanBoard (ticket
 // reorder) and LauncherSettings (column reorder). The DnD algorithms differ,
@@ -12,68 +12,67 @@ import { joinClass } from "~/lib/class-util";
 
 // Applied to the source item while it is being dragged: hides it in place
 // (fully transparent) while keeping its slot in the layout.
-export const DND_ACTIVE_CLASS = "opacity-0";
+export const DND_ACTIVE_CLASS = 'opacity-0'
 
 // The floating card that follows the cursor inside a DragOverlay.
-export const DND_OVERLAY_CLASS = "rotate-2 scale-95 opacity-80";
+export const DND_OVERLAY_CLASS = 'rotate-2 scale-95 opacity-80'
 
 // The ghost preview rendered at the drop target slot.
-export const DND_PREVIEW_CLASS = "pointer-events-none opacity-40";
-
+export const DND_PREVIEW_CLASS = 'pointer-events-none opacity-40'
 
 // Ghost preview shown where the dragged item will land. data-drop-preview marks
 // it so drag-position math can exclude it; data-drop-indicator lets tests detect
 // its presence.
 export function DragPreview(props: { class?: string; children: JSX.Element }) {
-	return (
-		<div data-drop-indicator data-drop-preview class={joinClass(DND_PREVIEW_CLASS, props.class)}>
-			{props.children}
-		</div>
-	);
+  return (
+    <div data-drop-indicator data-drop-preview class={joinClass(DND_PREVIEW_CLASS, props.class)}>
+      {props.children}
+    </div>
+  )
 }
 
 // Floating representation of the dragged item, rendered inside a DragOverlay.
 export function DragOverlayCard(props: { class?: string; style?: JSX.CSSProperties; children: JSX.Element }) {
-	return (
-		<div class={joinClass(DND_OVERLAY_CLASS, props.class)} style={props.style}>
-			{props.children}
-		</div>
-	);
+  return (
+    <div class={joinClass(DND_OVERLAY_CLASS, props.class)} style={props.style}>
+      {props.children}
+    </div>
+  )
 }
 
 export function DragGrip(props: { gripProps?: DragActivators; testId: string }) {
-	return (
-		<span
-			onPointerDown={props.gripProps?.onPointerDown}
-			onKeyDown={props.gripProps?.onKeyDown}
-			role="button"
-			tabindex="0"
-			aria-label="Drag to reorder"
-			class="cursor-grab text-muted-foreground"
-			data-testid={props.testId}
-		>
-			<GripVertical size={14} />
-		</span>
-	);
+  return (
+    <span
+      onPointerDown={props.gripProps?.onPointerDown}
+      onKeyDown={props.gripProps?.onKeyDown}
+      role="button"
+      tabindex="0"
+      aria-label="Drag to reorder"
+      class="cursor-grab text-muted-foreground"
+      data-testid={props.testId}
+    >
+      <GripVertical size={14} />
+    </span>
+  )
 }
 
 // The card that floats under the cursor while dragging a row keyed by its name.
 // Renders nothing once the id no longer maps to a live item.
 export function NameDragOverlay(props: { nameOf: (id: string) => string | undefined }) {
-	return (
-		<DragOverlay>
-			{(draggable) => {
-				const name = props.nameOf(String(draggable?.id));
-				return (
-					<Show when={name}>
-						{(n) => (
-							<DragOverlayCard class="rounded-md border border-border bg-card p-3">
-								<span class="text-sm font-medium">{n()}</span>
-							</DragOverlayCard>
-						)}
-					</Show>
-				);
-			}}
-		</DragOverlay>
-	);
+  return (
+    <DragOverlay>
+      {(draggable) => {
+        const name = props.nameOf(String(draggable?.id))
+        return (
+          <Show when={name}>
+            {(n) => (
+              <DragOverlayCard class="rounded-md border border-border bg-card p-3">
+                <span class="text-sm font-medium">{n()}</span>
+              </DragOverlayCard>
+            )}
+          </Show>
+        )
+      }}
+    </DragOverlay>
+  )
 }

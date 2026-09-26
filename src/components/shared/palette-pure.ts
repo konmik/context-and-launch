@@ -1,55 +1,52 @@
-import * as v from "valibot";
-import type { JsonValue } from "~/core/shared/json.js";
-import { modeStorageKey } from "./theme-toggle-pure.js";
+import * as v from 'valibot'
+import type { JsonValue } from '~/core/shared/json.js'
+import { modeStorageKey } from './theme-toggle-pure.js'
 
-const PROJECT_PATH_PATTERN = /^\/project\/([^/]+)$/;
+const PROJECT_PATH_PATTERN = /^\/project\/([^/]+)$/
 
 export function projectSlugFromPath(pathname: string): string | undefined {
-  const match = PROJECT_PATH_PATTERN.exec(pathname);
-  return match ? decodeURIComponent(match[1]) : undefined;
+  const match = PROJECT_PATH_PATTERN.exec(pathname)
+  return match ? decodeURIComponent(match[1]) : undefined
 }
 
-export const PALETTES = ["terminal", "graphite", "tokyo-night", "catppuccin", "dracula", "nord", "gruvbox"] as const;
-export type PaletteName = (typeof PALETTES)[number];
-export const DEFAULT_PALETTE: PaletteName = "terminal";
-const PaletteNameSchema = v.picklist(PALETTES);
+export const PALETTES = ['terminal', 'graphite', 'tokyo-night', 'catppuccin', 'dracula', 'nord', 'gruvbox'] as const
+export type PaletteName = (typeof PALETTES)[number]
+export const DEFAULT_PALETTE: PaletteName = 'terminal'
+const PaletteNameSchema = v.picklist(PALETTES)
 
 export function isPaletteName(value: JsonValue | undefined): value is PaletteName {
-  return v.safeParse(PaletteNameSchema, value).success;
+  return v.safeParse(PaletteNameSchema, value).success
 }
 
 export function paletteStorageKey(projectSlug?: string): string {
-  return projectSlug === undefined ? "palette" : `palette:${projectSlug}`;
+  return projectSlug === undefined ? 'palette' : `palette:${projectSlug}`
 }
 
-export function getStoredPalette(
-  storage: { getItem(key: string): string | null },
-  projectSlug?: string,
-): PaletteName {
+export function getStoredPalette(storage: { getItem(key: string): string | null }, projectSlug?: string): PaletteName {
   try {
-    const scoped = projectSlug === undefined
-      ? null
-      : storage.getItem(paletteStorageKey(projectSlug));
-    const stored = scoped ?? storage.getItem(paletteStorageKey());
-    if (stored !== null && isPaletteName(stored)) return stored;
-  } catch { /* localStorage may throw in some environments */ }
-  return DEFAULT_PALETTE;
+    const scoped = projectSlug === undefined ? null : storage.getItem(paletteStorageKey(projectSlug))
+    const stored = scoped ?? storage.getItem(paletteStorageKey())
+    if (stored !== null && isPaletteName(stored)) return stored
+  } catch {
+    /* localStorage may throw in some environments */
+  }
+  return DEFAULT_PALETTE
 }
 
 // Hex form of the --background oklch tokens in src/app.css; parity is enforced by palette-backgrounds.test.ts.
 export const PALETTE_BACKGROUNDS = {
-  "terminal": { light: "#ffffff", dark: "#000000" },
-  "graphite": { light: "#ffffff", dark: "#000000" },
-  "tokyo-night": { light: "#e1e2e7", dark: "#1a1b26" },
-  "catppuccin": { light: "#eff1f5", dark: "#1e1e2e" },
-  "dracula": { light: "#f8f8f2", dark: "#282a36" },
-  "nord": { light: "#eceff4", dark: "#2e3440" },
-  "gruvbox": { light: "#fbf1c8", dark: "#282828" },
-} satisfies Record<PaletteName, { light: string; dark: string }>;
+  terminal: { light: '#ffffff', dark: '#000000' },
+  graphite: { light: '#ffffff', dark: '#000000' },
+  'tokyo-night': { light: '#e1e2e7', dark: '#1a1b26' },
+  catppuccin: { light: '#eff1f5', dark: '#1e1e2e' },
+  dracula: { light: '#f8f8f2', dark: '#282a36' },
+  nord: { light: '#eceff4', dark: '#2e3440' },
+  gruvbox: { light: '#fbf1c8', dark: '#282828' },
+} satisfies Record<PaletteName, { light: string; dark: string }>
 
 export function paletteBackground(palette: PaletteName, dark: boolean): string {
-  const entry = PALETTE_BACKGROUNDS[palette];
-  return dark ? entry.dark : entry.light;
+  const entry = PALETTE_BACKGROUNDS[palette]
+  return dark ? entry.dark : entry.light
 }
 
 // Blocking critical CSS painted before the main stylesheet loads, so the first
@@ -61,17 +58,14 @@ export function paletteBackground(palette: PaletteName, dark: boolean): string {
 // class, set by the inline theme script before first paint, so color-scheme
 // depends only on that class, not the palette.
 export function criticalBackgroundCss(): string {
-  const def = PALETTE_BACKGROUNDS[DEFAULT_PALETTE];
-  const rules = [
-    `html{background:${def.light};color-scheme:light}`,
-    `html.dark{background:${def.dark};color-scheme:dark}`,
-  ];
+  const def = PALETTE_BACKGROUNDS[DEFAULT_PALETTE]
+  const rules = [`html{background:${def.light};color-scheme:light}`, `html.dark{background:${def.dark};color-scheme:dark}`]
   for (const palette of PALETTES) {
-    const bg = PALETTE_BACKGROUNDS[palette];
-    rules.push(`html[data-palette="${palette}"]{background:${bg.light}}`);
-    rules.push(`html[data-palette="${palette}"].dark{background:${bg.dark}}`);
+    const bg = PALETTE_BACKGROUNDS[palette]
+    rules.push(`html[data-palette="${palette}"]{background:${bg.light}}`)
+    rules.push(`html[data-palette="${palette}"].dark{background:${bg.dark}}`)
   }
-  return rules.join("");
+  return rules.join('')
 }
 
 // Blocking inline script that applies the stored appearance to <html> before
@@ -80,10 +74,10 @@ export function criticalBackgroundCss(): string {
 // functions is enforced by palette-pure.test.ts.
 export function criticalAppearanceScript(): string {
   return [
-    "(function(){try{",
+    '(function(){try{',
     `var m=new RegExp(${JSON.stringify(PROJECT_PATH_PATTERN.source)}).exec(location.pathname);`,
     'var s=m?":"+decodeURIComponent(m[1]):"";',
-    "var g=function(k){var v=localStorage.getItem(k+s);return v===null?localStorage.getItem(k):v};",
+    'var g=function(k){var v=localStorage.getItem(k+s);return v===null?localStorage.getItem(k):v};',
     `var t=g(${JSON.stringify(modeStorageKey())});`,
     'if(t==="dark"||',
     '(t!=="light"&&matchMedia("(prefers-color-scheme:dark)").matches))',
@@ -91,6 +85,6 @@ export function criticalAppearanceScript(): string {
     `var p=g(${JSON.stringify(paletteStorageKey())});`,
     `if(${JSON.stringify([...PALETTES])}.indexOf(p)!==-1)`,
     'document.documentElement.dataset.palette=p',
-    "}catch(e){}})()",
-  ].join("");
+    '}catch(e){}})()',
+  ].join('')
 }

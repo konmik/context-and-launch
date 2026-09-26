@@ -1,15 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createRoot, runWithOwner } from "solid-js";
-import { fromAny } from "@total-typescript/shoehorn";
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createRoot, runWithOwner } from 'solid-js'
+import { fromAny } from '@total-typescript/shoehorn'
 
-const mockUploadFile = vi.fn();
+const mockUploadFile = vi.fn()
 
-import { createFileUploadState, type FileUploadDeps } from "./ticket-detail-upload.js";
+import { createFileUploadState, type FileUploadDeps } from './ticket-detail-upload.js'
 
 function makeDeps(overrides?: Partial<FileUploadDeps>): FileUploadDeps {
   return {
-    projectSlug: "test-project",
-    folderName: () => "t-1-test",
+    projectSlug: 'test-project',
+    folderName: () => 't-1-test',
     setError: vi.fn(),
     ticketFileNames: () => [],
     contextNames: () => [],
@@ -17,110 +17,114 @@ function makeDeps(overrides?: Partial<FileUploadDeps>): FileUploadDeps {
     requestFileSwitch: vi.fn(),
     uploadFile: mockUploadFile,
     ...overrides,
-  };
+  }
 }
 
 function inputChangeEvent(files: File[]): Event {
   return fromAny<Event, { target: { files: File[]; value: string } }>({
-    target: { files, value: "" },
-  });
+    target: { files, value: '' },
+  })
 }
 
-describe("createFileUploadState", () => {
+describe('createFileUploadState', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-  });
+    vi.clearAllMocks()
+  })
 
-  it("does not switch to file when upload fails per-file", async () => {
+  it('does not switch to file when upload fails per-file', async () => {
     mockUploadFile.mockResolvedValue({
       ok: true,
-      results: [{ name: "report.txt", ok: false, error: "disk full" }],
-    });
+      results: [{ name: 'report.txt', ok: false, error: 'disk full' }],
+    })
 
-    const deps = makeDeps();
+    const deps = makeDeps()
     await createRoot(async (dispose) => {
-      const state = createFileUploadState(deps);
-      const file = new File(["content"], "report.txt", { type: "text/plain" });
-      await runWithOwner(null, () => state.handleFileInputChange(inputChangeEvent([file])));
-      expect(deps.setError).toHaveBeenCalledWith({ title: "Upload failed", description: "disk full" });
-      expect(deps.requestFileSwitch).not.toHaveBeenCalled();
-      dispose();
-    });
-  });
+      const state = createFileUploadState(deps)
+      const file = new File(['content'], 'report.txt', { type: 'text/plain' })
+      await runWithOwner(null, () => state.handleFileInputChange(inputChangeEvent([file])))
+      expect(deps.setError).toHaveBeenCalledWith({ title: 'Upload failed', description: 'disk full' })
+      expect(deps.requestFileSwitch).not.toHaveBeenCalled()
+      dispose()
+    })
+  })
 
-  it("does not switch to .md context view when .md upload fails per-file", async () => {
+  it('does not switch to .md context view when .md upload fails per-file', async () => {
     mockUploadFile.mockResolvedValue({
       ok: true,
-      results: [{ name: "notes.md", ok: false, error: "permission denied" }],
-    });
+      results: [{ name: 'notes.md', ok: false, error: 'permission denied' }],
+    })
 
-    const deps = makeDeps();
+    const deps = makeDeps()
     await createRoot(async (dispose) => {
-      const state = createFileUploadState(deps);
-      const file = new File(["# Notes"], "notes.md", { type: "text/markdown" });
-      await runWithOwner(null, () => state.handleFileInputChange(inputChangeEvent([file])));
-      expect(deps.setError).toHaveBeenCalledWith({ title: "Upload failed", description: "permission denied" });
-      expect(deps.requestFileSwitch).not.toHaveBeenCalled();
-      dispose();
-    });
-  });
+      const state = createFileUploadState(deps)
+      const file = new File(['# Notes'], 'notes.md', { type: 'text/markdown' })
+      await runWithOwner(null, () => state.handleFileInputChange(inputChangeEvent([file])))
+      expect(deps.setError).toHaveBeenCalledWith({ title: 'Upload failed', description: 'permission denied' })
+      expect(deps.requestFileSwitch).not.toHaveBeenCalled()
+      dispose()
+    })
+  })
 
-  it("switches to file when upload succeeds", async () => {
+  it('switches to file when upload succeeds', async () => {
     mockUploadFile.mockResolvedValue({
       ok: true,
-      results: [{ name: "report.txt", ok: true }],
-    });
+      results: [{ name: 'report.txt', ok: true }],
+    })
 
-    const deps = makeDeps();
+    const deps = makeDeps()
     await createRoot(async (dispose) => {
-      const state = createFileUploadState(deps);
-      const file = new File(["content"], "report.txt", { type: "text/plain" });
-      await runWithOwner(null, () => state.handleFileInputChange(inputChangeEvent([file])));
+      const state = createFileUploadState(deps)
+      const file = new File(['content'], 'report.txt', { type: 'text/plain' })
+      await runWithOwner(null, () => state.handleFileInputChange(inputChangeEvent([file])))
       expect(deps.requestFileSwitch).toHaveBeenCalledWith({
-        type: "file",
-        name: "report.txt",
-      });
-      dispose();
-    });
-  });
+        type: 'file',
+        name: 'report.txt',
+      })
+      dispose()
+    })
+  })
 
-  it("refreshes the file lists before switching after a successful upload", async () => {
+  it('refreshes the file lists before switching after a successful upload', async () => {
     mockUploadFile.mockResolvedValue({
       ok: true,
-      results: [{ name: "notes.md", ok: true }],
-    });
+      results: [{ name: 'notes.md', ok: true }],
+    })
 
-    const calls: string[] = [];
+    const calls: string[] = []
     const deps = makeDeps({
-      refreshFiles: vi.fn(async () => { calls.push("refresh"); }),
-      requestFileSwitch: vi.fn(() => { calls.push("switch"); }),
-    });
+      refreshFiles: vi.fn(async () => {
+        calls.push('refresh')
+      }),
+      requestFileSwitch: vi.fn(() => {
+        calls.push('switch')
+      }),
+    })
     await createRoot(async (dispose) => {
-      const state = createFileUploadState(deps);
-      const file = new File(["# Notes"], "notes.md", { type: "text/markdown" });
-      await runWithOwner(null, () => state.handleFileInputChange(inputChangeEvent([file])));
-      expect(calls).toEqual(["refresh", "switch"]);
+      const state = createFileUploadState(deps)
+      const file = new File(['# Notes'], 'notes.md', { type: 'text/markdown' })
+      await runWithOwner(null, () => state.handleFileInputChange(inputChangeEvent([file])))
+      expect(calls).toEqual(['refresh', 'switch'])
       expect(deps.requestFileSwitch).toHaveBeenCalledWith({
-        type: "context",
-        name: "notes",
-      });
-      dispose();
-    });
-  });
+        type: 'context',
+        name: 'notes',
+      })
+      dispose()
+    })
+  })
 
-  it("does not refresh the file lists when every file fails", async () => {
+  it('does not refresh the file lists when every file fails', async () => {
     mockUploadFile.mockResolvedValue({
       ok: true,
-      results: [{ name: "report.txt", ok: false, error: "disk full" }],
-    });
+      results: [{ name: 'report.txt', ok: false, error: 'disk full' }],
+    })
 
-    const deps = makeDeps();
+    const deps = makeDeps()
     await createRoot(async (dispose) => {
-      const state = createFileUploadState(deps);
-      const file = new File(["content"], "report.txt", { type: "text/plain" });
-      await runWithOwner(null, () => state.handleFileInputChange(inputChangeEvent([file])));
-      expect(deps.refreshFiles).not.toHaveBeenCalled();
-      dispose();
-    });
-  });
-});
+      const state = createFileUploadState(deps)
+      const file = new File(['content'], 'report.txt', { type: 'text/plain' })
+      await runWithOwner(null, () => state.handleFileInputChange(inputChangeEvent([file])))
+      expect(deps.refreshFiles).not.toHaveBeenCalled()
+      dispose()
+    })
+  })
+})

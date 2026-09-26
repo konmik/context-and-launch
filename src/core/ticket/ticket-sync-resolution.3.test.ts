@@ -1,2 +1,2 @@
-import { registerTicketSyncResolutionTests } from "./ticket-sync-resolution.test-cases.js";
-registerTicketSyncResolutionTests(2, 9);
+import { registerTicketSyncResolutionTests } from './ticket-sync-resolution.test-cases.js'
+registerTicketSyncResolutionTests(2, 9)

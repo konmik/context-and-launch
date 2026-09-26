@@ -5,4 +5,4 @@
  * column defaults. Kept in a pure module so both server launch code and the
  * client launcher UI can import it without pulling in node-only dependencies.
  */
-export const PROJECT_LAUNCH_KEY = "__project__";
+export const PROJECT_LAUNCH_KEY = '__project__'

@@ -1,37 +1,35 @@
-import { Show, For } from "solid-js";
-import { DialogRoot, DialogTitle, DialogDescription } from "../ui/dialog";
-import {
-  createConflictDialogController,
-  type ConflictDialogController,
-} from "./conflict-dialog-controller.js";
-import { openConfigDir } from "./shared-api.js";
+import { Show, For } from 'solid-js'
+import { DialogRoot, DialogTitle, DialogDescription } from '../ui/dialog'
+import { createConflictDialogController, type ConflictDialogController } from './conflict-dialog-controller.js'
+import { openConfigDir } from './shared-api.js'
 
 interface ConflictDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onResolve: (profileName: string) => Promise<void>;
-  onAbort: () => Promise<void>;
-  projectSlug: string;
-  hasConflict: boolean;
-  ctrl?: ConflictDialogController;
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onResolve: (profileName: string) => Promise<void>
+  onAbort: () => Promise<void>
+  projectSlug: string
+  hasConflict: boolean
+  ctrl?: ConflictDialogController
 }
 
 export default function ConflictDialog(props: ConflictDialogProps) {
-  const s = props.ctrl ?? createConflictDialogController({
-    projectSlug: () => props.projectSlug,
-    open: () => props.open,
-    onResolve: props.onResolve,
-    onAbort: props.onAbort,
-    onOpenChange: props.onOpenChange,
-  });
+  const s =
+    props.ctrl ??
+    createConflictDialogController({
+      projectSlug: () => props.projectSlug,
+      open: () => props.open,
+      onResolve: props.onResolve,
+      onAbort: props.onAbort,
+      onOpenChange: props.onOpenChange,
+    })
 
   return (
     <DialogRoot open={props.open} onOpenChange={s.close} closeOnInteractOutside={false}>
       <DialogTitle>Sync Conflicts Detected</DialogTitle>
       <DialogDescription>
-        Sync detected that your local changes conflict with the remote. Your
-        working tree was left untouched. You can launch an AI agent to rebase
-        and resolve the conflicts, or close and retry later.
+        Sync detected that your local changes conflict with the remote. Your working tree was left untouched. You can launch an AI agent to
+        rebase and resolve the conflicts, or close and retry later.
       </DialogDescription>
 
       <div class="mb-4">
@@ -46,32 +44,28 @@ export default function ConflictDialog(props: ConflictDialogProps) {
         </select>
       </div>
 
-      <Show when={s.errorMsg()}><p class="mb-4 text-sm text-destructive">{s.errorMsg()}</p></Show>
+      <Show when={s.errorMsg()}>
+        <p class="mb-4 text-sm text-destructive">{s.errorMsg()}</p>
+      </Show>
 
       <div class="flex items-center justify-between">
         <button
           type="button"
-          onClick={() => openConfigDir("tickets", props.projectSlug)}
+          onClick={() => openConfigDir('tickets', props.projectSlug)}
           class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
           title="Open tickets directory"
           data-testid="conflict-dialog-open-tickets-repo"
-        >Tickets repo &#8599;</button>
+        >
+          Tickets repo &#8599;
+        </button>
         <div class="flex gap-2">
-          <button
-            type="button"
-            onClick={s.close}
-            disabled={s.submitting()}
-            class="btn-secondary"
-            data-testid="conflict-dialog-close"
-          >Close</button>
+          <button type="button" onClick={s.close} disabled={s.submitting()} class="btn-secondary" data-testid="conflict-dialog-close">
+            Close
+          </button>
           <Show when={props.hasConflict}>
-            <button
-              type="button"
-              onClick={s.abort}
-              disabled={s.submitting()}
-              class="btn-secondary"
-              data-testid="conflict-dialog-abort"
-            >Abort</button>
+            <button type="button" onClick={s.abort} disabled={s.submitting()} class="btn-secondary" data-testid="conflict-dialog-abort">
+              Abort
+            </button>
           </Show>
           <button
             type="button"
@@ -79,9 +73,11 @@ export default function ConflictDialog(props: ConflictDialogProps) {
             disabled={s.submitting() || !s.selectedProfile()}
             class="btn-primary"
             data-testid="conflict-dialog-launch"
-          >Launch</button>
+          >
+            Launch
+          </button>
         </div>
       </div>
     </DialogRoot>
-  );
+  )
 }

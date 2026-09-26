@@ -5,5 +5,5 @@
  * Characters removed: & | > < ^ % " \r \n
  */
 export function escapeBatchTitle(s: string): string {
-  return s.replace(/[&|><^%"\r\n]/g, "");
+  return s.replace(/[&|><^%"\r\n]/g, '')
 }

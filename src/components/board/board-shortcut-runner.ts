@@ -1,22 +1,19 @@
-import { createSignal, createMemo, flush } from "solid-js";
-import { createShortcutState } from "../ticket/ticket-detail-shortcuts.js";
-import { openTicketWorktree } from "../ticket/ticket-api.js";
-import { computeLaunchDir } from "../launcher/agent-launcher-pure.js";
-import type { MergedLauncherConfigWithMeta } from "../launcher/launcher-api.js";
-import type { TicketInfo } from "~/core/ticket/ticket-store.js";
-import { errorPayload, type ErrorInfo } from "~/core/shared/errors.js";
+import { createSignal, createMemo, flush } from 'solid-js'
+import { createShortcutState } from '../ticket/ticket-detail-shortcuts.js'
+import { openTicketWorktree } from '../ticket/ticket-api.js'
+import { computeLaunchDir } from '../launcher/agent-launcher-pure.js'
+import type { MergedLauncherConfigWithMeta } from '../launcher/launcher-api.js'
+import type { TicketInfo } from '~/core/ticket/ticket-store.js'
+import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
 
-export function createBoardShortcutRunner(deps: {
-  projectSlug: () => string;
-  config: () => MergedLauncherConfigWithMeta | undefined;
-}) {
-  const [activeTicket, setActiveTicket] = createSignal<TicketInfo>();
-  const [error, setError] = createSignal<ErrorInfo | null>(null);
+export function createBoardShortcutRunner(deps: { projectSlug: () => string; config: () => MergedLauncherConfigWithMeta | undefined }) {
+  const [activeTicket, setActiveTicket] = createSignal<TicketInfo>()
+  const [error, setError] = createSignal<ErrorInfo | null>(null)
 
   const launchDir = createMemo(() => {
-    const ticket = activeTicket();
-    const config = deps.config();
-    if (!ticket || !config) return "";
+    const ticket = activeTicket()
+    const config = deps.config()
+    if (!ticket || !config) return ''
     return computeLaunchDir({
       useWorktree: ticket.useWorktree,
       projectPath: config.projectPath,
@@ -24,31 +21,31 @@ export function createBoardShortcutRunner(deps: {
       agentWorktreeDir: config.agentWorktreeDir,
       folderName: ticket.folderName,
       savedAgentWorktreeDir: ticket.agentWorktreeDir,
-    });
-  });
+    })
+  })
 
   const shortcutState = createShortcutState({
     projectSlug: deps.projectSlug,
-    folderName: () => activeTicket()?.folderName ?? "",
+    folderName: () => activeTicket()?.folderName ?? '',
     useWorktree: () => activeTicket()?.useWorktree ?? false,
     launchDir,
     setError,
-  });
+  })
 
   function run(ticket: TicketInfo, name: string) {
-    setActiveTicket(ticket);
+    setActiveTicket(ticket)
     // The shortcut command imperatively reads the ticket selected by this same event.
-    flush();
-    void shortcutState.runShortcut(name);
+    flush()
+    void shortcutState.runShortcut(name)
   }
 
   async function openWorktree(ticket: TicketInfo) {
-    setError(null);
+    setError(null)
     try {
-      const result = await openTicketWorktree(deps.projectSlug(), ticket.folderName);
-      if (!result.ok) setError(result.errorInfo);
+      const result = await openTicketWorktree(deps.projectSlug(), ticket.folderName)
+      if (!result.ok) setError(result.errorInfo)
     } catch (e) {
-      setError(errorPayload(e, "Open failed"));
+      setError(errorPayload(e, 'Open failed'))
     }
   }
 
@@ -62,5 +59,5 @@ export function createBoardShortcutRunner(deps: {
     setError,
     run,
     openWorktree: (ticket: TicketInfo) => void openWorktree(ticket),
-  };
+  }
 }

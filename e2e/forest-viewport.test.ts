@@ -1,176 +1,173 @@
-import { describe, it, expect } from "vitest";
-import { setupE2E, getLocalStorageItem, boxOf, dragPointer } from "./fixtures.js";
-import {
-  forestCard, forestSurface, openForestProject,
-  toggleToForest, toggleToKanban,
-} from "./forest-helpers.js";
-import { testId, waitVisible } from "./locators.js";
+import { describe, it, expect } from 'vitest'
+import { setupE2E, getLocalStorageItem, boxOf, dragPointer } from './fixtures.js'
+import { forestCard, forestSurface, openForestProject, toggleToForest, toggleToKanban } from './forest-helpers.js'
+import { testId, waitVisible } from './locators.js'
 
-describe("Forest viewport", () => {
-  const ctx = setupE2E();
+describe('Forest viewport', () => {
+  const ctx = setupE2E()
 
-  it("fills the viewport so the surface, controls, and cards render", async () => {
+  it('fills the viewport so the surface, controls, and cards render', async () => {
     await openForestProject(ctx, {
-      slugBase: "fv-height",
-      tickets: [{ number: "A-1", title: "First", folderName: "a-1-first" }],
-    });
+      slugBase: 'fv-height',
+      tickets: [{ number: 'A-1', title: 'First', folderName: 'a-1-first' }],
+    })
 
-    await waitVisible(ctx.page, "forest-rearrange-button");
+    await waitVisible(ctx.page, 'forest-rearrange-button')
 
-    const viewport = ctx.page.viewportSize();
-    expect(viewport).toBeTruthy();
-    const surfaceBox = await boxOf(forestSurface(ctx.page));
-    expect(surfaceBox.height).toBeGreaterThan(viewport!.height / 2);
+    const viewport = ctx.page.viewportSize()
+    expect(viewport).toBeTruthy()
+    const surfaceBox = await boxOf(forestSurface(ctx.page))
+    expect(surfaceBox.height).toBeGreaterThan(viewport!.height / 2)
 
-    await testId(ctx.page, "forest-close-button")
-      .waitFor({ state: "visible", timeout: 15000 });
-    const selectHint = testId(ctx.page, "forest-select-hint");
-    await selectHint.waitFor({ state: "visible", timeout: 15000 });
-    expect(await selectHint.textContent()).toBe("Shift+mouse to select");
-    expect(await testId(ctx.page, "forest-ticket-card").count()).toBe(1);
-  }, 120000);
+    await testId(ctx.page, 'forest-close-button').waitFor({ state: 'visible', timeout: 15000 })
+    const selectHint = testId(ctx.page, 'forest-select-hint')
+    await selectHint.waitFor({ state: 'visible', timeout: 15000 })
+    expect(await selectHint.textContent()).toBe('Shift+mouse to select')
+    expect(await testId(ctx.page, 'forest-ticket-card').count()).toBe(1)
+  }, 120000)
 
-  it("centers the full forest horizontally at the bottom-middle of the surface", async () => {
+  it('centers the full forest horizontally at the bottom-middle of the surface', async () => {
     await openForestProject(ctx, {
-      slugBase: "fv-center",
+      slugBase: 'fv-center',
       tickets: [
-        { number: "A-1", title: "First", folderName: "a-1-first" },
-        { number: "B-1", title: "Second", folderName: "b-1-second" },
-        { number: "C-1", title: "Third", folderName: "c-1-third", dependsOn: ["A-1"] },
-        { number: "D-1", title: "Fourth", folderName: "d-1-fourth", dependsOn: ["C-1"] },
+        { number: 'A-1', title: 'First', folderName: 'a-1-first' },
+        { number: 'B-1', title: 'Second', folderName: 'b-1-second' },
+        { number: 'C-1', title: 'Third', folderName: 'c-1-third', dependsOn: ['A-1'] },
+        { number: 'D-1', title: 'Fourth', folderName: 'd-1-fourth', dependsOn: ['C-1'] },
       ],
       layout: {
-        "A-1": { x: 0, y: 0 },
-        "B-1": { x: 300, y: 0 },
-        "C-1": { x: 900, y: -160 },
-        "D-1": { x: 900, y: -320 },
+        'A-1': { x: 0, y: 0 },
+        'B-1': { x: 300, y: 0 },
+        'C-1': { x: 900, y: -160 },
+        'D-1': { x: 900, y: -320 },
       },
-    });
+    })
 
-    const rearrangeButton = testId(ctx.page, "forest-rearrange-button");
-    const centerButton = testId(ctx.page, "forest-center-button");
-    const surfaceBox = await boxOf(forestSurface(ctx.page));
+    const rearrangeButton = testId(ctx.page, 'forest-rearrange-button')
+    const centerButton = testId(ctx.page, 'forest-center-button')
+    const surfaceBox = await boxOf(forestSurface(ctx.page))
 
     await dragPointer(
       ctx.page,
       { x: surfaceBox.x + surfaceBox.width - 30, y: surfaceBox.y + surfaceBox.height - 30 },
       { x: surfaceBox.x + surfaceBox.width - 230, y: surfaceBox.y + surfaceBox.height - 180 },
       { steps: 1 },
-    );
-    await centerButton.click();
+    )
+    await centerButton.click()
 
-    const cardBoxes = await testId(ctx.page, "forest-ticket-card")
-      .evaluateAll(elements => elements.map(element => element.getBoundingClientRect().toJSON()));
-    const left = Math.min(...cardBoxes.map(box => box.x));
-    const right = Math.max(...cardBoxes.map(box => box.x + box.width));
-    const bottom = Math.max(...cardBoxes.map(box => box.y + box.height));
-    expect((left + right) / 2).toBeCloseTo(surfaceBox.x + surfaceBox.width / 2, 0);
-    expect(surfaceBox.y + surfaceBox.height - bottom).toBeCloseTo(120, 0);
+    const cardBoxes = await testId(ctx.page, 'forest-ticket-card').evaluateAll((elements) =>
+      elements.map((element) => element.getBoundingClientRect().toJSON()),
+    )
+    const left = Math.min(...cardBoxes.map((box) => box.x))
+    const right = Math.max(...cardBoxes.map((box) => box.x + box.width))
+    const bottom = Math.max(...cardBoxes.map((box) => box.y + box.height))
+    expect((left + right) / 2).toBeCloseTo(surfaceBox.x + surfaceBox.width / 2, 0)
+    expect(surfaceBox.y + surfaceBox.height - bottom).toBeCloseTo(120, 0)
 
-    const rearrangeBox = await boxOf(rearrangeButton);
-    const centerBox = await boxOf(centerButton);
-    expect(centerBox.x - rearrangeBox.x - rearrangeBox.width).toBeCloseTo(8, 0);
-  }, 120000);
+    const rearrangeBox = await boxOf(rearrangeButton)
+    const centerBox = await boxOf(centerButton)
+    expect(centerBox.x - rearrangeBox.x - rearrangeBox.width).toBeCloseTo(8, 0)
+  }, 120000)
 
-  it("viewport persistence across reload", async () => {
+  it('viewport persistence across reload', async () => {
     const project = await openForestProject(ctx, {
-      slugBase: "fv-vp",
-      tickets: [{ number: "V-1", title: "Viewport", folderName: "v-1-viewport" }],
-    });
+      slugBase: 'fv-vp',
+      tickets: [{ number: 'V-1', title: 'Viewport', folderName: 'v-1-viewport' }],
+    })
 
-    await dragPointer(ctx.page, { x: 600, y: 400 }, { x: 800, y: 500 });
-    await ctx.page.waitForTimeout(500);
+    await dragPointer(ctx.page, { x: 600, y: 400 }, { x: 800, y: 500 })
+    await ctx.page.waitForTimeout(500)
 
-    await ctx.page.reload();
-    await waitVisible(ctx.page, "forest-rearrange-button");
+    await ctx.page.reload()
+    await waitVisible(ctx.page, 'forest-rearrange-button')
 
-    const vpStr = await getLocalStorageItem(ctx.page, `forest-viewport:${project.projectSlug}`);
-    expect(vpStr).toBeTruthy();
-    const vp = JSON.parse(vpStr!);
+    const vpStr = await getLocalStorageItem(ctx.page, `forest-viewport:${project.projectSlug}`)
+    expect(vpStr).toBeTruthy()
+    const vp = JSON.parse(vpStr!)
     expect(vp).toMatchObject({
       x: expect.any(Number),
       y: expect.any(Number),
       zoom: expect.any(Number),
-    });
-  }, 120000);
+    })
+  }, 120000)
 
-  it("keeps a panned Forest in place when switching to kanban and back", async () => {
+  it('keeps a panned Forest in place when switching to kanban and back', async () => {
     await openForestProject(ctx, {
-      slugBase: "fv-toggle-vp",
-      tickets: [{ number: "P-1", title: "Panned", folderName: "p-1-panned" }],
-    });
+      slugBase: 'fv-toggle-vp',
+      tickets: [{ number: 'P-1', title: 'Panned', folderName: 'p-1-panned' }],
+    })
 
-    const card = forestCard(ctx.page, "P-1");
-    const surfaceBox = await boxOf(forestSurface(ctx.page));
+    const card = forestCard(ctx.page, 'P-1')
+    const surfaceBox = await boxOf(forestSurface(ctx.page))
 
     const start = {
       x: surfaceBox.x + surfaceBox.width - 40,
       y: surfaceBox.y + surfaceBox.height - 40,
-    };
-    await dragPointer(ctx.page, start, { x: start.x - 180, y: start.y - 110 }, { steps: 1 });
-    await ctx.page.waitForTimeout(500);
+    }
+    await dragPointer(ctx.page, start, { x: start.x - 180, y: start.y - 110 }, { steps: 1 })
+    await ctx.page.waitForTimeout(500)
 
-    const beforeToggle = await boxOf(card);
+    const beforeToggle = await boxOf(card)
 
-    await toggleToKanban(ctx.page);
-    await toggleToForest(ctx.page);
+    await toggleToKanban(ctx.page)
+    await toggleToForest(ctx.page)
 
-    const afterToggle = await boxOf(card);
-    expect(afterToggle.x).toBeCloseTo(beforeToggle.x, 0);
-    expect(afterToggle.y).toBeCloseTo(beforeToggle.y, 0);
-  }, 120000);
+    const afterToggle = await boxOf(card)
+    expect(afterToggle.x).toBeCloseTo(beforeToggle.x, 0)
+    expect(afterToggle.y).toBeCloseTo(beforeToggle.y, 0)
+  }, 120000)
 
-  it("shows the default cursor at idle and grabbing while panning", async () => {
+  it('shows the default cursor at idle and grabbing while panning', async () => {
     await openForestProject(ctx, {
-      slugBase: "fv-pan-cursor",
-      tickets: [{ number: "P-1", title: "Pan", folderName: "p-1-pan" }],
-    });
+      slugBase: 'fv-pan-cursor',
+      tickets: [{ number: 'P-1', title: 'Pan', folderName: 'p-1-pan' }],
+    })
 
-    const pane = forestSurface(ctx.page).locator(".solid-flow__pane");
-    const surfaceBox = await boxOf(forestSurface(ctx.page));
+    const pane = forestSurface(ctx.page).locator('.solid-flow__pane')
+    const surfaceBox = await boxOf(forestSurface(ctx.page))
     const start = {
       x: surfaceBox.x + surfaceBox.width - 30,
       y: surfaceBox.y + surfaceBox.height - 30,
-    };
-
-    await ctx.page.mouse.move(start.x, start.y);
-    const idleCursor = await pane.evaluate((element) => getComputedStyle(element).cursor);
-    expect(idleCursor).toBe("default");
-
-    await ctx.page.mouse.down();
-    await ctx.page.mouse.move(start.x - 40, start.y - 20);
-    const panningCursor = await pane.evaluate((element) => getComputedStyle(element).cursor);
-    await ctx.page.mouse.up();
-
-    expect(panningCursor).toBe("grabbing");
-  }, 120000);
-
-  it("selection rect is rendered during shift-drag", async () => {
-    await openForestProject(ctx, {
-      slugBase: "fv-sel",
-      tickets: [
-        { number: "S-1", title: "Select1", folderName: "s-1-select1" },
-        { number: "S-2", title: "Select2", folderName: "s-2-select2" },
-      ],
-    });
-
-    const surfaceBox = await boxOf(forestSurface(ctx.page));
-    const sx = surfaceBox.x + surfaceBox.width / 2;
-    const sy = surfaceBox.y + surfaceBox.height / 2;
-
-    await ctx.page.keyboard.down("Shift");
-    await ctx.page.mouse.move(sx - 200, sy - 100);
-    await ctx.page.mouse.down();
-    for (let i = 1; i <= 10; i++) {
-      await ctx.page.mouse.move(sx - 200 + i * 40, sy - 100 + i * 20);
-      await ctx.page.waitForTimeout(20);
     }
-    await ctx.page.waitForTimeout(200);
 
-    const selRect = ctx.page.locator('.solid-flow__selection');
-    expect(await selRect.count()).toBeGreaterThanOrEqual(1);
+    await ctx.page.mouse.move(start.x, start.y)
+    const idleCursor = await pane.evaluate((element) => getComputedStyle(element).cursor)
+    expect(idleCursor).toBe('default')
 
-    await ctx.page.mouse.up();
-    await ctx.page.keyboard.up("Shift");
-  }, 120000);
-}, 120000);
+    await ctx.page.mouse.down()
+    await ctx.page.mouse.move(start.x - 40, start.y - 20)
+    const panningCursor = await pane.evaluate((element) => getComputedStyle(element).cursor)
+    await ctx.page.mouse.up()
+
+    expect(panningCursor).toBe('grabbing')
+  }, 120000)
+
+  it('selection rect is rendered during shift-drag', async () => {
+    await openForestProject(ctx, {
+      slugBase: 'fv-sel',
+      tickets: [
+        { number: 'S-1', title: 'Select1', folderName: 's-1-select1' },
+        { number: 'S-2', title: 'Select2', folderName: 's-2-select2' },
+      ],
+    })
+
+    const surfaceBox = await boxOf(forestSurface(ctx.page))
+    const sx = surfaceBox.x + surfaceBox.width / 2
+    const sy = surfaceBox.y + surfaceBox.height / 2
+
+    await ctx.page.keyboard.down('Shift')
+    await ctx.page.mouse.move(sx - 200, sy - 100)
+    await ctx.page.mouse.down()
+    for (let i = 1; i <= 10; i++) {
+      await ctx.page.mouse.move(sx - 200 + i * 40, sy - 100 + i * 20)
+      await ctx.page.waitForTimeout(20)
+    }
+    await ctx.page.waitForTimeout(200)
+
+    const selRect = ctx.page.locator('.solid-flow__selection')
+    expect(await selRect.count()).toBeGreaterThanOrEqual(1)
+
+    await ctx.page.mouse.up()
+    await ctx.page.keyboard.up('Shift')
+  }, 120000)
+}, 120000)

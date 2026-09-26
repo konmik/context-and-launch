@@ -1,247 +1,244 @@
-import { describe, expect, it } from "vitest";
-import fs from "node:fs";
-import path from "node:path";
-import type { Locator, Page, Route } from "playwright";
-import { setupE2E, openProject } from "./fixtures.js";
-import { testId } from "./locators.js";
+import { describe, expect, it } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import type { Locator, Page, Route } from 'playwright'
+import { setupE2E, openProject } from './fixtures.js'
+import { testId } from './locators.js'
 
-const LOG_TEXT = "distinctive log viewer e2e entry";
-const REFRESH_TEXT = "distinctive refreshed log viewer entry";
-const SECOND_REFRESH_TEXT = "alternate completed log snapshot";
+const LOG_TEXT = 'distinctive log viewer e2e entry'
+const REFRESH_TEXT = 'distinctive refreshed log viewer entry'
+const SECOND_REFRESH_TEXT = 'alternate completed log snapshot'
 
 function seedLogs(dataDir: string, text: string): void {
-	const logDir = path.join(dataDir, "logs");
-	fs.mkdirSync(logDir, { recursive: true });
-	for (const file of fs.readdirSync(logDir)) {
-		if (file.startsWith("app-") && file.endsWith(".log")) {
-			fs.unlinkSync(path.join(logDir, file));
-		}
-	}
-	if (text) fs.writeFileSync(path.join(logDir, "app-e2e.log"), text);
+  const logDir = path.join(dataDir, 'logs')
+  fs.mkdirSync(logDir, { recursive: true })
+  for (const file of fs.readdirSync(logDir)) {
+    if (file.startsWith('app-') && file.endsWith('.log')) {
+      fs.unlinkSync(path.join(logDir, file))
+    }
+  }
+  if (text) fs.writeFileSync(path.join(logDir, 'app-e2e.log'), text)
 }
 
 async function deferNextLogRead(page: Page): Promise<{
-	requestUrl: Promise<string>;
-	release: () => Promise<void>;
+  requestUrl: Promise<string>
+  release: () => Promise<void>
 }> {
-	let releaseGate!: () => void;
-	const released = new Promise<void>((resolve) => { releaseGate = resolve; });
-	let resolveHandled!: () => void;
-	let rejectHandled!: (cause: unknown) => void;
-	const handled = new Promise<void>((resolve, reject) => {
-		resolveHandled = resolve;
-		rejectHandled = reject;
-	});
-	let observed!: (url: string) => void;
-	const requestUrl = new Promise<string>((resolve) => { observed = resolve; });
-	let captured = false;
-	const handler = async (route: Route) => {
-		const serverIdHeader = route.request().headers()["x-server-function-id"];
-		if (!serverIdHeader) {
-			await route.fallback();
-			return;
-		}
-		// Solid 2's Vite plugin generates opaque server-function IDs, so the log
-		// read is identified by being the first server call the panel makes. Every
-		// caller freezes the page clock first, which keeps background polls from
-		// firing and taking this slot.
-		if (captured) {
-			await route.fallback();
-			return;
-		}
-		captured = true;
-		observed(route.request().url());
-		try {
-			await released;
-			const response = await route.fetch();
-			await route.fulfill({ response });
-			await page.unroute("**/_server*", handler);
-			resolveHandled();
-		} catch (error) {
-			rejectHandled(error);
-		}
-	};
-	await page.route("**/_server*", handler);
-	return {
-		requestUrl,
-		release: async () => {
-			releaseGate();
-			await handled;
-		},
-	};
+  let releaseGate!: () => void
+  const released = new Promise<void>((resolve) => {
+    releaseGate = resolve
+  })
+  let resolveHandled!: () => void
+  let rejectHandled!: (cause: unknown) => void
+  const handled = new Promise<void>((resolve, reject) => {
+    resolveHandled = resolve
+    rejectHandled = reject
+  })
+  let observed!: (url: string) => void
+  const requestUrl = new Promise<string>((resolve) => {
+    observed = resolve
+  })
+  let captured = false
+  const handler = async (route: Route) => {
+    const serverIdHeader = route.request().headers()['x-server-function-id']
+    if (!serverIdHeader) {
+      await route.fallback()
+      return
+    }
+    // Solid 2's Vite plugin generates opaque server-function IDs, so the log
+    // read is identified by being the first server call the panel makes. Every
+    // caller freezes the page clock first, which keeps background polls from
+    // firing and taking this slot.
+    if (captured) {
+      await route.fallback()
+      return
+    }
+    captured = true
+    observed(route.request().url())
+    try {
+      await released
+      const response = await route.fetch()
+      await route.fulfill({ response })
+      await page.unroute('**/_server*', handler)
+      resolveHandled()
+    } catch (error) {
+      rejectHandled(error)
+    }
+  }
+  await page.route('**/_server*', handler)
+  return {
+    requestUrl,
+    release: async () => {
+      releaseGate()
+      await handled
+    },
+  }
 }
 
 async function openLogs(page: Page): Promise<void> {
-	await testId(page, "project-header-logs-button").click();
-	await logPanel(page).waitFor({ state: "visible" });
+  await testId(page, 'project-header-logs-button').click()
+  await logPanel(page).waitFor({ state: 'visible' })
 }
 
 async function closeLogs(page: Page): Promise<void> {
-	const panel = logPanel(page);
-	await panel.getByRole("button", { name: "Close", exact: true }).click();
-	await panel.waitFor({ state: "hidden" });
+  const panel = logPanel(page)
+  await panel.getByRole('button', { name: 'Close', exact: true }).click()
+  await panel.waitFor({ state: 'hidden' })
 }
 
 function logPanel(page: Page): Locator {
-	return page
-		.locator('[data-scope="floating-panel"][data-part="content"]')
-		.filter({ hasText: "Application Logs" });
+  return page.locator('[data-scope="floating-panel"][data-part="content"]').filter({ hasText: 'Application Logs' })
 }
 
 function loadingStatus(page: Page): Locator {
-	return logPanel(page).locator('[data-testid="log-viewer-loading"]');
+  return logPanel(page).locator('[data-testid="log-viewer-loading"]')
 }
 
 async function waitForLoadingStatus(page: Page): Promise<void> {
-	await loadingStatus(page).waitFor({ state: "visible" });
+  await loadingStatus(page).waitFor({ state: 'visible' })
 }
 
 async function waitForEmptyStatus(page: Page): Promise<void> {
-	await waitForPanelText(page, "No logs yet.");
+  await waitForPanelText(page, 'No logs yet.')
 }
 
 async function expectStatusAbsent(status: Locator): Promise<void> {
-	await expect.poll(async () => status.count()).toBe(0);
+  await expect.poll(async () => status.count()).toBe(0)
 }
 
 async function waitForPanelText(page: Page, text: string): Promise<void> {
-	await expect.poll(
-		async () => logPanel(page).innerText(),
-		{ timeout: 10000 },
-	).toContain(text);
+  await expect.poll(async () => logPanel(page).innerText(), { timeout: 10000 }).toContain(text)
 }
 
 async function resizeLogPanel(page: Page, delta: { x: number; y: number }): Promise<void> {
-	const handle = logPanel(page).locator(
-		'[data-part="resize-trigger"][data-axis="se"]',
-	);
-	const box = await handle.boundingBox();
-	if (!box) throw new Error("Log viewer resize handle is not visible");
-	const startX = box.x + box.width / 2;
-	const startY = box.y + box.height / 2;
-	await page.mouse.move(startX, startY);
-	await page.mouse.down();
-	await page.mouse.move(startX + delta.x, startY + delta.y, { steps: 20 });
-	await page.mouse.up();
+  const handle = logPanel(page).locator('[data-part="resize-trigger"][data-axis="se"]')
+  const box = await handle.boundingBox()
+  if (!box) throw new Error('Log viewer resize handle is not visible')
+  const startX = box.x + box.width / 2
+  const startY = box.y + box.height / 2
+  await page.mouse.move(startX, startY)
+  await page.mouse.down()
+  await page.mouse.move(startX + delta.x, startY + delta.y, { steps: 20 })
+  await page.mouse.up()
 }
 
 async function renderedLineCount(page: Page): Promise<number> {
-	return logPanel(page).locator(".cm-line").count();
+  return logPanel(page).locator('.cm-line').count()
 }
 
-describe("Application Logs dialog (e2e, real server)", () => {
-	const ctx = setupE2E();
+describe('Application Logs dialog (e2e, real server)', () => {
+  const ctx = setupE2E()
 
-	async function setupProject(prefix: string): Promise<void> {
-		await openProject(ctx, { slugBase: prefix });
-	}
+  async function setupProject(prefix: string): Promise<void> {
+    await openProject(ctx, { slugBase: prefix })
+  }
 
-	it("shows content when the initial log read completes", async () => {
-		await setupProject("logs-content");
-		await ctx.page.clock.install();
-		seedLogs(ctx.testServer.dataDir, LOG_TEXT);
-		const deferred = await deferNextLogRead(ctx.page);
+  it('shows content when the initial log read completes', async () => {
+    await setupProject('logs-content')
+    await ctx.page.clock.install()
+    seedLogs(ctx.testServer.dataDir, LOG_TEXT)
+    const deferred = await deferNextLogRead(ctx.page)
 
-		await openLogs(ctx.page);
-		await deferred.requestUrl;
-		try {
-			await waitForLoadingStatus(ctx.page);
-		} finally {
-			seedLogs(ctx.testServer.dataDir, LOG_TEXT);
-			await deferred.release();
-		}
-		await waitForPanelText(ctx.page, LOG_TEXT);
-		await expectStatusAbsent(loadingStatus(ctx.page));
-	});
+    await openLogs(ctx.page)
+    await deferred.requestUrl
+    try {
+      await waitForLoadingStatus(ctx.page)
+    } finally {
+      seedLogs(ctx.testServer.dataDir, LOG_TEXT)
+      await deferred.release()
+    }
+    await waitForPanelText(ctx.page, LOG_TEXT)
+    await expectStatusAbsent(loadingStatus(ctx.page))
+  })
 
-	it("retains completed content while a refresh is pending", async () => {
-		await setupProject("logs-refresh");
-		await ctx.page.clock.install();
-		seedLogs(ctx.testServer.dataDir, LOG_TEXT);
-		await openLogs(ctx.page);
-		await waitForPanelText(ctx.page, LOG_TEXT);
-		seedLogs(ctx.testServer.dataDir, "");
-		const deferred = await deferNextLogRead(ctx.page);
+  it('retains completed content while a refresh is pending', async () => {
+    await setupProject('logs-refresh')
+    await ctx.page.clock.install()
+    seedLogs(ctx.testServer.dataDir, LOG_TEXT)
+    await openLogs(ctx.page)
+    await waitForPanelText(ctx.page, LOG_TEXT)
+    seedLogs(ctx.testServer.dataDir, '')
+    const deferred = await deferNextLogRead(ctx.page)
 
-		await ctx.page.clock.runFor(10000);
-		await deferred.requestUrl;
-		const refreshPendingText = await logPanel(ctx.page).innerText();
-		expect(refreshPendingText).toContain(LOG_TEXT);
+    await ctx.page.clock.runFor(10000)
+    await deferred.requestUrl
+    const refreshPendingText = await logPanel(ctx.page).innerText()
+    expect(refreshPendingText).toContain(LOG_TEXT)
 
-		seedLogs(ctx.testServer.dataDir, REFRESH_TEXT);
-		await deferred.release();
-		await waitForPanelText(ctx.page, REFRESH_TEXT);
-		seedLogs(ctx.testServer.dataDir, SECOND_REFRESH_TEXT);
-		const nextRefresh = await deferNextLogRead(ctx.page);
-		await ctx.page.clock.runFor(10000);
-		await nextRefresh.requestUrl;
-		expect(await logPanel(ctx.page).innerText()).toContain(REFRESH_TEXT);
-		seedLogs(ctx.testServer.dataDir, SECOND_REFRESH_TEXT);
-		await nextRefresh.release();
-		await waitForPanelText(ctx.page, SECOND_REFRESH_TEXT);
-	});
+    seedLogs(ctx.testServer.dataDir, REFRESH_TEXT)
+    await deferred.release()
+    await waitForPanelText(ctx.page, REFRESH_TEXT)
+    seedLogs(ctx.testServer.dataDir, SECOND_REFRESH_TEXT)
+    const nextRefresh = await deferNextLogRead(ctx.page)
+    await ctx.page.clock.runFor(10000)
+    await nextRefresh.requestUrl
+    expect(await logPanel(ctx.page).innerText()).toContain(REFRESH_TEXT)
+    seedLogs(ctx.testServer.dataDir, SECOND_REFRESH_TEXT)
+    await nextRefresh.release()
+    await waitForPanelText(ctx.page, SECOND_REFRESH_TEXT)
+  })
 
-	it("clear stays loaded-empty and close rejects a late read and stops polling", async () => {
-		await setupProject("logs-close");
-		await ctx.page.clock.install();
-		seedLogs(ctx.testServer.dataDir, LOG_TEXT);
-		await openLogs(ctx.page);
-		await waitForPanelText(ctx.page, LOG_TEXT);
+  it('clear stays loaded-empty and close rejects a late read and stops polling', async () => {
+    await setupProject('logs-close')
+    await ctx.page.clock.install()
+    seedLogs(ctx.testServer.dataDir, LOG_TEXT)
+    await openLogs(ctx.page)
+    await waitForPanelText(ctx.page, LOG_TEXT)
 
-		await logPanel(ctx.page).getByRole("button", { name: "Clear logs" }).click();
-		await waitForEmptyStatus(ctx.page);
-		await closeLogs(ctx.page);
+    await logPanel(ctx.page).getByRole('button', { name: 'Clear logs' }).click()
+    await waitForEmptyStatus(ctx.page)
+    await closeLogs(ctx.page)
 
-		seedLogs(ctx.testServer.dataDir, REFRESH_TEXT);
-		const deferred = await deferNextLogRead(ctx.page);
-		await openLogs(ctx.page);
-		const requestUrl = await deferred.requestUrl;
-		await waitForLoadingStatus(ctx.page);
-		let laterReads = 0;
-		const countReads = (request: { url(): string }) => {
-			if (request.url() === requestUrl) laterReads += 1;
-		};
-		ctx.page.on("request", countReads);
-		await closeLogs(ctx.page);
-		await deferred.release();
-		await ctx.page.clock.runFor(30000);
-		ctx.page.off("request", countReads);
-		expect(laterReads).toBe(0);
-		expect(await logPanel(ctx.page).getByText(REFRESH_TEXT, { exact: true }).count()).toBe(0);
-	});
+    seedLogs(ctx.testServer.dataDir, REFRESH_TEXT)
+    const deferred = await deferNextLogRead(ctx.page)
+    await openLogs(ctx.page)
+    const requestUrl = await deferred.requestUrl
+    await waitForLoadingStatus(ctx.page)
+    let laterReads = 0
+    const countReads = (request: { url(): string }) => {
+      if (request.url() === requestUrl) laterReads += 1
+    }
+    ctx.page.on('request', countReads)
+    await closeLogs(ctx.page)
+    await deferred.release()
+    await ctx.page.clock.runFor(30000)
+    ctx.page.off('request', countReads)
+    expect(laterReads).toBe(0)
+    expect(await logPanel(ctx.page).getByText(REFRESH_TEXT, { exact: true }).count()).toBe(0)
+  })
 
-	it("clear rejects an in-flight initial read", async () => {
-		await setupProject("logs-clear-pending");
-		await ctx.page.clock.install();
-		seedLogs(ctx.testServer.dataDir, LOG_TEXT);
-		const deferred = await deferNextLogRead(ctx.page);
+  it('clear rejects an in-flight initial read', async () => {
+    await setupProject('logs-clear-pending')
+    await ctx.page.clock.install()
+    seedLogs(ctx.testServer.dataDir, LOG_TEXT)
+    const deferred = await deferNextLogRead(ctx.page)
 
-		await openLogs(ctx.page);
-		await deferred.requestUrl;
-		await logPanel(ctx.page).getByRole("button", { name: "Clear logs" }).click();
-		await waitForEmptyStatus(ctx.page);
+    await openLogs(ctx.page)
+    await deferred.requestUrl
+    await logPanel(ctx.page).getByRole('button', { name: 'Clear logs' }).click()
+    await waitForEmptyStatus(ctx.page)
 
-		await deferred.release();
-		await ctx.page.waitForTimeout(100);
-		await waitForEmptyStatus(ctx.page);
-		expect(await logPanel(ctx.page).innerText()).not.toContain(LOG_TEXT);
-	});
+    await deferred.release()
+    await ctx.page.waitForTimeout(100)
+    await waitForEmptyStatus(ctx.page)
+    expect(await logPanel(ctx.page).innerText()).not.toContain(LOG_TEXT)
+  })
 
-	it("renders only viewport-sized content for a full log history", async () => {
-		await setupProject("logs-resize");
-		const line = "2026-07-24T10:00:00.000Z [app] realistic application log output for resize performance\n";
-		const historyLines = 16000;
-		seedLogs(ctx.testServer.dataDir, line.repeat(historyLines));
-		await openLogs(ctx.page);
-		await waitForPanelText(ctx.page, "realistic application log output");
+  it('renders only viewport-sized content for a full log history', async () => {
+    await setupProject('logs-resize')
+    const line = '2026-07-24T10:00:00.000Z [app] realistic application log output for resize performance\n'
+    const historyLines = 16000
+    seedLogs(ctx.testServer.dataDir, line.repeat(historyLines))
+    await openLogs(ctx.page)
+    await waitForPanelText(ctx.page, 'realistic application log output')
 
-		const beforeResize = await renderedLineCount(ctx.page);
-		expect(beforeResize).toBeGreaterThan(0);
-		expect(beforeResize).toBeLessThan(historyLines / 10);
+    const beforeResize = await renderedLineCount(ctx.page)
+    expect(beforeResize).toBeGreaterThan(0)
+    expect(beforeResize).toBeLessThan(historyLines / 10)
 
-		await resizeLogPanel(ctx.page, { x: -160, y: -80 });
-		const afterResize = await renderedLineCount(ctx.page);
-		expect(afterResize).toBeGreaterThan(0);
-		expect(afterResize).toBeLessThan(historyLines / 10);
-	});
-});
+    await resizeLogPanel(ctx.page, { x: -160, y: -80 })
+    const afterResize = await renderedLineCount(ctx.page)
+    expect(afterResize).toBeGreaterThan(0)
+    expect(afterResize).toBeLessThan(historyLines / 10)
+  })
+})

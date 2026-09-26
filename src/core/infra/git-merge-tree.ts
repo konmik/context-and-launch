@@ -1,10 +1,8 @@
-import { ProcessError } from '../shared/errors.js';
-import type { CommandTemplateKey } from '../command-template/command-template-definitions.js';
-import type { CommandTemplateExecutor, CommandTemplateValues } from '../command-template/command-template-types.js';
+import { ProcessError } from '../shared/errors.js'
+import type { CommandTemplateKey } from '../command-template/command-template-definitions.js'
+import type { CommandTemplateExecutor, CommandTemplateValues } from '../command-template/command-template-types.js'
 
-export type MergeTreeResult =
-	| { status: 'clean'; tree: string }
-	| { status: 'conflicted' };
+export type MergeTreeResult = { status: 'clean'; tree: string } | { status: 'conflicted' }
 
 /**
  * Compute the tree produced by merging two refs without touching the index or worktree.
@@ -14,18 +12,18 @@ export type MergeTreeResult =
  * interpreter or a timeout, both of which would otherwise look identical.
  */
 export async function writeMergeTree(
-	commands: CommandTemplateExecutor,
-	templateKey: CommandTemplateKey,
-	cwd: string,
-	values: CommandTemplateValues,
+  commands: CommandTemplateExecutor,
+  templateKey: CommandTemplateKey,
+  cwd: string,
+  values: CommandTemplateValues,
 ): Promise<MergeTreeResult> {
-	try {
-		const tree = (await commands.execute(templateKey, cwd, values)).trim().split('\n')[0];
-		return { status: 'clean', tree };
-	} catch (error) {
-		if (error instanceof ProcessError && error.exitedWith(1)) {
-			return { status: 'conflicted' };
-		}
-		throw error;
-	}
+  try {
+    const tree = (await commands.execute(templateKey, cwd, values)).trim().split('\n')[0]
+    return { status: 'clean', tree }
+  } catch (error) {
+    if (error instanceof ProcessError && error.exitedWith(1)) {
+      return { status: 'conflicted' }
+    }
+    throw error
+  }
 }

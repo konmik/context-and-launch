@@ -11,36 +11,36 @@ import {
   type ExternalDependencyProjection,
   type ForestLookup,
   type ForestTicket,
-} from "./forest-graph.js";
-import type { ForestLayout } from "~/core/ticket/forest-layout-store.js";
+} from './forest-graph.js'
+import type { ForestLayout } from '~/core/ticket/forest-layout-store.js'
 
 export interface ForestNodeData {
-  ticket: ForestTicket;
-  representedTicketNumbers: string[];
-  group: boolean;
+  ticket: ForestTicket
+  representedTicketNumbers: string[]
+  group: boolean
 }
 
 export interface ForestEdgeData {
-  relations: DependencyRelation[];
+  relations: DependencyRelation[]
 }
 
 export interface ForestFlowNode {
-  id: string;
-  position: { x: number; y: number };
-  data: ForestNodeData;
+  id: string
+  position: { x: number; y: number }
+  data: ForestNodeData
 }
 export interface ForestFlowEdge {
-  id: string;
-  source: string;
-  target: string;
-  data: ForestEdgeData;
+  id: string
+  source: string
+  target: string
+  data: ForestEdgeData
 }
 
 export interface ForestFlowModel {
-  nodes: ForestFlowNode[];
-  edges: ForestFlowEdge[];
-  externalDependencies: ExternalDependencyProjection[];
-  lookup: ForestLookup;
+  nodes: ForestFlowNode[]
+  edges: ForestFlowEdge[]
+  externalDependencies: ExternalDependencyProjection[]
+  lookup: ForestLookup
 }
 
 export function buildForestFlowModel(
@@ -48,45 +48,33 @@ export function buildForestFlowModel(
   scopeGroupNumber: string | undefined,
   savedLayout: ForestLayout,
 ): ForestFlowModel {
-  const lookup = buildLookup(tickets);
-  const representativeCache = new Map<string, string | undefined>();
-  const scopeNodes = resolveScope(tickets, scopeGroupNumber, lookup);
-  const { internal, external } = projectDependencies(
-    tickets,
-    scopeGroupNumber,
-    lookup,
-    representativeCache,
-  );
-  const representedByScopeNode = new Map<string, string[]>();
-  const parentNumbers = new Set<string>();
+  const lookup = buildLookup(tickets)
+  const representativeCache = new Map<string, string | undefined>()
+  const scopeNodes = resolveScope(tickets, scopeGroupNumber, lookup)
+  const { internal, external } = projectDependencies(tickets, scopeGroupNumber, lookup, representativeCache)
+  const representedByScopeNode = new Map<string, string[]>()
+  const parentNumbers = new Set<string>()
   for (const ticket of tickets) {
-    const representative = representativeInScope(
-      lookup,
-      ticket.number,
-      scopeGroupNumber,
-      representativeCache,
-    );
+    const representative = representativeInScope(lookup, ticket.number, scopeGroupNumber, representativeCache)
     if (representative) {
-      const represented = representedByScopeNode.get(representative);
-      if (represented) represented.push(ticket.number);
-      else representedByScopeNode.set(representative, [ticket.number]);
+      const represented = representedByScopeNode.get(representative)
+      if (represented) represented.push(ticket.number)
+      else representedByScopeNode.set(representative, [ticket.number])
     }
-    const parent = effectiveParent(ticket, lookup.allNumbers);
-    if (parent) parentNumbers.add(parent);
+    const parent = effectiveParent(ticket, lookup.allNumbers)
+    if (parent) parentNumbers.add(parent)
   }
-  const savedScopePositions: ForestLayout = {};
-  let allSaved = true;
+  const savedScopePositions: ForestLayout = {}
+  let allSaved = true
   for (const ticket of scopeNodes) {
-    const position = savedLayout[ticket.number];
-    if (position) savedScopePositions[ticket.number] = position;
-    else allSaved = false;
+    const position = savedLayout[ticket.number]
+    if (position) savedScopePositions[ticket.number] = position
+    else allSaved = false
   }
-  const positions: ForestLayout = allSaved
-    ? savedScopePositions
-    : { ...autoLayoutPositions(scopeNodes, internal), ...savedScopePositions };
+  const positions: ForestLayout = allSaved ? savedScopePositions : { ...autoLayoutPositions(scopeNodes, internal), ...savedScopePositions }
 
   return {
-    nodes: scopeNodes.map(ticket => ({
+    nodes: scopeNodes.map((ticket) => ({
       id: ticket.number,
       position: positions[ticket.number] ?? { x: 0, y: 0 },
       data: {
@@ -95,7 +83,7 @@ export function buildForestFlowModel(
         group: parentNumbers.has(ticket.number),
       },
     })),
-    edges: internal.map(dependency => ({
+    edges: internal.map((dependency) => ({
       id: `dependency:${dependency.fromNumber}:${dependency.toNumber}`,
       source: dependency.fromNumber,
       target: dependency.toNumber,
@@ -103,32 +91,24 @@ export function buildForestFlowModel(
     })),
     externalDependencies: external,
     lookup,
-  };
+  }
 }
 
-export function rearrangedForestPositions(
-  tickets: ForestTicket[],
-  scopeGroupNumber: string | undefined,
-): ForestLayout {
-  const lookup = buildLookup(tickets);
+export function rearrangedForestPositions(tickets: ForestTicket[], scopeGroupNumber: string | undefined): ForestLayout {
+  const lookup = buildLookup(tickets)
   return autoLayoutPositions(
     resolveScope(tickets, scopeGroupNumber, lookup),
     projectDependencies(tickets, scopeGroupNumber, lookup).internal,
-  );
+  )
 }
 
 export function positionsFromNodes(nodes: readonly ForestFlowNode[]): ForestLayout {
-  return Object.fromEntries(nodes.map(node => [node.id, { ...node.position }]));
+  return Object.fromEntries(nodes.map((node) => [node.id, { ...node.position }]))
 }
 
-export function groupPosition(bounds: {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}) {
+export function groupPosition(bounds: { x: number; y: number; width: number; height: number }) {
   return {
     x: bounds.x + (bounds.width - CARD_WIDTH) / 2,
     y: bounds.y + (bounds.height - CARD_HEIGHT) / 2,
-  };
+  }
 }

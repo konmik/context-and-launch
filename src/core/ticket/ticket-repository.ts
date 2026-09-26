@@ -1,226 +1,220 @@
-import fs from 'fs';
-import path from 'path';
-import { randomUUID } from 'node:crypto';
-import * as v from 'valibot';
-import { ConfigRepository } from '../config/config-repository.js';
-import type { JsonValue } from '../shared/json.js';
+import fs from 'fs'
+import path from 'path'
+import { randomUUID } from 'node:crypto'
+import * as v from 'valibot'
+import { ConfigRepository } from '../config/config-repository.js'
+import type { JsonValue } from '../shared/json.js'
 
 export const StatusJsonSchema = v.looseObject({
-	number: v.string(),
-	title: v.string(),
-	status: v.string(),
-	useWorktree: v.optional(v.boolean(), false),
-	createdAt: v.optional(v.string()),
-	references: v.optional(v.array(v.looseObject({ path: v.string() }))),
-	agentWorktreeBranchName: v.optional(v.string()),
-	agentWorktreeDir: v.optional(v.string()),
-	dependsOn: v.optional(v.array(v.string())),
-	memberOf: v.optional(v.string()),
-});
-export type StatusJson = v.InferOutput<typeof StatusJsonSchema>;
+  number: v.string(),
+  title: v.string(),
+  status: v.string(),
+  useWorktree: v.optional(v.boolean(), false),
+  createdAt: v.optional(v.string()),
+  references: v.optional(v.array(v.looseObject({ path: v.string() }))),
+  agentWorktreeBranchName: v.optional(v.string()),
+  agentWorktreeDir: v.optional(v.string()),
+  dependsOn: v.optional(v.array(v.string())),
+  memberOf: v.optional(v.string()),
+})
+export type StatusJson = v.InferOutput<typeof StatusJsonSchema>
 
 function isEnoent(cause: unknown): boolean {
-	return cause instanceof Error && 'code' in cause && cause.code === 'ENOENT';
+  return cause instanceof Error && 'code' in cause && cause.code === 'ENOENT'
 }
 
 interface TransactionState {
-	root: string;
-	undo: Array<() => void>;
-	finalize: Array<() => void>;
+  root: string
+  undo: Array<() => void>
+  finalize: Array<() => void>
 }
 
 export class TicketRepository {
-	private transactionState: TransactionState | null = null;
+  private transactionState: TransactionState | null = null
 
-	constructor(private readonly configRepo = new ConfigRepository()) {}
+  constructor(private readonly configRepo = new ConfigRepository()) {}
 
-	runInTransaction<T>(root: string, operation: () => T): T {
-		const normalizedRoot = path.resolve(root);
-		if (this.transactionState) {
-			if (this.transactionState.root !== normalizedRoot) {
-				throw new Error('Cannot nest ticket transactions for different worktrees');
-			}
-			return operation();
-		}
+  runInTransaction<T>(root: string, operation: () => T): T {
+    const normalizedRoot = path.resolve(root)
+    if (this.transactionState) {
+      if (this.transactionState.root !== normalizedRoot) {
+        throw new Error('Cannot nest ticket transactions for different worktrees')
+      }
+      return operation()
+    }
 
-		const state: TransactionState = { root: normalizedRoot, undo: [], finalize: [] };
-		this.transactionState = state;
-		try {
-			const result = operation();
-			this.transactionState = null;
-			for (const finalize of state.finalize) finalize();
-			return result;
-		} catch (error) {
-			this.transactionState = null;
-			const rollbackErrors: unknown[] = [];
-			for (const undo of [...state.undo].reverse()) {
-				try {
-					undo();
-				} catch (rollbackError) {
-					rollbackErrors.push(rollbackError);
-				}
-			}
-			if (rollbackErrors.length > 0) {
-				throw new AggregateError(
-					[error, ...rollbackErrors],
-					'Ticket mutation failed and could not be fully rolled back',
-				);
-			}
-			throw error;
-		}
-	}
+    const state: TransactionState = { root: normalizedRoot, undo: [], finalize: [] }
+    this.transactionState = state
+    try {
+      const result = operation()
+      this.transactionState = null
+      for (const finalize of state.finalize) finalize()
+      return result
+    } catch (error) {
+      this.transactionState = null
+      const rollbackErrors: unknown[] = []
+      for (const undo of [...state.undo].reverse()) {
+        try {
+          undo()
+        } catch (rollbackError) {
+          rollbackErrors.push(rollbackError)
+        }
+      }
+      if (rollbackErrors.length > 0) {
+        throw new AggregateError([error, ...rollbackErrors], 'Ticket mutation failed and could not be fully rolled back')
+      }
+      throw error
+    }
+  }
 
-	readStatusJson(dir: string): StatusJson | null {
-		const file = path.join(dir, 'status.json');
-		let raw: JsonValue | null;
-		try {
-			raw = this.configRepo.readJson(file);
-		} catch (err) {
-			if (isEnoent(err)) return null;
-			if (err instanceof Error && 'code' in err) throw err;
-			console.warn(`Malformed status.json in ${dir}:`, err);
-			return null;
-		}
-		if (raw === null) return null;
-		const parsed = v.safeParse(StatusJsonSchema, raw);
-		if (!parsed.success) {
-			console.warn(`Malformed status.json in ${dir}:`, parsed.issues);
-			return null;
-		}
-		return parsed.output;
-	}
+  readStatusJson(dir: string): StatusJson | null {
+    const file = path.join(dir, 'status.json')
+    let raw: JsonValue | null
+    try {
+      raw = this.configRepo.readJson(file)
+    } catch (err) {
+      if (isEnoent(err)) return null
+      if (err instanceof Error && 'code' in err) throw err
+      console.warn(`Malformed status.json in ${dir}:`, err)
+      return null
+    }
+    if (raw === null) return null
+    const parsed = v.safeParse(StatusJsonSchema, raw)
+    if (!parsed.success) {
+      console.warn(`Malformed status.json in ${dir}:`, parsed.issues)
+      return null
+    }
+    return parsed.output
+  }
 
-	writeStatusJson(dir: string, status: StatusJson): void {
-		this.writeJson(path.join(dir, 'status.json'), status);
-	}
+  writeStatusJson(dir: string, status: StatusJson): void {
+    this.writeJson(path.join(dir, 'status.json'), status)
+  }
 
-	readWorktreeJson(worktreeDir: string, fileName: string): JsonValue | null {
-		const filePath = path.join(worktreeDir, fileName);
-		try {
-			return this.configRepo.readJson(filePath);
-		} catch (err) {
-			console.warn(`Failed to read ${filePath}:`, err);
-			return null;
-		}
-	}
+  readWorktreeJson(worktreeDir: string, fileName: string): JsonValue | null {
+    const filePath = path.join(worktreeDir, fileName)
+    try {
+      return this.configRepo.readJson(filePath)
+    } catch (err) {
+      console.warn(`Failed to read ${filePath}:`, err)
+      return null
+    }
+  }
 
-	writeWorktreeJson<Data extends object>(worktreeDir: string, fileName: string, data: Data): void {
-		this.writeJson(path.join(worktreeDir, fileName), data);
-	}
+  writeWorktreeJson<Data extends object>(worktreeDir: string, fileName: string, data: Data): void {
+    this.writeJson(path.join(worktreeDir, fileName), data)
+  }
 
-	listEntries(parentDir: string): fs.Dirent[] {
-		try {
-			return fs.readdirSync(parentDir, { withFileTypes: true });
-		} catch (err) {
-			if (isEnoent(err)) return [];
-			throw err;
-		}
-	}
+  listEntries(parentDir: string): fs.Dirent[] {
+    try {
+      return fs.readdirSync(parentDir, { withFileTypes: true })
+    } catch (err) {
+      if (isEnoent(err)) return []
+      throw err
+    }
+  }
 
-	async listEntriesAsync(parentDir: string): Promise<fs.Dirent[]> {
-		try {
-			return await fs.promises.readdir(parentDir, { withFileTypes: true });
-		} catch (err) {
-			if (isEnoent(err)) return [];
-			throw err;
-		}
-	}
+  async listEntriesAsync(parentDir: string): Promise<fs.Dirent[]> {
+    try {
+      return await fs.promises.readdir(parentDir, { withFileTypes: true })
+    } catch (err) {
+      if (isEnoent(err)) return []
+      throw err
+    }
+  }
 
-	createDirectory(dir: string): void {
-		const existed = fs.existsSync(dir);
-		fs.mkdirSync(dir, { recursive: true });
-		if (!existed && this.transactionState) {
-			this.transactionState.undo.push(() => fs.rmSync(dir, { recursive: true, force: true }));
-		}
-	}
+  createDirectory(dir: string): void {
+    const existed = fs.existsSync(dir)
+    fs.mkdirSync(dir, { recursive: true })
+    if (!existed && this.transactionState) {
+      this.transactionState.undo.push(() => fs.rmSync(dir, { recursive: true, force: true }))
+    }
+  }
 
-	removeDirectory(dir: string): void {
-		if (this.transactionState && fs.existsSync(dir)) {
-			const stagedPath = path.join(
-				path.dirname(dir),
-				`.context-launch-transaction-${randomUUID()}`,
-			);
-			fs.renameSync(dir, stagedPath);
-			this.transactionState.undo.push(() => fs.renameSync(stagedPath, dir));
-			this.transactionState.finalize.push(() => fs.rmSync(stagedPath, { recursive: true, force: true }));
-			return;
-		}
-		fs.rmSync(dir, { recursive: true, force: true });
-	}
+  removeDirectory(dir: string): void {
+    if (this.transactionState && fs.existsSync(dir)) {
+      const stagedPath = path.join(path.dirname(dir), `.context-launch-transaction-${randomUUID()}`)
+      fs.renameSync(dir, stagedPath)
+      this.transactionState.undo.push(() => fs.renameSync(stagedPath, dir))
+      this.transactionState.finalize.push(() => fs.rmSync(stagedPath, { recursive: true, force: true }))
+      return
+    }
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
 
-	renameDirectory(from: string, to: string): void {
-		fs.renameSync(from, to);
-		if (this.transactionState) {
-			this.transactionState.undo.push(() => fs.renameSync(to, from));
-		}
-	}
+  renameDirectory(from: string, to: string): void {
+    fs.renameSync(from, to)
+    if (this.transactionState) {
+      this.transactionState.undo.push(() => fs.renameSync(to, from))
+    }
+  }
 
-	readFile(filePath: string): Buffer {
-		return fs.readFileSync(filePath);
-	}
+  readFile(filePath: string): Buffer {
+    return fs.readFileSync(filePath)
+  }
 
-	readFileText(filePath: string): string {
-		return fs.readFileSync(filePath, 'utf-8');
-	}
+  readFileText(filePath: string): string {
+    return fs.readFileSync(filePath, 'utf-8')
+  }
 
-	writeFile(filePath: string, content: Buffer | string): void {
-		this.writeWithUndo(filePath, () => fs.writeFileSync(filePath, content));
-	}
+  writeFile(filePath: string, content: Buffer | string): void {
+    this.writeWithUndo(filePath, () => fs.writeFileSync(filePath, content))
+  }
 
-	deleteFile(filePath: string): void {
-		const before = this.captureFile(filePath);
-		fs.unlinkSync(filePath);
-		this.recordFileUndo(filePath, before);
-	}
+  deleteFile(filePath: string): void {
+    const before = this.captureFile(filePath)
+    fs.unlinkSync(filePath)
+    this.recordFileUndo(filePath, before)
+  }
 
-	exists(filePath: string): boolean {
-		return fs.existsSync(filePath);
-	}
+  exists(filePath: string): boolean {
+    return fs.existsSync(filePath)
+  }
 
-	isDirectory(filePath: string): boolean {
-		try {
-			return fs.statSync(filePath).isDirectory();
-		} catch (err) {
-			if (isEnoent(err)) return false;
-			throw err;
-		}
-	}
+  isDirectory(filePath: string): boolean {
+    try {
+      return fs.statSync(filePath).isDirectory()
+    } catch (err) {
+      if (isEnoent(err)) return false
+      throw err
+    }
+  }
 
-	realpathSync(filePath: string): string {
-		return fs.realpathSync(filePath);
-	}
+  realpathSync(filePath: string): string {
+    return fs.realpathSync(filePath)
+  }
 
-	private writeJson<Data extends object>(filePath: string, data: Data): void {
-		this.writeWithUndo(filePath, () => this.configRepo.writeJson(filePath, data));
-	}
+  private writeJson<Data extends object>(filePath: string, data: Data): void {
+    this.writeWithUndo(filePath, () => this.configRepo.writeJson(filePath, data))
+  }
 
-	private writeWithUndo(filePath: string, write: () => void): void {
-		const before = this.captureFile(filePath);
-		try {
-			write();
-		} catch (error) {
-			this.restoreFile(filePath, before);
-			throw error;
-		}
-		this.recordFileUndo(filePath, before);
-	}
+  private writeWithUndo(filePath: string, write: () => void): void {
+    const before = this.captureFile(filePath)
+    try {
+      write()
+    } catch (error) {
+      this.restoreFile(filePath, before)
+      throw error
+    }
+    this.recordFileUndo(filePath, before)
+  }
 
-	private captureFile(filePath: string): Buffer | null {
-		return fs.existsSync(filePath) ? fs.readFileSync(filePath) : null;
-	}
+  private captureFile(filePath: string): Buffer | null {
+    return fs.existsSync(filePath) ? fs.readFileSync(filePath) : null
+  }
 
-	private recordFileUndo(filePath: string, before: Buffer | null): void {
-		if (this.transactionState) {
-			this.transactionState.undo.push(() => this.restoreFile(filePath, before));
-		}
-	}
+  private recordFileUndo(filePath: string, before: Buffer | null): void {
+    if (this.transactionState) {
+      this.transactionState.undo.push(() => this.restoreFile(filePath, before))
+    }
+  }
 
-	private restoreFile(filePath: string, before: Buffer | null): void {
-		if (before === null) {
-			if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-			return;
-		}
-		fs.mkdirSync(path.dirname(filePath), { recursive: true });
-		fs.writeFileSync(filePath, before);
-	}
+  private restoreFile(filePath: string, before: Buffer | null): void {
+    if (before === null) {
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
+      return
+    }
+    fs.mkdirSync(path.dirname(filePath), { recursive: true })
+    fs.writeFileSync(filePath, before)
+  }
 }

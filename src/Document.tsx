@@ -1,5 +1,5 @@
-import type { Element } from "solid-js";
-import { criticalAppearanceScript, criticalBackgroundCss } from "./components/shared/palette-pure.js";
+import type { Element } from 'solid-js'
+import { criticalAppearanceScript, criticalBackgroundCss } from './components/shared/palette-pure.js'
 
 export default function Document(props: { children: Element }) {
   return (
@@ -16,5 +16,5 @@ export default function Document(props: { children: Element }) {
         <div id="app">{props.children}</div>
       </body>
     </html>
-  );
+  )
 }
