@@ -2,6 +2,14 @@
 # run.sh -- Start Context & Launch server and open in browser app mode
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+        exec powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(cygpath -w "$script_dir/run.ps1")" "$@"
+        ;;
+esac
+
 die() {
     echo "ERROR: $*" >&2
     read -r -p "Press Enter to exit" _ || true
@@ -54,8 +62,6 @@ port_in_use() {
         ' "$1" >/dev/null 2>&1
     fi
 }
-
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # The server records its pid and port here when it starts. It serves the build it
 # loaded, so it is useless once anything is rebuilt: stop it before starting the
