@@ -55,21 +55,21 @@ const rows: {
     key: 'deleteWorktree',
     resource: 'Worktree',
     label: 'Delete worktree',
-    confirmation: 'Delete this task\'s worktree folder and its files?',
+    confirmation: "Delete this task's worktree folder and its files?",
     testId: 'ticket-cleanup-delete-worktree',
   },
   {
     key: 'deleteLocalBranch',
     resource: 'Local branch',
     label: 'Delete local branch',
-    confirmation: 'Delete this task\'s local Git branch?',
+    confirmation: "Delete this task's local Git branch?",
     testId: 'ticket-cleanup-delete-local',
   },
   {
     key: 'deleteRemoteBranch',
     resource: 'Remote branch',
     label: 'Delete remote branch',
-    confirmation: 'Delete this task\'s branch from the remote repository?',
+    confirmation: "Delete this task's branch from the remote repository?",
     testId: 'ticket-cleanup-delete-remote',
   },
 ]
@@ -205,15 +205,15 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps): JS
                             <ul class="space-y-1" aria-label={`${row.resource} checks`}>
                               <For each={checks()}>
                                 {(check) => (
-                                  <li class={`break-words leading-6 ${check.state === 'blocked' || check.state === 'error' ? 'text-destructive' : 'text-muted-foreground'}`}>
+                                  <li
+                                    class={`break-words leading-6 ${check.state === 'blocked' || check.state === 'error' ? 'text-destructive' : 'text-muted-foreground'}`}
+                                  >
                                     {check.detail}
                                   </li>
                                 )}
                               </For>
                             </ul>
-                            <div
-                              class="min-w-0 whitespace-pre-line break-words text-left text-sm leading-5 not-empty:mt-2"
-                            >
+                            <div class="min-w-0 whitespace-pre-line break-words text-left text-sm leading-5 not-empty:mt-2">
                               <Show
                                 when={running()}
                                 fallback={
@@ -290,9 +290,10 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps): JS
                 <DialogDescription>
                   {props.ticket?.number} - {props.ticket?.title}
                   <br />
-                  {row()?.confirmation ?? (operation() === 'archive'
-                    ? 'Move this task to the archive?'
-                    : 'Permanently delete this task and its files? This cannot be undone.')}
+                  {row()?.confirmation ??
+                    (operation() === 'archive'
+                      ? 'Move this task to the archive?'
+                      : 'Permanently delete this task and its files? This cannot be undone.')}
                 </DialogDescription>
                 <div class="flex justify-end gap-2">
                   <button type="button" onClick={s.closeConfirmation} class="btn-secondary" data-testid="ticket-cleanup-confirm-cancel">

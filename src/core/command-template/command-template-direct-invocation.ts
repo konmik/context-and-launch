@@ -7,7 +7,7 @@ const placeholderToken = new RegExp(`^${PLACEHOLDER_SOURCE}$`) // A scalar place
 // folds into one argv entry instead of forcing the shell-string fallback.
 const placeholderWithPathSuffixToken = new RegExp(`^${PLACEHOLDER_SOURCE}(${PATH_SUFFIX_SOURCE})$`)
 
-const plainToken = /^[A-Za-z0-9_\-./:=@+\\]+$/
+const plainToken = /^[A-Za-z0-9_\-./:=@+%\\]+$/
 
 const singleQuotedToken = /^'([^']*)'$/
 

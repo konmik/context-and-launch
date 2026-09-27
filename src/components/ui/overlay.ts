@@ -36,7 +36,9 @@ function isAvailableForFocus(element: HTMLElement): boolean {
 }
 
 function createOverlayCoordinator(document: Document): OverlayCoordinator {
-  let state: OverlayState = { dialogs: [] }
+  let state: OverlayState = {
+    dialogs: [],
+  }
   const [snapshot, setSnapshot] = createSignal<OverlayState>(state)
   const callbacks = new Map<symbol, OverlayCallbacks>()
   const dialogMount = document.createElement('div')
@@ -64,7 +66,9 @@ function createOverlayCoordinator(document: Document): OverlayCoordinator {
   function dismissPopup(): void {
     const popup = state.popup
     if (!popup) return
-    updateState({ dialogs: state.dialogs })
+    updateState({
+      dialogs: state.dialogs,
+    })
     callbacks.get(popup.id)?.onDismiss()
   }
 
@@ -77,7 +81,11 @@ function createOverlayCoordinator(document: Document): OverlayCoordinator {
         id,
         kind,
         ownerDialogId: getTopDialogId(),
-        returnFocusTarget: options.getReturnFocusTarget ? options.getReturnFocusTarget() : document.activeElement instanceof HTMLElement ? document.activeElement : undefined,
+        returnFocusTarget: options.getReturnFocusTarget
+          ? options.getReturnFocusTarget()
+          : document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : undefined,
       }
       const returnFocusTarget = state.popup?.returnFocusTarget ?? entry.returnFocusTarget
       dismissPopup()
@@ -86,8 +94,15 @@ function createOverlayCoordinator(document: Document): OverlayCoordinator {
         document.addEventListener('keydown', onKeyDown)
       }
       callbacks.set(id, options)
-      if (kind === 'dialog') updateState({ dialogs: [...state.dialogs, entry] })
-      else updateState({ dialogs: state.dialogs, popup: entry })
+      if (kind === 'dialog')
+        updateState({
+          dialogs: [...state.dialogs, entry],
+        })
+      else
+        updateState({
+          dialogs: state.dialogs,
+          popup: entry,
+        })
       queueMicrotask(() => {
         if (getTopOverlayId() === id) options.onFocus()
       })
@@ -95,9 +110,14 @@ function createOverlayCoordinator(document: Document): OverlayCoordinator {
         const wasActiveDialog = getTopDialogId() === id
         if (kind === 'dialog') {
           if (state.popup?.ownerDialogId === id) dismissPopup()
-          updateState({ ...state, dialogs: state.dialogs.filter((item) => item.id !== id) })
+          updateState({
+            ...state,
+            dialogs: state.dialogs.filter((item) => item.id !== id),
+          })
         } else if (state.popup?.id === id) {
-          updateState({ dialogs: state.dialogs })
+          updateState({
+            dialogs: state.dialogs,
+          })
         }
         callbacks.delete(id)
         if (!callbacks.size) {
@@ -119,18 +139,21 @@ function createOverlayCoordinator(document: Document): OverlayCoordinator {
         const current = snapshot()
         return current.dialogs.at(-1)?.id === id || current.popup?.id === id
       },
-      getPortalMount: () => kind === 'dialog' ? dialogMount : popupMount,
+      getPortalMount: () => (kind === 'dialog' ? dialogMount : popupMount),
       queueFocusRestore: (element) => {
         const registeredEntry = entry
         if (!registeredEntry) return
         queueMicrotask(() => {
-          if ((getTopOverlayId() === id || getTopOverlayId() === registeredEntry.ownerDialogId) && element && isAvailableForFocus(element)) element.focus()
+          if ((getTopOverlayId() === id || getTopOverlayId() === registeredEntry.ownerDialogId) && element && isAvailableForFocus(element))
+            element.focus()
         })
       },
     }
   }
 
-  return { createOverlay }
+  return {
+    createOverlay,
+  }
 }
 
 interface OverlayOptions extends OverlayCallbacks {

@@ -55,29 +55,58 @@ describe('runTicketCleanupChecks', () => {
       stopHerdrAgent: {
         state: 'ready',
         checks: [
-          { state: 'passed', detail: 'Agent service available' },
-          { state: 'passed', detail: 'Task agent found' },
+          {
+            state: 'passed',
+            detail: 'Agent service available',
+          },
+          {
+            state: 'passed',
+            detail: 'Task agent found',
+          },
         ],
       },
       deleteWorktree: {
         state: 'ready',
         checks: [
-          { state: 'passed', detail: 'Worktree found' },
-          { state: 'passed', detail: 'Belongs to this project' },
-          { state: 'passed', detail: 'No uncommitted changes' },
-          { state: 'passed', detail: 'Worktree is not in use' },
+          {
+            state: 'passed',
+            detail: 'Worktree found',
+          },
+          {
+            state: 'passed',
+            detail: 'Belongs to this project',
+          },
+          {
+            state: 'passed',
+            detail: 'No uncommitted changes',
+          },
+          {
+            state: 'passed',
+            detail: 'Worktree is not in use',
+          },
         ],
       },
       deleteLocalBranch: {
         state: 'ready',
         checks: [
-          { state: 'passed', detail: 'Local branch found' },
-          { state: 'passed', detail: 'Changes integrated into main branch' },
+          {
+            state: 'passed',
+            detail: 'Local branch found',
+          },
+          {
+            state: 'passed',
+            detail: 'Changes integrated into main branch',
+          },
         ],
       },
       deleteRemoteBranch: {
         state: 'ready',
-        checks: [{ state: 'passed', detail: 'Remote branch found' }],
+        checks: [
+          {
+            state: 'passed',
+            detail: 'Remote branch found',
+          },
+        ],
       },
     })
     expect(findHerdrAgent).toHaveBeenCalledWith({
@@ -100,7 +129,10 @@ describe('runTicketCleanupChecks', () => {
       state: 'blocked',
       reason: 'Herdr is not running.',
       checks: [
-        { state: 'passed', detail: 'Herdr is not running.' },
+        {
+          state: 'passed',
+          detail: 'Herdr is not running.',
+        },
       ],
     })
   })
@@ -117,8 +149,14 @@ describe('runTicketCleanupChecks', () => {
       state: 'blocked',
       reason: 'No Herdr agent',
       checks: [
-        { state: 'passed', detail: 'Agent service available' },
-        { state: 'passed', detail: 'No Herdr agent' },
+        {
+          state: 'passed',
+          detail: 'Agent service available',
+        },
+        {
+          state: 'passed',
+          detail: 'No Herdr agent',
+        },
       ],
     })
   })
@@ -133,7 +171,10 @@ describe('runTicketCleanupChecks', () => {
       state: 'blocked',
       reason: 'No worktree',
       checks: [
-        { state: 'passed', detail: 'No worktree' },
+        {
+          state: 'passed',
+          detail: 'No worktree',
+        },
       ],
     })
   })
@@ -148,9 +189,18 @@ describe('runTicketCleanupChecks', () => {
       state: 'blocked',
       reason: 'Worktree has uncommitted changes',
       checks: [
-        { state: 'passed', detail: 'Worktree found' },
-        { state: 'passed', detail: 'Belongs to this project' },
-        { state: 'blocked', detail: 'Worktree has uncommitted changes' },
+        {
+          state: 'passed',
+          detail: 'Worktree found',
+        },
+        {
+          state: 'passed',
+          detail: 'Belongs to this project',
+        },
+        {
+          state: 'blocked',
+          detail: 'Worktree has uncommitted changes',
+        },
       ],
     })
   })
@@ -166,8 +216,14 @@ describe('runTicketCleanupChecks', () => {
     expect(status.deleteWorktree).toEqual({
       state: 'error',
       checks: [
-        { state: 'passed', detail: 'Worktree found' },
-        { state: 'blocked', detail: 'Belongs to another project' },
+        {
+          state: 'passed',
+          detail: 'Worktree found',
+        },
+        {
+          state: 'blocked',
+          detail: 'Belongs to another project',
+        },
       ],
       error: {
         title: 'Cleanup failed',
@@ -189,9 +245,18 @@ describe('runTicketCleanupChecks', () => {
     expect(status.deleteWorktree).toEqual({
       state: 'ready',
       checks: [
-        { state: 'passed', detail: 'Worktree found' },
-        { state: 'passed', detail: 'Belongs to this project' },
-        { state: 'passed', detail: 'Worktree is not in use' },
+        {
+          state: 'passed',
+          detail: 'Worktree found',
+        },
+        {
+          state: 'passed',
+          detail: 'Belongs to this project',
+        },
+        {
+          state: 'passed',
+          detail: 'Worktree is not in use',
+        },
       ],
     })
     expect(isWorktreeClean).not.toHaveBeenCalled()
@@ -209,10 +274,22 @@ describe('runTicketCleanupChecks', () => {
       warning: true,
       killable: true,
       checks: [
-        { state: 'passed', detail: 'Worktree found' },
-        { state: 'passed', detail: 'Belongs to this project' },
-        { state: 'passed', detail: 'No uncommitted changes' },
-        { state: 'blocked', detail: 'Worktree is in use by another process' },
+        {
+          state: 'passed',
+          detail: 'Worktree found',
+        },
+        {
+          state: 'passed',
+          detail: 'Belongs to this project',
+        },
+        {
+          state: 'passed',
+          detail: 'No uncommitted changes',
+        },
+        {
+          state: 'blocked',
+          detail: 'Worktree is in use by another process',
+        },
       ],
     })
   })
@@ -232,10 +309,22 @@ describe('runTicketCleanupChecks', () => {
       warning: true,
       killable: true,
       checks: [
-        { state: 'passed', detail: 'Worktree found' },
-        { state: 'passed', detail: 'Belongs to this project' },
-        { state: 'passed', detail: 'No uncommitted changes' },
-        { state: 'blocked', detail: 'Worktree is in use by another process' },
+        {
+          state: 'passed',
+          detail: 'Worktree found',
+        },
+        {
+          state: 'passed',
+          detail: 'Belongs to this project',
+        },
+        {
+          state: 'passed',
+          detail: 'No uncommitted changes',
+        },
+        {
+          state: 'blocked',
+          detail: 'Worktree is in use by another process',
+        },
       ],
     })
   })
@@ -255,10 +344,22 @@ describe('runTicketCleanupChecks', () => {
       warning: true,
       killable: true,
       checks: [
-        { state: 'passed', detail: 'Worktree found' },
-        { state: 'passed', detail: 'Belongs to this project' },
-        { state: 'passed', detail: 'No uncommitted changes' },
-        { state: 'blocked', detail: 'Worktree is in use by another process' },
+        {
+          state: 'passed',
+          detail: 'Worktree found',
+        },
+        {
+          state: 'passed',
+          detail: 'Belongs to this project',
+        },
+        {
+          state: 'passed',
+          detail: 'No uncommitted changes',
+        },
+        {
+          state: 'blocked',
+          detail: 'Worktree is in use by another process',
+        },
       ],
     })
   })
@@ -273,7 +374,10 @@ describe('runTicketCleanupChecks', () => {
       state: 'blocked',
       reason: 'No local branch',
       checks: [
-        { state: 'passed', detail: 'No local branch' },
+        {
+          state: 'passed',
+          detail: 'No local branch',
+        },
       ],
     })
   })
@@ -290,8 +394,14 @@ describe('runTicketCleanupChecks', () => {
       warning: true,
       forceDeleteable: true,
       checks: [
-        { state: 'passed', detail: 'Local branch found' },
-        { state: 'blocked', detail: 'Branch has unmerged commits' },
+        {
+          state: 'passed',
+          detail: 'Local branch found',
+        },
+        {
+          state: 'blocked',
+          detail: 'Branch has unmerged commits',
+        },
       ],
     })
   })
@@ -305,7 +415,12 @@ describe('runTicketCleanupChecks', () => {
     expect(status.deleteRemoteBranch).toEqual({
       state: 'blocked',
       reason: 'No remote branch',
-      checks: [{ state: 'passed', detail: 'No remote branch' }],
+      checks: [
+        {
+          state: 'passed',
+          detail: 'No remote branch',
+        },
+      ],
     })
   })
   it('isolates a rejecting isBranchMerged to deleteLocalBranch only', async () => {
@@ -319,8 +434,14 @@ describe('runTicketCleanupChecks', () => {
     )
     expect(status.deleteLocalBranch.state).toBe('error')
     expect(status.deleteLocalBranch.checks).toEqual([
-      { state: 'passed', detail: 'Local branch found' },
-      { state: 'error', detail: 'Changes integrated into main branch could not be checked' },
+      {
+        state: 'passed',
+        detail: 'Local branch found',
+      },
+      {
+        state: 'error',
+        detail: 'Changes integrated into main branch could not be checked',
+      },
     ])
     if (status.deleteLocalBranch.state === 'error') {
       expect(status.deleteLocalBranch.error.description).toBe('merge check failed')

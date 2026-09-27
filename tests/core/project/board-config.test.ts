@@ -104,7 +104,10 @@ describe('board configuration storage', () => {
       }),
     ).resolves.toEqual({
       type: 'Failure',
-      error: 'bad edit',
+      error: {
+        title: 'Operation failed',
+        description: 'bad edit',
+      },
     })
     const boards = store.read('next')
     expect(() => store.write([], 'next')).toThrow('empty')

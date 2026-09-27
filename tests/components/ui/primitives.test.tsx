@@ -64,7 +64,7 @@ describe('local UI primitives', () => {
     fireEvent.click(trigger)
     await Promise.resolve()
     const menu = document.querySelector<HTMLElement>('[role="menu"]')!
-    expect(menu.parentElement).toBe(document.body)
+    expect(menu.closest('[data-overlay-layer]')?.getAttribute('data-overlay-layer')).toBe('popups')
     expect(menu.style.position).toBe('fixed')
     fireEvent.click(menu.querySelector('[role="menuitem"]')!)
     await Promise.resolve()

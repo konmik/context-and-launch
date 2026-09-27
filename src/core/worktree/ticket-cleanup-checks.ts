@@ -29,7 +29,9 @@ export interface ErrorCleanupCheckItem {
 
 type CleanupCheckOutcome = ReadyCleanupCheckItem | BlockedCleanupCheckItem | ErrorCleanupCheckItem
 
-export type CleanupCheckItem = CleanupCheckOutcome & { checks: CleanupCheckDetail[] }
+export type CleanupCheckItem = CleanupCheckOutcome & {
+  checks: CleanupCheckDetail[]
+}
 
 export interface TicketCleanupStatus {
   stopHerdrAgent: CleanupCheckItem
@@ -67,14 +69,28 @@ export interface TicketCleanupCheckDeps {
 }
 
 interface RunCleanupCheck {
-  <T>(label: string, operation: () => T | Promise<T>, evaluate: (value: T) => CleanupCheckDetail['state'] | undefined, describe: (value: T) => string): Promise<T>
+  <T>(
+    label: string,
+    operation: () => T | Promise<T>,
+    evaluate: (value: T) => CleanupCheckDetail['state'] | undefined,
+    describe: (value: T) => string,
+  ): Promise<T>
 }
 
 async function guard(body: (check: RunCleanupCheck) => Promise<CleanupCheckOutcome>): Promise<CleanupCheckItem> {
   let checks: CleanupCheckDetail[] = []
+
   function record(state: CleanupCheckDetail['state'] | undefined, detail: string): void {
-    if (state !== undefined) checks = [...checks, { state, detail }]
+    if (state !== undefined)
+      checks = [
+        ...checks,
+        {
+          state,
+          detail,
+        },
+      ]
   }
+
   async function run<T>(
     label: string,
     operation: () => T | Promise<T>,
@@ -90,6 +106,7 @@ async function guard(body: (check: RunCleanupCheck) => Promise<CleanupCheckOutco
       throw e
     }
   }
+
   try {
     const outcome = await body(run)
     return {
@@ -113,12 +130,13 @@ export async function runTicketCleanupChecks(target: TicketCleanupCheckTarget, d
   const stopHerdrAgent = guard(async (check) => {
     const found = await check(
       'Agent service detection',
-      () => deps.findHerdrAgent({
-        projectSlug: target.projectSlug,
-        folderName: target.folderName,
-      }),
+      () =>
+        deps.findHerdrAgent({
+          projectSlug: target.projectSlug,
+          folderName: target.folderName,
+        }),
       () => 'passed',
-      (result) => result.kind === 'herdr-unavailable' ? result.message : 'Agent service available',
+      (result) => (result.kind === 'herdr-unavailable' ? result.message : 'Agent service available'),
     )
     if (found.kind === 'herdr-unavailable')
       return {
@@ -129,7 +147,7 @@ export async function runTicketCleanupChecks(target: TicketCleanupCheckTarget, d
       'Task agent lookup',
       () => found.kind === 'agent',
       () => 'passed',
-      (value) => value ? 'Task agent found' : 'No Herdr agent',
+      (value) => (value ? 'Task agent found' : 'No Herdr agent'),
     )
     if (!hasAgent)
       return {
@@ -145,7 +163,7 @@ export async function runTicketCleanupChecks(target: TicketCleanupCheckTarget, d
       'Worktree lookup',
       () => deps.worktreeExists(target.worktreePath),
       () => 'passed',
-      (value) => value ? 'Worktree found' : 'No worktree',
+      (value) => (value ? 'Worktree found' : 'No worktree'),
     )
     if (!exists) {
       return {
@@ -156,8 +174,8 @@ export async function runTicketCleanupChecks(target: TicketCleanupCheckTarget, d
     const ownership = await check(
       'Project ownership',
       () => deps.getWorktreeOwnership(target.projectPath, target.worktreePath),
-      (value) => value.kind === 'not-worktree' ? undefined : predicateState(value.kind === 'current-project'),
-      (value) => value.kind === 'current-project' ? 'Belongs to this project' : 'Belongs to another project',
+      (value) => (value.kind === 'not-worktree' ? undefined : predicateState(value.kind === 'current-project')),
+      (value) => (value.kind === 'current-project' ? 'Belongs to this project' : 'Belongs to another project'),
     )
     if (ownership.kind === 'different-project') {
       return {
@@ -174,8 +192,8 @@ export async function runTicketCleanupChecks(target: TicketCleanupCheckTarget, d
         if (!deps.isGitWorktree(target.worktreePath)) return undefined
         return deps.isWorktreeClean(target.worktreePath)
       },
-      (value) => value === undefined ? undefined : predicateState(value),
-      (value) => value ? 'No uncommitted changes' : 'Worktree has uncommitted changes',
+      (value) => (value === undefined ? undefined : predicateState(value)),
+      (value) => (value ? 'No uncommitted changes' : 'Worktree has uncommitted changes'),
     )
     if (clean === false) {
       return {
@@ -187,7 +205,7 @@ export async function runTicketCleanupChecks(target: TicketCleanupCheckTarget, d
       'Not in use by another process',
       () => deps.isWorktreeBusy(target.worktreePath),
       (value) => predicateState(!value),
-      (value) => value ? 'Worktree is in use by another process' : 'Worktree is not in use',
+      (value) => (value ? 'Worktree is in use by another process' : 'Worktree is not in use'),
     )
     if (busy) {
       const herdr = await stopHerdrAgent
@@ -210,7 +228,7 @@ export async function runTicketCleanupChecks(target: TicketCleanupCheckTarget, d
       'Local branch lookup',
       () => deps.localBranchExists(target.projectPath, target.branchName),
       () => 'passed',
-      (value) => value ? 'Local branch found' : 'No local branch',
+      (value) => (value ? 'Local branch found' : 'No local branch'),
     )
     if (!exists) {
       return {
@@ -222,7 +240,7 @@ export async function runTicketCleanupChecks(target: TicketCleanupCheckTarget, d
       'Changes integrated into main branch',
       () => deps.isBranchMerged(target.projectPath, target.branchName, target.configuredMainBranch),
       predicateState,
-      (value) => value ? 'Changes integrated into main branch' : 'Branch has unmerged commits',
+      (value) => (value ? 'Changes integrated into main branch' : 'Branch has unmerged commits'),
     )
     if (!merged) {
       return {
@@ -241,7 +259,7 @@ export async function runTicketCleanupChecks(target: TicketCleanupCheckTarget, d
       'Remote branch lookup',
       () => deps.hasRemoteBranch(target.projectPath, target.branchName),
       () => 'passed',
-      (value) => value ? 'Remote branch found' : 'No remote branch',
+      (value) => (value ? 'Remote branch found' : 'No remote branch'),
     )
     if (!exists) {
       return {
