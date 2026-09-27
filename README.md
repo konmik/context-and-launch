@@ -115,4 +115,12 @@ pnpm install
 pnpm run dev
 ```
 
+Tests and their fixtures live in `tests/`. Unit tests mirror `src/`, with Electron and script tests in `tests/electron/` and `tests/scripts/`. Browser tests live in `tests/e2e/`.
+
+Run selected tests through the isolated test runner:
+
+```
+pnpm run check tests/core/infra/git.test.ts
+```
+
 If you wish to contribute, please create an issue first. PRs from unknown contributors will be ignored.

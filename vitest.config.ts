@@ -18,9 +18,9 @@ const solidVite = () => ({
 
 const timingReporter = fileURLToPath(new URL('./scripts/test-timing-reporter.ts', import.meta.url))
 
-const projectTemplate = fileURLToPath(new URL('./e2e/project-template.ts', import.meta.url))
+const projectTemplate = fileURLToPath(new URL('./tests/e2e/project-template.ts', import.meta.url))
 
-const nodeTests = ['src/core/**/*.test.ts', 'electron/**/*.test.ts', 'scripts/**/*.test.ts']
+const nodeTests = ['tests/core/**/*.test.ts', 'tests/electron/**/*.test.ts', 'tests/scripts/**/*.test.ts']
 
 export default defineConfig({
   ...solidVite(),
@@ -44,7 +44,7 @@ export default defineConfig({
           exclude: ['**/*.shell.test.ts'],
           testTimeout: 20000,
           maxConcurrency: 8,
-          setupFiles: ['src/test-git-env.ts'],
+          setupFiles: ['tests/test-git-env.ts'],
         },
       },
       {
@@ -53,20 +53,20 @@ export default defineConfig({
           name: 'unit-ts',
           isolate: false,
           environment: 'jsdom',
-          include: ['src/**/*.test.ts'],
-          exclude: [...nodeTests, 'src/server/**/*.test.ts', '**/*.shell.test.ts'],
+          include: ['tests/**/*.test.ts'],
+          exclude: [...nodeTests, 'tests/server/**/*.test.ts', 'tests/e2e/**/*.test.ts', '**/*.shell.test.ts'],
           testTimeout: 20000,
           maxConcurrency: 8,
-          setupFiles: ['src/test-git-env.ts'],
+          setupFiles: ['tests/test-git-env.ts'],
         },
       },
       {
         ...solidVite(),
         test: {
           name: 'unit-tsx',
-          include: ['src/**/*.test.tsx'],
+          include: ['tests/**/*.test.tsx'],
           environment: 'jsdom',
-          setupFiles: ['src/test-setup.ts'],
+          setupFiles: ['tests/test-setup.ts'],
         },
       },
       {
@@ -74,8 +74,8 @@ export default defineConfig({
         test: {
           name: 'server',
           environment: 'node',
-          include: ['src/server/**/*.test.ts'],
-          setupFiles: ['src/test-git-env.ts'],
+          include: ['tests/server/**/*.test.ts'],
+          setupFiles: ['tests/test-git-env.ts'],
         },
       },
       {
@@ -84,7 +84,7 @@ export default defineConfig({
         },
         test: {
           name: 'e2e',
-          include: ['e2e/**/*.test.ts'],
+          include: ['tests/e2e/**/*.test.ts'],
           // Every e2e file runs a real server and a real browser against real git
           // and real files. Windows serialises far more of that I/O than the core
           // count suggests, and oversubscribing it starves individual runs until
@@ -98,7 +98,7 @@ export default defineConfig({
           hookTimeout: 60000,
           maxConcurrency: 4,
           globalSetup: [projectTemplate],
-          setupFiles: ['src/test-git-env.ts'],
+          setupFiles: ['tests/test-git-env.ts'],
         },
       },
       {
@@ -107,12 +107,12 @@ export default defineConfig({
         },
         test: {
           name: 'bench',
-          include: ['e2e/**/*.bench.ts'],
+          include: ['tests/e2e/**/*.bench.ts'],
           testTimeout: 600000,
           hookTimeout: 600000,
           maxConcurrency: 1,
           globalSetup: [projectTemplate],
-          setupFiles: ['src/test-git-env.ts'],
+          setupFiles: ['tests/test-git-env.ts'],
         },
       },
     ],

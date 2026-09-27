@@ -57,21 +57,21 @@ All runs passed. Backend Vitest time fell from a median 2.220 seconds to 0.997 s
 
 The backend workload selects these files:
 
-- `electron/built-app.test.ts`
-- `src/core/infra/git.test.ts`
-- `src/core/ticket/context-api-validation.test.ts`
-- `src/core/config/config-repository.test.ts`
-- `src/core/launcher/resolve-conflicts.test.ts`
+- `tests/electron/built-app.test.ts`
+- `tests/core/infra/git.test.ts`
+- `tests/core/ticket/context-api-validation.test.ts`
+- `tests/core/config/config-repository.test.ts`
+- `tests/core/launcher/resolve-conflicts.test.ts`
 
 The mixed workload adds:
 
-- `src/components/shared/directory-picker.test.ts`
-- `src/util/stored-signal.test.ts`
-- `src/components/ui/primitives.test.tsx`
-- `scripts/test-workspace-isolation.test.ts` (the baseline path is `e2e/test-workspace-isolation.test.ts`)
-- `e2e/error-dialog.test.ts`
-- `e2e/project-header.test.ts`
-- `e2e/project-window.test.ts`
+- `tests/components/shared/directory-picker.test.ts`
+- `tests/util/stored-signal.test.ts`
+- `tests/components/ui/primitives.test.tsx`
+- `tests/scripts/test-workspace-isolation.test.ts` (the baseline path is `e2e/test-workspace-isolation.test.ts`)
+- `tests/e2e/error-dialog.test.ts`
+- `tests/e2e/project-header.test.ts`
+- `tests/e2e/project-window.test.ts`
 
 Invoke `pnpm test` with the listed paths to reproduce each workload. Raw sample JSON, console output and per-test timing logs from this measurement are retained in `C:/Users/elkmo/AppData/Local/Temp/opencode/test-performance-results`.
 
@@ -92,7 +92,7 @@ The same warm-up and three-sample benchmark passed after this batch:
 
 Mixed wall time improved another 8.3% from the first batch's 23.263-second median. Backend wall time was effectively unchanged. All three mixed samples reused the verified build; the rebuilding warm-up took 51.542 seconds. Mixed Vitest time had a median of 14.800 seconds, so the additional wall-time gain is outside test execution.
 
-The selected check passed workspace-isolation and runtime-mount coverage, the three benchmark browser files, and the remote-push case in `e2e/sync-button.test.ts:14`. Final TypeScript, canonical formatting, ESLint and whitespace checks passed. Changed-file Oxlint reported no errors and one warning for the existing ownership-check throw in `scripts/run-tests.mjs`'s finally block.
+The selected check passed workspace-isolation and runtime-mount coverage, the three benchmark browser files, and the remote-push case in `tests/e2e/sync-button.test.ts:14`. Final TypeScript, canonical formatting, ESLint and whitespace checks passed. Changed-file Oxlint reported no errors and one warning for the existing ownership-check throw in `scripts/run-tests.mjs`'s finally block.
 
 ## Optimization attempts after fdbfb87
 

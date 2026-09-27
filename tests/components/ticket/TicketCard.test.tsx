@@ -1,0 +1,134 @@
+import type { RenderResult } from '../../test-render.js'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, fireEvent, cleanup, waitFor } from '../../test-render.js'
+import TicketCard from '../../../src/components/ticket/TicketCard'
+import { HerdrStatusesContext } from '../../../src/components/ticket/herdr-statuses-context.js'
+import type { HerdrAgentStatus } from '~/core/herdr/herdr-client.js'
+import type { TicketInfo } from '~/core/ticket/ticket-store.js'
+
+function makeTicket(overrides?: Partial<TicketInfo>): TicketInfo {
+  return {
+    number: 'T-1',
+    title: 'Test ticket',
+    status: 'todo',
+    folderName: 't-1-test-ticket',
+    contextNames: [],
+    useWorktree: false,
+    hasAgentWorktree: false,
+    fileNames: [],
+    references: [],
+    ...overrides,
+  }
+}
+
+function renderCard(props: {
+  ticket?: Partial<TicketInfo>
+  herdrStatuses?: Record<string, HerdrAgentStatus>
+  onDelete?: (ticket: TicketInfo) => void
+  onArchive?: (ticket: TicketInfo) => void
+  onOpenFolder?: (ticket: TicketInfo) => void
+}): RenderResult {
+  return render(() => (
+    <HerdrStatusesContext value={(folderName) => props.herdrStatuses?.[folderName]}>
+      <TicketCard
+        ticket={makeTicket(props.ticket)}
+        onDelete={props.onDelete ?? (() => {})}
+        onArchive={props.onArchive ?? (() => {})}
+        onViewDetail={() => {}}
+        onOpenFolder={props.onOpenFolder ?? (() => {})}
+      />
+    </HerdrStatusesContext>
+  ))
+}
+
+function requiredElement(container: ParentNode, selector: string): HTMLElement {
+  const element = container.querySelector<HTMLElement>(selector)
+  if (!element) throw new Error(`Expected element matching ${selector}`)
+  return element
+}
+
+describe('TicketCard overflow menu', () => {
+  afterEach(() => cleanup())
+  it('shows Archive option in the overflow menu', async () => {
+    const onArchive = vi.fn()
+    const { container } = renderCard({
+      onArchive,
+    })
+    const menuBtn = requiredElement(container, "[aria-label='Ticket actions']")
+    await fireEvent.click(menuBtn)
+    await waitFor(() => {
+      const items = [...document.querySelectorAll("[role='menuitem']")].map((el) => el.textContent?.trim())
+      expect(items).toContain('Archive')
+    })
+  })
+  it('calls onArchive when Archive is clicked', async () => {
+    const onArchive = vi.fn()
+    const { container } = renderCard({
+      onArchive,
+    })
+    const menuBtn = requiredElement(container, "[aria-label='Ticket actions']")
+    await fireEvent.click(menuBtn)
+    const archiveItem = await waitFor(() => {
+      const el = [...document.querySelectorAll<HTMLElement>("[role='menuitem']")].find((el) => el.textContent?.trim() === 'Archive')
+      if (!el) throw new Error('Archive item not yet rendered')
+      return el
+    })
+    await fireEvent.click(archiveItem)
+    expect(onArchive).toHaveBeenCalledWith(makeTicket())
+  })
+  it('calls onOpenFolder when Open ticket folder is clicked', async () => {
+    const onOpenFolder = vi.fn()
+    const { container } = renderCard({
+      onOpenFolder,
+    })
+    const menuBtn = requiredElement(container, "[aria-label='Ticket actions']")
+    await fireEvent.click(menuBtn)
+    const openFolderItem = await waitFor(() => {
+      const el = [...document.querySelectorAll<HTMLElement>("[role='menuitem']")].find(
+        (el) => el.textContent?.trim() === 'Open ticket folder',
+      )
+      if (!el) throw new Error('Open ticket folder item not yet rendered')
+      return el
+    })
+    await fireEvent.click(openFolderItem)
+    expect(onOpenFolder).toHaveBeenCalledWith(makeTicket())
+  })
+  it('shows both menu options', async () => {
+    cleanup()
+    const { container } = renderCard({})
+    const menuBtn = requiredElement(container, "[aria-label='Ticket actions']")
+    await fireEvent.click(menuBtn)
+    await waitFor(() => {
+      const items = [...document.querySelectorAll("[role='menuitem']")].map((el) => el.textContent?.trim())
+      expect(items).not.toContain('Edit')
+      expect(items).toContain('Open ticket folder')
+      expect(items).toContain('Archive')
+      expect(items).toContain('Delete')
+    })
+  })
+})
+describe('TicketCard status swatch and herdr icon', () => {
+  afterEach(() => cleanup())
+  it('renders no status swatch', () => {
+    const { container } = renderCard({
+      ticket: {
+        status: 'todo',
+      },
+    })
+    expect(container.querySelector('[data-testid="status-swatch"]')).toBeNull()
+  })
+  it('renders the herdr icon when the ticket has a status', () => {
+    const { container } = renderCard({
+      herdrStatuses: {
+        't-1-test-ticket': 'working',
+      },
+    })
+    const icon = requiredElement(container, '[data-testid="herdr-status-icon"]')
+    expect(icon).toBeTruthy()
+    expect(icon.getAttribute('data-herdr-status')).toBe('working')
+  })
+  it('renders no herdr icon without a status', () => {
+    const { container } = renderCard({})
+    expect(container.querySelector('[data-testid="herdr-status-icon"]')).toBeNull()
+  })
+})

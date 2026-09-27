@@ -14,7 +14,7 @@ export default defineConfig({
   },
   test: {
     name: 'shell',
-    include: ['src/**/*.shell.test.ts'],
+    include: ['tests/**/*.shell.test.ts'],
     testTimeout: 30000,
     reporters: ['default', timingReporter],
   },

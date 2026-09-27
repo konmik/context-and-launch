@@ -4,7 +4,7 @@ import namedFunctionReturns from './tools/eslint/named-function-returns.ts'
 export default tseslint.config(
   { ignores: ['dist/**', 'node_modules/**', 'dist-electron/**'] },
   {
-    files: ['src/**/*.{ts,tsx}', 'e2e/**/*.{ts,tsx}', 'electron/**/*.ts', 'scripts/**/*.ts', 'tools/eslint/**/*.ts', '*.config.ts'],
+    files: ['src/**/*.{ts,tsx}', 'tests/**/*.{ts,tsx}', 'electron/**/*.ts', 'scripts/**/*.ts', 'tools/eslint/**/*.ts', '*.config.ts'],
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {

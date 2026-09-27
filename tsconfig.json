@@ -17,5 +17,5 @@
       "~/*": ["./src/*"]
     }
   },
-  "include": ["src", "e2e", "scripts", "electron", "tools/eslint", "vite.config.ts"]
+  "include": ["src", "tests", "scripts", "electron", "tools/eslint", "vite.config.ts"]
 }
