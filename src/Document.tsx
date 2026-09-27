@@ -15,6 +15,8 @@ export default function Document(props: { children: Element }): JSX.Element {
       </head>
       <body spellcheck={false}>
         <div id="app">{props.children}</div>
+        <div data-overlay-layer="dialogs" />
+        <div data-overlay-layer="popups" />
       </body>
     </html>
   )

@@ -2,6 +2,12 @@ declare const jsdom: {
   window: Window
 }
 
+for (const layer of ['dialogs', 'popups']) {
+  const mount = document.createElement('div')
+  mount.dataset.overlayLayer = layer
+  document.body.append(mount)
+}
+
 Object.defineProperty(globalThis, 'localStorage', {
   configurable: true,
   value: jsdom.window.localStorage,

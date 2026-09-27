@@ -413,7 +413,8 @@
     font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
     line-height: 1.65;
   }
-  #app {
+  #app,
+  [data-overlay-layer] {
     isolation: isolate;
   }
   h1,

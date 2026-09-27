@@ -4,13 +4,12 @@ type OverlayKind = 'dialog' | 'popup'
 
 interface OverlayEntry {
   id: symbol
-  kind: OverlayKind
   returnFocusTarget?: HTMLElement
   ownerDialogId?: symbol
 }
 
 interface OverlayState {
-  dialogs: OverlayEntry[]
+  dialogIds: symbol[]
   popup?: OverlayEntry
 }
 
@@ -37,16 +36,11 @@ function isAvailableForFocus(element: HTMLElement): boolean {
 
 function createOverlayCoordinator(document: Document): OverlayCoordinator {
   let state: OverlayState = {
-    dialogs: [],
+    dialogIds: [],
   }
   const [snapshot, setSnapshot] = createSignal<OverlayState>(state)
   const callbacks = new Map<symbol, OverlayCallbacks>()
-  const dialogMount = document.createElement('div')
-  dialogMount.dataset.overlayLayer = 'dialogs'
-  const popupMount = document.createElement('div')
-  popupMount.dataset.overlayLayer = 'popups'
-  document.body.append(dialogMount, popupMount)
-  const getTopDialogId = () => state.dialogs.at(-1)?.id
+  const getTopDialogId = () => state.dialogIds.at(-1)
   const getTopOverlayId = () => state.popup?.id ?? getTopDialogId()
   const eventOwners = new WeakMap<KeyboardEvent, symbol>()
   const onKeyDownCapture = (event: KeyboardEvent) => {
@@ -67,7 +61,7 @@ function createOverlayCoordinator(document: Document): OverlayCoordinator {
     const popup = state.popup
     if (!popup) return
     updateState({
-      dialogs: state.dialogs,
+      dialogIds: state.dialogIds,
     })
     callbacks.get(popup.id)?.onDismiss()
   }
@@ -79,7 +73,6 @@ function createOverlayCoordinator(document: Document): OverlayCoordinator {
       if (!open) return
       entry = {
         id,
-        kind,
         ownerDialogId: getTopDialogId(),
         returnFocusTarget: options.getReturnFocusTarget
           ? options.getReturnFocusTarget()
@@ -96,27 +89,27 @@ function createOverlayCoordinator(document: Document): OverlayCoordinator {
       callbacks.set(id, options)
       if (kind === 'dialog')
         updateState({
-          dialogs: [...state.dialogs, entry],
+          dialogIds: [...state.dialogIds, id],
         })
       else
         updateState({
-          dialogs: state.dialogs,
+          dialogIds: state.dialogIds,
           popup: entry,
         })
       queueMicrotask(() => {
         if (getTopOverlayId() === id) options.onFocus()
       })
       return () => {
-        const wasActiveDialog = getTopDialogId() === id
+        const wasTopDialog = getTopDialogId() === id
         if (kind === 'dialog') {
           if (state.popup?.ownerDialogId === id) dismissPopup()
           updateState({
             ...state,
-            dialogs: state.dialogs.filter((item) => item.id !== id),
+            dialogIds: state.dialogIds.filter((dialogId) => dialogId !== id),
           })
         } else if (state.popup?.id === id) {
           updateState({
-            dialogs: state.dialogs,
+            dialogIds: state.dialogIds,
           })
         }
         callbacks.delete(id)
@@ -125,7 +118,7 @@ function createOverlayCoordinator(document: Document): OverlayCoordinator {
           document.removeEventListener('keydown', onKeyDown)
         }
         const nextOverlayId = getTopOverlayId()
-        if (wasActiveDialog) {
+        if (wasTopDialog) {
           queueMicrotask(() => {
             if (getTopOverlayId() !== nextOverlayId) return
             if (returnFocusTarget && isAvailableForFocus(returnFocusTarget)) returnFocusTarget.focus()
@@ -137,9 +130,14 @@ function createOverlayCoordinator(document: Document): OverlayCoordinator {
     return {
       isInteractive: () => {
         const current = snapshot()
-        return current.dialogs.at(-1)?.id === id || current.popup?.id === id
+        return current.dialogIds.at(-1) === id || current.popup?.id === id
       },
-      getPortalMount: () => (kind === 'dialog' ? dialogMount : popupMount),
+      getPortalMount: () => {
+        const layer = kind === 'dialog' ? 'dialogs' : 'popups'
+        const mount = document.querySelector<HTMLElement>(`[data-overlay-layer="${layer}"]`)
+        if (!mount) throw new Error(`Overlay layer ${layer} is missing from the document`)
+        return mount
+      },
       queueFocusRestore: (element) => {
         const registeredEntry = entry
         if (!registeredEntry) return
