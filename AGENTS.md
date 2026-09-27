@@ -21,7 +21,7 @@
 
 ## Code style
 
-- Named functions must have explicit return types and named interfaces for object returns (except for void type).
+- Named functions must have explicit return types (except for void type) and named interfaces for object returns.
 - Use a `Result` type for return values when success or failure are expected.
 - We are using only TypeScript, do not check for types randomly, do not write incorrect-type tests.
 - Do not duplicate code. Extract shared logic into reusable helpers.
