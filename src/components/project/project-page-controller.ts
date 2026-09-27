@@ -10,7 +10,7 @@ import type { ProjectPageData } from './project-api.js'
 import { resolveConflicts, abortRebase } from '../launcher/launcher-api.js'
 import { parseSyncResult } from './project-page-pure.js'
 import type { TicketCleanupOptions } from '../shared/ticket-cleanup-pure.js'
-import { fail, onSuccess, type Result } from '~/util/result.js'
+import { failure, onSuccess, type Result } from '~/util/result.js'
 
 export interface ProjectPageDeps {
   projectSlug: () => string
@@ -138,25 +138,25 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
   async function handleCreateTicket(number: string, title: string): Promise<Result<undefined, string>> {
     const result = await createTicket(deps.projectSlug(), number, title)
     onSuccess(result, () => revalidate(ticketMutationRevalidateKeys))
-    return result.type === 'Failure' ? fail(result.error.message) : result
+    return result.type === 'Failure' ? failure(result.error.message) : result
   }
 
   async function handleArchiveTicket(folderName: string): Promise<Result<undefined, ErrorInfo>> {
     const result = await archiveTicket(deps.projectSlug(), folderName)
     onSuccess(result, () => revalidate(ticketMutationRevalidateKeys))
-    return result.type === 'Failure' ? fail(result.error.errorInfo) : result
+    return result.type === 'Failure' ? failure(result.error.errorInfo) : result
   }
 
   async function handleDeleteTicket(folderName: string): Promise<Result<undefined, ErrorInfo>> {
     const result = await deleteTicket(deps.projectSlug(), folderName)
     onSuccess(result, () => revalidate(ticketMutationRevalidateKeys))
-    return result.type === 'Failure' ? fail(result.error.errorInfo) : result
+    return result.type === 'Failure' ? failure(result.error.errorInfo) : result
   }
 
   async function handleDeleteProject(projectSlug: string): Promise<Result<undefined, string>> {
     const result = await deleteProject(projectSlug)
     onSuccess(result, () => revalidate('project-page'))
-    return result.type === 'Failure' ? fail(result.error.message) : result
+    return result.type === 'Failure' ? failure(result.error.message) : result
   }
 
   async function handleCleanupSubmit(folderName: string): Promise<Result<undefined, ErrorInfo>> {
@@ -165,7 +165,7 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
 
   async function handleCleanupAction(folderName: string, options: TicketCleanupOptions): Promise<Result<undefined, ErrorInfo>> {
     const cleanupResult = await worktreeCleanup(deps.projectSlug(), folderName, options)
-    return cleanupResult.type === 'Failure' ? fail(cleanupResult.error.errorInfo) : cleanupResult
+    return cleanupResult.type === 'Failure' ? failure(cleanupResult.error.errorInfo) : cleanupResult
   }
 
   const dialogState = () => ({

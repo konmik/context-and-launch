@@ -1,5 +1,5 @@
 import { errorMessage } from '~/core/shared/errors.js'
-import { succeed, fail, type Result } from '~/util/result.js'
+import { success, failure, type Result } from '~/util/result.js'
 import { HerdrUnavailableError } from '~/core/herdr/herdr-availability.js'
 import type { HerdrAgentStatus, HerdrTicketState } from '~/core/herdr/herdr-client.js'
 
@@ -59,12 +59,12 @@ export function createHerdrStatusService(deps: HerdrStatusDeps): AgentStatusServ
   async function reconcile(projectSlug: string): Promise<Result<undefined, string>> {
     try {
       await deps.reconcileProject(projectSlug)
-      return succeed(undefined)
+      return success(undefined)
     } catch (error) {
       deps.log('diff-review', `queue reconciliation failed: ${errorMessage(error)}`, {
         projectSlug,
       })
-      return fail(errorMessage(error))
+      return failure(errorMessage(error))
     }
   }
 

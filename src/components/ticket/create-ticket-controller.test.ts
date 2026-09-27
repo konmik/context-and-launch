@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { createRoot, createSignal, flush, runWithOwner } from 'solid-js'
 import { createCreateTicketController, type CreateTicketDeps } from './create-ticket-controller.js'
-import { succeed } from '~/util/result.js'
+import { success } from '~/util/result.js'
 
 function makeDeps(overrides?: Partial<CreateTicketDeps>): CreateTicketDeps {
   return {
-    onSubmit: async () => succeed(undefined),
+    onSubmit: async () => success(undefined),
     onOpenChange: () => {},
     suggestedNextNumber: () => null,
     open: () => true,
@@ -108,7 +108,7 @@ describe('createCreateTicketController', () => {
           const deps = makeDeps({
             onSubmit: async () => {
               submitSpy.called = true
-              return succeed(undefined)
+              return success(undefined)
             },
             onSuggestNumber: () =>
               new Promise((r) => {

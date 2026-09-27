@@ -8,7 +8,7 @@ import { ProjectRegistry } from '../project/project-registry.js'
 import type { AppConfigData } from './app-config-data.js'
 import { UpdateLock } from '~/util/update-lock.js'
 import { createStoredConfig } from '~/util/stored-config.js'
-import { succeed } from '~/util/result.js'
+import { success } from '~/util/result.js'
 
 const directories: string[] = []
 afterEach(async () => {
@@ -150,13 +150,13 @@ describe('AppConfigStore', () => {
     const { store, paths, config } = setup()
     let transportFailed = false
     const storage = createStoredConfig(
-      async (owner) => succeed(store.read(owner)),
+      async (owner) => success(store.read(owner)),
       async (json, owner) => {
         if (!transportFailed) {
           transportFailed = true
           throw new Error('connection lost')
         }
-        return succeed(store.update(() => JSON.parse(json), owner))
+        return success(store.update(() => JSON.parse(json), owner))
       },
       async (owner) => store.release(owner),
     )
@@ -191,7 +191,7 @@ describe('AppConfigStore', () => {
         ...current,
         lastUsedProfileName: 'saved',
       })),
-    ).toEqual(succeed(undefined))
+    ).toEqual(success(undefined))
     expect(storage.get()).toMatchObject({
       browser: 'external',
       custom: true,
@@ -210,8 +210,8 @@ describe('AppConfigStore', () => {
     expect(() => store.read('second')).toThrow('being updated')
     store.release('first')
     const storage = createStoredConfig(
-      async (owner) => succeed(store.read(owner)),
-      async (json, owner) => succeed(store.update(() => JSON.parse(json), owner)),
+      async (owner) => success(store.read(owner)),
+      async (json, owner) => success(store.update(() => JSON.parse(json), owner)),
       async (owner) => store.release(owner),
     )
     expect(
@@ -219,7 +219,7 @@ describe('AppConfigStore', () => {
         ...current,
         browser: undefined,
       })),
-    ).toEqual(succeed(undefined))
+    ).toEqual(success(undefined))
     expect(store.read()).not.toHaveProperty('browser')
   })
 })

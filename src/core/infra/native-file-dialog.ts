@@ -4,7 +4,7 @@ import { currentCommandTemplatePlatform } from '../command-template/command-temp
 import type { CommandTemplateExecutor } from '../command-template/command-template-types.js'
 import { AppError, ProcessError } from '../shared/errors.js'
 import { normalizeMacPickedPath } from './picker-paths.js'
-import { succeed, fail, type Result } from '../../util/result.js'
+import { success, failure, type Result } from '../../util/result.js'
 
 /**
  * Every picker template reports a user cancellation the same way its underlying
@@ -62,19 +62,19 @@ export async function openDirectoryDialog(
   commands: CommandTemplateExecutor,
 ): Promise<Result<string | undefined, string>> {
   const stub = readStub('CONTEXT_PICKER_STUB', 'CONTEXT_PICKER_STUB_FILE')
-  if (stub === '__cancel__') return succeed(undefined)
-  if (stub === '__unavailable__') return fail(unavailableMessage())
-  if (stub === '__error__') return fail('Stubbed picker error')
-  if (stub) return succeed(stub)
+  if (stub === '__cancel__') return success(undefined)
+  if (stub === '__unavailable__') return failure(unavailableMessage())
+  if (stub === '__error__') return failure('Stubbed picker error')
+  if (stub) return success(stub)
   try {
     const stdout = await runPicker(commands, 'picker.directory', preselect)
     const picked = currentCommandTemplatePlatform() === 'macos' ? normalizeMacPickedPath(stdout) : stdout.trim()
-    return succeed(picked || undefined)
+    return success(picked || undefined)
   } catch (error) {
-    if (isCancellation(error)) return succeed(undefined)
+    if (isCancellation(error)) return success(undefined)
     const unavailable = unavailableReason(error)
-    if (unavailable) return fail(unavailable)
-    return fail(error instanceof Error ? error.message : String(error))
+    if (unavailable) return failure(unavailable)
+    return failure(error instanceof Error ? error.message : String(error))
   }
 }
 

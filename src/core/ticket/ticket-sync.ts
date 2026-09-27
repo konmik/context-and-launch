@@ -4,7 +4,7 @@ import { AppError, ProcessError } from '../shared/errors.js'
 import { writeMergeTree } from '../infra/git-merge-tree.js'
 import { GitRepository } from '../infra/git-repository.js'
 import type { CommandTemplateExecutor } from '../command-template/command-template-types.js'
-import { succeed, fail, type Result } from '../../util/result.js'
+import { success, failure, type Result } from '../../util/result.js'
 
 export interface SuccessSyncResult {
   status: 'success'
@@ -77,7 +77,7 @@ export class TicketSyncManager {
       if (scratchState === 'linked') {
         const finalized = await this.finalizeResolution(worktreeDir)
         if (!finalized && this.resolutionScratchState(scratch) === 'linked') {
-          return succeed({
+          return success({
             status: 'conflict',
           })
         }
@@ -85,7 +85,7 @@ export class TicketSyncManager {
         this.discardOrphanedResolutionScratch(scratch)
       }
       if (this.gitRepo.hasActiveRebase(worktreeDir)) {
-        return succeed({
+        return success({
           status: 'conflict',
         })
       }
@@ -102,7 +102,7 @@ export class TicketSyncManager {
             remote: 'origin',
             branch,
           })
-          return succeed({
+          return success({
             status: 'success',
           })
         } catch (pushErr) {
@@ -143,7 +143,7 @@ export class TicketSyncManager {
             ref: newUpstream,
           })
         }
-        return succeed({
+        return success({
           status: 'success',
         })
       }
@@ -155,9 +155,9 @@ export class TicketSyncManager {
             refspec: `HEAD:${branch}`,
           })
         } catch (pushErr) {
-          return fail(pushErr instanceof Error ? pushErr.message : String(pushErr))
+          return failure(pushErr instanceof Error ? pushErr.message : String(pushErr))
         }
-        return succeed({
+        return success({
           status: 'success',
         })
       }
@@ -166,7 +166,7 @@ export class TicketSyncManager {
         right: newUpstream,
       })
       if (mergeTree.status === 'conflicted')
-        return succeed({
+        return success({
           status: 'conflict',
         })
       const mergedTree = mergeTree.tree
@@ -191,23 +191,23 @@ export class TicketSyncManager {
           refspec: `${newCommit}:${branch}`,
         })
       } catch (pushErr) {
-        return fail(pushErr instanceof Error ? pushErr.message : String(pushErr))
+        return failure(pushErr instanceof Error ? pushErr.message : String(pushErr))
       }
       await this.commitAll(worktreeDir)
       const headAfterPush = await this.resolveHead(worktreeDir)
       if (headAfterPush !== headLocal) {
-        return succeed({
+        return success({
           status: 'conflict',
         })
       }
       await this.commands.execute('ticket-sync.reset-hard', worktreeDir, {
         ref: newCommit,
       })
-      return succeed({
+      return success({
         status: 'success',
       })
     } catch (err) {
-      return fail(err instanceof Error ? err.message : String(err))
+      return failure(err instanceof Error ? err.message : String(err))
     }
   }
 

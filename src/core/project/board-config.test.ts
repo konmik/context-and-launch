@@ -7,7 +7,7 @@ import { validateColumnName, type BoardDefinition } from './board-config-data.js
 import { ConfigPaths } from '../config/config-paths.js'
 import { initializeDataDir } from '../config/initialize.js'
 import { createStoredConfig } from '~/util/stored-config.js'
-import { succeed } from '~/util/result.js'
+import { success } from '~/util/result.js'
 
 const dirs: string[] = []
 afterEach(() => {
@@ -56,8 +56,8 @@ describe('board configuration storage', () => {
     ]
     fs.writeFileSync(paths.boardsFile(), JSON.stringify(original))
     const storage = createStoredConfig<BoardDefinition[]>(
-      async (owner) => succeed(store.read(owner)),
-      async (json, owner) => succeed(store.write(JSON.parse(json), owner)),
+      async (owner) => success(store.read(owner)),
+      async (json, owner) => success(store.write(JSON.parse(json), owner)),
       async (owner) => store.release(owner),
     )
     expect(
@@ -93,8 +93,8 @@ describe('board configuration storage', () => {
     const { store, paths } = setup()
     const before = fs.readFileSync(paths.boardsFile(), 'utf8')
     const storage = createStoredConfig(
-      async (owner) => succeed(store.read(owner)),
-      async (json, owner) => succeed(store.write(JSON.parse(json), owner)),
+      async (owner) => success(store.read(owner)),
+      async (json, owner) => success(store.write(JSON.parse(json), owner)),
       async (owner) => store.release(owner),
     )
     await expect(

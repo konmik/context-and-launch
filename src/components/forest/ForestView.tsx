@@ -1,4 +1,4 @@
-import { fail, succeed, type Result } from '~/util/result.js'
+import { failure, success, type Result } from '~/util/result.js'
 import type { ActionError } from '~/core/shared/errors.js'
 import type { JSX } from '@solidjs/web'
 import { revalidate, useAction } from '@solidjs/router'
@@ -167,7 +167,7 @@ function ForestContent(props: ForestViewProps): JSX.Element {
 
   async function handleGroupCreate(number: string, title: string): Promise<Result<undefined, string>> {
     const draft = groupingDraft()
-    if (!draft) return fail('No members selected')
+    if (!draft) return failure('No members selected')
     const memberFolderNames = draft.memberNumbers.map((memberNumber) => findTicket(memberNumber).folderName)
     const result = await runCreateGroupTicket({
       projectSlug: props.projectSlug,
@@ -177,13 +177,13 @@ function ForestContent(props: ForestViewProps): JSX.Element {
       parentGroupNumber: draft.ownerGroupNumber ?? null,
       position: draft.position,
     })
-    if (result.type === 'Failure') return fail(result.error.message)
+    if (result.type === 'Failure') return failure(result.error.message)
     surfaceApis.get(draft.ownerGroupNumber ?? 'root')?.clearSelection()
     setGroupingDraft(undefined)
     const refreshed = await layout.refresh()
     if (refreshed.type === 'Failure') reportError(refreshed.error)
     await revalidate(ticketMutationRevalidateKeys)
-    return succeed(undefined)
+    return success(undefined)
   }
 
   function surfaceCommands(scopeGroupNumber: string | undefined, depth: number): ForestSurfaceCommands {

@@ -8,7 +8,7 @@ import {
 import { toSavedWorktreeInfo } from '~/core/worktree/agent-worktree.js'
 import { TicketStore } from '~/core/ticket/ticket-store.js'
 import { NotFoundError } from '~/core/shared/errors.js'
-import { succeed, fail, type Result } from '~/util/result.js'
+import { success, failure, type Result } from '~/util/result.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import type { ProjectInfo } from '~/core/project/project-registry.js'
 import type { LauncherProfile } from '~/core/launcher/launcher-config.js'
@@ -71,7 +71,7 @@ export async function ensureLaunchDir(
   mainBranch?: string,
 ): Promise<Result<ResolveLaunchDirResultValue, DirtyWorktreeResolveLaunchDirResult | BehindRemoteResolveLaunchDirResult>> {
   if (!useWorktree)
-    return succeed({
+    return success({
       launchDir: projectPath,
     })
   const savedInfo = toSavedWorktreeInfo(ticket)
@@ -86,13 +86,13 @@ export async function ensureLaunchDir(
     savedInfo,
   )
   if (result.type === 'Failure') {
-    return fail({
+    return failure({
       type: 'dirtyWorktree',
       message: 'Main branch has uncommitted changes. Launch anyway?',
     })
   }
   if (result.value.behindRemote && !opts?.skipBehindRemote) {
-    return fail({
+    return failure({
       type: 'behindRemote',
       message: 'Main branch is behind remote. Proceed with the worktree anyway?',
     })
@@ -100,7 +100,7 @@ export async function ensureLaunchDir(
   if (!ticket.agentWorktreeBranchName) {
     new TicketStore(worktreeDir).saveAgentWorktreeInfo(folderName, result.value.branchName, result.value.worktreePath)
   }
-  return succeed({
+  return success({
     launchDir: result.value.worktreePath,
   })
 }

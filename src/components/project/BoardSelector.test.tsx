@@ -4,7 +4,7 @@ import { cleanup, render, screen, waitFor } from '~/test-render.js'
 import { createSignal, createMemo, Loading } from 'solid-js'
 import { BoardConfigContext } from '../board/board-config-storage.js'
 import { createStoredSignal } from '~/util/stored-signal.js'
-import { fail, succeed } from '~/util/result.js'
+import { failure, success } from '~/util/result.js'
 import type { BoardDefinition } from '~/core/project/board-config-data.js'
 import BoardSelector from './BoardSelector.js'
 
@@ -25,9 +25,9 @@ it('shares successful edits across mounted selectors and keeps failed edits unpu
   let reject = false
   const initial = createMemo(async () => saved)
   const storage = createStoredSignal(initial, async (transform) => {
-    if (reject) return fail('write failed')
+    if (reject) return failure('write failed')
     saved = transform(saved)
-    return succeed(saved)
+    return success(saved)
   })
 
   function Selector(): JSX.Element {
@@ -64,7 +64,7 @@ it('shares successful edits across mounted selectors and keeps failed edits unpu
     ).toHaveLength(2),
   )
   reject = true
-  expect(await storage.update((boards) => boards.filter((b) => b.id !== 'second'))).toEqual(fail('write failed'))
+  expect(await storage.update((boards) => boards.filter((b) => b.id !== 'second'))).toEqual(failure('write failed'))
   expect(selects().map((s) => s.value)).toEqual(['second', 'second'])
   reject = false
   await storage.update((boards) => [

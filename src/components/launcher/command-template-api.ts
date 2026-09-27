@@ -2,7 +2,7 @@ import { commandTemplateStore } from '~/core/config/instances.js'
 import { errorMessage } from '~/core/shared/errors.js'
 import { COMMAND_TEMPLATE_DEFINITIONS, type KeyedCommandTemplateDefinition } from '~/core/command-template/command-template-definitions.js'
 import { currentCommandTemplatePlatform, type CommandTemplateOverrides } from '~/core/command-template/command-template-types.js'
-import { fail, succeed, type Result } from '~/util/result.js'
+import { failure, success, type Result } from '~/util/result.js'
 
 export async function getCommandTemplateDefinitions(): Promise<KeyedCommandTemplateDefinition[]> {
   'use server'
@@ -14,9 +14,9 @@ export async function readCommandTemplates(owner?: string): Promise<Result<Comma
   'use server'
 
   try {
-    return succeed(commandTemplateStore.read(owner))
+    return success(commandTemplateStore.read(owner))
   } catch (error) {
-    return fail(errorMessage(error))
+    return failure(errorMessage(error))
   }
 }
 
@@ -24,10 +24,10 @@ export async function saveCommandTemplates(json: string, owner: string): Promise
   'use server'
 
   try {
-    if (!owner) return fail('Configuration update requires a client identity.')
-    return succeed(commandTemplateStore.write(JSON.parse(json), owner))
+    if (!owner) return failure('Configuration update requires a client identity.')
+    return success(commandTemplateStore.write(JSON.parse(json), owner))
   } catch (error) {
-    return fail(errorMessage(error))
+    return failure(errorMessage(error))
   }
 }
 

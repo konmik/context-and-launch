@@ -6,7 +6,7 @@ import { LauncherConfigManager, mergeLauncherConfigs, type LauncherConfig } from
 import { ConfigPaths } from '../config/config-paths.js'
 import { initializeDataDir } from '../config/initialize.js'
 import { createStoredConfig } from '~/util/stored-config.js'
-import { succeed } from '~/util/result.js'
+import { success } from '~/util/result.js'
 
 const directories: string[] = []
 afterEach(async () => {
@@ -218,8 +218,8 @@ describe('LauncherConfigManager', () => {
       }),
     )
     const { update } = createStoredConfig<LauncherConfig>(
-      async (owner) => succeed(manager.loadProjectConfig('project', owner)),
-      async (json, owner) => succeed(manager.saveProjectConfig('project', JSON.parse(json), owner)),
+      async (owner) => success(manager.loadProjectConfig('project', owner)),
+      async (json, owner) => success(manager.saveProjectConfig('project', JSON.parse(json), owner)),
       async (owner) => manager.releaseProjectConfig('project', owner),
     )
     expect(

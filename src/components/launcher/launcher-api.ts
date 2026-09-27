@@ -24,7 +24,7 @@ import {
   type LaunchRequest,
 } from '~/core/launcher/agent-launch.js'
 import { NotFoundError, ValidationError, errorResult, errorMessage } from '~/core/shared/errors.js'
-import { succeed, fail } from '~/util/result.js'
+import { success, failure } from '~/util/result.js'
 import { resolveConflictsWith } from '~/core/launcher/resolve-conflicts.js'
 import type { MergedLauncherConfig } from '~/core/launcher/launcher-config.js'
 
@@ -54,9 +54,9 @@ export async function readProjectLauncherConfig(projectSlug: string, owner?: str
   'use server'
 
   try {
-    return succeed(launcherConfigManager.loadProjectConfig(projectSlug, owner))
+    return success(launcherConfigManager.loadProjectConfig(projectSlug, owner))
   } catch (e) {
-    return fail(errorMessage(e))
+    return failure(errorMessage(e))
   }
 }
 
@@ -71,10 +71,10 @@ export async function saveProjectLauncherConfig(projectSlug: string, json: strin
 
   try {
     return owner
-      ? succeed(launcherConfigManager.saveProjectConfig(projectSlug, JSON.parse(json), owner))
-      : fail('Configuration update requires a client identity.')
+      ? success(launcherConfigManager.saveProjectConfig(projectSlug, JSON.parse(json), owner))
+      : failure('Configuration update requires a client identity.')
   } catch (e) {
-    return fail(errorMessage(e))
+    return failure(errorMessage(e))
   }
 }
 
@@ -108,7 +108,7 @@ export async function launchAgentAction(
     )
     if (resolved.type === 'Failure') return resolved
     await launchAgentCore(projectSlug, ticket, launchRequest, launchRequest.launchDir)
-    return succeed(undefined)
+    return success(undefined)
   } catch (e) {
     return errorResult(e)
   }
@@ -124,7 +124,7 @@ export async function launchProjectAgentAction(projectSlug: string, launchReques
       return errorResult('Already started')
     }
     await launchProjectAgentCore(projectSlug, projectRegistry.getName(projectSlug), launchRequest, project.path)
-    return succeed(undefined)
+    return success(undefined)
   } catch (e) {
     return errorResult(e)
   }
@@ -181,7 +181,7 @@ export async function runShortcut(
       cwd: launchDir,
       mode: 'detached',
     })
-    return succeed(undefined)
+    return success(undefined)
   } catch (e) {
     return errorResult(e)
   }
@@ -205,7 +205,7 @@ export async function resolveConflicts(projectSlug: string, profileName: string)
       projectSlug,
       profileName,
     )
-    return succeed(undefined)
+    return success(undefined)
   } catch (e) {
     return errorResult(e)
   }
@@ -218,7 +218,7 @@ export async function abortRebase(projectSlug: string): Promise<Result<undefined
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
     await operationTracker.track(ticketSyncManager.abort(worktreeDir))
     worktreeRevisions.bump(worktreeDir)
-    return succeed(undefined)
+    return success(undefined)
   } catch (e) {
     return errorResult(e)
   }

@@ -4,7 +4,7 @@ import type { Mock } from 'vitest'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createSignal, flush } from 'solid-js'
 import { createReviewedLineTracker } from './diff-review-storage.js'
-import { fail, succeed, type Result } from '~/util/result.js'
+import { failure, success, type Result } from '~/util/result.js'
 import { createStoredSignal } from '~/util/stored-signal.js'
 import type { DiffReviewProjectState } from '~/core/diff-review/diff-review-types.js'
 
@@ -31,7 +31,7 @@ function setup(): SetupResult {
     },
   }
   const [initial, setInitial] = createSignal(persisted)
-  const persist = vi.fn(async (next: DiffReviewProjectState): Promise<Result<DiffReviewProjectState, string>> => succeed(next))
+  const persist = vi.fn(async (next: DiffReviewProjectState): Promise<Result<DiffReviewProjectState, string>> => success(next))
   const state = createStoredSignal(initial, async (transform) => {
     const result = await persist(transform(persisted))
     if (result.type === 'Success') persisted = result.value
@@ -120,7 +120,7 @@ describe('createReviewedLineTracker', () => {
   it('rolls back a failed write and retries when the line is visible again', async () => {
     vi.useFakeTimers()
     const { tracker, persist, onError } = setup()
-    persist.mockResolvedValueOnce(fail('disk full'))
+    persist.mockResolvedValueOnce(failure('disk full'))
     tracker.markVisible({
       id: 'line-1',
       path: 'src/a.ts',
@@ -163,7 +163,7 @@ describe('createReviewedLineTracker', () => {
     persist.mockImplementationOnce(
       (next) =>
         new Promise((resolve) => {
-          finish = () => resolve(succeed(next))
+          finish = () => resolve(success(next))
         }),
     )
     tracker.markVisible({

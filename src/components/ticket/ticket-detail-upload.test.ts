@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createRoot, runWithOwner } from 'solid-js'
 import { fromAny } from '@total-typescript/shoehorn'
-import { succeed, fail } from '~/util/result.js'
+import { success, failure } from '~/util/result.js'
 
 const mockUploadFile = vi.fn()
 import { createFileUploadState, type FileUploadDeps } from './ticket-detail-upload.js'
@@ -43,9 +43,9 @@ describe('createFileUploadState', () => {
   })
   it('does not switch to file when upload fails per-file', async () => {
     mockUploadFile.mockResolvedValue(
-      succeed({
+      success({
         results: [
-          fail({
+          failure({
             name: 'report.txt',
             message: 'disk full',
           }),
@@ -69,9 +69,9 @@ describe('createFileUploadState', () => {
   })
   it('does not switch to .md context view when .md upload fails per-file', async () => {
     mockUploadFile.mockResolvedValue(
-      succeed({
+      success({
         results: [
-          fail({
+          failure({
             name: 'notes.md',
             message: 'permission denied',
           }),
@@ -95,9 +95,9 @@ describe('createFileUploadState', () => {
   })
   it('switches to file when upload succeeds', async () => {
     mockUploadFile.mockResolvedValue(
-      succeed({
+      success({
         results: [
-          succeed({
+          success({
             name: 'report.txt',
           }),
         ],
@@ -119,9 +119,9 @@ describe('createFileUploadState', () => {
   })
   it('refreshes the file lists before switching after a successful upload', async () => {
     mockUploadFile.mockResolvedValue(
-      succeed({
+      success({
         results: [
-          succeed({
+          success({
             name: 'notes.md',
           }),
         ],
@@ -152,9 +152,9 @@ describe('createFileUploadState', () => {
   })
   it('does not refresh the file lists when every file fails', async () => {
     mockUploadFile.mockResolvedValue(
-      succeed({
+      success({
         results: [
-          fail({
+          failure({
             name: 'report.txt',
             message: 'disk full',
           }),

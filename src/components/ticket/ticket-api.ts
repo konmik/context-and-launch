@@ -26,7 +26,7 @@ import { openInOs } from '~/core/infra/open-in-os.js'
 import { TicketStore, type TicketInfo } from '~/core/ticket/ticket-store.js'
 import type { StatusJson } from '~/core/ticket/ticket-repository.js'
 import type { TicketOrder } from '~/core/ticket/ticket-order-data.js'
-import { fail, succeed } from '~/util/result.js'
+import { failure, success } from '~/util/result.js'
 import { extractPrefixFromInput } from '~/core/ticket/ticket-number.js'
 import { WorktreeCleanupService } from '~/core/worktree/worktree-cleanup.js'
 import { resolveAgentWorktreeLocation } from '~/core/worktree/worktree-naming.js'
@@ -64,7 +64,7 @@ export async function createTicket(projectSlug: string, number: string, title: s
       boardConfigManager,
     })
     mutateTickets(projectSlug, (store) => store.createTicket(number, title, initialStatus))
-    return succeed(undefined)
+    return success(undefined)
   } catch (e) {
     return errorResult(e)
   }
@@ -81,7 +81,7 @@ export async function updateTicket(
 
   try {
     const updated = await mutateTicketsExclusive(projectSlug, (store) => store.updateTicket(folderName, number, title, status))
-    return succeed({
+    return success({
       folderName: updated.folderName,
     })
   } catch (e) {
@@ -95,7 +95,7 @@ export async function deleteTicket(projectSlug: string, folderName: string): Pro
   try {
     await mutateTicketsExclusive(projectSlug, (store) => store.deleteTicket(folderName))
     await diffReviewStore.removeTicket(projectSlug, folderName)
-    return succeed(undefined)
+    return success(undefined)
   } catch (e) {
     return errorResult(e)
   }
@@ -106,7 +106,7 @@ export async function archiveTicket(projectSlug: string, folderName: string): Pr
 
   try {
     await mutateTicketsExclusive(projectSlug, (store) => store.archiveTicket(folderName))
-    return succeed(undefined)
+    return success(undefined)
   } catch (e) {
     return errorResult(e)
   }
@@ -116,9 +116,9 @@ export async function readTicketOrder(projectSlug: string): Promise<Result<Ticke
   'use server'
 
   try {
-    return succeed(new TicketStore(worktreeManager.getWorktreeDir(projectSlug)).orderStore.read())
+    return success(new TicketStore(worktreeManager.getWorktreeDir(projectSlug)).orderStore.read())
   } catch (error) {
-    return fail(errorMessage(error))
+    return failure(errorMessage(error))
   }
 }
 
@@ -130,14 +130,14 @@ export async function saveTicketOrder(
   'use server'
 
   try {
-    return succeed(
+    return success(
       mutateTickets(projectSlug, (store) => {
         store.orderStore.write(order, expected)
         return order
       }),
     )
   } catch (error) {
-    return fail(errorMessage(error))
+    return failure(errorMessage(error))
   }
 }
 
@@ -182,7 +182,7 @@ export async function saveContext(
 
   try {
     mutateTickets(projectSlug, (store) => store.saveTicketContext(folderName, contextFileName, content))
-    return succeed(undefined)
+    return success(undefined)
   } catch (e) {
     return errorResult(e)
   }
@@ -197,7 +197,7 @@ export async function deleteContext(
 
   try {
     mutateTickets(projectSlug, (store) => store.deleteTicketContext(folderName, contextFileName))
-    return succeed(undefined)
+    return success(undefined)
   } catch (e) {
     return errorResult(e)
   }
@@ -208,7 +208,7 @@ export async function deleteFile(projectSlug: string, folderName: string, fileNa
 
   try {
     mutateTickets(projectSlug, (store) => store.deleteTicketFile(folderName, fileName))
-    return succeed(undefined)
+    return success(undefined)
   } catch (e) {
     return errorResult(e)
   }
@@ -234,20 +234,20 @@ export async function uploadFile(
           const buffer = Buffer.from(arrayBuffer)
           store.copyFileToTicket(folderName, fileName, buffer)
           results.push(
-            succeed({
+            success({
               name: fileName,
             }),
           )
         } catch (e) {
           results.push(
-            fail({
+            failure({
               name: fileName,
               message: errorMessage(e),
             }),
           )
         }
       }
-      return succeed({
+      return success({
         results,
       })
     } finally {
@@ -300,11 +300,11 @@ export const saveTicketStatus = action(async (projectSlug: string, previousJson:
         details,
       )
     })
-    return respond(succeed(withAgentWorktreeStatus(projectSlug, updated)), {
+    return respond(success(withAgentWorktreeStatus(projectSlug, updated)), {
       revalidate: [],
     })
   } catch (error) {
-    return respond(fail(errorMessage(error)), {
+    return respond(failure(errorMessage(error)), {
       revalidate: [],
     })
   }
@@ -382,7 +382,7 @@ export async function openTicketWorktree(projectSlug: string, folderName: string
       throw new NotFoundError(`Worktree does not exist: ${worktreePath}`)
     }
     await openInOs(worktreePath, commandTemplateService)
-    return succeed(undefined)
+    return success(undefined)
   } catch (e) {
     return errorResult(e)
   }
@@ -472,10 +472,10 @@ export async function worktreeCleanup(
     if (options.deleteLocalBranch) {
       await diffReviewStore.removeTicket(projectSlug, folderName)
     }
-    return succeed(undefined)
+    return success(undefined)
   } catch (e) {
     const payload = errorPayload(e)
-    return fail({
+    return failure({
       type: 'error' as const,
       message: payload.description,
       errorInfo: payload,
@@ -507,10 +507,10 @@ export async function killWorktreeLockingProcesses(
     }
   }
   if (failed.length > 0) {
-    return fail(`Failed to kill: ${failed.join(', ')}`)
+    return failure(`Failed to kill: ${failed.join(', ')}`)
   }
   await new Promise((resolve) => setTimeout(resolve, 500))
-  return succeed(undefined)
+  return success(undefined)
 }
 
 export async function forceDeleteLocalBranch(projectSlug: string, folderName: string): Promise<Result<undefined, string>> {
@@ -523,9 +523,9 @@ export async function forceDeleteLocalBranch(projectSlug: string, folderName: st
       store.clearAgentWorktreeInfo(folderName)
     }
     await diffReviewStore.removeTicket(projectSlug, folderName)
-    return succeed(undefined)
+    return success(undefined)
   } catch (e: any) {
-    return fail(errorMessage(e))
+    return failure(errorMessage(e))
   }
 }
 

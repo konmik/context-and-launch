@@ -1,5 +1,5 @@
 import type { ActionError } from '../../core/shared/errors.js'
-import { succeed, type Result } from '~/util/result.js'
+import { success, type Result } from '~/util/result.js'
 import { action, query } from '@solidjs/router'
 import { respond } from '@solidjs/web'
 import {
@@ -68,7 +68,7 @@ export async function addProject(
       ...current,
       worktreeRootPath: configPaths.agentWorktreeDir(project.projectSlug),
     }))
-    return succeed({
+    return success({
       projectSlug: project.projectSlug,
     })
   } catch (e) {
@@ -87,7 +87,7 @@ export async function deleteProject(projectSlug: string): Promise<Result<undefin
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
     projectRegistry.removeProject(projectSlug)
     await fileWatcher.stop(worktreeDir)
-    return succeed(undefined)
+    return success(undefined)
   } catch (e) {
     return errorResult(e)
   }
@@ -98,7 +98,7 @@ export const setProjectPath = action(async (projectSlug: string, pathValue: stri
 
   try {
     const project = projectRegistry.updateProject(projectSlug, pathValue.trim())
-    return succeed({
+    return success({
       path: project.path,
     })
   } catch (e) {
@@ -120,7 +120,7 @@ export const setTicketsLocation = action(
       projectRegistry.setTicketsLocation(projectSlug, change)
       if (change.kind === 'path') await fileWatcher.stop(oldPath)
       return respond(
-        succeed({
+        success({
           value: change.value.trim(),
         }),
         {

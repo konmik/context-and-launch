@@ -2,7 +2,7 @@ import { createContext, createEffect, createMemo, type Accessor } from 'solid-js
 import type { JSX } from '@solidjs/web'
 import { useLocation } from '@solidjs/router'
 import { createStoredSignal, type StoredSignal } from '~/util/stored-signal.js'
-import { succeed } from '~/util/result.js'
+import { success } from '~/util/result.js'
 import { getStoredPalette, paletteStorageKey, projectSlugFromPath, type PaletteName } from './palette-pure.js'
 import { getStoredMode, isDarkMode, modeStorageKey, type AppMode } from './theme-toggle-pure.js'
 
@@ -39,7 +39,7 @@ export function createAppearanceStorage(storage: Pick<Storage, 'getItem' | 'setI
       async (transform) => {
         const palette = transform(getStoredPalette(storage, projectSlug))
         storage.setItem(paletteStorageKey(projectSlug), palette)
-        return succeed(palette)
+        return success(palette)
       },
     ),
     mode: createStoredSignal(
@@ -47,7 +47,7 @@ export function createAppearanceStorage(storage: Pick<Storage, 'getItem' | 'setI
       async (transform) => {
         const mode = transform(getStoredMode(storage, projectSlug))
         storage.setItem(modeStorageKey(projectSlug), mode)
-        return succeed(mode)
+        return success(mode)
       },
     ),
   }

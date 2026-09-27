@@ -2,7 +2,7 @@ import { afterEach, expect, it } from 'vitest'
 import { Loading } from 'solid-js'
 import { cleanup, fireEvent, render, waitFor } from '~/test-render.js'
 import { createStoredSignal } from '~/util/stored-signal.js'
-import { fail, succeed } from '~/util/result.js'
+import { failure, success } from '~/util/result.js'
 import { COMMAND_TEMPLATE_DEFAULTS } from '~/core/command-template/command-template-definitions.js'
 import type { CommandTemplateOverrides } from '~/core/command-template/command-template-types.js'
 import { CommandTemplateContext } from './command-template-storage.js'
@@ -16,9 +16,9 @@ it('shares saved overrides between editors, retaining a failed draft and propaga
   const storage = createStoredSignal<CommandTemplateOverrides>(
     () => ({}),
     async (transform) => {
-      if (reject) return fail('write failed')
+      if (reject) return failure('write failed')
       persisted = transform(persisted)
-      return succeed(persisted)
+      return success(persisted)
     },
   )
   const { container } = render(() => (

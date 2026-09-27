@@ -6,7 +6,7 @@ import { ConfigPaths } from '../config/config-paths.js'
 import { ConfigRepository } from '../config/config-repository.js'
 import { CommandTemplateStore } from './command-template-store.js'
 import { createStoredConfig } from '~/util/stored-config.js'
-import { succeed } from '~/util/result.js'
+import { success } from '~/util/result.js'
 import type { CommandTemplateOverrides } from './command-template-types.js'
 
 const roots: string[] = []
@@ -72,8 +72,8 @@ describe('CommandTemplateStore', () => {
       'picker.files.macos': 'external edit',
     })
     const storage = createStoredConfig<CommandTemplateOverrides>(
-      async (owner) => succeed(store.read(owner)),
-      async (json, owner) => succeed(store.write(JSON.parse(json), owner)),
+      async (owner) => success(store.read(owner)),
+      async (json, owner) => success(store.write(JSON.parse(json), owner)),
       async (owner) => store.release(owner),
     )
     expect(
@@ -81,7 +81,7 @@ describe('CommandTemplateStore', () => {
         ...current,
         'git.version': 'custom version',
       })),
-    ).toEqual(succeed(undefined))
+    ).toEqual(success(undefined))
     expect(store.read()).toEqual({
       'picker.files.macos': 'external edit',
       'git.version': 'custom version',

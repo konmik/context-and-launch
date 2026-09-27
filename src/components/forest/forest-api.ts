@@ -6,7 +6,7 @@ import { respond } from '@solidjs/web'
 import { worktreeManager, projectRegistry, boardConfigManager } from '~/core/config/instances.js'
 import { TicketStore } from '~/core/ticket/ticket-store.js'
 import { errorMessage, errorResult } from '~/core/shared/errors.js'
-import { fail, succeed } from '~/util/result.js'
+import { failure, success } from '~/util/result.js'
 import { resolveInitialTicketStatus } from '~/core/board/initial-ticket-status.js'
 import { ForestLayoutStore, type ForestLayout } from '~/core/ticket/forest-layout-store.js'
 
@@ -32,9 +32,9 @@ export async function saveForestLayout(
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
     new ForestLayoutStore(worktreeDir).write(layout, expected)
-    return succeed(layout)
+    return success(layout)
   } catch (e) {
-    return fail(errorMessage(e))
+    return failure(errorMessage(e))
   }
 }
 
@@ -48,7 +48,7 @@ export const addDependency = action(async function addDependency(input: {
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(input.projectSlug)
     new TicketStore(worktreeDir).addDependency(input.folderName, input.dependencyNumber)
-    return actionResult(succeed(undefined))
+    return actionResult(success(undefined))
   } catch (e) {
     return actionResult(errorResult(e))
   }
@@ -76,7 +76,7 @@ export const removeDependencies = action(async function removeDependencies(input
     for (const [folderName, dependencyNumbers] of byFolderName) {
       store.removeDependencies(folderName, dependencyNumbers)
     }
-    return actionResult(succeed(undefined))
+    return actionResult(success(undefined))
   } catch (e) {
     return actionResult(errorResult(e))
   }
@@ -109,7 +109,7 @@ export const createGroupTicket = action(async function createGroupTicket(input: 
       input.position ?? undefined,
     )
     return actionResult(
-      succeed({
+      success({
         folderName: group.folderName,
       }),
     )
@@ -126,7 +126,7 @@ export const ungroupTicket = action(async function ungroupTicket(input: {
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(input.projectSlug)
     new TicketStore(worktreeDir).ungroup(input.folderName)
-    return actionResult(succeed(undefined))
+    return actionResult(success(undefined))
   } catch (e) {
     return actionResult(errorResult(e))
   }

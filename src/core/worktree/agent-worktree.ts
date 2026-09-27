@@ -1,5 +1,5 @@
 import fs from 'fs'
-import { succeed, fail, type Result } from '../../util/result.js'
+import { success, failure, type Result } from '../../util/result.js'
 import path from 'path'
 import { rename } from 'fs/promises'
 import { writeMergeTree } from '../infra/git-merge-tree.js'
@@ -179,7 +179,7 @@ export class AgentWorktreeManager {
       throw new ForeignWorktreeError(worktreePath)
     }
     if (ownership.kind === 'current-project') {
-      return succeed({
+      return success({
         worktreePath,
         branchName,
       })
@@ -193,7 +193,7 @@ export class AgentWorktreeManager {
         worktreePath,
         branch: branchName,
       })
-      return succeed({
+      return success({
         worktreePath,
         branchName,
       })
@@ -201,7 +201,7 @@ export class AgentWorktreeManager {
     if (!options?.skipDirtyCheck) {
       const status = await this.commands.execute('agent-worktree.main.status', projectPath)
       if (status.trim()) {
-        return fail({
+        return failure({
           dirtyWorktree: true,
         })
       }
@@ -222,7 +222,7 @@ export class AgentWorktreeManager {
       worktreePath,
       mainBranch,
     })
-    return succeed(
+    return success(
       behindRemote
         ? {
             worktreePath,

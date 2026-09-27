@@ -3,7 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import * as v from 'valibot'
-import { succeed, fail } from '../src/util/result.js'
+import { success, failure } from '../src/util/result.js'
 import type { JsonValue } from '../src/core/shared/json.js'
 import { startServer, type ServerHandle } from './server-adapter.js'
 import { paletteBackground, isPaletteName, DEFAULT_PALETTE, type PaletteName } from '../src/components/shared/palette-pure.js'
@@ -276,9 +276,9 @@ if (!gotLock) {
       }
       try {
         const result = owner ? await dialog.showOpenDialog(owner, options) : await dialog.showOpenDialog(options)
-        return succeed(result.canceled ? undefined : result.filePaths[0])
+        return success(result.canceled ? undefined : result.filePaths[0])
       } catch (error) {
-        return fail(error instanceof Error ? error.message : String(error))
+        return failure(error instanceof Error ? error.message : String(error))
       }
     })
     for (const entry of entries) {

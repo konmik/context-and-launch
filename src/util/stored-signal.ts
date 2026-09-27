@@ -1,5 +1,5 @@
 import type { Accessor } from 'solid-js'
-import { succeed, type Result } from './result.js'
+import { success, type Result } from './result.js'
 import type { Updater } from './updater.js'
 import { createStoredState, type StoredStateOptions } from './stored-state.js'
 
@@ -18,6 +18,6 @@ export function createStoredSignal<T>(
   return {
     get: state.get,
     update: (transform) => state.enqueueAndPublish(() => persist(transform)),
-    refresh: () => state.enqueueAndPublish(async () => succeed(await read())),
+    refresh: () => state.enqueueAndPublish(async () => success(await read())),
   }
 }

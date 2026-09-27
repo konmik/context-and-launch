@@ -3,7 +3,7 @@ import type { SelectedLineRange } from '@pierre/diffs'
 import { revalidate } from '@solidjs/router'
 import { Errored, For, Show, createEffect, createMemo, createSignal, useContext, onSettled, onCleanup } from 'solid-js'
 import { createStoredState } from '~/util/stored-state.js'
-import { succeed } from '~/util/result.js'
+import { success } from '~/util/result.js'
 import { AlertTriangle } from '~/components/ui/icons.js'
 import { ArrowDownToLine } from '~/components/ui/icons.js'
 import { Check } from '~/components/ui/icons.js'
@@ -300,7 +300,7 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
   const agentStatus = agentState.get
 
   async function refreshAgentStatus() {
-    const result = await agentState.enqueueAndPublish(async () => succeed(await readAgentStatus()))
+    const result = await agentState.enqueueAndPublish(async () => success(await readAgentStatus()))
     if (result.type === 'Failure') setReviewError(result.error)
   }
 

@@ -1,5 +1,5 @@
 import { describe, it as baseIt, expect, afterAll, vi } from 'vitest'
-import { fail } from '~/util/result.js'
+import { failure } from '~/util/result.js'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
@@ -57,7 +57,7 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
       await git(projectDir, 'add', 'dirty.txt')
       const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0001-feature')
       expect(result).toEqual(
-        fail({
+        failure({
           dirtyWorktree: true,
         }),
       )

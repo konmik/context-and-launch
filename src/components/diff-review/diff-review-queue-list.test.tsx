@@ -4,7 +4,7 @@ import { render, cleanup } from '~/test-render.js'
 import { createSignal, flush, type Accessor } from 'solid-js'
 import ReviewPromptQueueList from './ReviewPromptQueueList.js'
 import type { DiffReviewProjectState, ReviewPromptQueueItem } from '~/core/diff-review/diff-review-types.js'
-import { succeed } from '~/util/result.js'
+import { success } from '~/util/result.js'
 import { createStoredSignal } from '~/util/stored-signal.js'
 import { DiffReviewContext, ReviewAgentStatusContext } from './diff-review-storage.js'
 
@@ -40,8 +40,8 @@ function Queue(props: { items: ReviewPromptQueueItem[] }): JSX.Element {
             },
           },
         }),
-        update: async () => succeed(undefined),
-        refresh: async () => succeed(undefined),
+        update: async () => success(undefined),
+        refresh: async () => success(undefined),
       }}
     >
       <TicketQueue profileName="" />
@@ -117,7 +117,7 @@ describe('ReviewPromptQueueList', () => {
     const { container } = render(() => {
       const state = createStoredSignal(
         () => saved,
-        async (transform) => succeed((saved = transform(saved))),
+        async (transform) => success((saved = transform(saved))),
       )
       get = state.get
       return (
@@ -155,7 +155,7 @@ describe('ReviewPromptQueueList', () => {
     const { container } = render(() => {
       const state = createStoredSignal(
         () => saved,
-        async (transform) => succeed((saved = transform(saved))),
+        async (transform) => success((saved = transform(saved))),
       )
       return (
         <DiffReviewContext value={state}>

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { parseSyncResult } from './project-page-pure.js'
-import { succeed, fail } from '~/util/result.js'
+import { success, failure } from '~/util/result.js'
 
 describe('parseSyncResult', () => {
   it('returns success for status success', () => {
@@ -9,7 +9,7 @@ describe('parseSyncResult', () => {
         status: 'success',
       }),
     ).toEqual(
-      succeed({
+      success({
         type: 'success',
       }),
     )
@@ -20,7 +20,7 @@ describe('parseSyncResult', () => {
         status: 'conflict',
       }),
     ).toEqual(
-      succeed({
+      success({
         type: 'conflict',
       }),
     )
@@ -31,20 +31,20 @@ describe('parseSyncResult', () => {
         status: 'error',
         message: 'Oops',
       }),
-    ).toEqual(fail('Oops'))
+    ).toEqual(failure('Oops'))
   })
   it('uses fallback message for error without message', () => {
     expect(
       parseSyncResult({
         status: 'error',
       }),
-    ).toEqual(fail('Sync failed'))
+    ).toEqual(failure('Sync failed'))
   })
   it('returns error for unexpected status', () => {
     expect(
       parseSyncResult({
         status: 'unknown',
       }),
-    ).toEqual(fail('Sync failed'))
+    ).toEqual(failure('Sync failed'))
   })
 })

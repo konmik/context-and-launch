@@ -1,6 +1,6 @@
 import type { ReviewPromptQueueItem } from '../../core/diff-review/diff-review-types.js'
 import type { ActionError } from '../../core/shared/errors.js'
-import { succeed, fail, type Result } from '~/util/result.js'
+import { success, failure, type Result } from '~/util/result.js'
 import { query } from '@solidjs/router'
 import { diffReviewGitService, diffReviewTargetResolver, reviewPromptQueueService } from '~/core/config/instances.js'
 import { errorMessage, errorResult } from '~/core/shared/errors.js'
@@ -30,13 +30,13 @@ export const getReviewSnapshot = query(async (projectSlug: string, folderName: s
     return {
       scopes,
       scope,
-      snapshot: fail(errorMessage(error)),
+      snapshot: failure(errorMessage(error)),
     }
   }
   return {
     scopes,
     scope,
-    snapshot: succeed(snapshot),
+    snapshot: success(snapshot),
   }
 }, 'diff-review-snapshot')
 
@@ -57,7 +57,7 @@ export async function enqueueReviewPrompt(
       snapshot ?? undefined,
       profileName ?? undefined,
     )
-    return succeed({
+    return success({
       item,
     })
   } catch (error) {
@@ -75,7 +75,7 @@ export async function retryReviewPrompt(
 
   try {
     await reviewPromptQueueService.retryAndLaunch(projectSlug, folderName, itemId, profileName ?? undefined)
-    return succeed(undefined)
+    return success(undefined)
   } catch (error) {
     return errorResult(error)
   }

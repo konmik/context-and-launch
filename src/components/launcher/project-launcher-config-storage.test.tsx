@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { createSignal, flush } from 'solid-js'
 import { cleanup, fireEvent, render, screen, waitFor } from '~/test-render.js'
 import { createStoredSignal } from '~/util/stored-signal.js'
-import { fail, succeed } from '~/util/result.js'
+import { failure, success } from '~/util/result.js'
 import type { LauncherConfig } from '~/core/launcher/launcher-config-data.js'
 import { ProjectLauncherConfigContext, createProjectLauncherConfigStorage } from './project-launcher-config-storage.js'
 import { LauncherConfigContext } from './shared-launcher-config-storage.js'
@@ -43,7 +43,7 @@ it('switches the project store without remounting the editor and edits the selec
       skills: [],
     }),
     async (transform) =>
-      succeed(
+      success(
         transform({
           templates: [],
           skills: [],
@@ -63,11 +63,11 @@ it('switches the project store without remounting the editor and edits the selec
           await new Promise<void>((resolve) => {
             completeRead = resolve
           })
-        return succeed(saved.get(slug)!)
+        return success(saved.get(slug)!)
       },
       async save(slug, json): Promise<Success<LauncherConfig>> {
         saved.set(slug, JSON.parse(json))
-        return succeed(saved.get(slug)!)
+        return success(saved.get(slug)!)
       },
       release,
     },
@@ -131,14 +131,14 @@ it('shares successful edits, isolates projects, and retains failed drafts', asyn
   const storage = createStoredSignal(
     () => initial,
     async (transform) => {
-      if (reject) return fail('write failed')
+      if (reject) return failure('write failed')
       persisted = transform(persisted)
-      return succeed(persisted)
+      return success(persisted)
     },
   )
   const other = createStoredSignal(
     () => initial,
-    async (transform) => succeed(transform(initial)),
+    async (transform) => success(transform(initial)),
   )
   const shared = createStoredSignal<LauncherConfig>(
     () => ({
@@ -146,7 +146,7 @@ it('shares successful edits, isolates projects, and retains failed drafts', asyn
       skills: [],
     }),
     async (transform) =>
-      succeed(
+      success(
         transform({
           templates: [],
           skills: [],

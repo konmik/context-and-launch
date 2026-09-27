@@ -7,15 +7,15 @@ import { createTicketDetailState, type TicketDetailStateDeps } from './ticket-de
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import { createStoredSignal } from '~/util/stored-signal.js'
 import type { LauncherConfig } from '~/core/launcher/launcher-config-data.js'
-import { succeed } from '~/util/result.js'
+import { success } from '~/util/result.js'
 
 const mockGetContext = vi.fn().mockResolvedValue({
   content: '',
 })
 const mockUpdateTicket = vi.fn()
-const mockDeleteContext = vi.fn().mockResolvedValue(succeed(undefined))
+const mockDeleteContext = vi.fn().mockResolvedValue(success(undefined))
 const mockUploadFile = vi.fn().mockResolvedValue(
-  succeed({
+  success({
     results: [],
   }),
 )
@@ -100,9 +100,9 @@ function stateDependencies(ticket: TicketInfo): TicketDetailStateDeps {
     ),
     worktreeRevision,
     getContext: mockGetContext,
-    saveContext: async () => succeed(undefined),
+    saveContext: async () => success(undefined),
     deleteContext: mockDeleteContext,
-    deleteFile: async () => succeed(undefined),
+    deleteFile: async () => success(undefined),
     uploadFile: mockUploadFile,
     getProjectLauncherMetadata: mockGetMergedLauncherConfig,
     projectConfig: createStoredSignal(initial, async (transform) => ({
@@ -324,7 +324,7 @@ describe('TicketDetailDialog multi-file upload confirmation', () => {
   beforeEach(() => {
     mockUploadFile.mockClear()
     mockUploadFile.mockResolvedValue(
-      succeed({
+      success({
         results: [],
       }),
     )
@@ -371,9 +371,9 @@ describe('TicketDetailDialog multi-file upload confirmation', () => {
     await flush()
     expect(mockUploadFile).toHaveBeenCalledTimes(1)
     uploadResolve!(
-      succeed({
+      success({
         results: [
-          succeed({
+          success({
             name: 'big1.dat',
           }),
         ],
@@ -445,9 +445,9 @@ describe('TicketDetailDialog multi-file upload confirmation', () => {
     await flush()
     expect(mockUploadFile).toHaveBeenCalledTimes(1)
     uploadResolve!(
-      succeed({
+      success({
         results: [
-          succeed({
+          success({
             name: 'exist1.txt',
           }),
         ],
@@ -496,9 +496,9 @@ describe('TicketDetailDialog file list refresh after upload', () => {
         fileNames: ['notes.md'],
         references: [],
       })
-      return succeed({
+      return success({
         results: [
-          succeed({
+          success({
             name: 'notes.md',
           }),
         ],
@@ -520,9 +520,9 @@ describe('TicketDetailDialog file list refresh after upload', () => {
         fileNames: ['report.txt'],
         references: [],
       })
-      return succeed({
+      return success({
         results: [
-          succeed({
+          success({
             name: 'report.txt',
           }),
         ],
@@ -543,7 +543,7 @@ describe('TicketDetailDialog context deletion clears extraFiles', () => {
     mockGetContext.mockResolvedValue({
       content: '',
     })
-    mockDeleteContext.mockResolvedValue(succeed(undefined))
+    mockDeleteContext.mockResolvedValue(success(undefined))
   })
   it('deleting a context added via New markdown file removes it from the dropdown', async () => {
     const ticket = makeTicket('t-1-alpha', 'T-1', 'Alpha')

@@ -3,7 +3,7 @@ import { GET } from '@solidjs/web/server-functions'
 import { diffReviewStore, diffReviewTargetResolver, reviewPromptQueueService } from '~/core/config/instances.js'
 import type { DiffReviewProjectState } from '~/core/diff-review/diff-review-types.js'
 import { errorMessage } from '~/core/shared/errors.js'
-import { fail, succeed } from '~/util/result.js'
+import { failure, success } from '~/util/result.js'
 
 export const readReviewAgentStatus = GET(async (projectSlug: string, folderName: string) => {
   'use server'
@@ -17,9 +17,9 @@ export const readDiffReviewState = GET(async (projectSlug: string, owner?: strin
   'use server'
 
   try {
-    return succeed(diffReviewStore.loadProject(projectSlug, owner))
+    return success(diffReviewStore.loadProject(projectSlug, owner))
   } catch (error) {
-    return fail(errorMessage(error))
+    return failure(errorMessage(error))
   }
 })
 
@@ -31,8 +31,8 @@ export async function saveDiffReviewState(
   'use server'
 
   try {
-    if (!owner) return fail('Configuration update requires a client identity.')
-    return succeed(
+    if (!owner) return failure('Configuration update requires a client identity.')
+    return success(
       diffReviewStore.updateProject(
         projectSlug,
         (current) => {
@@ -50,7 +50,7 @@ export async function saveDiffReviewState(
       ),
     )
   } catch (error) {
-    return fail(errorMessage(error))
+    return failure(errorMessage(error))
   }
 }
 

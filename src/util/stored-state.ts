@@ -1,6 +1,6 @@
 import { createMemo, createSignal, type Accessor } from 'solid-js'
 import { errorMessage } from '~/core/shared/errors.js'
-import { fail, succeed, type Result } from './result.js'
+import { failure, success, type Result } from './result.js'
 
 export interface StoredState<T> {
   get: Accessor<T>
@@ -26,9 +26,9 @@ export function createStoredState<T>(read: () => T | Promise<T>, options?: Store
         setSaved({
           value: next.value,
         })
-        return succeed(undefined)
+        return success(undefined)
       } catch (error) {
-        return fail(errorMessage(error))
+        return failure(errorMessage(error))
       }
     })
     pending = completion.then(() => {})

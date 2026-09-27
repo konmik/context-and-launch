@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createRoot, flush } from 'solid-js'
 import { createStoredSignal } from './stored-signal.js'
-import { fail, succeed } from './result.js'
+import { failure, success } from './result.js'
 
 describe('stored signal', () => {
   it('serializes a delayed refresh with updates and reads again after a completed update', async () => {
@@ -25,7 +25,7 @@ describe('stored signal', () => {
           async (transform) => {
             events.push('update')
             persisted = transform(persisted)
-            return succeed(persisted)
+            return success(persisted)
           },
         )
         expect(store.get()).toEqual({
@@ -79,13 +79,13 @@ describe('stored signal', () => {
             if (failed) throw new Error('Read failed')
             return persisted
           },
-          async (transform) => succeed((persisted = transform(persisted))),
+          async (transform) => success((persisted = transform(persisted))),
         )
         await store.update(() => ({
           count: 2,
         }))
         failed = true
-        expect(await store.refresh()).toEqual(fail('Read failed'))
+        expect(await store.refresh()).toEqual(failure('Read failed'))
         flush()
         expect(store.get()).toEqual({
           count: 2,
@@ -126,7 +126,7 @@ describe('stored signal', () => {
             persisted = {
               count: next.count + 1,
             }
-            return succeed(persisted)
+            return success(persisted)
           },
         )
         const first = store.update((value) => ({
@@ -161,14 +161,14 @@ describe('stored signal', () => {
             const next = transform({
               count: 1,
             })
-            return attempts++ === 0 ? fail('Disk write failed') : succeed(next)
+            return attempts++ === 0 ? failure('Disk write failed') : success(next)
           },
         )
         expect(
           await store.update(() => ({
             count: 2,
           })),
-        ).toEqual(fail('Disk write failed'))
+        ).toEqual(failure('Disk write failed'))
         flush()
         expect(store.get()).toEqual({
           count: 1,
@@ -176,12 +176,12 @@ describe('stored signal', () => {
         const failed = await store.update(() => {
           throw new Error('Transform failed')
         })
-        expect(failed).toEqual(fail('Transform failed'))
+        expect(failed).toEqual(failure('Transform failed'))
         expect(
           await store.update(() => ({
             count: 3,
           })),
-        ).toEqual(succeed(undefined))
+        ).toEqual(success(undefined))
         flush()
         expect(store.get()).toEqual({
           count: 3,

@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup, waitFor } from '~/test-render.js'
 import { createSignal, createMemo, Loading, type ComponentProps } from 'solid-js'
 import { createStoredSignal } from '~/util/stored-signal.js'
-import { succeed } from '~/util/result.js'
+import { success } from '~/util/result.js'
 import KanbanBoard from './KanbanBoard'
 import { TicketOrderContext } from './ticket-order-storage.js'
 import type { BoardState } from '~/components/project/project-api.js'
@@ -66,7 +66,7 @@ function renderBoard(
       <TicketOrderContext
         value={createStoredSignal(
           () => board.ticketOrder,
-          async (transform) => succeed(transform(board.ticketOrder)),
+          async (transform) => success(transform(board.ticketOrder)),
         )}
       >
         <KanbanBoard
@@ -127,14 +127,14 @@ describe('KanbanBoard rendering', () => {
     const initial = createMemo(async () => saved)
     const storage = createStoredSignal(initial, async (transform) => {
       saved = transform(saved)
-      return succeed(saved)
+      return success(saved)
     })
     render(() => (
       <Loading>
         <TicketOrderContext
           value={createStoredSignal(
             () => ({}),
-            async (transform) => succeed(transform({})),
+            async (transform) => success(transform({})),
           )}
         >
           <KanbanBoard

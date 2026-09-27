@@ -2,7 +2,7 @@ import { boardConfigManager, projectRegistry, launcherConfigManager, worktreeMan
 import { migrateColumnRename, type MigrationScope } from '~/core/project/column-rename-migration.js'
 import { errorMessage } from '~/core/shared/errors.js'
 import type { BoardDefinition } from '~/core/project/board-config-data.js'
-import { fail, succeed, type Result } from '~/util/result.js'
+import { failure, success, type Result } from '~/util/result.js'
 
 export type BoardRef = Pick<BoardDefinition, 'id' | 'name'>
 
@@ -10,9 +10,9 @@ export async function readBoards(owner?: string): Promise<Result<BoardDefinition
   'use server'
 
   try {
-    return succeed(boardConfigManager.read(owner))
+    return success(boardConfigManager.read(owner))
   } catch (error) {
-    return fail(errorMessage(error))
+    return failure(errorMessage(error))
   }
 }
 
@@ -26,10 +26,10 @@ export async function saveBoards(json: string, owner: string): Promise<Result<Bo
   'use server'
 
   try {
-    if (!owner) return fail('Configuration update requires a client identity.')
-    return succeed(boardConfigManager.write(JSON.parse(json), owner))
+    if (!owner) return failure('Configuration update requires a client identity.')
+    return success(boardConfigManager.write(JSON.parse(json), owner))
   } catch (error) {
-    return fail(errorMessage(error))
+    return failure(errorMessage(error))
   }
 }
 
@@ -50,8 +50,8 @@ export async function migrateRenamedColumn(
       launcherConfigManager,
       worktreeManager,
     })
-    return succeed(undefined)
+    return success(undefined)
   } catch (error) {
-    return fail(errorMessage(error))
+    return failure(errorMessage(error))
   }
 }

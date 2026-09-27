@@ -10,14 +10,14 @@ export interface Failure<E> {
 
 export type Result<A, E = never> = Success<A> | Failure<E>
 
-export function succeed<A>(value: A): Success<A> {
+export function success<A>(value: A): Success<A> {
   return {
     type: 'Success',
     value,
   }
 }
 
-export function fail<E>(error: E): Failure<E> {
+export function failure<E>(error: E): Failure<E> {
   return {
     type: 'Failure',
     error,

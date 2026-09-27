@@ -3,7 +3,7 @@ import { createRoot, flush, runWithOwner } from 'solid-js'
 import { createTicketCleanupController, type TicketCleanupDeps } from './ticket-cleanup-controller.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import type { TicketCleanupStatus } from '~/core/worktree/ticket-cleanup-checks.js'
-import { succeed, fail, type Result } from '~/util/result.js'
+import { success, failure, type Result } from '~/util/result.js'
 import type { ErrorInfo } from '~/core/shared/errors.js'
 
 function makeTicket(folderName: string): TicketInfo {
@@ -47,12 +47,12 @@ function makeDeps(overrides?: Partial<TicketCleanupDeps>): TicketCleanupDeps {
     ticket: () => makeTicket('t-1-alpha'),
     action: () => 'delete',
     loadStatus: async () => allReady,
-    onCleanup: async () => succeed(undefined),
-    onSubmit: async () => succeed(undefined),
+    onCleanup: async () => success(undefined),
+    onSubmit: async () => success(undefined),
     onOpenChange: () => {},
     loadLockingProcesses: async () => [],
-    killLockingProcesses: async () => succeed(undefined),
-    forceDeleteLocalBranch: async () => succeed(undefined),
+    killLockingProcesses: async () => success(undefined),
+    forceDeleteLocalBranch: async () => success(undefined),
     ...overrides,
   }
 }
@@ -192,7 +192,7 @@ describe('createTicketCleanupController', () => {
             loadStatus: async () => (++checks === 1 ? allReady : refreshed),
             onCleanup: async (_folderName, cleanup) => {
               submitted = cleanup
-              return succeed(undefined)
+              return success(undefined)
             },
           }),
         )
@@ -219,7 +219,7 @@ describe('createTicketCleanupController', () => {
           makeDeps({
             onSubmit: async (folderName) => {
               submittedFolderName = folderName
-              return succeed(undefined)
+              return success(undefined)
             },
           }),
         )
@@ -241,7 +241,7 @@ describe('createTicketCleanupController', () => {
               closedWith = open
             },
             onSubmit: async () =>
-              fail({
+              failure({
                 description: 'cleanup failed',
               }),
           }),
@@ -292,7 +292,7 @@ describe('createTicketCleanupController', () => {
         await invoke(ctrl.startChecks)
         const p = invoke(ctrl.doSubmit)
         expect(ctrl.submitting()).toBe(true)
-        resolve(succeed(undefined))
+        resolve(success(undefined))
         await p
         expect(ctrl.submitting()).toBe(false)
       } finally {
@@ -316,7 +316,7 @@ describe('createTicketCleanupController', () => {
         const p = invoke(() => ctrl.runCleanup('deleteWorktree'))
         expect(ctrl.runningItem()).toBe('deleteWorktree')
         expect(ctrl.busy()).toBe(true)
-        resolve(succeed(undefined))
+        resolve(success(undefined))
         await p
         expect(ctrl.runningItem()).toBeUndefined()
         expect(ctrl.busy()).toBe(false)
@@ -336,7 +336,7 @@ describe('createTicketCleanupController', () => {
               return allReady
             },
             onCleanup: async () =>
-              fail({
+              failure({
                 description: 'action failed',
               }),
           }),

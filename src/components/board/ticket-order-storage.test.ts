@@ -3,7 +3,7 @@ import { expect, it } from 'vitest'
 import { createRoot, createSignal, flush } from 'solid-js'
 import { createTicketOrderStorage } from './ticket-order-storage.js'
 import { moveTicketInOrder, type TicketOrder } from '~/core/ticket/ticket-order-data.js'
-import { fail, succeed } from '~/util/result.js'
+import { failure, success } from '~/util/result.js'
 
 it('updates fresh disk order, publishes only successful writes, and follows refreshed snapshots', async () => {
   let dispose!: () => void
@@ -24,12 +24,12 @@ it('updates fresh disk order, publishes only successful writes, and follows refr
         },
       },
       {
-        read: async () => succeed(disk),
+        read: async () => success(disk),
         save: async (_project, expected, next) => {
-          if (reject) return fail('conflict')
+          if (reject) return failure('conflict')
           expect(expected).toBe(disk)
           disk = next
-          return succeed(disk)
+          return success(disk)
         },
       },
     )
@@ -41,7 +41,7 @@ it('updates fresh disk order, publishes only successful writes, and follows refr
       todo: ['b', 'external', 'a'],
     })
     reject = true
-    expect(await storage.update(() => ({}))).toEqual(fail('conflict'))
+    expect(await storage.update(() => ({}))).toEqual(failure('conflict'))
     expect(storage.get()).toEqual(disk)
     flush(() =>
       setSnapshot({
@@ -96,11 +96,11 @@ it('keeps an in-flight save with its original project when navigation changes th
         async read(projectSlug): Promise<Success<TicketOrder>> {
           startedRead()
           await release
-          return succeed(saved.get(projectSlug)!)
+          return success(saved.get(projectSlug)!)
         },
         async save(projectSlug, _expected, next): Promise<Success<TicketOrder>> {
           saved.set(projectSlug, next)
-          return succeed(next)
+          return success(next)
         },
       },
     )

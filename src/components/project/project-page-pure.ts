@@ -1,4 +1,4 @@
-import { succeed, fail, type Result } from '~/util/result.js'
+import { success, failure, type Result } from '~/util/result.js'
 
 export interface SuccessSyncResultType {
   type: 'success'
@@ -13,12 +13,12 @@ export function parseSyncResult(result: {
   message?: string
 }): Result<SuccessSyncResultType | ConflictSyncResultType, string> {
   if (result.status === 'success')
-    return succeed({
+    return success({
       type: 'success',
     })
   if (result.status === 'conflict')
-    return succeed({
+    return success({
       type: 'conflict',
     })
-  return fail(result.message || 'Sync failed')
+  return failure(result.message || 'Sync failed')
 }
