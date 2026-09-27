@@ -8,6 +8,7 @@ import {
 import { toSavedWorktreeInfo } from '~/core/worktree/agent-worktree.js'
 import { TicketStore } from '~/core/ticket/ticket-store.js'
 import { NotFoundError } from '~/core/shared/errors.js'
+import { succeed, fail, type Result } from '~/util/result.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import type { ProjectInfo } from '~/core/project/project-registry.js'
 import type { LauncherProfile } from '~/core/launcher/launcher-config.js'
@@ -40,23 +41,18 @@ export function agentRunning(projectSlug: string, folderName: string): boolean {
 }
 
 export interface ResolveLaunchDirResultValue {
-  ok: true
   launchDir: string
 }
 
 export interface DirtyWorktreeResolveLaunchDirResult {
-  ok: false
   type: 'dirtyWorktree'
   message: string
 }
 
 export interface BehindRemoteResolveLaunchDirResult {
-  ok: false
   type: 'behindRemote'
   message: string
 }
-
-export type ResolveLaunchDirResult = ResolveLaunchDirResultValue | DirtyWorktreeResolveLaunchDirResult | BehindRemoteResolveLaunchDirResult
 
 export async function ensureLaunchDir(
   projectSlug: string,
@@ -73,12 +69,11 @@ export async function ensureLaunchDir(
     skipBehindRemote?: boolean
   },
   mainBranch?: string,
-): Promise<ResolveLaunchDirResult> {
+): Promise<Result<ResolveLaunchDirResultValue, DirtyWorktreeResolveLaunchDirResult | BehindRemoteResolveLaunchDirResult>> {
   if (!useWorktree)
-    return {
-      ok: true,
+    return succeed({
       launchDir: projectPath,
-    }
+    })
   const savedInfo = toSavedWorktreeInfo(ticket)
   const result = await agentWorktreeManager.ensureAgentWorktree(
     projectPath,
@@ -90,27 +85,24 @@ export async function ensureLaunchDir(
     mainBranch,
     savedInfo,
   )
-  if ('dirtyWorktree' in result) {
-    return {
-      ok: false,
+  if (result.type === 'Failure') {
+    return fail({
       type: 'dirtyWorktree',
       message: 'Main branch has uncommitted changes. Launch anyway?',
-    }
+    })
   }
-  if (result.behindRemote && !opts?.skipBehindRemote) {
-    return {
-      ok: false,
+  if (result.value.behindRemote && !opts?.skipBehindRemote) {
+    return fail({
       type: 'behindRemote',
       message: 'Main branch is behind remote. Proceed with the worktree anyway?',
-    }
+    })
   }
   if (!ticket.agentWorktreeBranchName) {
-    new TicketStore(worktreeDir).saveAgentWorktreeInfo(folderName, result.branchName, result.worktreePath)
+    new TicketStore(worktreeDir).saveAgentWorktreeInfo(folderName, result.value.branchName, result.value.worktreePath)
   }
-  return {
-    ok: true,
-    launchDir: result.worktreePath,
-  }
+  return succeed({
+    launchDir: result.value.worktreePath,
+  })
 }
 
 export function resolveTicketAndProject(projectSlug: string, folderName: string): ResolveTicketAndProjectResult {

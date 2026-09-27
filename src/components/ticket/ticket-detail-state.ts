@@ -188,7 +188,7 @@ export function createTicketDetailState(
     setError(null)
     try {
       const result = await (deps.openTicketWorktree ?? openTicketWorktree)(props.projectSlug, folderName())
-      if (!result.ok) setError(result.errorInfo)
+      if (result.type === 'Failure') setError(result.error.errorInfo)
     } catch (e) {
       setError(errorPayload(e, 'Open failed'))
     }
@@ -428,11 +428,11 @@ export function createTicketDetailState(
     setSaving(true)
     try {
       const result = await (deps.saveContext ?? saveContextAction)(props.projectSlug, folderName(), af.name, content())
-      if (result.ok) setSavedContent(content())
+      if (result.type === 'Success') setSavedContent(content())
       else
         setError({
           title: 'Save failed',
-          description: result.message,
+          description: result.error.message,
         })
     } catch (e) {
       setError(errorPayload(e, 'Save failed'))
@@ -532,19 +532,19 @@ export function createTicketDetailState(
         }
       } else if (af.type === 'file') {
         const result = await (deps.deleteFile ?? deleteFileAction)(props.projectSlug, folderName(), af.name)
-        if (!result.ok) {
+        if (result.type === 'Failure') {
           setError({
             title: 'Delete failed',
-            description: result.message,
+            description: result.error.message,
           })
           return
         }
       } else {
         const result = await (deps.deleteContext ?? deleteContextAction)(props.projectSlug, folderName(), af.name)
-        if (!result.ok) {
+        if (result.type === 'Failure') {
           setError({
             title: 'Delete failed',
-            description: result.message,
+            description: result.error.message,
           })
           return
         }

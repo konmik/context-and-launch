@@ -340,8 +340,14 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
     const current = review()
     return current && current.scope === selectedScope() ? current : undefined
   })
-  const scopeError = () => scopeAnswer()?.error
-  const scopedSnapshot = () => scopeAnswer()?.snapshot
+  const scopeError = () => {
+    const snapshot = scopeAnswer()?.snapshot
+    return snapshot?.type === 'Failure' ? snapshot.error : undefined
+  }
+  const scopedSnapshot = () => {
+    const snapshot = scopeAnswer()?.snapshot
+    return snapshot?.type === 'Success' ? snapshot.value : undefined
+  }
   const files = createMemo<ReviewFileSnapshot[]>((previous) => reuseUnchangedFiles(previous ?? [], scopedSnapshot()?.files ?? []), {
     loadingValue: [],
   })
@@ -525,8 +531,8 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
         selectedProfile() || null,
         selection()?.snapshot ?? null,
       )
-      if (!result.ok) {
-        setSendError(result.message)
+      if (result.type === 'Failure') {
+        setSendError(result.error.message)
         return false
       }
       setFeedback('')

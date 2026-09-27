@@ -10,6 +10,7 @@ import type { ProjectPageData } from './project-api.js'
 import { resolveConflicts, abortRebase } from '../launcher/launcher-api.js'
 import { parseSyncResult } from './project-page-pure.js'
 import type { TicketCleanupOptions } from '../shared/ticket-cleanup-pure.js'
+import { fail, onSuccess, type Result } from '~/util/result.js'
 
 export interface ProjectPageDeps {
   projectSlug: () => string
@@ -61,14 +62,16 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
         return
       }
       const result = await runSyncTickets(deps.projectSlug())
-      if (!result.ok) {
+      if (result.type === 'Failure') {
         setSyncError({
           title: 'Sync failed',
-          description: result.message,
+          description: result.error.message,
         })
       } else {
-        const parsed = parseSyncResult(result)
-        if (parsed.type === 'success') {
+        const parsed = parseSyncResult(result.value)
+        if (parsed.type === 'Failure') {
+          setSyncError({ title: 'Sync failed', description: parsed.error })
+        } else if (parsed.value.type === 'success') {
           showSuccess = true
           setSyncSuccess(true)
           setTimeout(() => {
@@ -77,14 +80,9 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
             syncInProgress = false
           }, 2000)
           await revalidate(projectSyncRevalidateKeys)
-        } else if (parsed.type === 'conflict') {
+        } else {
           await revalidate(projectSyncRevalidateKeys)
           setConflictDialogOpen(true)
-        } else {
-          setSyncError({
-            title: 'Sync failed',
-            description: parsed.message,
-          })
         }
       }
     } catch (err) {
@@ -102,13 +100,13 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
 
   async function handleConflictResolve(profileName: string) {
     const result = await resolveConflicts(deps.projectSlug(), profileName)
-    if (!result.ok) throw new Error(result.message)
+    if (result.type === 'Failure') throw new Error(result.error.message)
     await revalidate(projectSyncRevalidateKeys)
   }
 
   async function handleConflictAbort() {
     const result = await abortRebase(deps.projectSlug())
-    if (!result.ok) throw new Error(result.message)
+    if (result.type === 'Failure') throw new Error(result.error.message)
     setConflictDetected(false)
     await revalidate(projectSyncRevalidateKeys)
   }
@@ -137,68 +135,37 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
     flush()
   }
 
-  async function handleCreateTicket(number: string, title: string): Promise<SubmissionSuccess | SubmissionError> {
+  async function handleCreateTicket(number: string, title: string): Promise<Result<undefined, string>> {
     const result = await createTicket(deps.projectSlug(), number, title)
-    if (result.ok) revalidate(ticketMutationRevalidateKeys)
-    return result.ok
-      ? {}
-      : {
-          error: result.message,
-        }
+    onSuccess(result, () => revalidate(ticketMutationRevalidateKeys))
+    return result.type === 'Failure' ? fail(result.error.message) : result
   }
 
-  async function handleArchiveTicket(folderName: string): Promise<SubmissionSuccess | DetailedSubmissionError> {
+  async function handleArchiveTicket(folderName: string): Promise<Result<undefined, ErrorInfo>> {
     const result = await archiveTicket(deps.projectSlug(), folderName)
-    if (result.ok) revalidate(ticketMutationRevalidateKeys)
-    return result.ok
-      ? {}
-      : {
-          error: {
-            description: result.message,
-          },
-        }
+    onSuccess(result, () => revalidate(ticketMutationRevalidateKeys))
+    return result.type === 'Failure' ? fail(result.error.errorInfo) : result
   }
 
-  async function handleDeleteTicket(folderName: string): Promise<SubmissionSuccess | DetailedSubmissionError> {
+  async function handleDeleteTicket(folderName: string): Promise<Result<undefined, ErrorInfo>> {
     const result = await deleteTicket(deps.projectSlug(), folderName)
-    if (result.ok) revalidate(ticketMutationRevalidateKeys)
-    return result.ok
-      ? {}
-      : {
-          error: {
-            description: result.message,
-          },
-        }
+    onSuccess(result, () => revalidate(ticketMutationRevalidateKeys))
+    return result.type === 'Failure' ? fail(result.error.errorInfo) : result
   }
 
-  async function handleDeleteProject(projectSlug: string): Promise<SubmissionSuccess | SubmissionError> {
+  async function handleDeleteProject(projectSlug: string): Promise<Result<undefined, string>> {
     const result = await deleteProject(projectSlug)
-    if (result.ok) revalidate('project-page')
-    return result.ok
-      ? {}
-      : {
-          error: result.message,
-        }
+    onSuccess(result, () => revalidate('project-page'))
+    return result.type === 'Failure' ? fail(result.error.message) : result
   }
 
-  async function handleCleanupSubmit(folderName: string): Promise<SubmissionSuccess | DetailedSubmissionError> {
+  async function handleCleanupSubmit(folderName: string): Promise<Result<undefined, ErrorInfo>> {
     return cleanupAction() === 'archive' ? await handleArchiveTicket(folderName) : await handleDeleteTicket(folderName)
   }
 
-  async function handleCleanupAction(
-    folderName: string,
-    options: TicketCleanupOptions,
-  ): Promise<HandleCleanupActionResult | SubmissionSuccess> {
+  async function handleCleanupAction(folderName: string, options: TicketCleanupOptions): Promise<Result<undefined, ErrorInfo>> {
     const cleanupResult = await worktreeCleanup(deps.projectSlug(), folderName, options)
-    if (!cleanupResult.ok) {
-      const info = 'errorInfo' in cleanupResult ? cleanupResult.errorInfo : undefined
-      return {
-        error: info ?? {
-          description: cleanupResult.message,
-        },
-      }
-    }
-    return {}
+    return cleanupResult.type === 'Failure' ? fail(cleanupResult.error.errorInfo) : cleanupResult
   }
 
   const dialogState = () => ({
@@ -288,35 +255,17 @@ export interface ProjectPageControllerResult {
     handleSync: () => Promise<void>
     handleConflictResolve: (profileName: string) => Promise<void>
     handleConflictAbort: () => Promise<void>
-    handleCreateTicket: (number: string, title: string) => Promise<SubmissionSuccess | SubmissionError>
-    handleCleanupAction: (folderName: string, options: TicketCleanupOptions) => Promise<HandleCleanupActionResult | SubmissionSuccess>
-    handleCleanupSubmit: (folderName: string) => Promise<SubmissionSuccess | DetailedSubmissionError>
+    handleCreateTicket: (number: string, title: string) => Promise<Result<undefined, string>>
+    handleCleanupAction: (folderName: string, options: TicketCleanupOptions) => Promise<Result<undefined, ErrorInfo>>
+    handleCleanupSubmit: (folderName: string) => Promise<Result<undefined, ErrorInfo>>
     openSettings: () => true
     closeSettings: () => false
     openAddProject: () => true
     closeAddProject: () => false
-    handleDeleteProject: (projectSlug: string) => Promise<SubmissionSuccess | SubmissionError>
+    handleDeleteProject: (projectSlug: string) => Promise<Result<undefined, string>>
     setCreateTicketOpen: Setter<boolean>
     setCleanupDialogOpen: Setter<boolean>
     setConflictDialogOpen: Setter<boolean>
     setSyncError: Setter<ErrorInfo | null>
   }
-}
-
-export interface SubmissionSuccess {
-  error?: undefined
-}
-
-export interface SubmissionError {
-  error: string
-}
-
-export interface DetailedSubmissionError {
-  error: {
-    description: string
-  }
-}
-
-export interface HandleCleanupActionResult {
-  error: ErrorInfo
 }

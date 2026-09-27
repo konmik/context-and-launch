@@ -7,18 +7,18 @@ import { createTicketDetailState, type TicketDetailStateDeps } from './ticket-de
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import { createStoredSignal } from '~/util/stored-signal.js'
 import type { LauncherConfig } from '~/core/launcher/launcher-config-data.js'
+import { succeed } from '~/util/result.js'
 
 const mockGetContext = vi.fn().mockResolvedValue({
   content: '',
 })
 const mockUpdateTicket = vi.fn()
-const mockDeleteContext = vi.fn().mockResolvedValue({
-  ok: true,
-})
-const mockUploadFile = vi.fn().mockResolvedValue({
-  ok: true,
-  results: [],
-})
+const mockDeleteContext = vi.fn().mockResolvedValue(succeed(undefined))
+const mockUploadFile = vi.fn().mockResolvedValue(
+  succeed({
+    results: [],
+  }),
+)
 const emptyTicketFiles = {
   contextNames: [],
   fileNames: [],
@@ -100,13 +100,9 @@ function stateDependencies(ticket: TicketInfo): TicketDetailStateDeps {
     ),
     worktreeRevision,
     getContext: mockGetContext,
-    saveContext: async () => ({
-      ok: true,
-    }),
+    saveContext: async () => succeed(undefined),
     deleteContext: mockDeleteContext,
-    deleteFile: async () => ({
-      ok: true,
-    }),
+    deleteFile: async () => succeed(undefined),
     uploadFile: mockUploadFile,
     getProjectLauncherMetadata: mockGetMergedLauncherConfig,
     projectConfig: createStoredSignal(initial, async (transform) => ({
@@ -327,10 +323,11 @@ describe('TicketDetailDialog external worktree changes', () => {
 describe('TicketDetailDialog multi-file upload confirmation', () => {
   beforeEach(() => {
     mockUploadFile.mockClear()
-    mockUploadFile.mockResolvedValue({
-      ok: true,
-      results: [],
-    })
+    mockUploadFile.mockResolvedValue(
+      succeed({
+        results: [],
+      }),
+    )
   })
   afterEach(() => {
     cleanup()
@@ -373,15 +370,15 @@ describe('TicketDetailDialog multi-file upload confirmation', () => {
     fireEvent.click(copyAnywayButton)
     await flush()
     expect(mockUploadFile).toHaveBeenCalledTimes(1)
-    uploadResolve!({
-      ok: true,
-      results: [
-        {
-          ok: true,
-          name: 'big1.dat',
-        },
-      ],
-    })
+    uploadResolve!(
+      succeed({
+        results: [
+          succeed({
+            name: 'big1.dat',
+          }),
+        ],
+      }),
+    )
     await flush()
     expect(screen.getByText(/big2\.dat/)).toBeTruthy()
   })
@@ -447,15 +444,15 @@ describe('TicketDetailDialog multi-file upload confirmation', () => {
     fireEvent.click(overwriteButton)
     await flush()
     expect(mockUploadFile).toHaveBeenCalledTimes(1)
-    uploadResolve!({
-      ok: true,
-      results: [
-        {
-          ok: true,
-          name: 'exist1.txt',
-        },
-      ],
-    })
+    uploadResolve!(
+      succeed({
+        results: [
+          succeed({
+            name: 'exist1.txt',
+          }),
+        ],
+      }),
+    )
     await flush()
     expect(screen.getByText(/exist2\.txt/)).toBeTruthy()
     expect(screen.getByText('Overwrite File')).toBeTruthy()
@@ -499,15 +496,13 @@ describe('TicketDetailDialog file list refresh after upload', () => {
         fileNames: ['notes.md'],
         references: [],
       })
-      return {
-        ok: true,
+      return succeed({
         results: [
-          {
-            ok: true,
+          succeed({
             name: 'notes.md',
-          },
+          }),
         ],
-      }
+      })
     })
     await renderAndDrop(
       new File(['# Notes'], 'notes.md', {
@@ -525,15 +520,13 @@ describe('TicketDetailDialog file list refresh after upload', () => {
         fileNames: ['report.txt'],
         references: [],
       })
-      return {
-        ok: true,
+      return succeed({
         results: [
-          {
-            ok: true,
+          succeed({
             name: 'report.txt',
-          },
+          }),
         ],
-      }
+      })
     })
     await renderAndDrop(
       new File(['data'], 'report.txt', {
@@ -550,9 +543,7 @@ describe('TicketDetailDialog context deletion clears extraFiles', () => {
     mockGetContext.mockResolvedValue({
       content: '',
     })
-    mockDeleteContext.mockResolvedValue({
-      ok: true,
-    })
+    mockDeleteContext.mockResolvedValue(succeed(undefined))
   })
   it('deleting a context added via New markdown file removes it from the dropdown', async () => {
     const ticket = makeTicket('t-1-alpha', 'T-1', 'Alpha')

@@ -1,4 +1,5 @@
 import { errorMessage } from '~/core/shared/errors.js'
+import { succeed, fail, type Result } from '~/util/result.js'
 import { HerdrUnavailableError } from '~/core/herdr/herdr-availability.js'
 import type { HerdrAgentStatus, HerdrTicketState } from '~/core/herdr/herdr-client.js'
 
@@ -55,20 +56,15 @@ export function createHerdrStatusService(deps: HerdrStatusDeps): AgentStatusServ
     }
   }
 
-  async function reconcile(projectSlug: string): Promise<QueueReconciliationSuccess | QueueReconciliationError> {
+  async function reconcile(projectSlug: string): Promise<Result<undefined, string>> {
     try {
       await deps.reconcileProject(projectSlug)
-      return {
-        ok: true as const,
-      }
+      return succeed(undefined)
     } catch (error) {
       deps.log('diff-review', `queue reconciliation failed: ${errorMessage(error)}`, {
         projectSlug,
       })
-      return {
-        ok: false as const,
-        message: errorMessage(error),
-      }
+      return fail(errorMessage(error))
     }
   }
 
@@ -80,24 +76,5 @@ export function createHerdrStatusService(deps: HerdrStatusDeps): AgentStatusServ
 
 export interface AgentStatusServiceResult {
   getStatuses: (projectSlug: string) => Promise<HerdrAgentStatusesResult>
-  reconcile: (projectSlug: string) => Promise<
-    | {
-        ok: true
-        message?: undefined
-      }
-    | {
-        ok: false
-        message: string
-      }
-  >
-}
-
-export interface QueueReconciliationSuccess {
-  ok: true
-  message?: undefined
-}
-
-export interface QueueReconciliationError {
-  ok: false
-  message: string
+  reconcile: (projectSlug: string) => Promise<Result<undefined, string>>
 }

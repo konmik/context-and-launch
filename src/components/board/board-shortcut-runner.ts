@@ -47,7 +47,7 @@ export function createBoardShortcutRunner(deps: {
     setError(null)
     try {
       const result = await openTicketWorktree(deps.projectSlug(), ticket.folderName)
-      if (!result.ok) setError(result.errorInfo)
+      if (result.type === 'Failure') setError(result.error.errorInfo)
     } catch (e) {
       setError(errorPayload(e, 'Open failed'))
     }

@@ -20,16 +20,6 @@ interface Window {
       palette: import('./components/shared/palette-pure.js').PaletteName,
       mode: import('./components/shared/theme-toggle-pure.js').AppMode,
     ): void
-    pickDirectory(preselect: string): Promise<
-      | {
-          path: string
-        }
-      | {
-          cancelled: true
-        }
-      | {
-          error: string
-        }
-    >
+    pickDirectory(preselect: string): Promise<import('./util/result.js').Result<string | undefined, string>>
   }
 }

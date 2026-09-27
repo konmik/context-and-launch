@@ -1,4 +1,5 @@
 import type { JSX } from '@solidjs/web'
+import type { Result } from '~/util/result.js'
 import { createSignal, createMemo, createEffect, useContext } from 'solid-js'
 import { revalidate, useAction } from '@solidjs/router'
 import { TabsContent } from '../ui/tabs'
@@ -17,9 +18,7 @@ import { setProjectPath as setProjectPathAction, setTicketsLocation } from '../p
 export function MiscTab(props: {
   open: boolean
   projectSlug: string
-  onDeleteProject?: (projectSlug: string) => Promise<{
-    error?: string
-  }>
+  onDeleteProject?: (projectSlug: string) => Promise<Result<undefined, string>>
 }): JSX.Element {
   const appConfig = useContext(AppConfigContext)!
   const sharedConfig = useContext(LauncherConfigContext)!
@@ -101,14 +100,14 @@ export function MiscTab(props: {
     setError(null)
     try {
       const result = await runSetProjectPath(props.projectSlug, path)
-      if (!result.ok) {
+      if (result.type === 'Failure') {
         setError({
           title: 'Save failed',
-          description: result.message,
+          description: result.error.message,
         })
         return
       }
-      setProjectPath(result.path)
+      setProjectPath(result.value.path)
       await revalidate(['launcher-metadata', 'project-page', 'project-sync-status'])
     } catch (e) {
       setError(errorPayload(e, 'Save failed'))
@@ -127,15 +126,15 @@ export function MiscTab(props: {
         kind,
         value,
       })
-      if (!result.ok) {
+      if (result.type === 'Failure') {
         setError({
           title: 'Save failed',
-          description: result.message,
+          description: result.error.message,
         })
         return
       }
-      if (kind === 'path') setTicketsPath(result.value)
-      else setTicketsBranch(result.value)
+      if (kind === 'path') setTicketsPath(result.value.value)
+      else setTicketsBranch(result.value.value)
       await revalidate('launcher-metadata')
     } catch (e) {
       setError(errorPayload(e, 'Save failed'))

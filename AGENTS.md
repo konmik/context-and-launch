@@ -1,5 +1,6 @@
 # Formatting, checks, and tests
 
+- Run formatter and TypeScript (`tsc`) checks only when explicitly asked.
 - After editing code, run `pnpm run check <affected-test-file>...` once for selected tests. Always supply test paths; omitting them runs the full suite.
 - Run `pnpm run check:full` only when the user explicitly requests it. It runs formatting, repo-wide TypeScript checking, lint, and tests.
 - Run the full suite with `pnpm test` only when the user explicitly requests it.
@@ -21,6 +22,7 @@
 ## Code style
 
 - Named functions must have explicit return types and named interfaces for object returns (except for void type).
+- Use a `Result` type for return values when success or failure are expected.
 - We are using only TypeScript, do not check for types randomly, do not write incorrect-type tests.
 - Do not duplicate code. Extract shared logic into reusable helpers.
 - Avoid non-ASCII unless explicitly asked.

@@ -144,28 +144,14 @@ export function ColumnsTab(props: { open: boolean; projectSlug: string }): JSX.E
       setColumnDialogError(result.error)
       return
     }
-    setColumnForm(null)
-    setRenameForm(null)
     if (rename && rename.scope !== 'none') {
       try {
-        if (rename.scope === 'current' || boardId === (projectBoardId() ?? boards()[0]?.id)) {
-          const migrated = await projectConfig.update((current) => {
-            if (!current.columnDefaults || !Object.hasOwn(current.columnDefaults, rename.oldName)) {
-              return current
-            }
-            const { [rename.oldName]: defaults, ...remaining } = current.columnDefaults
-            return {
-              ...current,
-              columnDefaults: {
-                ...remaining,
-                [newName]: defaults,
-              },
-            }
-          })
-          if (migrated.type === 'Failure') throw new Error(migrated.error)
-        }
         const migration = await migrateRenamedColumn(boardId, rename.oldName, newName, rename.scope, projectSlug)
         if (migration.type === 'Failure') throw new Error(migration.error)
+        if (rename.scope === 'current' || boardId === (projectBoardId() ?? boards()[0]?.id)) {
+          const refreshed = await projectConfig.refresh()
+          if (refreshed.type === 'Failure') throw new Error(refreshed.error)
+        }
         await revalidate('project-page')
       } catch (error) {
         const rollback = await storage.update((current) =>
@@ -189,8 +175,11 @@ export function ColumnsTab(props: { open: boolean; projectSlug: string }): JSX.E
           title: 'Migration failed',
           description: errorMessage(error) + (rollback.type === 'Failure' ? `; rollback failed: ${rollback.error}` : ''),
         })
+        return
       }
     }
+    setColumnForm(null)
+    setRenameForm(null)
   }
 
   async function deleteSelected() {

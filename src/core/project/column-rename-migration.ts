@@ -73,14 +73,18 @@ export function migrateColumnRename(
       console.warn(`Skipping ticket migration for project "${projectSlug}": ticket store inaccessible`, e)
     }
     try {
-      const projectConfig = deps.launcherConfigManager.loadProjectConfig(projectSlug)
-      if (projectConfig.columnDefaults && Object.prototype.hasOwnProperty.call(projectConfig.columnDefaults, oldColumnName)) {
-        const defaults = projectConfig.columnDefaults[oldColumnName]
-        projectConfig.columnDefaults[newColumnName] = defaults
-        delete projectConfig.columnDefaults[oldColumnName]
-        deps.launcherConfigManager.saveProjectConfig(projectSlug, projectConfig)
+      deps.launcherConfigManager.updateProjectConfig(projectSlug, (current) => {
+        if (!current.columnDefaults || !Object.hasOwn(current.columnDefaults, oldColumnName)) return current
+        const { [oldColumnName]: defaults, ...remaining } = current.columnDefaults
         projectChanged = true
-      }
+        return {
+          ...current,
+          columnDefaults: {
+            ...remaining,
+            [newColumnName]: defaults,
+          },
+        }
+      })
     } catch (e) {
       console.warn(`Skipping columnDefaults re-keying for project "${projectSlug}"`, e)
     }

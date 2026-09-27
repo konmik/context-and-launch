@@ -1,8 +1,6 @@
 import type { GroupTicketResult } from '../forest/forest-api.js'
 import type { ActionError } from '../../core/shared/errors.js'
-import type { ActionSuccess } from '../../core/shared/errors.js'
-import type { Failure } from '../../util/result.js'
-import type { Success } from '../../util/result.js'
+import type { Result } from '../../util/result.js'
 import type { ResponseEnvelope } from '@solidjs/web'
 import type { ProjectInfo } from '../../core/project/project-registry.js'
 import fs from 'fs'
@@ -57,7 +55,7 @@ async function mutateTicketsExclusive<T>(projectSlug: string, mutation: (store: 
   }
 }
 
-export async function createTicket(projectSlug: string, number: string, title: string): Promise<ActionError | ActionSuccess> {
+export async function createTicket(projectSlug: string, number: string, title: string): Promise<Result<undefined, ActionError>> {
   'use server'
 
   try {
@@ -66,9 +64,7 @@ export async function createTicket(projectSlug: string, number: string, title: s
       boardConfigManager,
     })
     mutateTickets(projectSlug, (store) => store.createTicket(number, title, initialStatus))
-    return {
-      ok: true as const,
-    }
+    return succeed(undefined)
   } catch (e) {
     return errorResult(e)
   }
@@ -80,48 +76,43 @@ export async function updateTicket(
   number: string | null,
   title: string | null,
   status: string | null,
-): Promise<ActionError | GroupTicketResult> {
+): Promise<Result<GroupTicketResult, ActionError>> {
   'use server'
 
   try {
     const updated = await mutateTicketsExclusive(projectSlug, (store) => store.updateTicket(folderName, number, title, status))
-    return {
-      ok: true as const,
+    return succeed({
       folderName: updated.folderName,
-    }
+    })
   } catch (e) {
     return errorResult(e)
   }
 }
 
-export async function deleteTicket(projectSlug: string, folderName: string): Promise<ActionError | ActionSuccess> {
+export async function deleteTicket(projectSlug: string, folderName: string): Promise<Result<undefined, ActionError>> {
   'use server'
 
   try {
     await mutateTicketsExclusive(projectSlug, (store) => store.deleteTicket(folderName))
     await diffReviewStore.removeTicket(projectSlug, folderName)
-    return {
-      ok: true as const,
-    }
+    return succeed(undefined)
   } catch (e) {
     return errorResult(e)
   }
 }
 
-export async function archiveTicket(projectSlug: string, folderName: string): Promise<ActionError | ActionSuccess> {
+export async function archiveTicket(projectSlug: string, folderName: string): Promise<Result<undefined, ActionError>> {
   'use server'
 
   try {
     await mutateTicketsExclusive(projectSlug, (store) => store.archiveTicket(folderName))
-    return {
-      ok: true as const,
-    }
+    return succeed(undefined)
   } catch (e) {
     return errorResult(e)
   }
 }
 
-export async function readTicketOrder(projectSlug: string): Promise<Failure<string> | Success<TicketOrder>> {
+export async function readTicketOrder(projectSlug: string): Promise<Result<TicketOrder, string>> {
   'use server'
 
   try {
@@ -135,7 +126,7 @@ export async function saveTicketOrder(
   projectSlug: string,
   expected: TicketOrder,
   order: TicketOrder,
-): Promise<Failure<string> | Success<TicketOrder>> {
+): Promise<Result<TicketOrder, string>> {
   'use server'
 
   try {
@@ -186,14 +177,12 @@ export async function saveContext(
   folderName: string,
   contextFileName: string,
   content: string,
-): Promise<ActionError | ActionSuccess> {
+): Promise<Result<undefined, ActionError>> {
   'use server'
 
   try {
     mutateTickets(projectSlug, (store) => store.saveTicketContext(folderName, contextFileName, content))
-    return {
-      ok: true as const,
-    }
+    return succeed(undefined)
   } catch (e) {
     return errorResult(e)
   }
@@ -203,44 +192,40 @@ export async function deleteContext(
   projectSlug: string,
   folderName: string,
   contextFileName: string,
-): Promise<ActionError | ActionSuccess> {
+): Promise<Result<undefined, ActionError>> {
   'use server'
 
   try {
     mutateTickets(projectSlug, (store) => store.deleteTicketContext(folderName, contextFileName))
-    return {
-      ok: true as const,
-    }
+    return succeed(undefined)
   } catch (e) {
     return errorResult(e)
   }
 }
 
-export async function deleteFile(projectSlug: string, folderName: string, fileName: string): Promise<ActionError | ActionSuccess> {
+export async function deleteFile(projectSlug: string, folderName: string, fileName: string): Promise<Result<undefined, ActionError>> {
   'use server'
 
   try {
     mutateTickets(projectSlug, (store) => store.deleteTicketFile(folderName, fileName))
-    return {
-      ok: true as const,
-    }
+    return succeed(undefined)
   } catch (e) {
     return errorResult(e)
   }
 }
 
-export async function uploadFile(projectSlug: string, folderName: string, formData: FormData): Promise<ActionError | UploadFileResult> {
+export async function uploadFile(
+  projectSlug: string,
+  folderName: string,
+  formData: FormData,
+): Promise<Result<UploadFileResult, ActionError>> {
   'use server'
 
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
     try {
       const store = new TicketStore(worktreeDir)
-      const results: {
-        name: string
-        ok: boolean
-        error?: string
-      }[] = []
+      const results: Result<UploadedFile, FileUploadError>[] = []
       for (const [, value] of formData.entries()) {
         if (!(value instanceof File)) continue
         const fileName = value.name
@@ -248,22 +233,23 @@ export async function uploadFile(projectSlug: string, folderName: string, formDa
           const arrayBuffer = await value.arrayBuffer()
           const buffer = Buffer.from(arrayBuffer)
           store.copyFileToTicket(folderName, fileName, buffer)
-          results.push({
-            name: fileName,
-            ok: true,
-          })
+          results.push(
+            succeed({
+              name: fileName,
+            }),
+          )
         } catch (e) {
-          results.push({
-            name: fileName,
-            ok: false,
-            error: errorMessage(e),
-          })
+          results.push(
+            fail({
+              name: fileName,
+              message: errorMessage(e),
+            }),
+          )
         }
       }
-      return {
-        ok: true as const,
+      return succeed({
         results,
-      }
+      })
     } finally {
       worktreeRevisions.bump(worktreeDir)
     }
@@ -325,9 +311,7 @@ export const saveTicketStatus = action(async (projectSlug: string, previousJson:
 }, 'save-ticket-status')
 export const syncTickets = action(async function syncTickets(
   projectSlug: string,
-): Promise<
-  ResponseEnvelope<ActionError> | ResponseEnvelope<SuccessSyncTicketsResult | ConflictSyncTicketsResult | ErrorSyncTicketsResult>
-> {
+): Promise<ResponseEnvelope<Result<SuccessSyncTicketsResult | ConflictSyncTicketsResult, ActionError>>> {
   'use server'
 
   try {
@@ -335,10 +319,7 @@ export const syncTickets = action(async function syncTickets(
     const result = await fileWatcher.runWithWatchPaused(worktreeDir, async () => {
       const result = await operationTracker.track(ticketSyncManager.sync(worktreeDir))
       worktreeRevisions.bump(worktreeDir)
-      return {
-        ok: true as const,
-        ...result,
-      }
+      return result.type === 'Failure' ? errorResult(result.error) : result
     })
     return respond(result, {
       revalidate: [],
@@ -392,7 +373,7 @@ function resolveTicketCleanupTarget(projectSlug: string, folderName: string): Re
   }
 }
 
-export async function openTicketWorktree(projectSlug: string, folderName: string): Promise<ActionError | ActionSuccess> {
+export async function openTicketWorktree(projectSlug: string, folderName: string): Promise<Result<undefined, ActionError>> {
   'use server'
 
   try {
@@ -401,9 +382,7 @@ export async function openTicketWorktree(projectSlug: string, folderName: string
       throw new NotFoundError(`Worktree does not exist: ${worktreePath}`)
     }
     await openInOs(worktreePath, commandTemplateService)
-    return {
-      ok: true as const,
-    }
+    return succeed(undefined)
   } catch (e) {
     return errorResult(e)
   }
@@ -449,7 +428,7 @@ export async function worktreeCleanup(
   projectSlug: string,
   folderName: string,
   options: TicketCleanupOptions,
-): Promise<WorktreeCleanupResult | ActionError> {
+): Promise<Result<undefined, ActionError>> {
   'use server'
 
   try {
@@ -493,17 +472,14 @@ export async function worktreeCleanup(
     if (options.deleteLocalBranch) {
       await diffReviewStore.removeTicket(projectSlug, folderName)
     }
-    return {
-      ok: true as const,
-    }
+    return succeed(undefined)
   } catch (e) {
     const payload = errorPayload(e)
-    return {
-      ok: false as const,
+    return fail({
       type: 'error' as const,
       message: payload.description,
       errorInfo: payload,
-    }
+    })
   }
 }
 
@@ -518,7 +494,7 @@ export async function killWorktreeLockingProcesses(
   projectSlug: string,
   folderName: string,
   pids: number[],
-): Promise<KillWorktreeLockingProcessesResult> {
+): Promise<Result<undefined, string>> {
   'use server'
 
   const failed: string[] = []
@@ -531,15 +507,13 @@ export async function killWorktreeLockingProcesses(
     }
   }
   if (failed.length > 0) {
-    return {
-      error: `Failed to kill: ${failed.join(', ')}`,
-    }
+    return fail(`Failed to kill: ${failed.join(', ')}`)
   }
   await new Promise((resolve) => setTimeout(resolve, 500))
-  return {}
+  return succeed(undefined)
 }
 
-export async function forceDeleteLocalBranch(projectSlug: string, folderName: string): Promise<KillWorktreeLockingProcessesResult> {
+export async function forceDeleteLocalBranch(projectSlug: string, folderName: string): Promise<Result<undefined, string>> {
   'use server'
 
   try {
@@ -549,11 +523,9 @@ export async function forceDeleteLocalBranch(projectSlug: string, folderName: st
       store.clearAgentWorktreeInfo(folderName)
     }
     await diffReviewStore.removeTicket(projectSlug, folderName)
-    return {}
+    return succeed(undefined)
   } catch (e: any) {
-    return {
-      error: e?.message ?? 'Failed to force-delete branch',
-    }
+    return fail(errorMessage(e))
   }
 }
 
@@ -562,28 +534,24 @@ export interface ContextResult {
 }
 
 export interface UploadFileResult {
-  ok: true
-  results: {
-    name: string
-    ok: boolean
-    error?: string
-  }[]
+  results: Result<UploadedFile, FileUploadError>[]
+}
+
+export interface UploadedFile {
+  name: string
+}
+
+export interface FileUploadError {
+  name: string
+  message: string
 }
 
 export interface SuccessSyncTicketsResult {
   status: 'success'
-  ok: true
 }
 
 export interface ConflictSyncTicketsResult {
   status: 'conflict'
-  ok: true
-}
-
-export interface ErrorSyncTicketsResult {
-  status: 'error'
-  message: string
-  ok: true
 }
 
 export interface ResolveTicketCleanupTargetResult {
@@ -592,15 +560,4 @@ export interface ResolveTicketCleanupTargetResult {
   ticket: TicketInfo | null
   worktreePath: string
   branchName: string
-}
-
-export interface WorktreeCleanupResult {
-  ok: true
-  type?: undefined
-  message?: undefined
-  errorInfo?: undefined
-}
-
-export interface KillWorktreeLockingProcessesResult {
-  error?: string
 }

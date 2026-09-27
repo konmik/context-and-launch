@@ -20,19 +20,19 @@ export function registerAgentWorktreeCleanupTests(shard: number | readonly numbe
     it.concurrent('isWorktreeClean returns true for clean worktree', async () => {
       const { projectDir, awm } = setup()
       const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-clean-test')
-      expect('worktreePath' in result).toBe(true)
-      if ('worktreePath' in result) {
-        const clean = await awm.isWorktreeClean(result.worktreePath)
+      expect(result.type).toBe('Success')
+      if (result.type === 'Success') {
+        const clean = await awm.isWorktreeClean(result.value.worktreePath)
         expect(clean).toBe(true)
       }
     })
     it.concurrent('isWorktreeClean returns false for dirty worktree', async () => {
       const { projectDir, awm } = setup()
       const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-dirty-test')
-      expect('worktreePath' in result).toBe(true)
-      if ('worktreePath' in result) {
-        fs.writeFileSync(path.join(result.worktreePath, 'dirty.txt'), 'dirty')
-        const clean = await awm.isWorktreeClean(result.worktreePath)
+      expect(result.type).toBe('Success')
+      if (result.type === 'Success') {
+        fs.writeFileSync(path.join(result.value.worktreePath, 'dirty.txt'), 'dirty')
+        const clean = await awm.isWorktreeClean(result.value.worktreePath)
         expect(clean).toBe(false)
       }
     })
@@ -46,41 +46,41 @@ export function registerAgentWorktreeCleanupTests(shard: number | readonly numbe
     it.concurrent('removeWorktree removes the worktree directory', async () => {
       const { projectDir, awm } = setup()
       const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-remove-test')
-      expect('worktreePath' in result).toBe(true)
-      if ('worktreePath' in result) {
-        await awm.removeWorktree(projectDir, result.worktreePath)
-        expect(fs.existsSync(result.worktreePath)).toBe(false)
+      expect(result.type).toBe('Success')
+      if (result.type === 'Success') {
+        await awm.removeWorktree(projectDir, result.value.worktreePath)
+        expect(fs.existsSync(result.value.worktreePath)).toBe(false)
       }
     })
     it.concurrent('removeWorktree refuses to destroy a worktree git declined to remove', async () => {
       const { projectDir, awm } = setup()
       const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-locked-test')
-      expect('worktreePath' in result).toBe(true)
-      if ('worktreePath' in result) {
+      expect(result.type).toBe('Success')
+      if (result.type === 'Success') {
         // The user locked the worktree to protect it; git refuses to remove it.
-        await git(projectDir, 'worktree', 'lock', result.worktreePath)
-        await expect(awm.removeWorktree(projectDir, result.worktreePath)).rejects.toThrow()
-        expect(fs.existsSync(result.worktreePath)).toBe(true)
-        await git(projectDir, 'worktree', 'unlock', result.worktreePath)
+        await git(projectDir, 'worktree', 'lock', result.value.worktreePath)
+        await expect(awm.removeWorktree(projectDir, result.value.worktreePath)).rejects.toThrow()
+        expect(fs.existsSync(result.value.worktreePath)).toBe(true)
+        await git(projectDir, 'worktree', 'unlock', result.value.worktreePath)
       }
     })
     it.concurrent('removeWorktree drops a folder that is no longer a git worktree', async () => {
       const { projectDir, awm } = setup()
       const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-stray-test')
-      expect('worktreePath' in result).toBe(true)
-      if ('worktreePath' in result) {
-        fs.rmSync(path.join(result.worktreePath, '.git'))
-        expect(awm.isGitWorktree(result.worktreePath)).toBe(false)
-        await awm.removeWorktree(projectDir, result.worktreePath)
-        expect(fs.existsSync(result.worktreePath)).toBe(false)
+      expect(result.type).toBe('Success')
+      if (result.type === 'Success') {
+        fs.rmSync(path.join(result.value.worktreePath, '.git'))
+        expect(awm.isGitWorktree(result.value.worktreePath)).toBe(false)
+        await awm.removeWorktree(projectDir, result.value.worktreePath)
+        expect(fs.existsSync(result.value.worktreePath)).toBe(false)
       }
     })
     it.concurrent('deleteLocalBranch removes the branch', async () => {
       const { projectDir, awm } = setup()
       const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-delbranch')
-      expect('worktreePath' in result).toBe(true)
-      if ('worktreePath' in result) {
-        await awm.removeWorktree(projectDir, result.worktreePath)
+      expect(result.type).toBe('Success')
+      if (result.type === 'Success') {
+        await awm.removeWorktree(projectDir, result.value.worktreePath)
         await awm.deleteLocalBranch(projectDir, 'st-delbranch')
         const branchList = await git(projectDir, 'branch', '--list', 'st-delbranch')
         expect(branchList.trim()).toBe('')
@@ -111,11 +111,11 @@ export function registerAgentWorktreeCleanupTests(shard: number | readonly numbe
     it.concurrent('ensureAgentWorktree with configuredBranch "develop" succeeds in repo with only develop branch', async () => {
       const { projectDir, worktreeRoot, awm } = setup('develop')
       const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-develop-test', undefined, 'develop')
-      expect('worktreePath' in result).toBe(true)
-      if ('worktreePath' in result) {
+      expect(result.type).toBe('Success')
+      if (result.type === 'Success') {
         const expected = `${worktreeRoot}/st-develop-test`
-        expect(result.worktreePath.replace(/\\/g, '/')).toBe(expected.replace(/\\/g, '/'))
-        expect(fs.existsSync(result.worktreePath)).toBe(true)
+        expect(result.value.worktreePath.replace(/\\/g, '/')).toBe(expected.replace(/\\/g, '/'))
+        expect(fs.existsSync(result.value.worktreePath)).toBe(true)
       }
     })
     it.concurrent('isBranchMerged detects squash-merged branch', async () => {
@@ -208,7 +208,7 @@ export function registerAgentWorktreeCleanupTests(shard: number | readonly numbe
     it.concurrent('isBranchMerged with configuredBranch "develop" succeeds in repo with only develop branch', async () => {
       const { projectDir, awm } = setup('develop')
       const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-merged-develop', undefined, 'develop')
-      expect('worktreePath' in result).toBe(true)
+      expect(result.type).toBe('Success')
       const merged = await awm.isBranchMerged(projectDir, 'st-merged-develop', 'develop')
       expect(merged).toBe(true)
     })
@@ -231,18 +231,18 @@ export function registerAgentWorktreeCleanupTests(shard: number | readonly numbe
       // A nonexistent worktreeRootPath does NOT cause an error -- git silently
       // creates the parent directory and the worktree inside it.
       const result = await awm.ensureAgentWorktree(projectDir, 'nodir-proj', 'st-nodir-test')
-      expect('worktreePath' in result).toBe(true)
-      if ('worktreePath' in result) {
-        expect(fs.existsSync(result.worktreePath)).toBe(true) // The parent directory (nonexistentRoot) was created by git
+      expect(result.type).toBe('Success')
+      if (result.type === 'Success') {
+        expect(fs.existsSync(result.value.worktreePath)).toBe(true) // The parent directory (nonexistentRoot) was created by git
         expect(fs.existsSync(nonexistentRoot)).toBe(true)
       }
     })
     it.concurrent('isWorktreeBusy returns false for an unoccupied directory', async () => {
       const { projectDir, awm } = setup()
       const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-busy-free')
-      expect('worktreePath' in result).toBe(true)
-      if ('worktreePath' in result) {
-        const busy = await awm.isWorktreeBusy(result.worktreePath)
+      expect(result.type).toBe('Success')
+      if (result.type === 'Success') {
+        const busy = await awm.isWorktreeBusy(result.value.worktreePath)
         expect(busy).toBe(false)
       }
     })
@@ -254,15 +254,15 @@ export function registerAgentWorktreeCleanupTests(shard: number | readonly numbe
     it.concurrent('isWorktreeBusy returns true when a process occupies the directory', async () => {
       const { projectDir, awm } = setup()
       const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-busy-occupied')
-      expect('worktreePath' in result).toBe(true)
-      if (!('worktreePath' in result)) return
+      expect(result.type).toBe('Success')
+      if (result.type === 'Failure') return
       const child: ChildProcess = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], {
-        cwd: result.worktreePath,
+        cwd: result.value.worktreePath,
         stdio: 'pipe',
       })
       try {
         await new Promise((r) => setTimeout(r, 200))
-        const busy = await awm.isWorktreeBusy(result.worktreePath)
+        const busy = await awm.isWorktreeBusy(result.value.worktreePath)
         expect(busy).toBe(true)
       } finally {
         child.kill()
@@ -271,26 +271,26 @@ export function registerAgentWorktreeCleanupTests(shard: number | readonly numbe
     it.concurrent('returns branchName in the result', async () => {
       const { projectDir, awm } = setup()
       const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0010-branch-result')
-      expect('worktreePath' in result).toBe(true)
-      if (!('worktreePath' in result)) return
-      expect(result.branchName).toBe('st-0010-branch-result')
+      expect(result.type).toBe('Success')
+      if (result.type === 'Failure') return
+      expect(result.value.branchName).toBe('st-0010-branch-result')
     })
     it.concurrent('uses savedWorktreeInfo instead of deriving from folderName (ticket rename)', async () => {
       const { projectDir, awm } = setup()
       const originalFolder = 'st-0011-original-name'
       const result1 = await awm.ensureAgentWorktree(projectDir, 'my-proj', originalFolder)
-      expect('worktreePath' in result1).toBe(true)
-      if (!('worktreePath' in result1)) return
+      expect(result1.type).toBe('Success')
+      if (result1.type === 'Failure') return
       const renamedFolder = 'st-0011-renamed-ticket'
       const result2 = await awm.ensureAgentWorktree(projectDir, 'my-proj', renamedFolder, undefined, undefined, {
         branchName: originalFolder,
-        agentWorktreePath: result1.worktreePath,
+        agentWorktreePath: result1.value.worktreePath,
       })
-      expect('worktreePath' in result2).toBe(true)
-      if (!('worktreePath' in result2)) return
-      expect(result2.worktreePath).toBe(result1.worktreePath)
-      expect(result2.branchName).toBe(originalFolder)
-      expect(fs.existsSync(result2.worktreePath)).toBe(true)
+      expect(result2.type).toBe('Success')
+      if (result2.type === 'Failure') return
+      expect(result2.value.worktreePath).toBe(result1.value.worktreePath)
+      expect(result2.value.branchName).toBe(originalFolder)
+      expect(fs.existsSync(result2.value.worktreePath)).toBe(true)
     })
     it.concurrent('uses savedWorktreeInfo with changed branchPrefix', async () => {
       const { projectDir, worktreeRoot, awm, lcm } = setup()
@@ -302,9 +302,9 @@ export function registerAgentWorktreeCleanupTests(shard: number | readonly numbe
       })
       const folderName = 'st-0012-prefix-change'
       const result1 = await awm.ensureAgentWorktree(projectDir, 'my-proj', folderName)
-      expect('worktreePath' in result1).toBe(true)
-      if (!('worktreePath' in result1)) return
-      expect(result1.branchName).toBe('feature/st-0012-prefix-change')
+      expect(result1.type).toBe('Success')
+      if (result1.type === 'Failure') return
+      expect(result1.value.branchName).toBe('feature/st-0012-prefix-change')
       lcm.saveProjectConfig('my-proj', {
         templates: [],
         skills: [],
@@ -312,13 +312,13 @@ export function registerAgentWorktreeCleanupTests(shard: number | readonly numbe
         branchPrefix: 'dev',
       })
       const result2 = await awm.ensureAgentWorktree(projectDir, 'my-proj', folderName, undefined, undefined, {
-        branchName: result1.branchName,
-        agentWorktreePath: result1.worktreePath,
+        branchName: result1.value.branchName,
+        agentWorktreePath: result1.value.worktreePath,
       })
-      expect('worktreePath' in result2).toBe(true)
-      if (!('worktreePath' in result2)) return
-      expect(result2.worktreePath).toBe(result1.worktreePath)
-      expect(result2.branchName).toBe('feature/st-0012-prefix-change')
+      expect(result2.type).toBe('Success')
+      if (result2.type === 'Failure') return
+      expect(result2.value.worktreePath).toBe(result1.value.worktreePath)
+      expect(result2.value.branchName).toBe('feature/st-0012-prefix-change')
     })
   })
 }

@@ -1,4 +1,5 @@
-import type { KillWorktreeLockingProcessesResult } from '../ticket/ticket-api.js'
+import { fail, succeed, type Result } from '~/util/result.js'
+import type { ActionError } from '~/core/shared/errors.js'
 import type { JSX } from '@solidjs/web'
 import { revalidate, useAction } from '@solidjs/router'
 import { createMemo, createSignal, For, Show, useContext } from 'solid-js'
@@ -83,21 +84,11 @@ function ForestContent(props: ForestViewProps): JSX.Element {
     else surfaceApis.delete(key)
   }
 
-  async function mutateAndRefreshTickets(
-    mutate: () => Promise<
-      | {
-          ok: true
-        }
-      | {
-          ok: false
-          message: string
-        }
-    >,
-  ): Promise<boolean> {
+  async function mutateAndRefreshTickets(mutate: () => Promise<Result<undefined, ActionError>>): Promise<boolean> {
     const result = await mutate()
-    if (!result.ok) {
+    if (result.type === 'Failure') {
       setError({
-        description: result.message,
+        description: result.error.message,
       })
       return false
     }
@@ -126,9 +117,9 @@ function ForestContent(props: ForestViewProps): JSX.Element {
         projectSlug: props.projectSlug,
         removals,
       })
-      if (!result.ok)
+      if (result.type === 'Failure')
         setError({
-          description: result.message,
+          description: result.error.message,
         })
     } finally {
       await revalidate(ticketMutationRevalidateKeys)
@@ -174,12 +165,9 @@ function ForestContent(props: ForestViewProps): JSX.Element {
     setOpenGroups(groups.slice(0, index))
   }
 
-  async function handleGroupCreate(number: string, title: string): Promise<KillWorktreeLockingProcessesResult> {
+  async function handleGroupCreate(number: string, title: string): Promise<Result<undefined, string>> {
     const draft = groupingDraft()
-    if (!draft)
-      return {
-        error: 'No members selected',
-      }
+    if (!draft) return fail('No members selected')
     const memberFolderNames = draft.memberNumbers.map((memberNumber) => findTicket(memberNumber).folderName)
     const result = await runCreateGroupTicket({
       projectSlug: props.projectSlug,
@@ -189,16 +177,13 @@ function ForestContent(props: ForestViewProps): JSX.Element {
       parentGroupNumber: draft.ownerGroupNumber ?? null,
       position: draft.position,
     })
-    if (!result.ok)
-      return {
-        error: result.message,
-      }
+    if (result.type === 'Failure') return fail(result.error.message)
     surfaceApis.get(draft.ownerGroupNumber ?? 'root')?.clearSelection()
     setGroupingDraft(undefined)
     const refreshed = await layout.refresh()
     if (refreshed.type === 'Failure') reportError(refreshed.error)
     await revalidate(ticketMutationRevalidateKeys)
-    return {}
+    return succeed(undefined)
   }
 
   function surfaceCommands(scopeGroupNumber: string | undefined, depth: number): ForestSurfaceCommands {

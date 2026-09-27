@@ -1,9 +1,6 @@
-import type { ActionFailure } from '../../core/shared/errors.js'
-import type { Failure } from '../../util/result.js'
-import type { Success } from '../../util/result.js'
+import type { Result } from '../../util/result.js'
 import type { LauncherConfig } from '../../core/launcher/launcher-config-data.js'
 import type { ActionError } from '../../core/shared/errors.js'
-import type { ActionSuccess } from '../../core/shared/errors.js'
 import { query } from '@solidjs/router'
 import path from 'path'
 import {
@@ -53,7 +50,7 @@ export const getProjectLauncherMetadata = query(async (projectSlug: string): Pro
   }
 }, 'launcher-metadata')
 
-export async function readProjectLauncherConfig(projectSlug: string, owner?: string): Promise<Failure<string> | Success<LauncherConfig>> {
+export async function readProjectLauncherConfig(projectSlug: string, owner?: string): Promise<Result<LauncherConfig, string>> {
   'use server'
 
   try {
@@ -69,11 +66,7 @@ export async function releaseProjectLauncherConfig(projectSlug: string, owner: s
   launcherConfigManager.releaseProjectConfig(projectSlug, owner)
 }
 
-export async function saveProjectLauncherConfig(
-  projectSlug: string,
-  json: string,
-  owner: string,
-): Promise<Failure<string> | Success<LauncherConfig>> {
+export async function saveProjectLauncherConfig(projectSlug: string, json: string, owner: string): Promise<Result<LauncherConfig, string>> {
   'use server'
 
   try {
@@ -89,17 +82,13 @@ export async function launchAgentAction(
   projectSlug: string,
   folderName: string,
   launchRequest: LaunchRequest,
-): Promise<ActionError | ActionFailure | LaunchAgentActionResult | ActionSuccess> {
+): Promise<Result<undefined, ActionError | LaunchAgentActionResult>> {
   'use server'
 
   try {
     const { ticket, project, worktreeDir } = resolveTicketAndProject(projectSlug, folderName)
     if (agentRunning(projectSlug, folderName)) {
-      return {
-        ok: false as const,
-        type: 'error' as const,
-        message: 'Already started',
-      }
+      return errorResult('Already started')
     }
     if (!launchRequest.launchDir) {
       throw new ValidationError('launchDir is required')
@@ -117,42 +106,25 @@ export async function launchAgentAction(
       },
       project.mainBranch,
     )
-    if (!resolved.ok) {
-      return {
-        ok: false as const,
-        type: resolved.type,
-        message: resolved.message,
-      }
-    }
+    if (resolved.type === 'Failure') return resolved
     await launchAgentCore(projectSlug, ticket, launchRequest, launchRequest.launchDir)
-    return {
-      ok: true as const,
-    }
+    return succeed(undefined)
   } catch (e) {
     return errorResult(e)
   }
 }
 
-export async function launchProjectAgentAction(
-  projectSlug: string,
-  launchRequest: LaunchRequest,
-): Promise<ActionError | ActionFailure | ActionSuccess> {
+export async function launchProjectAgentAction(projectSlug: string, launchRequest: LaunchRequest): Promise<Result<undefined, ActionError>> {
   'use server'
 
   try {
     const project = projectRegistry.listProjects().find((p) => p.projectSlug === projectSlug)
     if (!project) throw new NotFoundError(`Project not found: ${projectSlug}`)
     if (agentRunning(projectSlug, PROJECT_LAUNCH_KEY)) {
-      return {
-        ok: false as const,
-        type: 'error' as const,
-        message: 'Already started',
-      }
+      return errorResult('Already started')
     }
     await launchProjectAgentCore(projectSlug, projectRegistry.getName(projectSlug), launchRequest, project.path)
-    return {
-      ok: true as const,
-    }
+    return succeed(undefined)
   } catch (e) {
     return errorResult(e)
   }
@@ -165,7 +137,7 @@ export async function runShortcut(
   useWorktree: boolean,
   force: boolean,
   launchDir: string,
-): Promise<ActionError | LaunchAgentActionResult | ActionSuccess> {
+): Promise<Result<undefined, ActionError | LaunchAgentActionResult>> {
   'use server'
 
   try {
@@ -187,13 +159,7 @@ export async function runShortcut(
       },
       project.mainBranch,
     )
-    if (!resolved.ok) {
-      return {
-        ok: false as const,
-        type: resolved.type,
-        message: resolved.message,
-      }
-    }
+    if (resolved.type === 'Failure') return resolved
     const commandVars = {
       ticketDir: path.resolve(worktreeDir, ticket.folderName),
       ticketSlug: ticket.folderName,
@@ -215,15 +181,13 @@ export async function runShortcut(
       cwd: launchDir,
       mode: 'detached',
     })
-    return {
-      ok: true as const,
-    }
+    return succeed(undefined)
   } catch (e) {
     return errorResult(e)
   }
 }
 
-export async function resolveConflicts(projectSlug: string, profileName: string): Promise<ActionError | ActionSuccess> {
+export async function resolveConflicts(projectSlug: string, profileName: string): Promise<Result<undefined, ActionError>> {
   'use server'
 
   try {
@@ -241,31 +205,26 @@ export async function resolveConflicts(projectSlug: string, profileName: string)
       projectSlug,
       profileName,
     )
-    return {
-      ok: true as const,
-    }
+    return succeed(undefined)
   } catch (e) {
     return errorResult(e)
   }
 }
 
-export async function abortRebase(projectSlug: string): Promise<ActionError | ActionSuccess> {
+export async function abortRebase(projectSlug: string): Promise<Result<undefined, ActionError>> {
   'use server'
 
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
     await operationTracker.track(ticketSyncManager.abort(worktreeDir))
     worktreeRevisions.bump(worktreeDir)
-    return {
-      ok: true as const,
-    }
+    return succeed(undefined)
   } catch (e) {
     return errorResult(e)
   }
 }
 
 export interface LaunchAgentActionResult {
-  ok: false
   type: 'dirtyWorktree' | 'behindRemote'
   message: string
 }

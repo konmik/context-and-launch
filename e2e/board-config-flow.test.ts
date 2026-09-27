@@ -7,7 +7,6 @@ import {
   openLauncherSettingsTab,
   dragElement,
   sortableItem,
-  poll,
   readBoardDefinitions,
   readTicketStatus,
   openTicketDetail,
@@ -61,12 +60,7 @@ it('uses edited board definitions immediately across settings, tickets, projects
   await gotoProject(ctx.page, ctx.testServer, first.projectSlug)
 
   async function expectBoard(columnName: string) {
-    const headers = await poll(
-      () => testId(ctx.page, 'kanban-board-column-header').allTextContents(),
-      (names) => names.join(',') === `todo,done,${columnName}`,
-      5000,
-    )
-    expect(headers).toEqual(['todo', 'done', columnName])
+    await expect.poll(() => testId(ctx.page, 'kanban-board-column-header').allTextContents()).toEqual(['todo', 'done', columnName])
     const header = testId(ctx.page, 'kanban-board-column-header-cell', {
       'data-column-name': columnName,
     })
@@ -110,20 +104,13 @@ it('uses edited board definitions immediately across settings, tickets, projects
     state: 'visible',
     timeout: 5000,
   })
-  const moved = await poll(
-    () => readTicketStatus(ctx.testServer, first.projectSlug, folderName),
-    (ticket) => ticket?.status === 'review',
-    5000,
-  )
-  expect(moved?.status).toBe('review')
+  await expect.poll(() => readTicketStatus(ctx.testServer, first.projectSlug, folderName)?.status).toBe('review')
   await openTicketDetail(ctx.page, folderName)
   await testId(ctx.page, 'ticket-detail-tab-launcher').click()
   await testId(ctx.page, 'ticket-detail-launcher-profile-select').selectOption('Review Agent')
-  await poll(
-    () => readProjectLauncherConfig(ctx.testServer, first.projectSlug),
-    (config) => config?.columnDefaults?.review?.profileName === 'Review Agent',
-    5000,
-  )
+  await expect
+    .poll(() => readProjectLauncherConfig(ctx.testServer, first.projectSlug)?.columnDefaults?.review?.profileName)
+    .toBe('Review Agent')
   await testId(ctx.page, 'ticket-detail-close-button').click()
   await openLauncherSettings(ctx.page)
   await openLauncherSettingsTab(ctx.page, 'columns')
@@ -137,12 +124,7 @@ it('uses edited board definitions immediately across settings, tickets, projects
   await testId(ctx.page, 'launcher-settings-columns-rename-confirm').click()
   await waitGone(ctx.page, 'launcher-settings-columns-name-input')
   await expectBoard('verification')
-  const migrated = await poll(
-    () => readTicketStatus(ctx.testServer, first.projectSlug, folderName),
-    (ticket) => ticket?.status === 'verification',
-    5000,
-  )
-  expect(migrated?.status).toBe('verification')
+  await expect.poll(() => readTicketStatus(ctx.testServer, first.projectSlug, folderName)?.status).toBe('verification')
   await sortableItem(ctx.page, `verification:${folderName}`).waitFor({
     state: 'visible',
     timeout: 5000,

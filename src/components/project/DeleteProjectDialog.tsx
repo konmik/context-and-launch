@@ -1,4 +1,5 @@
 import type { JSX } from '@solidjs/web'
+import type { Result } from '~/util/result.js'
 import { Show } from 'solid-js'
 import { DialogRoot, DialogTitle, DialogDescription } from '../ui/dialog'
 import { useModEnterSubmit, modEnterHint } from '~/lib/use-mod-enter-submit'
@@ -8,9 +9,7 @@ interface DeleteProjectDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   projectSlug: string
-  onSubmit: (projectSlug: string) => Promise<{
-    error?: string
-  }>
+  onSubmit: (projectSlug: string) => Promise<Result<undefined, string>>
   ctrl?: DeleteProjectController
 }
 

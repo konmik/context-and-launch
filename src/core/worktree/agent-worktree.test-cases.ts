@@ -1,4 +1,5 @@
 import { describe, it as baseIt, expect, afterAll, vi } from 'vitest'
+import { fail } from '~/util/result.js'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
@@ -19,35 +20,35 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
     it.concurrent('creates worktree at the correct path with correct branch name', async () => {
       const { projectDir, worktreeRoot, awm } = setup()
       const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0001-feature')
-      expect('worktreePath' in result).toBe(true)
-      if ('worktreePath' in result) {
+      expect(result.type).toBe('Success')
+      if (result.type === 'Success') {
         const expected = `${worktreeRoot}/st-0001-feature`
-        expect(result.worktreePath.replace(/\\/g, '/')).toBe(expected.replace(/\\/g, '/'))
-        expect(fs.existsSync(result.worktreePath)).toBe(true)
+        expect(result.value.worktreePath.replace(/\\/g, '/')).toBe(expected.replace(/\\/g, '/'))
+        expect(fs.existsSync(result.value.worktreePath)).toBe(true)
       }
     })
     it.concurrent('truncates long ticket folder names for worktree path and branch', async () => {
       const { projectDir, worktreeRoot, awm } = setup()
       const longName = 'wna-1533-opening-customer-support-from-login-error-alert' + '-error-is-dimissed-after-opening-customer-support-page'
       const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', longName)
-      expect('worktreePath' in result).toBe(true)
-      if ('worktreePath' in result) {
-        const folderName = path.basename(result.worktreePath)
+      expect(result.type).toBe('Success')
+      if (result.type === 'Success') {
+        const folderName = path.basename(result.value.worktreePath)
         expect(folderName.length).toBeLessThanOrEqual(50)
         expect(longName.startsWith(folderName)).toBe(true)
-        expect(fs.existsSync(result.worktreePath)).toBe(true)
-        const branch = (await git(result.worktreePath, 'rev-parse', '--abbrev-ref', 'HEAD')).trim()
+        expect(fs.existsSync(result.value.worktreePath)).toBe(true)
+        const branch = (await git(result.value.worktreePath, 'rev-parse', '--abbrev-ref', 'HEAD')).trim()
         expect(branch).toBe(folderName)
       }
     })
     it.concurrent('reuses existing worktree', async () => {
       const { projectDir, awm } = setup()
       const result1 = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0001-feature')
-      expect('worktreePath' in result1).toBe(true)
+      expect(result1.type).toBe('Success')
       const result2 = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0001-feature')
-      expect('worktreePath' in result2).toBe(true)
-      if ('worktreePath' in result1 && 'worktreePath' in result2) {
-        expect(result2.worktreePath).toBe(result1.worktreePath)
+      expect(result2.type).toBe('Success')
+      if (result1.type === 'Success' && result2.type === 'Success') {
+        expect(result2.value.worktreePath).toBe(result1.value.worktreePath)
       }
     })
     it.concurrent('detects uncommitted changes and returns dirtyWorktree', async () => {
@@ -55,9 +56,11 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
       fs.writeFileSync(path.join(projectDir, 'dirty.txt'), 'uncommitted')
       await git(projectDir, 'add', 'dirty.txt')
       const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0001-feature')
-      expect(result).toEqual({
-        dirtyWorktree: true,
-      })
+      expect(result).toEqual(
+        fail({
+          dirtyWorktree: true,
+        }),
+      )
     })
     it.concurrent('falls back from main to master', async () => {
       const { projectDir, awm } = setup('master')
@@ -86,10 +89,10 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
       const lcm = new LauncherConfigManager(paths)
       const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService())
       const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0001')
-      expect('worktreePath' in result).toBe(true)
-      if ('worktreePath' in result) {
+      expect(result.type).toBe('Success')
+      if (result.type === 'Success') {
         const expected = path.join(configDir, 'projects', 'my-proj', 'worktrees', 'st-0001')
-        expect(path.resolve(result.worktreePath)).toBe(path.resolve(expected))
+        expect(path.resolve(result.value.worktreePath)).toBe(path.resolve(expected))
       }
     })
     it.skipIf(process.platform !== 'win32').concurrent(
@@ -113,14 +116,14 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
         const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService())
         const folderName = 'st-0002-backslash' // First call: creates the worktree
         const result1 = await awm.ensureAgentWorktree(projectDir, 'bs-proj', folderName)
-        expect('worktreePath' in result1).toBe(true)
-        if (!('worktreePath' in result1)) throw new Error('expected worktreePath') // worktreePath is built as `${backslashRoot}/${folderName}` -- mixed separators
-        expect(result1.worktreePath).toBe(`${backslashRoot}/${folderName}`) // The worktree directory actually exists on disk
-        expect(fs.existsSync(result1.worktreePath)).toBe(true) // Second call: existence check normalizes slashes and finds it
+        expect(result1.type).toBe('Success')
+        if (result1.type === 'Failure') throw new Error('expected worktreePath') // worktreePath is built as `${backslashRoot}/${folderName}` -- mixed separators
+        expect(result1.value.worktreePath).toBe(`${backslashRoot}/${folderName}`) // The worktree directory actually exists on disk
+        expect(fs.existsSync(result1.value.worktreePath)).toBe(true) // Second call: existence check normalizes slashes and finds it
         const result2 = await awm.ensureAgentWorktree(projectDir, 'bs-proj', folderName)
-        expect('worktreePath' in result2).toBe(true)
-        if ('worktreePath' in result2) {
-          expect(result2.worktreePath).toBe(result1.worktreePath)
+        expect(result2.type).toBe('Success')
+        if (result2.type === 'Success') {
+          expect(result2.value.worktreePath).toBe(result1.value.worktreePath)
         }
       },
     )
@@ -129,7 +132,7 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
       const folderName = 'st-0003-readd'
       const worktreePath = path.join(worktreeRoot, folderName) // First call: creates worktree and branch st-0003-readd
       const result1 = await awm.ensureAgentWorktree(projectDir, 'my-proj', folderName)
-      expect('worktreePath' in result1).toBe(true)
+      expect(result1.type).toBe('Success')
       expect(fs.existsSync(worktreePath)).toBe(true) // Branch exists
       const branchBefore = await git(projectDir, 'branch', '--list', 'st-0003-readd')
       expect(branchBefore.trim()).toBeTruthy() // Remove the worktree via git (branch stays)
@@ -138,7 +141,7 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
       const branchAfter = await git(projectDir, 'branch', '--list', 'st-0003-readd')
       expect(branchAfter.trim()).toBeTruthy() // Second call: should re-add worktree using existing branch, not throw
       const result2 = await awm.ensureAgentWorktree(projectDir, 'my-proj', folderName)
-      expect('worktreePath' in result2).toBe(true)
+      expect(result2.type).toBe('Success')
       expect(fs.existsSync(worktreePath)).toBe(true)
     })
     it.concurrent(
@@ -154,20 +157,20 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
         }) // Step 3: ensureAgentWorktree does its own loadProjectConfig, which returns emptyConfig()
         // because the file no longer exists -- worktreeRootPath is undefined, falls back to default
         const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0001-feature')
-        expect('worktreePath' in result).toBe(true)
-        if ('worktreePath' in result) {
+        expect(result.type).toBe('Success')
+        if (result.type === 'Success') {
           const expected = paths.agentWorktreeDir('my-proj')
-          expect(result.worktreePath.replace(/\\/g, '/')).toContain(expected.replace(/\\/g, '/'))
+          expect(result.value.worktreePath.replace(/\\/g, '/')).toContain(expected.replace(/\\/g, '/'))
         }
       },
     )
     it.concurrent('behind-remote proceeds with worktree creation and sets behindRemote flag', async () => {
       const { projectDir, awm } = await setupBehindRemote()
       const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0005-behind')
-      expect('worktreePath' in result).toBe(true)
-      if ('worktreePath' in result) {
-        expect(result.behindRemote).toBe(true)
-        expect(fs.existsSync(result.worktreePath)).toBe(true)
+      expect(result.type).toBe('Success')
+      if (result.type === 'Success') {
+        expect(result.value.behindRemote).toBe(true)
+        expect(fs.existsSync(result.value.worktreePath)).toBe(true)
       }
     })
     it(
@@ -208,32 +211,32 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
         })
         const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService())
         const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-stale-main')
-        expect('worktreePath' in result).toBe(true)
-        if ('worktreePath' in result) {
-          expect(result.behindRemote).toBe(true)
-          expect(fs.existsSync(result.worktreePath)).toBe(true)
+        expect(result.type).toBe('Success')
+        if (result.type === 'Success') {
+          expect(result.value.behindRemote).toBe(true)
+          expect(fs.existsSync(result.value.worktreePath)).toBe(true)
         }
       },
     )
     it.concurrent('reusing an existing worktree does not re-check main freshness (no behind-remote warning)', async () => {
       const { projectDir, awm } = await setupBehindRemote() // First call forks a new worktree from stale main -> warns once.
       const first = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0038-reuse')
-      expect('worktreePath' in first).toBe(true)
-      if ('worktreePath' in first) expect(first.behindRemote).toBe(true) // Second call reuses the existing worktree -> must not warn again.
+      expect(first.type).toBe('Success')
+      if (first.type === 'Success') expect(first.value.behindRemote).toBe(true) // Second call reuses the existing worktree -> must not warn again.
       const second = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0038-reuse')
-      expect('worktreePath' in second).toBe(true)
-      if ('worktreePath' in second) expect(second.behindRemote).toBeUndefined()
+      expect(second.type).toBe('Success')
+      if (second.type === 'Success') expect(second.value.behindRemote).toBeUndefined()
     })
     it.concurrent('reusing an existing branch does not re-check main freshness (no behind-remote warning)', async () => {
       const { projectDir, awm } = await setupBehindRemote()
       const first = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0038-branch')
-      expect('worktreePath' in first).toBe(true)
-      if (!('worktreePath' in first)) throw new Error('expected worktreePath')
-      expect(first.behindRemote).toBe(true) // Remove the worktree but keep the branch.
-      await git(projectDir, 'worktree', 'remove', first.worktreePath) // Re-adding from the existing branch does not fork from main -> must not warn.
+      expect(first.type).toBe('Success')
+      if (first.type === 'Failure') throw new Error('expected worktreePath')
+      expect(first.value.behindRemote).toBe(true) // Remove the worktree but keep the branch.
+      await git(projectDir, 'worktree', 'remove', first.value.worktreePath) // Re-adding from the existing branch does not fork from main -> must not warn.
       const second = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0038-branch')
-      expect('worktreePath' in second).toBe(true)
-      if ('worktreePath' in second) expect(second.behindRemote).toBeUndefined()
+      expect(second.type).toBe('Success')
+      if (second.type === 'Success') expect(second.value.behindRemote).toBeUndefined()
     })
     it.concurrent('getMainBranch does not falsely match a branch named main-v2 for the main check', async () => {
       const configDir = tmpDir('awm-config-')
@@ -264,10 +267,10 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
         for (const s of successes) {
           if (s.status !== 'fulfilled') throw new Error('Expected a fulfilled result.')
           const result = s.value
-          expect('worktreePath' in result).toBe(true)
-          if ('worktreePath' in result) {
+          expect(result.type).toBe('Success')
+          if (result.type === 'Success') {
             const expected = `${worktreeRoot}/${folderName}`
-            expect(result.worktreePath.replace(/\\/g, '/')).toBe(expected.replace(/\\/g, '/'))
+            expect(result.value.worktreePath.replace(/\\/g, '/')).toBe(expected.replace(/\\/g, '/'))
           }
         } // Any failure must have a clean git error message (not corruption)
         for (const f of failures) {
@@ -296,11 +299,11 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
         try {
           const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0004-generic-err') // Worktree creation proceeds despite the rev-list error
-          expect('worktreePath' in result).toBe(true)
-          if ('worktreePath' in result) {
+          expect(result.type).toBe('Success')
+          if (result.type === 'Success') {
             const expected = `${worktreeRoot}/st-0004-generic-err`
-            expect(result.worktreePath.replace(/\\/g, '/')).toBe(expected.replace(/\\/g, '/'))
-            expect(fs.existsSync(result.worktreePath)).toBe(true)
+            expect(result.value.worktreePath.replace(/\\/g, '/')).toBe(expected.replace(/\\/g, '/'))
+            expect(fs.existsSync(result.value.worktreePath)).toBe(true)
           } // Warning was logged with the generic error message
           expect(warnSpy).toHaveBeenCalledWith('Skipping upstream check:', expect.any(String))
         } finally {
@@ -326,7 +329,7 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
       const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService())
       const folderName = 'st-dup-branch'
       const result1 = await awm.ensureAgentWorktree(projectDir, 'dup-proj', folderName)
-      expect('worktreePath' in result1).toBe(true)
+      expect(result1.type).toBe('Success')
       lcm.saveProjectConfig('dup-proj', {
         templates: [],
         skills: [],
@@ -337,8 +340,8 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
       if (!(error instanceof Error)) throw new Error('Expected duplicate worktree operation to fail with an Error.')
       expect(error.message).toMatch(/already checked out/i)
       expect(error.message).toContain('git worktree remove')
-      if ('worktreePath' in result1) {
-        expect(fs.existsSync(result1.worktreePath)).toBe(true)
+      if (result1.type === 'Success') {
+        expect(fs.existsSync(result1.value.worktreePath)).toBe(true)
       }
     })
     it.concurrent('stale worktree reference is pruned when old directory no longer exists', async () => {
@@ -358,9 +361,9 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
       const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService())
       const folderName = 'st-stale-ref'
       const result1 = await awm.ensureAgentWorktree(projectDir, 'stale-proj', folderName)
-      expect('worktreePath' in result1).toBe(true)
-      if ('worktreePath' in result1) {
-        fs.rmSync(result1.worktreePath, {
+      expect(result1.type).toBe('Success')
+      if (result1.type === 'Success') {
+        fs.rmSync(result1.value.worktreePath, {
           recursive: true,
           force: true,
         })
@@ -371,9 +374,9 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
         worktreeRootPath: worktreeRootB,
       })
       const result2 = await awm.ensureAgentWorktree(projectDir, 'stale-proj', folderName)
-      expect('worktreePath' in result2).toBe(true)
-      if ('worktreePath' in result2) {
-        expect(fs.existsSync(result2.worktreePath)).toBe(true)
+      expect(result2.type).toBe('Success')
+      if (result2.type === 'Success') {
+        expect(fs.existsSync(result2.value.worktreePath)).toBe(true)
       }
     })
     it.concurrent('classifies and rejects a saved worktree owned by another repository', async () => {
@@ -418,9 +421,9 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
             expect(parseInt(garbageOutput.trim(), 10)).toBeNaN() // And NaN > 0 is false, so the behind-remote check is skipped
             expect(parseInt(garbageOutput.trim(), 10) > 0).toBe(false)
             const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', `st-nan-${garbageOutput.trim() || 'empty'}`) // Worktree creation proceeds -- behind-remote check was silently skipped
-            expect('worktreePath' in result).toBe(true)
-            if ('worktreePath' in result) {
-              expect(fs.existsSync(result.worktreePath)).toBe(true)
+            expect(result.type).toBe('Success')
+            if (result.type === 'Success') {
+              expect(fs.existsSync(result.value.worktreePath)).toBe(true)
             }
           } finally {
             gitSpy.mockRestore()
@@ -448,11 +451,11 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
       const config = lcm.loadProjectConfig('no-wt-proj')
       expect(config.worktreeRootPath).toBeUndefined()
       const result = await awm.ensureAgentWorktree(projectDir, 'no-wt-proj', 'st-0001-feature')
-      expect('worktreePath' in result).toBe(true)
-      if ('worktreePath' in result) {
+      expect(result.type).toBe('Success')
+      if (result.type === 'Success') {
         const expected = path.join(configDir, 'projects', 'no-wt-proj', 'worktrees', 'st-0001-feature')
-        expect(path.resolve(result.worktreePath)).toBe(path.resolve(expected))
-        expect(fs.existsSync(result.worktreePath)).toBe(true)
+        expect(path.resolve(result.value.worktreePath)).toBe(path.resolve(expected))
+        expect(fs.existsSync(result.value.worktreePath)).toBe(true)
       }
     })
   })

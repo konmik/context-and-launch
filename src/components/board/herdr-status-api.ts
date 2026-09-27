@@ -1,5 +1,4 @@
-import type { QueueReconciliationSuccess } from './herdr-status-service.js'
-import type { QueueReconciliationError } from './herdr-status-service.js'
+import type { Result } from '~/util/result.js'
 import { query } from '@solidjs/router'
 import { herdrExec, reviewPromptQueueService } from '~/core/config/instances.js'
 import { appLog } from '~/core/infra/app-logger.js'
@@ -18,7 +17,7 @@ export const getHerdrAgentStatuses = query(async (projectSlug: string): Promise<
   return herdrStatusService.getStatuses(projectSlug)
 }, 'herdr-agent-statuses')
 
-export async function reconcileReviewPromptQueue(projectSlug: string): Promise<QueueReconciliationSuccess | QueueReconciliationError> {
+export async function reconcileReviewPromptQueue(projectSlug: string): Promise<Result<undefined, string>> {
   'use server'
 
   return herdrStatusService.reconcile(projectSlug)

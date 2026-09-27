@@ -1,4 +1,5 @@
 import type { JSX } from '@solidjs/web'
+import type { Result } from '~/util/result.js'
 import { Show, createSignal, createEffect } from 'solid-js'
 import { X } from '~/components/ui/icons.js'
 import {
@@ -20,9 +21,7 @@ interface LauncherSettingsProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   projectSlug: string
-  onDeleteProject?: (projectSlug: string) => Promise<{
-    error?: string
-  }>
+  onDeleteProject?: (projectSlug: string) => Promise<Result<undefined, string>>
 }
 
 export default function LauncherSettings(props: LauncherSettingsProps): JSX.Element {

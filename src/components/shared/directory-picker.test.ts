@@ -7,14 +7,16 @@ afterEach(() => {
 describe('pickDirectory', () => {
   it("uses Electron's native directory picker when the desktop bridge is available", async () => {
     const nativePicker = vi.fn().mockResolvedValue({
-      path: 'C:\\worktrees',
+      type: 'Success',
+      value: 'C:\\worktrees',
     })
     window.contextLaunch = {
       setAppearance: vi.fn(),
       pickDirectory: nativePicker,
     }
     await expect(pickDirectory('C:\\projects')).resolves.toEqual({
-      path: 'C:\\worktrees',
+      type: 'Success',
+      value: 'C:\\worktrees',
     })
     expect(nativePicker).toHaveBeenCalledWith('C:\\projects')
   })

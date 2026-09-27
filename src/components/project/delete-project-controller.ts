@@ -1,10 +1,9 @@
 import type { SourceAccessor } from 'solid-js'
+import type { Result } from '~/util/result.js'
 import { createFormDialogController } from '../ticket/form-dialog-controller.js'
 
 export interface DeleteProjectDeps {
-  onSubmit: (projectSlug: string) => Promise<{
-    error?: string
-  }>
+  onSubmit: (projectSlug: string) => Promise<Result<undefined, string>>
   onOpenChange: (open: boolean) => void
   projectSlug: () => string
 }

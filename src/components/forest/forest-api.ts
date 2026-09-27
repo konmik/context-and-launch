@@ -1,6 +1,4 @@
-import type { Failure } from '../../util/result.js'
-import type { Success } from '../../util/result.js'
-import type { ActionSuccess } from '../../core/shared/errors.js'
+import type { Result } from '../../util/result.js'
 import type { ResponseEnvelope } from '@solidjs/web'
 import type { ActionError } from '../../core/shared/errors.js'
 import { action } from '@solidjs/router'
@@ -28,7 +26,7 @@ export async function saveForestLayout(
   projectSlug: string,
   expected: ForestLayout,
   layout: ForestLayout,
-): Promise<Failure<string> | Success<ForestLayout>> {
+): Promise<Result<ForestLayout, string>> {
   'use server'
 
   try {
@@ -44,15 +42,13 @@ export const addDependency = action(async function addDependency(input: {
   projectSlug: string
   folderName: string
   dependencyNumber: string
-}): Promise<ResponseEnvelope<ActionSuccess> | ResponseEnvelope<ActionError>> {
+}): Promise<ResponseEnvelope<Result<undefined, ActionError>>> {
   'use server'
 
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(input.projectSlug)
     new TicketStore(worktreeDir).addDependency(input.folderName, input.dependencyNumber)
-    return actionResult({
-      ok: true as const,
-    })
+    return actionResult(succeed(undefined))
   } catch (e) {
     return actionResult(errorResult(e))
   }
@@ -63,7 +59,7 @@ export const removeDependencies = action(async function removeDependencies(input
     folderName: string
     dependencyNumber: string
   }>
-}): Promise<ResponseEnvelope<ActionError> | ResponseEnvelope<ActionSuccess>> {
+}): Promise<ResponseEnvelope<Result<undefined, ActionError>>> {
   'use server'
 
   try {
@@ -80,9 +76,7 @@ export const removeDependencies = action(async function removeDependencies(input
     for (const [folderName, dependencyNumbers] of byFolderName) {
       store.removeDependencies(folderName, dependencyNumbers)
     }
-    return actionResult({
-      ok: true as const,
-    })
+    return actionResult(succeed(undefined))
   } catch (e) {
     return actionResult(errorResult(e))
   }
@@ -97,7 +91,7 @@ export const createGroupTicket = action(async function createGroupTicket(input: 
     x: number
     y: number
   } | null
-}): Promise<ResponseEnvelope<ActionError> | ResponseEnvelope<GroupTicketResult>> {
+}): Promise<ResponseEnvelope<Result<GroupTicketResult, ActionError>>> {
   'use server'
 
   try {
@@ -114,10 +108,11 @@ export const createGroupTicket = action(async function createGroupTicket(input: 
       input.parentGroupNumber ?? undefined,
       input.position ?? undefined,
     )
-    return actionResult({
-      ok: true as const,
-      folderName: group.folderName,
-    })
+    return actionResult(
+      succeed({
+        folderName: group.folderName,
+      }),
+    )
   } catch (e) {
     return actionResult(errorResult(e))
   }
@@ -125,21 +120,18 @@ export const createGroupTicket = action(async function createGroupTicket(input: 
 export const ungroupTicket = action(async function ungroupTicket(input: {
   projectSlug: string
   folderName: string
-}): Promise<ResponseEnvelope<ActionError> | ResponseEnvelope<ActionSuccess>> {
+}): Promise<ResponseEnvelope<Result<undefined, ActionError>>> {
   'use server'
 
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(input.projectSlug)
     new TicketStore(worktreeDir).ungroup(input.folderName)
-    return actionResult({
-      ok: true as const,
-    })
+    return actionResult(succeed(undefined))
   } catch (e) {
     return actionResult(errorResult(e))
   }
 }, 'ungroup-forest-ticket')
 
 export interface GroupTicketResult {
-  ok: true
   folderName: string
 }

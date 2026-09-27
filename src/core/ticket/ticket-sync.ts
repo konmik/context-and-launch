@@ -4,6 +4,7 @@ import { AppError, ProcessError } from '../shared/errors.js'
 import { writeMergeTree } from '../infra/git-merge-tree.js'
 import { GitRepository } from '../infra/git-repository.js'
 import type { CommandTemplateExecutor } from '../command-template/command-template-types.js'
+import { succeed, fail, type Result } from '../../util/result.js'
 
 export interface SuccessSyncResult {
   status: 'success'
@@ -12,13 +13,6 @@ export interface SuccessSyncResult {
 export interface ConflictSyncResult {
   status: 'conflict'
 }
-
-export interface ErrorSyncResult {
-  status: 'error'
-  message: string
-}
-
-export type SyncResult = SuccessSyncResult | ConflictSyncResult | ErrorSyncResult
 
 export interface ResolutionPlan {
   /** True when conflicts remain and an agent must resolve them in `scratchDir`. */
@@ -76,24 +70,24 @@ export class TicketSyncManager {
     return mergeTree.status === 'conflicted'
   }
 
-  async sync(worktreeDir: string): Promise<SyncResult> {
+  async sync(worktreeDir: string): Promise<Result<SuccessSyncResult | ConflictSyncResult, string>> {
     try {
       const scratch = this.conflictResolveDir(worktreeDir)
       const scratchState = this.resolutionScratchState(scratch)
       if (scratchState === 'linked') {
         const finalized = await this.finalizeResolution(worktreeDir)
         if (!finalized && this.resolutionScratchState(scratch) === 'linked') {
-          return {
+          return succeed({
             status: 'conflict',
-          }
+          })
         }
       } else if (scratchState === 'orphaned') {
         this.discardOrphanedResolutionScratch(scratch)
       }
       if (this.gitRepo.hasActiveRebase(worktreeDir)) {
-        return {
+        return succeed({
           status: 'conflict',
-        }
+        })
       }
       await this.commitAll(worktreeDir)
       let upstream: string
@@ -108,9 +102,9 @@ export class TicketSyncManager {
             remote: 'origin',
             branch,
           })
-          return {
+          return succeed({
             status: 'success',
-          }
+          })
         } catch (pushErr) {
           const isNonFastForward = pushErr instanceof ProcessError && /non-fast-forward|fetch first/.test(pushErr.output ?? '')
           if (!isNonFastForward) throw pushErr
@@ -149,9 +143,9 @@ export class TicketSyncManager {
             ref: newUpstream,
           })
         }
-        return {
+        return succeed({
           status: 'success',
-        }
+        })
       }
       const { remote, branch } = this.parseUpstream(upstream)
       if (await this.isAncestor(worktreeDir, newUpstream, 'HEAD')) {
@@ -161,23 +155,20 @@ export class TicketSyncManager {
             refspec: `HEAD:${branch}`,
           })
         } catch (pushErr) {
-          return {
-            status: 'error',
-            message: pushErr instanceof Error ? pushErr.message : String(pushErr),
-          }
+          return fail(pushErr instanceof Error ? pushErr.message : String(pushErr))
         }
-        return {
+        return succeed({
           status: 'success',
-        }
+        })
       }
       const mergeTree = await writeMergeTree(this.commands, 'ticket-sync.merge-tree', worktreeDir, {
         left: 'HEAD',
         right: newUpstream,
       })
       if (mergeTree.status === 'conflicted')
-        return {
+        return succeed({
           status: 'conflict',
-        }
+        })
       const mergedTree = mergeTree.tree
       const signArgs = await this.commitTreeArgs(worktreeDir)
       const newCommit = (
@@ -200,29 +191,23 @@ export class TicketSyncManager {
           refspec: `${newCommit}:${branch}`,
         })
       } catch (pushErr) {
-        return {
-          status: 'error',
-          message: pushErr instanceof Error ? pushErr.message : String(pushErr),
-        }
+        return fail(pushErr instanceof Error ? pushErr.message : String(pushErr))
       }
       await this.commitAll(worktreeDir)
       const headAfterPush = await this.resolveHead(worktreeDir)
       if (headAfterPush !== headLocal) {
-        return {
+        return succeed({
           status: 'conflict',
-        }
+        })
       }
       await this.commands.execute('ticket-sync.reset-hard', worktreeDir, {
         ref: newCommit,
       })
-      return {
+      return succeed({
         status: 'success',
-      }
+      })
     } catch (err) {
-      return {
-        status: 'error',
-        message: err instanceof Error ? err.message : String(err),
-      }
+      return fail(err instanceof Error ? err.message : String(err))
     }
   }
 

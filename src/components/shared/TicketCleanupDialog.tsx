@@ -1,4 +1,5 @@
 import type { JSX } from '@solidjs/web'
+import type { Result } from '~/util/result.js'
 import { Show, For, createEffect } from 'solid-js'
 import { X } from '~/components/ui/icons.js'
 import {
@@ -29,15 +30,8 @@ interface TicketCleanupDialogProps {
   projectSlug: string
   ticket: TicketInfo | null
   action: 'archive' | 'delete'
-  onCleanup: (
-    folderName: string,
-    cleanup: TicketCleanupOptions,
-  ) => Promise<{
-    error?: ErrorInfo
-  }>
-  onSubmit: (folderName: string) => Promise<{
-    error?: ErrorInfo
-  }>
+  onCleanup: (folderName: string, cleanup: TicketCleanupOptions) => Promise<Result<undefined, ErrorInfo>>
+  onSubmit: (folderName: string) => Promise<Result<undefined, ErrorInfo>>
   ctrl?: TicketCleanupController
 }
 

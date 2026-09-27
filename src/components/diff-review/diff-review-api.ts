@@ -1,6 +1,6 @@
 import type { ReviewPromptQueueItem } from '../../core/diff-review/diff-review-types.js'
 import type { ActionError } from '../../core/shared/errors.js'
-import type { ActionSuccess } from '../../core/shared/errors.js'
+import { succeed, fail, type Result } from '~/util/result.js'
 import { query } from '@solidjs/router'
 import { diffReviewGitService, diffReviewTargetResolver, reviewPromptQueueService } from '~/core/config/instances.js'
 import { errorMessage, errorResult } from '~/core/shared/errors.js'
@@ -30,13 +30,13 @@ export const getReviewSnapshot = query(async (projectSlug: string, folderName: s
     return {
       scopes,
       scope,
-      error: errorMessage(error),
+      snapshot: fail(errorMessage(error)),
     }
   }
   return {
     scopes,
     scope,
-    snapshot,
+    snapshot: succeed(snapshot),
   }
 }, 'diff-review-snapshot')
 
@@ -46,7 +46,7 @@ export async function enqueueReviewPrompt(
   feedback: string,
   profileName: string | null,
   snapshot: ReviewPromptSnapshot | null,
-): Promise<ActionError | EnqueueReviewPromptResult> {
+): Promise<Result<EnqueueReviewPromptResult, ActionError>> {
   'use server'
 
   try {
@@ -57,10 +57,9 @@ export async function enqueueReviewPrompt(
       snapshot ?? undefined,
       profileName ?? undefined,
     )
-    return {
-      ok: true as const,
+    return succeed({
       item,
-    }
+    })
   } catch (error) {
     return errorResult(error)
   }
@@ -71,20 +70,17 @@ export async function retryReviewPrompt(
   folderName: string,
   itemId: string,
   profileName: string | null,
-): Promise<ActionError | ActionSuccess> {
+): Promise<Result<undefined, ActionError>> {
   'use server'
 
   try {
     await reviewPromptQueueService.retryAndLaunch(projectSlug, folderName, itemId, profileName ?? undefined)
-    return {
-      ok: true as const,
-    }
+    return succeed(undefined)
   } catch (error) {
     return errorResult(error)
   }
 }
 
 export interface EnqueueReviewPromptResult {
-  ok: true
   item: ReviewPromptQueueItem
 }

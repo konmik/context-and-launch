@@ -4,6 +4,7 @@ import { currentCommandTemplatePlatform } from '../command-template/command-temp
 import type { CommandTemplateExecutor } from '../command-template/command-template-types.js'
 import { AppError, ProcessError } from '../shared/errors.js'
 import { normalizeMacPickedPath } from './picker-paths.js'
+import { succeed, fail, type Result } from '../../util/result.js'
 
 /**
  * Every picker template reports a user cancellation the same way its underlying
@@ -56,61 +57,24 @@ export async function openFileDialog(startDir: string | undefined, commands: Com
   }
 }
 
-export interface DirectoryPickerSelection {
-  path: string
-}
-
-export interface DirectoryPickerCancelled {
-  cancelled: true
-}
-
-export interface DirectoryPickerError {
-  error: string
-}
-
-export type DirectoryPickerResult = DirectoryPickerSelection | DirectoryPickerCancelled | DirectoryPickerError
-
-export async function openDirectoryDialog(preselect: string, commands: CommandTemplateExecutor): Promise<DirectoryPickerResult> {
+export async function openDirectoryDialog(
+  preselect: string,
+  commands: CommandTemplateExecutor,
+): Promise<Result<string | undefined, string>> {
   const stub = readStub('CONTEXT_PICKER_STUB', 'CONTEXT_PICKER_STUB_FILE')
-  if (stub === '__cancel__')
-    return {
-      cancelled: true,
-    }
-  if (stub === '__unavailable__')
-    return {
-      error: unavailableMessage(),
-    }
-  if (stub === '__error__')
-    return {
-      error: 'Stubbed picker error',
-    }
-  if (stub)
-    return {
-      path: stub,
-    }
+  if (stub === '__cancel__') return succeed(undefined)
+  if (stub === '__unavailable__') return fail(unavailableMessage())
+  if (stub === '__error__') return fail('Stubbed picker error')
+  if (stub) return succeed(stub)
   try {
     const stdout = await runPicker(commands, 'picker.directory', preselect)
     const picked = currentCommandTemplatePlatform() === 'macos' ? normalizeMacPickedPath(stdout) : stdout.trim()
-    return picked
-      ? {
-          path: picked,
-        }
-      : {
-          cancelled: true,
-        }
+    return succeed(picked || undefined)
   } catch (error) {
-    if (isCancellation(error))
-      return {
-        cancelled: true,
-      }
+    if (isCancellation(error)) return succeed(undefined)
     const unavailable = unavailableReason(error)
-    if (unavailable)
-      return {
-        error: unavailable,
-      }
-    return {
-      error: error instanceof Error ? error.message : String(error),
-    }
+    if (unavailable) return fail(unavailable)
+    return fail(error instanceof Error ? error.message : String(error))
   }
 }
 

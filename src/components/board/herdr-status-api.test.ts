@@ -63,15 +63,16 @@ describe('getHerdrAgentStatuses', () => {
   })
   it('asks the queue service to reconcile the project explicitly', async () => {
     await expect(service.reconcile('project')).resolves.toEqual({
-      ok: true,
+      type: 'Success',
+      value: undefined,
     })
     expect(reconcileProject).toHaveBeenCalledWith('project')
   })
   it('surfaces explicit reconciliation failures', async () => {
     reconcileProject.mockRejectedValue(new Error('workspace list exploded'))
     await expect(service.reconcile('project')).resolves.toEqual({
-      ok: false,
-      message: 'workspace list exploded',
+      type: 'Failure',
+      error: 'workspace list exploded',
     })
   })
 })

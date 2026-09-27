@@ -1,6 +1,5 @@
-import type { ActionFailure } from '../../core/shared/errors.js'
-import type { ActionSuccess } from '../../core/shared/errors.js'
 import type { ActionError } from '../../core/shared/errors.js'
+import { succeed, type Result } from '~/util/result.js'
 import { action, query } from '@solidjs/router'
 import { respond } from '@solidjs/web'
 import {
@@ -53,7 +52,7 @@ export async function addProject(
   mainBranch: string,
   boardId: string,
   name: string,
-): Promise<ActionError | AddProjectResult> {
+): Promise<Result<AddProjectResult, ActionError>> {
   'use server'
 
   try {
@@ -69,33 +68,26 @@ export async function addProject(
       ...current,
       worktreeRootPath: configPaths.agentWorktreeDir(project.projectSlug),
     }))
-    return {
-      ok: true as const,
+    return succeed({
       projectSlug: project.projectSlug,
-    }
+    })
   } catch (e) {
     return errorResult(e)
   }
 }
 
-export async function deleteProject(projectSlug: string): Promise<ActionError | ActionFailure | ActionSuccess> {
+export async function deleteProject(projectSlug: string): Promise<Result<undefined, ActionError>> {
   'use server'
 
   try {
     const exists = projectRegistry.listProjects().some((p) => p.projectSlug === projectSlug)
     if (!exists) {
-      return {
-        ok: false as const,
-        type: 'error' as const,
-        message: `Project not found: ${projectSlug}`,
-      }
+      return errorResult(`Project not found: ${projectSlug}`)
     }
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
     projectRegistry.removeProject(projectSlug)
     await fileWatcher.stop(worktreeDir)
-    return {
-      ok: true as const,
-    }
+    return succeed(undefined)
   } catch (e) {
     return errorResult(e)
   }
@@ -106,10 +98,9 @@ export const setProjectPath = action(async (projectSlug: string, pathValue: stri
 
   try {
     const project = projectRegistry.updateProject(projectSlug, pathValue.trim())
-    return {
-      ok: true as const,
+    return succeed({
       path: project.path,
-    }
+    })
   } catch (e) {
     return errorResult(e)
   }
@@ -129,10 +120,9 @@ export const setTicketsLocation = action(
       projectRegistry.setTicketsLocation(projectSlug, change)
       if (change.kind === 'path') await fileWatcher.stop(oldPath)
       return respond(
-        {
-          ok: true as const,
+        succeed({
           value: change.value.trim(),
-        },
+        }),
         {
           revalidate: [],
         },
@@ -147,6 +137,5 @@ export const setTicketsLocation = action(
 )
 
 export interface AddProjectResult {
-  ok: true
   projectSlug: string
 }

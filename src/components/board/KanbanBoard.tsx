@@ -45,8 +45,8 @@ export default function KanbanBoard(props: KanbanBoardProps): JSX.Element {
     if (drop.fromColumn !== drop.toColumn) {
       const status = await updateTicket(projectSlug, drop.folderName, null, null, drop.toColumn)
       if (props.projectSlug !== projectSlug) return
-      if (!status.ok) {
-        setSaveError(status.message)
+      if (status.type === 'Failure') {
+        setSaveError(status.error.message)
         return
       }
     }

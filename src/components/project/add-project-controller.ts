@@ -3,6 +3,9 @@ import type { Setter } from 'solid-js'
 import { createSignal, createEffect } from 'solid-js'
 import { previewProjectPath } from './project-api.js'
 import { pickDirectory } from '../shared/directory-picker.js'
+import type { Result } from '~/util/result.js'
+import type { ActionError } from '~/core/shared/errors.js'
+import type { AddProjectResult } from './project-api.js'
 
 export type AddProjectAction = (
   pathValue: string,
@@ -10,17 +13,7 @@ export type AddProjectAction = (
   mainBranch: string,
   boardId: string,
   name: string,
-) => Promise<
-  | {
-      ok: true
-      projectSlug: string
-    }
-  | {
-      ok: false
-      type: string
-      message: string
-    }
->
+) => Promise<Result<AddProjectResult, ActionError>>
 
 export interface AddProjectControllerDeps {
   action: AddProjectAction
@@ -66,8 +59,8 @@ export function createAddProjectController(deps: AddProjectControllerDeps): AddP
   async function handleBrowsePath() {
     try {
       const result = await pickDirectory(pathValue().trim())
-      if ('path' in result) setPathValue(result.path)
-      else if ('error' in result) setLocalError(result.error)
+      if (result.type === 'Failure') setLocalError(result.error)
+      else if (result.value !== undefined) setPathValue(result.value)
     } catch (err: any) {
       setLocalError(err?.message ?? 'Failed to pick directory')
     }
@@ -83,8 +76,8 @@ export function createAddProjectController(deps: AddProjectControllerDeps): AddP
     setLocalError('')
     try {
       const result = await deps.action(trimmed, branch, mainBranchValue().trim(), boardId(), nameValue().trim())
-      if (!result.ok) setLocalError(result.message)
-      else deps.onSuccess?.(result.projectSlug)
+      if (result.type === 'Failure') setLocalError(result.error.message)
+      else deps.onSuccess?.(result.value.projectSlug)
     } catch (err: any) {
       setLocalError(err?.message ?? 'Unknown error')
     } finally {

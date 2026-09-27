@@ -1,5 +1,6 @@
 import type { SourceAccessor } from 'solid-js'
 import { createSignal } from 'solid-js'
+import type { Result } from '~/util/result.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
 import type { CleanupItemKey, TicketCleanupStatus } from '~/core/worktree/ticket-cleanup-checks.js'
@@ -17,30 +18,12 @@ export interface TicketCleanupDeps {
   ticket: () => TicketInfo | null
   action: () => 'archive' | 'delete'
   loadStatus: (projectSlug: string, folderName: string) => Promise<TicketCleanupStatus>
-  onCleanup: (
-    folderName: string,
-    cleanup: TicketCleanupOptions,
-  ) => Promise<{
-    error?: ErrorInfo
-  }>
-  onSubmit: (folderName: string) => Promise<{
-    error?: ErrorInfo
-  }>
+  onCleanup: (folderName: string, cleanup: TicketCleanupOptions) => Promise<Result<undefined, ErrorInfo>>
+  onSubmit: (folderName: string) => Promise<Result<undefined, ErrorInfo>>
   onOpenChange: (open: boolean) => void
   loadLockingProcesses: (projectSlug: string, folderName: string) => Promise<LockingProcessInfo[]>
-  killLockingProcesses: (
-    projectSlug: string,
-    folderName: string,
-    pids: number[],
-  ) => Promise<{
-    error?: string
-  }>
-  forceDeleteLocalBranch: (
-    projectSlug: string,
-    folderName: string,
-  ) => Promise<{
-    error?: string
-  }>
+  killLockingProcesses: (projectSlug: string, folderName: string, pids: number[]) => Promise<Result<undefined, string>>
+  forceDeleteLocalBranch: (projectSlug: string, folderName: string) => Promise<Result<undefined, string>>
 }
 
 export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCleanupControllerResult {
@@ -83,7 +66,7 @@ export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCl
     let actionError: ErrorInfo | undefined
     try {
       const result = await deps.onCleanup(ticket.folderName, singleCleanupOption(key))
-      if (result.error) actionError = result.error
+      if (result.type === 'Failure') actionError = result.error
     } catch (err) {
       actionError = errorPayload(err, 'Cleanup failed')
     }
@@ -104,7 +87,7 @@ export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCl
     setErrorInfo(null)
     try {
       const result = await deps.onSubmit(ticket.folderName)
-      if (result.error) setErrorInfo(result.error)
+      if (result.type === 'Failure') setErrorInfo(result.error)
       else close()
     } catch (err) {
       setErrorInfo(errorPayload(err, 'Cleanup failed'))
@@ -146,7 +129,7 @@ export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCl
         ticket.folderName,
         processes.map((p) => p.pid),
       )
-      if (result.error)
+      if (result.type === 'Failure')
         actionError = {
           description: result.error,
         }
@@ -174,7 +157,7 @@ export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCl
     let actionError: ErrorInfo | undefined
     try {
       const result = await deps.forceDeleteLocalBranch(deps.projectSlug(), ticket.folderName)
-      if (result.error)
+      if (result.type === 'Failure')
         actionError = {
           description: result.error,
         }

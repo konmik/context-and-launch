@@ -2,14 +2,10 @@ import type { SourceAccessor } from 'solid-js'
 import type { Setter } from 'solid-js'
 import { createMemo, createSignal } from 'solid-js'
 import { createFormDialogController } from './form-dialog-controller.js'
+import type { Result } from '~/util/result.js'
 
 export interface CreateTicketDeps {
-  onSubmit: (
-    number: string,
-    title: string,
-  ) => Promise<{
-    error?: string
-  }>
+  onSubmit: (number: string, title: string) => Promise<Result<undefined, string>>
   onOpenChange: (open: boolean) => void
   suggestedNextNumber: () => string | null | undefined
   open: () => boolean

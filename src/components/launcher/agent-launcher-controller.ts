@@ -6,6 +6,7 @@ import { createSignal, createEffect, createMemo } from 'solid-js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import type { MergedLauncherConfig, LauncherColumnDefaults } from '~/core/launcher/launcher-config.js'
 import type { ErrorInfo } from '~/core/shared/errors.js'
+import type { Result } from '~/util/result.js'
 import { PROJECT_LAUNCH_KEY } from '~/core/launcher/launch-keys.js'
 import { createListReorder, orderByNameList } from '../board/list-reorder.js'
 import { launchErrorInfo, resolveDefaults } from './agent-launcher-pure.js'
@@ -22,18 +23,13 @@ export interface LaunchArgs {
   launchDir: string
 }
 
-export type LaunchOutcome =
-  | {
-      ok: true
-    }
-  | {
-      ok: false
-      type: 'behindRemote' | 'dirtyWorktree' | 'error'
-      message: string
-      errorInfo?: ErrorInfo
-    }
+export interface LaunchFailure {
+  type: 'behindRemote' | 'dirtyWorktree' | 'error'
+  message: string
+  errorInfo?: ErrorInfo
+}
 
-export type LaunchInvoker = (args: LaunchArgs) => Promise<LaunchOutcome>
+export type LaunchInvoker = (args: LaunchArgs) => Promise<Result<undefined, LaunchFailure>>
 
 export interface AgentLauncherDeps {
   projectSlug: string
@@ -144,16 +140,16 @@ export function createAgentLauncherController(props: AgentLauncherDeps): AgentLa
         skipBehindRemote: extra?.skipBehindRemote === true,
         launchDir: props.launchDir(),
       })
-      if (result.ok) return
-      switch (result.type) {
+      if (result.type === 'Success') return
+      switch (result.error.type) {
         case 'behindRemote':
-          setBehindRemoteMsg(result.message)
+          setBehindRemoteMsg(result.error.message)
           break
         case 'dirtyWorktree':
-          setDirtyWorktreeMsg(result.message)
+          setDirtyWorktreeMsg(result.error.message)
           break
         default:
-          setErrorInfo(launchErrorInfo(result))
+          setErrorInfo(launchErrorInfo(result.error))
           break
       }
     } catch (e: unknown) {

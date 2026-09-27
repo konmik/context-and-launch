@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createRoot, runWithOwner } from 'solid-js'
 import { fromAny } from '@total-typescript/shoehorn'
+import { succeed, fail } from '~/util/result.js'
 
 const mockUploadFile = vi.fn()
 import { createFileUploadState, type FileUploadDeps } from './ticket-detail-upload.js'
@@ -41,16 +42,16 @@ describe('createFileUploadState', () => {
     vi.clearAllMocks()
   })
   it('does not switch to file when upload fails per-file', async () => {
-    mockUploadFile.mockResolvedValue({
-      ok: true,
-      results: [
-        {
-          name: 'report.txt',
-          ok: false,
-          error: 'disk full',
-        },
-      ],
-    })
+    mockUploadFile.mockResolvedValue(
+      succeed({
+        results: [
+          fail({
+            name: 'report.txt',
+            message: 'disk full',
+          }),
+        ],
+      }),
+    )
     const deps = makeDeps()
     await createRoot(async (dispose) => {
       const state = createFileUploadState(deps)
@@ -67,16 +68,16 @@ describe('createFileUploadState', () => {
     })
   })
   it('does not switch to .md context view when .md upload fails per-file', async () => {
-    mockUploadFile.mockResolvedValue({
-      ok: true,
-      results: [
-        {
-          name: 'notes.md',
-          ok: false,
-          error: 'permission denied',
-        },
-      ],
-    })
+    mockUploadFile.mockResolvedValue(
+      succeed({
+        results: [
+          fail({
+            name: 'notes.md',
+            message: 'permission denied',
+          }),
+        ],
+      }),
+    )
     const deps = makeDeps()
     await createRoot(async (dispose) => {
       const state = createFileUploadState(deps)
@@ -93,15 +94,15 @@ describe('createFileUploadState', () => {
     })
   })
   it('switches to file when upload succeeds', async () => {
-    mockUploadFile.mockResolvedValue({
-      ok: true,
-      results: [
-        {
-          name: 'report.txt',
-          ok: true,
-        },
-      ],
-    })
+    mockUploadFile.mockResolvedValue(
+      succeed({
+        results: [
+          succeed({
+            name: 'report.txt',
+          }),
+        ],
+      }),
+    )
     const deps = makeDeps()
     await createRoot(async (dispose) => {
       const state = createFileUploadState(deps)
@@ -117,15 +118,15 @@ describe('createFileUploadState', () => {
     })
   })
   it('refreshes the file lists before switching after a successful upload', async () => {
-    mockUploadFile.mockResolvedValue({
-      ok: true,
-      results: [
-        {
-          name: 'notes.md',
-          ok: true,
-        },
-      ],
-    })
+    mockUploadFile.mockResolvedValue(
+      succeed({
+        results: [
+          succeed({
+            name: 'notes.md',
+          }),
+        ],
+      }),
+    )
     const calls: string[] = []
     const deps = makeDeps({
       refreshFiles: vi.fn(async () => {
@@ -150,16 +151,16 @@ describe('createFileUploadState', () => {
     })
   })
   it('does not refresh the file lists when every file fails', async () => {
-    mockUploadFile.mockResolvedValue({
-      ok: true,
-      results: [
-        {
-          name: 'report.txt',
-          ok: false,
-          error: 'disk full',
-        },
-      ],
-    })
+    mockUploadFile.mockResolvedValue(
+      succeed({
+        results: [
+          fail({
+            name: 'report.txt',
+            message: 'disk full',
+          }),
+        ],
+      }),
+    )
     const deps = makeDeps()
     await createRoot(async (dispose) => {
       const state = createFileUploadState(deps)

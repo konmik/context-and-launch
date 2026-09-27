@@ -1,5 +1,4 @@
-import type { Failure } from '../../util/result.js'
-import type { Success } from '../../util/result.js'
+import type { Result } from '../../util/result.js'
 import { GET } from '@solidjs/web/server-functions'
 import { diffReviewStore, diffReviewTargetResolver, reviewPromptQueueService } from '~/core/config/instances.js'
 import type { DiffReviewProjectState } from '~/core/diff-review/diff-review-types.js'
@@ -28,7 +27,7 @@ export async function saveDiffReviewState(
   projectSlug: string,
   json: string,
   owner: string,
-): Promise<Failure<string> | Success<DiffReviewProjectState>> {
+): Promise<Result<DiffReviewProjectState, string>> {
   'use server'
 
   try {

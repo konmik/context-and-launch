@@ -1,3 +1,10 @@
+declare const jsdom: { window: Window }
+
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true,
+  value: jsdom.window.localStorage,
+})
+
 if (globalThis.CSS === undefined) {
   Object.assign(globalThis, {
     CSS: {

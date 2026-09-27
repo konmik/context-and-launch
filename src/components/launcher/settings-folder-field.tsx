@@ -42,14 +42,14 @@ export function SettingsFolderField(props: {
           onClick={async () => {
             try {
               const result = await pickDirectory(props.value)
-              if ('path' in result) {
-                props.setValue(result.path)
-                props.save(result.path)
-              } else if ('error' in result) {
+              if (result.type === 'Failure') {
                 props.setError({
                   title: 'Browse failed',
                   description: result.error,
                 })
+              } else if (result.value !== undefined) {
+                props.setValue(result.value)
+                props.save(result.value)
               }
             } catch (e) {
               props.setError(errorPayload(e, 'Browse failed'))

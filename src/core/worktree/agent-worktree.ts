@@ -1,4 +1,5 @@
 import fs from 'fs'
+import { succeed, fail, type Result } from '../../util/result.js'
 import path from 'path'
 import { rename } from 'fs/promises'
 import { writeMergeTree } from '../infra/git-merge-tree.js'
@@ -159,7 +160,7 @@ export class AgentWorktreeManager {
     },
     configuredBranch?: string,
     savedWorktreeInfo?: SavedWorktreeInfo,
-  ): Promise<WorktreeResult | DirtyWorktreeResult> {
+  ): Promise<Result<WorktreeResult, DirtyWorktreeResult>> {
     const { worktreeRootPath, branchPrefix } = this.launcherConfig.resolveWorktreeSettings(projectSlug)
     const { worktreePath, branchName } = resolveAgentWorktreeLocation(
       folderName,
@@ -178,10 +179,10 @@ export class AgentWorktreeManager {
       throw new ForeignWorktreeError(worktreePath)
     }
     if (ownership.kind === 'current-project') {
-      return {
+      return succeed({
         worktreePath,
         branchName,
-      }
+      })
     } // Reusing an existing branch checks it out without forking from main.
     const branchList = await this.commands.execute('agent-worktree.branch.local-list', projectPath, {
       branch: branchName,
@@ -192,17 +193,17 @@ export class AgentWorktreeManager {
         worktreePath,
         branch: branchName,
       })
-      return {
+      return succeed({
         worktreePath,
         branchName,
-      }
+      })
     } // Forking a new worktree from main: only now does main's state matter.
     if (!options?.skipDirtyCheck) {
       const status = await this.commands.execute('agent-worktree.main.status', projectPath)
       if (status.trim()) {
-        return {
+        return fail({
           dirtyWorktree: true,
-        }
+        })
       }
     }
     let behindRemote = false
@@ -221,16 +222,18 @@ export class AgentWorktreeManager {
       worktreePath,
       mainBranch,
     })
-    return behindRemote
-      ? {
-          worktreePath,
-          branchName,
-          behindRemote,
-        }
-      : {
-          worktreePath,
-          branchName,
-        }
+    return succeed(
+      behindRemote
+        ? {
+            worktreePath,
+            branchName,
+            behindRemote,
+          }
+        : {
+            worktreePath,
+            branchName,
+          },
+    )
   }
 
   /**

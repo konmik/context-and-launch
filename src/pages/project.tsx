@@ -704,7 +704,7 @@ function ProjectContent(props: { ctrl?: ProjectPageController }): JSX.Element {
           projectSlug={projectSlug()}
           onDeleteProject={async (deletedProjectSlug) => {
             const result = await commands.handleDeleteProject(deletedProjectSlug)
-            if (!result.error) {
+            if (result.type === 'Success') {
               commands.closeSettings()
               const remaining = data()?.projects.filter((project) => project.projectSlug !== deletedProjectSlug) ?? []
               await revalidate()

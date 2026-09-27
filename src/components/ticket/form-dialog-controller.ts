@@ -1,11 +1,10 @@
 import type { SourceAccessor } from 'solid-js'
 import type { Setter } from 'solid-js'
 import { createSignal } from 'solid-js'
+import type { Result } from '~/util/result.js'
 
 export interface FormDialogDeps<TSubmitArgs extends unknown[]> {
-  onSubmit: (...args: TSubmitArgs) => Promise<{
-    error?: string
-  }>
+  onSubmit: (...args: TSubmitArgs) => Promise<Result<undefined, string>>
   onOpenChange: (open: boolean) => void
 }
 
@@ -25,7 +24,7 @@ export function createFormDialogController<TSubmitArgs extends unknown[]>(
     setErrorMsg('')
     try {
       const result = await deps.onSubmit(...args)
-      if (result?.error) setErrorMsg(result.error)
+      if (result.type === 'Failure') setErrorMsg(result.error)
       else close()
     } catch (err: any) {
       setErrorMsg(err?.message ?? 'Unknown error')

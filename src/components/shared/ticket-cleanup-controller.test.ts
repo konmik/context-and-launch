@@ -3,6 +3,8 @@ import { createRoot, flush, runWithOwner } from 'solid-js'
 import { createTicketCleanupController, type TicketCleanupDeps } from './ticket-cleanup-controller.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import type { TicketCleanupStatus } from '~/core/worktree/ticket-cleanup-checks.js'
+import { succeed, fail, type Result } from '~/util/result.js'
+import type { ErrorInfo } from '~/core/shared/errors.js'
 
 function makeTicket(folderName: string): TicketInfo {
   return {
@@ -45,12 +47,12 @@ function makeDeps(overrides?: Partial<TicketCleanupDeps>): TicketCleanupDeps {
     ticket: () => makeTicket('t-1-alpha'),
     action: () => 'delete',
     loadStatus: async () => allReady,
-    onCleanup: async () => ({}),
-    onSubmit: async () => ({}),
+    onCleanup: async () => succeed(undefined),
+    onSubmit: async () => succeed(undefined),
     onOpenChange: () => {},
     loadLockingProcesses: async () => [],
-    killLockingProcesses: async () => ({}),
-    forceDeleteLocalBranch: async () => ({}),
+    killLockingProcesses: async () => succeed(undefined),
+    forceDeleteLocalBranch: async () => succeed(undefined),
     ...overrides,
   }
 }
@@ -190,7 +192,7 @@ describe('createTicketCleanupController', () => {
             loadStatus: async () => (++checks === 1 ? allReady : refreshed),
             onCleanup: async (_folderName, cleanup) => {
               submitted = cleanup
-              return {}
+              return succeed(undefined)
             },
           }),
         )
@@ -217,7 +219,7 @@ describe('createTicketCleanupController', () => {
           makeDeps({
             onSubmit: async (folderName) => {
               submittedFolderName = folderName
-              return {}
+              return succeed(undefined)
             },
           }),
         )
@@ -238,11 +240,10 @@ describe('createTicketCleanupController', () => {
             onOpenChange: (open) => {
               closedWith = open
             },
-            onSubmit: async () => ({
-              error: {
+            onSubmit: async () =>
+              fail({
                 description: 'cleanup failed',
-              },
-            }),
+              }),
           }),
         )
         await invoke(ctrl.startChecks)
@@ -279,11 +280,7 @@ describe('createTicketCleanupController', () => {
   it('tracks submitting during an in-flight submit', async () => {
     await createRoot(async (dispose) => {
       try {
-        let resolve!: (v: {
-          error?: {
-            description: string
-          }
-        }) => void
+        let resolve!: (v: Result<undefined, ErrorInfo>) => void
         const ctrl = createTicketCleanupController(
           makeDeps({
             onSubmit: () =>
@@ -295,7 +292,7 @@ describe('createTicketCleanupController', () => {
         await invoke(ctrl.startChecks)
         const p = invoke(ctrl.doSubmit)
         expect(ctrl.submitting()).toBe(true)
-        resolve({})
+        resolve(succeed(undefined))
         await p
         expect(ctrl.submitting()).toBe(false)
       } finally {
@@ -306,11 +303,7 @@ describe('createTicketCleanupController', () => {
   it('tracks a running cleanup and refreshes after it settles', async () => {
     await createRoot(async (dispose) => {
       try {
-        let resolve!: (v: {
-          error?: {
-            description: string
-          }
-        }) => void
+        let resolve!: (v: Result<undefined, ErrorInfo>) => void
         const ctrl = createTicketCleanupController(
           makeDeps({
             onCleanup: () =>
@@ -323,7 +316,7 @@ describe('createTicketCleanupController', () => {
         const p = invoke(() => ctrl.runCleanup('deleteWorktree'))
         expect(ctrl.runningItem()).toBe('deleteWorktree')
         expect(ctrl.busy()).toBe(true)
-        resolve({})
+        resolve(succeed(undefined))
         await p
         expect(ctrl.runningItem()).toBeUndefined()
         expect(ctrl.busy()).toBe(false)
@@ -342,11 +335,10 @@ describe('createTicketCleanupController', () => {
               checks++
               return allReady
             },
-            onCleanup: async () => ({
-              error: {
+            onCleanup: async () =>
+              fail({
                 description: 'action failed',
-              },
-            }),
+              }),
           }),
         )
         await invoke(ctrl.startChecks)

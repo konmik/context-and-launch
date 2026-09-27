@@ -1,4 +1,5 @@
 import * as v from 'valibot'
+import { fail, type Failure } from '~/util/result.js'
 
 export interface ErrorInfo {
   title?: string
@@ -70,29 +71,18 @@ export function errorMessage(cause: unknown): string {
   return 'Unknown error'
 }
 
-export interface ActionError extends ActionFailure {
+export interface ActionError {
+  type: 'error'
+  message: string
   errorInfo: ErrorInfo
 }
 
-export interface ActionSuccess {
-  ok: true
-  type?: undefined
-  message?: undefined
-}
-
-export interface ActionFailure {
-  ok: false
-  type: 'error'
-  message: string
-}
-
-export function errorResult(cause: unknown): ActionError {
-  return {
-    ok: false as const,
+export function errorResult(cause: unknown): Failure<ActionError> {
+  return fail({
     type: 'error' as const,
     message: errorMessage(cause),
     errorInfo: errorPayload(cause),
-  }
+  })
 }
 
 export function errorPayload(cause: unknown, title?: string): ErrorInfo {

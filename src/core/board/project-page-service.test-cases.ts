@@ -1,4 +1,5 @@
 import type { ResolutionPlan } from '../ticket/ticket-sync.js'
+import { succeed } from '~/util/result.js'
 import { describe, it as baseIt, expect, vi, afterEach, afterAll } from 'vitest'
 import { fromPartial } from '@total-typescript/shoehorn'
 import fs from 'fs'
@@ -98,7 +99,7 @@ async function setupResolvedScratch(dirs: string[]): Promise<SetupResolvedScratc
   fs.writeFileSync(path.join(worktreeDir, 'conflict.txt'), 'local content')
   const commands = createTestCommandTemplateService()
   const manager = new TicketSyncManager(commands, new GitRepository(commands))
-  expect((await manager.sync(worktreeDir)).status).toBe('conflict')
+  expect(await manager.sync(worktreeDir)).toEqual(succeed({ status: 'conflict' }))
   const plan = await manager.prepareResolution(worktreeDir)
   expect(plan.needsAgent).toBe(true)
   fs.writeFileSync(path.join(plan.scratchDir, 'conflict.txt'), 'merged content')

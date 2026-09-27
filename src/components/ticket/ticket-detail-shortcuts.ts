@@ -35,24 +35,24 @@ export function createShortcutState(deps: ShortcutDeps): ShortcutStateResult {
         force ?? false,
         deps.launchDir(),
       )
-      if (!result.ok) {
-        if (result.type === 'dirtyWorktree' || result.type === 'behindRemote') {
+      if (result.type === 'Failure') {
+        if (result.error.type === 'dirtyWorktree' || result.error.type === 'behindRemote') {
           setShortcutConfirmation({
             name,
-            message: result.message,
-            type: result.type,
+            message: result.error.message,
+            type: result.error.type,
           })
           return
         }
-        if (result.type === 'error') {
+        if (result.error.type === 'error') {
           deps.setError({
-            ...result.errorInfo,
+            ...result.error.errorInfo,
             title: 'Shortcut failed',
           })
         } else {
           deps.setError({
             title: 'Shortcut failed',
-            description: result.message,
+            description: result.error.message,
           })
         }
       }

@@ -111,20 +111,20 @@ export function createFileUploadState(deps: FileUploadDeps): FileUploadStateResu
       const formData = new FormData()
       formData.append('file', file)
       const result = await (deps.uploadFile ?? uploadFileAction)(deps.projectSlug, deps.folderName(), formData)
-      if (!result.ok) {
+      if (result.type === 'Failure') {
         deps.setError({
           title: 'Upload failed',
-          description: result.message,
+          description: result.error.message,
         })
         return
       }
       let anySucceeded = false
-      for (const r of result.results) {
-        if (r.ok) anySucceeded = true
+      for (const r of result.value.results) {
+        if (r.type === 'Success') anySucceeded = true
         else {
           deps.setError({
             title: 'Upload failed',
-            description: r.error || `Failed to upload ${r.name}`,
+            description: r.error.message,
           })
         }
       }

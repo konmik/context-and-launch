@@ -99,7 +99,8 @@ function setup(initial: { ticket: TicketInfo; config: MergedLauncherConfig | nul
       worktreeDir: '/work',
       launchDir: () => '/project',
       launch: async () => ({
-        ok: true,
+        type: 'Success',
+        value: undefined,
       }),
     })
     out = {

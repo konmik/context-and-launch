@@ -28,7 +28,7 @@ export default function ReviewPromptQueueList(props: { projectSlug: string; fold
     setError()
     try {
       const result = await retryReviewPrompt(props.projectSlug, props.folderName, itemId, props.profileName || null)
-      if (!result.ok) setError(result.message)
+      if (result.type === 'Failure') setError(result.error.message)
       const refreshed = await state.refresh()
       if (refreshed.type === 'Failure') setError(refreshed.error)
       await agentState.refresh()
