@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'solid-js'
+import { createContext } from 'solid-js'
 import type { MergedLauncherConfig } from '~/core/launcher/launcher-config.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 
@@ -12,7 +12,3 @@ export interface ShortcutRunner {
 }
 
 export const ShortcutRunnerContext = createContext<ShortcutRunner | null>(null)
-
-export function useShortcutRunner(): ShortcutRunner | undefined {
-  return useContext(ShortcutRunnerContext) ?? undefined
-}

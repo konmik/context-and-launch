@@ -1,11 +1,12 @@
 import type { JSX } from '@solidjs/web'
-import { Show, For } from 'solid-js'
+import { Show, useContext } from 'solid-js'
 import { EllipsisVertical } from '~/components/ui/icons.js'
-import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from '../ui/menu'
+import { MenuRoot, MenuTrigger, MenuContent } from '../ui/menu'
+import { ShortcutRunnerContext } from '../board/shortcut-runner-context.js'
+import TicketActionItems from './TicketActionItems'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import HerdrStatusIcon from './HerdrStatusIcon'
 import { useHerdrStatuses } from './herdr-statuses-context.js'
-import { useShortcutRunner } from '../board/shortcut-runner-context.js'
 
 interface TicketCardProps {
   ticket: TicketInfo
@@ -19,7 +20,7 @@ interface TicketCardProps {
 
 export default function TicketCard(props: TicketCardProps): JSX.Element {
   const herdrStatus = useHerdrStatuses()
-  const shortcutRunner = useShortcutRunner()
+  const shortcutRunner = useContext(ShortcutRunnerContext)
 
   function handleCardClick(e: MouseEvent) {
     const target = e.target
@@ -47,98 +48,26 @@ export default function TicketCard(props: TicketCardProps): JSX.Element {
                 class="btn-ghost-icon size-8"
                 aria-label="Ticket actions"
                 data-testid="kanban-board-ticket-menu-trigger"
-                onClick={(e: MouseEvent) => e.stopPropagation()}
+                onClick={(event: MouseEvent) => event.stopPropagation()}
               >
                 <EllipsisVertical size={20} />
               </MenuTrigger>
             }
           >
-            <MenuContent>
-              <Show when={props.onOpenFolder}>
-                <MenuItem
-                  value="open-ticket-folder"
-                  data-testid="kanban-board-ticket-menu-open-folder"
-                  onClick={(e: MouseEvent) => {
-                    e.stopPropagation()
-                    props.onOpenFolder?.(props.ticket)
-                  }}
-                >
-                  Open ticket folder
-                </MenuItem>
-              </Show>
-              <Show when={props.ticket.hasAgentWorktree && (shortcutRunner || props.onReviewChanges)}>
-                <Show when={shortcutRunner}>
-                  <MenuItem
-                    value="open-worktree"
-                    data-testid="kanban-board-ticket-menu-open-worktree"
-                    onClick={(e: MouseEvent) => {
-                      e.stopPropagation()
-                      shortcutRunner!.openWorktree(props.ticket)
-                    }}
-                  >
-                    Open worktree
-                  </MenuItem>
-                </Show>
-                <Show when={props.onReviewChanges}>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    data-scope="menu"
-                    data-part="item"
-                    value="review-changes"
-                    data-testid="kanban-board-ticket-menu-review-changes"
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      props.onReviewChanges?.(props.ticket)
-                    }}
-                  >
-                    Diff Review
-                  </button>
-                </Show>
-              </Show>
-              <Show when={props.onOpenFolder || (props.ticket.hasAgentWorktree && (shortcutRunner || props.onReviewChanges))}>
-                <MenuSeparator />
-              </Show>
-              <MenuItem
-                value="archive"
-                data-testid="kanban-board-ticket-menu-archive"
-                onClick={(e: MouseEvent) => {
-                  e.stopPropagation()
-                  props.onArchive(props.ticket)
+            <MenuContent onClick={(event) => event.stopPropagation()}>
+              <TicketActionItems
+                hasAgentWorktree={props.ticket.hasAgentWorktree}
+                shortcuts={shortcutRunner?.shortcuts() ?? []}
+                isShortcutRunning={!!shortcutRunner?.running()}
+                callbacks={{
+                  onOpenFolder: props.onOpenFolder ? () => props.onOpenFolder!(props.ticket) : undefined,
+                  onOpenWorktree: shortcutRunner ? () => shortcutRunner.openWorktree(props.ticket) : undefined,
+                  onArchive: () => props.onArchive(props.ticket),
+                  onDelete: () => props.onDelete(props.ticket),
+                  onReviewChanges: props.onReviewChanges ? () => props.onReviewChanges!(props.ticket) : undefined,
+                  onRunShortcut: (shortcutName) => shortcutRunner?.run(props.ticket, shortcutName),
                 }}
-              >
-                Archive
-              </MenuItem>
-              <MenuItem
-                value="delete"
-                class="text-destructive"
-                data-testid="kanban-board-ticket-menu-delete"
-                onClick={(e: MouseEvent) => {
-                  e.stopPropagation()
-                  props.onDelete(props.ticket)
-                }}
-              >
-                Delete
-              </MenuItem>
-              <Show when={(shortcutRunner?.shortcuts().length ?? 0) > 0}>
-                <MenuSeparator />
-                <For each={shortcutRunner!.shortcuts()}>
-                  {(shortcut) => (
-                    <MenuItem
-                      value={`shortcut-${shortcut.name}`}
-                      data-testid="kanban-board-ticket-menu-shortcut"
-                      data-shortcut-name={shortcut.name}
-                      disabled={shortcutRunner!.running() !== ''}
-                      onClick={(e: MouseEvent) => {
-                        e.stopPropagation()
-                        shortcutRunner!.run(props.ticket, shortcut.name)
-                      }}
-                    >
-                      {shortcut.name}
-                    </MenuItem>
-                  )}
-                </For>
-              </Show>
+              />
             </MenuContent>
           </MenuRoot>
         </div>

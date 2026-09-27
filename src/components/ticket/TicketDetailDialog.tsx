@@ -1,8 +1,7 @@
 import type { JSX } from '@solidjs/web'
-import { Show, For, untrack, useContext } from 'solid-js'
+import { Show, untrack, useContext } from 'solid-js'
 import { X } from '~/components/ui/icons.js'
 import { Copy } from '~/components/ui/icons.js'
-import { Zap } from '~/components/ui/icons.js'
 import {
   FloatingWindow,
   FloatingWindowHeader,
@@ -11,7 +10,7 @@ import {
   tallWindowDefaultSize,
 } from '../ui/floating-panel'
 import { TabsRoot, TabsList, TabsTrigger } from '../ui/tabs'
-import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from '../ui/menu'
+import TicketDetailActions from './TicketDetailActions'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import { useModEnterSubmit, modEnterHint } from '~/lib/use-mod-enter-submit'
 import {
@@ -19,7 +18,6 @@ import {
   NewFileDialog,
   DeleteFileDialog,
   ConfirmUploadDialog,
-  ShortcutConfirmationDialog,
   ExternalChangeDialog,
   activeFileLabel,
 } from './ticket-detail-parts.js'
@@ -33,6 +31,8 @@ import { createTicketStatusStorage, TicketStatusContext } from './ticket-status-
 
 interface TicketDetailDialogProps {
   onClose: () => void
+  onArchive?: (ticket: TicketInfo) => void
+  onDelete?: (ticket: TicketInfo) => void
   onReviewChanges?: (ticket: TicketInfo) => void
   projectSlug: string
   ticket: TicketInfo | null
@@ -50,6 +50,8 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps): JSX.
           <ErrorScope active={true}>
           <TicketDetailContent
             onClose={props.onClose}
+            onArchive={props.onArchive}
+            onDelete={props.onDelete}
             projectSlug={props.projectSlug}
             onReviewChanges={props.onReviewChanges}
             stateDeps={props.stateDeps}
@@ -64,6 +66,8 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps): JSX.
 
 function TicketDetailContent(props: {
   onClose: () => void
+  onArchive?: (ticket: TicketInfo) => void
+  onDelete?: (ticket: TicketInfo) => void
   projectSlug: string
   onReviewChanges?: (ticket: TicketInfo) => void
   stateDeps?: Partial<TicketDetailStateDeps>
@@ -164,56 +168,16 @@ function TicketDetailContent(props: {
           }
           actions={
             <div class="flex items-center gap-1">
-              <Show when={ticket().hasAgentWorktree || (s.launcherConfig()?.shortcuts.length ?? 0) > 0}>
-                <MenuRoot
-                  trigger={
-                    <MenuTrigger
-                      class="btn-ghost-icon h-8 w-8"
-                      aria-label="Ticket actions"
-                      data-testid="ticket-detail-shortcuts-menu-trigger"
-                    >
-                      <Zap size={16} />
-                    </MenuTrigger>
-                  }
-                >
-                  <MenuContent>
-                    <Show when={ticket().hasAgentWorktree}>
-                      <MenuItem value="open-worktree" data-testid="ticket-detail-open-worktree-menu-item" onClick={() => s.openWorktree()}>
-                        Open worktree
-                      </MenuItem>
-                      <Show when={props.onReviewChanges}>
-                        <MenuItem
-                          value="review-changes"
-                          data-testid="ticket-detail-review-changes-menu-item"
-                          disabled={s.hasAnyUnsavedChanges()}
-                          onClick={() => {
-                            props.onClose()
-                            props.onReviewChanges?.(ticket())
-                          }}
-                        >
-                          Diff Review
-                        </MenuItem>
-                      </Show>
-                      <Show when={(s.launcherConfig()?.shortcuts.length ?? 0) > 0}>
-                        <MenuSeparator />
-                      </Show>
-                    </Show>
-                    <For each={s.launcherConfig()?.shortcuts ?? []}>
-                      {(shortcut) => (
-                        <MenuItem
-                          value={`shortcut-${shortcut.name}`}
-                          data-testid="ticket-detail-shortcuts-menu-item"
-                          data-shortcut-name={shortcut.name}
-                          disabled={s.runningShortcut() !== ''}
-                          onClick={() => s.runShortcut(shortcut.name)}
-                        >
-                          {shortcut.name}
-                        </MenuItem>
-                      )}
-                    </For>
-                  </MenuContent>
-                </MenuRoot>
-              </Show>
+              <TicketDetailActions
+                projectSlug={props.projectSlug}
+                ticket={ticket()}
+                shortcuts={s.launcherConfig()?.shortcuts ?? []}
+                launchDir={s.launchDir()}
+                hasUnsavedChanges={s.hasAnyUnsavedChanges()}
+                onArchive={props.onArchive}
+                onDelete={props.onDelete}
+                onReviewChanges={props.onReviewChanges}
+              />
               <button
                 type="button"
                 data-testid="ticket-detail-close-window-button"
@@ -362,16 +326,6 @@ function TicketDetailContent(props: {
         message="You have unsaved changes. Discard them and switch files?"
         onCancel={s.cancelFileSwitch}
         onDiscard={s.proceedFileSwitch}
-      />
-
-      <ShortcutConfirmationDialog
-        info={s.shortcutConfirmation()}
-        running={s.runningShortcut() !== ''}
-        onCancel={() => s.setShortcutConfirmation(undefined)}
-        onProceed={(n) => {
-          s.setShortcutConfirmation(undefined)
-          s.runShortcut(n, true)
-        }}
       />
 
       <ExternalChangeDialog

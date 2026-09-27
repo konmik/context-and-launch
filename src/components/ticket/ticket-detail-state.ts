@@ -4,7 +4,6 @@ import type { LauncherTemplate } from '../../core/launcher/launcher-config-data.
 import type { LauncherSkill } from '../../core/launcher/launcher-config-data.js'
 import type { LauncherProfile } from '../../core/launcher/launcher-config-data.js'
 import type { LauncherShortcut } from '../../core/launcher/launcher-config-data.js'
-import type { ShortcutConfirmation } from './ticket-detail-shortcuts.js'
 import { createSignal, createEffect, createMemo, flush, onSettled, untrack, useContext } from 'solid-js'
 import { LauncherConfigContext } from '../launcher/shared-launcher-config-storage.js'
 import { mergeLauncherConfigs, type LauncherConfig } from '~/core/launcher/launcher-config-data.js'
@@ -34,7 +33,6 @@ import {
 } from './ticket-detail-pure.js'
 import { createFileUploadState } from './ticket-detail-upload.js'
 import { TicketStatusContext } from './ticket-status-storage.js'
-import { createShortcutState } from './ticket-detail-shortcuts.js'
 import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
 import { computeLaunchDir } from '../launcher/agent-launcher-pure.js'
 import {
@@ -42,12 +40,11 @@ import {
   saveContext as saveContextAction,
   deleteContext as deleteContextAction,
   deleteFile as deleteFileAction,
-  openTicketWorktree,
   uploadFile as uploadFileAction,
 } from './ticket-api.js'
 import { ticketMutationRevalidateKeys } from '../shared/revalidate-keys.js'
 import { createWorktreeRevision } from '../shared/worktree-revision.js'
-import { getProjectLauncherMetadata, runShortcut } from '../launcher/launcher-api.js'
+import { getProjectLauncherMetadata } from '../launcher/launcher-api.js'
 import { openNativeFileBrowser as openNativeFileBrowserServer } from '../shared/shared-api.js'
 
 export type Tab = 'editor' | 'launcher'
@@ -68,9 +65,7 @@ export interface TicketDetailStateDeps {
   saveContext?: typeof saveContextAction
   deleteContext?: typeof deleteContextAction
   deleteFile?: typeof deleteFileAction
-  openTicketWorktree?: typeof openTicketWorktree
   uploadFile?: typeof uploadFileAction
-  runShortcut?: typeof runShortcut
   projectConfig?: StoredSignal<LauncherConfig>
   getProjectLauncherMetadata?: (projectSlug: string) => ReturnType<typeof getProjectLauncherMetadata>
   openNativeFileBrowser?: typeof openNativeFileBrowserServer
@@ -166,15 +161,6 @@ export function createTicketDetailState(
       savedAgentWorktreeDir: ticket().agentWorktreeDir,
     }),
   )
-  const shortcuts = createShortcutState({
-    projectSlug: () => props.projectSlug,
-    folderName,
-    useWorktree,
-    launchDir,
-    onError: deps.onError,
-    onClearError: deps.onClearError,
-    runShortcut: deps.runShortcut,
-  })
   const upload = createFileUploadState({
     projectSlug: props.projectSlug,
     folderName,
@@ -186,16 +172,6 @@ export function createTicketDetailState(
     requestFileSwitch,
     uploadFile: deps.uploadFile,
   })
-
-  async function openWorktree() {
-    deps.onClearError()
-    try {
-      const result = await (deps.openTicketWorktree ?? openTicketWorktree)(props.projectSlug, folderName())
-      if (result.type === 'Failure') deps.onError(result.error)
-    } catch (e) {
-      deps.onError(errorPayload(e, 'Open failed'))
-    }
-  }
 
   const contextOptions = (): ActiveFile[] =>
     buildContextOptions(['description', 'product-requirement-document'], ticket().contextNames, extraFiles())
@@ -672,17 +648,12 @@ export function createTicketDetailState(
     dragging: upload.dragging,
     confirmOverwrite: upload.confirmOverwrite,
     confirmSize: upload.confirmSize,
-    runningShortcut: shortcuts.runningShortcut,
-    shortcutConfirmation: shortcuts.shortcutConfirmation,
-    setShortcutConfirmation: shortcuts.setShortcutConfirmation,
-    runShortcut: shortcuts.runShortcut,
     launchDir,
     allFileOptions,
     isReferenceStale,
     hasUnsavedFileChanges,
     isCurrentReadOnly,
     showSaveButton,
-    openWorktree,
     externallyChanged,
     confirmingExternalChange,
     overwriteExternalChange,
@@ -780,17 +751,12 @@ export interface TicketDetailStateResult {
     file: File
     size: number
   } | null>
-  runningShortcut: SourceAccessor<string>
-  shortcutConfirmation: SourceAccessor<ShortcutConfirmation | undefined>
-  setShortcutConfirmation: Setter<ShortcutConfirmation | undefined>
-  runShortcut: (name: string, force?: boolean) => Promise<void>
   launchDir: SourceAccessor<string>
   allFileOptions: SourceAccessor<ActiveFile[]>
   isReferenceStale: (refPath: string) => boolean
   hasUnsavedFileChanges: () => boolean
   isCurrentReadOnly: () => boolean
   showSaveButton: () => boolean
-  openWorktree: () => Promise<void>
   externallyChanged: SourceAccessor<boolean>
   confirmingExternalChange: SourceAccessor<boolean>
   overwriteExternalChange: () => Promise<void>

@@ -686,7 +686,7 @@ export async function clickTicketMenuItem(page: Page, item: 'edit' | 'archive' |
     state: 'visible',
     timeout: WAIT_TIMEOUT_MS,
   })
-  const itemTestId = `kanban-board-ticket-menu-${item}`
+  const itemTestId = `ticket-actions-${item}`
   await openTicketMenu(page, trigger, itemTestId) // The menu closes on the pointer press that Playwright's click sends first,
   // so the item has to be activated directly.
   await page.evaluate((id) => {

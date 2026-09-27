@@ -4,13 +4,13 @@ import { openProject, openTicketDetail, setupE2E } from './fixtures.js'
 import { testId } from './locators.js'
 
 async function runHeaderShortcut(page: Page, shortcutName: string): Promise<void> {
-  const trigger = testId(page, 'ticket-detail-shortcuts-menu-trigger')
+  const trigger = testId(page, 'ticket-detail-actions-menu-trigger')
   await trigger.waitFor({
     state: 'visible',
     timeout: 15000,
   })
   await trigger.click()
-  const selector = `[data-testid="ticket-detail-shortcuts-menu-item"]` + `[data-shortcut-name="${shortcutName}"]`
+  const selector = `[data-testid="ticket-actions-shortcut"]` + `[data-shortcut-name="${shortcutName}"]`
   await page.locator(selector).first().waitFor({
     state: 'attached',
     timeout: 15000,
@@ -60,7 +60,7 @@ describe('Ticket detail shortcuts menu (e2e, real server)', () => {
       })
       .toBeGreaterThan(0)
   })
-  it('the shortcuts menu is absent when no shortcuts are configured', async () => {
+  it('the ticket actions menu remains available when no shortcuts are configured', async () => {
     await openProject(ctx, {
       slugBase: 'tdsm-empty',
       withTickets: [
@@ -79,6 +79,13 @@ describe('Ticket detail shortcuts menu (e2e, real server)', () => {
       },
     })
     await openTicketDetail(ctx.page, 't-1-alpha')
-    expect(await testId(ctx.page, 'ticket-detail-shortcuts-menu-trigger').count()).toBe(0)
+    await testId(ctx.page, 'ticket-detail-actions-menu-trigger').click()
+    expect(await ctx.page.getByRole('menuitem').allTextContents()).toEqual([
+      'Open ticket folder',
+      'Open worktree folder',
+      'Archive',
+      'Delete',
+    ])
+    expect(await testId(ctx.page, 'ticket-actions-open-worktree').isDisabled()).toBe(true)
   })
 })

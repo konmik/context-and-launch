@@ -105,12 +105,14 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
   }
 
   function openDelete(ticket: TicketInfo) {
+    setDetailTicket(null)
     setSelectedTicket(ticket)
     setCleanupAction('delete')
     setCleanupDialogOpen(true)
   }
 
   function openArchive(ticket: TicketInfo) {
+    setDetailTicket(null)
     setSelectedTicket(ticket)
     setCleanupAction('archive')
     setCleanupDialogOpen(true)

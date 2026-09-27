@@ -13,7 +13,7 @@ async function runCardShortcut(page: Page, shortcutName: string): Promise<void> 
     timeout: 15000,
   })
   await trigger.click()
-  const selector = `[data-testid="kanban-board-ticket-menu-shortcut"]` + `[data-shortcut-name="${shortcutName}"]`
+  const selector = `[data-testid="ticket-actions-shortcut"]` + `[data-shortcut-name="${shortcutName}"]`
   await page.locator(selector).waitFor({
     state: 'attached',
     timeout: 15000,

@@ -646,6 +646,8 @@ function ProjectContent(props: { ctrl?: ProjectPageController }): JSX.Element {
               />
               <TicketDetailDialog
                 onClose={commands.closeDetail}
+                onArchive={commands.openArchive}
+                onDelete={commands.openDelete}
                 onReviewChanges={commands.openReview}
                 projectSlug={d().projectSlug}
                 ticket={selectionState().detailTicket}

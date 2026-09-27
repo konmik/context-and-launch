@@ -175,8 +175,8 @@ describe('Diff Review (e2e, real server)', () => {
       timeout: 10000,
     })
     await openTicketDetail(ctx.page, folderName)
-    await ctx.page.locator('[data-testid="ticket-detail-shortcuts-menu-trigger"]').click()
-    await ctx.page.locator('[data-testid="ticket-detail-review-changes-menu-item"]').waitFor({
+    await ctx.page.locator('[data-testid="ticket-detail-actions-menu-trigger"]').click()
+    await ctx.page.locator('[data-testid="ticket-actions-review-changes"]').waitFor({
       state: 'attached',
       timeout: 10000,
     })

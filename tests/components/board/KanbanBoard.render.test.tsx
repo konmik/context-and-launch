@@ -99,7 +99,7 @@ describe('KanbanBoard rendering', () => {
     })
     const card = screen.getByTestId('kanban-board-ticket-card')
     screen.getByTestId('kanban-board-ticket-menu-trigger').click()
-    await waitFor(() => expect(screen.getByTestId('kanban-board-ticket-menu-archive')).toBeTruthy())
+    await waitFor(() => expect(screen.getByTestId('ticket-actions-archive')).toBeTruthy())
     setTickets((current) =>
       current.map((ticket) => ({
         ...ticket,
@@ -108,7 +108,7 @@ describe('KanbanBoard rendering', () => {
     )
     await waitFor(() => expect(screen.getByText('Refreshed title')).toBeTruthy())
     expect(screen.getByTestId('kanban-board-ticket-card')).toBe(card)
-    expect(screen.getByTestId('kanban-board-ticket-menu-archive')).toBeTruthy()
+    expect(screen.getByTestId('ticket-actions-archive')).toBeTruthy()
   })
   it('updates columns from a reactive board definition', async () => {
     const [columns, setColumns] = createSignal(testColumns('todo', 'done'))

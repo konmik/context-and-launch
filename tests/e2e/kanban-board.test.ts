@@ -88,16 +88,16 @@ describe('Kanban board (e2e, real server)', () => {
     })
     const trigger = testId(ctx.page, 'kanban-board-ticket-menu-trigger').first()
     await trigger.click()
-    await testId(ctx.page, 'kanban-board-ticket-menu-archive').waitFor({
+    await testId(ctx.page, 'ticket-actions-archive').waitFor({
       state: 'visible',
       timeout: 10000,
     })
     expect(await testId(ctx.page, 'kanban-board-ticket-menu-edit').count()).toBe(0)
-    expect(await testId(ctx.page, 'kanban-board-ticket-menu-open-folder').count()).toBe(1)
-    expect(await testId(ctx.page, 'kanban-board-ticket-menu-archive').count()).toBe(1)
-    expect(await testId(ctx.page, 'kanban-board-ticket-menu-delete').count()).toBe(1)
+    expect(await testId(ctx.page, 'ticket-actions-open-folder').count()).toBe(1)
+    expect(await testId(ctx.page, 'ticket-actions-archive').count()).toBe(1)
+    expect(await testId(ctx.page, 'ticket-actions-delete').count()).toBe(1)
   })
-  it('kanban-board-ticket-menu-archive opens Archive Ticket dialog', async () => {
+  it('ticket-actions-archive opens Archive Ticket dialog', async () => {
     await openProject(ctx, {
       slugBase: 'kb-arch-menu',
       withTickets: [
@@ -112,7 +112,7 @@ describe('Kanban board (e2e, real server)', () => {
     await clickTicketMenuItem(ctx.page, 'archive')
     await waitVisible(ctx.page, 'ticket-cleanup-submit')
   })
-  it('kanban-board-ticket-menu-delete opens Delete Ticket dialog', async () => {
+  it('ticket-actions-delete opens Delete Ticket dialog', async () => {
     await openProject(ctx, {
       slugBase: 'kb-del-menu',
       withTickets: [

@@ -244,12 +244,12 @@ describe('Forest group lifecycle', () => {
       timeout: 10000,
     })
     await menuTrigger.click()
-    await testId(ctx.page, 'kanban-board-ticket-menu-archive').first().waitFor({
+    await testId(ctx.page, 'ticket-actions-archive').first().waitFor({
       state: 'attached',
       timeout: 10000,
     })
     await ctx.page.evaluate(() => {
-      const items = document.querySelectorAll<HTMLElement>('[data-testid="kanban-board-ticket-menu-archive"]')
+      const items = document.querySelectorAll<HTMLElement>('[data-testid="ticket-actions-archive"]')
       const last = items[items.length - 1]
       if (last) last.click()
     })

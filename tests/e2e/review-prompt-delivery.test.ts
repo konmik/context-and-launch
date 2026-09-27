@@ -130,7 +130,7 @@ describe('Review Prompt delivery (e2e, real server)', () => {
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
     const card = ctx.page.locator(`[data-testid="kanban-board-ticket-card"][data-folder-name="${folderName}"]`)
     await testId(card, 'kanban-board-ticket-menu-trigger').click()
-    const reviewAction = ctx.page.locator('[data-testid="kanban-board-ticket-menu-review-changes"]')
+    const reviewAction = ctx.page.locator('[data-testid="ticket-actions-review-changes"]')
     await reviewAction.waitFor({
       state: 'attached',
       timeout: 10000,
