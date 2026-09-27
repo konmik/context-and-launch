@@ -405,24 +405,9 @@ export function createAgentWorktreeManager(launcherConfig: LauncherConfigManager
       )
     }
     const mainBranch = await getMainBranch(projectPath, configuredBranch)
-    if (await isAncestorOf(projectPath, branchName, mainBranch)) return true
+    if (await isBranchIntegrated(projectPath, branchName, mainBranch)) return true
     const remoteRef = await fetchMainBranch(projectPath, mainBranch)
-    const ref = remoteRef ?? mainBranch
-    if (remoteRef && (await isAncestorOf(projectPath, branchName, remoteRef))) return true
-    return isBranchSquashMerged(projectPath, branchName, ref)
-  }
-
-  async function isAncestorOf(projectPath: string, branchName: string, mainBranch: string): Promise<boolean> {
-    const result = await commands
-      .execute('agent-worktree.merged.probe', projectPath, {
-        branch: branchName,
-        mainBranch,
-      })
-      .then(
-        () => true,
-        () => false,
-      )
-    return result
+    return remoteRef ? isBranchIntegrated(projectPath, branchName, remoteRef) : false
   }
 
   async function fetchMainBranch(projectPath: string, mainBranch: string): Promise<string | null> {
@@ -439,18 +424,41 @@ export function createAgentWorktreeManager(launcherConfig: LauncherConfigManager
     return `${remote}/${mainBranch}`
   }
 
-  async function isBranchSquashMerged(projectPath: string, branchName: string, mainBranch: string): Promise<boolean> {
-    const result = await writeMergeTree(commands, 'agent-worktree.merge-tree', projectPath, {
-      mainBranch,
-      branch: branchName,
-    })
-    if (result.status === 'conflicted') return false
+  async function isBranchIntegrated(projectPath: string, branchName: string, mainBranch: string): Promise<boolean> {
+    const isAncestor = await commands
+      .execute('agent-worktree.merged.probe', projectPath, {
+        branch: branchName,
+        mainBranch,
+      })
+      .then(
+        () => true,
+        () => false,
+      )
+    if (isAncestor) return true
     const mainTree = (
       await commands.execute('agent-worktree.main-tree', projectPath, {
         treeRef: `${mainBranch}^{tree}`,
       })
     ).trim()
-    return result.tree === mainTree
+    if (await isBranchContentIntegrated(projectPath, branchName, mainBranch, mainTree)) return true
+    const history = await commands.execute('agent-worktree.main-history', projectPath, {
+      range: `${branchName}..${mainBranch}`,
+    })
+    for (const line of history.trim().split('\n')) {
+      if (!line.trim()) continue
+      const [commit, tree] = line.trim().split(' ')
+      if (!commit || !tree) throw new Error('Git returned an invalid main branch history entry')
+      if (await isBranchContentIntegrated(projectPath, branchName, commit, tree)) return true
+    }
+    return false
+  }
+
+  async function isBranchContentIntegrated(projectPath: string, branchName: string, targetRef: string, targetTree: string): Promise<boolean> {
+    const result = await writeMergeTree(commands, 'agent-worktree.merge-tree', projectPath, {
+      mainBranch: targetRef,
+      branch: branchName,
+    })
+    return result.status === 'clean' && result.tree === targetTree
   }
 
   async function removeWorktree(projectPath: string, worktreePath: string): Promise<void> {

@@ -174,6 +174,7 @@ export const COMMAND_TEMPLATE_DEFINITIONS = [
   definition('agent-worktree.main.fetch', 'Fetch main branch', AGENT_WORKTREE, ['remote', 'mainBranch'], remoteGitOptions),
   definition('agent-worktree.merge-tree', 'Build Agent Worktree merge tree', AGENT_WORKTREE, ['mainBranch', 'branch'], gitOptions),
   definition('agent-worktree.main-tree', 'Resolve main tree', AGENT_WORKTREE, ['treeRef'], gitOptions),
+  definition('agent-worktree.main-history', 'Read main branch integration history', AGENT_WORKTREE, ['range'], gitOptions),
   definition('agent-worktree.remove', 'Remove Agent Worktree', AGENT_WORKTREE, ['worktreePath'], gitOptions),
   definition('agent-worktree.branch.delete-local', 'Delete local Agent Worktree branch', AGENT_WORKTREE, ['branch'], gitOptions),
   definition(

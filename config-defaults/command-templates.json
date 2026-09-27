@@ -71,6 +71,7 @@
   "agent-worktree.main.fetch": "git fetch {{remote}} {{mainBranch}}",
   "agent-worktree.merge-tree": "git merge-tree --write-tree {{mainBranch}} {{branch}}",
   "agent-worktree.main-tree": "git rev-parse {{treeRef}}",
+  "agent-worktree.main-history": "git log --first-parent --skip=1 --format=%H%x20%T {{range}} --",
   "agent-worktree.remove": "git worktree remove {{worktreePath}}",
   "agent-worktree.branch.delete-local": "git branch -D {{branch}}",
   "agent-worktree.locking-processes.windows": "& {{scriptPath}} {{worktreePath}}",
