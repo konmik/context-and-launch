@@ -23,7 +23,7 @@ import {
   PROJECT_LAUNCH_KEY,
   type LaunchRequest,
 } from '~/core/launcher/agent-launch.js'
-import { NotFoundError, ValidationError, errorResult, errorMessage } from '~/core/shared/errors.js'
+import { createNotFoundError, createValidationError, errorResult, errorMessage } from '~/core/shared/errors.js'
 import { success, failure } from '~/util/result.js'
 import { resolveConflictsWith } from '~/core/launcher/resolve-conflicts.js'
 import type { MergedLauncherConfig } from '~/core/launcher/launcher-config.js'
@@ -91,7 +91,7 @@ export async function launchAgentAction(
       return errorResult('Already started')
     }
     if (!launchRequest.launchDir) {
-      throw new ValidationError('launchDir is required')
+      throw createValidationError('launchDir is required')
     }
     const resolved = await ensureLaunchDir(
       projectSlug,
@@ -119,7 +119,7 @@ export async function launchProjectAgentAction(projectSlug: string, launchReques
 
   try {
     const project = projectRegistry.listProjects().find((p) => p.projectSlug === projectSlug)
-    if (!project) throw new NotFoundError(`Project not found: ${projectSlug}`)
+    if (!project) throw createNotFoundError(`Project not found: ${projectSlug}`)
     if (agentRunning(projectSlug, PROJECT_LAUNCH_KEY)) {
       return errorResult('Already started')
     }
@@ -141,7 +141,7 @@ export async function runShortcut(
   'use server'
 
   try {
-    if (!launchDir) throw new ValidationError('launchDir is required')
+    if (!launchDir) throw createValidationError('launchDir is required')
     const { ticket, project, worktreeDir } = resolveTicketAndProject(projectSlug, folderName)
     const merged = launcherConfigManager.getMergedConfig(projectSlug)
     const shortcut = merged.shortcuts.find((s) => s.name === name)

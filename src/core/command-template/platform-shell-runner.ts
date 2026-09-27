@@ -3,7 +3,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { AppError, ProcessError, type ProcessFailureKind } from '../shared/errors.js'
+import { createAppError, createProcessError, type ProcessFailureKind } from '../shared/errors.js'
 import {
   COMMAND_NOT_FOUND_EXIT_CODE,
   INTERPRETER_FAILURE_EXIT_CODE,
@@ -36,7 +36,7 @@ function buildInvocation(request: ShellExecutionRequest): ShellInvocation {
     if (request.argv.some((value) => /[\r\n]/.test(value))) {
       const rejection = strategy.newlineArgvRejection(request.argv[0])
       if (rejection) {
-        throw createProcessError(request, undefined, '', '', rejection, 'spawn-error')
+        throw createExecutionError(request, undefined, '', '', rejection, 'spawn-error')
       }
     }
   }
@@ -54,7 +54,7 @@ function executionEnvironment(request: ShellExecutionRequest): NodeJS.ProcessEnv
   }
 }
 
-function createProcessError(
+function createExecutionError(
   request: ShellExecutionRequest,
   exitCode: number | undefined,
   stdout: string,
@@ -63,8 +63,8 @@ function createProcessError(
   kind: ProcessFailureKind = classifyExitCode(exitCode),
 ): Error {
   const output = `${stdout}${stderr}`.trim() || undefined
-  if (exitCode === USER_ERROR_EXIT_CODE && stderr.trim()) return new AppError(stderr.trim())
-  return new ProcessError(displayCommand(request), exitCode, output, description, kind)
+  if (exitCode === USER_ERROR_EXIT_CODE && stderr.trim()) return createAppError(stderr.trim())
+  return createProcessError(displayCommand(request), exitCode, output, description, kind)
 }
 
 /**
@@ -76,10 +76,10 @@ function spawnFailureKind(error: { code?: string | number | null }): ProcessFail
   return error.code === 'ENOENT' ? 'command-not-found' : 'spawn-error'
 }
 
-export class FixedPlatformShellRunner implements PlatformShellRunner {
-  execute(request: ShellExecutionRequest): Promise<string> {
+export function createFixedPlatformShellRunner(): PlatformShellRunner {
+  function execute(request: ShellExecutionRequest): Promise<string> {
     if (request.mode === 'detached') {
-      return this.executeDetached(request)
+      return executeDetached(request)
     }
     const invocation = buildInvocation(request)
     return new Promise((resolve, reject) => {
@@ -102,7 +102,7 @@ export class FixedPlatformShellRunner implements PlatformShellRunner {
               : code === undefined
                 ? spawnFailureKind(error)
                 : classifyExitCode(code)
-            reject(createProcessError(request, code, stdout, stderr, description, kind))
+            reject(createExecutionError(request, code, stdout, stderr, description, kind))
             return
           }
           resolve(stdout)
@@ -111,7 +111,7 @@ export class FixedPlatformShellRunner implements PlatformShellRunner {
     })
   }
 
-  executeSync(request: ShellExecutionRequest): string {
+  function executeSync(request: ShellExecutionRequest): string {
     const invocation = buildInvocation(request)
     try {
       const stdout = execFileSync(invocation.executable, invocation.args, {
@@ -134,7 +134,7 @@ export class FixedPlatformShellRunner implements PlatformShellRunner {
       const stdout = failure.stdout?.toString() ?? ''
       const stderr = failure.stderr?.toString() ?? ''
       const status = Number.isFinite(failure.status) ? Number(failure.status) : undefined
-      throw createProcessError(
+      throw createExecutionError(
         request,
         status,
         stdout,
@@ -145,7 +145,7 @@ export class FixedPlatformShellRunner implements PlatformShellRunner {
     }
   }
 
-  private executeDetached(request: ShellExecutionRequest): Promise<string> {
+  function executeDetached(request: ShellExecutionRequest): Promise<string> {
     const invocation = buildInvocation(request)
     const stderrFile = path.join(os.tmpdir(), `context-launch-stderr-${crypto.randomUUID()}.log`)
     const descriptor = fs.openSync(stderrFile, 'w')
@@ -170,7 +170,7 @@ export class FixedPlatformShellRunner implements PlatformShellRunner {
         takeStderr()
         if (settled) return
         settled = true
-        reject(createProcessError(request, undefined, '', '', error.message, spawnFailureKind(error)))
+        reject(createExecutionError(request, undefined, '', '', error.message, spawnFailureKind(error)))
       })
       child.once('exit', (code) => {
         const stderr = takeStderr()
@@ -178,7 +178,7 @@ export class FixedPlatformShellRunner implements PlatformShellRunner {
         settled = true
         if (code !== 0) {
           reject(
-            createProcessError(
+            createExecutionError(
               request,
               code ?? undefined,
               '',
@@ -201,5 +201,10 @@ export class FixedPlatformShellRunner implements PlatformShellRunner {
         }, request.detachDelayMs ?? request.timeoutMs)
       })
     })
+  }
+
+  return {
+    execute,
+    executeSync,
   }
 }

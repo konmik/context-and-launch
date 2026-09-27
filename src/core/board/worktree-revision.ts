@@ -1,13 +1,23 @@
-export class WorktreeRevisionStore {
-  private revisions = new Map<string, number>()
+export interface WorktreeRevisionStore {
+  current(worktreeDir: string): number
+  bump(worktreeDir: string): number
+}
 
-  current(worktreeDir: string): number {
-    return this.revisions.get(worktreeDir) ?? 0
+export function createWorktreeRevisionStore(): WorktreeRevisionStore {
+  const revisions = new Map<string, number>()
+
+  function current(worktreeDir: string): number {
+    return revisions.get(worktreeDir) ?? 0
   }
 
-  bump(worktreeDir: string): number {
-    const next = this.current(worktreeDir) + 1
-    this.revisions.set(worktreeDir, next)
+  function bump(worktreeDir: string): number {
+    const next = current(worktreeDir) + 1
+    revisions.set(worktreeDir, next)
     return next
+  }
+
+  return {
+    current,
+    bump,
   }
 }

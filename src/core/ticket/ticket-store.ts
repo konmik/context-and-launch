@@ -1,12 +1,12 @@
 import path from 'path'
 import type { Dirent } from 'fs'
 import * as v from 'valibot'
-import { TicketOrderStore } from './ticket-order.js'
-import { ForestLayoutStore } from './forest-layout-store.js'
+import { createTicketOrderStore, type TicketOrderStore } from './ticket-order.js'
+import { createForestLayoutStore, type ForestLayoutStore } from './forest-layout-store.js'
 import { suggestNextTicketNumber } from './ticket-number.js'
 import { toKebabCase, normalizeTicketNumber, requireNonBlank, requireSimpleName } from './ticket-naming.js'
-import { TicketRepository } from './ticket-repository.js'
-import { ValidationError, NotFoundError } from '../shared/errors.js'
+import { createTicketRepository, type TicketRepository } from './ticket-repository.js'
+import { createValidationError, createNotFoundError } from '../shared/errors.js'
 import { mapConcurrent } from '../shared/concurrency.js'
 import {
   wouldCreateDependencyCycle,
@@ -83,91 +83,129 @@ export const RemoveReferenceBody = v.object({
 
 export type RemoveReferenceBody = v.InferOutput<typeof RemoveReferenceBody>
 
-export class TicketStore {
-  private worktreeDir: string
+export interface TicketStore {
   readonly orderStore: TicketOrderStore
   readonly forestLayoutStore: ForestLayoutStore
-  private repo: TicketRepository
-  private worktreeRootWithSep?: string
+  getTicket(folderName: string): TicketInfo | null
+  listTickets(): TicketInfo[]
+  createTicket(number: string, title: string, initialStatus?: string, memberOf?: string): TicketInfo
+  updateTicket(
+    folderName: string,
+    number?: string | null,
+    title?: string | null,
+    status?: string | null,
+    details?: Partial<Pick<StatusJson, 'useWorktree' | 'references'>>,
+  ): TicketInfo
+  deleteTicket(folderName: string): void
+  archiveTicket(folderName: string): void
+  setUseWorktree(folderName: string, value: boolean): void
+  saveAgentWorktreeInfo(folderName: string, agentWorktreeBranchName: string, agentWorktreeDir: string): void
+  clearAgentWorktreeInfo(folderName: string): void
+  getTicketContext(folderName: string, name: string): string | null
+  deleteTicketContext(folderName: string, name: string): void
+  saveTicketContext(folderName: string, name: string, content: string): void
+  listAllTicketNumbers(): Array<ListAllTicketNumbersResult>
+  suggestNextNumber(prefix?: string | null): string | null
+  loadBoardSnapshot(columns: string[]): Promise<LoadBoardSnapshotResult>
+  listTicketFiles(folderName: string): string[]
+  copyFileToTicket(folderName: string, fileName: string, content: Buffer): void
+  deleteTicketFile(folderName: string, fileName: string): void
+  getFileContent(folderName: string, fileName: string): Buffer
+  addReference(folderName: string, refPath: string): void
+  removeReference(folderName: string, refPath: string): void
+  addDependency(folderName: string, dependencyNumber: string): void
+  removeDependencies(folderName: string, dependencyNumbers: string[]): void
+  createGroup(
+    number: string,
+    title: string,
+    initialStatus: string,
+    memberFolderNames: string[],
+    parentGroupNumber?: string,
+    position?: {
+      x: number
+      y: number
+    },
+  ): TicketInfo
+  ungroup(folderName: string): void
+  getReferencedFileContent(folderName: string, refPath: string): Buffer
+}
 
-  constructor(worktreeDir: string, repo?: TicketRepository) {
-    this.worktreeDir = worktreeDir
-    this.repo = repo ?? new TicketRepository()
-    this.orderStore = new TicketOrderStore(worktreeDir, this.repo)
-    this.forestLayoutStore = new ForestLayoutStore(worktreeDir, this.repo)
+export function createTicketStore(worktreeDir: string, repo: TicketRepository = createTicketRepository()): TicketStore {
+  const orderStore = createTicketOrderStore(worktreeDir, repo)
+  const forestLayoutStore = createForestLayoutStore(worktreeDir, repo)
+  let worktreeRootWithSep: string | undefined
+
+  function requireContained(filePath: string, label: string): void {
+    requireContainedIn(filePath, worktreeDir, label)
   }
 
-  private requireContained(filePath: string, label: string): void {
-    this.requireContainedIn(filePath, this.worktreeDir, label)
-  }
-
-  private requireContainedIn(filePath: string, parent: string, label: string): void {
+  function requireContainedIn(filePath: string, parent: string, label: string): void {
     let canonical: string
-    if (this.repo.exists(filePath)) {
-      canonical = this.repo.realpathSync(filePath)
+    if (repo.exists(filePath)) {
+      canonical = repo.realpathSync(filePath)
     } else {
       const dir = path.dirname(filePath)
       const base = path.basename(filePath)
-      if (this.repo.exists(dir)) {
-        canonical = path.join(this.repo.realpathSync(dir), base)
+      if (repo.exists(dir)) {
+        canonical = path.join(repo.realpathSync(dir), base)
       } else {
         canonical = path.resolve(filePath)
       }
     }
-    const root = parent === this.worktreeDir ? this.cachedWorktreeRootWithSep() : this.resolveRootWithSep(parent)
+    const root = parent === worktreeDir ? cachedWorktreeRootWithSep() : resolveRootWithSep(parent)
     if (!canonical.startsWith(root)) {
       throw new Error(`${label} escapes allowed directory: ${canonical}`)
     }
   }
 
-  private resolveRootWithSep(parent: string): string {
-    if (!this.repo.exists(parent)) {
+  function resolveRootWithSep(parent: string): string {
+    if (!repo.exists(parent)) {
       throw new Error(`Worktree directory does not exist: ${parent}`)
     }
-    return this.repo.realpathSync(parent) + path.sep
+    return repo.realpathSync(parent) + path.sep
   }
 
-  private cachedWorktreeRootWithSep(): string {
-    if (this.worktreeRootWithSep === undefined) {
-      this.worktreeRootWithSep = this.resolveRootWithSep(this.worktreeDir)
+  function cachedWorktreeRootWithSep(): string {
+    if (worktreeRootWithSep === undefined) {
+      worktreeRootWithSep = resolveRootWithSep(worktreeDir)
     }
-    return this.worktreeRootWithSep
+    return worktreeRootWithSep
   }
 
-  private resolveTicketDir(folderName: string): string {
+  function resolveTicketDir(folderName: string): string {
     requireSimpleName(folderName, 'folderName')
-    const dir = path.join(this.worktreeDir, folderName)
-    this.requireContained(dir, 'folderName')
-    if (!this.repo.isDirectory(dir)) {
+    const dir = path.join(worktreeDir, folderName)
+    requireContained(dir, 'folderName')
+    if (!repo.isDirectory(dir)) {
       throw new Error(`Ticket not found: ${folderName}`)
     }
     return dir
   }
 
-  getTicket(folderName: string): TicketInfo | null {
+  function getTicket(folderName: string): TicketInfo | null {
     requireSimpleName(folderName, 'folderName')
-    const dir = path.join(this.worktreeDir, folderName)
-    this.requireContained(dir, 'folderName')
-    if (!this.repo.isDirectory(dir)) return null
-    return this.readTicket(dir)
+    const dir = path.join(worktreeDir, folderName)
+    requireContained(dir, 'folderName')
+    if (!repo.isDirectory(dir)) return null
+    return readTicket(dir)
   }
 
-  listTickets(): TicketInfo[] {
+  function listTickets(): TicketInfo[] {
     const tickets: TicketInfo[] = []
-    for (const dir of this.ticketDirs(false)) {
-      const ticket = this.readTicket(dir)
+    for (const dir of ticketDirs(false)) {
+      const ticket = readTicket(dir)
       if (ticket) tickets.push(ticket)
     }
-    return this.dedupeAndSortTickets(tickets)
+    return dedupeAndSortTickets(tickets)
   }
 
-  private dedupeAndSortTickets(tickets: TicketInfo[]): TicketInfo[] {
+  function dedupeAndSortTickets(tickets: TicketInfo[]): TicketInfo[] {
     const numbers = new Map<string, string>()
     for (const ticket of tickets) {
       const normalizedNumber = normalizeTicketNumber(ticket.number)
       const existingNumber = numbers.get(normalizedNumber)
       if (existingNumber) {
-        throw new ValidationError(`Duplicate Ticket Number: ${existingNumber}`)
+        throw createValidationError(`Duplicate Ticket Number: ${existingNumber}`)
       }
       numbers.set(normalizedNumber, ticket.number)
     }
@@ -175,13 +213,13 @@ export class TicketStore {
     return tickets
   }
 
-  createTicket(number: string, title: string, initialStatus = 'todo', memberOf?: string): TicketInfo {
+  function createTicket(number: string, title: string, initialStatus: string = 'todo', memberOf?: string): TicketInfo {
     if (!number.trim()) throw new Error('Ticket number must not be blank')
     if (!title.trim()) throw new Error('Ticket title must not be blank')
-    this.assertTicketNumberAvailable(number)
+    assertTicketNumberAvailable(number)
     const baseFolderName = toKebabCase(`${number} ${title}`)
-    const dir = this.resolveUniqueFolderPath(baseFolderName)
-    this.repo.createDirectory(dir)
+    const dir = resolveUniqueFolderPath(baseFolderName)
+    repo.createDirectory(dir)
     const statusData: StatusJson = {
       number: number.trim(),
       title: title.trim(),
@@ -190,22 +228,22 @@ export class TicketStore {
       createdAt: new Date().toISOString(),
     }
     if (memberOf !== undefined) statusData.memberOf = memberOf
-    this.repo.writeStatusJson(dir, statusData)
-    const ticket = this.readTicket(dir)!
-    this.orderStore.appendTicket(ticket.folderName, initialStatus)
+    repo.writeStatusJson(dir, statusData)
+    const ticket = readTicket(dir)!
+    orderStore.appendTicket(ticket.folderName, initialStatus)
     return ticket
   }
 
-  updateTicket(
+  function updateTicket(
     folderName: string,
     number?: string | null,
     title?: string | null,
     status?: string | null,
     details: Partial<Pick<StatusJson, 'useWorktree' | 'references'>> = {},
   ): TicketInfo {
-    return this.repo.runInTransaction(this.worktreeDir, () => {
-      const dir = this.resolveTicketDir(folderName)
-      const current = this.repo.readStatusJson(dir)
+    return repo.runInTransaction(worktreeDir, () => {
+      const dir = resolveTicketDir(folderName)
+      const current = repo.readStatusJson(dir)
       if (!current) throw new Error(`Malformed ticket: ${folderName}`)
       const updatedNumber = number != null ? requireNonBlank(number, 'Ticket number') : current.number
       const updatedTitle = title != null ? requireNonBlank(title, 'Ticket title') : current.title
@@ -221,18 +259,18 @@ export class TicketStore {
       const numberIdentityChanged = number != null && normalizeTicketNumber(number) !== normalizeTicketNumber(current.number)
       const needsRename = numberChanged || (title != null && title.trim() !== current.title)
       if (numberIdentityChanged) {
-        this.assertTicketNumberAvailable(updatedNumber, dir)
+        assertTicketNumberAvailable(updatedNumber, dir)
       }
       let finalDir = dir
       if (needsRename) {
         const newFolderName = toKebabCase(`${updated.number} ${updated.title}`)
         if (newFolderName !== folderName) {
-          const newDir = path.join(this.worktreeDir, newFolderName)
-          if (this.repo.exists(newDir)) {
+          const newDir = path.join(worktreeDir, newFolderName)
+          if (repo.exists(newDir)) {
             throw new Error(`Folder name collision: ${newFolderName}`)
           }
           try {
-            this.repo.renameDirectory(dir, newDir)
+            repo.renameDirectory(dir, newDir)
           } catch (err) {
             throw new Error(`Failed to rename ticket folder from ${path.basename(dir)} to ${newFolderName}`, {
               cause: err,
@@ -241,123 +279,123 @@ export class TicketStore {
           finalDir = newDir
         }
       }
-      this.repo.writeStatusJson(finalDir, updated)
+      repo.writeStatusJson(finalDir, updated)
       if (needsRename && path.basename(finalDir) !== folderName) {
-        this.orderStore.renameTicket(folderName, path.basename(finalDir))
+        orderStore.renameTicket(folderName, path.basename(finalDir))
       }
       if (numberChanged) {
-        for (const ticketDir of this.ticketDirs(true)) {
+        for (const ticketDir of ticketDirs(true)) {
           if (ticketDir === finalDir) continue
-          const status = this.repo.readStatusJson(ticketDir)
+          const status = repo.readStatusJson(ticketDir)
           if (!status) continue
           const rewritten = rewriteInboundReferences(status, current.number, updatedNumber)
-          if (rewritten) this.repo.writeStatusJson(ticketDir, rewritten)
+          if (rewritten) repo.writeStatusJson(ticketDir, rewritten)
         }
-        this.forestLayoutStore.renameTicket(current.number, updatedNumber)
+        forestLayoutStore.renameTicket(current.number, updatedNumber)
       }
-      return this.readTicket(finalDir)!
+      return readTicket(finalDir)!
     })
   }
 
-  deleteTicket(folderName: string): void {
-    this.repo.runInTransaction(this.worktreeDir, () => {
-      const dir = this.resolveTicketDir(folderName)
-      const status = this.repo.readStatusJson(dir)
+  function deleteTicket(folderName: string): void {
+    repo.runInTransaction(worktreeDir, () => {
+      const dir = resolveTicketDir(folderName)
+      const status = repo.readStatusJson(dir)
       const ticketNumber = status?.number
-      this.repo.removeDirectory(dir)
-      this.orderStore.removeTicket(folderName)
+      repo.removeDirectory(dir)
+      orderStore.removeTicket(folderName)
       if (ticketNumber) {
-        for (const ticketDir of this.ticketDirs(true)) {
-          const s = this.repo.readStatusJson(ticketDir)
+        for (const ticketDir of ticketDirs(true)) {
+          const s = repo.readStatusJson(ticketDir)
           if (!s) continue
           const cleaned = removeInboundReferences(s, ticketNumber)
-          if (cleaned) this.repo.writeStatusJson(ticketDir, cleaned)
+          if (cleaned) repo.writeStatusJson(ticketDir, cleaned)
         }
-        this.forestLayoutStore.removeTicket(ticketNumber)
+        forestLayoutStore.removeTicket(ticketNumber)
       }
     })
   }
 
-  archiveTicket(folderName: string): void {
-    const dir = this.resolveTicketDir(folderName)
-    const archiveDir = path.join(this.worktreeDir, 'archive')
-    this.repo.createDirectory(archiveDir)
+  function archiveTicket(folderName: string): void {
+    const dir = resolveTicketDir(folderName)
+    const archiveDir = path.join(worktreeDir, 'archive')
+    repo.createDirectory(archiveDir)
     const dest = path.join(archiveDir, folderName)
-    if (this.repo.exists(dest)) {
+    if (repo.exists(dest)) {
       throw new Error(`Archive destination already exists: ${folderName}`)
     }
-    this.repo.renameDirectory(dir, dest)
-    this.orderStore.removeTicket(folderName)
+    repo.renameDirectory(dir, dest)
+    orderStore.removeTicket(folderName)
   }
 
-  setUseWorktree(folderName: string, value: boolean): void {
-    const dir = this.resolveTicketDir(folderName)
-    const current = this.repo.readStatusJson(dir)
+  function setUseWorktree(folderName: string, value: boolean): void {
+    const dir = resolveTicketDir(folderName)
+    const current = repo.readStatusJson(dir)
     if (!current) throw new Error(`Ticket not found: ${folderName}`)
-    this.repo.writeStatusJson(dir, {
+    repo.writeStatusJson(dir, {
       ...current,
       useWorktree: value,
     })
   }
 
-  saveAgentWorktreeInfo(folderName: string, agentWorktreeBranchName: string, agentWorktreeDir: string): void {
-    const dir = this.resolveTicketDir(folderName)
-    const current = this.repo.readStatusJson(dir)
+  function saveAgentWorktreeInfo(folderName: string, agentWorktreeBranchName: string, agentWorktreeDir: string): void {
+    const dir = resolveTicketDir(folderName)
+    const current = repo.readStatusJson(dir)
     if (!current) throw new Error(`Ticket not found: ${folderName}`)
-    this.repo.writeStatusJson(dir, {
+    repo.writeStatusJson(dir, {
       ...current,
       agentWorktreeBranchName,
       agentWorktreeDir,
     })
   }
 
-  clearAgentWorktreeInfo(folderName: string): void {
-    const dir = this.resolveTicketDir(folderName)
-    const current = this.repo.readStatusJson(dir)
+  function clearAgentWorktreeInfo(folderName: string): void {
+    const dir = resolveTicketDir(folderName)
+    const current = repo.readStatusJson(dir)
     if (!current) throw new Error(`Ticket not found: ${folderName}`)
     const { agentWorktreeBranchName, agentWorktreeDir, ...rest } = current
-    this.repo.writeStatusJson(dir, rest)
+    repo.writeStatusJson(dir, rest)
   }
 
-  getTicketContext(folderName: string, name: string): string | null {
+  function getTicketContext(folderName: string, name: string): string | null {
     requireSimpleName(name, 'name')
-    const dir = path.join(this.worktreeDir, folderName)
-    this.requireContained(dir, 'folderName')
-    if (!this.repo.isDirectory(dir)) {
+    const dir = path.join(worktreeDir, folderName)
+    requireContained(dir, 'folderName')
+    if (!repo.isDirectory(dir)) {
       return null
     }
     const file = path.join(dir, `${name}.md`)
-    this.requireContained(file, 'name')
-    this.requireContainedIn(file, dir, 'name')
-    return this.repo.exists(file) ? this.repo.readFileText(file) : null
+    requireContained(file, 'name')
+    requireContainedIn(file, dir, 'name')
+    return repo.exists(file) ? repo.readFileText(file) : null
   }
 
-  deleteTicketContext(folderName: string, name: string): void {
+  function deleteTicketContext(folderName: string, name: string): void {
     requireSimpleName(name, 'name')
-    const dir = this.resolveTicketDir(folderName)
+    const dir = resolveTicketDir(folderName)
     const file = path.join(dir, `${name}.md`)
-    this.requireContained(file, 'name')
-    this.requireContainedIn(file, dir, 'name')
-    if (!this.repo.exists(file)) return
-    this.repo.deleteFile(file)
+    requireContained(file, 'name')
+    requireContainedIn(file, dir, 'name')
+    if (!repo.exists(file)) return
+    repo.deleteFile(file)
   }
 
-  saveTicketContext(folderName: string, name: string, content: string): void {
+  function saveTicketContext(folderName: string, name: string, content: string): void {
     requireSimpleName(name, 'name')
-    const dir = this.resolveTicketDir(folderName)
+    const dir = resolveTicketDir(folderName)
     const file = path.join(dir, `${name}.md`)
-    this.requireContained(file, 'name')
-    this.requireContainedIn(file, dir, 'name')
-    this.repo.writeFile(file, content)
+    requireContained(file, 'name')
+    requireContainedIn(file, dir, 'name')
+    repo.writeFile(file, content)
   }
 
-  listAllTicketNumbers(): Array<ListAllTicketNumbersResult> {
+  function listAllTicketNumbers(): Array<ListAllTicketNumbersResult> {
     const results: Array<{
       number: string
       createdAt?: string
     }> = []
-    for (const dir of this.ticketDirs(true)) {
-      const status = this.repo.readStatusJson(dir)
+    for (const dir of ticketDirs(true)) {
+      const status = repo.readStatusJson(dir)
       if (status) {
         results.push({
           number: status.number,
@@ -368,22 +406,22 @@ export class TicketStore {
     return results
   }
 
-  suggestNextNumber(prefix?: string | null): string | null {
-    return suggestNextTicketNumber(this.listAllTicketNumbers(), prefix)
+  function suggestNextNumber(prefix?: string | null): string | null {
+    return suggestNextTicketNumber(listAllTicketNumbers(), prefix)
   }
 
-  private readTicket(dir: string): TicketInfo | null {
-    const status = this.repo.readStatusJson(dir)
+  function readTicket(dir: string): TicketInfo | null {
+    const status = repo.readStatusJson(dir)
     if (!status) return null
-    const entries = this.repo.listEntries(dir)
+    const entries = repo.listEntries(dir)
     const references = (status.references ?? []).map((ref) => ({
       path: ref.path,
-      exists: this.repo.exists(ref.path),
+      exists: repo.exists(ref.path),
     }))
-    return this.buildTicketInfo(dir, status, entries, references)
+    return buildTicketInfo(dir, status, entries, references)
   }
 
-  private buildTicketInfo(
+  function buildTicketInfo(
     dir: string,
     status: StatusJson,
     entries: Dirent[],
@@ -418,14 +456,14 @@ export class TicketStore {
     }
   }
 
-  async loadBoardSnapshot(columns: string[]): Promise<LoadBoardSnapshotResult> {
-    const activeDirs = await this.ticketDirsIn(this.worktreeDir)
-    const tickets = this.dedupeAndSortTickets(
-      (await mapConcurrent(activeDirs, READ_CONCURRENCY, (dir) => this.readTicketAsync(dir))).filter((t): t is TicketInfo => t !== null),
+  async function loadBoardSnapshot(columns: string[]): Promise<LoadBoardSnapshotResult> {
+    const activeDirs = await ticketDirsIn(worktreeDir)
+    const tickets = dedupeAndSortTickets(
+      (await mapConcurrent(activeDirs, READ_CONCURRENCY, (dir) => readTicketAsync(dir))).filter((t): t is TicketInfo => t !== null),
     )
-    const ticketOrder = this.orderStore.reconcileAndSave(tickets, columns)
-    const archiveDirs = await this.ticketDirsIn(path.join(this.worktreeDir, 'archive'))
-    const archiveStatuses = archiveDirs.map((dir) => this.repo.readStatusJson(dir)).filter((s): s is StatusJson => s !== null)
+    const ticketOrder = orderStore.reconcileAndSave(tickets, columns)
+    const archiveDirs = await ticketDirsIn(path.join(worktreeDir, 'archive'))
+    const archiveStatuses = archiveDirs.map((dir) => repo.readStatusJson(dir)).filter((s): s is StatusJson => s !== null)
     const suggestedNextNumber = suggestNextTicketNumber([...tickets, ...archiveStatuses])
     return {
       tickets,
@@ -434,77 +472,77 @@ export class TicketStore {
     }
   }
 
-  private async ticketDirsIn(parentDir: string): Promise<string[]> {
-    const entries = await this.repo.listEntriesAsync(parentDir)
+  async function ticketDirsIn(parentDir: string): Promise<string[]> {
+    const entries = await repo.listEntriesAsync(parentDir)
     return entries.filter(isTicketDirEntry).map((e) => path.join(parentDir, e.name))
   }
 
-  private async readTicketAsync(dir: string): Promise<TicketInfo | null> {
-    const status = this.repo.readStatusJson(dir)
+  async function readTicketAsync(dir: string): Promise<TicketInfo | null> {
+    const status = repo.readStatusJson(dir)
     if (!status) return null
-    const entries = await this.repo.listEntriesAsync(dir)
+    const entries = await repo.listEntriesAsync(dir)
     const references = (status.references ?? []).map((ref) => ({
       path: ref.path,
-      exists: this.repo.exists(ref.path),
+      exists: repo.exists(ref.path),
     }))
-    return this.buildTicketInfo(dir, status, entries, references)
+    return buildTicketInfo(dir, status, entries, references)
   }
 
-  listTicketFiles(folderName: string): string[] {
-    const dir = this.resolveTicketDir(folderName)
-    const entries = this.repo.listEntries(dir)
+  function listTicketFiles(folderName: string): string[] {
+    const dir = resolveTicketDir(folderName)
+    const entries = repo.listEntries(dir)
     return entries
       .filter((e) => e.isFile() && e.name !== 'status.json')
       .map((e) => e.name)
       .sort()
   }
 
-  copyFileToTicket(folderName: string, fileName: string, content: Buffer): void {
+  function copyFileToTicket(folderName: string, fileName: string, content: Buffer): void {
     requireSimpleName(fileName, 'fileName')
     if (fileName === 'status.json') {
       throw new Error('Cannot overwrite status.json')
     }
-    const dir = this.resolveTicketDir(folderName)
+    const dir = resolveTicketDir(folderName)
     const filePath = path.join(dir, fileName)
-    this.requireContainedIn(filePath, dir, 'fileName')
-    this.repo.writeFile(filePath, content)
+    requireContainedIn(filePath, dir, 'fileName')
+    repo.writeFile(filePath, content)
   }
 
-  deleteTicketFile(folderName: string, fileName: string): void {
+  function deleteTicketFile(folderName: string, fileName: string): void {
     requireSimpleName(fileName, 'fileName')
     if (fileName === 'status.json') {
       throw new Error('Cannot delete status.json')
     }
-    const dir = this.resolveTicketDir(folderName)
+    const dir = resolveTicketDir(folderName)
     const filePath = path.join(dir, fileName)
-    this.requireContainedIn(filePath, dir, 'fileName')
-    if (!this.repo.exists(filePath)) {
+    requireContainedIn(filePath, dir, 'fileName')
+    if (!repo.exists(filePath)) {
       throw new Error(`File not found: ${fileName}`)
     }
-    this.repo.deleteFile(filePath)
+    repo.deleteFile(filePath)
   }
 
-  getFileContent(folderName: string, fileName: string): Buffer {
+  function getFileContent(folderName: string, fileName: string): Buffer {
     requireSimpleName(fileName, 'fileName')
-    const dir = this.resolveTicketDir(folderName)
+    const dir = resolveTicketDir(folderName)
     const filePath = path.join(dir, fileName)
-    this.requireContainedIn(filePath, dir, 'fileName')
-    if (!this.repo.exists(filePath)) {
+    requireContainedIn(filePath, dir, 'fileName')
+    if (!repo.exists(filePath)) {
       throw new Error(`File not found: ${fileName}`)
     }
-    return this.repo.readFile(filePath)
+    return repo.readFile(filePath)
   }
 
-  private updateStatus(folderName: string, transform: (current: StatusJson) => StatusJson): void {
-    const dir = this.resolveTicketDir(folderName)
-    const current = this.repo.readStatusJson(dir)
+  function updateStatus(folderName: string, transform: (current: StatusJson) => StatusJson): void {
+    const dir = resolveTicketDir(folderName)
+    const current = repo.readStatusJson(dir)
     if (!current) throw new Error(`Malformed ticket: ${folderName}`)
     const next = transform(current)
-    if (next !== current) this.repo.writeStatusJson(dir, next)
+    if (next !== current) repo.writeStatusJson(dir, next)
   }
 
-  addReference(folderName: string, refPath: string): void {
-    this.updateStatus(folderName, (current) => {
+  function addReference(folderName: string, refPath: string): void {
+    updateStatus(folderName, (current) => {
       const references = current.references ?? []
       return references.some((reference) => reference.path === refPath)
         ? current
@@ -520,23 +558,23 @@ export class TicketStore {
     })
   }
 
-  removeReference(folderName: string, refPath: string): void {
-    this.updateStatus(folderName, (current) => ({
+  function removeReference(folderName: string, refPath: string): void {
+    updateStatus(folderName, (current) => ({
       ...current,
       references: (current.references ?? []).filter((reference) => reference.path !== refPath),
     }))
   }
 
-  addDependency(folderName: string, dependencyNumber: string): void {
-    this.updateStatus(folderName, (current) => {
-      const tickets = this.listTickets()
+  function addDependency(folderName: string, dependencyNumber: string): void {
+    updateStatus(folderName, (current) => {
+      const tickets = listTickets()
       if (!tickets.some((ticket) => ticket.number === dependencyNumber)) {
-        throw new ValidationError(`Dependency target does not exist: ${dependencyNumber}`)
+        throw createValidationError(`Dependency target does not exist: ${dependencyNumber}`)
       }
       const existing = current.dependsOn ?? []
       if (existing.includes(dependencyNumber)) return current
       if (wouldCreateDependencyCycle(tickets, current.number, dependencyNumber)) {
-        throw new ValidationError('Dependency would create a cycle')
+        throw createValidationError('Dependency would create a cycle')
       }
       return {
         ...current,
@@ -545,8 +583,8 @@ export class TicketStore {
     })
   }
 
-  removeDependencies(folderName: string, dependencyNumbers: string[]): void {
-    this.updateStatus(folderName, (current) => {
+  function removeDependencies(folderName: string, dependencyNumbers: string[]): void {
+    updateStatus(folderName, (current) => {
       const removed = new Set(dependencyNumbers)
       const remaining = (current.dependsOn ?? []).filter((number) => !removed.has(number))
       return {
@@ -556,7 +594,7 @@ export class TicketStore {
     })
   }
 
-  createGroup(
+  function createGroup(
     number: string,
     title: string,
     initialStatus: string,
@@ -567,22 +605,22 @@ export class TicketStore {
       y: number
     },
   ): TicketInfo {
-    return this.repo.runInTransaction(this.worktreeDir, () => {
+    return repo.runInTransaction(worktreeDir, () => {
       const memberInfos: Array<{
         dir: string
         status: StatusJson
       }> = []
       for (const fn of memberFolderNames) {
-        const dir = this.resolveTicketDir(fn)
-        const status = this.repo.readStatusJson(dir)
-        if (!status) throw new NotFoundError(`Member ticket not found: ${fn}`)
+        const dir = resolveTicketDir(fn)
+        const status = repo.readStatusJson(dir)
+        if (!status) throw createNotFoundError(`Member ticket not found: ${fn}`)
         memberInfos.push({
           dir,
           status,
         })
       }
       const memberNumbers = memberInfos.map((m) => m.status.number)
-      const allTickets: TicketRelation[] = this.listTickets()
+      const allTickets: TicketRelation[] = listTickets()
       if (parentGroupNumber !== undefined) {
         allTickets.push({
           number,
@@ -590,92 +628,127 @@ export class TicketStore {
         })
       }
       if (wouldCreateMembershipCycle(allTickets, memberNumbers, number)) {
-        throw new ValidationError('Grouping would create a membership cycle')
+        throw createValidationError('Grouping would create a membership cycle')
       }
-      const groupTicket = this.createTicket(number, title, initialStatus, parentGroupNumber)
+      const groupTicket = createTicket(number, title, initialStatus, parentGroupNumber)
       for (const member of memberInfos) {
-        this.repo.writeStatusJson(member.dir, {
+        repo.writeStatusJson(member.dir, {
           ...member.status,
           memberOf: number,
         })
       }
       if (position) {
-        this.forestLayoutStore.translateIntoGroup(number, position, memberNumbers)
+        forestLayoutStore.translateIntoGroup(number, position, memberNumbers)
       }
       return groupTicket
     })
   }
 
-  ungroup(folderName: string): void {
-    this.repo.runInTransaction(this.worktreeDir, () => {
-      const dir = this.resolveTicketDir(folderName)
-      const groupStatus = this.repo.readStatusJson(dir)
+  function ungroup(folderName: string): void {
+    repo.runInTransaction(worktreeDir, () => {
+      const dir = resolveTicketDir(folderName)
+      const groupStatus = repo.readStatusJson(dir)
       if (!groupStatus) throw new Error(`Malformed ticket: ${folderName}`)
       const memberNumbers: string[] = []
-      for (const ticketDir of this.ticketDirs(false)) {
-        const status = this.repo.readStatusJson(ticketDir)
+      for (const ticketDir of ticketDirs(false)) {
+        const status = repo.readStatusJson(ticketDir)
         if (!status || status.memberOf !== groupStatus.number) continue
         memberNumbers.push(status.number)
-        this.repo.writeStatusJson(ticketDir, {
+        repo.writeStatusJson(ticketDir, {
           ...status,
           memberOf: groupStatus.memberOf,
         })
       }
-      this.forestLayoutStore.translateOutOfGroup(groupStatus.number, memberNumbers)
+      forestLayoutStore.translateOutOfGroup(groupStatus.number, memberNumbers)
     })
   }
 
-  getReferencedFileContent(folderName: string, refPath: string): Buffer {
-    const dir = this.resolveTicketDir(folderName)
-    const status = this.repo.readStatusJson(dir)
+  function getReferencedFileContent(folderName: string, refPath: string): Buffer {
+    const dir = resolveTicketDir(folderName)
+    const status = repo.readStatusJson(dir)
     if (!status) throw new Error(`Malformed ticket: ${folderName}`)
     const refs = status.references ?? []
     if (!refs.some((r) => r.path === refPath)) {
       throw new Error(`Path is not a registered reference of ticket ${status.number}: ${refPath}`)
     }
-    if (!this.repo.exists(refPath)) {
+    if (!repo.exists(refPath)) {
       throw new Error(`Referenced file not found: ${refPath}`)
     }
-    return this.repo.readFile(refPath)
+    return repo.readFile(refPath)
   }
 
-  private ticketDirs(includeArchive: boolean): string[] {
+  function ticketDirs(includeArchive: boolean): string[] {
     const dirs: string[] = []
     const scan = (parentDir: string) => {
-      if (!this.repo.exists(parentDir)) return
-      const entries = this.repo.listEntries(parentDir)
+      if (!repo.exists(parentDir)) return
+      const entries = repo.listEntries(parentDir)
       for (const entry of entries) {
         if (!isTicketDirEntry(entry)) continue
         dirs.push(path.join(parentDir, entry.name))
       }
     }
-    scan(this.worktreeDir)
+    scan(worktreeDir)
     if (includeArchive) {
-      scan(path.join(this.worktreeDir, 'archive'))
+      scan(path.join(worktreeDir, 'archive'))
     }
     return dirs
   }
 
-  private assertTicketNumberAvailable(number: string, excludedDir?: string): void {
+  function assertTicketNumberAvailable(number: string, excludedDir?: string): void {
     const normalized = normalizeTicketNumber(number)
-    for (const ticketDir of this.ticketDirs(true)) {
+    for (const ticketDir of ticketDirs(true)) {
       if (ticketDir === excludedDir) continue
-      const status = this.repo.readStatusJson(ticketDir)
+      const status = repo.readStatusJson(ticketDir)
       if (status && normalizeTicketNumber(status.number) === normalized) {
-        throw new ValidationError(`Ticket Number already exists: ${status.number}`)
+        throw createValidationError(`Ticket Number already exists: ${status.number}`)
       }
     }
   }
 
-  private resolveUniqueFolderPath(baseName: string): string {
-    let dir = path.join(this.worktreeDir, baseName)
-    if (!this.repo.exists(dir)) return dir
+  function resolveUniqueFolderPath(baseName: string): string {
+    let dir = path.join(worktreeDir, baseName)
+    if (!repo.exists(dir)) return dir
     let i = 2
     while (true) {
-      dir = path.join(this.worktreeDir, `${baseName}-${i}`)
-      if (!this.repo.exists(dir)) return dir
+      dir = path.join(worktreeDir, `${baseName}-${i}`)
+      if (!repo.exists(dir)) return dir
       i++
     }
+  }
+
+  return {
+    get orderStore() {
+      return orderStore
+    },
+    get forestLayoutStore() {
+      return forestLayoutStore
+    },
+    getTicket,
+    listTickets,
+    createTicket,
+    updateTicket,
+    deleteTicket,
+    archiveTicket,
+    setUseWorktree,
+    saveAgentWorktreeInfo,
+    clearAgentWorktreeInfo,
+    getTicketContext,
+    deleteTicketContext,
+    saveTicketContext,
+    listAllTicketNumbers,
+    suggestNextNumber,
+    loadBoardSnapshot,
+    listTicketFiles,
+    copyFileToTicket,
+    deleteTicketFile,
+    getFileContent,
+    addReference,
+    removeReference,
+    addDependency,
+    removeDependencies,
+    createGroup,
+    ungroup,
+    getReferencedFileContent,
   }
 }
 

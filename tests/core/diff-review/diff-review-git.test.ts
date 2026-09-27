@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js'
 import { git } from '../../test-git.js'
 import { makeTempDir, removeTempDirOrWarn } from '../../test-temp.js'
-import { DiffReviewGitService } from '../../../src/core/diff-review/diff-review-git.js'
+import { createDiffReviewGitService } from '../../../src/core/diff-review/diff-review-git.js'
 
 const dirs: string[] = []
 
@@ -29,7 +29,7 @@ async function createRepository(): Promise<string> {
 describe('DiffReviewGitService', () => {
   it('separates All, Branch, Uncommitted, and Last Commit scopes', async () => {
     const repoDir = await createRepository()
-    const service = new DiffReviewGitService(createTestCommandTemplateService())
+    const service = createDiffReviewGitService(createTestCommandTemplateService())
     fs.writeFileSync(path.join(repoDir, 'tracked.txt'), 'working\n')
     fs.writeFileSync(path.join(repoDir, 'staged.txt'), 'staged\n')
     await git(repoDir, 'add', 'staged.txt')
@@ -70,7 +70,7 @@ describe('DiffReviewGitService', () => {
     fs.writeFileSync(path.join(repoDir, 'tracked.txt'), 'one\r\ntwo changed\r\nthree\r\n')
     await git(repoDir, 'add', '-A')
     await git(repoDir, 'commit', '-m', 'feature')
-    const service = new DiffReviewGitService(createTestCommandTemplateService())
+    const service = createDiffReviewGitService(createTestCommandTemplateService())
     const snapshot = await service.loadSnapshot(
       {
         worktreePath: repoDir,
@@ -96,7 +96,7 @@ describe('DiffReviewGitService', () => {
     await git(repoDir, 'commit', '-m', 'base')
     await git(repoDir, 'checkout', '-b', 'feature')
     fs.writeFileSync(path.join(repoDir, 'tracked.txt'), 'one\ntwo changed\nthree\n')
-    const service = new DiffReviewGitService(createTestCommandTemplateService())
+    const service = createDiffReviewGitService(createTestCommandTemplateService())
     const snapshot = await service.loadSnapshot(
       {
         worktreePath: repoDir,
@@ -113,7 +113,7 @@ describe('DiffReviewGitService', () => {
   it('keeps invalid UTF-8 assets non-selectable without requiring a NUL byte', async () => {
     const repoDir = await createRepository()
     fs.writeFileSync(path.join(repoDir, 'asset.bin'), Buffer.from([255, 254, 253, 252]))
-    const service = new DiffReviewGitService(createTestCommandTemplateService())
+    const service = createDiffReviewGitService(createTestCommandTemplateService())
     const snapshot = await service.loadSnapshot(
       {
         worktreePath: repoDir,
@@ -127,7 +127,7 @@ describe('DiffReviewGitService', () => {
   })
   it('reports a missing configured main branch instead of substituting a scope', async () => {
     const repoDir = await createRepository()
-    const service = new DiffReviewGitService(createTestCommandTemplateService())
+    const service = createDiffReviewGitService(createTestCommandTemplateService())
     await expect(
       service.loadSnapshot(
         {

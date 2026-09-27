@@ -1,4 +1,4 @@
-import { ProcessError } from '../shared/errors.js'
+import { isProcessError } from '../shared/errors.js'
 import type { CommandTemplateKey } from '../command-template/command-template-definitions.js'
 import type { CommandTemplateExecutor, CommandTemplateValues } from '../command-template/command-template-types.js'
 
@@ -33,7 +33,7 @@ export async function writeMergeTree(
       tree,
     }
   } catch (error) {
-    if (error instanceof ProcessError && error.exitedWith(1)) {
+    if (isProcessError(error) && error.exitedWith(1)) {
       return {
         status: 'conflicted',
       }

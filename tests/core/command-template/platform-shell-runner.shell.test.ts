@@ -3,7 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import { runDetachedProcess } from './platform-shell-runner.test-utils.js'
 import { isAlive } from '../../../src/core/launcher/process-utils.js'
-import { ProcessError } from '../../../src/core/shared/errors.js'
+import { isProcessError } from '../../../src/core/shared/errors.js'
 import { killIfAlive, runSurvivalFixture, useTempDirs, waitForFile } from './platform-shell-fixture.test-utils.js'
 
 const makeTempDir = useTempDirs('platform-shell-runner-shell-test-')
@@ -39,7 +39,7 @@ describe.runIf(process.platform === 'win32')('platform shell runner windows .cmd
     const shimPath = path.join(makeTempDir(), 'tool.cmd')
     fs.writeFileSync(shimPath, '@echo off\r\necho ran> out.txt\r\n')
     const promise = runDetachedProcess(shimPath, ['line one\nline two'], cwd)
-    await expect(promise).rejects.toBeInstanceOf(ProcessError)
+    await expect(promise).rejects.toSatisfy(isProcessError)
     await expect(promise).rejects.toThrow(/newline/i)
     expect(fs.existsSync(path.join(cwd, 'out.txt'))).toBe(false)
   })

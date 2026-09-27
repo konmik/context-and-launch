@@ -15,12 +15,12 @@ if (globalThis.CSS === undefined) {
 }
 if (globalThis.ResizeObserver === undefined) {
   Object.assign(globalThis, {
-    ResizeObserver: class {
-      observe() {}
-
-      unobserve() {}
-
-      disconnect() {}
+    ResizeObserver: function createResizeObserver(): ResizeObserver {
+      return {
+        observe() {},
+        unobserve() {},
+        disconnect() {},
+      }
     },
   })
 }

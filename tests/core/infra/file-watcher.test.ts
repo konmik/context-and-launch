@@ -1,22 +1,37 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { fromAny, fromPartial } from '@total-typescript/shoehorn'
 import type { CommandTemplateExecutor } from '../../../src/core/command-template/command-template-types.js'
-import { FileWatcher, type FileWatcherAdapters, type FileWatcherHandle } from '../../../src/core/infra/file-watcher.js'
+import { createFileWatcher, type FileWatcherAdapters } from '../../../src/core/infra/file-watcher.js'
 
-class FakeWatcher implements FileWatcherHandle {
-  private readonly listeners = new Map<string, Array<(...args: never[]) => void>>()
-  readonly close = vi.fn(async () => {})
+interface FakeWatcher {
+  readonly close: Mock<() => Promise<void>>
+  on(event: string, callback: (...args: never[]) => void): FakeWatcher
+  emit(event: string, ...args: never[]): void
+}
 
-  on(event: string, callback: (...args: never[]) => void): this {
-    const listeners = this.listeners.get(event) ?? []
+function createFakeWatcher(): FakeWatcher {
+  const listenersValue = new Map<string, Array<(...args: never[]) => void>>()
+  const close = vi.fn(async () => {})
+
+  function on(event: string, callback: (...args: never[]) => void): FakeWatcher {
+    const listeners = listenersValue.get(event) ?? []
     listeners.push(callback)
-    this.listeners.set(event, listeners)
-    return this
+    listenersValue.set(event, listeners)
+    return instance
   }
 
-  emit(event: string, ...args: never[]): void {
-    for (const listener of this.listeners.get(event) ?? []) listener(...args)
+  function emit(event: string, ...args: never[]): void {
+    for (const listener of listenersValue.get(event) ?? []) listener(...args)
   }
+
+  const instance: FakeWatcher = {
+    get close() {
+      return close
+    },
+    on,
+    emit,
+  }
+  return instance
 }
 
 function createHarness(status = ''): HarnessResult {
@@ -29,7 +44,7 @@ function createHarness(status = ''): HarnessResult {
   })
   const adapters: FileWatcherAdapters = {
     createWatcher: vi.fn((_dir, options) => {
-      const handle = new FakeWatcher()
+      const handle = createFakeWatcher()
       handles.push(handle)
       ignored.push(fromAny(options?.ignored))
       return handle
@@ -53,7 +68,7 @@ describe('FileWatcher', () => {
   })
   it('creates one watcher per directory and permits additive watches', () => {
     const harness = createHarness()
-    const watcher = new FileWatcher(harness.commands, undefined, harness.adapters)
+    const watcher = createFileWatcher(harness.commands, undefined, harness.adapters)
     watcher.watch('/one')
     watcher.watch('/one')
     watcher.watch('/two')
@@ -62,7 +77,7 @@ describe('FileWatcher', () => {
   it('debounces file events, replaces the timer, and reports before and after commit', () => {
     const harness = createHarness(' M ticket.json')
     const onChange = vi.fn()
-    const watcher = new FileWatcher(harness.commands, onChange, harness.adapters)
+    const watcher = createFileWatcher(harness.commands, onChange, harness.adapters)
     watcher.watch('/repo', 200)
     harness.handles[0].emit('add')
     vi.advanceTimersByTime(100)
@@ -79,7 +94,7 @@ describe('FileWatcher', () => {
   })
   it('does not create a redundant commit when staging leaves a clean status', () => {
     const harness = createHarness('')
-    const watcher = new FileWatcher(harness.commands, undefined, harness.adapters)
+    const watcher = createFileWatcher(harness.commands, undefined, harness.adapters)
     watcher.watch('/repo', 10)
     harness.handles[0].emit('unlink')
     vi.runAllTimers()
@@ -88,7 +103,7 @@ describe('FileWatcher', () => {
   })
   it('cancels pending work on stop and creates a fresh watcher on rewatch', () => {
     const harness = createHarness(' M ticket.json')
-    const watcher = new FileWatcher(harness.commands, undefined, harness.adapters)
+    const watcher = createFileWatcher(harness.commands, undefined, harness.adapters)
     watcher.watch('/repo', 10)
     harness.handles[0].emit('add')
     watcher.stop('/repo')
@@ -100,7 +115,7 @@ describe('FileWatcher', () => {
   })
   it('stopAll closes every watcher and cancels all pending work', () => {
     const harness = createHarness(' M ticket.json')
-    const watcher = new FileWatcher(harness.commands, undefined, harness.adapters)
+    const watcher = createFileWatcher(harness.commands, undefined, harness.adapters)
     watcher.watch('/one', 10)
     watcher.watch('/two', 10)
     harness.handles[0].emit('add')
@@ -112,7 +127,7 @@ describe('FileWatcher', () => {
   })
   it('catches up a non-dot change discovered when the watcher becomes ready', () => {
     const harness = createHarness(' M ticket.json\n?? nested/new.md')
-    const watcher = new FileWatcher(harness.commands, undefined, harness.adapters)
+    const watcher = createFileWatcher(harness.commands, undefined, harness.adapters)
     watcher.watch('/repo', 10)
     harness.handles[0].emit('ready')
     vi.runAllTimers()
@@ -122,7 +137,7 @@ describe('FileWatcher', () => {
   })
   it('ignores dot-only ready changes, including quoted and nested paths', () => {
     const harness = createHarness('?? .hidden\n?? ".cache/entry.txt"')
-    const watcher = new FileWatcher(harness.commands, undefined, harness.adapters)
+    const watcher = createFileWatcher(harness.commands, undefined, harness.adapters)
     watcher.watch('/repo', 10)
     harness.handles[0].emit('ready')
     vi.runAllTimers()
@@ -131,7 +146,7 @@ describe('FileWatcher', () => {
   })
   it('filters dot segments only inside the watched root', () => {
     const harness = createHarness()
-    const watcher = new FileWatcher(harness.commands, undefined, harness.adapters)
+    const watcher = createFileWatcher(harness.commands, undefined, harness.adapters)
     watcher.watch('/parent/.context-launch/repo')
     expect(harness.ignored[0]('/parent/.context-launch/repo/ticket.json')).toBe(false)
     expect(harness.ignored[0]('/parent/.context-launch/repo/.git/index')).toBe(true)
@@ -144,7 +159,7 @@ describe('FileWatcher', () => {
     vi.mocked(harness.adapters.createWatcher).mockImplementationOnce(() => {
       throw creationError
     })
-    const watcher = new FileWatcher(harness.commands, undefined, harness.adapters)
+    const watcher = createFileWatcher(harness.commands, undefined, harness.adapters)
     watcher.watch('/create-error')
     watcher.watch('/repo', 10)
     harness.handles[0].emit('error', fromAny(new Error('watch error')))
@@ -171,7 +186,7 @@ describe('FileWatcher', () => {
   })
   it('closes the watcher before an exclusive task runs and re-watches afterward', async () => {
     const harness = createHarness()
-    const watcher = new FileWatcher(harness.commands, undefined, harness.adapters)
+    const watcher = createFileWatcher(harness.commands, undefined, harness.adapters)
     watcher.watch('/repo', 10)
     const order: string[] = []
     harness.handles[0].close.mockImplementation(async () => {
@@ -188,7 +203,7 @@ describe('FileWatcher', () => {
   })
   it('re-watches even when the exclusive task throws', async () => {
     const harness = createHarness()
-    const watcher = new FileWatcher(harness.commands, undefined, harness.adapters)
+    const watcher = createFileWatcher(harness.commands, undefined, harness.adapters)
     watcher.watch('/repo', 10)
     await expect(
       watcher.runWithWatchPaused('/repo', () => {
@@ -199,7 +214,7 @@ describe('FileWatcher', () => {
   })
   it('serializes overlapping tasks and defers watch requests until both finish', async () => {
     const harness = createHarness(' M ticket.json')
-    const watcher = new FileWatcher(harness.commands, undefined, harness.adapters)
+    const watcher = createFileWatcher(harness.commands, undefined, harness.adapters)
     watcher.watch('/repo', 10)
     let releaseFirst!: () => void
     const firstGate = new Promise<void>((resolve) => {
@@ -235,7 +250,7 @@ describe('FileWatcher', () => {
   })
   it('runs an exclusive task without touching watchers when nothing is watched', async () => {
     const harness = createHarness()
-    const watcher = new FileWatcher(harness.commands, undefined, harness.adapters)
+    const watcher = createFileWatcher(harness.commands, undefined, harness.adapters)
     const result = await watcher.runWithWatchPaused('/repo', () => 'ok')
     expect(result).toBe('ok')
     expect(harness.adapters.createWatcher).not.toHaveBeenCalled()
@@ -248,7 +263,7 @@ describe('FileWatcher', () => {
       return fromAny(1)
     })
     harness.adapters.clearTimer = vi.fn()
-    const watcher = new FileWatcher(harness.commands, undefined, harness.adapters)
+    const watcher = createFileWatcher(harness.commands, undefined, harness.adapters)
     watcher.watch('/repo')
     harness.handles[0].emit('add')
     watcher.stop('/repo')

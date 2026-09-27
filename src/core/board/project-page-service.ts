@@ -1,5 +1,5 @@
 import fs from 'fs'
-import { TicketStore } from '~/core/ticket/ticket-store.js'
+import { createTicketStore } from '~/core/ticket/ticket-store.js'
 import { resolveAgentWorktreeLocation, worktreeFolderName } from '~/core/worktree/worktree-naming.js'
 import { errorMessage } from '~/core/shared/errors.js'
 import type { ProjectRegistry } from '~/core/project/project-registry.js'
@@ -10,22 +10,25 @@ import type { FileWatcher } from '~/core/infra/file-watcher.js'
 import type { TicketSyncManager } from '~/core/ticket/ticket-sync.js'
 import type { ProjectPageData, SyncStatus } from './board-types.js'
 
-export class ProjectPageService {
-  private readonly projectGitQueue = new Map<string, Promise<unknown>>()
+export interface ProjectPageService {
+  loadProjectPage(projectSlug: string): Promise<ProjectPageData>
+  loadSyncStatus(projectSlug: string): Promise<SyncStatus>
+}
 
-  constructor(
-    private projectRegistry: ProjectRegistry,
-    private boardConfigManager: BoardConfigManager,
-    private worktreeManager: WorktreeManager,
-    private fileWatcher: FileWatcher,
-    private ticketSyncManager: TicketSyncManager,
-    private launcherConfigManager: LauncherConfigManager,
-  ) {}
+export function createProjectPageService(
+  projectRegistry: ProjectRegistry,
+  boardConfigManager: BoardConfigManager,
+  worktreeManager: WorktreeManager,
+  fileWatcher: FileWatcher,
+  ticketSyncManager: TicketSyncManager,
+  launcherConfigManager: LauncherConfigManager,
+): ProjectPageService {
+  const projectGitQueue = new Map<string, Promise<unknown>>()
 
-  private runOnProjectGitQueue<T>(projectSlug: string, task: () => Promise<T>): Promise<T> {
-    const previous = this.projectGitQueue.get(projectSlug) ?? Promise.resolve()
+  function runOnProjectGitQueue<T>(projectSlug: string, task: () => Promise<T>): Promise<T> {
+    const previous = projectGitQueue.get(projectSlug) ?? Promise.resolve()
     const run = previous.then(task, task)
-    this.projectGitQueue.set(
+    projectGitQueue.set(
       projectSlug,
       run.then(
         () => undefined,
@@ -35,8 +38,8 @@ export class ProjectPageService {
     return run
   }
 
-  async loadProjectPage(projectSlug: string): Promise<ProjectPageData> {
-    const projects = this.projectRegistry.listProjects()
+  async function loadProjectPage(projectSlug: string): Promise<ProjectPageData> {
+    const projects = projectRegistry.listProjects()
     const project = projects.find((p) => p.projectSlug === projectSlug)
     if (!project) {
       return {
@@ -54,14 +57,14 @@ export class ProjectPageService {
       }
     }
     try {
-      return await this.runOnProjectGitQueue(projectSlug, async () => {
-        const worktreeDir = await this.worktreeManager.ensureWorktree(project.path, projectSlug, project.branch)
-        this.fileWatcher.watch(worktreeDir)
-        await this.ticketSyncManager.finalizeResolution(worktreeDir)
-        const config = this.boardConfigManager.getConfig(project.boardId)
-        const store = new TicketStore(worktreeDir)
+      return await runOnProjectGitQueue(projectSlug, async () => {
+        const worktreeDir = await worktreeManager.ensureWorktree(project.path, projectSlug, project.branch)
+        fileWatcher.watch(worktreeDir)
+        await ticketSyncManager.finalizeResolution(worktreeDir)
+        const config = boardConfigManager.getConfig(project.boardId)
+        const store = createTicketStore(worktreeDir)
         const { tickets, ticketOrder, suggestedNextNumber } = await store.loadBoardSnapshot(config.columns.map((c) => c.name))
-        const worktreeSettings = this.launcherConfigManager.resolveWorktreeSettings(projectSlug)
+        const worktreeSettings = launcherConfigManager.resolveWorktreeSettings(projectSlug)
         const worktreeRootPath = worktreeSettings.worktreeRootPath
         let worktreeNames: Set<string>
         try {
@@ -108,22 +111,27 @@ export class ProjectPageService {
     }
   }
 
-  async loadSyncStatus(projectSlug: string): Promise<SyncStatus> {
-    const project = this.projectRegistry.listProjects().find((p) => p.projectSlug === projectSlug)
+  async function loadSyncStatus(projectSlug: string): Promise<SyncStatus> {
+    const project = projectRegistry.listProjects().find((p) => p.projectSlug === projectSlug)
     if (!project || !project.available) {
       return {
         hasRemote: false,
         hasConflict: false,
       }
     }
-    return this.runOnProjectGitQueue(projectSlug, async () => {
-      const worktreeDir = await this.worktreeManager.ensureWorktree(project.path, projectSlug, project.branch)
-      const hasRemote = await this.ticketSyncManager.hasRemote(worktreeDir)
-      const hasConflict = await this.ticketSyncManager.detectConflict(worktreeDir)
+    return runOnProjectGitQueue(projectSlug, async () => {
+      const worktreeDir = await worktreeManager.ensureWorktree(project.path, projectSlug, project.branch)
+      const hasRemote = await ticketSyncManager.hasRemote(worktreeDir)
+      const hasConflict = await ticketSyncManager.detectConflict(worktreeDir)
       return {
         hasRemote,
         hasConflict,
       }
     })
+  }
+
+  return {
+    loadProjectPage,
+    loadSyncStatus,
   }
 }

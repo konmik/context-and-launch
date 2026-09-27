@@ -2,13 +2,13 @@ import type { Mock } from 'vitest'
 import type { ReviewPromptSnapshot } from '../../../src/core/diff-review/diff-review-types.js'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fromPartial } from '@total-typescript/shoehorn'
-import { ConfigPaths } from '../../../src/core/config/config-paths.js'
-import { ConfigRepository } from '../../../src/core/config/config-repository.js'
+import { createConfigPaths } from '../../../src/core/config/config-paths.js'
+import { createConfigRepository } from '../../../src/core/config/config-repository.js'
 import { setAppLogListener } from '../../../src/core/infra/app-logger.js'
 import { makeTempDir, removeTempDirOrWarn } from '../../test-temp.js'
 import { buildReviewFile, buildReviewPromptSnapshot } from '../../../src/core/diff-review/diff-review-model.js'
-import { DiffReviewStore } from '../../../src/core/diff-review/diff-review-store.js'
-import { ReviewPromptQueueService } from '../../../src/core/diff-review/review-prompt-queue.js'
+import { createDiffReviewStore, type DiffReviewStore } from '../../../src/core/diff-review/diff-review-store.js'
+import { createReviewPromptQueueService, type ReviewPromptQueueService } from '../../../src/core/diff-review/review-prompt-queue.js'
 import type { CommandTemplateExecutor } from '../../../src/core/command-template/command-template-types.js'
 import type { DiffReviewGitService } from '../../../src/core/diff-review/diff-review-git.js'
 import type { ResolvedDiffReviewTarget } from '../../../src/core/diff-review/diff-review-target.js'
@@ -31,7 +31,7 @@ afterEach(async () => {
 function setupQueue(): SetupQueueResult {
   const baseDir = makeTempDir('review-prompt-queue-')
   dirs.push(baseDir)
-  const store = new DiffReviewStore(new ConfigPaths(baseDir), new ConfigRepository())
+  const store = createDiffReviewStore(createConfigPaths(baseDir), createConfigRepository())
   const file = buildReviewFile({
     path: 'src/a.ts',
     changeType: 'modified',
@@ -73,7 +73,7 @@ function setupQueue(): SetupQueueResult {
     isRunning: vi.fn().mockReturnValue(false),
     launch: vi.fn().mockResolvedValue(undefined),
   }
-  const service = new ReviewPromptQueueService(
+  const service = createReviewPromptQueueService(
     store,
     fromPartial<DiffReviewGitService>({
       loadSnapshot: vi.fn().mockResolvedValue({
@@ -229,7 +229,7 @@ describe('ReviewPromptQueueService', () => {
     store.enqueue('project', 'st-1-ticket', 'worktree', 'First', snapshot)
     store.enqueue('project', 'st-1-ticket', 'worktree', 'Second', snapshot)
     await service.reconcileProject('project', [agent])
-    const restartedService = new ReviewPromptQueueService(
+    const restartedService = createReviewPromptQueueService(
       store,
       fromPartial<DiffReviewGitService>({
         loadSnapshot: vi.fn(),
@@ -258,7 +258,7 @@ describe('ReviewPromptQueueService', () => {
     const { store, snapshot, target } = setupQueue()
     const item = store.enqueue('project', 'st-1-ticket', 'worktree', 'First', snapshot)
     store.beginDelivery('project', 'st-1-ticket', 'worktree', item.id)
-    const restartedService = new ReviewPromptQueueService(
+    const restartedService = createReviewPromptQueueService(
       store,
       fromPartial<DiffReviewGitService>({
         loadSnapshot: vi.fn(),
@@ -321,7 +321,7 @@ describe('ReviewPromptQueueService', () => {
         ],
         observedAt: Date.now(),
       }))
-    const service = new ReviewPromptQueueService(
+    const service = createReviewPromptQueueService(
       store,
       fromPartial<DiffReviewGitService>({
         loadSnapshot: vi.fn(),
@@ -409,7 +409,7 @@ describe('ReviewPromptQueueService', () => {
   it('keeps a second service from repeating a recent empty launch', async () => {
     const { store, service, launcher, target } = setupQueue()
     await service.launchWithQueueHead('project', 'st-1-ticket', 'GPT')
-    const restartedService = new ReviewPromptQueueService(
+    const restartedService = createReviewPromptQueueService(
       store,
       fromPartial<DiffReviewGitService>({
         loadSnapshot: vi.fn(),
@@ -486,7 +486,7 @@ describe('ReviewPromptQueueService', () => {
       ],
       observedAt: Date.now(),
     })
-    const service = new ReviewPromptQueueService(
+    const service = createReviewPromptQueueService(
       store,
       fromPartial<DiffReviewGitService>({
         loadSnapshot: vi.fn(),
@@ -506,7 +506,7 @@ describe('ReviewPromptQueueService', () => {
   })
   it('queues but does not launch when Herdr availability is unknown', async () => {
     const { store, launcher, snapshot, target } = setupQueue()
-    const service = new ReviewPromptQueueService(
+    const service = createReviewPromptQueueService(
       store,
       fromPartial<DiffReviewGitService>({
         loadSnapshot: vi.fn(),

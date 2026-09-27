@@ -3,9 +3,9 @@ import fs from 'fs'
 import path from 'path'
 import os from 'os'
 import { spawn, type ChildProcess } from 'child_process'
-import { AgentWorktreeManager } from '../../../src/core/worktree/agent-worktree.js'
-import { LauncherConfigManager } from '../../../src/core/launcher/launcher-config.js'
-import { ConfigPaths } from '../../../src/core/config/config-paths.js'
+import { createAgentWorktreeManager } from '../../../src/core/worktree/agent-worktree.js'
+import { createLauncherConfigManager } from '../../../src/core/launcher/launcher-config.js'
+import { createConfigPaths } from '../../../src/core/config/config-paths.js'
 import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js'
 import { initializeDataDir } from '../../../src/core/config/initialize.js'
 import { git } from '../../test-git.js'
@@ -166,15 +166,15 @@ export function registerAgentWorktreeCleanupTests(shard: number | readonly numbe
       await git(remoteDir, 'commit', '-m', 'squash: feature')
       const configDir = tmpDir('awm-config-rsq-')
       dirs.push(configDir)
-      const paths = new ConfigPaths(configDir)
+      const paths = createConfigPaths(configDir)
       initializeDataDir(paths)
-      const lcm = new LauncherConfigManager(paths)
+      const lcm = createLauncherConfigManager(paths)
       lcm.saveProjectConfig('my-proj', {
         templates: [],
         skills: [],
         worktreeRootPath: tmpDir('awm-wt-rsq-'),
       })
-      const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService())
+      const awm = createAgentWorktreeManager(lcm, createTestCommandTemplateService())
       const merged = await awm.isBranchMerged(projectDir, 'st-remote-squash')
       expect(merged).toBe(true)
     })
@@ -220,14 +220,14 @@ export function registerAgentWorktreeCleanupTests(shard: number | readonly numbe
       const nonexistentRoot = path.join(os.tmpdir(), 'awm-nonexistent-' + Date.now()) // Do NOT create this directory -- that's the whole point of the test
       dirs.push(nonexistentRoot) // ensure cleanup
       expect(fs.existsSync(nonexistentRoot)).toBe(false)
-      const paths = new ConfigPaths(configDir)
-      const lcm = new LauncherConfigManager(paths)
+      const paths = createConfigPaths(configDir)
+      const lcm = createLauncherConfigManager(paths)
       lcm.saveProjectConfig('nodir-proj', {
         templates: [],
         skills: [],
         worktreeRootPath: nonexistentRoot,
       })
-      const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService()) // Discovery: git worktree add creates intermediate directories automatically.
+      const awm = createAgentWorktreeManager(lcm, createTestCommandTemplateService()) // Discovery: git worktree add creates intermediate directories automatically.
       // A nonexistent worktreeRootPath does NOT cause an error -- git silently
       // creates the parent directory and the worktree inside it.
       const result = await awm.ensureAgentWorktree(projectDir, 'nodir-proj', 'st-nodir-test')

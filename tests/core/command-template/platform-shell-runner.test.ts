@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { runCapturedScript } from './platform-shell-runner.test-utils.js'
 import { shellLiteral } from '../../../src/core/command-template/command-template-interpolation.js'
 import { currentCommandTemplatePlatform } from '../../../src/core/command-template/command-template-types.js'
-import { ProcessError } from '../../../src/core/shared/errors.js'
+import { isProcessError, type ProcessError } from '../../../src/core/shared/errors.js'
 import { useTempDirs } from './platform-shell-fixture.test-utils.js'
 
 const makeTempDir = useTempDirs('platform-shell-runner-test-', {
@@ -18,7 +18,7 @@ function quoted(executable: string): string {
 }
 
 function requireProcessError(cause: unknown): ProcessError {
-  if (!(cause instanceof ProcessError)) throw new Error('Expected the command to reject with a ProcessError')
+  if (!isProcessError(cause)) throw new Error('Expected the command to reject with a ProcessError')
   return cause
 }
 
@@ -30,7 +30,7 @@ describe('platform shell runner failure classification', () => {
   it.concurrent('reports a command the shell cannot resolve as command-not-found', async () => {
     const cwd = makeTempDir()
     const promise = runCapturedScript('definitely-not-a-real-executable-xyz', cwd)
-    await expect(promise).rejects.toBeInstanceOf(ProcessError)
+    await expect(promise).rejects.toSatisfy(isProcessError)
     await expect(promise).rejects.toMatchObject({
       kind: 'command-not-found',
     })
@@ -39,7 +39,7 @@ describe('platform shell runner failure classification', () => {
     const cwd = makeTempDir()
     const script = `${quoted(process.execPath)} -e "process.exit(1)"`
     const promise = runCapturedScript(script, cwd)
-    await expect(promise).rejects.toBeInstanceOf(ProcessError)
+    await expect(promise).rejects.toSatisfy(isProcessError)
     await expect(promise).rejects.toMatchObject({
       kind: 'exited',
       exitCode: 1,
@@ -59,7 +59,7 @@ describe('platform shell runner failure classification', () => {
     const cwd = makeTempDir()
     const script = `${shellLiteral('definitely-not-a-real-executable-xyz', platform)} --version`
     const promise = runCapturedScript(script, cwd)
-    await expect(promise).rejects.toBeInstanceOf(ProcessError)
+    await expect(promise).rejects.toSatisfy(isProcessError)
     await expect(promise).rejects.toMatchObject({
       kind: 'command-not-found',
     })

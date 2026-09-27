@@ -38,10 +38,7 @@ describe('Ticket detail launcher edit persistence (e2e, real server)', () => {
     const editedText = await cm.textContent()
     expect(editedText).toContain('EXTRA TEXT')
     await toggle.uncheck()
-    await ctx.page.waitForTimeout(200)
-    const revertedText = await cm.textContent()
-    expect(revertedText).not.toContain('EXTRA TEXT')
-    expect(revertedText).toBe(originalText)
+    await expect.poll(() => cm.textContent()).toBe(originalText)
   })
   it('edited prompt persists to project launcher config', async () => {
     const project = await setupLauncherTicket(ctx, 'edit-persist')

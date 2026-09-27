@@ -2,9 +2,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { fromPartial } from '@total-typescript/shoehorn'
-import { CommandTemplateService } from '../../../src/core/command-template/command-template-service.js'
+import { createCommandTemplateService } from '../../../src/core/command-template/command-template-service.js'
 import type { CommandTemplateStore } from '../../../src/core/command-template/command-template-store.js'
-import { FixedPlatformShellRunner } from '../../../src/core/command-template/platform-shell-runner.js'
+import { createFixedPlatformShellRunner } from '../../../src/core/command-template/platform-shell-runner.js'
 import { useTempDirs } from './platform-shell-fixture.test-utils.js'
 
 const makeTempDir = useTempDirs('command-template-service-shell-test-')
@@ -15,7 +15,12 @@ describe.runIf(process.platform === 'win32')('trusted Windows Profile scripts', 
     const defaultsDir = path.join(cwd, 'config-defaults')
     fs.mkdirSync(defaultsDir)
     fs.writeFileSync(path.join(defaultsDir, 'probe.ps1'), 'Write-Output $args[0]\r\n')
-    const service = new CommandTemplateService(fromPartial<CommandTemplateStore>({}), new FixedPlatformShellRunner(), 'windows', vi.fn())
+    const service = createCommandTemplateService(
+      fromPartial<CommandTemplateStore>({}),
+      createFixedPlatformShellRunner(),
+      'windows',
+      vi.fn(),
+    )
     await expect(
       service.executeTrustedScript({
         source: {

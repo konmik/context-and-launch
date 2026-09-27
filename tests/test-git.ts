@@ -1,7 +1,7 @@
 import { execFile, execFileSync, spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-import { ProcessError } from '../src/core/shared/errors.js'
+import { createProcessError } from '../src/core/shared/errors.js'
 
 const environment = {
   ...process.env,
@@ -24,7 +24,7 @@ export function git(workDir: string, ...args: string[]): Promise<string> {
       (error, stdout, stderr) => {
         if (error) {
           const exitCode = Number.isFinite(error.code) ? Number(error.code) : undefined
-          reject(new ProcessError(`git ${args.join(' ')}`, exitCode, (stderr || stdout || error.message).trim()))
+          reject(createProcessError(`git ${args.join(' ')}`, exitCode, (stderr || stdout || error.message).trim()))
           return
         }
         resolve(stdout)

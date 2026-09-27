@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { ConfigPaths } from '../../../src/core/config/config-paths.js'
-import { ConfigRepository } from '../../../src/core/config/config-repository.js'
+import { createConfigPaths, type ConfigPaths } from '../../../src/core/config/config-paths.js'
+import { createConfigRepository } from '../../../src/core/config/config-repository.js'
 import type { DiffReviewProjectState } from '../../../src/core/diff-review/diff-review-types.js'
 import { makeTempDir, removeTempDirOrWarn } from '../../test-temp.js'
-import { DiffReviewStore } from '../../../src/core/diff-review/diff-review-store.js'
+import { createDiffReviewStore, type DiffReviewStore } from '../../../src/core/diff-review/diff-review-store.js'
 import type { ReviewPromptSnapshot } from '../../../src/core/diff-review/diff-review-types.js'
 
 const dirs: string[] = []
@@ -37,9 +37,9 @@ function promptSnapshot(filePath: string): ReviewPromptSnapshot {
 function createStore(): StoreResult {
   const baseDir = makeTempDir('diff-review-store-')
   dirs.push(baseDir)
-  const paths = new ConfigPaths(baseDir)
+  const paths = createConfigPaths(baseDir)
   return {
-    store: new DiffReviewStore(paths, new ConfigRepository()),
+    store: createDiffReviewStore(paths, createConfigRepository()),
     paths,
   }
 }
@@ -85,7 +85,7 @@ describe('DiffReviewStore', () => {
   })
   it('migrates legacy queues on the next successful write', () => {
     const { store, paths } = createStore()
-    const repository = new ConfigRepository()
+    const repository = createConfigRepository()
     repository.writeJson(paths.diffReviewStateFile('project'), {
       version: 1,
       tickets: {
@@ -155,7 +155,7 @@ describe('DiffReviewStore', () => {
     const { store, paths } = createStore()
     store.enqueue('project', 'st-1-ticket', 'worktree', 'Feedback', promptSnapshot('src/a.ts'))
     await store.removeTicket('project', 'st-1-ticket') // SAFETY: The store just persisted this file using the DiffReviewProjectState shape under test.
-    const persisted = new ConfigRepository().readJson(paths.diffReviewStateFile('project')) as DiffReviewProjectState
+    const persisted = createConfigRepository().readJson(paths.diffReviewStateFile('project')) as DiffReviewProjectState
     expect(persisted.tickets).toEqual({})
   })
 })

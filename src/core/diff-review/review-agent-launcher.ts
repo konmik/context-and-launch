@@ -8,39 +8,42 @@ export interface ReviewAgentLauncher {
   launch(target: ResolvedDiffReviewTarget, initialPrompt: string, profileName: string): Promise<void>
 }
 
-export class ProfileReviewAgentLauncher implements ReviewAgentLauncher {
-  constructor(
-    private readonly launcherConfig: LauncherConfigManager,
-    private readonly commands: CommandTemplateService,
-  ) {}
-
-  isRunning(target: ResolvedDiffReviewTarget): boolean {
-    return isProfileAgentRunning(this.commands, this.markerPath(target))
+export function createProfileReviewAgentLauncher(
+  launcherConfig: LauncherConfigManager,
+  commands: CommandTemplateService,
+): ReviewAgentLauncher {
+  function isRunning(target: ResolvedDiffReviewTarget): boolean {
+    return isProfileAgentRunning(commands, markerPath(target))
   }
 
-  async launch(target: ResolvedDiffReviewTarget, initialPrompt: string, profileName: string): Promise<void> {
-    const merged = this.launcherConfig.getMergedConfig(target.projectSlug)
+  async function launch(target: ResolvedDiffReviewTarget, initialPrompt: string, profileName: string): Promise<void> {
+    const merged = launcherConfig.getMergedConfig(target.projectSlug)
     const profile = merged.profiles.find((candidate) => candidate.name === profileName)
     if (!profile?.command.trim()) {
       throw new Error(`Launcher profile '${profileName}' is missing or has no command.`)
     }
     await runLauncherProfile(
-      this.commands,
+      commands,
       profile,
       {
         initialPrompt,
         windowTitle: buildWindowTitle(target.ticket, {
           worktreePath: target.worktreePath,
         }),
-        markerPath: this.markerPath(target),
-        appConfigDir: this.launcherConfig.getAppConfigDir(),
-        configDefaultsDir: this.launcherConfig.getConfigDefaultsDir(),
+        markerPath: markerPath(target),
+        appConfigDir: launcherConfig.getAppConfigDir(),
+        configDefaultsDir: launcherConfig.getConfigDefaultsDir(),
       },
       target.worktreePath,
     )
   }
 
-  private markerPath(target: ResolvedDiffReviewTarget): string {
-    return agentMarkerPathIn(this.launcherConfig.getAppConfigDir(), target.projectSlug, target.folderName)
+  function markerPath(target: ResolvedDiffReviewTarget): string {
+    return agentMarkerPathIn(launcherConfig.getAppConfigDir(), target.projectSlug, target.folderName)
+  }
+
+  return {
+    isRunning,
+    launch,
   }
 }

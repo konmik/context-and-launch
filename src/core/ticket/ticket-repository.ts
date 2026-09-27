@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { randomUUID } from 'node:crypto'
 import * as v from 'valibot'
-import { ConfigRepository } from '../config/config-repository.js'
+import { createConfigRepository, type ConfigRepository } from '../config/config-repository.js'
 import type { JsonValue } from '../shared/json.js'
 
 export const StatusJsonSchema = v.looseObject({
@@ -36,15 +36,33 @@ interface TransactionState {
   finalize: Array<() => void>
 }
 
-export class TicketRepository {
-  private transactionState: TransactionState | null = null
+export interface TicketRepository {
+  runInTransaction<T>(root: string, operation: () => T): T
+  readStatusJson(dir: string): StatusJson | null
+  writeStatusJson(dir: string, status: StatusJson): void
+  readWorktreeJson(worktreeDir: string, fileName: string): JsonValue | null
+  writeWorktreeJson<Data extends object>(worktreeDir: string, fileName: string, data: Data): void
+  listEntries(parentDir: string): fs.Dirent[]
+  listEntriesAsync(parentDir: string): Promise<fs.Dirent[]>
+  createDirectory(dir: string): void
+  removeDirectory(dir: string): void
+  renameDirectory(from: string, to: string): void
+  readFile(filePath: string): Buffer
+  readFileText(filePath: string): string
+  writeFile(filePath: string, content: Buffer | string): void
+  deleteFile(filePath: string): void
+  exists(filePath: string): boolean
+  isDirectory(filePath: string): boolean
+  realpathSync(filePath: string): string
+}
 
-  constructor(private readonly configRepo = new ConfigRepository()) {}
+export function createTicketRepository(configRepo: ConfigRepository = createConfigRepository()): TicketRepository {
+  let transactionState: TransactionState | null = null
 
-  runInTransaction<T>(root: string, operation: () => T): T {
+  function runInTransaction<T>(root: string, operation: () => T): T {
     const normalizedRoot = path.resolve(root)
-    if (this.transactionState) {
-      if (this.transactionState.root !== normalizedRoot) {
+    if (transactionState) {
+      if (transactionState.root !== normalizedRoot) {
         throw new Error('Cannot nest ticket transactions for different worktrees')
       }
       return operation()
@@ -54,14 +72,14 @@ export class TicketRepository {
       undo: [],
       finalize: [],
     }
-    this.transactionState = state
+    transactionState = state
     try {
       const result = operation()
-      this.transactionState = null
+      transactionState = null
       for (const finalize of state.finalize) finalize()
       return result
     } catch (error) {
-      this.transactionState = null
+      transactionState = null
       const rollbackErrors: unknown[] = []
       for (const undo of [...state.undo].reverse()) {
         try {
@@ -77,11 +95,11 @@ export class TicketRepository {
     }
   }
 
-  readStatusJson(dir: string): StatusJson | null {
+  function readStatusJson(dir: string): StatusJson | null {
     const file = path.join(dir, 'status.json')
     let raw: JsonValue | null
     try {
-      raw = this.configRepo.readJson(file)
+      raw = configRepo.readJson(file)
     } catch (err) {
       if (isEnoent(err)) return null
       if (err instanceof Error && 'code' in err) throw err
@@ -97,25 +115,25 @@ export class TicketRepository {
     return parsed.output
   }
 
-  writeStatusJson(dir: string, status: StatusJson): void {
-    this.writeJson(path.join(dir, 'status.json'), status)
+  function writeStatusJson(dir: string, status: StatusJson): void {
+    writeJson(path.join(dir, 'status.json'), status)
   }
 
-  readWorktreeJson(worktreeDir: string, fileName: string): JsonValue | null {
+  function readWorktreeJson(worktreeDir: string, fileName: string): JsonValue | null {
     const filePath = path.join(worktreeDir, fileName)
     try {
-      return this.configRepo.readJson(filePath)
+      return configRepo.readJson(filePath)
     } catch (err) {
       console.warn(`Failed to read ${filePath}:`, err)
       return null
     }
   }
 
-  writeWorktreeJson<Data extends object>(worktreeDir: string, fileName: string, data: Data): void {
-    this.writeJson(path.join(worktreeDir, fileName), data)
+  function writeWorktreeJson<Data extends object>(worktreeDir: string, fileName: string, data: Data): void {
+    writeJson(path.join(worktreeDir, fileName), data)
   }
 
-  listEntries(parentDir: string): fs.Dirent[] {
+  function listEntries(parentDir: string): fs.Dirent[] {
     try {
       return fs.readdirSync(parentDir, {
         withFileTypes: true,
@@ -126,7 +144,7 @@ export class TicketRepository {
     }
   }
 
-  async listEntriesAsync(parentDir: string): Promise<fs.Dirent[]> {
+  async function listEntriesAsync(parentDir: string): Promise<fs.Dirent[]> {
     try {
       return await fs.promises.readdir(parentDir, {
         withFileTypes: true,
@@ -137,13 +155,13 @@ export class TicketRepository {
     }
   }
 
-  createDirectory(dir: string): void {
+  function createDirectory(dir: string): void {
     const existed = fs.existsSync(dir)
     fs.mkdirSync(dir, {
       recursive: true,
     })
-    if (!existed && this.transactionState) {
-      this.transactionState.undo.push(() =>
+    if (!existed && transactionState) {
+      transactionState.undo.push(() =>
         fs.rmSync(dir, {
           recursive: true,
           force: true,
@@ -152,12 +170,12 @@ export class TicketRepository {
     }
   }
 
-  removeDirectory(dir: string): void {
-    if (this.transactionState && fs.existsSync(dir)) {
+  function removeDirectory(dir: string): void {
+    if (transactionState && fs.existsSync(dir)) {
       const stagedPath = path.join(path.dirname(dir), `.context-launch-transaction-${randomUUID()}`)
       fs.renameSync(dir, stagedPath)
-      this.transactionState.undo.push(() => fs.renameSync(stagedPath, dir))
-      this.transactionState.finalize.push(() =>
+      transactionState.undo.push(() => fs.renameSync(stagedPath, dir))
+      transactionState.finalize.push(() =>
         fs.rmSync(stagedPath, {
           recursive: true,
           force: true,
@@ -171,36 +189,36 @@ export class TicketRepository {
     })
   }
 
-  renameDirectory(from: string, to: string): void {
+  function renameDirectory(from: string, to: string): void {
     fs.renameSync(from, to)
-    if (this.transactionState) {
-      this.transactionState.undo.push(() => fs.renameSync(to, from))
+    if (transactionState) {
+      transactionState.undo.push(() => fs.renameSync(to, from))
     }
   }
 
-  readFile(filePath: string): Buffer {
+  function readFile(filePath: string): Buffer {
     return fs.readFileSync(filePath)
   }
 
-  readFileText(filePath: string): string {
+  function readFileText(filePath: string): string {
     return fs.readFileSync(filePath, 'utf-8')
   }
 
-  writeFile(filePath: string, content: Buffer | string): void {
-    this.writeWithUndo(filePath, () => fs.writeFileSync(filePath, content))
+  function writeFile(filePath: string, content: Buffer | string): void {
+    writeWithUndo(filePath, () => fs.writeFileSync(filePath, content))
   }
 
-  deleteFile(filePath: string): void {
-    const before = this.captureFile(filePath)
+  function deleteFile(filePath: string): void {
+    const before = captureFile(filePath)
     fs.unlinkSync(filePath)
-    this.recordFileUndo(filePath, before)
+    recordFileUndo(filePath, before)
   }
 
-  exists(filePath: string): boolean {
+  function exists(filePath: string): boolean {
     return fs.existsSync(filePath)
   }
 
-  isDirectory(filePath: string): boolean {
+  function isDirectory(filePath: string): boolean {
     try {
       return fs.statSync(filePath).isDirectory()
     } catch (err) {
@@ -209,36 +227,36 @@ export class TicketRepository {
     }
   }
 
-  realpathSync(filePath: string): string {
+  function realpathSync(filePath: string): string {
     return fs.realpathSync(filePath)
   }
 
-  private writeJson<Data extends object>(filePath: string, data: Data): void {
-    this.writeWithUndo(filePath, () => this.configRepo.writeJson(filePath, data))
+  function writeJson<Data extends object>(filePath: string, data: Data): void {
+    writeWithUndo(filePath, () => configRepo.writeJson(filePath, data))
   }
 
-  private writeWithUndo(filePath: string, write: () => void): void {
-    const before = this.captureFile(filePath)
+  function writeWithUndo(filePath: string, write: () => void): void {
+    const before = captureFile(filePath)
     try {
       write()
     } catch (error) {
-      this.restoreFile(filePath, before)
+      restoreFile(filePath, before)
       throw error
     }
-    this.recordFileUndo(filePath, before)
+    recordFileUndo(filePath, before)
   }
 
-  private captureFile(filePath: string): Buffer | null {
+  function captureFile(filePath: string): Buffer | null {
     return fs.existsSync(filePath) ? fs.readFileSync(filePath) : null
   }
 
-  private recordFileUndo(filePath: string, before: Buffer | null): void {
-    if (this.transactionState) {
-      this.transactionState.undo.push(() => this.restoreFile(filePath, before))
+  function recordFileUndo(filePath: string, before: Buffer | null): void {
+    if (transactionState) {
+      transactionState.undo.push(() => restoreFile(filePath, before))
     }
   }
 
-  private restoreFile(filePath: string, before: Buffer | null): void {
+  function restoreFile(filePath: string, before: Buffer | null): void {
     if (before === null) {
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
       return
@@ -247,5 +265,25 @@ export class TicketRepository {
       recursive: true,
     })
     fs.writeFileSync(filePath, before)
+  }
+
+  return {
+    runInTransaction,
+    readStatusJson,
+    writeStatusJson,
+    readWorktreeJson,
+    writeWorktreeJson,
+    listEntries,
+    listEntriesAsync,
+    createDirectory,
+    removeDirectory,
+    renameDirectory,
+    readFile,
+    readFileText,
+    writeFile,
+    deleteFile,
+    exists,
+    isDirectory,
+    realpathSync,
   }
 }

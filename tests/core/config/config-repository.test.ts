@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
-import { ConfigRepository } from '../../../src/core/config/config-repository.js'
+import { createConfigRepository } from '../../../src/core/config/config-repository.js'
 
 function tmpDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix))
@@ -30,7 +30,7 @@ describe('ConfigRepository', () => {
   it('readJson returns null for missing file', () => {
     const dir = tmpDir('config-repo-')
     dirs.push(dir)
-    const repo = new ConfigRepository()
+    const repo = createConfigRepository()
     expect(repo.readJson(path.join(dir, 'missing.json'))).toBeNull()
   })
   it('readJson parses valid JSON', () => {
@@ -38,7 +38,7 @@ describe('ConfigRepository', () => {
     dirs.push(dir)
     const filePath = path.join(dir, 'data.json')
     fs.writeFileSync(filePath, '{"key": "value"}')
-    const repo = new ConfigRepository()
+    const repo = createConfigRepository()
     expect(repo.readJson(filePath)).toEqual({
       key: 'value',
     })
@@ -48,14 +48,14 @@ describe('ConfigRepository', () => {
     dirs.push(dir)
     const filePath = path.join(dir, 'bad.json')
     fs.writeFileSync(filePath, 'not valid json')
-    const repo = new ConfigRepository()
+    const repo = createConfigRepository()
     expect(() => repo.readJson(filePath)).toThrow(filePath)
   })
   it('writeJson creates parent directories and writes formatted JSON', () => {
     const dir = tmpDir('config-repo-')
     dirs.push(dir)
     const filePath = path.join(dir, 'sub', 'dir', 'data.json')
-    const repo = new ConfigRepository()
+    const repo = createConfigRepository()
     repo.writeJson(filePath, {
       key: 'value',
     })
@@ -78,7 +78,7 @@ describe('ConfigRepository', () => {
       ],
       count: 42,
     }
-    const repo = new ConfigRepository()
+    const repo = createConfigRepository()
     repo.writeJson(filePath, data)
     expect(repo.readJson(filePath)).toEqual(data)
   })
@@ -92,7 +92,7 @@ describe('ConfigRepository', () => {
         version: 'before',
       }),
     )
-    const repo = new ConfigRepository()
+    const repo = createConfigRepository()
     const originalWriteFileSync = fs.writeFileSync
     let failed = false
     const spy = vi.spyOn(fs, 'writeFileSync').mockImplementation((...args: any[]) => {

@@ -3,7 +3,7 @@ import * as v from 'valibot'
 import type { ConfigPaths } from '../config/config-paths.js'
 import type { ConfigRepository } from '../config/config-repository.js'
 import { requireSafeSlug } from '../config/config-paths.js'
-import { UpdateLock } from '~/util/update-lock.js'
+import { createUpdateLock, type UpdateLock } from '~/util/update-lock.js'
 import { getReviewTicketState } from './diff-review-types.js'
 import type { DiffReviewProjectState, DiffReviewTicketState, ReviewPromptQueueItem, ReviewPromptSnapshot } from './diff-review-types.js'
 
@@ -100,49 +100,93 @@ const LegacyProjectStateSchema = v.object({
   ),
 })
 
-export class DiffReviewStore {
-  private readonly locks = new Map<string, UpdateLock>()
-
-  private lock(projectSlug: string): UpdateLock {
-    requireSafeSlug(projectSlug)
-    let lock = this.locks.get(projectSlug)
-    if (!lock) this.locks.set(projectSlug, (lock = new UpdateLock()))
-    return lock
-  }
-
-  whenWritable<T>(projectSlug: string, write: () => T): Promise<T> {
-    return this.lock(projectSlug).writeWhenAvailable(write)
-  }
-
-  release(projectSlug: string, owner: string): void {
-    this.lock(projectSlug).release(owner)
-  }
-
-  constructor(
-    private readonly paths: ConfigPaths,
-    private readonly repository: ConfigRepository,
-  ) {}
-
-  loadProject(projectSlug: string, owner?: string): DiffReviewProjectState {
-    return this.lock(projectSlug).read(() => this.readProject(projectSlug), owner)
-  }
-
+export interface DiffReviewStore {
+  whenWritable<T>(projectSlug: string, write: () => T): Promise<T>
+  release(projectSlug: string, owner: string): void
+  loadProject(projectSlug: string, owner?: string): DiffReviewProjectState
   updateProject(
     projectSlug: string,
     transform: (current: DiffReviewProjectState) => DiffReviewProjectState,
     owner?: string,
+  ): DiffReviewProjectState
+  getTicket(projectSlug: string, folderName: string, worktreeIdentity: string, owner?: string): DiffReviewTicketState
+  enqueue(
+    projectSlug: string,
+    folderName: string,
+    worktreeIdentity: string,
+    feedback: string,
+    snapshot?: ReviewPromptSnapshot,
+  ): ReviewPromptQueueItem
+  retry(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string): DiffReviewTicketState
+  beginDelivery(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string): DiffReviewTicketState
+  completeDelivery(
+    projectSlug: string,
+    folderName: string,
+    worktreeIdentity: string,
+    itemId: string,
+    sentAt: Date,
+    cooldownMs: number,
+  ): DiffReviewTicketState
+  failDelivery(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string, error: string): DiffReviewTicketState
+  failSentDelivery(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string, error: string): DiffReviewTicketState
+  markDeliveryUncertain(
+    projectSlug: string,
+    folderName: string,
+    worktreeIdentity: string,
+    itemId: string,
+    error: string,
+  ): DiffReviewTicketState
+  acknowledgeSent(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string): DiffReviewTicketState
+  reserveAgentLaunch(projectSlug: string, folderName: string, worktreeIdentity: string, reservedUntil: Date): DiffReviewTicketState
+  recoverInterrupted(projectSlug: string): void
+  removeTicket(projectSlug: string, folderName: string): Promise<void>
+  updateTicket(
+    projectSlug: string,
+    folderName: string,
+    worktreeIdentity: string,
+    update: (ticket: DiffReviewTicketState) => DiffReviewTicketState,
+    owner?: string,
+  ): DiffReviewTicketState
+}
+
+export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepository): DiffReviewStore {
+  const locks = new Map<string, UpdateLock>()
+
+  function lock(projectSlug: string): UpdateLock {
+    requireSafeSlug(projectSlug)
+    let lock = locks.get(projectSlug)
+    if (!lock) locks.set(projectSlug, (lock = createUpdateLock()))
+    return lock
+  }
+
+  function whenWritable<T>(projectSlug: string, write: () => T): Promise<T> {
+    return lock(projectSlug).writeWhenAvailable(write)
+  }
+
+  function release(projectSlug: string, owner: string): void {
+    lock(projectSlug).release(owner)
+  }
+
+  function loadProject(projectSlug: string, owner?: string): DiffReviewProjectState {
+    return lock(projectSlug).read(() => readProject(projectSlug), owner)
+  }
+
+  function updateProject(
+    projectSlug: string,
+    transform: (current: DiffReviewProjectState) => DiffReviewProjectState,
+    owner?: string,
   ): DiffReviewProjectState {
-    return this.lock(projectSlug).write(() => {
-      const next = v.parse(ProjectStateSchema, transform(this.readProject(projectSlug)))
-      this.repository.writeJson(this.paths.diffReviewStateFile(projectSlug), next)
+    return lock(projectSlug).write(() => {
+      const next = v.parse(ProjectStateSchema, transform(readProject(projectSlug)))
+      repository.writeJson(paths.diffReviewStateFile(projectSlug), next)
       return next
     }, owner)
   }
 
-  private readProject(projectSlug: string): DiffReviewProjectState {
+  function readProject(projectSlug: string): DiffReviewProjectState {
     requireSafeSlug(projectSlug)
-    const filePath = this.paths.diffReviewStateFile(projectSlug)
-    const raw = this.repository.readJson(filePath)
+    const filePath = paths.diffReviewStateFile(projectSlug)
+    const raw = repository.readJson(filePath)
     if (raw === null)
       return {
         version: 2,
@@ -168,12 +212,12 @@ export class DiffReviewStore {
     }
   }
 
-  getTicket(projectSlug: string, folderName: string, worktreeIdentity: string, owner?: string): DiffReviewTicketState {
+  function getTicket(projectSlug: string, folderName: string, worktreeIdentity: string, owner?: string): DiffReviewTicketState {
     requireSafeSlug(folderName)
-    return getReviewTicketState(this.loadProject(projectSlug, owner), folderName, worktreeIdentity)
+    return getReviewTicketState(loadProject(projectSlug, owner), folderName, worktreeIdentity)
   }
 
-  enqueue(
+  function enqueue(
     projectSlug: string,
     folderName: string,
     worktreeIdentity: string,
@@ -192,7 +236,7 @@ export class DiffReviewStore {
       snapshot,
       state: 'waiting',
     }
-    return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => ({
+    return updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => ({
       ...ticket,
       queue: {
         ...ticket.queue,
@@ -201,26 +245,26 @@ export class DiffReviewStore {
     })).queue.items.at(-1)!
   }
 
-  retry(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string): DiffReviewTicketState {
-    return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
+  function retry(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string): DiffReviewTicketState {
+    return updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
       const head = ticket.queue.items[0]
       if (!head || head.id !== itemId || (head.state !== 'error' && head.state !== 'sent' && head.state !== 'uncertain')) {
         throw new Error('Only a failed, uncertain, or delivered head Review Prompt can be retried.')
       }
-      ticket.queue.items[0] = this.withState(head, {
+      ticket.queue.items[0] = withState(head, {
         state: 'waiting',
       })
       return ticket
     })
   }
 
-  beginDelivery(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string): DiffReviewTicketState {
-    return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
+  function beginDelivery(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string): DiffReviewTicketState {
+    return updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
       const head = ticket.queue.items[0]
       if (!head || head.id !== itemId || head.state !== 'waiting') {
         throw new Error('Review Prompt queue head changed before delivery.')
       }
-      ticket.queue.items[0] = this.withState(head, {
+      ticket.queue.items[0] = withState(head, {
         state: 'delivering',
         deliveryStartedAt: new Date().toISOString(),
       })
@@ -229,7 +273,7 @@ export class DiffReviewStore {
     })
   }
 
-  completeDelivery(
+  function completeDelivery(
     projectSlug: string,
     folderName: string,
     worktreeIdentity: string,
@@ -237,12 +281,12 @@ export class DiffReviewStore {
     sentAt: Date,
     cooldownMs: number,
   ): DiffReviewTicketState {
-    return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
+    return updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
       const head = ticket.queue.items[0]
       if (!head || head.id !== itemId || head.state !== 'delivering') {
         throw new Error('Review Prompt queue head changed during delivery.')
       }
-      ticket.queue.items[0] = this.withState(head, {
+      ticket.queue.items[0] = withState(head, {
         state: 'sent',
         sentAt: sentAt.toISOString(),
       })
@@ -251,13 +295,19 @@ export class DiffReviewStore {
     })
   }
 
-  failDelivery(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string, error: string): DiffReviewTicketState {
-    return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
+  function failDelivery(
+    projectSlug: string,
+    folderName: string,
+    worktreeIdentity: string,
+    itemId: string,
+    error: string,
+  ): DiffReviewTicketState {
+    return updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
       const head = ticket.queue.items[0]
       if (!head || head.id !== itemId || head.state !== 'delivering') {
         throw new Error('Review Prompt queue head changed during failed delivery.')
       }
-      ticket.queue.items[0] = this.withState(head, {
+      ticket.queue.items[0] = withState(head, {
         state: 'error',
         error,
       })
@@ -265,19 +315,19 @@ export class DiffReviewStore {
     })
   }
 
-  failSentDelivery(
+  function failSentDelivery(
     projectSlug: string,
     folderName: string,
     worktreeIdentity: string,
     itemId: string,
     error: string,
   ): DiffReviewTicketState {
-    return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
+    return updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
       const head = ticket.queue.items[0]
       if (!head || head.id !== itemId || head.state !== 'sent') {
         throw new Error('Only a delivered head Review Prompt can lose its Agent.')
       }
-      ticket.queue.items[0] = this.withState(head, {
+      ticket.queue.items[0] = withState(head, {
         state: 'error',
         error,
       })
@@ -285,19 +335,19 @@ export class DiffReviewStore {
     })
   }
 
-  markDeliveryUncertain(
+  function markDeliveryUncertain(
     projectSlug: string,
     folderName: string,
     worktreeIdentity: string,
     itemId: string,
     error: string,
   ): DiffReviewTicketState {
-    return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
+    return updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
       const head = ticket.queue.items[0]
       if (!head || head.id !== itemId || head.state !== 'delivering') {
         throw new Error('Only a delivering head Review Prompt can have an uncertain outcome.')
       }
-      ticket.queue.items[0] = this.withState(head, {
+      ticket.queue.items[0] = withState(head, {
         state: 'uncertain',
         error,
       })
@@ -305,8 +355,8 @@ export class DiffReviewStore {
     })
   }
 
-  acknowledgeSent(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string): DiffReviewTicketState {
-    return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
+  function acknowledgeSent(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string): DiffReviewTicketState {
+    return updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
       const head = ticket.queue.items[0]
       if (!head || head.id !== itemId || head.state !== 'sent') {
         throw new Error('Only a delivered head Review Prompt can be acknowledged.')
@@ -316,8 +366,13 @@ export class DiffReviewStore {
     })
   }
 
-  reserveAgentLaunch(projectSlug: string, folderName: string, worktreeIdentity: string, reservedUntil: Date): DiffReviewTicketState {
-    return this.updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
+  function reserveAgentLaunch(
+    projectSlug: string,
+    folderName: string,
+    worktreeIdentity: string,
+    reservedUntil: Date,
+  ): DiffReviewTicketState {
+    return updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
       const existing = Date.parse(ticket.queue.agentLaunchReservedUntil ?? '')
       if (Number.isFinite(existing) && existing > Date.now()) {
         throw new Error('An Agent launch is already in progress for this Ticket.')
@@ -328,36 +383,36 @@ export class DiffReviewStore {
     })
   }
 
-  recoverInterrupted(projectSlug: string): void {
-    this.lock(projectSlug).write(() => {
-      const project = this.loadProject(projectSlug)
+  function recoverInterrupted(projectSlug: string): void {
+    lock(projectSlug).write(() => {
+      const project = loadProject(projectSlug)
       let changed = false
       for (const ticket of Object.values(project.tickets)) {
         for (let index = 0; index < ticket.queue.items.length; index += 1) {
           const item = ticket.queue.items[index]
           if (item.state !== 'delivering') continue
-          ticket.queue.items[index] = this.withState(item, {
+          ticket.queue.items[index] = withState(item, {
             state: 'uncertain',
             error: 'Delivery was interrupted and may have reached the Agent. Retry only if needed.',
           })
           changed = true
         }
       }
-      if (changed) this.repository.writeJson(this.paths.diffReviewStateFile(projectSlug), project)
+      if (changed) repository.writeJson(paths.diffReviewStateFile(projectSlug), project)
     })
   }
 
-  async removeTicket(projectSlug: string, folderName: string): Promise<void> {
+  async function removeTicket(projectSlug: string, folderName: string): Promise<void> {
     requireSafeSlug(folderName)
-    await this.lock(projectSlug).writeWhenAvailable(() => {
-      const project = this.loadProject(projectSlug)
+    await lock(projectSlug).writeWhenAvailable(() => {
+      const project = loadProject(projectSlug)
       if (!Object.hasOwn(project.tickets, folderName)) return
       delete project.tickets[folderName]
-      this.repository.writeJson(this.paths.diffReviewStateFile(projectSlug), project)
+      repository.writeJson(paths.diffReviewStateFile(projectSlug), project)
     })
   }
 
-  updateTicket(
+  function updateTicket(
     projectSlug: string,
     folderName: string,
     worktreeIdentity: string,
@@ -365,7 +420,7 @@ export class DiffReviewStore {
     owner?: string,
   ): DiffReviewTicketState {
     requireSafeSlug(folderName)
-    return this.updateProject(
+    return updateProject(
       projectSlug,
       (project) => {
         const updated = update(getReviewTicketState(project, folderName, worktreeIdentity))
@@ -384,7 +439,7 @@ export class DiffReviewStore {
     ).tickets[folderName]
   }
 
-  private withState(
+  function withState(
     item: ReviewPromptQueueItem,
     state:
       | {
@@ -414,5 +469,25 @@ export class DiffReviewStore {
       snapshot: item.snapshot,
       ...state,
     }
+  }
+
+  return {
+    whenWritable,
+    release,
+    loadProject,
+    updateProject,
+    getTicket,
+    enqueue,
+    retry,
+    beginDelivery,
+    completeDelivery,
+    failDelivery,
+    failSentDelivery,
+    markDeliveryUncertain,
+    acknowledgeSent,
+    reserveAgentLaunch,
+    recoverInterrupted,
+    removeTicket,
+    updateTicket,
   }
 }

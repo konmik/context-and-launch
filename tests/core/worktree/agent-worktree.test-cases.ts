@@ -3,9 +3,9 @@ import { failure } from '~/util/result.js'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
-import { AgentWorktreeManager, ForeignWorktreeError } from '../../../src/core/worktree/agent-worktree.js'
-import { LauncherConfigManager } from '../../../src/core/launcher/launcher-config.js'
-import { ConfigPaths } from '../../../src/core/config/config-paths.js'
+import { createAgentWorktreeManager, isForeignWorktreeError } from '../../../src/core/worktree/agent-worktree.js'
+import { createLauncherConfigManager } from '../../../src/core/launcher/launcher-config.js'
+import { createConfigPaths } from '../../../src/core/config/config-paths.js'
 import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js'
 import * as gitModule from '../../test-git.js'
 import { git } from '../../test-git.js'
@@ -75,9 +75,9 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
       fs.writeFileSync(path.join(projectDir, 'README.md'), '# test')
       await git(projectDir, 'add', '.')
       await git(projectDir, 'commit', '-m', 'init')
-      const paths = new ConfigPaths(configDir)
-      const lcm = new LauncherConfigManager(paths)
-      const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService())
+      const paths = createConfigPaths(configDir)
+      const lcm = createLauncherConfigManager(paths)
+      const awm = createAgentWorktreeManager(lcm, createTestCommandTemplateService())
       await expect(awm.getMainBranch(projectDir)).rejects.toThrow('Neither main nor master')
     })
     it.concurrent('uses default worktree path when worktreeRootPath is not configured', async () => {
@@ -85,9 +85,9 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
       const projectDir = tmpDir('awm-project-')
       dirs.push(configDir, projectDir)
       initGitRepo(projectDir)
-      const paths = new ConfigPaths(configDir)
-      const lcm = new LauncherConfigManager(paths)
-      const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService())
+      const paths = createConfigPaths(configDir)
+      const lcm = createLauncherConfigManager(paths)
+      const awm = createAgentWorktreeManager(lcm, createTestCommandTemplateService())
       const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0001')
       expect(result.type).toBe('Success')
       if (result.type === 'Success') {
@@ -106,14 +106,14 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
         dirs.push(configDir, projectDir, worktreeRoot)
         initGitRepo(projectDir) // Force backslash separators in the stored worktreeRootPath
         const backslashRoot = worktreeRoot.replace(/\//g, '\\')
-        const paths = new ConfigPaths(configDir)
-        const lcm = new LauncherConfigManager(paths)
+        const paths = createConfigPaths(configDir)
+        const lcm = createLauncherConfigManager(paths)
         lcm.saveProjectConfig('bs-proj', {
           templates: [],
           skills: [],
           worktreeRootPath: backslashRoot,
         })
-        const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService())
+        const awm = createAgentWorktreeManager(lcm, createTestCommandTemplateService())
         const folderName = 'st-0002-backslash' // First call: creates the worktree
         const result1 = await awm.ensureAgentWorktree(projectDir, 'bs-proj', folderName)
         expect(result1.type).toBe('Success')
@@ -202,14 +202,14 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
         const configDir = tmpDir('awm-config-')
         const worktreeRoot = tmpDir('awm-worktrees-')
         dirs.push(configDir, worktreeRoot)
-        const paths = new ConfigPaths(configDir)
-        const lcm = new LauncherConfigManager(paths)
+        const paths = createConfigPaths(configDir)
+        const lcm = createLauncherConfigManager(paths)
         lcm.saveProjectConfig('my-proj', {
           templates: [],
           skills: [],
           worktreeRootPath: worktreeRoot,
         })
-        const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService())
+        const awm = createAgentWorktreeManager(lcm, createTestCommandTemplateService())
         const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-stale-main')
         expect(result.type).toBe('Success')
         if (result.type === 'Success') {
@@ -246,9 +246,9 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
       fs.writeFileSync(path.join(projectDir, 'README.md'), '# test')
       await git(projectDir, 'add', '.')
       await git(projectDir, 'commit', '-m', 'init')
-      const paths = new ConfigPaths(configDir)
-      const lcm = new LauncherConfigManager(paths)
-      const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService()) // git branch --list 'main' should NOT match 'main-v2'
+      const paths = createConfigPaths(configDir)
+      const lcm = createLauncherConfigManager(paths)
+      const awm = createAgentWorktreeManager(lcm, createTestCommandTemplateService()) // git branch --list 'main' should NOT match 'main-v2'
       // so getMainBranch should throw since neither 'main' nor 'master' exists
       await expect(awm.getMainBranch(projectDir)).rejects.toThrow('Neither main nor master')
     })
@@ -319,14 +319,14 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
       const worktreeRootB = tmpDir('awm-wt-B-')
       dirs.push(configDir, projectDir, worktreeRootA, worktreeRootB)
       initGitRepo(projectDir)
-      const paths = new ConfigPaths(configDir)
-      const lcm = new LauncherConfigManager(paths)
+      const paths = createConfigPaths(configDir)
+      const lcm = createLauncherConfigManager(paths)
       lcm.saveProjectConfig('dup-proj', {
         templates: [],
         skills: [],
         worktreeRootPath: worktreeRootA,
       })
-      const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService())
+      const awm = createAgentWorktreeManager(lcm, createTestCommandTemplateService())
       const folderName = 'st-dup-branch'
       const result1 = await awm.ensureAgentWorktree(projectDir, 'dup-proj', folderName)
       expect(result1.type).toBe('Success')
@@ -351,14 +351,14 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
       const worktreeRootB = tmpDir('awm-wt-B-')
       dirs.push(configDir, projectDir, worktreeRootA, worktreeRootB)
       initGitRepo(projectDir)
-      const paths = new ConfigPaths(configDir)
-      const lcm = new LauncherConfigManager(paths)
+      const paths = createConfigPaths(configDir)
+      const lcm = createLauncherConfigManager(paths)
       lcm.saveProjectConfig('stale-proj', {
         templates: [],
         skills: [],
         worktreeRootPath: worktreeRootA,
       })
-      const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService())
+      const awm = createAgentWorktreeManager(lcm, createTestCommandTemplateService())
       const folderName = 'st-stale-ref'
       const result1 = await awm.ensureAgentWorktree(projectDir, 'stale-proj', folderName)
       expect(result1.type).toBe('Success')
@@ -397,7 +397,7 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
           agentWorktreePath: foreignWorktree,
         })
         .catch((cause: unknown) => cause)
-      expect(error).toBeInstanceOf(ForeignWorktreeError)
+      expect(error).toSatisfy(isForeignWorktreeError)
       if (!(error instanceof Error)) throw new Error('Expected foreign worktree operation to fail with an Error.')
       expect(error.message).toBe(
         `The saved worktree belongs to a different project: ${foreignWorktree}.` + ' Remove it from its original project before retrying.',
@@ -436,8 +436,8 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
       const projectDir = tmpDir('awm-project-pullretry-')
       dirs.push(configDir, projectDir)
       initGitRepo(projectDir)
-      const paths = new ConfigPaths(configDir)
-      const lcm = new LauncherConfigManager(paths)
+      const paths = createConfigPaths(configDir)
+      const lcm = createLauncherConfigManager(paths)
       lcm.saveProjectConfig('no-wt-proj', {
         templates: [
           {
@@ -447,7 +447,7 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
         ],
         skills: [],
       })
-      const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService())
+      const awm = createAgentWorktreeManager(lcm, createTestCommandTemplateService())
       const config = lcm.loadProjectConfig('no-wt-proj')
       expect(config.worktreeRootPath).toBeUndefined()
       const result = await awm.ensureAgentWorktree(projectDir, 'no-wt-proj', 'st-0001-feature')

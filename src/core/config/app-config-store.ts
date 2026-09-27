@@ -1,47 +1,59 @@
 import type { ConfigPaths } from './config-paths.js'
-import { ConfigRepository } from './config-repository.js'
+import { createConfigRepository, type ConfigRepository } from './config-repository.js'
 import { decodeAppConfig, type AppConfigData } from './app-config-data.js'
-import { UpdateLock } from '~/util/update-lock.js'
+import { createUpdateLock, type UpdateLock } from '~/util/update-lock.js'
 import type { Updater } from '~/util/updater.js'
 
-export class AppConfigStore {
-  constructor(
-    private readonly paths: ConfigPaths,
-    private readonly repository = new ConfigRepository(),
-    private readonly lock = new UpdateLock(),
-  ) {}
+export interface AppConfigStore {
+  read(owner?: string): AppConfigData
+  update(transform: Updater<AppConfigData>, owner?: string): AppConfigData
+  release(owner: string): void
+  recordProjectFocus(projectSlug: string): Promise<AppConfigData>
+}
 
-  read(owner?: string): AppConfigData {
-    return this.lock.read(() => {
-      const file = this.paths.projectRegistryFile()
-      const raw = this.repository.readJson(file)
+export function createAppConfigStore(
+  paths: ConfigPaths,
+  repository: ConfigRepository = createConfigRepository(),
+  lock: UpdateLock = createUpdateLock(),
+): AppConfigStore {
+  function read(owner?: string): AppConfigData {
+    return lock.read(() => {
+      const file = paths.projectRegistryFile()
+      const raw = repository.readJson(file)
       if (raw === null) throw new Error(`config.json not found: ${file}`)
       const { config, legacy } = decodeAppConfig(raw)
-      if (legacy) this.lock.write(() => this.repository.writeJson(file, config))
+      if (legacy) lock.write(() => repository.writeJson(file, config))
       return config
     }, owner)
   }
 
-  update(transform: Updater<AppConfigData>, owner?: string): AppConfigData {
-    return this.lock.write(() => {
-      const { config: next } = decodeAppConfig(transform(this.read()))
-      this.repository.writeJson(this.paths.projectRegistryFile(), next)
+  function update(transform: Updater<AppConfigData>, owner?: string): AppConfigData {
+    return lock.write(() => {
+      const { config: next } = decodeAppConfig(transform(read()))
+      repository.writeJson(paths.projectRegistryFile(), next)
       return next
     }, owner)
   }
 
-  release(owner: string): void {
-    this.lock.release(owner)
+  function release(owner: string): void {
+    lock.release(owner)
   }
 
-  recordProjectFocus(projectSlug: string): Promise<AppConfigData> {
-    return this.lock.writeWhenAvailable(() =>
-      this.update((current) => ({
+  function recordProjectFocus(projectSlug: string): Promise<AppConfigData> {
+    return lock.writeWhenAvailable(() =>
+      update((current) => ({
         ...current,
         lastUsedProjectSlug: current.projects.some((project) => project.projectSlug === projectSlug)
           ? projectSlug
           : current.lastUsedProjectSlug,
       })),
     )
+  }
+
+  return {
+    read,
+    update,
+    release,
+    recordProjectFocus,
   }
 }

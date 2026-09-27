@@ -2,7 +2,7 @@ import type { ProjectRegistry } from './project-registry.js'
 import type { LauncherConfigManager } from '../launcher/launcher-config.js'
 import type { WorktreeManager } from '../worktree/worktree-manager.js'
 import type { BoardConfigManager } from './board-config.js'
-import { TicketStore } from '../ticket/ticket-store.js'
+import { createTicketStore } from '../ticket/ticket-store.js'
 
 export type MigrationScope = 'all' | 'current' | 'none'
 
@@ -60,7 +60,7 @@ export function migrateColumnRename(
     }
     let projectChanged = false
     try {
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       const tickets = store.listTickets()
       for (const ticket of tickets) {
         if (ticket.status === oldColumnName) {

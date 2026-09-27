@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { HerdrUnavailableError } from '~/core/herdr/herdr-availability.js'
+import { createHerdrUnavailableError } from '~/core/herdr/herdr-availability.js'
 import { createHerdrStatusService } from '../../../src/components/board/herdr-status-service.js'
 
 const fetchHerdrTicketState = vi.fn()
@@ -42,7 +42,7 @@ describe('getHerdrAgentStatuses', () => {
     expect(reconcileProject).not.toHaveBeenCalled()
   })
   it('reports unavailable without mutating the Review Prompt Queue', async () => {
-    fetchHerdrTicketState.mockRejectedValue(new HerdrUnavailableError('server-not-running'))
+    fetchHerdrTicketState.mockRejectedValue(createHerdrUnavailableError('server-not-running'))
     const result = await service.getStatuses('project')
     expect(result).toEqual({
       kind: 'unavailable',
@@ -50,7 +50,7 @@ describe('getHerdrAgentStatuses', () => {
     expect(reconcileProject).not.toHaveBeenCalled()
   })
   it('reports disabled without mutating the Review Prompt Queue', async () => {
-    fetchHerdrTicketState.mockRejectedValue(new HerdrUnavailableError('cli-missing'))
+    fetchHerdrTicketState.mockRejectedValue(createHerdrUnavailableError('cli-missing'))
     const result = await service.getStatuses('project')
     expect(result).toEqual({
       kind: 'disabled',

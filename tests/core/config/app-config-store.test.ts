@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import fs from 'node:fs'
 import { makeTempDir, removeTempDir } from '../../test-temp.js'
-import { ConfigPaths } from '../../../src/core/config/config-paths.js'
-import { ConfigRepository } from '../../../src/core/config/config-repository.js'
-import { AppConfigStore } from '../../../src/core/config/app-config-store.js'
-import { ProjectRegistry } from '../../../src/core/project/project-registry.js'
+import { createConfigPaths, type ConfigPaths } from '../../../src/core/config/config-paths.js'
+import { createConfigRepository, type ConfigRepository } from '../../../src/core/config/config-repository.js'
+import { createAppConfigStore, type AppConfigStore } from '../../../src/core/config/app-config-store.js'
+import { createProjectRegistry, type ProjectRegistry } from '../../../src/core/project/project-registry.js'
 import type { AppConfigData } from '../../../src/core/config/app-config-data.js'
-import { UpdateLock } from '~/util/update-lock.js'
+import { createUpdateLock } from '~/util/update-lock.js'
 import { createStoredConfig } from '~/util/stored-config.js'
 import { success } from '~/util/result.js'
 
@@ -19,8 +19,8 @@ afterEach(async () => {
 function setup(): SetupResult {
   const directory = makeTempDir('app-config-')
   directories.push(directory)
-  const paths = new ConfigPaths(directory)
-  const repository = new ConfigRepository()
+  const paths = createConfigPaths(directory)
+  const repository = createConfigRepository()
   const config: AppConfigData = {
     projects: [],
     lastUsedProjectSlug: null,
@@ -28,8 +28,12 @@ function setup(): SetupResult {
   }
   repository.writeJson(paths.projectRegistryFile(), config)
   let clock = 0
-  const store = new AppConfigStore(paths, repository, new UpdateLock(100, () => clock))
-  const registry = new ProjectRegistry(paths, repository, store)
+  const store = createAppConfigStore(
+    paths,
+    repository,
+    createUpdateLock(100, () => clock),
+  )
+  const registry = createProjectRegistry(paths, repository, store)
   return {
     paths,
     repository,

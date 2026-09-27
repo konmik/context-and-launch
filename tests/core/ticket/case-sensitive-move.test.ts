@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
-import { TicketStore } from '../../../src/core/ticket/ticket-store.js'
+import { createTicketStore } from '../../../src/core/ticket/ticket-store.js'
 import { moveTicketInOrder } from '../../../src/core/ticket/ticket-order-data.js'
 import { git } from '../../test-git.js'
 
@@ -56,7 +56,7 @@ describe('case-sensitive column move', () => {
       }
       cleanup(projectDir, worktreeDir)
     })
-    const store = new TicketStore(worktreeDir) // Create a ticket with status "Todo" (capitalized)
+    const store = createTicketStore(worktreeDir) // Create a ticket with status "Todo" (capitalized)
     const ticket = store.createTicket('CS-1', 'Case Test', 'Todo') // Verify status.json has "Todo"
     const statusBefore = JSON.parse(fs.readFileSync(path.join(worktreeDir, ticket.folderName, 'status.json'), 'utf-8'))
     expect(statusBefore.status).toBe('Todo') // Read the order file to see the initial state

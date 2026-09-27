@@ -3,42 +3,40 @@ import path from 'path'
 import type { ConfigPaths } from '../config/config-paths.js'
 import type { CommandTemplateExecutor } from '../command-template/command-template-types.js'
 
-export class WorktreeManager {
-  private paths: ConfigPaths
-  private ticketsDirResolver?: (projectSlug: string) => string | undefined
-  private locks = new Map<string, Promise<unknown>>()
+export interface WorktreeManager {
+  ensureWorktree(projectPath: string, projectSlug: string, branch?: string): Promise<string>
+  getWorktreeDir(projectSlug: string): string
+}
 
-  constructor(
-    paths: ConfigPaths,
-    private readonly commands: CommandTemplateExecutor,
-    ticketsDirResolver?: (projectSlug: string) => string | undefined,
-  ) {
-    this.paths = paths
-    this.ticketsDirResolver = ticketsDirResolver
+export function createWorktreeManager(
+  paths: ConfigPaths,
+  commands: CommandTemplateExecutor,
+  ticketsDirResolver?: (projectSlug: string) => string | undefined,
+): WorktreeManager {
+  const locks = new Map<string, Promise<unknown>>()
+
+  function resolveTicketsDir(projectSlug: string): string {
+    return ticketsDirResolver?.(projectSlug) || paths.ticketWorktreeDir(projectSlug)
   }
 
-  private resolveTicketsDir(projectSlug: string): string {
-    return this.ticketsDirResolver?.(projectSlug) || this.paths.ticketWorktreeDir(projectSlug)
-  }
-
-  async ensureWorktree(projectPath: string, projectSlug: string, branch = 'tickets'): Promise<string> {
+  async function ensureWorktree(projectPath: string, projectSlug: string, branch: string = 'tickets'): Promise<string> {
     if (!fs.existsSync(projectPath)) {
       throw new Error(`Project path does not exist: ${projectPath}`)
     }
     const canonicalPath = fs.realpathSync(projectPath)
     const lockKey = canonicalPath
-    const prev = this.locks.get(lockKey) ?? Promise.resolve()
+    const prev = locks.get(lockKey) ?? Promise.resolve()
     const next = prev.then(
-      () => this.doEnsureWorktree(canonicalPath, projectSlug, branch),
-      () => this.doEnsureWorktree(canonicalPath, projectSlug, branch),
+      () => doEnsureWorktree(canonicalPath, projectSlug, branch),
+      () => doEnsureWorktree(canonicalPath, projectSlug, branch),
     )
-    this.locks.set(lockKey, next)
+    locks.set(lockKey, next)
     return next
   }
 
-  private async doEnsureWorktree(projectPath: string, projectSlug: string, branch: string): Promise<string> {
-    const worktreeDir = this.resolveTicketsDir(projectSlug)
-    if (fs.existsSync(worktreeDir) && this.isValidWorktree(worktreeDir)) {
+  async function doEnsureWorktree(projectPath: string, projectSlug: string, branch: string): Promise<string> {
+    const worktreeDir = resolveTicketsDir(projectSlug)
+    if (fs.existsSync(worktreeDir) && isValidWorktree(worktreeDir)) {
       return worktreeDir
     }
     if (fs.existsSync(worktreeDir)) {
@@ -49,21 +47,21 @@ export class WorktreeManager {
     fs.mkdirSync(path.dirname(worktreeDir), {
       recursive: true,
     })
-    const localList = await this.commands.execute('worktree.branch.local-list', projectPath, {
+    const localList = await commands.execute('worktree.branch.local-list', projectPath, {
       branch,
     })
     if (localList.trim().length > 0) {
-      await this.releaseBranchWorktree(projectPath, worktreeDir, branch)
-      await this.commands.execute('worktree.add-existing', projectPath, {
+      await releaseBranchWorktree(projectPath, worktreeDir, branch)
+      await commands.execute('worktree.add-existing', projectPath, {
         worktreeDir,
         branch,
       })
       return worktreeDir
     }
-    if (await this.tryAdoptRemoteBranch(projectPath, worktreeDir, branch)) {
+    if (await tryAdoptRemoteBranch(projectPath, worktreeDir, branch)) {
       return worktreeDir
     }
-    await this.commands.execute('worktree.create-orphan', projectPath, {
+    await commands.execute('worktree.create-orphan', projectPath, {
       worktreeDir,
       branch,
       message: `init ${branch}`,
@@ -71,16 +69,16 @@ export class WorktreeManager {
     return worktreeDir
   }
 
-  private async tryAdoptRemoteBranch(projectPath: string, worktreeDir: string, branch: string): Promise<boolean> {
-    const remote = await this.defaultRemote(projectPath)
+  async function tryAdoptRemoteBranch(projectPath: string, worktreeDir: string, branch: string): Promise<boolean> {
+    const remote = await defaultRemote(projectPath)
     if (!remote) return false
     try {
-      const remoteHeads = await this.commands.execute('worktree.remote-branch.probe', projectPath, {
+      const remoteHeads = await commands.execute('worktree.remote-branch.probe', projectPath, {
         remote,
         branch,
       })
       if (remoteHeads.trim().length === 0) return false
-      await this.commands.execute('worktree.adopt-remote', projectPath, {
+      await commands.execute('worktree.adopt-remote', projectPath, {
         remote,
         branch,
         worktreeDir,
@@ -93,9 +91,9 @@ export class WorktreeManager {
     }
   }
 
-  private async releaseBranchWorktree(projectPath: string, worktreeDir: string, branch: string): Promise<void> {
-    await this.commands.execute('worktree.prune', projectPath)
-    const existing = await this.worktreePathForBranch(projectPath, branch)
+  async function releaseBranchWorktree(projectPath: string, worktreeDir: string, branch: string): Promise<void> {
+    await commands.execute('worktree.prune', projectPath)
+    const existing = await worktreePathForBranch(projectPath, branch)
     if (existing && path.resolve(existing) !== path.resolve(worktreeDir)) {
       throw new Error(
         `Branch '${branch}' is already checked out at ${existing}.` +
@@ -104,8 +102,8 @@ export class WorktreeManager {
     }
   }
 
-  private async worktreePathForBranch(projectPath: string, branch: string): Promise<string | null> {
-    const out = await this.commands.execute('worktree.list', projectPath)
+  async function worktreePathForBranch(projectPath: string, branch: string): Promise<string | null> {
+    const out = await commands.execute('worktree.list', projectPath)
     let currentPath: string | null = null
     for (const line of out.split('\n')) {
       if (line.startsWith('worktree ')) currentPath = line.slice('worktree '.length).trim()
@@ -114,8 +112,8 @@ export class WorktreeManager {
     return null
   }
 
-  private async defaultRemote(projectPath: string): Promise<string | null> {
-    const out = await this.commands.execute('worktree.remote.list', projectPath)
+  async function defaultRemote(projectPath: string): Promise<string | null> {
+    const out = await commands.execute('worktree.remote.list', projectPath)
     const remotes = out
       .split('\n')
       .map((r) => r.trim())
@@ -124,11 +122,11 @@ export class WorktreeManager {
     return remotes[0] ?? null
   }
 
-  getWorktreeDir(projectSlug: string): string {
-    return this.resolveTicketsDir(projectSlug)
+  function getWorktreeDir(projectSlug: string): string {
+    return resolveTicketsDir(projectSlug)
   }
 
-  private isValidWorktree(dir: string): boolean {
+  function isValidWorktree(dir: string): boolean {
     const dotGit = path.join(dir, '.git')
     if (!fs.existsSync(dotGit)) return false
     const stat = fs.statSync(dotGit)
@@ -137,10 +135,10 @@ export class WorktreeManager {
     const gitDir = content.replace(/^gitdir:\s*/, '')
     const resolved = path.resolve(dir, gitDir)
     if (!fs.existsSync(resolved)) return false
-    return this.headResolves(resolved)
+    return headResolves(resolved)
   }
 
-  private headResolves(gitDir: string): boolean {
+  function headResolves(gitDir: string): boolean {
     const headPath = path.join(gitDir, 'HEAD')
     if (!fs.existsSync(headPath)) return false
     const head = fs.readFileSync(headPath, 'utf-8').trim()
@@ -159,5 +157,10 @@ export class WorktreeManager {
       }
     }
     return false
+  }
+
+  return {
+    ensureWorktree,
+    getWorktreeDir,
   }
 }

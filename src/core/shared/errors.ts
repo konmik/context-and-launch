@@ -8,22 +8,42 @@ export interface ErrorInfo {
   output?: string
 }
 
-export class AppError extends Error {
-  constructor(message: string) {
-    super(message)
-  }
+export interface AppError extends Error {}
+
+export interface ValidationError extends AppError {}
+
+export interface NotFoundError extends AppError {}
+
+const appErrors = new WeakSet<AppError>()
+
+const validationErrors = new WeakSet<ValidationError>()
+
+export function createAppError(message: string): AppError {
+  const error = new Error(message)
+  error.name = 'AppError'
+  appErrors.add(error)
+  return error
 }
 
-export class ValidationError extends AppError {
-  constructor(message: string) {
-    super(message)
-  }
+export function isAppError(cause: unknown): cause is AppError {
+  return cause instanceof Error && appErrors.has(cause)
 }
 
-export class NotFoundError extends AppError {
-  constructor(message: string) {
-    super(message)
-  }
+export function createValidationError(message: string): ValidationError {
+  const error = createAppError(message)
+  error.name = 'ValidationError'
+  validationErrors.add(error)
+  return error
+}
+
+export function isValidationError(cause: unknown): cause is ValidationError {
+  return isAppError(cause) && validationErrors.has(cause)
+}
+
+export function createNotFoundError(message: string): NotFoundError {
+  const error = createAppError(message)
+  error.name = 'NotFoundError'
+  return error
 }
 
 /**
@@ -37,25 +57,41 @@ export class NotFoundError extends AppError {
  */
 export type ProcessFailureKind = 'exited' | 'command-not-found' | 'interpreter-failure' | 'timeout' | 'spawn-error'
 
-export class ProcessError extends Error {
+export interface ProcessError extends Error {
   readonly shortDescription: string
-
-  constructor(
-    public readonly command: string,
-    public readonly exitCode: number | undefined,
-    public readonly output: string | undefined,
-    description?: string,
-    public readonly kind: ProcessFailureKind = 'exited',
-  ) {
-    const desc = description ?? `${command} failed${exitCode != null ? ` (exit ${exitCode})` : ''}`
-    super(output ? `${desc}: ${output}` : desc)
-    this.shortDescription = desc
-  }
-
+  readonly command: string
+  readonly exitCode: number | undefined
+  readonly output: string | undefined
+  readonly kind: ProcessFailureKind
   /** True when the command ran to completion and chose `code` itself. */
-  exitedWith(code: number): boolean {
-    return this.kind === 'exited' && this.exitCode === code
-  }
+  exitedWith(code: number): boolean
+}
+
+const processErrors = new WeakSet<Error>()
+
+export function createProcessError(
+  command: string,
+  exitCode: number | undefined,
+  output: string | undefined,
+  description?: string,
+  kind: ProcessFailureKind = 'exited',
+): ProcessError {
+  const shortDescription = description ?? `${command} failed${exitCode != null ? ` (exit ${exitCode})` : ''}`
+  const error = Object.assign(new Error(output ? `${shortDescription}: ${output}` : shortDescription), {
+    name: 'ProcessError',
+    shortDescription,
+    command,
+    exitCode,
+    output,
+    kind,
+    exitedWith: (code: number): boolean => kind === 'exited' && exitCode === code,
+  })
+  processErrors.add(error)
+  return error
+}
+
+export function isProcessError(cause: unknown): cause is ProcessError {
+  return cause instanceof Error && processErrors.has(cause)
 }
 
 const ErrorMessageSchema = v.object({
@@ -86,7 +122,7 @@ export function errorResult(cause: unknown): Failure<ActionError> {
 }
 
 export function errorPayload(cause: unknown, title?: string): ErrorInfo {
-  if (cause instanceof ProcessError) {
+  if (isProcessError(cause)) {
     return {
       title,
       description: cause.shortDescription,

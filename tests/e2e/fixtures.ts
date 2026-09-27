@@ -487,7 +487,11 @@ export async function fastForwardUntilVisible(page: Page, id: string, timeoutMs 
 export async function gotoProject(page: Page, server: TestServer, projectSlug: string): Promise<void> {
   await timeAction('project.navigate', () => page.goto(`${server.baseUrl}/project/${projectSlug}`))
   await timeAction('project.header.ready', () => waitVisible(page, 'project-header-settings-button'))
-  await timeAction('project.content.ready', () => waitVisibleAny(page, ['kanban-board-column-header', 'forest-surface']))
+  try {
+    await timeAction('project.content.ready', () => waitVisibleAny(page, ['kanban-board-column-header', 'forest-surface']))
+  } catch (cause) {
+    throw new Error(`Project ${projectSlug} did not load: ${await page.locator('body').innerText()}`, { cause })
+  }
 }
 
 export async function openConflictDialog(page: Page): Promise<void> {
@@ -922,7 +926,10 @@ export function setupE2E(
     await startActionTrace(p)
     return p
   }
-  afterEach(async () => {
+  afterEach(async (context) => {
+    if (context.task.result?.state === 'fail' && ctx.page && !ctx.page.isClosed()) {
+      console.error(await ctx.page.locator('body').innerText())
+    }
     await Promise.all([
       ...extraPages.map(async (p) => {
         try {

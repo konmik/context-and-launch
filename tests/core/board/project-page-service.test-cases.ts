@@ -5,10 +5,10 @@ import { fromPartial } from '@total-typescript/shoehorn'
 import fs from 'fs'
 import path from 'path'
 import { spawn } from 'node:child_process'
-import { ProjectPageService } from '../../../src/core/board/project-page-service.js'
-import { TicketSyncManager } from '~/core/ticket/ticket-sync.js'
+import { createProjectPageService, type ProjectPageService } from '../../../src/core/board/project-page-service.js'
+import { createTicketSyncManager, type TicketSyncManager } from '~/core/ticket/ticket-sync.js'
 import { git } from '../../test-git.js'
-import { GitRepository } from '~/core/infra/git-repository.js'
+import { createGitRepository } from '~/core/infra/git-repository.js'
 import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js'
 import { cleanup, createRepoWithRemote, conflictResolveDir, pushRemoteConflict, tmpDir } from '../ticket/sync-test-repos.js'
 import type { ProjectRegistry, ProjectInfo } from '~/core/project/project-registry.js'
@@ -60,7 +60,7 @@ function stubDeps(
       worktreeRootPath: overrides.agentWorktreeRoot ?? '/nonexistent-agent-worktree-root',
     })),
   })
-  const service = new ProjectPageService(
+  const service = createProjectPageService(
     projectRegistry,
     boardConfigManager,
     worktreeManager,
@@ -98,7 +98,7 @@ async function setupResolvedScratch(dirs: string[]): Promise<SetupResolvedScratc
   })
   fs.writeFileSync(path.join(worktreeDir, 'conflict.txt'), 'local content')
   const commands = createTestCommandTemplateService()
-  const manager = new TicketSyncManager(commands, new GitRepository(commands))
+  const manager = createTicketSyncManager(commands, createGitRepository(commands))
   expect(await manager.sync(worktreeDir)).toEqual(
     success({
       status: 'conflict',

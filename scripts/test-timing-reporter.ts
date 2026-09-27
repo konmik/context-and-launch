@@ -27,24 +27,24 @@ function startKey(hook: ReportedHookContext): string {
   return `${hook.entity.id}:${hook.name}`
 }
 
-export default class TestTimingReporter implements Reporter {
-  private perTest = new Map<string, Map<string, PerTestHooks>>()
-  private perFile = new Map<string, PerFileHooks>()
-  private startedAt = new Map<string, number>()
+export function createTestTimingReporter(): Reporter {
+  const perTest = new Map<string, Map<string, PerTestHooks>>()
+  const perFile = new Map<string, PerFileHooks>()
+  const startedAt = new Map<string, number>()
 
-  onHookStart(hook: ReportedHookContext): void {
-    this.startedAt.set(startKey(hook), Date.now())
+  function onHookStart(hook: ReportedHookContext): void {
+    startedAt.set(startKey(hook), Date.now())
   }
 
-  onHookEnd(hook: ReportedHookContext): void {
-    const t0 = this.startedAt.get(startKey(hook))
+  function onHookEnd(hook: ReportedHookContext): void {
+    const t0 = startedAt.get(startKey(hook))
     if (t0 === undefined) return
-    this.startedAt.delete(startKey(hook))
+    startedAt.delete(startKey(hook))
     const delta = Date.now() - t0
     if (hook.name === 'beforeEach' || hook.name === 'afterEach') {
       const test: TestCase = hook.entity
       const moduleId = test.module.moduleId
-      const fileTests = this.perTest.get(moduleId) ?? new Map<string, PerTestHooks>()
+      const fileTests = perTest.get(moduleId) ?? new Map<string, PerTestHooks>()
       const times = fileTests.get(test.name) ?? {
         beforeEachMs: 0,
         afterEachMs: 0,
@@ -52,24 +52,24 @@ export default class TestTimingReporter implements Reporter {
       if (hook.name === 'beforeEach') times.beforeEachMs += delta
       else times.afterEachMs += delta
       fileTests.set(test.name, times)
-      this.perTest.set(moduleId, fileTests)
+      perTest.set(moduleId, fileTests)
       return
     }
     const moduleId = hook.entity.type === 'module' ? hook.entity.moduleId : hook.entity.module.moduleId
-    const times = this.perFile.get(moduleId) ?? {
+    const times = perFile.get(moduleId) ?? {
       beforeAllMs: 0,
       afterAllMs: 0,
     }
     if (hook.name === 'beforeAll') times.beforeAllMs += delta
     else times.afterAllMs += delta
-    this.perFile.set(moduleId, times)
+    perFile.set(moduleId, times)
   }
 
-  onTestRunEnd(modules: readonly TestModule[]): void {
+  function onTestRunEnd(modules: readonly TestModule[]): void {
     const lines: string[] = []
     for (const module of modules) {
-      const testHooks = this.perTest.get(module.moduleId)
-      const fileHooks = this.perFile.get(module.moduleId)
+      const testHooks = perTest.get(module.moduleId)
+      const fileHooks = perFile.get(module.moduleId)
       for (const test of module.children.allTests()) {
         const result = test.result()
         if (!result || result.state === 'skipped') continue
@@ -97,4 +97,12 @@ export default class TestTimingReporter implements Reporter {
     })
     fs.appendFileSync(LOG_PATH, `=== ${new Date().toISOString()} ===\n${lines.join('\n')}\n`, 'utf8')
   }
+
+  return {
+    onHookStart,
+    onHookEnd,
+    onTestRunEnd,
+  }
 }
+
+export default createTestTimingReporter

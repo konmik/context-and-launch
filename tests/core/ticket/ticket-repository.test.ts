@@ -2,8 +2,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { TicketRepository } from '../../../src/core/ticket/ticket-repository.js'
-import { TicketStore } from '../../../src/core/ticket/ticket-store.js'
+import { createTicketRepository } from '../../../src/core/ticket/ticket-repository.js'
+import { createTicketStore } from '../../../src/core/ticket/ticket-store.js'
 
 describe('TicketRepository', () => {
   const dirs: string[] = []
@@ -29,12 +29,12 @@ describe('TicketRepository', () => {
         memberOf: 42,
       }),
     )
-    expect(new TicketRepository().readStatusJson(ticketDir)).toBeNull()
+    expect(createTicketRepository().readStatusJson(ticketDir)).toBeNull()
   })
   it('can update a ticket while board status reads are in flight', async () => {
     const worktreeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ticket-repository-'))
     dirs.push(worktreeDir)
-    const store = new TicketStore(worktreeDir)
+    const store = createTicketStore(worktreeDir)
     const ticket = store.createTicket('A-1', 'Alpha')
     const reads = Array.from(
       {
@@ -58,6 +58,6 @@ describe('TicketRepository', () => {
     fs.mkdirSync(path.join(worktreeDir, 'a-1-alpha', 'status.json'), {
       recursive: true,
     })
-    await expect(new TicketStore(worktreeDir).loadBoardSnapshot(['todo'])).rejects.toThrow()
+    await expect(createTicketStore(worktreeDir).loadBoardSnapshot(['todo'])).rejects.toThrow()
   })
 })

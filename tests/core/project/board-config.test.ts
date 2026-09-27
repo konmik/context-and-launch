@@ -2,9 +2,9 @@ import { describe, it, expect, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
-import { BoardConfigManager } from '../../../src/core/project/board-config.js'
+import { createBoardConfigManager, type BoardConfigManager } from '../../../src/core/project/board-config.js'
 import { validateColumnName, type BoardDefinition } from '../../../src/core/project/board-config-data.js'
-import { ConfigPaths } from '../../../src/core/config/config-paths.js'
+import { createConfigPaths, type ConfigPaths } from '../../../src/core/config/config-paths.js'
 import { initializeDataDir } from '../../../src/core/config/initialize.js'
 import { createStoredConfig } from '~/util/stored-config.js'
 import { success } from '~/util/result.js'
@@ -22,11 +22,11 @@ afterEach(() => {
 function setup(): SetupResult {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'board-config-'))
   dirs.push(dir)
-  const paths = new ConfigPaths(dir)
+  const paths = createConfigPaths(dir)
   initializeDataDir(paths)
   return {
     paths,
-    store: new BoardConfigManager(paths),
+    store: createBoardConfigManager(paths),
   }
 }
 
@@ -71,7 +71,7 @@ describe('board configuration storage', () => {
         )
       ).type,
     ).toBe('Success')
-    expect(new BoardConfigManager(paths).read()).toEqual([
+    expect(createBoardConfigManager(paths).read()).toEqual([
       {
         ...original[0],
         name: 'Renamed',

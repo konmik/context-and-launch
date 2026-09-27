@@ -1,6 +1,6 @@
 import type { ConfigPaths } from '../config/config-paths.js'
-import { ConfigRepository } from '../config/config-repository.js'
-import { UpdateLock } from '~/util/update-lock.js'
+import { createConfigRepository, type ConfigRepository } from '../config/config-repository.js'
+import { createUpdateLock, type UpdateLock } from '~/util/update-lock.js'
 import { decodeBoards, validateBoards, type BoardDefinition, type ColumnDefinition } from './board-config-data.js'
 
 export type { BoardDefinition, ColumnDefinition } from './board-config-data.js'
@@ -11,43 +11,57 @@ export interface BoardConfig {
   columns: ColumnDefinition[]
 }
 
-export class BoardConfigManager {
-  constructor(
-    private readonly paths: ConfigPaths,
-    private readonly configRepo = new ConfigRepository(),
-    private readonly lock = new UpdateLock(),
-  ) {}
+export interface BoardConfigManager {
+  read(owner?: string): BoardDefinition[]
+  write(boards: BoardDefinition[], owner?: string): BoardDefinition[]
+  release(owner: string): void
+  getDefaultBoardId(): string
+  getConfig(boardId?: string | null): BoardConfig
+}
 
-  read(owner?: string): BoardDefinition[] {
-    return this.lock.read(() => {
-      const file = this.paths.boardsFile()
-      const raw = this.configRepo.readJson(file)
+export function createBoardConfigManager(
+  paths: ConfigPaths,
+  configRepo: ConfigRepository = createConfigRepository(),
+  lock: UpdateLock = createUpdateLock(),
+): BoardConfigManager {
+  function read(owner?: string): BoardDefinition[] {
+    return lock.read(() => {
+      const file = paths.boardsFile()
+      const raw = configRepo.readJson(file)
       if (raw === null) throw new Error(`boards.json not found: ${file}`)
       return decodeBoards(raw)
     }, owner)
   }
 
-  write(boards: BoardDefinition[], owner?: string): BoardDefinition[] {
-    return this.lock.write(() => {
+  function write(boards: BoardDefinition[], owner?: string): BoardDefinition[] {
+    return lock.write(() => {
       const next = decodeBoards(boards)
       validateBoards(next)
-      this.configRepo.writeJson(this.paths.boardsFile(), next)
+      configRepo.writeJson(paths.boardsFile(), next)
       return next
     }, owner)
   }
 
-  release(owner: string): void {
-    this.lock.release(owner)
+  function release(owner: string): void {
+    lock.release(owner)
   }
 
-  getDefaultBoardId(): string {
-    return this.read()[0].id
+  function getDefaultBoardId(): string {
+    return read()[0].id
   }
 
-  getConfig(boardId?: string | null): BoardConfig {
-    const boards = this.read()
+  function getConfig(boardId?: string | null): BoardConfig {
+    const boards = read()
     return {
       columns: (boards.find((board) => board.id === boardId) ?? boards[0]).columns,
     }
+  }
+
+  return {
+    read,
+    write,
+    release,
+    getDefaultBoardId,
+    getConfig,
   }
 }

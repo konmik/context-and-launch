@@ -1,6 +1,6 @@
 import type { CommandTemplateEntry } from './command-template-types.js'
 import { appLog, type AppLogContext } from '../infra/app-logger.js'
-import { ProcessError } from '../shared/errors.js'
+import { isProcessError } from '../shared/errors.js'
 import { buildDirectInvocationArgv } from './command-template-direct-invocation.js'
 import type { CommandTemplateKey } from './command-template-definitions.js'
 import { interpolateCommandTemplate } from './command-template-interpolation.js'
@@ -59,7 +59,7 @@ const FAILURE_LOG_MESSAGES = {
 }
 
 function failureLogMessage(cause: unknown): string {
-  return cause instanceof ProcessError ? FAILURE_LOG_MESSAGES[cause.kind] : 'spawn error'
+  return isProcessError(cause) ? FAILURE_LOG_MESSAGES[cause.kind] : 'spawn error'
 }
 
 function trustedScriptContext(source: TrustedScriptSource): AppLogContext {
@@ -74,59 +74,62 @@ function trustedScriptContext(source: TrustedScriptSource): AppLogContext {
       }
 }
 
-export class CommandTemplateService implements CommandTemplateExecutor {
-  constructor(
-    private readonly store: CommandTemplateStore,
-    private readonly runner: PlatformShellRunner,
-    private readonly platform: CommandTemplatePlatform = currentCommandTemplatePlatform(),
-    private readonly log: CommandTemplateLog = appLog,
-  ) {}
+export interface CommandTemplateService extends CommandTemplateExecutor {
+  get(key: CommandTemplateKey): CommandTemplateEntry
+  executeTrustedScript(options: TrustedScriptOptions): Promise<string>
+}
 
-  get(key: CommandTemplateKey): CommandTemplateEntry {
-    const entry = this.store.get(key)
-    if (!entry.platforms.includes(this.platform)) {
-      throw new Error(`Command Template '${key}' is not available on ${this.platform}.`)
+export function createCommandTemplateService(
+  store: CommandTemplateStore,
+  runner: PlatformShellRunner,
+  platform: CommandTemplatePlatform = currentCommandTemplatePlatform(),
+  log: CommandTemplateLog = appLog,
+): CommandTemplateService {
+  function get(key: CommandTemplateKey): CommandTemplateEntry {
+    const entry = store.get(key)
+    if (!entry.platforms.includes(platform)) {
+      throw new Error(`Command Template '${key}' is not available on ${platform}.`)
     }
     return entry
   }
 
-  render(key: CommandTemplateKey, values: CommandTemplateValues = {}, listValues: CommandTemplateListValues = {}): string {
-    const entry = this.get(key)
-    return interpolateCommandTemplate(entry.script, values, listValues, entry.scalarPlaceholders, entry.listPlaceholders, this.platform)
+  function render(key: CommandTemplateKey, values: CommandTemplateValues = {}, listValues: CommandTemplateListValues = {}): string {
+    const entry = get(key)
+    return interpolateCommandTemplate(entry.script, values, listValues, entry.scalarPlaceholders, entry.listPlaceholders, platform)
   }
 
-  async execute(
+  async function execute(
     key: CommandTemplateKey,
     cwd: string,
     values: CommandTemplateValues = {},
     listValues: CommandTemplateListValues = {},
   ): Promise<string> {
-    return this.executeRequest(this.buildExecutionRequest(key, cwd, values, listValues))
+    return executeRequest(buildExecutionRequest(key, cwd, values, listValues))
   }
 
-  executeSync(
+  function executeSync(
     key: CommandTemplateKey,
     cwd: string,
     values: CommandTemplateValues = {},
     listValues: CommandTemplateListValues = {},
   ): string {
-    const request = this.buildExecutionRequest(key, cwd, values, listValues)
-    this.log('command-template', 'start', {
+    const request = buildExecutionRequest(key, cwd, values, listValues)
+    log('command-template', 'start', {
       commandTemplateKey: key,
     })
     try {
-      const stdout = this.runner.executeSync(request)
-      this.log('command-template', 'success', {
+      const stdout = runner.executeSync(request)
+      log('command-template', 'success', {
         commandTemplateKey: key,
       })
       return stdout
     } catch (error) {
-      this.logFailure(key, error)
+      logFailure(key, error)
       throw error
     }
   }
 
-  async executeTrustedScript(options: TrustedScriptOptions): Promise<string> {
+  async function executeTrustedScript(options: TrustedScriptOptions): Promise<string> {
     const context = trustedScriptContext(options.source)
     const renderedScript = interpolateCommandTemplate(
       options.script,
@@ -134,11 +137,11 @@ export class CommandTemplateService implements CommandTemplateExecutor {
       options.listValues ?? {},
       options.knownScalarPlaceholders,
       options.knownListPlaceholders ?? [],
-      this.platform,
+      platform,
     )
     const request: ShellExecutionRequest = {
       key: TRUSTED_SCRIPT_IDENTITY[options.source.kind],
-      platform: this.platform,
+      platform: platform,
       script: renderedScript,
       argv: buildDirectInvocationArgv(
         options.script,
@@ -152,20 +155,20 @@ export class CommandTemplateService implements CommandTemplateExecutor {
       mode: options.mode ?? 'detached',
       timeoutMs: options.timeoutMs ?? 10000,
     }
-    return this.executeRequest(request, context)
+    return executeRequest(request, context)
   }
 
-  private buildExecutionRequest(
+  function buildExecutionRequest(
     key: CommandTemplateKey,
     cwd: string,
     values: CommandTemplateValues,
     listValues: CommandTemplateListValues,
   ): ShellExecutionRequest {
-    const entry = this.get(key)
+    const entry = get(key)
     return {
       key,
-      platform: this.platform,
-      script: interpolateCommandTemplate(entry.script, values, listValues, entry.scalarPlaceholders, entry.listPlaceholders, this.platform),
+      platform: platform,
+      script: interpolateCommandTemplate(entry.script, values, listValues, entry.scalarPlaceholders, entry.listPlaceholders, platform),
       argv: buildDirectInvocationArgv(entry.script, values, listValues, entry.scalarPlaceholders, entry.listPlaceholders),
       cwd,
       environment: entry.environment,
@@ -175,27 +178,35 @@ export class CommandTemplateService implements CommandTemplateExecutor {
     }
   }
 
-  private async executeRequest(
+  async function executeRequest(
     request: ShellExecutionRequest,
     context: AppLogContext = {
       commandTemplateKey: request.key,
     },
   ): Promise<string> {
-    this.log('command-template', 'start', context)
+    log('command-template', 'start', context)
     try {
-      const stdout = await this.runner.execute(request)
-      this.log('command-template', 'success', context)
+      const stdout = await runner.execute(request)
+      log('command-template', 'success', context)
       return stdout
     } catch (error) {
-      this.logFailure(request.key, error, context)
+      logFailure(request.key, error, context)
       throw error
     }
   }
 
-  private logFailure(key: string, cause: unknown, extra: AppLogContext = {}): void {
-    this.log('command-template', failureLogMessage(cause), {
+  function logFailure(key: string, cause: unknown, extra: AppLogContext = {}): void {
+    log('command-template', failureLogMessage(cause), {
       ...extra,
       commandTemplateKey: key,
     })
+  }
+
+  return {
+    get,
+    render,
+    execute,
+    executeSync,
+    executeTrustedScript,
   }
 }

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { createHerdrExec } from '../../../src/core/herdr/herdr-exec.js'
-import { HerdrUnavailableError } from '../../../src/core/herdr/herdr-availability.js'
-import { ProcessError } from '../../../src/core/shared/errors.js'
+import { isHerdrUnavailableError } from '../../../src/core/herdr/herdr-availability.js'
+import { createProcessError } from '../../../src/core/shared/errors.js'
 import type { CommandTemplateExecutor, CommandTemplateKey } from '../../../src/core/command-template/command-template-types.js'
 
-const SOCKET_FAILURE = new ProcessError(
+const SOCKET_FAILURE = createProcessError(
   'Command Template herdr.workspace.list',
   1,
   'Error: Os { code: 2, kind: NotFound, message: "The system cannot find the file specified." }',
@@ -62,11 +62,11 @@ describe('createHerdrExec', () => {
   it('reports an unresolvable Herdr CLI as unavailable without probing', async () => {
     const { executor: commands, calls } = executor({
       'herdr.workspace.list': async () => {
-        throw new ProcessError('herdr', 127, 'not found', undefined, 'command-not-found')
+        throw createProcessError('herdr', 127, 'not found', undefined, 'command-not-found')
       },
     })
     const exec = createHerdrExec(commands)
-    await expect(exec('herdr.workspace.list')).rejects.toBeInstanceOf(HerdrUnavailableError)
+    await expect(exec('herdr.workspace.list')).rejects.toSatisfy(isHerdrUnavailableError)
     expect(calls).toEqual(['herdr.workspace.list'])
   })
   it('reports a Herdr CLI that disappeared before the probe as unavailable', async () => {
@@ -75,7 +75,7 @@ describe('createHerdrExec', () => {
         throw SOCKET_FAILURE
       },
       'herdr.status.server': async () => {
-        throw new ProcessError('herdr', 127, 'not found', undefined, 'command-not-found')
+        throw createProcessError('herdr', 127, 'not found', undefined, 'command-not-found')
       },
     })
     const exec = createHerdrExec(commands)
@@ -84,7 +84,7 @@ describe('createHerdrExec', () => {
     })
   })
   it('keeps a timed-out Herdr command a failure', async () => {
-    const timeout = new ProcessError('herdr', undefined, undefined, 'Timed out', 'timeout')
+    const timeout = createProcessError('herdr', undefined, undefined, 'Timed out', 'timeout')
     const { executor: commands, calls } = executor({
       'herdr.workspace.list': async () => {
         throw timeout

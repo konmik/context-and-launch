@@ -17,15 +17,21 @@ function isEnoent(cause: unknown): boolean {
   return cause instanceof Error && 'code' in cause && cause.code === 'ENOENT'
 }
 
-export class GitRepository {
-  constructor(private readonly commands: CommandTemplateExecutor) {}
+export interface GitRepository {
+  isSameRepository(leftWorktree: string, rightWorktree: string): Promise<boolean>
+  isWorktree(worktreeDir: string): boolean
+  resolveGitDir(worktreeDir: string): string
+  hasActiveRebase(worktreeDir: string): boolean
+  assertSupportsMergeTree(worktreeDir: string): Promise<void>
+}
 
-  async isSameRepository(leftWorktree: string, rightWorktree: string): Promise<boolean> {
-    const [leftCommonDir, rightCommonDir] = await Promise.all([this.resolveCommonDir(leftWorktree), this.resolveCommonDir(rightWorktree)])
+export function createGitRepository(commands: CommandTemplateExecutor): GitRepository {
+  async function isSameRepository(leftWorktree: string, rightWorktree: string): Promise<boolean> {
+    const [leftCommonDir, rightCommonDir] = await Promise.all([resolveCommonDir(leftWorktree), resolveCommonDir(rightWorktree)])
     return pathsReferToSameEntry(leftCommonDir, rightCommonDir)
   }
 
-  isWorktree(worktreeDir: string): boolean {
+  function isWorktree(worktreeDir: string): boolean {
     const dotGit = path.join(worktreeDir, '.git')
     try {
       const stat = fs.statSync(dotGit)
@@ -40,7 +46,7 @@ export class GitRepository {
     }
   }
 
-  resolveGitDir(worktreeDir: string): string {
+  function resolveGitDir(worktreeDir: string): string {
     const dotGit = path.join(worktreeDir, '.git')
     try {
       const stat = fs.statSync(dotGit)
@@ -57,13 +63,13 @@ export class GitRepository {
     return dotGit
   }
 
-  hasActiveRebase(worktreeDir: string): boolean {
-    const gitDir = this.resolveGitDir(worktreeDir)
+  function hasActiveRebase(worktreeDir: string): boolean {
+    const gitDir = resolveGitDir(worktreeDir)
     return fs.existsSync(path.join(gitDir, 'rebase-merge')) || fs.existsSync(path.join(gitDir, 'rebase-apply'))
   }
 
-  async assertSupportsMergeTree(worktreeDir: string): Promise<void> {
-    const out = (await this.commands.execute('git.version', worktreeDir)).trim()
+  async function assertSupportsMergeTree(worktreeDir: string): Promise<void> {
+    const out = (await commands.execute('git.version', worktreeDir)).trim()
     const m = out.match(/(\d+)\.(\d+)/)
     if (!m) throw new Error(`Could not determine git version from: ${out}`)
     const major = parseInt(m[1], 10)
@@ -75,7 +81,15 @@ export class GitRepository {
     }
   }
 
-  private async resolveCommonDir(worktreeDir: string): Promise<string> {
-    return (await this.commands.execute('git.common-dir.resolve', worktreeDir)).trim()
+  async function resolveCommonDir(worktreeDir: string): Promise<string> {
+    return (await commands.execute('git.common-dir.resolve', worktreeDir)).trim()
+  }
+
+  return {
+    isSameRepository,
+    isWorktree,
+    resolveGitDir,
+    hasActiveRebase,
+    assertSupportsMergeTree,
   }
 }

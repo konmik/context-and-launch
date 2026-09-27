@@ -2,7 +2,7 @@ import path from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { fromPartial } from '@total-typescript/shoehorn'
 import type { CommandTemplateStore } from '../../../src/core/command-template/command-template-store.js'
-import { CommandTemplateService } from '../../../src/core/command-template/command-template-service.js'
+import { createCommandTemplateService } from '../../../src/core/command-template/command-template-service.js'
 import type { PlatformShellRunner, ShellExecutionRequest } from '../../../src/core/command-template/command-template-types.js'
 
 describe('CommandTemplateService', () => {
@@ -34,7 +34,7 @@ describe('CommandTemplateService', () => {
     }
     const partialStore = fromPartial<CommandTemplateStore>(store)
     const log = vi.fn()
-    const service = new CommandTemplateService(partialStore, runner, 'windows', log)
+    const service = createCommandTemplateService(partialStore, runner, 'windows', log)
     expect(
       await service.execute('git.commit', path.resolve('.'), {
         message: "it's ready",
@@ -62,7 +62,7 @@ describe('CommandTemplateService', () => {
       },
       executeSync: vi.fn(),
     }
-    const service = new CommandTemplateService(fromPartial<CommandTemplateStore>({}), runner, 'windows', vi.fn())
+    const service = createCommandTemplateService(fromPartial<CommandTemplateStore>({}), runner, 'windows', vi.fn())
     const prompt = 'Check "C:\\Users\\me\\Downloads\\Release notes _ Doc.pdf"'
     await service.executeTrustedScript({
       source: {

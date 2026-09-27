@@ -1,4 +1,4 @@
-import { ValidationError } from '../shared/errors.js'
+import { createValidationError } from '../shared/errors.js'
 import type { MergedLauncherConfig, LauncherProfile } from './launcher-config.js'
 import type { ResolutionPlan } from '../ticket/ticket-sync.js'
 
@@ -17,7 +17,7 @@ export async function resolveConflictsWith(deps: ResolveConflictsDeps, projectSl
   const merged = deps.getMergedConfig(projectSlug)
   const profile = merged.profiles.find((candidate) => candidate.name === profileName)
   if (!profile) {
-    throw new ValidationError(`Profile "${profileName}" not found. Check your launcher settings.`)
+    throw createValidationError(`Profile "${profileName}" not found. Check your launcher settings.`)
   }
   const worktreeDir = deps.getWorktreeDir(projectSlug)
   const plan = await deps.trackOperation(deps.prepareResolution(worktreeDir))

@@ -5,7 +5,7 @@ import { COMMAND_TEMPLATE_DEFINITION_BY_KEY, COMMAND_TEMPLATE_DEFAULTS } from '.
 import type { CommandTemplateKey } from './command-template-definitions.js'
 import { undeclaredPlaceholders } from './command-template-interpolation.js'
 import type { CommandTemplateEntry, CommandTemplateOverrides } from './command-template-types.js'
-import { UpdateLock } from '~/util/update-lock.js'
+import { createUpdateLock, type UpdateLock } from '~/util/update-lock.js'
 import type { JsonValue } from '../shared/json.js'
 
 function validateOverrides(value: JsonValue): CommandTemplateOverrides {
@@ -26,41 +26,53 @@ function validateOverrides(value: JsonValue): CommandTemplateOverrides {
   return overrides
 }
 
-export class CommandTemplateStore {
-  constructor(
-    private readonly paths: ConfigPaths,
-    private readonly repository: ConfigRepository,
-    private readonly lock = new UpdateLock(),
-  ) {}
+export interface CommandTemplateStore {
+  read(owner?: string): CommandTemplateOverrides
+  write(value: CommandTemplateOverrides, owner?: string): CommandTemplateOverrides
+  release(owner: string): void
+  get(key: CommandTemplateKey): CommandTemplateEntry
+}
 
-  read(owner?: string): CommandTemplateOverrides {
-    return this.lock.read(() => validateOverrides(this.repository.readJson(this.paths.commandTemplateOverridesFile()) ?? {}), owner)
+export function createCommandTemplateStore(
+  paths: ConfigPaths,
+  repository: ConfigRepository,
+  lock: UpdateLock = createUpdateLock(),
+): CommandTemplateStore {
+  function read(owner?: string): CommandTemplateOverrides {
+    return lock.read(() => validateOverrides(repository.readJson(paths.commandTemplateOverridesFile()) ?? {}), owner)
   }
 
-  write(value: CommandTemplateOverrides, owner?: string): CommandTemplateOverrides {
-    return this.lock.write(() => {
+  function write(value: CommandTemplateOverrides, owner?: string): CommandTemplateOverrides {
+    return lock.write(() => {
       const overrides = validateOverrides(value) // SAFETY: validateOverrides rejects every key absent from the command catalog.
       for (const key of Object.keys(overrides) as CommandTemplateKey[]) {
         if (overrides[key] === COMMAND_TEMPLATE_DEFAULTS[key]) delete overrides[key]
       }
-      this.repository.writeJson(this.paths.commandTemplateOverridesFile(), overrides)
+      repository.writeJson(paths.commandTemplateOverridesFile(), overrides)
       return overrides
     }, owner)
   }
 
-  release(owner: string): void {
-    this.lock.release(owner)
+  function release(owner: string): void {
+    lock.release(owner)
   }
 
-  get(key: CommandTemplateKey): CommandTemplateEntry {
+  function get(key: CommandTemplateKey): CommandTemplateEntry {
     const definition = COMMAND_TEMPLATE_DEFINITION_BY_KEY.get(key)
     if (!definition) throw new Error(`Unknown Command Template key '${key}'.`)
-    const overrides = this.read()
+    const overrides = read()
     return {
       ...definition,
       key,
       script: overrides[key] ?? COMMAND_TEMPLATE_DEFAULTS[key],
       isOverridden: Object.hasOwn(overrides, key),
     }
+  }
+
+  return {
+    read,
+    write,
+    release,
+    get,
   }
 }

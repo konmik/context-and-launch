@@ -1,8 +1,8 @@
 import type { CommandTemplateKey } from '../command-template/command-template-definitions.js'
 import type { CommandTemplateExecutor, CommandTemplateValues } from '../command-template/command-template-types.js'
 import * as v from 'valibot'
-import { ProcessError } from '../shared/errors.js'
-import { HerdrUnavailableError } from './herdr-availability.js'
+import { isProcessError } from '../shared/errors.js'
+import { createHerdrUnavailableError, type HerdrUnavailableError } from './herdr-availability.js'
 
 /** Derived from the catalog, so a key that was never bundled cannot be named here. */
 export type HerdrCommandTemplateKey = Extract<CommandTemplateKey, `herdr.${string}`>
@@ -30,19 +30,19 @@ function serverStatusFromOutput(output: string): HerdrServerStatus | undefined {
  * question once, at the boundary, instead of every caller guessing from output.
  */
 async function herdrUnavailability(cause: unknown, exec: HerdrExecFn): Promise<HerdrUnavailableError | undefined> {
-  if (!(cause instanceof ProcessError)) return undefined
-  if (cause.kind === 'command-not-found') return new HerdrUnavailableError('cli-missing')
+  if (!isProcessError(cause)) return undefined
+  if (cause.kind === 'command-not-found') return createHerdrUnavailableError('cli-missing')
   if (cause.kind !== 'exited') return undefined
   let status: HerdrServerStatus | undefined
   try {
     status = serverStatusFromOutput(await exec('herdr.status.server'))
   } catch (probeError) {
-    if (probeError instanceof ProcessError && probeError.kind === 'command-not-found') {
-      return new HerdrUnavailableError('cli-missing')
+    if (isProcessError(probeError) && probeError.kind === 'command-not-found') {
+      return createHerdrUnavailableError('cli-missing')
     }
     return undefined
   }
-  return status === 'not-running' ? new HerdrUnavailableError('server-not-running') : undefined
+  return status === 'not-running' ? createHerdrUnavailableError('server-not-running') : undefined
 }
 
 export function createHerdrExec(commands: CommandTemplateExecutor): HerdrExecFn {

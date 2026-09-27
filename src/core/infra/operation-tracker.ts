@@ -1,23 +1,35 @@
 // Tracks long-running git operations (sync, abort, conflict resolution) for Electron graceful shutdown.
-export class OperationTracker {
-  private pending = new Set<Promise<unknown>>()
+export interface OperationTracker {
+  track<T>(operation: Promise<T>): Promise<T>
+  hasPending(): boolean
+  waitForAll(): Promise<void>
+}
 
-  track<T>(operation: Promise<T>): Promise<T> {
-    this.pending.add(operation)
+export function createOperationTracker(): OperationTracker {
+  const pending = new Set<Promise<unknown>>()
+
+  function track<T>(operation: Promise<T>): Promise<T> {
+    pending.add(operation)
     const cleanup = () => {
-      this.pending.delete(operation)
+      pending.delete(operation)
     }
     operation.then(cleanup, cleanup)
     return operation
   }
 
-  hasPending(): boolean {
-    return this.pending.size > 0
+  function hasPending(): boolean {
+    return pending.size > 0
   }
 
-  async waitForAll(): Promise<void> {
-    while (this.pending.size > 0) {
-      await Promise.allSettled([...this.pending])
+  async function waitForAll(): Promise<void> {
+    while (pending.size > 0) {
+      await Promise.allSettled([...pending])
     }
+  }
+
+  return {
+    track,
+    hasPending,
+    waitForAll,
   }
 }

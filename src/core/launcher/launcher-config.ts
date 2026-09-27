@@ -1,96 +1,124 @@
 import type { MergedLauncherConfig } from './launcher-config-data.js'
 import path from 'path'
 import type { ConfigPaths } from '../config/config-paths.js'
-import { ConfigRepository } from '../config/config-repository.js'
-import { SharedLauncherConfigStore } from './shared-launcher-config-store.js'
+import { createConfigRepository, type ConfigRepository } from '../config/config-repository.js'
+import { createSharedLauncherConfigStore, type SharedLauncherConfigStore } from './shared-launcher-config-store.js'
 import { decodeLauncherConfig, mergeLauncherConfigs, type LauncherConfig } from './launcher-config-data.js'
-import { UpdateLock } from '~/util/update-lock.js'
+import { createUpdateLock, type UpdateLock } from '~/util/update-lock.js'
 import type { Updater } from '~/util/updater.js'
 
 export * from './launcher-config-data.js'
 
-export class LauncherConfigManager {
-  private readonly projectLocks = new Map<string, UpdateLock>()
+export interface LauncherConfigManager {
+  getAppConfigDir(): string
+  getConfigDefaultsDir(): string
+  getProjectDir(projectSlug: string): string
+  getAgentWorktreeDir(projectSlug: string): string
+  resolveWorktreeSettings(projectSlug: string): ResolveWorktreeSettingsResult
+  loadAppConfig(): LauncherConfig
+  saveAppConfig(config: LauncherConfig): void
+  loadProjectConfig(projectSlug: string, owner?: string): LauncherConfig
+  releaseProjectConfig(projectSlug: string, owner: string): void
+  saveProjectConfig(projectSlug: string, config: LauncherConfig, owner?: string): LauncherConfig
+  getMergedConfig(projectSlug: string): MergedLauncherConfig
+  updateProjectConfig(projectSlug: string, transform: Updater<LauncherConfig>): LauncherConfig
+}
 
-  private projectLock(projectSlug: string): UpdateLock {
-    let lock = this.projectLocks.get(projectSlug)
-    if (!lock) this.projectLocks.set(projectSlug, (lock = new UpdateLock()))
+export function createLauncherConfigManager(
+  paths: ConfigPaths,
+  configRepo: ConfigRepository = createConfigRepository(),
+  sharedConfig: SharedLauncherConfigStore = createSharedLauncherConfigStore(paths, configRepo),
+): LauncherConfigManager {
+  const projectLocks = new Map<string, UpdateLock>()
+
+  function projectLock(projectSlug: string): UpdateLock {
+    let lock = projectLocks.get(projectSlug)
+    if (!lock) projectLocks.set(projectSlug, (lock = createUpdateLock()))
     return lock
   }
 
-  constructor(
-    private paths: ConfigPaths,
-    private configRepo = new ConfigRepository(),
-    private sharedConfig = new SharedLauncherConfigStore(paths, configRepo),
-  ) {}
-
-  getAppConfigDir(): string {
-    return this.paths.appConfigDir()
+  function getAppConfigDir(): string {
+    return paths.appConfigDir()
   }
 
-  getConfigDefaultsDir(): string {
-    return this.paths.configDefaults()
+  function getConfigDefaultsDir(): string {
+    return paths.configDefaults()
   }
 
-  getProjectDir(projectSlug: string): string {
-    return this.paths.projectDir(projectSlug)
+  function getProjectDir(projectSlug: string): string {
+    return paths.projectDir(projectSlug)
   }
 
-  getAgentWorktreeDir(projectSlug: string): string {
-    return this.paths.agentWorktreeDir(projectSlug)
+  function getAgentWorktreeDir(projectSlug: string): string {
+    return paths.agentWorktreeDir(projectSlug)
   }
 
-  resolveWorktreeSettings(projectSlug: string): ResolveWorktreeSettingsResult {
-    const config = this.loadProjectConfig(projectSlug)
+  function resolveWorktreeSettings(projectSlug: string): ResolveWorktreeSettingsResult {
+    const config = loadProjectConfig(projectSlug)
     return {
-      worktreeRootPath: config.worktreeRootPath || this.paths.agentWorktreeDir(projectSlug),
+      worktreeRootPath: config.worktreeRootPath || paths.agentWorktreeDir(projectSlug),
       branchPrefix: config.branchPrefix,
     }
   }
 
-  loadAppConfig(): LauncherConfig {
-    return this.sharedConfig.read()
+  function loadAppConfig(): LauncherConfig {
+    return sharedConfig.read()
   }
 
-  saveAppConfig(config: LauncherConfig): void {
-    this.sharedConfig.write(config)
+  function saveAppConfig(config: LauncherConfig): void {
+    sharedConfig.write(config)
   }
 
-  loadProjectConfig(projectSlug: string, owner?: string): LauncherConfig {
-    return this.projectLock(projectSlug).read(() => this.readProjectConfig(projectSlug), owner)
+  function loadProjectConfig(projectSlug: string, owner?: string): LauncherConfig {
+    return projectLock(projectSlug).read(() => readProjectConfig(projectSlug), owner)
   }
 
-  releaseProjectConfig(projectSlug: string, owner: string): void {
-    this.projectLock(projectSlug).release(owner)
+  function releaseProjectConfig(projectSlug: string, owner: string): void {
+    projectLock(projectSlug).release(owner)
   }
 
-  private readProjectConfig(projectSlug: string): LauncherConfig {
-    const raw = this.configRepo.readJson(this.paths.projectLauncherConfigFile(projectSlug))
+  function readProjectConfig(projectSlug: string): LauncherConfig {
+    const raw = configRepo.readJson(paths.projectLauncherConfigFile(projectSlug))
     if (raw !== null) return decodeLauncherConfig(raw)
-    const file = path.join(this.paths.configDefaults(), 'project-launcher-config.json')
-    const defaults = this.configRepo.readJson(file)
+    const file = path.join(paths.configDefaults(), 'project-launcher-config.json')
+    const defaults = configRepo.readJson(file)
     if (defaults === null) throw new Error(`Default project launcher config not found: ${file}`)
     return decodeLauncherConfig(defaults)
   }
 
-  saveProjectConfig(projectSlug: string, config: LauncherConfig, owner?: string): LauncherConfig {
-    return this.projectLock(projectSlug).write(() => {
+  function saveProjectConfig(projectSlug: string, config: LauncherConfig, owner?: string): LauncherConfig {
+    return projectLock(projectSlug).write(() => {
       const next = decodeLauncherConfig(config)
-      this.configRepo.writeJson(this.paths.projectLauncherConfigFile(projectSlug), next)
+      configRepo.writeJson(paths.projectLauncherConfigFile(projectSlug), next)
       return next
     }, owner)
   }
 
-  getMergedConfig(projectSlug: string): MergedLauncherConfig {
-    return mergeLauncherConfigs(this.sharedConfig.read(), this.loadProjectConfig(projectSlug))
+  function getMergedConfig(projectSlug: string): MergedLauncherConfig {
+    return mergeLauncherConfigs(sharedConfig.read(), loadProjectConfig(projectSlug))
   }
 
-  updateProjectConfig(projectSlug: string, transform: Updater<LauncherConfig>): LauncherConfig {
-    return this.projectLock(projectSlug).write(() => {
-      const next = decodeLauncherConfig(transform(this.readProjectConfig(projectSlug)))
-      this.configRepo.writeJson(this.paths.projectLauncherConfigFile(projectSlug), next)
+  function updateProjectConfig(projectSlug: string, transform: Updater<LauncherConfig>): LauncherConfig {
+    return projectLock(projectSlug).write(() => {
+      const next = decodeLauncherConfig(transform(readProjectConfig(projectSlug)))
+      configRepo.writeJson(paths.projectLauncherConfigFile(projectSlug), next)
       return next
     })
+  }
+
+  return {
+    getAppConfigDir,
+    getConfigDefaultsDir,
+    getProjectDir,
+    getAgentWorktreeDir,
+    resolveWorktreeSettings,
+    loadAppConfig,
+    saveAppConfig,
+    loadProjectConfig,
+    releaseProjectConfig,
+    saveProjectConfig,
+    getMergedConfig,
+    updateProjectConfig,
   }
 }
 

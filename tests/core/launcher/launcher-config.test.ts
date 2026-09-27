@@ -2,8 +2,13 @@ import { describe, it, expect, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { makeTempDir, removeTempDir } from '../../test-temp.js'
-import { LauncherConfigManager, mergeLauncherConfigs, type LauncherConfig } from '../../../src/core/launcher/launcher-config.js'
-import { ConfigPaths } from '../../../src/core/config/config-paths.js'
+import {
+  createLauncherConfigManager,
+  type LauncherConfigManager,
+  mergeLauncherConfigs,
+  type LauncherConfig,
+} from '../../../src/core/launcher/launcher-config.js'
+import { createConfigPaths, type ConfigPaths } from '../../../src/core/config/config-paths.js'
 import { initializeDataDir } from '../../../src/core/config/initialize.js'
 import { createStoredConfig } from '~/util/stored-config.js'
 import { success } from '~/util/result.js'
@@ -17,10 +22,10 @@ afterEach(async () => {
 function setup(): SetupResult {
   const directory = makeTempDir('launcher-config-')
   directories.push(directory)
-  const paths = new ConfigPaths(directory)
+  const paths = createConfigPaths(directory)
   return {
     paths,
-    manager: new LauncherConfigManager(paths),
+    manager: createLauncherConfigManager(paths),
   }
 }
 

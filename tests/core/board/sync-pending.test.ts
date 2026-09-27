@@ -2,8 +2,8 @@ import { describe, it, expect, afterAll, vi } from 'vitest'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
-import { checkHasPendingChanges, SyncPendingTracker } from '../../../src/core/board/sync-pending.js'
-import { WorktreeRevisionStore } from '../../../src/core/board/worktree-revision.js'
+import { checkHasPendingChanges, createSyncPendingTracker } from '../../../src/core/board/sync-pending.js'
+import { createWorktreeRevisionStore } from '../../../src/core/board/worktree-revision.js'
 import { git, gitSync, setGitOriginUrl } from '../../test-git.js'
 import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js'
 import { cloneFromTemplate, lazyTemplate } from '../../test-temp.js'
@@ -92,7 +92,7 @@ describe('checkHasPendingChanges', () => {
 describe('SyncPendingTracker', () => {
   it('computes once and serves repeated reads from cache', () => {
     const check = vi.fn().mockReturnValue(true)
-    const tracker = new SyncPendingTracker(check, new WorktreeRevisionStore())
+    const tracker = createSyncPendingTracker(check, createWorktreeRevisionStore())
     expect(tracker.hasPendingChanges('/wt')).toBe(true)
     expect(tracker.hasPendingChanges('/wt')).toBe(true)
     expect(tracker.hasPendingChanges('/wt')).toBe(true)
@@ -100,8 +100,8 @@ describe('SyncPendingTracker', () => {
   })
   it('a new worktree revision forces a recompute on the next read', () => {
     const check = vi.fn().mockReturnValueOnce(true).mockReturnValueOnce(false)
-    const revisions = new WorktreeRevisionStore()
-    const tracker = new SyncPendingTracker(check, revisions)
+    const revisions = createWorktreeRevisionStore()
+    const tracker = createSyncPendingTracker(check, revisions)
     expect(tracker.hasPendingChanges('/wt')).toBe(true)
     revisions.bump('/wt')
     expect(tracker.hasPendingChanges('/wt')).toBe(false)
@@ -110,8 +110,8 @@ describe('SyncPendingTracker', () => {
   })
   it('a change during a slow recompute does not pin the stale value', () => {
     const check = vi.fn().mockReturnValue(true)
-    const revisions = new WorktreeRevisionStore()
-    const tracker = new SyncPendingTracker(check, revisions)
+    const revisions = createWorktreeRevisionStore()
+    const tracker = createSyncPendingTracker(check, revisions)
     tracker.hasPendingChanges('/wt')
     revisions.bump('/wt') // Simulates a change arriving while the value above was being computed:
     // the cached entry carries the pre-change revision, so it must recompute.
@@ -120,8 +120,8 @@ describe('SyncPendingTracker', () => {
   })
   it('tracks worktrees independently', () => {
     const check = vi.fn((worktreeDir: string) => worktreeDir === '/a')
-    const revisions = new WorktreeRevisionStore()
-    const tracker = new SyncPendingTracker(check, revisions)
+    const revisions = createWorktreeRevisionStore()
+    const tracker = createSyncPendingTracker(check, revisions)
     expect(tracker.hasPendingChanges('/a')).toBe(true)
     expect(tracker.hasPendingChanges('/b')).toBe(false)
     revisions.bump('/a')

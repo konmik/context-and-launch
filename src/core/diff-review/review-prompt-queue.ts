@@ -65,11 +65,46 @@ type TicketAgentObservation =
   | AbsentTicketAgentObservation
   | AmbiguousTicketAgentObservation
 
-export class ReviewPromptQueueService {
-  private readonly recoveredProjects = new Set<string>()
-  private readonly processingTickets = new Map<string, Promise<void>>()
-  private readonly timers = new Map<string, ReturnType<typeof setTimeout>>()
-  private readonly agentSnapshots = new Map<
+export interface ReviewPromptQueueService {
+  reconcileProject(
+    projectSlug: string,
+    observation?:
+      | HerdrAgent[]
+      | {
+          agents: HerdrAgent[]
+          observedAt: number
+        },
+  ): Promise<void>
+  isAgentRunning(projectSlug: string, folderName: string): boolean
+  launchWithQueueHead(projectSlug: string, folderName: string, profileName: string): Promise<void>
+  enqueueAndLaunch(
+    projectSlug: string,
+    folderName: string,
+    feedback: string,
+    snapshot: ReviewPromptSnapshot | undefined,
+    profileName?: string,
+  ): Promise<ReviewPromptQueueItem>
+  retryAndLaunch(projectSlug: string, folderName: string, itemId: string, profileName?: string): Promise<void>
+}
+
+export function createReviewPromptQueueService(
+  store: DiffReviewStore,
+  git: DiffReviewGitService,
+  targets: DiffReviewTargetResolver,
+  commands: CommandTemplateExecutor,
+  launcher: ReviewAgentLauncher,
+  observeProject?: (projectSlug: string) => Promise<
+    | {
+        agents: HerdrAgent[]
+        observedAt: number
+      }
+    | undefined
+  >,
+): ReviewPromptQueueService {
+  const recoveredProjects = new Set<string>()
+  const processingTickets = new Map<string, Promise<void>>()
+  const timers = new Map<string, ReturnType<typeof setTimeout>>()
+  const agentSnapshots = new Map<
     string,
     {
       agents: HerdrAgent[]
@@ -77,22 +112,7 @@ export class ReviewPromptQueueService {
     }
   >()
 
-  constructor(
-    private readonly store: DiffReviewStore,
-    private readonly git: DiffReviewGitService,
-    private readonly targets: DiffReviewTargetResolver,
-    private readonly commands: CommandTemplateExecutor,
-    private readonly launcher: ReviewAgentLauncher,
-    private readonly observeProject?: (projectSlug: string) => Promise<
-      | {
-          agents: HerdrAgent[]
-          observedAt: number
-        }
-      | undefined
-    >,
-  ) {}
-
-  async reconcileProject(
+  async function reconcileProject(
     projectSlug: string,
     observation?:
       | HerdrAgent[]
@@ -101,49 +121,42 @@ export class ReviewPromptQueueService {
           observedAt: number
         },
   ): Promise<void> {
-    if (!this.recoveredProjects.has(projectSlug)) {
-      await this.store.whenWritable(projectSlug, () => this.store.recoverInterrupted(projectSlug))
-      this.recoveredProjects.add(projectSlug)
+    if (!recoveredProjects.has(projectSlug)) {
+      await store.whenWritable(projectSlug, () => store.recoverInterrupted(projectSlug))
+      recoveredProjects.add(projectSlug)
     }
     const observed = Array.isArray(observation)
       ? {
           agents: observation,
           observedAt: Date.now(),
         }
-      : (observation ?? (await this.observeProject?.(projectSlug)))
+      : (observation ?? (await observeProject?.(projectSlug)))
     if (!observed) return
     const snapshot = {
       agents: observed.agents,
       readAt: observed.observedAt,
     }
-    this.agentSnapshots.set(projectSlug, snapshot)
+    agentSnapshots.set(projectSlug, snapshot)
     const pending: Promise<void>[] = []
-    const state = this.store.loadProject(projectSlug)
+    const state = store.loadProject(projectSlug)
     for (const [folderName, ticketState] of Object.entries(state.tickets)) {
       if (ticketState.queue.items.length === 0) continue
-      pending.push(this.processTicketIsolated(projectSlug, folderName, snapshot))
+      pending.push(processTicketIsolated(projectSlug, folderName, snapshot))
     }
     await Promise.all(pending)
   }
 
-  /**
-   * Whether an Agent is running for this Ticket. One answer covers every
-   * Agent the queue can talk to: a Herdr Agent from the last agent report,
-   * or a launcher-profile Agent whose marker is still alive. Everyone who
-   * decides whether to start an Agent asks here, so a running Agent never
-   * reads as no Agent and never gets launched a second time.
-   */
-  isAgentRunning(projectSlug: string, folderName: string): boolean {
-    const target = this.targets.resolve(projectSlug, folderName)
-    const ticket = this.store.getTicket(projectSlug, folderName, target.worktreeIdentity)
-    return this.agentRunningFor(target) || this.launchReserved(ticket)
+  function isAgentRunning(projectSlug: string, folderName: string): boolean {
+    const target = targets.resolve(projectSlug, folderName)
+    const ticket = store.getTicket(projectSlug, folderName, target.worktreeIdentity)
+    return agentRunningFor(target) || launchReserved(ticket)
   }
 
-  private agentRunningFor(target: ResolvedDiffReviewTarget): boolean {
-    return this.observeTicketAgent(target, this.agentSnapshots.get(target.projectSlug)?.agents ?? []).kind !== 'absent'
+  function agentRunningFor(target: ResolvedDiffReviewTarget): boolean {
+    return observeTicketAgent(target, agentSnapshots.get(target.projectSlug)?.agents ?? []).kind !== 'absent'
   }
 
-  private observeTicketAgent(target: ResolvedDiffReviewTarget, agents: HerdrAgent[]): TicketAgentObservation {
+  function observeTicketAgent(target: ResolvedDiffReviewTarget, agents: HerdrAgent[]): TicketAgentObservation {
     const matching = agents.filter((agent) => agentMatchesTarget(agent, target))
     if (matching.length > 1)
       return {
@@ -154,7 +167,7 @@ export class ReviewPromptQueueService {
         kind: 'herdr',
         agent: matching[0],
       }
-    return this.launcher.isRunning(target)
+    return launcher.isRunning(target)
       ? {
           kind: 'profile',
         }
@@ -163,58 +176,52 @@ export class ReviewPromptQueueService {
         }
   }
 
-  /**
-   * Starts an Agent for one ticket right now. When the queue holds Review
-   * Prompts, the head travels as the Agent's initial prompt; an empty queue
-   * starts the Agent with none. This is the only path that starts an Agent, so
-   * an Agent appears on the user's machine only when the user asks for one.
-   */
-  async launchWithQueueHead(projectSlug: string, folderName: string, profileName: string): Promise<void> {
-    await this.withTicketLock(projectSlug, folderName, async () => {
-      if (!(await this.refreshAgentSnapshot(projectSlug))) {
+  async function launchWithQueueHead(projectSlug: string, folderName: string, profileName: string): Promise<void> {
+    await withTicketLock(projectSlug, folderName, async () => {
+      if (!(await refreshAgentSnapshot(projectSlug))) {
         throw new Error('Herdr is unavailable, so another Agent cannot be ruled out.')
       }
-      await this.launchWithQueueHeadLocked(projectSlug, folderName, profileName)
+      await launchWithQueueHeadLocked(projectSlug, folderName, profileName)
     })
   }
 
-  async enqueueAndLaunch(
+  async function enqueueAndLaunch(
     projectSlug: string,
     folderName: string,
     feedback: string,
     snapshot: ReviewPromptSnapshot | undefined,
     profileName?: string,
   ): Promise<ReviewPromptQueueItem> {
-    return this.withTicketLock(projectSlug, folderName, async () => {
-      const target = this.targets.resolve(projectSlug, folderName)
-      const agentsKnown = await this.refreshAgentSnapshot(projectSlug)
-      const item = await this.store.whenWritable(projectSlug, () =>
-        this.store.enqueue(projectSlug, folderName, target.worktreeIdentity, feedback, snapshot),
+    return withTicketLock(projectSlug, folderName, async () => {
+      const target = targets.resolve(projectSlug, folderName)
+      const agentsKnown = await refreshAgentSnapshot(projectSlug)
+      const item = await store.whenWritable(projectSlug, () =>
+        store.enqueue(projectSlug, folderName, target.worktreeIdentity, feedback, snapshot),
       )
-      if (profileName && (!agentsKnown || !this.agentRunningFor(target))) {
-        await this.requestAgentLaunchLocked(target, profileName, agentsKnown)
+      if (profileName && (!agentsKnown || !agentRunningFor(target))) {
+        await requestAgentLaunchLocked(target, profileName, agentsKnown)
       }
       return item
     })
   }
 
-  async retryAndLaunch(projectSlug: string, folderName: string, itemId: string, profileName?: string): Promise<void> {
-    await this.withTicketLock(projectSlug, folderName, async () => {
-      const target = this.targets.resolve(projectSlug, folderName)
-      const agentsKnown = await this.refreshAgentSnapshot(projectSlug)
-      await this.store.whenWritable(projectSlug, () => this.store.retry(projectSlug, folderName, target.worktreeIdentity, itemId))
-      if (profileName && (!agentsKnown || !this.agentRunningFor(target))) {
-        await this.requestAgentLaunchLocked(target, profileName, agentsKnown)
+  async function retryAndLaunch(projectSlug: string, folderName: string, itemId: string, profileName?: string): Promise<void> {
+    await withTicketLock(projectSlug, folderName, async () => {
+      const target = targets.resolve(projectSlug, folderName)
+      const agentsKnown = await refreshAgentSnapshot(projectSlug)
+      await store.whenWritable(projectSlug, () => store.retry(projectSlug, folderName, target.worktreeIdentity, itemId))
+      if (profileName && (!agentsKnown || !agentRunningFor(target))) {
+        await requestAgentLaunchLocked(target, profileName, agentsKnown)
       }
     })
   }
 
-  private async requestAgentLaunchLocked(target: ResolvedDiffReviewTarget, profileName: string, agentsKnown: boolean): Promise<void> {
-    const current = this.store.getTicket(target.projectSlug, target.folderName, target.worktreeIdentity)
-    if (current.queue.items[0]?.state !== 'waiting' || this.launchReserved(current)) return
+  async function requestAgentLaunchLocked(target: ResolvedDiffReviewTarget, profileName: string, agentsKnown: boolean): Promise<void> {
+    const current = store.getTicket(target.projectSlug, target.folderName, target.worktreeIdentity)
+    if (current.queue.items[0]?.state !== 'waiting' || launchReserved(current)) return
     if (!profileName.trim()) throw new Error('An Agent launch requires a profile.')
-    const ticket = await this.store.whenWritable(target.projectSlug, () =>
-      this.store.updateTicket(target.projectSlug, target.folderName, target.worktreeIdentity, (ticket) => ({
+    const ticket = await store.whenWritable(target.projectSlug, () =>
+      store.updateTicket(target.projectSlug, target.folderName, target.worktreeIdentity, (ticket) => ({
         ...ticket,
         queue: {
           ...ticket.queue,
@@ -223,59 +230,57 @@ export class ReviewPromptQueueService {
       })),
     )
     if (!agentsKnown) return
-    const cooldownRemaining = this.cooldownRemainingMs(ticket)
+    const cooldownRemaining = cooldownRemainingMs(ticket)
     if (cooldownRemaining > 0) {
       const key = ticketKey(target.projectSlug, target.folderName)
-      this.scheduleTicket(`${key}:cooldown`, cooldownRemaining, target.projectSlug, target.folderName)
+      scheduleTicket(`${key}:cooldown`, cooldownRemaining, target.projectSlug, target.folderName)
       return
     }
-    await this.launchWithQueueHeadLocked(target.projectSlug, target.folderName, profileName)
+    await launchWithQueueHeadLocked(target.projectSlug, target.folderName, profileName)
   }
 
-  private async refreshAgentSnapshot(projectSlug: string): Promise<boolean> {
-    if (!this.observeProject) return true
-    const observation = await this.observeProject(projectSlug)
+  async function refreshAgentSnapshot(projectSlug: string): Promise<boolean> {
+    if (!observeProject) return true
+    const observation = await observeProject(projectSlug)
     if (!observation) return false
-    this.agentSnapshots.set(projectSlug, {
+    agentSnapshots.set(projectSlug, {
       agents: observation.agents,
       readAt: observation.observedAt,
     })
     return true
   }
 
-  private async launchWithQueueHeadLocked(projectSlug: string, folderName: string, profileName: string): Promise<void> {
-    const target = this.targets.resolve(projectSlug, folderName)
-    const ticket = this.store.getTicket(projectSlug, folderName, target.worktreeIdentity)
+  async function launchWithQueueHeadLocked(projectSlug: string, folderName: string, profileName: string): Promise<void> {
+    const target = targets.resolve(projectSlug, folderName)
+    const ticket = store.getTicket(projectSlug, folderName, target.worktreeIdentity)
     const head = ticket.queue.items[0]
     if (head && head.state !== 'waiting') throw new Error(headNotWaitingMessage(head.state))
-    if (this.agentRunningFor(target)) {
+    if (agentRunningFor(target)) {
       throw new Error(
         'An Agent for this Ticket is already running. Close it first, or wait' +
           ' for Herdr to report it free so the Review Prompt Queue can reach it.',
       )
     }
-    if (this.launchReserved(ticket) || this.cooldownRemainingMs(ticket) > 0) {
+    if (launchReserved(ticket) || cooldownRemainingMs(ticket) > 0) {
       throw new Error(
         'An Agent for this Ticket was just started. Wait for it to come up: the' +
           ' Review Prompt Queue hands it the next Review Prompt on its own.',
       )
     }
     if (head) {
-      await this.deliver(target, head, {
-        send: (prompt) => this.launcher.launch(target, prompt, profileName),
+      await deliver(target, head, {
+        send: (prompt) => launcher.launch(target, prompt, profileName),
         cooldownMs: AGENT_STARTUP_COOLDOWN_MS,
       })
       return
     }
     const reservedUntil = new Date(Date.now() + AGENT_STARTUP_COOLDOWN_MS)
-    await this.store.whenWritable(projectSlug, () =>
-      this.store.reserveAgentLaunch(projectSlug, folderName, target.worktreeIdentity, reservedUntil),
-    )
+    await store.whenWritable(projectSlug, () => store.reserveAgentLaunch(projectSlug, folderName, target.worktreeIdentity, reservedUntil))
     try {
-      await this.launcher.launch(target, '', profileName)
+      await launcher.launch(target, '', profileName)
     } catch (error) {
-      await this.store.whenWritable(projectSlug, () =>
-        this.store.updateTicket(projectSlug, folderName, target.worktreeIdentity, (ticket) => ({
+      await store.whenWritable(projectSlug, () =>
+        store.updateTicket(projectSlug, folderName, target.worktreeIdentity, (ticket) => ({
           ...ticket,
           queue: {
             ...ticket.queue,
@@ -285,8 +290,8 @@ export class ReviewPromptQueueService {
       )
       throw error
     }
-    await this.store.whenWritable(projectSlug, () =>
-      this.store.updateTicket(projectSlug, folderName, target.worktreeIdentity, (ticket) => ({
+    await store.whenWritable(projectSlug, () =>
+      store.updateTicket(projectSlug, folderName, target.worktreeIdentity, (ticket) => ({
         ...ticket,
         queue: {
           ...ticket.queue,
@@ -297,13 +302,13 @@ export class ReviewPromptQueueService {
     )
   }
 
-  private async withTicketLock<T>(projectSlug: string, folderName: string, run: () => Promise<T>): Promise<T> {
+  async function withTicketLock<T>(projectSlug: string, folderName: string, run: () => Promise<T>): Promise<T> {
     const processingKey = ticketKey(projectSlug, folderName)
-    while (this.processingTickets.has(processingKey)) {
-      await this.processingTickets.get(processingKey)
+    while (processingTickets.has(processingKey)) {
+      await processingTickets.get(processingKey)
     }
     let finish!: () => void
-    this.processingTickets.set(
+    processingTickets.set(
       processingKey,
       new Promise<void>((resolve) => {
         finish = resolve
@@ -312,18 +317,18 @@ export class ReviewPromptQueueService {
     try {
       return await run()
     } finally {
-      this.processingTickets.delete(processingKey)
+      processingTickets.delete(processingKey)
       finish()
     }
   }
 
-  private async processTicket(projectSlug: string, folderName: string, agents: HerdrAgent[], agentsReadAt: number): Promise<void> {
+  async function processTicket(projectSlug: string, folderName: string, agents: HerdrAgent[], agentsReadAt: number): Promise<void> {
     const processingKey = ticketKey(projectSlug, folderName)
-    if (this.processingTickets.has(processingKey)) return
-    await this.withTicketLock(projectSlug, folderName, async () => {
+    if (processingTickets.has(processingKey)) return
+    await withTicketLock(projectSlug, folderName, async () => {
       let target: ResolvedDiffReviewTarget
       try {
-        target = this.targets.resolve(projectSlug, folderName)
+        target = targets.resolve(projectSlug, folderName)
       } catch (error) {
         appLog('diff-review', `queue target unavailable: ${errorMessage(error)}`, {
           projectSlug,
@@ -331,11 +336,11 @@ export class ReviewPromptQueueService {
         })
         return
       }
-      const ticket = this.store.getTicket(projectSlug, folderName, target.worktreeIdentity)
+      const ticket = store.getTicket(projectSlug, folderName, target.worktreeIdentity)
       const head = ticket.queue.items[0]
       if (!head) return
       if (head.state !== 'waiting' && head.state !== 'sent') return
-      const agent = this.observeTicketAgent(target, agents) // A delivered Review Prompt stays at the head of the queue for as long as
+      const agent = observeTicketAgent(target, agents) // A delivered Review Prompt stays at the head of the queue for as long as
       // the Agent works on it, so the queue shows what the Agent is running and
       // hands over the next Review Prompt only once the Agent is free again. Only
       // an Agent report read after the delivery can say that: an older one still
@@ -347,8 +352,8 @@ export class ReviewPromptQueueService {
         }
         if (agentsReadAt <= sentAt) return
         if (agent.kind === 'absent') {
-          await this.store.whenWritable(projectSlug, () =>
-            this.store.failSentDelivery(
+          await store.whenWritable(projectSlug, () =>
+            store.failSentDelivery(
               projectSlug,
               folderName,
               target.worktreeIdentity,
@@ -359,25 +364,23 @@ export class ReviewPromptQueueService {
           return
         }
         if (agent.kind !== 'herdr' || !agentIsFree(agent.agent)) return
-        await this.store.whenWritable(projectSlug, () =>
-          this.store.acknowledgeSent(projectSlug, folderName, target.worktreeIdentity, head.id),
-        )
-        this.scheduleTicket(`${processingKey}:advance`, 0, projectSlug, folderName)
+        await store.whenWritable(projectSlug, () => store.acknowledgeSent(projectSlug, folderName, target.worktreeIdentity, head.id))
+        scheduleTicket(`${processingKey}:advance`, 0, projectSlug, folderName)
         return
       }
-      const cooldownRemaining = this.cooldownRemainingMs(ticket)
+      const cooldownRemaining = cooldownRemainingMs(ticket)
       if (cooldownRemaining > 0) {
-        this.scheduleTicket(`${processingKey}:cooldown`, cooldownRemaining, projectSlug, folderName)
+        scheduleTicket(`${processingKey}:cooldown`, cooldownRemaining, projectSlug, folderName)
         return
       }
       if (agent.kind === 'absent' && ticket.queue.requestedAgentProfileName) {
         const profileName = ticket.queue.requestedAgentProfileName
-        await this.launchWithQueueHeadLocked(projectSlug, folderName, profileName)
+        await launchWithQueueHeadLocked(projectSlug, folderName, profileName)
         return
       }
       if (agent.kind !== 'absent' && ticket.queue.requestedAgentProfileName) {
-        await this.store.whenWritable(projectSlug, () =>
-          this.store.updateTicket(projectSlug, folderName, target.worktreeIdentity, (ticket) => ({
+        await store.whenWritable(projectSlug, () =>
+          store.updateTicket(projectSlug, folderName, target.worktreeIdentity, (ticket) => ({
             ...ticket,
             queue: {
               ...ticket.queue,
@@ -392,9 +395,9 @@ export class ReviewPromptQueueService {
       if (!agent.agent.pane_id) return
       if (!agentIsFree(agent.agent)) return
       const paneId = agent.agent.pane_id
-      await this.deliver(target, head, {
+      await deliver(target, head, {
         send: (prompt) =>
-          this.commands
+          commands
             .execute('herdr.review-prompt.deliver', target.worktreePath, {
               paneId,
               prompt,
@@ -405,7 +408,7 @@ export class ReviewPromptQueueService {
     })
   }
 
-  private async processTicketIsolated(
+  async function processTicketIsolated(
     projectSlug: string,
     folderName: string,
     snapshot: {
@@ -414,7 +417,7 @@ export class ReviewPromptQueueService {
     },
   ): Promise<void> {
     try {
-      await this.processTicket(projectSlug, folderName, snapshot.agents, snapshot.readAt)
+      await processTicket(projectSlug, folderName, snapshot.agents, snapshot.readAt)
     } catch (error) {
       appLog('diff-review', `queue processing failed: ${errorMessage(error)}`, {
         projectSlug,
@@ -423,23 +426,18 @@ export class ReviewPromptQueueService {
     }
   }
 
-  /**
-   * How long the queue still owes this Ticket after its last delivery. Every
-   * delivery path waits it out, so a manual start cannot double up on the Agent
-   * the queue has already started.
-   */
-  private cooldownRemainingMs(ticket: DiffReviewTicketState): number {
+  function cooldownRemainingMs(ticket: DiffReviewTicketState): number {
     const cooldown = Date.parse(ticket.queue.cooldownUntil ?? '')
     if (!Number.isFinite(cooldown)) return 0
     return Math.max(0, cooldown - Date.now())
   }
 
-  private launchReserved(ticket: DiffReviewTicketState): boolean {
+  function launchReserved(ticket: DiffReviewTicketState): boolean {
     const reservedUntil = Date.parse(ticket.queue.agentLaunchReservedUntil ?? '')
     return Number.isFinite(reservedUntil) && reservedUntil > Date.now()
   }
 
-  private async deliver(
+  async function deliver(
     target: ResolvedDiffReviewTarget,
     item: ReviewPromptQueueItem,
     delivery: {
@@ -447,30 +445,30 @@ export class ReviewPromptQueueService {
       cooldownMs: number
     },
   ): Promise<void> {
-    await this.store.whenWritable(target.projectSlug, () =>
-      this.store.beginDelivery(target.projectSlug, target.folderName, target.worktreeIdentity, item.id),
+    await store.whenWritable(target.projectSlug, () =>
+      store.beginDelivery(target.projectSlug, target.folderName, target.worktreeIdentity, item.id),
     )
     try {
       const freshness = item.snapshot
-        ? await this.checkFreshness(target, item.snapshot)
+        ? await checkFreshness(target, item.snapshot)
         : {
             stale: false,
           }
       await delivery.send(renderReviewPrompt(item, freshness))
     } catch (error) {
-      await this.store.whenWritable(target.projectSlug, () =>
-        this.store.failDelivery(target.projectSlug, target.folderName, target.worktreeIdentity, item.id, errorMessage(error)),
+      await store.whenWritable(target.projectSlug, () =>
+        store.failDelivery(target.projectSlug, target.folderName, target.worktreeIdentity, item.id, errorMessage(error)),
       )
       return
     }
     const sentAt = new Date()
     try {
-      await this.store.whenWritable(target.projectSlug, () =>
-        this.store.completeDelivery(target.projectSlug, target.folderName, target.worktreeIdentity, item.id, sentAt, delivery.cooldownMs),
+      await store.whenWritable(target.projectSlug, () =>
+        store.completeDelivery(target.projectSlug, target.folderName, target.worktreeIdentity, item.id, sentAt, delivery.cooldownMs),
       )
     } catch (error) {
-      await this.store.whenWritable(target.projectSlug, () =>
-        this.store.markDeliveryUncertain(
+      await store.whenWritable(target.projectSlug, () =>
+        store.markDeliveryUncertain(
           target.projectSlug,
           target.folderName,
           target.worktreeIdentity,
@@ -481,12 +479,12 @@ export class ReviewPromptQueueService {
       return
     }
     const key = ticketKey(target.projectSlug, target.folderName)
-    this.scheduleTicket(`${key}:cooldown`, delivery.cooldownMs, target.projectSlug, target.folderName)
+    scheduleTicket(`${key}:cooldown`, delivery.cooldownMs, target.projectSlug, target.folderName)
   }
 
-  private async checkFreshness(target: ResolvedDiffReviewTarget, snapshot: ReviewPromptSnapshot): Promise<ReviewPromptFreshness> {
+  async function checkFreshness(target: ResolvedDiffReviewTarget, snapshot: ReviewPromptSnapshot): Promise<ReviewPromptFreshness> {
     try {
-      const current = await this.git.loadSnapshot(target, snapshot.scope)
+      const current = await git.loadSnapshot(target, snapshot.scope)
       const file = current.files.find((candidate) => candidate.path === snapshot.filePath)
       return {
         stale: !reviewSelectionStillExists(file, snapshot),
@@ -499,30 +497,38 @@ export class ReviewPromptQueueService {
     }
   }
 
-  private schedule(key: string, delayMs: number, task: () => Promise<void>): void {
-    const existing = this.timers.get(key)
+  function schedule(key: string, delayMs: number, task: () => Promise<void>): void {
+    const existing = timers.get(key)
     if (existing) clearTimeout(existing)
     const timer = setTimeout(
       () => {
-        this.timers.delete(key)
+        timers.delete(key)
         void task().catch((cause: unknown) => {
           appLog('diff-review', `scheduled queue processing failed: ${errorMessage(cause)}`)
         })
       },
       Math.max(0, delayMs),
     )
-    this.timers.set(key, timer)
+    timers.set(key, timer)
   }
 
-  private scheduleTicket(key: string, delayMs: number, projectSlug: string, folderName: string): void {
-    this.schedule(key, delayMs, async () => {
-      if (this.observeProject) {
-        await this.reconcileProject(projectSlug)
+  function scheduleTicket(key: string, delayMs: number, projectSlug: string, folderName: string): void {
+    schedule(key, delayMs, async () => {
+      if (observeProject) {
+        await reconcileProject(projectSlug)
         return
       }
-      const snapshot = this.agentSnapshots.get(projectSlug)
+      const snapshot = agentSnapshots.get(projectSlug)
       if (!snapshot) return
-      await this.processTicketIsolated(projectSlug, folderName, snapshot)
+      await processTicketIsolated(projectSlug, folderName, snapshot)
     })
+  }
+
+  return {
+    reconcileProject,
+    isAgentRunning,
+    launchWithQueueHead,
+    enqueueAndLaunch,
+    retryAndLaunch,
   }
 }

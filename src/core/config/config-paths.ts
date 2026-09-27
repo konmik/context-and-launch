@@ -7,66 +7,99 @@ export function requireSafeSlug(slug: string): void {
   }
 }
 
-export class ConfigPaths {
+export interface ConfigPaths {
   readonly baseDir: string
   readonly configDefaultsDir: string
+  appConfigDir(): string
+  configDefaults(): string
+  projectRegistryFile(): string
+  appLauncherConfigFile(): string
+  boardsFile(): string
+  commandTemplateOverridesFile(): string
+  diffReviewStateFile(projectSlug: string): string
+  projectDir(projectSlug: string): string
+  projectConfigDir(projectSlug: string): string
+  projectLauncherConfigFile(projectSlug: string): string
+  ticketWorktreeDir(projectSlug: string): string
+  agentWorktreeDir(projectSlug: string): string
+}
 
-  constructor(baseDir?: string, configDefaultsDir?: string) {
-    this.baseDir = baseDir ?? path.join(os.homedir(), '.context-launch')
-    this.configDefaultsDir = configDefaultsDir ?? path.join(process.cwd(), 'config-defaults')
+export function createConfigPaths(
+  baseDir = path.join(os.homedir(), '.context-launch'),
+  configDefaultsDir = path.join(process.cwd(), 'config-defaults'),
+): ConfigPaths {
+  function appConfigDir(): string {
+    return path.join(baseDir, 'config')
   }
 
-  appConfigDir(): string {
-    return path.join(this.baseDir, 'config')
+  function configDefaults(): string {
+    return configDefaultsDir
   }
 
-  configDefaults(): string {
-    return this.configDefaultsDir
+  function projectRegistryFile(): string {
+    return path.join(baseDir, 'config', 'config.json')
   }
 
-  projectRegistryFile(): string {
-    return path.join(this.baseDir, 'config', 'config.json')
+  function appLauncherConfigFile(): string {
+    return path.join(baseDir, 'config', 'launcher-config.json')
   }
 
-  appLauncherConfigFile(): string {
-    return path.join(this.baseDir, 'config', 'launcher-config.json')
+  function boardsFile(): string {
+    return path.join(baseDir, 'config', 'boards.json')
   }
 
-  boardsFile(): string {
-    return path.join(this.baseDir, 'config', 'boards.json')
+  function commandTemplateOverridesFile(): string {
+    return path.join(baseDir, 'config', 'command-templates.json')
   }
 
-  commandTemplateOverridesFile(): string {
-    return path.join(this.baseDir, 'config', 'command-templates.json')
-  }
-
-  diffReviewStateFile(projectSlug: string): string {
+  function diffReviewStateFile(projectSlug: string): string {
     requireSafeSlug(projectSlug)
-    return path.join(this.baseDir, 'projects', projectSlug, 'config', 'diff-review.json')
+    return path.join(baseDir, 'projects', projectSlug, 'config', 'diff-review.json')
   }
 
-  projectDir(projectSlug: string): string {
+  function projectDir(projectSlug: string): string {
     requireSafeSlug(projectSlug)
-    return path.join(this.baseDir, 'projects', projectSlug)
+    return path.join(baseDir, 'projects', projectSlug)
   }
 
-  projectConfigDir(projectSlug: string): string {
+  function projectConfigDir(projectSlug: string): string {
     requireSafeSlug(projectSlug)
-    return path.join(this.baseDir, 'projects', projectSlug, 'config')
+    return path.join(baseDir, 'projects', projectSlug, 'config')
   }
 
-  projectLauncherConfigFile(projectSlug: string): string {
+  function projectLauncherConfigFile(projectSlug: string): string {
     requireSafeSlug(projectSlug)
-    return path.join(this.baseDir, 'projects', projectSlug, 'config', 'launcher-config.json')
+    return path.join(baseDir, 'projects', projectSlug, 'config', 'launcher-config.json')
   }
 
-  ticketWorktreeDir(projectSlug: string): string {
+  function ticketWorktreeDir(projectSlug: string): string {
     requireSafeSlug(projectSlug)
-    return path.join(this.baseDir, 'projects', projectSlug, 'tickets')
+    return path.join(baseDir, 'projects', projectSlug, 'tickets')
   }
 
-  agentWorktreeDir(projectSlug: string): string {
+  function agentWorktreeDir(projectSlug: string): string {
     requireSafeSlug(projectSlug)
-    return path.join(this.baseDir, 'projects', projectSlug, 'worktrees')
+    return path.join(baseDir, 'projects', projectSlug, 'worktrees')
+  }
+
+  return {
+    get baseDir() {
+      return baseDir
+    },
+    get configDefaultsDir() {
+      return configDefaultsDir
+    },
+    appConfigDir,
+    configDefaults,
+    projectRegistryFile,
+    appLauncherConfigFile,
+    boardsFile,
+    commandTemplateOverridesFile,
+    diffReviewStateFile,
+    projectDir,
+    projectConfigDir,
+    projectLauncherConfigFile,
+    ticketWorktreeDir,
+    agentWorktreeDir,
   }
 }

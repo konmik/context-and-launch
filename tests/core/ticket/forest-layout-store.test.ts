@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
-import { ForestLayoutStore } from '../../../src/core/ticket/forest-layout-store.js'
+import { createForestLayoutStore } from '../../../src/core/ticket/forest-layout-store.js'
 
 function tmpDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix))
@@ -28,21 +28,21 @@ describe('ForestLayoutStore', () => {
   it('read returns empty object when file is missing', () => {
     const dir = tmpDir('fls-')
     dirs.push(dir)
-    const store = new ForestLayoutStore(dir)
+    const store = createForestLayoutStore(dir)
     expect(store.read()).toEqual({})
   })
   it('read returns empty object for malformed JSON', () => {
     const dir = tmpDir('fls-')
     dirs.push(dir)
     fs.writeFileSync(path.join(dir, 'forest-layout.json'), 'not json')
-    const store = new ForestLayoutStore(dir)
+    const store = createForestLayoutStore(dir)
     expect(store.read()).toEqual({})
   })
   it('read returns empty object for array JSON', () => {
     const dir = tmpDir('fls-')
     dirs.push(dir)
     fs.writeFileSync(path.join(dir, 'forest-layout.json'), '[]')
-    const store = new ForestLayoutStore(dir)
+    const store = createForestLayoutStore(dir)
     expect(store.read()).toEqual({})
   })
   it('read drops invalid entries', () => {
@@ -66,7 +66,7 @@ describe('ForestLayoutStore', () => {
         },
       }),
     )
-    const store = new ForestLayoutStore(dir)
+    const store = createForestLayoutStore(dir)
     expect(store.read()).toEqual({
       'A-1': {
         x: 10,
@@ -90,7 +90,7 @@ describe('ForestLayoutStore', () => {
         },
       }),
     )
-    const store = new ForestLayoutStore(dir)
+    const store = createForestLayoutStore(dir)
     store.write({
       'B-2': {
         x: 30,
@@ -107,7 +107,7 @@ describe('ForestLayoutStore', () => {
   it("write rejects a stale layout without losing another writer's positions", () => {
     const dir = tmpDir('fls-')
     dirs.push(dir)
-    const store = new ForestLayoutStore(dir)
+    const store = createForestLayoutStore(dir)
     const expected = store.read()
     store.write({
       'A-1': {
@@ -164,7 +164,7 @@ describe('ForestLayoutStore', () => {
         },
       }),
     )
-    const store = new ForestLayoutStore(dir)
+    const store = createForestLayoutStore(dir)
     store.renameTicket('A-1', 'A-99')
     const layout = store.read()
     expect(layout['A-99']).toEqual({
@@ -180,7 +180,7 @@ describe('ForestLayoutStore', () => {
   it('renameTicket is no-op when entry not present', () => {
     const dir = tmpDir('fls-')
     dirs.push(dir)
-    const store = new ForestLayoutStore(dir)
+    const store = createForestLayoutStore(dir)
     store.renameTicket('X-1', 'X-2')
     expect(store.read()).toEqual({})
   })
@@ -200,7 +200,7 @@ describe('ForestLayoutStore', () => {
         },
       }),
     )
-    const store = new ForestLayoutStore(dir)
+    const store = createForestLayoutStore(dir)
     store.removeTicket('A-1')
     expect(store.read()).toEqual({
       'B-2': {
@@ -212,7 +212,7 @@ describe('ForestLayoutStore', () => {
   it('removeTicket is no-op when entry not present', () => {
     const dir = tmpDir('fls-')
     dirs.push(dir)
-    const store = new ForestLayoutStore(dir)
+    const store = createForestLayoutStore(dir)
     store.removeTicket('X-1')
     expect(store.read()).toEqual({})
   })

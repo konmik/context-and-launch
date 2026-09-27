@@ -1,4 +1,4 @@
-import { AppError } from '../shared/errors.js'
+import { createAppError, isAppError, type AppError } from '../shared/errors.js'
 
 export type HerdrUnavailableReason = 'cli-missing' | 'server-not-running'
 
@@ -13,8 +13,21 @@ const MESSAGE_BY_REASON = {
  * same way for every command and says nothing about the command that was asked.
  * Callers whose only question is which agents exist may read this as "none".
  */
-export class HerdrUnavailableError extends AppError {
-  constructor(readonly reason: HerdrUnavailableReason) {
-    super(MESSAGE_BY_REASON[reason])
-  }
+export interface HerdrUnavailableError extends AppError {
+  readonly reason: HerdrUnavailableReason
+}
+
+const unavailableErrors = new WeakSet<Error>()
+
+export function createHerdrUnavailableError(reason: HerdrUnavailableReason): HerdrUnavailableError {
+  const error = Object.assign(createAppError(MESSAGE_BY_REASON[reason]), {
+    name: 'HerdrUnavailableError',
+    reason,
+  })
+  unavailableErrors.add(error)
+  return error
+}
+
+export function isHerdrUnavailableError(cause: unknown): cause is HerdrUnavailableError {
+  return isAppError(cause) && unavailableErrors.has(cause)
 }

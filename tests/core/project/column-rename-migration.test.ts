@@ -4,12 +4,12 @@ import fs from 'fs'
 import path from 'path'
 import os from 'os'
 import { migrateColumnRename } from '../../../src/core/project/column-rename-migration.js'
-import { ConfigPaths } from '../../../src/core/config/config-paths.js'
+import { createConfigPaths } from '../../../src/core/config/config-paths.js'
 import { initializeDataDir } from '../../../src/core/config/initialize.js'
-import { LauncherConfigManager } from '../../../src/core/launcher/launcher-config.js'
-import { ProjectRegistry } from '../../../src/core/project/project-registry.js'
-import { BoardConfigManager } from '../../../src/core/project/board-config.js'
-import { WorktreeManager } from '../../../src/core/worktree/worktree-manager.js'
+import { createLauncherConfigManager, type LauncherConfigManager } from '../../../src/core/launcher/launcher-config.js'
+import { createProjectRegistry, type ProjectRegistry } from '../../../src/core/project/project-registry.js'
+import { createBoardConfigManager, type BoardConfigManager } from '../../../src/core/project/board-config.js'
+import { createWorktreeManager, type WorktreeManager } from '../../../src/core/worktree/worktree-manager.js'
 import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js'
 
 function tmpDir(prefix: string): string {
@@ -47,12 +47,12 @@ function createTicketDir(worktreeDir: string, folderName: string, status: string
 }
 
 function makeDeps(configDir: string): DepsResult {
-  const paths = new ConfigPaths(configDir)
+  const paths = createConfigPaths(configDir)
   return {
-    projectRegistry: new ProjectRegistry(paths),
-    launcherConfigManager: new LauncherConfigManager(paths),
-    worktreeManager: new WorktreeManager(paths, createTestCommandTemplateService()),
-    boardConfigManager: new BoardConfigManager(paths),
+    projectRegistry: createProjectRegistry(paths),
+    launcherConfigManager: createLauncherConfigManager(paths),
+    worktreeManager: createWorktreeManager(paths, createTestCommandTemplateService()),
+    boardConfigManager: createBoardConfigManager(paths),
   }
 }
 
@@ -68,7 +68,7 @@ describe('migrateColumnRename', () => {
     fs.mkdirSync(path.join(projectPath, '.git'), {
       recursive: true,
     })
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     registry.addProject(projectPath, {
       projectSlug,
       boardId,
@@ -83,7 +83,7 @@ describe('migrateColumnRename', () => {
   it('scope "none" makes no changes', () => {
     const configDir = tmpDir('migration-test-')
     dirs.push(configDir)
-    initializeDataDir(new ConfigPaths(configDir))
+    initializeDataDir(createConfigPaths(configDir))
     const result = migrateColumnRename('standard', 'old', 'new', 'none', 'test', makeDeps(configDir))
     expect(result.ticketsUpdated).toBe(0)
     expect(result.projectsUpdated).toBe(0)
@@ -91,7 +91,7 @@ describe('migrateColumnRename', () => {
   it('scope "current" updates only current project tickets', () => {
     const configDir = tmpDir('migration-test-')
     dirs.push(configDir)
-    initializeDataDir(new ConfigPaths(configDir))
+    initializeDataDir(createConfigPaths(configDir))
     const worktreeDir = setupProject(configDir, 'proj-a', 'standard')
     createTicketDir(worktreeDir, 't-1-alpha', 'todo')
     createTicketDir(worktreeDir, 't-2-bravo', 'todo')
@@ -107,9 +107,9 @@ describe('migrateColumnRename', () => {
   it('scope "current" re-keys columnDefaults', () => {
     const configDir = tmpDir('migration-test-')
     dirs.push(configDir)
-    initializeDataDir(new ConfigPaths(configDir))
+    initializeDataDir(createConfigPaths(configDir))
     setupProject(configDir, 'proj-a', 'standard')
-    const lcm = new LauncherConfigManager(new ConfigPaths(configDir))
+    const lcm = createLauncherConfigManager(createConfigPaths(configDir))
     const config = lcm.loadProjectConfig('proj-a')
     config.columnDefaults = {
       todo: {
@@ -131,7 +131,7 @@ describe('migrateColumnRename', () => {
   it('scope "all" updates all matching projects', () => {
     const configDir = tmpDir('migration-test-')
     dirs.push(configDir)
-    initializeDataDir(new ConfigPaths(configDir))
+    initializeDataDir(createConfigPaths(configDir))
     const wtA = setupProject(configDir, 'proj-a', 'standard')
     createTicketDir(wtA, 't-1-alpha', 'todo')
     const wtB = setupProject(configDir, 'proj-b', 'standard')
@@ -144,7 +144,7 @@ describe('migrateColumnRename', () => {
   it('no tickets match old status returns zero updates', () => {
     const configDir = tmpDir('migration-test-')
     dirs.push(configDir)
-    initializeDataDir(new ConfigPaths(configDir))
+    initializeDataDir(createConfigPaths(configDir))
     const worktreeDir = setupProject(configDir, 'proj-a', 'standard')
     createTicketDir(worktreeDir, 't-1-alpha', 'done')
     const result = migrateColumnRename('standard', 'todo', 'backlog', 'current', 'proj-a', makeDeps(configDir))
@@ -154,9 +154,9 @@ describe('migrateColumnRename', () => {
   it('re-keys columnDefaults even when ticket store throws', () => {
     const configDir = tmpDir('migration-test-')
     dirs.push(configDir)
-    initializeDataDir(new ConfigPaths(configDir))
+    initializeDataDir(createConfigPaths(configDir))
     const worktreeDir = setupProject(configDir, 'proj-a', 'standard')
-    const lcm = new LauncherConfigManager(new ConfigPaths(configDir))
+    const lcm = createLauncherConfigManager(createConfigPaths(configDir))
     const config = lcm.loadProjectConfig('proj-a')
     config.columnDefaults = {
       todo: {
@@ -185,7 +185,7 @@ describe('migrateColumnRename', () => {
   it('scope "current" with undefined currentProjectSlug silently returns zeroes', () => {
     const configDir = tmpDir('migration-test-')
     dirs.push(configDir)
-    initializeDataDir(new ConfigPaths(configDir))
+    initializeDataDir(createConfigPaths(configDir))
     setupProject(configDir, 'proj-a', 'standard')
     const result = migrateColumnRename('standard', 'todo', 'backlog', 'current', fromAny<string, undefined>(undefined), makeDeps(configDir))
     expect(result.ticketsUpdated).toBe(0)
@@ -194,7 +194,7 @@ describe('migrateColumnRename', () => {
   it('project with no columnDefaults does not error', () => {
     const configDir = tmpDir('migration-test-')
     dirs.push(configDir)
-    initializeDataDir(new ConfigPaths(configDir))
+    initializeDataDir(createConfigPaths(configDir))
     const worktreeDir = setupProject(configDir, 'proj-a', 'standard')
     createTicketDir(worktreeDir, 't-1-alpha', 'todo')
     const result = migrateColumnRename('standard', 'todo', 'backlog', 'current', 'proj-a', makeDeps(configDir))
@@ -204,7 +204,7 @@ describe('migrateColumnRename', () => {
   it('scope "all" returns zeroes when listProjects throws', () => {
     const configDir = tmpDir('migration-test-')
     dirs.push(configDir)
-    initializeDataDir(new ConfigPaths(configDir))
+    initializeDataDir(createConfigPaths(configDir))
     const brokenRegistry = fromPartial<ProjectRegistry>({
       listProjects(): never {
         throw new Error('corrupt projects.json')
@@ -221,7 +221,7 @@ describe('migrateColumnRename', () => {
   it('scope "all" skips projects with a different boardId', () => {
     const configDir = tmpDir('migration-test-')
     dirs.push(configDir)
-    initializeDataDir(new ConfigPaths(configDir))
+    initializeDataDir(createConfigPaths(configDir))
     const wtA = setupProject(configDir, 'proj-a', 'standard')
     createTicketDir(wtA, 't-1-alpha', 'todo')
     const wtB = setupProject(configDir, 'proj-b', 'other')

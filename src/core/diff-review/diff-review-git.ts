@@ -88,42 +88,44 @@ function revisionFor(head: string, files: ReviewFileSnapshot[]): string {
 
 const BLOB_CACHE_LIMIT = 1024
 
-export class DiffReviewGitService {
-  constructor(private readonly commands: CommandTemplateExecutor) {}
+export interface DiffReviewGitService {
+  loadSnapshot(target: DiffReviewTarget, scope: DiffScope): Promise<Omit<ReviewSnapshot, 'reviewedLineIds'>>
+}
 
-  private readonly blobCache = new Map<string, Buffer>()
+export function createDiffReviewGitService(commands: CommandTemplateExecutor): DiffReviewGitService {
+  const blobCache = new Map<string, Buffer>()
 
-  private async readBlob(worktreePath: string, commitIdentity: string, refPath: string, blobPath: string): Promise<Buffer> {
+  async function readBlob(worktreePath: string, commitIdentity: string, refPath: string, blobPath: string): Promise<Buffer> {
     const key = `${commitIdentity}:${blobPath}`
-    const cached = this.blobCache.get(key)
+    const cached = blobCache.get(key)
     if (cached) return cached
     const contents = Buffer.from(
-      await this.commands.execute('diff-review.file.read', worktreePath, {
+      await commands.execute('diff-review.file.read', worktreePath, {
         refPath,
       }),
       'utf8',
     )
-    if (this.blobCache.size >= BLOB_CACHE_LIMIT) {
-      const oldest = this.blobCache.keys().next()
-      if (!oldest.done) this.blobCache.delete(oldest.value)
+    if (blobCache.size >= BLOB_CACHE_LIMIT) {
+      const oldest = blobCache.keys().next()
+      if (!oldest.done) blobCache.delete(oldest.value)
     }
-    this.blobCache.set(key, contents)
+    blobCache.set(key, contents)
     return contents
   }
 
-  async loadSnapshot(target: DiffReviewTarget, scope: DiffScope): Promise<Omit<ReviewSnapshot, 'reviewedLineIds'>> {
+  async function loadSnapshot(target: DiffReviewTarget, scope: DiffScope): Promise<Omit<ReviewSnapshot, 'reviewedLineIds'>> {
     if (!fs.existsSync(target.worktreePath)) {
       throw new Error(`Agent Worktree does not exist: ${target.worktreePath}`)
     } // The HEAD revision does not gate the file list, so both reads run together.
     const [head, { baseRef, changed }] = await Promise.all([
-      this.commands.execute('diff-review.head.resolve', target.worktreePath).then((out) => out.trim()),
-      this.resolveChanged(target, scope),
+      commands.execute('diff-review.head.resolve', target.worktreePath).then((out) => out.trim()),
+      resolveChanged(target, scope),
     ])
     if (!head) throw new Error('Git did not return an Agent Worktree HEAD revision.')
     const readNewFromWorktree = scope === 'all' || scope === 'working'
     const baseIdentity = baseRef === 'HEAD' ? head : baseRef === 'HEAD^' ? `${head}^` : baseRef
     const files = await mapConcurrent(changed, 8, (file) =>
-      this.loadFile(target.worktreePath, file, baseRef, baseIdentity, head, readNewFromWorktree),
+      loadFile(target.worktreePath, file, baseRef, baseIdentity, head, readNewFromWorktree),
     )
     files.sort((left, right) => left.path.localeCompare(right.path))
     return {
@@ -135,30 +137,30 @@ export class DiffReviewGitService {
     }
   }
 
-  private async resolveChanged(target: DiffReviewTarget, scope: DiffScope): Promise<ResolveChangedResult> {
+  async function resolveChanged(target: DiffReviewTarget, scope: DiffScope): Promise<ResolveChangedResult> {
     if (scope === 'last-commit') {
       return {
         baseRef: 'HEAD^',
-        changed: parseNameStatus(await this.commands.execute('diff-review.last-commit.files', target.worktreePath)),
+        changed: parseNameStatus(await commands.execute('diff-review.last-commit.files', target.worktreePath)),
       }
     }
     if (scope === 'branch') {
-      const baseRef = await this.resolveMergeBase(target, scope)
+      const baseRef = await resolveMergeBase(target, scope)
       return {
         baseRef,
         changed: parseNameStatus(
-          await this.commands.execute('diff-review.branch.files', target.worktreePath, {
+          await commands.execute('diff-review.branch.files', target.worktreePath, {
             baseRef,
           }),
         ),
       }
     }
-    const baseRef = scope === 'working' ? 'HEAD' : await this.resolveMergeBase(target, scope)
+    const baseRef = scope === 'working' ? 'HEAD' : await resolveMergeBase(target, scope)
     const [trackedOut, untrackedOut] = await Promise.all([
-      this.commands.execute('diff-review.tracked.files', target.worktreePath, {
+      commands.execute('diff-review.tracked.files', target.worktreePath, {
         baseRef,
       }),
-      this.commands.execute('diff-review.untracked.files', target.worktreePath),
+      commands.execute('diff-review.untracked.files', target.worktreePath),
     ])
     const changed = parseNameStatus(trackedOut)
     const trackedPaths = new Set(changed.map((file) => file.path))
@@ -177,12 +179,12 @@ export class DiffReviewGitService {
     }
   }
 
-  private async resolveMergeBase(target: DiffReviewTarget, scope: DiffScope): Promise<string> {
+  async function resolveMergeBase(target: DiffReviewTarget, scope: DiffScope): Promise<string> {
     if (!target.mainBranch) {
       throw new Error(`${scope === 'all' ? 'All Changes' : 'Branch Changes'}` + ' requires a configured main branch.')
     }
     const baseRef = (
-      await this.commands.execute('diff-review.merge-base.resolve', target.worktreePath, {
+      await commands.execute('diff-review.merge-base.resolve', target.worktreePath, {
         mainBranch: target.mainBranch,
       })
     ).trim()
@@ -192,7 +194,7 @@ export class DiffReviewGitService {
     return baseRef
   }
 
-  private async loadFile(
+  async function loadFile(
     worktreePath: string,
     file: ChangedPath,
     baseRef: string,
@@ -202,7 +204,7 @@ export class DiffReviewGitService {
   ): Promise<ReviewFileSnapshot> {
     const code = file.status[0]
     const basePath = file.previousPath ?? file.path
-    const oldContents = code === 'A' ? Buffer.alloc(0) : await this.readBlob(worktreePath, baseIdentity, `${baseRef}:${basePath}`, basePath)
+    const oldContents = code === 'A' ? Buffer.alloc(0) : await readBlob(worktreePath, baseIdentity, `${baseRef}:${basePath}`, basePath)
     let newContents: Buffer
     if (code === 'D') {
       newContents = Buffer.alloc(0)
@@ -222,7 +224,7 @@ export class DiffReviewGitService {
         throw error
       }
     } else {
-      newContents = await this.readBlob(worktreePath, head, `HEAD:${file.path}`, file.path)
+      newContents = await readBlob(worktreePath, head, `HEAD:${file.path}`, file.path)
     }
     if (isBinary(oldContents) || isBinary(newContents)) {
       return buildBinaryReviewFile({
@@ -241,6 +243,10 @@ export class DiffReviewGitService {
       newContents: newContents.toString('utf8'),
       byteSize: newContents.length || oldContents.length,
     })
+  }
+
+  return {
+    loadSnapshot,
   }
 }
 

@@ -1,5 +1,5 @@
 import * as v from 'valibot'
-import { TicketRepository } from './ticket-repository.js'
+import { createTicketRepository, type TicketRepository } from './ticket-repository.js'
 
 export interface ForestLayoutValue {
   x: number
@@ -15,14 +15,25 @@ const PositionSchema = v.object({
 
 const ForestLayoutRecordSchema = v.record(v.string(), v.unknown())
 
-export class ForestLayoutStore {
-  constructor(
-    private readonly worktreeDir: string,
-    private readonly repo = new TicketRepository(),
-  ) {}
+export interface ForestLayoutStore {
+  read(): ForestLayout
+  renameTicket(oldTicketNumber: string, newTicketNumber: string): void
+  removeTicket(ticketNumber: string): void
+  translateIntoGroup(
+    groupNumber: string,
+    groupPosition: {
+      x: number
+      y: number
+    },
+    memberNumbers: string[],
+  ): void
+  translateOutOfGroup(groupNumber: string, memberNumbers: string[]): void
+  write(layout: ForestLayout, expected?: ForestLayout): void
+}
 
-  read(): ForestLayout {
-    const raw = this.repo.readWorktreeJson(this.worktreeDir, 'forest-layout.json')
+export function createForestLayoutStore(worktreeDir: string, repo: TicketRepository = createTicketRepository()): ForestLayoutStore {
+  function read(): ForestLayout {
+    const raw = repo.readWorktreeJson(worktreeDir, 'forest-layout.json')
     const record = v.safeParse(ForestLayoutRecordSchema, raw)
     if (!record.success) return {}
     const result: ForestLayout = {}
@@ -33,23 +44,23 @@ export class ForestLayoutStore {
     return result
   }
 
-  renameTicket(oldTicketNumber: string, newTicketNumber: string): void {
-    const layout = this.read()
+  function renameTicket(oldTicketNumber: string, newTicketNumber: string): void {
+    const layout = read()
     if (!(oldTicketNumber in layout)) return
     const { [oldTicketNumber]: position, ...remaining } = layout
-    this.write({
+    write({
       ...remaining,
       [newTicketNumber]: position,
     })
   }
 
-  removeTicket(ticketNumber: string): void {
-    const layout = this.read()
+  function removeTicket(ticketNumber: string): void {
+    const layout = read()
     if (!(ticketNumber in layout)) return
-    this.write(Object.fromEntries(Object.entries(layout).filter(([number]) => number !== ticketNumber)))
+    write(Object.fromEntries(Object.entries(layout).filter(([number]) => number !== ticketNumber)))
   }
 
-  translateIntoGroup(
+  function translateIntoGroup(
     groupNumber: string,
     groupPosition: {
       x: number
@@ -57,7 +68,7 @@ export class ForestLayoutStore {
     },
     memberNumbers: string[],
   ): void {
-    const layout = this.read()
+    const layout = read()
     const next = {
       ...layout,
       [groupNumber]: groupPosition,
@@ -71,11 +82,11 @@ export class ForestLayoutStore {
         }
       }
     }
-    this.write(next)
+    write(next)
   }
 
-  translateOutOfGroup(groupNumber: string, memberNumbers: string[]): void {
-    const layout = this.read()
+  function translateOutOfGroup(groupNumber: string, memberNumbers: string[]): void {
+    const layout = read()
     const groupPosition = layout[groupNumber]
     const next = {
       ...layout,
@@ -93,13 +104,22 @@ export class ForestLayoutStore {
         delete next[memberNumber]
       }
     }
-    this.write(next)
+    write(next)
   }
 
-  write(layout: ForestLayout, expected?: ForestLayout): void {
-    if (expected && JSON.stringify(this.read()) !== JSON.stringify(expected)) {
+  function write(layout: ForestLayout, expected?: ForestLayout): void {
+    if (expected && JSON.stringify(read()) !== JSON.stringify(expected)) {
       throw new Error('Forest layout changed in another request. Try again.')
     }
-    this.repo.writeWorktreeJson(this.worktreeDir, 'forest-layout.json', layout)
+    repo.writeWorktreeJson(worktreeDir, 'forest-layout.json', layout)
+  }
+
+  return {
+    read,
+    renameTicket,
+    removeTicket,
+    translateIntoGroup,
+    translateOutOfGroup,
+    write,
   }
 }

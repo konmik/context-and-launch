@@ -5,7 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js'
 import { git } from '../../test-git.js'
-import { FileWatcher, type FileWatcherAdapters } from '../../../src/core/infra/file-watcher.js'
+import { createFileWatcher, type FileWatcherAdapters } from '../../../src/core/infra/file-watcher.js'
 
 const dirs: string[] = []
 
@@ -55,7 +55,7 @@ describe('FileWatcher real chokidar contract', () => {
     await initialize(dir)
     let ready = false
     const onChange = vi.fn()
-    const watcher = new FileWatcher(
+    const watcher = createFileWatcher(
       createTestCommandTemplateService(),
       onChange,
       realAdapters(() => {
@@ -97,7 +97,7 @@ describe('FileWatcher real chokidar contract', () => {
       setTimer: (callback, delayMs) => setTimeout(callback, delayMs),
       clearTimer: (timer) => clearTimeout(timer),
     }
-    const watcher = new FileWatcher(createTestCommandTemplateService(), undefined, adapters)
+    const watcher = createFileWatcher(createTestCommandTemplateService(), undefined, adapters)
     try {
       watcher.watch(dirA, 20)
       await waitFor(() => ready.has(dirA))

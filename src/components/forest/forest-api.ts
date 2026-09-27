@@ -4,17 +4,17 @@ import type { ActionError } from '../../core/shared/errors.js'
 import { action } from '@solidjs/router'
 import { respond } from '@solidjs/web'
 import { worktreeManager, projectRegistry, boardConfigManager } from '~/core/config/instances.js'
-import { TicketStore } from '~/core/ticket/ticket-store.js'
+import { createTicketStore } from '~/core/ticket/ticket-store.js'
 import { errorMessage, errorResult } from '~/core/shared/errors.js'
 import { failure, success } from '~/util/result.js'
 import { resolveInitialTicketStatus } from '~/core/board/initial-ticket-status.js'
-import { ForestLayoutStore, type ForestLayout } from '~/core/ticket/forest-layout-store.js'
+import { createForestLayoutStore, type ForestLayout } from '~/core/ticket/forest-layout-store.js'
 
 export async function readForestLayout(projectSlug: string): Promise<ForestLayout> {
   'use server'
 
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
-  return new ForestLayoutStore(worktreeDir).read()
+  return createForestLayoutStore(worktreeDir).read()
 }
 
 const actionResult = <T>(value: T) =>
@@ -31,7 +31,7 @@ export async function saveForestLayout(
 
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
-    new ForestLayoutStore(worktreeDir).write(layout, expected)
+    createForestLayoutStore(worktreeDir).write(layout, expected)
     return success(layout)
   } catch (e) {
     return failure(errorMessage(e))
@@ -47,7 +47,7 @@ export const addDependency = action(async function addDependency(input: {
 
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(input.projectSlug)
-    new TicketStore(worktreeDir).addDependency(input.folderName, input.dependencyNumber)
+    createTicketStore(worktreeDir).addDependency(input.folderName, input.dependencyNumber)
     return actionResult(success(undefined))
   } catch (e) {
     return actionResult(errorResult(e))
@@ -65,7 +65,7 @@ export const removeDependencies = action(async function removeDependencies(input
 
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(input.projectSlug)
-    const store = new TicketStore(worktreeDir) // One write per ticket: a projected edge can stand for several relations of
+    const store = createTicketStore(worktreeDir) // One write per ticket: a projected edge can stand for several relations of
     // the same dependent, and rewriting its status file once per relation both
     // multiplies file contention and can leave the rest behind if one write fails.
     const byFolderName = new Map<string, string[]>()
@@ -102,7 +102,7 @@ export const createGroupTicket = action(async function createGroupTicket(input: 
       projectRegistry,
       boardConfigManager,
     })
-    const group = new TicketStore(worktreeDir).createGroup(
+    const group = createTicketStore(worktreeDir).createGroup(
       input.number,
       input.title,
       initialStatus,
@@ -128,7 +128,7 @@ export const ungroupTicket = action(async function ungroupTicket(input: {
 
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(input.projectSlug)
-    new TicketStore(worktreeDir).ungroup(input.folderName)
+    createTicketStore(worktreeDir).ungroup(input.folderName)
     return actionResult(success(undefined))
   } catch (e) {
     return actionResult(errorResult(e))

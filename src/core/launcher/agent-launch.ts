@@ -6,8 +6,8 @@ import {
   commandTemplateService,
 } from '~/core/config/instances.js'
 import { toSavedWorktreeInfo } from '~/core/worktree/agent-worktree.js'
-import { TicketStore } from '~/core/ticket/ticket-store.js'
-import { NotFoundError } from '~/core/shared/errors.js'
+import { createTicketStore } from '~/core/ticket/ticket-store.js'
+import { createNotFoundError } from '~/core/shared/errors.js'
 import { success, failure, type Result } from '~/util/result.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import type { ProjectInfo } from '~/core/project/project-registry.js'
@@ -98,7 +98,7 @@ export async function ensureLaunchDir(
     })
   }
   if (!ticket.agentWorktreeBranchName) {
-    new TicketStore(worktreeDir).saveAgentWorktreeInfo(folderName, result.value.branchName, result.value.worktreePath)
+    createTicketStore(worktreeDir).saveAgentWorktreeInfo(folderName, result.value.branchName, result.value.worktreePath)
   }
   return success({
     launchDir: result.value.worktreePath,
@@ -107,11 +107,11 @@ export async function ensureLaunchDir(
 
 export function resolveTicketAndProject(projectSlug: string, folderName: string): ResolveTicketAndProjectResult {
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
-  const store = new TicketStore(worktreeDir)
+  const store = createTicketStore(worktreeDir)
   const ticket = store.getTicket(folderName)
-  if (!ticket) throw new NotFoundError(`Ticket not found: ${folderName}`)
+  if (!ticket) throw createNotFoundError(`Ticket not found: ${folderName}`)
   const project = projectRegistry.listProjects().find((p) => p.projectSlug === projectSlug)
-  if (!project) throw new NotFoundError(`Project not found: ${projectSlug}`)
+  if (!project) throw createNotFoundError(`Project not found: ${projectSlug}`)
   return {
     ticket,
     project,

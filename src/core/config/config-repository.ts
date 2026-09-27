@@ -17,8 +17,16 @@ function sleepSync(milliseconds: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds)
 }
 
-export class ConfigRepository {
-  readJson(filePath: string): JsonValue | null {
+export interface ConfigRepository {
+  readJson(filePath: string): JsonValue | null
+  writeJson<Data extends object>(filePath: string, data: Data): void
+  exists(filePath: string): boolean
+  ensureDir(dirPath: string): void
+  realpathSync(filePath: string): string
+}
+
+export function createConfigRepository(): ConfigRepository {
+  function readJson(filePath: string): JsonValue | null {
     if (!fs.existsSync(filePath)) return null
     const text = fs.readFileSync(filePath, 'utf-8')
     try {
@@ -28,7 +36,7 @@ export class ConfigRepository {
     }
   }
 
-  writeJson<Data extends object>(filePath: string, data: Data): void {
+  function writeJson<Data extends object>(filePath: string, data: Data): void {
     const parentDir = path.dirname(filePath)
     fs.mkdirSync(parentDir, {
       recursive: true,
@@ -66,17 +74,25 @@ export class ConfigRepository {
     }
   }
 
-  exists(filePath: string): boolean {
+  function exists(filePath: string): boolean {
     return fs.existsSync(filePath)
   }
 
-  ensureDir(dirPath: string): void {
+  function ensureDir(dirPath: string): void {
     fs.mkdirSync(dirPath, {
       recursive: true,
     })
   }
 
-  realpathSync(filePath: string): string {
+  function realpathSync(filePath: string): string {
     return fs.realpathSync(filePath)
+  }
+
+  return {
+    readJson,
+    writeJson,
+    exists,
+    ensureDir,
+    realpathSync,
   }
 }

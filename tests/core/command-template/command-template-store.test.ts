@@ -2,9 +2,9 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ConfigPaths } from '../../../src/core/config/config-paths.js'
-import { ConfigRepository } from '../../../src/core/config/config-repository.js'
-import { CommandTemplateStore } from '../../../src/core/command-template/command-template-store.js'
+import { createConfigPaths, type ConfigPaths } from '../../../src/core/config/config-paths.js'
+import { createConfigRepository } from '../../../src/core/config/config-repository.js'
+import { createCommandTemplateStore, type CommandTemplateStore } from '../../../src/core/command-template/command-template-store.js'
 import { createStoredConfig } from '~/util/stored-config.js'
 import { success } from '~/util/result.js'
 import type { CommandTemplateOverrides } from '../../../src/core/command-template/command-template-types.js'
@@ -22,10 +22,10 @@ afterEach(() => {
 function setup(): SetupResult {
   const base = fs.mkdtempSync(path.join(os.tmpdir(), 'command-template-store-'))
   roots.push(base)
-  const paths = new ConfigPaths(base, path.resolve('config-defaults'))
+  const paths = createConfigPaths(base, path.resolve('config-defaults'))
   return {
     paths,
-    store: new CommandTemplateStore(paths, new ConfigRepository()),
+    store: createCommandTemplateStore(paths, createConfigRepository()),
   }
 }
 
@@ -87,7 +87,7 @@ describe('CommandTemplateStore', () => {
       'picker.files.macos': 'external edit',
       'git.version': 'custom version',
     })
-    expect(new CommandTemplateStore(paths, new ConfigRepository()).read()).toEqual(store.read())
+    expect(createCommandTemplateStore(paths, createConfigRepository()).read()).toEqual(store.read())
     expect(store.get('git.version').script).toBe('custom version')
   })
   it('rejects competing writers and releases a failed write without changing the file', () => {
@@ -140,8 +140,8 @@ describe('CommandTemplateStore', () => {
   it('serves bundled defaults when no override file exists', () => {
     const base = fs.mkdtempSync(path.join(os.tmpdir(), 'command-template-store-'))
     roots.push(base)
-    const paths = new ConfigPaths(base, path.resolve('config-defaults'))
-    const store = new CommandTemplateStore(paths, new ConfigRepository())
+    const paths = createConfigPaths(base, path.resolve('config-defaults'))
+    const store = createCommandTemplateStore(paths, createConfigRepository())
     expect(fs.existsSync(paths.commandTemplateOverridesFile())).toBe(false)
     expect(store.read()).toEqual({})
     expect(store.get('git.version').isOverridden).toBe(false)

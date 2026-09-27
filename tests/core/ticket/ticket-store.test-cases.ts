@@ -2,9 +2,8 @@ import { describe, it as baseIt, expect, afterAll, vi } from 'vitest'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
-import { TicketStore, toKebabCase } from '../../../src/core/ticket/ticket-store.js'
+import { createTicketStore, toKebabCase } from '../../../src/core/ticket/ticket-store.js'
 import { git, gitSync } from '../../test-git.js'
-import { ValidationError } from '../../../src/core/shared/errors.js'
 import { cloneFromTemplate, lazyTemplate } from '../../test-temp.js'
 import { shardTestCases } from '../../test-shard.js'
 
@@ -55,7 +54,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('createTicket creates folder and status json', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       const ticket = store.createTicket('ABC-1', 'Fix Login')
       expect(ticket.number).toBe('ABC-1')
       expect(ticket.title).toBe('Fix Login')
@@ -66,7 +65,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('listTickets returns sorted results', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('C-3', 'Third')
       store.createTicket('A-1', 'First')
       store.createTicket('B-2', 'Second')
@@ -79,7 +78,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('listTickets skips malformed entries', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('OK-1', 'Good Ticket')
       const badDir = path.join(worktreeDir, 'bad-ticket')
       fs.mkdirSync(badDir)
@@ -91,7 +90,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('updateTicket renames folder when title changes', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('ABC-1', 'Old Title')
       const updated = store.updateTicket('abc-1-old-title', null, 'New Title', null)
       expect(updated.title).toBe('New Title')
@@ -102,7 +101,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('deleteTicket removes folder', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('DEL-1', 'To Delete')
       expect(fs.existsSync(path.join(worktreeDir, 'del-1-to-delete'))).toBe(true)
       store.deleteTicket('del-1-to-delete')
@@ -111,7 +110,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('ticket context read write roundtrip', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('MD-1', 'With Markdown')
       expect(store.getTicketContext('md-1-with-markdown', 'todo')).toBeNull()
       store.saveTicketContext('md-1-with-markdown', 'todo', '# My Notes\nSome content')
@@ -123,14 +122,14 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('createTicket rejects blank number or title', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       expect(() => store.createTicket('', 'Title')).toThrow()
       expect(() => store.createTicket('NUM', '')).toThrow()
     })
     it.concurrent('createTicket appends suffix on folder name collision', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       const first = store.createTicket('X-1', 'Same Name')
       const second = store.createTicket('X 1', 'Same Name')
       expect(first.folderName).toBe('x-1-same-name')
@@ -141,7 +140,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('createTicket rejects a duplicate Ticket Number', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('DUP-1', 'First Title')
       expect(() => store.createTicket('dup-1', 'Second Title')).toThrow(/Ticket Number already exists: DUP-1/i)
       expect(store.listTickets()).toHaveLength(1)
@@ -169,13 +168,13 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
           status: 'todo',
         }),
       )
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       expect(() => store.listTickets()).toThrow(/Duplicate Ticket Number: DUP-1/i)
     })
     it.concurrent('updateTicket renames folder when number changes', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('OLD-1', 'My Title')
       const updated = store.updateTicket('old-1-my-title', 'NEW-1', null, null)
       expect(updated.number).toBe('NEW-1')
@@ -186,19 +185,19 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('updateTicket on nonexistent folder throws', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       expect(() => store.updateTicket('no-such-folder', null, null, 'done')).toThrow()
     })
     it.concurrent('deleteTicket on nonexistent folder throws', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       expect(() => store.deleteTicket('no-such-folder')).toThrow()
     })
     it.concurrent('updateTicket rejects rename collision', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('A-1', 'First')
       store.createTicket('A 1', 'Second')
       expect(() => store.updateTicket('a-1-second', 'A 1', 'First', null)).toThrow()
@@ -210,7 +209,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
       fs.mkdirSync(worktreeDir)
       await git(worktreeDir, 'init')
       await git(worktreeDir, 'commit', '--allow-empty', '-m', 'init')
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('T-1', 'Test')
       expect(() => store.saveTicketContext('t-1-test', '../sibling/evil', 'pwned')).toThrow()
       const escaped = path.join(parentDir, 'sibling')
@@ -225,7 +224,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
       fs.mkdirSync(worktreeDir)
       await git(worktreeDir, 'init')
       await git(worktreeDir, 'commit', '--allow-empty', '-m', 'init')
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       expect(() => store.getTicketContext('..', 'todo')).toThrow()
     })
     it.concurrent('getTicketContext rejects path traversal in name', async () => {
@@ -237,7 +236,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
       fs.mkdirSync(worktreeDir)
       await git(worktreeDir, 'init')
       await git(worktreeDir, 'commit', '--allow-empty', '-m', 'init')
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('T-1', 'Test')
       expect(() => store.getTicketContext('t-1-test', '../../secret')).toThrow()
     })
@@ -250,14 +249,14 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
       await git(worktreeDir, 'commit', '--allow-empty', '-m', 'init')
       const outsideDir = path.join(parentDir, 'target')
       fs.mkdirSync(outsideDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       expect(() => store.updateTicket('../../target', null, null, 'done')).toThrow()
       expect(fs.existsSync(path.join(outsideDir, 'status.json'))).toBe(false)
     })
     it.concurrent('saveTicketContext rejects name containing path separators', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('S-1', 'Slashes')
       expect(() => store.saveTicketContext('s-1-slashes', 'sub/dir', 'content')).toThrow()
       const subDir = path.join(worktreeDir, 's-1-slashes', 'sub')
@@ -273,7 +272,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
       const outsideDir = path.join(parentDir, 'target')
       fs.mkdirSync(outsideDir)
       fs.writeFileSync(path.join(outsideDir, 'precious.txt'), 'important data')
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       expect(() => store.deleteTicket('../../target')).toThrow()
       expect(fs.existsSync(outsideDir)).toBe(true)
       expect(fs.existsSync(path.join(outsideDir, 'precious.txt'))).toBe(true)
@@ -281,7 +280,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('ticket mutations leave changes uncommitted in worktree', async () => {
       const worktreeDir = await createGitWorktree(true)
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('LOCK-1', 'Lock Test') // With autoCommit removed, changes stay uncommitted
       const statusAfterCreate = await git(worktreeDir, 'status', '--porcelain')
       expect(statusAfterCreate.trim()).not.toBe('')
@@ -297,7 +296,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('multiple ticket operations produce no git commits (changes remain uncommitted)', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       const ticket = store.createTicket('RAP-1', 'Rapid Ops')
       store.saveTicketContext(ticket.folderName, 'todo', '# Todo\nDo the thing') // Verify final state has both files on disk
       const statusPath = path.join(worktreeDir, ticket.folderName, 'status.json')
@@ -309,7 +308,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('combined rename + status change writes correct status.json on disk', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('TK-1', 'Old Title') // Change title (triggers rename) and status in one call
       const updated = store.updateTicket('tk-1-old-title', null, 'New Title', 'in-progress') // Verify returned values
       expect(updated.number).toBe('TK-1')
@@ -328,7 +327,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('status-only change writes updated status.json without renaming folder', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('ST-1', 'Keep Name')
       const updated = store.updateTicket('st-1-keep-name', null, null, 'in-progress') // Verify returned values
       expect(updated.number).toBe('ST-1')
@@ -346,7 +345,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('number + title change writes both new values to status.json and renames folder', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('OLD-1', 'Original Title')
       const updated = store.updateTicket('old-1-original-title', 'NEW-99', 'Changed Title', null) // Verify returned values
       expect(updated.number).toBe('NEW-99')
@@ -379,7 +378,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
           status: 'todo',
         }),
       )
-      const store = new TicketStore(worktreeDir) // ../sibling is caught by requireSimpleName (path separator check)
+      const store = createTicketStore(worktreeDir) // ../sibling is caught by requireSimpleName (path separator check)
       expect(() => store.updateTicket('../sibling', null, null, 'done')).toThrow(/simple name without path separators/) // Verify sibling directory was not modified
       const onDisk = JSON.parse(fs.readFileSync(path.join(siblingDir, 'status.json'), 'utf-8'))
       expect(onDisk.status).toBe('todo')
@@ -402,7 +401,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
         }),
       )
       fs.writeFileSync(path.join(outsideDir, 'data.txt'), 'must survive')
-      const store = new TicketStore(worktreeDir) // requireSimpleName rejects ../../outside (path separator check)
+      const store = createTicketStore(worktreeDir) // requireSimpleName rejects ../../outside (path separator check)
       expect(() => store.deleteTicket('../../outside')).toThrow(/simple name without path separators/) // Outside directory must be completely untouched
       expect(fs.existsSync(outsideDir)).toBe(true)
       expect(fs.readFileSync(path.join(outsideDir, 'data.txt'), 'utf-8')).toBe('must survive')
@@ -412,7 +411,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('saveTicketContext with a folderName renamed away by updateTicket throws Ticket not found', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       const ticket = store.createTicket('STALE-1', 'Original Name')
       const oldFolder = ticket.folderName // 'stale-1-original-name'
       // Rename the ticket by changing its title, which changes the folder name
@@ -423,7 +422,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('saveTicketContext to a recycled folderName writes to the wrong ticket (data corruption)', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir) // Create ticket A with a known folderName
+      const store = createTicketStore(worktreeDir) // Create ticket A with a known folderName
       const ticketA = store.createTicket('REC-1', 'Reusable Name')
       const originalFolder = ticketA.folderName // 'rec-1-reusable-name'
       // Rename ticket A by changing its number, which changes the folder
@@ -444,7 +443,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('getTicketContext with a folderName that no longer exists returns null silently', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       const ticket = store.createTicket('GONE-1', 'Will Vanish')
       const oldFolder = ticket.folderName // 'gone-1-will-vanish'
       // Write context content while the ticket exists
@@ -462,7 +461,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('createTicket with undefined initialStatus defaults to todo', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       const ticket = store.createTicket('UNDEF-S1', 'Status Test', undefined) // Check the returned ticket object
       expect(ticket.status).toBe('todo') // Check what was actually written to disk
       const statusJsonPath = path.join(worktreeDir, ticket.folderName, 'status.json')
@@ -479,7 +478,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
       const base = tmpDir('nonexistent-parent-')
       dirs.push(base)
       const missing = path.join(base, 'does-not-exist')
-      const store = new TicketStore(missing)
+      const store = createTicketStore(missing)
       const result = store.listTickets() // The implementation silently returns [] when the directory is missing.
       // This means a misconfigured worktreeDir produces the same result as
       // "no tickets yet" -- the caller cannot distinguish the two cases.
@@ -489,7 +488,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
       const base = tmpDir('nonexistent-save-')
       dirs.push(base)
       const missing = path.join(base, 'does-not-exist')
-      const store = new TicketStore(missing) // When worktreeDir itself does not exist, requireContained calls
+      const store = createTicketStore(missing) // When worktreeDir itself does not exist, requireContained calls
       // realpathSync on the missing parent, which throws a raw ENOENT.
       // The error should mention the worktree directory, not "Ticket not found".
       expect(() => store.saveTicketContext('some-folder', 'todo', 'content')).toThrow(/Worktree directory does not exist/)
@@ -498,7 +497,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
       const base = tmpDir('nonexistent-get-')
       dirs.push(base)
       const missing = path.join(base, 'does-not-exist')
-      const store = new TicketStore(missing) // When worktreeDir does not exist, requireContainedIn detects the
+      const store = createTicketStore(missing) // When worktreeDir does not exist, requireContainedIn detects the
       // missing parent and throws a clear error. This is consistent with
       // saveTicketContext but inconsistent with listTickets (which returns []).
       expect(() => store.getTicketContext('some-folder', 'todo')).toThrow(/Worktree directory does not exist/)
@@ -507,7 +506,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
       const base = tmpDir('nonexistent-delete-')
       dirs.push(base)
       const missing = path.join(base, 'does-not-exist')
-      const store = new TicketStore(missing) // When worktreeDir itself does not exist, requireContained calls
+      const store = createTicketStore(missing) // When worktreeDir itself does not exist, requireContained calls
       // requireContainedIn which detects the missing parent and throws
       // "Worktree directory does not exist" -- not "Ticket not found".
       expect(() => store.deleteTicket('some-folder')).toThrow(/Worktree directory does not exist/)
@@ -515,7 +514,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('updateTicket case-only title change on case-insensitive filesystem', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('ABC-1', 'My Title')
       const updated = store.updateTicket('abc-1-my-title', null, 'my title', null)
       expect(updated.title).toBe('my title')
@@ -525,7 +524,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('readStatusJson with extra sessionId field: returned TicketInfo has only number/title/status', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir) // Manually create a ticket directory with old-format status.json containing sessionId
+      const store = createTicketStore(worktreeDir) // Manually create a ticket directory with old-format status.json containing sessionId
       const folderName = 'old-1-has-session'
       const ticketDir = path.join(worktreeDir, folderName)
       fs.mkdirSync(ticketDir, {
@@ -557,7 +556,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('updateTicket preserves unknown extra fields in status.json on disk', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       const folderName = 'extra-1-preserve-fields'
       const ticketDir = path.join(worktreeDir, folderName)
       fs.mkdirSync(ticketDir, {
@@ -590,7 +589,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('listTickets with mixed old-format and new-format status.json files returns all correctly', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir) // Create an old-format ticket (with sessionId) manually
+      const store = createTicketStore(worktreeDir) // Create an old-format ticket (with sessionId) manually
       const oldDir = path.join(worktreeDir, 'mix-1-old-format')
       fs.mkdirSync(oldDir, {
         recursive: true,
@@ -644,7 +643,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('two concurrent updateTicket calls on same ticket with different titles: second fails clearly', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('RACE-1', 'Original')
       const folderName = 'race-1-original' // Both calls target the same folderName. Since updateTicket is synchronous,
       // they execute sequentially: first renames the folder, second finds it gone.
@@ -679,7 +678,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('rename where old dir contains context files: .md files survive at the new path', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       const ticket = store.createTicket('MD-5', 'Has Stages')
       const oldFolder = ticket.folderName // 'md-5-has-stages'
       // Add multiple context files
@@ -705,7 +704,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('setUseWorktree persists to status.json and survives a re-read via listTickets', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('WT-1', 'Worktree Toggle')
       const folderName = 'wt-1-worktree-toggle' // Initially useWorktree is false
       let tickets = store.listTickets()
@@ -722,7 +721,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('setUseWorktree does not clobber other status.json fields', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('WT-2', 'No Clobber')
       const folderName = 'wt-2-no-clobber'
       store.setUseWorktree(folderName, true)
@@ -735,7 +734,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('archiveTicket moves folder into archive subdirectory', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('ARC-1', 'To Archive')
       expect(fs.existsSync(path.join(worktreeDir, 'arc-1-to-archive'))).toBe(true)
       store.archiveTicket('arc-1-to-archive')
@@ -745,7 +744,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('listTickets excludes tickets in the archive folder', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('KEEP-1', 'Visible')
       store.createTicket('ARC-2', 'Will Archive')
       store.archiveTicket('arc-2-will-archive')
@@ -756,7 +755,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it('updateTicket rolls back its folder rename when a status write fails', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('ERR-1', 'Before Rename') // The original status.json content (written by createTicket)
       const oldDir = path.join(worktreeDir, 'err-1-before-rename')
       const originalContent = fs.readFileSync(path.join(oldDir, 'status.json'), 'utf-8')
@@ -790,13 +789,13 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('archiveTicket on nonexistent folder throws', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       expect(() => store.archiveTicket('no-such-folder')).toThrow(/Ticket not found/)
     })
     it.concurrent('archiveTicket throws when archive destination already exists', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('DUP-A', 'First Archive')
       const archiveDir = path.join(worktreeDir, 'archive', 'dup-a-first-archive')
       fs.mkdirSync(archiveDir, {
@@ -808,7 +807,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('archiveTicket moves folder without committing', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('CMT-1', 'Commit Test')
       store.archiveTicket('cmt-1-commit-test') // Verify the archive happened on disk
       expect(fs.existsSync(path.join(worktreeDir, 'archive', 'cmt-1-commit-test'))).toBe(true)
@@ -817,7 +816,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('archiveTicket preserves context files', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('STG-1', 'With Stages')
       store.saveTicketContext('stg-1-with-stages', 'todo', '# Todo items')
       store.saveTicketContext('stg-1-with-stages', 'design', '# Design notes')
@@ -830,7 +829,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('archiveTicket called twice throws on second call', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('DUB-1', 'Double Archive')
       store.archiveTicket('dub-1-double-archive')
       expect(() => store.archiveTicket('dub-1-double-archive')).toThrow(/Ticket not found/)
@@ -838,7 +837,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('deleteTicket on already-archived ticket throws', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('DEL-A', 'Archived Then Delete')
       store.archiveTicket('del-a-archived-then-delete')
       expect(() => store.deleteTicket('del-a-archived-then-delete')).toThrow(/Ticket not found/)
@@ -859,14 +858,14 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
           useWorktree: false,
         }),
       )
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       const tickets = store.listTickets()
       expect(tickets.length).toBe(0)
     })
     it.concurrent('setUseWorktree(true) then updateTicket with status-only change -- useWorktree survives', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('WT-10', 'Survive Status')
       const folderName = 'wt-10-survive-status'
       store.setUseWorktree(folderName, true)
@@ -885,7 +884,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
       const before = new Date().toISOString()
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('TS-1', 'Timestamp Test')
       const after = new Date().toISOString()
       const raw = JSON.parse(fs.readFileSync(path.join(worktreeDir, 'ts-1-timestamp-test', 'status.json'), 'utf-8'))
@@ -896,7 +895,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('updateTicket preserves createdAt', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('PR-1', 'Preserve CreatedAt')
       const rawBefore = JSON.parse(fs.readFileSync(path.join(worktreeDir, 'pr-1-preserve-createdat', 'status.json'), 'utf-8'))
       const originalCreatedAt = rawBefore.createdAt
@@ -907,7 +906,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('listAllTicketNumbers returns active tickets', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('LN-1', 'First')
       store.createTicket('LN-2', 'Second')
       const numbers = store.listAllTicketNumbers()
@@ -919,7 +918,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('listAllTicketNumbers includes archived tickets', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('AR-1', 'Active')
       store.createTicket('AR-2', 'To Archive')
       store.archiveTicket('ar-2-to-archive')
@@ -931,7 +930,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('listAllTicketNumbers with empty archive', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('EA-1', 'Only Active') // Create empty archive directory
       fs.mkdirSync(path.join(worktreeDir, 'archive'), {
         recursive: true,
@@ -943,27 +942,27 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('listAllTicketNumbers with no tickets', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       const numbers = store.listAllTicketNumbers()
       expect(numbers.length).toBe(0)
     })
     it.concurrent('suggestNextNumber returns null with no tickets', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       expect(store.suggestNextNumber()).toBeNull()
     })
     it.concurrent('suggestNextNumber returns next number for one ticket', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('ST-0001', 'First')
       expect(store.suggestNextNumber()).toBe('ST-0002')
     })
     it.concurrent('suggestNextNumber considers archived tickets', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('ST-0001', 'First')
       store.createTicket('ST-0005', 'Fifth')
       store.archiveTicket('st-0005-fifth') // Even though ST-0005 is archived, next should be ST-0006
@@ -972,7 +971,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('suggestNextNumber uses highest across active and archived', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('ST-0003', 'Three')
       store.createTicket('ST-0010', 'Ten')
       store.archiveTicket('st-0010-ten')
@@ -982,7 +981,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('suggestNextNumber with prefix returns next number for that prefix', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('ST-0001', 'First')
       store.createTicket('ST-0005', 'Fifth')
       store.createTicket('BUG-0001', 'Bug One')
@@ -991,14 +990,14 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('suggestNextNumber with unknown prefix returns PREFIX-0001', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('ST-0001', 'First')
       expect(store.suggestNextNumber('FEAT')).toBe('FEAT-0001')
     })
     it.concurrent('suggestNextNumber with prefix considers archived tickets', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('BUG-0001', 'Bug One')
       store.createTicket('BUG-0005', 'Bug Five')
       store.archiveTicket('bug-0005-bug-five')
@@ -1020,7 +1019,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
           useWorktree: false,
         }),
       ) // Create a new ticket with createdAt via the normal API
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('ST-0001', 'New Ticket') // The old ticket (ST-0003) has no createdAt, treated as oldest.
       // The new ticket (ST-0001) is most recent, so prefix is ST.
       // Highest num with prefix ST is 3 (from old ticket).
@@ -1042,7 +1041,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
           useWorktree: false,
         }),
       )
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       const numbers = store.listAllTicketNumbers()
       expect(numbers.length).toBe(1)
       expect(numbers[0].number).toBe('OLD-1')
@@ -1051,7 +1050,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('T3: suggestNextNumber does not crash when status.json has numeric "number" field', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('ST-0001', 'Normal Ticket') // Manually create a folder with a status.json where "number" is numeric (not a string)
       const badDir = path.join(worktreeDir, 'bad-0002-numeric')
       fs.mkdirSync(badDir, {
@@ -1071,7 +1070,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('copying a file writes it to the ticket folder and the file can be read back', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('FILE-1', 'File Test')
       const content = Buffer.from('hello world')
       store.copyFileToTicket('file-1-file-test', 'notes.txt', content)
@@ -1083,7 +1082,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('adding a reference persists it in status.json and removing it clears it', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('REF-1', 'Reference Test')
       const refPath = path.join(worktreeDir, 'some-external-file.txt')
       fs.writeFileSync(refPath, 'external content')
@@ -1101,7 +1100,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('copyFileToTicket rejects status.json as filename', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('PROT-1', 'Protected Test')
       expect(() => store.copyFileToTicket('prot-1-protected-test', 'status.json', Buffer.from('evil'))).toThrow(
         /Cannot overwrite status\.json/,
@@ -1114,7 +1113,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
       dirs.push(externalDir)
       const externalFile = path.join(externalDir, 'secret.txt')
       fs.writeFileSync(externalFile, 'SENSITIVE DATA')
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('SEC-1', 'Security Test')
       expect(() => store.getReferencedFileContent('sec-1-security-test', externalFile)).toThrow(/not a registered reference/)
       store.addReference('sec-1-security-test', externalFile)
@@ -1124,7 +1123,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('H6.1: addReference with duplicate path does not produce a spurious write or commit', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('DUP-R1', 'Dup Ref Test')
       const folderName = 'dup-r1-dup-ref-test'
       const refPath = path.join(worktreeDir, 'external.txt')
@@ -1142,7 +1141,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
       async () => {
         const worktreeDir = await createGitWorktree()
         dirs.push(worktreeDir)
-        const store = new TicketStore(worktreeDir)
+        const store = createTicketStore(worktreeDir)
         store.createTicket('WT-11', 'Old Name')
         const folderName = 'wt-11-old-name'
         store.setUseWorktree(folderName, true)
@@ -1162,7 +1161,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('updateTicket title-only change preserves references on disk', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       const folderName = 'pres-1-has-refs'
       const ticketDir = path.join(worktreeDir, folderName)
       fs.mkdirSync(ticketDir, {
@@ -1198,7 +1197,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('updateTicket title-only change preserves dependsOn and memberOf on disk', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       const folderName = 'dep-1-has-deps'
       const ticketDir = path.join(worktreeDir, folderName)
       fs.mkdirSync(ticketDir, {
@@ -1231,7 +1230,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('addDependency/removeDependency round-trip', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('A-1', 'Alpha')
       store.createTicket('B-1', 'Beta')
       store.addDependency('b-1-beta', 'A-1')
@@ -1244,25 +1243,33 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('addDependency rejects direct cycle', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('A-1', 'Alpha')
       store.createTicket('B-1', 'Beta')
       store.addDependency('a-1-alpha', 'B-1')
-      expect(() => store.addDependency('b-1-beta', 'A-1')).toThrow(ValidationError)
+      expect(() => store.addDependency('b-1-beta', 'A-1')).toThrow(
+        expect.objectContaining({
+          name: 'ValidationError',
+        }),
+      )
       expect(() => store.addDependency('b-1-beta', 'A-1')).toThrow(/cycle/)
     })
     it.concurrent('addDependency rejects nonexistent target', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('A-1', 'Alpha')
-      expect(() => store.addDependency('a-1-alpha', 'NOPE-99')).toThrow(ValidationError)
+      expect(() => store.addDependency('a-1-alpha', 'NOPE-99')).toThrow(
+        expect.objectContaining({
+          name: 'ValidationError',
+        }),
+      )
       expect(() => store.addDependency('a-1-alpha', 'NOPE-99')).toThrow(/does not exist/)
     })
     it.concurrent('addDependency is idempotent', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('A-1', 'Alpha')
       store.createTicket('B-1', 'Beta')
       store.addDependency('b-1-beta', 'A-1')
@@ -1273,7 +1280,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('createGroup writes memberOf on all members', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('A-1', 'Alpha')
       store.createTicket('B-1', 'Beta')
       const group = store.createGroup('G-1', 'Group One', 'todo', ['a-1-alpha', 'b-1-beta'])
@@ -1289,7 +1296,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('createGroup with parentGroupNumber sets group own memberOf', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('A-1', 'Alpha')
       store.createTicket('B-1', 'Beta')
       store.createTicket('P-1', 'Parent')
@@ -1302,7 +1309,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('createGroup with position saves to forest layout', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('A-1', 'Alpha')
       store.createGroup('G-1', 'Group', 'todo', ['a-1-alpha'], undefined, {
         x: 100,
@@ -1317,16 +1324,20 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('createGroup rejects membership cycle', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('A-1', 'Alpha')
       store.createGroup('G-1', 'Outer', 'todo', ['a-1-alpha'])
-      expect(() => store.createGroup('G-2', 'Inner', 'todo', ['g-1-outer'], 'A-1')).toThrow(ValidationError)
+      expect(() => store.createGroup('G-2', 'Inner', 'todo', ['g-1-outer'], 'A-1')).toThrow(
+        expect.objectContaining({
+          name: 'ValidationError',
+        }),
+      )
       expect(() => store.createGroup('G-2', 'Inner', 'todo', ['g-1-outer'], 'A-1')).toThrow(/membership cycle/)
     })
     it.concurrent('createGroup validation before write prevents group folder creation', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('A-1', 'Alpha')
       expect(() => store.createGroup('G-1', 'Group', 'todo', ['nonexistent-folder'])).toThrow(/not found/i)
       const tickets = store.listTickets()
@@ -1336,7 +1347,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('ungroup at top level clears memberOf', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('A-1', 'Alpha')
       store.createTicket('B-1', 'Beta')
       const group = store.createGroup('G-1', 'Group', 'todo', ['a-1-alpha', 'b-1-beta'])
@@ -1350,7 +1361,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('ungroup reassigns members to parent group', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('A-1', 'Alpha')
       store.createTicket('B-1', 'Beta')
       const outer = store.createGroup('G-1', 'Outer', 'todo', ['a-1-alpha', 'b-1-beta'])
@@ -1362,7 +1373,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('ungroup applies position rule: groupPos + memberPos', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('A-1', 'Alpha')
       store.createTicket('B-1', 'Beta')
       const group = store.createGroup('G-1', 'Group', 'todo', ['a-1-alpha', 'b-1-beta'], undefined, {
@@ -1386,7 +1397,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('grouping then ungrouping preserves member positions', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('A-1', 'Alpha')
       store.createTicket('B-1', 'Beta')
       store.forestLayoutStore.write({
@@ -1432,7 +1443,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it('createGroup rolls back every member and the new group when a member write fails', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('A-1', 'Alpha')
       store.createTicket('B-1', 'Beta')
       const originalWriteFileSync = fs.writeFileSync
@@ -1464,7 +1475,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it('ungroup rolls back layout and memberships when a member write fails', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('A-1', 'Alpha')
       store.createTicket('B-1', 'Beta')
       store.forestLayoutStore.write({
@@ -1505,7 +1516,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('number edit rewrites inbound dependsOn and renames layout key', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('A-1', 'Alpha')
       store.createTicket('B-1', 'Beta')
       store.addDependency('b-1-beta', 'A-1')
@@ -1528,7 +1539,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('number edit rewrites inbound references in archive', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('A-1', 'Alpha')
       store.createTicket('B-1', 'Beta')
       store.addDependency('b-1-beta', 'A-1')
@@ -1540,7 +1551,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('delete removes inbound references and layout key', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('A-1', 'Alpha')
       store.createTicket('B-1', 'Beta')
       store.addDependency('b-1-beta', 'A-1')
@@ -1559,7 +1570,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it('delete rolls back the ticket, order, references, and layout when cleanup fails', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('A-1', 'Alpha')
       store.createTicket('B-1', 'Beta')
       store.addDependency('b-1-beta', 'A-1')
@@ -1596,7 +1607,7 @@ export function registerTicketStoreTests(shard: number | readonly number[], tota
     it.concurrent('archive leaves dependsOn, memberOf, and layout untouched', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('A-1', 'Alpha')
       store.createTicket('B-1', 'Beta')
       store.addDependency('b-1-beta', 'A-1')

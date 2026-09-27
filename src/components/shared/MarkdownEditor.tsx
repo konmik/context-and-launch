@@ -151,22 +151,26 @@ function buildCodeBlockDecos(view: EditorView): DecorationSet {
   return Decoration.set(decos, true)
 }
 
-const codeBlockPlugin = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet
+interface CodeBlockPlugin {
+  readonly decorations: DecorationSet
+  update(update: { docChanged: boolean; view: EditorView }): void
+}
 
-    constructor(view: EditorView) {
-      this.decorations = buildCodeBlockDecos(view)
-    }
+function createCodeBlockPlugin(view: EditorView): CodeBlockPlugin {
+  let decorations = buildCodeBlockDecos(view)
+  return {
+    get decorations() {
+      return decorations
+    },
+    update(update) {
+      if (update.docChanged) decorations = buildCodeBlockDecos(update.view)
+    },
+  }
+}
 
-    update(update: { docChanged: boolean; view: EditorView }) {
-      if (update.docChanged) this.decorations = buildCodeBlockDecos(update.view)
-    }
-  },
-  {
-    decorations: (v) => v.decorations,
-  },
-)
+const codeBlockPlugin = ViewPlugin.define(createCodeBlockPlugin, {
+  decorations: (v) => v.decorations,
+})
 
 interface MarkdownEditorProps {
   value: string

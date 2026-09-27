@@ -2,15 +2,15 @@ import fs from 'fs'
 import path from 'path'
 import { gitFastImport, gitSync, setGitOriginUrl } from '../../test-git.js'
 import { makeTempDir, removeTempDirOrWarn, lazyTemplate, cloneFromTemplate } from '../../test-temp.js'
-import { TicketSyncManager } from '../../../src/core/ticket/ticket-sync.js'
-import { GitRepository } from '../../../src/core/infra/git-repository.js'
+import { createTicketSyncManager as createSyncManager, type TicketSyncManager } from '../../../src/core/ticket/ticket-sync.js'
+import { createGitRepository } from '../../../src/core/infra/git-repository.js'
 import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js'
 
 export { makeTempDir as tmpDir }
 
 export function createTicketSyncManager(): TicketSyncManager {
   const commands = createTestCommandTemplateService()
-  return new TicketSyncManager(commands, new GitRepository(commands))
+  return createSyncManager(commands, createGitRepository(commands))
 }
 
 const getNoUpstreamTemplate = lazyTemplate(() => {

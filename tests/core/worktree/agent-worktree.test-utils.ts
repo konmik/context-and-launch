@@ -4,9 +4,9 @@ import os from 'os'
 import { execFile, execSync } from 'child_process'
 import { gitSync, setGitOriginUrl } from '../../test-git.js'
 import { makeTempDir, removeTempDirOrWarn, lazyTemplate, keyedTemplate, cloneFromTemplate } from '../../test-temp.js'
-import { AgentWorktreeManager } from '../../../src/core/worktree/agent-worktree.js'
-import { LauncherConfigManager } from '../../../src/core/launcher/launcher-config.js'
-import { ConfigPaths } from '../../../src/core/config/config-paths.js'
+import { createAgentWorktreeManager, type AgentWorktreeManager } from '../../../src/core/worktree/agent-worktree.js'
+import { createLauncherConfigManager, type LauncherConfigManager } from '../../../src/core/launcher/launcher-config.js'
+import { createConfigPaths, type ConfigPaths } from '../../../src/core/config/config-paths.js'
 import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js'
 import { initializeDataDir } from '../../../src/core/config/initialize.js'
 
@@ -89,15 +89,15 @@ export function makeProjectEnv(prefixBase: string, dirs: string[]): ProjectEnvRe
   const configDir = makeTempDir(`${prefixBase}-config-`)
   const worktreeRoot = makeTempDir(`${prefixBase}-worktrees-`)
   dirs.push(configDir, worktreeRoot)
-  const paths = new ConfigPaths(configDir)
+  const paths = createConfigPaths(configDir)
   initializeDataDir(paths)
-  const lcm = new LauncherConfigManager(paths)
+  const lcm = createLauncherConfigManager(paths)
   lcm.saveProjectConfig('my-proj', {
     templates: [],
     skills: [],
     worktreeRootPath: worktreeRoot,
   })
-  const awm = new AgentWorktreeManager(lcm, createTestCommandTemplateService())
+  const awm = createAgentWorktreeManager(lcm, createTestCommandTemplateService())
   return {
     configDir,
     worktreeRoot,

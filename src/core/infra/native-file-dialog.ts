@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { platformCommandTemplateKey } from '../command-template/command-template-definitions.js'
 import { currentCommandTemplatePlatform } from '../command-template/command-template-types.js'
 import type { CommandTemplateExecutor } from '../command-template/command-template-types.js'
-import { AppError, ProcessError } from '../shared/errors.js'
+import { isAppError, isProcessError } from '../shared/errors.js'
 import { normalizeMacPickedPath } from './picker-paths.js'
 import { success, failure, type Result } from '../../util/result.js'
 
@@ -12,7 +12,7 @@ import { success, failure, type Result } from '../../util/result.js'
  * that readable as an answer rather than as a broken invocation.
  */
 function isCancellation(cause: unknown): boolean {
-  return cause instanceof ProcessError && cause.exitedWith(1)
+  return isProcessError(cause) && cause.exitedWith(1)
 }
 
 /**
@@ -21,8 +21,8 @@ function isCancellation(cause: unknown): boolean {
  * as command-not-found. Both mean "no picker here", neither is an app failure.
  */
 function unavailableReason(cause: unknown): string | undefined {
-  if (cause instanceof AppError) return cause.message
-  if (cause instanceof ProcessError && cause.kind === 'command-not-found') return unavailableMessage()
+  if (isAppError(cause)) return cause.message
+  if (isProcessError(cause) && cause.kind === 'command-not-found') return unavailableMessage()
   return undefined
 }
 

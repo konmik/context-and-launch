@@ -2,8 +2,8 @@ import { describe, it, expect, afterEach } from 'vitest'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
-import { ProjectRegistry, generateProjectSlug, validateBranchName } from '../../../src/core/project/project-registry.js'
-import { ConfigPaths } from '../../../src/core/config/config-paths.js'
+import { createProjectRegistry, generateProjectSlug, validateBranchName } from '../../../src/core/project/project-registry.js'
+import { createConfigPaths } from '../../../src/core/config/config-paths.js'
 import { initializeDataDir } from '../../../src/core/config/initialize.js'
 
 function tmpDir(prefix: string): string {
@@ -33,7 +33,7 @@ describe('ProjectRegistry', () => {
   function initConfigDir(prefix = 'registry-config-'): string {
     const configDir = tmpDir(prefix)
     dirs.push(configDir)
-    initializeDataDir(new ConfigPaths(configDir))
+    initializeDataDir(createConfigPaths(configDir))
     return configDir
   }
 
@@ -44,7 +44,7 @@ describe('ProjectRegistry', () => {
     dirs.push(projectDir1, projectDir2)
     fs.mkdirSync(path.join(projectDir1, '.git'))
     fs.mkdirSync(path.join(projectDir2, '.git'))
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     registry.addProject(projectDir1, {
       projectSlug: 'my-project',
     })
@@ -59,7 +59,7 @@ describe('ProjectRegistry', () => {
     const projectDir = tmpDir('registry-project-')
     dirs.push(projectDir)
     fs.mkdirSync(path.join(projectDir, '.git'))
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     registry.addProject(projectDir, {
       projectSlug: 'first',
     }) // Build alternate path via subdir/..
@@ -81,7 +81,7 @@ describe('ProjectRegistry', () => {
     const projectDir = tmpDir('registry-project-')
     dirs.push(projectDir)
     fs.mkdirSync(path.join(projectDir, '.git'))
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     registry.addProject(projectDir)
     expect(fs.existsSync(path.join(configDir, 'config', 'config.json'))).toBe(true)
   })
@@ -92,7 +92,7 @@ describe('ProjectRegistry', () => {
       recursive: true,
     })
     fs.writeFileSync(path.join(configDir, 'config', 'config.json'), 'not valid json')
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     expect(() => registry.listProjects()).toThrow()
   })
   it('getDefaultProjectSlug returns lastUsedProjectSlug if valid', () => {
@@ -100,7 +100,7 @@ describe('ProjectRegistry', () => {
     const projectDir = tmpDir('registry-project-')
     dirs.push(projectDir)
     fs.mkdirSync(path.join(projectDir, '.git'))
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     registry.addProject(projectDir, {
       projectSlug: 'test-project',
     })
@@ -111,7 +111,7 @@ describe('ProjectRegistry', () => {
     const projectDir = tmpDir('registry-project-')
     dirs.push(projectDir)
     fs.mkdirSync(path.join(projectDir, '.git'))
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     registry.addProject(projectDir, {
       projectSlug: 'test-project',
     }) // Manually corrupt lastUsedProjectSlug
@@ -119,7 +119,7 @@ describe('ProjectRegistry', () => {
     const config = JSON.parse(fs.readFileSync(configFile, 'utf-8'))
     config.lastUsedProjectSlug = 'nonexistent'
     fs.writeFileSync(configFile, JSON.stringify(config))
-    const registry2 = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry2 = createProjectRegistry(createConfigPaths(configDir))
     expect(registry2.getDefaultProjectSlug()).toBe('test-project')
   })
   it('removeProject clears lastUsedProjectSlug when removing the last-used project', () => {
@@ -127,7 +127,7 @@ describe('ProjectRegistry', () => {
     const projectDir = tmpDir('registry-project-')
     dirs.push(projectDir)
     fs.mkdirSync(path.join(projectDir, '.git'))
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     registry.addProject(projectDir, {
       projectSlug: 'remove-me',
     })
@@ -139,7 +139,7 @@ describe('ProjectRegistry', () => {
     const projectDir = tmpDir('registry-project-')
     dirs.push(projectDir)
     fs.mkdirSync(path.join(projectDir, '.git'))
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     registry.addProject(projectDir, {
       projectSlug: 'original',
     })
@@ -162,7 +162,7 @@ describe('ProjectRegistry', () => {
     dirs.push(projectDirA, projectDirC)
     fs.mkdirSync(path.join(projectDirA, '.git'))
     fs.mkdirSync(path.join(projectDirC, '.git'))
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     registry.addProject(projectDirA, {
       projectSlug: 'project-a',
     })
@@ -185,7 +185,7 @@ describe('ProjectRegistry', () => {
   })
   it('H7.16 - addProject with a tilde path throws "Path does not exist" (no tilde expansion)', () => {
     const configDir = initConfigDir()
-    const registry = new ProjectRegistry(new ConfigPaths(configDir)) // fs.existsSync does not expand ~ -- the literal path "~/nonexistent" does not exist
+    const registry = createProjectRegistry(createConfigPaths(configDir)) // fs.existsSync does not expand ~ -- the literal path "~/nonexistent" does not exist
     expect(() => registry.addProject('~/nonexistent')).toThrow('Path does not exist')
   })
   it('H7.16 - addProject with trailing whitespace in path throws "Path does not exist"', () => {
@@ -193,7 +193,7 @@ describe('ProjectRegistry', () => {
     const projectDir = tmpDir('registry-project-')
     dirs.push(projectDir)
     fs.mkdirSync(path.join(projectDir, '.git'))
-    const registry = new ProjectRegistry(new ConfigPaths(configDir)) // The path with trailing space does not exist as a filesystem entry (at least on Windows/Linux)
+    const registry = createProjectRegistry(createConfigPaths(configDir)) // The path with trailing space does not exist as a filesystem entry (at least on Windows/Linux)
     // existsSync returns false for the padded path, so we get a clear "Path does not exist" error
     expect(() => registry.addProject(projectDir + ' ')).toThrow('Path does not exist')
   })
@@ -222,7 +222,7 @@ describe('ProjectRegistry', () => {
     dirs.push(parentDir)
     fs.mkdirSync(longProjectDir)
     fs.mkdirSync(path.join(longProjectDir, '.git'))
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     const info = registry.addProject(longProjectDir)
     expect(info.projectSlug).toBe(longDirName)
     expect(info.projectSlug.length).toBe(100)
@@ -232,7 +232,7 @@ describe('ProjectRegistry', () => {
     const projectDir = tmpDir('registry-project-')
     dirs.push(projectDir)
     fs.mkdirSync(path.join(projectDir, '.git'))
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     registry.addProject(projectDir, {
       projectSlug: 'existing',
     })
@@ -265,7 +265,7 @@ describe('ProjectRegistry', () => {
         browser: 'msedge',
       }),
     )
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     expect(registry.getPort()).toBe(9999)
     expect(registry.getBrowser()).toBe('msedge') // Adding a project should preserve port and browser
     registry.addProject(projectDir, {
@@ -281,12 +281,12 @@ describe('ProjectRegistry', () => {
   })
   it('getPort returns default 14780 when not specified', () => {
     const configDir = initConfigDir()
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     expect(registry.getPort()).toBe(14780)
   })
   it('getBrowser returns default "chrome" when not specified', () => {
     const configDir = initConfigDir()
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     expect(registry.getBrowser()).toBe('chrome')
   })
   it('save preserves unknown fields added by external tools', () => {
@@ -311,7 +311,7 @@ describe('ProjectRegistry', () => {
         },
       }),
     )
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     registry.addProject(projectDir, {
       projectSlug: 'test',
     })
@@ -330,11 +330,11 @@ describe('ProjectRegistry', () => {
     dirs.push(projectDir1, projectDir2)
     fs.mkdirSync(path.join(projectDir1, '.git'))
     fs.mkdirSync(path.join(projectDir2, '.git'))
-    const registry1 = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry1 = createProjectRegistry(createConfigPaths(configDir))
     registry1.addProject(projectDir1, {
       projectSlug: 'from-instance-1',
     })
-    const registry2 = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry2 = createProjectRegistry(createConfigPaths(configDir))
     registry2.addProject(projectDir2, {
       projectSlug: 'from-instance-2',
     }) // Both projects exist on disk because registry2 loaded from disk before caching
@@ -353,11 +353,11 @@ describe('ProjectRegistry', () => {
     fs.mkdirSync(path.join(projectDir1, '.git'))
     fs.mkdirSync(path.join(projectDir2, '.git'))
     fs.mkdirSync(path.join(projectDir3, '.git')) // Both instances start with the same initial state (one project)
-    const registry1 = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry1 = createProjectRegistry(createConfigPaths(configDir))
     registry1.addProject(projectDir1, {
       projectSlug: 'initial',
     })
-    const registry2 = new ProjectRegistry(new ConfigPaths(configDir)) // registry2 reads from disk, caches state with 'initial'
+    const registry2 = createProjectRegistry(createConfigPaths(configDir)) // registry2 reads from disk, caches state with 'initial'
     // registry2 adds its project (disk now has initial + from-2)
     registry2.addProject(projectDir2, {
       projectSlug: 'from-2',
@@ -396,7 +396,7 @@ describe('ProjectRegistry', () => {
         browser: 'safari',
       }),
     )
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     registry.updateProject('my-proj', undefined, 'renamed')
     const afterUpdate = JSON.parse(fs.readFileSync(configFile, 'utf-8'))
     expect(afterUpdate.port).toBe(3000)
@@ -409,7 +409,7 @@ describe('ProjectRegistry', () => {
     const projectDir = tmpDir('registry-project-')
     dirs.push(projectDir)
     fs.mkdirSync(path.join(projectDir, '.git'))
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     const info = registry.addProject(projectDir, {
       projectSlug: 'branch-proj',
       branch: 'tickets',
@@ -425,7 +425,7 @@ describe('ProjectRegistry', () => {
     const projectDir = tmpDir('registry-project-')
     dirs.push(projectDir)
     fs.mkdirSync(path.join(projectDir, '.git'))
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     const info = registry.addProject(projectDir, {
       projectSlug: 'no-branch',
     })
@@ -438,7 +438,7 @@ describe('ProjectRegistry', () => {
     const projectDir = tmpDir('registry-project-')
     dirs.push(projectDir)
     fs.mkdirSync(path.join(projectDir, '.git'))
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     expect(() =>
       registry.addProject(projectDir, {
         projectSlug: 'bad',
@@ -452,7 +452,7 @@ describe('ProjectRegistry', () => {
     const projectDir = tmpDir('registry-project-')
     dirs.push(projectDir)
     fs.mkdirSync(path.join(projectDir, '.git'))
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     const info = registry.addProject(projectDir, {
       projectSlug: 'tix-proj',
       branch: 'tickets',
@@ -469,7 +469,7 @@ describe('ProjectRegistry', () => {
     const projectDir = tmpDir('registry-project-')
     dirs.push(projectDir)
     fs.mkdirSync(path.join(projectDir, '.git'))
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     registry.addProject(projectDir, {
       projectSlug: 'before',
       branch: 'tasks',
@@ -504,7 +504,7 @@ describe('ProjectRegistry', () => {
     dirs.push(projectDir1, projectDir2)
     fs.mkdirSync(path.join(projectDir1, '.git'))
     fs.mkdirSync(path.join(projectDir2, '.git'))
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     registry.addProject(projectDir1, {
       projectSlug: 'alpha',
     })
@@ -532,7 +532,7 @@ describe('ProjectRegistry', () => {
     const projectDir = tmpDir('registry-project-')
     dirs.push(projectDir)
     fs.mkdirSync(path.join(projectDir, '.git'))
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     const info = registry.addProject(projectDir, {
       projectSlug: 'mb-proj',
       branch: 'tickets',
@@ -553,7 +553,7 @@ describe('ProjectRegistry', () => {
     const projectDir = tmpDir('registry-project-')
     dirs.push(projectDir)
     fs.mkdirSync(path.join(projectDir, '.git'))
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     registry.addProject(projectDir, {
       projectSlug: 'no-mb',
     })
@@ -566,7 +566,7 @@ describe('ProjectRegistry', () => {
     const projectDir = tmpDir('registry-project-')
     dirs.push(projectDir)
     fs.mkdirSync(path.join(projectDir, '.git'))
-    const registry = new ProjectRegistry(new ConfigPaths(configDir))
+    const registry = createProjectRegistry(createConfigPaths(configDir))
     expect(() =>
       registry.addProject(projectDir, {
         projectSlug: 'bad-main',
@@ -589,8 +589,8 @@ describe('ProjectRegistry', () => {
     const projectDir = tmpDir('registry-project-')
     dirs.push(projectDir)
     fs.mkdirSync(path.join(projectDir, '.git'))
-    const paths = new ConfigPaths(configDir)
-    const registry = new ProjectRegistry(paths)
+    const paths = createConfigPaths(configDir)
+    const registry = createProjectRegistry(paths)
     registry.addProject(projectDir, {
       projectSlug: 'cleanup-test',
     })
@@ -616,8 +616,8 @@ describe('ProjectRegistry', () => {
     const projectDir = tmpDir('registry-project-')
     dirs.push(projectDir)
     fs.mkdirSync(path.join(projectDir, '.git'))
-    const paths = new ConfigPaths(configDir)
-    const registry = new ProjectRegistry(paths)
+    const paths = createConfigPaths(configDir)
+    const registry = createProjectRegistry(paths)
     registry.addProject(projectDir, {
       projectSlug: 'partial-cleanup',
     })

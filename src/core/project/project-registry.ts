@@ -2,8 +2,8 @@ import fs from 'fs'
 import path from 'path'
 import * as v from 'valibot'
 import type { ConfigPaths } from '../config/config-paths.js'
-import { ConfigRepository } from '../config/config-repository.js'
-import { AppConfigStore } from '../config/app-config-store.js'
+import { createConfigRepository, type ConfigRepository } from '../config/config-repository.js'
+import { createAppConfigStore, type AppConfigStore } from '../config/app-config-store.js'
 import type { ProjectEntry } from '../config/app-config-data.js'
 
 export type { ProjectEntry } from '../config/app-config-data.js'
@@ -84,15 +84,34 @@ export function generateProjectSlug(filePath: string, existingProjectSlugs: Set<
   return `${base}-${i}`
 }
 
-export class ProjectRegistry {
-  constructor(
-    private paths: ConfigPaths,
-    private configRepo = new ConfigRepository(),
-    private appConfig = new AppConfigStore(paths, configRepo),
-  ) {}
+export interface ProjectRegistry {
+  getDefaultProjectSlug(): string | null
+  listProjects(): ProjectInfo[]
+  getTicketsPath(projectSlug: string): string | undefined
+  getBoardId(projectSlug: string): string | undefined
+  previewSlug(projectPath: string): string
+  addProject(projectPath: string, opts?: Omit<Partial<ProjectEntry>, 'path'>): ProjectInfo
+  updateProject(projectSlug: string, newPath?: string, newProjectSlug?: string): ProjectInfo
+  removeProject(projectSlug: string): void
+  getName(projectSlug: string): string
+  setTicketsLocation(
+    projectSlug: string,
+    change: {
+      kind: 'path' | 'branch'
+      value: string
+    },
+  ): void
+  getPort(): number
+  getBrowser(): string
+}
 
-  getDefaultProjectSlug(): string | null {
-    const config = this.appConfig.read()
+export function createProjectRegistry(
+  paths: ConfigPaths,
+  configRepo: ConfigRepository = createConfigRepository(),
+  appConfig: AppConfigStore = createAppConfigStore(paths, configRepo),
+): ProjectRegistry {
+  function getDefaultProjectSlug(): string | null {
+    const config = appConfig.read()
     const lastProjectSlug = config.lastUsedProjectSlug
     if (lastProjectSlug && config.projects.some((p) => p.projectSlug === lastProjectSlug)) {
       return lastProjectSlug
@@ -103,28 +122,28 @@ export class ProjectRegistry {
     return null
   }
 
-  listProjects(): ProjectInfo[] {
-    return this.appConfig.read().projects.map((entry) => entryToInfo(entry, this.configRepo))
+  function listProjects(): ProjectInfo[] {
+    return appConfig.read().projects.map((entry) => entryToInfo(entry, configRepo))
   }
 
-  getTicketsPath(projectSlug: string): string | undefined {
-    return this.appConfig.read().projects.find((p) => p.projectSlug === projectSlug)?.ticketsPath
+  function getTicketsPath(projectSlug: string): string | undefined {
+    return appConfig.read().projects.find((p) => p.projectSlug === projectSlug)?.ticketsPath
   }
 
-  getBoardId(projectSlug: string): string | undefined {
-    return this.appConfig.read().projects.find((p) => p.projectSlug === projectSlug)?.boardId
+  function getBoardId(projectSlug: string): string | undefined {
+    return appConfig.read().projects.find((p) => p.projectSlug === projectSlug)?.boardId
   }
 
-  previewSlug(projectPath: string): string {
-    const existing = new Set(this.appConfig.read().projects.map((p) => p.projectSlug))
+  function previewSlug(projectPath: string): string {
+    const existing = new Set(appConfig.read().projects.map((p) => p.projectSlug))
     return generateProjectSlug(projectPath, existing)
   }
 
-  addProject(projectPath: string, opts: Omit<Partial<ProjectEntry>, 'path'> = {}): ProjectInfo {
-    if (!this.configRepo.exists(projectPath)) {
+  function addProject(projectPath: string, opts: Omit<Partial<ProjectEntry>, 'path'> = {}): ProjectInfo {
+    if (!configRepo.exists(projectPath)) {
       throw new Error(`Path does not exist: ${projectPath}`)
     }
-    if (!this.configRepo.exists(path.join(projectPath, '.git'))) {
+    if (!configRepo.exists(path.join(projectPath, '.git'))) {
       throw new Error(`Not a git repository: ${projectPath}`)
     }
     if (opts.branch !== undefined) {
@@ -133,11 +152,11 @@ export class ProjectRegistry {
     if (opts.mainBranch !== undefined) {
       validateBranchName(opts.mainBranch)
     }
-    const canonicalPath = this.configRepo.realpathSync(projectPath)
-    const saved = this.appConfig.update((config) => {
+    const canonicalPath = configRepo.realpathSync(projectPath)
+    const saved = appConfig.update((config) => {
       const alreadyRegistered = config.projects.some((project) => {
         try {
-          return this.configRepo.realpathSync(project.path) === canonicalPath
+          return configRepo.realpathSync(project.path) === canonicalPath
         } catch {
           return false
         }
@@ -159,18 +178,18 @@ export class ProjectRegistry {
         lastUsedProjectSlug: projectSlug,
       }
     })
-    return entryToInfo(saved.projects.at(-1)!, this.configRepo)
+    return entryToInfo(saved.projects.at(-1)!, configRepo)
   }
 
-  updateProject(projectSlug: string, newPath?: string, newProjectSlug?: string): ProjectInfo {
+  function updateProject(projectSlug: string, newPath?: string, newProjectSlug?: string): ProjectInfo {
     const updatedProjectSlug = newProjectSlug ?? projectSlug
-    const saved = this.appConfig.update((config) => {
+    const saved = appConfig.update((config) => {
       const index = config.projects.findIndex((project) => project.projectSlug === projectSlug)
       if (index < 0) throw new Error(`Project not found: ${projectSlug}`)
       const entry = config.projects[index]
       if (newPath !== undefined) {
-        if (!newPath || !this.configRepo.exists(newPath)) throw new Error(`Path does not exist: ${newPath}`)
-        if (!this.configRepo.exists(path.join(newPath, '.git'))) {
+        if (!newPath || !configRepo.exists(newPath)) throw new Error(`Path does not exist: ${newPath}`)
+        if (!configRepo.exists(path.join(newPath, '.git'))) {
           throw new Error(`Not a git repository: ${newPath}`)
         }
       }
@@ -180,7 +199,7 @@ export class ProjectRegistry {
       const updated = {
         ...entry,
         projectSlug: updatedProjectSlug,
-        path: newPath === undefined ? entry.path : this.configRepo.realpathSync(newPath),
+        path: newPath === undefined ? entry.path : configRepo.realpathSync(newPath),
       }
       return {
         ...config,
@@ -189,11 +208,11 @@ export class ProjectRegistry {
       }
     })
     const updated = saved.projects.find((project) => project.projectSlug === updatedProjectSlug)!
-    return entryToInfo(updated, this.configRepo)
+    return entryToInfo(updated, configRepo)
   }
 
-  removeProject(projectSlug: string): void {
-    this.appConfig.update((config) => {
+  function removeProject(projectSlug: string): void {
+    appConfig.update((config) => {
       const projects = config.projects.filter((project) => project.projectSlug !== projectSlug)
       return {
         ...config,
@@ -201,7 +220,7 @@ export class ProjectRegistry {
         lastUsedProjectSlug: config.lastUsedProjectSlug === projectSlug ? (projects[0]?.projectSlug ?? null) : config.lastUsedProjectSlug,
       }
     })
-    const projectConfigDir = this.paths.projectConfigDir(projectSlug)
+    const projectConfigDir = paths.projectConfigDir(projectSlug)
     if (fs.existsSync(projectConfigDir)) {
       fs.rmSync(projectConfigDir, {
         recursive: true,
@@ -209,12 +228,12 @@ export class ProjectRegistry {
     }
   }
 
-  getName(projectSlug: string): string {
-    const project = this.appConfig.read().projects.find((p) => p.projectSlug === projectSlug)
+  function getName(projectSlug: string): string {
+    const project = appConfig.read().projects.find((p) => p.projectSlug === projectSlug)
     return project?.name || projectSlug
   }
 
-  setTicketsLocation(
+  function setTicketsLocation(
     projectSlug: string,
     change: {
       kind: 'path' | 'branch'
@@ -225,7 +244,7 @@ export class ProjectRegistry {
     if (!value) throw new Error('Tickets folder and branch cannot be empty.')
     if (change.kind === 'branch') validateBranchName(value)
     else if (!path.isAbsolute(value)) throw new Error('Tickets folder must be an absolute path.')
-    this.appConfig.update((config) => {
+    appConfig.update((config) => {
       if (!config.projects.some((project) => project.projectSlug === projectSlug)) {
         throw new Error(`Project not found: ${projectSlug}`)
       }
@@ -243,11 +262,26 @@ export class ProjectRegistry {
     })
   }
 
-  getPort(): number {
-    return this.appConfig.read().port ?? 14780
+  function getPort(): number {
+    return appConfig.read().port ?? 14780
   }
 
-  getBrowser(): string {
-    return this.appConfig.read().browser ?? 'chrome'
+  function getBrowser(): string {
+    return appConfig.read().browser ?? 'chrome'
+  }
+
+  return {
+    getDefaultProjectSlug,
+    listProjects,
+    getTicketsPath,
+    getBoardId,
+    previewSlug,
+    addProject,
+    updateProject,
+    removeProject,
+    getName,
+    setTicketsLocation,
+    getPort,
+    getBrowser,
   }
 }

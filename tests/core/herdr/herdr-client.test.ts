@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { fetchHerdrTicketState, fetchHerdrTicketStatuses, ticketStatusesFromPanes } from '../../../src/core/herdr/herdr-client.js'
 import type { HerdrExecFn } from '../../../src/core/herdr/herdr-exec.js'
-import { ProcessError } from '../../../src/core/shared/errors.js'
+import { createProcessError, isProcessError } from '../../../src/core/shared/errors.js'
 
 const WORKSPACES_JSON = JSON.stringify({
   result: {
@@ -125,9 +125,9 @@ describe('fetchHerdrTicketStatuses', () => {
   })
   it('propagates a nonzero-exit ProcessError from exec', async () => {
     const exec: HerdrExecFn = async () => {
-      throw new ProcessError('herdr workspace list', 1, 'boom')
+      throw createProcessError('herdr workspace list', 1, 'boom')
     }
-    await expect(fetchHerdrTicketStatuses('alpha', exec)).rejects.toBeInstanceOf(ProcessError)
+    await expect(fetchHerdrTicketStatuses('alpha', exec)).rejects.toSatisfy(isProcessError)
   })
 })
 describe('ticketStatusesFromPanes', () => {

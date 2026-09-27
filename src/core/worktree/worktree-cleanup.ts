@@ -1,5 +1,5 @@
 import * as v from 'valibot'
-import { ForeignWorktreeError, type AgentWorktreeManager } from './agent-worktree.js'
+import { createForeignWorktreeError, type AgentWorktreeManager } from './agent-worktree.js'
 
 const CleanupOptionsSchema = v.object({
   deleteWorktree: v.boolean(),
@@ -16,10 +16,12 @@ export const WorktreeCleanupBody = v.object({
 
 export type WorktreeCleanupBody = v.InferOutput<typeof WorktreeCleanupBody>
 
-export class WorktreeCleanupService {
-  constructor(private agentWorktreeManager: AgentWorktreeManager) {}
+export interface WorktreeCleanupService {
+  cleanup(projectPath: string, branchName: string, worktreePath: string, options: CleanupOptions, configuredBranch?: string): Promise<void>
+}
 
-  async cleanup(
+export function createWorktreeCleanupService(agentWorktreeManager: AgentWorktreeManager): WorktreeCleanupService {
+  async function cleanup(
     projectPath: string,
     branchName: string,
     worktreePath: string,
@@ -27,17 +29,17 @@ export class WorktreeCleanupService {
     configuredBranch?: string,
   ): Promise<void> {
     if (options.deleteWorktree) {
-      const ownership = await this.agentWorktreeManager.getWorktreeOwnership(projectPath, worktreePath)
+      const ownership = await agentWorktreeManager.getWorktreeOwnership(projectPath, worktreePath)
       if (ownership.kind === 'different-project') {
-        throw new ForeignWorktreeError(worktreePath)
+        throw createForeignWorktreeError(worktreePath)
       }
-      if (this.agentWorktreeManager.isGitWorktree(worktreePath)) {
-        const clean = await this.agentWorktreeManager.isWorktreeClean(worktreePath)
+      if (agentWorktreeManager.isGitWorktree(worktreePath)) {
+        const clean = await agentWorktreeManager.isWorktreeClean(worktreePath)
         if (!clean) {
           throw new Error('Worktree has uncommitted changes. Commit or discard them before cleanup.')
         }
       }
-      const busy = await this.agentWorktreeManager.isWorktreeBusy(worktreePath)
+      const busy = await agentWorktreeManager.isWorktreeBusy(worktreePath)
       if (busy) {
         throw new Error(
           'Worktree folder is in use by another process.' +
@@ -46,25 +48,29 @@ export class WorktreeCleanupService {
       }
     }
     if (options.deleteLocalBranch) {
-      const merged = await this.agentWorktreeManager.isBranchMerged(projectPath, branchName, configuredBranch)
+      const merged = await agentWorktreeManager.isBranchMerged(projectPath, branchName, configuredBranch)
       if (!merged) {
         throw new Error(`Branch '${branchName}' has unmerged commits.` + ' Merge or force-delete the branch before cleanup.')
       }
     }
     if (options.deleteRemoteBranch) {
-      const exists = await this.agentWorktreeManager.hasRemoteBranch(projectPath, branchName)
+      const exists = await agentWorktreeManager.hasRemoteBranch(projectPath, branchName)
       if (!exists) {
         throw new Error(`Remote branch ${branchName} does not exist.`)
       }
     }
     if (options.deleteWorktree) {
-      await this.agentWorktreeManager.removeWorktree(projectPath, worktreePath)
+      await agentWorktreeManager.removeWorktree(projectPath, worktreePath)
     }
     if (options.deleteLocalBranch) {
-      await this.agentWorktreeManager.deleteLocalBranch(projectPath, branchName, configuredBranch)
+      await agentWorktreeManager.deleteLocalBranch(projectPath, branchName, configuredBranch)
     }
     if (options.deleteRemoteBranch) {
-      await this.agentWorktreeManager.deleteRemoteBranch(projectPath, branchName)
+      await agentWorktreeManager.deleteRemoteBranch(projectPath, branchName)
     }
+  }
+
+  return {
+    cleanup,
   }
 }

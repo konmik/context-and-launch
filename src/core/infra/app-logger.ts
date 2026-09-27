@@ -6,64 +6,65 @@ const MAX_FILE_BYTES = 1 * 1024 * 1024
 
 const MAX_FILES = 10
 
-class RollingLogger {
-  private readonly logDir: string
-  private currentPath: string
-  private currentSize: number
+interface RollingLogger {
+  log(category: string, message: string): void
+  readAll(): string
+  clear(): void
+}
 
-  constructor(logDir: string) {
-    this.logDir = logDir
-    fs.mkdirSync(this.logDir, {
-      recursive: true,
-    })
-    const files = this.listFiles()
-    const last = files.at(-1)
-    if (last && this.fileSize(path.join(this.logDir, last)) < MAX_FILE_BYTES) {
-      this.currentPath = path.join(this.logDir, last)
-      this.currentSize = this.fileSize(this.currentPath)
-    } else {
-      this.currentPath = this.newFilePath()
-      this.currentSize = 0
-    }
+function createRollingLogger(logDir: string): RollingLogger {
+  let currentPath: string
+  let currentSize: number
+  fs.mkdirSync(logDir, {
+    recursive: true,
+  })
+  const files = listFiles()
+  const last = files.at(-1)
+  if (last && fileSize(path.join(logDir, last)) < MAX_FILE_BYTES) {
+    currentPath = path.join(logDir, last)
+    currentSize = fileSize(currentPath)
+  } else {
+    currentPath = newFilePath()
+    currentSize = 0
   }
 
-  log(category: string, message: string): void {
+  function log(category: string, message: string): void {
     const line = `${new Date().toISOString()} [${category}] ${message}\n`
     const bytes = Buffer.byteLength(line)
-    if (this.currentSize + bytes > MAX_FILE_BYTES) {
-      this.rotate()
+    if (currentSize + bytes > MAX_FILE_BYTES) {
+      rotate()
     }
-    fs.appendFileSync(this.currentPath, line)
-    this.currentSize += bytes
+    fs.appendFileSync(currentPath, line)
+    currentSize += bytes
   }
 
-  readAll(): string {
-    return this.listFiles()
-      .map((f) => fs.readFileSync(path.join(this.logDir, f), 'utf-8'))
+  function readAll(): string {
+    return listFiles()
+      .map((f) => fs.readFileSync(path.join(logDir, f), 'utf-8'))
       .join('')
   }
 
-  clear(): void {
-    for (const f of this.listFiles()) {
-      fs.unlinkSync(path.join(this.logDir, f))
+  function clear(): void {
+    for (const f of listFiles()) {
+      fs.unlinkSync(path.join(logDir, f))
     }
-    this.currentPath = this.newFilePath()
-    this.currentSize = 0
+    currentPath = newFilePath()
+    currentSize = 0
   }
 
-  private rotate(): void {
-    const files = this.listFiles()
+  function rotate(): void {
+    const files = listFiles()
     while (files.length >= MAX_FILES) {
-      fs.unlinkSync(path.join(this.logDir, files.shift()!))
+      fs.unlinkSync(path.join(logDir, files.shift()!))
     }
-    this.currentPath = this.newFilePath()
-    this.currentSize = 0
+    currentPath = newFilePath()
+    currentSize = 0
   }
 
-  private listFiles(): string[] {
+  function listFiles(): string[] {
     try {
       return fs
-        .readdirSync(this.logDir)
+        .readdirSync(logDir)
         .filter((f) => f.startsWith('app-') && f.endsWith('.log'))
         .sort()
     } catch {
@@ -71,16 +72,22 @@ class RollingLogger {
     }
   }
 
-  private newFilePath(): string {
-    return path.join(this.logDir, `app-${Date.now()}.log`)
+  function newFilePath(): string {
+    return path.join(logDir, `app-${Date.now()}.log`)
   }
 
-  private fileSize(filePath: string): number {
+  function fileSize(filePath: string): number {
     try {
       return fs.statSync(filePath).size
     } catch {
       return 0
     }
+  }
+
+  return {
+    log,
+    readAll,
+    clear,
   }
 }
 
@@ -89,7 +96,7 @@ let instance: RollingLogger | undefined
 function getLogger(): RollingLogger {
   if (!instance) {
     const baseDir = process.env.CONTEXT_LAUNCH_DATA_DIR || path.join(os.homedir(), '.context-launch')
-    instance = new RollingLogger(path.join(baseDir, 'logs'))
+    instance = createRollingLogger(path.join(baseDir, 'logs'))
   }
   return instance
 }

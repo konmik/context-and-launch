@@ -2,10 +2,10 @@ import { afterEach, describe, expect, it } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { makeTempDir, removeTempDir } from '../../test-temp.js'
-import { ConfigPaths } from '../../../src/core/config/config-paths.js'
-import { ConfigRepository } from '../../../src/core/config/config-repository.js'
-import { SharedLauncherConfigStore } from '../../../src/core/launcher/shared-launcher-config-store.js'
-import { LauncherConfigManager } from '../../../src/core/launcher/launcher-config.js'
+import { createConfigPaths, type ConfigPaths } from '../../../src/core/config/config-paths.js'
+import { createConfigRepository } from '../../../src/core/config/config-repository.js'
+import { createSharedLauncherConfigStore, type SharedLauncherConfigStore } from '../../../src/core/launcher/shared-launcher-config-store.js'
+import { createLauncherConfigManager, type LauncherConfigManager } from '../../../src/core/launcher/launcher-config.js'
 
 const directories: string[] = []
 
@@ -16,9 +16,9 @@ afterEach(async () => {
 function setup(): SetupResult {
   const directory = makeTempDir('shared-launcher-config-')
   directories.push(directory)
-  const paths = new ConfigPaths(directory)
-  const repository = new ConfigRepository()
-  const store = new SharedLauncherConfigStore(paths, repository)
+  const paths = createConfigPaths(directory)
+  const repository = createConfigRepository()
+  const store = createSharedLauncherConfigStore(paths, repository)
   store.write({
     templates: [],
     skills: [],
@@ -27,7 +27,7 @@ function setup(): SetupResult {
   return {
     paths,
     store,
-    manager: new LauncherConfigManager(paths, repository, store),
+    manager: createLauncherConfigManager(paths, repository, store),
   }
 }
 

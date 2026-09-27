@@ -23,24 +23,24 @@ import {
   diffReviewStore,
 } from '~/core/config/instances.js'
 import { openInOs } from '~/core/infra/open-in-os.js'
-import { TicketStore, type TicketInfo } from '~/core/ticket/ticket-store.js'
+import { createTicketStore, type TicketStore, type TicketInfo } from '~/core/ticket/ticket-store.js'
 import type { StatusJson } from '~/core/ticket/ticket-repository.js'
 import type { TicketOrder } from '~/core/ticket/ticket-order-data.js'
 import { failure, success } from '~/util/result.js'
 import { extractPrefixFromInput } from '~/core/ticket/ticket-number.js'
-import { WorktreeCleanupService } from '~/core/worktree/worktree-cleanup.js'
+import { createWorktreeCleanupService } from '~/core/worktree/worktree-cleanup.js'
 import { resolveAgentWorktreeLocation } from '~/core/worktree/worktree-naming.js'
 import { runTicketCleanupChecks } from '~/core/worktree/ticket-cleanup-checks.js'
 import type { TicketCleanupStatus, TicketCleanupOptions } from '~/core/worktree/ticket-cleanup-checks.js'
 import { findHerdrAgent, stopHerdrAgent } from '~/core/herdr/herdr-control.js'
-import { ValidationError, NotFoundError, errorMessage, errorPayload, errorResult } from '~/core/shared/errors.js'
+import { createValidationError, createNotFoundError, errorMessage, errorPayload, errorResult } from '~/core/shared/errors.js'
 import { resolveInitialTicketStatus } from '~/core/board/initial-ticket-status.js'
 import type { LockingProcessInfo } from '~/core/worktree/agent-worktree.js'
 
 function mutateTickets<T>(projectSlug: string, mutation: (store: TicketStore) => T): T {
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
   try {
-    return mutation(new TicketStore(worktreeDir))
+    return mutation(createTicketStore(worktreeDir))
   } finally {
     worktreeRevisions.bump(worktreeDir)
   }
@@ -49,7 +49,7 @@ function mutateTickets<T>(projectSlug: string, mutation: (store: TicketStore) =>
 async function mutateTicketsExclusive<T>(projectSlug: string, mutation: (store: TicketStore) => T): Promise<T> {
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
   try {
-    return await fileWatcher.runWithWatchPaused(worktreeDir, () => mutation(new TicketStore(worktreeDir)))
+    return await fileWatcher.runWithWatchPaused(worktreeDir, () => mutation(createTicketStore(worktreeDir)))
   } finally {
     worktreeRevisions.bump(worktreeDir)
   }
@@ -116,7 +116,7 @@ export async function readTicketOrder(projectSlug: string): Promise<Result<Ticke
   'use server'
 
   try {
-    return success(new TicketStore(worktreeManager.getWorktreeDir(projectSlug)).orderStore.read())
+    return success(createTicketStore(worktreeManager.getWorktreeDir(projectSlug)).orderStore.read())
   } catch (error) {
     return failure(errorMessage(error))
   }
@@ -155,8 +155,8 @@ export const getTicket = query(async (projectSlug: string, folderName: string): 
   'use server'
 
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
-  const ticket = new TicketStore(worktreeDir).getTicket(folderName)
-  if (!ticket) throw new NotFoundError(`Ticket not found: ${folderName}`)
+  const ticket = createTicketStore(worktreeDir).getTicket(folderName)
+  if (!ticket) throw createNotFoundError(`Ticket not found: ${folderName}`)
   return withAgentWorktreeStatus(projectSlug, ticket)
 }, 'ticket-detail')
 
@@ -164,7 +164,7 @@ export async function getContext(projectSlug: string, folderName: string, contex
   'use server'
 
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
-  const store = new TicketStore(worktreeDir)
+  const store = createTicketStore(worktreeDir)
   const content = store.getTicketContext(folderName, contextFileName)
   if (content === null) return null
   return {
@@ -224,7 +224,7 @@ export async function uploadFile(
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
     try {
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       const results: Result<UploadedFile, FileUploadError>[] = []
       for (const [, value] of formData.entries()) {
         if (!(value instanceof File)) continue
@@ -270,7 +270,7 @@ export const saveTicketStatus = action(async (projectSlug: string, previousJson:
       const removed = previous.references.filter((ref) => !next.references.some((nextRef) => nextRef.path === ref.path))
       const added = next.references.filter((ref) => !previous.references.some((previousRef) => previousRef.path === ref.path))
       const current = store.getTicket(previous.folderName)
-      if (!current) throw new NotFoundError(`Ticket not found: ${previous.folderName}`)
+      if (!current) throw createNotFoundError(`Ticket not found: ${previous.folderName}`)
       if (
         !removed.length &&
         !added.length &&
@@ -349,15 +349,15 @@ export async function suggestTicketNumber(projectSlug: string, numberInput: stri
   'use server'
 
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
-  const store = new TicketStore(worktreeDir)
+  const store = createTicketStore(worktreeDir)
   const prefix = extractPrefixFromInput(numberInput)
   return store.suggestNextNumber(prefix)
 }
 
 function resolveTicketCleanupTarget(projectSlug: string, folderName: string): ResolveTicketCleanupTargetResult {
   const project = projectRegistry.listProjects().find((p) => p.projectSlug === projectSlug)
-  if (!project) throw new NotFoundError('Project not found')
-  const store = new TicketStore(worktreeManager.getWorktreeDir(projectSlug))
+  if (!project) throw createNotFoundError('Project not found')
+  const store = createTicketStore(worktreeManager.getWorktreeDir(projectSlug))
   const ticket = store.getTicket(folderName)
   const { worktreePath, branchName } = resolveAgentWorktreeLocation(
     folderName,
@@ -382,7 +382,7 @@ export async function openTicketWorktree(projectSlug: string, folderName: string
   try {
     const { worktreePath } = resolveTicketCleanupTarget(projectSlug, folderName)
     if (!fs.existsSync(worktreePath)) {
-      throw new NotFoundError(`Worktree does not exist: ${worktreePath}`)
+      throw createNotFoundError(`Worktree does not exist: ${worktreePath}`)
     }
     await openInOs(worktreePath, commandTemplateService)
     return success(undefined)
@@ -395,8 +395,8 @@ export async function openTicketFolder(projectSlug: string, folderName: string):
   'use server'
 
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
-  const store = new TicketStore(worktreeDir)
-  if (!store.getTicket(folderName)) throw new NotFoundError(`Ticket not found: ${folderName}`)
+  const store = createTicketStore(worktreeDir)
+  if (!store.getTicket(folderName)) throw createNotFoundError(`Ticket not found: ${folderName}`)
   await openInOs(path.join(worktreeDir, folderName), commandTemplateService)
 }
 
@@ -445,15 +445,15 @@ export async function worktreeCleanup(
         herdrExec,
       )
       if (found.kind === 'herdr-unavailable') {
-        throw new ValidationError(found.message)
+        throw createValidationError(found.message)
       }
       if (found.kind === 'no-agent') {
-        throw new ValidationError(`No Herdr agent found for ticket '${folderName}'.`)
+        throw createValidationError(`No Herdr agent found for ticket '${folderName}'.`)
       }
       await stopHerdrAgent(found.paneId, herdrExec)
     }
     try {
-      await new WorktreeCleanupService(agentWorktreeManager).cleanup(
+      await createWorktreeCleanupService(agentWorktreeManager).cleanup(
         project.path,
         branchName,
         worktreePath,

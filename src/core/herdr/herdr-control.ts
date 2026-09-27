@@ -1,5 +1,5 @@
 import path from 'path'
-import { HerdrUnavailableError, type HerdrUnavailableReason } from './herdr-availability.js'
+import { isHerdrUnavailableError, type HerdrUnavailableReason } from './herdr-availability.js'
 import type { HerdrExecFn, HerdrAgent } from './herdr-exec.js'
 import { listHerdrTicketPanes } from './herdr-ticket-panes.js'
 
@@ -51,7 +51,7 @@ export async function findHerdrAgent(target: HerdrAgentTarget, exec: HerdrExecFn
   try {
     ticketPanes = await listHerdrTicketPanes(target.projectSlug, exec)
   } catch (err) {
-    if (err instanceof HerdrUnavailableError) {
+    if (isHerdrUnavailableError(err)) {
       return {
         kind: 'herdr-unavailable',
         reason: err.reason,

@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { OperationTracker } from '../../../src/core/infra/operation-tracker.js'
+import { createOperationTracker } from '../../../src/core/infra/operation-tracker.js'
 
 describe('OperationTracker', () => {
   it('reports no pending when empty', () => {
-    const tracker = new OperationTracker()
+    const tracker = createOperationTracker()
     expect(tracker.hasPending()).toBe(false)
   })
   it('tracks a pending operation', async () => {
-    const tracker = new OperationTracker()
+    const tracker = createOperationTracker()
     let resolve!: () => void
     const p = new Promise<void>((r) => {
       resolve = r
@@ -19,7 +19,7 @@ describe('OperationTracker', () => {
     expect(tracker.hasPending()).toBe(false)
   })
   it('removes operation on rejection', async () => {
-    const tracker = new OperationTracker()
+    const tracker = createOperationTracker()
     let reject!: (err: Error) => void
     const p = new Promise<void>((_, r) => {
       reject = r
@@ -32,11 +32,11 @@ describe('OperationTracker', () => {
     expect(tracker.hasPending()).toBe(false)
   })
   it('waitForAll resolves immediately when no operations', async () => {
-    const tracker = new OperationTracker()
+    const tracker = createOperationTracker()
     await tracker.waitForAll()
   })
   it('waitForAll waits for multiple operations', async () => {
-    const tracker = new OperationTracker()
+    const tracker = createOperationTracker()
     let resolve1!: () => void
     let resolve2!: () => void
     const p1 = new Promise<void>((r) => {
@@ -56,12 +56,12 @@ describe('OperationTracker', () => {
     expect(tracker.hasPending()).toBe(false)
   })
   it('returns the original promise value', async () => {
-    const tracker = new OperationTracker()
+    const tracker = createOperationTracker()
     const result = await tracker.track(Promise.resolve(42))
     expect(result).toBe(42)
   })
   it('propagates rejection', async () => {
-    const tracker = new OperationTracker()
+    const tracker = createOperationTracker()
     await expect(tracker.track(Promise.reject(new Error('boom')))).rejects.toThrow('boom')
   })
 })

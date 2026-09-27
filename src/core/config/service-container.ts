@@ -1,31 +1,31 @@
-import { ConfigPaths } from './config-paths.js'
-import { ConfigRepository } from './config-repository.js'
-import { AppConfigStore } from './app-config-store.js'
-import { SharedLauncherConfigStore } from '../launcher/shared-launcher-config-store.js'
-import { ProjectRegistry } from '../project/project-registry.js'
-import { BoardConfigManager } from '../project/board-config.js'
-import { WorktreeManager } from '../worktree/worktree-manager.js'
-import { FileWatcher } from '../infra/file-watcher.js'
-import { LauncherConfigManager } from '../launcher/launcher-config.js'
-import { AgentWorktreeManager } from '../worktree/agent-worktree.js'
-import { TicketSyncManager } from '../ticket/ticket-sync.js'
-import { GitRepository } from '../infra/git-repository.js'
-import { ProjectPageService } from '../board/project-page-service.js'
-import { OperationTracker } from '../infra/operation-tracker.js'
-import { SyncPendingTracker, checkHasPendingChanges } from '../board/sync-pending.js'
-import { WorktreeRevisionStore } from '../board/worktree-revision.js'
-import { CommandTemplateStore } from '../command-template/command-template-store.js'
-import { CommandTemplateService } from '../command-template/command-template-service.js'
-import { FixedPlatformShellRunner } from '../command-template/platform-shell-runner.js'
+import { createConfigPaths, type ConfigPaths } from './config-paths.js'
+import { createConfigRepository, type ConfigRepository } from './config-repository.js'
+import { createAppConfigStore, type AppConfigStore } from './app-config-store.js'
+import { createSharedLauncherConfigStore, type SharedLauncherConfigStore } from '../launcher/shared-launcher-config-store.js'
+import { createProjectRegistry, type ProjectRegistry } from '../project/project-registry.js'
+import { createBoardConfigManager, type BoardConfigManager } from '../project/board-config.js'
+import { createWorktreeManager, type WorktreeManager } from '../worktree/worktree-manager.js'
+import { createFileWatcher, type FileWatcher } from '../infra/file-watcher.js'
+import { createLauncherConfigManager, type LauncherConfigManager } from '../launcher/launcher-config.js'
+import { createAgentWorktreeManager, type AgentWorktreeManager } from '../worktree/agent-worktree.js'
+import { createTicketSyncManager, type TicketSyncManager } from '../ticket/ticket-sync.js'
+import { createGitRepository, type GitRepository } from '../infra/git-repository.js'
+import { createProjectPageService, type ProjectPageService } from '../board/project-page-service.js'
+import { createOperationTracker, type OperationTracker } from '../infra/operation-tracker.js'
+import { createSyncPendingTracker, type SyncPendingTracker, checkHasPendingChanges } from '../board/sync-pending.js'
+import { createWorktreeRevisionStore, type WorktreeRevisionStore } from '../board/worktree-revision.js'
+import { createCommandTemplateStore, type CommandTemplateStore } from '../command-template/command-template-store.js'
+import { createCommandTemplateService, type CommandTemplateService } from '../command-template/command-template-service.js'
+import { createFixedPlatformShellRunner } from '../command-template/platform-shell-runner.js'
 import { createHerdrExec } from '../herdr/herdr-exec.js'
 import type { HerdrExecFn } from '../herdr/herdr-exec.js'
-import { DiffReviewStore } from '../diff-review/diff-review-store.js'
-import { DiffReviewGitService } from '../diff-review/diff-review-git.js'
-import { DiffReviewTargetResolver } from '../diff-review/diff-review-target.js'
-import { ReviewPromptQueueService } from '../diff-review/review-prompt-queue.js'
-import { ProfileReviewAgentLauncher } from '../diff-review/review-agent-launcher.js'
+import { createDiffReviewStore, type DiffReviewStore } from '../diff-review/diff-review-store.js'
+import { createDiffReviewGitService, type DiffReviewGitService } from '../diff-review/diff-review-git.js'
+import { createDiffReviewTargetResolver, type DiffReviewTargetResolver } from '../diff-review/diff-review-target.js'
+import { createReviewPromptQueueService, type ReviewPromptQueueService } from '../diff-review/review-prompt-queue.js'
+import { createProfileReviewAgentLauncher } from '../diff-review/review-agent-launcher.js'
 import { fetchHerdrTicketState } from '../herdr/herdr-client.js'
-import { HerdrUnavailableError } from '../herdr/herdr-availability.js'
+import { isHerdrUnavailableError } from '../herdr/herdr-availability.js'
 
 export interface ServiceContainer {
   configPaths: ConfigPaths
@@ -62,41 +62,41 @@ export interface ServiceOptions {
 
 export function createServices(options: ServiceOptions = {}): ServiceContainer {
   const { baseDir, configDefaultsDir, watchDebounceMs } = options
-  const configPaths = new ConfigPaths(baseDir, configDefaultsDir)
-  const configRepo = new ConfigRepository()
-  const commandTemplateStore = new CommandTemplateStore(configPaths, configRepo)
-  const commandTemplateService = new CommandTemplateService(commandTemplateStore, new FixedPlatformShellRunner())
+  const configPaths = createConfigPaths(baseDir, configDefaultsDir)
+  const configRepo = createConfigRepository()
+  const commandTemplateStore = createCommandTemplateStore(configPaths, configRepo)
+  const commandTemplateService = createCommandTemplateService(commandTemplateStore, createFixedPlatformShellRunner())
   const herdrExec = createHerdrExec(commandTemplateService)
-  const gitRepo = new GitRepository(commandTemplateService)
-  const appConfigStore = new AppConfigStore(configPaths, configRepo)
-  const projectRegistry = new ProjectRegistry(configPaths, configRepo, appConfigStore)
-  const boardConfigManager = new BoardConfigManager(configPaths, configRepo)
-  const worktreeManager = new WorktreeManager(configPaths, commandTemplateService, (projectSlug) =>
+  const gitRepo = createGitRepository(commandTemplateService)
+  const appConfigStore = createAppConfigStore(configPaths, configRepo)
+  const projectRegistry = createProjectRegistry(configPaths, configRepo, appConfigStore)
+  const boardConfigManager = createBoardConfigManager(configPaths, configRepo)
+  const worktreeManager = createWorktreeManager(configPaths, commandTemplateService, (projectSlug) =>
     projectRegistry.getTicketsPath(projectSlug),
   )
-  const worktreeRevisions = new WorktreeRevisionStore()
-  const syncPendingTracker = new SyncPendingTracker(
+  const worktreeRevisions = createWorktreeRevisionStore()
+  const syncPendingTracker = createSyncPendingTracker(
     (worktreeDir) => checkHasPendingChanges(worktreeDir, commandTemplateService),
     worktreeRevisions,
   )
-  const fileWatcher = new FileWatcher(
+  const fileWatcher = createFileWatcher(
     commandTemplateService,
     (worktreeDir) => worktreeRevisions.bump(worktreeDir),
     undefined,
     watchDebounceMs,
   )
-  const sharedLauncherConfigStore = new SharedLauncherConfigStore(configPaths, configRepo)
-  const launcherConfigManager = new LauncherConfigManager(configPaths, configRepo, sharedLauncherConfigStore)
-  const agentWorktreeManager = new AgentWorktreeManager(launcherConfigManager, commandTemplateService)
-  const diffReviewStore = new DiffReviewStore(configPaths, configRepo)
-  const diffReviewGitService = new DiffReviewGitService(commandTemplateService)
-  const diffReviewTargetResolver = new DiffReviewTargetResolver(projectRegistry, worktreeManager, launcherConfigManager)
-  const reviewPromptQueueService = new ReviewPromptQueueService(
+  const sharedLauncherConfigStore = createSharedLauncherConfigStore(configPaths, configRepo)
+  const launcherConfigManager = createLauncherConfigManager(configPaths, configRepo, sharedLauncherConfigStore)
+  const agentWorktreeManager = createAgentWorktreeManager(launcherConfigManager, commandTemplateService)
+  const diffReviewStore = createDiffReviewStore(configPaths, configRepo)
+  const diffReviewGitService = createDiffReviewGitService(commandTemplateService)
+  const diffReviewTargetResolver = createDiffReviewTargetResolver(projectRegistry, worktreeManager, launcherConfigManager)
+  const reviewPromptQueueService = createReviewPromptQueueService(
     diffReviewStore,
     diffReviewGitService,
     diffReviewTargetResolver,
     commandTemplateService,
-    new ProfileReviewAgentLauncher(launcherConfigManager, commandTemplateService),
+    createProfileReviewAgentLauncher(launcherConfigManager, commandTemplateService),
     async (projectSlug) => {
       const observedAt = Date.now()
       try {
@@ -106,7 +106,7 @@ export function createServices(options: ServiceOptions = {}): ServiceContainer {
           observedAt,
         }
       } catch (error) {
-        if (error instanceof HerdrUnavailableError) {
+        if (isHerdrUnavailableError(error)) {
           return error.reason === 'cli-missing'
             ? {
                 agents: [],
@@ -118,9 +118,9 @@ export function createServices(options: ServiceOptions = {}): ServiceContainer {
       }
     },
   )
-  const ticketSyncManager = new TicketSyncManager(commandTemplateService, gitRepo)
-  const operationTracker = new OperationTracker()
-  const projectPageService = new ProjectPageService(
+  const ticketSyncManager = createTicketSyncManager(commandTemplateService, gitRepo)
+  const operationTracker = createOperationTracker()
+  const projectPageService = createProjectPageService(
     projectRegistry,
     boardConfigManager,
     worktreeManager,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { findHerdrAgent, stopHerdrAgent, type HerdrExecFn } from '../../../src/core/herdr/herdr-control.js'
-import { ProcessError } from '../../../src/core/shared/errors.js'
-import { HerdrUnavailableError } from '../../../src/core/herdr/herdr-availability.js'
+import { createProcessError, isProcessError } from '../../../src/core/shared/errors.js'
+import { createHerdrUnavailableError } from '../../../src/core/herdr/herdr-availability.js'
 
 const TARGET = {
   projectSlug: 'alpha',
@@ -65,7 +65,7 @@ function fakeExec(opts: FakeExecOptions): FakeExecResult {
 describe('findHerdrAgent', () => {
   it('returns herdr-unavailable when Herdr could not answer', async () => {
     const exec: HerdrExecFn = async () => {
-      throw new HerdrUnavailableError('server-not-running')
+      throw createHerdrUnavailableError('server-not-running')
     }
     expect(await findHerdrAgent(TARGET, exec)).toEqual({
       kind: 'herdr-unavailable',
@@ -75,9 +75,9 @@ describe('findHerdrAgent', () => {
   })
   it('does not treat a herdr that ran and failed as unavailable', async () => {
     const exec: HerdrExecFn = async () => {
-      throw new ProcessError('herdr', 1, "'herdr' is not recognized", undefined, 'exited')
+      throw createProcessError('herdr', 1, "'herdr' is not recognized", undefined, 'exited')
     }
-    await expect(findHerdrAgent(TARGET, exec)).rejects.toBeInstanceOf(ProcessError)
+    await expect(findHerdrAgent(TARGET, exec)).rejects.toSatisfy(isProcessError)
   })
   it('returns no-agent for an empty workspace list', async () => {
     const { exec, calls } = fakeExec({

@@ -53,27 +53,32 @@ interface PausedWatch {
   tail: Promise<void>
 }
 
-export class FileWatcher {
-  private watchers = new Map<string, WatcherState>()
-  private pausedWatches = new Map<string, PausedWatch>()
+export interface FileWatcher {
+  watch(worktreeDir: string, debounceMs?: number): void
+  stop(worktreeDir: string): Promise<void>
+  stopAll(): Promise<void>
+  runWithWatchPaused<T>(worktreeDir: string, task: () => T | Promise<T>): Promise<T>
+}
 
-  constructor(
-    private readonly commands: CommandTemplateExecutor,
-    private readonly onWorktreeChange?: (worktreeDir: string) => void,
-    private readonly adapters: FileWatcherAdapters = DEFAULT_ADAPTERS,
-    private readonly defaultDebounceMs: number = DEFAULT_DEBOUNCE_MS,
-  ) {}
+export function createFileWatcher(
+  commands: CommandTemplateExecutor,
+  onWorktreeChange?: (worktreeDir: string) => void,
+  adapters: FileWatcherAdapters = DEFAULT_ADAPTERS,
+  defaultDebounceMs: number = DEFAULT_DEBOUNCE_MS,
+): FileWatcher {
+  const watchers = new Map<string, WatcherState>()
+  const pausedWatches = new Map<string, PausedWatch>()
 
-  watch(worktreeDir: string, debounceMs = this.defaultDebounceMs): void {
-    const paused = this.pausedWatches.get(worktreeDir)
+  function watch(worktreeDir: string, debounceMs: number = defaultDebounceMs): void {
+    const paused = pausedWatches.get(worktreeDir)
     if (paused) {
       paused.debounceMs = debounceMs
       return
     }
-    if (this.watchers.has(worktreeDir)) return
+    if (watchers.has(worktreeDir)) return
     let watcher: FileWatcherHandle
     try {
-      watcher = this.adapters.createWatcher(worktreeDir, {
+      watcher = adapters.createWatcher(worktreeDir, {
         ignoreInitial: true,
         ignored: (filePath: string) => isDotPathInside(worktreeDir, filePath),
         persistent: true,
@@ -84,23 +89,23 @@ export class FileWatcher {
       return
     }
     const debouncedCommit = () => {
-      const current = this.watchers.get(worktreeDir)
+      const current = watchers.get(worktreeDir)
       if (!current) return
-      if (current.timer) this.adapters.clearTimer(current.timer)
-      current.timer = this.adapters.setTimer(() => {
-        if (!this.watchers.has(worktreeDir)) return
+      if (current.timer) adapters.clearTimer(current.timer)
+      current.timer = adapters.setTimer(() => {
+        if (!watchers.has(worktreeDir)) return
         try {
-          this.commands.executeSync('git.stage-all', worktreeDir)
-          const status = this.commands.executeSync('git.status', worktreeDir)
+          commands.executeSync('git.stage-all', worktreeDir)
+          const status = commands.executeSync('git.status', worktreeDir)
           if (status.trim()) {
-            this.commands.executeSync('git.commit', worktreeDir, {
+            commands.executeSync('git.commit', worktreeDir, {
               message: 'auto: external changes',
             })
           }
         } catch (err) {
           console.warn(`FileWatcher: auto-commit failed for ${worktreeDir}:`, err)
         }
-        this.onWorktreeChange?.(worktreeDir)
+        onWorktreeChange?.(worktreeDir)
       }, debounceMs)
     }
     const state: WatcherState = {
@@ -109,9 +114,9 @@ export class FileWatcher {
       debounceMs,
       scheduleCommit: debouncedCommit,
     }
-    this.watchers.set(worktreeDir, state)
+    watchers.set(worktreeDir, state)
     const handleEvent = () => {
-      this.onWorktreeChange?.(worktreeDir)
+      onWorktreeChange?.(worktreeDir)
       debouncedCommit()
     } // Files written before the initial scan completes are treated as initial
     // content by chokidar and never produce events; commit them on ready.
@@ -119,7 +124,7 @@ export class FileWatcher {
     // dotfile-only change never triggers the catch-up commit.
     watcher.on('ready', () => {
       try {
-        const hasNonDotChange = this.commands
+        const hasNonDotChange = commands
           .executeSync('git.status', worktreeDir)
           .split('\n')
           .some((line) => {
@@ -143,22 +148,22 @@ export class FileWatcher {
     watcher.on('unlinkDir', handleEvent)
   }
 
-  async stop(worktreeDir: string): Promise<void> {
-    const state = this.watchers.get(worktreeDir)
+  async function stop(worktreeDir: string): Promise<void> {
+    const state = watchers.get(worktreeDir)
     if (!state) return
-    this.watchers.delete(worktreeDir)
-    await this.tearDown(state)
+    watchers.delete(worktreeDir)
+    await tearDown(state)
   }
 
-  async stopAll(): Promise<void> {
-    const states = [...this.watchers.values()]
-    this.watchers.clear()
-    await Promise.all(states.map((state) => this.tearDown(state)))
+  async function stopAll(): Promise<void> {
+    const states = [...watchers.values()]
+    watchers.clear()
+    await Promise.all(states.map((state) => tearDown(state)))
   }
 
-  async runWithWatchPaused<T>(worktreeDir: string, task: () => T | Promise<T>): Promise<T> {
-    const paused = this.pausedWatches.get(worktreeDir) ?? {
-      debounceMs: this.watchers.get(worktreeDir)?.debounceMs,
+  async function runWithWatchPaused<T>(worktreeDir: string, task: () => T | Promise<T>): Promise<T> {
+    const paused = pausedWatches.get(worktreeDir) ?? {
+      debounceMs: watchers.get(worktreeDir)?.debounceMs,
       pending: 0,
       tail: Promise.resolve(),
     }
@@ -168,30 +173,37 @@ export class FileWatcher {
       release = resolve
     })
     paused.pending += 1
-    this.pausedWatches.set(worktreeDir, paused)
+    pausedWatches.set(worktreeDir, paused)
     try {
       await previous
-      await this.stop(worktreeDir)
+      await stop(worktreeDir)
       return await task()
     } finally {
       paused.pending -= 1
       if (paused.pending === 0) {
-        this.pausedWatches.delete(worktreeDir)
+        pausedWatches.delete(worktreeDir)
         if (paused.debounceMs !== undefined) {
-          this.watch(worktreeDir, paused.debounceMs)
-          this.watchers.get(worktreeDir)?.scheduleCommit()
+          watch(worktreeDir, paused.debounceMs)
+          watchers.get(worktreeDir)?.scheduleCommit()
         }
       }
       release()
     }
   }
 
-  private async tearDown(state: WatcherState): Promise<void> {
-    if (state.timer) this.adapters.clearTimer(state.timer)
+  async function tearDown(state: WatcherState): Promise<void> {
+    if (state.timer) adapters.clearTimer(state.timer)
     try {
       await state.watcher.close()
     } catch (err) {
       console.warn('FileWatcher: failed to close watcher:', err)
     }
+  }
+
+  return {
+    watch,
+    stop,
+    stopAll,
+    runWithWatchPaused,
   }
 }

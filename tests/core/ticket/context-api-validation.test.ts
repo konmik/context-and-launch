@@ -3,7 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import os from 'os'
 import { errorMessage } from '../../../src/core/shared/errors.js'
-import { TicketStore } from '../../../src/core/ticket/ticket-store.js'
+import { createTicketStore } from '../../../src/core/ticket/ticket-store.js'
 
 /**
  * Tests that non-JSON request bodies to the context PUT endpoint produce
@@ -99,14 +99,14 @@ describe('GET/DELETE with path-traversal name param', () => {
     it.concurrent(`getTicketContext rejects name="${badName}"`, async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('T-1', 'Test Ticket')
       expect(() => store.getTicketContext('t-1-test-ticket', badName)).toThrow()
     })
     it.concurrent(`getTicketContext error for name="${badName}" is user-safe`, async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('T-1', 'Test Ticket')
       let msg = ''
       try {
@@ -122,14 +122,14 @@ describe('GET/DELETE with path-traversal name param', () => {
     it.concurrent(`deleteTicketContext rejects name="${badName}"`, async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('T-1', 'Test Ticket')
       expect(() => store.deleteTicketContext('t-1-test-ticket', badName)).toThrow()
     })
     it.concurrent(`deleteTicketContext error for name="${badName}" is user-safe`, async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
-      const store = new TicketStore(worktreeDir)
+      const store = createTicketStore(worktreeDir)
       store.createTicket('T-1', 'Test Ticket')
       let msg = ''
       try {

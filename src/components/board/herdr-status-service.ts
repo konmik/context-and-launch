@@ -1,6 +1,6 @@
 import { errorMessage } from '~/core/shared/errors.js'
 import { success, failure, type Result } from '~/util/result.js'
-import { HerdrUnavailableError } from '~/core/herdr/herdr-availability.js'
+import { isHerdrUnavailableError } from '~/core/herdr/herdr-availability.js'
 import type { HerdrAgentStatus, HerdrTicketState } from '~/core/herdr/herdr-client.js'
 
 export interface DisabledAgentStatuses {
@@ -39,7 +39,7 @@ export function createHerdrStatusService(deps: HerdrStatusDeps): AgentStatusServ
         statusesByFolderName: state.statusesByFolderName,
       }
     } catch (error) {
-      if (error instanceof HerdrUnavailableError) {
+      if (isHerdrUnavailableError(error)) {
         deps.log('herdr', `agent status unavailable: ${error.message}`)
         return error.reason === 'cli-missing'
           ? {
