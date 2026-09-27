@@ -2,6 +2,7 @@ import type { JSX } from '@solidjs/web'
 import { Errored, Loading } from 'solid-js'
 import { AppRouter } from './router.js'
 import { AppearanceRoot } from './components/shared/appearance.js'
+import { ToastQueueRoot } from './components/shared/toast-queue.js'
 import { AppConfigContext, createAppConfigStorage } from './components/config/app-config-storage.js'
 import { LauncherConfigContext, createSharedLauncherConfigStorage } from './components/launcher/shared-launcher-config-storage.js'
 import './app.css'
@@ -33,7 +34,9 @@ export default function App(): JSX.Element {
                 <LauncherConfigContext value={launcherConfig}>
                   <BoardConfigContext value={boards}>
                     <CommandTemplateContext value={commandTemplates}>
-                      <AppearanceRoot>{props.children}</AppearanceRoot>
+                      <AppearanceRoot>
+                        <ToastQueueRoot>{props.children}</ToastQueueRoot>
+                      </AppearanceRoot>
                     </CommandTemplateContext>
                   </BoardConfigContext>
                 </LauncherConfigContext>

@@ -40,6 +40,7 @@ import ConflictDialog from '~/components/shared/ConflictDialog'
 import ErrorDialog from '~/components/shared/ErrorDialog'
 import AddProjectForm from '~/components/project/AddProjectForm'
 import PalettePicker from '~/components/shared/PalettePicker'
+import DebugToastButton from '~/components/shared/DebugToastButton'
 import LogViewerDialog from '~/components/shared/LogViewerDialog'
 import LauncherSettings from '~/components/launcher/LauncherSettings'
 import { useModEnterSubmit, modEnterHint } from '~/lib/use-mod-enter-submit'
@@ -427,6 +428,7 @@ function ProjectContent(props: { ctrl?: ProjectPageController }): JSX.Element {
                   </MenuRoot>
                 </div>
                 <div class="flex items-center justify-end gap-2">
+                  <DebugToastButton />
                   <PalettePicker />
                   <button
                     onClick={toggleViewMode}

@@ -2,6 +2,7 @@ import type { JSX } from '@solidjs/web'
 import { useNavigate } from '@solidjs/router'
 import AddProjectForm from '~/components/project/AddProjectForm'
 import PalettePicker from '~/components/shared/PalettePicker'
+import DebugToastButton from '~/components/shared/DebugToastButton'
 import { addProject } from '~/components/project/project-api.js'
 import { paths } from '~/router.js'
 
@@ -10,6 +11,7 @@ export default function AddProjectPage(): JSX.Element {
   return (
     <div class="flex min-h-screen items-center justify-center p-4">
       <div class="fixed right-4 top-4 flex items-center gap-2">
+        <DebugToastButton />
         <PalettePicker />
       </div>
       <div class="w-full max-w-md rounded-lg border border-border bg-card p-6">

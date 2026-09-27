@@ -3,6 +3,7 @@ import { Dynamic, type ComponentProps } from '@solidjs/web'
 import { omit } from 'solid-js'
 import {
   ArrowDownToLine as arrowDownToLine,
+  Bug as bug,
   Check as check,
   ChevronDown as chevronDown,
   ChevronRight as chevronRight,
@@ -74,6 +75,8 @@ function icon(node: IconNode, name: string): (props: IconProps) => JSX.Element {
 }
 
 export const ArrowDownToLine = icon(arrowDownToLine, 'arrow-down-to-line')
+
+export const Bug = icon(bug, 'bug')
 
 export const Check = icon(check, 'check')
 
