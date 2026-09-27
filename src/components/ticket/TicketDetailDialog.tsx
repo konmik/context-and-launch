@@ -43,9 +43,9 @@ interface TicketDetailDialogProps {
 export default function TicketDetailDialog(props: TicketDetailDialogProps): JSX.Element {
   return (
     <Show when={props.ticket?.folderName} keyed>
-      {(folderName) => (
+      {(_folderName) => (
         <TicketStatusContext
-          value={untrack(() => props.stateDeps?.ticketStatus ?? createTicketStatusStorage(props.projectSlug, folderName))}
+          value={untrack(() => props.stateDeps?.ticketStatus ?? createTicketStatusStorage(props.projectSlug, props.ticket!))}
         >
           <TicketDetailContent
             onClose={props.onClose}

@@ -7,8 +7,12 @@ export interface StoredState<T> {
   enqueueAndPublish(operation: () => Promise<Result<T, string>>): Promise<Result<void, string>>
 }
 
-export function createStoredState<T>(read: () => T | Promise<T>): StoredState<T> {
-  const initial = createMemo(read)
+export interface StoredStateOptions<T> {
+  initialValue: T
+}
+
+export function createStoredState<T>(read: () => T | Promise<T>, options?: StoredStateOptions<T>): StoredState<T> {
+  const initial = createMemo(read, options && { loadingValue: options.initialValue })
   const [saved, setSaved] = createSignal<{
     value: T
   }>()

@@ -6,7 +6,8 @@ import { getTicket, saveTicketStatus } from './ticket-api.js'
 
 export const TicketStatusContext = createContext<StoredSignal<TicketInfo>>()
 
-export function createTicketStatusStorage(projectSlug: string, folderName: string): StoredSignal<TicketInfo> {
+export function createTicketStatusStorage(projectSlug: string, initialTicket: TicketInfo): StoredSignal<TicketInfo> {
+  let folderName = initialTicket.folderName
   const save = useAction(saveTicketStatus)
   const storage: StoredSignal<TicketInfo> = createStoredSignal(
     () => getTicket(projectSlug, folderName),
@@ -16,6 +17,7 @@ export function createTicketStatusStorage(projectSlug: string, folderName: strin
       if (result.type === 'Success') folderName = result.value.folderName
       return result
     },
+    { initialValue: initialTicket },
   )
   return storage
 }
