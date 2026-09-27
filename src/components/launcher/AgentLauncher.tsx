@@ -3,7 +3,6 @@ import { Show, For } from 'solid-js'
 import { DragDropProvider, createSortable } from '~/components/drag/drag-provider.js'
 import { DialogRoot, DialogTitle } from '../ui/dialog'
 import type { MergedLauncherConfig, LauncherColumnDefaults } from '~/core/launcher/launcher-config.js'
-import ErrorDialog from '../shared/ErrorDialog.js'
 import { DragPreview, DragGrip, NameDragOverlay, DND_ACTIVE_CLASS } from '../board/dnd-shared.js'
 import type { AgentLauncherController } from './agent-launcher-controller.js'
 
@@ -145,7 +144,6 @@ export default function AgentLauncher(props: AgentLauncherProps): JSX.Element {
         )}
       </Show>
 
-      <ErrorDialog error={c.errorInfo()} onClose={() => c.setErrorInfo(null)} />
 
       <DialogRoot open={!!c.behindRemoteMsg()} onOpenChange={() => c.setBehindRemoteMsg('')} class="max-w-sm">
         <DialogTitle class="sr-only">Behind Remote</DialogTitle>

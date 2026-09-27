@@ -6,6 +6,8 @@ import { ProjectLauncherConfigContext } from '../launcher/project-launcher-confi
 import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js'
 import { AppConfigContext } from '../config/app-config-storage.js'
 import { LauncherConfigContext } from '../launcher/shared-launcher-config-storage.js'
+import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
+import { createErrorState } from '~/util/error-state.js'
 
 export interface ConflictDialogDeps {
   projectSlug: () => string
@@ -13,18 +15,19 @@ export interface ConflictDialogDeps {
   onResolve: (profileName: string) => Promise<void>
   onAbort: () => Promise<void>
   onOpenChange: (open: boolean) => void
+  onError?: (error: ErrorInfo) => void
 }
 
 export function createConflictDialogController(deps: ConflictDialogDeps): ConflictDialogControllerResult {
   const appConfig = useContext(AppConfigContext)!
   const [submitting, setSubmitting] = createSignal(false)
-  const [errorMsg, setErrorMsg] = createSignal('')
+  const { error: errorMsg, setError: setErrorMsg } = createErrorState(deps.onError)
   const sharedConfig = useContext(LauncherConfigContext)!
   const projectConfig = useContext(ProjectLauncherConfigContext)!
   const profiles = createMemo(() => mergeLauncherConfigs(sharedConfig.get(), projectConfig.get()).profiles)
   const [selectedProfile, setSelectedProfile] = createSignal('')
   createEffect(deps.open, (open) => {
-    if (open) setErrorMsg('')
+    if (open) setErrorMsg()
   })
   createEffect(
     () => ({
@@ -48,23 +51,23 @@ export function createConflictDialogController(deps: ConflictDialogDeps): Confli
       }))
       if (result.type === 'Failure') setErrorMsg(result.error)
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Failed to save last used profile')
+      setErrorMsg(errorPayload(err, 'Save profile failed'))
     }
   }
 
   function close() {
     deps.onOpenChange(false)
-    setErrorMsg('')
+    setErrorMsg()
   }
 
   async function submit(action: () => Promise<void>, fallbackMsg: string) {
     setSubmitting(true)
-    setErrorMsg('')
+    setErrorMsg()
     try {
       await action()
       close()
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : fallbackMsg)
+      setErrorMsg(errorPayload(err, fallbackMsg))
     } finally {
       setSubmitting(false)
     }
@@ -95,7 +98,7 @@ export type ConflictDialogController = ReturnType<typeof createConflictDialogCon
 
 export interface ConflictDialogControllerResult {
   submitting: SourceAccessor<boolean>
-  errorMsg: SourceAccessor<string>
+  errorMsg: SourceAccessor<ErrorInfo | undefined>
   profiles: SourceAccessor<
     (LauncherProfile & {
       scope: 'app' | 'project'

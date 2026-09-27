@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createSignal, flush } from 'solid-js'
 import { createReviewedLineTracker } from '../../../src/components/diff-review/diff-review-storage.js'
 import { failure, success, type Result } from '~/util/result.js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
 import { createStoredSignal } from '~/util/stored-signal.js'
 import type { DiffReviewProjectState } from '~/core/diff-review/diff-review-types.js'
 
@@ -31,7 +32,7 @@ function setup(): SetupResult {
     },
   }
   const [initial, setInitial] = createSignal(persisted)
-  const persist = vi.fn(async (next: DiffReviewProjectState): Promise<Result<DiffReviewProjectState, string>> => success(next))
+  const persist = vi.fn(async (next: DiffReviewProjectState): Promise<Result<DiffReviewProjectState, UserFacingError>> => success(next))
   const state = createStoredSignal(initial, async (transform) => {
     const result = await persist(transform(persisted))
     if (result.type === 'Success') persisted = result.value
@@ -120,7 +121,7 @@ describe('createReviewedLineTracker', () => {
   it('rolls back a failed write and retries when the line is visible again', async () => {
     vi.useFakeTimers()
     const { tracker, persist, onError } = setup()
-    persist.mockResolvedValueOnce(failure('disk full'))
+    persist.mockResolvedValueOnce(failure({ title: 'Save failed', description: 'disk full' }))
     tracker.markVisible({
       id: 'line-1',
       path: 'src/a.ts',
@@ -128,7 +129,7 @@ describe('createReviewedLineTracker', () => {
     await vi.advanceTimersByTimeAsync(400)
     flush()
     expect([...tracker.reviewedLineIds()]).toEqual([])
-    expect(onError).toHaveBeenCalledWith('disk full')
+    expect(onError).toHaveBeenCalledWith({ title: 'Save failed', description: 'disk full' })
     tracker.markVisible({
       id: 'line-1',
       path: 'src/a.ts',
@@ -198,7 +199,7 @@ export interface SetupResult {
     flush: () => Promise<void>
     dispose(): Promise<void>
   }
-  persist: Mock<(next: DiffReviewProjectState) => Promise<Result<DiffReviewProjectState, string>>>
+  persist: Mock<(next: DiffReviewProjectState) => Promise<Result<DiffReviewProjectState, UserFacingError>>>
   onError: Mock<(...args: any[]) => any>
   acknowledge(): void
 }

@@ -27,7 +27,7 @@ describe('createCreateTicketController', () => {
           const ctrl = createCreateTicketController(deps)
           await runWithOwner(null, ctrl.suggestNumber)
           flush()
-          expect(ctrl.errorMsg()).toBe('server broke')
+          expect(ctrl.errorMsg()).toEqual({ title: 'Suggest ticket number failed', description: 'server broke' })
           expect(ctrl.suggestingNumber()).toBe(false)
         } finally {
           dispose()

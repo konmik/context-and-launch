@@ -11,6 +11,8 @@ import {
 } from '../ui/floating-panel'
 import { TabsRoot, TabsList, TabsTrigger } from '../ui/tabs'
 import { openConfigDir } from '../shared/shared-api.js'
+import { ErrorScope, useErrorReporter } from '../shared/error-presentation.js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
 import { MiscTab } from './launcher-settings-misc-tab.js'
 import { PromptsTab } from './launcher-settings-prompts-tab.js'
 import { LaunchTab } from './launcher-settings-launch-tab.js'
@@ -21,10 +23,15 @@ interface LauncherSettingsProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   projectSlug: string
-  onDeleteProject?: (projectSlug: string) => Promise<Result<undefined, string>>
+  onDeleteProject?: (projectSlug: string) => Promise<Result<undefined, UserFacingError>>
 }
 
 export default function LauncherSettings(props: LauncherSettingsProps): JSX.Element {
+  return <ErrorScope active={props.open}><SettingsContent {...props} /></ErrorScope>
+}
+
+function SettingsContent(props: LauncherSettingsProps): JSX.Element {
+  const errors = useErrorReporter(() => props.open)
   const [activeTab, setActiveTab] = createSignal('profiles')
   const [visitedTabs, setVisitedTabs] = createSignal<Set<string>>(new Set())
   createEffect(activeTab, (tab) => {
@@ -56,7 +63,7 @@ export default function LauncherSettings(props: LauncherSettingsProps): JSX.Elem
               <>
                 <button
                   data-testid="launcher-settings-open-user-config"
-                  onClick={() => openConfigDir('app')}
+                  onClick={() => errors.run(() => openConfigDir('app'))}
                   class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
                   title="Open user config directory"
                 >
@@ -64,7 +71,7 @@ export default function LauncherSettings(props: LauncherSettingsProps): JSX.Elem
                 </button>
                 <button
                   data-testid="launcher-settings-open-project-config"
-                  onClick={() => openConfigDir('project', props.projectSlug)}
+                  onClick={() => errors.run(() => openConfigDir('project', props.projectSlug))}
                   class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
                   title="Open project config directory"
                 >

@@ -22,8 +22,19 @@ import type { FindAllByRole } from '@testing-library/dom'
 import { render as renderSolid } from '@solidjs/web'
 import { getQueriesForElement, screen, fireEvent, waitFor } from '@testing-library/dom'
 import type { Element } from 'solid-js'
+import { createComponent } from 'solid-js'
+import { ToastQueueRoot } from '~/components/shared/toast-queue.js'
+import { ErrorScope } from '~/components/shared/error-presentation.js'
 
 const disposers: (() => void)[] = []
+
+export function renderWithErrors(view: () => Element): RenderResult {
+  return render(() => createComponent(ToastQueueRoot, {
+    get children() {
+      return createComponent(ErrorScope, { active: true, get children() { return view() } })
+    },
+  }))
+}
 
 export function render(view: () => Element): RenderResult {
   const container = document.body.appendChild(document.createElement('div'))

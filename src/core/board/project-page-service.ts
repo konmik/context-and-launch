@@ -1,7 +1,7 @@
 import fs from 'fs'
 import { createTicketStore } from '~/core/ticket/ticket-store.js'
 import { resolveAgentWorktreeLocation, worktreeFolderName } from '~/core/worktree/worktree-naming.js'
-import { errorMessage } from '~/core/shared/errors.js'
+import { errorPayload } from '~/core/shared/errors.js'
 import type { ProjectRegistry } from '~/core/project/project-registry.js'
 import type { BoardConfigManager } from '~/core/project/board-config.js'
 import type { WorktreeManager } from '~/core/worktree/worktree-manager.js'
@@ -106,7 +106,7 @@ export function createProjectPageService(
         projects,
         projectSlug,
         projectPath: project.path,
-        error: errorMessage(e),
+        error: errorPayload(e, 'Tickets could not be loaded'),
       }
     }
   }

@@ -5,7 +5,7 @@ import { revalidate, useAction } from '@solidjs/router'
 import { createMemo, createSignal, For, Show, useContext } from 'solid-js'
 import { X } from '~/components/ui/icons.js'
 import CreateTicketDialog from '../ticket/CreateTicketDialog'
-import ErrorDialog from '../shared/ErrorDialog'
+import { useErrorSink } from '../shared/error-presentation.js'
 import ExpandingOverlay, { type ExpandingOverlayOrigin, type OverlayRect } from '../shared/ExpandingOverlay'
 import ForestSurface, { type ForestSurfaceApi, type ForestSurfaceCommands } from './ForestSurface.js'
 import { connectionPreviewPath, createForestConnection } from './forest-connections.js'
@@ -50,7 +50,7 @@ export default function ForestView(props: ForestViewProps): JSX.Element {
 
 function ForestContent(props: ForestViewProps): JSX.Element {
   const layout = useContext(ForestLayoutContext)!
-  const [error, setError] = createSignal<ErrorInfo>()
+  const setError = useErrorSink()
   const [openGroups, setOpenGroups] = createSignal<string[]>([])
   const [openGroupOrigin, setOpenGroupOrigin] = createSignal<ExpandingOverlayOrigin>()
   const [groupingDraft, setGroupingDraft] = createSignal<GroupingDraft>()
@@ -87,9 +87,7 @@ function ForestContent(props: ForestViewProps): JSX.Element {
   async function mutateAndRefreshTickets(mutate: () => Promise<Result<undefined, ActionError>>): Promise<boolean> {
     const result = await mutate()
     if (result.type === 'Failure') {
-      setError({
-        description: result.error.message,
-      })
+      setError(result.error)
       return false
     }
     await revalidate(ticketMutationRevalidateKeys)
@@ -118,9 +116,7 @@ function ForestContent(props: ForestViewProps): JSX.Element {
         removals,
       })
       if (result.type === 'Failure')
-        setError({
-          description: result.error.message,
-        })
+        setError(result.error)
     } finally {
       await revalidate(ticketMutationRevalidateKeys)
     }
@@ -165,9 +161,9 @@ function ForestContent(props: ForestViewProps): JSX.Element {
     setOpenGroups(groups.slice(0, index))
   }
 
-  async function handleGroupCreate(number: string, title: string): Promise<Result<undefined, string>> {
+  async function handleGroupCreate(number: string, title: string): Promise<Result<undefined, ErrorInfo>> {
     const draft = groupingDraft()
-    if (!draft) return failure('No members selected')
+    if (!draft) return failure({ title: 'Create group failed', description: 'No members selected' })
     const memberFolderNames = draft.memberNumbers.map((memberNumber) => findTicket(memberNumber).folderName)
     const result = await runCreateGroupTicket({
       projectSlug: props.projectSlug,
@@ -177,7 +173,7 @@ function ForestContent(props: ForestViewProps): JSX.Element {
       parentGroupNumber: draft.ownerGroupNumber ?? null,
       position: draft.position,
     })
-    if (result.type === 'Failure') return failure(result.error.message)
+    if (result.type === 'Failure') return result
     surfaceApis.get(draft.ownerGroupNumber ?? 'root')?.clearSelection()
     setGroupingDraft(undefined)
     const refreshed = await layout.refresh()
@@ -287,7 +283,6 @@ function ForestContent(props: ForestViewProps): JSX.Element {
         projectSlug={props.projectSlug}
       />
 
-      <ErrorDialog error={error() ?? null} onClose={() => setError(undefined)} />
     </div>
   )
 }

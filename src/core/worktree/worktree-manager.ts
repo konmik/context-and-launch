@@ -1,5 +1,7 @@
 import fs from 'fs'
 import path from 'path'
+import { createAppError, createValidationError } from '../shared/errors.js'
+import { validateBranchName } from '../project/project-registry.js'
 import type { ConfigPaths } from '../config/config-paths.js'
 import type { CommandTemplateExecutor } from '../command-template/command-template-types.js'
 
@@ -20,8 +22,9 @@ export function createWorktreeManager(
   }
 
   async function ensureWorktree(projectPath: string, projectSlug: string, branch: string = 'tickets'): Promise<string> {
+    validateBranchName(branch)
     if (!fs.existsSync(projectPath)) {
-      throw new Error(`Project path does not exist: ${projectPath}`)
+      throw createValidationError(`Project path does not exist: ${projectPath}`, 'path')
     }
     const canonicalPath = fs.realpathSync(projectPath)
     const lockKey = canonicalPath
@@ -40,7 +43,7 @@ export function createWorktreeManager(
       return worktreeDir
     }
     if (fs.existsSync(worktreeDir)) {
-      throw new Error(
+      throw createAppError(
         `Worktree directory exists but has invalid git metadata: ${worktreeDir}.` + ` Inspect and remove it manually, then try again.`,
       )
     }
@@ -95,7 +98,7 @@ export function createWorktreeManager(
     await commands.execute('worktree.prune', projectPath)
     const existing = await worktreePathForBranch(projectPath, branch)
     if (existing && path.resolve(existing) !== path.resolve(worktreeDir)) {
-      throw new Error(
+      throw createAppError(
         `Branch '${branch}' is already checked out at ${existing}.` +
           ` Remove that worktree first (git worktree remove "${existing}"), then try again.`,
       )

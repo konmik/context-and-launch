@@ -1,6 +1,9 @@
 import type { Result } from '~/util/result.js'
+import { failure, success } from '~/util/result.js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
+import { errorPayload } from '~/core/shared/errors.js'
 import { query } from '@solidjs/router'
-import { herdrExec, reviewPromptQueueService } from '~/core/config/instances.js'
+import { herdrExec, reviewPromptQueueService, diffReviewStore } from '~/core/config/instances.js'
 import { appLog } from '~/core/infra/app-logger.js'
 import { fetchHerdrTicketState } from '~/core/herdr/herdr-client.js'
 import { createHerdrStatusService, type HerdrAgentStatusesResult } from './herdr-status-service.js'
@@ -19,8 +22,26 @@ export const getHerdrAgentStatuses = query(async (projectSlug: string): Promise<
   return herdrStatusService.getStatuses(projectSlug)
 }, 'herdr-agent-statuses')
 
-export async function reconcileReviewPromptQueue(projectSlug: string): Promise<Result<undefined, string>> {
+export interface ReviewDeliveryFailure {
+  folderName: string
+  itemId: string
+  error: UserFacingError
+}
+
+export async function reconcileReviewPromptQueue(projectSlug: string): Promise<Result<ReviewDeliveryFailure[], UserFacingError>> {
   'use server'
 
-  return herdrStatusService.reconcile(projectSlug)
+  const result = await herdrStatusService.reconcile(projectSlug)
+  if (result.type === 'Failure') return result
+  try {
+    const failures: ReviewDeliveryFailure[] = []
+    for (const [folderName, ticket] of Object.entries(diffReviewStore.loadProject(projectSlug).tickets)) {
+      for (const item of ticket.queue.items) {
+        if (item.state === 'error' || item.state === 'uncertain') failures.push({ folderName, itemId: item.id, error: item.error })
+      }
+    }
+    return success(failures)
+  } catch (error) {
+    return failure(errorPayload(error, 'Load review delivery status failed'))
+  }
 }

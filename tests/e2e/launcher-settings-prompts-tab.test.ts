@@ -103,6 +103,7 @@ describe('Launcher Settings Prompts tab (e2e, real server)', () => {
         exact: true,
       })
       .waitFor()
+    await ctx.page.getByRole('button', { name: 'Error details', exact: true }).click()
     await testId(ctx.page, 'error-dialog-ok').click()
     await testId(ctx.page, 'launcher-settings-item-form-name-input').fill('Corrected')
     await testId(ctx.page, 'launcher-settings-item-form-submit').click()

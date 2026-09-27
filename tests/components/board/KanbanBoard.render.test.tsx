@@ -1,6 +1,6 @@
 import type { RenderResult } from '../../test-render.js'
 import { describe, it, expect, afterEach } from 'vitest'
-import { render, screen, cleanup, waitFor } from '../../test-render.js'
+import { renderWithErrors as render, screen, cleanup, waitFor } from '../../test-render.js'
 import { createSignal, createMemo, Loading, type ComponentProps } from 'solid-js'
 import { createStoredSignal } from '~/util/stored-signal.js'
 import { success } from '~/util/result.js'

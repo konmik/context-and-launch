@@ -23,6 +23,7 @@ import {
 } from '~/components/ticket/ticket-api.js'
 import type { TicketCleanupOptions } from './ticket-cleanup-pure.js'
 import { createTicketCleanupController, type TicketCleanupController } from './ticket-cleanup-controller.js'
+import { FieldErrorMessage, useErrorReporter } from './error-presentation.js'
 
 interface TicketCleanupDialogProps {
   open: boolean
@@ -68,9 +69,11 @@ const rows: {
 ]
 
 export default function TicketCleanupDialog(props: TicketCleanupDialogProps): JSX.Element {
+  const errors = useErrorReporter(() => props.open)
   const s =
     props.ctrl ??
     createTicketCleanupController({
+      onError: errors.report,
       projectSlug: () => props.projectSlug,
       ticket: () => props.ticket,
       action: () => props.action,
@@ -197,7 +200,7 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps): JS
                                   )}
                                 </Show>
                                 <Show when={errorItem()}>
-                                  {(error) => <span class="text-destructive">{error().error.description}</span>}
+                                  {(error) => <FieldErrorMessage error={error().error} />}
                                 </Show>
                               </>
                             }
@@ -212,21 +215,6 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps): JS
               </div>
             </div>
 
-            <Show when={s.errorInfo()}>
-              {(err) => (
-                <div class="mb-4 rounded-md bg-destructive/10 px-3 py-2">
-                  <p class="text-sm text-destructive">{err().description}</p>
-                  <Show when={err().command}>
-                    <p class="mt-1 text-xs text-muted-foreground">
-                      Command: <code>{err().command}</code>
-                    </p>
-                  </Show>
-                  <Show when={err().output}>
-                    <pre class="mt-1 max-h-32 overflow-y-auto whitespace-pre-wrap text-xs">{err().output}</pre>
-                  </Show>
-                </div>
-              )}
-            </Show>
           </div>
 
           <form onSubmit={s.handleSubmit} class="border-t border-border px-6 py-3">

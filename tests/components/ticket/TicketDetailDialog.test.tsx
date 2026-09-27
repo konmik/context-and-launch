@@ -1,6 +1,6 @@
 import type { RenderResult } from '../../test-render.js'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup, fireEvent, waitFor } from '../../test-render.js'
+import { renderWithErrors as render, screen, cleanup, fireEvent, waitFor } from '../../test-render.js'
 import { createSignal, createRoot, createMemo } from 'solid-js'
 import TicketDetailDialog from '../../../src/components/ticket/TicketDetailDialog'
 import { createTicketDetailState, type TicketDetailStateDeps } from '../../../src/components/ticket/ticket-detail-state.js'

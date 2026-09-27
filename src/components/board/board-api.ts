@@ -1,18 +1,19 @@
 import { boardConfigManager, projectRegistry, launcherConfigManager, worktreeManager } from '~/core/config/instances.js'
 import { migrateColumnRename, type MigrationScope } from '~/core/project/column-rename-migration.js'
-import { errorMessage } from '~/core/shared/errors.js'
+import { errorPayload } from '~/core/shared/errors.js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
 import type { BoardDefinition } from '~/core/project/board-config-data.js'
 import { failure, success, type Result } from '~/util/result.js'
 
 export type BoardRef = Pick<BoardDefinition, 'id' | 'name'>
 
-export async function readBoards(owner?: string): Promise<Result<BoardDefinition[], string>> {
+export async function readBoards(owner?: string): Promise<Result<BoardDefinition[], UserFacingError>> {
   'use server'
 
   try {
     return success(boardConfigManager.read(owner))
   } catch (error) {
-    return failure(errorMessage(error))
+    return failure(errorPayload(error, 'Load boards failed'))
   }
 }
 
@@ -22,14 +23,14 @@ export async function releaseBoards(owner: string): Promise<void> {
   boardConfigManager.release(owner)
 }
 
-export async function saveBoards(json: string, owner: string): Promise<Result<BoardDefinition[], string>> {
+export async function saveBoards(json: string, owner: string): Promise<Result<BoardDefinition[], UserFacingError>> {
   'use server'
 
   try {
-    if (!owner) return failure('Configuration update requires a client identity.')
+    if (!owner) return failure({ title: 'Save failed', description: 'Configuration update requires a client identity.' })
     return success(boardConfigManager.write(JSON.parse(json), owner))
   } catch (error) {
-    return failure(errorMessage(error))
+    return failure(errorPayload(error, 'Save boards failed'))
   }
 }
 
@@ -39,7 +40,7 @@ export async function migrateRenamedColumn(
   newName: string,
   scope: MigrationScope,
   currentProjectSlug: string,
-): Promise<Result<void, string>> {
+): Promise<Result<void, UserFacingError>> {
   'use server'
 
   try {
@@ -52,6 +53,6 @@ export async function migrateRenamedColumn(
     })
     return success(undefined)
   } catch (error) {
-    return failure(errorMessage(error))
+    return failure(errorPayload(error, 'Rename column failed'))
   }
 }

@@ -1,5 +1,6 @@
 import type { GroupTicketResult } from '../forest/forest-api.js'
 import type { ActionError } from '../../core/shared/errors.js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
 import type { Result } from '../../util/result.js'
 import type { ResponseEnvelope } from '@solidjs/web'
 import type { ProjectInfo } from '../../core/project/project-registry.js'
@@ -33,7 +34,7 @@ import { resolveAgentWorktreeLocation } from '~/core/worktree/worktree-naming.js
 import { runTicketCleanupChecks } from '~/core/worktree/ticket-cleanup-checks.js'
 import type { TicketCleanupStatus, TicketCleanupOptions } from '~/core/worktree/ticket-cleanup-checks.js'
 import { findHerdrAgent, stopHerdrAgent } from '~/core/herdr/herdr-control.js'
-import { createValidationError, createNotFoundError, errorMessage, errorPayload, errorResult } from '~/core/shared/errors.js'
+import { createValidationError, createNotFoundError, errorPayload, errorResult } from '~/core/shared/errors.js'
 import { resolveInitialTicketStatus } from '~/core/board/initial-ticket-status.js'
 import type { LockingProcessInfo } from '~/core/worktree/agent-worktree.js'
 
@@ -112,13 +113,13 @@ export async function archiveTicket(projectSlug: string, folderName: string): Pr
   }
 }
 
-export async function readTicketOrder(projectSlug: string): Promise<Result<TicketOrder, string>> {
+export async function readTicketOrder(projectSlug: string): Promise<Result<TicketOrder, UserFacingError>> {
   'use server'
 
   try {
     return success(createTicketStore(worktreeManager.getWorktreeDir(projectSlug)).orderStore.read())
   } catch (error) {
-    return failure(errorMessage(error))
+    return failure(errorPayload(error, 'Load ticket order failed'))
   }
 }
 
@@ -126,7 +127,7 @@ export async function saveTicketOrder(
   projectSlug: string,
   expected: TicketOrder,
   order: TicketOrder,
-): Promise<Result<TicketOrder, string>> {
+): Promise<Result<TicketOrder, UserFacingError>> {
   'use server'
 
   try {
@@ -137,7 +138,7 @@ export async function saveTicketOrder(
       }),
     )
   } catch (error) {
-    return failure(errorMessage(error))
+    return failure(errorPayload(error, 'Save ticket order failed'))
   }
 }
 
@@ -242,7 +243,7 @@ export async function uploadFile(
           results.push(
             failure({
               name: fileName,
-              message: errorMessage(e),
+              ...errorPayload(e, 'Upload failed'),
             }),
           )
         }
@@ -304,7 +305,7 @@ export const saveTicketStatus = action(async (projectSlug: string, previousJson:
       revalidate: [],
     })
   } catch (error) {
-    return respond(failure(errorMessage(error)), {
+    return respond(failure(errorPayload(error, 'Save ticket failed')), {
       revalidate: [],
     })
   }
@@ -391,13 +392,18 @@ export async function openTicketWorktree(projectSlug: string, folderName: string
   }
 }
 
-export async function openTicketFolder(projectSlug: string, folderName: string): Promise<void> {
+export async function openTicketFolder(projectSlug: string, folderName: string): Promise<Result<void, UserFacingError>> {
   'use server'
 
-  const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
-  const store = createTicketStore(worktreeDir)
-  if (!store.getTicket(folderName)) throw createNotFoundError(`Ticket not found: ${folderName}`)
-  await openInOs(path.join(worktreeDir, folderName), commandTemplateService)
+  try {
+    const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
+    const store = createTicketStore(worktreeDir)
+    if (!store.getTicket(folderName)) throw createNotFoundError(`Ticket not found: ${folderName}`)
+    await openInOs(path.join(worktreeDir, folderName), commandTemplateService)
+    return success(undefined)
+  } catch (error) {
+    return failure(errorPayload(error, 'Open ticket folder failed'))
+  }
 }
 
 export async function getCleanupStatus(projectSlug: string, folderName: string): Promise<TicketCleanupStatus> {
@@ -480,8 +486,7 @@ export async function worktreeCleanup(
     const payload = errorPayload(e)
     return failure({
       type: 'error' as const,
-      message: payload.description,
-      errorInfo: payload,
+      ...payload,
     })
   }
 }
@@ -497,7 +502,7 @@ export async function killWorktreeLockingProcesses(
   projectSlug: string,
   folderName: string,
   pids: number[],
-): Promise<Result<undefined, string>> {
+): Promise<Result<undefined, UserFacingError>> {
   'use server'
 
   const failed: string[] = []
@@ -510,13 +515,13 @@ export async function killWorktreeLockingProcesses(
     }
   }
   if (failed.length > 0) {
-    return failure(`Failed to kill: ${failed.join(', ')}`)
+    return failure({ title: 'Stop processes failed', description: `Failed to kill: ${failed.join(', ')}` })
   }
   await new Promise((resolve) => setTimeout(resolve, 500))
   return success(undefined)
 }
 
-export async function forceDeleteLocalBranch(projectSlug: string, folderName: string): Promise<Result<undefined, string>> {
+export async function forceDeleteLocalBranch(projectSlug: string, folderName: string): Promise<Result<undefined, UserFacingError>> {
   'use server'
 
   try {
@@ -528,7 +533,7 @@ export async function forceDeleteLocalBranch(projectSlug: string, folderName: st
     await diffReviewStore.removeTicket(projectSlug, folderName)
     return success(undefined)
   } catch (e: any) {
-    return failure(errorMessage(e))
+    return failure(errorPayload(e, 'Delete branch failed'))
   }
 }
 
@@ -544,9 +549,8 @@ export interface UploadedFile {
   name: string
 }
 
-export interface FileUploadError {
+export interface FileUploadError extends UserFacingError {
   name: string
-  message: string
 }
 
 export interface SuccessSyncTicketsResult {

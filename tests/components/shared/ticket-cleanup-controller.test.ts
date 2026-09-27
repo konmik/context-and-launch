@@ -128,6 +128,7 @@ describe('createTicketCleanupController', () => {
         expect(ctrl.items().stopHerdrAgent).toEqual({
           state: 'error',
           error: {
+            title: 'Operation failed',
             description: 'server down',
           },
         })
@@ -242,6 +243,7 @@ describe('createTicketCleanupController', () => {
             },
             onSubmit: async () =>
               failure({
+                title: 'Cleanup failed',
                 description: 'cleanup failed',
               }),
           }),
@@ -249,6 +251,7 @@ describe('createTicketCleanupController', () => {
         await invoke(ctrl.startChecks)
         await invoke(ctrl.doSubmit)
         expect(ctrl.errorInfo()).toEqual({
+          title: 'Cleanup failed',
           description: 'cleanup failed',
         })
         expect(closedWith).toBeUndefined()
@@ -337,6 +340,7 @@ describe('createTicketCleanupController', () => {
             },
             onCleanup: async () =>
               failure({
+                title: 'Cleanup failed',
                 description: 'action failed',
               }),
           }),
@@ -345,6 +349,7 @@ describe('createTicketCleanupController', () => {
         await invoke(() => ctrl.runCleanup('deleteWorktree'))
         expect(checks).toBe(2)
         expect(ctrl.errorInfo()).toEqual({
+          title: 'Cleanup failed',
           description: 'action failed',
         })
       } finally {

@@ -132,6 +132,7 @@ describe('runTicketCleanupChecks', () => {
     expect(status.deleteWorktree).toEqual({
       state: 'error',
       error: {
+        title: 'Cleanup failed',
         description:
           `The saved worktree belongs to a different project: ${target.worktreePath}.` +
           ' Remove it from its original project before retrying.',

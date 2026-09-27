@@ -1,23 +1,28 @@
 import type { JSX } from '@solidjs/web'
-import { Show } from 'solid-js'
+import { ErrorScope, ErrorField, useErrorReporter } from '../shared/error-presentation.js'
 import { createAddProjectController, type AddProjectController, type AddProjectAction } from './add-project-controller.js'
 import BoardSelector from './BoardSelector.js'
 
 interface AddProjectFormProps {
   action: AddProjectAction
-  errorMessage?: string
   onSuccess?: (projectSlug: string) => void
   submitTitle?: string
   ctrl?: AddProjectController
 }
 
 export default function AddProjectForm(props: AddProjectFormProps): JSX.Element {
+  return <ErrorScope active={true}><ProjectForm {...props} /></ErrorScope>
+}
+
+function ProjectForm(props: AddProjectFormProps): JSX.Element {
+  const errors = useErrorReporter()
   const s =
     props.ctrl ??
     createAddProjectController({
       action: props.action,
       onSuccess: props.onSuccess,
-      errorMessage: props.errorMessage,
+      onError: errors.report,
+      onClearError: errors.clear,
     })
   return (
     <form onSubmit={s.handleSubmit}>
@@ -34,6 +39,7 @@ export default function AddProjectForm(props: AddProjectFormProps): JSX.Element 
           class="input"
           data-testid="add-project-name-input"
         />
+        <ErrorField field="name" />
       </div>
       <div class="mb-4">
         <label for="project-path" class="field-label">
@@ -53,6 +59,7 @@ export default function AddProjectForm(props: AddProjectFormProps): JSX.Element 
             Browse
           </button>
         </div>
+        <ErrorField field="path" />
       </div>
       <BoardSelector boardId={s.boardId()} setBoardId={s.setBoardId} />
       <div class="mb-4">
@@ -68,6 +75,7 @@ export default function AddProjectForm(props: AddProjectFormProps): JSX.Element 
           class="input"
           data-testid="add-project-main-branch-input"
         />
+        <ErrorField field="mainBranch" />
       </div>
       <div class="mb-4">
         <label for="project-branch" class="field-label">
@@ -82,10 +90,8 @@ export default function AddProjectForm(props: AddProjectFormProps): JSX.Element 
           class="input"
           data-testid="add-project-branch-input"
         />
+        <ErrorField field="branch" />
       </div>
-      <Show when={s.localError()}>
-        <p class="mb-4 text-sm text-destructive">{s.localError()}</p>
-      </Show>
       <button
         type="submit"
         disabled={s.submitting() || !s.pathValue().trim()}

@@ -1,4 +1,5 @@
 import fs from 'fs'
+import { createValidationError, createNotFoundError } from '../shared/errors.js'
 import path from 'path'
 import * as v from 'valibot'
 import type { ConfigPaths } from '../config/config-paths.js'
@@ -52,24 +53,24 @@ function toSlugSegment(name: string): string {
     .replace(/^-|-$/g, '')
 }
 
-export function validateBranchName(name: string): void {
-  if (!name) throw new Error('Branch name cannot be empty')
-  if (/\s/.test(name)) throw new Error('Branch name cannot contain whitespace')
+export function validateBranchName(name: string, field = 'branch'): void {
+  if (!name) throw createValidationError('Branch name cannot be empty', field)
+  if (/\s/.test(name)) throw createValidationError('Branch name cannot contain whitespace', field)
   if (/[~^:?*[\\\x00-\x1f\x7f]/.test(name)) {
-    throw new Error(`Branch name contains invalid characters: ${name}`)
+    throw createValidationError(`Branch name contains invalid characters: ${name}`, field)
   }
-  if (name.includes('..')) throw new Error('Branch name cannot contain ".."')
-  if (name.includes('@{')) throw new Error('Branch name cannot contain "@{"')
-  if (name.includes('//')) throw new Error('Branch name cannot contain "//"')
+  if (name.includes('..')) throw createValidationError('Branch name cannot contain ".."', field)
+  if (name.includes('@{')) throw createValidationError('Branch name cannot contain "@{"', field)
+  if (name.includes('//')) throw createValidationError('Branch name cannot contain "//"', field)
   if (name.startsWith('/') || name.endsWith('/')) {
-    throw new Error('Branch name cannot start or end with "/"')
+    throw createValidationError('Branch name cannot start or end with "/"', field)
   }
-  if (name.startsWith('-')) throw new Error('Branch name cannot start with "-"')
+  if (name.startsWith('-')) throw createValidationError('Branch name cannot start with "-"', field)
   if (name.startsWith('.') || name.endsWith('.')) {
-    throw new Error('Branch name cannot start or end with "."')
+    throw createValidationError('Branch name cannot start or end with "."', field)
   }
-  if (name.endsWith('.lock')) throw new Error('Branch name cannot end with ".lock"')
-  if (name === '@') throw new Error('Branch name cannot be "@"')
+  if (name.endsWith('.lock')) throw createValidationError('Branch name cannot end with ".lock"', field)
+  if (name === '@') throw createValidationError('Branch name cannot be "@"', field)
 }
 
 export function generateProjectSlug(filePath: string, existingProjectSlugs: Set<string>): string {
@@ -141,16 +142,16 @@ export function createProjectRegistry(
 
   function addProject(projectPath: string, opts: Omit<Partial<ProjectEntry>, 'path'> = {}): ProjectInfo {
     if (!configRepo.exists(projectPath)) {
-      throw new Error(`Path does not exist: ${projectPath}`)
+      throw createValidationError(`Path does not exist: ${projectPath}`, 'path')
     }
     if (!configRepo.exists(path.join(projectPath, '.git'))) {
-      throw new Error(`Not a git repository: ${projectPath}`)
+      throw createValidationError(`Not a git repository: ${projectPath}`, 'path')
     }
     if (opts.branch !== undefined) {
       validateBranchName(opts.branch)
     }
     if (opts.mainBranch !== undefined) {
-      validateBranchName(opts.mainBranch)
+      validateBranchName(opts.mainBranch, 'mainBranch')
     }
     const canonicalPath = configRepo.realpathSync(projectPath)
     const saved = appConfig.update((config) => {
@@ -161,10 +162,10 @@ export function createProjectRegistry(
           return false
         }
       })
-      if (alreadyRegistered) throw new Error(`Project already registered: ${projectPath}`)
+      if (alreadyRegistered) throw createValidationError(`Project already registered: ${projectPath}`, 'path')
       const existingProjectSlugs = new Set(config.projects.map((project) => project.projectSlug))
       const projectSlug = opts.projectSlug ?? generateProjectSlug(projectPath, existingProjectSlugs)
-      if (existingProjectSlugs.has(projectSlug)) throw new Error(`Project slug already exists: ${projectSlug}`)
+      if (existingProjectSlugs.has(projectSlug)) throw createValidationError(`Project slug already exists: ${projectSlug}`, 'projectSlug')
       return {
         ...config,
         projects: [
@@ -185,16 +186,16 @@ export function createProjectRegistry(
     const updatedProjectSlug = newProjectSlug ?? projectSlug
     const saved = appConfig.update((config) => {
       const index = config.projects.findIndex((project) => project.projectSlug === projectSlug)
-      if (index < 0) throw new Error(`Project not found: ${projectSlug}`)
+      if (index < 0) throw createNotFoundError(`Project not found: ${projectSlug}`)
       const entry = config.projects[index]
       if (newPath !== undefined) {
-        if (!newPath || !configRepo.exists(newPath)) throw new Error(`Path does not exist: ${newPath}`)
+        if (!newPath || !configRepo.exists(newPath)) throw createValidationError(`Path does not exist: ${newPath}`, 'path')
         if (!configRepo.exists(path.join(newPath, '.git'))) {
-          throw new Error(`Not a git repository: ${newPath}`)
+          throw createValidationError(`Not a git repository: ${newPath}`, 'path')
         }
       }
       if (newProjectSlug && config.projects.some((project, i) => i !== index && project.projectSlug === newProjectSlug)) {
-        throw new Error(`Project slug already exists: ${newProjectSlug}`)
+        throw createValidationError(`Project slug already exists: ${newProjectSlug}`, 'projectSlug')
       }
       const updated = {
         ...entry,
@@ -241,12 +242,12 @@ export function createProjectRegistry(
     },
   ): void {
     const value = change.value.trim()
-    if (!value) throw new Error('Tickets folder and branch cannot be empty.')
+    if (!value) throw createValidationError('Tickets folder and branch cannot be empty.', change.kind === 'path' ? 'ticketsPath' : 'branch')
     if (change.kind === 'branch') validateBranchName(value)
-    else if (!path.isAbsolute(value)) throw new Error('Tickets folder must be an absolute path.')
+    else if (!path.isAbsolute(value)) throw createValidationError('Tickets folder must be an absolute path.', 'ticketsPath')
     appConfig.update((config) => {
       if (!config.projects.some((project) => project.projectSlug === projectSlug)) {
-        throw new Error(`Project not found: ${projectSlug}`)
+        throw createNotFoundError(`Project not found: ${projectSlug}`)
       }
       return {
         ...config,

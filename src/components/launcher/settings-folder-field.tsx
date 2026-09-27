@@ -2,9 +2,11 @@ import type { JSX } from '@solidjs/web'
 import { pickDirectory } from '../shared/directory-picker.js'
 import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
 import { ScopeBadge } from './launcher-settings-rows.js'
+import { ErrorField } from '../shared/error-presentation.js'
 
 export function SettingsFolderField(props: {
   label: string
+  field: string
   testId: string
   value: string
   setValue: (value: string) => void
@@ -43,10 +45,7 @@ export function SettingsFolderField(props: {
             try {
               const result = await pickDirectory(props.value)
               if (result.type === 'Failure') {
-                props.setError({
-                  title: 'Browse failed',
-                  description: result.error,
-                })
+                props.setError(result.error)
               } else if (result.value !== undefined) {
                 props.setValue(result.value)
                 props.save(result.value)
@@ -59,6 +58,7 @@ export function SettingsFolderField(props: {
           Browse
         </button>
       </div>
+      <ErrorField field={props.field} />
     </section>
   )
 }

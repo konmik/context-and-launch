@@ -1,3 +1,5 @@
+import type { UserFacingError } from '~/util/user-facing-error.js'
+
 export type DiffScope = 'all' | 'branch' | 'working' | 'last-commit'
 
 export type ReviewPace = 'live' | 'step-by-step'
@@ -107,12 +109,12 @@ export interface SentReviewPromptQueueItem {
 
 export interface ErrorReviewPromptQueueItem {
   state: 'error'
-  error: string
+  error: UserFacingError
 }
 
 export interface UncertainReviewPromptQueueItem {
   state: 'uncertain'
-  error: string
+  error: UserFacingError
 }
 
 export type ReviewPromptQueueItem = ReviewPromptQueueItemBase &

@@ -36,6 +36,7 @@ import { createFileUploadState } from './ticket-detail-upload.js'
 import { TicketStatusContext } from './ticket-status-storage.js'
 import { createShortcutState } from './ticket-detail-shortcuts.js'
 import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
+import { createErrorState } from '~/util/error-state.js'
 import { computeLaunchDir } from '../launcher/agent-launcher-pure.js'
 import {
   getContext as getContextAction,
@@ -52,7 +53,15 @@ import { openNativeFileBrowser as openNativeFileBrowserServer } from '../shared/
 
 export type Tab = 'editor' | 'launcher'
 
+async function readFileResponse(response: Response): Promise<string> {
+  if (!response.ok) throw errorPayload(await response.json(), 'Load file failed')
+  return normalizeLineEndings(await response.text())
+}
+
 export interface TicketDetailStateDeps {
+  onError?: (error: ErrorInfo) => void
+  onClearError?: () => void
+  onBackgroundError?: (error: ErrorInfo) => void
   sharedConfig?: StoredSignal<LauncherConfig>
   ticketStatus?: StoredSignal<TicketInfo>
   worktreeRevision?: Accessor<number>
@@ -106,7 +115,8 @@ export function createTicketDetailState(
   const [newFileDialogOpen, setNewFileDialogOpen] = createSignal(false)
   const [newFileName, setNewFileName] = createSignal('')
   const [confirmingDelete, setConfirmingDelete] = createSignal(false)
-  const [error, setError] = createSignal<ErrorInfo | null>(null)
+  const { error, setError } = createErrorState(deps.onError, deps.onClearError)
+  const reportBackgroundError = deps.onBackgroundError ?? setError
   const [dropdownOpen, setDropdownOpen] = createSignal(false)
   const [browsing, setBrowsing] = createSignal(false)
   const [fileView, setFileView] = createSignal<FileView>({
@@ -135,20 +145,14 @@ export function createTicketDetailState(
       title,
     }))
     if (result.type === 'Failure')
-      setError({
-        title: 'Save failed',
-        description: result.error,
-      })
+      setError(result.error)
   }
 
   async function refreshTicket() {
     await revalidate(['ticket-detail', ...ticketMutationRevalidateKeys])
     const result = await ticketStatus.refresh()
     if (result.type === 'Failure')
-      setError({
-        title: 'Load failed',
-        description: result.error,
-      })
+      setError(result.error)
   }
 
   function ticketUrl(suffix: string): string {
@@ -188,7 +192,7 @@ export function createTicketDetailState(
     setError(null)
     try {
       const result = await (deps.openTicketWorktree ?? openTicketWorktree)(props.projectSlug, folderName())
-      if (result.type === 'Failure') setError(result.error.errorInfo)
+      if (result.type === 'Failure') setError(result.error)
     } catch (e) {
       setError(errorPayload(e, 'Open failed'))
     }
@@ -274,7 +278,7 @@ export function createTicketDetailState(
         })
       fetch(url)
         .then(async (res) => {
-          const text = res.ok ? normalizeLineEndings(await res.text()) : ''
+          const text = await readFileResponse(res)
           if (seq !== loadSeq) return
           setContent(text)
           setSavedContent(text)
@@ -323,15 +327,12 @@ export function createTicketDetailState(
       }))
       .then((result) => {
         if (result.type === 'Failure') {
-          setError({
-            title: 'Save failed',
-            description: result.error,
-          })
+          reportBackgroundError(result.error)
           return
         }
       })
       .catch((e) => {
-        setError(errorPayload(e, 'Save failed'))
+        reportBackgroundError(errorPayload(e, 'Save failed'))
       })
   }
 
@@ -358,7 +359,7 @@ export function createTicketDetailState(
       return data ? normalizeLineEndings(data.content) : ''
     }
     const response = await fetch(fileContentUrl(af))
-    return response.ok ? normalizeLineEndings(await response.text()) : ''
+    return readFileResponse(response)
   }
 
   async function loadActiveFile(af: ActiveFile, background = false): Promise<void> {
@@ -430,10 +431,7 @@ export function createTicketDetailState(
       const result = await (deps.saveContext ?? saveContextAction)(props.projectSlug, folderName(), af.name, content())
       if (result.type === 'Success') setSavedContent(content())
       else
-        setError({
-          title: 'Save failed',
-          description: result.error.message,
-        })
+        setError(result.error)
     } catch (e) {
       setError(errorPayload(e, 'Save failed'))
     } finally {
@@ -524,28 +522,19 @@ export function createTicketDetailState(
           references: current.references.filter((reference) => reference.path !== af.path),
         }))
         if (result.type === 'Failure') {
-          setError({
-            title: 'Delete failed',
-            description: result.error,
-          })
+          setError(result.error)
           return
         }
       } else if (af.type === 'file') {
         const result = await (deps.deleteFile ?? deleteFileAction)(props.projectSlug, folderName(), af.name)
         if (result.type === 'Failure') {
-          setError({
-            title: 'Delete failed',
-            description: result.error.message,
-          })
+          setError(result.error)
           return
         }
       } else {
         const result = await (deps.deleteContext ?? deleteContextAction)(props.projectSlug, folderName(), af.name)
         if (result.type === 'Failure') {
-          setError({
-            title: 'Delete failed',
-            description: result.error.message,
-          })
+          setError(result.error)
           return
         }
         setExtraFiles((prev) => prev.filter((n) => n !== af.name))
@@ -614,10 +603,7 @@ export function createTicketDetailState(
         })),
       }))
       if (result.type === 'Failure') {
-        setError({
-          title: 'Add reference failed',
-          description: result.error,
-        })
+        setError(result.error)
         return
       } // Show the reference the user just picked before reloading the file list:
       // the switch is what they asked for, and it must not wait on a refresh.
@@ -782,8 +768,8 @@ export interface TicketDetailStateResult {
   setNewFileName: Setter<string>
   confirmingDelete: SourceAccessor<boolean>
   setConfirmingDelete: Setter<boolean>
-  error: SourceAccessor<ErrorInfo | null>
-  setError: Setter<ErrorInfo | null>
+  error: SourceAccessor<ErrorInfo | undefined>
+  setError: (error?: ErrorInfo | null) => void
   dropdownOpen: SourceAccessor<boolean>
   setDropdownOpen: Setter<boolean>
   browsing: SourceAccessor<boolean>

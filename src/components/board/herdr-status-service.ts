@@ -1,4 +1,5 @@
-import { errorMessage } from '~/core/shared/errors.js'
+import { errorMessage, errorPayload } from '~/core/shared/errors.js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
 import { success, failure, type Result } from '~/util/result.js'
 import { isHerdrUnavailableError } from '~/core/herdr/herdr-availability.js'
 import type { HerdrAgentStatus, HerdrTicketState } from '~/core/herdr/herdr-client.js'
@@ -14,6 +15,7 @@ export interface AvailableAgentStatuses {
 
 export interface UnavailableAgentStatuses {
   kind: 'unavailable'
+  error: UserFacingError
 }
 
 export type HerdrAgentStatusesResult = DisabledAgentStatuses | AvailableAgentStatuses | UnavailableAgentStatuses
@@ -47,16 +49,18 @@ export function createHerdrStatusService(deps: HerdrStatusDeps): AgentStatusServ
             }
           : {
               kind: 'unavailable',
+              error: errorPayload(error, 'Agent status unavailable'),
             }
       }
       deps.log('herdr', `agent status query failed: ${errorMessage(error)}`)
       return {
         kind: 'unavailable',
+        error: errorPayload(error, 'Agent status unavailable'),
       }
     }
   }
 
-  async function reconcile(projectSlug: string): Promise<Result<undefined, string>> {
+  async function reconcile(projectSlug: string): Promise<Result<undefined, UserFacingError>> {
     try {
       await deps.reconcileProject(projectSlug)
       return success(undefined)
@@ -64,7 +68,7 @@ export function createHerdrStatusService(deps: HerdrStatusDeps): AgentStatusServ
       deps.log('diff-review', `queue reconciliation failed: ${errorMessage(error)}`, {
         projectSlug,
       })
-      return failure(errorMessage(error))
+      return failure(errorPayload(error, 'Review queue reconciliation failed'))
     }
   }
 
@@ -76,5 +80,5 @@ export function createHerdrStatusService(deps: HerdrStatusDeps): AgentStatusServ
 
 export interface AgentStatusServiceResult {
   getStatuses: (projectSlug: string) => Promise<HerdrAgentStatusesResult>
-  reconcile: (projectSlug: string) => Promise<Result<undefined, string>>
+  reconcile: (projectSlug: string) => Promise<Result<undefined, UserFacingError>>
 }

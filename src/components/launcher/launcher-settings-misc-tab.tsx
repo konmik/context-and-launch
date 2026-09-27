@@ -5,7 +5,7 @@ import { revalidate, useAction } from '@solidjs/router'
 import { TabsContent } from '../ui/tabs'
 import { ScopeBadge } from './launcher-settings-rows.js'
 import DeleteProjectDialog from '../project/DeleteProjectDialog.js'
-import ErrorDialog from '../shared/ErrorDialog.js'
+import { useErrorSink, ErrorField } from '../shared/error-presentation.js'
 import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
 import { SettingsFolderField } from './settings-folder-field.js'
 import { AppConfigContext } from '../config/app-config-storage.js'
@@ -18,14 +18,14 @@ import { setProjectPath as setProjectPathAction, setTicketsLocation } from '../p
 export function MiscTab(props: {
   open: boolean
   projectSlug: string
-  onDeleteProject?: (projectSlug: string) => Promise<Result<undefined, string>>
+  onDeleteProject?: (projectSlug: string) => Promise<Result<undefined, ErrorInfo>>
 }): JSX.Element {
   const appConfig = useContext(AppConfigContext)!
   const sharedConfig = useContext(LauncherConfigContext)!
   const projectConfig = useContext(ProjectLauncherConfigContext)!
   const metadata = createMemo(() => getProjectLauncherMetadata(props.projectSlug))
   const config = createMemo(() => mergeLauncherConfigs(sharedConfig.get(), projectConfig.get()))
-  const [error, setError] = createSignal<ErrorInfo | null>(null)
+  const setError = useErrorSink(() => props.open)
   const [deleteOpen, setDeleteOpen] = createSignal(false)
   const [nameDraft, setProjectName] = createSignal<string>()
   const [pathDraft, setProjectPath] = createSignal<string>()
@@ -75,10 +75,7 @@ export function MiscTab(props: {
       ),
     }))
     if (result.type === 'Failure')
-      setError({
-        title: 'Save failed',
-        description: result.error,
-      })
+      setError(result.error)
   }
 
   async function saveOverride(key: 'worktreeRootPath' | 'branchPrefix' | 'conflictResolutionPrompt', value: string) {
@@ -88,10 +85,7 @@ export function MiscTab(props: {
       [key]: value.trim() || undefined,
     }))
     if (result.type === 'Failure')
-      setError({
-        title: 'Save failed',
-        description: result.error,
-      })
+      setError(result.error)
   }
 
   async function saveProjectPath(path = projectPath()) {
@@ -101,10 +95,7 @@ export function MiscTab(props: {
     try {
       const result = await runSetProjectPath(props.projectSlug, path)
       if (result.type === 'Failure') {
-        setError({
-          title: 'Save failed',
-          description: result.error.message,
-        })
+        setError(result.error)
         return
       }
       setProjectPath(result.value.path)
@@ -127,10 +118,7 @@ export function MiscTab(props: {
         value,
       })
       if (result.type === 'Failure') {
-        setError({
-          title: 'Save failed',
-          description: result.error.message,
-        })
+        setError(result.error)
         return
       }
       if (kind === 'path') setTicketsPath(result.value.value)
@@ -165,6 +153,7 @@ export function MiscTab(props: {
           </section>
           <SettingsFolderField
             label="Project repo folder"
+            field="path"
             testId="launcher-settings-misc-project-path"
             value={projectPath()}
             setValue={setProjectPath}
@@ -174,6 +163,7 @@ export function MiscTab(props: {
           />
           <SettingsFolderField
             label="Tickets folder"
+            field="ticketsPath"
             testId="launcher-settings-misc-tickets-path"
             value={ticketsPath()}
             setValue={setTicketsPath}
@@ -198,9 +188,11 @@ export function MiscTab(props: {
               class="input input-sm"
               data-testid="launcher-settings-misc-tickets-branch-input"
             />
+            <ErrorField field="branch" />
           </section>
           <SettingsFolderField
             label="Agent worktree root path"
+            field="worktreeRootPath"
             testId="launcher-settings-misc-worktree"
             value={worktreeRootPath()}
             setValue={setWorktreeRootPath}
@@ -258,7 +250,6 @@ export function MiscTab(props: {
           )}
         </div>
       </TabsContent>
-      <ErrorDialog error={error()} onClose={() => setError(null)} />
     </>
   )
 }

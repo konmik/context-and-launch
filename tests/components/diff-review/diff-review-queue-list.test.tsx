@@ -1,6 +1,6 @@
 import type { JSX } from '@solidjs/web'
 import { describe, it, expect, afterEach } from 'vitest'
-import { render, cleanup } from '../../test-render.js'
+import { renderWithErrors as render, cleanup } from '../../test-render.js'
 import { createSignal, flush, type Accessor } from 'solid-js'
 import ReviewPromptQueueList from '../../../src/components/diff-review/ReviewPromptQueueList.js'
 import type { DiffReviewProjectState, ReviewPromptQueueItem } from '~/core/diff-review/diff-review-types.js'
@@ -181,7 +181,7 @@ describe('ReviewPromptQueueList', () => {
       },
     }
     container.querySelector<HTMLButtonElement>('[data-testid="diff-review-queue-remove"]')!.click()
-    await expect.poll(() => container.querySelector('[role="alert"]')?.textContent).toContain('already delivering')
+    await expect.poll(() => document.querySelector('[role="dialog"]')?.textContent).toContain('already delivering')
     expect(saved.tickets.ticket.queue.items[0].state).toBe('delivering')
   })
   it('keeps each item on its own DOM node while another item is removed', () => {

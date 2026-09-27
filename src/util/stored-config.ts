@@ -1,15 +1,16 @@
 import type { Result } from './result.js'
 import type { StoredSignal } from './stored-signal.js'
 import { createStoredState } from './stored-state.js'
+import type { UserFacingError } from './user-facing-error.js'
 
 export function createStoredConfig<T>(
-  read: (owner?: string) => Promise<Result<T, string>>,
-  save: (json: string, owner: string) => Promise<Result<T, string>>,
+  read: (owner?: string) => Promise<Result<T, UserFacingError>>,
+  save: (json: string, owner: string) => Promise<Result<T, UserFacingError>>,
   release: (owner: string) => Promise<void>,
 ): StoredSignal<T> {
   const state = createStoredState(async () => {
     const result = await read()
-    if (result.type === 'Failure') throw new Error(result.error)
+    if (result.type === 'Failure') throw result.error
     return result.value
   })
   return {

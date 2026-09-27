@@ -45,15 +45,7 @@ export function createShortcutState(deps: ShortcutDeps): ShortcutStateResult {
           return
         }
         if (result.error.type === 'error') {
-          deps.setError({
-            ...result.error.errorInfo,
-            title: 'Shortcut failed',
-          })
-        } else {
-          deps.setError({
-            title: 'Shortcut failed',
-            description: result.error.message,
-          })
+          deps.setError(result.error)
         }
       }
     } catch (e: unknown) {

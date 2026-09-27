@@ -4,9 +4,9 @@ import { DragDropProvider } from '~/components/drag/drag-provider.js'
 import { NameDragOverlay } from '../board/dnd-shared.js'
 import { ItemDropPreview, SortableItemRow, type MergedLauncherItem } from './launcher-settings-rows.js'
 import { ItemFormDialog } from './launcher-settings-dialogs.js'
-import ErrorDialog from '../shared/ErrorDialog.js'
+import { ErrorScope, useErrorSink } from '../shared/error-presentation.js'
 import { useModEnterSubmit } from '~/lib/use-mod-enter-submit.js'
-import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
+import { errorPayload, createValidationError, createNotFoundError } from '~/core/shared/errors.js'
 import { createListReorder, midpointOrder } from '../board/list-reorder.js'
 import type { ItemType, Scope, ItemFormState } from './launcher-settings-dialogs.js'
 import { LauncherConfigContext } from './shared-launcher-config-storage.js'
@@ -20,7 +20,7 @@ const collections = {
   shortcut: 'shortcuts',
 } as const
 
-export function ItemSection(props: {
+interface ItemSectionProps {
   open: boolean
   heading: string
   itemType: ItemType
@@ -31,12 +31,19 @@ export function ItemSection(props: {
   deleteTestId: string
   sharedOrderWarning?: string
   sharedOrderWarningTestId?: string
-}): JSX.Element {
+}
+
+export function ItemSection(props: ItemSectionProps): JSX.Element {
+  return <ErrorScope active={props.open}><ItemSectionContent {...props} /></ErrorScope>
+}
+
+function ItemSectionContent(props: ItemSectionProps): JSX.Element {
   const sharedConfig = useContext(LauncherConfigContext)!
   const projectConfig = useContext(ProjectLauncherConfigContext)!
   const config = createMemo(() => mergeLauncherConfigs(sharedConfig.get(), projectConfig.get()))
-  const [error, setError] = createSignal<ErrorInfo | null>(null)
+  const setError = useErrorSink()
   const [form, setForm] = createSignal<ItemFormState | null>(null)
+  const setSubmitError = useErrorSink(() => props.open && !!form())
   const items = () => config()[collections[props.itemType]]
   const detailOf = (item: MergedLauncherItem) => ('text' in item ? item.text : item.command)
   useModEnterSubmit({
@@ -93,14 +100,14 @@ export function ItemSection(props: {
         const key = collections[f.itemType]
         const items = current[key] ?? []
         if (items.some((item) => item.name === fields.name && (f.mode === 'add' || item.name !== f.oldName))) {
-          throw new Error(`An item named "${fields.name}" already exists`)
+          throw createValidationError(`An item named "${fields.name}" already exists`, 'name')
         }
         if (f.mode === 'add')
           return {
             ...current,
             [key]: [...items, fields],
           }
-        if (!items.some((item) => item.name === f.oldName)) throw new Error(`Item "${f.oldName}" not found`)
+        if (!items.some((item) => item.name === f.oldName)) throw createNotFoundError(`Item "${f.oldName}" not found`)
         return {
           ...current,
           [key]: items.map((item) =>
@@ -115,15 +122,12 @@ export function ItemSection(props: {
         }
       })
       if (result.type === 'Failure') {
-        setError({
-          title: 'Save failed',
-          description: result.error,
-        })
+        setSubmitError(result.error)
         return
       }
       setForm(null)
     } catch (e) {
-      setError(errorPayload(e, 'Save failed'))
+      setSubmitError(errorPayload(e, 'Save failed'))
     }
   }
 
@@ -136,10 +140,7 @@ export function ItemSection(props: {
         columnDefaults: updateLauncherReferences(current.columnDefaults, itemType, name, null),
       }))
       if (result.type === 'Failure')
-        setError({
-          title: 'Delete failed',
-          description: result.error,
-        })
+        setError(result.error)
     } catch (e) {
       setError(errorPayload(e, 'Delete failed'))
     }
@@ -173,10 +174,7 @@ export function ItemSection(props: {
         ),
       }))
       if (result.type === 'Failure')
-        setError({
-          title: 'Reorder failed',
-          description: result.error,
-        })
+        setError(result.error)
     } catch (e) {
       setError(errorPayload(e, 'Reorder failed'))
     }
@@ -231,7 +229,6 @@ export function ItemSection(props: {
         </Show>
       </section>
       <ItemFormDialog form={form()} setForm={setForm} onSubmit={submitForm} />
-      <ErrorDialog error={error()} onClose={() => setError(null)} />
     </>
   )
 }

@@ -1,6 +1,7 @@
 import type { JSX } from '@solidjs/web'
 import type { Result } from '~/util/result.js'
-import { Show } from 'solid-js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
+import { useErrorReporter } from '../shared/error-presentation.js'
 import { DialogRoot, DialogTitle, DialogDescription } from '../ui/dialog'
 import { useModEnterSubmit, modEnterHint } from '~/lib/use-mod-enter-submit'
 import { createDeleteProjectController, type DeleteProjectController } from './delete-project-controller.js'
@@ -9,14 +10,16 @@ interface DeleteProjectDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   projectSlug: string
-  onSubmit: (projectSlug: string) => Promise<Result<undefined, string>>
+  onSubmit: (projectSlug: string) => Promise<Result<undefined, UserFacingError>>
   ctrl?: DeleteProjectController
 }
 
 export default function DeleteProjectDialog(props: DeleteProjectDialogProps): JSX.Element {
+  const errors = useErrorReporter(() => props.open)
   const s =
     props.ctrl ??
     createDeleteProjectController({
+      onError: errors.report,
       onSubmit: props.onSubmit,
       onOpenChange: props.onOpenChange,
       projectSlug: () => props.projectSlug,
@@ -33,9 +36,6 @@ export default function DeleteProjectDialog(props: DeleteProjectDialogProps): JS
         Remove project {props.projectSlug} from the launcher? This only removes it from the list; your files and git repository are left
         untouched.
       </DialogDescription>
-      <Show when={s.errorMsg()}>
-        <p class="mb-4 text-sm text-destructive">{s.errorMsg()}</p>
-      </Show>
       <form
         onSubmit={(e) => {
           e.preventDefault()

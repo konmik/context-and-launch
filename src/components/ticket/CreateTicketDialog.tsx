@@ -1,6 +1,8 @@
 import type { JSX } from '@solidjs/web'
 import type { Result } from '~/util/result.js'
-import { Show, untrack } from 'solid-js'
+import { untrack } from 'solid-js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
+import { ErrorScope, ErrorField, useErrorReporter } from '../shared/error-presentation.js'
 import { RefreshCw } from '~/components/ui/icons.js'
 import { DialogRoot, DialogTitle } from '../ui/dialog'
 import { useModEnterSubmit, modEnterHint } from '~/lib/use-mod-enter-submit'
@@ -10,17 +12,24 @@ import { suggestTicketNumber } from './ticket-api.js'
 interface CreateTicketDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit: (number: string, title: string) => Promise<Result<undefined, string>>
+  onSubmit: (number: string, title: string) => Promise<Result<undefined, UserFacingError>>
   suggestedNextNumber?: string | null
   projectSlug: string
   ctrl?: CreateTicketController
 }
 
 export default function CreateTicketDialog(props: CreateTicketDialogProps): JSX.Element {
+  return <ErrorScope active={props.open}><CreateTicketForm {...props} /></ErrorScope>
+}
+
+function CreateTicketForm(props: CreateTicketDialogProps): JSX.Element {
+  const errors = useErrorReporter(() => props.open)
   const s = untrack(
     () =>
       props.ctrl ??
       createCreateTicketController({
+        onError: errors.report,
+        onClearError: errors.clear,
         onSubmit: props.onSubmit,
         onOpenChange: props.onOpenChange,
         suggestedNextNumber: () => props.suggestedNextNumber,
@@ -67,6 +76,7 @@ export default function CreateTicketDialog(props: CreateTicketDialogProps): JSX.
               <RefreshCw size={16} />
             </button>
           </div>
+          <ErrorField field="number" />
         </div>
         <div class="mb-4">
           <label for="ticket-title" class="field-label">
@@ -81,10 +91,8 @@ export default function CreateTicketDialog(props: CreateTicketDialogProps): JSX.
             placeholder="e.g. Fix login timeout"
             data-testid="create-ticket-title-input"
           />
+          <ErrorField field="title" />
         </div>
-        <Show when={s.errorMsg()}>
-          <p class="mb-4 text-sm text-destructive">{s.errorMsg()}</p>
-        </Show>
         <div class="flex justify-end gap-2">
           <button type="button" onClick={s.close} class="btn-secondary" data-testid="create-ticket-cancel">
             Cancel

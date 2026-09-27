@@ -5,6 +5,8 @@ import { X } from '~/components/ui/icons.js'
 import { FloatingWindow, FloatingWindowHeader, FloatingPanelBody, FloatingPanelTitle } from '~/components/ui/floating-panel'
 import { getAppLogs, serverClearAppLogs } from './log-api.js'
 import LogTextView from './LogTextView.js'
+import { useErrorReporter } from './error-presentation.js'
+import { errorPayload } from '~/core/shared/errors.js'
 
 export interface LogViewerDialogDeps {
   getLogs: typeof getAppLogs
@@ -17,6 +19,7 @@ export default function LogViewerDialog(props: {
   deps?: LogViewerDialogDeps
 }): JSX.Element {
   const [logText, setLogText] = createSignal<string>()
+  const errors = useErrorReporter(() => props.open)
   let loadVersion = 0
   createEffect(
     () => props.open,
@@ -26,9 +29,17 @@ export default function LogViewerDialog(props: {
       let stopped = false
       const load = async () => {
         const version = ++loadVersion
-        const text = await (props.deps?.getLogs ?? getAppLogs)()
-        if (stopped || version !== loadVersion) return
-        setLogText(text)
+        try {
+          const result = await (props.deps?.getLogs ?? getAppLogs)()
+          if (result.type === 'Failure') {
+            errors.background(result.error)
+            return
+          }
+          if (stopped || version !== loadVersion) return
+          setLogText(result.value)
+        } catch (error) {
+          errors.background(errorPayload(error, 'Load logs failed'))
+        }
       }
       void load()
       const timer = setInterval(() => void load(), 10000)
@@ -63,8 +74,16 @@ export default function LogViewerDialog(props: {
               aria-label="Clear logs"
               onClick={async () => {
                 loadVersion += 1
-                await (props.deps?.clearLogs ?? serverClearAppLogs)()
-                setLogText('')
+                try {
+                  const result = await (props.deps?.clearLogs ?? serverClearAppLogs)()
+                  if (result.type === 'Failure') {
+                    errors.report(result.error)
+                    return
+                  }
+                  setLogText('')
+                } catch (error) {
+                  errors.report(errorPayload(error, 'Clear logs failed'))
+                }
               }}
               class="btn-icon"
             >

@@ -2,7 +2,7 @@ import type { Success } from '../../../src/util/result.js'
 import type { JSX } from '@solidjs/web'
 import { afterEach, expect, it, vi } from 'vitest'
 import { createSignal, flush } from 'solid-js'
-import { cleanup, fireEvent, render, screen, waitFor } from '../../test-render.js'
+import { cleanup, fireEvent, renderWithErrors as render, screen, waitFor } from '../../test-render.js'
 import { createStoredSignal } from '~/util/stored-signal.js'
 import { failure, success } from '~/util/result.js'
 import type { LauncherConfig } from '~/core/launcher/launcher-config-data.js'
@@ -131,7 +131,7 @@ it('shares successful edits, isolates projects, and retains failed drafts', asyn
   const storage = createStoredSignal(
     () => initial,
     async (transform) => {
-      if (reject) return failure('write failed')
+      if (reject) return failure({ title: 'Save failed', description: 'write failed' })
       persisted = transform(persisted)
       return success(persisted)
     },

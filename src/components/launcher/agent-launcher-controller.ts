@@ -5,11 +5,12 @@ import type { ListReorder } from '../board/list-reorder.js'
 import { createSignal, createEffect, createMemo } from 'solid-js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import type { MergedLauncherConfig, LauncherColumnDefaults } from '~/core/launcher/launcher-config.js'
-import type { ErrorInfo } from '~/core/shared/errors.js'
+import { errorPayload, type ErrorInfo, type ActionError } from '~/core/shared/errors.js'
+import type { LaunchAgentActionResult } from './launcher-api.js'
 import type { Result } from '~/util/result.js'
 import { PROJECT_LAUNCH_KEY } from '~/core/launcher/launch-keys.js'
 import { createListReorder, orderByNameList } from '../board/list-reorder.js'
-import { launchErrorInfo, resolveDefaults } from './agent-launcher-pure.js'
+import { resolveDefaults } from './agent-launcher-pure.js'
 import { createPromptPreviewController } from './prompt-preview-controller.js'
 
 type MergedSkill = MergedLauncherConfig['skills'][number]
@@ -23,11 +24,7 @@ export interface LaunchArgs {
   launchDir: string
 }
 
-export interface LaunchFailure {
-  type: 'behindRemote' | 'dirtyWorktree' | 'error'
-  message: string
-  errorInfo?: ErrorInfo
-}
+export type LaunchFailure = ActionError | LaunchAgentActionResult
 
 export type LaunchInvoker = (args: LaunchArgs) => Promise<Result<undefined, LaunchFailure>>
 
@@ -42,6 +39,7 @@ export interface AgentLauncherDeps {
   worktreeDir: string
   launchDir: () => string
   launch: LaunchInvoker
+  onError?: (error: ErrorInfo) => void
 }
 
 export function createAgentLauncherController(props: AgentLauncherDeps): AgentLauncherControllerResult {
@@ -53,7 +51,11 @@ export function createAgentLauncherController(props: AgentLauncherDeps): AgentLa
   const [checkedSkills, setCheckedSkills] = createSignal<Set<string>>(new Set(initial.checkedSkills))
   const [skillOrder, setSkillOrder] = createSignal<string[]>(initial.skillOrder)
   const [launching, setLaunching] = createSignal(false)
-  const [errorInfo, setErrorInfo] = createSignal<ErrorInfo | null>(null)
+  const [errorInfo, storeErrorInfo] = createSignal<ErrorInfo | null>(null)
+  function setErrorInfo(error: ErrorInfo | null) {
+    storeErrorInfo(error)
+    if (error) props.onError?.(error)
+  }
   const [behindRemoteMsg, setBehindRemoteMsg] = createSignal('')
   const [dirtyWorktreeMsg, setDirtyWorktreeMsg] = createSignal('')
   const orderedSkills = createMemo(() => orderByNameList(props.config?.skills ?? [], skillOrder()))
@@ -149,14 +151,11 @@ export function createAgentLauncherController(props: AgentLauncherDeps): AgentLa
           setDirtyWorktreeMsg(result.error.message)
           break
         default:
-          setErrorInfo(launchErrorInfo(result.error))
+          setErrorInfo(result.error)
           break
       }
     } catch (e: unknown) {
-      setErrorInfo({
-        title: 'Launch failed',
-        description: e instanceof Error ? e.message : 'Network error',
-      })
+      setErrorInfo(errorPayload(e, 'Launch failed'))
     } finally {
       setLaunching(false)
     }
@@ -202,7 +201,7 @@ export interface AgentLauncherControllerResult {
   dirtyWorktreeMsg: SourceAccessor<string>
   setSelectedTemplate: Setter<string>
   setSelectedProfile: Setter<string>
-  setErrorInfo: Setter<ErrorInfo | null>
+  setErrorInfo: (error: ErrorInfo | null) => void
   setBehindRemoteMsg: Setter<string>
   setDirtyWorktreeMsg: Setter<string>
   toggleSkill: (name: string) => void

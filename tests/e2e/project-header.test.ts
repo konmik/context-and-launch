@@ -21,7 +21,7 @@ describe('Project page header toolbar (e2e, real server)', () => {
     expect(theme === 'light' || theme === 'dark').toBe(true)
     expect(await getLocalStorageItem(ctx.page, 'theme')).toBeNull()
   })
-  it('keeps the project shell visible without a modal backdrop when tickets fail to load', async () => {
+  it('keeps the project shell visible after dismissing a ticket load error', async () => {
     const project = await seedProject(ctx, {
       slugBase: 'hdr-load-error',
       withTickets: [
@@ -38,6 +38,7 @@ describe('Project page header toolbar (e2e, real server)', () => {
     try {
       await ctx.page.goto(`${ctx.testServer.baseUrl}/project/${project.projectSlug}`)
       await waitVisible(ctx.page, 'project-load-error')
+      await testId(ctx.page, 'error-dialog-ok').click()
       await waitVisible(ctx.page, 'project-header-settings-button')
       expect(await testId(ctx.page, 'project-header-settings-button').count()).toBe(1)
       expect(await ctx.page.locator('[data-scope="dialog"][data-part="backdrop"]').count()).toBe(0)

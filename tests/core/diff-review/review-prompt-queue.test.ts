@@ -194,7 +194,7 @@ describe('ReviewPromptQueueService', () => {
     expect(items.map((item) => item.feedback)).toEqual(['First', 'Second'])
     expect(items[0].state).toBe('error')
     if (items[0].state !== 'error') throw new Error('Expected a retryable delivery error.')
-    expect(items[0].error).toMatch(/Agent.*no longer running/)
+    expect(items[0].error.description).toMatch(/Agent.*no longer running/)
     expect(execute).toHaveBeenCalledTimes(1)
   })
   it('keeps a delivered head while its profile Agent marker is alive', async () => {

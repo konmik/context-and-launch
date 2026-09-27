@@ -1,5 +1,6 @@
 import type { JSX } from '@solidjs/web'
-import { For, Show, createSignal, useContext } from 'solid-js'
+import { For, Show, useContext } from 'solid-js'
+import { useErrorSink, useErrorReporter } from '../shared/error-presentation.js'
 import { revalidate } from '@solidjs/router'
 import { TicketOrderContext } from './ticket-order-storage.js'
 import { ticketMutationRevalidateKeys } from '../shared/revalidate-keys.js'
@@ -29,7 +30,8 @@ interface KanbanBoardProps {
 
 export default function KanbanBoard(props: KanbanBoardProps): JSX.Element {
   const order = useContext(TicketOrderContext)!
-  const [saveError, setSaveError] = createSignal<string>()
+  const setSaveError = useErrorSink(() => true, true)
+  const errors = useErrorReporter()
   const dnd = createBoardDnd(() => ({
     ...props.board,
     ticketOrder: order.get(),
@@ -46,7 +48,7 @@ export default function KanbanBoard(props: KanbanBoardProps): JSX.Element {
       const status = await updateTicket(projectSlug, drop.folderName, null, null, drop.toColumn)
       if (props.projectSlug !== projectSlug) return
       if (status.type === 'Failure') {
-        setSaveError(status.error.message)
+        setSaveError(status.error)
         return
       }
     }
@@ -58,7 +60,7 @@ export default function KanbanBoard(props: KanbanBoardProps): JSX.Element {
   }
 
   const openFolder = (ticket: TicketInfo) => {
-    void openTicketFolder(props.projectSlug, ticket.folderName)
+    void errors.run(() => openTicketFolder(props.projectSlug, ticket.folderName))
   }
   const ticketsFor = (column: string) => resolveTicketsForColumn(column, order.get(), board().ticketMap, board().orphanFolderNames)
   let headerRow!: HTMLDivElement
@@ -76,13 +78,6 @@ export default function KanbanBoard(props: KanbanBoardProps): JSX.Element {
       }}
     >
       <div class="flex min-h-0 flex-1 flex-col">
-        <Show when={saveError()}>
-          {(error) => (
-            <p role="alert" class="px-4 text-destructive">
-              {error()}
-            </p>
-          )}
-        </Show>
         <div
           ref={headerRow}
           class="shrink-0 overflow-hidden px-4"

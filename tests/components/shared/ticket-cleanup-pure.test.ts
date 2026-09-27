@@ -40,6 +40,7 @@ describe('allChecking / allError', () => {
   })
   it('produces all four keys in error', () => {
     const error = {
+      title: 'Cleanup failed',
       description: 'failed',
     }
     expect(allError(error)).toEqual({

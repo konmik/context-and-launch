@@ -9,6 +9,8 @@ import type {
   ReviewLineSide,
 } from '~/core/diff-review/diff-review-types.js'
 import type { ReviewChangeLocation } from '~/core/diff-review/review-navigation.js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
+import { setPromptDragData } from './review-prompt-drag.js'
 import { isGutterPath, reviewLineRangeBetween, reviewLineRangeFromSelection } from './diff-review-selection.js'
 
 function changedLineKey(side: 'deletions' | 'additions', lineNumber: number): string {
@@ -28,17 +30,6 @@ function changedLineText(file: ReviewFileSnapshot): Map<string, string> {
   return result
 }
 
-function setPromptDragData(event: DragEvent, text: string, onError: (message: string) => void) {
-  if (!event.dataTransfer) {
-    onError('The drag carried no data, so the Review Prompt was not attached to it.')
-    return
-  } // Chromium seeds a selection drag with text/html as well, so the markup has to
-  // go before the prompt is attached or rich-text targets paste the diff instead.
-  event.dataTransfer.clearData()
-  event.dataTransfer.effectAllowed = 'copy'
-  event.dataTransfer.setData('text/plain', text)
-}
-
 export default function DiffSurface(props: {
   file: ReviewFileSnapshot
   layout: DiffLayout
@@ -49,7 +40,7 @@ export default function DiffSurface(props: {
   onSelect(range: SelectedLineRange | null): void
   onJumpApplied(): void
   onChangedLineVisible(lineId: string): void
-  onError(message: string): void
+  onError(error: UserFacingError): void
   dragText(): string | undefined
 }): JSX.Element {
   let hostRef: HTMLDivElement | undefined

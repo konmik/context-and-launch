@@ -1,15 +1,18 @@
 import type { SourceAccessor } from 'solid-js'
 import type { Result } from '~/util/result.js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
 import { createFormDialogController } from '../ticket/form-dialog-controller.js'
 
 export interface DeleteProjectDeps {
-  onSubmit: (projectSlug: string) => Promise<Result<undefined, string>>
+  onSubmit: (projectSlug: string) => Promise<Result<undefined, UserFacingError>>
+  onError?: (error: UserFacingError) => void
   onOpenChange: (open: boolean) => void
   projectSlug: () => string
 }
 
 export function createDeleteProjectController(deps: DeleteProjectDeps): DeleteProjectControllerResult {
   const form = createFormDialogController({
+    onError: deps.onError,
     onSubmit: deps.onSubmit,
     onOpenChange: deps.onOpenChange,
   })
@@ -30,7 +33,7 @@ export type DeleteProjectController = ReturnType<typeof createDeleteProjectContr
 
 export interface DeleteProjectControllerResult {
   submitting: SourceAccessor<boolean>
-  errorMsg: SourceAccessor<string>
+  errorMsg: SourceAccessor<UserFacingError | undefined>
   close: () => void
   doSubmit: () => Promise<void>
 }

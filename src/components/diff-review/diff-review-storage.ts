@@ -1,6 +1,7 @@
 import type { SourceAccessor } from 'solid-js'
 import { createContext, createMemo, createSignal, type Accessor } from 'solid-js'
 import type { StoredSignal } from '~/util/stored-signal.js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
 import { getReviewTicketState, type DiffReviewProjectState } from '~/core/diff-review/diff-review-types.js'
 import type { readReviewAgentStatus } from './diff-review-state-api.js'
 
@@ -15,7 +16,7 @@ export function createReviewedLineTracker(options: {
   state: StoredSignal<DiffReviewProjectState>
   folderName: string
   worktreeIdentity: string
-  onError(message: string): void
+  onError(error: UserFacingError): void
 }): ReviewedLineTrackerResult {
   const { state, folderName, worktreeIdentity } = options
   const saved = createMemo(() => new Set(Object.keys(getReviewTicketState(state.get(), folderName, worktreeIdentity).reviewedLines)))

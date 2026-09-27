@@ -9,13 +9,15 @@ import { computeLaunchDir } from '../launcher/agent-launcher-pure.js'
 import type { MergedLauncherConfigWithMeta } from '../launcher/launcher-api.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
+import { createErrorState } from '~/util/error-state.js'
 
 export function createBoardShortcutRunner(deps: {
+  onError?: (error: ErrorInfo) => void
   projectSlug: () => string
   config: () => MergedLauncherConfigWithMeta | undefined
 }): BoardShortcutRunnerResult {
   const [activeTicket, setActiveTicket] = createSignal<TicketInfo>()
-  const [error, setError] = createSignal<ErrorInfo | null>(null)
+  const { error, setError } = createErrorState(deps.onError)
   const launchDir = createMemo(() => {
     const ticket = activeTicket()
     const config = deps.config()
@@ -47,7 +49,7 @@ export function createBoardShortcutRunner(deps: {
     setError(null)
     try {
       const result = await openTicketWorktree(deps.projectSlug(), ticket.folderName)
-      if (result.type === 'Failure') setError(result.error.errorInfo)
+      if (result.type === 'Failure') setError(result.error)
     } catch (e) {
       setError(errorPayload(e, 'Open failed'))
     }
@@ -75,8 +77,8 @@ export interface BoardShortcutRunnerResult {
   confirmation: SourceAccessor<ShortcutConfirmation | undefined>
   setConfirmation: Setter<ShortcutConfirmation | undefined>
   proceed: (name: string) => undefined
-  error: SourceAccessor<ErrorInfo | null>
-  setError: Setter<ErrorInfo | null>
+  error: SourceAccessor<ErrorInfo | undefined>
+  setError: (error?: ErrorInfo | null) => void
   run: (ticket: TicketInfo, name: string) => void
   openWorktree: (ticket: TicketInfo) => undefined
 }

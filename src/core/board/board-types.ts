@@ -1,4 +1,5 @@
 import type { ProjectInfo } from '~/core/project/project-registry.js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
 import type { ColumnDefinition } from '~/core/project/board-config.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import type { TicketOrder } from '~/core/ticket/ticket-order-data.js'
@@ -38,7 +39,7 @@ export interface UnavailableProjectPageData {
 export interface ErrorProjectPageData {
   status: 'error'
   projectPath: string
-  error: string
+  error: UserFacingError
 }
 
 export type ProjectPageData =

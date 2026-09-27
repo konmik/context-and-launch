@@ -58,7 +58,8 @@ describe('raw content routes', () => {
     const response = await handleRawRoute(new Request('http://app/api/projects/example/board/tickets/ST-1/files/a.txt'))
     expect(response?.status).toBe(500)
     await expect(response?.json()).resolves.toEqual({
-      error: 'read failed',
+      title: 'Load file failed',
+      description: 'read failed',
     })
   })
 })

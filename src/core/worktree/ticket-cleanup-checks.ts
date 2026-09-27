@@ -102,6 +102,7 @@ export async function runTicketCleanupChecks(target: TicketCleanupCheckTarget, d
       return {
         state: 'error',
         error: {
+          title: 'Cleanup failed',
           description: foreignWorktreeMessage(target.worktreePath),
         },
       }

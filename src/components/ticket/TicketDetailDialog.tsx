@@ -28,7 +28,7 @@ import { LauncherTab } from './ticket-detail-launcher-tab.js'
 import { createAgentLauncherController } from '../launcher/agent-launcher-controller.js'
 import { launchAgentAction } from '../launcher/launcher-api.js'
 import { createTicketDetailState, type TicketDetailStateDeps } from './ticket-detail-state.js'
-import ErrorDialog from '../shared/ErrorDialog.js'
+import { ErrorScope, ErrorField, useErrorReporter } from '../shared/error-presentation.js'
 import { createTicketStatusStorage, TicketStatusContext } from './ticket-status-storage.js'
 
 interface TicketDetailDialogProps {
@@ -47,6 +47,7 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps): JSX.
         <TicketStatusContext
           value={untrack(() => props.stateDeps?.ticketStatus ?? createTicketStatusStorage(props.projectSlug, props.ticket!))}
         >
+          <ErrorScope active={true}>
           <TicketDetailContent
             onClose={props.onClose}
             projectSlug={props.projectSlug}
@@ -54,6 +55,7 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps): JSX.
             stateDeps={props.stateDeps}
             launchAgent={props.launchAgent}
           />
+          </ErrorScope>
         </TicketStatusContext>
       )}
     </Show>
@@ -67,10 +69,12 @@ function TicketDetailContent(props: {
   stateDeps?: TicketDetailStateDeps
   launchAgent?: typeof launchAgentAction
 }): JSX.Element {
-  const s = untrack(() => createTicketDetailState(props, props.stateDeps))
+  const errors = useErrorReporter()
+  const s = untrack(() => createTicketDetailState(props, { ...props.stateDeps, onError: errors.report, onClearError: errors.clear, onBackgroundError: errors.background }))
   const ticketStatus = useContext(TicketStatusContext)!
   const ticket = ticketStatus.get
   const launcherDeps = untrack(() => ({
+    onError: errors.report,
     projectSlug: props.projectSlug,
     ticket,
     get config() {
@@ -120,6 +124,7 @@ function TicketDetailContent(props: {
         <FloatingWindowHeader
           title={
             <>
+              <div class="flex shrink-0 flex-col">
               <input
                 type="text"
                 data-testid="ticket-detail-number-input"
@@ -136,7 +141,10 @@ function TicketDetailContent(props: {
                   'field-sizing': 'content',
                 }}
               />
+              <ErrorField field="number" />
+              </div>
               <span class="shrink-0">-</span>
+              <div class="flex min-w-0 flex-1 flex-col">
               <input
                 type="text"
                 data-testid="ticket-detail-title-input"
@@ -150,6 +158,8 @@ function TicketDetailContent(props: {
                 }}
                 class="min-w-0 flex-1 bg-transparent outline-none focus:border-b focus:border-accent-foreground"
               />
+              <ErrorField field="title" />
+              </div>
             </>
           }
           actions={
@@ -287,10 +297,7 @@ function TicketDetailContent(props: {
                               useWorktree,
                             }))
                             if (result.type === 'Failure') {
-                              s.setError({
-                                title: 'Save failed',
-                                description: result.error,
-                              })
+                              s.setError(result.error)
                             }
                           }}
                           class="rounded border-input"
@@ -413,7 +420,6 @@ function TicketDetailContent(props: {
         onConfirm={s.confirmSizeAndUpload}
       />
 
-      <ErrorDialog error={s.error()} onClose={() => s.setError(null)} />
     </>
   )
 }

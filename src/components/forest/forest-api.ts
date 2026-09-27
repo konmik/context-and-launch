@@ -5,7 +5,8 @@ import { action } from '@solidjs/router'
 import { respond } from '@solidjs/web'
 import { worktreeManager, projectRegistry, boardConfigManager } from '~/core/config/instances.js'
 import { createTicketStore } from '~/core/ticket/ticket-store.js'
-import { errorMessage, errorResult } from '~/core/shared/errors.js'
+import { errorPayload, errorResult } from '~/core/shared/errors.js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
 import { failure, success } from '~/util/result.js'
 import { resolveInitialTicketStatus } from '~/core/board/initial-ticket-status.js'
 import { createForestLayoutStore, type ForestLayout } from '~/core/ticket/forest-layout-store.js'
@@ -26,7 +27,7 @@ export async function saveForestLayout(
   projectSlug: string,
   expected: ForestLayout,
   layout: ForestLayout,
-): Promise<Result<ForestLayout, string>> {
+): Promise<Result<ForestLayout, UserFacingError>> {
   'use server'
 
   try {
@@ -34,7 +35,7 @@ export async function saveForestLayout(
     createForestLayoutStore(worktreeDir).write(layout, expected)
     return success(layout)
   } catch (e) {
-    return failure(errorMessage(e))
+    return failure(errorPayload(e, 'Save forest layout failed'))
   }
 }
 

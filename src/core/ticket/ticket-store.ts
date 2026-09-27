@@ -6,7 +6,7 @@ import { createForestLayoutStore, type ForestLayoutStore } from './forest-layout
 import { suggestNextTicketNumber } from './ticket-number.js'
 import { toKebabCase, normalizeTicketNumber, requireNonBlank, requireSimpleName } from './ticket-naming.js'
 import { createTicketRepository, type TicketRepository } from './ticket-repository.js'
-import { createValidationError, createNotFoundError } from '../shared/errors.js'
+import { createValidationError, createNotFoundError, createAppError, errorMessage } from '../shared/errors.js'
 import { mapConcurrent } from '../shared/concurrency.js'
 import {
   wouldCreateDependencyCycle,
@@ -154,13 +154,13 @@ export function createTicketStore(worktreeDir: string, repo: TicketRepository = 
     }
     const root = parent === worktreeDir ? cachedWorktreeRootWithSep() : resolveRootWithSep(parent)
     if (!canonical.startsWith(root)) {
-      throw new Error(`${label} escapes allowed directory: ${canonical}`)
+      throw createValidationError(`${label} escapes allowed directory: ${canonical}`)
     }
   }
 
   function resolveRootWithSep(parent: string): string {
     if (!repo.exists(parent)) {
-      throw new Error(`Worktree directory does not exist: ${parent}`)
+      throw createNotFoundError(`Worktree directory does not exist: ${parent}`)
     }
     return repo.realpathSync(parent) + path.sep
   }
@@ -177,7 +177,7 @@ export function createTicketStore(worktreeDir: string, repo: TicketRepository = 
     const dir = path.join(worktreeDir, folderName)
     requireContained(dir, 'folderName')
     if (!repo.isDirectory(dir)) {
-      throw new Error(`Ticket not found: ${folderName}`)
+      throw createNotFoundError(`Ticket not found: ${folderName}`)
     }
     return dir
   }
@@ -205,7 +205,7 @@ export function createTicketStore(worktreeDir: string, repo: TicketRepository = 
       const normalizedNumber = normalizeTicketNumber(ticket.number)
       const existingNumber = numbers.get(normalizedNumber)
       if (existingNumber) {
-        throw createValidationError(`Duplicate Ticket Number: ${existingNumber}`)
+        throw createValidationError(`Duplicate Ticket Number: ${existingNumber}`, 'number')
       }
       numbers.set(normalizedNumber, ticket.number)
     }
@@ -214,8 +214,8 @@ export function createTicketStore(worktreeDir: string, repo: TicketRepository = 
   }
 
   function createTicket(number: string, title: string, initialStatus: string = 'todo', memberOf?: string): TicketInfo {
-    if (!number.trim()) throw new Error('Ticket number must not be blank')
-    if (!title.trim()) throw new Error('Ticket title must not be blank')
+    if (!number.trim()) throw createValidationError('Ticket number must not be blank', 'number')
+    if (!title.trim()) throw createValidationError('Ticket title must not be blank', 'title')
     assertTicketNumberAvailable(number)
     const baseFolderName = toKebabCase(`${number} ${title}`)
     const dir = resolveUniqueFolderPath(baseFolderName)
@@ -244,7 +244,7 @@ export function createTicketStore(worktreeDir: string, repo: TicketRepository = 
     return repo.runInTransaction(worktreeDir, () => {
       const dir = resolveTicketDir(folderName)
       const current = repo.readStatusJson(dir)
-      if (!current) throw new Error(`Malformed ticket: ${folderName}`)
+      if (!current) throw createValidationError(`Malformed ticket: ${folderName}`)
       const updatedNumber = number != null ? requireNonBlank(number, 'Ticket number') : current.number
       const updatedTitle = title != null ? requireNonBlank(title, 'Ticket title') : current.title
       const updatedStatus = status ?? current.status
@@ -267,14 +267,12 @@ export function createTicketStore(worktreeDir: string, repo: TicketRepository = 
         if (newFolderName !== folderName) {
           const newDir = path.join(worktreeDir, newFolderName)
           if (repo.exists(newDir)) {
-            throw new Error(`Folder name collision: ${newFolderName}`)
+            throw createValidationError(`Folder name collision: ${newFolderName}`, 'title')
           }
           try {
             repo.renameDirectory(dir, newDir)
           } catch (err) {
-            throw new Error(`Failed to rename ticket folder from ${path.basename(dir)} to ${newFolderName}`, {
-              cause: err,
-            })
+            throw createAppError(`Failed to rename ticket folder from ${path.basename(dir)} to ${newFolderName}: ${errorMessage(err)}`, 'Rename ticket failed')
           }
           finalDir = newDir
         }
@@ -322,7 +320,7 @@ export function createTicketStore(worktreeDir: string, repo: TicketRepository = 
     repo.createDirectory(archiveDir)
     const dest = path.join(archiveDir, folderName)
     if (repo.exists(dest)) {
-      throw new Error(`Archive destination already exists: ${folderName}`)
+      throw createValidationError(`Archive destination already exists: ${folderName}`)
     }
     repo.renameDirectory(dir, dest)
     orderStore.removeTicket(folderName)
@@ -331,7 +329,7 @@ export function createTicketStore(worktreeDir: string, repo: TicketRepository = 
   function setUseWorktree(folderName: string, value: boolean): void {
     const dir = resolveTicketDir(folderName)
     const current = repo.readStatusJson(dir)
-    if (!current) throw new Error(`Ticket not found: ${folderName}`)
+    if (!current) throw createNotFoundError(`Ticket not found: ${folderName}`)
     repo.writeStatusJson(dir, {
       ...current,
       useWorktree: value,
@@ -341,7 +339,7 @@ export function createTicketStore(worktreeDir: string, repo: TicketRepository = 
   function saveAgentWorktreeInfo(folderName: string, agentWorktreeBranchName: string, agentWorktreeDir: string): void {
     const dir = resolveTicketDir(folderName)
     const current = repo.readStatusJson(dir)
-    if (!current) throw new Error(`Ticket not found: ${folderName}`)
+    if (!current) throw createNotFoundError(`Ticket not found: ${folderName}`)
     repo.writeStatusJson(dir, {
       ...current,
       agentWorktreeBranchName,
@@ -352,7 +350,7 @@ export function createTicketStore(worktreeDir: string, repo: TicketRepository = 
   function clearAgentWorktreeInfo(folderName: string): void {
     const dir = resolveTicketDir(folderName)
     const current = repo.readStatusJson(dir)
-    if (!current) throw new Error(`Ticket not found: ${folderName}`)
+    if (!current) throw createNotFoundError(`Ticket not found: ${folderName}`)
     const { agentWorktreeBranchName, agentWorktreeDir, ...rest } = current
     repo.writeStatusJson(dir, rest)
   }
@@ -500,7 +498,7 @@ export function createTicketStore(worktreeDir: string, repo: TicketRepository = 
   function copyFileToTicket(folderName: string, fileName: string, content: Buffer): void {
     requireSimpleName(fileName, 'fileName')
     if (fileName === 'status.json') {
-      throw new Error('Cannot overwrite status.json')
+      throw createValidationError('Cannot overwrite status.json', 'file')
     }
     const dir = resolveTicketDir(folderName)
     const filePath = path.join(dir, fileName)
@@ -511,13 +509,13 @@ export function createTicketStore(worktreeDir: string, repo: TicketRepository = 
   function deleteTicketFile(folderName: string, fileName: string): void {
     requireSimpleName(fileName, 'fileName')
     if (fileName === 'status.json') {
-      throw new Error('Cannot delete status.json')
+      throw createValidationError('Cannot delete status.json', 'file')
     }
     const dir = resolveTicketDir(folderName)
     const filePath = path.join(dir, fileName)
     requireContainedIn(filePath, dir, 'fileName')
     if (!repo.exists(filePath)) {
-      throw new Error(`File not found: ${fileName}`)
+      throw createNotFoundError(`File not found: ${fileName}`)
     }
     repo.deleteFile(filePath)
   }
@@ -528,7 +526,7 @@ export function createTicketStore(worktreeDir: string, repo: TicketRepository = 
     const filePath = path.join(dir, fileName)
     requireContainedIn(filePath, dir, 'fileName')
     if (!repo.exists(filePath)) {
-      throw new Error(`File not found: ${fileName}`)
+      throw createNotFoundError(`File not found: ${fileName}`)
     }
     return repo.readFile(filePath)
   }
@@ -536,7 +534,7 @@ export function createTicketStore(worktreeDir: string, repo: TicketRepository = 
   function updateStatus(folderName: string, transform: (current: StatusJson) => StatusJson): void {
     const dir = resolveTicketDir(folderName)
     const current = repo.readStatusJson(dir)
-    if (!current) throw new Error(`Malformed ticket: ${folderName}`)
+    if (!current) throw createValidationError(`Malformed ticket: ${folderName}`)
     const next = transform(current)
     if (next !== current) repo.writeStatusJson(dir, next)
   }
@@ -648,7 +646,7 @@ export function createTicketStore(worktreeDir: string, repo: TicketRepository = 
     repo.runInTransaction(worktreeDir, () => {
       const dir = resolveTicketDir(folderName)
       const groupStatus = repo.readStatusJson(dir)
-      if (!groupStatus) throw new Error(`Malformed ticket: ${folderName}`)
+      if (!groupStatus) throw createValidationError(`Malformed ticket: ${folderName}`)
       const memberNumbers: string[] = []
       for (const ticketDir of ticketDirs(false)) {
         const status = repo.readStatusJson(ticketDir)
@@ -666,13 +664,13 @@ export function createTicketStore(worktreeDir: string, repo: TicketRepository = 
   function getReferencedFileContent(folderName: string, refPath: string): Buffer {
     const dir = resolveTicketDir(folderName)
     const status = repo.readStatusJson(dir)
-    if (!status) throw new Error(`Malformed ticket: ${folderName}`)
+    if (!status) throw createValidationError(`Malformed ticket: ${folderName}`)
     const refs = status.references ?? []
     if (!refs.some((r) => r.path === refPath)) {
-      throw new Error(`Path is not a registered reference of ticket ${status.number}: ${refPath}`)
+      throw createValidationError(`Path is not a registered reference of ticket ${status.number}: ${refPath}`, 'references')
     }
     if (!repo.exists(refPath)) {
-      throw new Error(`Referenced file not found: ${refPath}`)
+      throw createNotFoundError(`Referenced file not found: ${refPath}`)
     }
     return repo.readFile(refPath)
   }
@@ -700,7 +698,7 @@ export function createTicketStore(worktreeDir: string, repo: TicketRepository = 
       if (ticketDir === excludedDir) continue
       const status = repo.readStatusJson(ticketDir)
       if (status && normalizeTicketNumber(status.number) === normalized) {
-        throw createValidationError(`Ticket Number already exists: ${status.number}`)
+        throw createValidationError(`Ticket Number already exists: ${status.number}`, 'number')
       }
     }
   }

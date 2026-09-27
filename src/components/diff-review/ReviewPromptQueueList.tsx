@@ -7,6 +7,8 @@ import type { ReviewPromptQueueItem } from '~/core/diff-review/diff-review-types
 import { DiffReviewContext, ReviewAgentStatusContext } from './diff-review-storage.js'
 import { getReviewTicketState } from '~/core/diff-review/diff-review-types.js'
 import VerticalReveal from './VerticalReveal.js'
+import { useErrorSink, FieldErrorMessage } from '../shared/error-presentation.js'
+import { errorPayload } from '~/core/shared/errors.js'
 
 type QueueEntry = {
   item: ReviewPromptQueueItem
@@ -20,7 +22,7 @@ export default function ReviewPromptQueueList(props: { projectSlug: string; fold
   const items = () => getReviewTicketState(state.get(), props.folderName, agentStatus().worktreeIdentity).queue.items
   const [retryingId, setRetryingId] = createSignal<string>()
   const [removingId, setRemovingId] = createSignal<string>()
-  const [error, setError] = createSignal<string>()
+  const setError = useErrorSink()
 
   async function retry(itemId: string) {
     if (retryingId()) return
@@ -28,10 +30,12 @@ export default function ReviewPromptQueueList(props: { projectSlug: string; fold
     setError()
     try {
       const result = await retryReviewPrompt(props.projectSlug, props.folderName, itemId, props.profileName || null)
-      if (result.type === 'Failure') setError(result.error.message)
+      if (result.type === 'Failure') setError(result.error)
       const refreshed = await state.refresh()
       if (refreshed.type === 'Failure') setError(refreshed.error)
       await agentState.refresh()
+    } catch (error) {
+      setError(errorPayload(error, 'Retry review prompt failed'))
     } finally {
       setRetryingId()
     }
@@ -65,6 +69,8 @@ export default function ReviewPromptQueueList(props: { projectSlug: string; fold
         }
       })
       if (result.type === 'Failure') setError(result.error)
+    } catch (error) {
+      setError(errorPayload(error, 'Remove review prompt failed'))
     } finally {
       setRemovingId()
     }
@@ -105,11 +111,6 @@ export default function ReviewPromptQueueList(props: { projectSlug: string; fold
           <span class="font-mono text-[9px] font-bold tracking-[0.12em]">REVIEW PROMPT QUEUE</span>
           <span class="rounded-full bg-muted px-1.5 py-0.5 font-mono text-[9px]">{items().length}</span>
         </div>
-        <Show when={error()}>
-          <p class="px-2.5 text-xs text-destructive" role="alert">
-            {error()}
-          </p>
-        </Show>
         <div ref={bodyRef} class="max-h-[132px] overflow-y-auto border-t border-border">
           <For each={entries()} keyed={(entry) => entry.item.id}>
             {(entry) => {
@@ -128,9 +129,7 @@ export default function ReviewPromptQueueList(props: { projectSlug: string; fold
                           </span>
                         </div>
                         <p class="mt-0.5 line-clamp-2 text-[10px]">{entry().item.feedback}</p>
-                        <Show when={itemError(entry().item)}>
-                          <p class="mt-0.5 text-[9px] text-destructive">{itemError(entry().item)}</p>
-                        </Show>
+                        <FieldErrorMessage error={itemError(entry().item)} />
                       </div>
                       <Show when={entry().item.state === 'error' || entry().item.state === 'uncertain'}>
                         <button

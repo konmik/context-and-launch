@@ -4,7 +4,6 @@ import { revalidate } from '@solidjs/router'
 import { Errored, For, Show, createEffect, createMemo, createSignal, useContext, onSettled, onCleanup } from 'solid-js'
 import { createStoredState } from '~/util/stored-state.js'
 import { success } from '~/util/result.js'
-import { AlertTriangle } from '~/components/ui/icons.js'
 import { ArrowDownToLine } from '~/components/ui/icons.js'
 import { Check } from '~/components/ui/icons.js'
 import { ChevronDown } from '~/components/ui/icons.js'
@@ -37,6 +36,10 @@ import { LauncherConfigContext } from '../launcher/shared-launcher-config-storag
 import { ProjectLauncherConfigContext } from '../launcher/project-launcher-config-storage.js'
 import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js'
 import { DiffReviewContext, ReviewAgentStatusContext, createReviewedLineTracker } from './diff-review-storage.js'
+import { useErrorSink } from '../shared/error-presentation.js'
+import { errorPayload } from '~/core/shared/errors.js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
+import LoadError from '../shared/LoadError.js'
 import { createStoredConfig } from '~/util/stored-config.js'
 import { readDiffReviewState, saveDiffReviewState, releaseDiffReviewState, readReviewAgentStatus } from './diff-review-state-api.js'
 import { enqueueReviewPrompt, getReviewSnapshot } from './diff-review-api.js'
@@ -238,25 +241,11 @@ function FileTree(props: {
 }
 
 function DiffLoadError(props: { error: unknown; onRetry(): void }): JSX.Element {
-  const message = () => (props.error instanceof Error ? props.error.message : String(props.error))
-  return (
-    <div class="flex h-full items-center justify-center p-8" role="alert">
-      <div class="max-w-xl rounded-lg border border-destructive/40 bg-card p-5">
-        <div class="flex items-center gap-2 font-medium">
-          <AlertTriangle size={17} class="text-destructive" />
-          Diff Scope could not be calculated
-        </div>
-        <p class="mt-2 whitespace-pre-wrap text-sm text-destructive">{message()}</p>
-        <button type="button" class="btn-secondary btn-sm mt-4" onClick={props.onRetry}>
-          Retry
-        </button>
-      </div>
-    </div>
-  )
+  return <LoadError error={errorPayload(props.error, 'Load diff failed')} onRetry={props.onRetry} />
 } // What stands in for the files while the selected Diff Scope has none to show:
 
 // Git is still calculating it, or Git answered that it cannot.
-function DiffScopeUnavailable(props: { error?: string; label: string; onRetry(): void }): JSX.Element {
+function DiffScopeUnavailable(props: { error?: UserFacingError; label: string; onRetry(): void }): JSX.Element {
   return (
     <Show
       when={props.error}
@@ -282,12 +271,12 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
   const [activePath, setActivePath] = createSignal('')
   const [composer, setComposer] = createSignal<ActiveComposer>()
   const [feedback, setFeedback] = createSignal('')
-  const [sendError, setSendError] = createSignal<string>()
+  const setSendError = useErrorSink(() => composer() !== undefined)
   const [sending, setSending] = createSignal(false)
   const [refreshing, setRefreshing] = createSignal(false)
   const [savingProfile, setSavingProfile] = createSignal(false)
   const [selectedProfile, setSelectedProfile] = createSignal('')
-  const [reviewError, setReviewError] = createSignal<string>()
+  const setReviewError = useErrorSink(() => true, true)
   const [jumpTarget, setJumpTarget] = createSignal<ReviewChangeLocation>()
   let scrollRef: HTMLDivElement | undefined
   let scrollFrame: number | undefined
@@ -423,7 +412,7 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
         try {
           revalidate('diff-review-snapshot')
         } catch (error) {
-          setReviewError(error instanceof Error ? error.message : String(error))
+          setReviewError(errorPayload(error, 'Review failed'))
         }
         scheduleNext()
       }, 1200)
@@ -517,7 +506,7 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
       })
       setSendError()
     } catch (error) {
-      setReviewError(error instanceof Error ? error.message : String(error))
+      setReviewError(errorPayload(error, 'Select review lines failed'))
     }
   }
 
@@ -534,7 +523,7 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
         selection()?.snapshot ?? null,
       )
       if (result.type === 'Failure') {
-        setSendError(result.error.message)
+        setSendError(result.error)
         return false
       }
       setFeedback('')
@@ -542,6 +531,9 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
       if (refreshed.type === 'Failure') setReviewError(refreshed.error)
       void refreshAgentStatus()
       return true
+    } catch (error) {
+      setSendError(errorPayload(error, 'Send review prompt failed'))
+      return false
     } finally {
       setSending(false)
     }
@@ -571,7 +563,7 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
         return
       }
     } catch (error) {
-      setSendError(error instanceof Error ? error.message : String(error))
+      setSendError(errorPayload(error, 'Save review profile failed'))
     } finally {
       setSavingProfile(false)
     }
@@ -882,21 +874,6 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
         </Show>
       </Errored>
 
-      <Show when={reviewError()}>
-        <div
-          class={
-            'flex shrink-0 items-center justify-between border-t' +
-            ' border-destructive/40 bg-destructive/10 px-4 py-2' +
-            ' text-xs text-destructive'
-          }
-          role="alert"
-        >
-          <span>{reviewError()}</span>
-          <button type="button" class="btn-ghost-icon h-6 w-6" aria-label="Dismiss error" onClick={() => setReviewError()}>
-            <X size={12} />
-          </button>
-        </div>
-      </Show>
 
       <ReviewAgentStatusContext
         value={{
@@ -917,7 +894,6 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
           onFeedbackChange={setFeedback}
           onProfileChange={(profileName) => void changeProfile(profileName)}
           sending={sending()}
-          error={sendError()}
           herdrStatus={herdrStatus(props.ticket.folderName)}
           onCancel={() => {
             changeComposer()

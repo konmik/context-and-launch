@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, cleanup, waitFor } from '../../test-render.js'
+import { renderWithErrors as render, screen, cleanup, waitFor } from '../../test-render.js'
+import { success } from '~/util/result.js'
 
 const mockGetAppLogs = vi.fn()
 
@@ -7,7 +8,7 @@ import LogViewerDialog from '../../../src/components/shared/LogViewerDialog'
 
 const deps = {
   getLogs: mockGetAppLogs,
-  clearLogs: vi.fn().mockResolvedValue(undefined),
+  clearLogs: vi.fn().mockResolvedValue(success(undefined)),
 }
 
 afterEach(() => {
@@ -20,7 +21,7 @@ function deferredLogs(): DeferredLogsResult {
   mockGetAppLogs.mockReturnValue(
     new Promise<string>((r) => {
       resolveLogs = r
-    }),
+    }).then(success),
   )
   return {
     resolve: (text: string) => resolveLogs(text),

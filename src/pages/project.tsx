@@ -37,7 +37,9 @@ import TicketCleanupDialog from '~/components/shared/TicketCleanupDialog'
 import TicketDetailDialog from '~/components/ticket/TicketDetailDialog'
 import ProjectLauncherDialog from '~/components/launcher/ProjectLauncherDialog'
 import ConflictDialog from '~/components/shared/ConflictDialog'
-import ErrorDialog from '~/components/shared/ErrorDialog'
+import { useErrorReporter } from '~/components/shared/error-presentation.js'
+import { errorPayload } from '~/core/shared/errors.js'
+import LoadError from '~/components/shared/LoadError.js'
 import AddProjectForm from '~/components/project/AddProjectForm'
 import PalettePicker from '~/components/shared/PalettePicker'
 import DebugToastButton from '~/components/shared/DebugToastButton'
@@ -138,6 +140,7 @@ function ProjectContent(props: { ctrl?: ProjectPageController }): JSX.Element {
   const params = useParams()
   const navigate = useNavigate()
   const projectSlug = () => params.projectSlug ?? ''
+  const errors = useErrorReporter()
   const boards = useContext(BoardConfigContext)!
   const data = createDeferredSignal(
     () => !!projectSlug(),
@@ -168,6 +171,7 @@ function ProjectContent(props: { ctrl?: ProjectPageController }): JSX.Element {
   const { dialogState, syncState, selectionState, commands } =
     props?.ctrl ??
     createProjectPageController({
+      onError: errors.report,
       projectSlug,
       data,
     })
@@ -193,6 +197,7 @@ function ProjectContent(props: { ctrl?: ProjectPageController }): JSX.Element {
     )
   })
   const shortcutRunner = createBoardShortcutRunner({
+    onError: errors.report,
     projectSlug,
     config: launcherConfig,
   })
@@ -219,13 +224,42 @@ function ProjectContent(props: { ctrl?: ProjectPageController }): JSX.Element {
     const result = herdrStatusesResult()
     return !!result && result.kind !== 'disabled'
   })
+  let reportedStatusError: string | undefined
+  createEffect(herdrStatusesResult, (result) => {
+    if (result?.kind !== 'unavailable') {
+      reportedStatusError = undefined
+      return
+    }
+    const fingerprint = JSON.stringify(result.error)
+    if (reportedStatusError === fingerprint) return
+    reportedStatusError = fingerprint
+    errors.background(result.error)
+  })
+  const reportedDeliveryErrors = new Map<string, Set<string>>()
+  async function reconcileReviewErrors(currentProjectSlug: string): Promise<void> {
+    try {
+      const result = await reconcileReviewPromptQueue(currentProjectSlug)
+      if (result.type === 'Failure') {
+        errors.background(result.error)
+        return
+      }
+      const previous = reportedDeliveryErrors.get(currentProjectSlug)
+      const current = new Set<string>()
+      for (const delivery of result.value) {
+        const key = JSON.stringify(delivery)
+        current.add(key)
+        if (!previous?.has(key)) errors.background(delivery.error)
+      }
+      reportedDeliveryErrors.set(currentProjectSlug, current)
+    } catch (cause) {
+      errors.background(errorPayload(cause, 'Review queue reconciliation failed'))
+    }
+  }
   createEffect(
     () => (deferredPollsReady() ? projectSlug() : ''),
     (currentProjectSlug) => {
       if (!currentProjectSlug) return
-      void reconcileReviewPromptQueue(currentProjectSlug).catch((cause: unknown) =>
-        console.error('Review Prompt Queue reconciliation failed', cause),
-      )
+      void reconcileReviewErrors(currentProjectSlug)
     },
   )
   createEffect(herdrPollingActive, (active) => {
@@ -235,9 +269,9 @@ function ProjectContent(props: { ctrl?: ProjectPageController }): JSX.Element {
       if (running) return
       running = true
       try {
-        await Promise.all([revalidate('herdr-agent-statuses'), reconcileReviewPromptQueue(projectSlug())])
+        await Promise.all([revalidate('herdr-agent-statuses'), reconcileReviewErrors(projectSlug())])
       } catch (error) {
-        console.error('Herdr polling failed', error)
+        errors.background(errorPayload(error, 'Agent status polling failed'))
       } finally {
         running = false
       }
@@ -257,11 +291,9 @@ function ProjectContent(props: { ctrl?: ProjectPageController }): JSX.Element {
 
   async function recordProjectFocus(projectSlug: string) {
     const result = await recordAppProjectFocus(projectSlug)
-    if (result.type === 'Failure') setConfigError(result.error)
-    else setConfigError(undefined)
+    if (result.type === 'Failure') errors.background(result.error)
   }
 
-  const [configError, setConfigError] = createSignal<string>()
   let lastReportedProjectSlug: string | null = null
   createEffect(data, (v) => {
     if (v?.status === 'loaded' && v.projectSlug !== lastReportedProjectSlug) {
@@ -335,17 +367,14 @@ function ProjectContent(props: { ctrl?: ProjectPageController }): JSX.Element {
   }
 
   function SyncStatusErrorButton(props: { error: unknown }): JSX.Element {
-    const message = () => (props.error instanceof Error ? props.error.message : String(props.error))
+    const error = () => errorPayload(props.error, 'Sync status unavailable')
     return (
       <button
         class="btn-icon border-destructive text-destructive hover:bg-destructive/10"
-        title={message()}
+        title={error().description}
         data-testid="sync-status-error-button"
         onClick={() =>
-          commands.setSyncError({
-            title: 'Sync status unavailable',
-            description: message(),
-          })
+          commands.setSyncError(error())
         }
       >
         <TriangleAlert size={16} />
@@ -412,14 +441,14 @@ function ProjectContent(props: { ctrl?: ProjectPageController }): JSX.Element {
                       </MenuItem>
                       <MenuItem
                         value="open-tickets-folder"
-                        onClick={() => openConfigDir('tickets', d().projectSlug)}
+                        onClick={() => errors.run(() => openConfigDir('tickets', d().projectSlug))}
                         data-testid="project-header-open-tickets-folder-menuitem"
                       >
                         Open tickets folder
                       </MenuItem>
                       <MenuItem
                         value="open-project-folder"
-                        onClick={() => openConfigDir('repo', d().projectSlug)}
+                        onClick={() => errors.run(() => openConfigDir('repo', d().projectSlug))}
                         data-testid="project-header-open-project-folder-menuitem"
                       >
                         Open project folder
@@ -521,16 +550,8 @@ function ProjectContent(props: { ctrl?: ProjectPageController }): JSX.Element {
                     </Match>
                     <Match when={pageErr()}>
                       {(e) => (
-                        <div
-                          class="mx-auto mt-10 max-w-2xl rounded-lg border border-destructive/40 bg-card p-6"
-                          role="alert"
-                          data-testid="project-load-error"
-                        >
-                          <h2 class="mb-2 text-lg font-semibold">Tickets could not be loaded</h2>
-                          <p class="mb-4 whitespace-pre-wrap text-sm text-destructive">{e().error}</p>
-                          <button class="btn-primary" onClick={() => revalidate('project-page')}>
-                            Retry
-                          </button>
+                        <div data-testid="project-load-error">
+                          <LoadError error={e().error} onRetry={() => void revalidate('project-page')} />
                         </div>
                       )}
                     </Match>
@@ -677,19 +698,6 @@ function ProjectContent(props: { ctrl?: ProjectPageController }): JSX.Element {
                   shortcutRunner.setConfirmation(undefined)
                   shortcutRunner.proceed(n)
                 }}
-              />
-              <ErrorDialog error={shortcutRunner.error()} onClose={() => shortcutRunner.setError(null)} />
-              <ErrorDialog error={syncState().syncError} onClose={() => commands.setSyncError(null)} />
-              <ErrorDialog
-                error={
-                  configError()
-                    ? {
-                        title: 'Configuration save failed',
-                        description: configError()!,
-                      }
-                    : null
-                }
-                onClose={() => setConfigError(undefined)}
               />
               <LogViewerDialog open={logViewerOpen()} onOpenChange={setLogViewerOpen} />
             </div>

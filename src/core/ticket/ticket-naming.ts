@@ -1,3 +1,5 @@
+import { createValidationError } from '../shared/errors.js'
+
 export function toKebabCase(input: string): string {
   return input
     .toLowerCase()
@@ -12,12 +14,12 @@ export function normalizeTicketNumber(ticketNumber: string): string {
 
 export function requireNonBlank(value: string, label: string): string {
   const trimmed = value.trim()
-  if (!trimmed) throw new Error(`${label} must not be blank`)
+  if (!trimmed) throw createValidationError(`${label} must not be blank`)
   return trimmed
 }
 
 export function requireSimpleName(name: string, label: string): void {
   if (name.includes('/') || name.includes('\\') || name === '..' || name === '.') {
-    throw new Error(`${label} must be a simple name without path separators: ${name}`)
+    throw createValidationError(`${label} must be a simple name without path separators: ${name}`)
   }
 }

@@ -1,5 +1,5 @@
 import { getMimeType } from '../core/shared/mime-types.js'
-import { errorMessage } from '../core/shared/errors.js'
+import { errorPayload } from '../core/shared/errors.js'
 
 const ticketFilePathPattern = /^\/api\/projects\/([^/]+)\/board\/tickets\/([^/]+)\/files\/([^/]+)$/
 
@@ -33,7 +33,7 @@ export function createRawRouteHandler(deps: RawRouteDeps): (request: Request) =>
       } else {
         const refPath = url.searchParams.get('path')
         if (!refPath)
-          return new Response('Missing path parameter', {
+          return Response.json({ title: 'Load file failed', description: 'Missing path parameter', field: 'path' }, {
             status: 400,
           })
         fileName = refPath
@@ -46,9 +46,7 @@ export function createRawRouteHandler(deps: RawRouteDeps): (request: Request) =>
       })
     } catch (error) {
       return Response.json(
-        {
-          error: errorMessage(error),
-        },
+        errorPayload(error, 'Load file failed'),
         {
           status: 500,
         },

@@ -1,5 +1,6 @@
 import type { ActionError } from '../../core/shared/errors.js'
-import { success, type Result } from '~/util/result.js'
+import { success, failure, type Result } from '~/util/result.js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
 import { action, query } from '@solidjs/router'
 import { respond } from '@solidjs/web'
 import {
@@ -12,7 +13,7 @@ import {
   commandTemplateService,
 } from '~/core/config/instances.js'
 import { detectMainBranch } from '~/core/infra/git.js'
-import { errorResult } from '~/core/shared/errors.js'
+import { errorResult, errorPayload } from '~/core/shared/errors.js'
 
 export type { BoardState, ProjectPageData, SyncStatus } from '~/core/board/board-types.js'
 
@@ -34,19 +35,21 @@ export const getSyncStatus = query(async (projectSlug: string) => {
   return projectPageService.loadSyncStatus(projectSlug)
 }, 'project-sync-status')
 
-export const previewProjectPath = query(async (pathValue: string) => {
+export interface ProjectPathPreview {
+  projectSlug: string
+  mainBranch: string
+}
+
+export const previewProjectPath = query(async (pathValue: string): Promise<Result<ProjectPathPreview, UserFacingError>> => {
   'use server'
 
-  const projectSlug = projectRegistry.previewSlug(pathValue)
-  let mainBranch: string | undefined
   try {
-    mainBranch = await detectMainBranch(pathValue, commandTemplateService)
+    return success({
+      projectSlug: projectRegistry.previewSlug(pathValue),
+      mainBranch: await detectMainBranch(pathValue, commandTemplateService),
+    })
   } catch (err) {
-    console.warn('detectMainBranch failed for preview:', err instanceof Error ? err.message : err)
-  }
-  return {
-    projectSlug,
-    mainBranch,
+    return failure({ ...errorPayload(err, 'Preview project failed'), field: 'path' })
   }
 }, 'preview-project-path')
 

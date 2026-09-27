@@ -48,7 +48,8 @@ describe('createFileUploadState', () => {
         results: [
           failure({
             name: 'report.txt',
-            message: 'disk full',
+            title: 'Upload failed',
+            description: 'disk full',
           }),
         ],
       }),
@@ -61,6 +62,7 @@ describe('createFileUploadState', () => {
       })
       await runWithOwner(null, () => state.handleFileInputChange(inputChangeEvent([file])))
       expect(deps.setError).toHaveBeenCalledWith({
+        name: 'report.txt',
         title: 'Upload failed',
         description: 'disk full',
       })
@@ -74,7 +76,8 @@ describe('createFileUploadState', () => {
         results: [
           failure({
             name: 'notes.md',
-            message: 'permission denied',
+            title: 'Upload failed',
+            description: 'permission denied',
           }),
         ],
       }),
@@ -87,6 +90,7 @@ describe('createFileUploadState', () => {
       })
       await runWithOwner(null, () => state.handleFileInputChange(inputChangeEvent([file])))
       expect(deps.setError).toHaveBeenCalledWith({
+        name: 'notes.md',
         title: 'Upload failed',
         description: 'permission denied',
       })

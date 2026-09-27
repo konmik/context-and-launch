@@ -3,7 +3,7 @@ import type { CommandTemplateExecutor } from '../command-template/command-templa
 import type { HerdrAgent } from '../herdr/herdr-exec.js'
 import { agentBelongsToTarget } from '../herdr/herdr-control.js'
 import { appLog } from '../infra/app-logger.js'
-import { errorMessage } from '../shared/errors.js'
+import { errorMessage, errorPayload } from '../shared/errors.js'
 import { reviewSelectionStillExists } from './diff-review-model.js'
 import { renderReviewPrompt } from './review-prompt-text.js'
 import type { DiffReviewGitService } from './diff-review-git.js'
@@ -358,7 +358,7 @@ export function createReviewPromptQueueService(
               folderName,
               target.worktreeIdentity,
               head.id,
-              'The Agent that received this Review Prompt is no longer running.' + ' Retry it if the work was not completed.',
+              { title: 'Review delivery failed', description: 'The Agent that received this Review Prompt is no longer running.' + ' Retry it if the work was not completed.' },
             ),
           )
           return
@@ -457,7 +457,7 @@ export function createReviewPromptQueueService(
       await delivery.send(renderReviewPrompt(item, freshness))
     } catch (error) {
       await store.whenWritable(target.projectSlug, () =>
-        store.failDelivery(target.projectSlug, target.folderName, target.worktreeIdentity, item.id, errorMessage(error)),
+        store.failDelivery(target.projectSlug, target.folderName, target.worktreeIdentity, item.id, errorPayload(error, 'Review delivery failed')),
       )
       return
     }
@@ -473,7 +473,7 @@ export function createReviewPromptQueueService(
           target.folderName,
           target.worktreeIdentity,
           item.id,
-          `The Agent accepted this Review Prompt, but its queue state could not be saved: ${errorMessage(error)}`,
+          { title: 'Review delivery uncertain', description: 'The Agent accepted this Review Prompt, but its queue state could not be saved.', details: errorMessage(error) },
         ),
       )
       return

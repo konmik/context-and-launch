@@ -2,7 +2,8 @@ import type { Result } from '../../util/result.js'
 import { GET } from '@solidjs/web/server-functions'
 import { diffReviewStore, diffReviewTargetResolver, reviewPromptQueueService } from '~/core/config/instances.js'
 import type { DiffReviewProjectState } from '~/core/diff-review/diff-review-types.js'
-import { errorMessage } from '~/core/shared/errors.js'
+import { errorPayload } from '~/core/shared/errors.js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
 import { failure, success } from '~/util/result.js'
 
 export const readReviewAgentStatus = GET(async (projectSlug: string, folderName: string) => {
@@ -20,7 +21,7 @@ export const readDiffReviewState = GET(async (projectSlug: string, owner?: strin
   try {
     return success(diffReviewStore.loadProject(projectSlug, owner))
   } catch (error) {
-    return failure(errorMessage(error))
+    return failure(errorPayload(error, 'Load review state failed'))
   }
 })
 
@@ -28,11 +29,11 @@ export async function saveDiffReviewState(
   projectSlug: string,
   json: string,
   owner: string,
-): Promise<Result<DiffReviewProjectState, string>> {
+): Promise<Result<DiffReviewProjectState, UserFacingError>> {
   'use server'
 
   try {
-    if (!owner) return failure('Configuration update requires a client identity.')
+    if (!owner) return failure({ title: 'Save failed', description: 'Configuration update requires a client identity.' })
     return success(
       diffReviewStore.updateProject(
         projectSlug,
@@ -51,7 +52,7 @@ export async function saveDiffReviewState(
       ),
     )
   } catch (error) {
-    return failure(errorMessage(error))
+    return failure(errorPayload(error, 'Save review state failed'))
   }
 }
 

@@ -1,4 +1,5 @@
 import * as v from 'valibot'
+import { createValidationError, createAppError } from '../shared/errors.js'
 import type { JsonValue } from '../shared/json.js'
 import { slugifyColumnName } from '../../lib/slugify.js'
 import { requireColumnColor } from './column-color-palette.js'
@@ -31,16 +32,16 @@ const schema = v.array(
 
 export function decodeBoards(raw: JsonValue): BoardDefinition[] {
   const parsed = v.safeParse(schema, raw)
-  if (!parsed.success || !parsed.output.length) throw new Error('boards.json is empty or not an array')
+  if (!parsed.success || !parsed.output.length) throw createAppError('boards.json is empty or not an array', 'Invalid board configuration')
   return parsed.output
 }
 
 export function validateColumnName(name: string, existingNames: string[], renamingFrom?: string): string {
   const columnSlug = slugifyColumnName(name)
-  if (!columnSlug) throw new Error('Column name must not be empty')
-  if (columnSlug === 'undefined') throw new Error('Column name "undefined" is reserved')
+  if (!columnSlug) throw createValidationError('Column name must not be empty', 'name')
+  if (columnSlug === 'undefined') throw createValidationError('Column name "undefined" is reserved', 'name')
   if (existingNames.some((n) => n !== renamingFrom && n === columnSlug)) {
-    throw new Error(`Column name "${columnSlug}" already exists`)
+    throw createValidationError(`Column name "${columnSlug}" already exists`, 'name')
   }
   return columnSlug
 }
@@ -48,13 +49,13 @@ export function validateColumnName(name: string, existingNames: string[], renami
 export function validateBoards(boards: BoardDefinition[]): void {
   const ids = new Set<string>()
   for (const board of boards) {
-    if (!board.id || board.id === 'undefined') throw new Error('Board id must not be empty or reserved')
-    if (ids.has(board.id)) throw new Error(`Board with id "${board.id}" already exists`)
+    if (!board.id || board.id === 'undefined') throw createValidationError('Board id must not be empty or reserved', 'name')
+    if (ids.has(board.id)) throw createValidationError(`Board with id "${board.id}" already exists`, 'name')
     ids.add(board.id)
     const names: string[] = []
     for (const column of board.columns) {
       if (validateColumnName(column.name, names) !== column.name) {
-        throw new Error('Column name must be slugified')
+        throw createValidationError('Column name must be slugified', 'name')
       }
       names.push(column.name)
       if (column.color) requireColumnColor(column.color)

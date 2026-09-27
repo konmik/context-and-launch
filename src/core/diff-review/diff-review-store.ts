@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import * as v from 'valibot'
+import { errorPayload, UserFacingErrorSchema } from '../shared/errors.js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
 import type { ConfigPaths } from '../config/config-paths.js'
 import type { ConfigRepository } from '../config/config-repository.js'
 import { requireSafeSlug } from '../config/config-paths.js'
@@ -56,12 +58,12 @@ const QueueItemSchema = v.union([
   v.object({
     ...QueueItemBaseSchema,
     state: v.literal('error'),
-    error: v.string(),
+    error: v.union([UserFacingErrorSchema, v.pipe(v.string(), v.transform((description) => errorPayload(description, 'Review delivery failed')))]),
   }),
   v.object({
     ...QueueItemBaseSchema,
     state: v.literal('uncertain'),
-    error: v.string(),
+    error: v.union([UserFacingErrorSchema, v.pipe(v.string(), v.transform((description) => errorPayload(description, 'Review delivery uncertain')))]),
   }),
 ])
 
@@ -127,14 +129,14 @@ export interface DiffReviewStore {
     sentAt: Date,
     cooldownMs: number,
   ): DiffReviewTicketState
-  failDelivery(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string, error: string): DiffReviewTicketState
-  failSentDelivery(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string, error: string): DiffReviewTicketState
+  failDelivery(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string, error: UserFacingError): DiffReviewTicketState
+  failSentDelivery(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string, error: UserFacingError): DiffReviewTicketState
   markDeliveryUncertain(
     projectSlug: string,
     folderName: string,
     worktreeIdentity: string,
     itemId: string,
-    error: string,
+    error: UserFacingError,
   ): DiffReviewTicketState
   acknowledgeSent(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string): DiffReviewTicketState
   reserveAgentLaunch(projectSlug: string, folderName: string, worktreeIdentity: string, reservedUntil: Date): DiffReviewTicketState
@@ -300,7 +302,7 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
     folderName: string,
     worktreeIdentity: string,
     itemId: string,
-    error: string,
+    error: UserFacingError,
   ): DiffReviewTicketState {
     return updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
       const head = ticket.queue.items[0]
@@ -320,7 +322,7 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
     folderName: string,
     worktreeIdentity: string,
     itemId: string,
-    error: string,
+    error: UserFacingError,
   ): DiffReviewTicketState {
     return updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
       const head = ticket.queue.items[0]
@@ -340,7 +342,7 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
     folderName: string,
     worktreeIdentity: string,
     itemId: string,
-    error: string,
+    error: UserFacingError,
   ): DiffReviewTicketState {
     return updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
       const head = ticket.queue.items[0]
@@ -393,7 +395,7 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
           if (item.state !== 'delivering') continue
           ticket.queue.items[index] = withState(item, {
             state: 'uncertain',
-            error: 'Delivery was interrupted and may have reached the Agent. Retry only if needed.',
+            error: { title: 'Review delivery uncertain', description: 'Delivery was interrupted and may have reached the Agent. Retry only if needed.' },
           })
           changed = true
         }
@@ -455,11 +457,11 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
         }
       | {
           state: 'error'
-          error: string
+          error: UserFacingError
         }
       | {
           state: 'uncertain'
-          error: string
+          error: UserFacingError
         },
   ): ReviewPromptQueueItem {
     return {

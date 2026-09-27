@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createHerdrUnavailableError } from '~/core/herdr/herdr-availability.js'
+import { errorPayload } from '~/core/shared/errors.js'
 import { createHerdrStatusService } from '../../../src/components/board/herdr-status-service.js'
 
 const fetchHerdrTicketState = vi.fn()
@@ -46,6 +47,7 @@ describe('getHerdrAgentStatuses', () => {
     const result = await service.getStatuses('project')
     expect(result).toEqual({
       kind: 'unavailable',
+      error: errorPayload(createHerdrUnavailableError('server-not-running'), 'Agent status unavailable'),
     })
     expect(reconcileProject).not.toHaveBeenCalled()
   })
@@ -62,6 +64,7 @@ describe('getHerdrAgentStatuses', () => {
     const result = await service.getStatuses('project')
     expect(result).toEqual({
       kind: 'unavailable',
+      error: { title: 'Agent status unavailable', description: 'workspace list exploded' },
     })
     expect(reconcileProject).not.toHaveBeenCalled()
   })
@@ -76,7 +79,7 @@ describe('getHerdrAgentStatuses', () => {
     reconcileProject.mockRejectedValue(new Error('workspace list exploded'))
     await expect(service.reconcile('project')).resolves.toEqual({
       type: 'Failure',
-      error: 'workspace list exploded',
+      error: { title: 'Review queue reconciliation failed', description: 'workspace list exploded' },
     })
   })
 })

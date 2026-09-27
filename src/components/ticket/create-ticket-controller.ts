@@ -3,9 +3,13 @@ import type { Setter } from 'solid-js'
 import { createMemo, createSignal } from 'solid-js'
 import { createFormDialogController } from './form-dialog-controller.js'
 import type { Result } from '~/util/result.js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
+import { errorPayload } from '~/core/shared/errors.js'
 
 export interface CreateTicketDeps {
-  onSubmit: (number: string, title: string) => Promise<Result<undefined, string>>
+  onSubmit: (number: string, title: string) => Promise<Result<undefined, UserFacingError>>
+  onError?: (error: UserFacingError) => void
+  onClearError?: () => void
   onOpenChange: (open: boolean) => void
   suggestedNextNumber: () => string | null | undefined
   open: () => boolean
@@ -29,6 +33,8 @@ export function createCreateTicketController(deps: CreateTicketDeps): CreateTick
   }
 
   const form = createFormDialogController({
+    onError: deps.onError,
+    onClearError: deps.onClearError,
     onSubmit: deps.onSubmit,
     onOpenChange: (open) => {
       if (!open) resetFields()
@@ -48,7 +54,7 @@ export function createCreateTicketController(deps: CreateTicketDeps): CreateTick
       const result = await deps.onSuggestNumber(number())
       if (result != null) setNumber(result)
     } catch (err: any) {
-      form.setErrorMsg(err?.message ?? 'Unknown error')
+      form.setErrorMsg(errorPayload(err, 'Suggest ticket number failed'))
     } finally {
       setSuggestingNumber(false)
     }
@@ -74,7 +80,7 @@ export interface CreateTicketControllerResult {
   number: SourceAccessor<string>
   title: SourceAccessor<string>
   submitting: SourceAccessor<boolean>
-  errorMsg: SourceAccessor<string>
+  errorMsg: SourceAccessor<UserFacingError | undefined>
   setNumber: (value: string) => string
   setTitle: Setter<string>
   close: () => void

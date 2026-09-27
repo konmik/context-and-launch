@@ -1,29 +1,23 @@
 import { describe, it, expect } from 'vitest'
 import { fromPartial } from '@total-typescript/shoehorn'
-import { resolveDefaults, computeLaunchDir, launchErrorInfo } from '../../../src/components/launcher/agent-launcher-pure.js'
+import { resolveDefaults, computeLaunchDir } from '../../../src/components/launcher/agent-launcher-pure.js'
+import { errorPayload, createProcessError } from '~/core/shared/errors.js'
 import type { MergedLauncherConfig } from '~/core/launcher/launcher-config.js'
 
-describe('launchErrorInfo', () => {
+describe('launch error payload', () => {
   it("keeps the structured error's description, command, and output", () => {
-    const result = launchErrorInfo({
-      message: "Failed (exit 1): Ticket 'st-47' already has a Herdr agent (idle).",
-      errorInfo: {
-        description: 'Failed (exit 1)',
-        command: 'powershell -File run-agent-herdr.ps1',
-        output: "Ticket 'st-47' already has a Herdr agent (idle).",
-      },
-    })
+    const result = errorPayload(createProcessError('powershell -File run-agent-herdr.ps1', 1,
+      "Ticket 'st-47' already has a Herdr agent (idle).", 'Failed (exit 1)'), 'Launch failed')
     expect(result).toEqual({
       title: 'Launch failed',
       description: 'Failed (exit 1)',
-      command: 'powershell -File run-agent-herdr.ps1',
-      output: "Ticket 'st-47' already has a Herdr agent (idle).",
+      details: "Command\npowershell -File run-agent-herdr.ps1\n\nOutput\nTicket 'st-47' already has a Herdr agent (idle).",
     })
   })
   it('falls back to the message when no structured error is present', () => {
-    const result = launchErrorInfo({
+    const result = errorPayload({
       message: 'Already started',
-    })
+    }, 'Launch failed')
     expect(result).toEqual({
       title: 'Launch failed',
       description: 'Already started',

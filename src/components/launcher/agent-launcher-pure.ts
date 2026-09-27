@@ -1,15 +1,5 @@
 import type { MergedLauncherConfig } from '~/core/launcher/launcher-config.js'
-import type { ErrorInfo } from '~/core/shared/errors.js'
 import { worktreeFolderName } from '~/core/worktree/worktree-naming.js'
-
-export function launchErrorInfo(result: { message: string; errorInfo?: ErrorInfo }): ErrorInfo {
-  return {
-    ...(result.errorInfo ?? {
-      description: result.message,
-    }),
-    title: 'Launch failed',
-  }
-}
 
 export interface LauncherDefaults {
   templateName: string

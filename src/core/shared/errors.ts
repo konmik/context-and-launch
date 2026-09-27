@@ -1,14 +1,10 @@
 import * as v from 'valibot'
 import { failure, type Failure } from '~/util/result.js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
 
-export interface ErrorInfo {
-  title?: string
-  description: string
-  command?: string
-  output?: string
-}
+export type ErrorInfo = UserFacingError
 
-export interface AppError extends Error {}
+export interface AppError extends Error, UserFacingError {}
 
 export interface ValidationError extends AppError {}
 
@@ -18,8 +14,9 @@ const appErrors = new WeakSet<AppError>()
 
 const validationErrors = new WeakSet<ValidationError>()
 
-export function createAppError(message: string): AppError {
-  const error = new Error(message)
+export function createAppError(message: string, title = 'Operation failed', field?: string): AppError {
+  const error: AppError = Object.assign(new Error(message), { title, description: message })
+  if (field) Object.assign(error, { field })
   error.name = 'AppError'
   appErrors.add(error)
   return error
@@ -29,8 +26,8 @@ export function isAppError(cause: unknown): cause is AppError {
   return cause instanceof Error && appErrors.has(cause)
 }
 
-export function createValidationError(message: string): ValidationError {
-  const error = createAppError(message)
+export function createValidationError(message: string, field?: string): ValidationError {
+  const error = createAppError(message, 'Invalid input', field)
   error.name = 'ValidationError'
   validationErrors.add(error)
   return error
@@ -41,7 +38,7 @@ export function isValidationError(cause: unknown): cause is ValidationError {
 }
 
 export function createNotFoundError(message: string): NotFoundError {
-  const error = createAppError(message)
+  const error = createAppError(message, 'Not found')
   error.name = 'NotFoundError'
   return error
 }
@@ -98,7 +95,16 @@ const ErrorMessageSchema = v.object({
   message: v.string(),
 })
 
+export const UserFacingErrorSchema = v.object({
+  title: v.string(),
+  description: v.string(),
+  details: v.optional(v.string()),
+  field: v.optional(v.string()),
+})
+
 export function errorMessage(cause: unknown): string {
+  const userError = v.safeParse(UserFacingErrorSchema, cause)
+  if (userError.success) return userError.output.description
   if (cause instanceof Error) return cause.message
   const stringResult = v.safeParse(v.string(), cause)
   if (stringResult.success) return stringResult.output
@@ -107,27 +113,25 @@ export function errorMessage(cause: unknown): string {
   return 'Unknown error'
 }
 
-export interface ActionError {
+export interface ActionError extends UserFacingError {
   type: 'error'
-  message: string
-  errorInfo: ErrorInfo
 }
 
 export function errorResult(cause: unknown): Failure<ActionError> {
   return failure({
     type: 'error' as const,
-    message: errorMessage(cause),
-    errorInfo: errorPayload(cause),
+    ...errorPayload(cause),
   })
 }
 
-export function errorPayload(cause: unknown, title?: string): ErrorInfo {
+export function errorPayload(cause: unknown, title = 'Operation failed'): UserFacingError {
+  const userError = v.safeParse(UserFacingErrorSchema, cause)
+  if (userError.success) return userError.output
   if (isProcessError(cause)) {
     return {
       title,
       description: cause.shortDescription,
-      command: cause.command,
-      output: cause.output,
+      details: `Command\n${cause.command}${cause.output ? `\n\nOutput\n${cause.output}` : ''}`,
     }
   }
   return {

@@ -23,7 +23,8 @@ import {
   PROJECT_LAUNCH_KEY,
   type LaunchRequest,
 } from '~/core/launcher/agent-launch.js'
-import { createNotFoundError, createValidationError, errorResult, errorMessage } from '~/core/shared/errors.js'
+import { createNotFoundError, createValidationError, errorResult, errorPayload } from '~/core/shared/errors.js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
 import { success, failure } from '~/util/result.js'
 import { resolveConflictsWith } from '~/core/launcher/resolve-conflicts.js'
 import type { MergedLauncherConfig } from '~/core/launcher/launcher-config.js'
@@ -50,13 +51,13 @@ export const getProjectLauncherMetadata = query(async (projectSlug: string): Pro
   }
 }, 'launcher-metadata')
 
-export async function readProjectLauncherConfig(projectSlug: string, owner?: string): Promise<Result<LauncherConfig, string>> {
+export async function readProjectLauncherConfig(projectSlug: string, owner?: string): Promise<Result<LauncherConfig, UserFacingError>> {
   'use server'
 
   try {
     return success(launcherConfigManager.loadProjectConfig(projectSlug, owner))
   } catch (e) {
-    return failure(errorMessage(e))
+    return failure(errorPayload(e, 'Load launcher settings failed'))
   }
 }
 
@@ -66,15 +67,15 @@ export async function releaseProjectLauncherConfig(projectSlug: string, owner: s
   launcherConfigManager.releaseProjectConfig(projectSlug, owner)
 }
 
-export async function saveProjectLauncherConfig(projectSlug: string, json: string, owner: string): Promise<Result<LauncherConfig, string>> {
+export async function saveProjectLauncherConfig(projectSlug: string, json: string, owner: string): Promise<Result<LauncherConfig, UserFacingError>> {
   'use server'
 
   try {
     return owner
       ? success(launcherConfigManager.saveProjectConfig(projectSlug, JSON.parse(json), owner))
-      : failure('Configuration update requires a client identity.')
+      : failure({ title: 'Save failed', description: 'Configuration update requires a client identity.' })
   } catch (e) {
-    return failure(errorMessage(e))
+    return failure(errorPayload(e, 'Save launcher settings failed'))
   }
 }
 

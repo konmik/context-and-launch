@@ -3,7 +3,7 @@ import type { ActionError } from '../../core/shared/errors.js'
 import { success, failure, type Result } from '~/util/result.js'
 import { query } from '@solidjs/router'
 import { diffReviewGitService, diffReviewTargetResolver, reviewPromptQueueService } from '~/core/config/instances.js'
-import { errorMessage, errorResult } from '~/core/shared/errors.js'
+import { errorPayload, errorResult } from '~/core/shared/errors.js'
 import type { DiffScope, ReviewPromptSnapshot } from '~/core/diff-review/diff-review-types.js'
 
 /**
@@ -30,7 +30,7 @@ export const getReviewSnapshot = query(async (projectSlug: string, folderName: s
     return {
       scopes,
       scope,
-      snapshot: failure(errorMessage(error)),
+      snapshot: failure(errorPayload(error, 'Load diff failed')),
     }
   }
   return {

@@ -10,21 +10,13 @@ import { modEnterHint } from '~/lib/use-mod-enter-submit.js'
 import HerdrStatusIcon from '../ticket/HerdrStatusIcon.js'
 import VerticalReveal from './VerticalReveal.js'
 import { ReviewAgentStatusContext } from './diff-review-storage.js'
+import { errorPayload } from '~/core/shared/errors.js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
+import { setPromptDragData } from './review-prompt-drag.js'
 
 export interface ActiveSelection {
   range: ReviewLineRange
   snapshot: ReviewPromptSnapshot
-}
-
-function setPromptDragData(event: DragEvent, text: string, onError: (message: string) => void) {
-  if (!event.dataTransfer) {
-    onError('The drag carried no data, so the Review Prompt was not attached to it.')
-    return
-  } // Chromium seeds a selection drag with text/html as well, so the markup has to
-  // go before the prompt is attached or rich-text targets paste the diff instead.
-  event.dataTransfer.clearData()
-  event.dataTransfer.effectAllowed = 'copy'
-  event.dataTransfer.setData('text/plain', text)
 }
 
 function selectionLabel(selection: ActiveSelection): string {
@@ -40,7 +32,6 @@ export default function ReviewPromptComposer(props: {
   selection?: ActiveSelection
   stale: boolean
   sending: boolean
-  error?: string
   herdrStatus?: HerdrAgentStatus
   feedback: string
   completePrompt: string
@@ -51,7 +42,7 @@ export default function ReviewPromptComposer(props: {
   onFeedbackChange(feedback: string): void
   onProfileChange(profileName: string): void
   onCancel(): void
-  onError(message: string): void
+  onError(error: UserFacingError): void
   onSend(feedback: string): Promise<boolean>
 }): JSX.Element {
   let inputRef: HTMLTextAreaElement | undefined
@@ -62,7 +53,7 @@ export default function ReviewPromptComposer(props: {
     try {
       await navigator.clipboard.writeText(text)
     } catch (error) {
-      props.onError(error instanceof Error ? error.message : String(error))
+      props.onError(errorPayload(error, 'Copy review prompt failed'))
     }
   }
 
@@ -162,11 +153,6 @@ export default function ReviewPromptComposer(props: {
               The selected content changed. The original snapshot will still be sent.
             </div>
           </VerticalReveal>
-          <Show when={props.error}>
-            <div class="mt-2 text-[10px] text-destructive" role="alert">
-              {props.error}
-            </div>
-          </Show>
           <div class="mt-3 flex items-center gap-2">
             <Show when={props.dragText}>
               {(text) => (

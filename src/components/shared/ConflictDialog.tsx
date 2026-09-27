@@ -3,6 +3,7 @@ import { Show, For } from 'solid-js'
 import { DialogRoot, DialogTitle, DialogDescription } from '../ui/dialog'
 import { createConflictDialogController, type ConflictDialogController } from './conflict-dialog-controller.js'
 import { openConfigDir } from './shared-api.js'
+import { useErrorReporter } from './error-presentation.js'
 
 interface ConflictDialogProps {
   open: boolean
@@ -15,9 +16,11 @@ interface ConflictDialogProps {
 }
 
 export default function ConflictDialog(props: ConflictDialogProps): JSX.Element {
+  const errors = useErrorReporter(() => props.open)
   const s =
     props.ctrl ??
     createConflictDialogController({
+      onError: errors.report,
       projectSlug: () => props.projectSlug,
       open: () => props.open,
       onResolve: props.onResolve,
@@ -44,14 +47,11 @@ export default function ConflictDialog(props: ConflictDialogProps): JSX.Element 
         </select>
       </div>
 
-      <Show when={s.errorMsg()}>
-        <p class="mb-4 text-sm text-destructive">{s.errorMsg()}</p>
-      </Show>
 
       <div class="flex items-center justify-between">
         <button
           type="button"
-          onClick={() => openConfigDir('tickets', props.projectSlug)}
+          onClick={() => errors.run(() => openConfigDir('tickets', props.projectSlug))}
           class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
           title="Open tickets directory"
           data-testid="conflict-dialog-open-tickets-repo"

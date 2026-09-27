@@ -2,7 +2,8 @@ import type { Setter } from 'solid-js'
 import { createSignal, flush } from 'solid-js'
 import { revalidate, useAction } from '@solidjs/router'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
-import type { ErrorInfo } from '~/core/shared/errors.js'
+import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
+import { createErrorState } from '~/util/error-state.js'
 import { createTicket, deleteTicket, archiveTicket, syncTickets, worktreeCleanup } from '../ticket/ticket-api.js'
 import { deleteProject, getSyncStatus } from './project-api.js'
 import { ticketMutationRevalidateKeys, projectSyncRevalidateKeys } from '../shared/revalidate-keys.js'
@@ -10,9 +11,10 @@ import type { ProjectPageData } from './project-api.js'
 import { resolveConflicts, abortRebase } from '../launcher/launcher-api.js'
 import { parseSyncResult } from './project-page-pure.js'
 import type { TicketCleanupOptions } from '../shared/ticket-cleanup-pure.js'
-import { failure, onSuccess, type Result } from '~/util/result.js'
+import { onSuccess, type Result } from '~/util/result.js'
 
 export interface ProjectPageDeps {
+  onError?: (error: ErrorInfo) => void
   projectSlug: () => string
   data: () => ProjectPageData | undefined
   runSyncTickets?: (projectSlug: string) => ReturnType<typeof syncTickets>
@@ -29,7 +31,7 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
   const [reviewTicket, setReviewTicket] = createSignal<TicketInfo | null>(null)
   const [syncing, setSyncing] = createSignal(false)
   const [syncSuccess, setSyncSuccess] = createSignal(false)
-  const [syncError, setSyncError] = createSignal<ErrorInfo | null>(null)
+  const { error: syncError, setError: setSyncError } = createErrorState(deps.onError)
   const [conflictDialogOpen, setConflictDialogOpen] = createSignal(false)
   const [conflictDetected, setConflictDetected] = createSignal(false)
   const runSyncTickets = deps.runSyncTickets ?? useAction(syncTickets)
@@ -63,17 +65,11 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
       }
       const result = await runSyncTickets(deps.projectSlug())
       if (result.type === 'Failure') {
-        setSyncError({
-          title: 'Sync failed',
-          description: result.error.message,
-        })
+        setSyncError(result.error)
       } else {
         const parsed = parseSyncResult(result.value)
         if (parsed.type === 'Failure') {
-          setSyncError({
-            title: 'Sync failed',
-            description: parsed.error,
-          })
+          setSyncError(parsed.error)
         } else if (parsed.value.type === 'success') {
           showSuccess = true
           setSyncSuccess(true)
@@ -89,10 +85,7 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
         }
       }
     } catch (err) {
-      setSyncError({
-        title: 'Sync failed',
-        description: err instanceof Error ? err.message : 'Sync failed',
-      })
+      setSyncError(errorPayload(err, 'Sync failed'))
     } finally {
       if (!showSuccess) {
         setSyncing(false)
@@ -103,13 +96,13 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
 
   async function handleConflictResolve(profileName: string) {
     const result = await resolveConflicts(deps.projectSlug(), profileName)
-    if (result.type === 'Failure') throw new Error(result.error.message)
+    if (result.type === 'Failure') throw result.error
     await revalidate(projectSyncRevalidateKeys)
   }
 
   async function handleConflictAbort() {
     const result = await abortRebase(deps.projectSlug())
-    if (result.type === 'Failure') throw new Error(result.error.message)
+    if (result.type === 'Failure') throw result.error
     setConflictDetected(false)
     await revalidate(projectSyncRevalidateKeys)
   }
@@ -138,28 +131,28 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
     flush()
   }
 
-  async function handleCreateTicket(number: string, title: string): Promise<Result<undefined, string>> {
+  async function handleCreateTicket(number: string, title: string): Promise<Result<undefined, ErrorInfo>> {
     const result = await createTicket(deps.projectSlug(), number, title)
     onSuccess(result, () => revalidate(ticketMutationRevalidateKeys))
-    return result.type === 'Failure' ? failure(result.error.message) : result
+    return result
   }
 
   async function handleArchiveTicket(folderName: string): Promise<Result<undefined, ErrorInfo>> {
     const result = await archiveTicket(deps.projectSlug(), folderName)
     onSuccess(result, () => revalidate(ticketMutationRevalidateKeys))
-    return result.type === 'Failure' ? failure(result.error.errorInfo) : result
+    return result
   }
 
   async function handleDeleteTicket(folderName: string): Promise<Result<undefined, ErrorInfo>> {
     const result = await deleteTicket(deps.projectSlug(), folderName)
     onSuccess(result, () => revalidate(ticketMutationRevalidateKeys))
-    return result.type === 'Failure' ? failure(result.error.errorInfo) : result
+    return result
   }
 
-  async function handleDeleteProject(projectSlug: string): Promise<Result<undefined, string>> {
+  async function handleDeleteProject(projectSlug: string): Promise<Result<undefined, ErrorInfo>> {
     const result = await deleteProject(projectSlug)
     onSuccess(result, () => revalidate('project-page'))
-    return result.type === 'Failure' ? failure(result.error.message) : result
+    return result
   }
 
   async function handleCleanupSubmit(folderName: string): Promise<Result<undefined, ErrorInfo>> {
@@ -168,7 +161,7 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
 
   async function handleCleanupAction(folderName: string, options: TicketCleanupOptions): Promise<Result<undefined, ErrorInfo>> {
     const cleanupResult = await worktreeCleanup(deps.projectSlug(), folderName, options)
-    return cleanupResult.type === 'Failure' ? failure(cleanupResult.error.errorInfo) : cleanupResult
+    return cleanupResult
   }
 
   const dialogState = () => ({
@@ -239,7 +232,7 @@ export interface ProjectPageControllerResult {
   syncState: () => {
     syncing: boolean
     syncSuccess: boolean
-    syncError: ErrorInfo | null
+    syncError: ErrorInfo | undefined
     conflictDetected: boolean
   }
   selectionState: () => {
@@ -258,17 +251,17 @@ export interface ProjectPageControllerResult {
     handleSync: () => Promise<void>
     handleConflictResolve: (profileName: string) => Promise<void>
     handleConflictAbort: () => Promise<void>
-    handleCreateTicket: (number: string, title: string) => Promise<Result<undefined, string>>
+    handleCreateTicket: (number: string, title: string) => Promise<Result<undefined, ErrorInfo>>
     handleCleanupAction: (folderName: string, options: TicketCleanupOptions) => Promise<Result<undefined, ErrorInfo>>
     handleCleanupSubmit: (folderName: string) => Promise<Result<undefined, ErrorInfo>>
     openSettings: () => true
     closeSettings: () => false
     openAddProject: () => true
     closeAddProject: () => false
-    handleDeleteProject: (projectSlug: string) => Promise<Result<undefined, string>>
+    handleDeleteProject: (projectSlug: string) => Promise<Result<undefined, ErrorInfo>>
     setCreateTicketOpen: Setter<boolean>
     setCleanupDialogOpen: Setter<boolean>
     setConflictDialogOpen: Setter<boolean>
-    setSyncError: Setter<ErrorInfo | null>
+    setSyncError: (error?: ErrorInfo | null) => void
   }
 }

@@ -837,10 +837,11 @@ describe('Diff Review (e2e, real server)', () => {
       })
       .toBe(4)
     await expect
-      .poll(() => ctx.page.locator('[role="alert"]').first().textContent(), {
+      .poll(() => ctx.page.getByRole('dialog').last().textContent(), {
         timeout: 10000,
       })
       .toContain('nonexistent-main')
+    await ctx.page.getByTestId('error-dialog-ok').click()
     await selectScope(ctx.page, 'working')
     expect(await ctx.page.locator('[data-testid="diff-review-file"]').allTextContents()).toEqual([expect.stringContaining('pending.ts')])
   })

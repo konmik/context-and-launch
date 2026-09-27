@@ -1,5 +1,5 @@
 import type { JSX } from '@solidjs/web'
-import { createSignal, createMemo, useContext, untrack } from 'solid-js'
+import { createMemo, useContext, untrack } from 'solid-js'
 import { LauncherConfigContext } from './shared-launcher-config-storage.js'
 import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js'
 import { X } from '~/components/ui/icons.js'
@@ -16,9 +16,9 @@ import { LauncherTab } from '../ticket/ticket-detail-launcher-tab.js'
 import { createAgentLauncherController } from './agent-launcher-controller.js'
 import { getProjectLauncherMetadata, launchProjectAgentAction } from './launcher-api.js'
 import { PROJECT_LAUNCH_KEY } from '~/core/launcher/launch-keys.js'
-import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
+import { errorPayload } from '~/core/shared/errors.js'
 import type { LauncherColumnDefaults } from '~/core/launcher/launcher-config.js'
-import ErrorDialog from '../shared/ErrorDialog.js'
+import { useErrorSink, useErrorReporter } from '../shared/error-presentation.js'
 import { ProjectLauncherConfigContext } from './project-launcher-config-storage.js'
 
 export default function ProjectLauncherDialog(props: {
@@ -40,7 +40,8 @@ export default function ProjectLauncherDialog(props: {
       }
     )
   })
-  const [error, setError] = createSignal<ErrorInfo | null>(null)
+  const setError = useErrorSink(() => props.open, true)
+  const errors = useErrorReporter(() => props.open)
 
   function patchDefaults(patch: Partial<LauncherColumnDefaults>) {
     projectConfig
@@ -59,10 +60,7 @@ export default function ProjectLauncherDialog(props: {
       }))
       .then((result) => {
         if (result.type === 'Failure') {
-          setError({
-            title: 'Save failed',
-            description: result.error,
-          })
+          setError(result.error)
           return
         }
       })
@@ -71,6 +69,7 @@ export default function ProjectLauncherDialog(props: {
 
   const ctrl = untrack(() =>
     createAgentLauncherController({
+      onError: errors.report,
       projectSlug: props.projectSlug,
       get config() {
         return config()
@@ -146,7 +145,6 @@ export default function ProjectLauncherDialog(props: {
         </FloatingPanelBody>
       </FloatingWindow>
 
-      <ErrorDialog error={error()} onClose={() => setError(null)} />
     </>
   )
 }

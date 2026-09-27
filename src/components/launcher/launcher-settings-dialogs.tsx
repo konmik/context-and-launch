@@ -1,4 +1,4 @@
-import { For, Show } from 'solid-js'
+import { For, Show, createSignal } from 'solid-js'
 import type { JSX } from '@solidjs/web'
 import { X } from '~/components/ui/icons.js'
 import { DialogRoot, DialogTitle, DialogCloseTrigger, DialogForm } from '../ui/dialog'
@@ -8,6 +8,9 @@ import { COLUMN_COLOR_PALETTE } from '~/core/project/column-color-palette.js'
 import type { BoardRef } from '../board/board-api.js'
 import { usesWindowsBatchCommand } from './launcher-settings-pure.js'
 import type { LauncherItemType } from '~/core/launcher/launcher-config.js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
+import { ErrorField, FieldErrorMessage } from '../shared/error-presentation.js'
+import ErrorDialog from '../shared/ErrorDialog.js'
 
 export type ItemType = LauncherItemType
 
@@ -53,11 +56,13 @@ function DialogHeader(props: { title: string }): JSX.Element {
   )
 }
 
-function ErrorBanner(props: { message: string }): JSX.Element {
+function ErrorBanner(props: { message?: UserFacingError }): JSX.Element {
+  const [dismissed, setDismissed] = createSignal<UserFacingError>()
   return (
-    <Show when={props.message}>
-      <div class="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{props.message}</div>
-    </Show>
+    <>
+      <FieldErrorMessage error={props.message?.field === 'name' ? props.message : undefined} />
+      <ErrorDialog error={props.message?.field !== 'name' && props.message !== dismissed() ? props.message : undefined} onClose={() => setDismissed(props.message)} />
+    </>
   )
 }
 
@@ -104,9 +109,10 @@ export function ItemFormDialog(props: {
                         ? 'Skill name'
                         : f().itemType === 'shortcut'
                           ? 'Shortcut name'
-                          : 'Prompt name'
+                           : 'Prompt name'
                   }
                 />
+                <ErrorField field="name" />
               </div>
               <div>
                 <label class="field-label">{f().itemType === 'shortcut' || f().itemType === 'profile' ? 'Command' : 'Prompt'}</label>
@@ -227,8 +233,8 @@ export function ColumnFormDialog(props: {
   columnForm: ColumnFormState | null
   setColumnForm: (form: ColumnFormState | null) => void
   renameActive: boolean
-  columnError: string
-  validation: string
+  columnError?: UserFacingError
+  validation?: UserFacingError
   onSubmit: (form: ColumnFormState) => void
 }): JSX.Element {
   return (
@@ -261,9 +267,9 @@ export function ColumnFormDialog(props: {
                   </p>
                 </Show>
                 <Show when={props.validation}>
-                  <p class="mt-1 text-xs text-destructive" data-testid="launcher-settings-columns-name-error">
-                    {props.validation}
-                  </p>
+                  <div data-testid="launcher-settings-columns-name-error">
+                    <FieldErrorMessage error={props.validation} />
+                  </div>
                 </Show>
               </div>
               <div>
@@ -350,7 +356,7 @@ export function ColumnFormDialog(props: {
 export function RenameColumnDialog(props: {
   renameForm: RenameFormState | null
   setRenameForm: (form: RenameFormState | null) => void
-  columnError: string
+  columnError?: UserFacingError
   onRename: (form: RenameFormState) => void
 }): JSX.Element {
   return (
@@ -442,7 +448,7 @@ export function BoardFormDialog(props: {
       name: string
     } | null,
   ) => void
-  columnError: string
+  columnError?: UserFacingError
   onCreate: () => void
 }): JSX.Element {
   return (

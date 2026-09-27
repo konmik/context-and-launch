@@ -1,10 +1,11 @@
 import { createMemo, createSignal, type Accessor } from 'solid-js'
-import { errorMessage } from '~/core/shared/errors.js'
+import { errorPayload } from '~/core/shared/errors.js'
+import type { UserFacingError } from './user-facing-error.js'
 import { failure, success, type Result } from './result.js'
 
 export interface StoredState<T> {
   get: Accessor<T>
-  enqueueAndPublish(operation: () => Promise<Result<T, string>>): Promise<Result<void, string>>
+  enqueueAndPublish(operation: () => Promise<Result<T, UserFacingError>>): Promise<Result<void, UserFacingError>>
 }
 
 export interface StoredStateOptions<T> {
@@ -23,8 +24,8 @@ export function createStoredState<T>(read: () => T | Promise<T>, options?: Store
   }>()
   let pending = Promise.resolve()
 
-  function enqueueAndPublish(operation: () => Promise<Result<T, string>>): Promise<Result<void, string>> {
-    const completion = pending.then(async (): Promise<Result<void, string>> => {
+  function enqueueAndPublish(operation: () => Promise<Result<T, UserFacingError>>): Promise<Result<void, UserFacingError>> {
+    const completion = pending.then(async (): Promise<Result<void, UserFacingError>> => {
       try {
         const next = await operation()
         if (next.type === 'Failure') return next
@@ -33,7 +34,7 @@ export function createStoredState<T>(read: () => T | Promise<T>, options?: Store
         })
         return success(undefined)
       } catch (error) {
-        return failure(errorMessage(error))
+        return failure(errorPayload(error, 'Operation failed'))
       }
     })
     pending = completion.then(() => {})

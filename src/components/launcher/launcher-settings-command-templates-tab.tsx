@@ -4,16 +4,15 @@ import { TabsContent } from '../ui/tabs.js'
 import { COMMAND_TEMPLATE_GROUP_ORDER } from '~/core/command-template/command-template-types.js'
 import { COMMAND_TEMPLATE_DEFAULTS, type CommandTemplateKey } from '~/core/command-template/command-template-definitions.js'
 import type { CommandTemplateOverrides } from '~/core/command-template/command-template-types.js'
-import type { ErrorInfo } from '~/core/shared/errors.js'
 import { CommandTemplateContext } from './command-template-storage.js'
 import { getCommandTemplateDefinitions } from './command-template-api.js'
-import ErrorDialog from '../shared/ErrorDialog.js'
+import { useErrorSink } from '../shared/error-presentation.js'
 
 export function CommandTemplatesTab(): JSX.Element {
   const templates = useContext(CommandTemplateContext)!
   const definitions = createMemo(() => getCommandTemplateDefinitions())
   const [drafts, setDrafts] = createSignal<CommandTemplateOverrides>({})
-  const [error, setError] = createSignal<ErrorInfo | null>(null)
+  const setError = useErrorSink()
   const savedScript = (key: CommandTemplateKey) => templates.get()[key] ?? COMMAND_TEMPLATE_DEFAULTS[key]
   const scriptFor = (key: CommandTemplateKey) => drafts()[key] ?? savedScript(key)
 
@@ -28,16 +27,12 @@ export function CommandTemplatesTab(): JSX.Element {
           }
     })
     if (result.type === 'Failure')
-      setError({
-        title: 'Save failed',
-        description: result.error,
-      })
+      setError(result.error)
     else setDrafts(({ [key]: _removed, ...rest }) => rest)
   }
 
   return (
     <TabsContent value="command-templates">
-      <ErrorDialog error={error()} onClose={() => setError(null)} />
       <p class="mb-4 rounded border border-warning/40 bg-warning/10 px-3 py-2 text-xs">
         Trusted local code: these scripts run with your user permissions in the platform shell.
       </p>

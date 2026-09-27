@@ -1,29 +1,22 @@
 import type { JSX } from '@solidjs/web'
-import { createSignal, For, useContext } from 'solid-js'
+import { For, useContext } from 'solid-js'
 import { Palette, Sun, Moon } from '~/components/ui/icons.js'
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from '~/components/ui/menu'
 import { PALETTES } from './palette-pure.js'
 import { isDarkMode } from './theme-toggle-pure.js'
 import { AppearanceContext } from './appearance.js'
 import type { Result } from '~/util/result.js'
-import ErrorDialog from './ErrorDialog.js'
-import type { ErrorInfo } from '~/core/shared/errors.js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
+import { useErrorReporter } from './error-presentation.js'
 
 export default function PalettePicker(): JSX.Element {
   const appearance = useContext(AppearanceContext)!
   const dark = () => isDarkMode(appearance().mode.get(), window.matchMedia('(prefers-color-scheme: dark)').matches)
-  const [error, setError] = createSignal<ErrorInfo | null>(null)
+  const errors = useErrorReporter()
 
-  async function showSaveError(completion: Promise<Result<void, string>>) {
+  async function showSaveError(completion: Promise<Result<void, UserFacingError>>) {
     const result = await completion
-    setError(
-      result.type === 'Failure'
-        ? {
-            title: 'Save appearance failed',
-            description: result.error,
-          }
-        : null,
-    )
+    if (result.type === 'Failure') errors.background(result.error)
   }
 
   return (
@@ -77,7 +70,6 @@ export default function PalettePicker(): JSX.Element {
           </For>
         </MenuContent>
       </MenuRoot>
-      <ErrorDialog error={error()} onClose={() => setError(null)} />
     </>
   )
 }
