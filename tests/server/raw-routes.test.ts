@@ -1,12 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createRawRouteHandler } from '../../src/server/raw-route-handler.js'
 
 const mocks = {
   getFileContent: vi.fn(),
   getReferencedFileContent: vi.fn(),
   getWorktreeDir: vi.fn(() => 'C:/worktree'),
 }
-
-import { createRawRouteHandler } from '../../src/server/raw-route-handler.js'
 
 const handleRawRoute = createRawRouteHandler({
   getWorktreeDir: mocks.getWorktreeDir,

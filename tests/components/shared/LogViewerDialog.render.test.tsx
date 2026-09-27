@@ -1,10 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { renderWithErrors as render, screen, cleanup, waitFor } from '../../test-render.js'
 import { success } from '~/util/result.js'
+import LogViewerDialog from '../../../src/components/shared/LogViewerDialog'
 
 const mockGetAppLogs = vi.fn()
-
-import LogViewerDialog from '../../../src/components/shared/LogViewerDialog'
 
 const deps = {
   getLogs: mockGetAppLogs,

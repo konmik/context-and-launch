@@ -2,10 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createRoot, runWithOwner } from 'solid-js'
 import { fromAny } from '@total-typescript/shoehorn'
 import { success, failure } from '~/util/result.js'
+import { createFileUploadState, type FileUploadDeps } from '../../../src/components/ticket/ticket-detail-upload.js'
 
 const mockUploadFile = vi.fn()
-
-import { createFileUploadState, type FileUploadDeps } from '../../../src/components/ticket/ticket-detail-upload.js'
 
 function makeDeps(overrides?: Partial<FileUploadDeps>): FileUploadDeps {
   return {
