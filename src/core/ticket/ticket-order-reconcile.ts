@@ -1,7 +1,7 @@
 import type { TicketInfo } from './ticket-store.js'
 import type { TicketOrder } from './ticket-order-data.js'
 
-export function reconcileOrder(existing: TicketOrder, tickets: TicketInfo[], columns: string[]) {
+export function reconcileOrder(existing: TicketOrder, tickets: TicketInfo[], columns: string[]): ReconcileOrderResult {
   if (columns.length === 0)
     return {
       order: {},
@@ -36,4 +36,9 @@ export function reconcileOrder(existing: TicketOrder, tickets: TicketInfo[], col
     order: result,
     changed,
   }
+}
+
+export interface ReconcileOrderResult {
+  order: TicketOrder
+  changed: boolean
 }

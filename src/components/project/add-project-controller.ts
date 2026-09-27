@@ -1,3 +1,5 @@
+import type { SourceAccessor } from 'solid-js'
+import type { Setter } from 'solid-js'
 import { createSignal, createEffect } from 'solid-js'
 import { previewProjectPath } from './project-api.js'
 import { pickDirectory } from '../shared/directory-picker.js'
@@ -26,7 +28,7 @@ export interface AddProjectControllerDeps {
   errorMessage?: string
 }
 
-export function createAddProjectController(deps: AddProjectControllerDeps) {
+export function createAddProjectController(deps: AddProjectControllerDeps): AddProjectControllerResult {
   const [nameValue, setNameValue] = createSignal('')
   const [pathValue, setPathValue] = createSignal('')
   const [branchValue, setBranchValue] = createSignal('tickets')
@@ -113,3 +115,21 @@ export function createAddProjectController(deps: AddProjectControllerDeps) {
 }
 
 export type AddProjectController = ReturnType<typeof createAddProjectController>
+
+export interface AddProjectControllerResult {
+  nameValue: SourceAccessor<string>
+  pathValue: SourceAccessor<string>
+  branchValue: SourceAccessor<string>
+  mainBranchValue: SourceAccessor<string>
+  boardId: SourceAccessor<string>
+  submitting: SourceAccessor<boolean>
+  localError: SourceAccessor<string>
+  setLocalError: Setter<string>
+  setNameValue: Setter<string>
+  setPathValue: Setter<string>
+  setBranchValue: Setter<string>
+  setMainBranchValue: (v: string) => void
+  setBoardId: Setter<string>
+  handleBrowsePath: () => Promise<void>
+  handleSubmit: (e: SubmitEvent) => Promise<void>
+}

@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { For, Show, createSignal, useContext } from 'solid-js'
 import { revalidate } from '@solidjs/router'
 import { TicketOrderContext } from './ticket-order-storage.js'
@@ -26,7 +27,7 @@ interface KanbanBoardProps {
   activeTicket?: Accessor<TicketInfo | null>
 }
 
-export default function KanbanBoard(props: KanbanBoardProps) {
+export default function KanbanBoard(props: KanbanBoardProps): JSX.Element {
   const order = useContext(TicketOrderContext)!
   const [saveError, setSaveError] = createSignal<string>()
   const dnd = createBoardDnd(() => ({

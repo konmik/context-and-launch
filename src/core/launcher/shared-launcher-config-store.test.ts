@@ -12,7 +12,7 @@ afterEach(async () => {
   await Promise.all(directories.splice(0).map(removeTempDir))
 })
 
-function setup() {
+function setup(): SetupResult {
   const directory = makeTempDir('shared-launcher-config-')
   directories.push(directory)
   const paths = new ConfigPaths(directory)
@@ -148,3 +148,9 @@ describe('shared launcher storage', () => {
     expect(store.read('next')).toEqual(current)
   })
 })
+
+export interface SetupResult {
+  paths: ConfigPaths
+  store: SharedLauncherConfigStore
+  manager: LauncherConfigManager
+}

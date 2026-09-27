@@ -1,13 +1,14 @@
+import type { RenderResult } from '../../test-render.js'
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '~/test-render.js'
 import HerdrStatusIcon from './HerdrStatusIcon'
 import type { HerdrAgentStatus } from '~/core/herdr/herdr-client.js'
 
-function renderIcon(status: HerdrAgentStatus) {
+function renderIcon(status: HerdrAgentStatus): RenderResult {
   return render(() => <HerdrStatusIcon status={status} />)
 }
 
-function iconRoot(container: HTMLElement) {
+function iconRoot(container: HTMLElement): HTMLElement {
   const icon = container.querySelector<HTMLElement>('[data-testid="herdr-status-icon"]')
   if (!icon) throw new Error('Expected Herdr status icon to be rendered')
   return icon

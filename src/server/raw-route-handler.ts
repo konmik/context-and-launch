@@ -14,7 +14,7 @@ export interface RawRouteDeps {
   createTicketStore: (worktreeDir: string) => RawRouteStore
 }
 
-export function createRawRouteHandler(deps: RawRouteDeps) {
+export function createRawRouteHandler(deps: RawRouteDeps): (request: Request) => Promise<Response | undefined> {
   return async function handleRawRoute(request: Request): Promise<Response | undefined> {
     const url = new URL(request.url)
     if (request.method !== 'GET' && request.method !== 'HEAD') return undefined

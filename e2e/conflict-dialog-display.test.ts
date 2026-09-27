@@ -1,3 +1,4 @@
+import type { CreatedProject } from './fixtures.js'
 import { describe, it, expect } from 'vitest'
 import { gotoProject, openProject, seedProject, setupE2E, openConflictDialog } from './fixtures.js'
 import { createActiveRebaseConflict, CONFLICT_LAUNCHER } from './conflict-dialog-shared.js'
@@ -7,7 +8,7 @@ describe('Conflict dialog display (e2e, real server)', () => {
   const ctx = setupE2E()
 
   /** Seeds a Project whose tickets worktree is already mid-rebase, then opens it. */
-  async function openConflictedProject(slugBase: string) {
+  async function openConflictedProject(slugBase: string): Promise<CreatedProject> {
     const project = await seedProject(ctx, {
       slugBase,
       withRemote: true,

@@ -28,7 +28,7 @@ export function DragDropProvider(props: {
   onDragMove?: (event: DragEvent) => void
   onDragOver?: (event: DragEvent) => void
   onDragEnd?: (event: DragEvent) => void
-}) {
+}): JSX.Element {
   const nodes = new Map<DragId, HTMLElement>()
   const measuredRects = new Map<DragId, DOMRect>()
   const [active, setActive] = createSignal<DragItem>()
@@ -200,7 +200,7 @@ export function DragDropProvider(props: {
   return <DragContext value={context}>{props.children}</DragContext>
 }
 
-export function createSortable(id: DragId) {
+export function createSortable(id: DragId): SortableResult {
   const drag = useContext(DragContext)
   return {
     ref: (node: HTMLElement) => drag.register(id, node),
@@ -208,14 +208,14 @@ export function createSortable(id: DragId) {
   }
 }
 
-export function createDroppable(id: DragId) {
+export function createDroppable(id: DragId): DroppableResult {
   const drag = useContext(DragContext)
   return {
     ref: (node: HTMLElement) => drag.register(id, node),
   }
 }
 
-export function DragOverlay(props: { children: (active?: DragItem) => JSX.Element }) {
+export function DragOverlay(props: { children: (active?: DragItem) => JSX.Element }): JSX.Element {
   const drag = useContext(DragContext)
   return (
     <Show when={drag.active()}>
@@ -234,4 +234,13 @@ export function DragOverlay(props: { children: (active?: DragItem) => JSX.Elemen
       )}
     </Show>
   )
+}
+
+export interface SortableResult {
+  ref: (node: HTMLElement) => void
+  dragActivators: DragActivators
+}
+
+export interface DroppableResult {
+  ref: (node: HTMLElement) => void
 }

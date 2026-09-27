@@ -1,3 +1,4 @@
+import type { LockingProcessInfo } from './agent-worktree.js'
 import { describe, it, expect, afterEach } from 'vitest'
 import { spawn, spawnSync } from 'child_process'
 import fs from 'fs'
@@ -6,10 +7,7 @@ import path from 'path'
 
 const SCRIPT_PATH = path.resolve(__dirname, '../../../config-defaults/find-locking-processes.ps1')
 
-function runFinder(dir: string): Array<{
-  pid: number
-  processName: string
-}> {
+function runFinder(dir: string): Array<LockingProcessInfo> {
   const result = spawnSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', SCRIPT_PATH, dir], {
     encoding: 'utf-8',
     timeout: 30000,

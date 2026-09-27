@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { Show, For, createEffect } from 'solid-js'
 import { X } from '~/components/ui/icons.js'
 import {
@@ -72,7 +73,7 @@ const rows: {
   },
 ]
 
-export default function TicketCleanupDialog(props: TicketCleanupDialogProps) {
+export default function TicketCleanupDialog(props: TicketCleanupDialogProps): JSX.Element {
   const s =
     props.ctrl ??
     createTicketCleanupController({
@@ -275,7 +276,7 @@ function KillProcessesConfirmDialog(props: {
   killing: boolean
   onConfirm: () => void
   onClose: () => void
-}) {
+}): JSX.Element {
   return (
     <DialogRoot
       open={props.open}
@@ -328,7 +329,7 @@ function KillProcessesConfirmDialog(props: {
   )
 }
 
-function ForceDeleteBranchDialog(props: { open: boolean; deleting: boolean; onConfirm: () => void; onClose: () => void }) {
+function ForceDeleteBranchDialog(props: { open: boolean; deleting: boolean; onConfirm: () => void; onClose: () => void }): JSX.Element {
   return (
     <DialogRoot
       open={props.open}

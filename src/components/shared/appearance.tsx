@@ -13,7 +13,7 @@ export interface AppearanceStorage {
 
 export const AppearanceContext = createContext<Accessor<AppearanceStorage>>()
 
-export function AppearanceRoot(props: { children: JSX.Element }) {
+export function AppearanceRoot(props: { children: JSX.Element }): JSX.Element {
   const location = useLocation()
   const projectSlug = createMemo(() => projectSlugFromPath(location.pathname))
   const appearance = createMemo(() => createAppearanceStorage(localStorage, projectSlug()))

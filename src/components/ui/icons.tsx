@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { Dynamic, type ComponentProps } from '@solidjs/web'
 import { omit } from 'solid-js'
 import {
@@ -45,8 +46,8 @@ type IconProps = ComponentProps<'svg'> & {
   strokeWidth?: number | string
 }
 
-function icon(node: IconNode, name: string) {
-  return function Icon(props: IconProps) {
+function icon(node: IconNode, name: string): (props: IconProps) => JSX.Element {
+  return function Icon(props: IconProps): JSX.Element {
     const rest = omit(props, 'size', 'color', 'strokeWidth', 'children')
     return (
       <svg

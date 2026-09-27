@@ -12,10 +12,10 @@ import {
   seedProject,
   setupE2E,
   uniqueSlug,
-  openTicketMenu,
   installPausedClock,
 } from './fixtures.js'
 import { testId, waitLocatorVisible } from './locators.js'
+import { openCardReview } from './diff-review-helpers.js'
 
 declare global {
   interface Window {
@@ -46,16 +46,6 @@ async function waitForScope(page: Page, scope: string): Promise<void> {
     })
 }
 
-async function openCardReview(page: Page, folderName: string): Promise<void> {
-  const card = page.locator(`[data-testid="kanban-board-ticket-card"][data-folder-name="${folderName}"]`)
-  await openTicketMenu(page, testId(card, 'kanban-board-ticket-menu-trigger'), 'kanban-board-ticket-menu-review-changes')
-  await testId(page, 'kanban-board-ticket-menu-review-changes').click()
-  await testId(page, 'diff-review').waitFor({
-    state: 'visible',
-    timeout: 10000,
-  })
-}
-
 function reviewFileDiff(page: Page, filePath: string): Locator {
   return page.locator(`[data-testid="diff-review-file-diff"][data-file-path="${filePath}"]`)
 }
@@ -63,6 +53,7 @@ function reviewFileDiff(page: Page, filePath: string): Locator {
 describe('Diff Review (e2e, real server)', () => {
   const ctx = setupE2E()
   it('reviews a worktree change and preserves a queued prompt snapshot', async () => {
+    await ctx.page.clock.install()
     const folderName = 't-1-review-worktree'
     const project = await seedProject(ctx, {
       slugBase: 'diff-review',
@@ -137,7 +128,7 @@ describe('Diff Review (e2e, real server)', () => {
     const composerInput = ctx.page.locator('[data-testid="diff-review-composer-input"]')
     expect(await composerInput.evaluate((element) => document.activeElement === element)).toBe(true)
     fs.writeFileSync(sourcePath, 'export const value = 2;\nexport const stable = true;\n')
-    await ctx.page.waitForTimeout(1300)
+    await ctx.page.clock.fastForward(1300)
     await waitLocatorVisible(ctx.page.locator('[data-testid="diff-review-stale-warning"]'))
     await composerInput.fill('Please explain why this value changed.')
     await ctx.page.locator('[data-testid="diff-review-composer-send"]').click()
@@ -158,6 +149,7 @@ describe('Diff Review (e2e, real server)', () => {
       },
     }
     fs.writeFileSync(statePath, JSON.stringify(saved))
+    await ctx.page.clock.fastForward(1300)
     await expect
       .poll(() => ctx.page.locator('[data-testid="diff-review-queue-item"]').allTextContents(), {
         timeout: 10000,

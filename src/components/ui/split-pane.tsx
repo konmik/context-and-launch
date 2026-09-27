@@ -8,7 +8,7 @@ export function SplitPane(props: {
   first: JSX.Element
   second: JSX.Element
   separatorClass?: string
-}) {
+}): JSX.Element {
   const min = props.minPercent ?? 20
   const clamp = (value: number) => Math.max(min, Math.min(100 - min, value))
   const [percent, setPercent] = createSignal(clamp(props.initialPercent))

@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { Show, For } from 'solid-js'
 import { DialogRoot, DialogTitle, DialogDescription } from '../ui/dialog'
 import { createConflictDialogController, type ConflictDialogController } from './conflict-dialog-controller.js'
@@ -13,7 +14,7 @@ interface ConflictDialogProps {
   ctrl?: ConflictDialogController
 }
 
-export default function ConflictDialog(props: ConflictDialogProps) {
+export default function ConflictDialog(props: ConflictDialogProps): JSX.Element {
   const s =
     props.ctrl ??
     createConflictDialogController({

@@ -1,3 +1,5 @@
+import type { SourceAccessor } from 'solid-js'
+import type { Setter } from 'solid-js'
 import { createMemo, createSignal } from 'solid-js'
 import { createFormDialogController } from './form-dialog-controller.js'
 
@@ -14,7 +16,7 @@ export interface CreateTicketDeps {
   onSuggestNumber: (numberInput: string) => Promise<string | null>
 }
 
-export function createCreateTicketController(deps: CreateTicketDeps) {
+export function createCreateTicketController(deps: CreateTicketDeps): CreateTicketControllerResult {
   // The number field shows the board's suggestion until someone picks a number,
   // then it shows that pick. Deriving it means a late-arriving suggestion still
   // fills an untouched field, while the revalidation that a regenerate call
@@ -71,3 +73,16 @@ export function createCreateTicketController(deps: CreateTicketDeps) {
 }
 
 export type CreateTicketController = ReturnType<typeof createCreateTicketController>
+
+export interface CreateTicketControllerResult {
+  number: SourceAccessor<string>
+  title: SourceAccessor<string>
+  submitting: SourceAccessor<boolean>
+  errorMsg: SourceAccessor<string>
+  setNumber: (value: string) => string
+  setTitle: Setter<string>
+  close: () => void
+  doSubmit: () => Promise<void>
+  suggestingNumber: SourceAccessor<boolean>
+  suggestNumber: () => Promise<void>
+}

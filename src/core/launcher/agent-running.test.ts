@@ -32,7 +32,7 @@ describe('agentRunning', () => {
     })
   })
 
-  function writeMarker(projectSlug: string, folderName: string, content: string) {
+  function writeMarker(projectSlug: string, folderName: string, content: string): string {
     const p = agentMarkerPath(projectSlug, folderName)
     fs.mkdirSync(path.dirname(p), {
       recursive: true,

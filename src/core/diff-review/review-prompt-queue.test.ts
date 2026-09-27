@@ -1,3 +1,5 @@
+import type { Mock } from 'vitest'
+import type { ReviewPromptSnapshot } from './diff-review-types.js'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fromPartial } from '@total-typescript/shoehorn'
 import { ConfigPaths } from '../config/config-paths.js'
@@ -25,7 +27,7 @@ afterEach(async () => {
   await Promise.all(dirs.splice(0).map(removeTempDirOrWarn))
 })
 
-function setupQueue() {
+function setupQueue(): SetupQueueResult {
   const baseDir = makeTempDir('review-prompt-queue-')
   dirs.push(baseDir)
   const store = new DiffReviewStore(new ConfigPaths(baseDir), new ConfigRepository())
@@ -569,3 +571,20 @@ describe('ReviewPromptQueueService', () => {
     expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.items[0].state).toBe('sent')
   })
 })
+
+export interface SetupQueueResult {
+  store: DiffReviewStore
+  service: ReviewPromptQueueService
+  execute: Mock<(...args: any[]) => any>
+  launcher: {
+    isRunning: Mock<(...args: any[]) => any>
+    launch: Mock<(...args: any[]) => any>
+  }
+  agent: {
+    name: string
+    pane_id: string
+    agent_status: string
+  }
+  snapshot: ReviewPromptSnapshot
+  target: ResolvedDiffReviewTarget
+}

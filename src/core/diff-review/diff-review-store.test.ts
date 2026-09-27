@@ -33,7 +33,7 @@ function promptSnapshot(filePath: string): ReviewPromptSnapshot {
   }
 }
 
-function createStore() {
+function createStore(): StoreResult {
   const baseDir = makeTempDir('diff-review-store-')
   dirs.push(baseDir)
   const paths = new ConfigPaths(baseDir)
@@ -158,3 +158,8 @@ describe('DiffReviewStore', () => {
     expect(persisted.tickets).toEqual({})
   })
 })
+
+export interface StoreResult {
+  store: DiffReviewStore
+  paths: ConfigPaths
+}

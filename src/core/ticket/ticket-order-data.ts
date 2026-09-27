@@ -1,6 +1,12 @@
 export type TicketOrder = Record<string, string[]>
 
-export function moveTicketInOrder(order: TicketOrder, folderName: string, fromColumn: string, toColumn: string, newIndex: number) {
+export function moveTicketInOrder(
+  order: TicketOrder,
+  folderName: string,
+  fromColumn: string,
+  toColumn: string,
+  newIndex: number,
+): MoveTicketInOrderResult {
   const next = {
     ...order,
   }
@@ -14,4 +20,8 @@ export function moveTicketInOrder(order: TicketOrder, folderName: string, fromCo
     ...next,
     [toColumn]: destination,
   }
+}
+
+export interface MoveTicketInOrderResult {
+  [x: string]: string[]
 }

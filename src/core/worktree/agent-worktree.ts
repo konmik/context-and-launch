@@ -35,16 +35,19 @@ function pathsReferToSameEntry(left: string, right: string): boolean {
   }
 }
 
-export type WorktreeOwnership =
-  | {
-      kind: 'not-worktree'
-    }
-  | {
-      kind: 'current-project'
-    }
-  | {
-      kind: 'different-project'
-    }
+export interface NotWorktreeWorktreeOwnership {
+  kind: 'not-worktree'
+}
+
+export interface CurrentProjectWorktreeOwnership {
+  kind: 'current-project'
+}
+
+export interface DifferentProjectWorktreeOwnership {
+  kind: 'different-project'
+}
+
+export type WorktreeOwnership = NotWorktreeWorktreeOwnership | CurrentProjectWorktreeOwnership | DifferentProjectWorktreeOwnership
 
 export function foreignWorktreeMessage(worktreePath: string): string {
   return `The saved worktree belongs to a different project: ${worktreePath}.` + ' Remove it from its original project before retrying.'

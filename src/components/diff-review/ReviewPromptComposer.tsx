@@ -53,7 +53,7 @@ export default function ReviewPromptComposer(props: {
   onCancel(): void
   onError(message: string): void
   onSend(feedback: string): Promise<boolean>
-}) {
+}): JSX.Element {
   let inputRef: HTMLTextAreaElement | undefined
   const agentStatus = useContext(ReviewAgentStatusContext)!.get
   const agentPresent = () => !!props.herdrStatus || agentStatus().agentRunning

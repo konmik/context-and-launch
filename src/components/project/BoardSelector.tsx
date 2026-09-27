@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { Show, createEffect, useContext } from 'solid-js'
 import BoardSelect from './BoardSelect.js'
 import { BoardConfigContext } from '../board/board-config-storage.js'
@@ -7,7 +8,7 @@ interface BoardSelectorProps {
   setBoardId: (v: string) => void
 }
 
-export default function BoardSelector(props: BoardSelectorProps) {
+export default function BoardSelector(props: BoardSelectorProps): JSX.Element {
   const boards = useContext(BoardConfigContext)!.get
   createEffect(
     () => [boards(), props.boardId] as const,

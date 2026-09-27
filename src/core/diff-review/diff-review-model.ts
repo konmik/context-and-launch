@@ -1,3 +1,4 @@
+import type { ReviewPromptRange } from './diff-review-types.js'
 import { parseDiffFromFile, type FileDiffMetadata } from '@pierre/diffs'
 import type {
   ReviewDiffLine,
@@ -220,15 +221,7 @@ function promptLine(line: ReviewDiffLine): ReviewPromptLine {
   return prompt
 }
 
-function rangeFor(
-  lines: ReviewDiffLine[],
-  side: 'oldLineNumber' | 'newLineNumber',
-):
-  | {
-      start: number
-      end: number
-    }
-  | undefined {
+function rangeFor(lines: ReviewDiffLine[], side: 'oldLineNumber' | 'newLineNumber'): ReviewPromptRange | undefined {
   const numbers = lines.map((line) => line[side]).filter((value): value is number => value !== undefined)
   if (numbers.length === 0) return undefined
   return {

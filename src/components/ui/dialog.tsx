@@ -15,7 +15,7 @@ export function DialogRoot(props: {
   closeOnInteractOutside?: boolean
   onMouseDown?: (e: MouseEvent) => void
   ref?: (el: HTMLDivElement) => void
-}) {
+}): JSX.Element {
   let content!: HTMLDivElement
   let previouslyFocused: HTMLElement | null = null
   const open = createMemo(() => props.open)
@@ -92,22 +92,25 @@ export function DialogRoot(props: {
   )
 }
 
-export function DialogTitle(props: ComponentProps<'h2'>) {
+export function DialogTitle(props: ComponentProps<'h2'>): JSX.Element {
   const dialog = useContext(DialogContext)
   return <h2 {...props} id={dialog.titleId} data-scope="dialog" data-part="title" />
 }
 
-export function DialogDescription(props: ComponentProps<'p'>) {
+export function DialogDescription(props: ComponentProps<'p'>): JSX.Element {
   const dialog = useContext(DialogContext)
   return <p {...props} id={dialog.descriptionId} data-scope="dialog" data-part="description" />
 }
 
-export function DialogCloseTrigger(props: ComponentProps<'button'>) {
+export function DialogCloseTrigger(props: ComponentProps<'button'>): JSX.Element {
   const dialog = useContext(DialogContext)
   return <button type="button" {...props} data-scope="dialog" data-part="close-trigger" onClick={dialog.close} />
 }
 
-export function DialogForm<T extends object>(props: { state: T | null | undefined; children: (state: () => T) => JSX.Element }) {
+export function DialogForm<T extends object>(props: {
+  state: T | null | undefined
+  children: (state: () => T) => JSX.Element
+}): JSX.Element {
   return (
     <Show when={props.state}>
       {(opened) => {

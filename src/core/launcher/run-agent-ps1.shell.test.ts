@@ -29,7 +29,7 @@ describe.runIf(process.platform === 'win32')('run-agent.ps1 prompt delivery (rea
   const tempDirs: string[] = []
   const windowTitles: string[] = []
 
-  function makeTempDir() {
+  function makeTempDir(): string {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'run-agent-ps1-test-'))
     tempDirs.push(dir)
     return dir

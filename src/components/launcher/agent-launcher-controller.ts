@@ -1,3 +1,7 @@
+import type { SourceAccessor } from 'solid-js'
+import type { LauncherSkill } from '../../core/launcher/launcher-config-data.js'
+import type { Setter } from 'solid-js'
+import type { ListReorder } from '../board/list-reorder.js'
 import { createSignal, createEffect, createMemo } from 'solid-js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import type { MergedLauncherConfig, LauncherColumnDefaults } from '~/core/launcher/launcher-config.js'
@@ -44,7 +48,7 @@ export interface AgentLauncherDeps {
   launch: LaunchInvoker
 }
 
-export function createAgentLauncherController(props: AgentLauncherDeps) {
+export function createAgentLauncherController(props: AgentLauncherDeps): AgentLauncherControllerResult {
   const defaultsKey = () => (props.ticket ? props.ticket().status : PROJECT_LAUNCH_KEY)
   const resetKey = () => (props.ticket ? props.ticket().folderName : PROJECT_LAUNCH_KEY)
   const initial = resolveDefaults(props.config, defaultsKey())
@@ -185,3 +189,41 @@ export function createAgentLauncherController(props: AgentLauncherDeps) {
 }
 
 export type AgentLauncherController = ReturnType<typeof createAgentLauncherController>
+
+export interface AgentLauncherControllerResult {
+  selectedTemplate: SourceAccessor<string>
+  selectedProfile: SourceAccessor<string>
+  checkedSkills: SourceAccessor<Set<string>>
+  orderedSkills: SourceAccessor<
+    (LauncherSkill & {
+      scope: 'app' | 'project'
+      order: number
+    })[]
+  >
+  launching: SourceAccessor<boolean>
+  errorInfo: SourceAccessor<ErrorInfo | null>
+  behindRemoteMsg: SourceAccessor<string>
+  dirtyWorktreeMsg: SourceAccessor<string>
+  setSelectedTemplate: Setter<string>
+  setSelectedProfile: Setter<string>
+  setErrorInfo: Setter<ErrorInfo | null>
+  setBehindRemoteMsg: Setter<string>
+  setDirtyWorktreeMsg: Setter<string>
+  toggleSkill: (name: string) => void
+  skillReorder: ListReorder<
+    LauncherSkill & {
+      scope: 'app' | 'project'
+      order: number
+    }
+  >
+  launchAgent: (extra?: Partial<Pick<LaunchArgs, 'force' | 'skipBehindRemote'>>) => Promise<void>
+  preview: {
+    editMode: SourceAccessor<boolean>
+    setEditMode: (on: boolean) => void
+    editedPrompt: SourceAccessor<string>
+    setEditedPrompt: (value: string) => void
+    currentPrompt: SourceAccessor<string>
+    resetFromSaved: (saved: string | undefined) => void
+  }
+  launchDir: () => string
+}

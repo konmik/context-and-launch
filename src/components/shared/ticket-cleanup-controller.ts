@@ -1,3 +1,4 @@
+import type { SourceAccessor } from 'solid-js'
 import { createSignal } from 'solid-js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
@@ -42,7 +43,7 @@ export interface TicketCleanupDeps {
   }>
 }
 
-export function createTicketCleanupController(deps: TicketCleanupDeps) {
+export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCleanupControllerResult {
   const [items, setItems] = createSignal<TicketCleanupItemStates>(allChecking())
   const [runningItem, setRunningItem] = createSignal<CleanupItemKey>()
   const [submitting, setSubmitting] = createSignal(false)
@@ -235,3 +236,28 @@ export function createTicketCleanupController(deps: TicketCleanupDeps) {
 }
 
 export type TicketCleanupController = ReturnType<typeof createTicketCleanupController>
+
+export interface TicketCleanupControllerResult {
+  items: SourceAccessor<TicketCleanupItemStates>
+  runningItem: SourceAccessor<CleanupItemKey | undefined>
+  submitting: SourceAccessor<boolean>
+  busy: () => boolean
+  errorInfo: SourceAccessor<ErrorInfo | null>
+  actionLabel: () => 'Archive' | 'Delete'
+  runCleanup: (key: CleanupItemKey) => Promise<void>
+  startChecks: () => Promise<void>
+  doSubmit: () => Promise<void>
+  handleSubmit: (e: SubmitEvent) => void
+  close: () => void
+  killDialogOpen: SourceAccessor<boolean>
+  lockingProcesses: SourceAccessor<LockingProcessInfo[] | undefined>
+  killingProcesses: SourceAccessor<boolean>
+  openKillDialog: () => Promise<void>
+  confirmKill: () => Promise<void>
+  closeKillDialog: () => void
+  forceDeleteDialogOpen: SourceAccessor<boolean>
+  forceDeleting: SourceAccessor<boolean>
+  openForceDeleteDialog: () => void
+  confirmForceDelete: () => Promise<void>
+  closeForceDeleteDialog: () => void
+}

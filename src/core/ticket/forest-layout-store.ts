@@ -1,13 +1,12 @@
 import * as v from 'valibot'
 import { TicketRepository } from './ticket-repository.js'
 
-export type ForestLayout = Record<
-  string,
-  {
-    x: number
-    y: number
-  }
->
+export interface ForestLayoutValue {
+  x: number
+  y: number
+}
+
+export interface ForestLayout extends Record<string, ForestLayoutValue> {}
 
 const PositionSchema = v.object({
   x: v.number(),
@@ -21,7 +20,7 @@ export class ForestLayoutStore {
     private readonly repo = new TicketRepository(),
   ) {}
 
-  read() {
+  read(): ForestLayout {
     const raw = this.repo.readWorktreeJson(this.worktreeDir, 'forest-layout.json')
     const record = v.safeParse(ForestLayoutRecordSchema, raw)
     if (!record.success) return {}

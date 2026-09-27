@@ -1,16 +1,19 @@
-export type ActiveFile =
-  | {
-      type: 'context'
-      name: string
-    }
-  | {
-      type: 'file'
-      name: string
-    }
-  | {
-      type: 'reference'
-      path: string
-    }
+export interface ContextActiveFile {
+  type: 'context'
+  name: string
+}
+
+export interface FileActiveFile {
+  type: 'file'
+  name: string
+}
+
+export interface ReferenceActiveFile {
+  type: 'reference'
+  path: string
+}
+
+export type ActiveFile = ContextActiveFile | FileActiveFile | ReferenceActiveFile
 
 export type FileView =
   | {

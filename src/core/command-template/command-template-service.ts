@@ -1,3 +1,4 @@
+import type { CommandTemplateEntry } from './command-template-types.js'
 import { appLog, type AppLogContext } from '../infra/app-logger.js'
 import { ProcessError } from '../shared/errors.js'
 import { buildDirectInvocationArgv } from './command-template-direct-invocation.js'
@@ -81,7 +82,7 @@ export class CommandTemplateService implements CommandTemplateExecutor {
     private readonly log: CommandTemplateLog = appLog,
   ) {}
 
-  get(key: CommandTemplateKey) {
+  get(key: CommandTemplateKey): CommandTemplateEntry {
     const entry = this.store.get(key)
     if (!entry.platforms.includes(this.platform)) {
       throw new Error(`Command Template '${key}' is not available on ${this.platform}.`)

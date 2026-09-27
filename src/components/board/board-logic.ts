@@ -1,3 +1,4 @@
+import type { ForestPosition } from '../forest/forest-types.js'
 import type { DragEvent as DndDragEvent } from '~/components/drag/drag-types.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import type { BoardState } from '~/components/project/project-api.js'
@@ -69,10 +70,7 @@ export function resolveDrop(
   }
 }
 
-export function resolveCursorPosition(event: DndDragEvent): {
-  x: number
-  y: number
-} | null {
+export function resolveCursorPosition(event: DndDragEvent): ForestPosition | null {
   const overlay = event.overlay
   const node = event.draggable.node
   if (!node) return null
@@ -91,7 +89,7 @@ export function resolveCursorPosition(event: DndDragEvent): {
   }
 }
 
-export function collectColumnRects(columnRefs: Map<string, HTMLDivElement>) {
+export function collectColumnRects(columnRefs: Map<string, HTMLDivElement>): CollectColumnRectsResult {
   const colRects = new Map<
     string,
     {
@@ -137,12 +135,7 @@ export function resolveDragSource(
   order: Record<string, string[]>,
   ticketMap: Map<string, TicketInfo>,
   orphanFolderNames: Set<string>,
-):
-  | {
-      column: string
-      index: number
-    }
-  | undefined {
+): HoverTarget | undefined {
   if (!dragId) return undefined
   const { column, folderName } = parseId(dragId)
   const tickets = resolveTicketsForColumn(column, order, ticketMap, orphanFolderNames)
@@ -168,4 +161,21 @@ export function computeDragMoveTarget(
   const { colRects, cardRectsByCol } = collectColumnRects(columnRefs)
   const dragSource = resolveDragSource(dragId, order, ticketMap, orphanFolderNames)
   return computeHoverTarget(colRects, cardRectsByCol, cursor, dragSource)
+}
+
+export interface CollectColumnRectsResult {
+  colRects: Map<
+    string,
+    {
+      left: number
+      right: number
+    }
+  >
+  cardRectsByCol: Map<
+    string,
+    {
+      top: number
+      height: number
+    }[]
+  >
 }

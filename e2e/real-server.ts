@@ -16,13 +16,7 @@ async function startRealServerOnce(
   port: number,
   dataDir: string,
   extraEnv: NodeJS.ProcessEnv,
-): Promise<
-  | RealServer
-  | {
-      addrInUse: true
-      stderr: string
-    }
-> {
+): Promise<RealServer | StartRealServerOnceResult> {
   const baseUrl = `http://127.0.0.1:${port}`
   const proc = spawn(process.execPath, [SERVER_ENTRY], {
     env: {
@@ -108,4 +102,9 @@ export function stopRealServer(server: RealServer): Promise<void> {
     })
     server.process.kill()
   })
+}
+
+export interface StartRealServerOnceResult {
+  addrInUse: true
+  stderr: string
 }

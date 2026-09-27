@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { Errored, Loading } from 'solid-js'
 import { AppRouter } from './router.js'
 import { AppearanceRoot } from './components/shared/appearance.js'
@@ -7,7 +8,7 @@ import './app.css'
 import { BoardConfigContext, createBoardConfigStorage } from './components/board/board-config-storage.js'
 import { CommandTemplateContext, createCommandTemplateStorage } from './components/launcher/command-template-storage.js'
 
-export default function App() {
+export default function App(): JSX.Element {
   return (
     <AppRouter>
       {(props) => {

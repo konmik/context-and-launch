@@ -27,7 +27,7 @@ interface ExpandingOverlayProps {
   panelClass?: string
 }
 
-export default function ExpandingOverlay(props: ExpandingOverlayProps) {
+export default function ExpandingOverlay(props: ExpandingOverlayProps): JSX.Element {
   const insetPercent = () => props.insetPercent ?? 5
   const initialTransform = () => {
     if (!props.origin) return undefined

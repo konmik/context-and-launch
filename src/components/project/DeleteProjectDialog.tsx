@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { Show } from 'solid-js'
 import { DialogRoot, DialogTitle, DialogDescription } from '../ui/dialog'
 import { useModEnterSubmit, modEnterHint } from '~/lib/use-mod-enter-submit'
@@ -13,7 +14,7 @@ interface DeleteProjectDialogProps {
   ctrl?: DeleteProjectController
 }
 
-export default function DeleteProjectDialog(props: DeleteProjectDialogProps) {
+export default function DeleteProjectDialog(props: DeleteProjectDialogProps): JSX.Element {
   const s =
     props.ctrl ??
     createDeleteProjectController({

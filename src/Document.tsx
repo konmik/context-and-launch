@@ -1,7 +1,8 @@
+import type { JSX } from '@solidjs/web'
 import type { Element } from 'solid-js'
 import { criticalAppearanceScript, criticalBackgroundCss } from './components/shared/palette-pure.js'
 
-export default function Document(props: { children: Element }) {
+export default function Document(props: { children: Element }): JSX.Element {
   return (
     <html lang="en">
       <head>

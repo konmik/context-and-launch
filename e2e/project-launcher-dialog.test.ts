@@ -1,3 +1,4 @@
+import type { CreatedProject } from './fixtures.js'
 import { describe, it, expect } from 'vitest'
 import {
   openProject,
@@ -42,7 +43,7 @@ const PROJECT_KEY = '__project__'
 describe('Project launcher dialog (e2e, real server)', () => {
   const ctx = setupE2E()
 
-  async function setup(suffix: string) {
+  async function setup(suffix: string): Promise<CreatedProject> {
     const project = await openProject(ctx, {
       slugBase: `pld-${suffix}`,
       appLauncherConfig: APP_LAUNCHER,

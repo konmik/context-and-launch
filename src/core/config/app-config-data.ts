@@ -38,7 +38,7 @@ const AppConfigSchema = v.looseObject({
   browser: v.optional(v.string()),
 })
 
-export function decodeAppConfig(raw: JsonValue) {
+export function decodeAppConfig(raw: JsonValue): DecodeAppConfigResult {
   const parsed = v.parse(AppConfigSchema, raw)
   const { lastUsedSlug, ...config } = parsed
   return {
@@ -56,5 +56,24 @@ export function decodeAppConfig(raw: JsonValue) {
       lastUsedProjectSlug: parsed.lastUsedProjectSlug ?? lastUsedSlug ?? null,
       lastUsedProfileName: parsed.lastUsedProfileName ?? null,
     } satisfies AppConfigData,
+  }
+}
+
+export interface DecodeAppConfigResult {
+  legacy: boolean
+  config: {
+    projects: {
+      projectSlug: string
+      path: string
+      name?: string | undefined
+      branch?: string | undefined
+      ticketsPath?: string | undefined
+      mainBranch?: string | undefined
+      boardId?: string | undefined
+    }[]
+    lastUsedProjectSlug: string | null
+    lastUsedProfileName: string | null
+    port?: number | undefined
+    browser?: string | undefined
   }
 }

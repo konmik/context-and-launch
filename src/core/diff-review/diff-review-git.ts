@@ -135,13 +135,7 @@ export class DiffReviewGitService {
     }
   }
 
-  private async resolveChanged(
-    target: DiffReviewTarget,
-    scope: DiffScope,
-  ): Promise<{
-    baseRef: string
-    changed: ChangedPath[]
-  }> {
+  private async resolveChanged(target: DiffReviewTarget, scope: DiffScope): Promise<ResolveChangedResult> {
     if (scope === 'last-commit') {
       return {
         baseRef: 'HEAD^',
@@ -248,4 +242,9 @@ export class DiffReviewGitService {
       byteSize: newContents.length || oldContents.length,
     })
   }
+}
+
+export interface ResolveChangedResult {
+  baseRef: string
+  changed: ChangedPath[]
 }

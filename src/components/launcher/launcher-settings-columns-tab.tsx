@@ -1,3 +1,5 @@
+import type { JSX } from '@solidjs/web'
+import type { Result } from '../../util/result.js'
 import { Show, For, createSignal, createEffect, useContext } from 'solid-js'
 import { revalidate } from '@solidjs/router'
 import { DragDropProvider } from '~/components/drag/drag-provider.js'
@@ -27,7 +29,7 @@ import {
 } from './launcher-settings-dialogs.js'
 import { validateColumnName as columnValidation } from './launcher-settings-pure.js'
 
-export function ColumnsTab(props: { open: boolean; projectSlug: string }) {
+export function ColumnsTab(props: { open: boolean; projectSlug: string }): JSX.Element {
   const storage = useContext(BoardConfigContext)!
   const projectConfig = useContext(ProjectLauncherConfigContext)!
   const [error, setError] = createSignal<ErrorInfo | null>(null)
@@ -62,7 +64,7 @@ export function ColumnsTab(props: { open: boolean; projectSlug: string }) {
     return f ? columnValidation(f.name, f.mode, f.oldName, selectedBoard().columns) : ''
   }
 
-  async function updateColumns(transform: (columns: ColumnDefinition[]) => ColumnDefinition[]) {
+  async function updateColumns(transform: (columns: ColumnDefinition[]) => ColumnDefinition[]): Promise<Result<void, string>> {
     const id = selectedBoard().id
     return storage.update((current) => {
       if (!current.some((b) => b.id === id)) throw new Error(`Board not found: ${id}`)

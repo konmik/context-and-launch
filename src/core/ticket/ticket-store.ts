@@ -349,10 +349,7 @@ export class TicketStore {
     this.repo.writeFile(file, content)
   }
 
-  listAllTicketNumbers(): Array<{
-    number: string
-    createdAt?: string
-  }> {
+  listAllTicketNumbers(): Array<ListAllTicketNumbersResult> {
     const results: Array<{
       number: string
       createdAt?: string
@@ -419,11 +416,7 @@ export class TicketStore {
     }
   }
 
-  async loadBoardSnapshot(columns: string[]): Promise<{
-    tickets: TicketInfo[]
-    ticketOrder: TicketOrder
-    suggestedNextNumber: string | null
-  }> {
+  async loadBoardSnapshot(columns: string[]): Promise<LoadBoardSnapshotResult> {
     const activeDirs = await this.ticketDirsIn(this.worktreeDir)
     const tickets = this.dedupeAndSortTickets(
       (await mapConcurrent(activeDirs, READ_CONCURRENCY, (dir) => this.readTicketAsync(dir))).filter((t): t is TicketInfo => t !== null),
@@ -682,4 +675,15 @@ export class TicketStore {
       i++
     }
   }
+}
+
+export interface ListAllTicketNumbersResult {
+  number: string
+  createdAt?: string
+}
+
+export interface LoadBoardSnapshotResult {
+  tickets: TicketInfo[]
+  ticketOrder: TicketOrder
+  suggestedNextNumber: string | null
 }

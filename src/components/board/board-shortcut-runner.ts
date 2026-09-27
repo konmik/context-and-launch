@@ -1,3 +1,7 @@
+import type { LauncherShortcut } from '../../core/launcher/launcher-config-data.js'
+import type { SourceAccessor } from 'solid-js'
+import type { ShortcutConfirmation } from '../ticket/ticket-detail-shortcuts.js'
+import type { Setter } from 'solid-js'
 import { createSignal, createMemo, flush } from 'solid-js'
 import { createShortcutState } from '../ticket/ticket-detail-shortcuts.js'
 import { openTicketWorktree } from '../ticket/ticket-api.js'
@@ -6,7 +10,10 @@ import type { MergedLauncherConfigWithMeta } from '../launcher/launcher-api.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
 
-export function createBoardShortcutRunner(deps: { projectSlug: () => string; config: () => MergedLauncherConfigWithMeta | undefined }) {
+export function createBoardShortcutRunner(deps: {
+  projectSlug: () => string
+  config: () => MergedLauncherConfigWithMeta | undefined
+}): BoardShortcutRunnerResult {
   const [activeTicket, setActiveTicket] = createSignal<TicketInfo>()
   const [error, setError] = createSignal<ErrorInfo | null>(null)
   const launchDir = createMemo(() => {
@@ -57,4 +64,19 @@ export function createBoardShortcutRunner(deps: { projectSlug: () => string; con
     run,
     openWorktree: (ticket: TicketInfo) => void openWorktree(ticket),
   }
+}
+
+export interface BoardShortcutRunnerResult {
+  shortcuts: () => (LauncherShortcut & {
+    scope: 'app' | 'project'
+    order: number
+  })[]
+  running: SourceAccessor<string>
+  confirmation: SourceAccessor<ShortcutConfirmation | undefined>
+  setConfirmation: Setter<ShortcutConfirmation | undefined>
+  proceed: (name: string) => undefined
+  error: SourceAccessor<ErrorInfo | null>
+  setError: Setter<ErrorInfo | null>
+  run: (ticket: TicketInfo, name: string) => void
+  openWorktree: (ticket: TicketInfo) => undefined
 }

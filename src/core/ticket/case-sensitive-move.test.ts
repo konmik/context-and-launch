@@ -23,10 +23,7 @@ function cleanup(...dirs: string[]) {
   }
 }
 
-async function createWorktreeDir(): Promise<{
-  projectDir: string
-  worktreeDir: string
-}> {
+async function createWorktreeDir(): Promise<WorktreeDirResult> {
   const projectDir = tmpDir('case-proj-')
   await git(projectDir, 'init')
   await git(projectDir, 'commit', '--allow-empty', '-m', 'init')
@@ -85,3 +82,8 @@ describe('case-sensitive column move', () => {
     expect(columnsContainingTicket).toBe(1)
   })
 })
+
+export interface WorktreeDirResult {
+  projectDir: string
+  worktreeDir: string
+}

@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { For, Show, createMemo, createSignal, useContext } from 'solid-js'
 import { TabsContent } from '../ui/tabs.js'
 import { COMMAND_TEMPLATE_GROUP_ORDER } from '~/core/command-template/command-template-types.js'
@@ -8,7 +9,7 @@ import { CommandTemplateContext } from './command-template-storage.js'
 import { getCommandTemplateDefinitions } from './command-template-api.js'
 import ErrorDialog from '../shared/ErrorDialog.js'
 
-export function CommandTemplatesTab() {
+export function CommandTemplatesTab(): JSX.Element {
   const templates = useContext(CommandTemplateContext)!
   const definitions = createMemo(() => getCommandTemplateDefinitions())
   const [drafts, setDrafts] = createSignal<CommandTemplateOverrides>({})

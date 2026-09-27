@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { createSignal, createMemo, createEffect, useContext } from 'solid-js'
 import { revalidate, useAction } from '@solidjs/router'
 import { TabsContent } from '../ui/tabs'
@@ -19,7 +20,7 @@ export function MiscTab(props: {
   onDeleteProject?: (projectSlug: string) => Promise<{
     error?: string
   }>
-}) {
+}): JSX.Element {
   const appConfig = useContext(AppConfigContext)!
   const sharedConfig = useContext(LauncherConfigContext)!
   const projectConfig = useContext(ProjectLauncherConfigContext)!

@@ -18,7 +18,7 @@ afterEach(() => {
     })
 })
 
-function setup() {
+function setup(): SetupResult {
   const base = fs.mkdtempSync(path.join(os.tmpdir(), 'command-template-store-'))
   roots.push(base)
   const paths = new ConfigPaths(base, path.resolve('config-defaults'))
@@ -186,3 +186,8 @@ describe('CommandTemplateStore placeholder declaration', () => {
     expect(store.get('agent-worktree.add-existing').isOverridden).toBe(true)
   })
 })
+
+export interface SetupResult {
+  paths: ConfigPaths
+  store: CommandTemplateStore
+}

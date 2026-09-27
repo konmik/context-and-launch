@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { RotateCcw } from '~/components/ui/icons.js'
 import { Trash2 } from '~/components/ui/icons.js'
 import { For, Show, createEffect, createSignal, untrack, useContext } from 'solid-js'
@@ -12,7 +13,7 @@ type QueueEntry = {
   shown: boolean
 }
 
-export default function ReviewPromptQueueList(props: { projectSlug: string; folderName: string; profileName: string }) {
+export default function ReviewPromptQueueList(props: { projectSlug: string; folderName: string; profileName: string }): JSX.Element {
   const state = useContext(DiffReviewContext)
   const agentState = useContext(ReviewAgentStatusContext)!
   const agentStatus = agentState.get

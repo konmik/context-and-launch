@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { Show } from 'solid-js'
 import { DialogRoot, DialogTitle } from '../ui/dialog'
 import type { ErrorInfo } from '~/core/shared/errors.js'
@@ -7,7 +8,7 @@ interface ErrorDialogProps {
   onClose: () => void
 }
 
-export default function ErrorDialog(props: ErrorDialogProps) {
+export default function ErrorDialog(props: ErrorDialogProps): JSX.Element {
   return (
     <DialogRoot open={!!props.error} onOpenChange={props.onClose} class="flex max-h-[80vh] max-w-lg flex-col p-0">
       <div class="flex-none px-6 pt-6 pb-2">

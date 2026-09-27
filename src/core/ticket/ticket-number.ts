@@ -1,8 +1,4 @@
-export function parseTicketNumber(raw: string): {
-  prefix: string
-  num: number
-  paddingWidth: number
-} | null {
+export function parseTicketNumber(raw: string): ParseTicketNumberResult | null {
   const match = raw.match(/^([A-Z]+)-(\d+)$/)
   if (!match) return null
   const prefix = match[1]
@@ -69,4 +65,10 @@ export function suggestNextTicketNumber(
   })
   const mostRecent = parsed[parsed.length - 1]
   return nextNumberForPrefix(parsed, mostRecent.prefix)
+}
+
+export interface ParseTicketNumberResult {
+  prefix: string
+  num: number
+  paddingWidth: number
 }

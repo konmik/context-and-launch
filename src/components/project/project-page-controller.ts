@@ -1,3 +1,4 @@
+import type { Setter } from 'solid-js'
 import { createSignal, flush } from 'solid-js'
 import { revalidate, useAction } from '@solidjs/router'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
@@ -16,7 +17,7 @@ export interface ProjectPageDeps {
   runSyncTickets?: (projectSlug: string) => ReturnType<typeof syncTickets>
 }
 
-export function createProjectPageController(deps: ProjectPageDeps) {
+export function createProjectPageController(deps: ProjectPageDeps): ProjectPageControllerResult {
   const [addProjectDialogOpen, setAddProjectDialogOpen] = createSignal(false)
   const [settingsOpen, setSettingsOpen] = createSignal(false)
   const [createTicketOpen, setCreateTicketOpen] = createSignal(false)
@@ -136,7 +137,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
     flush()
   }
 
-  async function handleCreateTicket(number: string, title: string) {
+  async function handleCreateTicket(number: string, title: string): Promise<SubmissionSuccess | SubmissionError> {
     const result = await createTicket(deps.projectSlug(), number, title)
     if (result.ok) revalidate(ticketMutationRevalidateKeys)
     return result.ok
@@ -146,7 +147,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
         }
   }
 
-  async function handleArchiveTicket(folderName: string) {
+  async function handleArchiveTicket(folderName: string): Promise<SubmissionSuccess | DetailedSubmissionError> {
     const result = await archiveTicket(deps.projectSlug(), folderName)
     if (result.ok) revalidate(ticketMutationRevalidateKeys)
     return result.ok
@@ -158,7 +159,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
         }
   }
 
-  async function handleDeleteTicket(folderName: string) {
+  async function handleDeleteTicket(folderName: string): Promise<SubmissionSuccess | DetailedSubmissionError> {
     const result = await deleteTicket(deps.projectSlug(), folderName)
     if (result.ok) revalidate(ticketMutationRevalidateKeys)
     return result.ok
@@ -170,7 +171,7 @@ export function createProjectPageController(deps: ProjectPageDeps) {
         }
   }
 
-  async function handleDeleteProject(projectSlug: string) {
+  async function handleDeleteProject(projectSlug: string): Promise<SubmissionSuccess | SubmissionError> {
     const result = await deleteProject(projectSlug)
     if (result.ok) revalidate('project-page')
     return result.ok
@@ -180,11 +181,14 @@ export function createProjectPageController(deps: ProjectPageDeps) {
         }
   }
 
-  async function handleCleanupSubmit(folderName: string) {
+  async function handleCleanupSubmit(folderName: string): Promise<SubmissionSuccess | DetailedSubmissionError> {
     return cleanupAction() === 'archive' ? await handleArchiveTicket(folderName) : await handleDeleteTicket(folderName)
   }
 
-  async function handleCleanupAction(folderName: string, options: TicketCleanupOptions) {
+  async function handleCleanupAction(
+    folderName: string,
+    options: TicketCleanupOptions,
+  ): Promise<HandleCleanupActionResult | SubmissionSuccess> {
     const cleanupResult = await worktreeCleanup(deps.projectSlug(), folderName, options)
     if (!cleanupResult.ok) {
       const info = 'errorInfo' in cleanupResult ? cleanupResult.errorInfo : undefined
@@ -252,3 +256,67 @@ export function createProjectPageController(deps: ProjectPageDeps) {
 }
 
 export type ProjectPageController = ReturnType<typeof createProjectPageController>
+
+export interface ProjectPageControllerResult {
+  dialogState: () => {
+    createTicketOpen: boolean
+    cleanupDialogOpen: boolean
+    cleanupAction: 'archive' | 'delete'
+    settingsOpen: boolean
+    addProjectDialogOpen: boolean
+    conflictDialogOpen: boolean
+  }
+  syncState: () => {
+    syncing: boolean
+    syncSuccess: boolean
+    syncError: ErrorInfo | null
+    conflictDetected: boolean
+  }
+  selectionState: () => {
+    selectedTicket: TicketInfo | null
+    detailTicket: TicketInfo | null
+    reviewTicket: TicketInfo | null
+  }
+  commands: {
+    openCreate: () => true
+    openDelete: (ticket: TicketInfo) => void
+    openArchive: (ticket: TicketInfo) => void
+    openDetail: (ticket: TicketInfo) => void
+    openReview: (ticket: TicketInfo) => void
+    closeReview: () => null
+    closeDetail: () => null
+    handleSync: () => Promise<void>
+    handleConflictResolve: (profileName: string) => Promise<void>
+    handleConflictAbort: () => Promise<void>
+    handleCreateTicket: (number: string, title: string) => Promise<SubmissionSuccess | SubmissionError>
+    handleCleanupAction: (folderName: string, options: TicketCleanupOptions) => Promise<HandleCleanupActionResult | SubmissionSuccess>
+    handleCleanupSubmit: (folderName: string) => Promise<SubmissionSuccess | DetailedSubmissionError>
+    openSettings: () => true
+    closeSettings: () => false
+    openAddProject: () => true
+    closeAddProject: () => false
+    handleDeleteProject: (projectSlug: string) => Promise<SubmissionSuccess | SubmissionError>
+    setCreateTicketOpen: Setter<boolean>
+    setCleanupDialogOpen: Setter<boolean>
+    setConflictDialogOpen: Setter<boolean>
+    setSyncError: Setter<ErrorInfo | null>
+  }
+}
+
+export interface SubmissionSuccess {
+  error?: undefined
+}
+
+export interface SubmissionError {
+  error: string
+}
+
+export interface DetailedSubmissionError {
+  error: {
+    description: string
+  }
+}
+
+export interface HandleCleanupActionResult {
+  error: ErrorInfo
+}

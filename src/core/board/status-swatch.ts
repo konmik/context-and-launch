@@ -3,17 +3,20 @@ export interface SwatchColumn {
   color?: string
 }
 
-export type StatusSwatchAppearance =
-  | {
-      kind: 'column-color'
-      hex: string
-    }
-  | {
-      kind: 'orphan-status'
-    }
-  | {
-      kind: 'none'
-    }
+export interface ColumnColorStatusSwatchAppearance {
+  kind: 'column-color'
+  hex: string
+}
+
+export interface OrphanStatusStatusSwatchAppearance {
+  kind: 'orphan-status'
+}
+
+export interface NoneStatusSwatchAppearance {
+  kind: 'none'
+}
+
+export type StatusSwatchAppearance = ColumnColorStatusSwatchAppearance | OrphanStatusStatusSwatchAppearance | NoneStatusSwatchAppearance
 
 export function resolveStatusSwatch(ticketStatus: string, columns: SwatchColumn[]): StatusSwatchAppearance {
   const column = columns.find((c) => c.name === ticketStatus)

@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import type { SelectedLineRange } from '@pierre/diffs'
 import { revalidate } from '@solidjs/router'
 import { Errored, For, Show, createEffect, createMemo, createSignal, useContext, onSettled, onCleanup } from 'solid-js'
@@ -77,7 +78,7 @@ function reuseFilePaths(previous: string[], files: ReviewFileSnapshot[]): string
   return current.length === previous.length && current.every((filePath, index) => filePath === previous[index]) ? previous : current
 }
 
-function ReviewStateIcon(props: { status: FileReviewStatus }) {
+function ReviewStateIcon(props: { status: FileReviewStatus }): JSX.Element {
   return (
     <Show when={props.status === 'reviewed'} fallback={<CircleQuestionMark size={13} class="text-primary" aria-label="Not reviewed" />}>
       <Check size={13} class="text-muted-foreground" aria-label="Reviewed" />
@@ -93,7 +94,7 @@ function FileTreeNodes(props: {
   statusFor(file: ReviewFileSnapshot): FileReviewStatus
   onToggleDirectory(directoryPath: string): void
   onSelect(filePath: string): void
-}) {
+}): JSX.Element {
   return (
     <ul class="space-y-0.5">
       <For each={props.nodes}>
@@ -176,7 +177,7 @@ function FileTree(props: {
   width: number
   statusFor(file: ReviewFileSnapshot): FileReviewStatus
   onSelect(filePath: string): void
-}) {
+}): JSX.Element {
   const [collapsedDirectoryPaths, setCollapsedDirectoryPaths] = createSignal(new Set<string>())
   const fileByPath = createMemo(() => new Map(props.files.map((file) => [file.path, file])))
   const totalsByFileType = createMemo(() => buildFileTypeTotals(props.files))
@@ -234,7 +235,7 @@ function FileTree(props: {
   )
 }
 
-function DiffLoadError(props: { error: unknown; onRetry(): void }) {
+function DiffLoadError(props: { error: unknown; onRetry(): void }): JSX.Element {
   const message = () => (props.error instanceof Error ? props.error.message : String(props.error))
   return (
     <div class="flex h-full items-center justify-center p-8" role="alert">
@@ -253,7 +254,7 @@ function DiffLoadError(props: { error: unknown; onRetry(): void }) {
 } // What stands in for the files while the selected Diff Scope has none to show:
 
 // Git is still calculating it, or Git answered that it cannot.
-function DiffScopeUnavailable(props: { error?: string; label: string; onRetry(): void }) {
+function DiffScopeUnavailable(props: { error?: string; label: string; onRetry(): void }): JSX.Element {
   return (
     <Show
       when={props.error}
@@ -269,7 +270,7 @@ function DiffScopeUnavailable(props: { error?: string; label: string; onRetry():
   )
 }
 
-export default function DiffReview(props: { projectSlug: string; projectName: string; ticket: TicketInfo; onClose(): void }) {
+export default function DiffReview(props: { projectSlug: string; projectName: string; ticket: TicketInfo; onClose(): void }): JSX.Element {
   const herdrStatus = useHerdrStatuses()
   const [scope, setScope] = createSignal<DiffScope>()
   const [pace, setPace] = createSignal<ReviewPace>('live')

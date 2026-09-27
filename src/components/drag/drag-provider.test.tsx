@@ -1,10 +1,11 @@
+import type { JSX } from '@solidjs/web'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render } from '~/test-render.js'
 import { DragDropProvider, createSortable } from './drag-provider.js'
 
 afterEach(cleanup)
 
-function Sortable(props: { id: string }) {
+function Sortable(props: { id: string }): JSX.Element {
   const sortable = createSortable(props.id)
   return (
     <button ref={sortable.ref} {...sortable.dragActivators}>

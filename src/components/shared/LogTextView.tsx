@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { createEffect, onSettled } from 'solid-js'
 import { EditorState } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
@@ -31,7 +32,7 @@ const logTheme = EditorView.theme({
   },
 })
 
-function findTextChange(previous: string, next: string) {
+function findTextChange(previous: string, next: string): FindTextChangeResult {
   let from = 0
   const sharedLength = Math.min(previous.length, next.length)
   while (from < sharedLength && previous.charCodeAt(from) === next.charCodeAt(from)) {
@@ -50,7 +51,7 @@ function findTextChange(previous: string, next: string) {
   }
 }
 
-export default function LogTextView(props: { text: string }) {
+export default function LogTextView(props: { text: string }): JSX.Element {
   let containerRef: HTMLDivElement | undefined
   let view: EditorView | undefined
   let renderedText = props.text
@@ -111,4 +112,10 @@ export default function LogTextView(props: { text: string }) {
       class={'min-h-0 flex-1 overflow-hidden rounded-md' + ' border border-border bg-background'}
     />
   )
+}
+
+export interface FindTextChangeResult {
+  from: number
+  to: number
+  insert: string
 }

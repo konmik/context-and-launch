@@ -1,3 +1,4 @@
+import type { Locator } from 'playwright-core'
 import { describe, it, expect } from 'vitest'
 import { type Page } from 'playwright'
 import { openProject, setupE2E, type SeedTicket } from './fixtures.js'
@@ -37,25 +38,25 @@ const APP_BOARDS = [
   },
 ]
 
-function columnHeader(p: Page, name: string) {
+function columnHeader(p: Page, name: string): Locator {
   return testId(p, 'kanban-board-column-header', {
     'data-column-name': name,
   })
 }
 
-function columnHeaderCell(p: Page, name: string) {
+function columnHeaderCell(p: Page, name: string): Locator {
   return testId(p, 'kanban-board-column-header-cell', {
     'data-column-name': name,
   })
 }
 
-function columnBody(p: Page, name: string) {
+function columnBody(p: Page, name: string): Locator {
   return testId(p, 'kanban-board-column-body', {
     'data-column-name': name,
   })
 }
 
-function boardScroll(p: Page) {
+function boardScroll(p: Page): Locator {
   return testId(p, 'kanban-board-scroll')
 }
 

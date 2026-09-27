@@ -2,7 +2,7 @@ import type { DragId } from '~/components/drag/drag-types.js'
 
 export const COLUMN_PREFIX = 'column:'
 
-export function parseId(id: DragId) {
+export function parseId(id: DragId): ParseIdResult {
   const str = String(id)
   const sep = str.indexOf(':')
   return {
@@ -13,4 +13,9 @@ export function parseId(id: DragId) {
 
 export function makeId(column: string, folderName: string): string {
   return `${column}:${folderName}`
+}
+
+export interface ParseIdResult {
+  column: string
+  folderName: string
 }

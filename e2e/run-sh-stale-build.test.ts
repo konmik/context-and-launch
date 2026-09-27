@@ -1,3 +1,4 @@
+import type { SpawnSyncReturns } from 'node:child_process'
 import { describe, it, expect } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
@@ -15,7 +16,7 @@ type Layout = {
   sourceMtimeOffsetMs: number // mtime of src/file relative to dist/server/server.js
 }
 
-function makeFakeProject(layout: Layout) {
+function makeFakeProject(layout: Layout): FakeProjectResult {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'run-sh-stale-'))
   fs.mkdirSync(path.join(dir, 'src'))
   fs.writeFileSync(path.join(dir, 'src', 'app.tsx'), '// fake source\n')
@@ -52,7 +53,7 @@ function makeFakeProject(layout: Layout) {
   }
 }
 
-function runDry(dir: string, scriptPath: string) {
+function runDry(dir: string, scriptPath: string): SpawnSyncReturns<string> {
   // Use a random port that no real server is listening on so the script enters the build gate.
   const port = pickPort()
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'run-sh-home-'))
@@ -107,3 +108,8 @@ describe.runIf(process.platform !== 'win32')('run.sh stale build detection', () 
     expect(result.stdout).toMatch(/BUILD=yes REASON=missing/)
   })
 })
+
+export interface FakeProjectResult {
+  dir: string
+  scriptPath: string
+}

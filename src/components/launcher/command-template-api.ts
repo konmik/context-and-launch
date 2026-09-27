@@ -1,10 +1,10 @@
 import { commandTemplateStore } from '~/core/config/instances.js'
 import { errorMessage } from '~/core/shared/errors.js'
-import { COMMAND_TEMPLATE_DEFINITIONS } from '~/core/command-template/command-template-definitions.js'
+import { COMMAND_TEMPLATE_DEFINITIONS, type KeyedCommandTemplateDefinition } from '~/core/command-template/command-template-definitions.js'
 import { currentCommandTemplatePlatform, type CommandTemplateOverrides } from '~/core/command-template/command-template-types.js'
 import { fail, succeed, type Result } from '~/util/result.js'
 
-export async function getCommandTemplateDefinitions() {
+export async function getCommandTemplateDefinitions(): Promise<KeyedCommandTemplateDefinition[]> {
   'use server'
 
   return COMMAND_TEMPLATE_DEFINITIONS.filter((entry) => entry.platforms.includes(currentCommandTemplatePlatform()))

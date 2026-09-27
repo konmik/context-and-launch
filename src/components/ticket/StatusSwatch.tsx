@@ -1,7 +1,8 @@
+import type { JSX } from '@solidjs/web'
 import { Show } from 'solid-js'
 import { resolveStatusSwatch, type SwatchColumn } from '~/core/board/status-swatch.js'
 
-export default function StatusSwatch(props: { status: string; columns: SwatchColumn[] }) {
+export default function StatusSwatch(props: { status: string; columns: SwatchColumn[] }): JSX.Element {
   const appearance = () => resolveStatusSwatch(props.status, props.columns)
   const hex = () => {
     const current = appearance()

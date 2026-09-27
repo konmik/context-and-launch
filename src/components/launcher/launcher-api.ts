@@ -1,3 +1,9 @@
+import type { ActionFailure } from '../../core/shared/errors.js'
+import type { Failure } from '../../util/result.js'
+import type { Success } from '../../util/result.js'
+import type { LauncherConfig } from '../../core/launcher/launcher-config-data.js'
+import type { ActionError } from '../../core/shared/errors.js'
+import type { ActionSuccess } from '../../core/shared/errors.js'
 import { query } from '@solidjs/router'
 import path from 'path'
 import {
@@ -47,7 +53,7 @@ export const getProjectLauncherMetadata = query(async (projectSlug: string): Pro
   }
 }, 'launcher-metadata')
 
-export async function readProjectLauncherConfig(projectSlug: string, owner?: string) {
+export async function readProjectLauncherConfig(projectSlug: string, owner?: string): Promise<Failure<string> | Success<LauncherConfig>> {
   'use server'
 
   try {
@@ -63,7 +69,11 @@ export async function releaseProjectLauncherConfig(projectSlug: string, owner: s
   launcherConfigManager.releaseProjectConfig(projectSlug, owner)
 }
 
-export async function saveProjectLauncherConfig(projectSlug: string, json: string, owner: string) {
+export async function saveProjectLauncherConfig(
+  projectSlug: string,
+  json: string,
+  owner: string,
+): Promise<Failure<string> | Success<LauncherConfig>> {
   'use server'
 
   try {
@@ -75,7 +85,11 @@ export async function saveProjectLauncherConfig(projectSlug: string, json: strin
   }
 }
 
-export async function launchAgentAction(projectSlug: string, folderName: string, launchRequest: LaunchRequest) {
+export async function launchAgentAction(
+  projectSlug: string,
+  folderName: string,
+  launchRequest: LaunchRequest,
+): Promise<ActionError | ActionFailure | LaunchAgentActionResult | ActionSuccess> {
   'use server'
 
   try {
@@ -119,7 +133,10 @@ export async function launchAgentAction(projectSlug: string, folderName: string,
   }
 }
 
-export async function launchProjectAgentAction(projectSlug: string, launchRequest: LaunchRequest) {
+export async function launchProjectAgentAction(
+  projectSlug: string,
+  launchRequest: LaunchRequest,
+): Promise<ActionError | ActionFailure | ActionSuccess> {
   'use server'
 
   try {
@@ -148,7 +165,7 @@ export async function runShortcut(
   useWorktree: boolean,
   force: boolean,
   launchDir: string,
-) {
+): Promise<ActionError | LaunchAgentActionResult | ActionSuccess> {
   'use server'
 
   try {
@@ -206,7 +223,7 @@ export async function runShortcut(
   }
 }
 
-export async function resolveConflicts(projectSlug: string, profileName: string) {
+export async function resolveConflicts(projectSlug: string, profileName: string): Promise<ActionError | ActionSuccess> {
   'use server'
 
   try {
@@ -232,7 +249,7 @@ export async function resolveConflicts(projectSlug: string, profileName: string)
   }
 }
 
-export async function abortRebase(projectSlug: string) {
+export async function abortRebase(projectSlug: string): Promise<ActionError | ActionSuccess> {
   'use server'
 
   try {
@@ -245,4 +262,10 @@ export async function abortRebase(projectSlug: string) {
   } catch (e) {
     return errorResult(e)
   }
+}
+
+export interface LaunchAgentActionResult {
+  ok: false
+  type: 'dirtyWorktree' | 'behindRemote'
+  message: string
 }

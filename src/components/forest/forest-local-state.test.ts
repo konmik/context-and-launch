@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { getViewMode, setViewMode, getForestViewport, setForestViewport } from './forest-local-state.js'
 
-function createStorage() {
+function createStorage(): StorageResult {
   const store = new Map<string, string>()
   return {
     getItem: (k) => store.get(k) ?? null,
@@ -12,7 +12,7 @@ function createStorage() {
   }
 }
 
-function throwingStorage() {
+function throwingStorage(): ThrowingStorageResult {
   return {
     getItem: (): string | null => {
       throw new Error('denied')
@@ -99,3 +99,13 @@ describe('forest-local-state', () => {
     expect(getViewMode(s, 'proj-b')).toBe('kanban')
   })
 })
+
+export interface StorageResult {
+  getItem: (k: string) => string | null
+  setItem: (k: string, v: string) => Map<string, string>
+}
+
+export interface ThrowingStorageResult {
+  getItem: () => string | null
+  setItem: () => never
+}

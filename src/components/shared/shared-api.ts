@@ -1,3 +1,6 @@
+import type { DirectoryPickerError } from '../../core/infra/native-file-dialog.js'
+import type { DirectoryPickerSelection } from '../../core/infra/native-file-dialog.js'
+import type { DirectoryPickerCancelled } from '../../core/infra/native-file-dialog.js'
 import fs from 'fs'
 import { commandTemplateService, launcherConfigManager, worktreeManager, projectRegistry } from '~/core/config/instances.js'
 import { openInOs } from '~/core/infra/open-in-os.js'
@@ -25,17 +28,9 @@ export async function openNativeFileBrowser(startDir: string | null): Promise<st
   return openFileDialog(startDir ?? undefined, commandTemplateService)
 }
 
-export async function pickDirectory(preselect: string): Promise<
-  | {
-      path: string
-    }
-  | {
-      cancelled: true
-    }
-  | {
-      error: string
-    }
-> {
+export async function pickDirectory(
+  preselect: string,
+): Promise<DirectoryPickerSelection | DirectoryPickerCancelled | DirectoryPickerError> {
   'use server'
 
   return openDirectoryDialog(preselect, commandTemplateService)

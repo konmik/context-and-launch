@@ -1,3 +1,5 @@
+import type { SourceAccessor } from 'solid-js'
+import type { Setter } from 'solid-js'
 import { createSignal } from 'solid-js'
 
 export interface FormDialogDeps<TSubmitArgs extends unknown[]> {
@@ -7,7 +9,9 @@ export interface FormDialogDeps<TSubmitArgs extends unknown[]> {
   onOpenChange: (open: boolean) => void
 }
 
-export function createFormDialogController<TSubmitArgs extends unknown[]>(deps: FormDialogDeps<TSubmitArgs>) {
+export function createFormDialogController<TSubmitArgs extends unknown[]>(
+  deps: FormDialogDeps<TSubmitArgs>,
+): FormDialogControllerResult<TSubmitArgs> {
   const [submitting, setSubmitting] = createSignal(false)
   const [errorMsg, setErrorMsg] = createSignal('')
 
@@ -37,4 +41,12 @@ export function createFormDialogController<TSubmitArgs extends unknown[]>(deps: 
     doSubmit,
     setErrorMsg,
   }
+}
+
+export interface FormDialogControllerResult<TSubmitArgs extends unknown[]> {
+  submitting: SourceAccessor<boolean>
+  errorMsg: SourceAccessor<string>
+  close: () => void
+  doSubmit: (...args: TSubmitArgs) => Promise<void>
+  setErrorMsg: Setter<string>
 }

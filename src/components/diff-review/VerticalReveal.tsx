@@ -3,7 +3,7 @@ import type { JSX } from '@solidjs/web'
 
 type RevealPhase = 'entering' | 'visible' | 'leaving'
 
-export default function VerticalReveal(props: { show: boolean; class?: string; children: JSX.Element; onHidden?(): void }) {
+export default function VerticalReveal(props: { show: boolean; class?: string; children: JSX.Element; onHidden?(): void }): JSX.Element {
   const [mounted, setMounted] = createSignal(false)
   const [phase, setPhase] = createSignal<RevealPhase>('visible')
   const prefersReducedMotion = () => globalThis.window?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false

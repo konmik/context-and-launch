@@ -1,3 +1,4 @@
+import type { RenderResult } from '../../test-render.js'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, fireEvent, cleanup, waitFor } from '~/test-render.js'
 import TicketCard from './TicketCard'
@@ -26,7 +27,7 @@ function renderCard(props: {
   onDelete?: (ticket: TicketInfo) => void
   onArchive?: (ticket: TicketInfo) => void
   onOpenFolder?: (ticket: TicketInfo) => void
-}) {
+}): RenderResult {
   return render(() => (
     <HerdrStatusesContext value={(folderName) => props.herdrStatuses?.[folderName]}>
       <TicketCard

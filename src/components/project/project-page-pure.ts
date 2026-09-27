@@ -1,14 +1,17 @@
-export type SyncResultType =
-  | {
-      type: 'success'
-    }
-  | {
-      type: 'conflict'
-    }
-  | {
-      type: 'error'
-      message: string
-    }
+export interface SuccessSyncResultType {
+  type: 'success'
+}
+
+export interface ConflictSyncResultType {
+  type: 'conflict'
+}
+
+export interface ErrorSyncResultType {
+  type: 'error'
+  message: string
+}
+
+export type SyncResultType = SuccessSyncResultType | ConflictSyncResultType | ErrorSyncResultType
 
 export function parseSyncResult(result: { status: string; message?: string }): SyncResultType {
   if (result.status === 'success')

@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { pickDirectory } from '../shared/directory-picker.js'
 import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
 import { ScopeBadge } from './launcher-settings-rows.js'
@@ -10,7 +11,7 @@ export function SettingsFolderField(props: {
   save: (value?: string) => void
   saving: boolean
   setError: (error: ErrorInfo | null) => void
-}) {
+}): JSX.Element {
   return (
     <section>
       <label class="field-label" for={props.testId}>

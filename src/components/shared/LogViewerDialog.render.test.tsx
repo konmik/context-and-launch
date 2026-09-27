@@ -13,7 +13,7 @@ afterEach(() => {
   mockGetAppLogs.mockReset()
 })
 
-function deferredLogs() {
+function deferredLogs(): DeferredLogsResult {
   let resolveLogs!: (text: string) => void
   mockGetAppLogs.mockReturnValue(
     new Promise<string>((r) => {
@@ -50,3 +50,7 @@ describe('LogViewerDialog read states', () => {
     expect(screen.queryByText('No logs yet.')).toBeNull()
   })
 })
+
+export interface DeferredLogsResult {
+  resolve: (text: string) => void
+}

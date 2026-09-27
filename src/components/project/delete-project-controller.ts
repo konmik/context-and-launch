@@ -1,3 +1,4 @@
+import type { SourceAccessor } from 'solid-js'
 import { createFormDialogController } from '../ticket/form-dialog-controller.js'
 
 export interface DeleteProjectDeps {
@@ -8,7 +9,7 @@ export interface DeleteProjectDeps {
   projectSlug: () => string
 }
 
-export function createDeleteProjectController(deps: DeleteProjectDeps) {
+export function createDeleteProjectController(deps: DeleteProjectDeps): DeleteProjectControllerResult {
   const form = createFormDialogController({
     onSubmit: deps.onSubmit,
     onOpenChange: deps.onOpenChange,
@@ -27,3 +28,10 @@ export function createDeleteProjectController(deps: DeleteProjectDeps) {
 }
 
 export type DeleteProjectController = ReturnType<typeof createDeleteProjectController>
+
+export interface DeleteProjectControllerResult {
+  submitting: SourceAccessor<boolean>
+  errorMsg: SourceAccessor<string>
+  close: () => void
+  doSubmit: () => Promise<void>
+}

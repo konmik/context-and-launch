@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { Show, createSignal, createEffect } from 'solid-js'
 import { X } from '~/components/ui/icons.js'
 import {
@@ -24,7 +25,7 @@ interface LauncherSettingsProps {
   }>
 }
 
-export default function LauncherSettings(props: LauncherSettingsProps) {
+export default function LauncherSettings(props: LauncherSettingsProps): JSX.Element {
   const [activeTab, setActiveTab] = createSignal('profiles')
   const [visitedTabs, setVisitedTabs] = createSignal<Set<string>>(new Set())
   createEffect(activeTab, (tab) => {

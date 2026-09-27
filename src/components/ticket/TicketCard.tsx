@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { Show, For } from 'solid-js'
 import { EllipsisVertical } from '~/components/ui/icons.js'
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from '../ui/menu'
@@ -16,7 +17,7 @@ interface TicketCardProps {
   onReviewChanges?: (ticket: TicketInfo) => void
 }
 
-export default function TicketCard(props: TicketCardProps) {
+export default function TicketCard(props: TicketCardProps): JSX.Element {
   const herdrStatus = useHerdrStatuses()
   const shortcutRunner = useShortcutRunner()
 

@@ -22,10 +22,7 @@ function seedLogs(dataDir: string, text: string): void {
   if (text) fs.writeFileSync(path.join(logDir, 'app-e2e.log'), text)
 }
 
-async function deferNextLogRead(page: Page): Promise<{
-  requestId: Promise<string>
-  release: () => Promise<void>
-}> {
+async function deferNextLogRead(page: Page): Promise<DeferNextLogReadResult> {
   let releaseGate!: () => void
   const released = new Promise<void>((resolve) => {
     releaseGate = resolve
@@ -273,3 +270,8 @@ describe('Application Logs dialog (e2e, real server)', () => {
     expect(afterResize).toBeLessThan(historyLines / 10)
   })
 })
+
+export interface DeferNextLogReadResult {
+  requestId: Promise<string>
+  release: () => Promise<void>
+}

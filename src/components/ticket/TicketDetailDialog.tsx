@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { Show, For, untrack, useContext } from 'solid-js'
 import { X } from '~/components/ui/icons.js'
 import { Copy } from '~/components/ui/icons.js'
@@ -39,7 +40,7 @@ interface TicketDetailDialogProps {
   launchAgent?: typeof launchAgentAction
 }
 
-export default function TicketDetailDialog(props: TicketDetailDialogProps) {
+export default function TicketDetailDialog(props: TicketDetailDialogProps): JSX.Element {
   return (
     <Show when={props.ticket?.folderName} keyed>
       {(folderName) => (
@@ -65,7 +66,7 @@ function TicketDetailContent(props: {
   onReviewChanges?: (ticket: TicketInfo) => void
   stateDeps?: TicketDetailStateDeps
   launchAgent?: typeof launchAgentAction
-}) {
+}): JSX.Element {
   const s = untrack(() => createTicketDetailState(props, props.stateDeps))
   const ticketStatus = useContext(TicketStatusContext)!
   const ticket = ticketStatus.get

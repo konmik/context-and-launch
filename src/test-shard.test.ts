@@ -1,8 +1,9 @@
+import type { Mock } from 'vitest'
 import { describe, expect, it, vi } from 'vitest'
 import { fromAny } from '@total-typescript/shoehorn'
 import { shardTestCases } from './test-shard.js'
 
-function fakeTestApi() {
+function fakeTestApi(): Mock<(...args: any[]) => any> & FakeTestApiResult {
   const run = vi.fn()
   const skip = vi.fn()
   const concurrent = vi.fn()
@@ -38,3 +39,18 @@ describe('shardTestCases', () => {
     expect(() => shardTestCases(testApi, [3], 3)).toThrow('Invalid test shard')
   })
 })
+
+export interface FakeTestApiResult {
+  skip: Mock<(...args: any[]) => any>
+  concurrent: Mock<(...args: any[]) => any>
+  runIf: Mock<
+    () => Mock<(...args: any[]) => any> & {
+      concurrent: Mock<(...args: any[]) => any>
+    }
+  >
+  skipIf: Mock<
+    () => Mock<(...args: any[]) => any> & {
+      concurrent: Mock<(...args: any[]) => any>
+    }
+  >
+}

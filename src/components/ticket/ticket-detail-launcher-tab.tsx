@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { onSettled } from 'solid-js'
 import { SplitPane } from '../ui/split-pane.js'
 import AgentLauncher from '../launcher/AgentLauncher'
@@ -25,7 +26,7 @@ export function LauncherTab(props: {
   config: MergedLauncherConfig | null
   onDefaultsChange: (patch: Partial<LauncherColumnDefaults>) => void
   ctrl: AgentLauncherController
-}) {
+}): JSX.Element {
   const saved = readSavedSizes()
   const ctrl = props.ctrl
   let splitterPersistTimer: ReturnType<typeof setTimeout> | undefined

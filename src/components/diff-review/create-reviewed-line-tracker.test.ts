@@ -1,3 +1,6 @@
+import type { StoredSignal } from '../../util/stored-signal.js'
+import type { SourceAccessor } from 'solid-js'
+import type { Mock } from 'vitest'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createSignal, flush } from 'solid-js'
 import { createReviewedLineTracker } from './diff-review-storage.js'
@@ -7,7 +10,7 @@ import type { DiffReviewProjectState } from '~/core/diff-review/diff-review-type
 
 afterEach(() => vi.useRealTimers())
 
-function setup() {
+function setup(): SetupResult {
   let persisted: DiffReviewProjectState = {
     version: 2,
     tickets: {
@@ -186,3 +189,16 @@ describe('createReviewedLineTracker', () => {
     expect(Object.keys(state.get().tickets.ticket.reviewedLines)).toEqual(['line-1', 'line-2'])
   })
 })
+
+export interface SetupResult {
+  state: StoredSignal<DiffReviewProjectState>
+  tracker: {
+    reviewedLineIds: SourceAccessor<Set<string>>
+    markVisible(line: { id: string; path: string }): void
+    flush: () => Promise<void>
+    dispose(): Promise<void>
+  }
+  persist: Mock<(next: DiffReviewProjectState) => Promise<Result<DiffReviewProjectState, string>>>
+  onError: Mock<(...args: any[]) => any>
+  acknowledge(): void
+}

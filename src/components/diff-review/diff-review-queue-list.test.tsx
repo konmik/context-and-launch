@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '~/test-render.js'
 import { createSignal, flush, type Accessor } from 'solid-js'
@@ -7,7 +8,7 @@ import { succeed } from '~/util/result.js'
 import { createStoredSignal } from '~/util/stored-signal.js'
 import { DiffReviewContext, ReviewAgentStatusContext } from './diff-review-storage.js'
 
-function TicketQueue(props: { profileName: string }) {
+function TicketQueue(props: { profileName: string }): JSX.Element {
   return (
     <ReviewAgentStatusContext
       value={{
@@ -23,7 +24,7 @@ function TicketQueue(props: { profileName: string }) {
   )
 }
 
-function Queue(props: { items: ReviewPromptQueueItem[] }) {
+function Queue(props: { items: ReviewPromptQueueItem[] }): JSX.Element {
   return (
     <DiffReviewContext
       value={{
@@ -68,7 +69,7 @@ function makeItem(overrides: { id?: string; feedback?: string; state?: 'waiting'
       }
 }
 
-function itemByFeedback(container: HTMLElement, feedback: string) {
+function itemByFeedback(container: HTMLElement, feedback: string): HTMLElement | undefined {
   const nodes = [...container.querySelectorAll<HTMLElement>('[data-testid="diff-review-queue-item"]')]
   return nodes.find((node) => node.textContent?.includes(feedback))
 }
@@ -83,7 +84,7 @@ function fireAnimationEnd(element: Element, animationName: string) {
   element.dispatchEvent(event)
 }
 
-function bodyOf(item: HTMLElement) {
+function bodyOf(item: HTMLElement): HTMLElement {
   const body = item.querySelector<HTMLElement>('.vertical-reveal-body')
   if (!body) throw new Error('Expected queue item reveal body')
   return body

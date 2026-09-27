@@ -1,3 +1,5 @@
+import type { ActiveWorkspaceMarker } from './test-workspace.mjs'
+import type { SpawnSyncReturns } from 'node:child_process'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -29,7 +31,7 @@ function guardEnvironment(workspace?: string, token?: string): NodeJS.ProcessEnv
   return env
 }
 
-function managedWorkspace() {
+function managedWorkspace(): ManagedWorkspaceResult {
   const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'context-launch-guard-'))
   temporaryDirectories.push(workspace)
   const marker = createActiveMarker(workspace, getWorkspaceIdentity(repoRoot))
@@ -40,7 +42,7 @@ function managedWorkspace() {
   }
 }
 
-function runGuard(workspace?: string, token?: string) {
+function runGuard(workspace?: string, token?: string): SpawnSyncReturns<string> {
   return spawnSync(process.execPath, [guardPath], {
     cwd: workspace ?? repoRoot,
     env: guardEnvironment(workspace, token),
@@ -87,3 +89,8 @@ describe('test workspace isolation', () => {
     expect(result.status).toBe(1)
   })
 })
+
+export interface ManagedWorkspaceResult {
+  workspace: string
+  marker: ActiveWorkspaceMarker
+}

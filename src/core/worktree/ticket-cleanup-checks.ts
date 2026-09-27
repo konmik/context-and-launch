@@ -5,21 +5,24 @@ import { foreignWorktreeMessage, type WorktreeOwnership } from './agent-worktree
 
 export type CleanupItemKey = 'stopHerdrAgent' | 'deleteWorktree' | 'deleteLocalBranch' | 'deleteRemoteBranch'
 
-export type CleanupCheckItem =
-  | {
-      state: 'ready'
-    }
-  | {
-      state: 'blocked'
-      reason: string
-      warning?: true
-      killable?: true
-      forceDeleteable?: true
-    }
-  | {
-      state: 'error'
-      error: ErrorInfo
-    }
+export interface ReadyCleanupCheckItem {
+  state: 'ready'
+}
+
+export interface BlockedCleanupCheckItem {
+  state: 'blocked'
+  reason: string
+  warning?: true
+  killable?: true
+  forceDeleteable?: true
+}
+
+export interface ErrorCleanupCheckItem {
+  state: 'error'
+  error: ErrorInfo
+}
+
+export type CleanupCheckItem = ReadyCleanupCheckItem | BlockedCleanupCheckItem | ErrorCleanupCheckItem
 
 export type TicketCleanupStatus = Record<CleanupItemKey, CleanupCheckItem>
 

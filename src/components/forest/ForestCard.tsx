@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { createContext, createSignal, Show, useContext } from 'solid-js'
 import { Group } from '~/components/ui/icons.js'
 import { EllipsisVertical } from '~/components/ui/icons.js'
@@ -21,7 +22,7 @@ export const ForestCardCommandsContext = createContext<ForestCardCommands>()
 export const ForestConnectionSessionContext = createContext<() => ForestConnectionSession>()
 export const ForestCardColumnsContext = createContext<() => SwatchColumn[]>()
 
-export default function ForestCard(props: { data: ForestNodeData; selected?: boolean }) {
+export default function ForestCard(props: { data: ForestNodeData; selected?: boolean }): JSX.Element {
   const commands = useContext(ForestCardCommandsContext)
   const connectionSession = useContext(ForestConnectionSessionContext)
   const columns = useContext(ForestCardColumnsContext)
@@ -38,7 +39,7 @@ export default function ForestCard(props: { data: ForestNodeData; selected?: boo
     return isConnectionTarget(session.source, endpoint) ? 'available' : 'hidden'
   }
 
-  function ConnectionHandle(handleProps: { end: 'top' | 'bottom' }) {
+  function ConnectionHandle(handleProps: { end: 'top' | 'bottom' }): JSX.Element {
     const endpoint = (): ConnectionEndpoint => ({
       ticketNumber: ticketNumber(),
       end: handleProps.end,

@@ -1,3 +1,4 @@
+import type { FloatingPanelSize } from './floating-panel-state.js'
 import { Show, createEffect, createUniqueId, omit, useContext } from 'solid-js'
 import { Portal, type ComponentProps, type JSX } from '@solidjs/web'
 import { createFloatingPanelState, type FloatingPanelPosition as Position, type FloatingPanelSize as Size } from './floating-panel-state.js'
@@ -22,14 +23,14 @@ export const FLOATING_WINDOW_MIN_SIZE = {
   height: 300,
 }
 
-export function tallWindowDefaultSize() {
+export function tallWindowDefaultSize(): FloatingPanelSize {
   return {
     width: 768,
     height: Math.floor((globalThis.window?.innerHeight ?? 800) * 0.8),
   }
 }
 
-export function FloatingPanelRoot(props: FloatingWindowProps) {
+export function FloatingPanelRoot(props: FloatingWindowProps): JSX.Element {
   const initialSize = props.defaultSize ?? {
     width: 768,
     height: 600,
@@ -150,16 +151,16 @@ export function FloatingPanelRoot(props: FloatingWindowProps) {
   )
 }
 
-export function FloatingPanelTitle(props: ComponentProps<'h2'>) {
+export function FloatingPanelTitle(props: ComponentProps<'h2'>): JSX.Element {
   const panel = useContext(PanelContext)
   return <h2 {...props} id={panel.titleId} data-scope="floating-panel" data-part="title" />
 }
 
-export function FloatingPanelBody(props: ComponentProps<'div'>) {
+export function FloatingPanelBody(props: ComponentProps<'div'>): JSX.Element {
   return <div {...props} data-scope="floating-panel" data-part="body" />
 }
 
-export function FloatingPanelDragStrip(props?: { 'data-testid'?: string }) {
+export function FloatingPanelDragStrip(props?: { 'data-testid'?: string }): JSX.Element {
   const panel = useContext(PanelContext)
   return (
     <div
@@ -174,7 +175,7 @@ export function FloatingPanelDragStrip(props?: { 'data-testid'?: string }) {
   )
 }
 
-export function FloatingPanelCloseTrigger(props: ComponentProps<'button'>) {
+export function FloatingPanelCloseTrigger(props: ComponentProps<'button'>): JSX.Element {
   const panel = useContext(PanelContext)
   return (
     <button
@@ -188,7 +189,7 @@ export function FloatingPanelCloseTrigger(props: ComponentProps<'button'>) {
   )
 }
 
-function FloatingPanelResizeTrigger() {
+function FloatingPanelResizeTrigger(): JSX.Element {
   const panel = useContext(PanelContext)
   return (
     <div
@@ -205,7 +206,7 @@ function FloatingPanelResizeTrigger() {
   )
 }
 
-export function FloatingWindow(props: FloatingWindowProps) {
+export function FloatingWindow(props: FloatingWindowProps): JSX.Element {
   const rootProps = omit(props, 'children')
   return (
     <FloatingPanelRoot {...rootProps}>
@@ -218,7 +219,7 @@ export function FloatingWindow(props: FloatingWindowProps) {
   )
 }
 
-export function FloatingWindowHeader(props: { title?: JSX.Element; actions?: JSX.Element; children?: JSX.Element }) {
+export function FloatingWindowHeader(props: { title?: JSX.Element; actions?: JSX.Element; children?: JSX.Element }): JSX.Element {
   return (
     <div data-scope="floating-panel" data-part="header">
       <div class="flex flex-col gap-3 p-4">

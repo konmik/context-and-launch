@@ -19,7 +19,7 @@ class FakeWatcher implements FileWatcherHandle {
   }
 }
 
-function createHarness(status = '') {
+function createHarness(status = ''): HarnessResult {
   const handles: FakeWatcher[] = []
   const ignored: Array<(filePath: string) => boolean> = []
   const commands = fromPartial<CommandTemplateExecutor>({
@@ -256,3 +256,10 @@ describe('FileWatcher', () => {
     expect(harness.commands.executeSync).not.toHaveBeenCalled()
   })
 })
+
+export interface HarnessResult {
+  adapters: FileWatcherAdapters
+  commands: CommandTemplateExecutor
+  handles: FakeWatcher[]
+  ignored: ((filePath: string) => boolean)[]
+}

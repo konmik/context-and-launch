@@ -13,7 +13,7 @@ afterEach(async () => {
   await Promise.all(directories.splice(0).map(removeTempDir))
 })
 
-function setup() {
+function setup(): SetupResult {
   const directory = makeTempDir('launcher-config-')
   directories.push(directory)
   const paths = new ConfigPaths(directory)
@@ -493,3 +493,8 @@ describe('mergeLauncherConfigs', () => {
     })
   })
 })
+
+export interface SetupResult {
+  paths: ConfigPaths
+  manager: LauncherConfigManager
+}

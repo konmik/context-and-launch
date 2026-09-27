@@ -1,3 +1,4 @@
+import type { CreatedProject } from './fixtures.js'
 import { describe, it, expect } from 'vitest'
 import {
   gotoProject,
@@ -15,7 +16,10 @@ describe('Conflict dialog controls (e2e, real server)', () => {
   const ctx = setupE2E()
 
   /** Seeds a Project whose tickets worktree is already mid-rebase, then opens it. */
-  async function openConflictedProject(slugBase: string, appLauncherConfig: SeedAppLauncherConfig = CONFLICT_LAUNCHER) {
+  async function openConflictedProject(
+    slugBase: string,
+    appLauncherConfig: SeedAppLauncherConfig = CONFLICT_LAUNCHER,
+  ): Promise<CreatedProject> {
     const project = await seedProject(ctx, {
       slugBase,
       withRemote: true,

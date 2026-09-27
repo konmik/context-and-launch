@@ -1,3 +1,4 @@
+import type { SourceAccessor } from 'solid-js'
 import { createContext, createMemo, createSignal, type Accessor } from 'solid-js'
 import type { StoredSignal } from '~/util/stored-signal.js'
 import { getReviewTicketState, type DiffReviewProjectState } from '~/core/diff-review/diff-review-types.js'
@@ -14,7 +15,7 @@ export function createReviewedLineTracker(options: {
   folderName: string
   worktreeIdentity: string
   onError(message: string): void
-}) {
+}): ReviewedLineTrackerResult {
   const { state, folderName, worktreeIdentity } = options
   const saved = createMemo(() => new Set(Object.keys(getReviewTicketState(state.get(), folderName, worktreeIdentity).reviewedLines)))
   const pending = new Map<string, string>()
@@ -94,4 +95,11 @@ export function createReviewedLineTracker(options: {
       return flush()
     },
   }
+}
+
+export interface ReviewedLineTrackerResult {
+  reviewedLineIds: SourceAccessor<Set<string>>
+  markVisible(line: { id: string; path: string }): void
+  flush: () => Promise<void>
+  dispose(): Promise<void>
 }

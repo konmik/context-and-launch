@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { onSettled, createEffect, untrack } from 'solid-js'
 import { EditorView, ViewPlugin, Decoration, type DecorationSet, keymap, placeholder as cmPlaceholder } from '@codemirror/view'
 import { EditorState, Compartment, type Range } from '@codemirror/state'
@@ -131,7 +132,7 @@ const codeBlockDeco = Decoration.line({
   class: 'cm-codeblock',
 })
 
-function buildCodeBlockDecos(view: EditorView) {
+function buildCodeBlockDecos(view: EditorView): DecorationSet {
   const decos: Range<Decoration>[] = []
   syntaxTree(view.state).iterate({
     enter(node) {
@@ -173,7 +174,7 @@ interface MarkdownEditorProps {
   plain?: boolean
 }
 
-export default function MarkdownEditor(props: MarkdownEditorProps) {
+export default function MarkdownEditor(props: MarkdownEditorProps): JSX.Element {
   let containerRef: HTMLDivElement | undefined
   let view: EditorView | undefined
   let lastPushedValue: string | null = null

@@ -19,7 +19,7 @@ type MenuButtonProps = Omit<ComponentProps<'button'>, 'onClick'> & {
   onClick?: JSX.EventHandler<HTMLButtonElement, MouseEvent>
 }
 
-export function MenuRoot(props: { children: JSX.Element; trigger: JSX.Element }) {
+export function MenuRoot(props: { children: JSX.Element; trigger: JSX.Element }): JSX.Element {
   const [open, setOpen] = createSignal(false)
   const context: MenuContextValue = {
     open,
@@ -62,7 +62,7 @@ export function MenuRoot(props: { children: JSX.Element; trigger: JSX.Element })
   )
 }
 
-export function MenuTrigger(props: MenuButtonProps) {
+export function MenuTrigger(props: MenuButtonProps): JSX.Element {
   const menu = useContext(MenuContext)
   return (
     <button
@@ -82,7 +82,7 @@ export function MenuTrigger(props: MenuButtonProps) {
   )
 }
 
-export function MenuContent(props: ComponentProps<'div'>) {
+export function MenuContent(props: ComponentProps<'div'>): JSX.Element {
   const menu = useContext(MenuContext)
   return (
     <div
@@ -122,7 +122,7 @@ export function MenuItem(
     value?: string
     closeOnSelect?: boolean
   },
-) {
+): JSX.Element {
   const menu = useContext(MenuContext)
   return (
     <button
@@ -140,6 +140,6 @@ export function MenuItem(
   )
 }
 
-export function MenuSeparator(props: ComponentProps<'div'>) {
+export function MenuSeparator(props: ComponentProps<'div'>): JSX.Element {
   return <div {...props} role="separator" data-scope="menu" data-part="separator" />
 }

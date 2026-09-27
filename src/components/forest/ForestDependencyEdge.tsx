@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import type { DependencyRelation } from './forest-graph.js'
 import { verticalBezierPath } from './forest-viewport.js'
 
@@ -14,7 +15,7 @@ export default function ForestDependencyEdge(props: {
   }
   relations: DependencyRelation[]
   onClick: (event: MouseEvent) => void
-}) {
+}): JSX.Element {
   const path = () => verticalBezierPath(props.sourcePoint, props.targetPoint, 'down')
   return (
     <>

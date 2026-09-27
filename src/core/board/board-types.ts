@@ -19,22 +19,30 @@ export interface SyncStatus {
   hasConflict: boolean
 }
 
+export interface LoadedProjectPageData {
+  status: 'loaded'
+  board: Omit<BoardState, 'columns'>
+  projectPath: string
+  suggestedNextNumber: string | null
+}
+
+export interface NotFoundProjectPageData {
+  status: 'not-found'
+}
+
+export interface UnavailableProjectPageData {
+  status: 'unavailable'
+  projectPath: string
+}
+
+export interface ErrorProjectPageData {
+  status: 'error'
+  projectPath: string
+  error: string
+}
+
 export type ProjectPageData =
-  | (BoardPageBase & {
-      status: 'loaded'
-      board: Omit<BoardState, 'columns'>
-      projectPath: string
-      suggestedNextNumber: string | null
-    })
-  | (BoardPageBase & {
-      status: 'not-found'
-    })
-  | (BoardPageBase & {
-      status: 'unavailable'
-      projectPath: string
-    })
-  | (BoardPageBase & {
-      status: 'error'
-      projectPath: string
-      error: string
-    })
+  | (BoardPageBase & LoadedProjectPageData)
+  | (BoardPageBase & NotFoundProjectPageData)
+  | (BoardPageBase & UnavailableProjectPageData)
+  | (BoardPageBase & ErrorProjectPageData)

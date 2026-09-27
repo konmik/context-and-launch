@@ -13,7 +13,7 @@ import {
   THREE_COLUMN_BOARD,
 } from './fixtures.js'
 
-async function getSortablesByColumn(p: Page) {
+async function getSortablesByColumn(p: Page): Promise<Map<string, string[]>> {
   const ids = await p.locator('[data-sortable-id]').evaluateAll((elements) => elements.map((e) => e.getAttribute('data-sortable-id') ?? ''))
   const columns = new Map<string, string[]>()
   for (const id of ids) {

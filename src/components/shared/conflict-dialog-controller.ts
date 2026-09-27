@@ -1,3 +1,6 @@
+import type { SourceAccessor } from 'solid-js'
+import type { LauncherProfile } from '../../core/launcher/launcher-config-data.js'
+import type { Setter } from 'solid-js'
 import { createSignal, createEffect, createMemo, useContext } from 'solid-js'
 import { ProjectLauncherConfigContext } from '../launcher/project-launcher-config-storage.js'
 import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js'
@@ -12,7 +15,7 @@ export interface ConflictDialogDeps {
   onOpenChange: (open: boolean) => void
 }
 
-export function createConflictDialogController(deps: ConflictDialogDeps) {
+export function createConflictDialogController(deps: ConflictDialogDeps): ConflictDialogControllerResult {
   const appConfig = useContext(AppConfigContext)!
   const [submitting, setSubmitting] = createSignal(false)
   const [errorMsg, setErrorMsg] = createSignal('')
@@ -89,3 +92,20 @@ export function createConflictDialogController(deps: ConflictDialogDeps) {
 }
 
 export type ConflictDialogController = ReturnType<typeof createConflictDialogController>
+
+export interface ConflictDialogControllerResult {
+  submitting: SourceAccessor<boolean>
+  errorMsg: SourceAccessor<string>
+  profiles: SourceAccessor<
+    (LauncherProfile & {
+      scope: 'app' | 'project'
+      order: number
+    })[]
+  >
+  selectedProfile: SourceAccessor<string>
+  setSelectedProfile: Setter<string>
+  selectProfile: (name: string) => Promise<void>
+  close: () => void
+  resolve: () => Promise<void>
+  abort: () => Promise<void>
+}

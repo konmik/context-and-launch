@@ -1,3 +1,10 @@
+import type { GroupTicketResult } from '../forest/forest-api.js'
+import type { ActionError } from '../../core/shared/errors.js'
+import type { ActionSuccess } from '../../core/shared/errors.js'
+import type { Failure } from '../../util/result.js'
+import type { Success } from '../../util/result.js'
+import type { ResponseEnvelope } from '@solidjs/web'
+import type { ProjectInfo } from '../../core/project/project-registry.js'
 import fs from 'fs'
 import path from 'path'
 import { action, query } from '@solidjs/router'
@@ -50,7 +57,7 @@ async function mutateTicketsExclusive<T>(projectSlug: string, mutation: (store: 
   }
 }
 
-export async function createTicket(projectSlug: string, number: string, title: string) {
+export async function createTicket(projectSlug: string, number: string, title: string): Promise<ActionError | ActionSuccess> {
   'use server'
 
   try {
@@ -73,7 +80,7 @@ export async function updateTicket(
   number: string | null,
   title: string | null,
   status: string | null,
-) {
+): Promise<ActionError | GroupTicketResult> {
   'use server'
 
   try {
@@ -87,7 +94,7 @@ export async function updateTicket(
   }
 }
 
-export async function deleteTicket(projectSlug: string, folderName: string) {
+export async function deleteTicket(projectSlug: string, folderName: string): Promise<ActionError | ActionSuccess> {
   'use server'
 
   try {
@@ -101,7 +108,7 @@ export async function deleteTicket(projectSlug: string, folderName: string) {
   }
 }
 
-export async function archiveTicket(projectSlug: string, folderName: string) {
+export async function archiveTicket(projectSlug: string, folderName: string): Promise<ActionError | ActionSuccess> {
   'use server'
 
   try {
@@ -114,7 +121,7 @@ export async function archiveTicket(projectSlug: string, folderName: string) {
   }
 }
 
-export async function readTicketOrder(projectSlug: string) {
+export async function readTicketOrder(projectSlug: string): Promise<Failure<string> | Success<TicketOrder>> {
   'use server'
 
   try {
@@ -124,7 +131,11 @@ export async function readTicketOrder(projectSlug: string) {
   }
 }
 
-export async function saveTicketOrder(projectSlug: string, expected: TicketOrder, order: TicketOrder) {
+export async function saveTicketOrder(
+  projectSlug: string,
+  expected: TicketOrder,
+  order: TicketOrder,
+): Promise<Failure<string> | Success<TicketOrder>> {
   'use server'
 
   try {
@@ -158,13 +169,7 @@ export const getTicket = query(async (projectSlug: string, folderName: string): 
   return withAgentWorktreeStatus(projectSlug, ticket)
 }, 'ticket-detail')
 
-export async function getContext(
-  projectSlug: string,
-  folderName: string,
-  contextFileName: string,
-): Promise<{
-  content: string
-} | null> {
+export async function getContext(projectSlug: string, folderName: string, contextFileName: string): Promise<ContextResult | null> {
   'use server'
 
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
@@ -176,7 +181,12 @@ export async function getContext(
   }
 }
 
-export async function saveContext(projectSlug: string, folderName: string, contextFileName: string, content: string) {
+export async function saveContext(
+  projectSlug: string,
+  folderName: string,
+  contextFileName: string,
+  content: string,
+): Promise<ActionError | ActionSuccess> {
   'use server'
 
   try {
@@ -189,7 +199,11 @@ export async function saveContext(projectSlug: string, folderName: string, conte
   }
 }
 
-export async function deleteContext(projectSlug: string, folderName: string, contextFileName: string) {
+export async function deleteContext(
+  projectSlug: string,
+  folderName: string,
+  contextFileName: string,
+): Promise<ActionError | ActionSuccess> {
   'use server'
 
   try {
@@ -202,7 +216,7 @@ export async function deleteContext(projectSlug: string, folderName: string, con
   }
 }
 
-export async function deleteFile(projectSlug: string, folderName: string, fileName: string) {
+export async function deleteFile(projectSlug: string, folderName: string, fileName: string): Promise<ActionError | ActionSuccess> {
   'use server'
 
   try {
@@ -215,7 +229,7 @@ export async function deleteFile(projectSlug: string, folderName: string, fileNa
   }
 }
 
-export async function uploadFile(projectSlug: string, folderName: string, formData: FormData) {
+export async function uploadFile(projectSlug: string, folderName: string, formData: FormData): Promise<ActionError | UploadFileResult> {
   'use server'
 
   try {
@@ -309,7 +323,11 @@ export const saveTicketStatus = action(async (projectSlug: string, previousJson:
     })
   }
 }, 'save-ticket-status')
-export const syncTickets = action(async function syncTickets(projectSlug: string) {
+export const syncTickets = action(async function syncTickets(
+  projectSlug: string,
+): Promise<
+  ResponseEnvelope<ActionError> | ResponseEnvelope<SuccessSyncTicketsResult | ConflictSyncTicketsResult | ErrorSyncTicketsResult>
+> {
   'use server'
 
   try {
@@ -352,7 +370,7 @@ export async function suggestTicketNumber(projectSlug: string, numberInput: stri
   return store.suggestNextNumber(prefix)
 }
 
-function resolveTicketCleanupTarget(projectSlug: string, folderName: string) {
+function resolveTicketCleanupTarget(projectSlug: string, folderName: string): ResolveTicketCleanupTargetResult {
   const project = projectRegistry.listProjects().find((p) => p.projectSlug === projectSlug)
   if (!project) throw new NotFoundError('Project not found')
   const store = new TicketStore(worktreeManager.getWorktreeDir(projectSlug))
@@ -374,7 +392,7 @@ function resolveTicketCleanupTarget(projectSlug: string, folderName: string) {
   }
 }
 
-export async function openTicketWorktree(projectSlug: string, folderName: string) {
+export async function openTicketWorktree(projectSlug: string, folderName: string): Promise<ActionError | ActionSuccess> {
   'use server'
 
   try {
@@ -427,7 +445,11 @@ export async function getCleanupStatus(projectSlug: string, folderName: string):
   )
 }
 
-export async function worktreeCleanup(projectSlug: string, folderName: string, options: TicketCleanupOptions) {
+export async function worktreeCleanup(
+  projectSlug: string,
+  folderName: string,
+  options: TicketCleanupOptions,
+): Promise<WorktreeCleanupResult | ActionError> {
   'use server'
 
   try {
@@ -496,9 +518,7 @@ export async function killWorktreeLockingProcesses(
   projectSlug: string,
   folderName: string,
   pids: number[],
-): Promise<{
-  error?: string
-}> {
+): Promise<KillWorktreeLockingProcessesResult> {
   'use server'
 
   const failed: string[] = []
@@ -519,12 +539,7 @@ export async function killWorktreeLockingProcesses(
   return {}
 }
 
-export async function forceDeleteLocalBranch(
-  projectSlug: string,
-  folderName: string,
-): Promise<{
-  error?: string
-}> {
+export async function forceDeleteLocalBranch(projectSlug: string, folderName: string): Promise<KillWorktreeLockingProcessesResult> {
   'use server'
 
   try {
@@ -540,4 +555,52 @@ export async function forceDeleteLocalBranch(
       error: e?.message ?? 'Failed to force-delete branch',
     }
   }
+}
+
+export interface ContextResult {
+  content: string
+}
+
+export interface UploadFileResult {
+  ok: true
+  results: {
+    name: string
+    ok: boolean
+    error?: string
+  }[]
+}
+
+export interface SuccessSyncTicketsResult {
+  status: 'success'
+  ok: true
+}
+
+export interface ConflictSyncTicketsResult {
+  status: 'conflict'
+  ok: true
+}
+
+export interface ErrorSyncTicketsResult {
+  status: 'error'
+  message: string
+  ok: true
+}
+
+export interface ResolveTicketCleanupTargetResult {
+  project: ProjectInfo
+  store: TicketStore
+  ticket: TicketInfo | null
+  worktreePath: string
+  branchName: string
+}
+
+export interface WorktreeCleanupResult {
+  ok: true
+  type?: undefined
+  message?: undefined
+  errorInfo?: undefined
+}
+
+export interface KillWorktreeLockingProcessesResult {
+  error?: string
 }

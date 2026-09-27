@@ -1,8 +1,9 @@
+import type { ReviewFileSnapshot } from './diff-review-types.js'
 import { describe, expect, it } from 'vitest'
 import { buildReviewFile } from './diff-review-model.js'
 import { reuseUnchangedFiles } from './review-file-identity.js'
 
-function file(path: string, contents: string) {
+function file(path: string, contents: string): ReviewFileSnapshot {
   return buildReviewFile({
     path,
     changeType: 'modified',

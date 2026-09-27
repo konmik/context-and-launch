@@ -18,7 +18,7 @@ afterEach(() => {
     })
 })
 
-function setup() {
+function setup(): SetupResult {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'board-config-'))
   dirs.push(dir)
   const paths = new ConfigPaths(dir)
@@ -140,3 +140,8 @@ it('slugifies column names and rejects reserved, empty, and duplicate names', ()
     expect(() => validateColumnName(name, ['in-progress'])).toThrow()
   }
 })
+
+export interface SetupResult {
+  paths: ConfigPaths
+  store: BoardConfigManager
+}

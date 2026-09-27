@@ -85,7 +85,7 @@ const getBehindRemoteTemplate = lazyTemplate(() => {
   }
 })
 
-export function makeProjectEnv(prefixBase: string, dirs: string[]) {
+export function makeProjectEnv(prefixBase: string, dirs: string[]): ProjectEnvResult {
   const configDir = makeTempDir(`${prefixBase}-config-`)
   const worktreeRoot = makeTempDir(`${prefixBase}-worktrees-`)
   dirs.push(configDir, worktreeRoot)
@@ -107,10 +107,10 @@ export function makeProjectEnv(prefixBase: string, dirs: string[]) {
   }
 }
 
-export function makeWorktreeEnv() {
+export function makeWorktreeEnv(): WorktreeEnvResult {
   const dirs: string[] = []
 
-  function setup(branch = 'main') {
+  function setup(branch = 'main'): SetupResult {
     const projectDir = makeTempDir('awm-project-')
     dirs.push(projectDir)
     initGitRepo(projectDir, branch)
@@ -125,7 +125,7 @@ export function makeWorktreeEnv() {
     }
   } // Sets up a project whose local main is one commit behind its upstream.
 
-  function setupBehindRemote() {
+  function setupBehindRemote(): SetupBehindRemoteResult {
     const template = getBehindRemoteTemplate()
     const bareDir = cloneFromTemplate(template.bareDir, 'awm-bare-')
     const projectDir = cloneFromTemplate(template.projectDir, 'awm-behind-')
@@ -150,4 +150,43 @@ export function makeWorktreeEnv() {
     setupBehindRemote,
     cleanupAll,
   }
+}
+
+export interface ProjectEnvResult {
+  configDir: string
+  worktreeRoot: string
+  paths: ConfigPaths
+  lcm: LauncherConfigManager
+  awm: AgentWorktreeManager
+}
+
+export interface WorktreeEnvResult {
+  dirs: string[]
+  setup: (branch?: string) => {
+    configDir: string
+    projectDir: string
+    worktreeRoot: string
+    lcm: LauncherConfigManager
+    awm: AgentWorktreeManager
+    paths: ConfigPaths
+  }
+  setupBehindRemote: () => {
+    projectDir: string
+    awm: AgentWorktreeManager
+  }
+  cleanupAll: () => Promise<void>
+}
+
+export interface SetupResult {
+  configDir: string
+  projectDir: string
+  worktreeRoot: string
+  lcm: LauncherConfigManager
+  awm: AgentWorktreeManager
+  paths: ConfigPaths
+}
+
+export interface SetupBehindRemoteResult {
+  projectDir: string
+  awm: AgentWorktreeManager
 }

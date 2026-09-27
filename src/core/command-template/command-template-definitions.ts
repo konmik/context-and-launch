@@ -6,6 +6,11 @@ import type {
 } from './command-template-types.js'
 
 const ALL_PLATFORMS: readonly CommandTemplatePlatform[] = ['windows', 'macos', 'linux']
+
+export interface KeyedCommandTemplateDefinition<Key extends string = CommandTemplateKey> extends CommandTemplateDefinition {
+  readonly key: Key
+}
+
 export const gitEnvironment = {
   GIT_TERMINAL_PROMPT: '0',
   GIT_CONFIG_COUNT: '1',
@@ -32,9 +37,7 @@ function definition<Key extends string>(
   featureGroup: CommandTemplateFeatureGroup,
   scalarPlaceholders: readonly string[] = [],
   options: DefinitionOptions = {},
-): CommandTemplateDefinition & {
-  readonly key: Key
-} {
+): KeyedCommandTemplateDefinition<Key> {
   return {
     key,
     label,

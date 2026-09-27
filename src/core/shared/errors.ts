@@ -70,7 +70,23 @@ export function errorMessage(cause: unknown): string {
   return 'Unknown error'
 }
 
-export function errorResult(cause: unknown) {
+export interface ActionError extends ActionFailure {
+  errorInfo: ErrorInfo
+}
+
+export interface ActionSuccess {
+  ok: true
+  type?: undefined
+  message?: undefined
+}
+
+export interface ActionFailure {
+  ok: false
+  type: 'error'
+  message: string
+}
+
+export function errorResult(cause: unknown): ActionError {
   return {
     ok: false as const,
     type: 'error' as const,

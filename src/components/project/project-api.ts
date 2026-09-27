@@ -1,3 +1,6 @@
+import type { ActionFailure } from '../../core/shared/errors.js'
+import type { ActionSuccess } from '../../core/shared/errors.js'
+import type { ActionError } from '../../core/shared/errors.js'
 import { action, query } from '@solidjs/router'
 import { respond } from '@solidjs/web'
 import {
@@ -44,7 +47,13 @@ export const previewProjectPath = query(async (pathValue: string) => {
   }
 }, 'preview-project-path')
 
-export async function addProject(pathValue: string, branch: string, mainBranch: string, boardId: string, name: string) {
+export async function addProject(
+  pathValue: string,
+  branch: string,
+  mainBranch: string,
+  boardId: string,
+  name: string,
+): Promise<ActionError | AddProjectResult> {
   'use server'
 
   try {
@@ -69,7 +78,7 @@ export async function addProject(pathValue: string, branch: string, mainBranch: 
   }
 }
 
-export async function deleteProject(projectSlug: string) {
+export async function deleteProject(projectSlug: string): Promise<ActionError | ActionFailure | ActionSuccess> {
   'use server'
 
   try {
@@ -136,3 +145,8 @@ export const setTicketsLocation = action(
   },
   'set-tickets-location',
 )
+
+export interface AddProjectResult {
+  ok: true
+  projectSlug: string
+}

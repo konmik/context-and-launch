@@ -16,14 +16,14 @@ export type MergedProfile = MergedLauncherConfig['profiles'][number]
 
 export type MergedShortcut = MergedLauncherConfig['shortcuts'][number]
 
-export function ScopeBadge(props: { scope: string }) {
+export function ScopeBadge(props: { scope: string }): JSX.Element {
   const cls = () => (props.scope === 'app' ? 'bg-muted text-muted-foreground' : 'bg-primary/15 text-primary')
   return <span class={`label-mono rounded px-1.5 py-0.5 text-xs ${cls()}`}>{props.scope === 'app' ? 'User' : 'Project'}</span>
 }
 
 export const CARD_CLASS = 'settings-card flex items-center justify-between gap-2 rounded-md border border-border p-3'
 
-export function SettingsCard(props: JSX.HTMLAttributes<HTMLDivElement>) {
+export function SettingsCard(props: JSX.HTMLAttributes<HTMLDivElement>): JSX.Element {
   const rest = omit(props, 'class', 'children')
   return (
     <div class={`${CARD_CLASS} ${props.class ?? ''}`} {...rest}>
@@ -43,7 +43,7 @@ function CardRowBody(props: {
   onDelete?: () => void
   editTestId?: string
   deleteTestId?: string
-}) {
+}): JSX.Element {
   return (
     <>
       <div class="flex min-w-0 flex-1 items-center gap-2">
@@ -76,7 +76,12 @@ function CardRowBody(props: {
   )
 }
 
-export function SortableColumnRow(props: { column: ColumnDefinition; isActive: boolean; onEdit: () => void; onDelete: () => void }) {
+export function SortableColumnRow(props: {
+  column: ColumnDefinition
+  isActive: boolean
+  onEdit: () => void
+  onDelete: () => void
+}): JSX.Element {
   const sortable = createSortable(props.column.name)
   return (
     <SettingsCard
@@ -100,7 +105,7 @@ export function SortableColumnRow(props: { column: ColumnDefinition; isActive: b
   )
 }
 
-export function ColumnDropPreview(props: { column: ColumnDefinition }) {
+export function ColumnDropPreview(props: { column: ColumnDefinition }): JSX.Element {
   return (
     <DragPreview class={CARD_CLASS}>
       <CardRowBody name={props.column.name} detail={props.column.description} grip />
@@ -118,7 +123,7 @@ export function SortableItemRow(props: {
   dragHandleTestId: string
   editTestId?: string
   deleteTestId?: string
-}) {
+}): JSX.Element {
   const sortable = createSortable(props.item.name)
   return (
     <SettingsCard
@@ -143,7 +148,7 @@ export function SortableItemRow(props: {
   )
 }
 
-export function ItemDropPreview(props: { item: MergedLauncherItem; detail: string }) {
+export function ItemDropPreview(props: { item: MergedLauncherItem; detail: string }): JSX.Element {
   return (
     <DragPreview class={CARD_CLASS}>
       <CardRowBody scope={props.item.scope} name={props.item.name} detail={props.detail} grip />

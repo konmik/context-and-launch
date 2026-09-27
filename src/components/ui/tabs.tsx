@@ -13,7 +13,7 @@ export function TabsRoot(props: {
   children: JSX.Element
   class?: string
   onMouseDown?: (e: MouseEvent) => void
-}) {
+}): JSX.Element {
   const id = createUniqueId()
   return (
     <TabsContext
@@ -33,7 +33,7 @@ export function TabsRoot(props: {
   )
 }
 
-export function TabsList(props: { children: JSX.Element }) {
+export function TabsList(props: { children: JSX.Element }): JSX.Element {
   return (
     <div role="tablist" data-scope="tabs" data-part="list">
       {props.children}
@@ -45,7 +45,7 @@ export function TabsTrigger(
   props: ComponentProps<'button'> & {
     value: string
   },
-) {
+): JSX.Element {
   const tabs = useContext(TabsContext)
   const selected = () => tabs.value() === props.value
   const tabId = () => `${tabs.id}-tab-${props.value}`
@@ -84,7 +84,7 @@ export function TabsContent(
   props: ComponentProps<'div'> & {
     value: string
   },
-) {
+): JSX.Element {
   const tabs = useContext(TabsContext)
   return (
     <div

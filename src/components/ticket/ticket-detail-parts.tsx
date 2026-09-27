@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { Show, For } from 'solid-js'
 import { Portal } from '@solidjs/web'
 import { ChevronDown } from '~/components/ui/icons.js'
@@ -15,7 +16,7 @@ import type { ShortcutConfirmation } from './ticket-detail-shortcuts.js'
 export type { ActiveFile } from './ticket-detail-pure.js'
 export { activeFileLabel, isActiveFileMatch } from './ticket-detail-pure.js'
 
-export function DiscardConfirmation(props: { open: boolean; message: string; onCancel: () => void; onDiscard: () => void }) {
+export function DiscardConfirmation(props: { open: boolean; message: string; onCancel: () => void; onDiscard: () => void }): JSX.Element {
   useModEnterSubmit({
     onSubmit: () => props.onDiscard(),
     disabled: () => false,
@@ -63,7 +64,7 @@ export function FileToolbar(props: {
   onDragLeave: (e: DragEvent) => void
   onDrop: (e: DragEvent) => void
   onFileInputChange: (e: Event) => void
-}) {
+}): JSX.Element {
   let dropdownBtnRef: HTMLButtonElement | undefined
   let fileInputRef: HTMLInputElement | undefined
   return (
@@ -181,7 +182,7 @@ export function EditorPane(props: {
   onSave?: () => void
   readOnly: boolean
   label: string
-}) {
+}): JSX.Element {
   return (
     <>
       <Show when={props.view.kind === 'editor'}>
@@ -217,7 +218,7 @@ export function NewFileDialog(props: {
   setName: (value: string) => void
   onSubmit: () => void
   onClose: () => void
-}) {
+}): JSX.Element {
   return (
     <DialogRoot
       open={props.open}
@@ -260,7 +261,7 @@ export function NewFileDialog(props: {
   )
 }
 
-export function DeleteFileDialog(props: { open: boolean; label: string; onDelete: () => void; onClose: () => void }) {
+export function DeleteFileDialog(props: { open: boolean; label: string; onDelete: () => void; onClose: () => void }): JSX.Element {
   return (
     <DialogRoot open={props.open} onOpenChange={props.onClose} onMouseDown={(e: MouseEvent) => e.preventDefault()}>
       <DialogTitle>Delete File</DialogTitle>
@@ -291,7 +292,7 @@ export function ConfirmUploadDialog(props: {
   confirmClass: string
   onCancel: () => void
   onConfirm: () => void
-}) {
+}): JSX.Element {
   return (
     <DialogRoot open={props.open} onOpenChange={props.onCancel} onMouseDown={(e: MouseEvent) => e.preventDefault()}>
       <DialogTitle>{props.title}</DialogTitle>
@@ -308,7 +309,7 @@ export function ConfirmUploadDialog(props: {
   )
 }
 
-export function ExternalChangeDialog(props: { open: boolean; label: string; onOverwrite: () => void; onDiscard: () => void }) {
+export function ExternalChangeDialog(props: { open: boolean; label: string; onOverwrite: () => void; onDiscard: () => void }): JSX.Element {
   return (
     <DialogRoot open={props.open} onOpenChange={props.onDiscard} onMouseDown={(e: MouseEvent) => e.preventDefault()}>
       <DialogTitle>File Changed on Disk</DialogTitle>
@@ -333,7 +334,7 @@ export function ShortcutConfirmationDialog(props: {
   running: boolean
   onCancel: () => void
   onProceed: (name: string) => void
-}) {
+}): JSX.Element {
   return (
     <DialogRoot open={!!props.info} onOpenChange={props.onCancel} class="max-w-sm">
       <DialogTitle class="sr-only">{props.info?.type === 'behindRemote' ? 'Main Branch Behind Remote' : 'Uncommitted Changes'}</DialogTitle>

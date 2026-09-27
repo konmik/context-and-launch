@@ -1,3 +1,6 @@
+import type { SourceAccessor } from 'solid-js'
+import type { TicketOrder } from '../../core/ticket/ticket-order-data.js'
+import type { DropResult as DropResultReturn } from './board-logic.js'
 import { createSignal, createMemo } from 'solid-js'
 import type { DragEvent as DndDragEvent } from '~/components/drag/drag-types.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
@@ -18,7 +21,7 @@ export interface DragState {
   hoverTarget: HoverTarget | null
 }
 
-export function createBoardDnd(getBoard: () => BoardState) {
+export function createBoardDnd(getBoard: () => BoardState): BoardDndResult {
   const [activeId, setActiveId] = createSignal<string | null>(null)
   const [hoverTarget, setHoverTarget] = createSignal<HoverTarget | null>(null)
   const columnRefs = new Map<string, HTMLDivElement>()
@@ -67,5 +70,20 @@ export function createBoardDnd(getBoard: () => BoardState) {
     currentOrder,
     activeTicket,
     commands,
+  }
+}
+
+export interface BoardDndResult {
+  board: SourceAccessor<BoardView>
+  drag: SourceAccessor<DragState>
+  currentOrder: () => TicketOrder
+  activeTicket: SourceAccessor<TicketInfo | null>
+  commands: {
+    startDrag: (id: string) => string
+    updateHover: (target: HoverTarget | null) => HoverTarget | null
+    cancelDrag: () => void
+    registerColumnRef: (col: string, el: HTMLDivElement) => Map<string, HTMLDivElement>
+    handleDragMove: (e: DndDragEvent) => void
+    endDrag: () => DropResultReturn | null
   }
 }

@@ -1,3 +1,4 @@
+import type { RenderResult } from '../../test-render.js'
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup, waitFor } from '~/test-render.js'
 import { createSignal, createMemo, Loading, type ComponentProps } from 'solid-js'
@@ -59,7 +60,7 @@ function renderBoard(
     dragState?: ComponentProps<typeof KanbanBoard>['dragState']
     activeTicket?: ComponentProps<typeof KanbanBoard>['activeTicket']
   } = {},
-) {
+): RenderResult {
   return render(() => (
     <HerdrStatusesContext value={(folderName) => opts.herdrStatuses?.[folderName]}>
       <TicketOrderContext

@@ -2,17 +2,20 @@ import { errorMessage } from '~/core/shared/errors.js'
 import { HerdrUnavailableError } from '~/core/herdr/herdr-availability.js'
 import type { HerdrAgentStatus, HerdrTicketState } from '~/core/herdr/herdr-client.js'
 
-export type HerdrAgentStatusesResult =
-  | {
-      kind: 'disabled'
-    }
-  | {
-      kind: 'available'
-      statusesByFolderName: Record<string, HerdrAgentStatus>
-    }
-  | {
-      kind: 'unavailable'
-    }
+export interface DisabledAgentStatuses {
+  kind: 'disabled'
+}
+
+export interface AvailableAgentStatuses {
+  kind: 'available'
+  statusesByFolderName: Record<string, HerdrAgentStatus>
+}
+
+export interface UnavailableAgentStatuses {
+  kind: 'unavailable'
+}
+
+export type HerdrAgentStatusesResult = DisabledAgentStatuses | AvailableAgentStatuses | UnavailableAgentStatuses
 
 export interface HerdrStatusDeps {
   loadTicketState: (projectSlug: string) => Promise<HerdrTicketState>
@@ -26,7 +29,7 @@ export interface HerdrStatusDeps {
   ) => void
 }
 
-export function createHerdrStatusService(deps: HerdrStatusDeps) {
+export function createHerdrStatusService(deps: HerdrStatusDeps): AgentStatusServiceResult {
   async function getStatuses(projectSlug: string): Promise<HerdrAgentStatusesResult> {
     try {
       const state = await deps.loadTicketState(projectSlug)
@@ -52,7 +55,7 @@ export function createHerdrStatusService(deps: HerdrStatusDeps) {
     }
   }
 
-  async function reconcile(projectSlug: string) {
+  async function reconcile(projectSlug: string): Promise<QueueReconciliationSuccess | QueueReconciliationError> {
     try {
       await deps.reconcileProject(projectSlug)
       return {
@@ -73,4 +76,28 @@ export function createHerdrStatusService(deps: HerdrStatusDeps) {
     getStatuses,
     reconcile,
   }
+}
+
+export interface AgentStatusServiceResult {
+  getStatuses: (projectSlug: string) => Promise<HerdrAgentStatusesResult>
+  reconcile: (projectSlug: string) => Promise<
+    | {
+        ok: true
+        message?: undefined
+      }
+    | {
+        ok: false
+        message: string
+      }
+  >
+}
+
+export interface QueueReconciliationSuccess {
+  ok: true
+  message?: undefined
+}
+
+export interface QueueReconciliationError {
+  ok: false
+  message: string
 }

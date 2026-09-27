@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { For, Show, untrack } from 'solid-js'
 import { createSortable, createDroppable } from '~/components/drag/drag-provider.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
@@ -7,7 +8,7 @@ import { type HoverTarget, resolvePreviewInsertBefore } from './drop-index.js'
 import { DragPreview, DND_ACTIVE_CLASS } from './dnd-shared.js'
 import { parseId, makeId, COLUMN_PREFIX } from './kanban-id.js'
 
-function DropPreview(props: { ticket: TicketInfo }) {
+function DropPreview(props: { ticket: TicketInfo }): JSX.Element {
   return (
     <DragPreview>
       <TicketCard ticket={props.ticket} onDelete={() => {}} onArchive={() => {}} onViewDetail={() => {}} onReviewChanges={() => {}} />
@@ -25,7 +26,7 @@ function SortableTicketCard(props: {
   onViewDetail: (ticket: TicketInfo) => void
   onOpenFolder: (ticket: TicketInfo) => void
   onReviewChanges: (ticket: TicketInfo) => void
-}) {
+}): JSX.Element {
   const id = untrack(() => makeId(props.column, props.ticket.folderName))
   const sortable = createSortable(id)
   const isActive = () => props.activeId === id
@@ -52,7 +53,7 @@ function SortableTicketCard(props: {
   )
 }
 
-function EmptyColumnDropzone(props: { column: string }) {
+function EmptyColumnDropzone(props: { column: string }): JSX.Element {
   const droppable = createDroppable(COLUMN_PREFIX + props.column)
   return <div ref={droppable.ref} class="flex-1" data-testid="kanban-board-empty-dropzone" data-column-name={props.column} />
 }
@@ -70,7 +71,7 @@ export interface TicketColumnProps {
 
 const COLUMN_CELL_CLASS = 'flex min-w-[250px] flex-1 flex-col px-4'
 
-export function ColumnHeader(props: { column: ColumnDefinition; count: number; edgeLeft?: boolean; edgeRight?: boolean }) {
+export function ColumnHeader(props: { column: ColumnDefinition; count: number; edgeLeft?: boolean; edgeRight?: boolean }): JSX.Element {
   return (
     <div class={COLUMN_CELL_CLASS} data-testid="kanban-board-column-header-cell" data-column-name={props.column.name}>
       <div
@@ -106,7 +107,7 @@ export function ColumnBody(
     tickets: TicketInfo[]
     registerRef: (el: HTMLDivElement) => void
   },
-) {
+): JSX.Element {
   const sourceIndexInColumn = () => {
     const aid = props.activeId
     if (!aid) return null
@@ -145,7 +146,7 @@ export function ColumnBody(
   )
 }
 
-export function OrphanHeader() {
+export function OrphanHeader(): JSX.Element {
   return (
     <div
       class={'flex min-w-[250px] flex-1 flex-col rounded-t-md ' + 'border border-b-0 border-destructive px-3 pt-3'}
@@ -163,7 +164,7 @@ export function OrphanBody(
   props: TicketColumnProps & {
     tickets: TicketInfo[]
   },
-) {
+): JSX.Element {
   return (
     <div
       class={'flex min-w-[250px] flex-1 flex-col rounded-b-md ' + 'border border-t-0 border-destructive px-3 pb-3'}

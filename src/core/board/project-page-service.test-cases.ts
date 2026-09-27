@@ -1,3 +1,4 @@
+import type { ResolutionPlan } from '../ticket/ticket-sync.js'
 import { describe, it as baseIt, expect, vi, afterEach, afterAll } from 'vitest'
 import { fromPartial } from '@total-typescript/shoehorn'
 import fs from 'fs'
@@ -23,7 +24,7 @@ function stubDeps(
     ticketSyncManager?: TicketSyncManager
     agentWorktreeRoot?: string
   } = {},
-) {
+): StubDepsResult {
   const projects: ProjectInfo[] = overrides.projects ?? []
   const projectRegistry = fromPartial<ProjectRegistry>({
     listProjects: vi.fn(() => projects),
@@ -82,7 +83,7 @@ const statusJson = (ticketStatus: string) =>
     createdAt: '2026-01-01T00:00:00.000Z',
   })
 
-async function setupResolvedScratch(dirs: string[]) {
+async function setupResolvedScratch(dirs: string[]): Promise<SetupResolvedScratchResult> {
   const { worktreeDir, remoteDir } = await createRepoWithRemote()
   dirs.push(worktreeDir, remoteDir, conflictResolveDir(worktreeDir))
   const ticketDir = path.join(worktreeDir, 'st-0001-fix-login')
@@ -265,7 +266,7 @@ export function registerProjectPageServiceTests(shard: number | readonly number[
         return done
       })
 
-      function setupTicketDir(folderName: string, useWorktree: boolean) {
+      function setupTicketDir(folderName: string, useWorktree: boolean): string {
         const worktreeDir = tmpDir('pps-wt-')
         dirs.push(worktreeDir)
         const ticketDir = path.join(worktreeDir, folderName)
@@ -282,7 +283,7 @@ export function registerProjectPageServiceTests(shard: number | readonly number[
         return worktreeDir
       }
 
-      function simpleSyncManager() {
+      function simpleSyncManager(): TicketSyncManager {
         return fromPartial<TicketSyncManager>({
           finalizeResolution: vi.fn(),
           hasRemote: vi.fn(async () => false),
@@ -406,4 +407,17 @@ export function registerProjectPageServiceTests(shard: number | readonly number[
       }
     })
   })
+}
+
+export interface StubDepsResult {
+  service: ProjectPageService
+  projectRegistry: ProjectRegistry
+  fileWatcher: FileWatcher
+}
+
+export interface SetupResolvedScratchResult {
+  worktreeDir: string
+  remoteDir: string
+  manager: TicketSyncManager
+  plan: ResolutionPlan
 }

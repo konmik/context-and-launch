@@ -1,3 +1,5 @@
+import type { KillWorktreeLockingProcessesResult } from '../ticket/ticket-api.js'
+import type { JSX } from '@solidjs/web'
 import { revalidate, useAction } from '@solidjs/router'
 import { createMemo, createSignal, For, Show, useContext } from 'solid-js'
 import { X } from '~/components/ui/icons.js'
@@ -33,7 +35,7 @@ interface GroupingDraft {
   }
 }
 
-export default function ForestView(props: ForestViewProps) {
+export default function ForestView(props: ForestViewProps): JSX.Element {
   return (
     <Show when={props.projectSlug} keyed>
       {(projectSlug) => (
@@ -45,7 +47,7 @@ export default function ForestView(props: ForestViewProps) {
   )
 }
 
-function ForestContent(props: ForestViewProps) {
+function ForestContent(props: ForestViewProps): JSX.Element {
   const layout = useContext(ForestLayoutContext)!
   const [error, setError] = createSignal<ErrorInfo>()
   const [openGroups, setOpenGroups] = createSignal<string[]>([])
@@ -103,7 +105,7 @@ function ForestContent(props: ForestViewProps) {
     return true
   }
 
-  function handleAddDependency(dependentNumber: string, dependencyNumber: string) {
+  function handleAddDependency(dependentNumber: string, dependencyNumber: string): Promise<boolean> {
     const dependent = findTicket(dependentNumber)
     return mutateAndRefreshTickets(() =>
       runAddDependency({
@@ -172,12 +174,7 @@ function ForestContent(props: ForestViewProps) {
     setOpenGroups(groups.slice(0, index))
   }
 
-  async function handleGroupCreate(
-    number: string,
-    title: string,
-  ): Promise<{
-    error?: string
-  }> {
+  async function handleGroupCreate(number: string, title: string): Promise<KillWorktreeLockingProcessesResult> {
     const draft = groupingDraft()
     if (!draft)
       return {

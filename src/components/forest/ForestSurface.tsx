@@ -1,3 +1,6 @@
+import type { JSX } from '@solidjs/web'
+import type { ForestPosition } from './forest-types.js'
+import type { OverlayRect as OverlayRectReturn } from '../shared/ExpandingOverlay.js'
 import { For, Show, createMemo, createSignal, createStore, onSettled, untrack, useContext, type Accessor } from 'solid-js'
 import { ForestLayoutContext } from './forest-layout-storage.js'
 import { X } from '~/components/ui/icons.js'
@@ -90,7 +93,7 @@ function surfaceInfo(element: HTMLElement, scopeGroupNumber: string | undefined)
   }
 }
 
-export default function ForestSurface(props: Props) {
+export default function ForestSurface(props: Props): JSX.Element {
   const layout = useContext(ForestLayoutContext)!
   const model = createMemo(() => buildForestFlowModel(props.data.tickets, props.data.scopeGroupNumber, layout.get()))
   const [nodes, setNodes] = createStore<ForestFlowNode[]>(() => model().nodes, [], {
@@ -135,7 +138,7 @@ export default function ForestSurface(props: Props) {
   })
   const nodeById = (id: string) => nodes.find((node) => node.id === id)
 
-  function endpoint(id: string, end: 'top' | 'bottom') {
+  function endpoint(id: string, end: 'top' | 'bottom'): ForestPosition {
     geometryRevision()
     const node = nodeById(id)
     if (!node)
@@ -246,7 +249,7 @@ export default function ForestSurface(props: Props) {
     }
   }
 
-  function bounds(ids = nodes.map((node) => node.id)) {
+  function bounds(ids = nodes.map((node) => node.id)): OverlayRectReturn | undefined {
     const chosen = nodes.filter((node) => ids.includes(node.id))
     if (!chosen.length) return undefined
     const minX = Math.min(...chosen.map((node) => node.position.x))
@@ -451,7 +454,7 @@ export default function ForestSurface(props: Props) {
     } else props.commands.openTicket(node.id)
   }
 
-  function nodeZIndex(node: ForestFlowNode) {
+  function nodeZIndex(node: ForestFlowNode): 1 | 0 {
     const session = props.connectionSession()
     if (session.kind === 'connecting') {
       return node.data.representedTicketNumbers.includes(session.source.ticketNumber) ? 0 : 1

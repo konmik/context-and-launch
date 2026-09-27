@@ -5,20 +5,23 @@ import { listHerdrTicketPanes } from './herdr-ticket-panes.js'
 
 export type { HerdrExecFn } from './herdr-exec.js'
 
-export type FindHerdrAgentResult =
-  | {
-      kind: 'herdr-unavailable'
-      reason: HerdrUnavailableReason
-      message: string
-    }
-  | {
-      kind: 'no-agent'
-    }
-  | {
-      kind: 'agent'
-      paneId: string
-      agentStatus: string
-    }
+export interface UnavailableAgentLookup {
+  kind: 'herdr-unavailable'
+  reason: HerdrUnavailableReason
+  message: string
+}
+
+export interface AbsentAgentLookup {
+  kind: 'no-agent'
+}
+
+export interface FoundAgentLookup {
+  kind: 'agent'
+  paneId: string
+  agentStatus: string
+}
+
+export type FindHerdrAgentResult = UnavailableAgentLookup | AbsentAgentLookup | FoundAgentLookup
 
 export interface HerdrAgentTarget {
   projectSlug: string

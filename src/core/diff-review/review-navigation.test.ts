@@ -1,8 +1,9 @@
+import type { ReviewFileSnapshot } from './diff-review-types.js'
 import { describe, expect, it } from 'vitest'
 import { buildBinaryReviewFile, buildReviewFile } from './diff-review-model.js'
 import { fileIsReviewed, nextUnreviewedChange, unreviewedChangeCount } from './review-navigation.js'
 
-function twoHunkFile(path: string) {
+function twoHunkFile(path: string): ReviewFileSnapshot {
   const context = Array.from(
     {
       length: 10,

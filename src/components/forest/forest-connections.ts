@@ -1,3 +1,4 @@
+import type { SourceAccessor } from 'solid-js'
 import { createSignal } from 'solid-js'
 import { verticalBezierPath } from './forest-viewport.js'
 
@@ -48,7 +49,7 @@ export interface ForestConnectionCommands {
   cancel: () => void
 }
 
-export function createForestConnection() {
+export function createForestConnection(): ForestConnectionResult {
   const [session, setSession] = createSignal<ForestConnectionSession>({
     kind: 'idle',
   })
@@ -110,13 +111,7 @@ export function isConnectionTarget(source: ConnectionEndpoint, target: Connectio
   return source.ticketNumber !== target.ticketNumber && source.end !== target.end
 }
 
-export function dependencyFromEndpoints(
-  source: ConnectionEndpoint,
-  target: ConnectionEndpoint,
-): {
-  dependentNumber: string
-  dependencyNumber: string
-} {
+export function dependencyFromEndpoints(source: ConnectionEndpoint, target: ConnectionEndpoint): DependencyFromEndpointsResult {
   return source.end === 'bottom'
     ? {
         dependentNumber: source.ticketNumber,
@@ -168,4 +163,14 @@ export function connectionPreviewPath(
     },
     session.source.end === 'bottom' ? 'down' : 'up',
   )
+}
+
+export interface ForestConnectionResult {
+  session: SourceAccessor<ForestConnectionSession>
+  commands: ForestConnectionCommands
+}
+
+export interface DependencyFromEndpointsResult {
+  dependentNumber: string
+  dependencyNumber: string
 }

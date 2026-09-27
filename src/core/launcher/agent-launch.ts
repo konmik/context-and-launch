@@ -39,21 +39,24 @@ export function agentRunning(projectSlug: string, folderName: string): boolean {
   return isProfileAgentRunning(commandTemplateService, agentMarkerPath(projectSlug, folderName))
 }
 
-export type ResolveLaunchDirResult =
-  | {
-      ok: true
-      launchDir: string
-    }
-  | {
-      ok: false
-      type: 'dirtyWorktree'
-      message: string
-    }
-  | {
-      ok: false
-      type: 'behindRemote'
-      message: string
-    }
+export interface ResolveLaunchDirResultValue {
+  ok: true
+  launchDir: string
+}
+
+export interface DirtyWorktreeResolveLaunchDirResult {
+  ok: false
+  type: 'dirtyWorktree'
+  message: string
+}
+
+export interface BehindRemoteResolveLaunchDirResult {
+  ok: false
+  type: 'behindRemote'
+  message: string
+}
+
+export type ResolveLaunchDirResult = ResolveLaunchDirResultValue | DirtyWorktreeResolveLaunchDirResult | BehindRemoteResolveLaunchDirResult
 
 export async function ensureLaunchDir(
   projectSlug: string,
@@ -110,7 +113,7 @@ export async function ensureLaunchDir(
   }
 }
 
-export function resolveTicketAndProject(projectSlug: string, folderName: string) {
+export function resolveTicketAndProject(projectSlug: string, folderName: string): ResolveTicketAndProjectResult {
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
   const store = new TicketStore(worktreeDir)
   const ticket = store.getTicket(folderName)
@@ -174,4 +177,10 @@ export async function launchProjectAgent(
   launchDir: string,
 ): Promise<void> {
   await spawnAgent(projectSlug, PROJECT_LAUNCH_KEY, projectWindowTitle(projectName), projectName, launchRequest, launchDir)
+}
+
+export interface ResolveTicketAndProjectResult {
+  ticket: TicketInfo
+  project: ProjectInfo
+  worktreeDir: string
 }

@@ -1,3 +1,4 @@
+import type { RenderResult } from '../../test-render.js'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor } from '~/test-render.js'
 import { createSignal, createRoot, createMemo } from 'solid-js'
@@ -116,7 +117,7 @@ function stateDependencies(ticket: TicketInfo): TicketDetailStateDeps {
   }
 }
 
-function renderTicket(ticket: TicketInfo) {
+function renderTicket(ticket: TicketInfo): RenderResult {
   const stateDeps = stateDependencies(ticket)
   return render(() => <TicketDetailDialog onClose={() => {}} projectSlug="test-project" ticket={ticket} stateDeps={stateDeps} />)
 }
@@ -126,7 +127,7 @@ async function expectEditorText(text: string) {
 }
 
 function flush() {
-  return new Promise((r) => setTimeout(r, 0))
+  return new Promise<void>((r) => setTimeout(r, 0))
 }
 
 describe('TicketDetailDialog content loading', () => {

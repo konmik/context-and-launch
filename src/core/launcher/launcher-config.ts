@@ -1,3 +1,4 @@
+import type { MergedLauncherConfig } from './launcher-config-data.js'
 import path from 'path'
 import type { ConfigPaths } from '../config/config-paths.js'
 import { ConfigRepository } from '../config/config-repository.js'
@@ -39,7 +40,7 @@ export class LauncherConfigManager {
     return this.paths.agentWorktreeDir(projectSlug)
   }
 
-  resolveWorktreeSettings(projectSlug: string) {
+  resolveWorktreeSettings(projectSlug: string): ResolveWorktreeSettingsResult {
     const config = this.loadProjectConfig(projectSlug)
     return {
       worktreeRootPath: config.worktreeRootPath || this.paths.agentWorktreeDir(projectSlug),
@@ -80,7 +81,7 @@ export class LauncherConfigManager {
     }, owner)
   }
 
-  getMergedConfig(projectSlug: string) {
+  getMergedConfig(projectSlug: string): MergedLauncherConfig {
     return mergeLauncherConfigs(this.sharedConfig.read(), this.loadProjectConfig(projectSlug))
   }
 
@@ -91,4 +92,9 @@ export class LauncherConfigManager {
       return next
     })
   }
+}
+
+export interface ResolveWorktreeSettingsResult {
+  worktreeRootPath: string
+  branchPrefix: string | undefined
 }

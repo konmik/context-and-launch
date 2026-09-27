@@ -1,3 +1,4 @@
+import type { SourceAccessor } from 'solid-js'
 import { createSignal } from 'solid-js'
 import type { ActiveFile } from './ticket-detail-pure.js'
 import { wouldOverwrite } from './ticket-detail-pure.js'
@@ -24,7 +25,7 @@ function isFileInputEventTarget(target: EventTarget | null): target is FileInput
   return target !== null && 'files' in target && 'value' in target
 }
 
-export function createFileUploadState(deps: FileUploadDeps) {
+export function createFileUploadState(deps: FileUploadDeps): FileUploadStateResult {
   const [uploading, setUploading] = createSignal(false)
   const [dragging, setDragging] = createSignal(false)
   const [confirmOverwrite, setConfirmOverwrite] = createSignal<{
@@ -171,4 +172,26 @@ export function createFileUploadState(deps: FileUploadDeps) {
     cancelSizeConfirm: cancelUpload,
     cancelOverwriteConfirm: cancelUpload,
   }
+}
+
+export interface FileUploadStateResult {
+  uploading: SourceAccessor<boolean>
+  dragging: SourceAccessor<boolean>
+  confirmOverwrite: SourceAccessor<{
+    fileName: string
+    file: File
+  } | null>
+  confirmSize: SourceAccessor<{
+    fileName: string
+    file: File
+    size: number
+  } | null>
+  handleDragOver: (e: DragEvent) => void
+  handleDragLeave: (e: DragEvent) => void
+  handleDrop: (e: DragEvent) => Promise<void>
+  handleFileInputChange: (e: Event) => Promise<void>
+  confirmSizeAndUpload: () => void
+  confirmOverwriteAndUpload: () => void
+  cancelSizeConfirm: () => void
+  cancelOverwriteConfirm: () => void
 }

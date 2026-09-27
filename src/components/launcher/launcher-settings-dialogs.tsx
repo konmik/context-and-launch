@@ -42,7 +42,7 @@ export interface DeleteTarget {
   name: string
 }
 
-function DialogHeader(props: { title: string }) {
+function DialogHeader(props: { title: string }): JSX.Element {
   return (
     <div class="flex items-center justify-between border-b border-border px-6 py-4">
       <DialogTitle class="mb-0">{props.title}</DialogTitle>
@@ -53,7 +53,7 @@ function DialogHeader(props: { title: string }) {
   )
 }
 
-function ErrorBanner(props: { message: string }) {
+function ErrorBanner(props: { message: string }): JSX.Element {
   return (
     <Show when={props.message}>
       <div class="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{props.message}</div>
@@ -61,7 +61,7 @@ function ErrorBanner(props: { message: string }) {
   )
 }
 
-function DialogFooter(props: { children: JSX.Element }) {
+function DialogFooter(props: { children: JSX.Element }): JSX.Element {
   return <div class="flex justify-end gap-2 border-t border-border px-6 py-3">{props.children}</div>
 }
 
@@ -76,7 +76,7 @@ export function ItemFormDialog(props: {
   form: ItemFormState | null
   setForm: (form: ItemFormState | null) => void
   onSubmit: (form: ItemFormState) => void
-}) {
+}): JSX.Element {
   return (
     <DialogRoot open={!!props.form} onOpenChange={() => props.setForm(null)} class="max-w-lg p-0">
       <DialogForm state={props.form}>
@@ -230,7 +230,7 @@ export function ColumnFormDialog(props: {
   columnError: string
   validation: string
   onSubmit: (form: ColumnFormState) => void
-}) {
+}): JSX.Element {
   return (
     <DialogRoot open={!!props.columnForm && !props.renameActive} onOpenChange={() => props.setColumnForm(null)} class="max-w-lg p-0">
       <DialogForm state={props.columnForm}>
@@ -352,7 +352,7 @@ export function RenameColumnDialog(props: {
   setRenameForm: (form: RenameFormState | null) => void
   columnError: string
   onRename: (form: RenameFormState) => void
-}) {
+}): JSX.Element {
   return (
     <DialogRoot open={!!props.renameForm} onOpenChange={() => props.setRenameForm(null)} class="max-w-lg p-0">
       <DialogForm state={props.renameForm}>
@@ -444,7 +444,7 @@ export function BoardFormDialog(props: {
   ) => void
   columnError: string
   onCreate: () => void
-}) {
+}): JSX.Element {
   return (
     <DialogRoot open={!!props.boardForm} onOpenChange={() => props.setBoardForm(null)} class="max-w-sm p-0">
       <DialogForm state={props.boardForm}>
@@ -499,7 +499,7 @@ export function DeleteConfirmDialog(props: {
   setDeleteConfirm: (target: DeleteTarget | null) => void
   onDeleteBoard: () => void
   onDeleteColumn: () => void
-}) {
+}): JSX.Element {
   return (
     <DialogRoot open={!!props.deleteConfirm} onOpenChange={() => props.setDeleteConfirm(null)} class="max-w-sm p-0">
       <DialogForm state={props.deleteConfirm}>
@@ -540,7 +540,7 @@ export function ProjectBoardConfirmDialog(props: {
   projectBoardConfirm: BoardRef | null
   setProjectBoardConfirm: (target: BoardRef | null) => void
   onConfirm: () => void
-}) {
+}): JSX.Element {
   return (
     <DialogRoot open={!!props.projectBoardConfirm} onOpenChange={() => props.setProjectBoardConfirm(null)} class="max-w-sm p-0">
       <DialogForm state={props.projectBoardConfirm}>

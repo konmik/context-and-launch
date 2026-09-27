@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { createSignal, createMemo, useContext, untrack } from 'solid-js'
 import { LauncherConfigContext } from './shared-launcher-config-storage.js'
 import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js'
@@ -20,7 +21,11 @@ import type { LauncherColumnDefaults } from '~/core/launcher/launcher-config.js'
 import ErrorDialog from '../shared/ErrorDialog.js'
 import { ProjectLauncherConfigContext } from './project-launcher-config-storage.js'
 
-export default function ProjectLauncherDialog(props: { open: boolean; onOpenChange: (open: boolean) => void; projectSlug: string }) {
+export default function ProjectLauncherDialog(props: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  projectSlug: string
+}): JSX.Element {
   const sharedConfig = useContext(LauncherConfigContext)!
   const projectConfig = useContext(ProjectLauncherConfigContext)!
   const metadata = createMemo(() => (props.open ? getProjectLauncherMetadata(props.projectSlug) : null), {

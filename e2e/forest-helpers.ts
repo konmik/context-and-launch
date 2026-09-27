@@ -160,10 +160,7 @@ export async function clickPath(locator: Locator, at: 'start' | 'middle' | 'end'
   }, at)
 }
 
-export async function pathScreenEndpoints(locator: Locator): Promise<{
-  start: ScreenPoint
-  end: ScreenPoint
-}> {
+export async function pathScreenEndpoints(locator: Locator): Promise<PathScreenEndpointsResult> {
   return {
     start: await pathScreenPoint(locator, 'start'),
     end: await pathScreenPoint(locator, 'end'),
@@ -218,4 +215,9 @@ export async function groupViaDialog(page: Page, number: string, title: string):
   await testId(page, 'create-ticket-submit').click()
   await waitGone(page, 'create-ticket-number-input')
   await page.waitForTimeout(1000)
+}
+
+export interface PathScreenEndpointsResult {
+  start: ScreenPoint
+  end: ScreenPoint
 }

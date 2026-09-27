@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { Show, For } from 'solid-js'
 import { DragDropProvider, createSortable } from '~/components/drag/drag-provider.js'
 import { DialogRoot, DialogTitle } from '../ui/dialog'
@@ -24,7 +25,7 @@ function NamedEntrySelect(props: {
   }[]
   testId: string
   onChange(name: string): void
-}) {
+}): JSX.Element {
   return (
     <div>
       <label class="field-label">{props.label}</label>
@@ -41,7 +42,7 @@ function NamedEntrySelect(props: {
   )
 }
 
-function SortableLauncherSkill(props: { skill: MergedSkill; checked: boolean; isActive: boolean; onToggle: () => void }) {
+function SortableLauncherSkill(props: { skill: MergedSkill; checked: boolean; isActive: boolean; onToggle: () => void }): JSX.Element {
   const sortable = createSortable(props.skill.name)
   return (
     <div
@@ -66,7 +67,7 @@ function SortableLauncherSkill(props: { skill: MergedSkill; checked: boolean; is
   )
 }
 
-function LauncherSkillDropPreview(props: { skill: MergedSkill }) {
+function LauncherSkillDropPreview(props: { skill: MergedSkill }): JSX.Element {
   return (
     <DragPreview class="flex items-center gap-2">
       <DragGrip testId="launcher-skill-drag-handle" />
@@ -75,7 +76,7 @@ function LauncherSkillDropPreview(props: { skill: MergedSkill }) {
   )
 }
 
-export default function AgentLauncher(props: AgentLauncherProps) {
+export default function AgentLauncher(props: AgentLauncherProps): JSX.Element {
   const c = props.ctrl
   return (
     <div class="flex h-full flex-col gap-4 overflow-auto px-4 pb-4">

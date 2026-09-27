@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { afterEach, expect, it } from 'vitest'
 import { cleanup, render, screen, waitFor } from '~/test-render.js'
 import { createSignal, createMemo, Loading } from 'solid-js'
@@ -29,7 +30,7 @@ it('shares successful edits across mounted selectors and keeps failed edits unpu
     return succeed(saved)
   })
 
-  function Selector() {
+  function Selector(): JSX.Element {
     const [id, setId] = createSignal('second')
     return <BoardSelector boardId={id()} setBoardId={setId} />
   }

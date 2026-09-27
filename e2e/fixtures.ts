@@ -1,3 +1,4 @@
+import type { ForestPosition } from '../src/components/forest/forest-types.js'
 import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
@@ -789,16 +790,7 @@ export function readTicketStatus(server: TestServer, projectSlug: string, folder
   return JSON.parse(fs.readFileSync(file, 'utf-8'))
 }
 
-export function readForestLayout(
-  server: TestServer,
-  projectSlug: string,
-): Record<
-  string,
-  {
-    x: number
-    y: number
-  }
-> | null {
+export function readForestLayout(server: TestServer, projectSlug: string): Record<string, ForestPosition> | null {
   const file = path.join(server.dataDir, 'projects', projectSlug, 'tickets', 'forest-layout.json')
   if (!fs.existsSync(file)) return null
   return JSON.parse(fs.readFileSync(file, 'utf-8'))
@@ -929,10 +921,7 @@ export function setupE2E(
     await startActionTrace(p)
     return p
   }
-  afterEach(async (context) => {
-    if (context.task.result?.state === 'fail' && ctx.page && !ctx.page.isClosed()) {
-      console.error('Dialogs at failure:', await ctx.page.locator('[data-scope="dialog"][data-part="positioner"]').allTextContents())
-    }
+  afterEach(async () => {
     await Promise.all([
       ...extraPages.map(async (p) => {
         try {

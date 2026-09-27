@@ -56,16 +56,19 @@ export async function openFileDialog(startDir: string | undefined, commands: Com
   }
 }
 
-export type DirectoryPickerResult =
-  | {
-      path: string
-    }
-  | {
-      cancelled: true
-    }
-  | {
-      error: string
-    }
+export interface DirectoryPickerSelection {
+  path: string
+}
+
+export interface DirectoryPickerCancelled {
+  cancelled: true
+}
+
+export interface DirectoryPickerError {
+  error: string
+}
+
+export type DirectoryPickerResult = DirectoryPickerSelection | DirectoryPickerCancelled | DirectoryPickerError
 
 export async function openDirectoryDialog(preselect: string, commands: CommandTemplateExecutor): Promise<DirectoryPickerResult> {
   const stub = readStub('CONTEXT_PICKER_STUB', 'CONTEXT_PICKER_STUB_FILE')

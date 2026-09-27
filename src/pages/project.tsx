@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { useParams, useNavigate, revalidate } from '@solidjs/router'
 import { AppConfigContext } from '~/components/config/app-config-storage.js'
 import { BoardConfigContext } from '~/components/board/board-config-storage.js'
@@ -53,7 +54,7 @@ import { createBoardShortcutRunner } from '~/components/board/board-shortcut-run
 import { ShortcutConfirmationDialog } from '~/components/ticket/ticket-detail-parts.js'
 import { paths } from '~/router.js'
 
-function createDeferredSignal<T>(ready: () => boolean, load: () => Promise<T>, placeholder: T) {
+function createDeferredSignal<T>(ready: () => boolean, load: () => Promise<T>, placeholder: T): () => T {
   const [state, setState] = createSignal({
     value: placeholder,
   })
@@ -68,7 +69,7 @@ function createDeferredSignal<T>(ready: () => boolean, load: () => Promise<T>, p
           }
         : undefined,
     {
-      effect(request) {
+      effect(request): (() => void) | undefined {
         if (!request) {
           setState({
             value: placeholder,
@@ -109,7 +110,7 @@ function createDeferredSignal<T>(ready: () => boolean, load: () => Promise<T>, p
   }
 }
 
-export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
+export default function ProjectPage(props?: { ctrl?: ProjectPageController }): JSX.Element {
   const params = useParams<{
     projectSlug: string
   }>()
@@ -128,7 +129,7 @@ export default function ProjectPage(props?: { ctrl?: ProjectPageController }) {
   )
 }
 
-function ProjectContent(props: { ctrl?: ProjectPageController }) {
+function ProjectContent(props: { ctrl?: ProjectPageController }): JSX.Element {
   const appConfig = useContext(AppConfigContext)!
   const params = useParams()
   const navigate = useNavigate()
@@ -276,7 +277,7 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
     if (name) document.title = `${name} - Context & Launch`
   })
 
-  function SyncControls() {
+  function SyncControls(): JSX.Element {
     const hasConflict = createMemo(() => syncState().conflictDetected || (syncStatus()?.hasConflict ?? false))
     createEffect(hasConflict, (conflict) => {
       if (!conflict) return
@@ -329,7 +330,7 @@ function ProjectContent(props: { ctrl?: ProjectPageController }) {
     )
   }
 
-  function SyncStatusErrorButton(props: { error: unknown }) {
+  function SyncStatusErrorButton(props: { error: unknown }): JSX.Element {
     const message = () => (props.error instanceof Error ? props.error.message : String(props.error))
     return (
       <button

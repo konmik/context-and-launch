@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
@@ -6,7 +7,7 @@ import { createBuiltAppHandler } from '../scripts/built-app.mjs'
 
 const roots: string[] = []
 
-async function fixture() {
+async function fixture(): Promise<FixtureResult> {
   const clientRoot = await mkdtemp(path.join(os.tmpdir(), 'context-launch-built-app-'))
   roots.push(clientRoot)
   await mkdir(path.join(clientRoot, 'assets'))
@@ -69,3 +70,9 @@ describe('built application handler', () => {
     expect((await handleRequest(new Request('http://app/%E0%A4%A'))).status).toBe(400)
   })
 })
+
+export interface FixtureResult {
+  clientRoot: string
+  fetch: Mock<() => Promise<Response>>
+  handleRequest: (request: Request) => Promise<Response>
+}

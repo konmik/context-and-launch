@@ -77,7 +77,7 @@ function applyWindowBackgrounds(): void {
   }
 }
 
-function currentBounds(win: BrowserWindow) {
+function currentBounds(win: BrowserWindow): CurrentBoundsResult {
   const maximized = win.isMaximized()
   const bounds = maximized ? win.getNormalBounds() : win.getBounds()
   return {
@@ -161,16 +161,7 @@ function createProjectWindow(opts: { url: string; bounds: WindowBounds; maximize
   return win
 }
 
-function handleWindowOpen(
-  opener: BrowserWindow,
-  url: string,
-):
-  | {
-      action: 'allow'
-    }
-  | {
-      action: 'deny'
-    } {
+function handleWindowOpen(opener: BrowserWindow, url: string): AllowHandleWindowOpenResult | DenyHandleWindowOpenResult {
   const targetProjectSlug = projectSlugFromUrl(url)
   if (targetProjectSlug === null) {
     return {
@@ -342,4 +333,17 @@ if (!gotLock) {
     await opsFinished
     if (!syncWindow.isDestroyed()) syncWindow.close()
   })
+}
+
+export interface CurrentBoundsResult {
+  bounds: Electron.Rectangle
+  maximized: boolean
+}
+
+export interface AllowHandleWindowOpenResult {
+  action: 'allow'
+}
+
+export interface DenyHandleWindowOpenResult {
+  action: 'deny'
 }

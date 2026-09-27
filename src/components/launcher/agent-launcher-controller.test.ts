@@ -82,12 +82,7 @@ function makeConfigWithProfile(profileName: string): MergedLauncherConfig {
   }
 }
 
-function setup(initial: { ticket: TicketInfo; config: MergedLauncherConfig | null }): {
-  ctrl: AgentLauncherController
-  setTicket: (t: TicketInfo) => void
-  setConfig: (c: MergedLauncherConfig) => void
-  dispose: () => void
-} {
+function setup(initial: { ticket: TicketInfo; config: MergedLauncherConfig | null }): SetupResult {
   let out!: ReturnType<typeof setup>
   createRoot((dispose) => {
     const [ticket, setTicket] = createSignal(initial.ticket)
@@ -203,3 +198,10 @@ describe('createAgentLauncherController prompt reset', () => {
     dispose()
   })
 })
+
+export interface SetupResult {
+  ctrl: AgentLauncherController
+  setTicket: (t: TicketInfo) => void
+  setConfig: (c: MergedLauncherConfig) => void
+  dispose: () => void
+}

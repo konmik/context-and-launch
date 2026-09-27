@@ -15,7 +15,7 @@ afterEach(async () => {
   await Promise.all(directories.splice(0).map((directory) => removeTempDir(directory)))
 })
 
-function setup() {
+function setup(): SetupResult {
   const directory = makeTempDir('app-config-')
   directories.push(directory)
   const paths = new ConfigPaths(directory)
@@ -223,3 +223,12 @@ describe('AppConfigStore', () => {
     expect(store.read()).not.toHaveProperty('browser')
   })
 })
+
+export interface SetupResult {
+  paths: ConfigPaths
+  repository: ConfigRepository
+  store: AppConfigStore
+  registry: ProjectRegistry
+  config: AppConfigData
+  advance: () => void
+}

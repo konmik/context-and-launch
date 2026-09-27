@@ -48,15 +48,7 @@ export function reviewLineRangeBetween(startNode: Node | null | undefined, endNo
   }
 }
 
-export function selectedNodes(
-  root: ShadowRoot | HTMLElement,
-  documentSelection: Selection | null,
-):
-  | {
-      start: Node
-      end: Node
-    }
-  | undefined {
+export function selectedNodes(root: ShadowRoot | HTMLElement, documentSelection: Selection | null): SelectedNodesResult | undefined {
   const shadowRoots = root instanceof ShadowRoot ? [root] : []
   if (documentSelection && isComposedRangeSelection(documentSelection)) {
     const [range] = documentSelection.getComposedRanges({
@@ -95,4 +87,9 @@ export function reviewLineRangeFromSelection(
 
 export function isGutterPath(path: readonly EventTarget[]): boolean {
   return path.some((node) => node instanceof HTMLElement && node.hasAttribute('data-column-number'))
+}
+
+export interface SelectedNodesResult {
+  start: Node
+  end: Node
 }

@@ -1,16 +1,17 @@
+import type { SourceAccessor } from 'solid-js'
 import { createSignal, onCleanup, untrack } from 'solid-js'
 
-export type FloatingPanelSize = {
+export interface FloatingPanelSize {
   width: number
   height: number
 }
 
-export type FloatingPanelPosition = {
+export interface FloatingPanelPosition {
   x: number
   y: number
 }
 
-type Rect = {
+interface Rect {
   position: FloatingPanelPosition
   size: FloatingPanelSize
 }
@@ -78,7 +79,7 @@ export function createFloatingPanelState(options: {
   viewport: () => FloatingPanelSize
   onPositionChangeEnd?: (position: FloatingPanelPosition) => void
   onSizeChangeEnd?: (size: FloatingPanelSize) => void
-}) {
+}): FloatingPanelStateResult {
   const initialRect = () =>
     constrainFloatingPanelRect(
       {
@@ -189,7 +190,7 @@ export function createFloatingPanelState(options: {
     stopGesture = finish
   }
 
-  function cancelGesture() {
+  function cancelGesture(): boolean {
     if (!stopGesture) return false
     stopGesture(false)
     return true
@@ -205,4 +206,14 @@ export function createFloatingPanelState(options: {
     startResize: (event: PointerEvent) => startGesture(event, true),
     cancelGesture,
   }
+}
+
+export interface FloatingPanelStateResult {
+  position: SourceAccessor<FloatingPanelPosition>
+  size: SourceAccessor<FloatingPanelSize>
+  constrain: () => void
+  reset: () => void
+  startMove: (event: PointerEvent) => void
+  startResize: (event: PointerEvent) => void
+  cancelGesture: () => boolean
 }

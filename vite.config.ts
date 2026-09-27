@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 const root = path.dirname(fileURLToPath(import.meta.url))
 const LANGUAGE_DATA_STUB = '\0codemirror-language-data-server-stub'
 
-function stubLanguageDataOnServer() {
+function stubLanguageDataOnServer(): PreStubLanguageDataOnServerResult {
   return {
     name: 'stub-codemirror-language-data-on-server',
     enforce: 'pre' as const,
@@ -17,10 +17,10 @@ function stubLanguageDataOnServer() {
       options?: {
         ssr?: boolean
       },
-    ) {
+    ): '\0codemirror-language-data-server-stub' | null {
       return options?.ssr && id === '@codemirror/language-data' ? LANGUAGE_DATA_STUB : null
     },
-    load(id: string) {
+    load(id: string): 'export const languages = [];' | null {
       return id === LANGUAGE_DATA_STUB ? 'export const languages = [];' : null
     },
   }
@@ -74,3 +74,16 @@ export default defineConfig({
     },
   },
 })
+
+export interface PreStubLanguageDataOnServerResult {
+  name: string
+  enforce: 'pre'
+  resolveId(
+    id: string,
+    _importer: string | undefined,
+    options?: {
+      ssr?: boolean
+    },
+  ): '\0codemirror-language-data-server-stub' | null
+  load(id: string): 'export const languages = [];' | null
+}

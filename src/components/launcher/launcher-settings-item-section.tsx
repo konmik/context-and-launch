@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { createSignal, createEffect, createMemo, useContext, Show, For } from 'solid-js'
 import { DragDropProvider } from '~/components/drag/drag-provider.js'
 import { NameDragOverlay } from '../board/dnd-shared.js'
@@ -30,7 +31,7 @@ export function ItemSection(props: {
   deleteTestId: string
   sharedOrderWarning?: string
   sharedOrderWarningTestId?: string
-}) {
+}): JSX.Element {
   const sharedConfig = useContext(LauncherConfigContext)!
   const projectConfig = useContext(ProjectLauncherConfigContext)!
   const config = createMemo(() => mergeLauncherConfigs(sharedConfig.get(), projectConfig.get()))

@@ -46,7 +46,7 @@ function createTicketDir(worktreeDir: string, folderName: string, status: string
   )
 }
 
-function makeDeps(configDir: string) {
+function makeDeps(configDir: string): DepsResult {
   const paths = new ConfigPaths(configDir)
   return {
     projectRegistry: new ProjectRegistry(paths),
@@ -206,7 +206,7 @@ describe('migrateColumnRename', () => {
     dirs.push(configDir)
     initializeDataDir(new ConfigPaths(configDir))
     const brokenRegistry = fromPartial<ProjectRegistry>({
-      listProjects() {
+      listProjects(): never {
         throw new Error('corrupt projects.json')
       },
     })
@@ -232,3 +232,10 @@ describe('migrateColumnRename', () => {
     expect(result.projectsUpdated).toBe(1)
   })
 })
+
+export interface DepsResult {
+  projectRegistry: ProjectRegistry
+  launcherConfigManager: LauncherConfigManager
+  worktreeManager: WorktreeManager
+  boardConfigManager: BoardConfigManager
+}

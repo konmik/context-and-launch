@@ -5,17 +5,20 @@ import { writeMergeTree } from '../infra/git-merge-tree.js'
 import { GitRepository } from '../infra/git-repository.js'
 import type { CommandTemplateExecutor } from '../command-template/command-template-types.js'
 
-export type SyncResult =
-  | {
-      status: 'success'
-    }
-  | {
-      status: 'conflict'
-    }
-  | {
-      status: 'error'
-      message: string
-    }
+export interface SuccessSyncResult {
+  status: 'success'
+}
+
+export interface ConflictSyncResult {
+  status: 'conflict'
+}
+
+export interface ErrorSyncResult {
+  status: 'error'
+  message: string
+}
+
+export type SyncResult = SuccessSyncResult | ConflictSyncResult | ErrorSyncResult
 
 export interface ResolutionPlan {
   /** True when conflicts remain and an agent must resolve them in `scratchDir`. */
@@ -456,7 +459,7 @@ export class TicketSyncManager {
     }
   }
 
-  private parseUpstream(upstream: string) {
+  private parseUpstream(upstream: string): ParseUpstreamResult {
     const slashIndex = upstream.indexOf('/')
     if (slashIndex === -1)
       return {
@@ -520,4 +523,9 @@ export class TicketSyncManager {
       scratch,
     })
   }
+}
+
+export interface ParseUpstreamResult {
+  remote: string
+  branch: string
 }

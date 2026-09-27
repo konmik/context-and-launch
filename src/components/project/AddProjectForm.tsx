@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { Show } from 'solid-js'
 import { createAddProjectController, type AddProjectController, type AddProjectAction } from './add-project-controller.js'
 import BoardSelector from './BoardSelector.js'
@@ -10,7 +11,7 @@ interface AddProjectFormProps {
   ctrl?: AddProjectController
 }
 
-export default function AddProjectForm(props: AddProjectFormProps) {
+export default function AddProjectForm(props: AddProjectFormProps): JSX.Element {
   const s =
     props.ctrl ??
     createAddProjectController({

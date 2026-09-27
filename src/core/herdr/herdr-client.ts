@@ -3,6 +3,8 @@ import { listHerdrTicketPaneState, type HerdrTicketPane } from './herdr-ticket-p
 
 export type HerdrAgentStatus = 'idle' | 'working' | 'blocked' | 'done' | 'unknown'
 
+export interface TicketAgentStatuses extends Record<string, HerdrAgentStatus> {}
+
 function herdrAgentStatus(status: string): HerdrAgentStatus {
   switch (status) {
     case 'idle':
@@ -15,8 +17,8 @@ function herdrAgentStatus(status: string): HerdrAgentStatus {
   }
 }
 
-export function ticketStatusesFromPanes(panes: HerdrTicketPane[]) {
-  const statuses: Record<string, HerdrAgentStatus> = {}
+export function ticketStatusesFromPanes(panes: HerdrTicketPane[]): TicketAgentStatuses {
+  const statuses: TicketAgentStatuses = {}
   const seenFolderNames = new Set<string>()
   for (const pane of panes) {
     if (seenFolderNames.has(pane.folderName)) {

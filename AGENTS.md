@@ -7,6 +7,7 @@
 
 ## General
 
+- Do not patch third-party dependencies.
 - Do not add comments unless explicitly asked.
 
 ## Safety
@@ -19,6 +20,7 @@
 
 ## Code style
 
+- Named functions must have explicit return types and named interfaces for object returns (except for void type).
 - We are using only TypeScript, do not check for types randomly, do not write incorrect-type tests.
 - Do not duplicate code. Extract shared logic into reusable helpers.
 - Avoid non-ASCII unless explicitly asked.

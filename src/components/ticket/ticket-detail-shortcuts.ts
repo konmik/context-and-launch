@@ -1,3 +1,5 @@
+import type { SourceAccessor } from 'solid-js'
+import type { Setter } from 'solid-js'
 import { createSignal } from 'solid-js'
 import { runShortcut as runShortcutAction } from '../launcher/launcher-api.js'
 import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
@@ -17,7 +19,7 @@ export interface ShortcutConfirmation {
   type: 'dirtyWorktree' | 'behindRemote'
 }
 
-export function createShortcutState(deps: ShortcutDeps) {
+export function createShortcutState(deps: ShortcutDeps): ShortcutStateResult {
   const [runningShortcut, setRunningShortcut] = createSignal('')
   const [shortcutConfirmation, setShortcutConfirmation] = createSignal<ShortcutConfirmation>()
 
@@ -67,4 +69,11 @@ export function createShortcutState(deps: ShortcutDeps) {
     setShortcutConfirmation,
     runShortcut,
   }
+}
+
+export interface ShortcutStateResult {
+  runningShortcut: SourceAccessor<string>
+  shortcutConfirmation: SourceAccessor<ShortcutConfirmation | undefined>
+  setShortcutConfirmation: Setter<ShortcutConfirmation | undefined>
+  runShortcut: (name: string, force?: boolean) => Promise<void>
 }

@@ -13,7 +13,7 @@ interface HarnessReport {
   }[]
 }
 
-function makeHarness() {
+function makeHarness(): HarnessResult {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'run-agent-herdr-'))
   tempDirs.push(dir)
   const harness = path.join(dir, 'harness.ps1')
@@ -158,7 +158,7 @@ function readHarnessReport(reportPath: string): HarnessReport {
 function runHarness(
   mode: 'create' | 'reuse' | 'duplicate' | 'idle' | 'empty' | 'working',
   displayName = 'Fix login timeout ST-47 - Alpha',
-) {
+): RunHarnessResult {
   const files = makeHarness()
   const prompt = "hello\nmultiline 'world'"
   const result = spawnSync(
@@ -342,7 +342,7 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
 
 // program that writes to stderr, which is exactly where a failing Herdr call
 // used to lose its context. These cases put a native `herdr` on PATH instead.
-function runWithNativeStub(serverStatus: 'running' | 'not running', stderrLine: string) {
+function runWithNativeStub(serverStatus: 'running' | 'not running', stderrLine: string): RunWithNativeStubResult {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'run-agent-herdr-stub-'))
   tempDirs.push(dir)
   fs.writeFileSync(
@@ -394,3 +394,20 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1 Herdr failures
     expect(result.stderr).toContain('herdr workspace list failed: workspace list is broken')
   })
 })
+
+export interface HarnessResult {
+  dir: string
+  harness: string
+  report: string
+}
+
+export interface RunHarnessResult {
+  status: number | null
+  stderr: string
+  report: HarnessReport
+}
+
+export interface RunWithNativeStubResult {
+  status: number | null
+  stderr: string
+}

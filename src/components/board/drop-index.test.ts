@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { computeDropIndex, computeHoverTarget, resolvePreviewInsertBefore } from './drop-index.js'
 
 describe('computeDropIndex', () => {
-  function rects(tops: number[], h = 60) {
+  function rects(tops: number[], h = 60): RectsResult[] {
     return tops.map((top) => ({
       top,
       height: h,
@@ -202,3 +202,8 @@ describe('resolvePreviewInsertBefore', () => {
     ).toBeNull()
   })
 })
+
+export interface RectsResult {
+  top: number
+  height: number
+}

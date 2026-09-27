@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import type { HerdrAgentStatus } from '~/core/herdr/herdr-client.js'
 
 export const HERDR_STATUS_COLORS = {
@@ -15,7 +16,7 @@ const HERDR_STATUS_GLYPHS = {
   unknown: '·',
 } satisfies Record<HerdrAgentStatus, string>
 
-function StatusGlyph(props: { glyph: string; color: string; size: number }) {
+function StatusGlyph(props: { glyph: string; color: string; size: number }): JSX.Element {
   return (
     <span
       class="inline-block shrink-0 font-mono leading-none tabular-nums"
@@ -31,7 +32,7 @@ function StatusGlyph(props: { glyph: string; color: string; size: number }) {
   )
 }
 
-export default function HerdrStatusIcon(props: { status: HerdrAgentStatus; size?: number }) {
+export default function HerdrStatusIcon(props: { status: HerdrAgentStatus; size?: number }): JSX.Element {
   const size = () => props.size ?? 12
   const color = () => HERDR_STATUS_COLORS[props.status]
   return (

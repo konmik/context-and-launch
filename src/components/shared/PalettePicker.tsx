@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { createSignal, For, useContext } from 'solid-js'
 import { Palette, Sun, Moon } from '~/components/ui/icons.js'
 import { MenuRoot, MenuTrigger, MenuContent, MenuItem, MenuSeparator } from '~/components/ui/menu'
@@ -8,7 +9,7 @@ import type { Result } from '~/util/result.js'
 import ErrorDialog from './ErrorDialog.js'
 import type { ErrorInfo } from '~/core/shared/errors.js'
 
-export default function PalettePicker() {
+export default function PalettePicker(): JSX.Element {
   const appearance = useContext(AppearanceContext)!
   const dark = () => isDarkMode(appearance().mode.get(), window.matchMedia('(prefers-color-scheme: dark)').matches)
   const [error, setError] = createSignal<ErrorInfo | null>(null)

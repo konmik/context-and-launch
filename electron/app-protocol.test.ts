@@ -14,7 +14,7 @@ interface Recorded {
   request: Request
 }
 
-function recordingBackend(response: Response = new Response('ok')) {
+function recordingBackend(response: Response = new Response('ok')): RecordingBackendResult {
   const calls: Recorded[] = []
   const handleRequest: AppRequestHandler = (request) => {
     calls.push({
@@ -98,7 +98,7 @@ describe('handleAppRequest', () => {
   })
 })
 describe('appearance seeding', () => {
-  function memoryStorage(initial: Record<string, string> = {}) {
+  function memoryStorage(initial: Record<string, string> = {}): MemoryStorageResult {
     const data = new Map(Object.entries(initial))
     return {
       getItem: (key: string) => data.get(key) ?? null,
@@ -134,3 +134,14 @@ describe('projectSlugFromUrl on app-origin URLs', () => {
     expect(projectSlugFromUrl(`${APP_ORIGIN}/project/my-repo`)).toBe('my-repo')
   })
 })
+
+export interface RecordingBackendResult {
+  handleRequest: AppRequestHandler
+  calls: Recorded[]
+}
+
+export interface MemoryStorageResult {
+  getItem: (key: string) => string | null
+  setItem: (key: string, value: string) => undefined
+  data: Map<string, string>
+}

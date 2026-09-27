@@ -1,3 +1,4 @@
+import type { ReviewPromptFreshness } from './review-prompt-text.js'
 import type { CommandTemplateExecutor } from '../command-template/command-template-types.js'
 import type { HerdrAgent } from '../herdr/herdr-exec.js'
 import { agentBelongsToTarget } from '../herdr/herdr-control.js'
@@ -40,20 +41,28 @@ function agentIsFree(agent: HerdrAgent): boolean {
   return agent.agent_status === 'idle' || agent.agent_status === 'done'
 }
 
+interface ManagedTicketAgentObservation {
+  kind: 'herdr'
+  agent: HerdrAgent
+}
+
+interface ProfileTicketAgentObservation {
+  kind: 'profile'
+}
+
+interface AbsentTicketAgentObservation {
+  kind: 'absent'
+}
+
+interface AmbiguousTicketAgentObservation {
+  kind: 'ambiguous'
+}
+
 type TicketAgentObservation =
-  | {
-      kind: 'herdr'
-      agent: HerdrAgent
-    }
-  | {
-      kind: 'profile'
-    }
-  | {
-      kind: 'absent'
-    }
-  | {
-      kind: 'ambiguous'
-    }
+  | ManagedTicketAgentObservation
+  | ProfileTicketAgentObservation
+  | AbsentTicketAgentObservation
+  | AmbiguousTicketAgentObservation
 
 export class ReviewPromptQueueService {
   private readonly recoveredProjects = new Set<string>()
@@ -474,13 +483,7 @@ export class ReviewPromptQueueService {
     this.scheduleTicket(`${key}:cooldown`, delivery.cooldownMs, target.projectSlug, target.folderName)
   }
 
-  private async checkFreshness(
-    target: ResolvedDiffReviewTarget,
-    snapshot: ReviewPromptSnapshot,
-  ): Promise<{
-    stale: boolean
-    verificationError?: string
-  }> {
+  private async checkFreshness(target: ResolvedDiffReviewTarget, snapshot: ReviewPromptSnapshot): Promise<ReviewPromptFreshness> {
     try {
       const current = await this.git.loadSnapshot(target, snapshot.scope)
       const file = current.files.find((candidate) => candidate.path === snapshot.filePath)

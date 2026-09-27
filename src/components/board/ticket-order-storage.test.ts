@@ -1,3 +1,4 @@
+import type { Success } from '../../util/result.js'
 import { expect, it } from 'vitest'
 import { createRoot, createSignal, flush } from 'solid-js'
 import { createTicketOrderStorage } from './ticket-order-storage.js'
@@ -92,12 +93,12 @@ it('keeps an in-flight save with its original project when navigation changes th
         },
       },
       {
-        async read(projectSlug) {
+        async read(projectSlug): Promise<Success<TicketOrder>> {
           startedRead()
           await release
           return succeed(saved.get(projectSlug)!)
         },
-        async save(projectSlug, _expected, next) {
+        async save(projectSlug, _expected, next): Promise<Success<TicketOrder>> {
           saved.set(projectSlug, next)
           return succeed(next)
         },

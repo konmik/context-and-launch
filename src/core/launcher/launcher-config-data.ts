@@ -159,7 +159,7 @@ export function updateLauncherReferences(
   )
 }
 
-function mergeItems<T extends OrderedLauncherItem>(app: T[], project: T[]) {
+function mergeItems<T extends OrderedLauncherItem>(app: T[], project: T[]): (T & MergeItemsResult)[] {
   const items = new Map<
     string,
     T & {
@@ -195,4 +195,9 @@ export function mergeLauncherConfigs(app: LauncherConfig, project: LauncherConfi
     branchPrefix: project.branchPrefix,
     conflictResolutionPrompt: project.conflictResolutionPrompt || app.conflictResolutionPrompt || '',
   }
+}
+
+export interface MergeItemsResult {
+  order: number
+  scope: 'app' | 'project'
 }

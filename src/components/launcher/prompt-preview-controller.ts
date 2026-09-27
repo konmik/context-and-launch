@@ -1,3 +1,4 @@
+import type { SourceAccessor } from 'solid-js'
 import { createSignal, createMemo, onSettled } from 'solid-js'
 import { interpolatePrompt } from '~/core/launcher/prompt-interpolation.js'
 import type { MergedLauncherConfig } from '~/core/launcher/launcher-config.js'
@@ -23,7 +24,7 @@ export interface PromptPreviewDeps {
   onEditedPromptChange: (editedPrompt: string | undefined) => void
 }
 
-export function createPromptPreviewController(deps: PromptPreviewDeps) {
+export function createPromptPreviewController(deps: PromptPreviewDeps): PromptPreviewControllerResult {
   const [editMode, setEditModeRaw] = createSignal(deps.initialEditedPrompt !== undefined)
   const [editedPrompt, setEditedPromptRaw] = createSignal(deps.initialEditedPrompt ?? '')
   let persistTimer: ReturnType<typeof setTimeout> | undefined
@@ -99,3 +100,12 @@ export function createPromptPreviewController(deps: PromptPreviewDeps) {
 }
 
 export type PromptPreviewController = ReturnType<typeof createPromptPreviewController>
+
+export interface PromptPreviewControllerResult {
+  editMode: SourceAccessor<boolean>
+  setEditMode: (on: boolean) => void
+  editedPrompt: SourceAccessor<string>
+  setEditedPrompt: (value: string) => void
+  currentPrompt: SourceAccessor<string>
+  resetFromSaved: (saved: string | undefined) => void
+}

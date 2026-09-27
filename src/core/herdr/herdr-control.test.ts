@@ -27,7 +27,7 @@ interface FakeExecOptions {
   workspaceListError?: unknown
 }
 
-function fakeExec(opts: FakeExecOptions) {
+function fakeExec(opts: FakeExecOptions): FakeExecResult {
   const calls: string[] = []
   const exec: HerdrExecFn = async (key) => {
     calls.push(key)
@@ -342,3 +342,8 @@ describe('stopHerdrAgent', () => {
     await expect(stopHerdrAgent('w1:p2', exec)).rejects.toThrow('close failed')
   })
 })
+
+export interface FakeExecResult {
+  exec: HerdrExecFn
+  calls: string[]
+}

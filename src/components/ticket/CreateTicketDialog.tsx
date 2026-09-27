@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { Show, untrack } from 'solid-js'
 import { RefreshCw } from '~/components/ui/icons.js'
 import { DialogRoot, DialogTitle } from '../ui/dialog'
@@ -19,7 +20,7 @@ interface CreateTicketDialogProps {
   ctrl?: CreateTicketController
 }
 
-export default function CreateTicketDialog(props: CreateTicketDialogProps) {
+export default function CreateTicketDialog(props: CreateTicketDialogProps): JSX.Element {
   const s = untrack(
     () =>
       props.ctrl ??

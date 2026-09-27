@@ -154,14 +154,14 @@ function isWindowsBatchTarget(program: string): boolean {
 const windowsShellStrategy: PlatformShellStrategy = {
   directExecutableExtensions: () => WINDOWS_DIRECT_EXECUTABLE_EXTENSIONS,
   isExecutableFile: isWindowsExecutableFile,
-  buildShellInvocation(script) {
+  buildShellInvocation(script): ShellInvocation {
     const wrapper = `${WINDOWS_WRAPPER_PROLOGUE}\n${invocableScript(script)}`
     return {
       executable: windowsPowerShellExecutable(),
       args: ['-NoLogo', '-NoProfile', '-NonInteractive', '-STA', '-Command', wrapper],
     }
   },
-  newlineArgvRejection(program) {
+  newlineArgvRejection(program): string | undefined {
     if (!isWindowsBatchTarget(program)) return undefined
     return `${program} resolves to a cmd.exe batch script` + ' and cannot receive arguments containing newlines'
   },
@@ -169,13 +169,13 @@ const windowsShellStrategy: PlatformShellStrategy = {
 }
 const posixShellStrategy: PlatformShellStrategy = {
   directExecutableExtensions: () => [],
-  isExecutableFile(file) {
+  isExecutableFile(file): boolean {
     const stats = executableFileStats(file)
     return stats !== undefined && (stats.mode & 73) !== 0
   },
   // Bash already exits 127 for an unresolvable command and propagates a failing
   // command's own code under errexit, so only pipefail needs adding.
-  buildShellInvocation(script) {
+  buildShellInvocation(script): ShellInvocation {
     const wrapper = `set -e\nset -o pipefail\n${script}`
     return {
       executable: '/bin/bash',

@@ -1,3 +1,8 @@
+import type { Failure } from '../../util/result.js'
+import type { Success } from '../../util/result.js'
+import type { ActionSuccess } from '../../core/shared/errors.js'
+import type { ResponseEnvelope } from '@solidjs/web'
+import type { ActionError } from '../../core/shared/errors.js'
 import { action } from '@solidjs/router'
 import { respond } from '@solidjs/web'
 import { worktreeManager, projectRegistry, boardConfigManager } from '~/core/config/instances.js'
@@ -19,7 +24,11 @@ const actionResult = <T>(value: T) =>
     revalidate: [],
   })
 
-export async function saveForestLayout(projectSlug: string, expected: ForestLayout, layout: ForestLayout) {
+export async function saveForestLayout(
+  projectSlug: string,
+  expected: ForestLayout,
+  layout: ForestLayout,
+): Promise<Failure<string> | Success<ForestLayout>> {
   'use server'
 
   try {
@@ -35,7 +44,7 @@ export const addDependency = action(async function addDependency(input: {
   projectSlug: string
   folderName: string
   dependencyNumber: string
-}) {
+}): Promise<ResponseEnvelope<ActionSuccess> | ResponseEnvelope<ActionError>> {
   'use server'
 
   try {
@@ -54,7 +63,7 @@ export const removeDependencies = action(async function removeDependencies(input
     folderName: string
     dependencyNumber: string
   }>
-}) {
+}): Promise<ResponseEnvelope<ActionError> | ResponseEnvelope<ActionSuccess>> {
   'use server'
 
   try {
@@ -88,7 +97,7 @@ export const createGroupTicket = action(async function createGroupTicket(input: 
     x: number
     y: number
   } | null
-}) {
+}): Promise<ResponseEnvelope<ActionError> | ResponseEnvelope<GroupTicketResult>> {
   'use server'
 
   try {
@@ -113,7 +122,10 @@ export const createGroupTicket = action(async function createGroupTicket(input: 
     return actionResult(errorResult(e))
   }
 }, 'create-forest-group')
-export const ungroupTicket = action(async function ungroupTicket(input: { projectSlug: string; folderName: string }) {
+export const ungroupTicket = action(async function ungroupTicket(input: {
+  projectSlug: string
+  folderName: string
+}): Promise<ResponseEnvelope<ActionError> | ResponseEnvelope<ActionSuccess>> {
   'use server'
 
   try {
@@ -126,3 +138,8 @@ export const ungroupTicket = action(async function ungroupTicket(input: { projec
     return actionResult(errorResult(e))
   }
 }, 'ungroup-forest-ticket')
+
+export interface GroupTicketResult {
+  ok: true
+  folderName: string
+}

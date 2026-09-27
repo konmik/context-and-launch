@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { createSignal, createEffect, Show } from 'solid-js'
 import { Trash2 } from '~/components/ui/icons.js'
 import { X } from '~/components/ui/icons.js'
@@ -10,7 +11,11 @@ export interface LogViewerDialogDeps {
   clearLogs: typeof serverClearAppLogs
 }
 
-export default function LogViewerDialog(props: { open: boolean; onOpenChange: (open: boolean) => void; deps?: LogViewerDialogDeps }) {
+export default function LogViewerDialog(props: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  deps?: LogViewerDialogDeps
+}): JSX.Element {
   const [logText, setLogText] = createSignal<string>()
   let loadVersion = 0
   createEffect(

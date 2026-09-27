@@ -1,3 +1,4 @@
+import type { CreatedProject } from './fixtures.js'
 import { describe, it, expect } from 'vitest'
 import type { Locator } from 'playwright'
 import {
@@ -37,7 +38,7 @@ async function backgroundColor(locator: Locator): Promise<string> {
 describe('Status swatch (e2e, real server)', () => {
   const ctx = setupE2E()
 
-  async function setup(suffix: string, boards: SeedBoard[], tickets: SeedTicket[]) {
+  async function setup(suffix: string, boards: SeedBoard[], tickets: SeedTicket[]): Promise<CreatedProject> {
     const project = await openProject(ctx, {
       slugBase: `swatch-${suffix}`,
       withBoards: boards,

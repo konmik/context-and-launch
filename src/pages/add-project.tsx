@@ -1,10 +1,11 @@
+import type { JSX } from '@solidjs/web'
 import { useNavigate } from '@solidjs/router'
 import AddProjectForm from '~/components/project/AddProjectForm'
 import PalettePicker from '~/components/shared/PalettePicker'
 import { addProject } from '~/components/project/project-api.js'
 import { paths } from '~/router.js'
 
-export default function AddProjectPage() {
+export default function AddProjectPage(): JSX.Element {
   const navigate = useNavigate()
   return (
     <div class="flex min-h-screen items-center justify-center p-4">

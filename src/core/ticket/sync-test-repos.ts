@@ -37,7 +37,7 @@ const getNoUpstreamTemplate = lazyTemplate(() => {
   }
 })
 
-export function createNoUpstreamRepoWithExistingRemoteBranch(dirs: string[]) {
+export function createNoUpstreamRepoWithExistingRemoteBranch(dirs: string[]): NoUpstreamRepoWithExistingRemoteBranchResult {
   const template = getNoUpstreamTemplate()
   const remoteDir = cloneFromTemplate(template.bareDir, 'sync-remote-orphan-')
   const worktreeDir = cloneFromTemplate(template.worktreeDir, 'sync-orphan-')
@@ -67,7 +67,7 @@ const getRemoteRepoTemplate = lazyTemplate(() => {
   }
 })
 
-export function createRepoWithRemote() {
+export function createRepoWithRemote(): NoUpstreamRepoWithExistingRemoteBranchResult {
   const template = getRemoteRepoTemplate()
   const remoteDir = cloneFromTemplate(template.bareDir, 'sync-remote-')
   const worktreeDir = cloneFromTemplate(template.worktreeDir, 'sync-worktree-')
@@ -99,4 +99,9 @@ export async function pushRemoteConflict(remoteDir: string, _dirs: string[], ext
   }
   chunks.push('done\n')
   await gitFastImport(remoteDir, chunks.join(''))
+}
+
+export interface NoUpstreamRepoWithExistingRemoteBranchResult {
+  worktreeDir: string
+  remoteDir: string
 }

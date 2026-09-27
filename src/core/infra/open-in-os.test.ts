@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { openInOs } from './open-in-os.js'
 import type { CommandTemplateExecutor, CommandTemplateKey, CommandTemplateValues } from '../command-template/command-template-types.js'
 
-function recordingExecutor() {
+function recordingExecutor(): RecordingExecutorResult {
   const calls: {
     key: CommandTemplateKey
     cwd: string
@@ -53,3 +53,12 @@ describe('openInOs', () => {
     })
   })
 })
+
+export interface RecordingExecutorResult {
+  executor: CommandTemplateExecutor
+  calls: {
+    key: CommandTemplateKey
+    cwd: string
+    values?: CommandTemplateValues
+  }[]
+}

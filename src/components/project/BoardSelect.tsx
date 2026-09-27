@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { For, createEffect } from 'solid-js'
 import type { BoardRef } from '../board/board-api.js'
 
@@ -14,7 +15,7 @@ export interface BoardSelectProps {
   id?: string
 }
 
-export default function BoardSelect(props: BoardSelectProps) {
+export default function BoardSelect(props: BoardSelectProps): JSX.Element {
   let ref!: HTMLSelectElement
   createEffect(
     () => [props.value, props.boards] as const,

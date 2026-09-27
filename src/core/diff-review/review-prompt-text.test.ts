@@ -1,8 +1,9 @@
+import type { ReviewPromptSnapshot } from './diff-review-types.js'
 import { describe, expect, it } from 'vitest'
 import { buildReviewFile, buildReviewPromptSnapshot } from './diff-review-model.js'
 import { renderReviewPrompt } from './review-prompt-text.js'
 
-function snapshot() {
+function snapshot(): ReviewPromptSnapshot {
   const file = buildReviewFile({
     path: 'src/a.ts',
     changeType: 'modified',

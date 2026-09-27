@@ -54,7 +54,7 @@ describe('Review Prompt delivery (e2e, real server)', () => {
    * clock is driven forward between attempts so those timers fire, and the value
    * they produce is read back by a retrying assertion instead of a real wait.
    */
-  function pollWithClock<T>(read: () => Promise<T>) {
+  function pollWithClock<T>(read: () => Promise<T>): ReturnType<typeof expect.poll<T>> {
     return expect.poll(
       async () => {
         await ctx.page.clock.fastForward(2000)

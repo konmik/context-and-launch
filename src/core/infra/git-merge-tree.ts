@@ -2,14 +2,16 @@ import { ProcessError } from '../shared/errors.js'
 import type { CommandTemplateKey } from '../command-template/command-template-definitions.js'
 import type { CommandTemplateExecutor, CommandTemplateValues } from '../command-template/command-template-types.js'
 
-export type MergeTreeResult =
-  | {
-      status: 'clean'
-      tree: string
-    }
-  | {
-      status: 'conflicted'
-    }
+export interface CleanMergeTreeResult {
+  status: 'clean'
+  tree: string
+}
+
+export interface ConflictedMergeTreeResult {
+  status: 'conflicted'
+}
+
+export type MergeTreeResult = CleanMergeTreeResult | ConflictedMergeTreeResult
 
 /**
  * Compute the tree produced by merging two refs without touching the index or worktree.

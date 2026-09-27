@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { isGutterPath, lineElementAt, lineSideOf, reviewLineRangeBetween, reviewLineRangeFromSelection } from './diff-review-selection.js'
 
-function renderSplitDiff() {
+function renderSplitDiff(): RenderSplitDiffResult {
   const host = document.createElement('div')
   host.innerHTML = `
 		<div data-code data-deletions>
@@ -16,7 +16,7 @@ function renderSplitDiff() {
   document.body.replaceChildren(host)
   return {
     host,
-    line(side: string, value: string) {
+    line(side: string, value: string): HTMLElement {
       const column = host.querySelector(`[data-code][data-${side}]`)!
       return column.querySelector<HTMLElement>(`[data-line="${value}"]`)!
     },
@@ -83,3 +83,8 @@ describe('Diff Review text selection', () => {
     expect(reviewLineRangeFromSelection(first.host, selection)).toBeUndefined()
   })
 })
+
+export interface RenderSplitDiffResult {
+  host: HTMLDivElement
+  line(side: string, value: string): HTMLElement
+}

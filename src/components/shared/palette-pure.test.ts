@@ -102,7 +102,7 @@ describe('criticalBackgroundCss', () => {
   })
 })
 describe('criticalAppearanceScript', () => {
-  function runScript(getItem: (key: string) => string | null, prefersDark: boolean, pathname = '/add-project') {
+  function runScript(getItem: (key: string) => string | null, prefersDark: boolean, pathname = '/add-project'): RunScriptResult {
     const classes = new Set<string>()
     const dataset: Record<string, string | undefined> = {}
     const reads: string[] = []
@@ -136,7 +136,7 @@ describe('criticalAppearanceScript', () => {
     }
   }
 
-  function fromStore(stored: Record<string, string>) {
+  function fromStore(stored: Record<string, string>): (key: string) => string {
     return (key: string) => stored[key] ?? null
   }
 
@@ -216,3 +216,9 @@ describe('criticalAppearanceScript', () => {
     expect(result.dark).toBe(false)
   })
 })
+
+export interface RunScriptResult {
+  dark: boolean
+  palette: string | undefined
+  reads: string[]
+}

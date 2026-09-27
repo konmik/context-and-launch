@@ -91,27 +91,37 @@ interface ReviewPromptQueueItemBase {
   snapshot?: ReviewPromptSnapshot
 }
 
+export interface WaitingReviewPromptQueueItem {
+  state: 'waiting'
+}
+
+export interface DeliveringReviewPromptQueueItem {
+  state: 'delivering'
+  deliveryStartedAt: string
+}
+
+export interface SentReviewPromptQueueItem {
+  state: 'sent'
+  sentAt: string
+}
+
+export interface ErrorReviewPromptQueueItem {
+  state: 'error'
+  error: string
+}
+
+export interface UncertainReviewPromptQueueItem {
+  state: 'uncertain'
+  error: string
+}
+
 export type ReviewPromptQueueItem = ReviewPromptQueueItemBase &
   (
-    | {
-        state: 'waiting'
-      }
-    | {
-        state: 'delivering'
-        deliveryStartedAt: string
-      }
-    | {
-        state: 'sent'
-        sentAt: string
-      }
-    | {
-        state: 'error'
-        error: string
-      }
-    | {
-        state: 'uncertain'
-        error: string
-      }
+    | WaitingReviewPromptQueueItem
+    | DeliveringReviewPromptQueueItem
+    | SentReviewPromptQueueItem
+    | ErrorReviewPromptQueueItem
+    | UncertainReviewPromptQueueItem
   )
 
 export interface ReviewPromptQueue {

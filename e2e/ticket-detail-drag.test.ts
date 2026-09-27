@@ -1,3 +1,4 @@
+import type { CreatedProject } from './fixtures.js'
 import { describe, it, expect } from 'vitest'
 import type { Page } from 'playwright'
 import { openProject, openTicketDetail, setupE2E } from './fixtures.js'
@@ -6,7 +7,7 @@ import { testId } from './locators.js'
 describe('Ticket detail window dragging (e2e, real server)', () => {
   const ctx = setupE2E()
 
-  async function setup(suffix: string) {
+  async function setup(suffix: string): Promise<CreatedProject> {
     const project = await openProject(ctx, {
       slugBase: `tdd-${suffix}`,
       withTickets: [
@@ -22,7 +23,7 @@ describe('Ticket detail window dragging (e2e, real server)', () => {
     return project
   }
 
-  async function dragFrom(page: Page, sx: number, sy: number) {
+  async function dragFrom(page: Page, sx: number, sy: number): Promise<number> {
     const positioner = page.locator('[data-scope="floating-panel"][data-part="positioner"]')
     const beforeBox = await positioner.boundingBox()
     expect(beforeBox).toBeTruthy()

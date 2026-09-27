@@ -16,7 +16,7 @@ export const DND_PREVIEW_CLASS = 'pointer-events-none opacity-40' // Ghost previ
 
 // it so drag-position math can exclude it; data-drop-indicator lets tests detect
 // its presence.
-export function DragPreview(props: { class?: string; children: JSX.Element }) {
+export function DragPreview(props: { class?: string; children: JSX.Element }): JSX.Element {
   return (
     <div data-drop-indicator data-drop-preview class={joinClass(DND_PREVIEW_CLASS, props.class)}>
       {props.children}
@@ -24,7 +24,7 @@ export function DragPreview(props: { class?: string; children: JSX.Element }) {
   )
 } // Floating representation of the dragged item, rendered inside a DragOverlay.
 
-export function DragOverlayCard(props: { class?: string; style?: JSX.CSSProperties; children: JSX.Element }) {
+export function DragOverlayCard(props: { class?: string; style?: JSX.CSSProperties; children: JSX.Element }): JSX.Element {
   return (
     <div class={joinClass(DND_OVERLAY_CLASS, props.class)} style={props.style}>
       {props.children}
@@ -32,7 +32,7 @@ export function DragOverlayCard(props: { class?: string; style?: JSX.CSSProperti
   )
 }
 
-export function DragGrip(props: { gripProps?: DragActivators; testId: string }) {
+export function DragGrip(props: { gripProps?: DragActivators; testId: string }): JSX.Element {
   return (
     <span
       onPointerDown={props.gripProps?.onPointerDown}
@@ -49,7 +49,7 @@ export function DragGrip(props: { gripProps?: DragActivators; testId: string }) 
 } // The card that floats under the cursor while dragging a row keyed by its name.
 
 // Renders nothing once the id no longer maps to a live item.
-export function NameDragOverlay(props: { nameOf: (id: string) => string | undefined }) {
+export function NameDragOverlay(props: { nameOf: (id: string) => string | undefined }): JSX.Element {
   return (
     <DragOverlay>
       {(draggable) => {

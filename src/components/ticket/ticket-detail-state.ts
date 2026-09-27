@@ -1,3 +1,10 @@
+import type { SourceAccessor } from 'solid-js'
+import type { Setter } from 'solid-js'
+import type { LauncherTemplate } from '../../core/launcher/launcher-config-data.js'
+import type { LauncherSkill } from '../../core/launcher/launcher-config-data.js'
+import type { LauncherProfile } from '../../core/launcher/launcher-config-data.js'
+import type { LauncherShortcut } from '../../core/launcher/launcher-config-data.js'
+import type { ShortcutConfirmation } from './ticket-detail-shortcuts.js'
 import { createSignal, createEffect, createMemo, flush, onSettled, untrack, useContext } from 'solid-js'
 import { LauncherConfigContext } from '../launcher/shared-launcher-config-storage.js'
 import { mergeLauncherConfigs, type LauncherConfig } from '~/core/launcher/launcher-config-data.js'
@@ -67,7 +74,7 @@ export function createTicketDetailState(
     onClose: () => void
   },
   deps: TicketDetailStateDeps = {},
-) {
+): TicketDetailStateResult {
   const [activeFile, setActiveFile] = createSignal<ActiveFile>({
     type: 'context',
     name: 'description',
@@ -725,3 +732,106 @@ export function createTicketDetailState(
 }
 
 export type TicketDetailState = ReturnType<typeof createTicketDetailState>
+
+export interface TicketDetailStateResult {
+  activeFile: SourceAccessor<ActiveFile>
+  content: SourceAccessor<string>
+  setContent: Setter<string>
+  saving: SourceAccessor<boolean>
+  confirmingClose: SourceAccessor<boolean>
+  setConfirmingClose: Setter<boolean>
+  confirmingFileSwitch: SourceAccessor<boolean>
+  activeTab: SourceAccessor<Tab>
+  initialTabResolved: SourceAccessor<boolean>
+  launcherConfig: SourceAccessor<{
+    templates: (LauncherTemplate & {
+      scope: 'app' | 'project'
+      order: number
+    })[]
+    skills: (LauncherSkill & {
+      scope: 'app' | 'project'
+      order: number
+    })[]
+    profiles: (LauncherProfile & {
+      scope: 'app' | 'project'
+      order: number
+    })[]
+    shortcuts: (LauncherShortcut & {
+      scope: 'app' | 'project'
+      order: number
+    })[]
+    columnDefaults: Record<string, LauncherColumnDefaults>
+    worktreeRootPath: string | null
+    branchPrefix?: string
+    conflictResolutionPrompt: string
+    projectPath: string
+    ticketsBranch?: string
+    worktreeDir: string
+    agentWorktreeDir: string
+  } | null>
+  editedNumber: SourceAccessor<string>
+  setEditedNumber: Setter<string>
+  editedTitle: SourceAccessor<string>
+  setEditedTitle: Setter<string>
+  hasUnsavedHeaderChanges: () => boolean
+  hasAnyUnsavedChanges: () => boolean
+  saveAll: () => Promise<void>
+  newFileDialogOpen: SourceAccessor<boolean>
+  setNewFileDialogOpen: Setter<boolean>
+  newFileName: SourceAccessor<string>
+  setNewFileName: Setter<string>
+  confirmingDelete: SourceAccessor<boolean>
+  setConfirmingDelete: Setter<boolean>
+  error: SourceAccessor<ErrorInfo | null>
+  setError: Setter<ErrorInfo | null>
+  dropdownOpen: SourceAccessor<boolean>
+  setDropdownOpen: Setter<boolean>
+  browsing: SourceAccessor<boolean>
+  fileView: SourceAccessor<FileView>
+  uploading: SourceAccessor<boolean>
+  dragging: SourceAccessor<boolean>
+  confirmOverwrite: SourceAccessor<{
+    fileName: string
+    file: File
+  } | null>
+  confirmSize: SourceAccessor<{
+    fileName: string
+    file: File
+    size: number
+  } | null>
+  runningShortcut: SourceAccessor<string>
+  shortcutConfirmation: SourceAccessor<ShortcutConfirmation | undefined>
+  setShortcutConfirmation: Setter<ShortcutConfirmation | undefined>
+  runShortcut: (name: string, force?: boolean) => Promise<void>
+  launchDir: SourceAccessor<string>
+  allFileOptions: SourceAccessor<ActiveFile[]>
+  isReferenceStale: (refPath: string) => boolean
+  hasUnsavedFileChanges: () => boolean
+  isCurrentReadOnly: () => boolean
+  showSaveButton: () => boolean
+  openWorktree: () => Promise<void>
+  externallyChanged: SourceAccessor<boolean>
+  confirmingExternalChange: SourceAccessor<boolean>
+  overwriteExternalChange: () => Promise<void>
+  discardExternalChange: () => void
+  switchTab: (tab: Tab) => void
+  selectFile: (af: ActiveFile) => void
+  openNewFileDialog: () => void
+  submitNewFile: () => void
+  deleteOrRemoveFile: () => Promise<void>
+  handleTrashClick: () => void
+  close: () => void
+  forceClose: () => void
+  proceedFileSwitch: () => void
+  cancelFileSwitch: () => void
+  handleDragOver: (e: DragEvent) => void
+  handleDragLeave: (e: DragEvent) => void
+  handleDrop: (e: DragEvent) => Promise<void>
+  handleFileInputChange: (e: Event) => Promise<void>
+  confirmSizeAndUpload: () => void
+  confirmOverwriteAndUpload: () => void
+  openNativeFileBrowser: () => Promise<void>
+  cancelSizeConfirm: () => void
+  cancelOverwriteConfirm: () => void
+  patchColumnDefaults: (patch: Partial<LauncherColumnDefaults>) => void
+}

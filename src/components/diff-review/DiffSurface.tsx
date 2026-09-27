@@ -1,3 +1,4 @@
+import type { JSX } from '@solidjs/web'
 import { FileDiff, type SelectedLineRange } from '@pierre/diffs'
 import { createEffect, onSettled } from 'solid-js'
 import type {
@@ -50,7 +51,7 @@ export default function DiffSurface(props: {
   onChangedLineVisible(lineId: string): void
   onError(message: string): void
   dragText(): string | undefined
-}) {
+}): JSX.Element {
   let hostRef: HTMLDivElement | undefined
   let diff: FileDiff | undefined
   let observer: IntersectionObserver | undefined
@@ -167,7 +168,7 @@ export default function DiffSurface(props: {
     for (const row of rows) observer.observe(row)
   }
 
-  function options(blinkKeys: Set<string>) {
+  function options(blinkKeys: Set<string>): BarsOptionsResult {
     return {
       theme: {
         dark: 'github-dark',
@@ -300,4 +301,22 @@ export default function DiffSurface(props: {
       data-file-path={props.file.path}
     />
   )
+}
+
+export interface BarsOptionsResult {
+  theme: {
+    dark: string
+    light: string
+  }
+  themeType: 'dark' | 'light'
+  diffStyle: DiffLayout
+  diffIndicators: 'bars'
+  overflow: DiffLineOverflow
+  hunkSeparators: 'line-info-basic'
+  lineDiffType: 'word-alt'
+  lineHoverHighlight: 'both'
+  enableLineSelection: boolean
+  onLineSelectionEnd: (range: SelectedLineRange | null) => void
+  onPostRender: (node: HTMLElement) => void
+  unsafeCSS: string
 }

@@ -1,3 +1,6 @@
+import type { ReviewPromptQueueItem } from '../../core/diff-review/diff-review-types.js'
+import type { ActionError } from '../../core/shared/errors.js'
+import type { ActionSuccess } from '../../core/shared/errors.js'
 import { query } from '@solidjs/router'
 import { diffReviewGitService, diffReviewTargetResolver, reviewPromptQueueService } from '~/core/config/instances.js'
 import { errorMessage, errorResult } from '~/core/shared/errors.js'
@@ -43,7 +46,7 @@ export async function enqueueReviewPrompt(
   feedback: string,
   profileName: string | null,
   snapshot: ReviewPromptSnapshot | null,
-) {
+): Promise<ActionError | EnqueueReviewPromptResult> {
   'use server'
 
   try {
@@ -63,7 +66,12 @@ export async function enqueueReviewPrompt(
   }
 }
 
-export async function retryReviewPrompt(projectSlug: string, folderName: string, itemId: string, profileName: string | null) {
+export async function retryReviewPrompt(
+  projectSlug: string,
+  folderName: string,
+  itemId: string,
+  profileName: string | null,
+): Promise<ActionError | ActionSuccess> {
   'use server'
 
   try {
@@ -74,4 +82,9 @@ export async function retryReviewPrompt(projectSlug: string, folderName: string,
   } catch (error) {
     return errorResult(error)
   }
+}
+
+export interface EnqueueReviewPromptResult {
+  ok: true
+  item: ReviewPromptQueueItem
 }

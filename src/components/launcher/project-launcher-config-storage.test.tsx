@@ -1,3 +1,5 @@
+import type { Success } from '../../util/result.js'
+import type { JSX } from '@solidjs/web'
 import { afterEach, expect, it, vi } from 'vitest'
 import { createSignal, flush } from 'solid-js'
 import { cleanup, fireEvent, render, screen, waitFor } from '~/test-render.js'
@@ -56,14 +58,14 @@ it('switches the project store without remounting the editor and edits the selec
       },
     },
     {
-      async read(slug, owner) {
+      async read(slug, owner): Promise<Success<LauncherConfig>> {
         if (slug === 'first' && owner)
           await new Promise<void>((resolve) => {
             completeRead = resolve
           })
         return succeed(saved.get(slug)!)
       },
-      async save(slug, json) {
+      async save(slug, json): Promise<Success<LauncherConfig>> {
         saved.set(slug, JSON.parse(json))
         return succeed(saved.get(slug)!)
       },
@@ -72,7 +74,7 @@ it('switches the project store without remounting the editor and edits the selec
   )
   let mounts = 0
 
-  function Editor() {
+  function Editor(): JSX.Element {
     mounts++
     return (
       <ItemSection
@@ -152,7 +154,7 @@ it('shares successful edits, isolates projects, and retains failed drafts', asyn
       ),
   )
 
-  function Editor() {
+  function Editor(): JSX.Element {
     return (
       <ItemSection
         open

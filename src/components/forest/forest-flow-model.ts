@@ -1,3 +1,4 @@
+import type { ForestPosition } from './forest-types.js'
 import {
   autoLayoutPositions,
   buildLookup,
@@ -126,7 +127,7 @@ export function positionsFromNodes(nodes: readonly ForestFlowNode[]): ForestLayo
   )
 }
 
-export function groupPosition(bounds: { x: number; y: number; width: number; height: number }) {
+export function groupPosition(bounds: { x: number; y: number; width: number; height: number }): ForestPosition {
   return {
     x: bounds.x + (bounds.width - CARD_WIDTH) / 2,
     y: bounds.y + (bounds.height - CARD_HEIGHT) / 2,
