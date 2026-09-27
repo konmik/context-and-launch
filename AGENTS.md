@@ -16,7 +16,7 @@
 - Never swallow errors with empty catch blocks. Always surface errors to the user.
 - Never silently delete, overwrite, or force-remove user data (worktrees, files, branches with uncommitted work). If a resource is in the way, return an error telling the user how to resolve it.
 - There cannot be any pre-existing errors. All tests pass before and after merging. If there is an error, fix it immediately, do not leave it for later.
-- Never add silent fallback defaults. If a required value is missing, throw an error. The user must see what went wrong.
+- Never add silent fallback defaults. If a required value is missing, return an explicit failure. The user must see what went wrong.
 - Fix bugs at the right depth. Before writing a fix, trace the root cause through the architecture and fix it where it belongs, not where the symptom appears. If the fix requires a special case on top of shared infrastructure, the fix is not deep enough: generalize the underlying mechanism instead. Never patch a caller when the contract of the callee is wrong. Compounding shallow fixes degrades the codebase and makes future changes harder.
 
 ## Code style
@@ -24,7 +24,7 @@
 - Use interfaces and factory functions instead of classes. Encapsulate private state with closures.
 - Prefer explicit object types with known fields. Use Record or index signatures only when keys are genuinely dynamic; use Map for runtime key/value collections. Never use Record<string, ...> as a shortcut for modeling a known domain object.
 - Named functions must have explicit return types (except for void type) and named interfaces for object returns.
-- Use a `Result` type for return values when success or failure are expected.
+- Represent expected failures with result types, null, or undefined. Catch third-party exceptions at the boundary.
 - We are using only TypeScript, do not check for types randomly, do not write incorrect-type tests.
 - Do not duplicate code. Extract shared logic into reusable helpers.
 - Avoid non-ASCII unless explicitly asked.
