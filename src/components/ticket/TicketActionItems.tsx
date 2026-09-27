@@ -30,14 +30,16 @@ export default function TicketActionItems(props: TicketActionItemsProps): JSX.El
       >
         Open ticket folder
       </MenuItem>
-      <MenuItem
-        value="open-worktree"
-        data-testid="ticket-actions-open-worktree"
-        disabled={!props.hasAgentWorktree || !props.callbacks.onOpenWorktree}
-        onClick={() => props.callbacks.onOpenWorktree?.()}
-      >
-        Open worktree folder
-      </MenuItem>
+      <Show when={props.hasAgentWorktree}>
+        <MenuItem
+          value="open-worktree"
+          data-testid="ticket-actions-open-worktree"
+          disabled={!props.callbacks.onOpenWorktree}
+          onClick={() => props.callbacks.onOpenWorktree?.()}
+        >
+          Open worktree folder
+        </MenuItem>
+      </Show>
       <MenuSeparator />
       <MenuItem
         value="archive"

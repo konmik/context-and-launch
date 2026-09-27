@@ -492,7 +492,9 @@
 
   /* ark-ui menu */
   [data-scope='menu'][data-part='content'] {
-    min-width: 150px;
+    display: grid;
+    width: max-content;
+    max-width: calc(100vw - 16px);
     border-radius: var(--radius-md);
     border: 1px solid var(--border);
     background: var(--popover);
