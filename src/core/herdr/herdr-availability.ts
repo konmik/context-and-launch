@@ -5,7 +5,7 @@ export type HerdrUnavailableReason = 'cli-missing' | 'server-not-running'
 const MESSAGE_BY_REASON = {
   'cli-missing': 'Herdr is not installed or is not available on PATH.',
   'server-not-running': 'Herdr is not running.',
-} satisfies Record<HerdrUnavailableReason, string>
+}
 
 /**
  * Herdr produced no answer because Herdr itself is not there. Every Herdr

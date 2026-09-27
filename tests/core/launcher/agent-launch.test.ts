@@ -93,6 +93,12 @@ describe('spawnProfile trusted script execution', () => {
       {
         configDefaultsDir: '/fake/config-defaults',
         initialPrompt: 'do the thing',
+        windowTitle: 'Custom',
+        agentDisplayName: 'Custom',
+        herdrWorkspaceLabel: 'project',
+        herdrPaneLabel: 'project--ticket',
+        markerPath: '/fake/marker.json',
+        appConfigDir: '/fake/config',
       },
       '/fake/cwd',
     )
@@ -103,10 +109,10 @@ describe('spawnProfile trusted script execution', () => {
           profileName: 'Custom',
         },
         script: 'my-agent --flag {{initialPrompt}}',
-        values: {
+        values: expect.objectContaining({
           configDefaultsDir: '/fake/config-defaults',
           initialPrompt: 'do the thing',
-        },
+        }),
         cwd: '/fake/cwd',
       }),
     )

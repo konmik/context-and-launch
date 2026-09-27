@@ -1,13 +1,14 @@
 import { createValidationError } from '../shared/errors.js'
 import type { MergedLauncherConfig, LauncherProfile } from './launcher-config.js'
 import type { ResolutionPlan } from '../ticket/ticket-sync.js'
+import type { ProfileCommandVariables } from './profile-launch.js'
 
 export interface ResolveConflictsDeps {
   getMergedConfig: (projectSlug: string) => MergedLauncherConfig
   getWorktreeDir: (projectSlug: string) => string
   prepareResolution: (worktreeDir: string) => Promise<ResolutionPlan>
   trackOperation: <T>(operation: Promise<T>) => Promise<T>
-  spawnProfile: (profile: LauncherProfile, commandVars: Record<string, string>, cwd: string) => Promise<void>
+  spawnProfile: (profile: LauncherProfile, commandVars: ProfileCommandVariables, cwd: string) => Promise<void>
   markerPath: (projectSlug: string, markerKey: string) => string
   getAppConfigDir: () => string
   getConfigDefaultsDir: () => string

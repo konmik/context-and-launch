@@ -19,6 +19,7 @@ import {
   isProfileAgentRunning,
   projectWindowTitle,
   runLauncherProfile,
+  type ProfileCommandVariables,
 } from './profile-launch.js'
 import { PROJECT_LAUNCH_KEY } from './launch-keys.js'
 import type { LaunchRequest } from './launch-request.js'
@@ -119,7 +120,7 @@ export function resolveTicketAndProject(projectSlug: string, folderName: string)
   }
 }
 
-export async function spawnProfile(profile: LauncherProfile, commandVars: Record<string, string>, cwd: string): Promise<void> {
+export async function spawnProfile(profile: LauncherProfile, commandVars: ProfileCommandVariables, cwd: string): Promise<void> {
   await runLauncherProfile(commandTemplateService, profile, commandVars, cwd)
 }
 
@@ -145,7 +146,7 @@ async function spawnAgent(
     markerPath: agentMarkerPath(projectSlug, markerKey),
     appConfigDir: launcherConfigManager.getAppConfigDir(),
     configDefaultsDir: launcherConfigManager.getConfigDefaultsDir(),
-  } satisfies Record<string, string>
+  } satisfies ProfileCommandVariables
   await spawnProfile(profile, commandVars, launchDir)
 }
 

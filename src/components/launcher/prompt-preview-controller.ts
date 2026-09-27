@@ -1,6 +1,6 @@
 import type { SourceAccessor } from 'solid-js'
 import { createSignal, createMemo, onSettled } from 'solid-js'
-import { interpolatePrompt } from '~/core/launcher/prompt-interpolation.js'
+import { interpolatePrompt, type PromptVariables } from '~/core/launcher/prompt-interpolation.js'
 import type { MergedLauncherConfig } from '~/core/launcher/launcher-config.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 
@@ -45,24 +45,30 @@ export function createPromptPreviewController(deps: PromptPreviewDeps): PromptPr
       .orderedSkills()
       .filter((s) => checked.has(s.name))
       .map((s) => s.text)
-    const variables = {
+    const variables: PromptVariables = {
       projectPath: deps.projectPath(),
       projectSlug: deps.projectSlug,
       skills: skillTexts.join('\n'),
       launchDir: deps.launchDir(),
-    } satisfies Record<string, string>
+    }
     const t = deps.ticket?.()
     if (t) {
       const ticketDir = deps.worktreeDir().replace(/[\\/]$/, '') + '/' + t.folderName
-      Object.assign(variables, {
+      const ticketVariables = {
         ticketDir,
         ticketSlug: t.folderName,
         ticketTitle: t.title,
         ticketNumber: t.number,
         ticketStatus: t.status,
+      } satisfies Pick<PromptVariables, 'ticketDir' | 'ticketSlug' | 'ticketTitle' | 'ticketNumber' | 'ticketStatus'>
+      return interpolatePrompt(templateText, {
+        ...variables,
+        ...ticketVariables,
       })
     }
-    return interpolatePrompt(templateText, variables)
+    return interpolatePrompt(templateText, {
+      ...variables,
+    })
   })
   const currentPrompt = createMemo(() => (editMode() ? editedPrompt() : generatedPrompt()))
 

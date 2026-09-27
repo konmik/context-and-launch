@@ -1,4 +1,5 @@
 import type { ForestPosition } from '../../src/components/forest/forest-types.js'
+import type { CommandTemplateKey, CommandTemplateOverrides } from '../../src/core/command-template/command-template-types.js'
 import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
@@ -43,7 +44,7 @@ export interface CreateServerOptions {
   env?: NodeJS.ProcessEnv
   dataDirPrefix?: string
   /** Command template overrides layered over the defaults this fixture writes. */
-  commandTemplates?: Record<string, string>
+  commandTemplates?: CommandTemplateOverrides
   /**
    * Writes into the data dir before the server starts, for state the server
    * reads once at boot, such as a config file it migrates in place.
@@ -443,9 +444,9 @@ export function uniqueSlug(base: string): string {
   return n === 0 ? safe : `${safe}-${n}`
 }
 
-export function setCommandTemplateOverride(server: TestServer, key: string, script: string): void {
+export function setCommandTemplateOverride(server: TestServer, key: CommandTemplateKey, script: string): void {
   const file = path.join(server.dataDir, 'config', 'command-templates.json')
-  const current: Record<string, string> = JSON.parse(fs.readFileSync(file, 'utf-8'))
+  const current: CommandTemplateOverrides = JSON.parse(fs.readFileSync(file, 'utf-8'))
   current[key] = script
   fs.writeFileSync(file, JSON.stringify(current, null, 2))
 }
@@ -490,7 +491,9 @@ export async function gotoProject(page: Page, server: TestServer, projectSlug: s
   try {
     await timeAction('project.content.ready', () => waitVisibleAny(page, ['kanban-board-column-header', 'forest-surface']))
   } catch (cause) {
-    throw new Error(`Project ${projectSlug} did not load: ${await page.locator('body').innerText()}`, { cause })
+    throw new Error(`Project ${projectSlug} did not load: ${await page.locator('body').innerText()}`, {
+      cause,
+    })
   }
 }
 
@@ -537,7 +540,7 @@ export async function openLauncherSettingsTab(page: Page, name: LauncherSettings
     misc: 'launcher-settings-misc-project-name-input',
     columns: 'launcher-settings-columns-board-selector',
     'command-templates': 'command-template-list',
-  } satisfies Record<LauncherSettingsTab, string>
+  }
   await waitVisible(page, contentTestId[name])
 }
 

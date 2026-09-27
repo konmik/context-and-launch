@@ -9,7 +9,12 @@ export interface CheckingCleanupItemClientState {
 
 export type CleanupItemClientState = CheckingCleanupItemClientState | CleanupCheckItem
 
-export type TicketCleanupItemStates = Record<CleanupItemKey, CleanupItemClientState>
+export interface TicketCleanupItemStates {
+  stopHerdrAgent: CleanupItemClientState
+  deleteWorktree: CleanupItemClientState
+  deleteLocalBranch: CleanupItemClientState
+  deleteRemoteBranch: CleanupItemClientState
+}
 
 export function allChecking(): TicketCleanupItemStates {
   return buildStates(() => ({
@@ -32,7 +37,7 @@ export function singleCleanupOption(key: CleanupItemKey): TicketCleanupOptions {
   return buildOptions((candidate) => candidate === key)
 }
 
-function buildStates(make: () => CleanupItemClientState): StatesResult {
+function buildStates(make: () => CleanupItemClientState): TicketCleanupItemStates {
   return {
     stopHerdrAgent: make(),
     deleteWorktree: make(),
@@ -48,11 +53,4 @@ function buildOptions(value: (key: CleanupItemKey) => boolean): TicketCleanupOpt
     deleteLocalBranch: value('deleteLocalBranch'),
     deleteRemoteBranch: value('deleteRemoteBranch'),
   } satisfies TicketCleanupOptions
-}
-
-export interface StatesResult {
-  stopHerdrAgent: CleanupItemClientState
-  deleteWorktree: CleanupItemClientState
-  deleteLocalBranch: CleanupItemClientState
-  deleteRemoteBranch: CleanupItemClientState
 }

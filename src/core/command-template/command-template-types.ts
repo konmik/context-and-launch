@@ -1,8 +1,9 @@
 import type { CommandTemplateKey } from './command-template-definitions.js'
+import type commandTemplateDefaults from '../../../config-defaults/command-templates.json'
 
 export type { CommandTemplateKey }
 
-export type CommandTemplateOverrides = Partial<Record<CommandTemplateKey, string>>
+export type CommandTemplateOverrides = Partial<typeof commandTemplateDefaults>
 
 export type CommandTemplatePlatform = 'windows' | 'macos' | 'linux'
 

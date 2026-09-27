@@ -24,9 +24,19 @@ export interface ErrorCleanupCheckItem {
 
 export type CleanupCheckItem = ReadyCleanupCheckItem | BlockedCleanupCheckItem | ErrorCleanupCheckItem
 
-export type TicketCleanupStatus = Record<CleanupItemKey, CleanupCheckItem>
+export interface TicketCleanupStatus {
+  stopHerdrAgent: CleanupCheckItem
+  deleteWorktree: CleanupCheckItem
+  deleteLocalBranch: CleanupCheckItem
+  deleteRemoteBranch: CleanupCheckItem
+}
 
-export type TicketCleanupOptions = Record<CleanupItemKey, boolean>
+export interface TicketCleanupOptions {
+  stopHerdrAgent: boolean
+  deleteWorktree: boolean
+  deleteLocalBranch: boolean
+  deleteRemoteBranch: boolean
+}
 
 export interface TicketCleanupCheckTarget {
   projectSlug: string

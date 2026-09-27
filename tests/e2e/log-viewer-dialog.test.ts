@@ -24,7 +24,7 @@ function seedLogs(dataDir: string, text: string): void {
   if (text) fs.writeFileSync(path.join(logDir, 'app-e2e.log'), text)
 }
 
-async function deferNextLogRead(page: Page): Promise<DeferNextLogReadResult> {
+async function deferNextLogRead(page: Page, logReadId?: string): Promise<DeferNextLogReadResult> {
   let releaseGate!: () => void
   const released = new Promise<void>((resolve) => {
     releaseGate = resolve
@@ -42,13 +42,10 @@ async function deferNextLogRead(page: Page): Promise<DeferNextLogReadResult> {
   let captured = false
   const handler = async (route: Route) => {
     const serverIdHeader = route.request().headers()['x-server-function-id']
-    if (!serverIdHeader) {
+    if (!serverIdHeader || (logReadId !== undefined && serverIdHeader !== logReadId)) {
       await route.fallback()
       return
-    } // Solid 2's Vite plugin generates opaque server-function IDs, so the log
-    // read is identified by being the first server call the panel makes. Every
-    // caller freezes the page clock first, which keeps background polls from
-    // firing and taking this slot.
+    }
     if (captured) {
       await route.fallback()
       return
@@ -181,10 +178,13 @@ describe('Application Logs dialog (e2e, real server)', () => {
   it('retains completed content while a refresh is pending', async () => {
     await setupProject('logs-refresh', true)
     seedLogs(ctx.testServer.dataDir, LOG_TEXT)
+    const initialRead = await deferNextLogRead(ctx.page)
     await openLogs(ctx.page)
+    const logReadId = await initialRead.requestId
+    await initialRead.release()
     await waitForPanelText(ctx.page, LOG_TEXT)
     seedLogs(ctx.testServer.dataDir, '')
-    const deferred = await deferNextLogRead(ctx.page)
+    const deferred = await deferNextLogRead(ctx.page, logReadId)
     await ctx.page.clock.runFor(10000)
     await deferred.requestId
     const refreshPendingText = await logPanel(ctx.page).innerText()
@@ -193,7 +193,7 @@ describe('Application Logs dialog (e2e, real server)', () => {
     await deferred.release()
     await waitForPanelText(ctx.page, REFRESH_TEXT)
     seedLogs(ctx.testServer.dataDir, SECOND_REFRESH_TEXT)
-    const nextRefresh = await deferNextLogRead(ctx.page)
+    const nextRefresh = await deferNextLogRead(ctx.page, logReadId)
     await ctx.page.clock.runFor(10000)
     await nextRefresh.requestId
     expect(await logPanel(ctx.page).innerText()).toContain(REFRESH_TEXT)

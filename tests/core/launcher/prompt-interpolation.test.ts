@@ -79,7 +79,7 @@ describe('interpolatePrompt', () => {
       '$<name>': '$<name>',
       'prefix $1 suffix': 'prefix $1 suffix',
       $$100: '$$100',
-    } satisfies Record<string, string>
+    }
     for (const [input, expected] of Object.entries(cases)) {
       const result = interpolatePrompt(template, {
         val: input,

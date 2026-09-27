@@ -7,6 +7,17 @@ import { isAlive } from './process-utils.js'
 
 const TITLE_SUFFIX = ' -- AI'
 
+export interface ProfileCommandVariables {
+  initialPrompt: string
+  windowTitle: string
+  agentDisplayName: string
+  herdrWorkspaceLabel: string
+  herdrPaneLabel: string
+  markerPath: string
+  appConfigDir: string
+  configDefaultsDir: string
+}
+
 const MARKER_START_TOLERANCE_SEC = 5
 
 const AgentMarkerSchema = v.object({
@@ -57,7 +68,7 @@ export function projectWindowTitle(projectName: string): string {
 export async function runLauncherProfile(
   commands: CommandTemplateService,
   profile: LauncherProfile,
-  commandVars: Record<string, string>,
+  commandVars: ProfileCommandVariables,
   cwd: string,
 ): Promise<void> {
   await commands.executeTrustedScript({
@@ -66,7 +77,9 @@ export async function runLauncherProfile(
       profileName: profile.name,
     },
     script: profile.command,
-    values: commandVars,
+    values: {
+      ...commandVars,
+    },
     knownScalarPlaceholders: Object.keys(commandVars),
     cwd,
     mode: 'detached',

@@ -18,22 +18,22 @@ function herdrAgentStatus(status: string): HerdrAgentStatus {
 }
 
 export function ticketStatusesFromPanes(panes: HerdrTicketPane[]): TicketAgentStatuses {
-  const statuses: TicketAgentStatuses = {}
+  const statuses = new Map<string, HerdrAgentStatus>()
   const seenFolderNames = new Set<string>()
   for (const pane of panes) {
     if (seenFolderNames.has(pane.folderName)) {
-      statuses[pane.folderName] = 'unknown'
+      statuses.set(pane.folderName, 'unknown')
       continue
     }
     seenFolderNames.add(pane.folderName)
     if (pane.agentStatuses.length === 0) continue
-    statuses[pane.folderName] = pane.agentStatuses.length === 1 ? herdrAgentStatus(pane.agentStatuses[0]) : 'unknown'
+    statuses.set(pane.folderName, pane.agentStatuses.length === 1 ? herdrAgentStatus(pane.agentStatuses[0]) : 'unknown')
   }
-  return statuses
+  return Object.fromEntries(statuses)
 }
 
 export interface HerdrTicketState {
-  statusesByFolderName: Record<string, HerdrAgentStatus>
+  statusesByFolderName: TicketAgentStatuses
   agents: HerdrAgent[]
 }
 
@@ -45,6 +45,6 @@ export async function fetchHerdrTicketState(projectSlug: string, exec: HerdrExec
   }
 }
 
-export async function fetchHerdrTicketStatuses(projectSlug: string, exec: HerdrExecFn): Promise<Record<string, HerdrAgentStatus>> {
+export async function fetchHerdrTicketStatuses(projectSlug: string, exec: HerdrExecFn): Promise<TicketAgentStatuses> {
   return (await fetchHerdrTicketState(projectSlug, exec)).statusesByFolderName
 }

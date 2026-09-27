@@ -51,7 +51,7 @@ const SCOPE_LABELS = {
   branch: 'Branch Changes',
   working: 'Uncommitted Changes',
   'last-commit': 'Last Commit Changes',
-} satisfies Record<DiffScope, string>
+}
 
 function isDiffScope(value: string): value is DiffScope {
   return Object.hasOwn(SCOPE_LABELS, value)

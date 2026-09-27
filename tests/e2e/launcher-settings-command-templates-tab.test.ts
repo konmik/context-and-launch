@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import type { CommandTemplateOverrides } from '../../src/core/command-template/command-template-types.js'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { testId } from './locators.js'
@@ -66,7 +67,7 @@ describe('Command Templates Settings tab (e2e, real server)', () => {
     const saved = await poll(
       () => {
         if (!fs.existsSync(overrideFile)) return null
-        const override: Record<string, string> = JSON.parse(fs.readFileSync(overrideFile, 'utf8'))
+        const override: CommandTemplateOverrides = JSON.parse(fs.readFileSync(overrideFile, 'utf8'))
         return override
       },
       (o) => o?.['git.version'] === 'git version\n--build-options\n--no-pager\n--paginate',
@@ -107,7 +108,7 @@ describe('Command Templates Settings tab (e2e, real server)', () => {
     const afterReset = await poll(
       () => {
         if (!fs.existsSync(overrideFile)) return {}
-        const override: Record<string, string> = JSON.parse(fs.readFileSync(overrideFile, 'utf8'))
+        const override: CommandTemplateOverrides = JSON.parse(fs.readFileSync(overrideFile, 'utf8'))
         return override
       },
       (o) => !Object.hasOwn(o, 'git.version'),

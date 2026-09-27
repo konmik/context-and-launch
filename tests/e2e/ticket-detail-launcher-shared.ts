@@ -1,5 +1,6 @@
 import { createProject, uniqueSlug, gotoProject, openTicketDetail, type E2EContext, type CreatedProject } from './fixtures.js'
 import { testId, waitVisible } from './locators.js'
+import { expect } from 'vitest'
 
 export const APP_LAUNCHER = {
   templates: [
@@ -56,5 +57,6 @@ export async function setupLauncherTicket(ctx: E2EContext, suffix: string): Prom
   ctx.projects.push(project)
   await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
   await openLauncher(ctx)
+  await expect.poll(() => ctx.page.locator('.cm-content').textContent()).toContain('do it in ')
   return project
 }

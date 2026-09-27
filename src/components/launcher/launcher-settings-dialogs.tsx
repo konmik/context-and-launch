@@ -70,7 +70,7 @@ const itemTypeLabel = {
   skill: 'Skill',
   profile: 'Launch',
   shortcut: 'Shortcut',
-} satisfies Record<ItemType, string>
+}
 
 export function ItemFormDialog(props: {
   form: ItemFormState | null

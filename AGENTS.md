@@ -22,6 +22,7 @@
 ## Code style
 
 - Use interfaces and factory functions instead of classes. Encapsulate private state with closures.
+- Prefer explicit object types with known fields. Use Record or index signatures only when keys are genuinely dynamic; use Map for runtime key/value collections. Never use Record<string, ...> as a shortcut for modeling a known domain object.
 - Named functions must have explicit return types (except for void type) and named interfaces for object returns.
 - Use a `Result` type for return values when success or failure are expected.
 - We are using only TypeScript, do not check for types randomly, do not write incorrect-type tests.

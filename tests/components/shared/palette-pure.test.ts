@@ -104,7 +104,9 @@ describe('criticalBackgroundCss', () => {
 describe('criticalAppearanceScript', () => {
   function runScript(getItem: (key: string) => string | null, prefersDark: boolean, pathname = '/add-project'): RunScriptResult {
     const classes = new Set<string>()
-    const dataset: Record<string, string | undefined> = {}
+    const dataset: {
+      palette?: string
+    } = {}
     const reads: string[] = []
     const fakeDocument = {
       documentElement: {
@@ -136,8 +138,9 @@ describe('criticalAppearanceScript', () => {
     }
   }
 
-  function fromStore(stored: Record<string, string>): (key: string) => string {
-    return (key: string) => stored[key] ?? null
+  function fromStore(stored: Record<string, string>): (key: string) => string | null {
+    const values = new Map(Object.entries(stored))
+    return (key: string) => values.get(key) ?? null
   }
 
   it('applies the dark class exactly when isDarkMode(getStoredMode(...)) says dark', () => {

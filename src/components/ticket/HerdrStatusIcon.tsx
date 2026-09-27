@@ -7,7 +7,7 @@ export const HERDR_STATUS_COLORS = {
   idle: '#a6e3a1',
   done: '#94e2d5',
   unknown: '#6c7086',
-} satisfies Record<HerdrAgentStatus, string>
+}
 
 const HERDR_STATUS_GLYPHS = {
   working: '●',
@@ -15,7 +15,7 @@ const HERDR_STATUS_GLYPHS = {
   idle: '○',
   done: '●',
   unknown: '·',
-} satisfies Record<HerdrAgentStatus, string>
+}
 
 function StatusGlyph(props: { glyph: string; color: string; size: number }): JSX.Element {
   return (

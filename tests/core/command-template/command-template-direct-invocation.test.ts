@@ -150,18 +150,18 @@ describe('Command Template direct invocation', () => {
     expect(buildDirectInvocationArgv('{{program}} --version', {}, {}, ['program'], [])).toBeUndefined()
   })
   it('qualifies every bundled single-line git template for direct execution', () => {
-    const defaults: Record<string, string> = JSON.parse(fs.readFileSync(path.resolve('config-defaults', 'command-templates.json'), 'utf8'))
-    const singleLineGitKeys = Object.entries(defaults)
-      .filter(([, script]) => script.startsWith('git ') && !script.includes('\n'))
-      .map(([key]) => key)
-    expect(singleLineGitKeys.length).toBeGreaterThan(30)
-    for (const key of singleLineGitKeys) {
+    const defaults: typeof import('../../../config-defaults/command-templates.json').default = JSON.parse(
+      fs.readFileSync(path.resolve('config-defaults', 'command-templates.json'), 'utf8'),
+    )
+    const singleLineGitEntries = Object.entries(defaults).filter(([, script]) => script.startsWith('git ') && !script.includes('\n'))
+    expect(singleLineGitEntries.length).toBeGreaterThan(30)
+    for (const [key, script] of singleLineGitEntries) {
       const definition = COMMAND_TEMPLATE_DEFINITION_BY_KEY.get(key)
       if (!definition) throw new Error(`No definition for '${key}'.`)
       const values = Object.fromEntries(definition.scalarPlaceholders.map((name) => [name, 'value']))
       const listValues = Object.fromEntries(definition.listPlaceholders.map((name) => [name, ['value']]))
       expect(
-        buildDirectInvocationArgv(defaults[key], values, listValues, definition.scalarPlaceholders, definition.listPlaceholders),
+        buildDirectInvocationArgv(script, values, listValues, definition.scalarPlaceholders, definition.listPlaceholders),
         `'${key}' must stay directly executable`,
       ).toBeDefined()
     }

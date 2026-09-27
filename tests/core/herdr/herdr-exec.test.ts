@@ -13,11 +13,12 @@ const SOCKET_FAILURE = createProcessError(
 )
 
 function executor(handlers: Partial<Record<string, () => Promise<string>>>): ExecutorResult {
+  const handlersByKey = new Map(Object.entries(handlers))
   const calls: CommandTemplateKey[] = []
   const commands: CommandTemplateExecutor = {
     execute: async (key) => {
       calls.push(key)
-      const handler = handlers[key]
+      const handler = handlersByKey.get(key)
       if (!handler) throw new Error(`unexpected call: ${key}`)
       return handler()
     },

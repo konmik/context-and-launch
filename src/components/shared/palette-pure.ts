@@ -70,13 +70,7 @@ export const PALETTE_BACKGROUNDS = {
     light: '#fbf1c8',
     dark: '#282828',
   },
-} satisfies Record<
-  PaletteName,
-  {
-    light: string
-    dark: string
-  }
->
+}
 
 export function paletteBackground(palette: PaletteName, dark: boolean): string {
   const entry = PALETTE_BACKGROUNDS[palette]

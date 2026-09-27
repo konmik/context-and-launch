@@ -1,6 +1,12 @@
 import type { CommandTemplateService } from '../command-template/command-template-service.js'
 import type { LauncherConfigManager } from '../launcher/launcher-config.js'
-import { agentMarkerPathIn, buildWindowTitle, isProfileAgentRunning, runLauncherProfile } from '../launcher/profile-launch.js'
+import {
+  agentMarkerPathIn,
+  buildAgentDisplayName,
+  buildWindowTitle,
+  isProfileAgentRunning,
+  runLauncherProfile,
+} from '../launcher/profile-launch.js'
 import type { ResolvedDiffReviewTarget } from './diff-review-target.js'
 
 export interface ReviewAgentLauncher {
@@ -27,6 +33,11 @@ export function createProfileReviewAgentLauncher(
       profile,
       {
         initialPrompt,
+        agentDisplayName: buildAgentDisplayName(target.ticket, {
+          worktreePath: target.worktreePath,
+        }),
+        herdrWorkspaceLabel: target.projectSlug,
+        herdrPaneLabel: `${target.projectSlug}--${target.folderName}`,
         windowTitle: buildWindowTitle(target.ticket, {
           worktreePath: target.worktreePath,
         }),
