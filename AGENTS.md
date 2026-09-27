@@ -27,6 +27,8 @@
 - Represent expected failures with result types, null, or undefined. Catch third-party exceptions at the boundary.
 - We are using only TypeScript, do not check for types randomly, do not write incorrect-type tests.
 - Do not duplicate code. Extract shared logic into reusable helpers.
+- Keep tiny types with their existing domain contract instead of creating a file containing only a tiny type. Multiple importers alone do not justify a separate file. Preserve behavior and dependency direction when consolidating.
+- Use imports only at the top of the file. Do not use inline or dynamic imports.
 - Avoid non-ASCII unless explicitly asked.
 - Never use ^ or ~ in package.json dependency versions. Always pin the exact version.
 - Do not use underscore or bold markdown formatting in md files.
