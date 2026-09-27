@@ -1,24 +1,27 @@
 import { createEffect, createSignal } from 'solid-js'
 
-type OverlayKind = 'modal' | 'dropdown'
+type OverlayKind = 'dialog' | 'popup'
 
 interface OverlayEntry {
   id: symbol
   kind: OverlayKind
-  returnFocus?: HTMLElement
+  returnFocusTarget?: HTMLElement
+  ownerDialogId?: symbol
 }
 
-interface OverlayCommands {
-  dismiss(): void
-  keydown(event: KeyboardEvent): void
-  focus(): void
+interface OverlayState {
+  dialogs: OverlayEntry[]
+  popup?: OverlayEntry
+}
+
+interface OverlayCallbacks {
+  onDismiss(): void
+  onKeyDown(event: KeyboardEvent): void
+  onFocus(): void
 }
 
 interface OverlayCoordinator {
-  register(entry: OverlayEntry, commands: OverlayCommands): () => void
-  visible(id: symbol): boolean
-  top(): symbol | undefined
-  modal(): symbol | undefined
+  createOverlay(kind: OverlayKind, options: OverlayOptions): OverlayHandle
 }
 
 const coordinators = new WeakMap<Document, OverlayCoordinator>()
@@ -33,77 +36,112 @@ function isAvailableForFocus(element: HTMLElement): boolean {
 }
 
 function createOverlayCoordinator(document: Document): OverlayCoordinator {
-  let entries: OverlayEntry[] = []
-  const [snapshot, setSnapshot] = createSignal<OverlayEntry[]>([])
-  const commands = new Map<symbol, OverlayCommands>()
-  const top = () => entries.at(-1)?.id
+  let state: OverlayState = { dialogs: [] }
+  const [snapshot, setSnapshot] = createSignal<OverlayState>(state)
+  const callbacks = new Map<symbol, OverlayCallbacks>()
+  const dialogMount = document.createElement('div')
+  dialogMount.dataset.overlayLayer = 'dialogs'
+  const popupMount = document.createElement('div')
+  popupMount.dataset.overlayLayer = 'popups'
+  document.body.append(dialogMount, popupMount)
+  const getTopDialogId = () => state.dialogs.at(-1)?.id
+  const getTopOverlayId = () => state.popup?.id ?? getTopDialogId()
   const eventOwners = new WeakMap<KeyboardEvent, symbol>()
-  const captureKeydown = (event: KeyboardEvent) => {
-    const id = top()
+  const onKeyDownCapture = (event: KeyboardEvent) => {
+    const id = getTopOverlayId()
     if (id) eventOwners.set(event, id)
   }
-  const keydown = (event: KeyboardEvent) => {
+  const onKeyDown = (event: KeyboardEvent) => {
     const id = eventOwners.get(event)
-    if (id && id === top() && !event.defaultPrevented) commands.get(id)?.keydown(event)
+    if (id && id === getTopOverlayId() && !event.defaultPrevented) callbacks.get(id)?.onKeyDown(event)
   }
 
-  function updateEntries(next: OverlayEntry[]) {
-    entries = next
+  function updateState(next: OverlayState) {
+    state = next
     setSnapshot(next)
   }
 
-  function register(entry: OverlayEntry, handlers: OverlayCommands): () => void {
-    const dropdown = entries.find((item) => item.kind === 'dropdown')
-    if (dropdown) {
-      commands.get(dropdown.id)?.dismiss()
-      updateEntries(entries.filter((item) => item.id !== dropdown.id))
-    }
-    if (!commands.size) {
-      document.addEventListener('keydown', captureKeydown, true)
-      document.addEventListener('keydown', keydown)
-    }
-    commands.set(entry.id, handlers)
-    updateEntries([...entries, entry])
-    queueMicrotask(() => {
-      if (top() === entry.id) handlers.focus()
+  function dismissPopup(): void {
+    const popup = state.popup
+    if (!popup) return
+    updateState({ dialogs: state.dialogs })
+    callbacks.get(popup.id)?.onDismiss()
+  }
+
+  function createOverlay(kind: OverlayKind, options: OverlayOptions): OverlayHandle {
+    const id = Symbol('overlay')
+    let entry: OverlayEntry | undefined
+    createEffect(options.open, (open) => {
+      if (!open) return
+      entry = {
+        id,
+        kind,
+        ownerDialogId: getTopDialogId(),
+        returnFocusTarget: options.getReturnFocusTarget ? options.getReturnFocusTarget() : document.activeElement instanceof HTMLElement ? document.activeElement : undefined,
+      }
+      const returnFocusTarget = state.popup?.returnFocusTarget ?? entry.returnFocusTarget
+      dismissPopup()
+      if (!callbacks.size) {
+        document.addEventListener('keydown', onKeyDownCapture, true)
+        document.addEventListener('keydown', onKeyDown)
+      }
+      callbacks.set(id, options)
+      if (kind === 'dialog') updateState({ dialogs: [...state.dialogs, entry] })
+      else updateState({ dialogs: state.dialogs, popup: entry })
+      queueMicrotask(() => {
+        if (getTopOverlayId() === id) options.onFocus()
+      })
+      return () => {
+        const wasActiveDialog = getTopDialogId() === id
+        if (kind === 'dialog') {
+          if (state.popup?.ownerDialogId === id) dismissPopup()
+          updateState({ ...state, dialogs: state.dialogs.filter((item) => item.id !== id) })
+        } else if (state.popup?.id === id) {
+          updateState({ dialogs: state.dialogs })
+        }
+        callbacks.delete(id)
+        if (!callbacks.size) {
+          document.removeEventListener('keydown', onKeyDownCapture, true)
+          document.removeEventListener('keydown', onKeyDown)
+        }
+        const nextOverlayId = getTopOverlayId()
+        if (wasActiveDialog) {
+          queueMicrotask(() => {
+            if (getTopOverlayId() !== nextOverlayId) return
+            if (returnFocusTarget && isAvailableForFocus(returnFocusTarget)) returnFocusTarget.focus()
+            else if (nextOverlayId) callbacks.get(nextOverlayId)?.onFocus()
+          })
+        }
+      }
     })
-    return () => {
-      const wasTop = top() === entry.id
-      updateEntries(entries.filter((item) => item.id !== entry.id))
-      commands.delete(entry.id)
-      if (!commands.size) {
-        document.removeEventListener('keydown', captureKeydown, true)
-        document.removeEventListener('keydown', keydown)
-      }
-      const next = top()
-      if (wasTop && entry.kind === 'modal') {
+    return {
+      isInteractive: () => {
+        const current = snapshot()
+        return current.dialogs.at(-1)?.id === id || current.popup?.id === id
+      },
+      getPortalMount: () => kind === 'dialog' ? dialogMount : popupMount,
+      queueFocusRestore: (element) => {
+        const registeredEntry = entry
+        if (!registeredEntry) return
         queueMicrotask(() => {
-          if (top() !== next) return
-          if (entry.returnFocus && isAvailableForFocus(entry.returnFocus)) entry.returnFocus.focus()
-          else if (next) commands.get(next)?.focus()
+          if ((getTopOverlayId() === id || getTopOverlayId() === registeredEntry.ownerDialogId) && element && isAvailableForFocus(element)) element.focus()
         })
-      }
+      },
     }
   }
 
-  return {
-    register,
-    top,
-    modal: () => entries.findLast((entry) => entry.kind === 'modal')?.id,
-    visible: (id) => {
-      const current = snapshot()
-      return current.findLast((entry) => entry.kind === 'modal')?.id === id || current.at(-1)?.id === id
-    },
-  }
+  return { createOverlay }
 }
 
-interface OverlayOptions extends OverlayCommands {
+interface OverlayOptions extends OverlayCallbacks {
   open(): boolean
+  getReturnFocusTarget?(): HTMLElement | undefined
 }
 
 export interface OverlayHandle {
-  visible(): boolean
-  restoreFocus(element: HTMLElement | undefined): void
+  isInteractive(): boolean
+  getPortalMount(): HTMLElement
+  queueFocusRestore(element: HTMLElement | undefined): void
 }
 
 export function createOverlay(kind: OverlayKind, options: OverlayOptions): OverlayHandle {
@@ -112,59 +150,38 @@ export function createOverlay(kind: OverlayKind, options: OverlayOptions): Overl
     coordinator = createOverlayCoordinator(document)
     coordinators.set(document, coordinator)
   }
-  const manager = coordinator
-  const id = Symbol('overlay')
-  let parent: symbol | undefined
-  createEffect(options.open, (open) => {
-    if (!open) return
-    parent = manager.modal()
-    return manager.register(
-      {
-        id,
-        kind,
-        returnFocus: document.activeElement instanceof HTMLElement ? document.activeElement : undefined,
-      },
-      options,
-    )
-  })
-  return {
-    visible: () => manager.visible(id),
-    restoreFocus: (element) => {
-      queueMicrotask(() => {
-        if (manager.top() === id || manager.top() === parent) element?.focus()
-      })
-    },
-  }
+  return coordinator.createOverlay(kind, options)
 }
 
-interface DropdownOptions {
+interface PopupOverlayOptions {
   open(): boolean
-  dismiss(): void
+  onDismiss(): void
   trigger(): HTMLElement | undefined
   content(): HTMLElement | undefined
 }
 
-export function createDropdownOverlay(options: DropdownOptions): OverlayHandle {
-  const overlay = createOverlay('dropdown', {
+export function createPopupOverlay(options: PopupOverlayOptions): OverlayHandle {
+  const overlay = createOverlay('popup', {
     open: options.open,
-    dismiss: options.dismiss,
-    focus: () => options.content()?.querySelector<HTMLElement>('button:not([disabled])')?.focus(),
-    keydown: (event) => {
+    onDismiss: options.onDismiss,
+    getReturnFocusTarget: options.trigger,
+    onFocus: () => options.content()?.querySelector<HTMLElement>('button:not([disabled])')?.focus(),
+    onKeyDown: (event) => {
       if (event.key !== 'Escape' && event.key !== 'Tab') return
       event.preventDefault()
-      options.dismiss()
-      overlay.restoreFocus(options.trigger())
+      options.onDismiss()
+      overlay.queueFocusRestore(options.trigger())
     },
   })
   createEffect(options.open, (open) => {
     if (!open) return
-    const dismiss = (event: PointerEvent) => {
+    const onPointerDown = (event: PointerEvent) => {
       const target = event.target
       if (target instanceof Node && (options.content()?.contains(target) || options.trigger()?.contains(target))) return
-      options.dismiss()
+      options.onDismiss()
     }
-    document.addEventListener('pointerdown', dismiss, true)
-    return () => document.removeEventListener('pointerdown', dismiss, true)
+    document.addEventListener('pointerdown', onPointerDown, true)
+    return () => document.removeEventListener('pointerdown', onPointerDown, true)
   })
   return overlay
 }

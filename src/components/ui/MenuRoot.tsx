@@ -1,6 +1,6 @@
 import { Show, createSignal } from 'solid-js'
 import { Portal, type JSX } from '@solidjs/web'
-import { createDropdownOverlay } from './overlay.js'
+import { createPopupOverlay } from './overlay.js'
 import { type MenuContextValue } from './menu-context.js'
 import { MenuContext } from './menu-context.js'
 
@@ -11,7 +11,7 @@ export function MenuRoot(props: { children: JSX.Element; trigger: JSX.Element })
     toggle: () => setOpen((value) => !value),
     close: (restoreFocus = false) => {
       setOpen(false)
-      if (restoreFocus) overlay.restoreFocus(context.trigger)
+      if (restoreFocus) overlay.queueFocusRestore(context.trigger)
     },
     position: () => {
       const rect = context.trigger?.getBoundingClientRect()
@@ -21,9 +21,9 @@ export function MenuRoot(props: { children: JSX.Element; trigger: JSX.Element })
       }
     },
   }
-  const overlay = createDropdownOverlay({
+  const overlay = createPopupOverlay({
     open,
-    dismiss: () => context.close(),
+    onDismiss: () => context.close(),
     trigger: () => context.trigger,
     content: () => context.content,
   })
@@ -31,7 +31,7 @@ export function MenuRoot(props: { children: JSX.Element; trigger: JSX.Element })
     <MenuContext value={context}>
       {props.trigger}
       <Show when={open()}>
-        <Portal>{props.children}</Portal>
+        <Portal mount={overlay.getPortalMount()}>{props.children}</Portal>
       </Show>
     </MenuContext>
   )

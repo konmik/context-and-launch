@@ -1,6 +1,6 @@
 import type { JSX } from '@solidjs/web'
 import { Portal } from '@solidjs/web'
-import { createDropdownOverlay } from '../ui/overlay.js'
+import { createPopupOverlay } from '../ui/overlay.js'
 import type { ForestPosition } from './forest-types.js'
 import type { OverlayRect as OverlayRectReturn } from '../shared/ExpandingOverlay.js'
 import { For, Show, createMemo, createSignal, createStore, onSettled, untrack, useContext, type Accessor } from 'solid-js'
@@ -112,9 +112,9 @@ export default function ForestSurface(props: Props): JSX.Element {
   const [popup, setPopup] = createSignal<Popup>()
   let popupContent: HTMLDivElement | undefined
   let popupTrigger: HTMLElement | undefined
-  createDropdownOverlay({
+  const popupOverlay = createPopupOverlay({
     open: () => !!popup(),
-    dismiss: () => setPopup(undefined),
+    onDismiss: () => setPopup(undefined),
     content: () => popupContent,
     trigger: () => popupTrigger,
   })
@@ -705,7 +705,7 @@ export default function ForestSurface(props: Props): JSX.Element {
       </ForestConnectionSessionContext>
       <Show when={popup()} keyed>
         {(value) => (
-          <Portal>
+          <Portal mount={popupOverlay.getPortalMount()}>
             <div
               ref={popupContent}
               class="fixed rounded-md border border-border bg-popover p-1"

@@ -8,7 +8,7 @@ import { Plus } from '~/components/ui/icons/Plus.js'
 import { Upload } from '~/components/ui/icons/Upload.js'
 import { Folder } from '~/components/ui/icons/Folder.js'
 import { type ActiveFile, activeFileLabel, isActiveFileMatch } from './ticket-detail-pure.js'
-import { createDropdownOverlay } from '../ui/overlay.js'
+import { createPopupOverlay } from '../ui/overlay.js'
 
 export function FileToolbar(props: {
   activeFile: ActiveFile
@@ -31,9 +31,9 @@ export function FileToolbar(props: {
   let dropdownBtnRef: HTMLButtonElement | undefined
   let dropdownContentRef: HTMLDivElement | undefined
   let fileInputRef: HTMLInputElement | undefined
-  createDropdownOverlay({
+  const overlay = createPopupOverlay({
     open: () => props.dropdownOpen,
-    dismiss: () => props.setDropdownOpen(false),
+    onDismiss: () => props.setDropdownOpen(false),
     trigger: () => dropdownBtnRef,
     content: () => dropdownContentRef,
   })
@@ -56,7 +56,7 @@ export function FileToolbar(props: {
             <ChevronDown size={16} class="ml-2 shrink-0" />
           </button>
           <Show when={props.dropdownOpen}>
-            <Portal>
+            <Portal mount={overlay.getPortalMount()}>
               <div
                 ref={dropdownContentRef}
                 class="fixed max-h-60 overflow-auto rounded-md border border-border bg-popover py-1"

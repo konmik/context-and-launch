@@ -44,11 +44,11 @@ export function FloatingPanelRoot(props: FloatingWindowProps): JSX.Element {
     startResize: panel.startResize,
     titleId: `${id}-title`,
   }
-  const overlay = createOverlay('modal', {
+  const overlay = createOverlay('dialog', {
     open: () => props.open,
-    dismiss: context.close,
-    focus: () => content?.focus(),
-    keydown: (event) => {
+    onDismiss: context.close,
+    onFocus: () => content?.focus(),
+    onKeyDown: (event) => {
       if (event.key === 'Escape') {
         event.preventDefault()
         if (!panel.cancelGesture()) context.close()
@@ -77,8 +77,8 @@ export function FloatingPanelRoot(props: FloatingWindowProps): JSX.Element {
   return (
     <PanelContext value={context}>
       <Show when={props.open}>
-        <Portal>
-          <div hidden={!overlay.visible()} inert={!overlay.visible()}>
+        <Portal mount={overlay.getPortalMount()}>
+          <div inert={!overlay.isInteractive()}>
             <div class="fixed inset-0 bg-black/50" onClick={context.close} />
             <div
               data-scope="floating-panel"

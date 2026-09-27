@@ -22,7 +22,7 @@ describe('Overlay coordination (e2e, real server)', () => {
     })
     expect(await second.evaluate((element) => element === document.activeElement)).toBe(true)
   })
-  it('suspends the parent popup and restores its draft and focus after a child closes', async () => {
+  it('keeps the parent popup visible but inert and restores its draft and focus after a child closes', async () => {
     await openProject(ctx, {
       slugBase: 'overlay-dialogs',
       withTickets: [
@@ -40,14 +40,16 @@ describe('Overlay coordination (e2e, real server)', () => {
     const trigger = testId(ctx.page, 'ticket-detail-editor-new-file-button')
     await trigger.click()
     await testId(ctx.page, 'ticket-detail-new-file-name-input').waitFor()
-    expect(await ctx.page.getByRole('dialog').count()).toBe(1)
-    expect(await title.isVisible()).toBe(false)
+    expect(await ctx.page.getByRole('dialog').count()).toBe(2)
+    expect(await title.isVisible()).toBe(true)
+    expect(await title.evaluate((element) => !!element.closest('[inert]'))).toBe(true)
     expect(await title.inputValue()).toBe('Unfinished title')
     await ctx.page.keyboard.press('Escape')
     await testId(ctx.page, 'ticket-detail-new-file-name-input').waitFor({
       state: 'hidden',
     })
     await title.waitFor()
+    expect(await title.evaluate((element) => !!element.closest('[inert]'))).toBe(false)
     expect(await title.inputValue()).toBe('Unfinished title')
     expect(await ctx.page.evaluate(() => document.activeElement?.getAttribute('data-testid'))).toBe('ticket-detail-editor-new-file-button')
     expect(await ctx.page.getByRole('dialog').count()).toBe(1)

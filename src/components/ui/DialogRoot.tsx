@@ -20,16 +20,16 @@ export function DialogRoot(props: {
     titleId: `${id}-title`,
     descriptionId: `${id}-description`,
   }
-  const overlay = createOverlay('modal', {
+  const overlay = createOverlay('dialog', {
     open,
-    dismiss: context.close,
-    focus: () =>
+    onDismiss: context.close,
+    onFocus: () =>
       (
         content?.querySelector<HTMLElement>(
           "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])",
         ) ?? content
       )?.focus(),
-    keydown: (event) => {
+    onKeyDown: (event) => {
       if (event.key === 'Escape') {
         event.preventDefault()
         context.close()
@@ -41,8 +41,8 @@ export function DialogRoot(props: {
   return (
     <Show when={open()}>
       <DialogContext value={context}>
-        <Portal>
-          <div hidden={!overlay.visible()} inert={!overlay.visible()}>
+        <Portal mount={overlay.getPortalMount()}>
+          <div inert={!overlay.isInteractive()}>
             <div data-scope="dialog" data-part="backdrop" />
             <div
               data-scope="dialog"
