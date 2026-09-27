@@ -70,7 +70,10 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
       } else {
         const parsed = parseSyncResult(result.value)
         if (parsed.type === 'Failure') {
-          setSyncError({ title: 'Sync failed', description: parsed.error })
+          setSyncError({
+            title: 'Sync failed',
+            description: parsed.error,
+          })
         } else if (parsed.value.type === 'success') {
           showSuccess = true
           setSyncSuccess(true)

@@ -9,11 +9,16 @@ import { testId } from './locators.js' // The stubs live outside the data dir so
 
 // environment before the fixture creates that dir.
 const stubDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cl-picker-stubs-'))
+
 const pickerStubFile = path.join(stubDir, 'picker-stub')
+
 const filePickerStubFile = path.join(stubDir, 'file-picker-stub')
+
 fs.writeFileSync(pickerStubFile, '__cancel__')
 fs.writeFileSync(filePickerStubFile, '__cancel__')
+
 const PICKED_DIR = path.join(os.tmpdir(), 'e2e-picked-dir')
+
 const PICKED_FILES = [path.join(os.tmpdir(), 'e2e-ref-a.ts'), path.join(os.tmpdir(), 'e2e-ref-b.ts')]
 
 function setPickerStub(value: string) {

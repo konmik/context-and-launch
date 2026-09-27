@@ -7,8 +7,11 @@ import { createProject, gotoProject, setupE2E, uniqueSlug } from './fixtures.js'
 import { testId, waitLocatorVisible, waitVisible } from './locators.js'
 
 const fakeHerdr = fileURLToPath(new URL('./fake-herdr.mjs', import.meta.url))
+
 const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cl-e2e-fake-herdr-'))
+
 const statePath = path.join(stateDir, 'herdr-state.json')
+
 fs.writeFileSync(
   statePath,
   JSON.stringify({
@@ -18,6 +21,7 @@ fs.writeFileSync(
     delivered: [],
   }),
 )
+
 const fake = (args: string) => `node "${fakeHerdr}" ${args}`
 
 interface DeliveredPrompt {

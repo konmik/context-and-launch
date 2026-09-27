@@ -15,6 +15,7 @@ const TICKETS: SeedTicket[] = Array.from(
     folderName: `t-${i + 1}-ticket`,
   }),
 )
+
 const COLUMNS = [
   {
     name: 'todo',
@@ -30,6 +31,7 @@ const COLUMNS = [
     name: 'done',
   },
 ]
+
 const APP_BOARDS = [
   {
     id: 'standard',

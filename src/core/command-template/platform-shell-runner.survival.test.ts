@@ -7,6 +7,7 @@ import { killIfAlive, runSurvivalFixture, useTempDirs, waitForFile } from './pla
 const makeTempDir = useTempDirs('platform-shell-runner-survival-test-', {
   cleanupAfterAll: true,
 })
+
 describe('platform shell runner parent-exit survival', () => {
   it.concurrent(
     'child keeps running after its parent process exits',

@@ -5,6 +5,7 @@ const mocks = {
   getReferencedFileContent: vi.fn(),
   getWorktreeDir: vi.fn(() => 'C:/worktree'),
 }
+
 import { createRawRouteHandler } from './raw-route-handler.js'
 
 const handleRawRoute = createRawRouteHandler({
@@ -14,6 +15,7 @@ const handleRawRoute = createRawRouteHandler({
     getReferencedFileContent: mocks.getReferencedFileContent,
   }),
 })
+
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.getWorktreeDir.mockReturnValue('C:/worktree')

@@ -22,6 +22,7 @@ interface ServerServices {
 const FetchHandlerContractSchema = v.object({
   fetch: v.function(),
 })
+
 const FetchHandlerSchema = v.custom<FetchHandler>((value) => v.safeParse(FetchHandlerContractSchema, value).success)
 
 declare global {

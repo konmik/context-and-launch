@@ -2,12 +2,14 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, waitFor } from '~/test-render.js'
 
 const mockGetAppLogs = vi.fn()
+
 import LogViewerDialog from './LogViewerDialog'
 
 const deps = {
   getLogs: mockGetAppLogs,
   clearLogs: vi.fn().mockResolvedValue(undefined),
 }
+
 afterEach(() => {
   cleanup()
   mockGetAppLogs.mockReset()

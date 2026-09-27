@@ -17,7 +17,9 @@ export function createTicketStatusStorage(projectSlug: string, initialTicket: Ti
       if (result.type === 'Success') folderName = result.value.folderName
       return result
     },
-    { initialValue: initialTicket },
+    {
+      initialValue: initialTicket,
+    },
   )
   return storage
 }

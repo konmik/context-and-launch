@@ -7,6 +7,7 @@ import { rmTemp } from './real-server.js' // The server migrates config.json whe
 
 // on disk before the fixture starts it.
 const repoDir = createScratchRepo('cl-e2e-repo-')
+
 describe("Legacy config with 'slug' property names (sandboxed e2e)", () => {
   const ctx = setupE2E({
     serverOpts: {

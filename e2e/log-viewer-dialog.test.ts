@@ -6,7 +6,9 @@ import { setupE2E, openProject, installPausedClock } from './fixtures.js'
 import { testId } from './locators.js'
 
 const LOG_TEXT = 'distinctive log viewer e2e entry'
+
 const REFRESH_TEXT = 'distinctive refreshed log viewer entry'
+
 const SECOND_REFRESH_TEXT = 'alternate completed log snapshot'
 
 function seedLogs(dataDir: string, text: string): void {

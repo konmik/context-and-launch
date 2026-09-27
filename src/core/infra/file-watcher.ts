@@ -22,6 +22,7 @@ const DEFAULT_ADAPTERS: FileWatcherAdapters = {
   setTimer: (callback, delayMs) => setTimeout(callback, delayMs),
   clearTimer: (timer) => clearTimeout(timer),
 }
+
 const DEFAULT_DEBOUNCE_MS = 2000
 
 function hasDotSegment(relativePath: string): boolean {

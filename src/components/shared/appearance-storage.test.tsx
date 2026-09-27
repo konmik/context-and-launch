@@ -3,12 +3,14 @@ import { createRoot, flush } from 'solid-js'
 import { createAppearanceStorage } from './appearance.js'
 
 const values = new Map<string, string>()
+
 const localStorage = {
   getItem: (key: string) => values.get(key) ?? null,
   setItem: (key: string, value: string) => {
     values.set(key, value)
   },
 }
+
 beforeEach(() => values.clear())
 describe('appearance storage', () => {
   it('pins a selected inherited palette without pinning the inherited mode', async () => {

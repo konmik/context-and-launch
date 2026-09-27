@@ -12,6 +12,7 @@ const PositionSchema = v.object({
   x: v.number(),
   y: v.number(),
 })
+
 const ForestLayoutRecordSchema = v.record(v.string(), v.unknown())
 
 export class ForestLayoutStore {

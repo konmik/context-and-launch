@@ -59,7 +59,11 @@ export function registerTicketSyncTests(shard: number | readonly number[], total
       fs.writeFileSync(path.join(worktreeDir, 'local.txt'), 'local content')
       const manager = createTicketSyncManager()
       const result = await manager.sync(worktreeDir)
-      expect(result).toEqual(success({ status: 'success' })) // Verify the commit was pushed
+      expect(result).toEqual(
+        success({
+          status: 'success',
+        }),
+      ) // Verify the commit was pushed
       const log = await git(worktreeDir, 'log', '--oneline')
       expect(log).toContain('sync: local changes') // Working tree should be clean
       const status = await git(worktreeDir, 'status', '--porcelain')
@@ -77,7 +81,11 @@ export function registerTicketSyncTests(shard: number | readonly number[], total
       fs.writeFileSync(path.join(worktreeDir, 'c.txt'), 'c')
       const manager = createTicketSyncManager()
       const result = await manager.sync(worktreeDir)
-      expect(result).toEqual(success({ status: 'success' }))
+      expect(result).toEqual(
+        success({
+          status: 'success',
+        }),
+      )
       const log = await git(worktreeDir, 'log', '--oneline')
       const lines = log.trim().split('\n')
       expect(lines).toHaveLength(2)
@@ -110,7 +118,11 @@ export function registerTicketSyncTests(shard: number | readonly number[], total
       dirs.push(worktreeDir, remoteDir)
       const manager = createTicketSyncManager()
       const result = await manager.sync(worktreeDir)
-      expect(result).toEqual(success({ status: 'success' }))
+      expect(result).toEqual(
+        success({
+          status: 'success',
+        }),
+      )
     })
     it.concurrent('sync that hits a conflict returns conflict and leaves the live tree untouched', async () => {
       const { worktreeDir, remoteDir } = await createRepoWithRemote()
@@ -120,7 +132,11 @@ export function registerTicketSyncTests(shard: number | readonly number[], total
       const baseCommit = (await git(worktreeDir, 'rev-parse', 'HEAD')).trim()
       const manager = createTicketSyncManager()
       const result = await manager.sync(worktreeDir)
-      expect(result).toEqual(success({ status: 'conflict' }))
+      expect(result).toEqual(
+        success({
+          status: 'conflict',
+        }),
+      )
       expect(manager.hasActiveRebase(worktreeDir)).toBe(false)
       const fileContent = fs.readFileSync(path.join(worktreeDir, 'conflict.txt'), 'utf-8')
       expect(fileContent).toBe('local content')
@@ -165,7 +181,11 @@ export function registerTicketSyncTests(shard: number | readonly number[], total
       const { worktreeDir } = await createNoUpstreamRepoWithExistingRemoteBranch(dirs)
       const manager = createTicketSyncManager()
       const result = await manager.sync(worktreeDir)
-      expect(result).toEqual(success({ status: 'success' }))
+      expect(result).toEqual(
+        success({
+          status: 'success',
+        }),
+      )
       expect(fs.existsSync(path.join(worktreeDir, 'remote-only.txt'))).toBe(true)
       expect(fs.existsSync(path.join(worktreeDir, 'local-only.txt'))).toBe(true)
       expect(fs.readFileSync(path.join(worktreeDir, 'remote-only.txt'), 'utf-8')).toBe('from remote')
@@ -199,7 +219,11 @@ export function registerTicketSyncTests(shard: number | readonly number[], total
       })
       try {
         const result = await manager.sync(worktreeDir)
-        expect(result).toEqual(success({ status: 'success' }))
+        expect(result).toEqual(
+          success({
+            status: 'success',
+          }),
+        )
       } finally {
         setAppLogListener(undefined)
       }
@@ -207,7 +231,11 @@ export function registerTicketSyncTests(shard: number | readonly number[], total
       expect(fs.readFileSync(path.join(worktreeDir, 'local-only.txt'), 'utf-8')).toBe('concurrent edit')
       expect(fs.readFileSync(path.join(worktreeDir, 'remote-only.txt'), 'utf-8')).toBe('from remote')
       const second = await manager.sync(worktreeDir)
-      expect(second).toEqual(success({ status: 'success' }))
+      expect(second).toEqual(
+        success({
+          status: 'success',
+        }),
+      )
       expect(await git(remoteDir, 'show', 'master:local-only.txt')).toBe('concurrent edit')
       expect((await git(worktreeDir, 'status', '--porcelain')).trim()).toBe('')
     })

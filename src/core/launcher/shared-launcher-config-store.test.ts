@@ -8,6 +8,7 @@ import { SharedLauncherConfigStore } from './shared-launcher-config-store.js'
 import { LauncherConfigManager } from './launcher-config.js'
 
 const directories: string[] = []
+
 afterEach(async () => {
   await Promise.all(directories.splice(0).map(removeTempDir))
 })

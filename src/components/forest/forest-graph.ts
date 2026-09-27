@@ -4,8 +4,11 @@ import type { ForestLayout } from '~/core/ticket/forest-layout-store.js'
 export type ForestTicket = Pick<TicketInfo, 'number' | 'title' | 'status' | 'folderName' | 'dependsOn' | 'memberOf'>
 
 export const CARD_WIDTH = 208
+
 export const CARD_HEIGHT = 72
+
 export const ROW_GAP = 160
+
 export const H_GAP = 248
 
 export interface DependencyRelation {

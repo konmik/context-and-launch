@@ -22,20 +22,26 @@ export interface SessionWindow {
 }
 
 export const DEFAULT_WINDOW_WIDTH = 1400
+
 export const DEFAULT_WINDOW_HEIGHT = 900
+
 export const CASCADE_STEP = 32
+
 const FiniteNumberSchema = v.pipe(v.number(), v.finite())
+
 const WindowBoundsSchema = v.object({
   x: v.optional(FiniteNumberSchema),
   y: v.optional(FiniteNumberSchema),
   width: FiniteNumberSchema,
   height: FiniteNumberSchema,
 })
+
 const WindowStateEntrySchema = v.object({
   projectSlug: v.nullable(v.string()),
   bounds: WindowBoundsSchema,
   maximized: v.boolean(),
 })
+
 const WindowStateRecordSchema = v.record(v.string(), v.unknown())
 
 function parseEntry(raw: JsonValue): WindowStateEntry | null {

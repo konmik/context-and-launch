@@ -5,6 +5,7 @@ import { expect } from 'vitest'
 import type { Page } from 'playwright'
 
 const directory = process.env.TEST_ACTION_TRACE_DIR
+
 const traces = new WeakMap<Page, string>()
 
 export async function timeAction<T>(action: string, run: () => T | Promise<T>): Promise<T> {

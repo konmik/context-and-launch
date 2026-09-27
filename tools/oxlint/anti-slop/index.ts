@@ -38,4 +38,5 @@ const antiSlopPlugin = eslintCompatPlugin({
     'require-safety-comment-for-type-assertion': requireSafetyCommentForTypeAssertionRule,
   },
 })
+
 export default antiSlopPlugin

@@ -61,6 +61,7 @@ const TICKETS = [
     folderName: 't-4-delta',
   },
 ]
+
 describe('KanbanBoard drag-and-drop (e2e, real server)', () => {
   const ctx = setupE2E()
 

@@ -14,6 +14,7 @@ export const PALETTES = ['terminal', 'graphite', 'tokyo-night', 'catppuccin', 'd
 export type PaletteName = (typeof PALETTES)[number]
 
 export const DEFAULT_PALETTE: PaletteName = 'terminal'
+
 const PaletteNameSchema = v.picklist(PALETTES)
 
 export function isPaletteName(value: JsonValue | undefined): value is PaletteName {

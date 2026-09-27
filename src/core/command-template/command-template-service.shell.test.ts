@@ -8,6 +8,7 @@ import { FixedPlatformShellRunner } from './platform-shell-runner.js'
 import { useTempDirs } from './platform-shell-fixture.test-utils.js'
 
 const makeTempDir = useTempDirs('command-template-service-shell-test-')
+
 describe.runIf(process.platform === 'win32')('trusted Windows Profile scripts', () => {
   it('keeps a path suffix attached to an interpolated directory placeholder', async () => {
     const cwd = makeTempDir()

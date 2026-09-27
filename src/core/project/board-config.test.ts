@@ -10,6 +10,7 @@ import { createStoredConfig } from '~/util/stored-config.js'
 import { success } from '~/util/result.js'
 
 const dirs: string[] = []
+
 afterEach(() => {
   for (const dir of dirs.splice(0))
     fs.rmSync(dir, {

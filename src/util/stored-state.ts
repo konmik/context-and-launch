@@ -12,7 +12,12 @@ export interface StoredStateOptions<T> {
 }
 
 export function createStoredState<T>(read: () => T | Promise<T>, options?: StoredStateOptions<T>): StoredState<T> {
-  const initial = createMemo(read, options && { loadingValue: options.initialValue })
+  const initial = createMemo(
+    read,
+    options && {
+      loadingValue: options.initialValue,
+    },
+  )
   const [saved, setSaved] = createSignal<{
     value: T
   }>()

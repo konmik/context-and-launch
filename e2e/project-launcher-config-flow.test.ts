@@ -5,6 +5,7 @@ import { setupE2E, seedProject, gotoProject, openLauncherSettings, openLauncherS
 import { testId, waitGone } from './locators.js'
 
 const ctx = setupE2E()
+
 it('shares project overrides and preserves external edits across project switches and reload', async () => {
   const first = await seedProject(ctx, {
     slugBase: 'project-launcher-first',

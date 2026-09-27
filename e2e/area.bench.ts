@@ -6,7 +6,9 @@ import { testId, waitVisible } from './locators.js' // Ranks the slowest user-fa
 // splits board load into time-to-first-column-header vs time-to-all-cards.
 // Re-run after a change to compare: `pnpm run bench`.
 const COLUMNS = ['todo', 'in-progress', 'review', 'blocked', 'qa', 'done']
+
 const TICKET_COUNT = Number(process.env.BENCH_TICKETS ?? 300)
+
 const RUNS = Number(process.env.BENCH_RUNS ?? 5)
 
 function seedTickets(count: number): SeedTicket[] {

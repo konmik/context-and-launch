@@ -7,6 +7,7 @@ import { useTempDirs } from './platform-shell-fixture.test-utils.js'
 const makeTempDir = useTempDirs('platform-shell-runner-windows-test-', {
   cleanupAfterAll: true,
 })
+
 describe('windows powershell resolution', () => {
   const POWERSHELL_ENV_KEYS = ['PATH', 'Path', 'ProgramW6432', 'ProgramFiles', 'ProgramFiles(x86)', 'LOCALAPPDATA'] as const
 

@@ -13,6 +13,7 @@ import type { ReviewAgentLauncher } from './review-agent-launcher.js'
 import type { DiffReviewTicketState, ReviewPromptQueueItem, ReviewPromptSnapshot } from './diff-review-types.js'
 
 const DELIVERY_COOLDOWN_MS = 3000
+
 const AGENT_STARTUP_COOLDOWN_MS = 45000
 
 function ticketKey(projectSlug: string, folderName: string): string {

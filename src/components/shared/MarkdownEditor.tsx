@@ -11,6 +11,7 @@ import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search'
 
 const MONO_FONT = 'var(--font-mono)'
+
 const theme = EditorView.theme({
   '&': {
     height: '100%',
@@ -55,6 +56,7 @@ const theme = EditorView.theme({
     fontFamily: MONO_FONT,
   },
 })
+
 const markdownStyle = HighlightStyle.define([
   {
     tag: tags.heading1,
@@ -128,6 +130,7 @@ const markdownStyle = HighlightStyle.define([
     color: 'var(--muted-foreground)',
   },
 ])
+
 const codeBlockDeco = Decoration.line({
   class: 'cm-codeblock',
 })

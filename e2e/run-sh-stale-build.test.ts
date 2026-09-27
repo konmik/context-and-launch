@@ -8,7 +8,9 @@ import { fileURLToPath } from 'node:url'
 import { pickPort } from './test-port.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
 const repoRoot = path.resolve(__dirname, '..')
+
 const realScript = path.join(repoRoot, 'run.sh')
 
 type Layout = {

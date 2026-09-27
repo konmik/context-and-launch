@@ -31,6 +31,7 @@ export type FileView =
     }
 
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'])
+
 const TEXT_EXTENSIONS = new Set(['.txt', '.md'])
 
 function getExtension(name: string): string {

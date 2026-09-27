@@ -26,25 +26,47 @@ function createInitializedServices(): ServiceContainer {
 }
 
 const services = (globalThis.__serviceContainer ??= createInitializedServices())
+
 export const configPaths = services.configPaths
+
 export const configRepo = services.configRepo
+
 export const appConfigStore = services.appConfigStore
+
 export const sharedLauncherConfigStore = services.sharedLauncherConfigStore
+
 export const commandTemplateStore = services.commandTemplateStore
+
 export const commandTemplateService = services.commandTemplateService
+
 export const herdrExec = services.herdrExec
+
 export const projectRegistry = services.projectRegistry
+
 export const boardConfigManager = services.boardConfigManager
+
 export const worktreeManager = services.worktreeManager
+
 export const fileWatcher = services.fileWatcher
+
 export const launcherConfigManager = services.launcherConfigManager
+
 export const agentWorktreeManager = services.agentWorktreeManager
+
 export const ticketSyncManager = services.ticketSyncManager
+
 export const projectPageService = services.projectPageService
+
 export const operationTracker = services.operationTracker
+
 export const syncPendingTracker = services.syncPendingTracker
+
 export const worktreeRevisions = services.worktreeRevisions
+
 export const diffReviewStore = services.diffReviewStore
+
 export const diffReviewGitService = services.diffReviewGitService
+
 export const diffReviewTargetResolver = services.diffReviewTargetResolver
+
 export const reviewPromptQueueService = services.reviewPromptQueueService

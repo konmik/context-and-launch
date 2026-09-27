@@ -29,13 +29,18 @@ import {
 } from './window-bookkeeping.js'
 
 const electronDir = path.dirname(fileURLToPath(import.meta.url))
+
 const appRoot = path.resolve(electronDir, '..')
+
 const preloadPath = path.join(electronDir, 'preload.cjs')
+
 process.env.CONTEXT_LAUNCH_CONFIG_DEFAULTS_DIR = path.join(process.resourcesPath, 'config-defaults')
 if (process.env.CONTEXT_LAUNCH_USER_DATA_DIR) {
   app.setPath('userData', process.env.CONTEXT_LAUNCH_USER_DATA_DIR)
 }
+
 const windowStateFile = path.join(app.getPath('userData'), 'window-state.json')
+
 protocol.registerSchemesAsPrivileged([
   {
     scheme: APP_SCHEME,
@@ -47,13 +52,21 @@ protocol.registerSchemesAsPrivileged([
     },
   },
 ])
+
 const SYNC_WINDOW_DELAY_MS = 5000
+
 const windowsById = new Map<number, BrowserWindow>()
+
 let sessionWindows: SessionWindow[] = []
+
 let focusOrder: number[] = []
+
 let quitting = false
+
 let serverHandle: ServerHandle | null = null
+
 let currentPalette: PaletteName = DEFAULT_PALETTE
+
 let currentMode: AppMode = 'system'
 
 function backgroundColor(): string {
@@ -195,7 +208,9 @@ function handleWindowOpen(opener: BrowserWindow, url: string): AllowHandleWindow
 }
 
 const execMtimeAtStart = fs.statSync(process.execPath).mtimeMs
+
 const gotLock = app.requestSingleInstanceLock()
+
 if (!gotLock) {
   app.quit()
 } else {

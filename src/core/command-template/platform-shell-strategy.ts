@@ -10,6 +10,7 @@ import type { CommandTemplatePlatform } from './command-template-types.js'
  * outside the 64-113 range that sysexits reserves for scripts.
  */
 export const COMMAND_NOT_FOUND_EXIT_CODE = 127
+
 export const INTERPRETER_FAILURE_EXIT_CODE = 125
 
 export interface ShellInvocation {
@@ -90,6 +91,7 @@ export function windowsPowerShellExecutable(): string {
 
 // can run interpreter-free on Windows.
 const WINDOWS_DIRECT_EXECUTABLE_EXTENSIONS = ['.exe', '.com']
+
 const WINDOWS_BATCH_EXTENSIONS = ['.cmd', '.bat']
 
 function executableFileStats(file: string): fs.Stats | undefined {
@@ -167,6 +169,7 @@ const windowsShellStrategy: PlatformShellStrategy = {
   },
   detachSpawnedChild: () => false,
 }
+
 const posixShellStrategy: PlatformShellStrategy = {
   directExecutableExtensions: () => [],
   isExecutableFile(file): boolean {

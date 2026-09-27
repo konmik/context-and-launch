@@ -9,6 +9,7 @@ import { agentMarkerPathIn, isProfileAgentRunning } from './profile-launch.js' /
 // detection is deterministic and no real shell runs: any marker whose startSec
 // differs from that timestamp describes a different process.
 let appDir = ''
+
 const commands = fromPartial<CommandTemplateService>({
   executeSync: () => '2020-01-01T00:00:00.000Z',
 })

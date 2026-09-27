@@ -19,7 +19,9 @@ import type { StatusJson } from './ticket-repository.js'
 import type { TicketOrder } from './ticket-order-data.js'
 
 export { toKebabCase } from './ticket-naming.js'
+
 const READ_CONCURRENCY = 32
+
 const isTicketDirEntry = (entry: Dirent): boolean => entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'archive'
 
 export interface TicketInfo {

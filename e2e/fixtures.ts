@@ -17,6 +17,7 @@ import { timeAction, startActionTrace, closeTimedPage } from './action-timing.js
  * clock sees no refresh until it advances past the interval.
  */
 const SYNC_PENDING_POLL_MS = 10000
+
 /**
  * The deferred work the project page schedules through requestIdleCallback,
  * which Playwright's clock fakes as a 50ms timer.

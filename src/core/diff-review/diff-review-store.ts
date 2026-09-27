@@ -13,10 +13,12 @@ const PromptLineSchema = v.object({
   oldLineNumber: v.optional(v.number()),
   newLineNumber: v.optional(v.number()),
 })
+
 const RangeSchema = v.object({
   start: v.number(),
   end: v.number(),
 })
+
 const PromptSnapshotSchema = v.object({
   scope: v.picklist(['all', 'branch', 'working', 'last-commit']),
   filePath: v.string(),
@@ -28,12 +30,14 @@ const PromptSnapshotSchema = v.object({
   selectionFingerprint: v.string(),
   sourceRevision: v.string(),
 })
+
 const QueueItemBaseSchema = {
   id: v.string(),
   createdAt: v.string(),
   feedback: v.string(),
   snapshot: v.optional(PromptSnapshotSchema),
 }
+
 const QueueItemSchema = v.union([
   v.object({
     ...QueueItemBaseSchema,
@@ -60,12 +64,14 @@ const QueueItemSchema = v.union([
     error: v.string(),
   }),
 ])
+
 const QueueSchema = v.object({
   items: v.array(QueueItemSchema),
   cooldownUntil: v.optional(v.string()),
   agentLaunchReservedUntil: v.optional(v.string()),
   requestedAgentProfileName: v.optional(v.string()),
 })
+
 const TicketStateSchema = v.object({
   worktreeIdentity: v.string(),
   reviewedLines: v.record(
@@ -77,10 +83,12 @@ const TicketStateSchema = v.object({
   ),
   queue: QueueSchema,
 })
+
 const ProjectStateSchema = v.object({
   version: v.literal(2),
   tickets: v.record(v.string(), TicketStateSchema),
 })
+
 const LegacyProjectStateSchema = v.object({
   version: v.literal(1),
   tickets: v.record(

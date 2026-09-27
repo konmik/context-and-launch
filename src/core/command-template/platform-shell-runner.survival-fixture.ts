@@ -2,10 +2,15 @@ import fs from 'fs'
 import { runDetachedProcess } from './platform-shell-runner.test-utils.js'
 
 const pidFile = process.argv[2]
+
 const mode = process.argv[3] ?? 'idle'
+
 const doneFile = process.argv[4]
+
 if (!pidFile) throw new Error('pidFile argument is required')
+
 const idleScript = "require('fs').writeFileSync(process.argv[1], String(process.pid)); setTimeout(() => {}, 30000);"
+
 const writingScript = [
   "const fs = require('fs');",
   'fs.writeFileSync(process.argv[1], String(process.pid));',
@@ -17,7 +22,9 @@ const writingScript = [
   "  if (n >= 20) { clearInterval(t); fs.writeFileSync(process.argv[2], 'done'); }",
   '}, 100);',
 ].join('\n')
+
 const detachDelayMs = 100
+
 if (mode === 'powershell-grandchild') {
   const psCommand =
     `$p = Start-Process -FilePath '${process.execPath}' ` +

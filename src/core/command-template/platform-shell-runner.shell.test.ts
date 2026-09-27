@@ -7,6 +7,7 @@ import { ProcessError } from '../shared/errors.js'
 import { killIfAlive, runSurvivalFixture, useTempDirs, waitForFile } from './platform-shell-fixture.test-utils.js'
 
 const makeTempDir = useTempDirs('platform-shell-runner-shell-test-')
+
 describe.runIf(process.platform === 'win32')('platform shell runner windows powershell job breakaway', () => {
   it('process started by a non-detached powershell keeps running after the app process exits', async () => {
     const pidFile = path.join(makeTempDir(), 'grandchild.pid')

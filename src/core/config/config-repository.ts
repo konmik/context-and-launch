@@ -8,7 +8,9 @@ import type { JsonValue } from '../shared/json.js' // Windows refuses to rename 
 // see the error. Only the rename retries: the wait blocks the thread the server
 // answers every request on, so it is spent where the failure was actually seen.
 const CONTENTION_RETRY_BUDGET_MS = 1500
+
 const CONTENTION_RETRY_MAX_DELAY_MS = 25
+
 const CONTENTION_CODES = new Set(['EPERM', 'EACCES', 'EBUSY'])
 
 function sleepSync(milliseconds: number): void {

@@ -1,8 +1,11 @@
 import type { CommandTemplateListValues, CommandTemplatePlatform, CommandTemplateValues } from './command-template-types.js'
 
 export const PLACEHOLDER_SOURCE = '\\{\\{([^{}]+)\\}\\}'
+
 export const PATH_SUFFIX_SOURCE = '[\\\\/][^\\s"\'`|;&(){}\\[\\]]*'
+
 const PLACEHOLDER_PATTERN = new RegExp(PLACEHOLDER_SOURCE, 'g')
+
 const PLACEHOLDER_WITH_PATH_SUFFIX_PATTERN = new RegExp(`${PLACEHOLDER_SOURCE}(${PATH_SUFFIX_SOURCE})?`, 'g')
 
 /**

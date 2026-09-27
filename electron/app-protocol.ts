@@ -6,7 +6,9 @@ import { parseMode, type AppMode } from '../src/components/shared/theme-toggle-p
 // invoking the server's request handler in-process: the server bundle is
 // loaded into the main process, so there is no socket between the two.
 export const APP_SCHEME = 'app'
+
 export const APP_HOST = 'context-launch'
+
 export const APP_ORIGIN = `${APP_SCHEME}://${APP_HOST}`
 
 export type AppRequestHandler = (request: Request) => Promise<Response>
@@ -32,6 +34,7 @@ export async function handleAppRequest(request: Request, handleRequest: AppReque
 // additionalArguments, and the preload seeds any keys the renderer has not
 // written itself. Renderer writes remain the source of truth after that.
 const PALETTE_ARG = '--context-launch-palette='
+
 const MODE_ARG = '--context-launch-mode='
 
 export function appearanceArgs(palette: PaletteName, mode: AppMode): string[] {

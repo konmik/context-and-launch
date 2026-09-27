@@ -11,7 +11,9 @@ import { joinClass } from '~/lib/class-util' // Shared drag-and-drop visual lang
 // Applied to the source item while it is being dragged: hides it in place
 // (fully transparent) while keeping its slot in the layout.
 export const DND_ACTIVE_CLASS = 'opacity-0' // The floating card that follows the cursor inside a DragOverlay.
+
 export const DND_OVERLAY_CLASS = 'rotate-2 scale-95 opacity-80' // The ghost preview rendered at the drop target slot.
+
 export const DND_PREVIEW_CLASS = 'pointer-events-none opacity-40' // Ghost preview shown where the dragged item will land. data-drop-preview marks
 
 // it so drag-position math can exclude it; data-drop-indicator lets tests detect

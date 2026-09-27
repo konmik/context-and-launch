@@ -60,6 +60,7 @@ const HerdrWorkspaceSchema = v.object({
   workspace_id: v.string(),
   label: v.optional(v.string()),
 })
+
 const HerdrAgentSchema = v.object({
   workspace_id: v.optional(v.string()),
   pane_id: v.optional(v.string()),
@@ -68,14 +69,19 @@ const HerdrAgentSchema = v.object({
   foreground_cwd: v.optional(v.string()),
   agent_status: v.optional(v.string()),
 })
+
 const HerdrPaneSchema = v.object({
   workspace_id: v.string(),
   pane_id: v.string(),
   label: v.optional(v.string()),
 })
+
 const missingWorkspaces = "Missing workspaces array in output from 'herdr.workspace.list'."
+
 const missingAgents = "Missing agents array in output from 'herdr.agent.list'."
+
 const missingPanes = "Missing panes array in output from 'herdr.pane.list'."
+
 const HerdrWorkspaceListJsonSchema = v.pipe(
   v.string(),
   v.parseJson({}, "Could not parse JSON output from 'herdr.workspace.list'."),
@@ -88,6 +94,7 @@ const HerdrWorkspaceListJsonSchema = v.pipe(
     missingWorkspaces,
   ),
 )
+
 const HerdrAgentListJsonSchema = v.pipe(
   v.string(),
   v.parseJson({}, "Could not parse JSON output from 'herdr.agent.list'."),
@@ -100,6 +107,7 @@ const HerdrAgentListJsonSchema = v.pipe(
     missingAgents,
   ),
 )
+
 const HerdrPaneListJsonSchema = v.pipe(
   v.string(),
   v.parseJson({}, "Could not parse JSON output from 'herdr.pane.list'."),

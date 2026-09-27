@@ -58,7 +58,9 @@ function isDiffScope(value: string): value is DiffScope {
 }
 
 const TREE_WIDTH_DEFAULT = 270
+
 const TREE_WIDTH_MIN = 180
+
 const TREE_WIDTH_MAX = 480
 
 type FileReviewStatus = 'unreviewed' | 'reviewed'

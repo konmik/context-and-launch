@@ -5,6 +5,7 @@ import os from 'os'
 import path from 'path'
 
 const SCRIPT_PATH = path.resolve(__dirname, '../../../config-defaults/run-agent-herdr.ps1')
+
 const tempDirs: string[] = []
 
 interface HarnessReport {

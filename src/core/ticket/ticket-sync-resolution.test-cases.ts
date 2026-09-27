@@ -29,7 +29,11 @@ export function registerTicketSyncResolutionTests(shard: number | readonly numbe
       await pushRemoteConflict(remoteDir, dirs)
       fs.writeFileSync(path.join(worktreeDir, 'conflict.txt'), 'local content')
       const manager = createTicketSyncManager()
-      expect(await manager.sync(worktreeDir)).toEqual(success({ status: 'conflict' }))
+      expect(await manager.sync(worktreeDir)).toEqual(
+        success({
+          status: 'conflict',
+        }),
+      )
       const liveHead = (await git(worktreeDir, 'rev-parse', 'HEAD')).trim()
       const plan = await manager.prepareResolution(worktreeDir)
       expect(plan.needsAgent).toBe(true)
@@ -103,7 +107,11 @@ export function registerTicketSyncResolutionTests(shard: number | readonly numbe
       const manager = createTicketSyncManager()
       await manager.sync(worktreeDir)
       await manager.prepareResolution(worktreeDir)
-      expect(await manager.sync(worktreeDir)).toEqual(success({ status: 'conflict' }))
+      expect(await manager.sync(worktreeDir)).toEqual(
+        success({
+          status: 'conflict',
+        }),
+      )
     })
     it.concurrent('abort removes the scratch worktree and leaves the live tree untouched', async () => {
       const { worktreeDir, remoteDir } = await createRepoWithRemote()
@@ -139,11 +147,19 @@ export function registerTicketSyncResolutionTests(shard: number | readonly numbe
       const manager = createTicketSyncManager()
       const result = await manager.sync(worktreeDir)
       expect(fs.existsSync(path.join(remoteDir, 'hook-ran'))).toBe(true)
-      expect(result).toEqual(success({ status: 'success' }))
+      expect(result).toEqual(
+        success({
+          status: 'success',
+        }),
+      )
       expect(fs.readFileSync(path.join(worktreeDir, 'ticket.txt'), 'utf-8')).toBe('concurrent edit')
       fs.rmSync(hookPath)
       const second = await manager.sync(worktreeDir)
-      expect(second).toEqual(success({ status: 'success' }))
+      expect(second).toEqual(
+        success({
+          status: 'success',
+        }),
+      )
       expect(await git(remoteDir, 'show', 'master:ticket.txt')).toBe('concurrent edit')
       expect((await git(worktreeDir, 'status', '--porcelain')).trim()).toBe('')
     })
@@ -168,7 +184,11 @@ export function registerTicketSyncResolutionTests(shard: number | readonly numbe
       })
       try {
         const result = await manager.sync(worktreeDir)
-        expect(result).toEqual(success({ status: 'success' }))
+        expect(result).toEqual(
+          success({
+            status: 'success',
+          }),
+        )
       } finally {
         setAppLogListener(undefined)
       }
@@ -176,7 +196,11 @@ export function registerTicketSyncResolutionTests(shard: number | readonly numbe
       expect(fs.readFileSync(path.join(worktreeDir, 'ticket.txt'), 'utf-8')).toBe('concurrent edit')
       expect(fs.readFileSync(path.join(worktreeDir, 'conflict.txt'), 'utf-8')).toBe('remote content')
       const second = await manager.sync(worktreeDir)
-      expect(second).toEqual(success({ status: 'success' }))
+      expect(second).toEqual(
+        success({
+          status: 'success',
+        }),
+      )
       expect(await git(remoteDir, 'show', 'master:ticket.txt')).toBe('concurrent edit')
       expect((await git(worktreeDir, 'status', '--porcelain')).trim()).toBe('')
     })

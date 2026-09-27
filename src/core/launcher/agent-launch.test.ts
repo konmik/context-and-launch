@@ -6,9 +6,11 @@ import { parseLaunchRequest } from './launch-request.js'
 import { buildAgentDisplayName, buildWindowTitle, runLauncherProfile } from './profile-launch.js'
 
 const executeTrustedScript = vi.fn().mockResolvedValue('')
+
 const commands = fromPartial<CommandTemplateService>({
   executeTrustedScript,
 })
+
 describe('buildWindowTitle', () => {
   const ticket = {
     number: 'ST-47',

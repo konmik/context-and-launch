@@ -11,6 +11,8 @@ const declarationTypes = [
   'class',
   'function',
   'function-overload',
+  { selector: 'Program > VariableDeclaration' },
+  { selector: "Program > ExportNamedDeclaration[declaration.type='VariableDeclaration']" },
   { selector: 'TSModuleDeclaration' },
   ...[
     'TSTypeAliasDeclaration',

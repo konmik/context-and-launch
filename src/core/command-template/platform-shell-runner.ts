@@ -15,6 +15,7 @@ import {
 import type { PlatformShellRunner, ShellExecutionRequest } from './command-template-types.js'
 
 export { COMMAND_NOT_FOUND_EXIT_CODE, INTERPRETER_FAILURE_EXIT_CODE, windowsPowerShellExecutable }
+
 export const USER_ERROR_EXIT_CODE = 64
 
 function classifyExitCode(exitCode: number | undefined): ProcessFailureKind {

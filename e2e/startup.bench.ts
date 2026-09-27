@@ -9,8 +9,11 @@ import { createProject, uniqueSlug, type CreatedProject } from './fixtures.js'
 import { rmTemp } from './real-server.js'
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+
 const PROJECT_COUNT = 3
+
 const TICKETS_PER_PROJECT = 20
+
 const STATUSES = ['todo', 'in-progress', 'done']
 
 interface LaunchTimings {

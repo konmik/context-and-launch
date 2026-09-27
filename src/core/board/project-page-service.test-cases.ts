@@ -99,7 +99,11 @@ async function setupResolvedScratch(dirs: string[]): Promise<SetupResolvedScratc
   fs.writeFileSync(path.join(worktreeDir, 'conflict.txt'), 'local content')
   const commands = createTestCommandTemplateService()
   const manager = new TicketSyncManager(commands, new GitRepository(commands))
-  expect(await manager.sync(worktreeDir)).toEqual(success({ status: 'conflict' }))
+  expect(await manager.sync(worktreeDir)).toEqual(
+    success({
+      status: 'conflict',
+    }),
+  )
   const plan = await manager.prepareResolution(worktreeDir)
   expect(plan.needsAgent).toBe(true)
   fs.writeFileSync(path.join(plan.scratchDir, 'conflict.txt'), 'merged content')

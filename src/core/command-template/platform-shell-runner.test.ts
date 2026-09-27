@@ -8,6 +8,7 @@ import { useTempDirs } from './platform-shell-fixture.test-utils.js'
 const makeTempDir = useTempDirs('platform-shell-runner-test-', {
   cleanupAfterAll: true,
 })
+
 const platform = currentCommandTemplatePlatform()
 
 /** PowerShell needs the call operator for a quoted executable path. */

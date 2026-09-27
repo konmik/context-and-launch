@@ -10,6 +10,7 @@ import { killIfAlive, useTempDirs, waitForFile } from './platform-shell-fixture.
 const makeTempDir = useTempDirs('platform-shell-runner-detached-test-', {
   cleanupAfterAll: true,
 })
+
 describe.runIf(process.platform === 'win32')('platform shell runner windows batch newline guard', () => {
   it.concurrent('rejects a newline argv value for a .cmd target without spawning', async () => {
     const cwd = makeTempDir()

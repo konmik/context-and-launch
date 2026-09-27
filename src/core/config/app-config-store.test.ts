@@ -11,6 +11,7 @@ import { createStoredConfig } from '~/util/stored-config.js'
 import { success } from '~/util/result.js'
 
 const directories: string[] = []
+
 afterEach(async () => {
   await Promise.all(directories.splice(0).map((directory) => removeTempDir(directory)))
 })

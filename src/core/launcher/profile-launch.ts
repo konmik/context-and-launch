@@ -6,7 +6,9 @@ import type { LauncherProfile } from './launcher-config.js'
 import { isAlive } from './process-utils.js'
 
 const TITLE_SUFFIX = ' -- AI'
+
 const MARKER_START_TOLERANCE_SEC = 5
+
 const AgentMarkerSchema = v.object({
   pid: v.number(),
   startSec: v.optional(v.number()),

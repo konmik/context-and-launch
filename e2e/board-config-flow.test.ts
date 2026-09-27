@@ -15,6 +15,7 @@ import {
 import { testId, waitVisible, waitGone } from './locators.js'
 
 const ctx = setupE2E()
+
 it('uses edited board definitions immediately across settings, tickets, projects, and reloads', async () => {
   const folderName = 't-1-alpha'
   const first = await seedProject(ctx, {

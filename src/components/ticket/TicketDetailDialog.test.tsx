@@ -12,20 +12,27 @@ import { success } from '~/util/result.js'
 const mockGetContext = vi.fn().mockResolvedValue({
   content: '',
 })
+
 const mockUpdateTicket = vi.fn()
+
 const mockDeleteContext = vi.fn().mockResolvedValue(success(undefined))
+
 const mockUploadFile = vi.fn().mockResolvedValue(
   success({
     results: [],
   }),
 )
+
 const emptyTicketFiles = {
   contextNames: [],
   fileNames: [],
   references: [],
 }
+
 const mockGetTicketFiles = vi.fn().mockResolvedValue(emptyTicketFiles)
+
 const [worktreeRevision, setWorktreeRevision] = createSignal(0)
+
 const mockGetMergedLauncherConfig = vi.fn().mockResolvedValue({
   projectConfig: {
     templates: [],

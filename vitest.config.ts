@@ -4,18 +4,24 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
 const alias = {
   '~': path.resolve(__dirname, 'src'),
 }
+
 const solidVite = () => ({
   plugins: solidPlugin(),
   resolve: {
     alias,
   },
 })
+
 const timingReporter = fileURLToPath(new URL('./scripts/test-timing-reporter.ts', import.meta.url))
+
 const projectTemplate = fileURLToPath(new URL('./e2e/project-template.ts', import.meta.url))
+
 const nodeTests = ['src/core/**/*.test.ts', 'electron/**/*.test.ts', 'scripts/**/*.test.ts']
+
 export default defineConfig({
   ...solidVite(),
   test: {

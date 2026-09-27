@@ -17,6 +17,7 @@ export const gitEnvironment = {
   GIT_CONFIG_KEY_0: 'core.longpaths',
   GIT_CONFIG_VALUE_0: 'true',
 } as const
+
 export const remoteGitEnvironment = {
   ...gitEnvironment,
   GCM_INTERACTIVE: 'auto',
@@ -53,21 +54,32 @@ function definition<Key extends string>(
 }
 
 const GIT: CommandTemplateFeatureGroup = 'Git and repository checks'
+
 const SYNC: CommandTemplateFeatureGroup = 'Ticket Sync'
+
 const CONFLICT: CommandTemplateFeatureGroup = 'Conflict Resolution'
+
 const WORKTREE: CommandTemplateFeatureGroup = 'Worktree management'
+
 const AGENT_WORKTREE: CommandTemplateFeatureGroup = 'Agent Worktree lifecycle'
+
 const HERDR: CommandTemplateFeatureGroup = 'Herdr integration'
+
 const LAUNCH: CommandTemplateFeatureGroup = 'Agent launching and process inspection'
+
 const PICKER: CommandTemplateFeatureGroup = 'File and directory pickers'
+
 const OPEN: CommandTemplateFeatureGroup = 'Operating-system open actions'
+
 const gitOptions = {
   git: 'local',
 } as const
+
 const remoteGitOptions = {
   git: 'remote',
   timeoutMs: 600000,
 } as const
+
 export const COMMAND_TEMPLATE_DEFINITIONS = [
   definition('git.version', 'Git version', GIT, [], gitOptions),
   definition('git.common-dir.resolve', 'Resolve common Git directory', GIT, [], gitOptions),
@@ -236,6 +248,7 @@ export const COMMAND_TEMPLATE_DEFINITIONS = [
 export type CommandTemplateKey = (typeof COMMAND_TEMPLATE_DEFINITIONS)[number]['key']
 
 export { default as COMMAND_TEMPLATE_DEFAULTS } from '../../../config-defaults/command-templates.json' with { type: 'json' }
+
 export const COMMAND_TEMPLATE_DEFINITION_BY_KEY: ReadonlyMap<string, CommandTemplateDefinition> = new Map(
   COMMAND_TEMPLATE_DEFINITIONS.map((item) => [item.key, item]),
 )

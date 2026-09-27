@@ -2,6 +2,7 @@ import { getMimeType } from '../core/shared/mime-types.js'
 import { errorMessage } from '../core/shared/errors.js'
 
 const ticketFilePathPattern = /^\/api\/projects\/([^/]+)\/board\/tickets\/([^/]+)\/files\/([^/]+)$/
+
 const ticketReferenceContentPathPattern = /^\/api\/projects\/([^/]+)\/board\/tickets\/([^/]+)\/references\/content$/
 
 export interface RawRouteStore {

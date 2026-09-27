@@ -3,13 +3,17 @@ import { HerdrUnavailableError } from '~/core/herdr/herdr-availability.js'
 import { createHerdrStatusService } from './herdr-status-service.js'
 
 const fetchHerdrTicketState = vi.fn()
+
 const reconcileProject = vi.fn()
+
 const log = vi.fn()
+
 const service = createHerdrStatusService({
   loadTicketState: fetchHerdrTicketState,
   reconcileProject,
   log,
 })
+
 describe('getHerdrAgentStatuses', () => {
   beforeEach(() => {
     fetchHerdrTicketState.mockReset()

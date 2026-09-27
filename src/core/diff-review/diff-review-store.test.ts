@@ -7,6 +7,7 @@ import { DiffReviewStore } from './diff-review-store.js'
 import type { ReviewPromptSnapshot } from './diff-review-types.js'
 
 const dirs: string[] = []
+
 afterEach(async () => {
   await Promise.all(dirs.splice(0).map(removeTempDirOrWarn))
 })

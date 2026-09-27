@@ -5,6 +5,7 @@ import { getReviewTicketState, type DiffReviewProjectState } from '~/core/diff-r
 import type { readReviewAgentStatus } from './diff-review-state-api.js'
 
 export const DiffReviewContext = createContext<StoredSignal<DiffReviewProjectState>>()
+
 export const ReviewAgentStatusContext = createContext<{
   get: Accessor<Awaited<ReturnType<typeof readReviewAgentStatus>>>
   refresh(): Promise<void>

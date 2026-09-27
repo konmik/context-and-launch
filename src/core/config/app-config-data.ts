@@ -29,6 +29,7 @@ const ProjectEntrySchema = v.looseObject({
   mainBranch: v.optional(v.string()),
   boardId: v.optional(v.string()),
 })
+
 const AppConfigSchema = v.looseObject({
   projects: v.array(ProjectEntrySchema),
   lastUsedProjectSlug: v.optional(v.nullable(v.string())),

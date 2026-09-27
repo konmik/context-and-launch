@@ -2,10 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { parseMountTable, planRuntimeMount } from './test-runtime-mount.mjs'
 
 const runtimeRoot = 'C:\\Users\\tester\\AppData\\Local\\context-launch-test-runtime'
+
 const liveRuntime = `${runtimeRoot}\\project-3f858b29`
+
 const removedRuntime = `${runtimeRoot}\\project-a66e0e9a`
+
 const otherRuntime = 'C:\\Users\\tester\\AppData\\Local\\Temp\\other-runtime'
+
 const newRuntime = `${runtimeRoot}\\project-1b2c3d4e`
+
 const substOutput = [
   `U:\\: => ${liveRuntime}`,
   `W:\\: => ${otherRuntime}`,

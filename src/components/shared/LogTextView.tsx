@@ -5,6 +5,7 @@ import { EditorView, keymap } from '@codemirror/view'
 import { searchKeymap } from '@codemirror/search'
 
 const FOLLOW_TAIL_THRESHOLD = 40
+
 const logTheme = EditorView.theme({
   '&': {
     height: '100%',

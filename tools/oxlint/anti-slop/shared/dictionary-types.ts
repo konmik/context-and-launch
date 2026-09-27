@@ -1,6 +1,7 @@
 import type { ESTree } from '@oxlint/plugins'
 
 const BUILT_INS = new Set(['Record', 'Readonly', 'Partial', 'Required', 'Pick', 'Omit', 'PropertyKey', 'NonNullable'])
+
 const TRANSPARENT_WRAPPERS = new Set(['Readonly', 'Partial', 'Required', 'NonNullable'])
 
 type TypeAliasEnvironment = ReadonlyMap<string, ESTree.TSType>

@@ -10,6 +10,7 @@ import { success } from '~/util/result.js'
 import type { CommandTemplateOverrides } from './command-template-types.js'
 
 const roots: string[] = []
+
 afterEach(() => {
   for (const root of roots.splice(0))
     fs.rmSync(root, {

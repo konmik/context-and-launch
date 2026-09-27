@@ -9,8 +9,11 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { activeMarkerName, createActiveMarker, createWorkspaceKey, getWorkspaceIdentity } from './test-workspace.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+
 const guardPath = path.join(repoRoot, 'scripts', 'require-test-workspace.mjs')
+
 const temporaryDirectories: string[] = []
+
 afterEach(() => {
   for (const directory of temporaryDirectories.splice(0)) {
     fs.rmSync(directory, {

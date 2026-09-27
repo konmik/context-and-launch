@@ -2,6 +2,7 @@ import fs from 'fs'
 import { execSync } from 'child_process'
 
 const DIST_DIR = 'dist-electron'
+
 const CLEANUP_PATTERNS = [
   /-unpacked$/,
   /^mac$/,
@@ -11,11 +12,14 @@ const CLEANUP_PATTERNS = [
   /^builder-debug\.yml$/,
   /^builder-effective-config\.yaml$/,
 ]
+
 fs.rmSync(DIST_DIR, {
   recursive: true,
   force: true,
 })
+
 const steps = ['vite build', 'node scripts/verify-electron-server-bundle.mjs', 'pnpm run electron:build-main', 'pnpm exec electron-builder']
+
 for (const cmd of steps) {
   execSync(cmd, {
     stdio: 'inherit',

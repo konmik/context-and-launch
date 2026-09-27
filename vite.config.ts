@@ -5,6 +5,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = path.dirname(fileURLToPath(import.meta.url))
+
 const LANGUAGE_DATA_STUB = '\0codemirror-language-data-server-stub'
 
 function stubLanguageDataOnServer(): PreStubLanguageDataOnServerResult {

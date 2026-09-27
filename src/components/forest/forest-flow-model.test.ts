@@ -24,6 +24,7 @@ const tickets: ForestTicket[] = [
     dependsOn: ['A-1'],
   },
 ]
+
 describe('forest flow model', () => {
   it('projects a collapsed group and preserves saved positions', () => {
     const model = buildForestFlowModel(tickets, undefined, {

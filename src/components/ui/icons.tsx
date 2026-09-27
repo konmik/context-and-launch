@@ -74,37 +74,71 @@ function icon(node: IconNode, name: string): (props: IconProps) => JSX.Element {
 }
 
 export const ArrowDownToLine = icon(arrowDownToLine, 'arrow-down-to-line')
+
 export const Check = icon(check, 'check')
+
 export const ChevronDown = icon(chevronDown, 'chevron-down')
+
 export const ChevronRight = icon(chevronRight, 'chevron-right')
+
 export const CircleQuestionMark = icon(circleQuestionMark, 'circle-question-mark')
+
 export const Copy = icon(copy, 'copy')
+
 export const EllipsisVertical = icon(ellipsisVertical, 'ellipsis-vertical')
+
 export const ExternalLink = icon(externalLink, 'external-link')
+
 export const FileCode2 = icon(fileCode2, 'file-code-2')
+
 export const FileWarning = icon(fileWarning, 'file-warning')
+
 export const Folder = icon(folder, 'folder')
+
 export const FolderOpen = icon(folderOpen, 'folder-open')
+
 export const GitCompareArrows = icon(gitCompareArrows, 'git-compare-arrows')
+
 export const GripVertical = icon(gripVertical, 'grip-vertical')
+
 export const Group = icon(group, 'group')
+
 export const LoaderCircle = icon(loaderCircle, 'loader-circle')
+
 export const Moon = icon(moon, 'moon')
+
 export const Network = icon(network, 'network')
+
 export const Palette = icon(palette, 'palette')
+
 export const Pause = icon(pause, 'pause')
+
 export const Play = icon(play, 'play')
+
 export const Plus = icon(plus, 'plus')
+
 export const RefreshCw = icon(refreshCw, 'refresh-cw')
+
 export const RotateCcw = icon(rotateCcw, 'rotate-ccw')
+
 export const ScrollText = icon(scrollText, 'scroll-text')
+
 export const Send = icon(send, 'send')
+
 export const Settings = icon(settings, 'settings')
+
 export const Sun = icon(sun, 'sun')
+
 export const Trash2 = icon(trash2, 'trash-2')
+
 export const TriangleAlert = icon(triangleAlert, 'triangle-alert')
+
 export const AlertTriangle = TriangleAlert
+
 export const Upload = icon(upload, 'upload')
+
 export const WrapText = icon(wrapText, 'wrap-text')
+
 export const X = icon(x, 'x')
+
 export const Zap = icon(zap, 'zap')

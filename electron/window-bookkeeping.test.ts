@@ -24,6 +24,7 @@ const display: WindowBounds = {
   width: 1920,
   height: 1080,
 }
+
 describe('migrateWindowState', () => {
   it('null -> []', () => {
     expect(migrateWindowState(null)).toEqual([])

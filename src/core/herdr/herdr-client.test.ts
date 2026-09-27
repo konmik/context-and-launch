@@ -13,6 +13,7 @@ const WORKSPACES_JSON = JSON.stringify({
     ],
   },
 })
+
 const PANES_JSON = JSON.stringify({
   result: {
     panes: [

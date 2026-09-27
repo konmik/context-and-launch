@@ -3,6 +3,7 @@ import os from 'os'
 import path from 'path'
 
 const MAX_FILE_BYTES = 1 * 1024 * 1024
+
 const MAX_FILES = 10
 
 class RollingLogger {

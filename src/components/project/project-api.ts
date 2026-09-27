@@ -15,21 +15,25 @@ import { detectMainBranch } from '~/core/infra/git.js'
 import { errorResult } from '~/core/shared/errors.js'
 
 export type { BoardState, ProjectPageData, SyncStatus } from '~/core/board/board-types.js'
+
 export const getDefaultProjectSlug = query(async (): Promise<string | null> => {
   'use server'
 
   return projectRegistry.getDefaultProjectSlug()
 }, 'default-project-slug')
+
 export const loadProjectPage = query(async (projectSlug: string) => {
   'use server'
 
   return projectPageService.loadProjectPage(projectSlug)
 }, 'project-page')
+
 export const getSyncStatus = query(async (projectSlug: string) => {
   'use server'
 
   return projectPageService.loadSyncStatus(projectSlug)
 }, 'project-sync-status')
+
 export const previewProjectPath = query(async (pathValue: string) => {
   'use server'
 
@@ -105,6 +109,7 @@ export const setProjectPath = action(async (projectSlug: string, pathValue: stri
     return errorResult(e)
   }
 }, 'set-project-path')
+
 export const setTicketsLocation = action(
   async (
     projectSlug: string,

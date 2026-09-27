@@ -7,6 +7,7 @@ import { makeTempDir, removeTempDirOrWarn } from '../../test-temp.js'
 import { DiffReviewGitService } from './diff-review-git.js'
 
 const dirs: string[] = []
+
 afterEach(async () => {
   await Promise.all(dirs.splice(0).map(removeTempDirOrWarn))
 })

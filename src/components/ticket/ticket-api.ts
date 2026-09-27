@@ -309,6 +309,7 @@ export const saveTicketStatus = action(async (projectSlug: string, previousJson:
     })
   }
 }, 'save-ticket-status')
+
 export const syncTickets = action(async function syncTickets(
   projectSlug: string,
 ): Promise<ResponseEnvelope<Result<SuccessSyncTicketsResult | ConflictSyncTicketsResult, ActionError>>> {
@@ -330,11 +331,13 @@ export const syncTickets = action(async function syncTickets(
     })
   }
 }, 'sync-tickets')
+
 export const getWorktreeRevision = query(async (projectSlug: string): Promise<number> => {
   'use server'
 
   return worktreeRevisions.current(worktreeManager.getWorktreeDir(projectSlug))
 }, 'worktree-revision')
+
 export const getSyncPending = query(async (projectSlug: string): Promise<boolean> => {
   'use server'
 

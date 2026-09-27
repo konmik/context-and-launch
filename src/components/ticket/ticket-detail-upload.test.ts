@@ -4,6 +4,7 @@ import { fromAny } from '@total-typescript/shoehorn'
 import { success, failure } from '~/util/result.js'
 
 const mockUploadFile = vi.fn()
+
 import { createFileUploadState, type FileUploadDeps } from './ticket-detail-upload.js'
 
 function makeDeps(overrides?: Partial<FileUploadDeps>): FileUploadDeps {

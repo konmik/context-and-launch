@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { activeMarkerName } from './test-workspace.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+
 const receipt = path.join(root, 'dist', '.test-build')
 
 function fingerprint(files: string[]): string {
@@ -39,16 +40,22 @@ const files = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--
 })
   .split('\0')
   .filter((file) => file.length > 0 && file !== activeMarkerName)
+
 files.push(...fs.readdirSync(root).filter((name) => name === '.env' || name.startsWith('.env.')))
+
 const environment = Object.entries(process.env)
   .filter(([name]) => name.startsWith('VITE_') || ['NODE_ENV', 'BABEL_ENV', 'NODE_OPTIONS'].includes(name))
   .sort(([left], [right]) => left.localeCompare(right))
+
 const inputs = createHash('sha256')
   .update(fingerprint(files))
   .update(JSON.stringify([process.version, process.platform, process.arch, environment]))
   .digest('hex')
+
 const outputs = () => fingerprint([...outputFiles('dist/client'), ...outputFiles('dist/server')])
+
 const expected = `${inputs}\n${outputs()}\n`
+
 if (fs.existsSync(receipt) && fs.readFileSync(receipt, 'utf8') === expected) {
   console.log('Reusing verified test build (inputs and outputs unchanged).')
 } else {

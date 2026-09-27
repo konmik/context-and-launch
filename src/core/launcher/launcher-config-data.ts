@@ -71,6 +71,7 @@ const ordered = {
   name: v.string(),
   order: v.optional(v.pipe(v.number(), v.finite())),
 }
+
 const columnDefaultsSchema = v.looseObject({
   templateName: v.nullable(v.string()),
   checkedSkills: v.array(v.string()),
@@ -79,6 +80,7 @@ const columnDefaultsSchema = v.looseObject({
   skillOrder: v.optional(v.array(v.string())),
   editedPrompt: v.optional(v.string()),
 })
+
 const schema = v.looseObject({
   templates: v.optional(
     v.array(

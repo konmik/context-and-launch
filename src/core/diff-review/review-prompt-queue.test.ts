@@ -16,6 +16,7 @@ import type { DiffReviewTargetResolver } from './diff-review-target.js'
 import type { ReviewAgentLauncher } from './review-agent-launcher.js'
 
 const dirs: string[] = []
+
 beforeEach(() => {
   vi.useFakeTimers()
   vi.setSystemTime(new Date('2026-07-25T12:00:00.000Z'))

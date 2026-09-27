@@ -3,7 +3,9 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
 const timingReporter = fileURLToPath(new URL('./scripts/test-timing-reporter.ts', import.meta.url))
+
 export default defineConfig({
   resolve: {
     alias: {

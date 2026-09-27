@@ -1,5 +1,7 @@
 export const activeMarkerName: string
+
 export const workspaceEnvironmentName: string
+
 export const tokenEnvironmentName: string
 
 export interface WorkspaceIdentity {

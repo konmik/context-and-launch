@@ -39,7 +39,9 @@ const APP_LAUNCHER = {
     },
   ],
 }
+
 const PROJECT_KEY = '__project__'
+
 describe('Project launcher dialog (e2e, real server)', () => {
   const ctx = setupE2E()
 

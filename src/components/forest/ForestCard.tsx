@@ -19,7 +19,9 @@ export interface ForestCardCommands {
 }
 
 export const ForestCardCommandsContext = createContext<ForestCardCommands>()
+
 export const ForestConnectionSessionContext = createContext<() => ForestConnectionSession>()
+
 export const ForestCardColumnsContext = createContext<() => SwatchColumn[]>()
 
 export default function ForestCard(props: { data: ForestNodeData; selected?: boolean }): JSX.Element {
