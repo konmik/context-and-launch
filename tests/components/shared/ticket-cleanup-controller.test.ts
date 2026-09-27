@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { createRoot, flush, runWithOwner } from 'solid-js'
 import { createTicketCleanupController, type TicketCleanupDeps } from '../../../src/components/shared/ticket-cleanup-controller.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
@@ -43,6 +43,7 @@ function invoke<T>(fn: () => T): T {
 
 function makeDeps(overrides?: Partial<TicketCleanupDeps>): TicketCleanupDeps {
   return {
+    onError: vi.fn(),
     projectSlug: () => 'alpha',
     ticket: () => makeTicket('t-1-alpha'),
     action: () => 'delete',
@@ -236,8 +237,10 @@ describe('createTicketCleanupController', () => {
     await createRoot(async (dispose) => {
       try {
         let closedWith: boolean | undefined
+        const onError = vi.fn()
         const ctrl = createTicketCleanupController(
           makeDeps({
+            onError,
             onOpenChange: (open) => {
               closedWith = open
             },
@@ -250,7 +253,7 @@ describe('createTicketCleanupController', () => {
         )
         await invoke(ctrl.startChecks)
         await invoke(ctrl.doSubmit)
-        expect(ctrl.errorInfo()).toEqual({
+        expect(onError).toHaveBeenCalledExactlyOnceWith({
           title: 'Cleanup failed',
           description: 'cleanup failed',
         })
@@ -332,8 +335,10 @@ describe('createTicketCleanupController', () => {
     await createRoot(async (dispose) => {
       try {
         let checks = 0
+        const onError = vi.fn()
         const ctrl = createTicketCleanupController(
           makeDeps({
+            onError,
             loadStatus: async () => {
               checks++
               return allReady
@@ -348,7 +353,7 @@ describe('createTicketCleanupController', () => {
         await invoke(ctrl.startChecks)
         await invoke(() => ctrl.runCleanup('deleteWorktree'))
         expect(checks).toBe(2)
-        expect(ctrl.errorInfo()).toEqual({
+        expect(onError).toHaveBeenCalledExactlyOnceWith({
           title: 'Cleanup failed',
           description: 'action failed',
         })

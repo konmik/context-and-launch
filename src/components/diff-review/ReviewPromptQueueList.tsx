@@ -7,7 +7,7 @@ import type { ReviewPromptQueueItem } from '~/core/diff-review/diff-review-types
 import { DiffReviewContext, ReviewAgentStatusContext } from './diff-review-storage.js'
 import { getReviewTicketState } from '~/core/diff-review/diff-review-types.js'
 import VerticalReveal from './VerticalReveal.js'
-import { useErrorSink, FieldErrorMessage } from '../shared/error-presentation.js'
+import { useErrorReporter, FieldErrorMessage } from '../shared/error-presentation.js'
 import { errorPayload } from '~/core/shared/errors.js'
 
 type QueueEntry = {
@@ -22,20 +22,20 @@ export default function ReviewPromptQueueList(props: { projectSlug: string; fold
   const items = () => getReviewTicketState(state.get(), props.folderName, agentStatus().worktreeIdentity).queue.items
   const [retryingId, setRetryingId] = createSignal<string>()
   const [removingId, setRemovingId] = createSignal<string>()
-  const setError = useErrorSink()
+  const errors = useErrorReporter()
 
   async function retry(itemId: string) {
     if (retryingId()) return
     setRetryingId(itemId)
-    setError()
+    errors.clear()
     try {
       const result = await retryReviewPrompt(props.projectSlug, props.folderName, itemId, props.profileName || null)
-      if (result.type === 'Failure') setError(result.error)
+      if (result.type === 'Failure') errors.report(result.error)
       const refreshed = await state.refresh()
-      if (refreshed.type === 'Failure') setError(refreshed.error)
+      if (refreshed.type === 'Failure') errors.report(refreshed.error)
       await agentState.refresh()
     } catch (error) {
-      setError(errorPayload(error, 'Retry review prompt failed'))
+      errors.report(errorPayload(error, 'Retry review prompt failed'))
     } finally {
       setRetryingId()
     }
@@ -44,7 +44,7 @@ export default function ReviewPromptQueueList(props: { projectSlug: string; fold
   async function remove(itemId: string) {
     if (removingId()) return
     setRemovingId(itemId)
-    setError()
+    errors.clear()
     try {
       const result = await state.update((current) => {
         const ticket = getReviewTicketState(current, props.folderName, agentStatus().worktreeIdentity)
@@ -68,9 +68,9 @@ export default function ReviewPromptQueueList(props: { projectSlug: string; fold
           },
         }
       })
-      if (result.type === 'Failure') setError(result.error)
+      if (result.type === 'Failure') errors.report(result.error)
     } catch (error) {
-      setError(errorPayload(error, 'Remove review prompt failed'))
+      errors.report(errorPayload(error, 'Remove review prompt failed'))
     } finally {
       setRemovingId()
     }

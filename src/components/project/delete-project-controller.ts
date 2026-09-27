@@ -5,7 +5,7 @@ import { createFormDialogController } from '../ticket/form-dialog-controller.js'
 
 export interface DeleteProjectDeps {
   onSubmit: (projectSlug: string) => Promise<Result<undefined, UserFacingError>>
-  onError?: (error: UserFacingError) => void
+  onError: (error: UserFacingError) => void
   onOpenChange: (open: boolean) => void
   projectSlug: () => string
 }
@@ -23,7 +23,6 @@ export function createDeleteProjectController(deps: DeleteProjectDeps): DeletePr
 
   return {
     submitting: form.submitting,
-    errorMsg: form.errorMsg,
     close: form.close,
     doSubmit,
   }
@@ -33,7 +32,6 @@ export type DeleteProjectController = ReturnType<typeof createDeleteProjectContr
 
 export interface DeleteProjectControllerResult {
   submitting: SourceAccessor<boolean>
-  errorMsg: SourceAccessor<UserFacingError | undefined>
   close: () => void
   doSubmit: () => Promise<void>
 }

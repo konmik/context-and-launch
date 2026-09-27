@@ -18,7 +18,7 @@ import { getProjectLauncherMetadata, launchProjectAgentAction } from './launcher
 import { PROJECT_LAUNCH_KEY } from '~/core/launcher/launch-keys.js'
 import { errorPayload } from '~/core/shared/errors.js'
 import type { LauncherColumnDefaults } from '~/core/launcher/launcher-config.js'
-import { useErrorSink, useErrorReporter } from '../shared/error-presentation.js'
+import { useErrorReporter } from '../shared/error-presentation.js'
 import { ProjectLauncherConfigContext } from './project-launcher-config-storage.js'
 
 export default function ProjectLauncherDialog(props: {
@@ -40,7 +40,6 @@ export default function ProjectLauncherDialog(props: {
       }
     )
   })
-  const setError = useErrorSink(() => props.open, true)
   const errors = useErrorReporter(() => props.open)
 
   function patchDefaults(patch: Partial<LauncherColumnDefaults>) {
@@ -60,11 +59,11 @@ export default function ProjectLauncherDialog(props: {
       }))
       .then((result) => {
         if (result.type === 'Failure') {
-          setError(result.error)
+          errors.enqueueToast(result.error)
           return
         }
       })
-      .catch((e) => setError(errorPayload(e, 'Save failed')))
+      .catch((e) => errors.enqueueToast(errorPayload(e, 'Save failed')))
   }
 
   const ctrl = untrack(() =>

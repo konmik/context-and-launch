@@ -14,9 +14,9 @@ interface ErrorPresentationCommands {
 
 interface ErrorReporter {
   report(error: UserFacingError): void
-  background(error: UserFacingError): void
+  enqueueToast(error: UserFacingError): void
   clear(): void
-  run(operation: () => Promise<Result<unknown, UserFacingError>>, background?: boolean): Promise<void>
+  runAndReportErrors(operation: () => Promise<Result<unknown, UserFacingError>>): Promise<void>
 }
 
 const ErrorPresentationContext = createContext<ErrorPresentationCommands>()
@@ -73,29 +73,16 @@ export function useErrorReporter(active: () => boolean = () => true): ErrorRepor
   }
   return {
     report,
-    background: toasts.enqueue,
-    clear() {
-      scope.clear()
-    },
-    async run(operation, background = false) {
-      const show = background ? toasts.enqueue : report
+    enqueueToast: toasts.enqueue,
+    clear: scope.clear,
+    async runAndReportErrors(operation) {
       try {
         const result = await operation()
-        if (result.type === 'Failure') show(result.error)
+        if (result.type === 'Failure') report(result.error)
       } catch (error) {
-        show(errorPayload(error))
+        report(errorPayload(error))
       }
     },
-  }
-}
-
-export function useErrorSink(active: () => boolean = () => true, background = false): (error?: UserFacingError | null) => void {
-  const errors = useErrorReporter(active)
-  return (error) => {
-    if (!error) {
-      if (!background) errors.clear()
-    } else if (background) errors.background(error)
-    else errors.report(error)
   }
 }
 

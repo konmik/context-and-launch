@@ -22,7 +22,6 @@ export default function ConflictDialog(props: ConflictDialogProps): JSX.Element 
     createConflictDialogController({
       onError: errors.report,
       projectSlug: () => props.projectSlug,
-      open: () => props.open,
       onResolve: props.onResolve,
       onAbort: props.onAbort,
       onOpenChange: props.onOpenChange,
@@ -51,7 +50,7 @@ export default function ConflictDialog(props: ConflictDialogProps): JSX.Element 
       <div class="flex items-center justify-between">
         <button
           type="button"
-          onClick={() => errors.run(() => openConfigDir('tickets', props.projectSlug))}
+          onClick={() => errors.runAndReportErrors(() => openConfigDir('tickets', props.projectSlug))}
           class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
           title="Open tickets directory"
           data-testid="conflict-dialog-open-tickets-repo"

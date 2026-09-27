@@ -36,7 +36,6 @@ import { createFileUploadState } from './ticket-detail-upload.js'
 import { TicketStatusContext } from './ticket-status-storage.js'
 import { createShortcutState } from './ticket-detail-shortcuts.js'
 import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
-import { createErrorState } from '~/util/error-state.js'
 import { computeLaunchDir } from '../launcher/agent-launcher-pure.js'
 import {
   getContext as getContextAction,
@@ -59,9 +58,9 @@ async function readFileResponse(response: Response): Promise<string> {
 }
 
 export interface TicketDetailStateDeps {
-  onError?: (error: ErrorInfo) => void
-  onClearError?: () => void
-  onBackgroundError?: (error: ErrorInfo) => void
+  onError: (error: ErrorInfo) => void
+  onClearError: () => void
+  onBackgroundError: (error: ErrorInfo) => void
   sharedConfig?: StoredSignal<LauncherConfig>
   ticketStatus?: StoredSignal<TicketInfo>
   worktreeRevision?: Accessor<number>
@@ -82,7 +81,7 @@ export function createTicketDetailState(
     projectSlug: string
     onClose: () => void
   },
-  deps: TicketDetailStateDeps = {},
+  deps: TicketDetailStateDeps,
 ): TicketDetailStateResult {
   const [activeFile, setActiveFile] = createSignal<ActiveFile>({
     type: 'context',
@@ -115,8 +114,6 @@ export function createTicketDetailState(
   const [newFileDialogOpen, setNewFileDialogOpen] = createSignal(false)
   const [newFileName, setNewFileName] = createSignal('')
   const [confirmingDelete, setConfirmingDelete] = createSignal(false)
-  const { error, setError } = createErrorState(deps.onError, deps.onClearError)
-  const reportBackgroundError = deps.onBackgroundError ?? setError
   const [dropdownOpen, setDropdownOpen] = createSignal(false)
   const [browsing, setBrowsing] = createSignal(false)
   const [fileView, setFileView] = createSignal<FileView>({
@@ -145,14 +142,14 @@ export function createTicketDetailState(
       title,
     }))
     if (result.type === 'Failure')
-      setError(result.error)
+      deps.onError(result.error)
   }
 
   async function refreshTicket() {
     await revalidate(['ticket-detail', ...ticketMutationRevalidateKeys])
     const result = await ticketStatus.refresh()
     if (result.type === 'Failure')
-      setError(result.error)
+      deps.onError(result.error)
   }
 
   function ticketUrl(suffix: string): string {
@@ -174,13 +171,15 @@ export function createTicketDetailState(
     folderName,
     useWorktree,
     launchDir,
-    setError,
+    onError: deps.onError,
+    onClearError: deps.onClearError,
     runShortcut: deps.runShortcut,
   })
   const upload = createFileUploadState({
     projectSlug: props.projectSlug,
     folderName,
-    setError,
+    onError: deps.onError,
+    onClearError: deps.onClearError,
     ticketFileNames: () => ticket().fileNames,
     contextNames: () => ticket().contextNames,
     refreshFiles: refreshTicket,
@@ -189,12 +188,12 @@ export function createTicketDetailState(
   })
 
   async function openWorktree() {
-    setError(null)
+    deps.onClearError()
     try {
       const result = await (deps.openTicketWorktree ?? openTicketWorktree)(props.projectSlug, folderName())
-      if (result.type === 'Failure') setError(result.error)
+      if (result.type === 'Failure') deps.onError(result.error)
     } catch (e) {
-      setError(errorPayload(e, 'Open failed'))
+      deps.onError(errorPayload(e, 'Open failed'))
     }
   }
 
@@ -250,7 +249,7 @@ export function createTicketDetailState(
       if (seq !== loadSeq) return
       setContent('')
       setSavedContent('')
-      setError(errorPayload(e, 'Load failed'))
+      deps.onError(errorPayload(e, 'Load failed'))
     } finally {
       if (seq === loadSeq)
         setFileView({
@@ -285,7 +284,7 @@ export function createTicketDetailState(
         })
         .catch((e) => {
           if (seq !== loadSeq) return
-          setError(errorPayload(e, 'Load failed'))
+          deps.onError(errorPayload(e, 'Load failed'))
         })
         .finally(() => {
           if (seq === loadSeq)
@@ -327,12 +326,12 @@ export function createTicketDetailState(
       }))
       .then((result) => {
         if (result.type === 'Failure') {
-          reportBackgroundError(result.error)
+          deps.onBackgroundError(result.error)
           return
         }
       })
       .catch((e) => {
-        reportBackgroundError(errorPayload(e, 'Save failed'))
+        deps.onBackgroundError(errorPayload(e, 'Save failed'))
       })
   }
 
@@ -384,7 +383,7 @@ export function createTicketDetailState(
       if (text === savedContent()) return
       setExternallyChanged(true)
     } catch (e) {
-      setError(errorPayload(e, 'Load failed'))
+      deps.onError(errorPayload(e, 'Load failed'))
     }
   }
 
@@ -396,7 +395,7 @@ export function createTicketDetailState(
     ([af, tab]) => {
       void (async () => {
         if (tab !== 'editor') return
-        setError(null)
+        deps.onClearError()
         await untrack(() => loadActiveFile(af))
       })()
     },
@@ -431,9 +430,9 @@ export function createTicketDetailState(
       const result = await (deps.saveContext ?? saveContextAction)(props.projectSlug, folderName(), af.name, content())
       if (result.type === 'Success') setSavedContent(content())
       else
-        setError(result.error)
+        deps.onError(result.error)
     } catch (e) {
-      setError(errorPayload(e, 'Save failed'))
+      deps.onError(errorPayload(e, 'Save failed'))
     } finally {
       setSaving(false)
     }
@@ -522,19 +521,19 @@ export function createTicketDetailState(
           references: current.references.filter((reference) => reference.path !== af.path),
         }))
         if (result.type === 'Failure') {
-          setError(result.error)
+          deps.onError(result.error)
           return
         }
       } else if (af.type === 'file') {
         const result = await (deps.deleteFile ?? deleteFileAction)(props.projectSlug, folderName(), af.name)
         if (result.type === 'Failure') {
-          setError(result.error)
+          deps.onError(result.error)
           return
         }
       } else {
         const result = await (deps.deleteContext ?? deleteContextAction)(props.projectSlug, folderName(), af.name)
         if (result.type === 'Failure') {
-          setError(result.error)
+          deps.onError(result.error)
           return
         }
         setExtraFiles((prev) => prev.filter((n) => n !== af.name))
@@ -548,7 +547,7 @@ export function createTicketDetailState(
       )
       await refreshTicket()
     } catch (e) {
-      setError(errorPayload(e, 'Delete failed'))
+      deps.onError(errorPayload(e, 'Delete failed'))
     }
   }
 
@@ -572,7 +571,7 @@ export function createTicketDetailState(
 
   async function openNativeFileBrowser() {
     setBrowsing(true)
-    setError(null)
+    deps.onClearError()
     try {
       const remembered = localStorage.getItem('picker:references:lastDir') ?? ''
       const refs = ticket().references
@@ -586,14 +585,14 @@ export function createTicketDetailState(
       if (pickedDir) localStorage.setItem('picker:references:lastDir', pickedDir)
       await handleReferencesSelected(paths)
     } catch (e) {
-      setError(errorPayload(e, 'Browse failed'))
+      deps.onError(errorPayload(e, 'Browse failed'))
     } finally {
       setBrowsing(false)
     }
   }
 
   async function handleReferencesSelected(paths: string[]) {
-    setError(null)
+    deps.onClearError()
     try {
       const result = await ticketStatus.update((current) => ({
         ...current,
@@ -603,7 +602,7 @@ export function createTicketDetailState(
         })),
       }))
       if (result.type === 'Failure') {
-        setError(result.error)
+        deps.onError(result.error)
         return
       } // Show the reference the user just picked before reloading the file list:
       // the switch is what they asked for, and it must not wait on a refresh.
@@ -614,7 +613,7 @@ export function createTicketDetailState(
         })
       await refreshTicket()
     } catch (e) {
-      setError(errorPayload(e, 'Add reference failed'))
+      deps.onError(errorPayload(e, 'Add reference failed'))
     }
   }
 
@@ -665,8 +664,6 @@ export function createTicketDetailState(
     setNewFileName,
     confirmingDelete,
     setConfirmingDelete,
-    error,
-    setError,
     dropdownOpen,
     setDropdownOpen,
     browsing,
@@ -768,8 +765,6 @@ export interface TicketDetailStateResult {
   setNewFileName: Setter<string>
   confirmingDelete: SourceAccessor<boolean>
   setConfirmingDelete: Setter<boolean>
-  error: SourceAccessor<ErrorInfo | undefined>
-  setError: (error?: ErrorInfo | null) => void
   dropdownOpen: SourceAccessor<boolean>
   setDropdownOpen: Setter<boolean>
   browsing: SourceAccessor<boolean>

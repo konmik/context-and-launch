@@ -233,14 +233,14 @@ function ProjectContent(props: { ctrl?: ProjectPageController }): JSX.Element {
     const fingerprint = JSON.stringify(result.error)
     if (reportedStatusError === fingerprint) return
     reportedStatusError = fingerprint
-    errors.background(result.error)
+    errors.enqueueToast(result.error)
   })
   const reportedDeliveryErrors = new Map<string, Set<string>>()
   async function reconcileReviewErrors(currentProjectSlug: string): Promise<void> {
     try {
       const result = await reconcileReviewPromptQueue(currentProjectSlug)
       if (result.type === 'Failure') {
-        errors.background(result.error)
+        errors.enqueueToast(result.error)
         return
       }
       const previous = reportedDeliveryErrors.get(currentProjectSlug)
@@ -248,11 +248,11 @@ function ProjectContent(props: { ctrl?: ProjectPageController }): JSX.Element {
       for (const delivery of result.value) {
         const key = JSON.stringify(delivery)
         current.add(key)
-        if (!previous?.has(key)) errors.background(delivery.error)
+        if (!previous?.has(key)) errors.enqueueToast(delivery.error)
       }
       reportedDeliveryErrors.set(currentProjectSlug, current)
     } catch (cause) {
-      errors.background(errorPayload(cause, 'Review queue reconciliation failed'))
+      errors.enqueueToast(errorPayload(cause, 'Review queue reconciliation failed'))
     }
   }
   createEffect(
@@ -271,7 +271,7 @@ function ProjectContent(props: { ctrl?: ProjectPageController }): JSX.Element {
       try {
         await Promise.all([revalidate('herdr-agent-statuses'), reconcileReviewErrors(projectSlug())])
       } catch (error) {
-        errors.background(errorPayload(error, 'Agent status polling failed'))
+        errors.enqueueToast(errorPayload(error, 'Agent status polling failed'))
       } finally {
         running = false
       }
@@ -291,7 +291,7 @@ function ProjectContent(props: { ctrl?: ProjectPageController }): JSX.Element {
 
   async function recordProjectFocus(projectSlug: string) {
     const result = await recordAppProjectFocus(projectSlug)
-    if (result.type === 'Failure') errors.background(result.error)
+    if (result.type === 'Failure') errors.enqueueToast(result.error)
   }
 
   let lastReportedProjectSlug: string | null = null
@@ -374,7 +374,7 @@ function ProjectContent(props: { ctrl?: ProjectPageController }): JSX.Element {
         title={error().description}
         data-testid="sync-status-error-button"
         onClick={() =>
-          commands.setSyncError(error())
+          errors.report(error())
         }
       >
         <TriangleAlert size={16} />
@@ -441,14 +441,14 @@ function ProjectContent(props: { ctrl?: ProjectPageController }): JSX.Element {
                       </MenuItem>
                       <MenuItem
                         value="open-tickets-folder"
-                        onClick={() => errors.run(() => openConfigDir('tickets', d().projectSlug))}
+                        onClick={() => errors.runAndReportErrors(() => openConfigDir('tickets', d().projectSlug))}
                         data-testid="project-header-open-tickets-folder-menuitem"
                       >
                         Open tickets folder
                       </MenuItem>
                       <MenuItem
                         value="open-project-folder"
-                        onClick={() => errors.run(() => openConfigDir('repo', d().projectSlug))}
+                        onClick={() => errors.runAndReportErrors(() => openConfigDir('repo', d().projectSlug))}
                         data-testid="project-header-open-project-folder-menuitem"
                       >
                         Open project folder

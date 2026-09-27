@@ -63,7 +63,7 @@ function SettingsContent(props: LauncherSettingsProps): JSX.Element {
               <>
                 <button
                   data-testid="launcher-settings-open-user-config"
-                  onClick={() => errors.run(() => openConfigDir('app'))}
+                  onClick={() => errors.runAndReportErrors(() => openConfigDir('app'))}
                   class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
                   title="Open user config directory"
                 >
@@ -71,7 +71,7 @@ function SettingsContent(props: LauncherSettingsProps): JSX.Element {
                 </button>
                 <button
                   data-testid="launcher-settings-open-project-config"
-                  onClick={() => errors.run(() => openConfigDir('project', props.projectSlug))}
+                  onClick={() => errors.runAndReportErrors(() => openConfigDir('project', props.projectSlug))}
                   class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
                   title="Open project config directory"
                 >

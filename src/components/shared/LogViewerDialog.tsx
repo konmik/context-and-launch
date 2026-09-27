@@ -32,13 +32,13 @@ export default function LogViewerDialog(props: {
         try {
           const result = await (props.deps?.getLogs ?? getAppLogs)()
           if (result.type === 'Failure') {
-            errors.background(result.error)
+            errors.enqueueToast(result.error)
             return
           }
           if (stopped || version !== loadVersion) return
           setLogText(result.value)
         } catch (error) {
-          errors.background(errorPayload(error, 'Load logs failed'))
+          errors.enqueueToast(errorPayload(error, 'Load logs failed'))
         }
       }
       void load()

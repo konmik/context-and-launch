@@ -1,16 +1,22 @@
-import { For, Show, createSignal } from 'solid-js'
+import { For, Show, createEffect, createSignal, useContext } from 'solid-js'
 import type { JSX } from '@solidjs/web'
+import { revalidate } from '@solidjs/router'
 import { X } from '~/components/ui/icons.js'
 import { DialogRoot, DialogTitle, DialogCloseTrigger, DialogForm } from '../ui/dialog'
-import { modEnterHint } from '~/lib/use-mod-enter-submit'
+import { modEnterHint, useModEnterSubmit } from '~/lib/use-mod-enter-submit'
 import { slugifyColumnName } from '~/lib/slugify.js'
 import { COLUMN_COLOR_PALETTE } from '~/core/project/column-color-palette.js'
-import type { BoardRef } from '../board/board-api.js'
-import { usesWindowsBatchCommand } from './launcher-settings-pure.js'
+import { migrateRenamedColumn, type BoardRef } from '../board/board-api.js'
+import { itemCollections, updateBoardColumns, usesWindowsBatchCommand, validateColumnName } from './launcher-settings-pure.js'
 import type { LauncherItemType } from '~/core/launcher/launcher-config.js'
-import type { UserFacingError } from '~/util/user-facing-error.js'
-import { ErrorField, FieldErrorMessage } from '../shared/error-presentation.js'
-import ErrorDialog from '../shared/ErrorDialog.js'
+import { validateColumnName as requireColumnName } from '~/core/project/board-config-data.js'
+import { ErrorField, ErrorScope, FieldErrorMessage, useErrorReporter } from '../shared/error-presentation.js'
+import { BoardConfigContext } from '../board/board-config-storage.js'
+import { createValidationError, createNotFoundError, errorPayload } from '~/core/shared/errors.js'
+import { LauncherConfigContext } from './shared-launcher-config-storage.js'
+import { ProjectLauncherConfigContext } from './project-launcher-config-storage.js'
+import { updateLauncherReferences } from '~/core/launcher/launcher-config-data.js'
+import { AppConfigContext } from '../config/app-config-storage.js'
 
 export type ItemType = LauncherItemType
 
@@ -56,16 +62,6 @@ function DialogHeader(props: { title: string }): JSX.Element {
   )
 }
 
-function ErrorBanner(props: { message?: UserFacingError }): JSX.Element {
-  const [dismissed, setDismissed] = createSignal<UserFacingError>()
-  return (
-    <>
-      <FieldErrorMessage error={props.message?.field === 'name' ? props.message : undefined} />
-      <ErrorDialog error={props.message?.field !== 'name' && props.message !== dismissed() ? props.message : undefined} onClose={() => setDismissed(props.message)} />
-    </>
-  )
-}
-
 function DialogFooter(props: { children: JSX.Element }): JSX.Element {
   return <div class="flex justify-end gap-2 border-t border-border px-6 py-3">{props.children}</div>
 }
@@ -77,14 +73,66 @@ const itemTypeLabel = {
   shortcut: 'Shortcut',
 }
 
-export function ItemFormDialog(props: {
-  form: ItemFormState | null
-  setForm: (form: ItemFormState | null) => void
-  onSubmit: (form: ItemFormState) => void
-}): JSX.Element {
+interface ItemFormDialogProps {
+  form: ItemFormState | null | undefined
+  onClose: () => void
+}
+
+export function ItemFormDialog(props: ItemFormDialogProps): JSX.Element {
+  return <ErrorScope active={!!props.form}><ItemFormContent {...props} /></ErrorScope>
+}
+
+function ItemFormContent(props: ItemFormDialogProps): JSX.Element {
+  const sharedConfig = useContext(LauncherConfigContext)!
+  const projectConfig = useContext(ProjectLauncherConfigContext)!
+  const errors = useErrorReporter(() => !!props.form)
+  const [form, setForm] = createSignal<ItemFormState>()
+  const [submitting, setSubmitting] = createSignal(false)
+  createEffect(() => props.form, (initial) => {
+    setForm(initial ?? undefined)
+    errors.clear()
+  })
+
+  async function submitForm() {
+    const f = form()
+    if (!f || !f.name.trim() || submitting()) return
+    errors.clear()
+    setSubmitting(true)
+    try {
+      const fields = f.itemType === 'profile' || f.itemType === 'shortcut'
+        ? { name: f.name, command: f.text }
+        : { name: f.name, text: f.text }
+      const result = await (f.scope === 'app' ? sharedConfig : projectConfig).update((current) => {
+        const key = itemCollections[f.itemType]
+        const items = current[key] ?? []
+        if (items.some((item) => item.name === fields.name && (f.mode === 'add' || item.name !== f.oldName))) {
+          throw createValidationError(`An item named "${fields.name}" already exists`, 'name')
+        }
+        if (f.mode === 'add') return { ...current, [key]: [...items, fields] }
+        if (!items.some((item) => item.name === f.oldName)) throw createNotFoundError(`Item "${f.oldName}" not found`)
+        return {
+          ...current,
+          [key]: items.map((item) => item.name === f.oldName ? { ...item, ...fields } : item),
+          columnDefaults: updateLauncherReferences(current.columnDefaults, f.itemType, f.oldName!, f.name),
+        }
+      })
+      if (result.type === 'Failure') errors.report(result.error)
+      else props.onClose()
+    } catch (error) {
+      errors.report(errorPayload(error, 'Save failed'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  useModEnterSubmit({
+    onSubmit: submitForm,
+    disabled: () => submitting() || !form()?.name.trim(),
+    active: () => !!props.form,
+  })
   return (
-    <DialogRoot open={!!props.form} onOpenChange={() => props.setForm(null)} class="max-w-lg p-0">
-      <DialogForm state={props.form}>
+    <DialogRoot open={!!props.form} onOpenChange={props.onClose} class="max-w-lg p-0">
+      <DialogForm state={form()}>
         {(f) => (
           <>
             <DialogHeader title={`${f().mode === 'add' ? 'Add' : 'Edit'} ${itemTypeLabel[f().itemType]}`} />
@@ -95,7 +143,7 @@ export function ItemFormDialog(props: {
                   type="text"
                   value={f().name}
                   onInput={(e) =>
-                    props.setForm({
+                    setForm({
                       ...f(),
                       name: e.currentTarget.value,
                     })
@@ -119,7 +167,7 @@ export function ItemFormDialog(props: {
                 <textarea
                   value={f().text}
                   onInput={(e) =>
-                    props.setForm({
+                    setForm({
                       ...f(),
                       text: e.currentTarget.value,
                     })
@@ -180,7 +228,7 @@ export function ItemFormDialog(props: {
                         name="scope"
                         checked={f().scope === 'app'}
                         onChange={() =>
-                          props.setForm({
+                          setForm({
                             ...f(),
                             scope: 'app',
                           })
@@ -195,7 +243,7 @@ export function ItemFormDialog(props: {
                         name="scope"
                         checked={f().scope === 'project'}
                         onChange={() =>
-                          props.setForm({
+                          setForm({
                             ...f(),
                             scope: 'project',
                           })
@@ -209,12 +257,12 @@ export function ItemFormDialog(props: {
               </Show>
             </div>
             <DialogFooter>
-              <button onClick={() => props.setForm(null)} class="btn-secondary" data-testid="launcher-settings-item-form-cancel">
+              <button onClick={props.onClose} class="btn-secondary" data-testid="launcher-settings-item-form-cancel">
                 Cancel
               </button>
               <button
-                onClick={() => props.onSubmit(f())}
-                disabled={!f().name.trim()}
+                onClick={submitForm}
+                disabled={submitting() || !f().name.trim()}
                 title={modEnterHint()}
                 class="btn-primary"
                 data-testid="launcher-settings-item-form-submit"
@@ -229,22 +277,99 @@ export function ItemFormDialog(props: {
   )
 }
 
-export function ColumnFormDialog(props: {
-  columnForm: ColumnFormState | null
-  setColumnForm: (form: ColumnFormState | null) => void
-  renameActive: boolean
-  columnError?: UserFacingError
-  validation?: UserFacingError
-  onSubmit: (form: ColumnFormState) => void
-}): JSX.Element {
+interface ColumnFormDialogProps {
+  form: ColumnFormState | null | undefined
+  boardId: string
+  projectSlug: string
+  onClose: () => void
+}
+
+export function ColumnFormDialog(props: ColumnFormDialogProps): JSX.Element {
+  return <ErrorScope active={!!props.form}><ColumnFormContent {...props} /></ErrorScope>
+}
+
+function ColumnFormContent(props: ColumnFormDialogProps): JSX.Element {
+  const storage = useContext(BoardConfigContext)!
+  const projectConfig = useContext(ProjectLauncherConfigContext)!
+  const appConfig = useContext(AppConfigContext)!
+  const errors = useErrorReporter(() => !!props.form)
+  const [columnForm, setColumnForm] = createSignal<ColumnFormState>()
+  const [renameForm, setRenameForm] = createSignal<RenameFormState | null>(null)
+  const [submitting, setSubmitting] = createSignal(false)
+  createEffect(() => props.form, (initial) => {
+    setColumnForm(initial ?? undefined)
+    setRenameForm(null)
+    errors.clear()
+  })
+  const validation = () => {
+    const form = columnForm()
+    const board = storage.get().find((board) => board.id === props.boardId)
+    return form && board ? validateColumnName(form.name, form.mode, form.oldName, board.columns) : undefined
+  }
+
+  async function saveColumn(rename?: RenameFormState) {
+    const form = columnForm()
+    if (!form || !form.name.trim() || validation() || submitting()) return
+    errors.clear()
+    if (form.mode === 'edit' && slugifyColumnName(form.name) !== form.oldName && !rename) {
+      setRenameForm({ oldName: form.oldName!, newName: form.name, scope: 'all' })
+      return
+    }
+    const boardId = props.boardId
+    const projectSlug = props.projectSlug
+    const newName = slugifyColumnName(rename?.newName ?? form.name)
+    setSubmitting(true)
+    try {
+      const result = await storage.update((current) => updateBoardColumns(current, boardId, (columns) => {
+        requireColumnName(newName, columns.map((column) => column.name), form.oldName)
+        const content = { name: newName, description: form.description.trim() || undefined, color: form.color || undefined }
+        if (form.mode === 'add') return [...columns, content]
+        if (!columns.some((column) => column.name === form.oldName)) throw new Error(`Column not found: ${form.oldName}`)
+        return columns.map((column) => column.name === form.oldName ? { ...column, ...content } : column)
+      }))
+      if (result.type === 'Failure') {
+        errors.report(result.error)
+        return
+      }
+      if (rename && rename.scope !== 'none') {
+        try {
+          const migration = await migrateRenamedColumn(boardId, rename.oldName, newName, rename.scope, projectSlug)
+          if (migration.type === 'Failure') throw migration.error
+          const projectBoardId = appConfig.get().projects.find((project) => project.projectSlug === projectSlug)?.boardId
+          if (rename.scope === 'current' || boardId === (projectBoardId ?? storage.get()[0]?.id)) {
+            const refreshed = await projectConfig.refresh()
+            if (refreshed.type === 'Failure') throw refreshed.error
+          }
+          await revalidate('project-page')
+        } catch (error) {
+          const rollback = await storage.update((current) => updateBoardColumns(current, boardId, (columns) =>
+            columns.map((column) => column.name === newName ? { ...column, name: rename.oldName } : column),
+          ))
+          errors.report(errorPayload(error, 'Migration failed'))
+          if (rollback.type === 'Failure') errors.report(rollback.error)
+          return
+        }
+      }
+      props.onClose()
+    } catch (error) {
+      errors.report(errorPayload(error, 'Save failed'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+  useModEnterSubmit({
+    onSubmit: () => saveColumn(),
+    disabled: () => submitting() || !columnForm()?.name.trim() || !!validation(),
+    active: () => !!props.form && !renameForm(),
+  })
   return (
-    <DialogRoot open={!!props.columnForm && !props.renameActive} onOpenChange={() => props.setColumnForm(null)} class="max-w-lg p-0">
-      <DialogForm state={props.columnForm}>
+    <>
+    <DialogRoot open={!!props.form && !renameForm()} onOpenChange={props.onClose} class="max-w-lg p-0">
+      <DialogForm state={columnForm()}>
         {(cf) => (
           <>
             <DialogHeader title={cf().mode === 'add' ? 'Add Column' : 'Edit Column'} />
             <div class="space-y-3 px-6 py-4">
-              <ErrorBanner message={props.columnError} />
               <div>
                 <label class="field-label">Name</label>
                 <input
@@ -252,7 +377,7 @@ export function ColumnFormDialog(props: {
                   type="text"
                   value={cf().name}
                   onInput={(e) =>
-                    props.setColumnForm({
+                    setColumnForm({
                       ...cf(),
                       name: e.currentTarget.value,
                     })
@@ -261,14 +386,15 @@ export function ColumnFormDialog(props: {
                   data-testid="launcher-settings-columns-name-input"
                   placeholder="e.g. In Progress"
                 />
+                <ErrorField field="name" />
                 <Show when={cf().name.trim()}>
                   <p class="mt-1 text-xs text-muted-foreground" data-testid="launcher-settings-columns-slug-preview">
                     Column slug: {slugifyColumnName(cf().name)}
                   </p>
                 </Show>
-                <Show when={props.validation}>
+                <Show when={validation()}>
                   <div data-testid="launcher-settings-columns-name-error">
-                    <FieldErrorMessage error={props.validation} />
+                    <FieldErrorMessage error={validation()} />
                   </div>
                 </Show>
               </div>
@@ -277,7 +403,7 @@ export function ColumnFormDialog(props: {
                 <textarea
                   value={cf().description}
                   onInput={(e) =>
-                    props.setColumnForm({
+                    setColumnForm({
                       ...cf(),
                       description: e.currentTarget.value,
                     })
@@ -293,7 +419,7 @@ export function ColumnFormDialog(props: {
                   <button
                     type="button"
                     onClick={() =>
-                      props.setColumnForm({
+                      setColumnForm({
                         ...cf(),
                         color: '',
                       })
@@ -313,7 +439,7 @@ export function ColumnFormDialog(props: {
                       <button
                         type="button"
                         onClick={() =>
-                          props.setColumnForm({
+                          setColumnForm({
                             ...cf(),
                             color: option.hex,
                           })
@@ -333,12 +459,12 @@ export function ColumnFormDialog(props: {
               </div>
             </div>
             <DialogFooter>
-              <button onClick={() => props.setColumnForm(null)} class="btn-secondary" data-testid="launcher-settings-columns-form-cancel">
+              <button onClick={props.onClose} class="btn-secondary" data-testid="launcher-settings-columns-form-cancel">
                 Cancel
               </button>
               <button
-                onClick={() => props.onSubmit(cf())}
-                disabled={!cf().name.trim() || !!props.validation}
+                onClick={() => saveColumn()}
+                disabled={submitting() || !cf().name.trim() || !!validation()}
                 title={modEnterHint()}
                 class="btn-primary"
                 data-testid="launcher-settings-columns-form-submit"
@@ -350,23 +476,34 @@ export function ColumnFormDialog(props: {
         )}
       </DialogForm>
     </DialogRoot>
+    <RenameColumnDialog renameForm={props.form ? renameForm() : undefined} onCancel={() => setRenameForm(null)} onRename={saveColumn} submitting={submitting()} />
+    </>
   )
 }
 
 export function RenameColumnDialog(props: {
-  renameForm: RenameFormState | null
-  setRenameForm: (form: RenameFormState | null) => void
-  columnError?: UserFacingError
+  renameForm: RenameFormState | null | undefined
+  onCancel: () => void
   onRename: (form: RenameFormState) => void
+  submitting: boolean
 }): JSX.Element {
+  const [form, setForm] = createSignal<RenameFormState>()
+  createEffect(() => props.renameForm, (initial) => setForm(initial ?? undefined))
+  useModEnterSubmit({
+    onSubmit: () => {
+      const current = form()
+      if (current) props.onRename(current)
+    },
+    disabled: () => props.submitting,
+    active: () => !!props.renameForm,
+  })
   return (
-    <DialogRoot open={!!props.renameForm} onOpenChange={() => props.setRenameForm(null)} class="max-w-lg p-0">
-      <DialogForm state={props.renameForm}>
+    <DialogRoot open={!!props.renameForm} onOpenChange={props.onCancel} class="max-w-lg p-0">
+      <DialogForm state={form()}>
         {(rf) => (
           <>
             <DialogHeader title="Rename Column" />
             <div class="space-y-3 px-6 py-4">
-              <ErrorBanner message={props.columnError} />
               <p class="text-sm">
                 Renaming "{rf().oldName}" to "{slugifyColumnName(rf().newName)}".
               </p>
@@ -378,7 +515,7 @@ export function RenameColumnDialog(props: {
                     name="rename-scope"
                     checked={rf().scope === 'all'}
                     onChange={() =>
-                      props.setRenameForm({
+                      setForm({
                         ...rf(),
                         scope: 'all',
                       })
@@ -393,7 +530,7 @@ export function RenameColumnDialog(props: {
                     name="rename-scope"
                     checked={rf().scope === 'current'}
                     onChange={() =>
-                      props.setRenameForm({
+                      setForm({
                         ...rf(),
                         scope: 'current',
                       })
@@ -408,7 +545,7 @@ export function RenameColumnDialog(props: {
                     name="rename-scope"
                     checked={rf().scope === 'none'}
                     onChange={() =>
-                      props.setRenameForm({
+                      setForm({
                         ...rf(),
                         scope: 'none',
                       })
@@ -420,11 +557,12 @@ export function RenameColumnDialog(props: {
               </div>
             </div>
             <DialogFooter>
-              <button onClick={() => props.setRenameForm(null)} class="btn-secondary" data-testid="launcher-settings-columns-rename-cancel">
+              <button onClick={props.onCancel} class="btn-secondary" data-testid="launcher-settings-columns-rename-cancel">
                 Cancel
               </button>
               <button
                 onClick={() => props.onRename(rf())}
+                disabled={props.submitting}
                 title={modEnterHint()}
                 class="btn-primary"
                 data-testid="launcher-settings-columns-rename-confirm"
@@ -439,63 +577,90 @@ export function RenameColumnDialog(props: {
   )
 }
 
-export function BoardFormDialog(props: {
-  boardForm: {
-    name: string
-  } | null
-  setBoardForm: (
-    form: {
-      name: string
-    } | null,
-  ) => void
-  columnError?: UserFacingError
-  onCreate: () => void
-}): JSX.Element {
+interface CreateBoardDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onCreated: (boardId: string) => void
+}
+
+export function CreateBoardDialog(props: CreateBoardDialogProps): JSX.Element {
+  return <ErrorScope active={props.open}><CreateBoardContent {...props} /></ErrorScope>
+}
+
+function CreateBoardContent(props: CreateBoardDialogProps): JSX.Element {
+  const storage = useContext(BoardConfigContext)!
+  const errors = useErrorReporter(() => props.open)
+  const [name, setName] = createSignal('')
+  const [submitting, setSubmitting] = createSignal(false)
+  createEffect(() => props.open, (open) => {
+    if (open) setName('')
+  })
+
+  async function createBoard() {
+    if (submitting() || !name().trim()) return
+    const boardName = name().trim()
+    const boardId = slugifyColumnName(boardName)
+    errors.clear()
+    setSubmitting(true)
+    try {
+      await errors.runAndReportErrors(async () => {
+        const result = await storage.update((current) => {
+          if (!boardId) throw createValidationError('Board name must not be empty', 'name')
+          if (boardId === 'undefined') throw createValidationError('Board name "undefined" is reserved', 'name')
+          if (current.some((board) => board.id === boardId)) throw createValidationError(`Board with id "${boardId}" already exists`, 'name')
+          return [...current, { id: boardId, name: boardName, columns: [] }]
+        })
+        if (result.type === 'Success') {
+          props.onOpenChange(false)
+          props.onCreated(boardId)
+        }
+        return result
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  useModEnterSubmit({
+    onSubmit: createBoard,
+    disabled: () => submitting() || !name().trim(),
+    active: () => props.open,
+  })
   return (
-    <DialogRoot open={!!props.boardForm} onOpenChange={() => props.setBoardForm(null)} class="max-w-sm p-0">
-      <DialogForm state={props.boardForm}>
-        {(bf) => (
-          <>
-            <DialogHeader title="Add Board" />
-            <div class="space-y-3 px-6 py-4">
-              <ErrorBanner message={props.columnError} />
-              <div>
-                <label class="field-label">Board name</label>
-                <input
-                  type="text"
-                  value={bf().name}
-                  onInput={(e) =>
-                    props.setBoardForm({
-                      name: e.currentTarget.value,
-                    })
-                  }
-                  class="input input-sm"
-                  data-testid="launcher-settings-columns-board-name-input"
-                  placeholder="e.g. Development"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <button
-                onClick={() => props.setBoardForm(null)}
-                class="btn-secondary"
-                data-testid="launcher-settings-columns-board-form-cancel"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={props.onCreate}
-                disabled={!bf().name.trim()}
-                title={modEnterHint()}
-                class="btn-primary"
-                data-testid="launcher-settings-columns-board-form-submit"
-              >
-                Add
-              </button>
-            </DialogFooter>
-          </>
-        )}
-      </DialogForm>
+    <DialogRoot open={props.open} onOpenChange={props.onOpenChange} class="max-w-sm p-0">
+      <DialogHeader title="Add Board" />
+      <div class="space-y-3 px-6 py-4">
+        <div>
+          <label class="field-label">Board name</label>
+          <input
+            type="text"
+            value={name()}
+            onInput={(e) => setName(e.currentTarget.value)}
+            class="input input-sm"
+            data-testid="launcher-settings-columns-board-name-input"
+            placeholder="e.g. Development"
+          />
+          <ErrorField field="name" />
+        </div>
+      </div>
+      <DialogFooter>
+        <button
+          onClick={() => props.onOpenChange(false)}
+          class="btn-secondary"
+          data-testid="launcher-settings-columns-board-form-cancel"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={createBoard}
+          disabled={submitting() || !name().trim()}
+          title={modEnterHint()}
+          class="btn-primary"
+          data-testid="launcher-settings-columns-board-form-submit"
+        >
+          Add
+        </button>
+      </DialogFooter>
     </DialogRoot>
   )
 }

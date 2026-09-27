@@ -36,7 +36,7 @@ import { LauncherConfigContext } from '../launcher/shared-launcher-config-storag
 import { ProjectLauncherConfigContext } from '../launcher/project-launcher-config-storage.js'
 import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js'
 import { DiffReviewContext, ReviewAgentStatusContext, createReviewedLineTracker } from './diff-review-storage.js'
-import { useErrorSink } from '../shared/error-presentation.js'
+import { useErrorReporter } from '../shared/error-presentation.js'
 import { errorPayload } from '~/core/shared/errors.js'
 import type { UserFacingError } from '~/util/user-facing-error.js'
 import LoadError from '../shared/LoadError.js'
@@ -271,12 +271,11 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
   const [activePath, setActivePath] = createSignal('')
   const [composer, setComposer] = createSignal<ActiveComposer>()
   const [feedback, setFeedback] = createSignal('')
-  const setSendError = useErrorSink(() => composer() !== undefined)
+  const errors = useErrorReporter(() => composer() !== undefined)
   const [sending, setSending] = createSignal(false)
   const [refreshing, setRefreshing] = createSignal(false)
   const [savingProfile, setSavingProfile] = createSignal(false)
   const [selectedProfile, setSelectedProfile] = createSignal('')
-  const setReviewError = useErrorSink(() => true, true)
   const [jumpTarget, setJumpTarget] = createSignal<ReviewChangeLocation>()
   let scrollRef: HTMLDivElement | undefined
   let scrollFrame: number | undefined
@@ -292,7 +291,7 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
 
   async function refreshAgentStatus() {
     const result = await agentState.enqueueAndPublish(async () => success(await readAgentStatus()))
-    if (result.type === 'Failure') setReviewError(result.error)
+    if (result.type === 'Failure') errors.enqueueToast(result.error)
   }
 
   const worktreeIdentity = createMemo(() => agentStatus().worktreeIdentity)
@@ -301,7 +300,7 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
       state,
       folderName: props.ticket.folderName,
       worktreeIdentity: worktreeIdentity(),
-      onError: setReviewError,
+      onError: errors.enqueueToast,
     })
     onCleanup(() => void tracker.dispose())
     return tracker
@@ -412,7 +411,7 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
         try {
           revalidate('diff-review-snapshot')
         } catch (error) {
-          setReviewError(errorPayload(error, 'Review failed'))
+          errors.enqueueToast(errorPayload(error, 'Review failed'))
         }
         scheduleNext()
       }, 1200)
@@ -427,7 +426,7 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
   onSettled(() => {
     const timer = setInterval(() => {
       void state.refresh().then((result) => {
-        if (result.type === 'Failure') setReviewError(result.error)
+        if (result.type === 'Failure') errors.enqueueToast(result.error)
       })
       void refreshAgentStatus()
     }, 1200)
@@ -504,16 +503,16 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
           snapshot: buildReviewPromptSnapshot(file, range, current.scope, current.revision),
         },
       })
-      setSendError()
+      errors.clear()
     } catch (error) {
-      setReviewError(errorPayload(error, 'Select review lines failed'))
+      errors.enqueueToast(errorPayload(error, 'Select review lines failed'))
     }
   }
 
   async function sendFeedback(feedback: string): Promise<boolean> {
     if (!composer() || sending()) return false
     setSending(true)
-    setSendError()
+    errors.clear()
     try {
       const result = await enqueueReviewPrompt(
         props.projectSlug,
@@ -523,16 +522,16 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
         selection()?.snapshot ?? null,
       )
       if (result.type === 'Failure') {
-        setSendError(result.error)
+        errors.report(result.error)
         return false
       }
       setFeedback('')
       const refreshed = await state.refresh()
-      if (refreshed.type === 'Failure') setReviewError(refreshed.error)
+      if (refreshed.type === 'Failure') errors.enqueueToast(refreshed.error)
       void refreshAgentStatus()
       return true
     } catch (error) {
-      setSendError(errorPayload(error, 'Send review prompt failed'))
+      errors.report(errorPayload(error, 'Send review prompt failed'))
       return false
     } finally {
       setSending(false)
@@ -543,7 +542,7 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
     if (savingProfile()) return
     setSelectedProfile(profileName)
     setSavingProfile(true)
-    setSendError()
+    errors.clear()
     try {
       const column = props.ticket.status
       const result = await projectConfig.update((current) => ({
@@ -559,11 +558,11 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
         },
       }))
       if (result.type === 'Failure') {
-        setSendError(result.error)
+        errors.report(result.error)
         return
       }
     } catch (error) {
-      setSendError(errorPayload(error, 'Save review profile failed'))
+      errors.report(errorPayload(error, 'Save review profile failed'))
     } finally {
       setSavingProfile(false)
     }
@@ -697,7 +696,7 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
             class="btn-secondary btn-sm gap-1.5"
             onClick={() => {
               changeComposer({})
-              setSendError()
+              errors.clear()
             }}
             title="Send the Agent a prompt without selecting lines"
             data-testid="diff-review-prompt-agent"
@@ -857,7 +856,7 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
                                   onSelect={(range) => selectLines(file(), range)}
                                   onJumpApplied={() => setJumpTarget()}
                                   onChangedLineVisible={(lineId) => onChangedLineVisible(filePath, lineId)}
-                                  onError={setReviewError}
+                                  onError={errors.enqueueToast}
                                   dragText={() => promptDragTextForFile(filePath)}
                                 />
                               </Show>
@@ -897,9 +896,9 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
           herdrStatus={herdrStatus(props.ticket.folderName)}
           onCancel={() => {
             changeComposer()
-            setSendError()
+            errors.clear()
           }}
-          onError={setSendError}
+          onError={errors.report}
           onSend={sendFeedback}
         >
           <DiffReviewContext value={state}>

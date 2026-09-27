@@ -11,7 +11,8 @@ function makeDeps(overrides?: Partial<FileUploadDeps>): FileUploadDeps {
   return {
     projectSlug: 'test-project',
     folderName: () => 't-1-test',
-    setError: vi.fn(),
+    onError: vi.fn(),
+    onClearError: vi.fn(),
     ticketFileNames: () => [],
     contextNames: () => [],
     refreshFiles: vi.fn().mockResolvedValue(undefined),
@@ -61,7 +62,7 @@ describe('createFileUploadState', () => {
         type: 'text/plain',
       })
       await runWithOwner(null, () => state.handleFileInputChange(inputChangeEvent([file])))
-      expect(deps.setError).toHaveBeenCalledWith({
+      expect(deps.onError).toHaveBeenCalledExactlyOnceWith({
         name: 'report.txt',
         title: 'Upload failed',
         description: 'disk full',
@@ -89,7 +90,7 @@ describe('createFileUploadState', () => {
         type: 'text/markdown',
       })
       await runWithOwner(null, () => state.handleFileInputChange(inputChangeEvent([file])))
-      expect(deps.setError).toHaveBeenCalledWith({
+      expect(deps.onError).toHaveBeenCalledExactlyOnceWith({
         name: 'notes.md',
         title: 'Upload failed',
         description: 'permission denied',
@@ -161,7 +162,8 @@ describe('createFileUploadState', () => {
         results: [
           failure({
             name: 'report.txt',
-            message: 'disk full',
+            title: 'Upload failed',
+            description: 'disk full',
           }),
         ],
       }),

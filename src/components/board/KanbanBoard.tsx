@@ -1,6 +1,6 @@
 import type { JSX } from '@solidjs/web'
 import { For, Show, useContext } from 'solid-js'
-import { useErrorSink, useErrorReporter } from '../shared/error-presentation.js'
+import { useErrorReporter } from '../shared/error-presentation.js'
 import { revalidate } from '@solidjs/router'
 import { TicketOrderContext } from './ticket-order-storage.js'
 import { ticketMutationRevalidateKeys } from '../shared/revalidate-keys.js'
@@ -30,7 +30,6 @@ interface KanbanBoardProps {
 
 export default function KanbanBoard(props: KanbanBoardProps): JSX.Element {
   const order = useContext(TicketOrderContext)!
-  const setSaveError = useErrorSink(() => true, true)
   const errors = useErrorReporter()
   const dnd = createBoardDnd(() => ({
     ...props.board,
@@ -43,24 +42,23 @@ export default function KanbanBoard(props: KanbanBoardProps): JSX.Element {
 
   async function saveDrop(drop: DropResult) {
     const projectSlug = props.projectSlug
-    setSaveError(undefined)
     if (drop.fromColumn !== drop.toColumn) {
       const status = await updateTicket(projectSlug, drop.folderName, null, null, drop.toColumn)
       if (props.projectSlug !== projectSlug) return
       if (status.type === 'Failure') {
-        setSaveError(status.error)
+        errors.enqueueToast(status.error)
         return
       }
     }
     const result = await order.update((current) =>
       moveTicketInOrder(current, drop.folderName, drop.fromColumn, drop.toColumn, drop.newIndex),
     )
-    if (result.type === 'Failure') setSaveError(result.error)
+    if (result.type === 'Failure') errors.enqueueToast(result.error)
     await revalidate(ticketMutationRevalidateKeys)
   }
 
   const openFolder = (ticket: TicketInfo) => {
-    void errors.run(() => openTicketFolder(props.projectSlug, ticket.folderName))
+    void errors.runAndReportErrors(() => openTicketFolder(props.projectSlug, ticket.folderName))
   }
   const ticketsFor = (column: string) => resolveTicketsForColumn(column, order.get(), board().ticketMap, board().orphanFolderNames)
   let headerRow!: HTMLDivElement

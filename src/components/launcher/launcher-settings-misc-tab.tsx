@@ -5,7 +5,7 @@ import { revalidate, useAction } from '@solidjs/router'
 import { TabsContent } from '../ui/tabs'
 import { ScopeBadge } from './launcher-settings-rows.js'
 import DeleteProjectDialog from '../project/DeleteProjectDialog.js'
-import { useErrorSink, ErrorField } from '../shared/error-presentation.js'
+import { useErrorReporter, ErrorField } from '../shared/error-presentation.js'
 import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
 import { SettingsFolderField } from './settings-folder-field.js'
 import { AppConfigContext } from '../config/app-config-storage.js'
@@ -25,7 +25,7 @@ export function MiscTab(props: {
   const projectConfig = useContext(ProjectLauncherConfigContext)!
   const metadata = createMemo(() => getProjectLauncherMetadata(props.projectSlug))
   const config = createMemo(() => mergeLauncherConfigs(sharedConfig.get(), projectConfig.get()))
-  const setError = useErrorSink(() => props.open)
+  const errors = useErrorReporter(() => props.open)
   const [deleteOpen, setDeleteOpen] = createSignal(false)
   const [nameDraft, setProjectName] = createSignal<string>()
   const [pathDraft, setProjectPath] = createSignal<string>()
@@ -56,12 +56,12 @@ export function MiscTab(props: {
       setWorktreeRootPath()
       setBranchPrefix()
       setConflictPrompt()
-      setError(null)
+      errors.clear()
     },
   )
 
   async function saveProjectName() {
-    setError(null)
+    errors.clear()
     const name = projectName().trim() || undefined
     const result = await appConfig.update((current) => ({
       ...current,
@@ -75,33 +75,33 @@ export function MiscTab(props: {
       ),
     }))
     if (result.type === 'Failure')
-      setError(result.error)
+      errors.report(result.error)
   }
 
   async function saveOverride(key: 'worktreeRootPath' | 'branchPrefix' | 'conflictResolutionPrompt', value: string) {
-    setError(null)
+    errors.clear()
     const result = await projectConfig.update((current) => ({
       ...current,
       [key]: value.trim() || undefined,
     }))
     if (result.type === 'Failure')
-      setError(result.error)
+      errors.report(result.error)
   }
 
   async function saveProjectPath(path = projectPath()) {
     if (savingProjectPath() || path.trim() === metadata().projectPath) return
     setSavingProjectPath(true)
-    setError(null)
+    errors.clear()
     try {
       const result = await runSetProjectPath(props.projectSlug, path)
       if (result.type === 'Failure') {
-        setError(result.error)
+        errors.report(result.error)
         return
       }
       setProjectPath(result.value.path)
       await revalidate(['launcher-metadata', 'project-page', 'project-sync-status'])
     } catch (e) {
-      setError(errorPayload(e, 'Save failed'))
+      errors.report(errorPayload(e, 'Save failed'))
     } finally {
       setSavingProjectPath(false)
     }
@@ -111,21 +111,21 @@ export function MiscTab(props: {
     const saved = kind === 'path' ? metadata().worktreeDir : (metadata().ticketsBranch ?? '')
     if (savingTicketsLocation() || value.trim() === saved) return
     setSavingTicketsLocation(true)
-    setError(null)
+    errors.clear()
     try {
       const result = await runSetTicketsLocation(props.projectSlug, {
         kind,
         value,
       })
       if (result.type === 'Failure') {
-        setError(result.error)
+        errors.report(result.error)
         return
       }
       if (kind === 'path') setTicketsPath(result.value.value)
       else setTicketsBranch(result.value.value)
       await revalidate('launcher-metadata')
     } catch (e) {
-      setError(errorPayload(e, 'Save failed'))
+      errors.report(errorPayload(e, 'Save failed'))
     } finally {
       setSavingTicketsLocation(false)
     }
@@ -156,20 +156,18 @@ export function MiscTab(props: {
             field="path"
             testId="launcher-settings-misc-project-path"
             value={projectPath()}
-            setValue={setProjectPath}
-            save={saveProjectPath}
+            onValueChange={setProjectPath}
+            onSaveRequested={saveProjectPath}
             saving={savingProjectPath()}
-            setError={setError}
           />
           <SettingsFolderField
             label="Tickets folder"
             field="ticketsPath"
             testId="launcher-settings-misc-tickets-path"
             value={ticketsPath()}
-            setValue={setTicketsPath}
-            save={(path = ticketsPath()) => saveTicketsLocation('path', path)}
+            onValueChange={setTicketsPath}
+            onSaveRequested={(path = ticketsPath()) => saveTicketsLocation('path', path)}
             saving={savingTicketsLocation()}
-            setError={setError}
           />
           <section>
             <label class="field-label" for="tickets-branch">
@@ -195,10 +193,9 @@ export function MiscTab(props: {
             field="worktreeRootPath"
             testId="launcher-settings-misc-worktree"
             value={worktreeRootPath()}
-            setValue={setWorktreeRootPath}
+            onValueChange={setWorktreeRootPath}
             saving={false}
-            save={(path = worktreeRootPath()) => saveOverride('worktreeRootPath', path)}
-            setError={setError}
+            onSaveRequested={(path = worktreeRootPath()) => saveOverride('worktreeRootPath', path)}
           />
           <section>
             <label class="field-label">

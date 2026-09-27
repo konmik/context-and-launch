@@ -36,7 +36,7 @@ interface TicketDetailDialogProps {
   onReviewChanges?: (ticket: TicketInfo) => void
   projectSlug: string
   ticket: TicketInfo | null
-  stateDeps?: TicketDetailStateDeps
+  stateDeps?: Partial<TicketDetailStateDeps>
   launchAgent?: typeof launchAgentAction
 }
 
@@ -66,11 +66,11 @@ function TicketDetailContent(props: {
   onClose: () => void
   projectSlug: string
   onReviewChanges?: (ticket: TicketInfo) => void
-  stateDeps?: TicketDetailStateDeps
+  stateDeps?: Partial<TicketDetailStateDeps>
   launchAgent?: typeof launchAgentAction
 }): JSX.Element {
   const errors = useErrorReporter()
-  const s = untrack(() => createTicketDetailState(props, { ...props.stateDeps, onError: errors.report, onClearError: errors.clear, onBackgroundError: errors.background }))
+  const s = untrack(() => createTicketDetailState(props, { ...props.stateDeps, onError: errors.report, onClearError: errors.clear, onBackgroundError: errors.enqueueToast }))
   const ticketStatus = useContext(TicketStatusContext)!
   const ticket = ticketStatus.get
   const launcherDeps = untrack(() => ({
@@ -297,7 +297,7 @@ function TicketDetailContent(props: {
                               useWorktree,
                             }))
                             if (result.type === 'Failure') {
-                              s.setError(result.error)
+                              errors.report(result.error)
                             }
                           }}
                           class="rounded border-input"

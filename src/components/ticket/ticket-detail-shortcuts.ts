@@ -9,7 +9,8 @@ export interface ShortcutDeps {
   folderName: () => string
   useWorktree: () => boolean
   launchDir: () => string
-  setError: (error: ErrorInfo | null) => void
+  onError: (error: ErrorInfo) => void
+  onClearError?: () => void
   runShortcut?: typeof runShortcutAction
 }
 
@@ -25,7 +26,7 @@ export function createShortcutState(deps: ShortcutDeps): ShortcutStateResult {
 
   async function runShortcut(name: string, force?: boolean) {
     setRunningShortcut(name)
-    deps.setError(null)
+    deps.onClearError?.()
     try {
       const result = await (deps.runShortcut ?? runShortcutAction)(
         deps.projectSlug(),
@@ -45,11 +46,11 @@ export function createShortcutState(deps: ShortcutDeps): ShortcutStateResult {
           return
         }
         if (result.error.type === 'error') {
-          deps.setError(result.error)
+          deps.onError(result.error)
         }
       }
     } catch (e: unknown) {
-      deps.setError(errorPayload(e, 'Shortcut failed'))
+      deps.onError(errorPayload(e, 'Shortcut failed'))
     } finally {
       setRunningShortcut('')
     }

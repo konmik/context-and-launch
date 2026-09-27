@@ -172,7 +172,6 @@ export function createAgentLauncherController(props: AgentLauncherDeps): AgentLa
     dirtyWorktreeMsg,
     setSelectedTemplate,
     setSelectedProfile,
-    setErrorInfo,
     setBehindRemoteMsg,
     setDirtyWorktreeMsg,
     toggleSkill,
@@ -201,7 +200,6 @@ export interface AgentLauncherControllerResult {
   dirtyWorktreeMsg: SourceAccessor<string>
   setSelectedTemplate: Setter<string>
   setSelectedProfile: Setter<string>
-  setErrorInfo: (error: ErrorInfo | null) => void
   setBehindRemoteMsg: Setter<string>
   setDirtyWorktreeMsg: Setter<string>
   toggleSkill: (name: string) => void

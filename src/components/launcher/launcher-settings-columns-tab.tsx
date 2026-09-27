@@ -4,35 +4,33 @@ import { Show, For, createSignal, createEffect, useContext } from 'solid-js'
 import { revalidate } from '@solidjs/router'
 import { DragDropProvider } from '~/components/drag/drag-provider.js'
 import { TabsContent } from '../ui/tabs'
-import { validateColumnName, type ColumnDefinition } from '~/core/project/board-config-data.js'
-import { migrateRenamedColumn, type BoardRef } from '../board/board-api.js'
+import type { ColumnDefinition } from '~/core/project/board-config-data.js'
+import type { BoardRef } from '../board/board-api.js'
 import { BoardConfigContext } from '../board/board-config-storage.js'
 import { AppConfigContext } from '../config/app-config-storage.js'
-import { slugifyColumnName } from '~/lib/slugify.js'
-import { errorPayload, createValidationError, type ErrorInfo } from '~/core/shared/errors.js'
-import { useModEnterSubmit } from '~/lib/use-mod-enter-submit.js'
+import type { ErrorInfo } from '~/core/shared/errors.js'
 import { NameDragOverlay } from '../board/dnd-shared.js'
 import { createListReorder } from '../board/list-reorder.js'
 import { SortableColumnRow, ColumnDropPreview } from './launcher-settings-rows.js'
 import BoardSelect from '../project/BoardSelect.js'
-import { useErrorSink } from '../shared/error-presentation.js'
-import { ProjectLauncherConfigContext } from './project-launcher-config-storage.js'
+import { ErrorScope, useErrorReporter } from '../shared/error-presentation.js'
+import { updateBoardColumns } from './launcher-settings-pure.js'
 import {
   ColumnFormDialog,
-  RenameColumnDialog,
-  BoardFormDialog,
+  CreateBoardDialog,
   DeleteConfirmDialog,
   ProjectBoardConfirmDialog,
   type ColumnFormState,
   type DeleteTarget,
-  type RenameFormState,
 } from './launcher-settings-dialogs.js'
-import { validateColumnName as columnValidation } from './launcher-settings-pure.js'
 
 export function ColumnsTab(props: { open: boolean; projectSlug: string }): JSX.Element {
+  return <ErrorScope active={props.open}><ColumnsTabContent {...props} /></ErrorScope>
+}
+
+function ColumnsTabContent(props: { open: boolean; projectSlug: string }): JSX.Element {
   const storage = useContext(BoardConfigContext)!
-  const projectConfig = useContext(ProjectLauncherConfigContext)!
-  const setError = useErrorSink(() => props.open)
+  const errors = useErrorReporter(() => props.open)
   const appConfig = useContext(AppConfigContext)!
   const boards = storage.get
   const projectBoardId = () => appConfig.get().projects.find((p) => p.projectSlug === props.projectSlug)?.boardId
@@ -40,144 +38,24 @@ export function ColumnsTab(props: { open: boolean; projectSlug: string }): JSX.E
   const selectedBoard = () =>
     boards().find((b) => b.id === boardOverride()) ?? boards().find((b) => b.id === projectBoardId()) ?? boards()[0]
   const [columnForm, setColumnForm] = createSignal<ColumnFormState | null>(null)
-  const [boardForm, setBoardForm] = createSignal<{
-    name: string
-  } | null>(null)
-  const [renameForm, setRenameForm] = createSignal<RenameFormState | null>(null)
+  const [boardFormOpen, setBoardFormOpen] = createSignal(false)
   const [deleteConfirm, setDeleteConfirm] = createSignal<DeleteTarget | null>(null)
   const [projectBoardConfirm, setProjectBoardConfirm] = createSignal<BoardRef | null>(null)
-  const [columnDialogError, setColumnDialogError] = createSignal<ErrorInfo>()
   createEffect(
     () => [props.open, props.projectSlug],
     () => {
       setBoardOverride(undefined)
       setColumnForm(null)
-      setBoardForm(null)
-      setRenameForm(null)
+      setBoardFormOpen(false)
       setDeleteConfirm(null)
       setProjectBoardConfirm(null)
-      setColumnDialogError(undefined)
+      errors.clear()
     },
   )
-  const validation = () => {
-    const f = columnForm()
-    return f ? columnValidation(f.name, f.mode, f.oldName, selectedBoard().columns) : undefined
-  }
 
   async function updateColumns(transform: (columns: ColumnDefinition[]) => ColumnDefinition[]): Promise<Result<void, ErrorInfo>> {
     const id = selectedBoard().id
-    return storage.update((current) => {
-      if (!current.some((b) => b.id === id)) throw new Error(`Board not found: ${id}`)
-      return current.map((b) =>
-        b.id === id
-          ? {
-              ...b,
-              columns: transform(b.columns),
-            }
-          : b,
-      )
-    })
-  }
-
-  async function createBoard() {
-    const f = boardForm()
-    if (!f) return
-    const id = slugifyColumnName(f.name)
-    const result = await storage.update((current) => {
-      if (!id) throw createValidationError('Board name must not be empty', 'name')
-      if (id === 'undefined') throw createValidationError('Board name "undefined" is reserved', 'name')
-      if (current.some((b) => b.id === id)) throw createValidationError(`Board with id "${id}" already exists`, 'name')
-      return [
-        ...current,
-        {
-          id,
-          name: f.name.trim(),
-          columns: [],
-        },
-      ]
-    })
-    if (result.type === 'Failure') {
-      setColumnDialogError(result.error)
-      return
-    }
-    setBoardForm(null)
-    setBoardOverride(id)
-  }
-
-  async function saveColumn(f = columnForm(), rename = renameForm()) {
-    if (!f) return
-    setColumnDialogError(undefined)
-    if (f.mode === 'edit' && slugifyColumnName(f.name) !== f.oldName && !rename) {
-      setRenameForm({
-        oldName: f.oldName!,
-        newName: f.name,
-        scope: 'all',
-      })
-      return
-    }
-    const boardId = selectedBoard().id
-    const projectSlug = props.projectSlug
-    const newName = slugifyColumnName(rename?.newName ?? f.name)
-    const result = await updateColumns((columns) => {
-      validateColumnName(
-        newName,
-        columns.map((c) => c.name),
-        f.oldName,
-      )
-      const content = {
-        name: newName,
-        description: f.description.trim() || undefined,
-        color: f.color || undefined,
-      }
-      if (f.mode === 'add') return [...columns, content]
-      if (!columns.some((c) => c.name === f.oldName)) throw new Error(`Column not found: ${f.oldName}`)
-      return columns.map((c) =>
-        c.name === f.oldName
-          ? {
-              ...c,
-              ...content,
-            }
-          : c,
-      )
-    })
-    if (result.type === 'Failure') {
-      setColumnDialogError(result.error)
-      return
-    }
-    if (rename && rename.scope !== 'none') {
-      try {
-        const migration = await migrateRenamedColumn(boardId, rename.oldName, newName, rename.scope, projectSlug)
-        if (migration.type === 'Failure') throw migration.error
-        if (rename.scope === 'current' || boardId === (projectBoardId() ?? boards()[0]?.id)) {
-          const refreshed = await projectConfig.refresh()
-          if (refreshed.type === 'Failure') throw refreshed.error
-        }
-        await revalidate('project-page')
-      } catch (error) {
-        const rollback = await storage.update((current) =>
-          current.map((board) =>
-            board.id === boardId
-              ? {
-                  ...board,
-                  columns: board.columns.map((column) =>
-                    column.name === newName
-                      ? {
-                          ...column,
-                          name: rename.oldName,
-                        }
-                      : column,
-                  ),
-                }
-              : board,
-          ),
-        )
-        setError(errorPayload(error, 'Migration failed'))
-        if (rollback.type === 'Failure') setError(rollback.error)
-        return
-      }
-    }
-    setColumnForm(null)
-    setRenameForm(null)
+    return storage.update((current) => updateBoardColumns(current, id, transform))
   }
 
   async function deleteSelected() {
@@ -192,7 +70,7 @@ export function ColumnsTab(props: { open: boolean; projectSlug: string }): JSX.E
           })
     setDeleteConfirm(null)
     if (result.type === 'Failure') {
-      setError(result.error)
+      errors.report(result.error)
       return
     }
     if (target.type === 'board') {
@@ -205,7 +83,7 @@ export function ColumnsTab(props: { open: boolean; projectSlug: string }): JSX.E
         }),
       }))
       if (cleared.type === 'Failure')
-        setError(cleared.error)
+        errors.report(cleared.error)
       await revalidate('project-page')
     }
   }
@@ -226,7 +104,7 @@ export function ColumnsTab(props: { open: boolean; projectSlug: string }): JSX.E
       ),
     }))
     if (result.type === 'Failure') {
-      setError(result.error)
+      errors.report(result.error)
       return
     }
     setProjectBoardConfirm(null)
@@ -245,23 +123,8 @@ export function ColumnsTab(props: { open: boolean; projectSlug: string }): JSX.E
         return names.map((name) => byName.get(name)!)
       })
       if (result.type === 'Failure')
-        setError(result.error)
+        errors.report(result.error)
     },
-  })
-  useModEnterSubmit({
-    onSubmit: () => saveColumn(),
-    disabled: () => !columnForm()?.name.trim() || !!validation(),
-    active: () => !!columnForm() && !renameForm(),
-  })
-  useModEnterSubmit({
-    onSubmit: () => saveColumn(),
-    disabled: () => false,
-    active: () => !!renameForm(),
-  })
-  useModEnterSubmit({
-    onSubmit: createBoard,
-    disabled: () => !boardForm()?.name.trim(),
-    active: () => !!boardForm(),
   })
   return (
     <>
@@ -292,10 +155,8 @@ export function ColumnsTab(props: { open: boolean; projectSlug: string }): JSX.E
               </button>
               <button
                 onClick={() => {
-                  setColumnDialogError(undefined)
-                  setBoardForm({
-                    name: '',
-                  })
+                  errors.clear()
+                  setBoardFormOpen(true)
                 }}
                 class="btn-primary btn-sm"
                 data-testid="launcher-settings-columns-add-board-btn"
@@ -306,7 +167,7 @@ export function ColumnsTab(props: { open: boolean; projectSlug: string }): JSX.E
                 onClick={() => {
                   const b = selectedBoard()
                   if (b) {
-                    setColumnDialogError(undefined)
+                    errors.clear()
                     setDeleteConfirm({
                       type: 'board',
                       id: b.id,
@@ -327,7 +188,7 @@ export function ColumnsTab(props: { open: boolean; projectSlug: string }): JSX.E
               <h3 class="text-sm font-semibold">Columns</h3>
               <button
                 onClick={() => {
-                  setColumnDialogError(undefined)
+                  errors.clear()
                   setColumnForm({
                     mode: 'add',
                     name: '',
@@ -365,7 +226,7 @@ export function ColumnsTab(props: { open: boolean; projectSlug: string }): JSX.E
                                 column={col}
                                 isActive={columnReorder.activeId() === col.name}
                                 onEdit={() => {
-                                  setColumnDialogError(undefined)
+                                  errors.clear()
                                   setColumnForm({
                                     mode: 'edit',
                                     name: col.name,
@@ -375,7 +236,7 @@ export function ColumnsTab(props: { open: boolean; projectSlug: string }): JSX.E
                                   })
                                 }}
                                 onDelete={() => {
-                                  setColumnDialogError(undefined)
+                                  errors.clear()
                                   setDeleteConfirm({
                                     type: 'column',
                                     id: col.name,
@@ -400,20 +261,12 @@ export function ColumnsTab(props: { open: boolean; projectSlug: string }): JSX.E
         </div>
       </TabsContent>
       <ColumnFormDialog
-        columnForm={columnForm()}
-        setColumnForm={setColumnForm}
-        renameActive={!!renameForm()}
-        columnError={columnDialogError()}
-        validation={validation()}
-        onSubmit={(f) => saveColumn(f)}
+        form={props.open ? columnForm() : undefined}
+        boardId={selectedBoard().id}
+        projectSlug={props.projectSlug}
+        onClose={() => setColumnForm(null)}
       />
-      <RenameColumnDialog
-        renameForm={renameForm()}
-        setRenameForm={setRenameForm}
-        columnError={columnDialogError()}
-        onRename={(f) => saveColumn(columnForm(), f)}
-      />
-      <BoardFormDialog boardForm={boardForm()} setBoardForm={setBoardForm} columnError={columnDialogError()} onCreate={createBoard} />
+      <CreateBoardDialog open={boardFormOpen()} onOpenChange={setBoardFormOpen} onCreated={setBoardOverride} />
       <DeleteConfirmDialog
         deleteConfirm={deleteConfirm()}
         setDeleteConfirm={setDeleteConfirm}

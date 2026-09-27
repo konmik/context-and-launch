@@ -4,21 +4,14 @@ import { DragDropProvider } from '~/components/drag/drag-provider.js'
 import { NameDragOverlay } from '../board/dnd-shared.js'
 import { ItemDropPreview, SortableItemRow, type MergedLauncherItem } from './launcher-settings-rows.js'
 import { ItemFormDialog } from './launcher-settings-dialogs.js'
-import { ErrorScope, useErrorSink } from '../shared/error-presentation.js'
-import { useModEnterSubmit } from '~/lib/use-mod-enter-submit.js'
-import { errorPayload, createValidationError, createNotFoundError } from '~/core/shared/errors.js'
+import { ErrorScope, useErrorReporter } from '../shared/error-presentation.js'
+import { errorPayload } from '~/core/shared/errors.js'
 import { createListReorder, midpointOrder } from '../board/list-reorder.js'
 import type { ItemType, Scope, ItemFormState } from './launcher-settings-dialogs.js'
 import { LauncherConfigContext } from './shared-launcher-config-storage.js'
 import { mergeLauncherConfigs, updateLauncherReferences } from '~/core/launcher/launcher-config-data.js'
 import { ProjectLauncherConfigContext } from './project-launcher-config-storage.js'
-
-const collections = {
-  template: 'templates',
-  skill: 'skills',
-  profile: 'profiles',
-  shortcut: 'shortcuts',
-} as const
+import { itemCollections } from './launcher-settings-pure.js'
 
 interface ItemSectionProps {
   open: boolean
@@ -41,22 +34,16 @@ function ItemSectionContent(props: ItemSectionProps): JSX.Element {
   const sharedConfig = useContext(LauncherConfigContext)!
   const projectConfig = useContext(ProjectLauncherConfigContext)!
   const config = createMemo(() => mergeLauncherConfigs(sharedConfig.get(), projectConfig.get()))
-  const setError = useErrorSink()
+  const errors = useErrorReporter()
   const [form, setForm] = createSignal<ItemFormState | null>(null)
-  const setSubmitError = useErrorSink(() => props.open && !!form())
-  const items = () => config()[collections[props.itemType]]
+  const items = () => config()[itemCollections[props.itemType]]
   const detailOf = (item: MergedLauncherItem) => ('text' in item ? item.text : item.command)
-  useModEnterSubmit({
-    onSubmit: submitForm,
-    disabled: () => !form()?.name.trim(),
-    active: () => !!form(),
-  })
   createEffect(
     () => props.open,
     (open) => {
       if (!open) return
       setForm(null)
-      setError(null)
+      errors.clear()
     },
   )
 
@@ -81,68 +68,18 @@ function ItemSectionContent(props: ItemSectionProps): JSX.Element {
     })
   }
 
-  async function submitForm(submittedForm?: ItemFormState) {
-    const f = submittedForm ?? form()
-    if (!f || !f.name.trim()) return
-    setError(null)
-    try {
-      const usesCommand = f.itemType === 'profile' || f.itemType === 'shortcut'
-      const fields = usesCommand
-        ? {
-            name: f.name,
-            command: f.text,
-          }
-        : {
-            name: f.name,
-            text: f.text,
-          }
-      const result = await (f.scope === 'app' ? sharedConfig : projectConfig).update((current) => {
-        const key = collections[f.itemType]
-        const items = current[key] ?? []
-        if (items.some((item) => item.name === fields.name && (f.mode === 'add' || item.name !== f.oldName))) {
-          throw createValidationError(`An item named "${fields.name}" already exists`, 'name')
-        }
-        if (f.mode === 'add')
-          return {
-            ...current,
-            [key]: [...items, fields],
-          }
-        if (!items.some((item) => item.name === f.oldName)) throw createNotFoundError(`Item "${f.oldName}" not found`)
-        return {
-          ...current,
-          [key]: items.map((item) =>
-            item.name === f.oldName
-              ? {
-                  ...item,
-                  ...fields,
-                }
-              : item,
-          ),
-          columnDefaults: updateLauncherReferences(current.columnDefaults, f.itemType, f.oldName!, f.name),
-        }
-      })
-      if (result.type === 'Failure') {
-        setSubmitError(result.error)
-        return
-      }
-      setForm(null)
-    } catch (e) {
-      setSubmitError(errorPayload(e, 'Save failed'))
-    }
-  }
-
   async function deleteItemFn(itemType: ItemType, scope: Scope, name: string) {
-    setError(null)
+    errors.clear()
     try {
       const result = await (scope === 'app' ? sharedConfig : projectConfig).update((current) => ({
         ...current,
-        [collections[itemType]]: (current[collections[itemType]] ?? []).filter((item) => item.name !== name),
+        [itemCollections[itemType]]: (current[itemCollections[itemType]] ?? []).filter((item) => item.name !== name),
         columnDefaults: updateLauncherReferences(current.columnDefaults, itemType, name, null),
       }))
       if (result.type === 'Failure')
-        setError(result.error)
+        errors.report(result.error)
     } catch (e) {
-      setError(errorPayload(e, 'Delete failed'))
+      errors.report(errorPayload(e, 'Delete failed'))
     }
   }
 
@@ -160,11 +97,11 @@ function ItemSectionContent(props: ItemSectionProps): JSX.Element {
   })
 
   async function saveItemOrder(scope: Scope, name: string, order: number) {
-    setError(null)
+    errors.clear()
     try {
       const result = await (scope === 'app' ? sharedConfig : projectConfig).update((current) => ({
         ...current,
-        [collections[props.itemType]]: (current[collections[props.itemType]] ?? []).map((item) =>
+        [itemCollections[props.itemType]]: (current[itemCollections[props.itemType]] ?? []).map((item) =>
           item.name === name
             ? {
                 ...item,
@@ -174,9 +111,9 @@ function ItemSectionContent(props: ItemSectionProps): JSX.Element {
         ),
       }))
       if (result.type === 'Failure')
-        setError(result.error)
+        errors.report(result.error)
     } catch (e) {
-      setError(errorPayload(e, 'Reorder failed'))
+      errors.report(errorPayload(e, 'Reorder failed'))
     }
   }
 
@@ -228,7 +165,7 @@ function ItemSectionContent(props: ItemSectionProps): JSX.Element {
           </p>
         </Show>
       </section>
-      <ItemFormDialog form={form()} setForm={setForm} onSubmit={submitForm} />
+      <ItemFormDialog form={props.open ? form() : undefined} onClose={() => setForm(null)} />
     </>
   )
 }

@@ -8,7 +8,8 @@ import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
 export interface FileUploadDeps {
   projectSlug: string
   folderName: () => string
-  setError: (error: ErrorInfo | null) => void
+  onError: (error: ErrorInfo) => void
+  onClearError: () => void
   ticketFileNames: () => string[]
   contextNames: () => string[]
   refreshFiles: () => Promise<void>
@@ -78,7 +79,7 @@ export function createFileUploadState(deps: FileUploadDeps): FileUploadStateResu
 
   async function processFileForUpload(file: File) {
     if (file.name === 'status.json') {
-      deps.setError({
+      deps.onError({
         title: 'Upload failed',
         description: 'Cannot overwrite status.json',
       })
@@ -106,20 +107,20 @@ export function createFileUploadState(deps: FileUploadDeps): FileUploadStateResu
 
   async function doUploadFile(file: File) {
     setUploading(true)
-    deps.setError(null)
+    deps.onClearError()
     try {
       const formData = new FormData()
       formData.append('file', file)
       const result = await (deps.uploadFile ?? uploadFileAction)(deps.projectSlug, deps.folderName(), formData)
       if (result.type === 'Failure') {
-        deps.setError(result.error)
+        deps.onError(result.error)
         return
       }
       let anySucceeded = false
       for (const r of result.value.results) {
         if (r.type === 'Success') anySucceeded = true
         else {
-          deps.setError(r.error)
+          deps.onError(r.error)
         }
       }
       if (anySucceeded) {
@@ -136,7 +137,7 @@ export function createFileUploadState(deps: FileUploadDeps): FileUploadStateResu
           })
       }
     } catch (e) {
-      deps.setError(errorPayload(e, 'Upload failed'))
+      deps.onError(errorPayload(e, 'Upload failed'))
     } finally {
       setUploading(false)
     }

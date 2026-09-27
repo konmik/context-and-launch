@@ -16,7 +16,7 @@ export default function PalettePicker(): JSX.Element {
 
   async function showSaveError(completion: Promise<Result<void, UserFacingError>>) {
     const result = await completion
-    if (result.type === 'Failure') errors.background(result.error)
+    if (result.type === 'Failure') errors.enqueueToast(result.error)
   }
 
   return (

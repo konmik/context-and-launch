@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createRoot, flush } from 'solid-js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import { createProjectPageController } from '../../../src/components/project/project-page-controller.js'
@@ -22,6 +22,7 @@ describe('ProjectPageController ticket detail', () => {
     const clicked = ticket()
     const { controller, dispose } = createRoot((dispose) => ({
       controller: createProjectPageController({
+        onError: vi.fn(),
         projectSlug: () => 'test-project',
         data: () => ({
           status: 'loaded',
@@ -51,6 +52,7 @@ describe('ProjectPageController ticket detail', () => {
     }
     const { controller, dispose } = createRoot((dispose) => ({
       controller: createProjectPageController({
+        onError: vi.fn(),
         projectSlug: () => 'test-project',
         data: () => ({
           status: 'loaded',

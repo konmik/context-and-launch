@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { createRoot, createSignal, flush, runWithOwner } from 'solid-js'
 import { createCreateTicketController, type CreateTicketDeps } from '../../../src/components/ticket/create-ticket-controller.js'
 import { success } from '~/util/result.js'
@@ -6,6 +6,7 @@ import { success } from '~/util/result.js'
 function makeDeps(overrides?: Partial<CreateTicketDeps>): CreateTicketDeps {
   return {
     onSubmit: async () => success(undefined),
+    onError: vi.fn(),
     onOpenChange: () => {},
     suggestedNextNumber: () => null,
     open: () => true,
@@ -16,7 +17,7 @@ function makeDeps(overrides?: Partial<CreateTicketDeps>): CreateTicketDeps {
 
 describe('createCreateTicketController', () => {
   describe('suggestNumber', () => {
-    it('sets errorMsg when onSuggestNumber rejects', async () => {
+    it('reports the error when onSuggestNumber rejects', async () => {
       await createRoot(async (dispose) => {
         try {
           const deps = makeDeps({
@@ -27,7 +28,7 @@ describe('createCreateTicketController', () => {
           const ctrl = createCreateTicketController(deps)
           await runWithOwner(null, ctrl.suggestNumber)
           flush()
-          expect(ctrl.errorMsg()).toEqual({ title: 'Suggest ticket number failed', description: 'server broke' })
+          expect(deps.onError).toHaveBeenCalledExactlyOnceWith({ title: 'Suggest ticket number failed', description: 'server broke' })
           expect(ctrl.suggestingNumber()).toBe(false)
         } finally {
           dispose()

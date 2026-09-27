@@ -3,7 +3,6 @@ import { createSignal, flush } from 'solid-js'
 import { revalidate, useAction } from '@solidjs/router'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
-import { createErrorState } from '~/util/error-state.js'
 import { createTicket, deleteTicket, archiveTicket, syncTickets, worktreeCleanup } from '../ticket/ticket-api.js'
 import { deleteProject, getSyncStatus } from './project-api.js'
 import { ticketMutationRevalidateKeys, projectSyncRevalidateKeys } from '../shared/revalidate-keys.js'
@@ -14,7 +13,7 @@ import type { TicketCleanupOptions } from '../shared/ticket-cleanup-pure.js'
 import { onSuccess, type Result } from '~/util/result.js'
 
 export interface ProjectPageDeps {
-  onError?: (error: ErrorInfo) => void
+  onError: (error: ErrorInfo) => void
   projectSlug: () => string
   data: () => ProjectPageData | undefined
   runSyncTickets?: (projectSlug: string) => ReturnType<typeof syncTickets>
@@ -31,7 +30,6 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
   const [reviewTicket, setReviewTicket] = createSignal<TicketInfo | null>(null)
   const [syncing, setSyncing] = createSignal(false)
   const [syncSuccess, setSyncSuccess] = createSignal(false)
-  const { error: syncError, setError: setSyncError } = createErrorState(deps.onError)
   const [conflictDialogOpen, setConflictDialogOpen] = createSignal(false)
   const [conflictDetected, setConflictDetected] = createSignal(false)
   const runSyncTickets = deps.runSyncTickets ?? useAction(syncTickets)
@@ -44,7 +42,6 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
     syncInProgress = true // Paint the imperative sync lock before starting filesystem and network work.
     flush(() => {
       setSyncing(true)
-      setSyncError(null)
     })
     let showSuccess = false
     try {
@@ -57,7 +54,7 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
       }
       setConflictDetected(false)
       if (!ss.hasRemote) {
-        setSyncError({
+        deps.onError({
           title: 'Sync failed',
           description: 'No remote tracking branch configured.' + ' Push the ticket branch to a remote first.',
         })
@@ -65,11 +62,11 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
       }
       const result = await runSyncTickets(deps.projectSlug())
       if (result.type === 'Failure') {
-        setSyncError(result.error)
+        deps.onError(result.error)
       } else {
         const parsed = parseSyncResult(result.value)
         if (parsed.type === 'Failure') {
-          setSyncError(parsed.error)
+          deps.onError(parsed.error)
         } else if (parsed.value.type === 'success') {
           showSuccess = true
           setSyncSuccess(true)
@@ -85,7 +82,7 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
         }
       }
     } catch (err) {
-      setSyncError(errorPayload(err, 'Sync failed'))
+      deps.onError(errorPayload(err, 'Sync failed'))
     } finally {
       if (!showSuccess) {
         setSyncing(false)
@@ -175,7 +172,6 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
   const syncState = () => ({
     syncing: syncing(),
     syncSuccess: syncSuccess(),
-    syncError: syncError(),
     conflictDetected: conflictDetected(),
   })
   const selectionState = () => {
@@ -208,7 +204,6 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
     setCreateTicketOpen,
     setCleanupDialogOpen,
     setConflictDialogOpen,
-    setSyncError,
   }
   return {
     dialogState,
@@ -232,7 +227,6 @@ export interface ProjectPageControllerResult {
   syncState: () => {
     syncing: boolean
     syncSuccess: boolean
-    syncError: ErrorInfo | undefined
     conflictDetected: boolean
   }
   selectionState: () => {
@@ -262,6 +256,5 @@ export interface ProjectPageControllerResult {
     setCreateTicketOpen: Setter<boolean>
     setCleanupDialogOpen: Setter<boolean>
     setConflictDialogOpen: Setter<boolean>
-    setSyncError: (error?: ErrorInfo | null) => void
   }
 }

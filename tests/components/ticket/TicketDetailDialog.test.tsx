@@ -98,6 +98,9 @@ function stateDependencies(ticket: TicketInfo): TicketDetailStateDeps {
         }))
       },
     },
+    onError: vi.fn(),
+    onClearError: vi.fn(),
+    onBackgroundError: vi.fn(),
     sharedConfig: createStoredSignal(
       () => emptyConfig,
       async (transform) => ({

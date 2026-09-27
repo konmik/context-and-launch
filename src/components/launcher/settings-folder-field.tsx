@@ -1,19 +1,19 @@
 import type { JSX } from '@solidjs/web'
 import { pickDirectory } from '../shared/directory-picker.js'
-import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
+import { errorPayload } from '~/core/shared/errors.js'
 import { ScopeBadge } from './launcher-settings-rows.js'
-import { ErrorField } from '../shared/error-presentation.js'
+import { ErrorField, useErrorReporter } from '../shared/error-presentation.js'
 
 export function SettingsFolderField(props: {
   label: string
   field: string
   testId: string
   value: string
-  setValue: (value: string) => void
-  save: (value?: string) => void
+  onValueChange: (value: string) => void
+  onSaveRequested: (value?: string) => void
   saving: boolean
-  setError: (error: ErrorInfo | null) => void
 }): JSX.Element {
+  const errors = useErrorReporter()
   return (
     <section>
       <label class="field-label" for={props.testId}>
@@ -24,13 +24,13 @@ export function SettingsFolderField(props: {
           id={props.testId}
           type="text"
           value={props.value}
-          onInput={(e) => props.setValue(e.currentTarget.value)}
+          onInput={(e) => props.onValueChange(e.currentTarget.value)}
           onBlur={(e) => {
             if (e.relatedTarget instanceof HTMLElement && e.relatedTarget.dataset.testid === `${props.testId}-browse`) return
-            props.save()
+            props.onSaveRequested()
           }}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') props.save()
+            if (e.key === 'Enter') props.onSaveRequested()
           }}
           disabled={props.saving}
           class="input input-sm flex-1"
@@ -45,13 +45,13 @@ export function SettingsFolderField(props: {
             try {
               const result = await pickDirectory(props.value)
               if (result.type === 'Failure') {
-                props.setError(result.error)
+                errors.report(result.error)
               } else if (result.value !== undefined) {
-                props.setValue(result.value)
-                props.save(result.value)
+                props.onValueChange(result.value)
+                props.onSaveRequested(result.value)
               }
             } catch (e) {
-              props.setError(errorPayload(e, 'Browse failed'))
+              errors.report(errorPayload(e, 'Browse failed'))
             }
           }}
         >

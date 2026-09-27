@@ -5,7 +5,7 @@ import { revalidate, useAction } from '@solidjs/router'
 import { createMemo, createSignal, For, Show, useContext } from 'solid-js'
 import { X } from '~/components/ui/icons.js'
 import CreateTicketDialog from '../ticket/CreateTicketDialog'
-import { useErrorSink } from '../shared/error-presentation.js'
+import { useErrorReporter } from '../shared/error-presentation.js'
 import ExpandingOverlay, { type ExpandingOverlayOrigin, type OverlayRect } from '../shared/ExpandingOverlay'
 import ForestSurface, { type ForestSurfaceApi, type ForestSurfaceCommands } from './ForestSurface.js'
 import { connectionPreviewPath, createForestConnection } from './forest-connections.js'
@@ -50,7 +50,7 @@ export default function ForestView(props: ForestViewProps): JSX.Element {
 
 function ForestContent(props: ForestViewProps): JSX.Element {
   const layout = useContext(ForestLayoutContext)!
-  const setError = useErrorSink()
+  const errors = useErrorReporter()
   const [openGroups, setOpenGroups] = createSignal<string[]>([])
   const [openGroupOrigin, setOpenGroupOrigin] = createSignal<ExpandingOverlayOrigin>()
   const [groupingDraft, setGroupingDraft] = createSignal<GroupingDraft>()
@@ -69,7 +69,7 @@ function ForestContent(props: ForestViewProps): JSX.Element {
   }
 
   function reportError(cause: unknown) {
-    setError(errorPayload(cause))
+    errors.report(errorPayload(cause))
   }
 
   function findTicket(ticketNumber: string): TicketInfo {
@@ -87,7 +87,7 @@ function ForestContent(props: ForestViewProps): JSX.Element {
   async function mutateAndRefreshTickets(mutate: () => Promise<Result<undefined, ActionError>>): Promise<boolean> {
     const result = await mutate()
     if (result.type === 'Failure') {
-      setError(result.error)
+      errors.report(result.error)
       return false
     }
     await revalidate(ticketMutationRevalidateKeys)
@@ -116,7 +116,7 @@ function ForestContent(props: ForestViewProps): JSX.Element {
         removals,
       })
       if (result.type === 'Failure')
-        setError(result.error)
+        errors.report(result.error)
     } finally {
       await revalidate(ticketMutationRevalidateKeys)
     }

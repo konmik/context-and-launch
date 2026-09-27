@@ -3,7 +3,6 @@ import { createSignal } from 'solid-js'
 import type { Result } from '~/util/result.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
-import { createErrorState } from '~/util/error-state.js'
 import type { CleanupItemKey, TicketCleanupStatus } from '~/core/worktree/ticket-cleanup-checks.js'
 import type { LockingProcessInfo } from '~/core/worktree/agent-worktree.js'
 import {
@@ -15,7 +14,7 @@ import {
 } from './ticket-cleanup-pure.js'
 
 export interface TicketCleanupDeps {
-  onError?: (error: ErrorInfo) => void
+  onError: (error: ErrorInfo) => void
   projectSlug: () => string
   ticket: () => TicketInfo | null
   action: () => 'archive' | 'delete'
@@ -32,7 +31,6 @@ export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCl
   const [items, setItems] = createSignal<TicketCleanupItemStates>(allChecking())
   const [runningItem, setRunningItem] = createSignal<CleanupItemKey>()
   const [submitting, setSubmitting] = createSignal(false)
-  const { error: errorInfo, setError: setErrorInfo } = createErrorState(deps.onError)
   const [killDialogOpen, setKillDialogOpen] = createSignal(false)
   const [lockingProcesses, setLockingProcesses] = createSignal<LockingProcessInfo[] | undefined>()
   const [killingProcesses, setKillingProcesses] = createSignal(false)
@@ -63,15 +61,12 @@ export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCl
     if (!ticket || busy() || items()[key].state !== 'ready') return
     const token = lifecycleToken
     setRunningItem(key)
-    setErrorInfo(null)
-    let actionError: ErrorInfo | undefined
     try {
       const result = await deps.onCleanup(ticket.folderName, singleCleanupOption(key))
-      if (result.type === 'Failure') actionError = result.error
+      if (result.type === 'Failure') deps.onError(result.error)
     } catch (err) {
-      actionError = errorPayload(err, 'Cleanup failed')
+      deps.onError(errorPayload(err, 'Cleanup failed'))
     }
-    if (actionError) setErrorInfo(actionError)
     if (token !== lifecycleToken) return
     await startChecks()
     if (token !== lifecycleToken) return
@@ -85,13 +80,12 @@ export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCl
     const ticket = deps.ticket()
     if (!ticket || busy()) return
     setSubmitting(true)
-    setErrorInfo(null)
     try {
       const result = await deps.onSubmit(ticket.folderName)
-      if (result.type === 'Failure') setErrorInfo(result.error)
+      if (result.type === 'Failure') deps.onError(result.error)
       else close()
     } catch (err) {
-      setErrorInfo(errorPayload(err, 'Cleanup failed'))
+      deps.onError(errorPayload(err, 'Cleanup failed'))
     } finally {
       setSubmitting(false)
     }
@@ -112,7 +106,7 @@ export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCl
       setLockingProcesses(processes)
     } catch (err) {
       setLockingProcesses([])
-      setErrorInfo(errorPayload(err, 'Could not list locking processes'))
+      deps.onError(errorPayload(err, 'Could not list locking processes'))
     }
   }
 
@@ -122,25 +116,20 @@ export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCl
     if (!ticket || !processes || processes.length === 0) return
     const token = lifecycleToken
     setKillingProcesses(true)
-    setErrorInfo(null)
-    let actionError: ErrorInfo | undefined
     try {
       const result = await deps.killLockingProcesses(
         deps.projectSlug(),
         ticket.folderName,
         processes.map((p) => p.pid),
       )
-      if (result.type === 'Failure')
-        actionError = result.error
+      if (result.type === 'Failure') deps.onError(result.error)
     } catch (err) {
-      actionError = errorPayload(err, 'Failed to kill processes')
+      deps.onError(errorPayload(err, 'Failed to kill processes'))
     }
-    if (actionError) setErrorInfo(actionError)
     if (token !== lifecycleToken) return
     setKillingProcesses(false)
     closeKillDialog()
     await startChecks()
-    if (token !== lifecycleToken) return
   }
 
   function openForceDeleteDialog(): void {
@@ -152,21 +141,16 @@ export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCl
     if (!ticket) return
     const token = lifecycleToken
     setForceDeleting(true)
-    setErrorInfo(null)
-    let actionError: ErrorInfo | undefined
     try {
       const result = await deps.forceDeleteLocalBranch(deps.projectSlug(), ticket.folderName)
-      if (result.type === 'Failure')
-        actionError = result.error
+      if (result.type === 'Failure') deps.onError(result.error)
     } catch (err) {
-      actionError = errorPayload(err, 'Failed to force-delete branch')
+      deps.onError(errorPayload(err, 'Failed to force-delete branch'))
     }
-    if (actionError) setErrorInfo(actionError)
     if (token !== lifecycleToken) return
     setForceDeleting(false)
     closeForceDeleteDialog()
     await startChecks()
-    if (token !== lifecycleToken) return
   }
 
   function closeForceDeleteDialog(): void {
@@ -182,7 +166,6 @@ export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCl
     lifecycleToken++
     requestToken++
     deps.onOpenChange(false)
-    setErrorInfo(null)
     setItems(allChecking())
     setRunningItem(undefined)
     closeKillDialog()
@@ -194,7 +177,6 @@ export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCl
     runningItem,
     submitting,
     busy,
-    errorInfo,
     actionLabel,
     runCleanup,
     startChecks,
@@ -222,7 +204,6 @@ export interface TicketCleanupControllerResult {
   runningItem: SourceAccessor<CleanupItemKey | undefined>
   submitting: SourceAccessor<boolean>
   busy: () => boolean
-  errorInfo: SourceAccessor<ErrorInfo | undefined>
   actionLabel: () => 'Archive' | 'Delete'
   runCleanup: (key: CleanupItemKey) => Promise<void>
   startChecks: () => Promise<void>

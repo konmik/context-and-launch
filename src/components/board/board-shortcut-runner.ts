@@ -9,15 +9,13 @@ import { computeLaunchDir } from '../launcher/agent-launcher-pure.js'
 import type { MergedLauncherConfigWithMeta } from '../launcher/launcher-api.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
-import { createErrorState } from '~/util/error-state.js'
 
 export function createBoardShortcutRunner(deps: {
-  onError?: (error: ErrorInfo) => void
+  onError: (error: ErrorInfo) => void
   projectSlug: () => string
   config: () => MergedLauncherConfigWithMeta | undefined
 }): BoardShortcutRunnerResult {
   const [activeTicket, setActiveTicket] = createSignal<TicketInfo>()
-  const { error, setError } = createErrorState(deps.onError)
   const launchDir = createMemo(() => {
     const ticket = activeTicket()
     const config = deps.config()
@@ -36,7 +34,7 @@ export function createBoardShortcutRunner(deps: {
     folderName: () => activeTicket()?.folderName ?? '',
     useWorktree: () => activeTicket()?.useWorktree ?? false,
     launchDir,
-    setError,
+    onError: deps.onError,
   })
 
   function run(ticket: TicketInfo, name: string) {
@@ -46,12 +44,11 @@ export function createBoardShortcutRunner(deps: {
   }
 
   async function openWorktree(ticket: TicketInfo) {
-    setError(null)
     try {
       const result = await openTicketWorktree(deps.projectSlug(), ticket.folderName)
-      if (result.type === 'Failure') setError(result.error)
+      if (result.type === 'Failure') deps.onError(result.error)
     } catch (e) {
-      setError(errorPayload(e, 'Open failed'))
+      deps.onError(errorPayload(e, 'Open failed'))
     }
   }
 
@@ -61,8 +58,6 @@ export function createBoardShortcutRunner(deps: {
     confirmation: shortcutState.shortcutConfirmation,
     setConfirmation: shortcutState.setShortcutConfirmation,
     proceed: (name: string) => void shortcutState.runShortcut(name, true),
-    error,
-    setError,
     run,
     openWorktree: (ticket: TicketInfo) => void openWorktree(ticket),
   }
@@ -77,8 +72,6 @@ export interface BoardShortcutRunnerResult {
   confirmation: SourceAccessor<ShortcutConfirmation | undefined>
   setConfirmation: Setter<ShortcutConfirmation | undefined>
   proceed: (name: string) => undefined
-  error: SourceAccessor<ErrorInfo | undefined>
-  setError: (error?: ErrorInfo | null) => void
   run: (ticket: TicketInfo, name: string) => void
   openWorktree: (ticket: TicketInfo) => undefined
 }

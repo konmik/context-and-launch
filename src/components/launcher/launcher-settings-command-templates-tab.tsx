@@ -6,13 +6,13 @@ import { COMMAND_TEMPLATE_DEFAULTS, type CommandTemplateKey } from '~/core/comma
 import type { CommandTemplateOverrides } from '~/core/command-template/command-template-types.js'
 import { CommandTemplateContext } from './command-template-storage.js'
 import { getCommandTemplateDefinitions } from './command-template-api.js'
-import { useErrorSink } from '../shared/error-presentation.js'
+import { useErrorReporter } from '../shared/error-presentation.js'
 
 export function CommandTemplatesTab(): JSX.Element {
   const templates = useContext(CommandTemplateContext)!
   const definitions = createMemo(() => getCommandTemplateDefinitions())
   const [drafts, setDrafts] = createSignal<CommandTemplateOverrides>({})
-  const setError = useErrorSink()
+  const errors = useErrorReporter()
   const savedScript = (key: CommandTemplateKey) => templates.get()[key] ?? COMMAND_TEMPLATE_DEFAULTS[key]
   const scriptFor = (key: CommandTemplateKey) => drafts()[key] ?? savedScript(key)
 
@@ -27,7 +27,7 @@ export function CommandTemplatesTab(): JSX.Element {
           }
     })
     if (result.type === 'Failure')
-      setError(result.error)
+      errors.report(result.error)
     else setDrafts(({ [key]: _removed, ...rest }) => rest)
   }
 

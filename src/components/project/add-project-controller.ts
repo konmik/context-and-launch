@@ -8,7 +8,6 @@ import type { ActionError } from '~/core/shared/errors.js'
 import type { AddProjectResult } from './project-api.js'
 import { errorPayload } from '~/core/shared/errors.js'
 import type { UserFacingError } from '~/util/user-facing-error.js'
-import { createErrorState } from '~/util/error-state.js'
 
 export type AddProjectAction = (
   pathValue: string,
@@ -21,7 +20,7 @@ export type AddProjectAction = (
 export interface AddProjectControllerDeps {
   action: AddProjectAction
   onSuccess?: (projectSlug: string) => void
-  onError?: (error: UserFacingError) => void
+  onError: (error: UserFacingError) => void
   onClearError?: () => void
 }
 
@@ -33,7 +32,6 @@ export function createAddProjectController(deps: AddProjectControllerDeps): AddP
   const [mainBranchTouched, setMainBranchTouched] = createSignal(false)
   const [boardId, setBoardId] = createSignal('')
   const [submitting, setSubmitting] = createSignal(false)
-  const { error: localError, setError: setLocalError } = createErrorState(deps.onError)
   const [debouncedPath, setDebouncedPath] = createSignal('')
   createEffect(
     () => pathValue().trim(),
@@ -52,14 +50,14 @@ export function createAddProjectController(deps: AddProjectControllerDeps): AddP
       .then((res) => {
         if (cancelled) return
         if (res.type === 'Failure') {
-          setLocalError(res.error)
+          deps.onError(res.error)
           return
         }
         deps.onClearError?.()
         if (!mainBranchTouched()) setMainBranchValue(res.value.mainBranch)
       })
       .catch((err) => {
-        if (!cancelled) setLocalError(errorPayload(err, 'Preview project failed'))
+        if (!cancelled) deps.onError(errorPayload(err, 'Preview project failed'))
       })
     return () => {
       cancelled = true
@@ -69,10 +67,10 @@ export function createAddProjectController(deps: AddProjectControllerDeps): AddP
   async function handleBrowsePath() {
     try {
       const result = await pickDirectory(pathValue().trim())
-      if (result.type === 'Failure') setLocalError(result.error)
+      if (result.type === 'Failure') deps.onError(result.error)
       else if (result.value !== undefined) setPathValue(result.value)
     } catch (err) {
-      setLocalError(errorPayload(err, 'Browse failed'))
+      deps.onError(errorPayload(err, 'Browse failed'))
     }
   }
 
@@ -84,13 +82,12 @@ export function createAddProjectController(deps: AddProjectControllerDeps): AddP
     const branch = branchValue().trim() || 'tickets'
     setSubmitting(true)
     deps.onClearError?.()
-    setLocalError()
     try {
       const result = await deps.action(trimmed, branch, mainBranchValue().trim(), boardId(), nameValue().trim())
-      if (result.type === 'Failure') setLocalError(result.error)
+      if (result.type === 'Failure') deps.onError(result.error)
       else deps.onSuccess?.(result.value.projectSlug)
     } catch (err) {
-      setLocalError(errorPayload(err, 'Add project failed'))
+      deps.onError(errorPayload(err, 'Add project failed'))
     } finally {
       setSubmitting(false)
     }
@@ -103,8 +100,6 @@ export function createAddProjectController(deps: AddProjectControllerDeps): AddP
     mainBranchValue,
     boardId,
     submitting,
-    localError,
-    setLocalError,
     setNameValue,
     setPathValue,
     setBranchValue,
@@ -127,8 +122,6 @@ export interface AddProjectControllerResult {
   mainBranchValue: SourceAccessor<string>
   boardId: SourceAccessor<string>
   submitting: SourceAccessor<boolean>
-  localError: SourceAccessor<UserFacingError | undefined>
-  setLocalError: (error?: UserFacingError) => void
   setNameValue: Setter<string>
   setPathValue: Setter<string>
   setBranchValue: Setter<string>
