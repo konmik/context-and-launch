@@ -175,7 +175,7 @@ describe('Picker buttons (e2e, real server)', () => {
     setup: goToAddProject,
     button: (p) => p.locator('#project-path + button'),
     input: (p) => p.locator('#project-path'),
-    errorContainer: (p) => p.locator('form p.text-destructive'),
+    errorContainer: (p) => testId(p, 'error-dialog-ok'),
   }) // --- Settings panel: worktree root directory picker ---
   const WORKTREE_BROWSE = 'launcher-settings-misc-worktree-browse'
 
