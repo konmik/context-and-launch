@@ -86,6 +86,7 @@ describe('TicketCleanupDialog (e2e, real server)', () => {
       .toContain('No worktree')
     await waitForChecksSettled(ctx.page)
     await testId(ctx.page, 'ticket-cleanup-submit').click()
+    await testId(ctx.page, 'ticket-cleanup-confirm').click()
     await waitGone(ctx.page, 'ticket-cleanup-submit')
     await poll(
       () => listTicketFolders(ctx.testServer, project.projectSlug),
@@ -120,6 +121,10 @@ describe('TicketCleanupDialog (e2e, real server)', () => {
     await openCleanup('delete')
     await waitForChecksSettled(ctx.page)
     await testId(ctx.page, 'ticket-cleanup-submit').click()
+    await testId(ctx.page, 'ticket-cleanup-confirm-cancel').click()
+    expect(listTicketFolders(ctx.testServer, project.projectSlug)).toContain('t-1-alpha')
+    await testId(ctx.page, 'ticket-cleanup-submit').click()
+    await testId(ctx.page, 'ticket-cleanup-confirm').click()
     await waitGone(ctx.page, 'ticket-cleanup-submit')
     await poll(
       () => listTicketFolders(ctx.testServer, project.projectSlug),
@@ -163,6 +168,10 @@ describe('TicketCleanupDialog (e2e, real server)', () => {
     expect(statusBox).not.toBeNull()
     expect(statusBox!.x).toBeGreaterThan(buttonBox!.x + buttonBox!.width)
     await testId(ctx.page, 'ticket-cleanup-delete-worktree-button').click()
+    await testId(ctx.page, 'ticket-cleanup-confirm-cancel').click()
+    expect(worktreeExists(ctx.testServer, project.projectSlug, 't-1-alpha')).toBe(true)
+    await testId(ctx.page, 'ticket-cleanup-delete-worktree-button').click()
+    await testId(ctx.page, 'ticket-cleanup-confirm').click()
     await waitForChecksSettled(ctx.page)
     await expect
       .poll(() => testId(ctx.page, 'ticket-cleanup-delete-worktree-status').textContent(), {
@@ -172,6 +181,7 @@ describe('TicketCleanupDialog (e2e, real server)', () => {
     expect(worktreeExists(ctx.testServer, project.projectSlug, 't-1-alpha')).toBe(false)
     await waitForChecksSettled(ctx.page)
     await testId(ctx.page, 'ticket-cleanup-submit').click()
+    await testId(ctx.page, 'ticket-cleanup-confirm').click()
     await waitGone(ctx.page, 'ticket-cleanup-submit')
     await poll(
       () => listTicketFolders(ctx.testServer, project.projectSlug),
@@ -231,6 +241,7 @@ describe('TicketCleanupDialog (e2e, real server)', () => {
     await openCleanup('delete')
     await waitForChecksSettled(ctx.page)
     await testId(ctx.page, 'ticket-cleanup-delete-worktree-button').click()
+    await testId(ctx.page, 'ticket-cleanup-confirm').click()
     await waitForChecksSettled(ctx.page)
     await expect
       .poll(() => testId(ctx.page, 'ticket-cleanup-delete-worktree-status').textContent(), {
@@ -239,6 +250,7 @@ describe('TicketCleanupDialog (e2e, real server)', () => {
       .toContain('No worktree')
     await waitForChecksSettled(ctx.page)
     await testId(ctx.page, 'ticket-cleanup-submit').click()
+    await testId(ctx.page, 'ticket-cleanup-confirm').click()
     await waitGone(ctx.page, 'ticket-cleanup-submit')
     await poll(
       () => worktreeExists(ctx.testServer, project.projectSlug, 't-1-alpha'),
@@ -271,6 +283,7 @@ describe('TicketCleanupDialog (e2e, real server)', () => {
     await openCleanup('delete')
     await waitForChecksSettled(ctx.page)
     await testId(ctx.page, 'ticket-cleanup-delete-worktree-button').click()
+    await testId(ctx.page, 'ticket-cleanup-confirm').click()
     await waitForChecksSettled(ctx.page)
     const localStatus = testId(ctx.page, 'ticket-cleanup-delete-local-status')
     await expect
@@ -360,6 +373,7 @@ describe('TicketCleanupDialog (e2e, real server)', () => {
     await openCleanup('delete')
     await waitForChecksSettled(ctx.page)
     await testId(ctx.page, 'ticket-cleanup-delete-worktree-button').click()
+    await testId(ctx.page, 'ticket-cleanup-confirm').click()
     await waitForChecksSettled(ctx.page)
     await expect
       .poll(() => testId(ctx.page, 'ticket-cleanup-delete-worktree-status').textContent(), {

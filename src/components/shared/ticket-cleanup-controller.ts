@@ -27,6 +27,8 @@ export interface TicketCleanupDeps {
   forceDeleteLocalBranch: (projectSlug: string, folderName: string) => Promise<Result<undefined, ErrorInfo>>
 }
 
+export type CleanupConfirmation = CleanupItemKey | 'archive' | 'delete'
+
 export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCleanupControllerResult {
   const [items, setItems] = createSignal<TicketCleanupItemStates>(allChecking())
   const [runningItem, setRunningItem] = createSignal<CleanupItemKey>()
@@ -36,6 +38,7 @@ export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCl
   const [killingProcesses, setKillingProcesses] = createSignal(false)
   const [forceDeleteDialogOpen, setForceDeleteDialogOpen] = createSignal(false)
   const [forceDeleting, setForceDeleting] = createSignal(false)
+  const [confirmation, setConfirmation] = createSignal<CleanupConfirmation>()
   let requestToken = 0
   let lifecycleToken = 0
 
@@ -93,7 +96,25 @@ export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCl
 
   function handleSubmit(e: SubmitEvent) {
     e.preventDefault()
-    void doSubmit()
+    requestConfirmation(deps.action())
+  }
+
+  function requestConfirmation(operation: CleanupConfirmation): void {
+    if (!deps.ticket() || busy() || confirmation() || killDialogOpen() || forceDeleteDialogOpen()) return
+    if (operation !== 'archive' && operation !== 'delete' && items()[operation].state !== 'ready') return
+    setConfirmation(operation)
+  }
+
+  function closeConfirmation(): void {
+    setConfirmation(undefined)
+  }
+
+  async function confirmOperation(): Promise<void> {
+    const operation = confirmation()
+    if (!operation || busy()) return
+    closeConfirmation()
+    if (operation === 'archive' || operation === 'delete') await doSubmit()
+    else await runCleanup(operation)
   }
 
   async function openKillDialog(): Promise<void> {
@@ -170,6 +191,7 @@ export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCl
     setRunningItem(undefined)
     closeKillDialog()
     closeForceDeleteDialog()
+    closeConfirmation()
   }
 
   return {
@@ -178,10 +200,12 @@ export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCl
     submitting,
     busy,
     actionLabel,
-    runCleanup,
     startChecks,
-    doSubmit,
     handleSubmit,
+    confirmation,
+    requestConfirmation,
+    closeConfirmation,
+    confirmOperation,
     close,
     killDialogOpen,
     lockingProcesses,
@@ -203,10 +227,12 @@ export interface TicketCleanupControllerResult {
   submitting: SourceAccessor<boolean>
   busy: () => boolean
   actionLabel: () => 'Archive' | 'Delete'
-  runCleanup: (key: CleanupItemKey) => Promise<void>
   startChecks: () => Promise<void>
-  doSubmit: () => Promise<void>
   handleSubmit: (e: SubmitEvent) => void
+  confirmation: SourceAccessor<CleanupConfirmation | undefined>
+  requestConfirmation: (operation: CleanupConfirmation) => void
+  closeConfirmation: () => void
+  confirmOperation: () => Promise<void>
   close: () => void
   killDialogOpen: SourceAccessor<boolean>
   lockingProcesses: SourceAccessor<LockingProcessInfo[] | undefined>

@@ -27,10 +27,13 @@
     - Disable Refresh checks while checks or an operation are running
   - A possible item enables its button
     - User clicks the button
-      - Run only that cleanup action
-      - Show a working indicator
-      - Disable the other actions and the submit button until it finishes
-      - Refresh all cleanup statuses after it finishes
+      - Open a confirmation dialog naming the task and operation
+      - User cancels: close the confirmation without changing anything
+      - User confirms
+        - Run only that cleanup action
+        - Show a working indicator
+        - Disable the other actions and the submit button until it finishes
+        - Refresh all cleanup statuses after it finishes
   - An impossible item stays disabled
     - The item shows the reason it is not possible
       - Warnings are red: worktree in use and branch has unmerged commits
@@ -75,7 +78,10 @@
   - Refresh all cleanup statuses
   - Do not archive or delete the ticket
 - User submits
-  - Archive or delete the ticket without running cleanup actions
+  - Open a confirmation dialog for archiving or permanently deleting the ticket
+  - Keyboard submission also opens the confirmation
+  - User cancels: keep the ticket and cleanup dialog open
+  - User confirms: archive or delete the ticket without running cleanup actions
 - Archiving the ticket
   - Create the archive directory if it does not exist
   - Archive destination already exists: throw error

@@ -212,7 +212,13 @@ describe('createTicketCleanupController', () => {
           }),
         )
         await invoke(ctrl.startChecks)
-        await invoke(() => ctrl.runCleanup('deleteWorktree'))
+        invoke(() => ctrl.requestConfirmation('deleteWorktree'))
+        expect(submitted).toBeUndefined()
+        invoke(ctrl.closeConfirmation)
+        await invoke(ctrl.confirmOperation)
+        expect(submitted).toBeUndefined()
+        invoke(() => ctrl.requestConfirmation('deleteWorktree'))
+        await invoke(ctrl.confirmOperation)
         expect(submitted).toEqual({
           stopHerdrAgent: false,
           deleteWorktree: true,
@@ -239,7 +245,13 @@ describe('createTicketCleanupController', () => {
           }),
         )
         await invoke(ctrl.startChecks)
-        await invoke(ctrl.doSubmit)
+        invoke(() => ctrl.requestConfirmation('delete'))
+        expect(submittedFolderName).toBeUndefined()
+        invoke(ctrl.closeConfirmation)
+        await invoke(ctrl.confirmOperation)
+        expect(submittedFolderName).toBeUndefined()
+        invoke(() => ctrl.requestConfirmation('delete'))
+        await invoke(ctrl.confirmOperation)
         expect(submittedFolderName).toBe('t-1-alpha')
       } finally {
         dispose()
@@ -265,7 +277,8 @@ describe('createTicketCleanupController', () => {
           }),
         )
         await invoke(ctrl.startChecks)
-        await invoke(ctrl.doSubmit)
+        invoke(() => ctrl.requestConfirmation('delete'))
+        await invoke(ctrl.confirmOperation)
         expect(onError).toHaveBeenCalledExactlyOnceWith({
           title: 'Cleanup failed',
           description: 'cleanup failed',
@@ -288,7 +301,8 @@ describe('createTicketCleanupController', () => {
           }),
         )
         await invoke(ctrl.startChecks)
-        await invoke(ctrl.doSubmit)
+        invoke(() => ctrl.requestConfirmation('delete'))
+        await invoke(ctrl.confirmOperation)
         expect(closedWith).toBe(false)
         expect(ctrl.items().deleteWorktree.state).toBe('checking')
       } finally {
@@ -309,7 +323,8 @@ describe('createTicketCleanupController', () => {
           }),
         )
         await invoke(ctrl.startChecks)
-        const p = invoke(ctrl.doSubmit)
+        invoke(() => ctrl.requestConfirmation('delete'))
+        const p = invoke(ctrl.confirmOperation)
         expect(ctrl.submitting()).toBe(true)
         resolve(success(undefined))
         await p
@@ -332,7 +347,8 @@ describe('createTicketCleanupController', () => {
           }),
         )
         await invoke(ctrl.startChecks)
-        const p = invoke(() => ctrl.runCleanup('deleteWorktree'))
+        invoke(() => ctrl.requestConfirmation('deleteWorktree'))
+        const p = invoke(ctrl.confirmOperation)
         expect(ctrl.runningItem()).toBe('deleteWorktree')
         expect(ctrl.busy()).toBe(true)
         resolve(success(undefined))
@@ -364,7 +380,8 @@ describe('createTicketCleanupController', () => {
           }),
         )
         await invoke(ctrl.startChecks)
-        await invoke(() => ctrl.runCleanup('deleteWorktree'))
+        invoke(() => ctrl.requestConfirmation('deleteWorktree'))
+        await invoke(ctrl.confirmOperation)
         expect(checks).toBe(2)
         expect(onError).toHaveBeenCalledExactlyOnceWith({
           title: 'Cleanup failed',

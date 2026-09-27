@@ -255,6 +255,7 @@ describe('Forest group lifecycle', () => {
     })
     await waitVisible(ctx.page, 'ticket-cleanup-submit')
     await testId(ctx.page, 'ticket-cleanup-submit').click()
+    await testId(ctx.page, 'ticket-cleanup-confirm').click()
     const archived = path.join(project.ticketsPath, 'archive', 'ar-2-archivable')
     await poll(
       () => fs.existsSync(archived),

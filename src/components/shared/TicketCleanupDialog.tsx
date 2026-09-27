@@ -23,6 +23,9 @@ import { FieldErrorMessage } from './FieldErrorMessage.js'
 import { useErrorReporter } from './error-presentation.js'
 import { KillProcessesConfirmDialog } from './KillProcessesConfirmDialog.js'
 import { ForceDeleteBranchDialog } from './ForceDeleteBranchDialog.js'
+import { DialogRoot } from '../ui/DialogRoot.js'
+import { DialogTitle } from '../ui/DialogTitle.js'
+import { DialogDescription } from '../ui/DialogDescription.js'
 
 interface TicketCleanupDialogProps {
   open: boolean
@@ -38,30 +41,35 @@ const rows: {
   key: CleanupItemKey
   resource: string
   label: string
+  confirmation: string
   testId: string
 }[] = [
   {
     key: 'stopHerdrAgent',
     resource: 'Agent',
     label: 'Stop agent',
+    confirmation: 'Stop the agent running for this task?',
     testId: 'ticket-cleanup-stop-herdr',
   },
   {
     key: 'deleteWorktree',
     resource: 'Worktree',
     label: 'Delete worktree',
+    confirmation: 'Delete this task\'s worktree folder and its files?',
     testId: 'ticket-cleanup-delete-worktree',
   },
   {
     key: 'deleteLocalBranch',
     resource: 'Local branch',
     label: 'Delete local branch',
+    confirmation: 'Delete this task\'s local Git branch?',
     testId: 'ticket-cleanup-delete-local',
   },
   {
     key: 'deleteRemoteBranch',
     resource: 'Remote branch',
     label: 'Delete remote branch',
+    confirmation: 'Delete this task\'s branch from the remote repository?',
     testId: 'ticket-cleanup-delete-remote',
   },
 ]
@@ -84,13 +92,14 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps): JS
   createEffect(
     () => [props.open, props.ticket] as const,
     ([open, ticket]) => {
+      s.closeConfirmation()
       if (open && ticket) void s.startChecks()
     },
   )
   useModEnterSubmit({
-    onSubmit: () => void s.doSubmit(),
+    onSubmit: () => s.requestConfirmation(props.action),
     disabled: s.busy,
-    active: () => props.open && !!props.ticket,
+    active: () => props.open && !!props.ticket && !s.confirmation() && !s.killDialogOpen() && !s.forceDeleteDialogOpen(),
   })
   return (
     <>
@@ -180,7 +189,7 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps): JS
                             <button
                               type="button"
                               disabled={item().state !== 'ready' || s.busy()}
-                              onClick={() => void s.runCleanup(row.key)}
+                              onClick={() => s.requestConfirmation(row.key)}
                               class="btn-secondary h-auto! min-h-10 w-full whitespace-normal break-words"
                               data-testid={`${row.testId}-button`}
                             >
@@ -265,6 +274,45 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps): JS
           </form>
         </FloatingPanelBody>
       </FloatingWindow>
+      <DialogRoot
+        open={props.open && !!s.confirmation()}
+        onOpenChange={(open) => {
+          if (!open) s.closeConfirmation()
+        }}
+      >
+        <Show when={s.confirmation()}>
+          {(operation) => {
+            const row = () => rows.find((candidate) => candidate.key === operation())
+            const label = () => row()?.label ?? (operation() === 'archive' ? 'Archive task' : 'Delete task')
+            return (
+              <>
+                <DialogTitle>{label()}</DialogTitle>
+                <DialogDescription>
+                  {props.ticket?.number} - {props.ticket?.title}
+                  <br />
+                  {row()?.confirmation ?? (operation() === 'archive'
+                    ? 'Move this task to the archive?'
+                    : 'Permanently delete this task and its files? This cannot be undone.')}
+                </DialogDescription>
+                <div class="flex justify-end gap-2">
+                  <button type="button" onClick={s.closeConfirmation} class="btn-secondary" data-testid="ticket-cleanup-confirm-cancel">
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={s.busy()}
+                    onClick={() => void s.confirmOperation()}
+                    class={operation() === 'archive' ? 'btn-primary' : 'btn-destructive'}
+                    data-testid="ticket-cleanup-confirm"
+                  >
+                    {label()}
+                  </button>
+                </div>
+              </>
+            )
+          }}
+        </Show>
+      </DialogRoot>
       <KillProcessesConfirmDialog
         open={s.killDialogOpen()}
         processes={s.lockingProcesses()}
