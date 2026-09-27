@@ -922,20 +922,24 @@ export function setupE2E(
     if (context.task.result?.state === 'fail' && ctx.page && !ctx.page.isClosed()) {
       console.error('Dialogs at failure:', await ctx.page.locator('[data-scope="dialog"][data-part="positioner"]').allTextContents())
     }
-    for (const p of extraPages) {
-      try {
-        await p.context().close()
-      } catch (err) {
-        console.warn('newPage cleanup:', err)
-      }
-    }
+    await Promise.all([
+      ...extraPages.map(async (p) => {
+        try {
+          await p.context().close()
+        } catch (err) {
+          console.warn('newPage cleanup:', err)
+        }
+      }),
+      ctx.page?.context().close(),
+    ])
     extraPages.length = 0
-    await ctx.page?.context().close()
   })
   afterAll(async () => {
-    await browser?.close()
-    await ctx.testServer?.stop()
+    const resources = await Promise.allSettled([browser?.close(), ctx.testServer?.stop()])
     ctx.projects.length = 0
+    for (const resource of resources) {
+      if (resource.status === 'rejected') throw resource.reason
+    }
   }, 20000)
   return ctx
 }

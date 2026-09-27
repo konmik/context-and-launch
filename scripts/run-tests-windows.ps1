@@ -214,6 +214,7 @@ try {
     "/MIR",
     "/COPY:DAT",
     "/DCOPY:DAT",
+    "/MT:8",
     "/R:2",
     "/W:1",
     "/NFL",

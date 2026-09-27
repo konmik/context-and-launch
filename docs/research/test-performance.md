@@ -93,3 +93,23 @@ The same warm-up and three-sample benchmark passed after this batch:
 Mixed wall time improved another 8.3% from the first batch's 23.263-second median. Backend wall time was effectively unchanged. All three mixed samples reused the verified build; the rebuilding warm-up took 51.542 seconds. Mixed Vitest time had a median of 14.800 seconds, so the additional wall-time gain is outside test execution.
 
 The selected check passed workspace-isolation and runtime-mount coverage, the three benchmark browser files, and the remote-push case in `e2e/sync-button.test.ts:14`. Final TypeScript, canonical formatting, ESLint and whitespace checks passed. Changed-file Oxlint reported no errors and one warning for the existing ownership-check throw in `scripts/run-tests.mjs`'s finally block.
+
+## Optimization attempts after fdbfb87
+
+Stopping rule: stop after three consecutive attempts reduce the mixed workload's median public-runner wall time by less than 5%. Each attempt uses the same 72-test selection, one warm-up and three measured runs. Compare against the latest retained variant. The 44-test backend workload remains a secondary measurement. All samples passed; all measured mixed runs reused a verified build. These are selected-workload results, not full-suite performance claims.
+
+| Attempt | Mixed samples (s) | Median (s) | Reduction | Decision | Consecutive below 5% |
+| --- | --- | --- | --- | --- | --- |
+| Starting point | 21.339, 21.446, 20.843 | 21.339 | - | Baseline | 0 |
+| Parallel workspace mirror, eight copy workers | 19.421, 18.903, 18.700 | 18.903 | 11.4% | Retain | 0 |
+| Two browser workers instead of four | 18.674, 18.823, 18.754 | 18.754 | 0.8% | Revert; improvement within variation | 1 |
+| Harness polling and asynchronous Git in window tests | 18.825, 18.953, 18.829 | 18.829 | 0.4% | Retain simpler waits; no meaningful speedup established | 2 |
+| Parallel independent browser-context and server teardown | 18.777, 18.414, 18.726 | 18.726 | 0.5% | Retain concurrent cleanup | 3 |
+
+The two-worker experiment was reverted before the polling attempt, so the polling comparison uses 18.903 seconds. The final result is 12.2% below this round's starting point and 66.7% below the original 56.244-second baseline. Small per-attempt differences remain within run-to-run variation. Backend median wall times were 5.763 seconds initially, then 4.993, 4.740, 4.616 and 4.668 seconds respectively; later backend variation cannot be attributed to browser-only changes.
+
+The investigation progressed from runner overhead to browser-test group concurrency, then the slow Project window cases and their cleanup. Timing logs identified roughly nine-second header/window files, versus roughly one second for the backend Vitest group. Window tests now use Vitest's built-in polling rather than the shared 500ms loop, preserving their existing deadlines and assertions. Git polling uses the existing asynchronous direct-process fixture helper. Independent browser contexts close concurrently; browser/server teardown awaits both operations even if one fails.
+
+Optimization stopped at the specified three-attempt threshold. Raw logs use the labels `mirror-parallel`, `browser-two-workers`, `window-polling` and `parallel-teardown` in the measurement directory above.
+
+Final verification passed: selected `pnpm run check` for workspace isolation, error dialog, Project header and Project window; TypeScript checking; canonical formatting and Prettier; changed-file ESLint and Oxlint; and whitespace validation. Formatting, TypeScript and lint ran only after the attempts finished. No tests were added.

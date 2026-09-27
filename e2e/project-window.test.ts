@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { execSync } from 'node:child_process'
+import { git } from '../src/test-git.js'
 import fs from 'node:fs'
 import path from 'node:path'
 import {
@@ -9,7 +9,6 @@ import {
   gotoProject,
   gotoProjectOnFakeClock,
   fastForwardUntilVisible,
-  poll,
   setupE2E,
   readProjectRegistry,
 } from './fixtures.js'
@@ -42,16 +41,11 @@ describe('Project window (e2e, real server)', () => {
     // watcher stays live: the change commits and A's page picks up the pending
     // badge on its next poll.
     fs.writeFileSync(path.join(a.ticketsPath, 'external-note.md'), 'external change')
-    const lastSubject = await poll(
-      () =>
-        execSync('git log -1 --format=%s', {
-          cwd: a.ticketsPath,
-          encoding: 'utf-8',
-        }).trim(),
-      (s) => s === 'auto: external changes',
-      20000,
-    )
-    expect(lastSubject).toBe('auto: external changes') // A's page picks the badge up on a later poll, once the server-side watcher
+    await expect
+      .poll(async () => (await git(a.ticketsPath, 'log', '-1', '--format=%s')).trim(), {
+        timeout: 20000,
+      })
+      .toBe('auto: external changes') // A's page picks the badge up on a later poll, once the server-side watcher
     // has bumped the revision.
     await fastForwardUntilVisible(ctx.page, 'sync-button-pending-badge')
   }, 90000)
@@ -65,20 +59,18 @@ describe('Project window (e2e, real server)', () => {
     await gotoProject(ctx.page, ctx.testServer, f.projectSlug)
     const page2 = await ctx.newPage()
     await gotoProject(page2, ctx.testServer, g.projectSlug)
-    const afterLoad = await poll(
-      () => readProjectRegistry(ctx.testServer).lastUsedProjectSlug,
-      (v) => v === g.projectSlug,
-      10000,
-    )
-    expect(afterLoad).toBe(g.projectSlug)
+    await expect
+      .poll(() => readProjectRegistry(ctx.testServer).lastUsedProjectSlug, {
+        timeout: 10000,
+      })
+      .toBe(g.projectSlug)
     await ctx.page.bringToFront()
     await ctx.page.evaluate(() => window.dispatchEvent(new Event('focus')))
-    const afterFocus = await poll(
-      () => readProjectRegistry(ctx.testServer).lastUsedProjectSlug,
-      (v) => v === f.projectSlug,
-      10000,
-    )
-    expect(afterFocus).toBe(f.projectSlug)
+    await expect
+      .poll(() => readProjectRegistry(ctx.testServer).lastUsedProjectSlug, {
+        timeout: 10000,
+      })
+      .toBe(f.projectSlug)
   }, 90000)
   it('the open-in-new-window button opens a titled popup and reuses the named target', async () => {
     const c = await seedProject(ctx, {
