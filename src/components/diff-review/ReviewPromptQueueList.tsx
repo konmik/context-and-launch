@@ -1,13 +1,14 @@
 import type { JSX } from '@solidjs/web'
-import { RotateCcw } from '~/components/ui/icons.js'
-import { Trash2 } from '~/components/ui/icons.js'
+import { RotateCcw } from '~/components/ui/icons/RotateCcw.js'
+import { Trash2 } from '~/components/ui/icons/Trash2.js'
 import { For, Show, createEffect, createSignal, untrack, useContext } from 'solid-js'
 import { retryReviewPrompt } from './diff-review-api.js'
 import type { ReviewPromptQueueItem } from '~/core/diff-review/diff-review-types.js'
 import { DiffReviewContext, ReviewAgentStatusContext } from './diff-review-storage.js'
 import { getReviewTicketState } from '~/core/diff-review/diff-review-types.js'
 import VerticalReveal from './VerticalReveal.js'
-import { useErrorReporter, FieldErrorMessage } from '../shared/error-presentation.js'
+import { useErrorReporter } from '../shared/error-presentation.js'
+import { FieldErrorMessage } from '../shared/FieldErrorMessage.js'
 import { errorPayload } from '~/core/shared/errors.js'
 
 type QueueEntry = {

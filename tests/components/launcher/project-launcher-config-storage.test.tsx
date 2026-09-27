@@ -8,7 +8,7 @@ import { failure, success } from '~/util/result.js'
 import type { LauncherConfig } from '~/core/launcher/launcher-config-data.js'
 import { ProjectLauncherConfigContext, createProjectLauncherConfigStorage } from '../../../src/components/launcher/project-launcher-config-storage.js'
 import { LauncherConfigContext } from '../../../src/components/launcher/shared-launcher-config-storage.js'
-import { ItemSection } from '../../../src/components/launcher/launcher-settings-item-section.js'
+import { ItemSection } from '../../../src/components/launcher/ItemSection.js'
 
 afterEach(cleanup)
 it('switches the project store without remounting the editor and edits the selected project', async () => {

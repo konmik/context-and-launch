@@ -1,7 +1,7 @@
 import type { RenderResult } from '../../test-render.js'
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '../../test-render.js'
-import HerdrStatusIcon from '../../../src/components/ticket/HerdrStatusIcon'
+import HerdrStatusIcon from '../../../src/components/ticket/HerdrStatusIcon.js'
 import type { HerdrAgentStatus } from '~/core/herdr/herdr-client.js'
 
 function renderIcon(status: HerdrAgentStatus): RenderResult {

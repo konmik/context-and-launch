@@ -1,11 +1,13 @@
 import type { JSX } from '@solidjs/web'
 import { Show, useContext } from 'solid-js'
-import { EllipsisVertical } from '~/components/ui/icons.js'
-import { MenuRoot, MenuTrigger, MenuContent } from '../ui/menu'
+import { EllipsisVertical } from '~/components/ui/icons/EllipsisVertical.js'
+import { MenuRoot } from '../ui/MenuRoot.js'
+import { MenuTrigger } from '../ui/MenuTrigger.js'
+import { MenuContent } from '../ui/MenuContent.js'
 import { ShortcutRunnerContext } from '../board/shortcut-runner-context.js'
 import TicketActionItems from './TicketActionItems'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
-import HerdrStatusIcon from './HerdrStatusIcon'
+import HerdrStatusIcon from './HerdrStatusIcon.js'
 import { useHerdrStatuses } from './herdr-statuses-context.js'
 
 interface TicketCardProps {

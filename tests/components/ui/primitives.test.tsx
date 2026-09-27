@@ -1,9 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render } from '../../test-render.js'
-import { DialogRoot } from '../../../src/components/ui/dialog.js'
-import { MenuContent, MenuItem, MenuRoot, MenuTrigger } from '../../../src/components/ui/menu.js'
-import { TabsContent, TabsList, TabsRoot, TabsTrigger } from '../../../src/components/ui/tabs.js'
-import { FloatingWindow } from '../../../src/components/ui/floating-panel.js'
+import { DialogRoot } from '../../../src/components/ui/DialogRoot.js'
+import { MenuContent } from '../../../src/components/ui/MenuContent.js'
+import { MenuItem } from '../../../src/components/ui/MenuItem.js'
+import { MenuRoot } from '../../../src/components/ui/MenuRoot.js'
+import { MenuTrigger } from '../../../src/components/ui/MenuTrigger.js'
+import { TabsContent } from '../../../src/components/ui/TabsContent.js'
+import { TabsList } from '../../../src/components/ui/TabsList.js'
+import { TabsRoot } from '../../../src/components/ui/TabsRoot.js'
+import { TabsTrigger } from '../../../src/components/ui/TabsTrigger.js'
+import { FloatingWindow } from '../../../src/components/ui/FloatingWindow.js'
 
 afterEach(cleanup)
 describe('local UI primitives', () => {

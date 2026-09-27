@@ -1,6 +1,6 @@
 import type { JSX } from '@solidjs/web'
 import { For, Show, createMemo, createSignal, useContext } from 'solid-js'
-import { TabsContent } from '../ui/tabs.js'
+import { TabsContent } from '../ui/TabsContent.js'
 import { COMMAND_TEMPLATE_GROUP_ORDER } from '~/core/command-template/command-template-types.js'
 import { COMMAND_TEMPLATE_DEFAULTS, type CommandTemplateKey } from '~/core/command-template/command-template-definitions.js'
 import type { CommandTemplateOverrides } from '~/core/command-template/command-template-types.js'

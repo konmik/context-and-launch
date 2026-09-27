@@ -1,6 +1,6 @@
 import type { JSX } from '@solidjs/web'
-import { TabsContent } from '../ui/tabs'
-import { ItemSection } from './launcher-settings-item-section.js'
+import { TabsContent } from '../ui/TabsContent.js'
+import { ItemSection } from './ItemSection.js'
 
 export function PromptsTab(props: { open: boolean }): JSX.Element {
   return (

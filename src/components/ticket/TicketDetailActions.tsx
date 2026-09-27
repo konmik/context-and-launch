@@ -1,12 +1,14 @@
 import type { JSX } from '@solidjs/web'
 import { untrack } from 'solid-js'
-import { Zap } from '~/components/ui/icons.js'
+import { Zap } from '~/components/ui/icons/Zap.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
-import { MenuRoot, MenuTrigger, MenuContent } from '../ui/menu'
+import { MenuRoot } from '../ui/MenuRoot.js'
+import { MenuTrigger } from '../ui/MenuTrigger.js'
+import { MenuContent } from '../ui/MenuContent.js'
 import { useErrorReporter } from '../shared/error-presentation.js'
 import { openTicketFolder, openTicketWorktree } from './ticket-api.js'
 import { createShortcutState } from './ticket-detail-shortcuts.js'
-import { ShortcutConfirmationDialog } from './ticket-detail-parts.js'
+import { ShortcutConfirmationDialog } from './ShortcutConfirmationDialog.js'
 import TicketActionItems from './TicketActionItems'
 
 interface TicketDetailActionsProps {

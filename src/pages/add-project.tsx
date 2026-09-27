@@ -1,6 +1,6 @@
 import type { JSX } from '@solidjs/web'
 import { useNavigate } from '@solidjs/router'
-import AddProjectForm from '~/components/project/AddProjectForm'
+import AddProjectForm from '~/components/project/AddProjectForm.js'
 import PalettePicker from '~/components/shared/PalettePicker'
 import DebugToastButton from '~/components/shared/DebugToastButton'
 import { addProject } from '~/components/project/project-api.js'

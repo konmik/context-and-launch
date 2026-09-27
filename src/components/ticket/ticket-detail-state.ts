@@ -121,8 +121,8 @@ export function createTicketDetailState(
   const [externallyChanged, setExternallyChanged] = createSignal(false)
   const [confirmingExternalChange, setConfirmingExternalChange] = createSignal(false)
   const worktreeRevision = deps.worktreeRevision ?? createWorktreeRevision(() => props.projectSlug)
-  const [editedNumber, setEditedNumber] = createSignal(() => ticket().number)
-  const [editedTitle, setEditedTitle] = createSignal(() => ticket().title)
+  const [editedNumber, setEditedNumber] = createSignal(untrack(() => ticket().number))
+  const [editedTitle, setEditedTitle] = createSignal(untrack(() => ticket().title))
   const hasUnsavedHeaderChanges = () => editedNumber().trim() !== ticket().number || editedTitle().trim() !== ticket().title
 
   async function saveTicketHeader() {

@@ -1,80 +1,25 @@
 import type { JSX } from '@solidjs/web'
-import { createContext, createSignal, Show, useContext } from 'solid-js'
-import { Group } from '~/components/ui/icons.js'
-import { EllipsisVertical } from '~/components/ui/icons.js'
-import { MenuContent, MenuItem, MenuRoot, MenuTrigger } from '../ui/menu'
-import { isConnectionTarget, type ConnectionEndpoint, type ForestConnectionSession } from './forest-connections.js'
+import { createSignal, Show, useContext } from 'solid-js'
+import { Group } from '~/components/ui/icons/Group.js'
+import { EllipsisVertical } from '~/components/ui/icons/EllipsisVertical.js'
+import { MenuContent } from '../ui/MenuContent.js'
+import { MenuItem } from '../ui/MenuItem.js'
+import { MenuRoot } from '../ui/MenuRoot.js'
+import { MenuTrigger } from '../ui/MenuTrigger.js'
 import { CARD_WIDTH } from './forest-graph.js'
 import type { ForestNodeData } from './forest-flow-model.js'
-import type { SwatchColumn } from '~/core/board/status-swatch.js'
+import { ForestCardCommandsContext, ForestCardColumnsContext } from './forest-card-context.js'
+import ForestConnectionHandle from './ForestConnectionHandle.js'
 import StatusSwatch from '../ticket/StatusSwatch'
-import HerdrStatusIcon from '../ticket/HerdrStatusIcon'
+import HerdrStatusIcon from '../ticket/HerdrStatusIcon.js'
 import { useHerdrStatuses } from '../ticket/herdr-statuses-context.js'
-
-export interface ForestCardCommands {
-  activateConnection: (endpoint: ConnectionEndpoint) => void
-  dragConnection: (endpoint: ConnectionEndpoint) => void
-  openGroupTicket: (ticketNumber: string) => void
-  ungroup: (ticketNumber: string) => void
-}
-
-export const ForestCardCommandsContext = createContext<ForestCardCommands>()
-
-export const ForestConnectionSessionContext = createContext<() => ForestConnectionSession>()
-
-export const ForestCardColumnsContext = createContext<() => SwatchColumn[]>()
 
 export default function ForestCard(props: { data: ForestNodeData; selected?: boolean }): JSX.Element {
   const commands = useContext(ForestCardCommandsContext)
-  const connectionSession = useContext(ForestConnectionSessionContext)
   const columns = useContext(ForestCardColumnsContext)
   const herdrStatus = useHerdrStatuses()
   const [hovered, setHovered] = createSignal(false)
   const ticketNumber = () => props.data.ticket.number
-
-  function handleState(endpoint: ConnectionEndpoint): 'hidden' | 'visible' | 'source' | 'available' {
-    const session = connectionSession()
-    if (session.kind !== 'connecting') return hovered() ? 'visible' : 'hidden'
-    if (props.data.representedTicketNumbers.includes(session.source.ticketNumber)) {
-      return session.source.end === endpoint.end ? 'source' : 'hidden'
-    }
-    return isConnectionTarget(session.source, endpoint) ? 'available' : 'hidden'
-  }
-
-  function ConnectionHandle(handleProps: { end: 'top' | 'bottom' }): JSX.Element {
-    const endpoint = (): ConnectionEndpoint => ({
-      ticketNumber: ticketNumber(),
-      end: handleProps.end,
-    })
-    const state = () => handleState(endpoint())
-    const visible = () => state() !== 'hidden'
-    return (
-      <button
-        type="button"
-        class={`rounded-full border border-background bg-primary cursor-crosshair
-          absolute left-1/2 -translate-x-1/2 ${handleProps.end === 'top' ? '-top-1.5' : '-bottom-1.5'}
-          transition-[opacity,transform,box-shadow] pointer-events-auto ${visible() ? 'opacity-100' : 'opacity-0'}${state() === 'source' ? ' ring-4 ring-primary/30 scale-125' : ''}`}
-        style={{
-          width: '12px',
-          height: '12px',
-          'z-index': 1,
-          'pointer-events': 'all',
-        }}
-        onClick={(event) => {
-          event.stopPropagation()
-          commands.activateConnection(endpoint())
-        }}
-        onPointerDown={(event) => {
-          event.stopPropagation()
-          commands.dragConnection(endpoint())
-        }}
-        data-testid={`forest-handle-${handleProps.end}`}
-        data-ticket-number={ticketNumber()}
-        data-connection-handle-end={handleProps.end}
-        data-connection-handle-state={state()}
-      />
-    )
-  }
 
   return (
     <div
@@ -133,8 +78,8 @@ export default function ForestCard(props: { data: ForestNodeData; selected?: boo
           </Show>
         </div>
       </div>
-      <ConnectionHandle end="top" />
-      <ConnectionHandle end="bottom" />
+      <ForestConnectionHandle end="top" data={props.data} hovered={hovered()} />
+      <ForestConnectionHandle end="bottom" data={props.data} hovered={hovered()} />
     </div>
   )
 }

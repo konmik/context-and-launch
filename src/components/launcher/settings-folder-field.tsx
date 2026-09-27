@@ -1,8 +1,9 @@
 import type { JSX } from '@solidjs/web'
 import { pickDirectory } from '../shared/directory-picker.js'
 import { errorPayload } from '~/core/shared/errors.js'
-import { ScopeBadge } from './launcher-settings-rows.js'
-import { ErrorField, useErrorReporter } from '../shared/error-presentation.js'
+import { ScopeBadge } from './ScopeBadge.js'
+import { ErrorField } from '../shared/ErrorField.js'
+import { useErrorReporter } from '../shared/error-presentation.js'
 
 export function SettingsFolderField(props: {
   label: string

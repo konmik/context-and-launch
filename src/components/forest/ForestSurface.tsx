@@ -1,16 +1,19 @@
 import type { JSX } from '@solidjs/web'
+import { Portal } from '@solidjs/web'
+import { createDropdownOverlay } from '../ui/overlay.js'
 import type { ForestPosition } from './forest-types.js'
 import type { OverlayRect as OverlayRectReturn } from '../shared/ExpandingOverlay.js'
 import { For, Show, createMemo, createSignal, createStore, onSettled, untrack, useContext, type Accessor } from 'solid-js'
 import { ForestLayoutContext } from './forest-layout-storage.js'
-import { X } from '~/components/ui/icons.js'
+import { X } from '~/components/ui/icons/X.js'
 import type { OverlayRect } from '../shared/ExpandingOverlay'
-import ForestCard, {
+import ForestCard from './ForestCard.js'
+import {
   ForestCardCommandsContext,
   ForestCardColumnsContext,
   ForestConnectionSessionContext,
   type ForestCardCommands,
-} from './ForestCard.js'
+} from './forest-card-context.js'
 import ForestDependencyEdge from './ForestDependencyEdge.js'
 import type { SwatchColumn } from '~/core/board/status-swatch.js'
 import {
@@ -32,7 +35,6 @@ import {
 import { CARD_HEIGHT, CARD_WIDTH, representativeInScope, type DependencyRelation, type ForestTicket } from './forest-graph.js'
 import { externalDependencyPath, viewportForLayout } from './forest-viewport.js'
 import type { ForestViewport } from './forest-types.js'
-import { useEscapeKey } from '~/lib/use-escape-key.js'
 import type { ForestLayout } from '~/core/ticket/forest-layout-store.js'
 
 export interface ForestSurfaceData {
@@ -108,6 +110,14 @@ export default function ForestSurface(props: Props): JSX.Element {
   )
   const [selected, setSelected] = createSignal<string[]>([])
   const [popup, setPopup] = createSignal<Popup>()
+  let popupContent: HTMLDivElement | undefined
+  let popupTrigger: HTMLElement | undefined
+  createDropdownOverlay({
+    open: () => !!popup(),
+    dismiss: () => setPopup(undefined),
+    content: () => popupContent,
+    trigger: () => popupTrigger,
+  })
   const [persisting, setPersisting] = createSignal(false)
   const [panning, setPanning] = createSignal(false)
   const [selectionRect, setSelectionRect] = createSignal<{
@@ -464,6 +474,7 @@ export default function ForestSurface(props: Props): JSX.Element {
 
   function showPopup(relations: DependencyRelation[], event: MouseEvent) {
     event.stopPropagation()
+    popupTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : undefined
     setPopup({
       relations: relations.map((relation) => ({
         ...relation,
@@ -473,7 +484,6 @@ export default function ForestSurface(props: Props): JSX.Element {
     })
   }
 
-  useEscapeKey(() => setPopup(undefined))
   onSettled(() => {
     const resize = () => {
       setGeometryRevision((value) => value + 1)
@@ -695,10 +705,10 @@ export default function ForestSurface(props: Props): JSX.Element {
       </ForestConnectionSessionContext>
       <Show when={popup()} keyed>
         {(value) => (
-          <>
-            <div class="fixed inset-0 z-40" onClick={() => setPopup(undefined)} />
+          <Portal>
             <div
-              class="fixed z-50 rounded-md border border-border bg-popover p-1"
+              ref={popupContent}
+              class="fixed rounded-md border border-border bg-popover p-1"
               onPointerDown={(event) => event.stopPropagation()}
               style={{
                 left: `${value.screenX}px`,
@@ -720,7 +730,7 @@ export default function ForestSurface(props: Props): JSX.Element {
                 Delete dependency
               </button>
             </div>
-          </>
+          </Portal>
         )}
       </Show>
     </div>

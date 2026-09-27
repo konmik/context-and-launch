@@ -1,7 +1,7 @@
 import type { JSX } from '@solidjs/web'
 import { onSettled } from 'solid-js'
 import { SplitPane } from '../ui/split-pane.js'
-import AgentLauncher from '../launcher/AgentLauncher'
+import AgentLauncher from '../launcher/AgentLauncher.js'
 import MarkdownEditor from '../shared/MarkdownEditor.js'
 import { TAB_PANE_CLASS } from './ticket-detail-parts.js'
 import type { AgentLauncherController } from '../launcher/agent-launcher-controller.js'

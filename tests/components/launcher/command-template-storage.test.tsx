@@ -7,7 +7,7 @@ import { COMMAND_TEMPLATE_DEFAULTS } from '~/core/command-template/command-templ
 import type { CommandTemplateOverrides } from '~/core/command-template/command-template-types.js'
 import { CommandTemplateContext } from '../../../src/components/launcher/command-template-storage.js'
 import { CommandTemplatesTab } from '../../../src/components/launcher/launcher-settings-command-templates-tab.js'
-import { TabsRoot } from '../../../src/components/ui/tabs.js'
+import { TabsRoot } from '../../../src/components/ui/TabsRoot.js'
 
 afterEach(cleanup)
 it('shares saved overrides between editors, retaining a failed draft and propagating reset', async () => {

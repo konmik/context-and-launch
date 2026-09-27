@@ -1,78 +1,19 @@
 import type { JSX } from '@solidjs/web'
 import { Show, For } from 'solid-js'
-import { DragDropProvider, createSortable } from '~/components/drag/drag-provider.js'
-import { DialogRoot, DialogTitle } from '../ui/dialog'
+import { DragDropProvider } from '~/components/drag/DragDropProvider.js'
+import { DialogRoot } from '../ui/DialogRoot.js'
+import { DialogTitle } from '../ui/DialogTitle.js'
 import type { MergedLauncherConfig, LauncherColumnDefaults } from '~/core/launcher/launcher-config.js'
-import { DragPreview, DragGrip, NameDragOverlay, DND_ACTIVE_CLASS } from '../board/dnd-shared.js'
+import { NameDragOverlay } from '../board/NameDragOverlay.js'
 import type { AgentLauncherController } from './agent-launcher-controller.js'
-
-type MergedSkill = MergedLauncherConfig['skills'][number]
+import { NamedEntrySelect } from './NamedEntrySelect.js'
+import { LauncherSkillDropPreview } from './LauncherSkillDropPreview.js'
+import { SortableLauncherSkill } from './SortableLauncherSkill.js'
 
 interface AgentLauncherProps {
   config: MergedLauncherConfig | null
   onDefaultsChange: (patch: Partial<LauncherColumnDefaults>) => void
   ctrl: AgentLauncherController
-} // The Agent and the Prompt Template are both picked from a list of named
-
-// entries, and picking one both moves the launcher to it and records it as the
-// column's default.
-function NamedEntrySelect(props: {
-  label: string
-  value: string
-  options: {
-    name: string
-  }[]
-  testId: string
-  onChange(name: string): void
-}): JSX.Element {
-  return (
-    <div>
-      <label class="field-label">{props.label}</label>
-      <select value={props.value} onChange={(e) => props.onChange(e.currentTarget.value)} class="input input-sm" data-testid={props.testId}>
-        <For each={props.options}>
-          {(option) => (
-            <option value={option.name} selected={option.name === props.value}>
-              {option.name}
-            </option>
-          )}
-        </For>
-      </select>
-    </div>
-  )
-}
-
-function SortableLauncherSkill(props: { skill: MergedSkill; checked: boolean; isActive: boolean; onToggle: () => void }): JSX.Element {
-  const sortable = createSortable(props.skill.name)
-  return (
-    <div
-      ref={sortable.ref}
-      data-testid="launcher-skill-row"
-      data-skill-name={props.skill.name}
-      class={`flex items-center gap-2 ${props.isActive ? DND_ACTIVE_CLASS : ''}`}
-    >
-      <DragGrip gripProps={sortable.dragActivators} testId="launcher-skill-drag-handle" />
-      <label class="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={props.checked}
-          onChange={props.onToggle}
-          class="rounded border-input"
-          data-testid="ticket-detail-launcher-skill-checkbox"
-          data-skill-name={props.skill.name}
-        />
-        {props.skill.name}
-      </label>
-    </div>
-  )
-}
-
-function LauncherSkillDropPreview(props: { skill: MergedSkill }): JSX.Element {
-  return (
-    <DragPreview class="flex items-center gap-2">
-      <DragGrip testId="launcher-skill-drag-handle" />
-      <span class="text-sm">{props.skill.name}</span>
-    </DragPreview>
-  )
 }
 
 export default function AgentLauncher(props: AgentLauncherProps): JSX.Element {

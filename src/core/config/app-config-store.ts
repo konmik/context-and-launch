@@ -40,14 +40,16 @@ export function createAppConfigStore(
   }
 
   function recordProjectFocus(projectSlug: string): Promise<AppConfigData> {
-    return lock.writeWhenAvailable(() =>
-      update((current) => ({
+    return lock.writeWhenAvailable(() => {
+      const current = read()
+      if (current.lastUsedProjectSlug === projectSlug || !current.projects.some((project) => project.projectSlug === projectSlug)) {
+        return current
+      }
+      return update((current) => ({
         ...current,
-        lastUsedProjectSlug: current.projects.some((project) => project.projectSlug === projectSlug)
-          ? projectSlug
-          : current.lastUsedProjectSlug,
-      })),
-    )
+        lastUsedProjectSlug: projectSlug,
+      }))
+    })
   }
 
   return {

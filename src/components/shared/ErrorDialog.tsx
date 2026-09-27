@@ -1,6 +1,7 @@
 import type { JSX } from '@solidjs/web'
 import { Show } from 'solid-js'
-import { DialogRoot, DialogTitle } from '../ui/dialog'
+import { DialogRoot } from '../ui/DialogRoot.js'
+import { DialogTitle } from '../ui/DialogTitle.js'
 import type { UserFacingError } from '~/util/user-facing-error.js'
 
 interface ErrorDialogProps {

@@ -1,6 +1,8 @@
 import type { JSX } from '@solidjs/web'
 import { Show } from 'solid-js'
-import { FileToolbar, EditorPane, TAB_CONTENT_CLASS } from './ticket-detail-parts.js'
+import { FileToolbar } from './FileToolbar.js'
+import { EditorPane } from './EditorPane.js'
+import { TAB_CONTENT_CLASS } from './ticket-detail-parts.js'
 import { activeFileLabel, isReadOnly } from './ticket-detail-pure.js'
 import type { TicketDetailState } from './ticket-detail-state.js'
 

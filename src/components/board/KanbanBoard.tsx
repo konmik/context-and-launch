@@ -4,12 +4,16 @@ import { useErrorReporter } from '../shared/error-presentation.js'
 import { revalidate } from '@solidjs/router'
 import { TicketOrderContext } from './ticket-order-storage.js'
 import { ticketMutationRevalidateKeys } from '../shared/revalidate-keys.js'
-import { DragDropProvider, DragOverlay } from '~/components/drag/drag-provider.js'
+import { DragDropProvider } from '~/components/drag/DragDropProvider.js'
+import { DragOverlay } from '~/components/drag/DragOverlay.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import type { BoardState } from '~/components/project/project-api.js'
 import TicketCard from '../ticket/TicketCard'
-import { DragOverlayCard } from './dnd-shared.js'
-import { ColumnHeader, ColumnBody, OrphanHeader, OrphanBody } from './kanban-columns.js'
+import { DragOverlayCard } from './DragOverlayCard.js'
+import { ColumnHeader } from './ColumnHeader.js'
+import { ColumnBody } from './ColumnBody.js'
+import { UndefinedColumnHeader } from './UndefinedColumnHeader.js'
+import { UndefinedColumnBody } from './UndefinedColumnBody.js'
 import { resolveTicketsForColumn, type DropResult } from './board-logic.js'
 import { moveTicketInOrder } from '~/core/ticket/ticket-order-data.js'
 import { createBoardDnd } from './board-state.js'
@@ -95,7 +99,7 @@ export default function KanbanBoard(props: KanbanBoardProps): JSX.Element {
               )}
             </For>
             <Show when={board().orphanedTickets.length > 0}>
-              <OrphanHeader />
+              <UndefinedColumnHeader />
             </Show>
           </div>
         </div>
@@ -127,7 +131,7 @@ export default function KanbanBoard(props: KanbanBoardProps): JSX.Element {
               )}
             </For>
             <Show when={board().orphanedTickets.length > 0}>
-              <OrphanBody
+              <UndefinedColumnBody
                 tickets={board().orphanedTickets}
                 activeId={drag().activeId}
                 activeTicket={activeTicket()}

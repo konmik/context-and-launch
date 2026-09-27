@@ -4,33 +4,23 @@ import { revalidate } from '@solidjs/router'
 import { Errored, For, Show, createEffect, createMemo, createSignal, useContext, onSettled, onCleanup } from 'solid-js'
 import { createStoredState } from '~/util/stored-state.js'
 import { success } from '~/util/result.js'
-import { ArrowDownToLine } from '~/components/ui/icons.js'
-import { Check } from '~/components/ui/icons.js'
-import { ChevronDown } from '~/components/ui/icons.js'
-import { ChevronRight } from '~/components/ui/icons.js'
-import { CircleQuestionMark } from '~/components/ui/icons.js'
-import { FileCode2 } from '~/components/ui/icons.js'
-import { FileWarning } from '~/components/ui/icons.js'
-import { FolderOpen } from '~/components/ui/icons.js'
-import { GitCompareArrows } from '~/components/ui/icons.js'
-import { LoaderCircle } from '~/components/ui/icons.js'
-import { Pause } from '~/components/ui/icons.js'
-import { Play } from '~/components/ui/icons.js'
-import { RefreshCw } from '~/components/ui/icons.js'
-import { Send } from '~/components/ui/icons.js'
-import { WrapText } from '~/components/ui/icons.js'
-import { X } from '~/components/ui/icons.js'
+import { ArrowDownToLine } from '~/components/ui/icons/ArrowDownToLine.js'
+import { Check } from '~/components/ui/icons/Check.js'
+import { ChevronDown } from '~/components/ui/icons/ChevronDown.js'
+import { FileWarning } from '~/components/ui/icons/FileWarning.js'
+import { GitCompareArrows } from '~/components/ui/icons/GitCompareArrows.js'
+import { Pause } from '~/components/ui/icons/Pause.js'
+import { Play } from '~/components/ui/icons/Play.js'
+import { RefreshCw } from '~/components/ui/icons/RefreshCw.js'
+import { Send } from '~/components/ui/icons/Send.js'
+import { WrapText } from '~/components/ui/icons/WrapText.js'
+import { X } from '~/components/ui/icons/X.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import type { DiffLayout, DiffLineOverflow, DiffScope, ReviewFileSnapshot, ReviewPace } from '~/core/diff-review/diff-review-types.js'
 import { buildReviewPromptSnapshot, reviewSelectionStillExists } from '~/core/diff-review/diff-review-model.js'
 import { reuseUnchangedFiles } from '~/core/diff-review/review-file-identity.js'
 import { renderReviewPrompt } from '~/core/diff-review/review-prompt-text.js'
-import {
-  fileIsReviewed,
-  nextUnreviewedChange,
-  unreviewedChangeCount,
-  type ReviewChangeLocation,
-} from '~/core/diff-review/review-navigation.js'
+import { fileIsReviewed, nextUnreviewedChange, unreviewedChangeCount, type ReviewChangeLocation } from '~/core/diff-review/review-navigation.js'
 import { useHerdrStatuses } from '../ticket/herdr-statuses-context.js'
 import { LauncherConfigContext } from '../launcher/shared-launcher-config-storage.js'
 import { ProjectLauncherConfigContext } from '../launcher/project-launcher-config-storage.js'
@@ -38,16 +28,18 @@ import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js'
 import { DiffReviewContext, ReviewAgentStatusContext, createReviewedLineTracker } from './diff-review-storage.js'
 import { useErrorReporter } from '../shared/error-presentation.js'
 import { errorPayload } from '~/core/shared/errors.js'
-import type { UserFacingError } from '~/util/user-facing-error.js'
-import LoadError from '../shared/LoadError.js'
 import { createStoredConfig } from '~/util/stored-config.js'
 import { readDiffReviewState, saveDiffReviewState, releaseDiffReviewState, readReviewAgentStatus } from './diff-review-state-api.js'
 import { enqueueReviewPrompt, getReviewSnapshot } from './diff-review-api.js'
-import { buildDiffReviewFileTree, diffReviewFilePathsInTreeOrder, type DiffReviewFileTreeNode } from './diff-review-file-tree.js'
-import { buildFileTypeTotals } from './diff-review-file-type-totals.js'
+import { buildDiffReviewFileTree, diffReviewFilePathsInTreeOrder } from './diff-review-file-tree.js'
 import DiffSurface from './DiffSurface.js'
 import ReviewPromptComposer, { type ActiveSelection } from './ReviewPromptComposer.js'
 import ReviewPromptQueueList from './ReviewPromptQueueList.js'
+import { type FileReviewStatus } from './file-review-status.js'
+import { DiffLoadError } from './DiffLoadError.js'
+import { DiffScopeUnavailable } from './DiffScopeUnavailable.js'
+import { FileTree } from './FileTree.js'
+import { ReviewStateIcon } from './ReviewStateIcon.js'
 
 const SCOPE_LABELS = {
   all: 'All Changes',
@@ -66,8 +58,6 @@ const TREE_WIDTH_MIN = 180
 
 const TREE_WIDTH_MAX = 480
 
-type FileReviewStatus = 'unreviewed' | 'reviewed'
-
 interface ActiveComposer {
   selection?: ActiveSelection
 }
@@ -81,184 +71,6 @@ function formatBytes(value: number): string {
 function reuseFilePaths(previous: string[], files: ReviewFileSnapshot[]): string[] {
   const current = files.map((file) => file.path)
   return current.length === previous.length && current.every((filePath, index) => filePath === previous[index]) ? previous : current
-}
-
-function ReviewStateIcon(props: { status: FileReviewStatus }): JSX.Element {
-  return (
-    <Show when={props.status === 'reviewed'} fallback={<CircleQuestionMark size={13} class="text-primary" aria-label="Not reviewed" />}>
-      <Check size={13} class="text-muted-foreground" aria-label="Reviewed" />
-    </Show>
-  )
-}
-
-function FileTreeNodes(props: {
-  nodes: DiffReviewFileTreeNode[]
-  activePath: string
-  collapsedDirectoryPaths: ReadonlySet<string>
-  fileForPath(filePath: string): ReviewFileSnapshot | undefined
-  statusFor(file: ReviewFileSnapshot): FileReviewStatus
-  onToggleDirectory(directoryPath: string): void
-  onSelect(filePath: string): void
-}): JSX.Element {
-  return (
-    <ul class="space-y-0.5">
-      <For each={props.nodes}>
-        {(node) => {
-          if (node.kind === 'directory') {
-            const collapsed = () => props.collapsedDirectoryPaths.has(node.directoryPath)
-            return (
-              <li>
-                <button
-                  type="button"
-                  class={
-                    'flex w-full items-center gap-1 px-2 py-1 font-mono text-[10px]' +
-                    ' font-medium text-muted-foreground' +
-                    ' hover:bg-accent/60'
-                  }
-                  onClick={() => props.onToggleDirectory(node.directoryPath)}
-                  aria-expanded={!collapsed() ? 'true' : 'false'}
-                  data-testid="diff-review-directory"
-                  data-directory-path={node.directoryPath}
-                >
-                  <Show when={!collapsed()} fallback={<ChevronRight size={11} class="shrink-0" />}>
-                    <ChevronDown size={11} class="shrink-0" />
-                  </Show>
-                  <FolderOpen size={13} class="shrink-0" />
-                  <span class="whitespace-nowrap">{node.name}</span>
-                </button>
-                <Show when={!collapsed()}>
-                  <div class="ml-3 border-l border-border/70 pl-1">
-                    <FileTreeNodes {...props} nodes={node.children} />
-                  </div>
-                </Show>
-              </li>
-            )
-          }
-          const file = () => props.fileForPath(node.filePath)
-          return (
-            <Show when={file()}>
-              {(current) => (
-                <li>
-                  <button
-                    type="button"
-                    class={`flex w-full items-start gap-1.5 rounded-md px-2 py-1.5 text-left ${props.activePath === node.filePath ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/60'}`}
-                    onClick={() => props.onSelect(node.filePath)}
-                    data-testid="diff-review-file"
-                    data-file-path={node.filePath}
-                    title={node.filePath}
-                  >
-                    <Show when={!current().binary} fallback={<FileWarning size={13} class="mt-0.5 shrink-0 text-warning" />}>
-                      <FileCode2 size={13} class="mt-0.5 shrink-0 text-muted-foreground" />
-                    </Show>
-                    <span class="min-w-max flex-1">
-                      <span class="flex items-center gap-1.5 whitespace-nowrap">
-                        <ReviewStateIcon status={props.statusFor(current())} />
-                        <span class="font-mono text-[10px] font-medium">{node.name}</span>
-                      </span>
-                      <span class="mt-0.5 block whitespace-nowrap pl-[19px] font-mono text-[9px]">
-                        <span class="text-success">+{current().additions}</span>
-                        <span class="ml-2 text-destructive">-{current().deletions}</span>
-                        <Show when={current().binary}>
-                          <span class="ml-2 text-warning">BINARY</span>
-                        </Show>
-                      </span>
-                    </span>
-                  </button>
-                </li>
-              )}
-            </Show>
-          )
-        }}
-      </For>
-    </ul>
-  )
-}
-
-function FileTree(props: {
-  files: ReviewFileSnapshot[]
-  nodes: DiffReviewFileTreeNode[]
-  loadedScope?: DiffScope
-  activePath: string
-  width: number
-  statusFor(file: ReviewFileSnapshot): FileReviewStatus
-  onSelect(filePath: string): void
-}): JSX.Element {
-  const [collapsedDirectoryPaths, setCollapsedDirectoryPaths] = createSignal(new Set<string>())
-  const fileByPath = createMemo(() => new Map(props.files.map((file) => [file.path, file])))
-  const totalsByFileType = createMemo(() => buildFileTypeTotals(props.files))
-
-  function toggleDirectory(directoryPath: string) {
-    setCollapsedDirectoryPaths((current) => {
-      const next = new Set(current)
-      if (next.has(directoryPath)) next.delete(directoryPath)
-      else next.add(directoryPath)
-      return next
-    })
-  }
-
-  return (
-    <nav
-      style={{
-        width: `${props.width}px`,
-      }}
-      class="flex min-h-0 shrink-0 flex-col border-r border-border bg-card/35"
-      aria-label="Changed files"
-      data-testid="diff-review-file-tree"
-      data-loaded-scope={props.loadedScope}
-    >
-      <div class="shrink-0 p-3 pb-0">
-        <div class="px-2 font-mono text-[10px] font-bold tracking-[0.12em] text-muted-foreground">CHANGED FILES · {props.files.length}</div>
-      </div>
-      <div class="min-h-0 flex-1 overflow-auto p-3 pt-2" data-testid="diff-review-file-tree-scroll">
-        <FileTreeNodes
-          nodes={props.nodes}
-          activePath={props.activePath}
-          collapsedDirectoryPaths={collapsedDirectoryPaths()}
-          fileForPath={(filePath) => fileByPath().get(filePath)}
-          statusFor={props.statusFor}
-          onToggleDirectory={toggleDirectory}
-          onSelect={props.onSelect}
-        />
-      </div>
-      <footer class="shrink-0 border-t border-border/70 p-3">
-        <div class="px-2 font-mono text-[10px] font-bold tracking-[0.12em] text-muted-foreground">LINE CHANGES BY TYPE</div>
-        <ul class="mt-1.5" data-testid="diff-review-file-type-totals">
-          <For each={totalsByFileType()}>
-            {(totals) => (
-              <li class="flex items-baseline justify-between gap-2 px-2 py-0.5 font-mono text-[10px]" data-file-type={totals.fileType}>
-                <span class="min-w-0 truncate text-muted-foreground">{totals.fileType}</span>
-                <span class="ml-auto whitespace-nowrap tabular-nums">
-                  <span class="text-success">+{totals.additions}</span>
-                  <span class="ml-2 text-destructive">-{totals.deletions}</span>
-                </span>
-              </li>
-            )}
-          </For>
-        </ul>
-      </footer>
-    </nav>
-  )
-}
-
-function DiffLoadError(props: { error: unknown; onRetry(): void }): JSX.Element {
-  return <LoadError error={errorPayload(props.error, 'Load diff failed')} onRetry={props.onRetry} />
-} // What stands in for the files while the selected Diff Scope has none to show:
-
-// Git is still calculating it, or Git answered that it cannot.
-function DiffScopeUnavailable(props: { error?: UserFacingError; label: string; onRetry(): void }): JSX.Element {
-  return (
-    <Show
-      when={props.error}
-      fallback={
-        <div class="flex min-h-0 flex-1 items-center justify-center text-sm text-muted-foreground">
-          <LoaderCircle size={16} class="mr-2 animate-spin" />
-          Calculating {props.label}...
-        </div>
-      }
-    >
-      {(message) => <DiffLoadError error={message()} onRetry={props.onRetry} />}
-    </Show>
-  )
 }
 
 export default function DiffReview(props: { projectSlug: string; projectName: string; ticket: TicketInfo; onClose(): void }): JSX.Element {

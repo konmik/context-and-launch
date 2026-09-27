@@ -1,7 +1,8 @@
 import type { JSX } from '@solidjs/web'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render } from '../../test-render.js'
-import { DragDropProvider, createSortable } from '../../../src/components/drag/drag-provider.js'
+import { DragDropProvider } from '../../../src/components/drag/DragDropProvider.js'
+import { createSortable } from '../../../src/components/drag/drag-context.js'
 
 afterEach(cleanup)
 

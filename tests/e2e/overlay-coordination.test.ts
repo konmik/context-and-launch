@@ -1,0 +1,59 @@
+import { describe, expect, it } from 'vitest'
+import { openProject, openTicketDetail, setupE2E } from './fixtures.js'
+import { testId } from './locators.js'
+
+describe('Overlay coordination (e2e, real server)', () => {
+  const ctx = setupE2E()
+
+  it('replaces an open dropdown when another trigger is clicked', async () => {
+    await openProject(ctx, { slugBase: 'overlay-menus' })
+    const first = testId(ctx.page, 'project-header-title-menu-trigger')
+    const second = testId(ctx.page, 'palette-picker-trigger')
+    await first.click()
+    await ctx.page.getByRole('menu').waitFor()
+    await second.click()
+    expect(await ctx.page.getByRole('menu').count()).toBe(1)
+    expect(await first.getAttribute('aria-expanded')).toBe('false')
+    expect(await second.getAttribute('aria-expanded')).toBe('true')
+    await ctx.page.keyboard.press('Escape')
+    await ctx.page.getByRole('menu').waitFor({ state: 'hidden' })
+    expect(await second.evaluate((element) => element === document.activeElement)).toBe(true)
+  })
+
+  it('suspends the parent popup and restores its draft and focus after a child closes', async () => {
+    await openProject(ctx, {
+      slugBase: 'overlay-dialogs',
+      withTickets: [{ number: 'T-1', title: 'Alpha', status: 'todo', folderName: 't-1-alpha' }],
+    })
+    await openTicketDetail(ctx.page, 't-1-alpha')
+    const title = testId(ctx.page, 'ticket-detail-title-input')
+    await title.fill('Unfinished title')
+    const trigger = testId(ctx.page, 'ticket-detail-editor-new-file-button')
+    await trigger.click()
+    await testId(ctx.page, 'ticket-detail-new-file-name-input').waitFor()
+    expect(await ctx.page.getByRole('dialog').count()).toBe(1)
+    expect(await title.isVisible()).toBe(false)
+    expect(await title.inputValue()).toBe('Unfinished title')
+    await ctx.page.keyboard.press('Escape')
+    await testId(ctx.page, 'ticket-detail-new-file-name-input').waitFor({ state: 'hidden' })
+    await title.waitFor()
+    expect(await title.inputValue()).toBe('Unfinished title')
+    expect(await ctx.page.evaluate(() => document.activeElement?.getAttribute('data-testid'))).toBe('ticket-detail-editor-new-file-button')
+    expect(await ctx.page.getByRole('dialog').count()).toBe(1)
+  })
+
+  it('Escape dismisses a ticket dropdown without closing its parent popup', async () => {
+    await openProject(ctx, {
+      slugBase: 'overlay-files',
+      withTickets: [{ number: 'T-1', title: 'Alpha', status: 'todo', folderName: 't-1-alpha' }],
+    })
+    await openTicketDetail(ctx.page, 't-1-alpha')
+    const trigger = testId(ctx.page, 'ticket-detail-editor-file-dropdown-trigger')
+    await trigger.click()
+    await testId(ctx.page, 'ticket-detail-editor-file-dropdown-option').first().waitFor()
+    await ctx.page.keyboard.press('Escape')
+    expect(await testId(ctx.page, 'ticket-detail-title-input').isVisible()).toBe(true)
+    expect(await testId(ctx.page, 'ticket-detail-editor-file-dropdown-option').count()).toBe(0)
+    expect(await trigger.evaluate((element) => element === document.activeElement)).toBe(true)
+  })
+})

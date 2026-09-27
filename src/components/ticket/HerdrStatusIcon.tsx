@@ -1,7 +1,8 @@
 import type { JSX } from '@solidjs/web'
 import type { HerdrAgentStatus } from '~/core/herdr/herdr-client.js'
+import { StatusGlyph } from './StatusGlyph.js'
 
-export const HERDR_STATUS_COLORS = {
+const HERDR_STATUS_COLORS = {
   working: '#f9e2af',
   blocked: '#f38ba8',
   idle: '#a6e3a1',
@@ -15,22 +16,6 @@ const HERDR_STATUS_GLYPHS = {
   idle: '○',
   done: '●',
   unknown: '·',
-}
-
-function StatusGlyph(props: { glyph: string; color: string; size: number }): JSX.Element {
-  return (
-    <span
-      class="inline-block shrink-0 font-mono leading-none tabular-nums"
-      style={{
-        'font-size': `${props.size}px`,
-        width: `${props.size}px`,
-        'text-align': 'center',
-        color: props.color,
-      }}
-    >
-      {props.glyph}
-    </span>
-  )
 }
 
 export default function HerdrStatusIcon(props: { status: HerdrAgentStatus; size?: number }): JSX.Element {

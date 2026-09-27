@@ -171,7 +171,7 @@ describe('AppConfigStore', () => {
       }),
     ).toEqual({
       type: 'Failure',
-      error: 'invalid edit',
+      error: { title: 'Operation failed', description: 'invalid edit' },
     })
     expect(
       await storage.update((current) => ({
@@ -180,7 +180,7 @@ describe('AppConfigStore', () => {
       })),
     ).toEqual({
       type: 'Failure',
-      error: 'connection lost',
+      error: { title: 'Operation failed', description: 'connection lost' },
     })
     expect(store.read()).toEqual(config)
     fs.writeFileSync(

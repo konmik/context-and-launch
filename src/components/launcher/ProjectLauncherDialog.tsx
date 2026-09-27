@@ -2,16 +2,13 @@ import type { JSX } from '@solidjs/web'
 import { createMemo, useContext, untrack } from 'solid-js'
 import { LauncherConfigContext } from './shared-launcher-config-storage.js'
 import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js'
-import { X } from '~/components/ui/icons.js'
-import {
-  FloatingWindow,
-  FloatingWindowHeader,
-  FloatingPanelBody,
-  FloatingPanelCloseTrigger,
-  FloatingPanelTitle,
-  FLOATING_WINDOW_MIN_SIZE,
-  tallWindowDefaultSize,
-} from '../ui/floating-panel'
+import { X } from '~/components/ui/icons/X.js'
+import { FloatingWindow } from '../ui/FloatingWindow.js'
+import { FloatingWindowHeader } from '../ui/FloatingWindowHeader.js'
+import { FloatingPanelBody } from '../ui/FloatingPanelBody.js'
+import { FloatingPanelCloseTrigger } from '../ui/FloatingPanelCloseTrigger.js'
+import { FloatingPanelTitle } from '../ui/FloatingPanelTitle.js'
+import { FLOATING_WINDOW_MIN_SIZE, tallWindowDefaultSize } from '../ui/floating-window.js'
 import { LauncherTab } from '../ticket/ticket-detail-launcher-tab.js'
 import { createAgentLauncherController } from './agent-launcher-controller.js'
 import { getProjectLauncherMetadata, launchProjectAgentAction } from './launcher-api.js'

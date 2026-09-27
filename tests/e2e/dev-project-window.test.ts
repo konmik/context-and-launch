@@ -127,9 +127,9 @@ describe('Project window (e2e, Vite development server)', () => {
     await page.locator('[data-testid="ticket-detail-tab-editor"]').waitFor({
       state: 'visible',
     })
-    const panelModule = path.resolve('src/components/ui/floating-panel.tsx')
+    const panelModule = path.resolve('src/components/ui/FloatingPanelRoot.tsx')
     const hotUpdate = page.waitForEvent('console', {
-      predicate: (message) => message.text().includes('hot updated: /src/components/ui/floating-panel.tsx'),
+      predicate: (message) => message.text().includes('hot updated: /src/components/ui/FloatingPanelRoot.tsx'),
     })
     const panelStat = fs.statSync(panelModule)
     fs.utimesSync(panelModule, panelStat.atime, new Date())

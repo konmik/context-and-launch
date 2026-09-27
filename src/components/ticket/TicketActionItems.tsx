@@ -1,6 +1,7 @@
 import type { JSX } from '@solidjs/web'
 import { For, Show } from 'solid-js'
-import { MenuItem, MenuSeparator } from '../ui/menu'
+import { MenuItem } from '../ui/MenuItem.js'
+import { MenuSeparator } from '../ui/MenuSeparator.js'
 
 interface TicketActionCallbacks {
   onOpenFolder?: () => void

@@ -1,7 +1,7 @@
 import { Portal, type JSX } from '@solidjs/web'
 import { Show } from 'solid-js'
 import type { UserFacingError } from '~/util/user-facing-error.js'
-import { X } from '~/components/ui/icons.js'
+import { X } from '~/components/ui/icons/X.js'
 
 interface ErrorToastProps {
   error?: UserFacingError

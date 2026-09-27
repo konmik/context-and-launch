@@ -1,6 +1,9 @@
 import type { JSX } from '@solidjs/web'
-import { Bug } from '~/components/ui/icons.js'
-import { MenuRoot, MenuTrigger, MenuContent, MenuItem } from '~/components/ui/menu'
+import { Bug } from '~/components/ui/icons/Bug.js'
+import { MenuRoot } from '~/components/ui/MenuRoot.js'
+import { MenuTrigger } from '~/components/ui/MenuTrigger.js'
+import { MenuContent } from '~/components/ui/MenuContent.js'
+import { MenuItem } from '~/components/ui/MenuItem.js'
 import { useToastQueue } from './toast-queue.js'
 
 export default function DebugToastButton(): JSX.Element {

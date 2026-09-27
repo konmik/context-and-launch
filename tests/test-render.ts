@@ -23,8 +23,8 @@ import { render as renderSolid } from '@solidjs/web'
 import { getQueriesForElement, screen, fireEvent, waitFor } from '@testing-library/dom'
 import type { Element } from 'solid-js'
 import { createComponent } from 'solid-js'
-import { ToastQueueRoot } from '~/components/shared/toast-queue.js'
-import { ErrorScope } from '~/components/shared/error-presentation.js'
+import { ToastQueueRoot } from '~/components/shared/ToastQueueRoot.js'
+import { ErrorScope } from '~/components/shared/ErrorScope.js'
 
 const disposers: (() => void)[] = []
 

@@ -1,29 +1,23 @@
 import type { JSX } from '@solidjs/web'
 import type { Result } from '~/util/result.js'
 import { Show, For, createEffect } from 'solid-js'
-import { X } from '~/components/ui/icons.js'
-import {
-  FloatingWindow,
-  FloatingWindowHeader,
-  FloatingPanelBody,
-  FloatingPanelCloseTrigger,
-  FloatingPanelTitle,
-} from '../ui/floating-panel'
-import { DialogRoot, DialogTitle, DialogDescription } from '../ui/dialog'
+import { X } from '~/components/ui/icons/X.js'
+import { FloatingWindow } from '../ui/FloatingWindow.js'
+import { FloatingWindowHeader } from '../ui/FloatingWindowHeader.js'
+import { FloatingPanelBody } from '../ui/FloatingPanelBody.js'
+import { FloatingPanelCloseTrigger } from '../ui/FloatingPanelCloseTrigger.js'
+import { FloatingPanelTitle } from '../ui/FloatingPanelTitle.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import type { ErrorInfo } from '~/core/shared/errors.js'
 import type { CleanupItemKey } from '~/core/worktree/ticket-cleanup-checks.js'
-import type { LockingProcessInfo } from '~/core/worktree/agent-worktree.js'
 import { useModEnterSubmit, modEnterHint } from '~/lib/use-mod-enter-submit'
-import {
-  getCleanupStatus,
-  getWorktreeLockingProcesses,
-  killWorktreeLockingProcesses,
-  forceDeleteLocalBranch,
-} from '~/components/ticket/ticket-api.js'
+import { getCleanupStatus, getWorktreeLockingProcesses, killWorktreeLockingProcesses, forceDeleteLocalBranch } from '~/components/ticket/ticket-api.js'
 import type { TicketCleanupOptions } from './ticket-cleanup-pure.js'
 import { createTicketCleanupController, type TicketCleanupController } from './ticket-cleanup-controller.js'
-import { FieldErrorMessage, useErrorReporter } from './error-presentation.js'
+import { FieldErrorMessage } from './FieldErrorMessage.js'
+import { useErrorReporter } from './error-presentation.js'
+import { KillProcessesConfirmDialog } from './KillProcessesConfirmDialog.js'
+import { ForceDeleteBranchDialog } from './ForceDeleteBranchDialog.js'
 
 interface TicketCleanupDialogProps {
   open: boolean
@@ -249,92 +243,5 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps): JS
         onClose={s.closeForceDeleteDialog}
       />
     </>
-  )
-}
-
-function KillProcessesConfirmDialog(props: {
-  open: boolean
-  processes: LockingProcessInfo[] | undefined
-  killing: boolean
-  onConfirm: () => void
-  onClose: () => void
-}): JSX.Element {
-  return (
-    <DialogRoot
-      open={props.open}
-      onOpenChange={(open) => {
-        if (!open) props.onClose()
-      }}
-    >
-      <DialogTitle>Kill Locking Processes</DialogTitle>
-      <Show
-        when={props.processes !== undefined}
-        fallback={<p class="animate-pulse text-sm text-muted-foreground">Finding locking processes...</p>}
-      >
-        <Show
-          when={props.processes!.length > 0}
-          fallback={
-            <DialogDescription>
-              Could not identify the locking processes. Close any editors or terminals using this folder, then try again.
-            </DialogDescription>
-          }
-        >
-          <DialogDescription>Killing these processes may cause unsaved work to be lost.</DialogDescription>
-          <ul class="my-3 space-y-1">
-            <For each={props.processes}>
-              {(p) => (
-                <li class="text-sm">
-                  {p.processName} <span class="text-muted-foreground">(PID {p.pid})</span>
-                </li>
-              )}
-            </For>
-          </ul>
-        </Show>
-      </Show>
-      <div class="flex justify-end gap-2">
-        <button type="button" onClick={props.onClose} class="btn-secondary" data-testid="kill-processes-cancel">
-          Cancel
-        </button>
-        <Show when={props.processes && props.processes.length > 0}>
-          <button
-            type="button"
-            disabled={props.killing}
-            onClick={props.onConfirm}
-            class="btn-destructive"
-            data-testid="kill-processes-confirm"
-          >
-            Kill All
-          </button>
-        </Show>
-      </div>
-    </DialogRoot>
-  )
-}
-
-function ForceDeleteBranchDialog(props: { open: boolean; deleting: boolean; onConfirm: () => void; onClose: () => void }): JSX.Element {
-  return (
-    <DialogRoot
-      open={props.open}
-      onOpenChange={(open) => {
-        if (!open) props.onClose()
-      }}
-    >
-      <DialogTitle>Force Delete Branch</DialogTitle>
-      <DialogDescription>This branch has unmerged commits that will be permanently lost.</DialogDescription>
-      <div class="flex justify-end gap-2">
-        <button type="button" onClick={props.onClose} class="btn-secondary" data-testid="force-delete-branch-cancel">
-          Cancel
-        </button>
-        <button
-          type="button"
-          disabled={props.deleting}
-          onClick={props.onConfirm}
-          class="btn-destructive"
-          data-testid="force-delete-branch-confirm"
-        >
-          Force Delete
-        </button>
-      </div>
-    </DialogRoot>
   )
 }
