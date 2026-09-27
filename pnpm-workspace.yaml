@@ -13,6 +13,3 @@ overrides:
 allowBuilds:
   electron-winstaller: true
   esbuild: true
-
-patchedDependencies:
-  '@solidjs/vite-plugin@3.0.0-next.31': patches/@solidjs__vite-plugin@3.0.0-next.31.patch

@@ -89,7 +89,7 @@ export function useErrorReporter(active: () => boolean = () => true): ErrorRepor
 export function ErrorField(props: { field: string }): JSX.Element {
   const scope = useContext(ErrorPresentationContext)
   const [error, setError] = createSignal<UserFacingError>()
-  onCleanup(scope.register(props.field, setError))
+  createEffect(() => props.field, (field) => scope.register(field, setError))
   return <FieldErrorMessage error={error()} />
 }
 
