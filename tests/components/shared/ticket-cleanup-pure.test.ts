@@ -47,18 +47,22 @@ describe('allChecking / allError', () => {
       stopHerdrAgent: {
         state: 'error',
         error,
+        checks: [],
       },
       deleteWorktree: {
         state: 'error',
         error,
+        checks: [],
       },
       deleteLocalBranch: {
         state: 'error',
         error,
+        checks: [],
       },
       deleteRemoteBranch: {
         state: 'error',
         error,
+        checks: [],
       },
     })
   })

@@ -26,6 +26,7 @@ export function allError(error: ErrorInfo): TicketCleanupItemStates {
   return buildStates(() => ({
     state: 'error',
     error,
+    checks: [],
   }))
 }
 

@@ -11,7 +11,20 @@
   - A Herdr Agent belongs to the Ticket when its pane has the Ticket's persistent pane label
   - Checks re-run every time the dialog is reopened
   - Each item shows a checking indicator until its check settles
-  - Each cleanup item is a button with its status on the right
+  - Cleanup items show actions on the left and checks on the right
+  - Each check shows a positive or negative outcome sentence
+  - Blocker details appear beneath the checks
+  - Recovery actions appear as red buttons above their corresponding cleanup buttons
+  - Each resource lists its individual checks
+    - Show the actual result without Pass or Failed badges
+    - Missing resources are neutral
+    - Highlight blockers and check errors in red
+    - Hide skipped checks
+    - Keep passed checks visible when a later check blocks cleanup
+    - Checks after a blocker are skipped
+  - User clicks Refresh checks after making changes outside the app
+    - Refresh all cleanup statuses
+    - Disable Refresh checks while checks or an operation are running
   - A possible item enables its button
     - User clicks the button
       - Run only that cleanup action
@@ -20,7 +33,7 @@
       - Refresh all cleanup statuses after it finishes
   - An impossible item stays disabled
     - The item shows the reason it is not possible
-      - Warnings are red: no worktree, worktree in use, and branch has unmerged commits
+      - Warnings are red: worktree in use and branch has unmerged commits
       - Other blocked results are muted
       - Herdr is not installed
       - No Herdr agent
@@ -28,7 +41,7 @@
       - Worktree has uncommitted changes
       - Worktree is in use by another process
         - When a Herdr agent is running in it, the reason says so
-        - A "Kill processes" link appears next to the reason
+        - A red "Kill processes" button appears above the cleanup button
           - User clicks it
             - A confirmation dialog opens
             - The dialog lists the processes locking the worktree folder
@@ -42,7 +55,7 @@
               - Close the dialog
       - No local branch
       - Branch has unmerged commits
-        - A "Force delete" link appears next to the reason
+        - A red "Force delete" button appears above the cleanup button
           - User clicks it
             - A confirmation dialog opens warning about permanent data loss
             - User confirms
@@ -56,6 +69,7 @@
     - The error is red
     - One failing check does not hide the other items
 - The submit button stays enabled while checks are running
+- The footer stays visible while the cleanup list scrolls
 - A cleanup action fails
   - Show the error
   - Refresh all cleanup statuses

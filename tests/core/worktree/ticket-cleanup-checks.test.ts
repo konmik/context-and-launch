@@ -54,15 +54,30 @@ describe('runTicketCleanupChecks', () => {
     expect(status).toEqual({
       stopHerdrAgent: {
         state: 'ready',
+        checks: [
+          { state: 'passed', detail: 'Agent service available' },
+          { state: 'passed', detail: 'Task agent found' },
+        ],
       },
       deleteWorktree: {
         state: 'ready',
+        checks: [
+          { state: 'passed', detail: 'Worktree found' },
+          { state: 'passed', detail: 'Belongs to this project' },
+          { state: 'passed', detail: 'No uncommitted changes' },
+          { state: 'passed', detail: 'Worktree is not in use' },
+        ],
       },
       deleteLocalBranch: {
         state: 'ready',
+        checks: [
+          { state: 'passed', detail: 'Local branch found' },
+          { state: 'passed', detail: 'Changes integrated into main branch' },
+        ],
       },
       deleteRemoteBranch: {
         state: 'ready',
+        checks: [{ state: 'passed', detail: 'Remote branch found' }],
       },
     })
     expect(findHerdrAgent).toHaveBeenCalledWith({
@@ -84,6 +99,9 @@ describe('runTicketCleanupChecks', () => {
     expect(status.stopHerdrAgent).toEqual({
       state: 'blocked',
       reason: 'Herdr is not running.',
+      checks: [
+        { state: 'passed', detail: 'Herdr is not running.' },
+      ],
     })
   })
   it("blocks stopHerdrAgent with 'No Herdr agent' when there is no agent", async () => {
@@ -98,6 +116,10 @@ describe('runTicketCleanupChecks', () => {
     expect(status.stopHerdrAgent).toEqual({
       state: 'blocked',
       reason: 'No Herdr agent',
+      checks: [
+        { state: 'passed', detail: 'Agent service available' },
+        { state: 'passed', detail: 'No Herdr agent' },
+      ],
     })
   })
   it("blocks deleteWorktree with 'No worktree' when the worktree is missing", async () => {
@@ -110,6 +132,9 @@ describe('runTicketCleanupChecks', () => {
     expect(status.deleteWorktree).toEqual({
       state: 'blocked',
       reason: 'No worktree',
+      checks: [
+        { state: 'passed', detail: 'No worktree' },
+      ],
     })
   })
   it('blocks deleteWorktree when the worktree has uncommitted changes', async () => {
@@ -122,6 +147,11 @@ describe('runTicketCleanupChecks', () => {
     expect(status.deleteWorktree).toEqual({
       state: 'blocked',
       reason: 'Worktree has uncommitted changes',
+      checks: [
+        { state: 'passed', detail: 'Worktree found' },
+        { state: 'passed', detail: 'Belongs to this project' },
+        { state: 'blocked', detail: 'Worktree has uncommitted changes' },
+      ],
     })
   })
   it('reports the same foreign-worktree error before cleanup', async () => {
@@ -135,6 +165,10 @@ describe('runTicketCleanupChecks', () => {
     )
     expect(status.deleteWorktree).toEqual({
       state: 'error',
+      checks: [
+        { state: 'passed', detail: 'Worktree found' },
+        { state: 'blocked', detail: 'Belongs to another project' },
+      ],
       error: {
         title: 'Cleanup failed',
         description:
@@ -154,6 +188,11 @@ describe('runTicketCleanupChecks', () => {
     )
     expect(status.deleteWorktree).toEqual({
       state: 'ready',
+      checks: [
+        { state: 'passed', detail: 'Worktree found' },
+        { state: 'passed', detail: 'Belongs to this project' },
+        { state: 'passed', detail: 'Worktree is not in use' },
+      ],
     })
     expect(isWorktreeClean).not.toHaveBeenCalled()
   })
@@ -169,6 +208,12 @@ describe('runTicketCleanupChecks', () => {
       reason: 'Worktree is in use by another process\n(a Herdr agent is running in it)',
       warning: true,
       killable: true,
+      checks: [
+        { state: 'passed', detail: 'Worktree found' },
+        { state: 'passed', detail: 'Belongs to this project' },
+        { state: 'passed', detail: 'No uncommitted changes' },
+        { state: 'blocked', detail: 'Worktree is in use by another process' },
+      ],
     })
   })
   it('omits the parenthetical when a busy worktree has no agent', async () => {
@@ -186,6 +231,12 @@ describe('runTicketCleanupChecks', () => {
       reason: 'Worktree is in use by another process',
       warning: true,
       killable: true,
+      checks: [
+        { state: 'passed', detail: 'Worktree found' },
+        { state: 'passed', detail: 'Belongs to this project' },
+        { state: 'passed', detail: 'No uncommitted changes' },
+        { state: 'blocked', detail: 'Worktree is in use by another process' },
+      ],
     })
   })
   it("omits the parenthetical when a busy worktree's herdr check errored", async () => {
@@ -203,6 +254,12 @@ describe('runTicketCleanupChecks', () => {
       reason: 'Worktree is in use by another process',
       warning: true,
       killable: true,
+      checks: [
+        { state: 'passed', detail: 'Worktree found' },
+        { state: 'passed', detail: 'Belongs to this project' },
+        { state: 'passed', detail: 'No uncommitted changes' },
+        { state: 'blocked', detail: 'Worktree is in use by another process' },
+      ],
     })
   })
   it("blocks deleteLocalBranch with 'No local branch' when the branch is missing", async () => {
@@ -215,6 +272,9 @@ describe('runTicketCleanupChecks', () => {
     expect(status.deleteLocalBranch).toEqual({
       state: 'blocked',
       reason: 'No local branch',
+      checks: [
+        { state: 'passed', detail: 'No local branch' },
+      ],
     })
   })
   it('blocks deleteLocalBranch when the branch has unmerged commits', async () => {
@@ -229,6 +289,10 @@ describe('runTicketCleanupChecks', () => {
       reason: 'Branch has unmerged commits',
       warning: true,
       forceDeleteable: true,
+      checks: [
+        { state: 'passed', detail: 'Local branch found' },
+        { state: 'blocked', detail: 'Branch has unmerged commits' },
+      ],
     })
   })
   it("blocks deleteRemoteBranch with 'No remote branch' when there is no remote branch", async () => {
@@ -241,6 +305,7 @@ describe('runTicketCleanupChecks', () => {
     expect(status.deleteRemoteBranch).toEqual({
       state: 'blocked',
       reason: 'No remote branch',
+      checks: [{ state: 'passed', detail: 'No remote branch' }],
     })
   })
   it('isolates a rejecting isBranchMerged to deleteLocalBranch only', async () => {
@@ -253,6 +318,10 @@ describe('runTicketCleanupChecks', () => {
       }),
     )
     expect(status.deleteLocalBranch.state).toBe('error')
+    expect(status.deleteLocalBranch.checks).toEqual([
+      { state: 'passed', detail: 'Local branch found' },
+      { state: 'error', detail: 'Changes integrated into main branch could not be checked' },
+    ])
     if (status.deleteLocalBranch.state === 'error') {
       expect(status.deleteLocalBranch.error.description).toBe('merge check failed')
     }

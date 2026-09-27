@@ -5,6 +5,11 @@ import { foreignWorktreeMessage, type WorktreeOwnership } from './agent-worktree
 
 export type CleanupItemKey = 'stopHerdrAgent' | 'deleteWorktree' | 'deleteLocalBranch' | 'deleteRemoteBranch'
 
+export interface CleanupCheckDetail {
+  state: 'passed' | 'blocked' | 'error'
+  detail: string
+}
+
 export interface ReadyCleanupCheckItem {
   state: 'ready'
 }
@@ -22,7 +27,9 @@ export interface ErrorCleanupCheckItem {
   error: ErrorInfo
 }
 
-export type CleanupCheckItem = ReadyCleanupCheckItem | BlockedCleanupCheckItem | ErrorCleanupCheckItem
+type CleanupCheckOutcome = ReadyCleanupCheckItem | BlockedCleanupCheckItem | ErrorCleanupCheckItem
+
+export type CleanupCheckItem = CleanupCheckOutcome & { checks: CleanupCheckDetail[] }
 
 export interface TicketCleanupStatus {
   stopHerdrAgent: CleanupCheckItem
@@ -59,29 +66,72 @@ export interface TicketCleanupCheckDeps {
   findHerdrAgent(target: HerdrAgentTarget): Promise<FindHerdrAgentResult>
 }
 
-async function guard(body: () => Promise<CleanupCheckItem>): Promise<CleanupCheckItem> {
+interface RunCleanupCheck {
+  <T>(label: string, operation: () => T | Promise<T>, evaluate: (value: T) => CleanupCheckDetail['state'] | undefined, describe: (value: T) => string): Promise<T>
+}
+
+async function guard(body: (check: RunCleanupCheck) => Promise<CleanupCheckOutcome>): Promise<CleanupCheckItem> {
+  let checks: CleanupCheckDetail[] = []
+  function record(state: CleanupCheckDetail['state'] | undefined, detail: string): void {
+    if (state !== undefined) checks = [...checks, { state, detail }]
+  }
+  async function run<T>(
+    label: string,
+    operation: () => T | Promise<T>,
+    evaluate: (value: T) => CleanupCheckDetail['state'] | undefined,
+    describe: (value: T) => string,
+  ): Promise<T> {
+    try {
+      const value = await operation()
+      record(evaluate(value), describe(value))
+      return value
+    } catch (e) {
+      record('error', `${label} could not be checked`)
+      throw e
+    }
+  }
   try {
-    return await body()
+    const outcome = await body(run)
+    return {
+      ...outcome,
+      checks,
+    }
   } catch (e) {
     return {
       state: 'error',
       error: errorPayload(e),
+      checks,
     }
   }
 }
 
+function predicateState(value: boolean): CleanupCheckDetail['state'] {
+  return value ? 'passed' : 'blocked'
+}
+
 export async function runTicketCleanupChecks(target: TicketCleanupCheckTarget, deps: TicketCleanupCheckDeps): Promise<TicketCleanupStatus> {
-  const stopHerdrAgent = guard(async () => {
-    const found = await deps.findHerdrAgent({
-      projectSlug: target.projectSlug,
-      folderName: target.folderName,
-    })
+  const stopHerdrAgent = guard(async (check) => {
+    const found = await check(
+      'Agent service detection',
+      () => deps.findHerdrAgent({
+        projectSlug: target.projectSlug,
+        folderName: target.folderName,
+      }),
+      () => 'passed',
+      (result) => result.kind === 'herdr-unavailable' ? result.message : 'Agent service available',
+    )
     if (found.kind === 'herdr-unavailable')
       return {
         state: 'blocked',
         reason: found.message,
       }
-    if (found.kind === 'no-agent')
+    const hasAgent = await check(
+      'Task agent lookup',
+      () => found.kind === 'agent',
+      () => 'passed',
+      (value) => value ? 'Task agent found' : 'No Herdr agent',
+    )
+    if (!hasAgent)
       return {
         state: 'blocked',
         reason: 'No Herdr agent',
@@ -90,14 +140,25 @@ export async function runTicketCleanupChecks(target: TicketCleanupCheckTarget, d
       state: 'ready',
     }
   })
-  const deleteWorktree = guard(async () => {
-    if (!deps.worktreeExists(target.worktreePath)) {
+  const deleteWorktree = guard(async (check) => {
+    const exists = await check(
+      'Worktree lookup',
+      () => deps.worktreeExists(target.worktreePath),
+      () => 'passed',
+      (value) => value ? 'Worktree found' : 'No worktree',
+    )
+    if (!exists) {
       return {
         state: 'blocked',
         reason: 'No worktree',
       }
     }
-    const ownership = await deps.getWorktreeOwnership(target.projectPath, target.worktreePath)
+    const ownership = await check(
+      'Project ownership',
+      () => deps.getWorktreeOwnership(target.projectPath, target.worktreePath),
+      (value) => value.kind === 'not-worktree' ? undefined : predicateState(value.kind === 'current-project'),
+      (value) => value.kind === 'current-project' ? 'Belongs to this project' : 'Belongs to another project',
+    )
     if (ownership.kind === 'different-project') {
       return {
         state: 'error',
@@ -107,13 +168,28 @@ export async function runTicketCleanupChecks(target: TicketCleanupCheckTarget, d
         },
       }
     }
-    if (deps.isGitWorktree(target.worktreePath) && !(await deps.isWorktreeClean(target.worktreePath))) {
+    const clean = await check(
+      'No uncommitted changes',
+      async () => {
+        if (!deps.isGitWorktree(target.worktreePath)) return undefined
+        return deps.isWorktreeClean(target.worktreePath)
+      },
+      (value) => value === undefined ? undefined : predicateState(value),
+      (value) => value ? 'No uncommitted changes' : 'Worktree has uncommitted changes',
+    )
+    if (clean === false) {
       return {
         state: 'blocked',
         reason: 'Worktree has uncommitted changes',
       }
     }
-    if (await deps.isWorktreeBusy(target.worktreePath)) {
+    const busy = await check(
+      'Not in use by another process',
+      () => deps.isWorktreeBusy(target.worktreePath),
+      (value) => predicateState(!value),
+      (value) => value ? 'Worktree is in use by another process' : 'Worktree is not in use',
+    )
+    if (busy) {
       const herdr = await stopHerdrAgent
       return {
         state: 'blocked',
@@ -129,14 +205,26 @@ export async function runTicketCleanupChecks(target: TicketCleanupCheckTarget, d
       state: 'ready',
     }
   })
-  const deleteLocalBranch = guard(async () => {
-    if (!(await deps.localBranchExists(target.projectPath, target.branchName))) {
+  const deleteLocalBranch = guard(async (check) => {
+    const exists = await check(
+      'Local branch lookup',
+      () => deps.localBranchExists(target.projectPath, target.branchName),
+      () => 'passed',
+      (value) => value ? 'Local branch found' : 'No local branch',
+    )
+    if (!exists) {
       return {
         state: 'blocked',
         reason: 'No local branch',
       }
     }
-    if (!(await deps.isBranchMerged(target.projectPath, target.branchName, target.configuredMainBranch))) {
+    const merged = await check(
+      'Changes integrated into main branch',
+      () => deps.isBranchMerged(target.projectPath, target.branchName, target.configuredMainBranch),
+      predicateState,
+      (value) => value ? 'Changes integrated into main branch' : 'Branch has unmerged commits',
+    )
+    if (!merged) {
       return {
         state: 'blocked',
         reason: 'Branch has unmerged commits',
@@ -148,8 +236,14 @@ export async function runTicketCleanupChecks(target: TicketCleanupCheckTarget, d
       state: 'ready',
     }
   })
-  const deleteRemoteBranch = guard(async () => {
-    if (!(await deps.hasRemoteBranch(target.projectPath, target.branchName))) {
+  const deleteRemoteBranch = guard(async (check) => {
+    const exists = await check(
+      'Remote branch lookup',
+      () => deps.hasRemoteBranch(target.projectPath, target.branchName),
+      () => 'passed',
+      (value) => value ? 'Remote branch found' : 'No remote branch',
+    )
+    if (!exists) {
       return {
         state: 'blocked',
         reason: 'No remote branch',

@@ -197,8 +197,6 @@ export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCl
   }
 }
 
-export type TicketCleanupController = ReturnType<typeof createTicketCleanupController>
-
 export interface TicketCleanupControllerResult {
   items: SourceAccessor<TicketCleanupItemStates>
   runningItem: SourceAccessor<CleanupItemKey | undefined>

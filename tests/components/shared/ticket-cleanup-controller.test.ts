@@ -23,15 +23,19 @@ function makeTicket(folderName: string): TicketInfo {
 const allReady: TicketCleanupStatus = {
   stopHerdrAgent: {
     state: 'ready',
+    checks: [],
   },
   deleteWorktree: {
     state: 'ready',
+    checks: [],
   },
   deleteLocalBranch: {
     state: 'ready',
+    checks: [],
   },
   deleteRemoteBranch: {
     state: 'ready',
+    checks: [],
   },
 }
 
@@ -89,6 +93,7 @@ describe('createTicketCleanupController', () => {
           deleteRemoteBranch: {
             state: 'blocked',
             reason: 'No remote branch',
+            checks: [],
           },
         }
         const ctrl = createTicketCleanupController(
@@ -100,15 +105,19 @@ describe('createTicketCleanupController', () => {
         expect(ctrl.items().deleteRemoteBranch).toEqual({
           state: 'blocked',
           reason: 'No remote branch',
+          checks: [],
         })
         expect(ctrl.items().stopHerdrAgent).toEqual({
           state: 'ready',
+          checks: [],
         })
         expect(ctrl.items().deleteWorktree).toEqual({
           state: 'ready',
+          checks: [],
         })
         expect(ctrl.items().deleteLocalBranch).toEqual({
           state: 'ready',
+          checks: [],
         })
       } finally {
         dispose()
@@ -128,6 +137,7 @@ describe('createTicketCleanupController', () => {
         await invoke(ctrl.startChecks)
         expect(ctrl.items().stopHerdrAgent).toEqual({
           state: 'error',
+          checks: [],
           error: {
             title: 'Operation failed',
             description: 'server down',
@@ -148,6 +158,7 @@ describe('createTicketCleanupController', () => {
           deleteWorktree: {
             state: 'blocked',
             reason: 'No worktree',
+            checks: [],
           },
         }
         let call = 0
@@ -171,6 +182,7 @@ describe('createTicketCleanupController', () => {
         expect(ctrl.items().deleteWorktree).toEqual({
           state: 'blocked',
           reason: 'No worktree',
+          checks: [],
         })
       } finally {
         dispose()
@@ -187,6 +199,7 @@ describe('createTicketCleanupController', () => {
           deleteWorktree: {
             state: 'blocked',
             reason: 'No worktree',
+            checks: [],
           },
         }
         const ctrl = createTicketCleanupController(
