@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet("unit", "e2e", "all", "shell", "bench")]
+  [ValidateSet("unit", "e2e", "all", "shell", "bench", "selected")]
   [string]$Suite
 )
 

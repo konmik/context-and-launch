@@ -1,9 +1,10 @@
-import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import type { GlobalSetupContext } from 'vitest/node'
 import { removeTempDirOrWarn } from '../src/test-temp.js'
+import { gitFastImport, gitSync } from '../src/test-git.js'
+import { TICKETS_BRANCH } from './git-fixtures.js'
 
 export interface ProjectTemplate {
   localRepo: string
@@ -19,12 +20,6 @@ declare module 'vitest' {
   }
 }
 
-function git(command: string, cwd: string): void {
-  execSync(command, {
-    cwd,
-  })
-}
-
 /**
  * Builds the Project template that e2e fixtures copy instead of running the git
  * ceremony per Project. Vitest runs this once before any worker starts, so the
@@ -35,27 +30,30 @@ export default async function setup({ provide }: GlobalSetupContext): Promise<()
   const base = fs.mkdtempSync(path.join(os.tmpdir(), 'cl-e2e-template-'))
   const repo = path.join(base, 'repo')
   const remote = path.join(base, 'remote.git')
-  const tickets = path.join(base, 'tickets')
-  fs.mkdirSync(repo, {
-    recursive: true,
-  })
-  git('git init -b main', repo)
-  git('git config user.email test@test.com', repo)
-  git('git config user.name Test', repo)
-  git('git commit --allow-empty -m init', repo)
-  git(`git init --bare -b tickets "${remote}"`, base)
-  git(`git remote add origin "${remote}"`, repo)
-  git('git push -u origin main', repo)
-  git(`git worktree add --orphan -b tickets "${tickets}"`, repo)
-  git('git commit --allow-empty -m init', tickets)
-  git('git push -u origin tickets', tickets) // A copy must not inherit a worktree registration that points into the
-  // template, so the template keeps the Orphan Branch and drops the worktree.
-  git(`git worktree remove "${tickets}"`, repo)
   const localRepo = path.join(base, 'local-repo')
-  fs.cpSync(repo, localRepo, {
+  fs.mkdirSync(localRepo, {
     recursive: true,
   })
-  git('git remote remove origin', localRepo)
+  gitSync(localRepo, 'init', '-b', 'main')
+  await gitFastImport(
+    localRepo,
+    [
+      'feature done',
+      ...['main', TICKETS_BRANCH].flatMap((branch, index) => [
+        `commit refs/heads/${branch}`,
+        `committer Test <test@test.com> ${1767225600 + index} +0000`,
+        'data 4',
+        'init',
+        '',
+      ]),
+      'done',
+      '',
+    ].join('\n'),
+  )
+  gitSync(base, 'clone', '--bare', localRepo, remote)
+  gitSync(base, 'clone', remote, repo)
+  gitSync(repo, 'branch', '--track', TICKETS_BRANCH, `origin/${TICKETS_BRANCH}`)
+  gitSync(remote, 'symbolic-ref', 'HEAD', `refs/heads/${TICKETS_BRANCH}`)
   provide('projectTemplate', {
     localRepo,
     repo,

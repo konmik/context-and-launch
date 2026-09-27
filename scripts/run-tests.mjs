@@ -12,7 +12,7 @@ import {
   workspaceEnvironmentName,
 } from './test-workspace.mjs'
 
-const suites = ['unit', 'e2e', 'all', 'shell', 'bench']
+const suites = ['unit', 'e2e', 'all', 'shell', 'bench', 'selected']
 const suite = process.argv[2]
 const testArguments = process.argv.slice(3)
 if (!suites.includes(suite)) {

@@ -74,3 +74,22 @@ The mixed workload adds:
 - `e2e/project-window.test.ts`
 
 Invoke `pnpm test` with the listed paths to reproduce each workload. Raw sample JSON, console output and per-test timing logs from this measurement are retained in `C:/Users/elkmo/AppData/Local/Temp/opencode/test-performance-results`.
+
+## Continued optimization
+
+The first optimization is committed as `2efd490`.
+
+Mixed selections now enter the isolated runner once. Suite grouping happens inside that workspace, preserving sequential unit and E2E execution, explicit shell selection and fail-fast behavior. The source mirror, runtime directories, ownership token, drive mapping and lock are prepared once per public invocation. The timing log also retains both phases instead of being removed between them.
+
+The Git template now uses the existing fast-import fixture helper to create distinct main and tickets root commits. Two clones and explicit tickets tracking replace temporary worktrees, pushes and per-repository identity configuration. Global setup uses six direct Git processes instead of twelve shell-wrapped Git processes.
+
+The same warm-up and three-sample benchmark passed after this batch:
+
+| Workload | Final wall samples (s) | Final median (s) | Reduction from baseline |
+| --- | --- | --- | --- |
+| 44 backend tests | 5.867, 5.763, 5.730 | 5.763 | 14.4% |
+| 72 mixed tests | 21.339, 21.446, 20.843 | 21.339 | 62.1% |
+
+Mixed wall time improved another 8.3% from the first batch's 23.263-second median. Backend wall time was effectively unchanged. All three mixed samples reused the verified build; the rebuilding warm-up took 51.542 seconds. Mixed Vitest time had a median of 14.800 seconds, so the additional wall-time gain is outside test execution.
+
+The selected check passed workspace-isolation and runtime-mount coverage, the three benchmark browser files, and the remote-push case in `e2e/sync-button.test.ts:14`. Final TypeScript, canonical formatting, ESLint and whitespace checks passed. Changed-file Oxlint reported no errors and one warning for the existing ownership-check throw in `scripts/run-tests.mjs`'s finally block.
