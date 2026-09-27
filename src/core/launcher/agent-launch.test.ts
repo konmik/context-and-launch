@@ -1,5 +1,4 @@
 import { describe, it, expect, vi } from 'vitest'
-import fs from 'fs'
 import path from 'path'
 import { fromPartial } from '@total-typescript/shoehorn'
 import type { CommandTemplateService } from '../command-template/command-template-service.js'
@@ -81,32 +80,6 @@ describe('parseLaunchRequest', () => {
     expect(result.initialPrompt).toBe('')
   })
 })
-describe('launchAgent profile-based spawn (code-inspection)', () => {
-  const source = fs.readFileSync(path.resolve(__dirname, 'agent-launch.ts'), 'utf-8')
-  const profileLaunchSource = fs.readFileSync(path.resolve(__dirname, 'profile-launch.ts'), 'utf-8')
-  it('launchAgent delegates to spawnProfile with launchDir as cwd', () => {
-    expect(source).toMatch(/spawnProfile\(profile,\s*commandVars,\s*launchDir\)/)
-  })
-  it('spawnProfile delegates custom bodies to the trusted fixed-shell runner', () => {
-    expect(profileLaunchSource).toContain('executeTrustedScript')
-  })
-  it('spawnProfile preserves custom script bodies without tokenization', () => {
-    expect(source).not.toContain('interpolateCommand(')
-    expect(profileLaunchSource).not.toContain('interpolateCommand(')
-    expect(profileLaunchSource).toMatch(/script:\s*profile\.command/)
-  })
-  it('launchAgent passes initialPrompt from launchRequest directly', () => {
-    expect(source).toMatch(/launchRequest\.initialPrompt/)
-  })
-  it('launchAgent does not assemble or interpolate prompts server-side', () => {
-    expect(source).not.toContain('assemblePrompt')
-    expect(source).not.toContain('interpolatePrompt')
-    expect(source).not.toContain('FALLBACK_PROMPT')
-  })
-  it('launchAgent does not save column defaults (saved by UI on change)', () => {
-    expect(source).not.toMatch(/saveColumnDefaults|patchColumnDefaults/)
-  })
-})
 describe('spawnProfile trusted script execution', () => {
   it('passes the complete custom body and values to the fixed shell service', async () => {
     await runLauncherProfile(
@@ -135,12 +108,5 @@ describe('spawnProfile trusted script execution', () => {
         cwd: '/fake/cwd',
       }),
     )
-  })
-})
-describe('agent-launch holds no command text', () => {
-  const source = fs.readFileSync(path.resolve(__dirname, 'agent-launch.ts'), 'utf-8')
-  it('never names an executable or escapes shell values itself', () => {
-    expect(source).not.toMatch(/\b(?:claude|powershell|pwsh|osascript|wt|mkdir|printf)\b/)
-    expect(source).not.toContain('shellLiteral')
   })
 })

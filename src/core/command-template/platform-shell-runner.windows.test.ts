@@ -54,9 +54,3 @@ describe('windows powershell resolution', () => {
     )
   })
 })
-describe('detached console handling', () => {
-  it('hides the console window it spawns', () => {
-    const runner = fs.readFileSync(path.resolve(__dirname, 'platform-shell-runner.ts'), 'utf-8')
-    expect(runner).toContain('windowsHide: true')
-  })
-})

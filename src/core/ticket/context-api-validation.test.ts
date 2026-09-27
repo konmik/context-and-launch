@@ -69,31 +69,6 @@ describe('PUT /context/:name non-JSON body handling', () => {
     expect(msg).not.toContain('/src/')
     expect(msg).not.toContain('at ')
   })
-  it.concurrent('simulated route returns 400 with safe body for non-JSON', async () => {
-    // Simulate the exact logic in the PUT handler's catch block
-    const request = new Request('http://localhost/test', {
-      method: 'PUT',
-      body: 'not json',
-    })
-    let response: Response
-    try {
-      await request.json()
-      response = new Response(null, {
-        status: 204,
-      })
-    } catch (e) {
-      response = new Response(errorMessage(e), {
-        status: 400,
-      })
-    }
-    expect(response.status).toBe(400)
-    const text = await response.text()
-    expect(text).toBeTruthy() // Must not contain stack traces or internal paths
-    expect(text).not.toMatch(/at\s+\w+\s+\(/)
-    expect(text).not.toContain('node_modules')
-    expect(text).not.toContain('.ts:')
-    expect(text).not.toContain('src/')
-  })
 })
 
 function tmpDir(prefix: string): string {

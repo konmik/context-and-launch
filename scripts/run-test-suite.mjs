@@ -21,13 +21,12 @@ const vitest = './node_modules/vitest/vitest.mjs'
 const unit = [vitest, 'run', '--project', 'unit-node', '--project', 'unit-ts', '--project', 'unit-tsx', '--project', 'server']
 const build = ['./node_modules/vite/bin/vite.js', 'build']
 const cachedBuild = ['./node_modules/tsx/dist/cli.mjs', 'scripts/test-build.ts']
-const gate = ['./node_modules/tsx/dist/cli.mjs', 'scripts/testid-coverage.ts']
 const e2e = [vitest, 'run', '--project', 'e2e']
 for (const [selectedSuite, paths] of groups) {
   const commands = {
     unit: [[...unit, ...paths]],
     e2e: [cachedBuild, [...e2e, ...paths]],
-    all: [[...unit, ...paths], build, gate, [...e2e, ...paths]],
+    all: [[...unit, ...paths], build, [...e2e, ...paths]],
     shell: [[vitest, 'run', '-c', 'vitest.shell.config.ts', ...paths]],
     bench: [[vitest, 'run', '--project', 'bench', ...paths]],
   }

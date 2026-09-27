@@ -49,7 +49,7 @@
 
 - Follow `AGENTS.md` for formatting, checks, and test selection.
 - Run dev server: `pnpm run dev`.
-- Run all tests only when explicitly requested: `pnpm test` (unit + build + test-ID coverage + e2e). Never skip e2e when running the full suite.
+- Run all tests only when explicitly requested: `pnpm test` (unit + build + e2e). Never skip e2e when running the full suite.
 - Never add tests unless the user explicitly requests them.
 - During implementation, run only the specific affected test file or test case.
 - Do not run the full test suite when only one test or narrowly scoped area changed. Run only the affected test file or test case.

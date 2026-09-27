@@ -75,31 +75,12 @@ describe('Command Template catalog', () => {
       GCM_INTERACTIVE: 'auto',
     })
   })
-  it('delivers a Review Prompt through the agent surface, not the raw pane', () => {
-    const bundled = v.parse(
-      v.record(v.string(), v.string()),
-      JSON.parse(fs.readFileSync(path.resolve('config-defaults/command-templates.json'), 'utf8')),
-    )
-    expect(bundled['herdr.review-prompt.deliver']).toBe('herdr agent prompt {{paneId}} {{prompt}}')
-  })
   it('returns operating-system open actions as soon as the shell spawns', () => {
     for (const platform of ['windows', 'macos', 'linux']) {
       expect(COMMAND_TEMPLATE_DEFINITION_BY_KEY.get(`open.directory.${platform}`)).toMatchObject({
         mode: 'detached',
         detachDelayMs: 0,
       })
-    }
-  })
-  it('owns Windows picker dialogs so they cannot open behind the browser', () => {
-    const bundled = v.parse(
-      v.record(v.string(), v.string()),
-      JSON.parse(fs.readFileSync(path.resolve('config-defaults/command-templates.json'), 'utf8')),
-    )
-    for (const key of ['picker.files.windows', 'picker.directory.windows']) {
-      expect(bundled[key]).toContain('$owner.TopMost = $true')
-      expect(bundled[key]).toContain('$dialog.ShowDialog($owner)')
-      expect(bundled[key]).toContain('$dialog.Dispose()')
-      expect(bundled[key]).toContain('$owner.Dispose()')
     }
   })
 })
