@@ -1,4 +1,5 @@
 import type { Locator, Page } from 'playwright'
+import { expect } from 'vitest'
 
 /**
  * How long a locator wait may run before it fails. The suite's own limit is the
@@ -32,11 +33,23 @@ export function testId(root: LocatorRoot, id: string, attrs: TestIdAttributes = 
  */
 async function waitForState(page: Page, id: string, attrs: TestIdAttributes, state: 'visible' | 'detached' | 'hidden'): Promise<Locator> {
   const locator = testId(page, id, attrs)
-  await locator.first().waitFor({
-    state,
-    timeout: WAIT_TIMEOUT_MS,
-  })
+  await waitForLocatorState(locator, state)
   return locator
+}
+
+async function waitForLocatorState(locator: Locator, state: 'visible' | 'detached' | 'hidden'): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        if (state === 'detached') return (await locator.count()) === 0
+        return (await locator.first().isVisible()) === (state === 'visible')
+      },
+      {
+        timeout: WAIT_TIMEOUT_MS,
+        message: `Waiting for ${locator} to become ${state}`,
+      },
+    )
+    .toBe(true)
 }
 
 export function waitVisible(page: Page, id: string, attrs: TestIdAttributes = {}): Promise<Locator> {
@@ -53,10 +66,7 @@ export async function waitHidden(page: Page, id: string, attrs: TestIdAttributes
 
 /** Waits on an already-built locator, for targets a test id alone cannot express. */
 export async function waitLocatorVisible(locator: Locator): Promise<void> {
-  await locator.first().waitFor({
-    state: 'visible',
-    timeout: WAIT_TIMEOUT_MS,
-  })
+  await waitForLocatorState(locator, 'visible')
 }
 
 export function countOf(page: Page, id: string, attrs: TestIdAttributes = {}): Promise<number> {
@@ -65,11 +75,5 @@ export function countOf(page: Page, id: string, attrs: TestIdAttributes = {}): P
 
 /** Waits for whichever of the given test ids shows first. */
 export async function waitVisibleAny(page: Page, ids: string[]): Promise<void> {
-  await page
-    .locator(ids.map((id) => testIdSelector(id)).join(', '))
-    .first()
-    .waitFor({
-      state: 'visible',
-      timeout: WAIT_TIMEOUT_MS,
-    })
+  await waitLocatorVisible(page.locator(ids.map((id) => testIdSelector(id)).join(', ')))
 }

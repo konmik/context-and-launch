@@ -9,6 +9,7 @@ import type { ProjectTemplate } from './project-template.js'
 import { TICKETS_BRANCH, commitAll, git, initGitRepo } from './git-fixtures.js'
 import { testId, waitVisible, waitVisibleAny, WAIT_TIMEOUT_MS } from './locators.js'
 import { removeTempDir } from '../src/test-temp.js'
+import { timeAction, startActionTrace, closeTimedPage } from './action-timing.js'
 
 /**
  * The board re-checks Sync Pending on this client timer, so a test with a faked
@@ -253,6 +254,10 @@ function setupBareRemote(repoPath: string, branch: string, pushMain = true): str
 }
 
 export async function createProject(server: ProjectDirs, opts: CreateProjectOptions): Promise<CreatedProject> {
+  return timeAction('project.seed', () => createProjectData(server, opts))
+}
+
+function createProjectData(server: ProjectDirs, opts: CreateProjectOptions): CreatedProject {
   seedAppConfigFiles(server.dataDir, opts.withBoards, opts.appLauncherConfig)
   const projectPath = makeRepoDir(opts.projectSlug, server.reposParentDir) // seedRemoteBaseline needs a remote that starts without the Orphan Branch, a
   // shape the template does not hold, so that one runs the git ceremony.
@@ -478,9 +483,9 @@ export async function fastForwardUntilVisible(page: Page, id: string, timeoutMs 
 }
 
 export async function gotoProject(page: Page, server: TestServer, projectSlug: string): Promise<void> {
-  await page.goto(`${server.baseUrl}/project/${projectSlug}`)
-  await waitVisible(page, 'project-header-settings-button')
-  await waitVisibleAny(page, ['kanban-board-column-header', 'forest-surface'])
+  await timeAction('project.navigate', () => page.goto(`${server.baseUrl}/project/${projectSlug}`))
+  await timeAction('project.header.ready', () => waitVisible(page, 'project-header-settings-button'))
+  await timeAction('project.content.ready', () => waitVisibleAny(page, ['kanban-board-column-header', 'forest-surface']))
 }
 
 export async function openConflictDialog(page: Page): Promise<void> {
@@ -885,16 +890,16 @@ export function setupE2E(
   let browser: Browser
   beforeAll(async () => {
     const resources = await Promise.allSettled([
-      createServer(opts.serverOpts).then((server) => {
+      timeAction('server.start', () => createServer(opts.serverOpts)).then((server) => {
         ctx.testServer = server
       }),
-      chromium
-        .launch({
+      timeAction('browser.start', () =>
+        chromium.launch({
           headless: true,
-        })
-        .then((createdBrowser) => {
-          browser = createdBrowser
         }),
+      ).then((createdBrowser) => {
+        browser = createdBrowser
+      }),
     ])
     for (const resource of resources) {
       if (resource.status === 'rejected') throw resource.reason
@@ -907,15 +912,21 @@ export function setupE2E(
           ' Drop .concurrent from this test, or open a second page with ctx.newPage().',
       )
     }
-    ctx.page = await browser.newPage({
-      viewport,
-    })
+    ctx.page = await timeAction('browser.page.create', () =>
+      browser.newPage({
+        viewport,
+      }),
+    )
+    await startActionTrace(ctx.page)
   })
   ctx.newPage = async () => {
-    const p = await browser.newPage({
-      viewport,
-    })
+    const p = await timeAction('browser.page.create', () =>
+      browser.newPage({
+        viewport,
+      }),
+    )
     extraPages.push(p)
+    await startActionTrace(p)
     return p
   }
   afterEach(async (context) => {
@@ -925,17 +936,20 @@ export function setupE2E(
     await Promise.all([
       ...extraPages.map(async (p) => {
         try {
-          await p.context().close()
+          await closeTimedPage(p)
         } catch (err) {
           console.warn('newPage cleanup:', err)
         }
       }),
-      ctx.page?.context().close(),
+      ctx.page && closeTimedPage(ctx.page),
     ])
     extraPages.length = 0
   })
   afterAll(async () => {
-    const resources = await Promise.allSettled([browser?.close(), ctx.testServer?.stop()])
+    const resources = await Promise.allSettled([
+      timeAction('browser.stop', () => browser?.close()),
+      timeAction('server.stop', () => ctx.testServer?.stop()),
+    ])
     ctx.projects.length = 0
     for (const resource of resources) {
       if (resource.status === 'rejected') throw resource.reason

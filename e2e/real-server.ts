@@ -23,7 +23,7 @@ async function startRealServerOnce(
       stderr: string
     }
 > {
-  const baseUrl = `http://localhost:${port}`
+  const baseUrl = `http://127.0.0.1:${port}`
   const proc = spawn(process.execPath, [SERVER_ENTRY], {
     env: {
       ...process.env,

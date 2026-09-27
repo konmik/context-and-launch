@@ -113,3 +113,36 @@ The investigation progressed from runner overhead to browser-test group concurre
 Optimization stopped at the specified three-attempt threshold. Raw logs use the labels `mirror-parallel`, `browser-two-workers`, `window-polling` and `parallel-teardown` in the measurement directory above.
 
 Final verification passed: selected `pnpm run check` for workspace isolation, error dialog, Project header and Project window; TypeScript checking; canonical formatting and Prettier; changed-file ESLint and Oxlint; and whitespace validation. Formatting, TypeScript and lint ran only after the attempts finished. No tests were added.
+
+## Action-level profiling
+
+Set `TEST_ACTION_TRACE_DIR` to an output directory before running selected tests through `pnpm test`. The shared E2E fixture writes per-process `*-actions.jsonl` records for Project seeding, navigation, header/content readiness, browser/page creation, context cleanup and server/browser startup/shutdown. Records include the test name and elapsed milliseconds. It also records a uniquely named Playwright trace per browser context, including popup actions. Traces have test titles and disable screenshots, snapshots and sources. Open a trace with `pnpm exec playwright show-trace <trace.zip>` to inspect individual navigation, click, selector, evaluation and clock calls.
+
+Profiling is opt-in. Normal benchmarks leave the variable unset. Trace capture and serialization add overhead, so diagnostic action measurements and untraced wall-time benchmarks are separate. Action durations can overlap across files and must not be summed as suite wall time. Fixture navigation measurements also overlap the Playwright navigation records.
+
+Three diagnostic runs used the same 12 browser tests. Outputs and extracted summaries are in `C:/Users/elkmo/AppData/Local/Temp/opencode/test-action-profile`, under `baseline`, `direct-loopback` and `final`.
+
+| Action | Count | Initial total (s) | Final total (s) | Initial median (ms) | Final median (ms) |
+| --- | --- | --- | --- | --- | --- |
+| Playwright navigation | 14 | 8.484 | 2.968 | 582 | 230 |
+| Header readiness after fixture navigation | 13 | 4.216 | 5.669 | 239 | 399 |
+| Content readiness after header | 13 | 0.080 | 0.076 | 6 | 5 |
+| Project seeding | 16 | 1.687 | 1.643 | 41 | 61 |
+| Browser page creation | 14 | 1.022 | 1.195 | 69 | 81 |
+| Clicks | 16 | 0.666 | 0.734 | 42 | 46 |
+| Browser context close, excluding trace serialization | 14 | 0.077 | 0.090 | 5 | 6 |
+
+Navigation was the dominant action. The shared server fixture bound IPv4 but returned a localhost URL. Returning the bound IPv4 address directly reduced diagnostic navigation time, consistent with avoiding address-family connection delays. Some work shifted into the subsequent readiness wait: the combined fixture navigation plus header-readiness total fell from 12.346 to 8.587 seconds. The tracing data does not establish a network-level cause by itself.
+
+Readiness waits then dominated. The direct-loopback diagnostic run recorded 6.338 seconds waiting for headers, with several waits around 380 or 880 milliseconds. Replacing selector-wait backoff with Vitest's standard polling around Playwright visibility/count checks reduced the final diagnostic header total to 5.669 seconds. The helpers preserve visible, hidden and detached semantics, existing deadlines, and first-match behavior. Click actionability checks remain Playwright's responsibility.
+
+| Untraced attempt | Mixed samples (s) | Median (s) | Reduction from previous retained variant | Decision |
+| --- | --- | --- | --- | --- |
+| Starting point | 18.777, 18.414, 18.726 | 18.726 | - | Baseline |
+| Direct IPv4 loopback | 17.827, 18.483, 18.073 | 18.073 | 3.5% | Retain |
+| Shared readiness polling | 17.305, 17.625, 17.129 | 17.305 | 4.2% | Retain |
+| Skip Git template sample files | 17.107, 17.589, 17.567 | 17.567 | -1.5% | Revert |
+
+All measured runs passed and reused verified builds. The third consecutive attempt below 5% ended this round. The retained result is 7.6% below this round's starting point and 69.2% below the original 56.244-second selected-workload baseline. These remain warm selected-workload measurements, not full-suite or cold-build claims.
+
+Final selected verification passed 14 tests across five files, including hidden-dialog behavior and remote Git push in addition to the profiled browser cases. Formatting, TypeScript checking, changed-file ESLint and Oxlint passed after all attempts. No tests were added.
