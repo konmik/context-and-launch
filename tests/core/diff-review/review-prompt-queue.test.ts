@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fromPartial } from '@total-typescript/shoehorn'
 import { createConfigPaths } from '../../../src/core/config/config-paths.js'
 import { createConfigRepository } from '../../../src/core/config/config-repository.js'
-import { setAppLogListener } from '../../../src/core/infra/app-logger.js'
+import * as logger from '../../../src/core/infra/app-logger.js'
 import { makeTempDir, removeTempDirOrWarn } from '../../test-temp.js'
 import { buildReviewFile, buildReviewPromptSnapshot } from '../../../src/core/diff-review/diff-review-model.js'
 import { createDiffReviewStore, type DiffReviewStore } from '../../../src/core/diff-review/diff-review-store.js'
@@ -22,7 +22,7 @@ beforeEach(() => {
   vi.setSystemTime(new Date('2026-07-25T12:00:00.000Z'))
 })
 afterEach(async () => {
-  setAppLogListener(undefined)
+  vi.restoreAllMocks()
   vi.clearAllTimers()
   vi.useRealTimers()
   await Promise.all(dirs.splice(0).map(removeTempDirOrWarn))
@@ -200,7 +200,9 @@ describe('ReviewPromptQueueService', () => {
   it('keeps a delivered head while its profile Agent marker is alive', async () => {
     const { store, service, launcher, agent, snapshot } = setupQueue()
     const errors: string[] = []
-    setAppLogListener((category, message) => {
+    const appLog = logger.appLog
+    vi.spyOn(logger, 'appLog').mockImplementation((category, message, context) => {
+      appLog(category, message, context)
       if (category === 'diff-review' && message.startsWith('queue processing failed')) {
         errors.push(message)
       }

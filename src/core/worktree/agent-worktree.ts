@@ -56,17 +56,10 @@ export function foreignWorktreeMessage(worktreePath: string): string {
 
 export interface ForeignWorktreeError extends ValidationError {}
 
-const foreignWorktreeErrors = new WeakSet<Error>()
-
 export function createForeignWorktreeError(worktreePath: string): ForeignWorktreeError {
   const error = createValidationError(foreignWorktreeMessage(worktreePath))
   error.name = 'ForeignWorktreeError'
-  foreignWorktreeErrors.add(error)
   return error
-}
-
-export function isForeignWorktreeError(cause: unknown): cause is ForeignWorktreeError {
-  return cause instanceof Error && foreignWorktreeErrors.has(cause)
 }
 
 export interface LockingProcessInfo {

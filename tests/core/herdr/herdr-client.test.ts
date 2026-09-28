@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fetchHerdrTaskState, fetchHerdrTaskStatuses, taskStatusesFromPanes } from '../../../src/core/herdr/herdr-client.js'
+import { fetchHerdrTaskState, taskStatusesFromPanes } from '../../../src/core/herdr/herdr-client.js'
 import type { HerdrExecFn } from '../../../src/core/herdr/herdr-exec.js'
 import { createProcessError, isProcessError } from '../../../src/core/shared/errors.js'
 
@@ -35,7 +35,7 @@ function execReturning(agentListJson: string): HerdrExecFn {
   }
 }
 
-describe('fetchHerdrTaskStatuses', () => {
+describe('fetchHerdrTaskState', () => {
   it('joins agent status to the Task pane label', async () => {
     const agents = JSON.stringify({
       result: {
@@ -48,12 +48,12 @@ describe('fetchHerdrTaskStatuses', () => {
         ],
       },
     })
-    await expect(fetchHerdrTaskStatuses('alpha', execReturning(agents))).resolves.toEqual({
+    expect((await fetchHerdrTaskState('alpha', execReturning(agents))).statusesByFolderName).toEqual({
       'st-47-herdr': 'working',
     })
   })
   it('skips a Task pane without an agent', async () => {
-    await expect(fetchHerdrTaskStatuses('alpha', execReturning('{"result":{"agents":[]}}'))).resolves.toEqual({})
+    expect((await fetchHerdrTaskState('alpha', execReturning('{"result":{"agents":[]}}'))).statusesByFolderName).toEqual({})
   })
   it('keeps the done status', async () => {
     const agents = JSON.stringify({
@@ -67,7 +67,7 @@ describe('fetchHerdrTaskStatuses', () => {
         ],
       },
     })
-    await expect(fetchHerdrTaskStatuses('alpha', execReturning(agents))).resolves.toEqual({
+    expect((await fetchHerdrTaskState('alpha', execReturning(agents))).statusesByFolderName).toEqual({
       'st-47-herdr': 'done',
     })
   })
@@ -83,7 +83,7 @@ describe('fetchHerdrTaskStatuses', () => {
         ],
       },
     })
-    await expect(fetchHerdrTaskStatuses('alpha', execReturning(agents))).resolves.toEqual({
+    expect((await fetchHerdrTaskState('alpha', execReturning(agents))).statusesByFolderName).toEqual({
       'st-47-herdr': 'unknown',
     })
   })
@@ -114,12 +114,12 @@ describe('fetchHerdrTaskStatuses', () => {
     ])
   })
   it('throws on non-JSON agent output', async () => {
-    await expect(fetchHerdrTaskStatuses('alpha', execReturning('not json'))).rejects.toThrow(
+    await expect(fetchHerdrTaskState('alpha', execReturning('not json'))).rejects.toThrow(
       "Could not parse JSON output from 'herdr.agent.list'.",
     )
   })
   it('throws on missing result.agents', async () => {
-    await expect(fetchHerdrTaskStatuses('alpha', execReturning('{"result":{}}'))).rejects.toThrow(
+    await expect(fetchHerdrTaskState('alpha', execReturning('{"result":{}}'))).rejects.toThrow(
       "Missing agents array in output from 'herdr.agent.list'.",
     )
   })
@@ -127,7 +127,7 @@ describe('fetchHerdrTaskStatuses', () => {
     const exec: HerdrExecFn = async () => {
       throw createProcessError('herdr workspace list', 1, 'boom')
     }
-    await expect(fetchHerdrTaskStatuses('alpha', exec)).rejects.toSatisfy(isProcessError)
+    await expect(fetchHerdrTaskState('alpha', exec)).rejects.toSatisfy(isProcessError)
   })
 })
 describe('taskStatusesFromPanes', () => {

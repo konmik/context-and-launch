@@ -1,9 +1,9 @@
-import { describe, it as baseIt, expect, afterAll } from 'vitest'
+import { describe, it as baseIt, expect, afterAll, vi } from 'vitest'
 import { success } from '~/util/result.js'
 import fs from 'fs'
 import path from 'path'
 import { git } from '../../test-git.js'
-import { setAppLogListener } from '../../../src/core/infra/app-logger.js'
+import * as logger from '../../../src/core/infra/app-logger.js'
 import { tmpDir, cleanup, createRepoWithRemote, conflictResolveDir, pushRemoteConflict, createTaskSyncManager } from './sync-test-repos.js'
 import { shardTestCases } from '../../test-shard.js'
 
@@ -164,9 +164,10 @@ export function registerTaskSyncResolutionTests(shard: number | readonly number[
       await git(worktreeDir, 'commit', '-m', 'add task')
       await git(worktreeDir, 'push')
       await pushRemoteConflict(remoteDir, dirs)
-      const manager = createTaskSyncManager()
       let injected = false
-      setAppLogListener((_cat, _msg, context) => {
+      const appLog = logger.appLog
+      const logSpy = vi.spyOn(logger, 'appLog').mockImplementation((category, message, context) => {
+        appLog(category, message, context)
         if (
           !injected &&
           (context?.commandTemplateKey === 'task-sync.reset-hard' || context?.commandTemplateKey === 'task-sync.fast-forward')
@@ -175,6 +176,7 @@ export function registerTaskSyncResolutionTests(shard: number | readonly number[
           fs.writeFileSync(path.join(worktreeDir, 'task.txt'), 'concurrent edit')
         }
       })
+      const manager = createTaskSyncManager()
       try {
         const result = await manager.sync(worktreeDir)
         expect(result).toEqual(
@@ -183,7 +185,7 @@ export function registerTaskSyncResolutionTests(shard: number | readonly number[
           }),
         )
       } finally {
-        setAppLogListener(undefined)
+        logSpy.mockRestore()
       }
       expect(injected).toBe(true)
       expect(fs.readFileSync(path.join(worktreeDir, 'task.txt'), 'utf-8')).toBe('concurrent edit')

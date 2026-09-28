@@ -30,10 +30,6 @@ export function allError(error: ErrorInfo): TaskCleanupItemStates {
   }))
 }
 
-export function noCleanupOptions(): TaskCleanupOptions {
-  return buildOptions(() => false)
-}
-
 export function singleCleanupOption(key: CleanupItemKey): TaskCleanupOptions {
   return buildOptions((candidate) => candidate === key)
 }

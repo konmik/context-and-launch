@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { createRoot, createSignal, flush, runWithOwner } from 'solid-js'
-import { createBoardDnd } from '../../../src/components/board/board-state'
+import { createBoardDnd as createProductionBoardDnd, type BoardDndResult } from '../../../src/components/board/board-state'
+import type { HoverTarget } from '~/components/board/drop-index'
 import type { BoardState } from '~/components/project/project-api.js'
 import type { TaskInfo } from '~/core/task/task-store.js'
 import type { ColumnDefinition } from '~/core/project/board-config.js'
@@ -50,6 +51,44 @@ function invoke<T>(fn: () => T): T {
   const result = runWithOwner(null, fn)
   flush()
   return result
+}
+
+interface TestBoardDndResult extends BoardDndResult {
+  commands: BoardDndResult['commands'] & {
+    updateHover: (target: HoverTarget) => void
+    cancelDrag: () => void
+  }
+}
+
+function createBoardDnd(getBoard: () => BoardState): TestBoardDndResult {
+  const dnd = createProductionBoardDnd(getBoard)
+  return {
+    ...dnd,
+    commands: {
+      ...dnd.commands,
+      updateHover(target) {
+        const column = document.createElement('div')
+        vi.spyOn(column, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 100, 100))
+        const activeId = dnd.drag().activeId
+        const sourceInTarget = activeId?.startsWith(`${target.column}:`) === true
+        const sourceIndex = dnd.board().taskOrder[target.column]?.indexOf(dnd.activeTask()!.folderName) ?? -1
+        const count = target.index + (sourceInTarget && sourceIndex >= 0 && sourceIndex <= target.index ? 1 : 0)
+        for (let index = 0; index < count; index++) {
+          const card = document.createElement('div')
+          card.setAttribute('data-drag-source', '')
+          vi.spyOn(card, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 10, 10))
+          column.appendChild(card)
+        }
+        const unregister = dnd.commands.registerColumnRef(target.column, column)
+        dnd.commands.handleDragMove({ draggable: { id: activeId!, node: column } })
+        unregister()
+      },
+      cancelDrag() {
+        dnd.commands.handleDragMove({ draggable: { id: dnd.drag().activeId! } })
+        dnd.commands.endDrag()
+      },
+    },
+  }
 }
 
 describe('createBoardDnd board view', () => {

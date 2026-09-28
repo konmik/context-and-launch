@@ -526,7 +526,6 @@ export default function ForestSurface(props: Props): JSX.Element {
       return {
         ...dependency,
         start,
-        targetY,
         d: externalDependencyPath(start, dependency.direction, targetY),
       }
     }),

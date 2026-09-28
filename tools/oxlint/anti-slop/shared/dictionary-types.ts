@@ -424,19 +424,6 @@ function classifyAliasBroadTarget(
   return classifyAliasBroadTarget(alias.typeAnnotation, environment, nextSubstitutions, nextResolving)
 }
 
-export function isPopulatedObjectExpression(expression: ESTree.Expression): boolean {
-  let current = expression
-  while (
-    current.type === 'ParenthesizedExpression' ||
-    current.type === 'TSAsExpression' ||
-    current.type === 'TSTypeAssertion' ||
-    current.type === 'TSNonNullExpression'
-  ) {
-    current = current.expression
-  }
-  return current.type === 'ObjectExpression' && current.properties.length > 0
-}
-
 export function isKnownEvidenceExpression(expression: ESTree.Expression): boolean {
   let current = expression
   while (

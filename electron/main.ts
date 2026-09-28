@@ -244,7 +244,7 @@ if (!gotLock) {
     let raw: {
       palette?: JsonValue
       mode?: JsonValue
-    } | null = null
+    } | null
     try {
       raw = JSON.parse(fs.readFileSync(windowStateFile, 'utf-8'))
     } catch {

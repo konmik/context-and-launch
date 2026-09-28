@@ -52,7 +52,3 @@ export async function fetchHerdrTaskState(projectSlug: string, exec: HerdrExecFn
     agents,
   }
 }
-
-export async function fetchHerdrTaskStatuses(projectSlug: string, exec: HerdrExecFn): Promise<TaskAgentStatuses> {
-  return (await fetchHerdrTaskState(projectSlug, exec)).statusesByFolderName
-}

@@ -103,16 +103,7 @@ function getLogger(): RollingLogger {
 
 export type AppLogContext = Readonly<Record<string, string | number | boolean | undefined>>
 
-type LogListener = (category: string, message: string, context?: AppLogContext) => void
-
-let listener: LogListener | undefined
-
-export function setAppLogListener(fn: LogListener | undefined): void {
-  listener = fn
-}
-
 export function appLog(category: string, message: string, context?: AppLogContext): void {
-  listener?.(category, message, context)
   const suffix = context ? ` ${JSON.stringify(Object.fromEntries(Object.entries(context).filter(([, value]) => value !== undefined)))}` : ''
   getLogger().log(category, `${message}${suffix}`)
 }

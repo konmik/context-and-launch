@@ -55,8 +55,6 @@ export function createBoardDnd(getBoard: () => BoardState): BoardDndResult {
   }
   const commands = {
     startDrag: (id: string) => setActiveId(id),
-    updateHover: (target: HoverTarget | null) => setHoverTarget(target),
-    cancelDrag,
     removePendingDrop: (drop: DropResult) => {
       setPendingDrops((current) => current.filter((pending) => pending !== drop))
     },
@@ -92,8 +90,6 @@ export interface BoardDndResult {
   activeTask: SourceAccessor<TaskInfo | null>
   commands: {
     startDrag: (id: string) => string
-    updateHover: (target: HoverTarget | null) => HoverTarget | null
-    cancelDrag: () => void
     removePendingDrop: (drop: DropResult) => void
     registerColumnRef: (column: string, el: HTMLDivElement) => () => void
     handleDragMove: (e: DndDragEvent) => void

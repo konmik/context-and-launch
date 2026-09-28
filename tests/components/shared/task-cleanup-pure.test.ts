@@ -1,16 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { noCleanupOptions, singleCleanupOption, allChecking, allError } from '../../../src/components/shared/task-cleanup-pure.js'
+import { singleCleanupOption, allChecking, allError } from '../../../src/components/shared/task-cleanup-pure.js'
 
-describe('noCleanupOptions', () => {
-  it('returns all keys unticked', () => {
-    expect(noCleanupOptions()).toEqual({
-      stopHerdrAgent: false,
-      deleteWorktree: false,
-      deleteLocalBranch: false,
-      deleteRemoteBranch: false,
-    })
-  })
-})
 describe('singleCleanupOption', () => {
   it('enables only the requested cleanup item', () => {
     expect(singleCleanupOption('deleteWorktree')).toEqual({

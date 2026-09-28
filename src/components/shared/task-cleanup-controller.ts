@@ -17,7 +17,7 @@ export interface TaskCleanupDeps {
   onSubmit: (folderName: string) => Promise<Result<undefined, ErrorInfo>>
   onOpenChange: (open: boolean) => void
   loadLockingProcesses: (projectSlug: string, folderName: string) => Promise<LockingProcessInfo[]>
-  killLockingProcesses: (projectSlug: string, folderName: string, pids: number[]) => Promise<Result<undefined, ErrorInfo>>
+  killLockingProcesses: (pids: number[]) => Promise<Result<undefined, ErrorInfo>>
   forceDeleteLocalBranch: (projectSlug: string, folderName: string) => Promise<Result<undefined, ErrorInfo>>
 }
 
@@ -144,8 +144,6 @@ export function createTaskCleanupController(deps: TaskCleanupDeps): TaskCleanupC
     setKillingProcesses(true)
     try {
       const result = await deps.killLockingProcesses(
-        deps.projectSlug(),
-        task.folderName,
         processes.map((p) => p.pid),
       )
       if (result.type === 'Failure') deps.onError(result.error)

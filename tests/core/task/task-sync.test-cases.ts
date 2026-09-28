@@ -1,4 +1,4 @@
-import { describe, it as baseIt, expect, afterAll } from 'vitest'
+import { describe, it as baseIt, expect, afterAll, vi } from 'vitest'
 import { success } from '~/util/result.js'
 import fs from 'fs'
 import path from 'path'
@@ -6,7 +6,7 @@ import os from 'os'
 import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js'
 import { git } from '../../test-git.js'
 import { checkHasPendingChanges } from '../../../src/core/board/sync-pending.js'
-import { setAppLogListener } from '../../../src/core/infra/app-logger.js'
+import * as logger from '../../../src/core/infra/app-logger.js'
 import {
   tmpDir,
   cleanup,
@@ -209,14 +209,16 @@ export function registerTaskSyncTests(shard: number | readonly number[], total: 
     })
     it('sync with no upstream preserves an edit written while the rejected push round-trips', async () => {
       const { worktreeDir, remoteDir } = await createNoUpstreamRepoWithExistingRemoteBranch(dirs)
-      const manager = createTaskSyncManager()
       let injected = false
-      setAppLogListener((_cat, _msg, context) => {
+      const appLog = logger.appLog
+      const logSpy = vi.spyOn(logger, 'appLog').mockImplementation((category, message, context) => {
+        appLog(category, message, context)
         if (!injected && context?.commandTemplateKey === 'task-sync.fetch-origin') {
           injected = true
           fs.writeFileSync(path.join(worktreeDir, 'local-only.txt'), 'concurrent edit')
         }
       })
+      const manager = createTaskSyncManager()
       try {
         const result = await manager.sync(worktreeDir)
         expect(result).toEqual(
@@ -225,7 +227,7 @@ export function registerTaskSyncTests(shard: number | readonly number[], total: 
           }),
         )
       } finally {
-        setAppLogListener(undefined)
+        logSpy.mockRestore()
       }
       expect(injected).toBe(true)
       expect(fs.readFileSync(path.join(worktreeDir, 'local-only.txt'), 'utf-8')).toBe('concurrent edit')

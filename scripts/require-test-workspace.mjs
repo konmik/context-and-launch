@@ -2,7 +2,7 @@ import { canonicalPath, readActiveMarker, tokenEnvironmentName, workspaceEnviron
 
 const workspace = process.env[workspaceEnvironmentName]
 const token = process.env[tokenEnvironmentName]
-let valid = false
+let valid
 try {
   const marker = workspace ? readActiveMarker(workspace) : undefined
   valid = Boolean(marker && token && token === marker.token && canonicalPath(workspace) === canonicalPath(process.cwd()))

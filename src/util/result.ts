@@ -28,20 +28,11 @@ export function isSuccess<A, E>(result: Result<A, E>): result is Success<A> {
   return result.type === 'Success'
 }
 
-export function isFailure<A, E>(result: Result<A, E>): result is Failure<E> {
-  return result.type === 'Failure'
-}
-
 export function match<A, E, B, C>(result: Result<A, E>, onSuccess: (value: A) => B, onFailure: (error: E) => C): B | C {
   return isSuccess(result) ? onSuccess(result.value) : onFailure(result.error)
 }
 
 export function onSuccess<A, E>(result: Result<A, E>, callback: (value: A) => void): Result<A, E> {
   if (isSuccess(result)) callback(result.value)
-  return result
-}
-
-export function onFailure<A, E>(result: Result<A, E>, callback: (error: E) => void): Result<A, E> {
-  if (isFailure(result)) callback(result.error)
   return result
 }

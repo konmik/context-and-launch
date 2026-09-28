@@ -10,9 +10,7 @@ export interface ValidationError extends AppError {}
 
 export interface NotFoundError extends AppError {}
 
-const appErrors = new WeakSet<AppError>()
-
-const validationErrors = new WeakSet<ValidationError>()
+const appErrors = new WeakSet<Error>()
 
 export function createAppError(message: string, title = 'Operation failed', field?: string): AppError {
   const error: AppError = Object.assign(new Error(message), {
@@ -35,12 +33,7 @@ export function isAppError(cause: unknown): cause is AppError {
 export function createValidationError(message: string, field?: string): ValidationError {
   const error = createAppError(message, 'Invalid input', field)
   error.name = 'ValidationError'
-  validationErrors.add(error)
   return error
-}
-
-export function isValidationError(cause: unknown): cause is ValidationError {
-  return isAppError(cause) && validationErrors.has(cause)
 }
 
 export function createNotFoundError(message: string): NotFoundError {
@@ -63,7 +56,6 @@ export type ProcessFailureKind = 'exited' | 'command-not-found' | 'interpreter-f
 export interface ProcessError extends Error {
   readonly shortDescription: string
   readonly command: string
-  readonly exitCode: number | undefined
   readonly output: string | undefined
   readonly kind: ProcessFailureKind
   /** True when the command ran to completion and chose `code` itself. */
@@ -84,7 +76,6 @@ export function createProcessError(
     name: 'ProcessError',
     shortDescription,
     command,
-    exitCode,
     output,
     kind,
     exitedWith: (code: number): boolean => kind === 'exited' && exitCode === code,

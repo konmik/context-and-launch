@@ -105,7 +105,6 @@ export function createPromptPreviewController(deps: PromptPreviewDeps): PromptPr
   }
 }
 
-export type PromptPreviewController = ReturnType<typeof createPromptPreviewController>
 
 export interface PromptPreviewControllerResult {
   editMode: SourceAccessor<boolean>

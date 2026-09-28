@@ -53,11 +53,6 @@ export function resolveScope(
   return tasks.filter((t) => effectiveParent(t, lookup.allNumbers) === scopeGroupNumber)
 }
 
-export function isGroup(tasks: ForestTask[], taskNumber: string): boolean {
-  const allNumbers = new Set(tasks.map((t) => t.number))
-  return tasks.some((t) => effectiveParent(t, allNumbers) === taskNumber)
-}
-
 export function representativeInScope(
   lookup: ForestLookup,
   taskNumber: string,
@@ -142,14 +137,6 @@ export function projectDependencies(
     internal: Array.from(internal.values()),
     external: Array.from(external.values()),
   }
-}
-
-export function internalDependencies(tasks: ForestTask[], scopeGroupNumber: string | undefined): InternalDependencyProjection[] {
-  return projectDependencies(tasks, scopeGroupNumber).internal
-}
-
-export function externalDependencies(tasks: ForestTask[], scopeGroupNumber: string | undefined): ExternalDependencyProjection[] {
-  return projectDependencies(tasks, scopeGroupNumber).external
 }
 
 function buildOutgoing(nodeNumbers: string[], dependencies: DependencyRelation[]): Map<string, string[]> {

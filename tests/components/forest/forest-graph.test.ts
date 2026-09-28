@@ -3,10 +3,8 @@ import {
   buildLookup,
   effectiveParent,
   resolveScope,
-  isGroup,
   representativeInScope,
-  internalDependencies,
-  externalDependencies,
+  projectDependencies,
   computeDepths,
   autoLayoutPositions,
   CARD_WIDTH,
@@ -91,25 +89,6 @@ describe('resolveScope', () => {
     expect(scope.map((t) => t.number)).toEqual(['A'])
   })
 })
-describe('isGroup', () => {
-  it('returns true when tasks have this as their parent', () => {
-    const tasks = [
-      task('G'),
-      task('A', {
-        memberOf: 'G',
-      }),
-    ]
-    expect(isGroup(tasks, 'G')).toBe(true)
-  })
-  it('returns false when no task has this as parent', () => {
-    const tasks = [task('G'), task('A')]
-    expect(isGroup(tasks, 'G')).toBe(false)
-  })
-  it('returns false when members are absent (archived)', () => {
-    const tasks = [task('G')]
-    expect(isGroup(tasks, 'G')).toBe(false)
-  })
-})
 describe('representativeInScope', () => {
   it('returns the task itself when it is directly in scope', () => {
     const tasks = [task('A'), task('B')]
@@ -178,7 +157,7 @@ describe('internalDependencies', () => {
         dependsOn: ['A'],
       }),
     ]
-    const result = internalDependencies(tasks, undefined)
+    const result = projectDependencies(tasks, undefined).internal
     expect(result).toEqual([
       {
         fromNumber: 'B',
@@ -202,7 +181,7 @@ describe('internalDependencies', () => {
         dependsOn: ['A'],
       }),
     ]
-    const result = internalDependencies(tasks, undefined)
+    const result = projectDependencies(tasks, undefined).internal
     expect(result).toEqual([
       {
         fromNumber: 'B',
@@ -229,7 +208,7 @@ describe('internalDependencies', () => {
         dependsOn: ['A', 'C'],
       }),
     ]
-    const result = internalDependencies(tasks, undefined)
+    const result = projectDependencies(tasks, undefined).internal
     expect(result).toEqual([
       {
         fromNumber: 'B',
@@ -258,7 +237,7 @@ describe('internalDependencies', () => {
         memberOf: 'G',
       }),
     ]
-    const result = internalDependencies(tasks, undefined)
+    const result = projectDependencies(tasks, undefined).internal
     expect(result).toEqual([])
   })
   it('ignores absent dependency references', () => {
@@ -267,7 +246,7 @@ describe('internalDependencies', () => {
         dependsOn: ['MISSING'],
       }),
     ]
-    const result = internalDependencies(tasks, undefined)
+    const result = projectDependencies(tasks, undefined).internal
     expect(result).toEqual([])
   })
 })
@@ -279,7 +258,7 @@ describe('externalDependencies', () => {
         dependsOn: ['A'],
       }),
     ]
-    expect(externalDependencies(tasks, undefined)).toEqual([])
+    expect(projectDependencies(tasks, undefined).external).toEqual([])
   })
   it('returns down when member depends on outside task', () => {
     const tasks = [
@@ -290,7 +269,7 @@ describe('externalDependencies', () => {
       }),
       task('X'),
     ]
-    const result = externalDependencies(tasks, 'G')
+    const result = projectDependencies(tasks, 'G').external
     expect(result).toEqual([
       {
         memberNumber: 'A',
@@ -314,7 +293,7 @@ describe('externalDependencies', () => {
         dependsOn: ['A'],
       }),
     ]
-    const result = externalDependencies(tasks, 'G')
+    const result = projectDependencies(tasks, 'G').external
     expect(result).toEqual([
       {
         memberNumber: 'A',

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { isProcessError } from '../../../src/core/shared/errors.js'
 import { interpolateCommandTemplate, shellLiteral } from '../../../src/core/command-template/command-template-interpolation.js'
 import { currentCommandTemplatePlatform } from '../../../src/core/command-template/command-template-types.js'
-import { COMMAND_NOT_FOUND_EXIT_CODE, createFixedPlatformShellRunner } from '../../../src/core/command-template/platform-shell-runner.js'
+import { createFixedPlatformShellRunner } from '../../../src/core/command-template/platform-shell-runner.js'
 
 describe('fixed platform shell', () => {
   const platform = currentCommandTemplatePlatform()
@@ -50,8 +50,8 @@ describe('fixed platform shell', () => {
       timeoutMs: 10000,
     })
     await expect(failure).rejects.toSatisfy(isProcessError)
+    await expect(failure).rejects.toSatisfy((cause: unknown) => isProcessError(cause) && cause.exitedWith(7))
     await expect(failure).rejects.toMatchObject({
-      exitCode: 7,
       output: expect.stringContaining('before'),
     })
     await expect(failure).rejects.toMatchObject({
@@ -70,7 +70,7 @@ describe('fixed platform shell', () => {
         timeoutMs: 10000,
       }),
     ).rejects.toMatchObject({
-      exitCode: COMMAND_NOT_FOUND_EXIT_CODE,
+      kind: 'command-not-found',
       output: expect.stringMatching(/not recognized/i),
     })
   })

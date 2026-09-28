@@ -1,7 +1,6 @@
 import fs from 'fs'
 import { createValidationError, createNotFoundError } from '../shared/errors.js'
 import path from 'path'
-import * as v from 'valibot'
 import type { ConfigPaths } from '../config/config-paths.js'
 import { createConfigRepository, type ConfigRepository } from '../config/config-repository.js'
 import { createAppConfigStore, type AppConfigStore } from '../config/app-config-store.js'
@@ -13,16 +12,6 @@ export interface ProjectInfo extends ProjectEntry {
   available: boolean
   name: string
 }
-
-export const AddProjectBody = v.object({
-  path: v.string(),
-  branch: v.optional(v.string()),
-  mainBranch: v.optional(v.string()),
-  boardId: v.optional(v.string()),
-  name: v.optional(v.string()),
-})
-
-export type AddProjectBody = v.InferOutput<typeof AddProjectBody>
 
 function isGitRepo(dirPath: string, configRepo: ConfigRepository): boolean {
   try {

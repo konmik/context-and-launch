@@ -1,5 +1,5 @@
 import { createConfigPaths, type ConfigPaths } from './config-paths.js'
-import { createConfigRepository, type ConfigRepository } from './config-repository.js'
+import { createConfigRepository } from './config-repository.js'
 import { createAppConfigStore, type AppConfigStore } from './app-config-store.js'
 import { createSharedLauncherConfigStore, type SharedLauncherConfigStore } from '../launcher/shared-launcher-config-store.js'
 import { createProjectRegistry, type ProjectRegistry } from '../project/project-registry.js'
@@ -29,7 +29,6 @@ import { isHerdrUnavailableError } from '../herdr/herdr-availability.js'
 
 export interface ServiceContainer {
   configPaths: ConfigPaths
-  configRepo: ConfigRepository
   appConfigStore: AppConfigStore
   sharedLauncherConfigStore: SharedLauncherConfigStore
   commandTemplateStore: CommandTemplateStore
@@ -130,7 +129,6 @@ export function createServices(options: ServiceOptions = {}): ServiceContainer {
   )
   return {
     configPaths,
-    configRepo,
     appConfigStore,
     sharedLauncherConfigStore,
     commandTemplateStore,

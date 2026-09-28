@@ -599,8 +599,6 @@ export async function getWorktreeLockingProcesses(
 }
 
 export async function killWorktreeLockingProcesses(
-  projectSlug: string,
-  folderName: string,
   pids: number[],
 ): Promise<Result<undefined, UserFacingError>> {
   'use server'

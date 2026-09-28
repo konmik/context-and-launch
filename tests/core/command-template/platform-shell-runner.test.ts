@@ -42,16 +42,13 @@ describe('platform shell runner failure classification', () => {
     await expect(promise).rejects.toSatisfy(isProcessError)
     await expect(promise).rejects.toMatchObject({
       kind: 'exited',
-      exitCode: 1,
     })
+    await expect(promise).rejects.toSatisfy((cause: unknown) => isProcessError(cause) && cause.exitedWith(1))
   })
   it.concurrent("preserves a command's own exit code rather than collapsing it to 1", async () => {
     const cwd = makeTempDir()
     const script = `${quoted(process.execPath)} -e "process.exit(42)"`
-    await expect(runCapturedScript(script, cwd)).rejects.toMatchObject({
-      kind: 'exited',
-      exitCode: 42,
-    })
+    await expect(runCapturedScript(script, cwd)).rejects.toSatisfy((cause: unknown) => isProcessError(cause) && cause.exitedWith(42))
   }) // A program supplied through a placeholder renders as a quoted literal. On
   // PowerShell that would be a parse error -- an untrappable exit 1 -- so the
   // runner adds the call operator and the missing program stays classifiable.

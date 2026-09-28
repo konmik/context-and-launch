@@ -1,6 +1,5 @@
 import path from 'path'
 import type { Dirent } from 'fs'
-import * as v from 'valibot'
 import { createTaskOrderStore, type TaskOrderStore } from './task-order.js'
 import { createForestLayoutStore, type ForestLayoutStore } from './forest-layout-store.js'
 import { suggestNextTaskNumber } from './task-number.js'
@@ -45,39 +44,6 @@ export interface TaskInfo {
   memberOf?: string
   createdAt?: string
 }
-
-export const CreateTaskBody = v.object({
-  number: v.string(),
-  title: v.string(),
-})
-
-export type CreateTaskBody = v.InferOutput<typeof CreateTaskBody>
-
-export const UpdateTaskBody = v.object({
-  number: v.optional(v.string()),
-  title: v.optional(v.string()),
-  status: v.optional(v.string()),
-})
-
-export type UpdateTaskBody = v.InferOutput<typeof UpdateTaskBody>
-
-export const SaveContextBody = v.object({
-  content: v.string(),
-})
-
-export type SaveContextBody = v.InferOutput<typeof SaveContextBody>
-
-export const AddReferencesBody = v.object({
-  paths: v.optional(v.array(v.string()), []),
-})
-
-export type AddReferencesBody = v.InferOutput<typeof AddReferencesBody>
-
-export const RemoveReferenceBody = v.object({
-  path: v.string(),
-})
-
-export type RemoveReferenceBody = v.InferOutput<typeof RemoveReferenceBody>
 
 export interface TaskStore {
   readonly orderStore: TaskOrderStore
