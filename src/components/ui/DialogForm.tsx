@@ -8,8 +8,7 @@ export function DialogForm<T extends object>(props: {
   return (
     <Show when={props.state}>
       {(opened) => {
-        const initial = opened()
-        const state = createMemo<T>((previous) => props.state ?? previous ?? initial)
+        const state = createMemo<T>((previous) => props.state ?? previous ?? opened())
         return props.children(state)
       }}
     </Show>

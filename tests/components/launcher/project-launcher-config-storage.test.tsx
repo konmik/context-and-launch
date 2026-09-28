@@ -1,7 +1,7 @@
 import type { Success } from '../../../src/util/result.js'
 import type { JSX } from '@solidjs/web'
 import { afterEach, expect, it, vi } from 'vitest'
-import { createSignal, flush } from 'solid-js'
+import { createSignal, flush, Loading } from 'solid-js'
 import { cleanup, fireEvent, renderWithErrors as render, screen, waitFor } from '../../test-render.js'
 import { createStoredSignal } from '~/util/stored-signal.js'
 import { failure, success } from '~/util/result.js'
@@ -96,7 +96,9 @@ it('switches the project store without remounting the editor and edits the selec
   render(() => (
     <LauncherConfigContext value={shared}>
       <ProjectLauncherConfigContext value={storage}>
-        <Editor />
+        <Loading fallback={<p>Loading launcher configuration...</p>}>
+          <Editor />
+        </Loading>
       </ProjectLauncherConfigContext>
     </LauncherConfigContext>
   ))

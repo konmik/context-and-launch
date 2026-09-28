@@ -110,10 +110,7 @@ export function buildForestFlowModel(
 
 export function rearrangedForestPositions(tasks: ForestTask[], scopeGroupNumber: string | undefined): ForestLayout {
   const lookup = buildLookup(tasks)
-  return autoLayoutPositions(
-    resolveScope(tasks, scopeGroupNumber, lookup),
-    projectDependencies(tasks, scopeGroupNumber, lookup).internal,
-  )
+  return autoLayoutPositions(resolveScope(tasks, scopeGroupNumber, lookup), projectDependencies(tasks, scopeGroupNumber, lookup).internal)
 }
 
 export function positionsFromNodes(nodes: readonly ForestFlowNode[]): ForestLayout {

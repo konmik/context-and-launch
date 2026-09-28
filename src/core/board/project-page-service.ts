@@ -80,9 +80,7 @@ export function createProjectPageService(
           const { worktreePath, isDefaultLocation } = resolveAgentWorktreeLocation(task.folderName, worktreeSettings, {
             savedWorktreePath: task.agentWorktreeDir,
           })
-          const hasAgentWorktree = isDefaultLocation
-            ? worktreeNames.has(worktreeFolderName(task.folderName))
-            : fs.existsSync(worktreePath)
+          const hasAgentWorktree = isDefaultLocation ? worktreeNames.has(worktreeFolderName(task.folderName)) : fs.existsSync(worktreePath)
           return {
             ...task,
             hasAgentWorktree,

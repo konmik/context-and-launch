@@ -4,14 +4,7 @@ import fs from 'fs'
 import path from 'path'
 import { git } from '../../test-git.js'
 import { setAppLogListener } from '../../../src/core/infra/app-logger.js'
-import {
-  tmpDir,
-  cleanup,
-  createRepoWithRemote,
-  conflictResolveDir,
-  pushRemoteConflict,
-  createTaskSyncManager,
-} from './sync-test-repos.js'
+import { tmpDir, cleanup, createRepoWithRemote, conflictResolveDir, pushRemoteConflict, createTaskSyncManager } from './sync-test-repos.js'
 import { shardTestCases } from '../../test-shard.js'
 
 export function registerTaskSyncResolutionTests(shard: number | readonly number[], total: number): void {

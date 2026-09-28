@@ -5,13 +5,7 @@ import type { TaskInfo } from '~/core/task/task-store.js'
 import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
 import type { CleanupItemKey, TaskCleanupStatus } from '~/core/worktree/task-cleanup-checks.js'
 import type { LockingProcessInfo } from '~/core/worktree/agent-worktree.js'
-import {
-  type TaskCleanupOptions,
-  type TaskCleanupItemStates,
-  singleCleanupOption,
-  allChecking,
-  allError,
-} from './task-cleanup-pure.js'
+import { type TaskCleanupOptions, type TaskCleanupItemStates, singleCleanupOption, allChecking, allError } from './task-cleanup-pure.js'
 
 export interface TaskCleanupDeps {
   onError: (error: ErrorInfo) => void

@@ -330,9 +330,7 @@ export const addTaskWorktree = action(
         if (agentWorktreeManager.isGitWorktree(legacy.worktreePath)) {
           const ownership = await agentWorktreeManager.getWorktreeOwnership(project.path, legacy.worktreePath)
           if (ownership.kind !== 'current-project') throw createValidationError('The existing task worktree belongs to another project.')
-          mutateTasks(projectSlug, (currentStore) =>
-            currentStore.saveAgentWorktreeInfo(folderName, legacy.branchName, legacy.worktreePath),
-          )
+          mutateTasks(projectSlug, (currentStore) => currentStore.saveAgentWorktreeInfo(folderName, legacy.branchName, legacy.worktreePath))
         }
       }
       const instanceId = randomUUID().replaceAll('-', '').slice(0, 12)
@@ -500,11 +498,7 @@ export async function getCleanupStatus(
     folderName,
     selectedWorktreePath: selectedWorktreePath ?? undefined,
   })
-  const { project, task, worktreePath, branchName } = resolveTaskWorktreeTarget(
-    projectSlug,
-    folderName,
-    selectedWorktreePath ?? undefined,
-  )
+  const { project, task, worktreePath, branchName } = resolveTaskWorktreeTarget(projectSlug, folderName, selectedWorktreePath ?? undefined)
   appLog('task-cleanup', 'Resolved cleanup target', {
     projectSlug,
     folderName,

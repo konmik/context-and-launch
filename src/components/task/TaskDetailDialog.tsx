@@ -22,9 +22,7 @@ export default function TaskDetailDialog(props: TaskDetailDialogProps): JSX.Elem
   return (
     <Show when={props.task?.folderName} keyed>
       {(_folderName) => (
-        <TaskStatusContext
-          value={untrack(() => props.stateDeps?.taskStatus ?? createTaskStatusStorage(props.projectSlug, props.task!))}
-        >
+        <TaskStatusContext value={untrack(() => props.stateDeps?.taskStatus ?? createTaskStatusStorage(props.projectSlug, props.task!))}>
           <ErrorScope active={true}>
             <TaskDetailContent
               onClose={props.onClose}

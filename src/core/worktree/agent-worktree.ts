@@ -115,10 +115,7 @@ export interface SavedWorktreeInfo {
   agentWorktreePath: string
 }
 
-export function toSavedWorktreeInfo(task: {
-  agentWorktreeBranchName?: string
-  agentWorktreeDir?: string
-}): SavedWorktreeInfo | undefined {
+export function toSavedWorktreeInfo(task: { agentWorktreeBranchName?: string; agentWorktreeDir?: string }): SavedWorktreeInfo | undefined {
   if (task.agentWorktreeBranchName && task.agentWorktreeDir) {
     return {
       branchName: task.agentWorktreeBranchName,

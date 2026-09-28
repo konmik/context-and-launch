@@ -135,13 +135,9 @@ describe('Area benchmark (real server + real browser)', () => {
             await page.goto(`${base}/project/${slug}`)
             await waitVisible(page, 'kanban-board-column-header')
             headerSamples.push(performance.now() - start)
-            await page.waitForFunction(
-              (n) => document.querySelectorAll('[data-testid="kanban-board-task-card"]').length >= n,
-              TASK_COUNT,
-              {
-                timeout: 30000,
-              },
-            )
+            await page.waitForFunction((n) => document.querySelectorAll('[data-testid="kanban-board-task-card"]').length >= n, TASK_COUNT, {
+              timeout: 30000,
+            })
             cardSamples.push(performance.now() - start)
           } finally {
             await page.context().close()

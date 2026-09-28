@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import {
-  parseTaskNumber,
-  formatTaskNumber,
-  suggestNextTaskNumber,
-  extractPrefixFromInput,
-} from '../../../src/core/task/task-number.js'
+import { parseTaskNumber, formatTaskNumber, suggestNextTaskNumber, extractPrefixFromInput } from '../../../src/core/task/task-number.js'
 
 describe('parseTaskNumber', () => {
   it('parses ST-0006', () => {

@@ -54,9 +54,7 @@ export default function KanbanBoard(props: KanbanBoardProps): JSX.Element {
         return
       }
     }
-    const result = await order.update((current) =>
-      moveTaskInOrder(current, drop.folderName, drop.fromColumn, drop.toColumn, drop.newIndex),
-    )
+    const result = await order.update((current) => moveTaskInOrder(current, drop.folderName, drop.fromColumn, drop.toColumn, drop.newIndex))
     if (result.type === 'Failure') errors.enqueueToast(result.error)
     await revalidate(taskMutationRevalidateKeys)
   }

@@ -73,9 +73,7 @@ const rows: {
 ]
 
 export default function TaskCleanupDialog(props: TaskCleanupDialogProps): JSX.Element {
-  const sessionKey = createMemo(() =>
-    props.open && props.task ? JSON.stringify([props.projectSlug, props.task.folderName]) : undefined,
-  )
+  const sessionKey = createMemo(() => (props.open && props.task ? JSON.stringify([props.projectSlug, props.task.folderName]) : undefined))
   return (
     <FloatingWindow
       open={!!sessionKey()}
@@ -121,9 +119,7 @@ function TaskCleanupSession(props: TaskCleanupDialogProps): JSX.Element {
     }
   }
 
-  const worktrees = createMemo(() =>
-    props.task ? taskAgentWorktrees(props.task).filter((worktree) => !worktree.cleanupComplete) : [],
-  )
+  const worktrees = createMemo(() => (props.task ? taskAgentWorktrees(props.task).filter((worktree) => !worktree.cleanupComplete) : []))
   const targetPaths = createMemo(() => (worktrees().length > 0 ? worktrees().map((worktree) => worktree.worktreePath) : [undefined]))
   const controllers = mapArray(targetPaths, (worktreePath) => {
     const controller = createTaskCleanupController({

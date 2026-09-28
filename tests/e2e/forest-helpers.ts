@@ -2,15 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { expect } from 'vitest'
 import type { Locator, Page } from 'playwright'
-import {
-  dragPointer,
-  gotoProject,
-  seedProject,
-  type CreatedProject,
-  type E2EContext,
-  type ScreenPoint,
-  type SeedTask,
-} from './fixtures.js'
+import { dragPointer, gotoProject, seedProject, type CreatedProject, type E2EContext, type ScreenPoint, type SeedTask } from './fixtures.js'
 import { countOf, testId, waitGone, waitVisible } from './locators.js'
 
 const forestBoards = [

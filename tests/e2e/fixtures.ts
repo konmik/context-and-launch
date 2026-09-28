@@ -12,6 +12,7 @@ import { TASKS_BRANCH, commitAll, git, initGitRepo } from './git-fixtures.js'
 import { testId, waitVisible, waitVisibleAny, WAIT_TIMEOUT_MS } from './locators.js'
 import { removeTempDir } from '../test-temp.js'
 import { timeAction, startActionTrace, closeTimedPage } from './action-timing.js'
+import { createTaskRepository } from '../../src/core/task/task-repository.js'
 
 /**
  * The board re-checks Sync Pending on this client timer, so a test with a faked
@@ -347,6 +348,7 @@ function createProjectData(server: ProjectDirs, opts: CreateProjectOptions): Cre
     ensureTasksWorktree()
   }
   if ((opts.withTasks && opts.withTasks.length > 0) || opts.withTaskOrder) {
+    const taskRepository = createTaskRepository()
     const useWorktreeFolders = new Set((opts.withWorktrees ?? []).map((w) => w.folderName))
     for (const t of opts.withTasks ?? []) {
       const folderName = t.folderName ?? toKebab(`${t.number}-${t.title}`)
@@ -372,7 +374,7 @@ function createProjectData(server: ProjectDirs, opts: CreateProjectOptions): Cre
         Object.assign(status, {
           memberOf: t.memberOf,
         })
-      fs.writeFileSync(path.join(folder, 'status.json'), JSON.stringify(status, null, 2))
+      taskRepository.writeStatusJson(folder, status)
       fs.writeFileSync(path.join(folder, 'description.md'), t.body ?? '')
     }
     if (opts.withTaskOrder) {

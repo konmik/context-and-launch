@@ -28,9 +28,7 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
   const [selectedTaskFolderName, setSelectedTaskFolderName] = createSignal<string>()
   const selectedTask = (): TaskInfo | null => {
     const data = deps.data()
-    return data?.status === 'loaded'
-      ? (data.board.tasks.find((task) => task.folderName === selectedTaskFolderName()) ?? null)
-      : null
+    return data?.status === 'loaded' ? (data.board.tasks.find((task) => task.folderName === selectedTaskFolderName()) ?? null) : null
   }
   const [detailTask, setDetailTask] = createSignal<TaskInfo | null>(null)
   const [reviewTask, setReviewTask] = createSignal<TaskInfo | null>(null)

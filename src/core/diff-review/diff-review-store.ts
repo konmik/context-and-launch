@@ -393,12 +393,7 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
     })
   }
 
-  function reserveAgentLaunch(
-    projectSlug: string,
-    folderName: string,
-    worktreeIdentity: string,
-    reservedUntil: Date,
-  ): DiffReviewTaskState {
+  function reserveAgentLaunch(projectSlug: string, folderName: string, worktreeIdentity: string, reservedUntil: Date): DiffReviewTaskState {
     return updateTask(projectSlug, folderName, worktreeIdentity, (task) => {
       const existing = Date.parse(task.queue.agentLaunchReservedUntil ?? '')
       if (Number.isFinite(existing) && existing > Date.now()) {
