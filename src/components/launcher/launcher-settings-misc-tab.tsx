@@ -75,8 +75,7 @@ export function MiscTab(props: {
           : project,
       ),
     }))
-    if (result.type === 'Failure')
-      errors.report(result.error)
+    if (result.type === 'Failure') errors.report(result.error)
   }
 
   async function saveOverride(key: 'worktreeRootPath' | 'branchPrefix' | 'conflictResolutionPrompt', value: string) {
@@ -85,8 +84,7 @@ export function MiscTab(props: {
       ...current,
       [key]: value.trim() || undefined,
     }))
-    if (result.type === 'Failure')
-      errors.report(result.error)
+    if (result.type === 'Failure') errors.report(result.error)
   }
 
   async function saveProjectPath(path = projectPath()) {

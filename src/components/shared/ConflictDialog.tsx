@@ -48,7 +48,6 @@ export default function ConflictDialog(props: ConflictDialogProps): JSX.Element 
         </select>
       </div>
 
-
       <div class="flex items-center justify-between">
         <button
           type="button"

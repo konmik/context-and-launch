@@ -10,5 +10,7 @@ export interface ForestCardCommands {
 }
 
 export const ForestCardCommandsContext = createContext<ForestCardCommands>()
+
 export const ForestConnectionSessionContext = createContext<() => ForestConnectionSession>()
+
 export const ForestCardColumnsContext = createContext<() => SwatchColumn[]>()

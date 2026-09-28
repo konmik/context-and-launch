@@ -15,7 +15,10 @@ export function RenameColumnDialog(props: {
   submitting: boolean
 }): JSX.Element {
   const [form, setForm] = createSignal<RenameFormState>()
-  createEffect(() => props.renameForm, (initial) => setForm(initial ?? undefined))
+  createEffect(
+    () => props.renameForm,
+    (initial) => setForm(initial ?? undefined),
+  )
   useModEnterSubmit({
     onSubmit: () => {
       const current = form()

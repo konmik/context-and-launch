@@ -52,10 +52,12 @@ export function createAgentLauncherController(props: AgentLauncherDeps): AgentLa
   const [skillOrder, setSkillOrder] = createSignal<string[]>(initial.skillOrder)
   const [launching, setLaunching] = createSignal(false)
   const [errorInfo, storeErrorInfo] = createSignal<ErrorInfo | null>(null)
+
   function setErrorInfo(error: ErrorInfo | null) {
     storeErrorInfo(error)
     if (error) props.onError?.(error)
   }
+
   const [behindRemoteMsg, setBehindRemoteMsg] = createSignal('')
   const [dirtyWorktreeMsg, setDirtyWorktreeMsg] = createSignal('')
   const orderedSkills = createMemo(() => orderByNameList(props.config?.skills ?? [], skillOrder()))

@@ -136,15 +136,13 @@ export function createTicketDetailState(
       number,
       title,
     }))
-    if (result.type === 'Failure')
-      deps.onError(result.error)
+    if (result.type === 'Failure') deps.onError(result.error)
   }
 
   async function refreshTicket() {
     await revalidate(['ticket-detail', ...ticketMutationRevalidateKeys])
     const result = await ticketStatus.refresh()
-    if (result.type === 'Failure')
-      deps.onError(result.error)
+    if (result.type === 'Failure') deps.onError(result.error)
   }
 
   function ticketUrl(suffix: string): string {
@@ -172,7 +170,6 @@ export function createTicketDetailState(
     requestFileSwitch,
     uploadFile: deps.uploadFile,
   })
-
   const contextOptions = (): ActiveFile[] =>
     buildContextOptions(['description', 'product-requirement-document'], ticket().contextNames, extraFiles())
   const fileEntryOptions = (): ActiveFile[] => buildFileEntryOptions(ticket().fileNames)
@@ -405,8 +402,7 @@ export function createTicketDetailState(
     try {
       const result = await (deps.saveContext ?? saveContextAction)(props.projectSlug, folderName(), af.name, content())
       if (result.type === 'Success') setSavedContent(content())
-      else
-        deps.onError(result.error)
+      else deps.onError(result.error)
     } catch (e) {
       deps.onError(errorPayload(e, 'Save failed'))
     } finally {

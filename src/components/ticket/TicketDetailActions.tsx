@@ -14,7 +14,9 @@ import TicketActionItems from './TicketActionItems'
 interface TicketDetailActionsProps {
   projectSlug: string
   ticket: TicketInfo
-  shortcuts: { name: string }[]
+  shortcuts: {
+    name: string
+  }[]
   launchDir: string
   hasUnsavedChanges: boolean
   onArchive?: (ticket: TicketInfo) => void
@@ -24,24 +26,21 @@ interface TicketDetailActionsProps {
 
 export default function TicketDetailActions(props: TicketDetailActionsProps): JSX.Element {
   const errors = useErrorReporter()
-  const shortcutState = untrack(() => createShortcutState({
-    projectSlug: () => props.projectSlug,
-    folderName: () => props.ticket.folderName,
-    useWorktree: () => props.ticket.useWorktree,
-    launchDir: () => props.launchDir,
-    onError: errors.report,
-    onClearError: errors.clear,
-  }))
-
+  const shortcutState = untrack(() =>
+    createShortcutState({
+      projectSlug: () => props.projectSlug,
+      folderName: () => props.ticket.folderName,
+      useWorktree: () => props.ticket.useWorktree,
+      launchDir: () => props.launchDir,
+      onError: errors.report,
+      onClearError: errors.clear,
+    }),
+  )
   return (
     <>
       <MenuRoot
         trigger={
-          <MenuTrigger
-            class="btn-ghost-icon h-8 w-8"
-            aria-label="Ticket actions"
-            data-testid="ticket-detail-actions-menu-trigger"
-          >
+          <MenuTrigger class="btn-ghost-icon h-8 w-8" aria-label="Ticket actions" data-testid="ticket-detail-actions-menu-trigger">
             <Zap size={16} />
           </MenuTrigger>
         }

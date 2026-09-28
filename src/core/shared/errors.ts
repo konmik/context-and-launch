@@ -15,8 +15,14 @@ const appErrors = new WeakSet<AppError>()
 const validationErrors = new WeakSet<ValidationError>()
 
 export function createAppError(message: string, title = 'Operation failed', field?: string): AppError {
-  const error: AppError = Object.assign(new Error(message), { title, description: message })
-  if (field) Object.assign(error, { field })
+  const error: AppError = Object.assign(new Error(message), {
+    title,
+    description: message,
+  })
+  if (field)
+    Object.assign(error, {
+      field,
+    })
   error.name = 'AppError'
   appErrors.add(error)
   return error

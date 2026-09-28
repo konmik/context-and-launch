@@ -6,8 +6,10 @@ import type { MergedLauncherConfig } from '~/core/launcher/launcher-config.js'
 
 describe('launch error payload', () => {
   it("keeps the structured error's description, command, and output", () => {
-    const result = errorPayload(createProcessError('powershell -File run-agent-herdr.ps1', 1,
-      "Ticket 'st-47' already has a Herdr agent (idle).", 'Failed (exit 1)'), 'Launch failed')
+    const result = errorPayload(
+      createProcessError('powershell -File run-agent-herdr.ps1', 1, "Ticket 'st-47' already has a Herdr agent (idle).", 'Failed (exit 1)'),
+      'Launch failed',
+    )
     expect(result).toEqual({
       title: 'Launch failed',
       description: 'Failed (exit 1)',
@@ -15,9 +17,12 @@ describe('launch error payload', () => {
     })
   })
   it('falls back to the message when no structured error is present', () => {
-    const result = errorPayload({
-      message: 'Already started',
-    }, 'Launch failed')
+    const result = errorPayload(
+      {
+        message: 'Already started',
+      },
+      'Launch failed',
+    )
     expect(result).toEqual({
       title: 'Launch failed',
       description: 'Already started',

@@ -11,7 +11,12 @@ import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import type { ErrorInfo } from '~/core/shared/errors.js'
 import type { CleanupItemKey } from '~/core/worktree/ticket-cleanup-checks.js'
 import { useModEnterSubmit, modEnterHint } from '~/lib/use-mod-enter-submit'
-import { getCleanupStatus, getWorktreeLockingProcesses, killWorktreeLockingProcesses, forceDeleteLocalBranch } from '~/components/ticket/ticket-api.js'
+import {
+  getCleanupStatus,
+  getWorktreeLockingProcesses,
+  killWorktreeLockingProcesses,
+  forceDeleteLocalBranch,
+} from '~/components/ticket/ticket-api.js'
 import type { TicketCleanupOptions } from './ticket-cleanup-pure.js'
 import { createTicketCleanupController, type TicketCleanupController } from './ticket-cleanup-controller.js'
 import { FieldErrorMessage } from './FieldErrorMessage.js'
@@ -193,9 +198,7 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps): JS
                                     </>
                                   )}
                                 </Show>
-                                <Show when={errorItem()}>
-                                  {(error) => <FieldErrorMessage error={error().error} />}
-                                </Show>
+                                <Show when={errorItem()}>{(error) => <FieldErrorMessage error={error().error} />}</Show>
                               </>
                             }
                           >
@@ -208,7 +211,6 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps): JS
                 </For>
               </div>
             </div>
-
           </div>
 
           <form onSubmit={s.handleSubmit} class="border-t border-border px-6 py-3">

@@ -15,5 +15,9 @@ export interface CreateTicketDialogProps {
 }
 
 export default function CreateTicketDialog(props: CreateTicketDialogProps): JSX.Element {
-  return <ErrorScope active={props.open}><CreateTicketForm {...props} /></ErrorScope>
+  return (
+    <ErrorScope active={props.open}>
+      <CreateTicketForm {...props} />
+    </ErrorScope>
+  )
 }

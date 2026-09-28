@@ -13,10 +13,14 @@ export function ToastQueueRoot(props: { children: JSX.Element }): JSX.Element {
   const [queue, setQueue] = createSignal<readonly ToastEntry[]>([])
   const commands: ToastQueueCommands = {
     enqueue(error) {
-      setQueue((current) => [...current, { error }])
+      setQueue((current) => [
+        ...current,
+        {
+          error,
+        },
+      ])
     },
   }
-
   return (
     <ToastQueueContext value={commands}>
       {props.children}

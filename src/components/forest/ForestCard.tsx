@@ -20,7 +20,6 @@ export default function ForestCard(props: { data: ForestNodeData; selected?: boo
   const herdrStatus = useHerdrStatuses()
   const [hovered, setHovered] = createSignal(false)
   const ticketNumber = () => props.data.ticket.number
-
   return (
     <div
       class="relative min-h-[72px] select-none"

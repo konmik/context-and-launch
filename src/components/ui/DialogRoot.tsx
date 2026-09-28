@@ -23,9 +23,12 @@ export function DialogRoot(props: {
   const overlay = createOverlay('modal', {
     open,
     dismiss: context.close,
-    focus: () => (content?.querySelector<HTMLElement>(
-      "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])",
-    ) ?? content)?.focus(),
+    focus: () =>
+      (
+        content?.querySelector<HTMLElement>(
+          "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])",
+        ) ?? content
+      )?.focus(),
     keydown: (event) => {
       if (event.key === 'Escape') {
         event.preventDefault()

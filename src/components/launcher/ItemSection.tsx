@@ -17,5 +17,9 @@ export interface ItemSectionProps {
 }
 
 export function ItemSection(props: ItemSectionProps): JSX.Element {
-  return <ErrorScope active={props.open}><ItemSectionContent {...props} /></ErrorScope>
+  return (
+    <ErrorScope active={props.open}>
+      <ItemSectionContent {...props} />
+    </ErrorScope>
+  )
 }

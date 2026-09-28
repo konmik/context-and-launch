@@ -14,7 +14,13 @@ export default function ErrorToast(props: ErrorToastProps): JSX.Element {
       {(error) => (
         <Portal>
           <div class="fixed right-4 bottom-4 max-h-[80vh] w-96 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-lg border border-destructive bg-card p-4 text-card-foreground shadow-lg">
-            <button type="button" class="btn-icon absolute right-2 top-2" onClick={props.onClose} aria-label="Close error toast" title="Close">
+            <button
+              type="button"
+              class="btn-icon absolute right-2 top-2"
+              onClick={props.onClose}
+              aria-label="Close error toast"
+              title="Close"
+            >
               <X size={16} />
             </button>
             <div class="pr-8" role="alert" aria-atomic="true">

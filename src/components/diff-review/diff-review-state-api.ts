@@ -33,7 +33,11 @@ export async function saveDiffReviewState(
   'use server'
 
   try {
-    if (!owner) return failure({ title: 'Save failed', description: 'Configuration update requires a client identity.' })
+    if (!owner)
+      return failure({
+        title: 'Save failed',
+        description: 'Configuration update requires a client identity.',
+      })
     return success(
       diffReviewStore.updateProject(
         projectSlug,

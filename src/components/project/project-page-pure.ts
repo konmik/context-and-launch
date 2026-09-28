@@ -21,5 +21,8 @@ export function parseSyncResult(result: {
     return success({
       type: 'conflict',
     })
-  return failure({ title: 'Sync failed', description: result.message || 'Sync failed' })
+  return failure({
+    title: 'Sync failed',
+    description: result.message || 'Sync failed',
+  })
 }

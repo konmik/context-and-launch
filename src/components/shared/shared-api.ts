@@ -11,17 +11,17 @@ export async function openConfigDir(scope?: string, projectSlug?: string): Promi
   'use server'
 
   try {
-  let dir: string
-  if (scope === 'tickets' && projectSlug) dir = worktreeManager.getWorktreeDir(projectSlug)
-  else if (scope === 'project' && projectSlug) dir = launcherConfigManager.getProjectDir(projectSlug)
-  else if (scope === 'repo' && projectSlug) {
-    const project = projectRegistry.listProjects().find((p) => p.projectSlug === projectSlug)
-    if (!project) throw createNotFoundError(`Project not found: ${projectSlug}`)
-    dir = project.path
-  } else dir = launcherConfigManager.getAppConfigDir()
-  if (!fs.existsSync(dir)) throw createNotFoundError(`Directory does not exist: ${dir}`)
-  await openInOs(dir, commandTemplateService)
-  return success(undefined)
+    let dir: string
+    if (scope === 'tickets' && projectSlug) dir = worktreeManager.getWorktreeDir(projectSlug)
+    else if (scope === 'project' && projectSlug) dir = launcherConfigManager.getProjectDir(projectSlug)
+    else if (scope === 'repo' && projectSlug) {
+      const project = projectRegistry.listProjects().find((p) => p.projectSlug === projectSlug)
+      if (!project) throw createNotFoundError(`Project not found: ${projectSlug}`)
+      dir = project.path
+    } else dir = launcherConfigManager.getAppConfigDir()
+    if (!fs.existsSync(dir)) throw createNotFoundError(`Directory does not exist: ${dir}`)
+    await openInOs(dir, commandTemplateService)
+    return success(undefined)
   } catch (error) {
     return failure(errorPayload(error, 'Open folder failed'))
   }

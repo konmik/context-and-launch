@@ -6,7 +6,10 @@ import { cleanup, fireEvent, renderWithErrors as render, screen, waitFor } from 
 import { createStoredSignal } from '~/util/stored-signal.js'
 import { failure, success } from '~/util/result.js'
 import type { LauncherConfig } from '~/core/launcher/launcher-config-data.js'
-import { ProjectLauncherConfigContext, createProjectLauncherConfigStorage } from '../../../src/components/launcher/project-launcher-config-storage.js'
+import {
+  ProjectLauncherConfigContext,
+  createProjectLauncherConfigStorage,
+} from '../../../src/components/launcher/project-launcher-config-storage.js'
 import { LauncherConfigContext } from '../../../src/components/launcher/shared-launcher-config-storage.js'
 import { ItemSection } from '../../../src/components/launcher/ItemSection.js'
 
@@ -131,7 +134,11 @@ it('shares successful edits, isolates projects, and retains failed drafts', asyn
   const storage = createStoredSignal(
     () => initial,
     async (transform) => {
-      if (reject) return failure({ title: 'Save failed', description: 'write failed' })
+      if (reject)
+        return failure({
+          title: 'Save failed',
+          description: 'write failed',
+        })
       persisted = transform(persisted)
       return success(persisted)
     },

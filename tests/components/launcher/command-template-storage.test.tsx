@@ -16,7 +16,11 @@ it('shares saved overrides between editors, retaining a failed draft and propaga
   const storage = createStoredSignal<CommandTemplateOverrides>(
     () => ({}),
     async (transform) => {
-      if (reject) return failure({ title: 'Save failed', description: 'write failed' })
+      if (reject)
+        return failure({
+          title: 'Save failed',
+          description: 'write failed',
+        })
       persisted = transform(persisted)
       return success(persisted)
     },

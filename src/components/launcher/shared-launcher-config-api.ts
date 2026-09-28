@@ -26,7 +26,10 @@ export async function saveSharedLauncherConfig(json: string, owner: string): Pro
   try {
     return owner
       ? success(sharedLauncherConfigStore.write(JSON.parse(json), owner))
-      : failure({ title: 'Save failed', description: 'Configuration update requires a client identity.' })
+      : failure({
+          title: 'Save failed',
+          description: 'Configuration update requires a client identity.',
+        })
   } catch (error) {
     return failure(errorPayload(error, 'Save launcher settings failed'))
   }

@@ -12,5 +12,9 @@ export interface LauncherSettingsProps {
 }
 
 export default function LauncherSettings(props: LauncherSettingsProps): JSX.Element {
-  return <ErrorScope active={props.open}><LauncherSettingsContent {...props} /></ErrorScope>
+  return (
+    <ErrorScope active={props.open}>
+      <LauncherSettingsContent {...props} />
+    </ErrorScope>
+  )
 }

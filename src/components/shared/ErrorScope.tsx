@@ -34,9 +34,12 @@ export function ErrorScope(props: { active: boolean; children: JSX.Element }): J
       return () => fields.delete(field)
     },
   }
-  createEffect(() => props.active, (active) => {
-    if (!active) commands.clear()
-  })
+  createEffect(
+    () => props.active,
+    (active) => {
+      if (!active) commands.clear()
+    },
+  )
   return (
     <ErrorPresentationContext value={commands}>
       {props.children}

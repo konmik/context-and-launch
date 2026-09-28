@@ -85,7 +85,6 @@ export default function AgentLauncher(props: AgentLauncherProps): JSX.Element {
         )}
       </Show>
 
-
       <DialogRoot open={!!c.behindRemoteMsg()} onOpenChange={() => c.setBehindRemoteMsg('')} class="max-w-sm">
         <DialogTitle class="sr-only">Behind Remote</DialogTitle>
         <p class="mb-4 text-sm">{c.behindRemoteMsg()}</p>

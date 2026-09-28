@@ -76,8 +76,7 @@ export function ColumnsTabContent(props: { open: boolean; projectSlug: string })
           return rest
         }),
       }))
-      if (cleared.type === 'Failure')
-        errors.report(cleared.error)
+      if (cleared.type === 'Failure') errors.report(cleared.error)
       await revalidate('project-page')
     }
   }
@@ -116,8 +115,7 @@ export function ColumnsTabContent(props: { open: boolean; projectSlug: string })
         }
         return names.map((name) => byName.get(name)!)
       })
-      if (result.type === 'Failure')
-        errors.report(result.error)
+      if (result.type === 'Failure') errors.report(result.error)
     },
   })
   return (

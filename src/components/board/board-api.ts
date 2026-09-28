@@ -27,7 +27,11 @@ export async function saveBoards(json: string, owner: string): Promise<Result<Bo
   'use server'
 
   try {
-    if (!owner) return failure({ title: 'Save failed', description: 'Configuration update requires a client identity.' })
+    if (!owner)
+      return failure({
+        title: 'Save failed',
+        description: 'Configuration update requires a client identity.',
+      })
     return success(boardConfigManager.write(JSON.parse(json), owner))
   } catch (error) {
     return failure(errorPayload(error, 'Save boards failed'))

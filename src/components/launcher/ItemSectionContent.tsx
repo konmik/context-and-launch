@@ -62,8 +62,7 @@ export function ItemSectionContent(props: ItemSectionProps): JSX.Element {
         [itemCollections[itemType]]: (current[itemCollections[itemType]] ?? []).filter((item) => item.name !== name),
         columnDefaults: updateLauncherReferences(current.columnDefaults, itemType, name, null),
       }))
-      if (result.type === 'Failure')
-        errors.report(result.error)
+      if (result.type === 'Failure') errors.report(result.error)
     } catch (e) {
       errors.report(errorPayload(e, 'Delete failed'))
     }
@@ -96,8 +95,7 @@ export function ItemSectionContent(props: ItemSectionProps): JSX.Element {
             : item,
         ),
       }))
-      if (result.type === 'Failure')
-        errors.report(result.error)
+      if (result.type === 'Failure') errors.report(result.error)
     } catch (e) {
       errors.report(errorPayload(e, 'Reorder failed'))
     }

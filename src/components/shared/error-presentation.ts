@@ -26,10 +26,12 @@ export function useErrorReporter(active: () => boolean = () => true): ErrorRepor
   onCleanup(() => {
     mounted = false
   })
+
   function report(error: UserFacingError) {
     if (mounted && active()) scope.report(error)
     else toasts.enqueue(error)
   }
+
   return {
     report,
     enqueueToast: toasts.enqueue,

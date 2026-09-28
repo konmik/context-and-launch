@@ -80,11 +80,7 @@ describe('Ticket detail shortcuts menu (e2e, real server)', () => {
     })
     await openTicketDetail(ctx.page, 't-1-alpha')
     await testId(ctx.page, 'ticket-detail-actions-menu-trigger').click()
-    expect(await ctx.page.getByRole('menuitem').allTextContents()).toEqual([
-      'Open ticket folder',
-      'Archive',
-      'Delete',
-    ])
+    expect(await ctx.page.getByRole('menuitem').allTextContents()).toEqual(['Open ticket folder', 'Archive', 'Delete'])
     expect(await testId(ctx.page, 'ticket-actions-open-worktree').count()).toBe(0)
   })
 })

@@ -26,7 +26,11 @@ it('updates fresh disk order, publishes only successful writes, and follows refr
       {
         read: async () => success(disk),
         save: async (_project, expected, next) => {
-          if (reject) return failure({ title: 'Save failed', description: 'conflict' })
+          if (reject)
+            return failure({
+              title: 'Save failed',
+              description: 'conflict',
+            })
           expect(expected).toBe(disk)
           disk = next
           return success(disk)
@@ -41,7 +45,12 @@ it('updates fresh disk order, publishes only successful writes, and follows refr
       todo: ['b', 'external', 'a'],
     })
     reject = true
-    expect(await storage.update(() => ({}))).toEqual(failure({ title: 'Save failed', description: 'conflict' }))
+    expect(await storage.update(() => ({}))).toEqual(
+      failure({
+        title: 'Save failed',
+        description: 'conflict',
+      }),
+    )
     expect(storage.get()).toEqual(disk)
     flush(() =>
       setSnapshot({

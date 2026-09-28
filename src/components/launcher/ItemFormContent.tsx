@@ -28,10 +28,13 @@ export function ItemFormContent(props: ItemFormDialogProps): JSX.Element {
   const errors = useErrorReporter(() => !!props.form)
   const [form, setForm] = createSignal<ItemFormState>()
   const [submitting, setSubmitting] = createSignal(false)
-  createEffect(() => props.form, (initial) => {
-    setForm(initial ?? undefined)
-    errors.clear()
-  })
+  createEffect(
+    () => props.form,
+    (initial) => {
+      setForm(initial ?? undefined)
+      errors.clear()
+    },
+  )
 
   async function submitForm() {
     const f = form()
@@ -39,20 +42,38 @@ export function ItemFormContent(props: ItemFormDialogProps): JSX.Element {
     errors.clear()
     setSubmitting(true)
     try {
-      const fields = f.itemType === 'profile' || f.itemType === 'shortcut'
-        ? { name: f.name, command: f.text }
-        : { name: f.name, text: f.text }
+      const fields =
+        f.itemType === 'profile' || f.itemType === 'shortcut'
+          ? {
+              name: f.name,
+              command: f.text,
+            }
+          : {
+              name: f.name,
+              text: f.text,
+            }
       const result = await (f.scope === 'app' ? sharedConfig : projectConfig).update((current) => {
         const key = itemCollections[f.itemType]
         const items = current[key] ?? []
         if (items.some((item) => item.name === fields.name && (f.mode === 'add' || item.name !== f.oldName))) {
           throw createValidationError(`An item named "${fields.name}" already exists`, 'name')
         }
-        if (f.mode === 'add') return { ...current, [key]: [...items, fields] }
+        if (f.mode === 'add')
+          return {
+            ...current,
+            [key]: [...items, fields],
+          }
         if (!items.some((item) => item.name === f.oldName)) throw createNotFoundError(`Item "${f.oldName}" not found`)
         return {
           ...current,
-          [key]: items.map((item) => item.name === f.oldName ? { ...item, ...fields } : item),
+          [key]: items.map((item) =>
+            item.name === f.oldName
+              ? {
+                  ...item,
+                  ...fields,
+                }
+              : item,
+          ),
           columnDefaults: updateLauncherReferences(current.columnDefaults, f.itemType, f.oldName!, f.name),
         }
       })
@@ -97,7 +118,7 @@ export function ItemFormContent(props: ItemFormDialogProps): JSX.Element {
                         ? 'Skill name'
                         : f().itemType === 'shortcut'
                           ? 'Shortcut name'
-                           : 'Prompt name'
+                          : 'Prompt name'
                   }
                 />
                 <ErrorField field="name" />

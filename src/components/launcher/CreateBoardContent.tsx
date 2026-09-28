@@ -16,9 +16,12 @@ export function CreateBoardContent(props: CreateBoardDialogProps): JSX.Element {
   const errors = useErrorReporter(() => props.open)
   const [name, setName] = createSignal('')
   const [submitting, setSubmitting] = createSignal(false)
-  createEffect(() => props.open, (open) => {
-    if (open) setName('')
-  })
+  createEffect(
+    () => props.open,
+    (open) => {
+      if (open) setName('')
+    },
+  )
 
   async function createBoard() {
     if (submitting() || !name().trim()) return
@@ -31,8 +34,16 @@ export function CreateBoardContent(props: CreateBoardDialogProps): JSX.Element {
         const result = await storage.update((current) => {
           if (!boardId) throw createValidationError('Board name must not be empty', 'name')
           if (boardId === 'undefined') throw createValidationError('Board name "undefined" is reserved', 'name')
-          if (current.some((board) => board.id === boardId)) throw createValidationError(`Board with id "${boardId}" already exists`, 'name')
-          return [...current, { id: boardId, name: boardName, columns: [] }]
+          if (current.some((board) => board.id === boardId))
+            throw createValidationError(`Board with id "${boardId}" already exists`, 'name')
+          return [
+            ...current,
+            {
+              id: boardId,
+              name: boardName,
+              columns: [],
+            },
+          ]
         })
         if (result.type === 'Success') {
           props.onOpenChange(false)
@@ -68,11 +79,7 @@ export function CreateBoardContent(props: CreateBoardDialogProps): JSX.Element {
         </div>
       </div>
       <DialogFooter>
-        <button
-          onClick={() => props.onOpenChange(false)}
-          class="btn-secondary"
-          data-testid="launcher-settings-columns-board-form-cancel"
-        >
+        <button onClick={() => props.onOpenChange(false)} class="btn-secondary" data-testid="launcher-settings-columns-board-form-cancel">
           Cancel
         </button>
         <button

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { isGutterPath, lineElementAt, lineSideOf, reviewLineRangeBetween, reviewLineRangeFromSelection } from '../../../src/components/diff-review/diff-review-selection.js'
+import {
+  isGutterPath,
+  lineElementAt,
+  lineSideOf,
+  reviewLineRangeBetween,
+  reviewLineRangeFromSelection,
+} from '../../../src/components/diff-review/diff-review-selection.js'
 
 function renderSplitDiff(): RenderSplitDiffResult {
   const host = document.createElement('div')

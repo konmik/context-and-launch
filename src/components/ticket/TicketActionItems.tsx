@@ -14,7 +14,9 @@ interface TicketActionCallbacks {
 
 interface TicketActionItemsProps {
   hasAgentWorktree: boolean
-  shortcuts: { name: string }[]
+  shortcuts: {
+    name: string
+  }[]
   isShortcutRunning: boolean
   hasUnsavedChanges?: boolean
   callbacks: TicketActionCallbacks

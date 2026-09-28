@@ -26,15 +26,15 @@ export default function TicketDetailDialog(props: TicketDetailDialogProps): JSX.
           value={untrack(() => props.stateDeps?.ticketStatus ?? createTicketStatusStorage(props.projectSlug, props.ticket!))}
         >
           <ErrorScope active={true}>
-          <TicketDetailContent
-            onClose={props.onClose}
-            onArchive={props.onArchive}
-            onDelete={props.onDelete}
-            projectSlug={props.projectSlug}
-            onReviewChanges={props.onReviewChanges}
-            stateDeps={props.stateDeps}
-            launchAgent={props.launchAgent}
-          />
+            <TicketDetailContent
+              onClose={props.onClose}
+              onArchive={props.onArchive}
+              onDelete={props.onDelete}
+              projectSlug={props.projectSlug}
+              onReviewChanges={props.onReviewChanges}
+              stateDeps={props.stateDeps}
+              launchAgent={props.launchAgent}
+            />
           </ErrorScope>
         </TicketStatusContext>
       )}

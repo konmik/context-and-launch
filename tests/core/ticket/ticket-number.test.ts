@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { parseTicketNumber, formatTicketNumber, suggestNextTicketNumber, extractPrefixFromInput } from '../../../src/core/ticket/ticket-number.js'
+import {
+  parseTicketNumber,
+  formatTicketNumber,
+  suggestNextTicketNumber,
+  extractPrefixFromInput,
+} from '../../../src/core/ticket/ticket-number.js'
 
 describe('parseTicketNumber', () => {
   it('parses ST-0006', () => {

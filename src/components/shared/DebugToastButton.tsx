@@ -8,7 +8,6 @@ import { useToastQueue } from './toast-queue.js'
 
 export default function DebugToastButton(): JSX.Element {
   const toasts = useToastQueue()
-
   return (
     <MenuRoot
       trigger={

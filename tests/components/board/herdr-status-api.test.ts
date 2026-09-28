@@ -64,7 +64,10 @@ describe('getHerdrAgentStatuses', () => {
     const result = await service.getStatuses('project')
     expect(result).toEqual({
       kind: 'unavailable',
-      error: { title: 'Agent status unavailable', description: 'workspace list exploded' },
+      error: {
+        title: 'Agent status unavailable',
+        description: 'workspace list exploded',
+      },
     })
     expect(reconcileProject).not.toHaveBeenCalled()
   })
@@ -79,7 +82,10 @@ describe('getHerdrAgentStatuses', () => {
     reconcileProject.mockRejectedValue(new Error('workspace list exploded'))
     await expect(service.reconcile('project')).resolves.toEqual({
       type: 'Failure',
-      error: { title: 'Review queue reconciliation failed', description: 'workspace list exploded' },
+      error: {
+        title: 'Review queue reconciliation failed',
+        description: 'workspace list exploded',
+      },
     })
   })
 })

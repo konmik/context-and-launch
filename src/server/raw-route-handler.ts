@@ -33,9 +33,16 @@ export function createRawRouteHandler(deps: RawRouteDeps): (request: Request) =>
       } else {
         const refPath = url.searchParams.get('path')
         if (!refPath)
-          return Response.json({ title: 'Load file failed', description: 'Missing path parameter', field: 'path' }, {
-            status: 400,
-          })
+          return Response.json(
+            {
+              title: 'Load file failed',
+              description: 'Missing path parameter',
+              field: 'path',
+            },
+            {
+              status: 400,
+            },
+          )
         fileName = refPath
         content = store.getReferencedFileContent(decodeURIComponent(folderName), refPath)
       }
@@ -45,12 +52,9 @@ export function createRawRouteHandler(deps: RawRouteDeps): (request: Request) =>
         },
       })
     } catch (error) {
-      return Response.json(
-        errorPayload(error, 'Load file failed'),
-        {
-          status: 500,
-        },
-      )
+      return Response.json(errorPayload(error, 'Load file failed'), {
+        status: 500,
+      })
     }
   }
 }

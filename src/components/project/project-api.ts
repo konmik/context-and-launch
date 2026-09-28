@@ -49,7 +49,10 @@ export const previewProjectPath = query(async (pathValue: string): Promise<Resul
       mainBranch: await detectMainBranch(pathValue, commandTemplateService),
     })
   } catch (err) {
-    return failure({ ...errorPayload(err, 'Preview project failed'), field: 'path' })
+    return failure({
+      ...errorPayload(err, 'Preview project failed'),
+      field: 'path',
+    })
   }
 }, 'preview-project-path')
 

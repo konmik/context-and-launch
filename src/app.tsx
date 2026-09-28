@@ -21,11 +21,7 @@ export default function App(): JSX.Element {
         const boards = createBoardConfigStorage()
         const commandTemplates = createCommandTemplateStorage()
         return (
-          <Errored
-            fallback={(error, reset) => (
-              <LoadError error={errorPayload(error(), 'Load application failed')} onRetry={reset} />
-            )}
-          >
+          <Errored fallback={(error, reset) => <LoadError error={errorPayload(error(), 'Load application failed')} onRetry={reset} />}>
             <Loading fallback={<p>Loading...</p>}>
               <AppConfigContext value={config}>
                 <LauncherConfigContext value={launcherConfig}>

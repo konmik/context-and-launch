@@ -515,7 +515,10 @@ export async function killWorktreeLockingProcesses(
     }
   }
   if (failed.length > 0) {
-    return failure({ title: 'Stop processes failed', description: `Failed to kill: ${failed.join(', ')}` })
+    return failure({
+      title: 'Stop processes failed',
+      description: `Failed to kill: ${failed.join(', ')}`,
+    })
   }
   await new Promise((resolve) => setTimeout(resolve, 500))
   return success(undefined)

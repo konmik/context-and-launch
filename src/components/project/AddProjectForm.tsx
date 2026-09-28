@@ -11,5 +11,9 @@ export interface AddProjectFormProps {
 }
 
 export default function AddProjectForm(props: AddProjectFormProps): JSX.Element {
-  return <ErrorScope active={true}><AddProjectFormContent {...props} /></ErrorScope>
+  return (
+    <ErrorScope active={true}>
+      <AddProjectFormContent {...props} />
+    </ErrorScope>
+  )
 }

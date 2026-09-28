@@ -17,13 +17,21 @@ describe('validateColumnName', () => {
     expect(validateColumnName('in-progress', 'add', undefined, columns)).toBeUndefined()
   })
   it('rejects duplicate name', () => {
-    expect(validateColumnName('todo', 'add', undefined, columns)).toEqual({ title: 'Invalid input', description: 'Name "todo" already exists', field: 'name' })
+    expect(validateColumnName('todo', 'add', undefined, columns)).toEqual({
+      title: 'Invalid input',
+      description: 'Name "todo" already exists',
+      field: 'name',
+    })
   })
   it('allows same name in edit mode', () => {
     expect(validateColumnName('todo', 'edit', 'todo', columns)).toBeUndefined()
   })
   it("rejects 'undefined' as reserved", () => {
-    expect(validateColumnName('undefined', 'add', undefined, [])).toEqual({ title: 'Invalid input', description: 'Name "undefined" is reserved', field: 'name' })
+    expect(validateColumnName('undefined', 'add', undefined, [])).toEqual({
+      title: 'Invalid input',
+      description: 'Name "undefined" is reserved',
+      field: 'name',
+    })
   })
 })
 describe('usesWindowsBatchCommand', () => {

@@ -58,12 +58,24 @@ const QueueItemSchema = v.union([
   v.object({
     ...QueueItemBaseSchema,
     state: v.literal('error'),
-    error: v.union([UserFacingErrorSchema, v.pipe(v.string(), v.transform((description) => errorPayload(description, 'Review delivery failed')))]),
+    error: v.union([
+      UserFacingErrorSchema,
+      v.pipe(
+        v.string(),
+        v.transform((description) => errorPayload(description, 'Review delivery failed')),
+      ),
+    ]),
   }),
   v.object({
     ...QueueItemBaseSchema,
     state: v.literal('uncertain'),
-    error: v.union([UserFacingErrorSchema, v.pipe(v.string(), v.transform((description) => errorPayload(description, 'Review delivery uncertain')))]),
+    error: v.union([
+      UserFacingErrorSchema,
+      v.pipe(
+        v.string(),
+        v.transform((description) => errorPayload(description, 'Review delivery uncertain')),
+      ),
+    ]),
   }),
 ])
 
@@ -129,8 +141,20 @@ export interface DiffReviewStore {
     sentAt: Date,
     cooldownMs: number,
   ): DiffReviewTicketState
-  failDelivery(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string, error: UserFacingError): DiffReviewTicketState
-  failSentDelivery(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string, error: UserFacingError): DiffReviewTicketState
+  failDelivery(
+    projectSlug: string,
+    folderName: string,
+    worktreeIdentity: string,
+    itemId: string,
+    error: UserFacingError,
+  ): DiffReviewTicketState
+  failSentDelivery(
+    projectSlug: string,
+    folderName: string,
+    worktreeIdentity: string,
+    itemId: string,
+    error: UserFacingError,
+  ): DiffReviewTicketState
   markDeliveryUncertain(
     projectSlug: string,
     folderName: string,
@@ -395,7 +419,10 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
           if (item.state !== 'delivering') continue
           ticket.queue.items[index] = withState(item, {
             state: 'uncertain',
-            error: { title: 'Review delivery uncertain', description: 'Delivery was interrupted and may have reached the Agent. Retry only if needed.' },
+            error: {
+              title: 'Review delivery uncertain',
+              description: 'Delivery was interrupted and may have reached the Agent. Retry only if needed.',
+            },
           })
           changed = true
         }

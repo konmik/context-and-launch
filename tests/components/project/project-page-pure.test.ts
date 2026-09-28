@@ -31,20 +31,35 @@ describe('parseSyncResult', () => {
         status: 'error',
         message: 'Oops',
       }),
-    ).toEqual(failure({ title: 'Sync failed', description: 'Oops' }))
+    ).toEqual(
+      failure({
+        title: 'Sync failed',
+        description: 'Oops',
+      }),
+    )
   })
   it('uses fallback message for error without message', () => {
     expect(
       parseSyncResult({
         status: 'error',
       }),
-    ).toEqual(failure({ title: 'Sync failed', description: 'Sync failed' }))
+    ).toEqual(
+      failure({
+        title: 'Sync failed',
+        description: 'Sync failed',
+      }),
+    )
   })
   it('returns error for unexpected status', () => {
     expect(
       parseSyncResult({
         status: 'unknown',
       }),
-    ).toEqual(failure({ title: 'Sync failed', description: 'Sync failed' }))
+    ).toEqual(
+      failure({
+        title: 'Sync failed',
+        description: 'Sync failed',
+      }),
+    )
   })
 })

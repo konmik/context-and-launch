@@ -100,7 +100,9 @@ it('uses edited board definitions immediately across settings, tickets, projects
     testId(ctx.page, 'kanban-board-empty-dropzone', {
       'data-column-name': 'review',
     }),
-    { steps: 1 },
+    {
+      steps: 1,
+    },
   )
   await sortableItem(ctx.page, `review:${folderName}`).waitFor({
     state: 'visible',

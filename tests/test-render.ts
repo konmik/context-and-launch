@@ -29,11 +29,18 @@ import { ErrorScope } from '~/components/shared/ErrorScope.js'
 const disposers: (() => void)[] = []
 
 export function renderWithErrors(view: () => Element): RenderResult {
-  return render(() => createComponent(ToastQueueRoot, {
-    get children() {
-      return createComponent(ErrorScope, { active: true, get children() { return view() } })
-    },
-  }))
+  return render(() =>
+    createComponent(ToastQueueRoot, {
+      get children() {
+        return createComponent(ErrorScope, {
+          active: true,
+          get children() {
+            return view()
+          },
+        })
+      },
+    }),
+  )
 }
 
 export function render(view: () => Element): RenderResult {

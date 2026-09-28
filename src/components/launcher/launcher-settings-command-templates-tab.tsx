@@ -26,8 +26,7 @@ export function CommandTemplatesTab(): JSX.Element {
             [key]: script,
           }
     })
-    if (result.type === 'Failure')
-      errors.report(result.error)
+    if (result.type === 'Failure') errors.report(result.error)
     else setDrafts(({ [key]: _removed, ...rest }) => rest)
   }
 

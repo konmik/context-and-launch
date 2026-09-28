@@ -272,7 +272,10 @@ export function createTicketStore(worktreeDir: string, repo: TicketRepository = 
           try {
             repo.renameDirectory(dir, newDir)
           } catch (err) {
-            throw createAppError(`Failed to rename ticket folder from ${path.basename(dir)} to ${newFolderName}: ${errorMessage(err)}`, 'Rename ticket failed')
+            throw createAppError(
+              `Failed to rename ticket folder from ${path.basename(dir)} to ${newFolderName}: ${errorMessage(err)}`,
+              'Rename ticket failed',
+            )
           }
           finalDir = newDir
         }

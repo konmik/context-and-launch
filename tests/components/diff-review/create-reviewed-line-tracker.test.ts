@@ -121,7 +121,12 @@ describe('createReviewedLineTracker', () => {
   it('rolls back a failed write and retries when the line is visible again', async () => {
     vi.useFakeTimers()
     const { tracker, persist, onError } = setup()
-    persist.mockResolvedValueOnce(failure({ title: 'Save failed', description: 'disk full' }))
+    persist.mockResolvedValueOnce(
+      failure({
+        title: 'Save failed',
+        description: 'disk full',
+      }),
+    )
     tracker.markVisible({
       id: 'line-1',
       path: 'src/a.ts',
@@ -129,7 +134,10 @@ describe('createReviewedLineTracker', () => {
     await vi.advanceTimersByTimeAsync(400)
     flush()
     expect([...tracker.reviewedLineIds()]).toEqual([])
-    expect(onError).toHaveBeenCalledWith({ title: 'Save failed', description: 'disk full' })
+    expect(onError).toHaveBeenCalledWith({
+      title: 'Save failed',
+      description: 'disk full',
+    })
     tracker.markVisible({
       id: 'line-1',
       path: 'src/a.ts',

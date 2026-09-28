@@ -3,7 +3,12 @@ import { DialogRoot } from '../ui/DialogRoot.js'
 import { DialogTitle } from '../ui/DialogTitle.js'
 import { DialogDescription } from '../ui/DialogDescription.js'
 
-export function ForceDeleteBranchDialog(props: { open: boolean; deleting: boolean; onConfirm: () => void; onClose: () => void }): JSX.Element {
+export function ForceDeleteBranchDialog(props: {
+  open: boolean
+  deleting: boolean
+  onConfirm: () => void
+  onClose: () => void
+}): JSX.Element {
   return (
     <DialogRoot
       open={props.open}

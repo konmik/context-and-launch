@@ -95,8 +95,7 @@ export function ForestViewContent(props: ForestViewProps): JSX.Element {
         projectSlug: props.projectSlug,
         removals,
       })
-      if (result.type === 'Failure')
-        errors.report(result.error)
+      if (result.type === 'Failure') errors.report(result.error)
     } finally {
       await revalidate(ticketMutationRevalidateKeys)
     }
@@ -143,7 +142,11 @@ export function ForestViewContent(props: ForestViewProps): JSX.Element {
 
   async function handleGroupCreate(number: string, title: string): Promise<Result<undefined, ErrorInfo>> {
     const draft = groupingDraft()
-    if (!draft) return failure({ title: 'Create group failed', description: 'No members selected' })
+    if (!draft)
+      return failure({
+        title: 'Create group failed',
+        description: 'No members selected',
+      })
     const memberFolderNames = draft.memberNumbers.map((memberNumber) => findTicket(memberNumber).folderName)
     const result = await runCreateGroupTicket({
       projectSlug: props.projectSlug,
@@ -262,7 +265,6 @@ export function ForestViewContent(props: ForestViewProps): JSX.Element {
         suggestedNextNumber={props.suggestedNextNumber}
         projectSlug={props.projectSlug}
       />
-
     </div>
   )
 }

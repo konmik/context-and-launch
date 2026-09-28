@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from 'vitest'
-import { runTicketCleanupChecks, type TicketCleanupCheckDeps, type TicketCleanupCheckTarget } from '../../../src/core/worktree/ticket-cleanup-checks.js'
+import {
+  runTicketCleanupChecks,
+  type TicketCleanupCheckDeps,
+  type TicketCleanupCheckTarget,
+} from '../../../src/core/worktree/ticket-cleanup-checks.js'
 import type { FindHerdrAgentResult } from '../../../src/core/herdr/herdr-control.js'
 
 const target: TicketCleanupCheckTarget = {

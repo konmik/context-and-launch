@@ -20,7 +20,10 @@ export async function saveAppConfig(configJson: string, owner: string): Promise<
   try {
     return owner
       ? success(appConfigStore.update(() => JSON.parse(configJson), owner))
-      : failure({ title: 'Save failed', description: 'Configuration update requires a client identity.' })
+      : failure({
+          title: 'Save failed',
+          description: 'Configuration update requires a client identity.',
+        })
   } catch (error) {
     return failure(errorPayload(error, 'Save configuration failed'))
   }

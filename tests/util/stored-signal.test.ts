@@ -85,7 +85,12 @@ describe('stored signal', () => {
           count: 2,
         }))
         failed = true
-        expect(await store.refresh()).toEqual(failure({ title: 'Operation failed', description: 'Read failed' }))
+        expect(await store.refresh()).toEqual(
+          failure({
+            title: 'Operation failed',
+            description: 'Read failed',
+          }),
+        )
         flush()
         expect(store.get()).toEqual({
           count: 2,
@@ -161,14 +166,24 @@ describe('stored signal', () => {
             const next = transform({
               count: 1,
             })
-            return attempts++ === 0 ? failure({ title: 'Save failed', description: 'Disk write failed' }) : success(next)
+            return attempts++ === 0
+              ? failure({
+                  title: 'Save failed',
+                  description: 'Disk write failed',
+                })
+              : success(next)
           },
         )
         expect(
           await store.update(() => ({
             count: 2,
           })),
-        ).toEqual(failure({ title: 'Save failed', description: 'Disk write failed' }))
+        ).toEqual(
+          failure({
+            title: 'Save failed',
+            description: 'Disk write failed',
+          }),
+        )
         flush()
         expect(store.get()).toEqual({
           count: 1,
@@ -176,7 +191,12 @@ describe('stored signal', () => {
         const failed = await store.update(() => {
           throw new Error('Transform failed')
         })
-        expect(failed).toEqual(failure({ title: 'Operation failed', description: 'Transform failed' }))
+        expect(failed).toEqual(
+          failure({
+            title: 'Operation failed',
+            description: 'Transform failed',
+          }),
+        )
         expect(
           await store.update(() => ({
             count: 3,

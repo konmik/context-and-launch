@@ -67,13 +67,20 @@ export async function releaseProjectLauncherConfig(projectSlug: string, owner: s
   launcherConfigManager.releaseProjectConfig(projectSlug, owner)
 }
 
-export async function saveProjectLauncherConfig(projectSlug: string, json: string, owner: string): Promise<Result<LauncherConfig, UserFacingError>> {
+export async function saveProjectLauncherConfig(
+  projectSlug: string,
+  json: string,
+  owner: string,
+): Promise<Result<LauncherConfig, UserFacingError>> {
   'use server'
 
   try {
     return owner
       ? success(launcherConfigManager.saveProjectConfig(projectSlug, JSON.parse(json), owner))
-      : failure({ title: 'Save failed', description: 'Configuration update requires a client identity.' })
+      : failure({
+          title: 'Save failed',
+          description: 'Configuration update requires a client identity.',
+        })
   } catch (e) {
     return failure(errorPayload(e, 'Save launcher settings failed'))
   }

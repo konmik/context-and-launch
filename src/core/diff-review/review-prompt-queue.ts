@@ -353,13 +353,10 @@ export function createReviewPromptQueueService(
         if (agentsReadAt <= sentAt) return
         if (agent.kind === 'absent') {
           await store.whenWritable(projectSlug, () =>
-            store.failSentDelivery(
-              projectSlug,
-              folderName,
-              target.worktreeIdentity,
-              head.id,
-              { title: 'Review delivery failed', description: 'The Agent that received this Review Prompt is no longer running.' + ' Retry it if the work was not completed.' },
-            ),
+            store.failSentDelivery(projectSlug, folderName, target.worktreeIdentity, head.id, {
+              title: 'Review delivery failed',
+              description: 'The Agent that received this Review Prompt is no longer running.' + ' Retry it if the work was not completed.',
+            }),
           )
           return
         }
@@ -457,7 +454,13 @@ export function createReviewPromptQueueService(
       await delivery.send(renderReviewPrompt(item, freshness))
     } catch (error) {
       await store.whenWritable(target.projectSlug, () =>
-        store.failDelivery(target.projectSlug, target.folderName, target.worktreeIdentity, item.id, errorPayload(error, 'Review delivery failed')),
+        store.failDelivery(
+          target.projectSlug,
+          target.folderName,
+          target.worktreeIdentity,
+          item.id,
+          errorPayload(error, 'Review delivery failed'),
+        ),
       )
       return
     }
@@ -468,13 +471,11 @@ export function createReviewPromptQueueService(
       )
     } catch (error) {
       await store.whenWritable(target.projectSlug, () =>
-        store.markDeliveryUncertain(
-          target.projectSlug,
-          target.folderName,
-          target.worktreeIdentity,
-          item.id,
-          { title: 'Review delivery uncertain', description: 'The Agent accepted this Review Prompt, but its queue state could not be saved.', details: errorMessage(error) },
-        ),
+        store.markDeliveryUncertain(target.projectSlug, target.folderName, target.worktreeIdentity, item.id, {
+          title: 'Review delivery uncertain',
+          description: 'The Agent accepted this Review Prompt, but its queue state could not be saved.',
+          details: errorMessage(error),
+        }),
       )
       return
     }

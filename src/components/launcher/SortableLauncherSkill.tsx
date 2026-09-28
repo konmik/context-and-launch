@@ -4,7 +4,12 @@ import { DragGrip } from '../board/DragGrip.js'
 import { DND_ACTIVE_CLASS } from '../board/dnd-shared.js'
 import type { MergedSkill } from './launcher-settings-row-types.js'
 
-export function SortableLauncherSkill(props: { skill: MergedSkill; checked: boolean; isActive: boolean; onToggle: () => void }): JSX.Element {
+export function SortableLauncherSkill(props: {
+  skill: MergedSkill
+  checked: boolean
+  isActive: boolean
+  onToggle: () => void
+}): JSX.Element {
   const sortable = createSortable(props.skill.name)
   return (
     <div

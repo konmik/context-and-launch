@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { connectionPreviewPath, dependencyFromEndpoints, isConnectionTarget, type ForestConnectionSession } from '../../../src/components/forest/forest-connections.js'
+import {
+  connectionPreviewPath,
+  dependencyFromEndpoints,
+  isConnectionTarget,
+  type ForestConnectionSession,
+} from '../../../src/components/forest/forest-connections.js'
 
 describe('forest connections', () => {
   it('derives dependency direction from either handle orientation', () => {

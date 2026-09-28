@@ -37,7 +37,14 @@ export function TicketDetailContent(props: {
   launchAgent?: typeof launchAgentAction
 }): JSX.Element {
   const errors = useErrorReporter()
-  const s = untrack(() => createTicketDetailState(props, { ...props.stateDeps, onError: errors.report, onClearError: errors.clear, onBackgroundError: errors.enqueueToast }))
+  const s = untrack(() =>
+    createTicketDetailState(props, {
+      ...props.stateDeps,
+      onError: errors.report,
+      onClearError: errors.clear,
+      onBackgroundError: errors.enqueueToast,
+    }),
+  )
   const ticketStatus = useContext(TicketStatusContext)!
   const ticket = ticketStatus.get
   const launcherDeps = untrack(() => ({
@@ -92,40 +99,40 @@ export function TicketDetailContent(props: {
           title={
             <>
               <div class="flex shrink-0 flex-col">
-              <input
-                type="text"
-                data-testid="ticket-detail-number-input"
-                value={s.editedNumber()}
-                onInput={(e) => s.setEditedNumber(e.currentTarget.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') {
-                    s.setEditedNumber(ticket().number)
-                    e.currentTarget.blur()
-                  }
-                }}
-                class="shrink-0 bg-transparent outline-none focus:border-b focus:border-accent-foreground"
-                style={{
-                  'field-sizing': 'content',
-                }}
-              />
-              <ErrorField field="number" />
+                <input
+                  type="text"
+                  data-testid="ticket-detail-number-input"
+                  value={s.editedNumber()}
+                  onInput={(e) => s.setEditedNumber(e.currentTarget.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      s.setEditedNumber(ticket().number)
+                      e.currentTarget.blur()
+                    }
+                  }}
+                  class="shrink-0 bg-transparent outline-none focus:border-b focus:border-accent-foreground"
+                  style={{
+                    'field-sizing': 'content',
+                  }}
+                />
+                <ErrorField field="number" />
               </div>
               <span class="shrink-0">-</span>
               <div class="flex min-w-0 flex-1 flex-col">
-              <input
-                type="text"
-                data-testid="ticket-detail-title-input"
-                value={s.editedTitle()}
-                onInput={(e) => s.setEditedTitle(e.currentTarget.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') {
-                    s.setEditedTitle(ticket().title)
-                    e.currentTarget.blur()
-                  }
-                }}
-                class="min-w-0 flex-1 bg-transparent outline-none focus:border-b focus:border-accent-foreground"
-              />
-              <ErrorField field="title" />
+                <input
+                  type="text"
+                  data-testid="ticket-detail-title-input"
+                  value={s.editedTitle()}
+                  onInput={(e) => s.setEditedTitle(e.currentTarget.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      s.setEditedTitle(ticket().title)
+                      e.currentTarget.blur()
+                    }
+                  }}
+                  class="min-w-0 flex-1 bg-transparent outline-none focus:border-b focus:border-accent-foreground"
+                />
+                <ErrorField field="title" />
               </div>
             </>
           }
@@ -336,7 +343,6 @@ export function TicketDetailContent(props: {
         onCancel={s.cancelSizeConfirm}
         onConfirm={s.confirmSizeAndUpload}
       />
-
     </>
   )
 }

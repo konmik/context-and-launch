@@ -1,7 +1,11 @@
 import path from 'node:path'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { openInOs } from '../../../src/core/infra/open-in-os.js'
-import type { CommandTemplateExecutor, CommandTemplateKey, CommandTemplateValues } from '../../../src/core/command-template/command-template-types.js'
+import type {
+  CommandTemplateExecutor,
+  CommandTemplateKey,
+  CommandTemplateValues,
+} from '../../../src/core/command-template/command-template-types.js'
 
 function recordingExecutor(): RecordingExecutorResult {
   const calls: {

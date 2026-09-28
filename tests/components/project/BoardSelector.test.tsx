@@ -25,7 +25,11 @@ it('shares successful edits across mounted selectors and keeps failed edits unpu
   let reject = false
   const initial = createMemo(async () => saved)
   const storage = createStoredSignal(initial, async (transform) => {
-    if (reject) return failure({ title: 'Save failed', description: 'write failed' })
+    if (reject)
+      return failure({
+        title: 'Save failed',
+        description: 'write failed',
+      })
     saved = transform(saved)
     return success(saved)
   })
@@ -64,7 +68,12 @@ it('shares successful edits across mounted selectors and keeps failed edits unpu
     ).toHaveLength(2),
   )
   reject = true
-  expect(await storage.update((boards) => boards.filter((b) => b.id !== 'second'))).toEqual(failure({ title: 'Save failed', description: 'write failed' }))
+  expect(await storage.update((boards) => boards.filter((b) => b.id !== 'second'))).toEqual(
+    failure({
+      title: 'Save failed',
+      description: 'write failed',
+    }),
+  )
   expect(selects().map((s) => s.value)).toEqual(['second', 'second'])
   reject = false
   await storage.update((boards) => [

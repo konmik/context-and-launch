@@ -94,11 +94,7 @@ describe('Open actions (e2e, real server)', () => {
       ],
     })
     const requests = trackServerRequests(ctx.page)
-    await clickMenuItem(
-      ctx.page,
-      '[data-testid="kanban-board-ticket-menu-trigger"]',
-      '[data-testid="ticket-actions-open-folder"]',
-    )
+    await clickMenuItem(ctx.page, '[data-testid="kanban-board-ticket-menu-trigger"]', '[data-testid="ticket-actions-open-folder"]')
     await expect
       .poll(() => requests.length, {
         timeout: 10000,
@@ -124,11 +120,7 @@ describe('Open actions (e2e, real server)', () => {
       ],
     })
     const requests = trackServerRequests(ctx.page)
-    await clickMenuItem(
-      ctx.page,
-      '[data-testid="kanban-board-ticket-menu-trigger"]',
-      '[data-testid="ticket-actions-open-worktree"]',
-    )
+    await clickMenuItem(ctx.page, '[data-testid="kanban-board-ticket-menu-trigger"]', '[data-testid="ticket-actions-open-worktree"]')
     await expect
       .poll(() => requests.length, {
         timeout: 10000,
@@ -155,11 +147,7 @@ describe('Open actions (e2e, real server)', () => {
     })
     await openTicketDetail(ctx.page, 't-1-alpha')
     const requests = trackServerRequests(ctx.page)
-    await clickMenuItem(
-      ctx.page,
-      '[data-testid="ticket-detail-actions-menu-trigger"]',
-      '[data-testid="ticket-actions-open-worktree"]',
-    )
+    await clickMenuItem(ctx.page, '[data-testid="ticket-detail-actions-menu-trigger"]', '[data-testid="ticket-actions-open-worktree"]')
     await expect
       .poll(() => requests.length, {
         timeout: 10000,

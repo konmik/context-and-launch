@@ -20,7 +20,12 @@ import type { DiffLayout, DiffLineOverflow, DiffScope, ReviewFileSnapshot, Revie
 import { buildReviewPromptSnapshot, reviewSelectionStillExists } from '~/core/diff-review/diff-review-model.js'
 import { reuseUnchangedFiles } from '~/core/diff-review/review-file-identity.js'
 import { renderReviewPrompt } from '~/core/diff-review/review-prompt-text.js'
-import { fileIsReviewed, nextUnreviewedChange, unreviewedChangeCount, type ReviewChangeLocation } from '~/core/diff-review/review-navigation.js'
+import {
+  fileIsReviewed,
+  nextUnreviewedChange,
+  unreviewedChangeCount,
+  type ReviewChangeLocation,
+} from '~/core/diff-review/review-navigation.js'
 import { useHerdrStatuses } from '../ticket/herdr-statuses-context.js'
 import { LauncherConfigContext } from '../launcher/shared-launcher-config-storage.js'
 import { ProjectLauncherConfigContext } from '../launcher/project-launcher-config-storage.js'
@@ -684,7 +689,6 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
           </Show>
         </Show>
       </Errored>
-
 
       <ReviewAgentStatusContext
         value={{

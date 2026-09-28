@@ -453,7 +453,12 @@ export function createAgentWorktreeManager(launcherConfig: LauncherConfigManager
     return false
   }
 
-  async function isBranchContentIntegrated(projectPath: string, branchName: string, targetRef: string, targetTree: string): Promise<boolean> {
+  async function isBranchContentIntegrated(
+    projectPath: string,
+    branchName: string,
+    targetRef: string,
+    targetTree: string,
+  ): Promise<boolean> {
     const result = await writeMergeTree(commands, 'agent-worktree.merge-tree', projectPath, {
       mainBranch: targetRef,
       branch: branchName,

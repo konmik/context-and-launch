@@ -133,7 +133,10 @@ describe('DiffReviewStore', () => {
     const { store } = createStore()
     const item = store.enqueue('project', 'st-1-ticket', 'old-worktree', 'Feedback', promptSnapshot('src/a.ts'))
     store.beginDelivery('project', 'st-1-ticket', 'old-worktree', item.id)
-    store.failDelivery('project', 'st-1-ticket', 'old-worktree', item.id, { title: 'Review delivery failed', description: 'delivery failed' })
+    store.failDelivery('project', 'st-1-ticket', 'old-worktree', item.id, {
+      title: 'Review delivery failed',
+      description: 'delivery failed',
+    })
     expect(store.getTicket('project', 'st-1-ticket', 'old-worktree').queue.items[0].state).toBe('error')
     store.retry('project', 'st-1-ticket', 'old-worktree', item.id)
     expect(store.getTicket('project', 'st-1-ticket', 'old-worktree').queue.items[0].state).toBe('waiting')

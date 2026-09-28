@@ -25,7 +25,11 @@ export async function saveCommandTemplates(json: string, owner: string): Promise
   'use server'
 
   try {
-    if (!owner) return failure({ title: 'Save failed', description: 'Configuration update requires a client identity.' })
+    if (!owner)
+      return failure({
+        title: 'Save failed',
+        description: 'Configuration update requires a client identity.',
+      })
     return success(commandTemplateStore.write(JSON.parse(json), owner))
   } catch (error) {
     return failure(errorPayload(error, 'Save command templates failed'))

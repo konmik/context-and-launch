@@ -140,7 +140,6 @@ export default function ProjectLauncherDialog(props: {
           </div>
         </FloatingPanelBody>
       </FloatingWindow>
-
     </>
   )
 }

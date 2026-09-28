@@ -216,6 +216,7 @@ export function ProjectPageContent(props: { ctrl?: ProjectPageController }): JSX
     errors.enqueueToast(result.error)
   })
   const reportedDeliveryErrors = new Map<string, Set<string>>()
+
   async function reconcileReviewErrors(currentProjectSlug: string): Promise<void> {
     try {
       const result = await reconcileReviewPromptQueue(currentProjectSlug)
@@ -235,6 +236,7 @@ export function ProjectPageContent(props: { ctrl?: ProjectPageController }): JSX
       errors.enqueueToast(errorPayload(cause, 'Review queue reconciliation failed'))
     }
   }
+
   createEffect(
     () => (deferredPollsReady() ? projectSlug() : ''),
     (currentProjectSlug) => {
@@ -292,7 +294,6 @@ export function ProjectPageContent(props: { ctrl?: ProjectPageController }): JSX
   createEffect(currentProjectName, (name) => {
     if (name) document.title = `${name} - Context & Launch`
   })
-
   let addProjectDialogRef: HTMLDivElement | undefined
   useModEnterSubmit({
     onSubmit: () => {

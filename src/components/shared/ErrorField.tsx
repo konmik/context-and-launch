@@ -7,6 +7,9 @@ import { FieldErrorMessage } from './FieldErrorMessage.js'
 export function ErrorField(props: { field: string }): JSX.Element {
   const scope = useContext(ErrorPresentationContext)
   const [error, setError] = createSignal<UserFacingError>()
-  createEffect(() => props.field, (field) => scope.register(field, setError))
+  createEffect(
+    () => props.field,
+    (field) => scope.register(field, setError),
+  )
   return <FieldErrorMessage error={error()} />
 }

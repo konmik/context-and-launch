@@ -37,7 +37,12 @@ export async function reconcileReviewPromptQueue(projectSlug: string): Promise<R
     const failures: ReviewDeliveryFailure[] = []
     for (const [folderName, ticket] of Object.entries(diffReviewStore.loadProject(projectSlug).tickets)) {
       for (const item of ticket.queue.items) {
-        if (item.state === 'error' || item.state === 'uncertain') failures.push({ folderName, itemId: item.id, error: item.error })
+        if (item.state === 'error' || item.state === 'uncertain')
+          failures.push({
+            folderName,
+            itemId: item.id,
+            error: item.error,
+          })
       }
     }
     return success(failures)

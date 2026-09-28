@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { buildBinaryReviewFile, buildReviewFile, buildReviewPromptSnapshot, reviewSelectionStillExists } from '../../../src/core/diff-review/diff-review-model.js'
+import {
+  buildBinaryReviewFile,
+  buildReviewFile,
+  buildReviewPromptSnapshot,
+  reviewSelectionStillExists,
+} from '../../../src/core/diff-review/diff-review-model.js'
 
 function numberedLines(count: number): string {
   return Array.from(
