@@ -1,12 +1,15 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { stripVTControlCharacters } from 'node:util'
 import { removeTempDir } from '../test-temp.js'
 import { pickPort } from './test-port.js'
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
 const SERVER_ENTRY = path.join(PROJECT_ROOT, 'scripts', 'serve.mjs')
+
+export type RealServerMode = 'production' | 'development'
 
 export interface RealServer {
   process: ChildProcess
@@ -17,9 +20,16 @@ async function startRealServerOnce(
   port: number,
   dataDir: string,
   extraEnv: NodeJS.ProcessEnv,
+  mode: RealServerMode,
 ): Promise<RealServer | StartRealServerOnceResult> {
   const baseUrl = `http://127.0.0.1:${port}`
-  const proc = spawn(process.execPath, [SERVER_ENTRY], {
+  const args =
+    mode === 'development'
+      ? [path.join(PROJECT_ROOT, 'node_modules', 'vite', 'bin', 'vite.js'), '--host', '127.0.0.1', '--port', String(port), '--strictPort']
+      : [SERVER_ENTRY]
+  const readyMessage = mode === 'development' ? baseUrl : `Listening on ${baseUrl}`
+  const proc = spawn(process.execPath, args, {
+    cwd: PROJECT_ROOT,
     env: {
       ...process.env,
       PORT: String(port),
@@ -51,7 +61,7 @@ async function startRealServerOnce(
     }
     const onData = (chunk: Buffer) => {
       stdout += chunk.toString()
-      if (!stdout.includes(`Listening on http://127.0.0.1:${port}`)) return
+      if (!stripVTControlCharacters(stdout).includes(readyMessage)) return
       cleanup()
       resolve({
         process: proc,
@@ -69,12 +79,17 @@ async function startRealServerOnce(
   })
 }
 
-export async function startRealServer(port: number, dataDir: string, extraEnv: NodeJS.ProcessEnv = {}): Promise<RealServer> {
+export async function startRealServer(
+  port: number,
+  dataDir: string,
+  extraEnv: NodeJS.ProcessEnv = {},
+  mode: RealServerMode = 'production',
+): Promise<RealServer> {
   const maxAttempts = 5
   let currentPort = port
   let lastStderr = ''
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const res = await startRealServerOnce(currentPort, dataDir, extraEnv)
+    const res = await startRealServerOnce(currentPort, dataDir, extraEnv, mode)
     if (!('addrInUse' in res)) return res
     lastStderr = res.stderr
     currentPort = pickPort()

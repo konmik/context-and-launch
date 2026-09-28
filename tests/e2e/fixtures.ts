@@ -6,7 +6,7 @@ import os from 'node:os'
 import { afterAll, afterEach, beforeAll, beforeEach, expect, inject } from 'vitest'
 import { chromium, type Browser, type Locator, type Page } from 'playwright'
 import { pickPort } from './test-port.js'
-import { startRealServer, stopRealServer } from './real-server.js'
+import { startRealServer, stopRealServer, type RealServerMode } from './real-server.js'
 import type { ProjectTemplate } from './project-template.js'
 import { TASKS_BRANCH, commitAll, git, initGitRepo } from './git-fixtures.js'
 import { testId, waitVisible, waitVisibleAny, WAIT_TIMEOUT_MS } from './locators.js'
@@ -42,6 +42,7 @@ export interface TestServer extends ProjectDirs {
 }
 
 export interface CreateServerOptions {
+  mode?: RealServerMode
   env?: NodeJS.ProcessEnv
   dataDirPrefix?: string
   /** Command template overrides layered over the defaults this fixture writes. */
@@ -82,7 +83,7 @@ export async function createServer(opts: CreateServerOptions = {}): Promise<Test
     CONTEXT_OPEN_IN_OS_STUB: '__noop__',
     ...opts.env,
   }
-  const server = await startRealServer(startPort, dataDir, safeEnv).catch(async (error) => {
+  const server = await startRealServer(startPort, dataDir, safeEnv, opts.mode).catch(async (error) => {
     await removeTempDir(dataDir)
     throw error
   })

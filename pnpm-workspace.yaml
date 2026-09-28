@@ -2,7 +2,7 @@ saveExact: true
 nodeLinker: hoisted
 
 overrides:
-  '@solidjs/signals': 2.0.0-rc.5
+  '@solidjs/signals': 2.0.0-rc.9
   '@solidjs/vite-plugin>babel-preset-solid': 2.0.0-rc.1
   '@codemirror/commands': 6.10.4
   '@codemirror/view': 6.43.8

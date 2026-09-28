@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@solidjs/signals': 2.0.0-rc.5
+  '@solidjs/signals': 2.0.0-rc.9
   '@solidjs/vite-plugin>babel-preset-solid': 2.0.0-rc.1
   '@codemirror/commands': 6.10.4
   '@codemirror/view': 6.43.8
@@ -1320,8 +1320,9 @@ packages:
       '@solidjs/web': ^2.0.0-rc.0
       solid-js: ^2.0.0-rc.0
 
-  '@solidjs/signals@2.0.0-rc.5':
-    resolution: {integrity: sha512-Ks+97LbyN2vYqPEHWpy2YY+MYgoSCge0kHOUFN/Bzdz1Ex/M9Is1HIyBZGBVhf5y35394List5WWlU44yEnm4w==}
+  '@solidjs/signals@2.0.0-rc.9':
+    resolution: {integrity: sha512-o3pqiTgpH5NR2DstiKrt9s/6+0YOFtv+MfvLONwLsS247I+EWMMyTu9BkRcgd35UR5Pa1DM16lI1/5uaIMY6Gw==}
+    engines: {node: '>=22.12.0'}
 
   '@solidjs/vite-plugin@3.0.0-next.31':
     resolution: {integrity: sha512-iS9zz4MdzQwZyXGtEYKxFu9fHjX6fs0CWWQTQZ54xaaPKPOcv1sXJtxZ+th7EsmGlmeUNP0jBYoB9qxkd47tiQ==}
@@ -4672,7 +4673,7 @@ snapshots:
       '@solidjs/web': 2.0.0-rc.1(solid-js@2.0.0-rc.1)
       solid-js: 2.0.0-rc.1
 
-  '@solidjs/signals@2.0.0-rc.5': {}
+  '@solidjs/signals@2.0.0-rc.9': {}
 
   '@solidjs/vite-plugin@3.0.0-next.31(@solidjs/web@2.0.0-rc.1(solid-js@2.0.0-rc.1))(@testing-library/jest-dom@6.9.1)(solid-js@2.0.0-rc.1)(supports-color@7.2.0)(vite@7.3.5(@types/node@25.9.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4))':
     dependencies:
@@ -6535,7 +6536,7 @@ snapshots:
 
   solid-js@2.0.0-rc.1:
     dependencies:
-      '@solidjs/signals': 2.0.0-rc.5
+      '@solidjs/signals': 2.0.0-rc.9
       csstype: 3.2.3
       seroval: 1.5.6
       seroval-plugins: 1.5.6(seroval@1.5.6)
