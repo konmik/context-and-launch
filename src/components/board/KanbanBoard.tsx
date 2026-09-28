@@ -1,5 +1,5 @@
 import type { JSX } from '@solidjs/web'
-import { For, Show, useContext } from 'solid-js'
+import { createMemo, For, Show, useContext } from 'solid-js'
 import { useErrorReporter } from '../shared/error-presentation.js'
 import { revalidate } from '@solidjs/router'
 import { TaskOrderContext } from './task-order-storage.js'
@@ -20,6 +20,7 @@ import { createBoardDnd } from './board-state.js'
 import type { Accessor } from 'solid-js'
 import type { DragState } from './board-state.js'
 import { openTaskFolder, updateTask } from '../task/task-api.js'
+import { success } from '~/util/result.js'
 
 interface KanbanBoardProps {
   board: BoardState
@@ -35,34 +36,43 @@ interface KanbanBoardProps {
 export default function KanbanBoard(props: KanbanBoardProps): JSX.Element {
   const order = useContext(TaskOrderContext)!
   const errors = useErrorReporter()
-  const dnd = createBoardDnd(() => ({
-    ...props.board,
-    taskOrder: order.get(),
-  }))
-  const board = dnd.board
-  const drag = props.dragState ?? dnd.drag
-  const activeTask = props.activeTask ?? dnd.activeTask
-  const commands = dnd.commands
+  const projectSlug = createMemo(() => props.projectSlug)
+  const dnd = createMemo(() => {
+    projectSlug()
+    return createBoardDnd(() => ({
+      ...props.board,
+      taskOrder: order.get(),
+    }))
+  })
+  const board = () => dnd().board()
+  const drag = props.dragState ?? (() => dnd().drag())
+  const activeTask = props.activeTask ?? (() => dnd().activeTask())
+  let dropSaveQueue = Promise.resolve()
 
-  async function saveDrop(drop: DropResult) {
-    const projectSlug = props.projectSlug
-    if (drop.fromColumn !== drop.toColumn) {
-      const status = await updateTask(projectSlug, drop.folderName, null, null, drop.toColumn)
-      if (props.projectSlug !== projectSlug) return
-      if (status.type === 'Failure') {
-        errors.enqueueToast(status.error)
-        return
+  function enqueueDropSave(drop: DropResult) {
+    const savingProjectSlug = props.projectSlug
+    const session = dnd()
+    dropSaveQueue = dropSaveQueue.then(() => errors.runAndReportErrors(async () => {
+      try {
+        if (dnd() !== session) return success(undefined)
+        if (props.board.tasks.find((task) => task.folderName === drop.folderName)?.status !== drop.toColumn) {
+          const status = await updateTask(savingProjectSlug, drop.folderName, null, null, drop.toColumn)
+          if (status.type === 'Failure') return status
+          if (dnd() !== session) return success(undefined)
+        }
+        const result = await order.update((current) => moveTaskInOrder(current, drop.folderName, drop.fromColumn, drop.toColumn, drop.newIndex))
+        await revalidate(taskMutationRevalidateKeys)
+        return result
+      } finally {
+        session.commands.removePendingDrop(drop)
       }
-    }
-    const result = await order.update((current) => moveTaskInOrder(current, drop.folderName, drop.fromColumn, drop.toColumn, drop.newIndex))
-    if (result.type === 'Failure') errors.enqueueToast(result.error)
-    await revalidate(taskMutationRevalidateKeys)
+    }))
   }
 
   const openFolder = (task: TaskInfo) => {
     void errors.runAndReportErrors(() => openTaskFolder(props.projectSlug, task.folderName))
   }
-  const tasksFor = (column: string) => resolveTasksForColumn(column, order.get(), board().taskMap, board().orphanFolderNames)
+  const tasksFor = (column: string) => resolveTasksForColumn(column, board().taskOrder, board().taskMap, board().orphanFolderNames)
   let headerRow!: HTMLDivElement
   let scrollBody!: HTMLDivElement
   const syncHeaderScroll = () => {
@@ -70,11 +80,11 @@ export default function KanbanBoard(props: KanbanBoardProps): JSX.Element {
   }
   return (
     <DragDropProvider
-      onDragStart={(e) => commands.startDrag(String(e.draggable.id))}
-      onDragMove={(e) => commands.handleDragMove(e)}
+      onDragStart={(e) => dnd().commands.startDrag(String(e.draggable.id))}
+      onDragMove={(e) => dnd().commands.handleDragMove(e)}
       onDragEnd={() => {
-        const drop = commands.endDrag()
-        if (drop) void saveDrop(drop)
+        const drop = dnd().commands.endDrag()
+        if (drop) enqueueDropSave(drop)
       }}
     >
       <div class="flex min-h-0 flex-1 flex-col">
@@ -116,7 +126,7 @@ export default function KanbanBoard(props: KanbanBoardProps): JSX.Element {
                 <ColumnBody
                   column={column}
                   tasks={tasksFor(column.name)}
-                  registerRef={(el) => commands.registerColumnRef(column.name, el)}
+                  registerRef={dnd().commands.registerColumnRef}
                   activeId={drag().activeId}
                   activeTask={activeTask()}
                   hoverTarget={drag().hoverTarget}

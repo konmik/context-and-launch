@@ -1,5 +1,5 @@
 import type { JSX } from '@solidjs/web'
-import { For, Show } from 'solid-js'
+import { createEffect, For, Show } from 'solid-js'
 import type { TaskInfo } from '~/core/task/task-store.js'
 import type { ColumnDefinition } from '~/core/project/board-config.js'
 import { resolvePreviewInsertBefore } from './drop-index.js'
@@ -14,9 +14,14 @@ export function ColumnBody(
   props: TaskColumnProps & {
     column: ColumnDefinition
     tasks: TaskInfo[]
-    registerRef: (el: HTMLDivElement) => void
+    registerRef: (column: string, el: HTMLDivElement) => () => void
   },
 ): JSX.Element {
+  let columnRef!: HTMLDivElement
+  createEffect(
+    () => ({ column: props.column.name, register: props.registerRef }),
+    ({ column, register }) => register(column, columnRef),
+  )
   const sourceIndexInColumn = () => {
     const aid = props.activeId
     if (!aid) return null
@@ -28,7 +33,7 @@ export function ColumnBody(
   const previewAt = () => resolvePreviewInsertBefore(props.hoverTarget, props.column.name, sourceIndexInColumn())
   return (
     <div class={COLUMN_CELL_CLASS} data-testid="kanban-board-column-body" data-column-name={props.column.name}>
-      <div ref={(el) => props.registerRef(el)} class="flex flex-1 flex-col gap-2 pb-4">
+      <div ref={columnRef} class="flex flex-1 flex-col gap-2 pb-4">
         <For each={props.tasks} keyed={(task) => task.folderName}>
           {(task, i) => (
             <>

@@ -313,7 +313,7 @@ describe('createBoardDnd endDrag', () => {
       dispose()
     })
   })
-  it('leaves persisted order with its owner after drop', () => {
+  it('shows the dropped position immediately while persisted order is still unchanged', () => {
     createRoot((dispose) => {
       const tasks = [
         makeTask({
@@ -326,7 +326,7 @@ describe('createBoardDnd endDrag', () => {
         }),
       ]
       const [b] = createSignal(makeBoard(tasks))
-      const { currentOrder, commands } = createBoardDnd(b)
+      const { board, commands } = createBoardDnd(b)
       invoke(() => commands.startDrag('todo:t-1-alpha'))
       invoke(() =>
         commands.updateHover({
@@ -335,13 +335,56 @@ describe('createBoardDnd endDrag', () => {
         }),
       )
       invoke(commands.endDrag)
-      expect(currentOrder()['todo']).toEqual(['t-1-alpha'])
-      expect(currentOrder()['done']).toEqual(['t-2-bravo'])
+      expect(board().taskOrder['todo']).toEqual([])
+      expect(board().taskOrder['done']).toEqual(['t-2-bravo', 't-1-alpha'])
+      expect(b().taskOrder['todo']).toEqual(['t-1-alpha'])
+      expect(b().taskOrder['done']).toEqual(['t-2-bravo'])
       dispose()
     })
   })
 })
 describe('createBoardDnd server sync', () => {
+  it('keeps status and order together across stale refreshes, then rolls back a failed drop', () => {
+    createRoot((dispose) => {
+      const task = makeTask({ folderName: 't-1-alpha', status: 'removed-column' })
+      const [b, setB] = createSignal(makeBoard([task]))
+      const { board, commands } = createBoardDnd(b)
+      invoke(() => commands.startDrag('undefined:t-1-alpha'))
+      invoke(() => commands.updateHover({ column: 'done', index: 0 }))
+      const drop = invoke(commands.endDrag)!
+      invoke(() => setB(makeBoard([task])))
+      expect(board().taskOrder['done']).toEqual(['t-1-alpha'])
+      expect(board().taskMap.get('t-1-alpha')?.status).toBe('done')
+      expect(board().orphanedTasks).toEqual([])
+      invoke(() => commands.removePendingDrop(drop))
+      expect(board().taskOrder['done']).toEqual([])
+      expect(board().orphanedTasks.map((item) => item.folderName)).toEqual(['t-1-alpha'])
+      dispose()
+    })
+  })
+  it('keeps a newer drop visible when an earlier drop settles', () => {
+    createRoot((dispose) => {
+      const task = makeTask({ folderName: 't-1-alpha' })
+      const [b, setB] = createSignal(makeBoard([task]))
+      const { board, commands } = createBoardDnd(b)
+      invoke(() => commands.startDrag('todo:t-1-alpha'))
+      invoke(() => commands.updateHover({ column: 'done', index: 0 }))
+      const first = invoke(commands.endDrag)!
+      invoke(() => commands.startDrag('done:t-1-alpha'))
+      invoke(() => commands.updateHover({ column: 'todo', index: 0 }))
+      const second = invoke(commands.endDrag)!
+      invoke(() => setB(makeBoard([{ ...task, status: 'done' }])))
+      invoke(() => commands.removePendingDrop(first))
+      expect(board().taskOrder['todo']).toEqual(['t-1-alpha'])
+      expect(board().taskOrder['done']).toEqual([])
+      expect(board().taskMap.get('t-1-alpha')?.status).toBe('todo')
+      invoke(() => setB(makeBoard([task])))
+      invoke(() => commands.removePendingDrop(second))
+      expect(board().taskOrder['todo']).toEqual(['t-1-alpha'])
+      expect(board().taskOrder['done']).toEqual([])
+      dispose()
+    })
+  })
   it('reads replacement task order', () => {
     createRoot((dispose) => {
       const tasks = [
@@ -359,7 +402,7 @@ describe('createBoardDnd server sync', () => {
         }),
       ]
       const [b, setB] = createSignal(makeBoard(tasks))
-      const { currentOrder, commands } = createBoardDnd(b)
+      const { board, commands } = createBoardDnd(b)
       invoke(() => commands.startDrag('todo:t-1-alpha'))
       invoke(() =>
         commands.updateHover({
@@ -367,8 +410,8 @@ describe('createBoardDnd server sync', () => {
           index: 0,
         }),
       )
-      invoke(commands.endDrag)
-      expect(currentOrder()['done']).toEqual(['t-2-bravo', 't-3-charlie'])
+      const drop = invoke(commands.endDrag)!
+      expect(board().taskOrder['done']).toEqual(['t-1-alpha', 't-2-bravo', 't-3-charlie'])
       const serverOrder = {
         todo: [],
         done: ['t-3-charlie', 't-1-alpha', 't-2-bravo'],
@@ -380,7 +423,8 @@ describe('createBoardDnd server sync', () => {
           taskOrder: serverOrder,
         }),
       )
-      expect(currentOrder()['done']).toEqual(['t-3-charlie', 't-1-alpha', 't-2-bravo'])
+      invoke(() => commands.removePendingDrop(drop))
+      expect(board().taskOrder['done']).toEqual(['t-3-charlie', 't-1-alpha', 't-2-bravo'])
       dispose()
     })
   })
