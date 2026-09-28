@@ -5,6 +5,51 @@
 @import '@fontsource/jetbrains-mono/700.css';
 @import 'tailwindcss';
 
+.worktree-select,
+.worktree-select::picker(select) {
+  appearance: base-select;
+}
+
+.worktree-select {
+  display: block;
+}
+
+.worktree-select::picker-icon {
+  display: none;
+}
+
+.worktree-select::picker(select) {
+  width: anchor-size(width);
+  min-width: anchor-size(width);
+  max-width: anchor-size(width);
+  box-sizing: border-box;
+  border: 1px solid var(--input);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.worktree-select option {
+  display: block;
+  overflow: hidden;
+  padding: 0.5rem;
+  direction: rtl;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.worktree-select option::checkmark {
+  display: none;
+}
+
+.worktree-select option:checked,
+.worktree-select option:hover,
+.worktree-select option:focus-visible {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

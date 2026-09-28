@@ -6,7 +6,7 @@ import type { ConfigPaths } from '../config/config-paths.js'
 import type { ConfigRepository } from '../config/config-repository.js'
 import { requireSafeSlug } from '../config/config-paths.js'
 import { createUpdateLock, type UpdateLock } from '~/util/update-lock.js'
-import { getReviewTicketState } from './diff-review-types.js'
+import { getReviewTicketState, withReviewTicketState } from './diff-review-types.js'
 import type { DiffReviewProjectState, DiffReviewTicketState, ReviewPromptQueueItem, ReviewPromptSnapshot } from './diff-review-types.js'
 
 const PromptLineSchema = v.object({
@@ -101,6 +101,7 @@ const TicketStateSchema = v.object({
 const ProjectStateSchema = v.object({
   version: v.literal(2),
   tickets: v.record(v.string(), TicketStateSchema),
+  worktrees: v.optional(v.record(v.string(), v.record(v.string(), TicketStateSchema))),
 })
 
 const LegacyProjectStateSchema = v.object({
@@ -165,7 +166,7 @@ export interface DiffReviewStore {
   acknowledgeSent(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string): DiffReviewTicketState
   reserveAgentLaunch(projectSlug: string, folderName: string, worktreeIdentity: string, reservedUntil: Date): DiffReviewTicketState
   recoverInterrupted(projectSlug: string): void
-  removeTicket(projectSlug: string, folderName: string): Promise<void>
+  removeTicket(projectSlug: string, folderName: string, worktreeIdentity?: string): Promise<void>
   updateTicket(
     projectSlug: string,
     folderName: string,
@@ -413,7 +414,7 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
     lock(projectSlug).write(() => {
       const project = loadProject(projectSlug)
       let changed = false
-      for (const ticket of Object.values(project.tickets)) {
+      for (const ticket of [...Object.values(project.tickets), ...Object.values(project.worktrees ?? {}).flatMap(Object.values)]) {
         for (let index = 0; index < ticket.queue.items.length; index += 1) {
           const item = ticket.queue.items[index]
           if (item.state !== 'delivering') continue
@@ -431,12 +432,13 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
     })
   }
 
-  async function removeTicket(projectSlug: string, folderName: string): Promise<void> {
+  async function removeTicket(projectSlug: string, folderName: string, worktreeIdentity?: string): Promise<void> {
     requireSafeSlug(folderName)
     await lock(projectSlug).writeWhenAvailable(() => {
       const project = loadProject(projectSlug)
-      if (!Object.hasOwn(project.tickets, folderName)) return
-      delete project.tickets[folderName]
+      if (!worktreeIdentity || project.tickets[folderName]?.worktreeIdentity === worktreeIdentity) delete project.tickets[folderName]
+      if (!worktreeIdentity) delete project.worktrees?.[folderName]
+      else if (project.worktrees?.[folderName]) delete project.worktrees[folderName][worktreeIdentity]
       repository.writeJson(paths.diffReviewStateFile(projectSlug), project)
     })
   }
@@ -456,13 +458,7 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
         if (updated.worktreeIdentity !== worktreeIdentity) {
           throw new Error('The Ticket worktree changed. Refresh Diff Review.')
         }
-        return {
-          ...project,
-          tickets: {
-            ...project.tickets,
-            [folderName]: updated,
-          },
-        }
+        return withReviewTicketState(project, folderName, updated)
       },
       owner,
     ).tickets[folderName]

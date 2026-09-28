@@ -62,7 +62,7 @@ describe('Ticket detail editor panel and saving (e2e, real server)', () => {
     )
     expect(content?.includes('appended text')).toBe(true)
   })
-  it('ticket-detail-use-worktree-checkbox persists useWorktree to status.json', async () => {
+  it('Add worktree preserves existing worktrees and persists the selected launch target', async () => {
     const project = await seedProject(ctx, {
       slugBase: 'tde-wt',
       withTickets: [
@@ -97,14 +97,26 @@ describe('Ticket detail editor panel and saving (e2e, real server)', () => {
     )
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
     await openTicketDetail(ctx.page, 't-1-alpha')
-    await waitVisible(ctx.page, 'ticket-detail-use-worktree-checkbox')
-    await ctx.page.check('[data-testid="ticket-detail-use-worktree-checkbox"]')
+    await ctx.page.getByRole('button', { name: 'Add worktree', exact: true }).click()
     const status = await poll(
       () => readTicketStatus(ctx.testServer, project.projectSlug, 't-1-alpha'),
       (s) => s?.useWorktree === true,
       5000,
     )
     expect(status?.useWorktree).toBe(true)
+    const targets = ctx.page.getByRole('combobox', { name: 'Launch target', exact: true })
+    await expect.poll(() => targets.locator('option').count()).toBe(2)
+    const firstPath = await targets.inputValue()
+    expect(fs.existsSync(path.join(firstPath, '.git'))).toBe(true)
+    await ctx.page.getByRole('button', { name: 'Add worktree', exact: true }).click()
+    await expect.poll(() => targets.locator('option').count()).toBe(3)
+    const secondPath = await targets.inputValue()
+    expect(secondPath).not.toBe(firstPath)
+    expect(fs.existsSync(path.join(secondPath, '.git'))).toBe(true)
+    await targets.selectOption(firstPath)
+    await expect.poll(() => targets.inputValue()).toBe(firstPath)
+    await expect.poll(() => readTicketStatus(ctx.testServer, project.projectSlug, 't-1-alpha')?.agentWorktreeDir).toBe(firstPath)
+    expect(fs.existsSync(path.join(secondPath, '.git'))).toBe(true)
   })
   it('editing title persists it and subsequent updates use the renamed folder', async () => {
     const project = await setupEditorTicket(ctx, 'edit-title')
@@ -125,7 +137,7 @@ describe('Ticket detail editor panel and saving (e2e, real server)', () => {
     await expect
       .poll(() => readContextFile(ctx.testServer, project.projectSlug, 't-1-renamed', 'description'))
       .toBe('Saved with renamed ticket')
-    await testId(ctx.page, 'ticket-detail-use-worktree-checkbox').check()
+    await ctx.page.getByRole('button', { name: 'Add worktree', exact: true }).click()
     await expect.poll(async () => (await readTicketStatus(ctx.testServer, project.projectSlug, 't-1-renamed'))?.useWorktree).toBe(true)
   })
   it('editing number and clicking Save persists it', async () => {

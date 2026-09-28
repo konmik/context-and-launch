@@ -2,7 +2,7 @@ import type { SourceAccessor } from 'solid-js'
 import { createContext, createMemo, createSignal, type Accessor } from 'solid-js'
 import type { StoredSignal } from '~/util/stored-signal.js'
 import type { UserFacingError } from '~/util/user-facing-error.js'
-import { getReviewTicketState, type DiffReviewProjectState } from '~/core/diff-review/diff-review-types.js'
+import { getReviewTicketState, withReviewTicketState, type DiffReviewProjectState } from '~/core/diff-review/diff-review-types.js'
 import type { readReviewAgentStatus } from './diff-review-state-api.js'
 
 export const DiffReviewContext = createContext<StoredSignal<DiffReviewProjectState>>()
@@ -44,27 +44,21 @@ export function createReviewedLineTracker(options: {
         const reviewedAt = new Date().toISOString()
         const result = await state.update((current) => {
           const ticket = getReviewTicketState(current, folderName, worktreeIdentity)
-          return {
-            ...current,
-            tickets: {
-              ...current.tickets,
-              [folderName]: {
-                ...ticket,
-                reviewedLines: {
-                  ...ticket.reviewedLines,
-                  ...Object.fromEntries(
-                    batch.map(([id, path]) => [
-                      id,
-                      {
-                        path,
-                        reviewedAt,
-                      },
-                    ]),
-                  ),
-                },
-              },
+          return withReviewTicketState(current, folderName, {
+            ...ticket,
+            reviewedLines: {
+              ...ticket.reviewedLines,
+              ...Object.fromEntries(
+                batch.map(([id, path]) => [
+                  id,
+                  {
+                    path,
+                    reviewedAt,
+                  },
+                ]),
+              ),
             },
-          }
+          })
         })
         for (const [id] of batch) pending.delete(id)
         publish()

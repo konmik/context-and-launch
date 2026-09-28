@@ -3,17 +3,18 @@ import fs from 'fs'
 import path from 'path'
 import { git } from '../../test-git.js'
 import { makeCleanupEnv } from './worktree-cleanup.test-utils.js'
+import { cleanupWorktree } from '../../../src/core/worktree/worktree-cleanup.js'
 
 describe('WorktreeCleanupService', () => {
   const { setup, cleanupAll } = makeCleanupEnv()
   afterAll(cleanupAll)
   it.concurrent('cleanup with deleteWorktree and deleteLocalBranch removes both', async () => {
-    const { projectDir, awm, service } = setup()
+    const { projectDir, awm } = setup()
     const folderName = 'st-cleanup-both'
     const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', folderName)
     expect(result.type).toBe('Success')
     if (result.type === 'Failure') return
-    await service.cleanup(projectDir, folderName, result.value.worktreePath, {
+    await cleanupWorktree(awm, projectDir, folderName, result.value.worktreePath, {
       deleteWorktree: true,
       deleteLocalBranch: true,
       deleteRemoteBranch: false,
@@ -23,13 +24,13 @@ describe('WorktreeCleanupService', () => {
     expect(branchList.trim()).toBe('')
   })
   it.concurrent('cleanup removes a folder that is no longer a git worktree', async () => {
-    const { projectDir, awm, service } = setup()
+    const { projectDir, awm } = setup()
     const folderName = 'st-cleanup-notgit'
     const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', folderName)
     expect(result.type).toBe('Success')
     if (result.type === 'Failure') return
     fs.rmSync(path.join(result.value.worktreePath, '.git'))
-    await service.cleanup(projectDir, folderName, result.value.worktreePath, {
+    await cleanupWorktree(awm, projectDir, folderName, result.value.worktreePath, {
       deleteWorktree: true,
       deleteLocalBranch: false,
       deleteRemoteBranch: false,
@@ -37,12 +38,12 @@ describe('WorktreeCleanupService', () => {
     expect(fs.existsSync(result.value.worktreePath)).toBe(false)
   })
   it.concurrent('cleanup removes an unregistered folder that is not a git worktree', async () => {
-    const { projectDir, worktreeRoot, service } = setup()
+    const { projectDir, worktreeRoot, awm } = setup()
     const folderName = 'st-cleanup-unregistered'
     const worktreePath = path.join(worktreeRoot, folderName)
     fs.mkdirSync(worktreePath)
     fs.writeFileSync(path.join(worktreePath, 'left-behind.txt'), 'left behind')
-    await service.cleanup(projectDir, folderName, worktreePath, {
+    await cleanupWorktree(awm, projectDir, folderName, worktreePath, {
       deleteWorktree: true,
       deleteLocalBranch: false,
       deleteRemoteBranch: false,
@@ -50,13 +51,14 @@ describe('WorktreeCleanupService', () => {
     expect(fs.existsSync(worktreePath)).toBe(false)
   })
   it.concurrent('cleanup with only deleteLocalBranch skips worktree removal', async () => {
-    const { projectDir, awm, service } = setup()
+    const { projectDir, awm } = setup()
     const folderName = 'st-cleanup-branchonly'
     const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', folderName)
     expect(result.type).toBe('Success')
     if (result.type === 'Failure') return
     await awm.removeWorktree(projectDir, result.value.worktreePath)
-    await service.cleanup(
+    await cleanupWorktree(
+      awm,
       projectDir,
       folderName,
       result.value.worktreePath,
@@ -71,12 +73,13 @@ describe('WorktreeCleanupService', () => {
     expect(branchList.trim()).toBe('')
   })
   it.concurrent('cleanup with all options false is a no-op', async () => {
-    const { projectDir, awm, service } = setup()
+    const { projectDir, awm } = setup()
     const folderName = 'st-cleanup-noop'
     const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', folderName)
     expect(result.type).toBe('Success')
     if (result.type === 'Failure') return
-    await service.cleanup(
+    await cleanupWorktree(
+      awm,
       projectDir,
       folderName,
       result.value.worktreePath,

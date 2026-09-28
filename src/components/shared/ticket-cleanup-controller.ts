@@ -1,5 +1,5 @@
 import type { SourceAccessor } from 'solid-js'
-import { createSignal } from 'solid-js'
+import { createSignal, onSettled } from 'solid-js'
 import type { Result } from '~/util/result.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
 import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
@@ -42,6 +42,13 @@ export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCl
   let requestToken = 0
   let lifecycleToken = 0
 
+  function invalidateRequests(): void {
+    lifecycleToken++
+    requestToken++
+  }
+
+  onSettled(() => invalidateRequests)
+
   async function startChecks(): Promise<void> {
     const ticket = deps.ticket()
     if (!ticket) return
@@ -82,9 +89,11 @@ export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCl
   async function doSubmit() {
     const ticket = deps.ticket()
     if (!ticket || busy()) return
+    const token = lifecycleToken
     setSubmitting(true)
     try {
       const result = await deps.onSubmit(ticket.folderName)
+      if (token !== lifecycleToken) return
       if (result.type === 'Failure') deps.onError(result.error)
       else close()
     } catch (err) {
@@ -120,10 +129,12 @@ export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCl
   async function openKillDialog(): Promise<void> {
     const ticket = deps.ticket()
     if (!ticket) return
+    const token = lifecycleToken
     setKillDialogOpen(true)
     setLockingProcesses(undefined)
     try {
       const processes = await deps.loadLockingProcesses(deps.projectSlug(), ticket.folderName)
+      if (token !== lifecycleToken) return
       setLockingProcesses(processes)
     } catch (err) {
       setLockingProcesses([])
@@ -184,8 +195,7 @@ export function createTicketCleanupController(deps: TicketCleanupDeps): TicketCl
   }
 
   function close() {
-    lifecycleToken++
-    requestToken++
+    invalidateRequests()
     deps.onOpenChange(false)
     setItems(allChecking())
     setRunningItem(undefined)

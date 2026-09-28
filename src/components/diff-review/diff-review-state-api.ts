@@ -6,12 +6,12 @@ import { errorPayload } from '~/core/shared/errors.js'
 import type { UserFacingError } from '~/util/user-facing-error.js'
 import { failure, success } from '~/util/result.js'
 
-export const readReviewAgentStatus = GET(async (projectSlug: string, folderName: string) => {
+export const readReviewAgentStatus = GET(async (projectSlug: string, folderName: string, worktreePath: string | null = null) => {
   'use server'
 
   return {
-    worktreeIdentity: diffReviewTargetResolver.resolve(projectSlug, folderName).worktreeIdentity,
-    agentRunning: reviewPromptQueueService.isAgentRunning(projectSlug, folderName),
+    worktreeIdentity: diffReviewTargetResolver.resolve(projectSlug, folderName, worktreePath ?? undefined).worktreeIdentity,
+    agentRunning: reviewPromptQueueService.isAgentRunning(projectSlug, folderName, worktreePath ?? undefined),
   }
 })
 
@@ -45,7 +45,7 @@ export async function saveDiffReviewState(
           const next: DiffReviewProjectState = JSON.parse(json)
           for (const [folderName, ticket] of Object.entries(next.tickets)) {
             if (JSON.stringify(ticket) === JSON.stringify(current.tickets[folderName])) continue
-            const target = diffReviewTargetResolver.resolve(projectSlug, folderName)
+            const target = diffReviewTargetResolver.resolve(projectSlug, folderName, ticket.worktreeIdentity)
             if (ticket.worktreeIdentity !== target.worktreeIdentity) {
               throw new Error('The Ticket worktree changed. Refresh Diff Review.')
             }

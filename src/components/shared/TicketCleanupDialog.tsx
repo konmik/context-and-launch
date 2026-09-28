@@ -1,6 +1,8 @@
 import type { JSX } from '@solidjs/web'
+import { revalidate } from '@solidjs/router'
 import type { Result } from '~/util/result.js'
-import { Show, For, createEffect } from 'solid-js'
+import { Show, For, createEffect, createMemo, createSignal, untrack } from 'solid-js'
+import { ticketAgentWorktrees } from '~/core/ticket/ticket-worktrees.js'
 import { X } from '~/components/ui/icons/X.js'
 import { FloatingWindow } from '../ui/FloatingWindow.js'
 import { FloatingWindowHeader } from '../ui/FloatingWindowHeader.js'
@@ -26,6 +28,7 @@ import { ForceDeleteBranchDialog } from './ForceDeleteBranchDialog.js'
 import { DialogRoot } from '../ui/DialogRoot.js'
 import { DialogTitle } from '../ui/DialogTitle.js'
 import { DialogDescription } from '../ui/DialogDescription.js'
+import { ticketMutationRevalidateKeys } from './revalidate-keys.js'
 
 interface TicketCleanupDialogProps {
   open: boolean
@@ -75,25 +78,57 @@ const rows: {
 ]
 
 export default function TicketCleanupDialog(props: TicketCleanupDialogProps): JSX.Element {
+  const sessionKey = createMemo(() => props.open && props.ticket ? JSON.stringify([props.projectSlug, props.ticket.folderName]) : undefined)
+  return (
+    <FloatingWindow
+      open={!!sessionKey()}
+      onOpenChange={(event) => props.onOpenChange(event.open)}
+      defaultSize={{ width: 600, height: 560 }}
+      minSize={{ width: 380, height: 300 }}
+      persistRect
+    >
+      <Show when={sessionKey()} keyed>
+        {(_sessionKey) => <TicketCleanupSession {...props} />}
+      </Show>
+    </FloatingWindow>
+  )
+}
+
+function TicketCleanupSession(props: TicketCleanupDialogProps): JSX.Element {
   const errors = useErrorReporter(() => props.open)
+  const worktrees = createMemo(() => props.ticket ? ticketAgentWorktrees(props.ticket).filter((worktree) => !worktree.cleanupComplete) : [])
+  const [requestedWorktreePath, setSelectedWorktreePath] = createSignal<string | undefined>(
+    untrack(() => props.ticket?.agentWorktreeDir ?? worktrees()[0]?.worktreePath),
+  )
+  const selectedWorktreePath = createMemo(() => {
+    const selectedPath = requestedWorktreePath()
+    const available = worktrees()
+    return available.some((worktree) => worktree.worktreePath === selectedPath)
+      ? selectedPath
+      : available[0]?.worktreePath ?? selectedPath
+  })
   const s = createTicketCleanupController({
     onError: errors.report,
     projectSlug: () => props.projectSlug,
     ticket: () => props.ticket,
     action: () => props.action,
-    loadStatus: getCleanupStatus,
-    onCleanup: props.onCleanup,
+    loadStatus: (projectSlug, folderName) => getCleanupStatus(projectSlug, folderName, selectedWorktreePath() ?? null),
+    onCleanup: (folderName, cleanup) => props.onCleanup(folderName, selectedWorktreePath() ? { ...cleanup, worktreePath: selectedWorktreePath() } : cleanup),
     onSubmit: props.onSubmit,
     onOpenChange: props.onOpenChange,
-    loadLockingProcesses: getWorktreeLockingProcesses,
+    loadLockingProcesses: (projectSlug, folderName) => getWorktreeLockingProcesses(projectSlug, folderName, selectedWorktreePath() ?? null),
     killLockingProcesses: killWorktreeLockingProcesses,
-    forceDeleteLocalBranch,
+    forceDeleteLocalBranch: async (projectSlug, folderName) => {
+      const result = await forceDeleteLocalBranch(projectSlug, folderName, selectedWorktreePath() ?? null)
+      await revalidate(ticketMutationRevalidateKeys)
+      return result
+    },
   })
   createEffect(
-    () => [props.open, props.ticket] as const,
-    ([open, ticket]) => {
+    selectedWorktreePath,
+    () => {
       s.closeConfirmation()
-      if (open && ticket) void s.startChecks()
+      void s.startChecks()
     },
   )
   useModEnterSubmit({
@@ -103,21 +138,6 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps): JS
   })
   return (
     <>
-      <FloatingWindow
-        open={props.open && !!props.ticket}
-        onOpenChange={(d) => {
-          if (!d.open) s.close()
-        }}
-        defaultSize={{
-          width: 600,
-          height: 560,
-        }}
-        minSize={{
-          width: 380,
-          height: 300,
-        }}
-        persistRect
-      >
         <FloatingWindowHeader
           title={<FloatingPanelTitle>{s.actionLabel()} task</FloatingPanelTitle>}
           actions={
@@ -133,6 +153,22 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps): JS
             </p>
 
             <section aria-label="Optional cleanup">
+              <Show when={worktrees().length > 0}>
+                <label class="mb-3 flex flex-col gap-1 text-sm">
+                  Cleanup target
+                  <select
+                    aria-label="Worktree to clean up"
+                    class="rounded border border-input bg-background p-2"
+                    value={selectedWorktreePath()}
+                    disabled={s.busy()}
+                    onChange={(event) => setSelectedWorktreePath(event.currentTarget.value)}
+                  >
+                    <For each={worktrees()} keyed={(worktree) => worktree.worktreePath}>
+                      {(worktree) => <option value={worktree().worktreePath}>{worktree().branchName}</option>}
+                    </For>
+                  </select>
+                </label>
+              </Show>
               <table class="w-full table-fixed text-left text-sm">
                 <colgroup>
                   <col class="w-52" />
@@ -273,7 +309,6 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps): JS
             </div>
           </form>
         </FloatingPanelBody>
-      </FloatingWindow>
       <DialogRoot
         open={props.open && !!s.confirmation()}
         onOpenChange={(open) => {

@@ -18,6 +18,7 @@ describe('Ticket launcher confirmations (e2e, real server)', () => {
           title: action,
           status: 'todo',
           folderName: `t-${index + 1}-${action}`,
+          useWorktree: true,
         })),
         appLauncherConfig: {
           profiles: [
@@ -56,7 +57,6 @@ describe('Ticket launcher confirmations (e2e, real server)', () => {
         const folder = `t-${index + 1}-${action}`
         await openTicketDetail(ctx.page, folder)
         await testId(ctx.page, 'ticket-detail-tab-launcher').click()
-        await testId(ctx.page, 'ticket-detail-use-worktree-checkbox').check()
         await expect
           .poll(() => testId(ctx.page, 'launch-dir-display').textContent(), {
             timeout: 10000,

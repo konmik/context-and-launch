@@ -6,6 +6,7 @@ import { query } from '@solidjs/router'
 import { herdrExec, reviewPromptQueueService, diffReviewStore } from '~/core/config/instances.js'
 import { appLog } from '~/core/infra/app-logger.js'
 import { fetchHerdrTicketState } from '~/core/herdr/herdr-client.js'
+import type { DiffReviewTicketState } from '~/core/diff-review/diff-review-types.js'
 import { createHerdrStatusService, type HerdrAgentStatusesResult } from './herdr-status-service.js'
 
 export type { HerdrAgentStatusesResult }
@@ -35,7 +36,14 @@ export async function reconcileReviewPromptQueue(projectSlug: string): Promise<R
   if (result.type === 'Failure') return result
   try {
     const failures: ReviewDeliveryFailure[] = []
-    for (const [folderName, ticket] of Object.entries(diffReviewStore.loadProject(projectSlug).tickets)) {
+    const project = diffReviewStore.loadProject(projectSlug)
+    const ticketStates: [string, DiffReviewTicketState][] = [
+      ...Object.entries(project.tickets),
+      ...Object.entries(project.worktrees ?? {}).flatMap(([folderName, worktrees]) =>
+        Object.values(worktrees).map((ticket): [string, DiffReviewTicketState] => [folderName, ticket]),
+      ),
+    ]
+    for (const [folderName, ticket] of ticketStates) {
       for (const item of ticket.queue.items) {
         if (item.state === 'error' || item.state === 'uncertain')
           failures.push({

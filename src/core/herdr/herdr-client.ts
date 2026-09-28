@@ -29,6 +29,14 @@ export function ticketStatusesFromPanes(panes: HerdrTicketPane[]): TicketAgentSt
     if (pane.agentStatuses.length === 0) continue
     statuses.set(pane.folderName, pane.agentStatuses.length === 1 ? herdrAgentStatus(pane.agentStatuses[0]) : 'unknown')
   }
+  const priority: HerdrAgentStatus[] = ['unknown', 'idle', 'done', 'working', 'blocked']
+  for (const [agentKey, status] of [...statuses]) {
+    const separator = agentKey.lastIndexOf('--worktree-')
+    if (separator < 0) continue
+    const folderName = agentKey.slice(0, separator)
+    const previous = statuses.get(folderName)
+    if (!previous || priority.indexOf(status) > priority.indexOf(previous)) statuses.set(folderName, status)
+  }
   return Object.fromEntries(statuses)
 }
 

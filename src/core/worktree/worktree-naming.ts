@@ -10,6 +10,12 @@ export function worktreeBranchName(ticketFolderName: string, branchPrefix?: stri
   return branchPrefix ? `${branchPrefix}/${folder}` : folder
 }
 
+export function worktreeInstanceName(ticketFolderName: string, instanceId: string): string {
+  const suffix = `-${instanceId}`
+  if (suffix.length >= MAX_WORKTREE_FOLDER_LENGTH) throw new Error('Worktree identifier is too long.')
+  return `${ticketFolderName.slice(0, MAX_WORKTREE_FOLDER_LENGTH - suffix.length).replace(/-+$/, '')}${suffix}`
+}
+
 export interface AgentWorktreeLocation {
   worktreePath: string
   branchName: string

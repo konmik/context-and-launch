@@ -28,6 +28,7 @@ import type { UserFacingError } from '~/util/user-facing-error.js'
 import { success, failure } from '~/util/result.js'
 import { resolveConflictsWith } from '~/core/launcher/resolve-conflicts.js'
 import type { MergedLauncherConfig } from '~/core/launcher/launcher-config.js'
+import { ticketAgentKey } from '~/core/ticket/ticket-worktrees.js'
 
 export interface ProjectLauncherMetadata {
   projectPath: string
@@ -95,7 +96,7 @@ export async function launchAgentAction(
 
   try {
     const { ticket, project, worktreeDir } = resolveTicketAndProject(projectSlug, folderName)
-    if (agentRunning(projectSlug, folderName)) {
+    if (agentRunning(projectSlug, ticketAgentKey(folderName, ticket, launchRequest.launchDir))) {
       return errorResult('Already started')
     }
     if (!launchRequest.launchDir) {
@@ -115,6 +116,7 @@ export async function launchAgentAction(
       project.mainBranch,
     )
     if (resolved.type === 'Failure') return resolved
+    if (launchRequest.launchDir !== resolved.value.launchDir) throw createValidationError('The launch target changed. Select it again before launching.')
     await launchAgentCore(projectSlug, ticket, launchRequest, launchRequest.launchDir)
     return success(undefined)
   } catch (e) {
@@ -168,6 +170,7 @@ export async function runShortcut(
       project.mainBranch,
     )
     if (resolved.type === 'Failure') return resolved
+    if (launchDir !== resolved.value.launchDir) throw createValidationError('The launch target changed. Select it again before running the shortcut.')
     const commandVars = {
       ticketDir: path.resolve(worktreeDir, ticket.folderName),
       ticketSlug: ticket.folderName,

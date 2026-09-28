@@ -65,7 +65,7 @@ describe('Ticket detail launcher config and run (e2e, real server)', () => {
     expect(text).toContain(project.projectPath)
     expect(await testId(ctx.page, 'launch-dir-copy-button').count()).toBe(1)
   })
-  it('launch dir display updates when worktree toggle changes', async () => {
+  it('launch dir display updates when the worktree selection changes', async () => {
     const project = await setupLauncherTicket(ctx, 'dir-toggle')
     const display = testId(ctx.page, 'launch-dir-display')
     await display.waitFor({
@@ -74,8 +74,7 @@ describe('Ticket detail launcher config and run (e2e, real server)', () => {
     })
     const textBefore = await display.textContent()
     expect(textBefore).toContain(project.projectPath)
-    const cb = testId(ctx.page, 'ticket-detail-use-worktree-checkbox')
-    await cb.check()
+    await ctx.page.getByRole('button', { name: 'Add worktree', exact: true }).click()
     await expect
       .poll(() => display.textContent(), {
         timeout: 10000,
@@ -84,7 +83,7 @@ describe('Ticket detail launcher config and run (e2e, real server)', () => {
     const textAfter = await display.textContent()
     expect(textAfter).toContain('t-1-alpha')
     expect(textAfter).not.toContain(project.projectPath)
-    await cb.uncheck()
+    await ctx.page.getByRole('combobox', { name: 'Launch target', exact: true }).selectOption('')
     await expect
       .poll(() => display.textContent(), {
         timeout: 10000,

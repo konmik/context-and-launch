@@ -8,6 +8,7 @@ import {
   runLauncherProfile,
 } from '../launcher/profile-launch.js'
 import type { ResolvedDiffReviewTarget } from './diff-review-target.js'
+import { ticketAgentKey } from '../ticket/ticket-worktrees.js'
 
 export interface ReviewAgentLauncher {
   isRunning(target: ResolvedDiffReviewTarget): boolean
@@ -37,7 +38,7 @@ export function createProfileReviewAgentLauncher(
           worktreePath: target.worktreePath,
         }),
         herdrWorkspaceLabel: target.projectSlug,
-        herdrPaneLabel: `${target.projectSlug}--${target.folderName}`,
+        herdrPaneLabel: `${target.projectSlug}--${ticketAgentKey(target.folderName, target.ticket, target.worktreePath)}`,
         windowTitle: buildWindowTitle(target.ticket, {
           worktreePath: target.worktreePath,
         }),
@@ -50,7 +51,7 @@ export function createProfileReviewAgentLauncher(
   }
 
   function markerPath(target: ResolvedDiffReviewTarget): string {
-    return agentMarkerPathIn(launcherConfig.getAppConfigDir(), target.projectSlug, target.folderName)
+    return agentMarkerPathIn(launcherConfig.getAppConfigDir(), target.projectSlug, ticketAgentKey(target.folderName, target.ticket, target.worktreePath))
   }
 
   return {

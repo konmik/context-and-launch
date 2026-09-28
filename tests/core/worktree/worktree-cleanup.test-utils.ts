@@ -1,6 +1,5 @@
 import type { LauncherConfigManager } from '../../../src/core/launcher/launcher-config.js'
 import type { AgentWorktreeManager } from '../../../src/core/worktree/agent-worktree.js'
-import { createWorktreeCleanupService, type WorktreeCleanupService } from '../../../src/core/worktree/worktree-cleanup.js'
 import { cleanup, initGitRepo, makeProjectEnv, tmpDir } from './agent-worktree.test-utils.js'
 
 export { cleanup, initGitRepo, tmpDir }
@@ -13,14 +12,12 @@ export function makeCleanupEnv(): CleanupEnvResult {
     dirs.push(projectDir)
     initGitRepo(projectDir)
     const { configDir, worktreeRoot, lcm, awm } = makeProjectEnv('wcs', dirs)
-    const service = createWorktreeCleanupService(awm)
     return {
       configDir,
       projectDir,
       worktreeRoot,
       lcm,
       awm,
-      service,
     }
   }
 
@@ -39,14 +36,7 @@ export function makeCleanupEnv(): CleanupEnvResult {
 
 export interface CleanupEnvResult {
   dirs: string[]
-  setup: () => {
-    configDir: string
-    projectDir: string
-    worktreeRoot: string
-    lcm: LauncherConfigManager
-    awm: AgentWorktreeManager
-    service: WorktreeCleanupService
-  }
+  setup: () => SetupResult
   cleanupAll: () => Promise<void>
 }
 
@@ -56,5 +46,4 @@ export interface SetupResult {
   worktreeRoot: string
   lcm: LauncherConfigManager
   awm: AgentWorktreeManager
-  service: WorktreeCleanupService
 }

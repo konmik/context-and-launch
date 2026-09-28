@@ -146,6 +146,7 @@ export interface AgentWorktreeManager {
     folderName: string,
     options?: {
       skipDirtyCheck?: boolean
+      requireNew?: boolean
     },
     configuredBranch?: string,
     savedWorktreeInfo?: SavedWorktreeInfo,
@@ -186,6 +187,7 @@ export function createAgentWorktreeManager(launcherConfig: LauncherConfigManager
     folderName: string,
     options?: {
       skipDirtyCheck?: boolean
+      requireNew?: boolean
     },
     configuredBranch?: string,
     savedWorktreeInfo?: SavedWorktreeInfo,
@@ -203,6 +205,9 @@ export function createAgentWorktreeManager(launcherConfig: LauncherConfigManager
       },
     )
     const mainBranch = await getMainBranch(projectPath, configuredBranch) // Reusing an existing worktree does not touch main, so main's state is irrelevant.
+    if (options?.requireNew && fs.existsSync(worktreePath)) {
+      throw createValidationError(`A directory already exists at ${worktreePath}. Choose another worktree location.`)
+    }
     const ownership = await getWorktreeOwnership(projectPath, worktreePath)
     if (ownership.kind === 'different-project') {
       throw createForeignWorktreeError(worktreePath)
@@ -217,6 +222,7 @@ export function createAgentWorktreeManager(launcherConfig: LauncherConfigManager
       branch: branchName,
     })
     if (branchList.trim()) {
+      if (options?.requireNew) throw createValidationError(`Branch '${branchName}' already exists. Add the worktree again to choose a new name.`)
       await releaseBranchFromOtherWorktree(projectPath, worktreePath, branchName)
       await commands.execute('agent-worktree.add-existing', projectPath, {
         worktreePath,

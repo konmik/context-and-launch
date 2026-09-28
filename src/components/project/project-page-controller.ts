@@ -25,7 +25,13 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
   const [createTicketOpen, setCreateTicketOpen] = createSignal(false)
   const [cleanupDialogOpen, setCleanupDialogOpen] = createSignal(false)
   const [cleanupAction, setCleanupAction] = createSignal<'archive' | 'delete'>('archive')
-  const [selectedTicket, setSelectedTicket] = createSignal<TicketInfo | null>(null)
+  const [selectedTicketFolderName, setSelectedTicketFolderName] = createSignal<string>()
+  const selectedTicket = (): TicketInfo | null => {
+    const data = deps.data()
+    return data?.status === 'loaded'
+      ? data.board.tickets.find((ticket) => ticket.folderName === selectedTicketFolderName()) ?? null
+      : null
+  }
   const [detailTicket, setDetailTicket] = createSignal<TicketInfo | null>(null)
   const [reviewTicket, setReviewTicket] = createSignal<TicketInfo | null>(null)
   const [syncing, setSyncing] = createSignal(false)
@@ -106,14 +112,14 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
 
   function openDelete(ticket: TicketInfo) {
     setDetailTicket(null)
-    setSelectedTicket(ticket)
+    setSelectedTicketFolderName(ticket.folderName)
     setCleanupAction('delete')
     setCleanupDialogOpen(true)
   }
 
   function openArchive(ticket: TicketInfo) {
     setDetailTicket(null)
-    setSelectedTicket(ticket)
+    setSelectedTicketFolderName(ticket.folderName)
     setCleanupAction('archive')
     setCleanupDialogOpen(true)
   }
@@ -160,6 +166,7 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
 
   async function handleCleanupAction(folderName: string, options: TicketCleanupOptions): Promise<Result<undefined, ErrorInfo>> {
     const cleanupResult = await worktreeCleanup(deps.projectSlug(), folderName, options)
+    await revalidate(ticketMutationRevalidateKeys)
     return cleanupResult
   }
 

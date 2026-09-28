@@ -7,6 +7,7 @@ import { createTicketStore, type TicketInfo } from '../ticket/ticket-store.js'
 import { resolveAgentWorktreeLocation } from '../worktree/worktree-naming.js'
 import { createNotFoundError } from '../shared/errors.js'
 import type { DiffReviewTarget } from './diff-review-git.js'
+import { ticketAgentWorktrees } from '../ticket/ticket-worktrees.js'
 
 export interface ResolvedDiffReviewTarget extends DiffReviewTarget {
   projectSlug: string
@@ -25,7 +26,7 @@ export function diffReviewWorktreeIdentity(worktreePath: string, branchName: str
 }
 
 export interface DiffReviewTargetResolver {
-  resolve(projectSlug: string, folderName: string): ResolvedDiffReviewTarget
+  resolve(projectSlug: string, folderName: string, worktreePathOrIdentity?: string): ResolvedDiffReviewTarget
 }
 
 export function createDiffReviewTargetResolver(
@@ -33,15 +34,21 @@ export function createDiffReviewTargetResolver(
   worktreeManager: WorktreeManager,
   launcherConfigManager: LauncherConfigManager,
 ): DiffReviewTargetResolver {
-  function resolve(projectSlug: string, folderName: string): ResolvedDiffReviewTarget {
+  function resolve(projectSlug: string, folderName: string, worktreePathOrIdentity?: string): ResolvedDiffReviewTarget {
     const project = projectRegistry.listProjects().find((candidate) => candidate.projectSlug === projectSlug)
     if (!project) throw createNotFoundError(`Project not found: ${projectSlug}`)
     const ticket = createTicketStore(worktreeManager.getWorktreeDir(projectSlug)).getTicket(folderName)
     if (!ticket) throw createNotFoundError(`Ticket not found: ${folderName}`)
+    const selected = worktreePathOrIdentity
+      ? ticketAgentWorktrees(ticket).find((entry) => entry.worktreePath === worktreePathOrIdentity || diffReviewWorktreeIdentity(entry.worktreePath, entry.branchName) === worktreePathOrIdentity)
+      : undefined
     const location = resolveAgentWorktreeLocation(folderName, launcherConfigManager.resolveWorktreeSettings(projectSlug), {
-      savedWorktreePath: ticket.agentWorktreeDir,
-      savedBranchName: ticket.agentWorktreeBranchName,
+      savedWorktreePath: selected?.worktreePath ?? ticket.agentWorktreeDir,
+      savedBranchName: selected?.branchName ?? ticket.agentWorktreeBranchName,
     })
+    if (worktreePathOrIdentity && location.worktreePath !== worktreePathOrIdentity && diffReviewWorktreeIdentity(location.worktreePath, location.branchName) !== worktreePathOrIdentity) {
+      throw createNotFoundError('The requested worktree no longer belongs to this ticket.')
+    }
     if (!fs.existsSync(location.worktreePath)) {
       throw createNotFoundError(`Agent Worktree does not exist: ${location.worktreePath}`)
     }

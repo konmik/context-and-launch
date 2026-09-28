@@ -2,6 +2,7 @@ import { errorPayload } from '../shared/errors.js'
 import type { ErrorInfo } from '../shared/errors.js'
 import type { FindHerdrAgentResult, HerdrAgentTarget } from '../herdr/herdr-control.js'
 import { foreignWorktreeMessage, type WorktreeOwnership } from './agent-worktree.js'
+import type { CleanupOptions } from './worktree-cleanup.js'
 
 export type CleanupItemKey = 'stopHerdrAgent' | 'deleteWorktree' | 'deleteLocalBranch' | 'deleteRemoteBranch'
 
@@ -40,11 +41,9 @@ export interface TicketCleanupStatus {
   deleteRemoteBranch: CleanupCheckItem
 }
 
-export interface TicketCleanupOptions {
+export interface TicketCleanupOptions extends CleanupOptions {
+  worktreePath?: string
   stopHerdrAgent: boolean
-  deleteWorktree: boolean
-  deleteLocalBranch: boolean
-  deleteRemoteBranch: boolean
 }
 
 export interface TicketCleanupCheckTarget {

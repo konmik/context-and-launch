@@ -197,7 +197,7 @@ The dialog for managing Launcher Config entries (Templates, Skills, Coding Agent
 Avoid: launcher settings, preferences
 
 Agent Worktree:
-A git worktree created from the project's main branch for an agent to work in isolation. Located under a user-configured worktree root path (defaults to `~/.context-launch/projects/{projectSlug}/worktrees/`). Branch named `{folderName}`, or `{branchPrefix}/{folderName}` when a branch prefix is configured. Reused across runs.
+A git worktree created from the project's main branch for an agent to work in isolation. A Ticket can have several Agent Worktrees and selects one, or the project directory, as its launch target. Add worktree creates and selects a new worktree without launching an agent. Located under a user-configured worktree root path (defaults to `~/.context-launch/projects/{projectSlug}/worktrees/`). New names retain a unique suffix within the 50-character folder limit, with an optional branch prefix. Existing worktree locations are preserved and reused across runs.
 Avoid: sandbox, workspace
 
 Diff Review:
@@ -285,7 +285,7 @@ A project-level container in Herdr that Context & Launch associates with one Pro
 Avoid: Herdr environment, terminal environment
 
 Herdr Ticket Pane:
-A persistent pane in a Herdr Workspace associated with one Ticket through its `{projectSlug}--{folderName}` pane label. It retains its identity when its Herdr Agent is replaced.
+A persistent pane in a Herdr Workspace associated with one Ticket launch target. Project-directory and legacy launches use the `{projectSlug}--{folderName}` pane label. Each added Agent Worktree has a saved agent key and its own pane label. It retains its identity when its Herdr Agent is replaced.
 Avoid: agent panel, agent instance
 
 Herdr Agent:
@@ -315,9 +315,9 @@ Avoid: Herdr error, Herdr missing
 - A Coding Agent Profile selects exactly one Launch Target
 - A Launcher Config exists at app scope and optionally at project scope; project merges into app
 - A Launcher Config contains zero or more Shortcuts
-- An Agent Worktree branches from the Project's main branch, named `{folderName}` (optionally prefixed with a configurable branch prefix)
+- A Ticket has zero or more Agent Worktrees, each branching from the Project's main branch with its own saved location and branch name
 - A Project has at most one Herdr Workspace
-- A Herdr Workspace contains at most one Herdr Ticket Pane for each Ticket Folder
+- A Herdr Workspace contains at most one Herdr Ticket Pane for each Ticket launch target; added Agent Worktrees have independent persistent agent keys
 - A Herdr Ticket Pane hosts at most one Herdr Agent at a time
 - The Agent Launcher remembers the last-used Template, checked Skills, and Coding Agent Profile per Column
 - A Ticket may depend on zero or more Tickets (a Dependency); the graph is acyclic

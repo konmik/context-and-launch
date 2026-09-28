@@ -11,10 +11,10 @@ import type { DiffScope, ReviewPromptSnapshot } from '~/core/diff-review/diff-re
  * together: opening the Diff Review costs one round trip, and the client never
  * has to learn which scopes exist before it can ask for a diff.
  */
-export const getReviewSnapshot = query(async (projectSlug: string, folderName: string, requestedScope?: DiffScope | null) => {
+export const getReviewSnapshot = query(async (projectSlug: string, folderName: string, requestedScope?: DiffScope | null, worktreePath: string | null = null) => {
   'use server'
 
-  const target = diffReviewTargetResolver.resolve(projectSlug, folderName)
+  const target = diffReviewTargetResolver.resolve(projectSlug, folderName, worktreePath ?? undefined)
   const scopes: DiffScope[] = target.mainBranch ? ['all', 'branch', 'working', 'last-commit'] : ['working', 'last-commit']
   const scope = requestedScope ?? scopes[0]
   if (!scopes.includes(scope)) {
@@ -46,6 +46,7 @@ export async function enqueueReviewPrompt(
   feedback: string,
   profileName: string | null,
   snapshot: ReviewPromptSnapshot | null,
+  worktreeIdentity: string | null = null,
 ): Promise<Result<EnqueueReviewPromptResult, ActionError>> {
   'use server'
 
@@ -56,6 +57,7 @@ export async function enqueueReviewPrompt(
       feedback,
       snapshot ?? undefined,
       profileName ?? undefined,
+      worktreeIdentity ?? undefined,
     )
     return success({
       item,
@@ -70,11 +72,12 @@ export async function retryReviewPrompt(
   folderName: string,
   itemId: string,
   profileName: string | null,
+  worktreeIdentity: string | null = null,
 ): Promise<Result<undefined, ActionError>> {
   'use server'
 
   try {
-    await reviewPromptQueueService.retryAndLaunch(projectSlug, folderName, itemId, profileName ?? undefined)
+    await reviewPromptQueueService.retryAndLaunch(projectSlug, folderName, itemId, profileName ?? undefined, worktreeIdentity ?? undefined)
     return success(undefined)
   } catch (error) {
     return errorResult(error)

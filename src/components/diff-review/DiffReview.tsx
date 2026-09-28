@@ -16,6 +16,7 @@ import { Send } from '~/components/ui/icons/Send.js'
 import { WrapText } from '~/components/ui/icons/WrapText.js'
 import { X } from '~/components/ui/icons/X.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
+import { ticketAgentKey, ticketAgentWorktrees } from '~/core/ticket/ticket-worktrees.js'
 import type { DiffLayout, DiffLineOverflow, DiffScope, ReviewFileSnapshot, ReviewPace } from '~/core/diff-review/diff-review-types.js'
 import { buildReviewPromptSnapshot, reviewSelectionStillExists } from '~/core/diff-review/diff-review-model.js'
 import { reuseUnchangedFiles } from '~/core/diff-review/review-file-identity.js'
@@ -78,7 +79,27 @@ function reuseFilePaths(previous: string[], files: ReviewFileSnapshot[]): string
   return current.length === previous.length && current.every((filePath, index) => filePath === previous[index]) ? previous : current
 }
 
-export default function DiffReview(props: { projectSlug: string; projectName: string; ticket: TicketInfo; onClose(): void }): JSX.Element {
+interface DiffReviewProps {
+  projectSlug: string
+  projectName: string
+  ticket: TicketInfo
+  onClose(): void
+}
+
+export default function DiffReview(props: DiffReviewProps): JSX.Element {
+  const [selectedWorktreePath, setSelectedWorktreePath] = createSignal(props.ticket.agentWorktreeDir)
+  const selectedTicket = createMemo(() => {
+    const selected = ticketAgentWorktrees(props.ticket).find((entry) => entry.worktreePath === selectedWorktreePath())
+    return selected ? { ...props.ticket, agentWorktreeDir: selected.worktreePath, agentWorktreeBranchName: selected.branchName } : props.ticket
+  })
+  return (
+    <Show when={selectedTicket()} keyed>
+      {(ticket) => <DiffReviewContent {...props} ticket={ticket} onSelectWorktree={setSelectedWorktreePath} />}
+    </Show>
+  )
+}
+
+function DiffReviewContent(props: DiffReviewProps & { onSelectWorktree(worktreePath: string): void }): JSX.Element {
   const herdrStatus = useHerdrStatuses()
   const [scope, setScope] = createSignal<DiffScope>()
   const [pace, setPace] = createSignal<ReviewPace>('live')
@@ -102,7 +123,7 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
     saveDiffReviewState.bind(null, props.projectSlug),
     releaseDiffReviewState.bind(null, props.projectSlug),
   )
-  const readAgentStatus = () => readReviewAgentStatus(props.projectSlug, props.ticket.folderName) // Publish completed background reads without suspending the composer on each poll.
+  const readAgentStatus = () => readReviewAgentStatus(props.projectSlug, props.ticket.folderName, props.ticket.agentWorktreeDir ?? null) // Publish completed background reads without suspending the composer on each poll.
   const agentState = createStoredState(readAgentStatus)
   const agentStatus = agentState.get
 
@@ -122,7 +143,8 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
     onCleanup(() => void tracker.dispose())
     return tracker
   })
-  const review = createMemo(() => getReviewSnapshot(props.projectSlug, props.ticket.folderName, scope() ?? null))
+  const review = createMemo(() => getReviewSnapshot(props.projectSlug, props.ticket.folderName, scope() ?? null, props.ticket.agentWorktreeDir ?? null))
+  const selectedAgentStatus = () => herdrStatus(ticketAgentKey(props.ticket.folderName, props.ticket, props.ticket.agentWorktreeDir))
   const sharedConfig = useContext(LauncherConfigContext)!
   const projectConfig = useContext(ProjectLauncherConfigContext)!
   const launcherConfig = createMemo(() => mergeLauncherConfigs(sharedConfig.get(), projectConfig.get()))
@@ -337,6 +359,7 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
         feedback,
         selectedProfile() || null,
         selection()?.snapshot ?? null,
+        worktreeIdentity(),
       )
       if (result.type === 'Failure') {
         errors.report(result.error)
@@ -458,6 +481,19 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
           </div>
         </div>
         <div class="flex items-center gap-2">
+          <Show when={ticketAgentWorktrees(props.ticket).filter((entry) => !entry.removed).length > 1}>
+            <select
+              aria-label="Review worktree"
+              class="input input-sm max-w-[240px] text-xs"
+              value={props.ticket.agentWorktreeDir}
+              disabled={composer() !== undefined}
+              onChange={(event) => props.onSelectWorktree(event.currentTarget.value)}
+            >
+              <For each={ticketAgentWorktrees(props.ticket).filter((entry) => !entry.removed)}>
+                {(worktree) => <option value={worktree.worktreePath}>{worktree.branchName}</option>}
+              </For>
+            </select>
+          </Show>
           <label class="relative">
             <span class="sr-only">Diff Scope</span>
             <select
@@ -522,7 +558,7 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
             Prompt Agent
           </button>
           <span class="max-w-[120px] truncate font-mono text-[10px] text-muted-foreground" data-testid="diff-review-agent-status">
-            {herdrStatus(props.ticket.folderName) ?? 'no agent'}
+            {selectedAgentStatus() ?? 'no agent'}
           </span>
           <button
             type="button"
@@ -709,7 +745,7 @@ export default function DiffReview(props: { projectSlug: string; projectName: st
           onFeedbackChange={setFeedback}
           onProfileChange={(profileName) => void changeProfile(profileName)}
           sending={sending()}
-          herdrStatus={herdrStatus(props.ticket.folderName)}
+          herdrStatus={selectedAgentStatus()}
           onCancel={() => {
             changeComposer()
             errors.clear()

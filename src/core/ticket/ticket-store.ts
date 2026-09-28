@@ -17,6 +17,7 @@ import {
 } from './ticket-relations.js'
 import type { StatusJson } from './ticket-repository.js'
 import type { TicketOrder } from './ticket-order-data.js'
+import { ticketAgentWorktrees, type TicketAgentWorktree } from './ticket-worktrees.js'
 
 export { toKebabCase } from './ticket-naming.js'
 
@@ -39,6 +40,7 @@ export interface TicketInfo {
   }[]
   agentWorktreeBranchName?: string
   agentWorktreeDir?: string
+  agentWorktrees?: TicketAgentWorktree[]
   dependsOn?: string[]
   memberOf?: string
   createdAt?: string
@@ -64,12 +66,6 @@ export const SaveContextBody = v.object({
 })
 
 export type SaveContextBody = v.InferOutput<typeof SaveContextBody>
-
-export const UseWorktreeBody = v.object({
-  useWorktree: v.boolean(),
-})
-
-export type UseWorktreeBody = v.InferOutput<typeof UseWorktreeBody>
 
 export const AddReferencesBody = v.object({
   paths: v.optional(v.array(v.string()), []),
@@ -99,8 +95,9 @@ export interface TicketStore {
   deleteTicket(folderName: string): void
   archiveTicket(folderName: string): void
   setUseWorktree(folderName: string, value: boolean): void
-  saveAgentWorktreeInfo(folderName: string, agentWorktreeBranchName: string, agentWorktreeDir: string): void
-  clearAgentWorktreeInfo(folderName: string): void
+  saveAgentWorktreeInfo(folderName: string, agentWorktreeBranchName: string, agentWorktreeDir: string, agentKey?: string): void
+  selectAgentWorktree(folderName: string, worktreePath?: string): void
+  markAgentWorktreeRemoved(folderName: string, worktreePath: string, cleanupComplete?: boolean): void
   getTicketContext(folderName: string, name: string): string | null
   deleteTicketContext(folderName: string, name: string): void
   saveTicketContext(folderName: string, name: string, content: string): void
@@ -339,7 +336,7 @@ export function createTicketStore(worktreeDir: string, repo: TicketRepository = 
     })
   }
 
-  function saveAgentWorktreeInfo(folderName: string, agentWorktreeBranchName: string, agentWorktreeDir: string): void {
+  function saveAgentWorktreeInfo(folderName: string, agentWorktreeBranchName: string, agentWorktreeDir: string, agentKey?: string): void {
     const dir = resolveTicketDir(folderName)
     const current = repo.readStatusJson(dir)
     if (!current) throw createNotFoundError(`Ticket not found: ${folderName}`)
@@ -347,15 +344,50 @@ export function createTicketStore(worktreeDir: string, repo: TicketRepository = 
       ...current,
       agentWorktreeBranchName,
       agentWorktreeDir,
+      agentWorktrees: [
+        ...ticketAgentWorktrees(current).filter((entry) => entry.worktreePath !== agentWorktreeDir),
+        {
+          branchName: agentWorktreeBranchName,
+          worktreePath: agentWorktreeDir,
+          agentKey: agentKey ?? ticketAgentWorktrees(current).find((entry) => entry.worktreePath === agentWorktreeDir)?.agentKey,
+        },
+      ],
     })
   }
 
-  function clearAgentWorktreeInfo(folderName: string): void {
+  function selectAgentWorktree(folderName: string, worktreePath?: string): void {
     const dir = resolveTicketDir(folderName)
     const current = repo.readStatusJson(dir)
     if (!current) throw createNotFoundError(`Ticket not found: ${folderName}`)
-    const { agentWorktreeBranchName, agentWorktreeDir, ...rest } = current
-    repo.writeStatusJson(dir, rest)
+    const agentWorktrees = ticketAgentWorktrees(current)
+    const selected = agentWorktrees.find((entry) => entry.worktreePath === worktreePath && !entry.removed)
+    if (worktreePath && !selected) throw createValidationError('The selected worktree does not belong to this ticket.')
+    repo.writeStatusJson(dir, {
+      ...current,
+      agentWorktrees,
+      useWorktree: !!selected,
+      agentWorktreeBranchName: selected?.branchName ?? current.agentWorktreeBranchName,
+      agentWorktreeDir: selected?.worktreePath ?? current.agentWorktreeDir,
+    })
+  }
+
+  function markAgentWorktreeRemoved(folderName: string, worktreePath: string, cleanupComplete?: boolean): void {
+    const dir = resolveTicketDir(folderName)
+    const current = repo.readStatusJson(dir)
+    if (!current) throw createNotFoundError(`Ticket not found: ${folderName}`)
+    const agentWorktrees = ticketAgentWorktrees(current).map((entry) =>
+      entry.worktreePath === worktreePath ? { ...entry, removed: true, cleanupComplete } : entry,
+    )
+    const selected = current.agentWorktreeDir === worktreePath
+      ? agentWorktrees.find((entry) => !entry.removed)
+      : agentWorktrees.find((entry) => entry.worktreePath === current.agentWorktreeDir)
+    repo.writeStatusJson(dir, {
+      ...current,
+      agentWorktrees,
+      useWorktree: current.useWorktree && !!selected,
+      agentWorktreeDir: selected?.worktreePath,
+      agentWorktreeBranchName: selected?.branchName,
+    })
   }
 
   function getTicketContext(folderName: string, name: string): string | null {
@@ -451,6 +483,7 @@ export function createTicketStore(worktreeDir: string, repo: TicketRepository = 
       references,
       agentWorktreeBranchName: status.agentWorktreeBranchName,
       agentWorktreeDir: status.agentWorktreeDir,
+      agentWorktrees: ticketAgentWorktrees(status),
       dependsOn: status.dependsOn,
       memberOf: status.memberOf,
       createdAt: status.createdAt,
@@ -732,7 +765,8 @@ export function createTicketStore(worktreeDir: string, repo: TicketRepository = 
     archiveTicket,
     setUseWorktree,
     saveAgentWorktreeInfo,
-    clearAgentWorktreeInfo,
+    selectAgentWorktree,
+    markAgentWorktreeRemoved,
     getTicketContext,
     deleteTicketContext,
     saveTicketContext,

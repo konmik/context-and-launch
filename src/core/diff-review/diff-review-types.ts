@@ -148,10 +148,12 @@ export interface DiffReviewTicketState {
 export interface DiffReviewProjectState {
   version: 2
   tickets: Record<string, DiffReviewTicketState>
+  worktrees?: Record<string, Record<string, DiffReviewTicketState>>
 }
 
 export function getReviewTicketState(project: DiffReviewProjectState, folderName: string, worktreeIdentity: string): DiffReviewTicketState {
-  const ticket = project.tickets[folderName]
+  const current = project.tickets[folderName]
+  const ticket = current?.worktreeIdentity === worktreeIdentity ? current : project.worktrees?.[folderName]?.[worktreeIdentity]
   return ticket?.worktreeIdentity === worktreeIdentity
     ? ticket
     : {
@@ -161,4 +163,22 @@ export function getReviewTicketState(project: DiffReviewProjectState, folderName
           items: [],
         },
       }
+}
+
+export function withReviewTicketState(project: DiffReviewProjectState, folderName: string, updated: DiffReviewTicketState): DiffReviewProjectState {
+  const previous = project.tickets[folderName]
+  const worktrees = previous && previous.worktreeIdentity !== updated.worktreeIdentity
+    ? {
+        ...project.worktrees,
+        [folderName]: {
+          ...Object.fromEntries(Object.entries(project.worktrees?.[folderName] ?? {}).filter(([identity]) => identity !== updated.worktreeIdentity)),
+          [previous.worktreeIdentity]: previous,
+        },
+      }
+    : project.worktrees
+  return {
+    ...project,
+    ...(worktrees ? { worktrees } : {}),
+    tickets: { ...project.tickets, [folderName]: updated },
+  }
 }

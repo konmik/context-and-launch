@@ -3,12 +3,12 @@
 - Receive initial prompt, profile name, worktree flag
 - Resolve ticket and project
   - Either not found: error
-- Read marker file for this ticket
+- Read marker file for this ticket's selected launch target
   - Marker exists and PID alive and start time matches OS: error, already running
   - Marker exists but PID dead or start time mismatch: delete stale marker, continue
 - Resolve launch directory
   - Client computes the launch directory and sends it as launchDir in the request
-  - Server uses the client-provided launchDir for launching
+  - Server checks that the requested directory still matches the selected target before launching
   - Worktree disabled: use project path
   - Worktree enabled
     - Root not configured: error
@@ -40,6 +40,8 @@
 - For the Herdr Launch Target
   - A Ticket pane is owned by a persistent shell, with the Herdr Agent as its foreground child process
   - The Ticket pane label is the Project Slug, two hyphens, and the Ticket Folder name
+    - Each added worktree has its own persistent agent key appended to the label
+    - Agents in different worktrees can run independently
     - The pane label is the persistent Ticket identity
     - The Herdr Agent name is derived from the Agent Worktree folder name when launched in an Agent Worktree
     - Without an Agent Worktree, the name is `{ticketTitle} {ticketNumber} - {projectName}`
@@ -58,6 +60,29 @@
     - A failure that never reached the Herdr server, while the Herdr server is not running, is reported as Herdr not running
     - Any other failure is shown with the exit code and the raw output
 - On agent exit: delete marker
+
+# Ticket worktrees
+
+- A ticket can have several Agent Worktrees
+- Add worktree creates a new worktree without starting an agent
+  - Fork from the project's configured main branch
+  - A dirty project directory prevents creation and reports an error
+  - Keep a unique suffix when shortening the folder and branch names
+  - Existing directories and branches are never reused by Add worktree
+  - Save the new worktree and select it as the launch target
+- List saved worktrees in the ticket's launch target selector
+  - Existing single-worktree tickets retain their saved location
+  - Selecting the project directory preserves the worktree list
+  - Agents and shortcuts use the selected launch target
+- Diff Review opens the selected worktree
+  - Its worktree selector can switch between the ticket's worktrees
+  - Each worktree retains its own reviewed lines and feedback queue
+  - Feedback reaches the agent for that worktree
+  - Changing the ticket's launch target elsewhere does not redirect an open review
+- Cleanup selects one worktree at a time
+  - Checks, agent stopping, and branch deletion apply to that worktree
+  - Removing a worktree preserves the other worktrees and their review state
+  - Keep removed worktree metadata available for subsequent branch cleanup
 
 # Prompt preview
 

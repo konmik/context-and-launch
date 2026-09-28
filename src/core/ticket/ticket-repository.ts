@@ -20,6 +20,17 @@ export const StatusJsonSchema = v.looseObject({
   ),
   agentWorktreeBranchName: v.optional(v.string()),
   agentWorktreeDir: v.optional(v.string()),
+  agentWorktrees: v.optional(
+    v.array(
+      v.object({
+        branchName: v.string(),
+        worktreePath: v.string(),
+        agentKey: v.optional(v.string()),
+        removed: v.optional(v.boolean()),
+        cleanupComplete: v.optional(v.boolean()),
+      }),
+    ),
+  ),
   dependsOn: v.optional(v.array(v.string())),
   memberOf: v.optional(v.string()),
 })

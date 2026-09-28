@@ -1,4 +1,4 @@
-import { createEffect, createSignal } from 'solid-js'
+import { createEffect, createMemo, createSignal } from 'solid-js'
 
 type OverlayKind = 'dialog' | 'popup'
 
@@ -69,7 +69,8 @@ function createOverlayCoordinator(document: Document): OverlayCoordinator {
   function createOverlay(kind: OverlayKind, options: OverlayOptions): OverlayHandle {
     const id = Symbol('overlay')
     let entry: OverlayEntry | undefined
-    createEffect(options.open, (open) => {
+    const isOpen = createMemo(options.open)
+    createEffect(isOpen, (open) => {
       if (!open) return
       entry = {
         id,

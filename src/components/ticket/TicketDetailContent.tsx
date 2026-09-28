@@ -26,6 +26,7 @@ import { createTicketDetailState, type TicketDetailStateDeps } from './ticket-de
 import { ErrorField } from '../shared/ErrorField.js'
 import { useErrorReporter } from '../shared/error-presentation.js'
 import { TicketStatusContext } from './ticket-status-storage.js'
+import { TicketWorktrees } from './TicketWorktrees.js'
 
 export function TicketDetailContent(props: {
   onClose: () => void
@@ -198,59 +199,27 @@ export function TicketDetailContent(props: {
                 <LauncherTab config={launcherDeps.config} onDefaultsChange={launcherDeps.onDefaultsChange} ctrl={launcherCtrl} />
               </Show>
               <div class="border-t border-border px-4 py-3">
-                <div class="flex items-end gap-2">
-                  <div class="min-w-0 flex-1" data-testid="launch-dir-display">
-                    <div class="flex items-center gap-1">
-                      <span class="shrink-0 text-xs text-muted-foreground">Launch directory</span>
-                      <button
-                        type="button"
-                        class="btn-icon shrink-0 !h-6 !w-6"
-                        data-testid="launch-dir-copy-button"
-                        onClick={() => {
-                          try {
-                            navigator.clipboard.writeText(s.launchDir()).catch((err) => {
-                              console.warn('Failed to copy launch dir:', err)
-                            })
-                          } catch (err) {
-                            console.warn('Clipboard API unavailable:', err)
-                          }
-                        }}
-                        title="Copy path"
-                      >
-                        <Copy size={12} />
-                      </button>
-                      <div class="flex-1" />
-                      <label class="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
-                        <input
-                          type="checkbox"
-                          checked={ticket().useWorktree}
-                          onChange={async (e) => {
-                            const useWorktree = e.currentTarget.checked
-                            const result = await ticketStatus.update((current) => ({
-                              ...current,
-                              useWorktree,
-                            }))
-                            if (result.type === 'Failure') {
-                              errors.report(result.error)
-                            }
-                          }}
-                          class="rounded border-input"
-                          data-testid="ticket-detail-use-worktree-checkbox"
-                        />
-                        Launch in worktree
-                      </label>
-                    </div>
-                    <span
-                      class="block truncate text-xs text-muted-foreground"
-                      dir="rtl"
-                      style={{
-                        'text-align': 'left',
-                      }}
-                    >
-                      {s.launchDir()}
-                    </span>
+                <div class="flex items-center gap-2">
+                  <button
+                    type="button"
+                    class="btn-icon shrink-0 !h-6 !w-6"
+                    data-testid="launch-dir-copy-button"
+                    onClick={() => {
+                      try {
+                        navigator.clipboard.writeText(s.launchDir()).catch((err) => {
+                          console.warn('Failed to copy launch dir:', err)
+                        })
+                      } catch (err) {
+                        console.warn('Clipboard API unavailable:', err)
+                      }
+                    }}
+                    title="Copy path"
+                  >
+                    <Copy size={12} />
+                  </button>
+                  <div class="mr-6 min-w-0 flex-1" data-testid="launch-dir-display" title={s.launchDir()}>
+                    <TicketWorktrees projectSlug={props.projectSlug} />
                   </div>
-                  <div class="w-8 shrink-0" />
                   <Show when={s.activeTab() === 'launcher'}>
                     <button
                       type="button"

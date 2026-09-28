@@ -5,7 +5,7 @@ import { For, Show, createEffect, createSignal, untrack, useContext } from 'soli
 import { retryReviewPrompt } from './diff-review-api.js'
 import type { ReviewPromptQueueItem } from '~/core/diff-review/diff-review-types.js'
 import { DiffReviewContext, ReviewAgentStatusContext } from './diff-review-storage.js'
-import { getReviewTicketState } from '~/core/diff-review/diff-review-types.js'
+import { getReviewTicketState, withReviewTicketState } from '~/core/diff-review/diff-review-types.js'
 import VerticalReveal from './VerticalReveal.js'
 import { useErrorReporter } from '../shared/error-presentation.js'
 import { FieldErrorMessage } from '../shared/FieldErrorMessage.js'
@@ -30,7 +30,7 @@ export default function ReviewPromptQueueList(props: { projectSlug: string; fold
     setRetryingId(itemId)
     errors.clear()
     try {
-      const result = await retryReviewPrompt(props.projectSlug, props.folderName, itemId, props.profileName || null)
+      const result = await retryReviewPrompt(props.projectSlug, props.folderName, itemId, props.profileName || null, agentStatus().worktreeIdentity)
       if (result.type === 'Failure') errors.report(result.error)
       const refreshed = await state.refresh()
       if (refreshed.type === 'Failure') errors.report(refreshed.error)
@@ -54,20 +54,14 @@ export default function ReviewPromptQueueList(props: { projectSlug: string; fold
         if (!['waiting', 'error', 'uncertain'].includes(item.state)) {
           throw new Error(`This Review Prompt is already ${item.state} and can no longer be removed.`)
         }
-        return {
-          ...current,
-          tickets: {
-            ...current.tickets,
-            [props.folderName]: {
-              ...ticket,
-              queue: {
-                ...ticket.queue,
-                items: ticket.queue.items.filter((item) => item.id !== itemId),
-                requestedAgentProfileName: ticket.queue.items[0]?.id === itemId ? undefined : ticket.queue.requestedAgentProfileName,
-              },
-            },
+        return withReviewTicketState(current, props.folderName, {
+          ...ticket,
+          queue: {
+            ...ticket.queue,
+            items: ticket.queue.items.filter((item) => item.id !== itemId),
+            requestedAgentProfileName: ticket.queue.items[0]?.id === itemId ? undefined : ticket.queue.requestedAgentProfileName,
           },
-        }
+        })
       })
       if (result.type === 'Failure') errors.report(result.error)
     } catch (error) {
