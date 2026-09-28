@@ -11,13 +11,13 @@ import {
   type DependencyRelation,
   type ExternalDependencyProjection,
   type ForestLookup,
-  type ForestTicket,
+  type ForestTask,
 } from './forest-graph.js'
-import type { ForestLayout } from '~/core/ticket/forest-layout-store.js'
+import type { ForestLayout } from '~/core/task/forest-layout-store.js'
 
 export interface ForestNodeData {
-  ticket: ForestTicket
-  representedTicketNumbers: string[]
+  task: ForestTask
+  representedTaskNumbers: string[]
   group: boolean
 }
 
@@ -49,31 +49,31 @@ export interface ForestFlowModel {
 }
 
 export function buildForestFlowModel(
-  tickets: ForestTicket[],
+  tasks: ForestTask[],
   scopeGroupNumber: string | undefined,
   savedLayout: ForestLayout,
 ): ForestFlowModel {
-  const lookup = buildLookup(tickets)
+  const lookup = buildLookup(tasks)
   const representativeCache = new Map<string, string | undefined>()
-  const scopeNodes = resolveScope(tickets, scopeGroupNumber, lookup)
-  const { internal, external } = projectDependencies(tickets, scopeGroupNumber, lookup, representativeCache)
+  const scopeNodes = resolveScope(tasks, scopeGroupNumber, lookup)
+  const { internal, external } = projectDependencies(tasks, scopeGroupNumber, lookup, representativeCache)
   const representedByScopeNode = new Map<string, string[]>()
   const parentNumbers = new Set<string>()
-  for (const ticket of tickets) {
-    const representative = representativeInScope(lookup, ticket.number, scopeGroupNumber, representativeCache)
+  for (const task of tasks) {
+    const representative = representativeInScope(lookup, task.number, scopeGroupNumber, representativeCache)
     if (representative) {
       const represented = representedByScopeNode.get(representative)
-      if (represented) represented.push(ticket.number)
-      else representedByScopeNode.set(representative, [ticket.number])
+      if (represented) represented.push(task.number)
+      else representedByScopeNode.set(representative, [task.number])
     }
-    const parent = effectiveParent(ticket, lookup.allNumbers)
+    const parent = effectiveParent(task, lookup.allNumbers)
     if (parent) parentNumbers.add(parent)
   }
   const savedScopePositions: ForestLayout = {}
   let allSaved = true
-  for (const ticket of scopeNodes) {
-    const position = savedLayout[ticket.number]
-    if (position) savedScopePositions[ticket.number] = position
+  for (const task of scopeNodes) {
+    const position = savedLayout[task.number]
+    if (position) savedScopePositions[task.number] = position
     else allSaved = false
   }
   const positions: ForestLayout = allSaved
@@ -83,16 +83,16 @@ export function buildForestFlowModel(
         ...savedScopePositions,
       }
   return {
-    nodes: scopeNodes.map((ticket) => ({
-      id: ticket.number,
-      position: positions[ticket.number] ?? {
+    nodes: scopeNodes.map((task) => ({
+      id: task.number,
+      position: positions[task.number] ?? {
         x: 0,
         y: 0,
       },
       data: {
-        ticket,
-        representedTicketNumbers: representedByScopeNode.get(ticket.number) ?? [],
-        group: parentNumbers.has(ticket.number),
+        task,
+        representedTaskNumbers: representedByScopeNode.get(task.number) ?? [],
+        group: parentNumbers.has(task.number),
       },
     })),
     edges: internal.map((dependency) => ({
@@ -108,11 +108,11 @@ export function buildForestFlowModel(
   }
 }
 
-export function rearrangedForestPositions(tickets: ForestTicket[], scopeGroupNumber: string | undefined): ForestLayout {
-  const lookup = buildLookup(tickets)
+export function rearrangedForestPositions(tasks: ForestTask[], scopeGroupNumber: string | undefined): ForestLayout {
+  const lookup = buildLookup(tasks)
   return autoLayoutPositions(
-    resolveScope(tickets, scopeGroupNumber, lookup),
-    projectDependencies(tickets, scopeGroupNumber, lookup).internal,
+    resolveScope(tasks, scopeGroupNumber, lookup),
+    projectDependencies(tasks, scopeGroupNumber, lookup).internal,
   )
 }
 

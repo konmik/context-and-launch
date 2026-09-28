@@ -34,7 +34,7 @@ describe.runIf(process.platform === 'win32')('powershell -File argv round-trip (
     const received: string[] = JSON.parse(fs.readFileSync(outPath, 'utf-8'))
     expect(received[0]).toBe(title)
   }, 30000)
-  it('delivers quote-laden ticket-title args intact and in position', async () => {
+  it('delivers quote-laden task-title args intact and in position', async () => {
     const dir = makeTempDir()
     const probePath = path.join(dir, 'probe.ps1')
     const outPath = path.join(dir, 'out.json')
@@ -43,7 +43,7 @@ describe.runIf(process.platform === 'win32')('powershell -File argv round-trip (
       'param([switch]$selfLaunch)\r\n' + '($args | ConvertTo-Json -Compress) | Set-Content -LiteralPath $args[$args.Length-1]\r\n',
     )
     const sent = [
-      'Current ticket: Fix "auth" bug. Read the files in C:\\dir\\ for context.\nSecond line.',
+      'Current task: Fix "auth" bug. Read the files in C:\\dir\\ for context.\nSecond line.',
       'Fix "auth" bug -- AI',
       'C:\\Users\\some user\\.context-launch\\running\\proj\\st-1-fix.json',
       'claude',

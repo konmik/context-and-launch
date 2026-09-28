@@ -1,19 +1,19 @@
 const MAX_WORKTREE_FOLDER_LENGTH = 50
 
-export function worktreeFolderName(ticketFolderName: string): string {
-  if (ticketFolderName.length <= MAX_WORKTREE_FOLDER_LENGTH) return ticketFolderName
-  return ticketFolderName.slice(0, MAX_WORKTREE_FOLDER_LENGTH).replace(/-+$/, '')
+export function worktreeFolderName(taskFolderName: string): string {
+  if (taskFolderName.length <= MAX_WORKTREE_FOLDER_LENGTH) return taskFolderName
+  return taskFolderName.slice(0, MAX_WORKTREE_FOLDER_LENGTH).replace(/-+$/, '')
 }
 
-export function worktreeBranchName(ticketFolderName: string, branchPrefix?: string): string {
-  const folder = worktreeFolderName(ticketFolderName)
+export function worktreeBranchName(taskFolderName: string, branchPrefix?: string): string {
+  const folder = worktreeFolderName(taskFolderName)
   return branchPrefix ? `${branchPrefix}/${folder}` : folder
 }
 
-export function worktreeInstanceName(ticketFolderName: string, instanceId: string): string {
+export function worktreeInstanceName(taskFolderName: string, instanceId: string): string {
   const suffix = `-${instanceId}`
   if (suffix.length >= MAX_WORKTREE_FOLDER_LENGTH) throw new Error('Worktree identifier is too long.')
-  return `${ticketFolderName.slice(0, MAX_WORKTREE_FOLDER_LENGTH - suffix.length).replace(/-+$/, '')}${suffix}`
+  return `${taskFolderName.slice(0, MAX_WORKTREE_FOLDER_LENGTH - suffix.length).replace(/-+$/, '')}${suffix}`
 }
 
 export interface AgentWorktreeLocation {
@@ -23,7 +23,7 @@ export interface AgentWorktreeLocation {
 }
 
 export function resolveAgentWorktreeLocation(
-  ticketFolderName: string,
+  taskFolderName: string,
   settings: {
     worktreeRootPath: string
     branchPrefix?: string
@@ -33,11 +33,11 @@ export function resolveAgentWorktreeLocation(
     savedBranchName?: string
   },
 ): AgentWorktreeLocation {
-  const defaultPath = `${settings.worktreeRootPath}/${worktreeFolderName(ticketFolderName)}`
+  const defaultPath = `${settings.worktreeRootPath}/${worktreeFolderName(taskFolderName)}`
   const worktreePath = saved?.savedWorktreePath ?? defaultPath
   return {
     worktreePath,
     isDefaultLocation: worktreePath === defaultPath,
-    branchName: saved?.savedBranchName ?? worktreeBranchName(ticketFolderName, settings.branchPrefix),
+    branchName: saved?.savedBranchName ?? worktreeBranchName(taskFolderName, settings.branchPrefix),
   }
 }

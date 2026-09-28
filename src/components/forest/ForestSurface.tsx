@@ -32,13 +32,13 @@ import {
   rearrangedForestPositions,
   type ForestFlowNode,
 } from './forest-flow-model.js'
-import { CARD_HEIGHT, CARD_WIDTH, representativeInScope, type DependencyRelation, type ForestTicket } from './forest-graph.js'
+import { CARD_HEIGHT, CARD_WIDTH, representativeInScope, type DependencyRelation, type ForestTask } from './forest-graph.js'
 import { externalDependencyPath, viewportForLayout } from './forest-viewport.js'
 import type { ForestViewport } from './forest-types.js'
-import type { ForestLayout } from '~/core/ticket/forest-layout-store.js'
+import type { ForestLayout } from '~/core/task/forest-layout-store.js'
 
 export interface ForestSurfaceData {
-  tickets: ForestTicket[]
+  tasks: ForestTask[]
   columns: SwatchColumn[]
   scopeGroupNumber?: string
   viewport?: ForestViewport
@@ -58,14 +58,14 @@ export interface ForestSurfaceCommands {
       y: number
     },
   ) => void
-  openGroup: (ticketNumber: string, cardRect: OverlayRect) => void
+  openGroup: (taskNumber: string, cardRect: OverlayRect) => void
   onClose?: () => void
-  openTicket: (ticketNumber: string) => void
+  openTask: (taskNumber: string) => void
   persistViewport?: (viewport: ForestViewport) => void
   registerSurface: (api: ForestSurfaceApi | undefined) => void
   removeDependency: (relations: DependencyRelation[]) => Promise<void>
   reportError: (cause: unknown) => void
-  ungroup: (ticketNumber: string) => void
+  ungroup: (taskNumber: string) => void
 }
 
 interface Props {
@@ -97,7 +97,7 @@ function surfaceInfo(element: HTMLElement, scopeGroupNumber: string | undefined)
 
 export default function ForestSurface(props: Props): JSX.Element {
   const layout = useContext(ForestLayoutContext)!
-  const model = createMemo(() => buildForestFlowModel(props.data.tickets, props.data.scopeGroupNumber, layout.get()))
+  const model = createMemo(() => buildForestFlowModel(props.data.tasks, props.data.scopeGroupNumber, layout.get()))
   const [nodes, setNodes] = createStore<ForestFlowNode[]>(() => model().nodes, [], {
     key: 'id',
   })
@@ -156,7 +156,7 @@ export default function ForestSurface(props: Props): JSX.Element {
         x: 0,
         y: 0,
       }
-    const card = surface?.querySelector<HTMLElement>(`[data-forest-card][data-ticket-number="${CSS.escape(id)}"]`)
+    const card = surface?.querySelector<HTMLElement>(`[data-forest-card][data-task-number="${CSS.escape(id)}"]`)
     if (!card)
       return {
         x: node.position.x + CARD_WIDTH / 2,
@@ -169,7 +169,7 @@ export default function ForestSurface(props: Props): JSX.Element {
   }
 
   function connectionAnchor(connection: ConnectionEndpoint, current = viewport()): ConnectionAnchor | undefined {
-    const representative = representativeInScope(model().lookup, connection.ticketNumber, props.data.scopeGroupNumber)
+    const representative = representativeInScope(model().lookup, connection.taskNumber, props.data.scopeGroupNumber)
     if (!representative || !nodeById(representative)) return undefined
     const local = screenPoint(endpoint(representative, connection.end), current)
     const rect = surface.getBoundingClientRect()
@@ -217,17 +217,17 @@ export default function ForestSurface(props: Props): JSX.Element {
     const finish = (event: PointerEvent) => {
       cleanup()
       const element = document.elementFromPoint(event.clientX, event.clientY)
-      const handle = element?.closest<HTMLElement>('[data-connection-handle-end][data-ticket-number]')
-      const card = element?.closest<HTMLElement>('[data-forest-card][data-ticket-number]')
-      const ticketNumber = handle?.dataset.ticketNumber ?? card?.dataset.ticketNumber
+      const handle = element?.closest<HTMLElement>('[data-connection-handle-end][data-task-number]')
+      const card = element?.closest<HTMLElement>('[data-forest-card][data-task-number]')
+      const taskNumber = handle?.dataset.taskNumber ?? card?.dataset.taskNumber
       const handleEnd = handle?.dataset.connectionHandleEnd
       const end = handleEnd === 'top' || handleEnd === 'bottom' ? handleEnd : undefined
-      if (ticketNumber && ticketNumber !== source.ticketNumber) {
+      if (taskNumber && taskNumber !== source.taskNumber) {
         activateConnection({
-          ticketNumber,
+          taskNumber,
           end: end ?? (source.end === 'bottom' ? 'top' : 'bottom'),
         })
-      } else if (!ticketNumber) {
+      } else if (!taskNumber) {
         props.connectionCommands.cancel()
       }
     }
@@ -242,7 +242,7 @@ export default function ForestSurface(props: Props): JSX.Element {
   const cardCommands: ForestCardCommands = untrack(() => ({
     activateConnection,
     dragConnection,
-    openGroupTicket: props.commands.openTicket,
+    openGroupTask: props.commands.openTask,
     ungroup: props.commands.ungroup,
   }))
 
@@ -283,7 +283,7 @@ export default function ForestSurface(props: Props): JSX.Element {
 
   function rearrange() {
     if (persisting()) return
-    const positions = rearrangedForestPositions(props.data.tickets, props.data.scopeGroupNumber)
+    const positions = rearrangedForestPositions(props.data.tasks, props.data.scopeGroupNumber)
     setNodes((draft) => {
       for (const node of draft) if (positions[node.id]) node.position = positions[node.id]
     })
@@ -393,7 +393,7 @@ export default function ForestSurface(props: Props): JSX.Element {
               box.bottom > rectangle.y
             )
           })
-          .map((card) => card.dataset.ticketNumber!)
+          .map((card) => card.dataset.taskNumber!)
           .filter(Boolean)
         setSelected(ids)
         setSelectionRect(undefined)
@@ -456,18 +456,18 @@ export default function ForestSurface(props: Props): JSX.Element {
       if (session.kind !== 'connecting') return
       const source = session.source
       const target = {
-        ticketNumber: node.id,
+        taskNumber: node.id,
         end: source.end === 'bottom' ? ('top' as const) : ('bottom' as const),
       }
       if (isConnectionTarget(source, target)) activateConnection(target)
       else props.connectionCommands.cancel()
-    } else props.commands.openTicket(node.id)
+    } else props.commands.openTask(node.id)
   }
 
   function nodeZIndex(node: ForestFlowNode): 1 | 0 {
     const session = props.connectionSession()
     if (session.kind === 'connecting') {
-      return node.data.representedTicketNumbers.includes(session.source.ticketNumber) ? 0 : 1
+      return node.data.representedTaskNumbers.includes(session.source.taskNumber) ? 0 : 1
     }
     return raisedNodeId() === node.id ? 1 : 0
   }
@@ -536,7 +536,7 @@ export default function ForestSurface(props: Props): JSX.Element {
     if (event.target !== event.currentTarget && !(event.target instanceof SVGElement)) return
     const dependency = externalPaths().find((candidate) => {
       const handle = surface.querySelector<HTMLElement>(
-        `[data-ticket-number="${CSS.escape(candidate.memberNumber)}"]` +
+        `[data-task-number="${CSS.escape(candidate.memberNumber)}"]` +
           `[data-connection-handle-end="${candidate.direction === 'up' ? 'top' : 'bottom'}"]`,
       )
       if (!handle) return false

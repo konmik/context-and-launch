@@ -412,13 +412,13 @@ describe('ProjectRegistry', () => {
     const registry = createProjectRegistry(createConfigPaths(configDir))
     const info = registry.addProject(projectDir, {
       projectSlug: 'branch-proj',
-      branch: 'tickets',
+      branch: 'tasks',
     })
-    expect(info.branch).toBe('tickets')
+    expect(info.branch).toBe('tasks')
     const listed = registry.listProjects().find((p) => p.projectSlug === 'branch-proj')
-    expect(listed?.branch).toBe('tickets')
+    expect(listed?.branch).toBe('tasks')
     const onDisk = JSON.parse(fs.readFileSync(path.join(configDir, 'config', 'config.json'), 'utf-8'))
-    expect(onDisk.projects[0].branch).toBe('tickets')
+    expect(onDisk.projects[0].branch).toBe('tasks')
   })
   it('addProject without a branch leaves the field undefined (legacy fallback)', () => {
     const configDir = initConfigDir()
@@ -447,7 +447,7 @@ describe('ProjectRegistry', () => {
     ).toThrow('whitespace')
     expect(registry.listProjects()).toHaveLength(0)
   })
-  it('addProject stores ticketsPath, getTicketsPath returns it, and rename preserves it', () => {
+  it('addProject stores tasksPath, getTasksPath returns it, and rename preserves it', () => {
     const configDir = initConfigDir()
     const projectDir = tmpDir('registry-project-')
     dirs.push(projectDir)
@@ -455,14 +455,14 @@ describe('ProjectRegistry', () => {
     const registry = createProjectRegistry(createConfigPaths(configDir))
     const info = registry.addProject(projectDir, {
       projectSlug: 'tix-proj',
-      branch: 'tickets',
-      ticketsPath: 'D:\\my-tickets',
+      branch: 'tasks',
+      tasksPath: 'D:\\my-tasks',
     })
-    expect(info.ticketsPath).toBe('D:\\my-tickets')
-    expect(registry.getTicketsPath('tix-proj')).toBe('D:\\my-tickets')
+    expect(info.tasksPath).toBe('D:\\my-tasks')
+    expect(registry.getTasksPath('tix-proj')).toBe('D:\\my-tasks')
     const updated = registry.updateProject('tix-proj', undefined, 'renamed')
-    expect(updated.ticketsPath).toBe('D:\\my-tickets')
-    expect(registry.getTicketsPath('renamed')).toBe('D:\\my-tickets')
+    expect(updated.tasksPath).toBe('D:\\my-tasks')
+    expect(registry.getTasksPath('renamed')).toBe('D:\\my-tasks')
   })
   it('updateProject preserves the branch field across rename', () => {
     const configDir = initConfigDir()
@@ -480,7 +480,7 @@ describe('ProjectRegistry', () => {
     expect(onDisk.projects[0].branch).toBe('tasks')
   })
   it('validateBranchName accepts valid names and rejects invalid ones', () => {
-    expect(() => validateBranchName('tickets')).not.toThrow()
+    expect(() => validateBranchName('tasks')).not.toThrow()
     expect(() => validateBranchName('feature/work-items')).not.toThrow()
     expect(() => validateBranchName('release-1.2')).not.toThrow()
     expect(() => validateBranchName('')).toThrow('empty')
@@ -535,7 +535,7 @@ describe('ProjectRegistry', () => {
     const registry = createProjectRegistry(createConfigPaths(configDir))
     const info = registry.addProject(projectDir, {
       projectSlug: 'mb-proj',
-      branch: 'tickets',
+      branch: 'tasks',
       mainBranch: 'develop',
       boardId: 'kanban',
     })
@@ -570,7 +570,7 @@ describe('ProjectRegistry', () => {
     expect(() =>
       registry.addProject(projectDir, {
         projectSlug: 'bad-main',
-        branch: 'tickets',
+        branch: 'tasks',
         mainBranch: 'my branch',
       }),
     ).toThrow('whitespace')
@@ -578,7 +578,7 @@ describe('ProjectRegistry', () => {
     expect(() =>
       registry.addProject(projectDir, {
         projectSlug: 'bad-main2',
-        branch: 'tickets',
+        branch: 'tasks',
         mainBranch: 'a~b',
       }),
     ).toThrow('invalid characters')
@@ -611,7 +611,7 @@ describe('ProjectRegistry', () => {
     expect(fs.existsSync(launcherConfigFile)).toBe(false)
     expect(fs.existsSync(projectConfigDir)).toBe(false)
   })
-  it('removeProject leaves tickets and worktrees directories intact', () => {
+  it('removeProject leaves tasks and worktrees directories intact', () => {
     const configDir = initConfigDir()
     const projectDir = tmpDir('registry-project-')
     dirs.push(projectDir)
@@ -621,15 +621,15 @@ describe('ProjectRegistry', () => {
     registry.addProject(projectDir, {
       projectSlug: 'partial-cleanup',
     })
-    const ticketsDir = paths.ticketWorktreeDir('partial-cleanup')
+    const tasksDir = paths.taskWorktreeDir('partial-cleanup')
     const worktreesDir = paths.agentWorktreeDir('partial-cleanup')
-    fs.mkdirSync(ticketsDir, {
+    fs.mkdirSync(tasksDir, {
       recursive: true,
     })
     fs.mkdirSync(worktreesDir, {
       recursive: true,
     })
-    fs.writeFileSync(path.join(ticketsDir, 'user-file.txt'), 'user data')
+    fs.writeFileSync(path.join(tasksDir, 'user-file.txt'), 'user data')
     fs.writeFileSync(path.join(worktreesDir, 'agent-file.txt'), 'agent data')
     const projectConfigDir = paths.projectConfigDir('partial-cleanup')
     fs.mkdirSync(projectConfigDir, {
@@ -643,8 +643,8 @@ describe('ProjectRegistry', () => {
       }),
     )
     registry.removeProject('partial-cleanup')
-    expect(fs.existsSync(ticketsDir)).toBe(true)
-    expect(fs.existsSync(path.join(ticketsDir, 'user-file.txt'))).toBe(true)
+    expect(fs.existsSync(tasksDir)).toBe(true)
+    expect(fs.existsSync(path.join(tasksDir, 'user-file.txt'))).toBe(true)
     expect(fs.existsSync(worktreesDir)).toBe(true)
     expect(fs.existsSync(path.join(worktreesDir, 'agent-file.txt'))).toBe(true)
     expect(fs.existsSync(projectConfigDir)).toBe(false)

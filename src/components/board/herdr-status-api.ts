@@ -5,14 +5,14 @@ import { errorPayload } from '~/core/shared/errors.js'
 import { query } from '@solidjs/router'
 import { herdrExec, reviewPromptQueueService, diffReviewStore } from '~/core/config/instances.js'
 import { appLog } from '~/core/infra/app-logger.js'
-import { fetchHerdrTicketState } from '~/core/herdr/herdr-client.js'
-import type { DiffReviewTicketState } from '~/core/diff-review/diff-review-types.js'
+import { fetchHerdrTaskState } from '~/core/herdr/herdr-client.js'
+import type { DiffReviewTaskState } from '~/core/diff-review/diff-review-types.js'
 import { createHerdrStatusService, type HerdrAgentStatusesResult } from './herdr-status-service.js'
 
 export type { HerdrAgentStatusesResult }
 
 const herdrStatusService = createHerdrStatusService({
-  loadTicketState: (projectSlug) => fetchHerdrTicketState(projectSlug, herdrExec),
+  loadTaskState: (projectSlug) => fetchHerdrTaskState(projectSlug, herdrExec),
   reconcileProject: (projectSlug) => reviewPromptQueueService.reconcileProject(projectSlug),
   log: appLog,
 })
@@ -37,14 +37,14 @@ export async function reconcileReviewPromptQueue(projectSlug: string): Promise<R
   try {
     const failures: ReviewDeliveryFailure[] = []
     const project = diffReviewStore.loadProject(projectSlug)
-    const ticketStates: [string, DiffReviewTicketState][] = [
-      ...Object.entries(project.tickets),
+    const taskStates: [string, DiffReviewTaskState][] = [
+      ...Object.entries(project.tasks),
       ...Object.entries(project.worktrees ?? {}).flatMap(([folderName, worktrees]) =>
-        Object.values(worktrees).map((ticket): [string, DiffReviewTicketState] => [folderName, ticket]),
+        Object.values(worktrees).map((task): [string, DiffReviewTaskState] => [folderName, task]),
       ),
     ]
-    for (const [folderName, ticket] of ticketStates) {
-      for (const item of ticket.queue.items) {
+    for (const [folderName, task] of taskStates) {
+      for (const item of task.queue.items) {
         if (item.state === 'error' || item.state === 'uncertain')
           failures.push({
             folderName,

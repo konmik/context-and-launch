@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { setupE2E, readTicketStatus, boxOf, centerOf, dragPointer } from './fixtures.js'
+import { setupE2E, readTaskStatus, boxOf, centerOf, dragPointer } from './fixtures.js'
 import {
   clickHandle,
   deleteDependencyViaPopup,
@@ -17,7 +17,7 @@ describe('Forest connection mode', () => {
   it('connectors meet cards whose content makes them taller than the minimum height', async () => {
     await openForestProject(ctx, {
       slugBase: 'fv-variable-card-height',
-      tickets: [
+      tasks: [
         {
           number: 'A-1',
           title: 'A dependency title long enough to wrap onto a second line',
@@ -60,7 +60,7 @@ describe('Forest connection mode', () => {
   it('connects on a target handle and cancels a drag released on empty space', async () => {
     const project = await openForestProject(ctx, {
       slugBase: 'fv-dep',
-      tickets: [
+      tasks: [
         {
           number: 'A-1',
           title: 'Alpha',
@@ -94,7 +94,7 @@ describe('Forest connection mode', () => {
     }
     await dragPointer(ctx.page, sourcePoint, targetPoint)
     await expect
-      .poll(() => readTicketStatus(ctx.testServer, project.projectSlug, 'b-1-beta')?.dependsOn?.includes('A-1') ?? false, {
+      .poll(() => readTaskStatus(ctx.testServer, project.projectSlug, 'b-1-beta')?.dependsOn?.includes('A-1') ?? false, {
         timeout: 10000,
       })
       .toBe(true)
@@ -116,7 +116,7 @@ describe('Forest connection mode', () => {
   it('cycle rejection', async () => {
     const project = await openForestProject(ctx, {
       slugBase: 'fv-cycle',
-      tickets: [
+      tasks: [
         {
           number: 'A-1',
           title: 'Alpha',
@@ -149,13 +149,13 @@ describe('Forest connection mode', () => {
     await ctx.page.waitForTimeout(500)
     await waitVisible(ctx.page, 'error-dialog-ok')
     await testId(ctx.page, 'error-dialog-ok').click()
-    const status = readTicketStatus(ctx.testServer, project.projectSlug, 'a-1-alpha')
+    const status = readTaskStatus(ctx.testServer, project.projectSlug, 'a-1-alpha')
     expect(status?.dependsOn).toBeUndefined()
   }, 120000)
   it('deleting a dependency removes its line immediately', async () => {
     const project = await openForestProject(ctx, {
       slugBase: 'fv-deldep',
-      tickets: [
+      tasks: [
         {
           number: 'A-1',
           title: 'Alpha',
@@ -182,7 +182,7 @@ describe('Forest connection mode', () => {
       timeout: 10000,
     })
     await expect
-      .poll(() => readTicketStatus(ctx.testServer, project.projectSlug, 'b-1-beta')?.dependsOn, {
+      .poll(() => readTaskStatus(ctx.testServer, project.projectSlug, 'b-1-beta')?.dependsOn, {
         timeout: 10000,
       })
       .toBeUndefined()
@@ -195,7 +195,7 @@ describe('Forest connection mode', () => {
   it('places both connector handles on the hovered card edges', async () => {
     await openForestProject(ctx, {
       slugBase: 'fv-htop',
-      tickets: [
+      tasks: [
         {
           number: 'H-1',
           title: 'HandleTop',
@@ -239,7 +239,7 @@ describe('Forest connection mode', () => {
   it('clicking blank surface content exits connection mode', async () => {
     await openForestProject(ctx, {
       slugBase: 'fv-cancel-connection',
-      tickets: [
+      tasks: [
         {
           number: 'A-1',
           title: 'Alpha',
@@ -258,7 +258,7 @@ describe('Forest connection mode', () => {
   it('Escape exits connection mode', async () => {
     await openForestProject(ctx, {
       slugBase: 'fv-escape-connection',
-      tickets: [
+      tasks: [
         {
           number: 'A-1',
           title: 'Alpha',
@@ -276,7 +276,7 @@ describe('Forest connection mode', () => {
   it('exits connection mode after connecting or clicking empty space', async () => {
     const project = await openForestProject(ctx, {
       slugBase: 'fv-connection-mode',
-      tickets: [
+      tasks: [
         {
           number: 'A-1',
           title: 'Alpha',
@@ -304,7 +304,7 @@ describe('Forest connection mode', () => {
     await expect.poll(() => preview.getAttribute('d')).not.toBe(initialPreviewPath)
     await targetHandle.click()
     await expect
-      .poll(() => readTicketStatus(ctx.testServer, project.projectSlug, 'a-1-alpha')?.dependsOn, {
+      .poll(() => readTaskStatus(ctx.testServer, project.projectSlug, 'a-1-alpha')?.dependsOn, {
         timeout: 10000,
       })
       .toContain('B-1')

@@ -29,7 +29,7 @@ function cleanup(...dirs: string[]) {
   }
 }
 
-function createTicketDir(worktreeDir: string, folderName: string, status: string) {
+function createTaskDir(worktreeDir: string, folderName: string, status: string) {
   const dir = path.join(worktreeDir, folderName)
   const [prefix, sequence] = folderName.split('-')
   fs.mkdirSync(dir, {
@@ -73,7 +73,7 @@ describe('migrateColumnRename', () => {
       projectSlug,
       boardId,
     })
-    const worktreeDir = path.join(configDir, 'projects', projectSlug, 'tickets')
+    const worktreeDir = path.join(configDir, 'projects', projectSlug, 'tasks')
     fs.mkdirSync(worktreeDir, {
       recursive: true,
     })
@@ -85,19 +85,19 @@ describe('migrateColumnRename', () => {
     dirs.push(configDir)
     initializeDataDir(createConfigPaths(configDir))
     const result = migrateColumnRename('standard', 'old', 'new', 'none', 'test', makeDeps(configDir))
-    expect(result.ticketsUpdated).toBe(0)
+    expect(result.tasksUpdated).toBe(0)
     expect(result.projectsUpdated).toBe(0)
   })
-  it('scope "current" updates only current project tickets', () => {
+  it('scope "current" updates only current project tasks', () => {
     const configDir = tmpDir('migration-test-')
     dirs.push(configDir)
     initializeDataDir(createConfigPaths(configDir))
     const worktreeDir = setupProject(configDir, 'proj-a', 'standard')
-    createTicketDir(worktreeDir, 't-1-alpha', 'todo')
-    createTicketDir(worktreeDir, 't-2-bravo', 'todo')
-    createTicketDir(worktreeDir, 't-3-charlie', 'done')
+    createTaskDir(worktreeDir, 't-1-alpha', 'todo')
+    createTaskDir(worktreeDir, 't-2-bravo', 'todo')
+    createTaskDir(worktreeDir, 't-3-charlie', 'done')
     const result = migrateColumnRename('standard', 'todo', 'backlog', 'current', 'proj-a', makeDeps(configDir))
-    expect(result.ticketsUpdated).toBe(2)
+    expect(result.tasksUpdated).toBe(2)
     expect(result.projectsUpdated).toBe(1)
     const status1 = JSON.parse(fs.readFileSync(path.join(worktreeDir, 't-1-alpha', 'status.json'), 'utf-8'))
     expect(status1.status).toBe('backlog')
@@ -133,25 +133,25 @@ describe('migrateColumnRename', () => {
     dirs.push(configDir)
     initializeDataDir(createConfigPaths(configDir))
     const wtA = setupProject(configDir, 'proj-a', 'standard')
-    createTicketDir(wtA, 't-1-alpha', 'todo')
+    createTaskDir(wtA, 't-1-alpha', 'todo')
     const wtB = setupProject(configDir, 'proj-b', 'standard')
-    createTicketDir(wtB, 't-2-bravo', 'todo')
+    createTaskDir(wtB, 't-2-bravo', 'todo')
     setupProject(configDir, 'proj-c', 'simple')
     const result = migrateColumnRename('standard', 'todo', 'backlog', 'all', 'proj-a', makeDeps(configDir))
-    expect(result.ticketsUpdated).toBe(2)
+    expect(result.tasksUpdated).toBe(2)
     expect(result.projectsUpdated).toBe(2)
   })
-  it('no tickets match old status returns zero updates', () => {
+  it('no tasks match old status returns zero updates', () => {
     const configDir = tmpDir('migration-test-')
     dirs.push(configDir)
     initializeDataDir(createConfigPaths(configDir))
     const worktreeDir = setupProject(configDir, 'proj-a', 'standard')
-    createTicketDir(worktreeDir, 't-1-alpha', 'done')
+    createTaskDir(worktreeDir, 't-1-alpha', 'done')
     const result = migrateColumnRename('standard', 'todo', 'backlog', 'current', 'proj-a', makeDeps(configDir))
-    expect(result.ticketsUpdated).toBe(0)
+    expect(result.tasksUpdated).toBe(0)
     expect(result.projectsUpdated).toBe(0)
   })
-  it('re-keys columnDefaults even when ticket store throws', () => {
+  it('re-keys columnDefaults even when task store throws', () => {
     const configDir = tmpDir('migration-test-')
     dirs.push(configDir)
     initializeDataDir(createConfigPaths(configDir))
@@ -179,7 +179,7 @@ describe('migrateColumnRename', () => {
     const updated = lcm.loadProjectConfig('proj-a')
     expect(updated.columnDefaults!['backlog']).toBeDefined()
     expect(updated.columnDefaults!['todo']).toBeUndefined()
-    expect(result.ticketsUpdated).toBe(0)
+    expect(result.tasksUpdated).toBe(0)
     expect(result.projectsUpdated).toBe(1)
   })
   it('scope "current" with undefined currentProjectSlug silently returns zeroes', () => {
@@ -188,7 +188,7 @@ describe('migrateColumnRename', () => {
     initializeDataDir(createConfigPaths(configDir))
     setupProject(configDir, 'proj-a', 'standard')
     const result = migrateColumnRename('standard', 'todo', 'backlog', 'current', fromAny<string, undefined>(undefined), makeDeps(configDir))
-    expect(result.ticketsUpdated).toBe(0)
+    expect(result.tasksUpdated).toBe(0)
     expect(result.projectsUpdated).toBe(0)
   })
   it('project with no columnDefaults does not error', () => {
@@ -196,9 +196,9 @@ describe('migrateColumnRename', () => {
     dirs.push(configDir)
     initializeDataDir(createConfigPaths(configDir))
     const worktreeDir = setupProject(configDir, 'proj-a', 'standard')
-    createTicketDir(worktreeDir, 't-1-alpha', 'todo')
+    createTaskDir(worktreeDir, 't-1-alpha', 'todo')
     const result = migrateColumnRename('standard', 'todo', 'backlog', 'current', 'proj-a', makeDeps(configDir))
-    expect(result.ticketsUpdated).toBe(1)
+    expect(result.tasksUpdated).toBe(1)
     expect(result.projectsUpdated).toBe(1)
   })
   it('scope "all" returns zeroes when listProjects throws', () => {
@@ -215,7 +215,7 @@ describe('migrateColumnRename', () => {
       ...deps,
       projectRegistry: brokenRegistry,
     })
-    expect(result.ticketsUpdated).toBe(0)
+    expect(result.tasksUpdated).toBe(0)
     expect(result.projectsUpdated).toBe(0)
   })
   it('scope "all" skips projects with a different boardId', () => {
@@ -223,12 +223,12 @@ describe('migrateColumnRename', () => {
     dirs.push(configDir)
     initializeDataDir(createConfigPaths(configDir))
     const wtA = setupProject(configDir, 'proj-a', 'standard')
-    createTicketDir(wtA, 't-1-alpha', 'todo')
+    createTaskDir(wtA, 't-1-alpha', 'todo')
     const wtB = setupProject(configDir, 'proj-b', 'other')
-    createTicketDir(wtB, 't-2-bravo', 'todo')
+    createTaskDir(wtB, 't-2-bravo', 'todo')
     const deps = makeDeps(configDir)
     const result = migrateColumnRename('standard', 'todo', 'backlog', 'all', '', deps)
-    expect(result.ticketsUpdated).toBe(1)
+    expect(result.tasksUpdated).toBe(1)
     expect(result.projectsUpdated).toBe(1)
   })
 })

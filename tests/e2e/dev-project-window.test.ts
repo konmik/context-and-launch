@@ -29,7 +29,7 @@ describe('Project window (e2e, Vite development server)', () => {
       },
       {
         projectSlug: 'dev-startup',
-        withTickets: [
+        withTasks: [
           {
             number: 'DEV-1',
             title: 'Startup',
@@ -86,10 +86,10 @@ describe('Project window (e2e, Vite development server)', () => {
     // force a full reload, which detaches whatever a test was reaching for. Walk
     // the route once here so that reload lands in setup instead of mid-test.
     await page.goto(`${baseUrl}/project/${project.projectSlug}`)
-    await page.locator('[data-testid="kanban-board-ticket-card"]').first().click({
+    await page.locator('[data-testid="kanban-board-task-card"]').first().click({
       timeout: 20000,
     })
-    await page.locator('[data-testid="ticket-detail-tab-editor"]').waitFor({
+    await page.locator('[data-testid="task-detail-tab-editor"]').waitFor({
       state: 'visible',
       timeout: 20000,
     })
@@ -109,11 +109,11 @@ describe('Project window (e2e, Vite development server)', () => {
     })
     expect(diagnostics.filter((message) => message.includes('FLUSH_IN_EFFECT_CALLBACK'))).toEqual([])
   })
-  it('keeps the Kanban board rendered while Ticket Detail is open', async () => {
+  it('keeps the Kanban board rendered while Task Detail is open', async () => {
     diagnostics.length = 0
     await page.goto(`${baseUrl}/project/${project.projectSlug}`)
-    await page.locator('[data-testid="kanban-board-ticket-card"]').first().click()
-    await page.locator('[data-testid="ticket-detail-tab-editor"]').waitFor({
+    await page.locator('[data-testid="kanban-board-task-card"]').first().click()
+    await page.locator('[data-testid="task-detail-tab-editor"]').waitFor({
       state: 'visible',
     })
     await page.waitForTimeout(500)
@@ -121,10 +121,10 @@ describe('Project window (e2e, Vite development server)', () => {
     expect(await page.getByRole('alert').allTextContents()).toEqual([])
     expect(await page.locator('[data-testid="kanban-board-scroll"]').count()).toBe(1)
   })
-  it('closes Ticket Detail without delegated event errors after Vite HMR', async () => {
+  it('closes Task Detail without delegated event errors after Vite HMR', async () => {
     await page.goto(`${baseUrl}/project/${project.projectSlug}`)
-    await page.locator('[data-testid="kanban-board-ticket-card"]').first().click()
-    await page.locator('[data-testid="ticket-detail-tab-editor"]').waitFor({
+    await page.locator('[data-testid="kanban-board-task-card"]').first().click()
+    await page.locator('[data-testid="task-detail-tab-editor"]').waitFor({
       state: 'visible',
     })
     const panelModule = path.resolve('src/components/ui/FloatingPanelRoot.tsx')
@@ -135,15 +135,15 @@ describe('Project window (e2e, Vite development server)', () => {
     fs.utimesSync(panelModule, panelStat.atime, new Date())
     await hotUpdate
     await expect
-      .poll(() => page.locator('[data-testid="ticket-detail-close-window-button"]').count(), {
+      .poll(() => page.locator('[data-testid="task-detail-close-window-button"]').count(), {
         timeout: 10000,
       })
       .toBe(1)
     diagnostics.length = 0
-    await page.locator('[data-testid="ticket-detail-close-window-button"]').click()
+    await page.locator('[data-testid="task-detail-close-window-button"]').click()
     await page.waitForTimeout(100)
     expect(diagnostics.filter((message) => message.includes("Cannot read properties of undefined (reading '$$"))).toEqual([])
-    expect(await page.locator('[data-testid="ticket-detail-close-window-button"]').count()).toBe(0)
+    expect(await page.locator('[data-testid="task-detail-close-window-button"]').count()).toBe(0)
   })
   it('runs project workflows without Solid development diagnostics', async () => {
     const expectNoLifecycleDiagnostics = (stage: string) => {
@@ -165,12 +165,12 @@ describe('Project window (e2e, Vite development server)', () => {
     expect(await page.getByRole('alert').count()).toBe(0)
     expect(await page.locator('[data-testid="kanban-board-scroll"]').count()).toBe(1)
     expectNoLifecycleDiagnostics('project startup')
-    await page.locator('[data-testid="project-header-new-ticket-button"]').click()
-    await page.locator('[data-testid="create-ticket-number-input"]').waitFor({
+    await page.locator('[data-testid="project-header-new-task-button"]').click()
+    await page.locator('[data-testid="create-task-number-input"]').waitFor({
       state: 'visible',
     })
-    await page.locator('[data-testid="create-ticket-cancel"]').click()
-    expectNoLifecycleDiagnostics('New Ticket dialog')
+    await page.locator('[data-testid="create-task-cancel"]').click()
+    expectNoLifecycleDiagnostics('New Task dialog')
     await page.locator('[data-testid="project-header-settings-button"]').click()
     const settings = page.getByRole('dialog', {
       name: 'Settings',
@@ -201,12 +201,12 @@ describe('Project window (e2e, Vite development server)', () => {
     })
     await page.locator('[data-testid="project-launcher-close-button"]').click()
     expectNoLifecycleDiagnostics('Project Launcher dialog')
-    await page.locator('[data-testid="kanban-board-ticket-card"]').first().click()
-    await page.locator('[data-testid="ticket-detail-tab-editor"]').waitFor({
+    await page.locator('[data-testid="kanban-board-task-card"]').first().click()
+    await page.locator('[data-testid="task-detail-tab-editor"]').waitFor({
       state: 'visible',
     })
-    await page.locator('[data-testid="ticket-detail-close-window-button"]').click()
-    expectNoLifecycleDiagnostics('Ticket Detail dialog')
+    await page.locator('[data-testid="task-detail-close-window-button"]').click()
+    expectNoLifecycleDiagnostics('Task Detail dialog')
     await page.locator('[data-testid="project-header-forest-toggle-button"]').click()
     await page.locator('[data-testid="forest-surface"], vite-error-overlay').first().waitFor({
       state: 'attached',
@@ -218,15 +218,15 @@ describe('Project window (e2e, Vite development server)', () => {
     if (!forestBounds) throw new Error('Forest surface has no bounds')
     await page.mouse.move(forestBounds.x + forestBounds.width / 2, forestBounds.y + forestBounds.height / 2)
     expectNoLifecycleDiagnostics('Forest pointer move')
-    await page.locator('[data-testid="forest-ticket-card"]').click()
-    const ticketDetailClose = page.locator('[data-testid="ticket-detail-close-button"]')
-    await ticketDetailClose.waitFor({
+    await page.locator('[data-testid="forest-task-card"]').click()
+    const taskDetailClose = page.locator('[data-testid="task-detail-close-button"]')
+    await taskDetailClose.waitFor({
       state: 'visible',
     })
-    expect(await page.getByRole('alert').count(), 'Forest Ticket Detail open app error').toBe(0)
+    expect(await page.getByRole('alert').count(), 'Forest Task Detail open app error').toBe(0)
     await page.waitForTimeout(500)
-    await ticketDetailClose.hover()
-    expect(await page.getByRole('alert').count(), 'Forest Ticket Detail app error').toBe(0)
-    expectNoLifecycleDiagnostics('Forest Ticket Detail dialog')
+    await taskDetailClose.hover()
+    expect(await page.getByRole('alert').count(), 'Forest Task Detail app error').toBe(0)
+    expectNoLifecycleDiagnostics('Forest Task Detail dialog')
   })
 })

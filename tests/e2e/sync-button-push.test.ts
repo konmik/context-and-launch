@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { gotoProject, seedProject, setupE2E } from './fixtures.js'
-import { aheadCount, commitAll, fetchTickets, git, mutateRemote, porcelainStatus, pushTickets, remoteLog } from './git-fixtures.js'
+import { aheadCount, commitAll, fetchTasks, git, mutateRemote, porcelainStatus, pushTasks, remoteLog } from './git-fixtures.js'
 import { testId, waitVisible } from './locators.js'
-import type { StatusJson } from '../../src/core/ticket/ticket-repository.js'
+import type { StatusJson } from '../../src/core/task/task-repository.js'
 
-function writeTicketFolder(root: string, folderName: string, status: Pick<StatusJson, 'number' | 'title' | 'status'>): void {
+function writeTaskFolder(root: string, folderName: string, status: Pick<StatusJson, 'number' | 'title' | 'status'>): void {
   fs.mkdirSync(path.join(root, folderName), {
     recursive: true,
   })
@@ -35,7 +35,7 @@ describe('Sync button push behavior (e2e, real server)', () => {
     const project = await seedProject(ctx, {
       slugBase: 'sb-diverged-ok',
       withRemote: true,
-      withTickets: [
+      withTasks: [
         {
           number: 'DV-1',
           title: 'Local file',
@@ -44,18 +44,18 @@ describe('Sync button push behavior (e2e, real server)', () => {
         },
       ],
     })
-    pushTickets(project)
+    pushTasks(project)
     mutateRemote(project, {
       message: 'remote add',
       edit: (clone) =>
-        writeTicketFolder(clone, 'dv-2-remote-only', {
+        writeTaskFolder(clone, 'dv-2-remote-only', {
           number: 'DV-2',
           title: 'Remote only',
           status: 'todo',
         }),
     })
-    fs.writeFileSync(path.join(project.ticketsPath, 'dv-1-local-file', 'notes.md'), 'local note')
-    fetchTickets(project)
+    fs.writeFileSync(path.join(project.tasksPath, 'dv-1-local-file', 'notes.md'), 'local note')
+    fetchTasks(project)
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
     await syncAndWaitForSuccess()
     expect(remoteLog(project, '--all --format=%s')).toContain('sync: local changes')
@@ -65,23 +65,23 @@ describe('Sync button push behavior (e2e, real server)', () => {
       slugBase: 'sb-squash',
       withRemote: true,
     })
-    pushTickets(project)
-    writeTicketFolder(project.ticketsPath, 'sq-1-first', {
+    pushTasks(project)
+    writeTaskFolder(project.tasksPath, 'sq-1-first', {
       number: 'SQ-1',
       title: 'First',
       status: 'todo',
     })
-    commitAll(project.ticketsPath, 'auto: external changes')
-    writeTicketFolder(project.ticketsPath, 'sq-2-second', {
+    commitAll(project.tasksPath, 'auto: external changes')
+    writeTaskFolder(project.tasksPath, 'sq-2-second', {
       number: 'SQ-2',
       title: 'Second',
       status: 'todo',
     })
-    commitAll(project.ticketsPath, 'auto: external changes')
+    commitAll(project.tasksPath, 'auto: external changes')
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
     await syncAndWaitForSuccess()
-    expect(aheadCount(project.ticketsPath)).toBe(0)
-    const syncLines = remoteLog(project, '--oneline tickets')
+    expect(aheadCount(project.tasksPath)).toBe(0)
+    const syncLines = remoteLog(project, '--oneline tasks')
       .split('\n')
       .filter((line) => line.includes('sync: local changes'))
     expect(syncLines.length).toBe(1)
@@ -91,29 +91,29 @@ describe('Sync button push behavior (e2e, real server)', () => {
       slugBase: 'sb-no-upstream',
       withRemote: true,
     })
-    git('branch --unset-upstream', project.ticketsPath)
-    writeTicketFolder(project.ticketsPath, 'nu-1-test', {
+    git('branch --unset-upstream', project.tasksPath)
+    writeTaskFolder(project.tasksPath, 'nu-1-test', {
       number: 'NU-1',
       title: 'Test',
       status: 'todo',
     })
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
     await syncAndWaitForSuccess()
-    expect(git('rev-parse --abbrev-ref --symbolic-full-name @{u}', project.ticketsPath)).toContain('origin/')
+    expect(git('rev-parse --abbrev-ref --symbolic-full-name @{u}', project.tasksPath)).toContain('origin/')
   })
   it('net-zero unpushed commits: sync succeeds and flip.txt does not exist', async () => {
     const project = await seedProject(ctx, {
       slugBase: 'sb-netzero',
       withRemote: true,
     })
-    pushTickets(project)
-    fs.writeFileSync(path.join(project.ticketsPath, 'flip.txt'), 'changed')
-    commitAll(project.ticketsPath, 'auto: change')
-    fs.unlinkSync(path.join(project.ticketsPath, 'flip.txt'))
-    commitAll(project.ticketsPath, 'auto: revert')
+    pushTasks(project)
+    fs.writeFileSync(path.join(project.tasksPath, 'flip.txt'), 'changed')
+    commitAll(project.tasksPath, 'auto: change')
+    fs.unlinkSync(path.join(project.tasksPath, 'flip.txt'))
+    commitAll(project.tasksPath, 'auto: revert')
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
     await syncAndWaitForSuccess()
-    expect(fs.existsSync(path.join(project.ticketsPath, 'flip.txt'))).toBe(false)
-    expect(porcelainStatus(project.ticketsPath)).toBe('')
+    expect(fs.existsSync(path.join(project.tasksPath, 'flip.txt'))).toBe(false)
+    expect(porcelainStatus(project.tasksPath)).toBe('')
   })
 })

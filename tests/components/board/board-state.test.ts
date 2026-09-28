@@ -2,17 +2,17 @@ import { describe, it, expect } from 'vitest'
 import { createRoot, createSignal, flush, runWithOwner } from 'solid-js'
 import { createBoardDnd } from '../../../src/components/board/board-state'
 import type { BoardState } from '~/components/project/project-api.js'
-import type { TicketInfo } from '~/core/ticket/ticket-store.js'
+import type { TaskInfo } from '~/core/task/task-store.js'
 import type { ColumnDefinition } from '~/core/project/board-config.js'
 
-function makeTicket(
-  overrides: Partial<TicketInfo> & {
+function makeTask(
+  overrides: Partial<TaskInfo> & {
     folderName: string
   },
-): TicketInfo {
+): TaskInfo {
   return {
     number: overrides.number ?? 'T-1',
-    title: overrides.title ?? 'Test ticket',
+    title: overrides.title ?? 'Test task',
     status: overrides.status ?? 'todo',
     contextNames: [],
     useWorktree: false,
@@ -24,7 +24,7 @@ function makeTicket(
 }
 
 function makeBoard(
-  tickets: TicketInfo[],
+  tasks: TaskInfo[],
   columns: ColumnDefinition[] = [
     {
       name: 'todo',
@@ -35,14 +35,14 @@ function makeBoard(
   ],
 ): BoardState {
   const colNames = columns.map((c) => c.name)
-  const ticketOrder: Record<string, string[]> = {}
+  const taskOrder: Record<string, string[]> = {}
   for (const col of colNames) {
-    ticketOrder[col] = tickets.filter((t) => t.status === col).map((t) => t.folderName)
+    taskOrder[col] = tasks.filter((t) => t.status === col).map((t) => t.folderName)
   }
   return {
     columns,
-    tickets,
-    ticketOrder,
+    tasks,
+    taskOrder,
   }
 }
 
@@ -53,52 +53,52 @@ function invoke<T>(fn: () => T): T {
 }
 
 describe('createBoardDnd board view', () => {
-  it('computes ticketMap from board tickets', () => {
+  it('computes taskMap from board tasks', () => {
     createRoot((dispose) => {
-      const tickets = [
-        makeTicket({
+      const tasks = [
+        makeTask({
           folderName: 't-1-alpha',
           status: 'todo',
         }),
-        makeTicket({
+        makeTask({
           folderName: 't-2-bravo',
           status: 'done',
         }),
       ]
-      const [b] = createSignal(makeBoard(tickets))
+      const [b] = createSignal(makeBoard(tasks))
       const { board } = createBoardDnd(b)
-      expect(board().ticketMap.size).toBe(2)
-      expect(board().ticketMap.get('t-1-alpha')?.status).toBe('todo')
+      expect(board().taskMap.size).toBe(2)
+      expect(board().taskMap.get('t-1-alpha')?.status).toBe('todo')
       dispose()
     })
   })
-  it('computes orphanedTickets for tickets with no matching column', () => {
+  it('computes orphanedTasks for tasks with no matching column', () => {
     createRoot((dispose) => {
-      const tickets = [
-        makeTicket({
+      const tasks = [
+        makeTask({
           folderName: 't-1-alpha',
           status: 'todo',
         }),
-        makeTicket({
+        makeTask({
           folderName: 't-2-bravo',
           status: 'deleted-col',
         }),
       ]
-      const [b] = createSignal(makeBoard(tickets))
+      const [b] = createSignal(makeBoard(tasks))
       const { board } = createBoardDnd(b)
-      expect(board().orphanedTickets.map((t) => t.folderName)).toEqual(['t-2-bravo'])
+      expect(board().orphanedTasks.map((t) => t.folderName)).toEqual(['t-2-bravo'])
       dispose()
     })
   })
   it('computes orphanFolderNames as a set', () => {
     createRoot((dispose) => {
-      const tickets = [
-        makeTicket({
+      const tasks = [
+        makeTask({
           folderName: 't-1-alpha',
           status: 'gone',
         }),
       ]
-      const [b] = createSignal(makeBoard(tickets))
+      const [b] = createSignal(makeBoard(tasks))
       const { board } = createBoardDnd(b)
       expect(board().orphanFolderNames.has('t-1-alpha')).toBe(true)
       dispose()
@@ -109,38 +109,38 @@ describe('createBoardDnd drag state', () => {
   it('initial drag state is idle', () => {
     createRoot((dispose) => {
       const [b] = createSignal(makeBoard([]))
-      const { drag, activeTicket } = createBoardDnd(b)
+      const { drag, activeTask } = createBoardDnd(b)
       expect(drag().activeId).toBeNull()
       expect(drag().hoverTarget).toBeNull()
-      expect(activeTicket()).toBeNull()
+      expect(activeTask()).toBeNull()
       dispose()
     })
   })
   it('startDrag sets activeId', () => {
     createRoot((dispose) => {
-      const tickets = [
-        makeTicket({
+      const tasks = [
+        makeTask({
           folderName: 't-1-alpha',
           status: 'todo',
         }),
       ]
-      const [b] = createSignal(makeBoard(tickets))
-      const { drag, activeTicket, commands } = createBoardDnd(b)
+      const [b] = createSignal(makeBoard(tasks))
+      const { drag, activeTask, commands } = createBoardDnd(b)
       invoke(() => commands.startDrag('todo:t-1-alpha'))
       expect(drag().activeId).toBe('todo:t-1-alpha')
-      expect(activeTicket()?.folderName).toBe('t-1-alpha')
+      expect(activeTask()?.folderName).toBe('t-1-alpha')
       dispose()
     })
   })
   it('cancelDrag clears activeId and hoverTarget', () => {
     createRoot((dispose) => {
-      const tickets = [
-        makeTicket({
+      const tasks = [
+        makeTask({
           folderName: 't-1-alpha',
           status: 'todo',
         }),
       ]
-      const [b] = createSignal(makeBoard(tickets))
+      const [b] = createSignal(makeBoard(tasks))
       const { drag, commands } = createBoardDnd(b)
       invoke(() => commands.startDrag('todo:t-1-alpha'))
       invoke(() =>
@@ -159,17 +159,17 @@ describe('createBoardDnd drag state', () => {
 describe('createBoardDnd endDrag', () => {
   it('returns DropResult for cross-column drag', () => {
     createRoot((dispose) => {
-      const tickets = [
-        makeTicket({
+      const tasks = [
+        makeTask({
           folderName: 't-1-alpha',
           status: 'todo',
         }),
-        makeTicket({
+        makeTask({
           folderName: 't-2-bravo',
           status: 'done',
         }),
       ]
-      const [b] = createSignal(makeBoard(tickets))
+      const [b] = createSignal(makeBoard(tasks))
       const { commands } = createBoardDnd(b)
       invoke(() => commands.startDrag('todo:t-1-alpha'))
       invoke(() =>
@@ -189,21 +189,21 @@ describe('createBoardDnd endDrag', () => {
   })
   it('returns DropResult for same-column reorder', () => {
     createRoot((dispose) => {
-      const tickets = [
-        makeTicket({
+      const tasks = [
+        makeTask({
           folderName: 't-1-alpha',
           status: 'todo',
         }),
-        makeTicket({
+        makeTask({
           folderName: 't-2-bravo',
           status: 'todo',
         }),
-        makeTicket({
+        makeTask({
           folderName: 't-3-charlie',
           status: 'todo',
         }),
       ]
-      const [b] = createSignal(makeBoard(tickets))
+      const [b] = createSignal(makeBoard(tasks))
       const { commands } = createBoardDnd(b)
       invoke(() => commands.startDrag('todo:t-1-alpha'))
       invoke(() =>
@@ -223,17 +223,17 @@ describe('createBoardDnd endDrag', () => {
   })
   it('returns null for same-position drop', () => {
     createRoot((dispose) => {
-      const tickets = [
-        makeTicket({
+      const tasks = [
+        makeTask({
           folderName: 't-1-alpha',
           status: 'todo',
         }),
-        makeTicket({
+        makeTask({
           folderName: 't-2-bravo',
           status: 'todo',
         }),
       ]
-      const [b] = createSignal(makeBoard(tickets))
+      const [b] = createSignal(makeBoard(tasks))
       const { commands } = createBoardDnd(b)
       invoke(() => commands.startDrag('todo:t-1-alpha'))
       invoke(() =>
@@ -248,13 +248,13 @@ describe('createBoardDnd endDrag', () => {
   })
   it('returns null when no hoverTarget', () => {
     createRoot((dispose) => {
-      const tickets = [
-        makeTicket({
+      const tasks = [
+        makeTask({
           folderName: 't-1-alpha',
           status: 'todo',
         }),
       ]
-      const [b] = createSignal(makeBoard(tickets))
+      const [b] = createSignal(makeBoard(tasks))
       const { commands } = createBoardDnd(b)
       invoke(() => commands.startDrag('todo:t-1-alpha'))
       expect(invoke(commands.endDrag)).toBeNull()
@@ -263,17 +263,17 @@ describe('createBoardDnd endDrag', () => {
   })
   it('rejects drop into undefined column', () => {
     createRoot((dispose) => {
-      const tickets = [
-        makeTicket({
+      const tasks = [
+        makeTask({
           folderName: 't-1-alpha',
           status: 'todo',
         }),
-        makeTicket({
+        makeTask({
           folderName: 't-2-bravo',
           status: 'gone',
         }),
       ]
-      const [b] = createSignal(makeBoard(tickets))
+      const [b] = createSignal(makeBoard(tasks))
       const { commands } = createBoardDnd(b)
       invoke(() => commands.startDrag('todo:t-1-alpha'))
       invoke(() =>
@@ -288,17 +288,17 @@ describe('createBoardDnd endDrag', () => {
   })
   it('clears drag state after drop', () => {
     createRoot((dispose) => {
-      const tickets = [
-        makeTicket({
+      const tasks = [
+        makeTask({
           folderName: 't-1-alpha',
           status: 'todo',
         }),
-        makeTicket({
+        makeTask({
           folderName: 't-2-bravo',
           status: 'done',
         }),
       ]
-      const [b] = createSignal(makeBoard(tickets))
+      const [b] = createSignal(makeBoard(tasks))
       const { drag, commands } = createBoardDnd(b)
       invoke(() => commands.startDrag('todo:t-1-alpha'))
       invoke(() =>
@@ -315,17 +315,17 @@ describe('createBoardDnd endDrag', () => {
   })
   it('leaves persisted order with its owner after drop', () => {
     createRoot((dispose) => {
-      const tickets = [
-        makeTicket({
+      const tasks = [
+        makeTask({
           folderName: 't-1-alpha',
           status: 'todo',
         }),
-        makeTicket({
+        makeTask({
           folderName: 't-2-bravo',
           status: 'done',
         }),
       ]
-      const [b] = createSignal(makeBoard(tickets))
+      const [b] = createSignal(makeBoard(tasks))
       const { currentOrder, commands } = createBoardDnd(b)
       invoke(() => commands.startDrag('todo:t-1-alpha'))
       invoke(() =>
@@ -342,23 +342,23 @@ describe('createBoardDnd endDrag', () => {
   })
 })
 describe('createBoardDnd server sync', () => {
-  it('reads replacement ticket order', () => {
+  it('reads replacement task order', () => {
     createRoot((dispose) => {
-      const tickets = [
-        makeTicket({
+      const tasks = [
+        makeTask({
           folderName: 't-1-alpha',
           status: 'todo',
         }),
-        makeTicket({
+        makeTask({
           folderName: 't-2-bravo',
           status: 'done',
         }),
-        makeTicket({
+        makeTask({
           folderName: 't-3-charlie',
           status: 'done',
         }),
       ]
-      const [b, setB] = createSignal(makeBoard(tickets))
+      const [b, setB] = createSignal(makeBoard(tasks))
       const { currentOrder, commands } = createBoardDnd(b)
       invoke(() => commands.startDrag('todo:t-1-alpha'))
       invoke(() =>
@@ -376,25 +376,25 @@ describe('createBoardDnd server sync', () => {
       invoke(() =>
         setB({
           columns: b().columns,
-          tickets: b().tickets,
-          ticketOrder: serverOrder,
+          tasks: b().tasks,
+          taskOrder: serverOrder,
         }),
       )
       expect(currentOrder()['done']).toEqual(['t-3-charlie', 't-1-alpha', 't-2-bravo'])
       dispose()
     })
   })
-  it('new tickets appear after server sync', () => {
+  it('new tasks appear after server sync', () => {
     createRoot((dispose) => {
-      const ticketA = makeTicket({
+      const taskA = makeTask({
         folderName: 't-1-alpha',
         status: 'todo',
       })
-      const ticketB = makeTicket({
+      const taskB = makeTask({
         folderName: 't-2-bravo',
         status: 'done',
       })
-      const [b, setB] = createSignal(makeBoard([ticketA, ticketB]))
+      const [b, setB] = createSignal(makeBoard([taskA, taskB]))
       const { board, commands } = createBoardDnd(b)
       invoke(() => commands.startDrag('todo:t-1-alpha'))
       invoke(() =>
@@ -404,12 +404,12 @@ describe('createBoardDnd server sync', () => {
         }),
       )
       invoke(commands.endDrag)
-      const ticketC = makeTicket({
+      const taskC = makeTask({
         folderName: 't-3-charlie',
         status: 'todo',
       })
-      invoke(() => setB(makeBoard([ticketA, ticketB, ticketC])))
-      expect(board().ticketMap.has('t-3-charlie')).toBe(true)
+      invoke(() => setB(makeBoard([taskA, taskB, taskC])))
+      expect(board().taskMap.has('t-3-charlie')).toBe(true)
       dispose()
     })
   })

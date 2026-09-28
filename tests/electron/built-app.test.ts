@@ -55,7 +55,7 @@ describe('built application handler', () => {
     const response = await handleRequest(new Request('app://context-launch/project/example?tab=forest'))
     expect(await response.text()).toBe('<main>shell</main>')
   })
-  it.each(['/_server/read', '/api/projects/example/board/tickets/ST-1/references/content?path=a.md'])(
+  it.each(['/_server/read', '/api/projects/example/board/tasks/ST-1/references/content?path=a.md'])(
     'dispatches %s to the built server',
     async (pathname) => {
       const { fetch, handleRequest } = await fixture()

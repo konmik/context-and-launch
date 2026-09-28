@@ -1,7 +1,7 @@
-import type { TicketInfo } from '~/core/ticket/ticket-store.js'
-import type { ForestLayout } from '~/core/ticket/forest-layout-store.js'
+import type { TaskInfo } from '~/core/task/task-store.js'
+import type { ForestLayout } from '~/core/task/forest-layout-store.js'
 
-export type ForestTicket = Pick<TicketInfo, 'number' | 'title' | 'status' | 'folderName' | 'dependsOn' | 'memberOf'>
+export type ForestTask = Pick<TaskInfo, 'number' | 'title' | 'status' | 'folderName' | 'dependsOn' | 'memberOf'>
 
 export const CARD_WIDTH = 208
 
@@ -29,52 +29,52 @@ export interface ExternalDependencyProjection {
 }
 
 export interface ForestLookup {
-  byNumber: Map<string, ForestTicket>
+  byNumber: Map<string, ForestTask>
   allNumbers: Set<string>
 }
 
-export function buildLookup(tickets: ForestTicket[]): ForestLookup {
+export function buildLookup(tasks: ForestTask[]): ForestLookup {
   return {
-    byNumber: new Map(tickets.map((t) => [t.number, t])),
-    allNumbers: new Set(tickets.map((t) => t.number)),
+    byNumber: new Map(tasks.map((t) => [t.number, t])),
+    allNumbers: new Set(tasks.map((t) => t.number)),
   }
 }
 
-export function effectiveParent(ticket: ForestTicket, allNumbers: Set<string>): string | undefined {
-  if (ticket.memberOf && allNumbers.has(ticket.memberOf)) return ticket.memberOf
+export function effectiveParent(task: ForestTask, allNumbers: Set<string>): string | undefined {
+  if (task.memberOf && allNumbers.has(task.memberOf)) return task.memberOf
   return undefined
 }
 
 export function resolveScope(
-  tickets: ForestTicket[],
+  tasks: ForestTask[],
   scopeGroupNumber: string | undefined,
-  lookup: ForestLookup = buildLookup(tickets),
-): ForestTicket[] {
-  return tickets.filter((t) => effectiveParent(t, lookup.allNumbers) === scopeGroupNumber)
+  lookup: ForestLookup = buildLookup(tasks),
+): ForestTask[] {
+  return tasks.filter((t) => effectiveParent(t, lookup.allNumbers) === scopeGroupNumber)
 }
 
-export function isGroup(tickets: ForestTicket[], ticketNumber: string): boolean {
-  const allNumbers = new Set(tickets.map((t) => t.number))
-  return tickets.some((t) => effectiveParent(t, allNumbers) === ticketNumber)
+export function isGroup(tasks: ForestTask[], taskNumber: string): boolean {
+  const allNumbers = new Set(tasks.map((t) => t.number))
+  return tasks.some((t) => effectiveParent(t, allNumbers) === taskNumber)
 }
 
 export function representativeInScope(
   lookup: ForestLookup,
-  ticketNumber: string,
+  taskNumber: string,
   scopeGroupNumber: string | undefined,
   cache?: Map<string, string | undefined>,
 ): string | undefined {
-  const cached = cache?.get(ticketNumber)
-  if (cached !== undefined || cache?.has(ticketNumber)) return cached
+  const cached = cache?.get(taskNumber)
+  if (cached !== undefined || cache?.has(taskNumber)) return cached
   const visited = new Set<string>()
-  let current = ticketNumber
+  let current = taskNumber
   let result: string | undefined
   while (true) {
     if (visited.has(current)) break
     visited.add(current)
-    const ticket = lookup.byNumber.get(current)
-    if (!ticket) break
-    const parent = effectiveParent(ticket, lookup.allNumbers)
+    const task = lookup.byNumber.get(current)
+    if (!task) break
+    const parent = effectiveParent(task, lookup.allNumbers)
     if (parent === scopeGroupNumber) {
       result = current
       break
@@ -82,7 +82,7 @@ export function representativeInScope(
     if (parent === undefined) break
     current = parent
   }
-  cache?.set(ticketNumber, result)
+  cache?.set(taskNumber, result)
   return result
 }
 
@@ -101,20 +101,20 @@ export interface DependencyProjections {
 }
 
 export function projectDependencies(
-  tickets: ForestTicket[],
+  tasks: ForestTask[],
   scopeGroupNumber: string | undefined,
-  lookup: ForestLookup = buildLookup(tickets),
+  lookup: ForestLookup = buildLookup(tasks),
   representativeCache?: Map<string, string | undefined>,
 ): DependencyProjections {
   const internal = new Map<string, InternalDependencyProjection>()
   const external = new Map<string, ExternalDependencyProjection>()
-  for (const ticket of tickets) {
-    if (!ticket.dependsOn) continue
-    const fromRep = representativeInScope(lookup, ticket.number, scopeGroupNumber, representativeCache)
-    for (const dep of ticket.dependsOn) {
+  for (const task of tasks) {
+    if (!task.dependsOn) continue
+    const fromRep = representativeInScope(lookup, task.number, scopeGroupNumber, representativeCache)
+    for (const dep of task.dependsOn) {
       const toRep = representativeInScope(lookup, dep, scopeGroupNumber, representativeCache)
       const relation = {
-        fromNumber: ticket.number,
+        fromNumber: task.number,
         toNumber: dep,
       }
       if (fromRep && toRep && fromRep !== toRep) {
@@ -144,12 +144,12 @@ export function projectDependencies(
   }
 }
 
-export function internalDependencies(tickets: ForestTicket[], scopeGroupNumber: string | undefined): InternalDependencyProjection[] {
-  return projectDependencies(tickets, scopeGroupNumber).internal
+export function internalDependencies(tasks: ForestTask[], scopeGroupNumber: string | undefined): InternalDependencyProjection[] {
+  return projectDependencies(tasks, scopeGroupNumber).internal
 }
 
-export function externalDependencies(tickets: ForestTicket[], scopeGroupNumber: string | undefined): ExternalDependencyProjection[] {
-  return projectDependencies(tickets, scopeGroupNumber).external
+export function externalDependencies(tasks: ForestTask[], scopeGroupNumber: string | undefined): ExternalDependencyProjection[] {
+  return projectDependencies(tasks, scopeGroupNumber).external
 }
 
 function buildOutgoing(nodeNumbers: string[], dependencies: DependencyRelation[]): Map<string, string[]> {
@@ -216,7 +216,7 @@ function insertSorted(sorted: number[], value: number): void {
   sorted.splice(lo, 0, value)
 }
 
-export function autoLayoutPositions(nodes: ForestTicket[], dependencies: DependencyRelation[]): ForestLayout {
+export function autoLayoutPositions(nodes: ForestTask[], dependencies: DependencyRelation[]): ForestLayout {
   const nodeNumbers = nodes.map((n) => n.number)
   const depths = computeDepths(nodeNumbers, dependencies)
   const outgoing = buildOutgoing(nodeNumbers, dependencies)

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { setupE2E, readTicketStatus, boxOf, centerOf } from './fixtures.js'
+import { setupE2E, readTaskStatus, boxOf, centerOf } from './fixtures.js'
 import {
   clickHandle,
   closeSubforest,
@@ -17,10 +17,10 @@ import { testId } from './locators.js'
 
 describe('Forest group connections', () => {
   const ctx = setupE2E()
-  it('connects a root ticket to a ticket inside an open sub-forest', async () => {
+  it('connects a root task to a task inside an open sub-forest', async () => {
     const project = await openForestProject(ctx, {
       slugBase: 'fg-connect-member',
-      tickets: [
+      tasks: [
         {
           number: 'S-1',
           title: 'Member',
@@ -50,7 +50,7 @@ describe('Forest group connections', () => {
     expect(await memberHandle.getAttribute('data-connection-handle-state')).toBe('available')
     await memberHandle.click()
     await expect
-      .poll(() => readTicketStatus(ctx.testServer, project.projectSlug, 's-out-outside')?.dependsOn, {
+      .poll(() => readTaskStatus(ctx.testServer, project.projectSlug, 's-out-outside')?.dependsOn, {
         timeout: 10000,
       })
       .toContain('S-1')
@@ -71,7 +71,7 @@ describe('Forest group connections', () => {
   it('lands downward cross-surface connections at the bottom of the Group window', async () => {
     const project = await openForestProject(ctx, {
       slugBase: 'fg-connect-member-down',
-      tickets: [
+      tasks: [
         {
           number: 'S-1',
           title: 'Member',
@@ -101,7 +101,7 @@ describe('Forest group connections', () => {
     expect(Math.abs(previewPoints.end.y - memberHandleCenter.y)).toBeLessThan(4)
     await memberHandle.click()
     await expect
-      .poll(() => readTicketStatus(ctx.testServer, project.projectSlug, 's-1-member')?.dependsOn ?? [], {
+      .poll(() => readTaskStatus(ctx.testServer, project.projectSlug, 's-1-member')?.dependsOn ?? [], {
         timeout: 10000,
       })
       .toContain('S-OUT')
@@ -122,7 +122,7 @@ describe('Forest group connections', () => {
   it('selects and deletes an inward dependency from inside a Group', async () => {
     const project = await openForestProject(ctx, {
       slugBase: 'fg-delete-external-down',
-      tickets: [
+      tasks: [
         {
           number: 'S-1',
           title: 'Member',
@@ -148,7 +148,7 @@ describe('Forest group connections', () => {
     await openDependencyPopup(ctx.page, externalDependency, 'middle')
     await deleteDependencyViaPopup(ctx.page)
     await expect
-      .poll(() => readTicketStatus(ctx.testServer, project.projectSlug, 's-out-outside')?.dependsOn, {
+      .poll(() => readTaskStatus(ctx.testServer, project.projectSlug, 's-out-outside')?.dependsOn, {
         timeout: 10000,
       })
       .toBeUndefined()
@@ -161,7 +161,7 @@ describe('Forest group connections', () => {
   it('deletes a dependency projected onto a collapsed Group', async () => {
     const project = await openForestProject(ctx, {
       slugBase: 'fg-delete-projected',
-      tickets: [
+      tasks: [
         {
           number: 'S-1',
           title: 'First member',
@@ -191,7 +191,7 @@ describe('Forest group connections', () => {
     await openDependencyPopup(ctx.page, dependency, 'middle')
     await deleteDependencyViaPopup(ctx.page)
     await expect
-      .poll(() => readTicketStatus(ctx.testServer, project.projectSlug, 's-out-outside')?.dependsOn, {
+      .poll(() => readTaskStatus(ctx.testServer, project.projectSlug, 's-out-outside')?.dependsOn, {
         timeout: 10000,
       })
       .toBeUndefined()
@@ -204,7 +204,7 @@ describe('Forest group connections', () => {
   it('opening and closing a Group preserves connection mode', async () => {
     await openForestProject(ctx, {
       slugBase: 'fg-close-connection',
-      tickets: [
+      tasks: [
         {
           number: 'S-1',
           title: 'Member',
@@ -237,7 +237,7 @@ describe('Forest group connections', () => {
   it('reattaches an active member connector after closing its Group', async () => {
     await openForestProject(ctx, {
       slugBase: 'fg-close-member-connection',
-      tickets: [
+      tasks: [
         {
           number: 'S-1',
           title: 'Member',

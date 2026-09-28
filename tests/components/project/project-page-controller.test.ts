@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createRoot, flush } from 'solid-js'
-import type { TicketInfo } from '~/core/ticket/ticket-store.js'
+import type { TaskInfo } from '~/core/task/task-store.js'
 import { createProjectPageController } from '../../../src/components/project/project-page-controller.js'
 
-function ticket(): TicketInfo {
+function task(): TaskInfo {
   return {
     number: 'T-1',
     title: 'Alpha',
@@ -17,9 +17,9 @@ function ticket(): TicketInfo {
   }
 }
 
-describe('ProjectPageController ticket detail', () => {
-  it('selects the clicked ticket without waiting for project refresh', () => {
-    const clicked = ticket()
+describe('ProjectPageController task detail', () => {
+  it('selects the clicked task without waiting for project refresh', () => {
+    const clicked = task()
     const { controller, dispose } = createRoot((dispose) => ({
       controller: createProjectPageController({
         onError: vi.fn(),
@@ -32,22 +32,22 @@ describe('ProjectPageController ticket detail', () => {
           suggestedNextNumber: null,
           board: {
             columns: [],
-            tickets: [clicked],
-            ticketOrder: {},
+            tasks: [clicked],
+            taskOrder: {},
           },
         }),
-        runSyncTickets: () => new Promise(() => {}),
+        runSyncTasks: () => new Promise(() => {}),
       }),
       dispose,
     }))
     void controller.commands.openDetail(clicked)
     flush()
-    expect(controller.selectionState().detailTicket).toBe(clicked)
+    expect(controller.selectionState().detailTask).toBe(clicked)
     dispose()
   })
-  it('selects a worktree ticket for review', () => {
+  it('selects a worktree task for review', () => {
     const clicked = {
-      ...ticket(),
+      ...task(),
       hasAgentWorktree: true,
     }
     const { controller, dispose } = createRoot((dispose) => ({
@@ -62,17 +62,17 @@ describe('ProjectPageController ticket detail', () => {
           suggestedNextNumber: null,
           board: {
             columns: [],
-            tickets: [clicked],
-            ticketOrder: {},
+            tasks: [clicked],
+            taskOrder: {},
           },
         }),
-        runSyncTickets: () => new Promise(() => {}),
+        runSyncTasks: () => new Promise(() => {}),
       }),
       dispose,
     }))
     controller.commands.openReview(clicked)
     flush()
-    expect(controller.selectionState().reviewTicket).toBe(clicked)
+    expect(controller.selectionState().reviewTask).toBe(clicked)
     dispose()
   })
 })

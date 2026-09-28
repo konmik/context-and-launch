@@ -12,7 +12,7 @@ import {
   poll,
   THREE_COLUMN_BOARD,
 } from './fixtures.js'
-import { aheadCount, fetchTickets, git, mutateRemote, pushTickets } from './git-fixtures.js'
+import { aheadCount, fetchTasks, git, mutateRemote, pushTasks } from './git-fixtures.js'
 import { countOf, testId, waitVisible, waitGone } from './locators.js'
 
 describe('Sync button pending badge (e2e, real server)', () => {
@@ -29,7 +29,7 @@ describe('Sync button pending badge (e2e, real server)', () => {
       slugBase: 'sb-pending-dragback-committed',
       withRemote: true,
       withBoards: THREE_COLUMN_BOARD,
-      withTickets: [
+      withTasks: [
         {
           number: 'C-1',
           title: 'Boomerang',
@@ -54,7 +54,7 @@ describe('Sync button pending badge (e2e, real server)', () => {
     await waitVisible(ctx.page, 'sync-button-pending-badge')
     await testId(ctx.page, 'sync-button-trigger').click()
     await waitGone(ctx.page, 'sync-button-pending-badge')
-    const ahead = () => aheadCount(project.ticketsPath)
+    const ahead = () => aheadCount(project.tasksPath)
     await dragElement(ctx.page, sortableItem(ctx.page, 'todo:c-1-boomerang'), sortableItem(ctx.page, 'in-progress:c-3-stay-progress'), {
       releaseAt: 'top',
     })
@@ -63,14 +63,14 @@ describe('Sync button pending badge (e2e, real server)', () => {
       releaseAt: 'top',
     }) // The badge refresh after the auto-commit waits for the next poll.
     await expect
-      .poll(() => git('diff @{u}', project.ticketsPath), {
+      .poll(() => git('diff @{u}', project.tasksPath), {
         timeout: 10000,
       })
       .toBe('')
     await fastForwardPastSyncPoll(ctx.page)
     await waitGone(ctx.page, 'sync-button-pending-badge')
     expect(ahead()).toBeGreaterThan(0)
-    expect(git('diff @{u}', project.ticketsPath)).toBe('')
+    expect(git('diff @{u}', project.tasksPath)).toBe('')
   })
   it('unknown project: not-found page shows no pending badge', async () => {
     const unknownSlug = 'nonexistent-project-xyz'
@@ -87,7 +87,7 @@ describe('Sync button pending badge (e2e, real server)', () => {
     const project = await seedProject(ctx, {
       slugBase: 'sb-behind-remote',
       withRemote: true,
-      withTickets: [
+      withTasks: [
         {
           number: 'R-1',
           title: 'Initial',
@@ -96,12 +96,12 @@ describe('Sync button pending badge (e2e, real server)', () => {
         },
       ],
     })
-    pushTickets(project)
+    pushTasks(project)
     mutateRemote(project, {
       message: 'remote edit',
       edit: (clone) => fs.writeFileSync(path.join(clone, 'r-1-initial', 'description.md'), 'updated remotely'),
     })
-    fetchTickets(project)
+    fetchTasks(project)
     await ctx.page.clock.install()
     await gotoProjectOnFakeClock(ctx.page, ctx.testServer, project.projectSlug)
     await waitVisible(ctx.page, 'sync-button-pending-badge')
@@ -113,7 +113,7 @@ describe('Sync button pending badge (e2e, real server)', () => {
       slugBase: 'sb-pending-absent',
       withRemote: true,
     })
-    pushTickets(project)
+    pushTasks(project)
     await ctx.page.clock.install()
     await gotoProjectOnFakeClock(ctx.page, ctx.testServer, project.projectSlug)
     await waitVisible(ctx.page, 'sync-button-pending-badge')

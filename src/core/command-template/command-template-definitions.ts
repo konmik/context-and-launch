@@ -55,7 +55,7 @@ function definition<Key extends string>(
 
 const GIT: CommandTemplateFeatureGroup = 'Git and repository checks'
 
-const SYNC: CommandTemplateFeatureGroup = 'Ticket Sync'
+const SYNC: CommandTemplateFeatureGroup = 'Task Sync'
 
 const CONFLICT: CommandTemplateFeatureGroup = 'Conflict Resolution'
 
@@ -96,30 +96,30 @@ export const COMMAND_TEMPLATE_DEFINITIONS = [
   definition('diff-review.last-commit.files', 'List last-commit Diff Review files', GIT, [], gitOptions),
   definition('diff-review.untracked.files', 'List untracked Diff Review files', GIT, [], gitOptions),
   definition('diff-review.file.read', 'Read Diff Review file at revision', GIT, ['refPath'], gitOptions),
-  definition('ticket-sync.remote.list', 'List remotes', SYNC, [], gitOptions),
-  definition('ticket-sync.upstream.resolve', 'Resolve upstream', SYNC, [], gitOptions),
-  definition('ticket-sync.branch.current', 'Resolve current branch', SYNC, [], gitOptions),
-  definition('ticket-sync.push.set-upstream', 'Push and set upstream', SYNC, ['remote', 'branch'], remoteGitOptions),
-  definition('ticket-sync.fetch-origin', 'Fetch origin', SYNC, [], remoteGitOptions),
-  definition('ticket-sync.head.resolve', 'Resolve HEAD', SYNC, [], gitOptions),
-  definition('ticket-sync.upstream.repair', 'Repair upstream branch', SYNC, ['remoteBranch', 'localHead', 'upstream'], gitOptions),
-  definition('ticket-sync.ref.resolve', 'Resolve ref', SYNC, ['ref'], gitOptions),
-  definition('ticket-sync.merge-base', 'Resolve merge base', SYNC, ['left', 'right'], gitOptions),
-  definition('ticket-sync.reset-soft', 'Soft reset', SYNC, ['ref'], gitOptions),
-  definition('ticket-sync.fetch', 'Fetch upstream changes', SYNC, [], remoteGitOptions),
-  definition('ticket-sync.fast-forward', 'Fast-forward merge', SYNC, ['ref'], gitOptions),
-  definition('ticket-sync.push', 'Push ref', SYNC, ['remote', 'refspec'], remoteGitOptions),
-  definition('ticket-sync.merge-tree', 'Build merged tree', SYNC, ['left', 'right'], gitOptions),
-  definition('ticket-sync.commit-tree', 'Create merge commit', SYNC, ['tree', 'parent', 'message'], {
+  definition('task-sync.remote.list', 'List remotes', SYNC, [], gitOptions),
+  definition('task-sync.upstream.resolve', 'Resolve upstream', SYNC, [], gitOptions),
+  definition('task-sync.branch.current', 'Resolve current branch', SYNC, [], gitOptions),
+  definition('task-sync.push.set-upstream', 'Push and set upstream', SYNC, ['remote', 'branch'], remoteGitOptions),
+  definition('task-sync.fetch-origin', 'Fetch origin', SYNC, [], remoteGitOptions),
+  definition('task-sync.head.resolve', 'Resolve HEAD', SYNC, [], gitOptions),
+  definition('task-sync.upstream.repair', 'Repair upstream branch', SYNC, ['remoteBranch', 'localHead', 'upstream'], gitOptions),
+  definition('task-sync.ref.resolve', 'Resolve ref', SYNC, ['ref'], gitOptions),
+  definition('task-sync.merge-base', 'Resolve merge base', SYNC, ['left', 'right'], gitOptions),
+  definition('task-sync.reset-soft', 'Soft reset', SYNC, ['ref'], gitOptions),
+  definition('task-sync.fetch', 'Fetch upstream changes', SYNC, [], remoteGitOptions),
+  definition('task-sync.fast-forward', 'Fast-forward merge', SYNC, ['ref'], gitOptions),
+  definition('task-sync.push', 'Push ref', SYNC, ['remote', 'refspec'], remoteGitOptions),
+  definition('task-sync.merge-tree', 'Build merged tree', SYNC, ['left', 'right'], gitOptions),
+  definition('task-sync.commit-tree', 'Create merge commit', SYNC, ['tree', 'parent', 'message'], {
     git: 'local',
     listPlaceholders: ['signArgs'],
   }),
-  definition('ticket-sync.reset-hard', 'Hard reset', SYNC, ['ref'], gitOptions),
-  definition('ticket-sync.staged-files', 'List staged files', SYNC, [], gitOptions),
-  definition('ticket-sync.ancestor.probe', 'Probe commit ancestry', SYNC, ['ancestor', 'descendant'], gitOptions),
-  definition('ticket-sync.ahead-count', 'Count commits ahead', SYNC, ['range'], gitOptions),
-  definition('ticket-sync.conflict-marker.probe', 'Probe conflict markers', SYNC, [], gitOptions),
-  definition('ticket-sync.gpg-signing.read', 'Read commit signing setting', SYNC, [], gitOptions),
+  definition('task-sync.reset-hard', 'Hard reset', SYNC, ['ref'], gitOptions),
+  definition('task-sync.staged-files', 'List staged files', SYNC, [], gitOptions),
+  definition('task-sync.ancestor.probe', 'Probe commit ancestry', SYNC, ['ancestor', 'descendant'], gitOptions),
+  definition('task-sync.ahead-count', 'Count commits ahead', SYNC, ['range'], gitOptions),
+  definition('task-sync.conflict-marker.probe', 'Probe conflict markers', SYNC, [], gitOptions),
+  definition('task-sync.gpg-signing.read', 'Read commit signing setting', SYNC, [], gitOptions),
   definition('conflict-resolution.upstream.resolve', 'Resolve conflict upstream', CONFLICT, [], gitOptions),
   definition('conflict-resolution.scratch.create', 'Create scratch worktree', CONFLICT, ['scratch', 'ref'], gitOptions),
   definition('conflict-resolution.fetch', 'Fetch conflict upstream', CONFLICT, [], remoteGitOptions),

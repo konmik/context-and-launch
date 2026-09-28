@@ -133,7 +133,7 @@ export interface ReviewPromptQueue {
   requestedAgentProfileName?: string
 }
 
-export interface DiffReviewTicketState {
+export interface DiffReviewTaskState {
   worktreeIdentity: string
   reviewedLines: Record<
     string,
@@ -147,15 +147,15 @@ export interface DiffReviewTicketState {
 
 export interface DiffReviewProjectState {
   version: 2
-  tickets: Record<string, DiffReviewTicketState>
-  worktrees?: Record<string, Record<string, DiffReviewTicketState>>
+  tasks: Record<string, DiffReviewTaskState>
+  worktrees?: Record<string, Record<string, DiffReviewTaskState>>
 }
 
-export function getReviewTicketState(project: DiffReviewProjectState, folderName: string, worktreeIdentity: string): DiffReviewTicketState {
-  const current = project.tickets[folderName]
-  const ticket = current?.worktreeIdentity === worktreeIdentity ? current : project.worktrees?.[folderName]?.[worktreeIdentity]
-  return ticket?.worktreeIdentity === worktreeIdentity
-    ? ticket
+export function getReviewTaskState(project: DiffReviewProjectState, folderName: string, worktreeIdentity: string): DiffReviewTaskState {
+  const current = project.tasks[folderName]
+  const task = current?.worktreeIdentity === worktreeIdentity ? current : project.worktrees?.[folderName]?.[worktreeIdentity]
+  return task?.worktreeIdentity === worktreeIdentity
+    ? task
     : {
         worktreeIdentity,
         reviewedLines: {},
@@ -165,12 +165,12 @@ export function getReviewTicketState(project: DiffReviewProjectState, folderName
       }
 }
 
-export function withReviewTicketState(
+export function withReviewTaskState(
   project: DiffReviewProjectState,
   folderName: string,
-  updated: DiffReviewTicketState,
+  updated: DiffReviewTaskState,
 ): DiffReviewProjectState {
-  const previous = project.tickets[folderName]
+  const previous = project.tasks[folderName]
   const worktrees =
     previous && previous.worktreeIdentity !== updated.worktreeIdentity
       ? {
@@ -190,8 +190,8 @@ export function withReviewTicketState(
           worktrees,
         }
       : {}),
-    tickets: {
-      ...project.tickets,
+    tasks: {
+      ...project.tasks,
       [folderName]: updated,
     },
   }

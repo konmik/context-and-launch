@@ -1,7 +1,7 @@
 import type { JSX } from '@solidjs/web'
 import { Show } from 'solid-js'
 import type { ColumnDefinition } from '~/core/project/board-config.js'
-import { COLUMN_CELL_CLASS } from './ticket-column.js'
+import { COLUMN_CELL_CLASS } from './task-column.js'
 
 export function ColumnHeader(props: { column: ColumnDefinition; count: number; edgeLeft?: boolean; edgeRight?: boolean }): JSX.Element {
   return (

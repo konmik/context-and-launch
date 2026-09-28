@@ -6,10 +6,10 @@ import {
   commandTemplateService,
 } from '~/core/config/instances.js'
 import { toSavedWorktreeInfo } from '~/core/worktree/agent-worktree.js'
-import { createTicketStore } from '~/core/ticket/ticket-store.js'
+import { createTaskStore } from '~/core/task/task-store.js'
 import { createNotFoundError } from '~/core/shared/errors.js'
 import { success, failure, type Result } from '~/util/result.js'
-import type { TicketInfo } from '~/core/ticket/ticket-store.js'
+import type { TaskInfo } from '~/core/task/task-store.js'
 import type { ProjectInfo } from '~/core/project/project-registry.js'
 import type { LauncherProfile } from '~/core/launcher/launcher-config.js'
 import {
@@ -23,14 +23,14 @@ import {
 } from './profile-launch.js'
 import { PROJECT_LAUNCH_KEY } from './launch-keys.js'
 import type { LaunchRequest } from './launch-request.js'
-import { ticketAgentKey } from '../ticket/ticket-worktrees.js'
+import { taskAgentKey } from '../task/task-worktrees.js'
 
 export { PROJECT_LAUNCH_KEY }
 export { buildWindowTitle }
 export { parseLaunchRequest, readLaunchRequest, type LaunchRequest } from './launch-request.js'
 
 /**
- * Path to the per-ticket marker file an agent launch script writes while the
+ * Path to the per-task marker file an agent launch script writes while the
  * agent is running. Lives under the app config dir (not the worktree) so it
  * survives worktree teardown and is never committed.
  */
@@ -61,7 +61,7 @@ export async function ensureLaunchDir(
   folderName: string,
   useWorktree: boolean,
   projectPath: string,
-  ticket: {
+  task: {
     agentWorktreeBranchName?: string
     agentWorktreeDir?: string
   },
@@ -76,7 +76,7 @@ export async function ensureLaunchDir(
     return success({
       launchDir: projectPath,
     })
-  const savedInfo = toSavedWorktreeInfo(ticket)
+  const savedInfo = toSavedWorktreeInfo(task)
   const result = await agentWorktreeManager.ensureAgentWorktree(
     projectPath,
     projectSlug,
@@ -99,23 +99,23 @@ export async function ensureLaunchDir(
       message: 'Main branch is behind remote. Proceed with the worktree anyway?',
     })
   }
-  if (!ticket.agentWorktreeBranchName) {
-    createTicketStore(worktreeDir).saveAgentWorktreeInfo(folderName, result.value.branchName, result.value.worktreePath)
+  if (!task.agentWorktreeBranchName) {
+    createTaskStore(worktreeDir).saveAgentWorktreeInfo(folderName, result.value.branchName, result.value.worktreePath)
   }
   return success({
     launchDir: result.value.worktreePath,
   })
 }
 
-export function resolveTicketAndProject(projectSlug: string, folderName: string): ResolveTicketAndProjectResult {
+export function resolveTaskAndProject(projectSlug: string, folderName: string): ResolveTaskAndProjectResult {
   const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
-  const store = createTicketStore(worktreeDir)
-  const ticket = store.getTicket(folderName)
-  if (!ticket) throw createNotFoundError(`Ticket not found: ${folderName}`)
+  const store = createTaskStore(worktreeDir)
+  const task = store.getTask(folderName)
+  if (!task) throw createNotFoundError(`Task not found: ${folderName}`)
   const project = projectRegistry.listProjects().find((p) => p.projectSlug === projectSlug)
   if (!project) throw createNotFoundError(`Project not found: ${projectSlug}`)
   return {
-    ticket,
+    task,
     project,
     worktreeDir,
   }
@@ -151,7 +151,7 @@ async function spawnAgent(
   await spawnProfile(profile, commandVars, launchDir)
 }
 
-export async function launchAgent(projectSlug: string, ticket: TicketInfo, launchRequest: LaunchRequest, launchDir: string): Promise<void> {
+export async function launchAgent(projectSlug: string, task: TaskInfo, launchRequest: LaunchRequest, launchDir: string): Promise<void> {
   const context = launchRequest.useWorktree
     ? {
         worktreePath: launchDir,
@@ -159,11 +159,11 @@ export async function launchAgent(projectSlug: string, ticket: TicketInfo, launc
     : {
         projectName: projectRegistry.getName(projectSlug),
       }
-  const agentDisplayName = buildAgentDisplayName(ticket, context)
-  const windowTitle = buildWindowTitle(ticket, context)
+  const agentDisplayName = buildAgentDisplayName(task, context)
+  const windowTitle = buildWindowTitle(task, context)
   await spawnAgent(
     projectSlug,
-    ticketAgentKey(ticket.folderName, ticket, launchDir),
+    taskAgentKey(task.folderName, task, launchDir),
     windowTitle,
     agentDisplayName,
     launchRequest,
@@ -180,8 +180,8 @@ export async function launchProjectAgent(
   await spawnAgent(projectSlug, PROJECT_LAUNCH_KEY, projectWindowTitle(projectName), projectName, launchRequest, launchDir)
 }
 
-export interface ResolveTicketAndProjectResult {
-  ticket: TicketInfo
+export interface ResolveTaskAndProjectResult {
+  task: TaskInfo
   project: ProjectInfo
   worktreeDir: string
 }

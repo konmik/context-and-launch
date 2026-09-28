@@ -10,7 +10,7 @@ describe('Diff Review lifetime', () => {
     const folderName = 't-1-review-close'
     const project = await seedProject(ctx, {
       slugBase: 'review-close',
-      withTickets: [
+      withTasks: [
         {
           number: 'T-1',
           title: 'Review close',

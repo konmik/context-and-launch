@@ -13,15 +13,15 @@ export interface WorktreeManager {
 export function createWorktreeManager(
   paths: ConfigPaths,
   commands: CommandTemplateExecutor,
-  ticketsDirResolver?: (projectSlug: string) => string | undefined,
+  tasksDirResolver?: (projectSlug: string) => string | undefined,
 ): WorktreeManager {
   const locks = new Map<string, Promise<unknown>>()
 
-  function resolveTicketsDir(projectSlug: string): string {
-    return ticketsDirResolver?.(projectSlug) || paths.ticketWorktreeDir(projectSlug)
+  function resolveTasksDir(projectSlug: string): string {
+    return tasksDirResolver?.(projectSlug) || paths.taskWorktreeDir(projectSlug)
   }
 
-  async function ensureWorktree(projectPath: string, projectSlug: string, branch: string = 'tickets'): Promise<string> {
+  async function ensureWorktree(projectPath: string, projectSlug: string, branch: string = 'tasks'): Promise<string> {
     validateBranchName(branch)
     if (!fs.existsSync(projectPath)) {
       throw createValidationError(`Project path does not exist: ${projectPath}`, 'path')
@@ -38,7 +38,7 @@ export function createWorktreeManager(
   }
 
   async function doEnsureWorktree(projectPath: string, projectSlug: string, branch: string): Promise<string> {
-    const worktreeDir = resolveTicketsDir(projectSlug)
+    const worktreeDir = resolveTasksDir(projectSlug)
     if (fs.existsSync(worktreeDir) && isValidWorktree(worktreeDir)) {
       return worktreeDir
     }
@@ -126,7 +126,7 @@ export function createWorktreeManager(
   }
 
   function getWorktreeDir(projectSlug: string): string {
-    return resolveTicketsDir(projectSlug)
+    return resolveTasksDir(projectSlug)
   }
 
   function isValidWorktree(dir: string): boolean {

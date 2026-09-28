@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fetchHerdrTicketState, fetchHerdrTicketStatuses, ticketStatusesFromPanes } from '../../../src/core/herdr/herdr-client.js'
+import { fetchHerdrTaskState, fetchHerdrTaskStatuses, taskStatusesFromPanes } from '../../../src/core/herdr/herdr-client.js'
 import type { HerdrExecFn } from '../../../src/core/herdr/herdr-exec.js'
 import { createProcessError, isProcessError } from '../../../src/core/shared/errors.js'
 
@@ -35,8 +35,8 @@ function execReturning(agentListJson: string): HerdrExecFn {
   }
 }
 
-describe('fetchHerdrTicketStatuses', () => {
-  it('joins agent status to the Ticket pane label', async () => {
+describe('fetchHerdrTaskStatuses', () => {
+  it('joins agent status to the Task pane label', async () => {
     const agents = JSON.stringify({
       result: {
         agents: [
@@ -48,12 +48,12 @@ describe('fetchHerdrTicketStatuses', () => {
         ],
       },
     })
-    await expect(fetchHerdrTicketStatuses('alpha', execReturning(agents))).resolves.toEqual({
+    await expect(fetchHerdrTaskStatuses('alpha', execReturning(agents))).resolves.toEqual({
       'st-47-herdr': 'working',
     })
   })
-  it('skips a Ticket pane without an agent', async () => {
-    await expect(fetchHerdrTicketStatuses('alpha', execReturning('{"result":{"agents":[]}}'))).resolves.toEqual({})
+  it('skips a Task pane without an agent', async () => {
+    await expect(fetchHerdrTaskStatuses('alpha', execReturning('{"result":{"agents":[]}}'))).resolves.toEqual({})
   })
   it('keeps the done status', async () => {
     const agents = JSON.stringify({
@@ -67,7 +67,7 @@ describe('fetchHerdrTicketStatuses', () => {
         ],
       },
     })
-    await expect(fetchHerdrTicketStatuses('alpha', execReturning(agents))).resolves.toEqual({
+    await expect(fetchHerdrTaskStatuses('alpha', execReturning(agents))).resolves.toEqual({
       'st-47-herdr': 'done',
     })
   })
@@ -83,7 +83,7 @@ describe('fetchHerdrTicketStatuses', () => {
         ],
       },
     })
-    await expect(fetchHerdrTicketStatuses('alpha', execReturning(agents))).resolves.toEqual({
+    await expect(fetchHerdrTaskStatuses('alpha', execReturning(agents))).resolves.toEqual({
       'st-47-herdr': 'unknown',
     })
   })
@@ -104,7 +104,7 @@ describe('fetchHerdrTicketStatuses', () => {
         ],
       },
     })
-    const state = await fetchHerdrTicketState('alpha', execReturning(agents))
+    const state = await fetchHerdrTaskState('alpha', execReturning(agents))
     expect(state.agents).toEqual([
       {
         workspace_id: 'w1',
@@ -114,12 +114,12 @@ describe('fetchHerdrTicketStatuses', () => {
     ])
   })
   it('throws on non-JSON agent output', async () => {
-    await expect(fetchHerdrTicketStatuses('alpha', execReturning('not json'))).rejects.toThrow(
+    await expect(fetchHerdrTaskStatuses('alpha', execReturning('not json'))).rejects.toThrow(
       "Could not parse JSON output from 'herdr.agent.list'.",
     )
   })
   it('throws on missing result.agents', async () => {
-    await expect(fetchHerdrTicketStatuses('alpha', execReturning('{"result":{}}'))).rejects.toThrow(
+    await expect(fetchHerdrTaskStatuses('alpha', execReturning('{"result":{}}'))).rejects.toThrow(
       "Missing agents array in output from 'herdr.agent.list'.",
     )
   })
@@ -127,13 +127,13 @@ describe('fetchHerdrTicketStatuses', () => {
     const exec: HerdrExecFn = async () => {
       throw createProcessError('herdr workspace list', 1, 'boom')
     }
-    await expect(fetchHerdrTicketStatuses('alpha', exec)).rejects.toSatisfy(isProcessError)
+    await expect(fetchHerdrTaskStatuses('alpha', exec)).rejects.toSatisfy(isProcessError)
   })
 })
-describe('ticketStatusesFromPanes', () => {
+describe('taskStatusesFromPanes', () => {
   it('maps only panes with agents', () => {
     expect(
-      ticketStatusesFromPanes([
+      taskStatusesFromPanes([
         {
           folderName: 'st-1',
           paneId: 'w1:p1',
@@ -151,7 +151,7 @@ describe('ticketStatusesFromPanes', () => {
   })
   it('marks duplicate panes and multiple agents as unknown', () => {
     expect(
-      ticketStatusesFromPanes([
+      taskStatusesFromPanes([
         {
           folderName: 'st-1',
           paneId: 'w1:p1',

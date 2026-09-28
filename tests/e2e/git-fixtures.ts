@@ -3,8 +3,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-/** The Orphan Branch every fixture Project stores its tickets on. */
-export const TICKETS_BRANCH = 'tickets'
+/** The Orphan Branch every fixture Project stores its tasks on. */
+export const TASKS_BRANCH = 'tasks'
 
 export function git(command: string, cwd: string): string {
   return execSync(`git ${command}`, {
@@ -56,17 +56,17 @@ export function branchExists(repoPath: string, branch: string): boolean {
   }
 }
 
-export interface TicketsWorktree {
-  ticketsPath: string
+export interface TasksWorktree {
+  tasksPath: string
   remoteUrl: string | null
 }
 
-export function pushTickets(project: TicketsWorktree): void {
-  git(`push -u origin ${TICKETS_BRANCH}`, project.ticketsPath)
+export function pushTasks(project: TasksWorktree): void {
+  git(`push -u origin ${TASKS_BRANCH}`, project.tasksPath)
 }
 
-export function fetchTickets(project: TicketsWorktree): void {
-  git('fetch', project.ticketsPath)
+export function fetchTasks(project: TasksWorktree): void {
+  git('fetch', project.tasksPath)
 }
 
 /** Commits ahead of the tracked upstream. */
@@ -83,13 +83,13 @@ export function upstreamDiff(cwd: string): string {
   return git('diff @{u}..HEAD --name-only', cwd)
 }
 
-function requireRemote(project: TicketsWorktree): string {
+function requireRemote(project: TasksWorktree): string {
   if (!project.remoteUrl) throw new Error('this fixture Project has no remote')
   return project.remoteUrl
 }
 
 /** Runs git log inside the Project's remote, e.g. remoteLog(p, "--all --format=%s"). */
-export function remoteLog(project: TicketsWorktree, args: string): string {
+export function remoteLog(project: TasksWorktree, args: string): string {
   return git(`log ${args}`, requireRemote(project))
 }
 
@@ -106,9 +106,9 @@ export interface MutateRemoteOptions {
  * applies one commit and pushes, then drops the clone. Tests need this because a
  * remote that only ever receives the app's own pushes can never diverge.
  */
-export function mutateRemote(project: TicketsWorktree, options: MutateRemoteOptions): void {
+export function mutateRemote(project: TasksWorktree, options: MutateRemoteOptions): void {
   const remoteUrl = requireRemote(project)
-  const branch = options.branch ?? TICKETS_BRANCH
+  const branch = options.branch ?? TASKS_BRANCH
   const cloneDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cl-e2e-remote-clone-'))
   try {
     execSync(`git clone --branch ${branch} "${remoteUrl}" "${cloneDir}"`)

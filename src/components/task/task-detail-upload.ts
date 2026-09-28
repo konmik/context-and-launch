@@ -1,0 +1,192 @@
+import type { SourceAccessor } from 'solid-js'
+import { createSignal } from 'solid-js'
+import type { ActiveFile } from './task-detail-pure.js'
+import { wouldOverwrite } from './task-detail-pure.js'
+import { uploadFile as uploadFileAction } from './task-api.js'
+import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
+
+export interface FileUploadDeps {
+  projectSlug: string
+  folderName: () => string
+  onError: (error: ErrorInfo) => void
+  onClearError: () => void
+  taskFileNames: () => string[]
+  contextNames: () => string[]
+  refreshFiles: () => Promise<void>
+  requestFileSwitch: (file: ActiveFile) => void
+  uploadFile?: typeof uploadFileAction
+}
+
+interface FileInputEventTarget extends EventTarget {
+  files: FileList | null
+  value: string
+}
+
+function isFileInputEventTarget(target: EventTarget | null): target is FileInputEventTarget {
+  return target !== null && 'files' in target && 'value' in target
+}
+
+export function createFileUploadState(deps: FileUploadDeps): FileUploadStateResult {
+  const [uploading, setUploading] = createSignal(false)
+  const [dragging, setDragging] = createSignal(false)
+  const [confirmOverwrite, setConfirmOverwrite] = createSignal<{
+    fileName: string
+    file: File
+  } | null>(null)
+  const [confirmSize, setConfirmSize] = createSignal<{
+    fileName: string
+    file: File
+    size: number
+  } | null>(null)
+  let resolveUploadConfirm: ((confirmed: boolean) => void) | null = null
+
+  function handleDragOver(e: DragEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragging(true)
+  }
+
+  function handleDragLeave(e: DragEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragging(false)
+  }
+
+  async function handleDrop(e: DragEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragging(false)
+    const files = e.dataTransfer?.files
+    if (!files || files.length === 0) return
+    for (let i = 0; i < files.length; i++) await processFileForUpload(files[i])
+  }
+
+  async function handleFileInputChange(e: Event) {
+    const input = e.target
+    if (!isFileInputEventTarget(input)) return
+    const files = input.files
+    if (!files) return
+    for (let i = 0; i < files.length; i++) await processFileForUpload(files[i])
+    input.value = ''
+  }
+
+  function awaitUploadConfirm<T>(setter: (v: T) => void, value: T): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      resolveUploadConfirm = resolve
+      setter(value)
+    })
+  }
+
+  async function processFileForUpload(file: File) {
+    if (file.name === 'status.json') {
+      deps.onError({
+        title: 'Upload failed',
+        description: 'Cannot overwrite status.json',
+      })
+      return
+    }
+    if (file.size > 10240) {
+      const proceed = await awaitUploadConfirm(setConfirmSize, {
+        fileName: file.name,
+        file,
+        size: file.size,
+      })
+      setConfirmSize(null)
+      if (!proceed) return
+    }
+    if (wouldOverwrite(file.name, deps.taskFileNames(), deps.contextNames())) {
+      const proceed = await awaitUploadConfirm(setConfirmOverwrite, {
+        fileName: file.name,
+        file,
+      })
+      setConfirmOverwrite(null)
+      if (!proceed) return
+    }
+    await doUploadFile(file)
+  }
+
+  async function doUploadFile(file: File) {
+    setUploading(true)
+    deps.onClearError()
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const result = await (deps.uploadFile ?? uploadFileAction)(deps.projectSlug, deps.folderName(), formData)
+      if (result.type === 'Failure') {
+        deps.onError(result.error)
+        return
+      }
+      let anySucceeded = false
+      for (const r of result.value.results) {
+        if (r.type === 'Success') anySucceeded = true
+        else {
+          deps.onError(r.error)
+        }
+      }
+      if (anySucceeded) {
+        await deps.refreshFiles()
+        if (file.name.endsWith('.md'))
+          deps.requestFileSwitch({
+            type: 'context',
+            name: file.name.replace(/\.md$/, ''),
+          })
+        else
+          deps.requestFileSwitch({
+            type: 'file',
+            name: file.name,
+          })
+      }
+    } catch (e) {
+      deps.onError(errorPayload(e, 'Upload failed'))
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  function confirmUpload() {
+    resolveUploadConfirm?.(true)
+    resolveUploadConfirm = null
+  }
+
+  function cancelUpload() {
+    resolveUploadConfirm?.(false)
+    resolveUploadConfirm = null
+  }
+
+  return {
+    uploading,
+    dragging,
+    confirmOverwrite,
+    confirmSize,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    handleFileInputChange,
+    confirmSizeAndUpload: confirmUpload,
+    confirmOverwriteAndUpload: confirmUpload,
+    cancelSizeConfirm: cancelUpload,
+    cancelOverwriteConfirm: cancelUpload,
+  }
+}
+
+export interface FileUploadStateResult {
+  uploading: SourceAccessor<boolean>
+  dragging: SourceAccessor<boolean>
+  confirmOverwrite: SourceAccessor<{
+    fileName: string
+    file: File
+  } | null>
+  confirmSize: SourceAccessor<{
+    fileName: string
+    file: File
+    size: number
+  } | null>
+  handleDragOver: (e: DragEvent) => void
+  handleDragLeave: (e: DragEvent) => void
+  handleDrop: (e: DragEvent) => Promise<void>
+  handleFileInputChange: (e: Event) => Promise<void>
+  confirmSizeAndUpload: () => void
+  confirmOverwriteAndUpload: () => void
+  cancelSizeConfirm: () => void
+  cancelOverwriteConfirm: () => void
+}

@@ -7,7 +7,7 @@ import {
   openProject,
   openLauncherSettings,
   openLauncherSettingsTab,
-  readTicketStatus,
+  readTaskStatus,
 } from './fixtures.js'
 import { APP_BOARDS, openSettingsTab } from './launcher-settings-shared.js'
 import { testId, waitVisible, waitGone } from './locators.js'
@@ -162,11 +162,11 @@ describe('Launcher Settings Columns tab (e2e, real server)', () => {
     const kanban = boards.find((b) => b.id === 'kanban')
     expect(kanban?.columns.map((c) => c.name)).toContain('todo')
   })
-  it('migrates ticket status when renaming a column for the current project', async () => {
+  it('migrates task status when renaming a column for the current project', async () => {
     const project = await openProject(ctx, {
       slugBase: 'lsc-migrate',
       withBoards: APP_BOARDS,
-      withTickets: [
+      withTasks: [
         {
           number: 'T-1',
           title: 'Alpha',
@@ -181,12 +181,12 @@ describe('Launcher Settings Columns tab (e2e, real server)', () => {
     await testId(ctx.page, 'launcher-settings-columns-form-submit').click()
     await testId(ctx.page, 'launcher-settings-columns-rename-scope-current').click()
     await testId(ctx.page, 'launcher-settings-columns-rename-confirm').click()
-    const ticket = await poll(
-      () => readTicketStatus(ctx.testServer, project.projectSlug, 't-1-alpha'),
-      (ticket) => ticket?.status === 'backlog',
+    const task = await poll(
+      () => readTaskStatus(ctx.testServer, project.projectSlug, 't-1-alpha'),
+      (task) => task?.status === 'backlog',
       5000,
     )
-    expect(ticket?.status).toBe('backlog')
+    expect(task?.status).toBe('backlog')
   })
   it('column delete-button removes column', async () => {
     await setup('delete-col')

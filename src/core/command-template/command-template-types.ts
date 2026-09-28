@@ -11,7 +11,7 @@ export type CommandTemplateMode = 'capture' | 'detached'
 
 export const COMMAND_TEMPLATE_GROUP_ORDER = [
   'Git and repository checks',
-  'Ticket Sync',
+  'Task Sync',
   'Conflict Resolution',
   'Worktree management',
   'Agent Worktree lifecycle',

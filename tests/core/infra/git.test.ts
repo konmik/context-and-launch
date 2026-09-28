@@ -36,13 +36,13 @@ describe('git wrapper argument fidelity', () => {
   })
   it('git preserves a trailing-backslash arg without merging it into the next arg', async () => {
     const dir = await createRepo(dirs)
-    const out = await git(dir, 'rev-parse', '--sq-quote', 'C:\\tickets\\', 'next')
-    expect(out.trim()).toBe("'C:\\tickets\\' 'next'")
+    const out = await git(dir, 'rev-parse', '--sq-quote', 'C:\\tasks\\', 'next')
+    expect(out.trim()).toBe("'C:\\tasks\\' 'next'")
   })
   it('gitSync preserves a trailing-backslash arg without merging it into the next arg', async () => {
     const dir = await createRepo(dirs)
-    const out = gitSync(dir, 'rev-parse', '--sq-quote', 'C:\\tickets\\', 'next')
-    expect(out.trim()).toBe("'C:\\tickets\\' 'next'")
+    const out = gitSync(dir, 'rev-parse', '--sq-quote', 'C:\\tasks\\', 'next')
+    expect(out.trim()).toBe("'C:\\tasks\\' 'next'")
   })
   it('git passes %VAR% sequences literally without environment expansion', async () => {
     const dir = await createRepo(dirs)
@@ -51,9 +51,9 @@ describe('git wrapper argument fidelity', () => {
   })
   it('git preserves a trailing-backslash path arg in a real subcommand', async () => {
     const dir = await createRepo(dirs)
-    await git(dir, 'commit', '--allow-empty', '-m', 'path C:\\tickets\\', '-m', 'body')
+    await git(dir, 'commit', '--allow-empty', '-m', 'path C:\\tasks\\', '-m', 'body')
     const subject = await git(dir, 'log', '-1', '--format=%s')
-    expect(subject.trim()).toBe('path C:\\tickets\\')
+    expect(subject.trim()).toBe('path C:\\tasks\\')
   })
 })
 describe('git wrapper spawn failure', () => {

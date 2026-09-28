@@ -1,7 +1,7 @@
 import type { SourceAccessor } from 'solid-js'
 import type { Result } from '~/util/result.js'
 import type { UserFacingError } from '~/util/user-facing-error.js'
-import { createFormDialogController } from '../ticket/form-dialog-controller.js'
+import { createFormDialogController } from '../task/form-dialog-controller.js'
 
 export interface DeleteProjectDeps {
   onSubmit: (projectSlug: string) => Promise<Result<undefined, UserFacingError>>

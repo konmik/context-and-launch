@@ -3,7 +3,7 @@ import type { LauncherSkill } from '../../core/launcher/launcher-config-data.js'
 import type { Setter } from 'solid-js'
 import type { ListReorder } from '../board/list-reorder.js'
 import { createSignal, createEffect, createMemo } from 'solid-js'
-import type { TicketInfo } from '~/core/ticket/ticket-store.js'
+import type { TaskInfo } from '~/core/task/task-store.js'
 import type { MergedLauncherConfig, LauncherColumnDefaults } from '~/core/launcher/launcher-config.js'
 import { errorPayload, type ErrorInfo, type ActionError } from '~/core/shared/errors.js'
 import type { LaunchAgentActionResult } from './launcher-api.js'
@@ -30,8 +30,8 @@ export type LaunchInvoker = (args: LaunchArgs) => Promise<Result<undefined, Laun
 
 export interface AgentLauncherDeps {
   projectSlug: string
-  /** Omitted for a project-level launch that runs without a ticket. */
-  ticket?: () => TicketInfo
+  /** Omitted for a project-level launch that runs without a task. */
+  task?: () => TaskInfo
   config: MergedLauncherConfig | null
   onDefaultsChange: (patch: Partial<LauncherColumnDefaults>) => void
   useWorktree: boolean
@@ -43,8 +43,8 @@ export interface AgentLauncherDeps {
 }
 
 export function createAgentLauncherController(props: AgentLauncherDeps): AgentLauncherControllerResult {
-  const defaultsKey = () => (props.ticket ? props.ticket().status : PROJECT_LAUNCH_KEY)
-  const resetKey = () => (props.ticket ? props.ticket().folderName : PROJECT_LAUNCH_KEY)
+  const defaultsKey = () => (props.task ? props.task().status : PROJECT_LAUNCH_KEY)
+  const resetKey = () => (props.task ? props.task().folderName : PROJECT_LAUNCH_KEY)
   const initial = resolveDefaults(props.config, defaultsKey())
   const [selectedTemplate, setSelectedTemplate] = createSignal(initial.templateName)
   const [selectedProfile, setSelectedProfile] = createSignal(initial.profileName)
@@ -66,7 +66,7 @@ export function createAgentLauncherController(props: AgentLauncherDeps): AgentLa
     checkedSkills,
     orderedSkills,
     config: () => props.config,
-    ticket: props.ticket,
+    task: props.task,
     projectPath: () => props.projectPath,
     worktreeDir: () => props.worktreeDir,
     projectSlug: props.projectSlug,
@@ -91,8 +91,8 @@ export function createAgentLauncherController(props: AgentLauncherDeps): AgentLa
       const { config: cfg, key, defaultsKey: currentDefaultsKey } = current
       const defaults = resolveDefaults(cfg, currentDefaultsKey)
       const configFirstArrived = !(previous ? previous.config : initialConfig) && cfg
-      const ticketChanged = key !== (previous?.key ?? initialResetKey)
-      if (configFirstArrived || ticketChanged) {
+      const taskChanged = key !== (previous?.key ?? initialResetKey)
+      if (configFirstArrived || taskChanged) {
         setSelectedTemplate(defaults.templateName)
         setSelectedProfile(defaults.profileName)
         setCheckedSkills(new Set(defaults.checkedSkills))

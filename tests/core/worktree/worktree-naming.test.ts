@@ -27,7 +27,7 @@ describe('worktreeBranchName', () => {
   it('prefixes the folder name when prefix is set', () => {
     expect(worktreeBranchName('st-0001-feature', 'ai')).toBe('ai/st-0001-feature')
   })
-  it('uses the truncated folder name for long tickets', () => {
+  it('uses the truncated folder name for long tasks', () => {
     const name = 'x'.repeat(80)
     expect(worktreeBranchName(name)).toBe('x'.repeat(50))
   })

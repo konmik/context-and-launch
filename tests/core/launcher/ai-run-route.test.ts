@@ -41,7 +41,7 @@ describe('escapeBatchTitle - batch metacharacter injection', () => {
     expect(result).not.toContain('"')
   })
   it('preserves safe characters intact', () => {
-    const safe = "My Ticket Title - Feature (v2) [draft] 'quoted'"
+    const safe = "My Task Title - Feature (v2) [draft] 'quoted'"
     expect(escapeBatchTitle(safe)).toBe(safe)
   })
   it('handles a combination of multiple metacharacters', () => {

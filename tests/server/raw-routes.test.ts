@@ -9,7 +9,7 @@ const mocks = {
 
 const handleRawRoute = createRawRouteHandler({
   getWorktreeDir: mocks.getWorktreeDir,
-  createTicketStore: () => ({
+  createTaskStore: () => ({
     getFileContent: mocks.getFileContent,
     getReferencedFileContent: mocks.getReferencedFileContent,
   }),
@@ -23,7 +23,7 @@ beforeEach(() => {
 })
 describe('raw content routes', () => {
   it('decodes route parameters and returns file content', async () => {
-    const response = await handleRawRoute(new Request('http://app/api/projects/my%20project/board/tickets/ST-1-title/files/notes%20one.md'))
+    const response = await handleRawRoute(new Request('http://app/api/projects/my%20project/board/tasks/ST-1-title/files/notes%20one.md'))
     expect(await response?.text()).toBe('file body')
     expect(response?.headers.get('content-type')).toContain('text/plain')
     expect(mocks.getWorktreeDir).toHaveBeenCalledWith('my project')
@@ -31,7 +31,7 @@ describe('raw content routes', () => {
   })
   it('returns reference content and omits the body for HEAD', async () => {
     const response = await handleRawRoute(
-      new Request('http://app/api/projects/example/board/tickets/ST-1/references/content?path=docs%2Fguide.md', {
+      new Request('http://app/api/projects/example/board/tasks/ST-1/references/content?path=docs%2Fguide.md', {
         method: 'HEAD',
       }),
     )
@@ -39,12 +39,12 @@ describe('raw content routes', () => {
     expect(mocks.getReferencedFileContent).toHaveBeenCalledWith('ST-1', 'docs/guide.md')
   })
   it('validates the reference path and delegates unsupported requests', async () => {
-    const missing = await handleRawRoute(new Request('http://app/api/projects/example/board/tickets/ST-1/references/content'))
+    const missing = await handleRawRoute(new Request('http://app/api/projects/example/board/tasks/ST-1/references/content'))
     expect(missing?.status).toBe(400)
     expect(await handleRawRoute(new Request('http://app/other'))).toBeUndefined()
     expect(
       await handleRawRoute(
-        new Request('http://app/api/projects/example/board/tickets/ST-1/references/content', {
+        new Request('http://app/api/projects/example/board/tasks/ST-1/references/content', {
           method: 'POST',
         }),
       ),
@@ -54,7 +54,7 @@ describe('raw content routes', () => {
     mocks.getFileContent.mockImplementation(() => {
       throw new Error('read failed')
     })
-    const response = await handleRawRoute(new Request('http://app/api/projects/example/board/tickets/ST-1/files/a.txt'))
+    const response = await handleRawRoute(new Request('http://app/api/projects/example/board/tasks/ST-1/files/a.txt'))
     expect(response?.status).toBe(500)
     await expect(response?.json()).resolves.toEqual({
       title: 'Load file failed',

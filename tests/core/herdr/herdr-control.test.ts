@@ -88,7 +88,7 @@ describe('findHerdrAgent', () => {
     })
     expect(calls).toEqual(['herdr.workspace.list'])
   })
-  it('returns no-agent when the Ticket pane has no agent', async () => {
+  it('returns no-agent when the Task pane has no agent', async () => {
     const { exec } = fakeExec({
       workspaces: [
         {
@@ -109,7 +109,7 @@ describe('findHerdrAgent', () => {
       kind: 'no-agent',
     })
   })
-  it('returns the agent joined to the Ticket pane', async () => {
+  it('returns the agent joined to the Task pane', async () => {
     const { exec } = fakeExec({
       workspaces: [
         {
@@ -219,7 +219,7 @@ describe('findHerdrAgent', () => {
       agentStatus: 'working',
     })
   })
-  it('rejects when two panes share the Ticket label', async () => {
+  it('rejects when two panes share the Task label', async () => {
     const { exec } = fakeExec({
       workspaces: [
         {
@@ -240,9 +240,9 @@ describe('findHerdrAgent', () => {
         },
       ],
     })
-    await expect(findHerdrAgent(TARGET, exec)).rejects.toThrow("Ticket 'st-1' has multiple Herdr panes.")
+    await expect(findHerdrAgent(TARGET, exec)).rejects.toThrow("Task 'st-1' has multiple Herdr panes.")
   })
-  it('ignores duplicate panes belonging to another Ticket', async () => {
+  it('ignores duplicate panes belonging to another Task', async () => {
     const { exec } = fakeExec({
       workspaces: [
         {
@@ -281,7 +281,7 @@ describe('findHerdrAgent', () => {
       agentStatus: 'working',
     })
   })
-  it('rejects when the Ticket pane has multiple agents', async () => {
+  it('rejects when the Task pane has multiple agents', async () => {
     const { exec } = fakeExec({
       workspaces: [
         {

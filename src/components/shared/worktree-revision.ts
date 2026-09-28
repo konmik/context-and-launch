@@ -1,7 +1,7 @@
 import type { SourceAccessor } from 'solid-js'
 import { createEffect, createMemo } from 'solid-js'
 import { revalidate } from '@solidjs/router'
-import { getWorktreeRevision } from '../ticket/ticket-api.js'
+import { getWorktreeRevision } from '../task/task-api.js'
 
 export const WORKTREE_REVISION_POLL_MS = 2000
 

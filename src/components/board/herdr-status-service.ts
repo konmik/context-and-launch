@@ -2,7 +2,7 @@ import { errorMessage, errorPayload } from '~/core/shared/errors.js'
 import type { UserFacingError } from '~/util/user-facing-error.js'
 import { success, failure, type Result } from '~/util/result.js'
 import { isHerdrUnavailableError } from '~/core/herdr/herdr-availability.js'
-import type { HerdrAgentStatus, HerdrTicketState } from '~/core/herdr/herdr-client.js'
+import type { HerdrAgentStatus, HerdrTaskState } from '~/core/herdr/herdr-client.js'
 
 export interface DisabledAgentStatuses {
   kind: 'disabled'
@@ -21,7 +21,7 @@ export interface UnavailableAgentStatuses {
 export type HerdrAgentStatusesResult = DisabledAgentStatuses | AvailableAgentStatuses | UnavailableAgentStatuses
 
 export interface HerdrStatusDeps {
-  loadTicketState: (projectSlug: string) => Promise<HerdrTicketState>
+  loadTaskState: (projectSlug: string) => Promise<HerdrTaskState>
   reconcileProject: (projectSlug: string) => Promise<void>
   log: (
     category: string,
@@ -35,7 +35,7 @@ export interface HerdrStatusDeps {
 export function createHerdrStatusService(deps: HerdrStatusDeps): AgentStatusServiceResult {
   async function getStatuses(projectSlug: string): Promise<HerdrAgentStatusesResult> {
     try {
-      const state = await deps.loadTicketState(projectSlug)
+      const state = await deps.loadTaskState(projectSlug)
       return {
         kind: 'available',
         statusesByFolderName: state.statusesByFolderName,

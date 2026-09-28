@@ -8,7 +8,7 @@ describe('Forest viewport', () => {
   it('fills the viewport so the surface, controls, and cards render', async () => {
     await openForestProject(ctx, {
       slugBase: 'fv-height',
-      tickets: [
+      tasks: [
         {
           number: 'A-1',
           title: 'First',
@@ -31,12 +31,12 @@ describe('Forest viewport', () => {
       timeout: 15000,
     })
     expect(await selectHint.textContent()).toBe('Shift+mouse to select')
-    expect(await testId(ctx.page, 'forest-ticket-card').count()).toBe(1)
+    expect(await testId(ctx.page, 'forest-task-card').count()).toBe(1)
   }, 120000)
   it('centers the full forest horizontally at the bottom-middle of the surface', async () => {
     await openForestProject(ctx, {
       slugBase: 'fv-center',
-      tickets: [
+      tasks: [
         {
           number: 'A-1',
           title: 'First',
@@ -97,7 +97,7 @@ describe('Forest viewport', () => {
       },
     )
     await centerButton.click()
-    const cardBoxes = await testId(ctx.page, 'forest-ticket-card').evaluateAll((elements) =>
+    const cardBoxes = await testId(ctx.page, 'forest-task-card').evaluateAll((elements) =>
       elements.map((element) => element.getBoundingClientRect().toJSON()),
     )
     const left = Math.min(...cardBoxes.map((box) => box.x))
@@ -112,7 +112,7 @@ describe('Forest viewport', () => {
   it('viewport persistence across reload', async () => {
     const project = await openForestProject(ctx, {
       slugBase: 'fv-vp',
-      tickets: [
+      tasks: [
         {
           number: 'V-1',
           title: 'Viewport',
@@ -146,7 +146,7 @@ describe('Forest viewport', () => {
   it('keeps a panned Forest in place when switching to kanban and back', async () => {
     await openForestProject(ctx, {
       slugBase: 'fv-toggle-vp',
-      tickets: [
+      tasks: [
         {
           number: 'P-1',
           title: 'Panned',
@@ -182,7 +182,7 @@ describe('Forest viewport', () => {
   it('shows the default cursor at idle and grabbing while panning', async () => {
     await openForestProject(ctx, {
       slugBase: 'fv-pan-cursor',
-      tickets: [
+      tasks: [
         {
           number: 'P-1',
           title: 'Pan',
@@ -208,7 +208,7 @@ describe('Forest viewport', () => {
   it('selection rect is rendered during shift-drag', async () => {
     await openForestProject(ctx, {
       slugBase: 'fv-sel',
-      tickets: [
+      tasks: [
         {
           number: 'S-1',
           title: 'Select1',

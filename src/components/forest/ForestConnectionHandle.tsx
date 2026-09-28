@@ -8,13 +8,13 @@ export default function ForestConnectionHandle(props: { end: 'top' | 'bottom'; d
   const commands = useContext(ForestCardCommandsContext)
   const connectionSession = useContext(ForestConnectionSessionContext)
   const endpoint = (): ConnectionEndpoint => ({
-    ticketNumber: props.data.ticket.number,
+    taskNumber: props.data.task.number,
     end: props.end,
   })
   const state = (): 'hidden' | 'visible' | 'source' | 'available' => {
     const session = connectionSession()
     if (session.kind !== 'connecting') return props.hovered ? 'visible' : 'hidden'
-    if (props.data.representedTicketNumbers.includes(session.source.ticketNumber)) {
+    if (props.data.representedTaskNumbers.includes(session.source.taskNumber)) {
       return session.source.end === props.end ? 'source' : 'hidden'
     }
     return isConnectionTarget(session.source, endpoint()) ? 'available' : 'hidden'
@@ -39,7 +39,7 @@ export default function ForestConnectionHandle(props: { end: 'top' | 'bottom'; d
         commands.dragConnection(endpoint())
       }}
       data-testid={`forest-handle-${props.end}`}
-      data-ticket-number={props.data.ticket.number}
+      data-task-number={props.data.task.number}
       data-connection-handle-end={props.end}
       data-connection-handle-state={state()}
     />

@@ -39,7 +39,7 @@ export function RenameColumnDialog(props: {
               <p class="text-sm">
                 Renaming "{rf().oldName}" to "{slugifyColumnName(rf().newName)}".
               </p>
-              <p class="text-sm text-muted-foreground">Update ticket statuses and column defaults?</p>
+              <p class="text-sm text-muted-foreground">Update task statuses and column defaults?</p>
               <div class="space-y-2">
                 <label class="flex items-center gap-2 text-sm">
                   <input

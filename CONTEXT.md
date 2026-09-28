@@ -1,6 +1,6 @@
 # Context & Launch — Glossary
 
-A kanban-style project management tool that stores tickets as folders in a git-backed worktree.
+A kanban-style project management tool that stores tasks as folders in a git-backed worktree.
 
 ## Language
 
@@ -19,24 +19,24 @@ A short URL-friendly identifier for a project, derived from its directory name (
 Avoid: id, key, bare "slug"
 
 Column Slug:
-A filesystem-safe identifier for a board column, produced by `slugifyColumnName()` from the user-typed column name (e.g. `Code Review` becomes `code-review`). Used as the column's storage key and matched against ticket statuses.
+A filesystem-safe identifier for a board column, produced by `slugifyColumnName()` from the user-typed column name (e.g. `Code Review` becomes `code-review`). Used as the column's storage key and matched against task statuses.
 Avoid: bare "slug", column id
 
-### Tickets & Board
+### Tasks & Board
 
-Ticket:
+Task:
 A unit of work. Stored as a folder in the project's worktree. Contains a `status.json` and any number of Context documents.
 Avoid: task, issue, card
 
-Ticket Number:
-An identifier for a ticket following the pattern PREFIX-ZEROPADDEDNUMBER (e.g. `ST-0006`, `BUG-0012`). Auto-suggested from the most recently created ticket's prefix and the highest number with that prefix + 1. Editable by the user. Falls back to manual entry when no parseable ticket exists.
-Avoid: ticket id
+Task Number:
+An identifier for a task following the pattern PREFIX-ZEROPADDEDNUMBER (e.g. `ST-0006`, `BUG-0012`). Auto-suggested from the most recently created task's prefix and the highest number with that prefix + 1. Editable by the user. Falls back to manual entry when no parseable task exists.
+Avoid: task id
 
-Ticket Folder:
-A directory named by kebab-casing the ticket number and title (e.g. `abc-1-fix-login-timeout/`). Contains `status.json` and Context documents.
+Task Folder:
+A directory named by kebab-casing the task number and title (e.g. `abc-1-fix-login-timeout/`). Contains `status.json` and Context documents.
 
 Context:
-A named markdown document attached to a ticket, stored as `{name}.md` in the ticket folder (e.g. `description.md`, `product-requirement-document.md`). Names are chosen freely and are not tied to board columns. Created on demand. Holds notes, requirements, or instructions read by the AI agent launched against the ticket -- the context you assemble before you launch.
+A named markdown document attached to a task, stored as `{name}.md` in the task folder (e.g. `description.md`, `product-requirement-document.md`). Names are chosen freely and are not tied to board columns. Created on demand. Holds notes, requirements, or instructions read by the AI agent launched against the task -- the context you assemble before you launch.
 Avoid: stage, stage markdown, doc, note
 
 Board Definition:
@@ -44,57 +44,57 @@ A named board layout with an id, name, and ordered list of columns. All board de
 Avoid: column config, workflow, board config
 
 Column:
-A named stage in a Board Definition representing a ticket status (e.g. `todo`, `prd`, `in-progress`, `review`, `done`). Has a name (auto-slugified into a Column Slug, filesystem-safe, unique within its board), an optional plain-text description displayed below the column header on the board, and an optional Column Color.
+A named stage in a Board Definition representing a task status (e.g. `todo`, `prd`, `in-progress`, `review`, `done`). Has a name (auto-slugified into a Column Slug, filesystem-safe, unique within its board), an optional plain-text description displayed below the column header on the board, and an optional Column Color.
 Avoid: lane, swimlane, stage
 
 Column Color:
-An optional color assigned to a Column in a Board Definition, chosen from a fixed preset palette in Settings. Displayed on tickets of that status as a Status Swatch.
+An optional color assigned to a Column in a Board Definition, chosen from a fixed preset palette in Settings. Displayed on tasks of that status as a Status Swatch.
 Avoid: status color, label color
 
 Status Swatch:
-A small colored rectangle rendered after the Ticket Number on kanban and Forest View cards, showing the Column Color of the Column matching the ticket's status. Red when the status matches no Column. Absent when the matching Column has no Column Color.
+A small colored rectangle rendered after the Task Number on kanban and Forest View cards, showing the Column Color of the Column matching the task's status. Red when the status matches no Column. Absent when the matching Column has no Column Color.
 Avoid: status rectangle, color badge, color dot
 
 Herdr Agent Status:
-The live state of the Herdr Agent associated with a Ticket, exactly as Herdr reports it: working, blocked, idle, done, or unknown. Herdr's done means idle with a result not yet seen in Herdr, not work completion, so it is rendered as a muted circle-dot rather than a completion check. The icon mirrors Herdr's own state icons: a filled dot for working, blocked and done, a hollow dot for idle, and a middle dot for unknown, each in Herdr's status color. Shown as an icon after the Status Swatch on kanban and Forest View cards. Absent when the Ticket has no Herdr Agent.
+The live state of the Herdr Agent associated with a Task, exactly as Herdr reports it: working, blocked, idle, done, or unknown. Herdr's done means idle with a result not yet seen in Herdr, not work completion, so it is rendered as a muted circle-dot rather than a completion check. The icon mirrors Herdr's own state icons: a filled dot for working, blocked and done, a hollow dot for idle, and a middle dot for unknown, each in Herdr's status color. Shown as an icon after the Status Swatch on kanban and Forest View cards. Absent when the Task has no Herdr Agent.
 Avoid: agent state, terminal status
 
 Undefined Column:
-A virtual column rendered at the far right of the board when any ticket's status does not match a column in the active Board Definition. Not part of the Board Definition. Styled with red frame and red title. Shows each ticket's orphaned status in red. Disappears when empty. Users can drag tickets out into real columns.
+A virtual column rendered at the far right of the board when any task's status does not match a column in the active Board Definition. Not part of the Board Definition. Styled with red frame and red title. Shows each task's orphaned status in red. Disappears when empty. Users can drag tasks out into real columns.
 Avoid: orphan column, missing column
 
 Archive:
-A subdirectory (`archive/`) inside the worktree where tickets are moved when archived. Archived tickets are excluded from the board.
+A subdirectory (`archive/`) inside the worktree where tasks are moved when archived. Archived tasks are excluded from the board.
 Avoid: trash, deleted
 
-Ticket Order:
-A per-column ordered list of ticket folder names stored as `order.json` in the worktree, controlling the display order of tickets within each column.
+Task Order:
+A per-column ordered list of task folder names stored as `order.json` in the worktree, controlling the display order of tasks within each column.
 Avoid: sort order, ranking
 
 Reference:
-An absolute filesystem path stored in a ticket's `status.json`, pointing to an external file relevant to the ticket (e.g. a source file in the project repo).
+An absolute filesystem path stored in a task's `status.json`, pointing to an external file relevant to the task (e.g. a source file in the project repo).
 Avoid: link, attachment
 
-Ticket Detail Dialog:
-The modal that opens when a ticket is clicked, containing tabs for the editor, agent launcher, and shortcuts.
-Avoid: ticket modal, ticket view
+Task Detail Dialog:
+The modal that opens when a task is clicked, containing tabs for the editor, agent launcher, and shortcuts.
+Avoid: task modal, task view
 
 ### Forest View & Dependencies
 
 Dependency:
-A directed relationship where one ticket depends on another, referenced by Ticket Number. Stored as a list (`dependsOn`) in the dependent ticket's `status.json`. The dependency graph is acyclic.
+A directed relationship where one task depends on another, referenced by Task Number. Stored as a list (`dependsOn`) in the dependent task's `status.json`. The dependency graph is acyclic.
 Avoid: blocker, link, edge, relation
 
 Group:
-A ticket that contains other tickets. Membership is stored on each member as `memberOf` (the group's Ticket Number). Groups can be nested and participate in the dependency graph like any ticket. Grouping affects only the Forest View; the board treats a group as an ordinary ticket.
+A task that contains other tasks. Membership is stored on each member as `memberOf` (the group's Task Number). Groups can be nested and participate in the dependency graph like any task. Grouping affects only the Forest View; the board treats a group as an ordinary task.
 Avoid: epic, container, folder
 
 Forest View:
-An alternative to the kanban board that renders a project's tickets as a dependency forest on a pannable, zoomable surface. Tickets with no dependencies sit on the bottom row; a ticket sits above every ticket it depends on. Toggled per project from the board toolbar.
+An alternative to the kanban board that renders a project's tasks as a dependency forest on a pannable, zoomable surface. Tasks with no dependencies sit on the bottom row; a task sits above every task it depends on. Toggled per project from the board toolbar.
 Avoid: tree view, map view, graph view
 
 Forest Layout:
-A per-worktree file (`forest-layout.json`) storing each ticket's dragged position on the Forest View, keyed by Ticket Number. Positions are relative to the containing Group's inner space. Tickets without an entry are placed automatically.
+A per-worktree file (`forest-layout.json`) storing each task's dragged position on the Forest View, keyed by Task Number. Positions are relative to the containing Group's inner space. Tasks without an entry are placed automatically.
 Avoid: positions file, layout config
 
 Forest Viewport:
@@ -123,16 +123,16 @@ Reopening the Project Windows that were open when the desktop app last quit, eac
 ### Git Infrastructure
 
 Worktree:
-A git worktree checked out from the project repo's orphan branch, holding all ticket folders. Defaults to `~/.context-launch/projects/{projectSlug}/tickets/`; the location is chosen per project on the welcome screen and stored as `ticketsPath` in the Project Registry.
+A git worktree checked out from the project repo's orphan branch, holding all task folders. Defaults to `~/.context-launch/projects/{projectSlug}/tasks/`; the location is chosen per project on the welcome screen and stored as `tasksPath` in the Project Registry.
 Avoid: checkout, workspace
 
 Orphan Branch:
-A git branch with no common history with the project's main branch, holding ticket data without polluting code history. The worktree is checked out directly on this branch. The name is chosen per project on the welcome screen (defaults to `tickets`) and stored as `branch` in the Project Registry. On first setup, if a branch of that name already exists on the remote it is adopted (checked out tracking the remote); otherwise it is created locally as an orphan.
+A git branch with no common history with the project's main branch, holding task data without polluting code history. The worktree is checked out directly on this branch. The name is chosen per project on the welcome screen (defaults to `tasks`) and stored as `branch` in the Project Registry. On first setup, if a branch of that name already exists on the remote it is adopted (checked out tracking the remote); otherwise it is created locally as an orphan.
 
 ### Sync & Conflict Resolution
 
 Sync:
-A user-initiated operation that commits all local ticket changes, fetches the remote ticket branch, rebases local on remote, and pushes. Triggered via the Sync button on the board toolbar. Hidden when no remote tracking branch is configured.
+A user-initiated operation that commits all local task changes, fetches the remote task branch, rebases local on remote, and pushes. Triggered via the Sync button on the board toolbar. Hidden when no remote tracking branch is configured.
 Avoid: push, pull, upload, download
 
 Conflict Resolution:
@@ -140,7 +140,7 @@ The process of resolving git merge conflicts that arise during a Sync rebase. Th
 Avoid: merge, fix conflicts
 
 Conflict Resolution Reconciliation:
-The step that applies a completed Conflict Resolution to the live Worktree and makes the resolved ticket data visible to the Project Window. It is separate from determining whether a conflict exists.
+The step that applies a completed Conflict Resolution to the live Worktree and makes the resolved task data visible to the Project Window. It is separate from determining whether a conflict exists.
 Avoid: conflict finalization, conflict cleanup
 
 Sync Pending:
@@ -150,7 +150,7 @@ Avoid: dirty state, needs sync
 ### Agent Launcher
 
 Agent Launcher:
-A tab inside the Ticket Detail Dialog that assembles a prompt from a Template and checked Skills, then launches Claude Code in a separate terminal window using the selected Coding Agent Profile. The user interacts with Claude directly in the terminal.
+A tab inside the Task Detail Dialog that assembles a prompt from a Template and checked Skills, then launches Claude Code in a separate terminal window using the selected Coding Agent Profile. The user interacts with Claude directly in the terminal.
 Avoid: AI console, terminal, shell, CLI
 
 Coding Agent Profile:
@@ -162,7 +162,7 @@ The destination in which a Coding Agent Profile starts its agent. The supported 
 Avoid: launch mode, launch environment, backend
 
 Template:
-A named prompt string with placeholders (e.g. `{{ticketDir}}`, `{{ticketTitle}}`). One template is selected as the base prompt in the Agent Launcher. Interpolated after skill text is appended.
+A named prompt string with placeholders (e.g. `{{taskDir}}`, `{{taskTitle}}`). One template is selected as the base prompt in the Agent Launcher. Interpolated after skill text is appended.
 Avoid: prompt, instruction
 
 Command Template:
@@ -174,14 +174,14 @@ A named template string that appends to the base Template when checked in the Ag
 Avoid: addon, plugin, extension
 
 Shortcut:
-A named command that launches an external application against a ticket's context. Has a name and a command string with Placeholders. Unlike the Agent Launcher, no prompt assembly occurs -- the command runs directly. Configured in Launcher Config at app or project scope.
+A named command that launches an external application against a task's context. Has a name and a command string with Placeholders. Unlike the Agent Launcher, no prompt assembly occurs -- the command runs directly. Configured in Launcher Config at app or project scope.
 Avoid: app, tool, quick launch
 
 Placeholder:
-A `{{variable}}` reference in a Template, Skill, or Shortcut that gets replaced with a runtime value at launch time. Available: `{{ticketDir}}`, `{{ticketSlug}}`, `{{ticketTitle}}`, `{{ticketNumber}}`, `{{ticketStatus}}`, `{{projectPath}}`, `{{projectSlug}}`, `{{skills}}`, `{{launchDir}}`.
+A `{{variable}}` reference in a Template, Skill, or Shortcut that gets replaced with a runtime value at launch time. Available: `{{taskDir}}`, `{{taskSlug}}`, `{{taskTitle}}`, `{{taskNumber}}`, `{{taskStatus}}`, `{{projectPath}}`, `{{projectSlug}}`, `{{skills}}`, `{{launchDir}}`.
 
 Agent Marker:
-A JSON file written by the launch script while an agent is running, containing the wrapper shell PID and start time. Used to detect whether an agent is already running for a ticket and to detect stale markers from crashed processes.
+A JSON file written by the launch script while an agent is running, containing the wrapper shell PID and start time. Used to detect whether an agent is already running for a task and to detect stale markers from crashed processes.
 Avoid: lock file, pid file
 
 Branch Prefix:
@@ -197,11 +197,11 @@ The dialog for managing Launcher Config entries (Templates, Skills, Coding Agent
 Avoid: launcher settings, preferences
 
 Agent Worktree:
-A git worktree created from the project's main branch for an agent to work in isolation. A Ticket can have several Agent Worktrees and selects one, or the project directory, as its launch target. Add worktree creates and selects a new worktree without launching an agent. Located under a user-configured worktree root path (defaults to `~/.context-launch/projects/{projectSlug}/worktrees/`). New names retain a unique suffix within the 50-character folder limit, with an optional branch prefix. Existing worktree locations are preserved and reused across runs.
+A git worktree created from the project's main branch for an agent to work in isolation. A Task can have several Agent Worktrees and selects one, or the project directory, as its launch target. Add worktree creates and selects a new worktree without launching an agent. Located under a user-configured worktree root path (defaults to `~/.context-launch/projects/{projectSlug}/worktrees/`). New names retain a unique suffix within the 50-character folder limit, with an optional branch prefix. Existing worktree locations are preserved and reused across runs.
 Avoid: sandbox, workspace
 
 Diff Review:
-A Ticket-scoped full-screen surface for inspecting changes in that Ticket's Agent Worktree and sending line-specific feedback to its Agent. It presents every changed file in a Continuous Diff and uses a File Tree for navigation.
+A Task-scoped full-screen surface for inspecting changes in that Task's Agent Worktree and sending line-specific feedback to its Agent. It presents every changed file in a Continuous Diff and uses a File Tree for navigation.
 Avoid: project diff, git diff app, change viewer
 
 File Tree:
@@ -221,11 +221,11 @@ A Review Selection whose referenced content has changed since it was selected. I
 Avoid: invalid selection, expired selection
 
 Review Prompt:
-Feedback submitted from a Diff Review to the Ticket's Herdr Agent. It carries a Review Selection when the user selected lines, and stands alone when the user prompts the Agent directly from the Diff Review header. With a selection it immutably captures the feedback and the selected content as they existed when submitted, and if that selection later becomes stale, delivery includes the original snapshot and identifies it as stale; without one, the feedback is delivered verbatim. Submitting it adds it immediately to the Review Prompt Queue rather than waiting for the Herdr Agent to be ready, and leaves the feedback editor open so more feedback can follow. It is one-directional: the Agent acts on it and does not answer back through Diff Review. While it carries a Review Selection the user can also take it out of the app, either by dragging the selected lines or by dragging or activating the handle in the feedback editor, which also copies it to the clipboard; the text that leaves is the same text the Agent would receive, in every format the receiving window may read. Direct Terminal profiles do not accept Review Prompts.
+Feedback submitted from a Diff Review to the Task's Herdr Agent. It carries a Review Selection when the user selected lines, and stands alone when the user prompts the Agent directly from the Diff Review header. With a selection it immutably captures the feedback and the selected content as they existed when submitted, and if that selection later becomes stale, delivery includes the original snapshot and identifies it as stale; without one, the feedback is delivered verbatim. Submitting it adds it immediately to the Review Prompt Queue rather than waiting for the Herdr Agent to be ready, and leaves the feedback editor open so more feedback can follow. It is one-directional: the Agent acts on it and does not answer back through Diff Review. While it carries a Review Selection the user can also take it out of the app, either by dragging the selected lines or by dragging or activating the handle in the feedback editor, which also copies it to the clipboard; the text that leaves is the same text the Agent would receive, in every format the receiving window may read. Direct Terminal profiles do not accept Review Prompts.
 Avoid: comment, annotation, message
 
 Review Prompt Queue:
-The ordered pending Review Prompts for one Ticket. It delivers one prompt at a time when a Herdr Agent exists for the Ticket and Herdr reports that Agent as idle or done. Queue reconciliation is project-scoped and separate from the read-only Herdr Agent Status query. A delivered prompt remains at the head until a later Agent report establishes completion; if that Agent disappears, the prompt becomes retryable instead of blocking the queue or being assumed complete. When the Ticket has no Agent at all it delivers nothing on its own, because starting an Agent opens a terminal on the user's machine. Sending a Review Prompt and retrying one are the moments the user asks for it to move, so each is one server operation that starts an Agent from the Ticket column's chosen launcher profile with the queue head as that Agent's initial prompt when a profile is configured and the Ticket has no Agent. Without a configured profile, the prompt remains queued for a Herdr Agent. Every Agent start is reserved durably before launch so concurrent requests and app restarts cannot start it twice. It is shown inside the feedback editor, above that editor's own content, and is not visible while the editor is closed. The Herdr Agent Status for the Ticket is shown in the Diff Review header, next to the action that opens the editor without a Review Selection. It survives app restarts and is removed with either the Ticket or its Agent Worktree.
+The ordered pending Review Prompts for one Task. It delivers one prompt at a time when a Herdr Agent exists for the Task and Herdr reports that Agent as idle or done. Queue reconciliation is project-scoped and separate from the read-only Herdr Agent Status query. A delivered prompt remains at the head until a later Agent report establishes completion; if that Agent disappears, the prompt becomes retryable instead of blocking the queue or being assumed complete. When the Task has no Agent at all it delivers nothing on its own, because starting an Agent opens a terminal on the user's machine. Sending a Review Prompt and retrying one are the moments the user asks for it to move, so each is one server operation that starts an Agent from the Task column's chosen launcher profile with the queue head as that Agent's initial prompt when a profile is configured and the Task has no Agent. Without a configured profile, the prompt remains queued for a Herdr Agent. Every Agent start is reserved durably before launch so concurrent requests and app restarts cannot start it twice. It is shown inside the feedback editor, above that editor's own content, and is not visible while the editor is closed. The Herdr Agent Status for the Task is shown in the Diff Review header, next to the action that opens the editor without a Review Selection. It survives app restarts and is removed with either the Task or its Agent Worktree.
 Avoid: comment queue, feedback backlog, batch
 
 Confirmed Turn Completion:
@@ -269,7 +269,7 @@ A contiguous group of changed lines in a Diff Review. It groups changed lines fo
 Avoid: change block, diff block, patch
 
 Review State:
-The durable record of reviewed changed lines for one Ticket's Agent Worktree. A changed line becomes reviewed once it has entered the viewport at least once; rapid scrolling and live changes already visible both count, while visible live changes briefly blink to draw attention. A file is shown as reviewed once all of its changed lines are, and as not reviewed otherwise; there is no separate state for a file that changed after being reviewed. A line is identified by its own content, so editing one line leaves every other line in the same hunk reviewed. It follows unchanged lines across Diff Scopes, survives closing Diff Review and restarting the app, and is removed with the Agent Worktree.
+The durable record of reviewed changed lines for one Task's Agent Worktree. A changed line becomes reviewed once it has entered the viewport at least once; rapid scrolling and live changes already visible both count, while visible live changes briefly blink to draw attention. A file is shown as reviewed once all of its changed lines are, and as not reviewed otherwise; there is no separate state for a file that changed after being reviewed. A line is identified by its own content, so editing one line leaves every other line in the same hunk reviewed. It follows unchanged lines across Diff Scopes, survives closing Diff Review and restarting the app, and is removed with the Agent Worktree.
 Avoid: review cache, diff cache
 
 Next Change:
@@ -284,16 +284,16 @@ Herdr Workspace:
 A project-level container in Herdr that Context & Launch associates with one Project and uses to host Herdr Agents. It is distinct from an Agent Worktree.
 Avoid: Herdr environment, terminal environment
 
-Herdr Ticket Pane:
-A persistent pane in a Herdr Workspace associated with one Ticket launch target. Project-directory and legacy launches use the `{projectSlug}--{folderName}` pane label. Each added Agent Worktree has a saved agent key and its own pane label. It retains its identity when its Herdr Agent is replaced.
+Herdr Task Pane:
+A persistent pane in a Herdr Workspace associated with one Task launch target. Project-directory and legacy launches use the `{projectSlug}--{folderName}` pane label. Each added Agent Worktree has a saved agent key and its own pane label. It retains its identity when its Herdr Agent is replaced.
 Avoid: agent panel, agent instance
 
 Herdr Agent:
-A coding-agent process hosted by a Herdr Ticket Pane. A later launch replaces the finished or waiting process, and a Herdr Ticket Pane never hosts concurrent Herdr Agents.
+A coding-agent process hosted by a Herdr Task Pane. A later launch replaces the finished or waiting process, and a Herdr Task Pane never hosts concurrent Herdr Agents.
 Avoid: terminal, pane
 
 Herdr Unavailable:
-The state in which Herdr answers nothing because the Herdr CLI is not installed or the Herdr server is not running. Every Herdr command is a call over the Herdr server socket, so both cases mean the same thing: this machine hosts no Herdr Agents right now. Actions that only need to know whether a Herdr Agent exists, such as Ticket cleanup, treat it as "no Herdr Agent" and stay available rather than failing. A missing CLI stops Herdr Agent Status polling, a stopped server does not.
+The state in which Herdr answers nothing because the Herdr CLI is not installed or the Herdr server is not running. Every Herdr command is a call over the Herdr server socket, so both cases mean the same thing: this machine hosts no Herdr Agents right now. Actions that only need to know whether a Herdr Agent exists, such as Task cleanup, treat it as "no Herdr Agent" and stay available rather than failing. A missing CLI stops Herdr Agent Status polling, a stopped server does not.
 Avoid: Herdr error, Herdr missing
 
 ## Relationships
@@ -302,27 +302,27 @@ Avoid: Herdr error, Herdr missing
 - A Project Window shows exactly one Project; a Project may be shown by more than one Project Window
 - A Project Window renders exactly one Palette in exactly one Mode at a time; every Palette defines both Modes
 - A Worktree is checked out from the Project's Orphan Branch
-- A Worktree contains zero or more Ticket Folders
-- A Ticket Folder contains exactly one `status.json` and zero or more Context documents
+- A Worktree contains zero or more Task Folders
+- A Task Folder contains exactly one `status.json` and zero or more Context documents
 - A Board Definition defines the set of Columns available to a Project
 - A Column has a name, an optional description, and an optional Column Color
 - A Context name is chosen freely; by convention it often mirrors a Column name (e.g. `review.md`) but the two are not linked
 - A Column name is auto-slugified into a Column Slug and must be unique within its Board Definition
 - The reserved name "undefined" cannot be used for a Column
-- When a Column is renamed, ticket statuses and column defaults may be migrated (scoped to all projects, current project, or none)
-- When a Column is deleted, affected tickets appear in the Undefined Column
+- When a Column is renamed, task statuses and column defaults may be migrated (scoped to all projects, current project, or none)
+- When a Column is deleted, affected tasks appear in the Undefined Column
 - The Agent Launcher assembles a prompt from a Template and zero or more Skills
 - A Coding Agent Profile selects exactly one Launch Target
 - A Launcher Config exists at app scope and optionally at project scope; project merges into app
 - A Launcher Config contains zero or more Shortcuts
-- A Ticket has zero or more Agent Worktrees, each branching from the Project's main branch with its own saved location and branch name
+- A Task has zero or more Agent Worktrees, each branching from the Project's main branch with its own saved location and branch name
 - A Project has at most one Herdr Workspace
-- A Herdr Workspace contains at most one Herdr Ticket Pane for each Ticket launch target; added Agent Worktrees have independent persistent agent keys
-- A Herdr Ticket Pane hosts at most one Herdr Agent at a time
+- A Herdr Workspace contains at most one Herdr Task Pane for each Task launch target; added Agent Worktrees have independent persistent agent keys
+- A Herdr Task Pane hosts at most one Herdr Agent at a time
 - The Agent Launcher remembers the last-used Template, checked Skills, and Coding Agent Profile per Column
-- A Ticket may depend on zero or more Tickets (a Dependency); the graph is acyclic
-- A Ticket may be a member of at most one Group; Groups nest acyclically
-- Editing a Ticket Number rewrites inbound Dependency and Group membership entries; deleting a ticket removes them; entries pointing at absent tickets are ignored when rendering
+- A Task may depend on zero or more Tasks (a Dependency); the graph is acyclic
+- A Task may be a member of at most one Group; Groups nest acyclically
+- Editing a Task Number rewrites inbound Dependency and Group membership entries; deleting a task removes them; entries pointing at absent tasks are ignored when rendering
 
 ## Disk layout
 
@@ -330,7 +330,7 @@ Config files live under `~/.context-launch/config/`: the Project Registry, app-l
 
 Per-project data lives under `~/.context-launch/projects/{projectSlug}/`. Each project gets:
 - A `config/` directory with its project-level Launcher Config (local-only, not versioned)
-- A `tickets/` directory that is a git Worktree of the Orphan Branch — this stores all Ticket Folders
+- A `tasks/` directory that is a git Worktree of the Orphan Branch — this stores all Task Folders
 - A `worktrees/` directory (by default) for Agent Worktrees — git checkouts of main/master where agents do their work
 
-The Worktree (`tickets/`) and Agent Worktrees (`worktrees/`) are separate git checkouts: the Worktree holds ticket data on the orphan branch, Agent Worktrees hold real code from main.
+The Worktree (`tasks/`) and Agent Worktrees (`worktrees/`) are separate git checkouts: the Worktree holds task data on the orphan branch, Agent Worktrees hold real code from main.

@@ -1,19 +1,19 @@
 import type { JSX } from '@solidjs/web'
 import { For, Show } from 'solid-js'
-import type { TicketInfo } from '~/core/ticket/ticket-store.js'
+import type { TaskInfo } from '~/core/task/task-store.js'
 import type { ColumnDefinition } from '~/core/project/board-config.js'
 import { resolvePreviewInsertBefore } from './drop-index.js'
 import { parseId } from './kanban-id.js'
-import { type TicketColumnProps } from './ticket-column.js'
-import { COLUMN_CELL_CLASS } from './ticket-column.js'
-import { TicketDropPreview } from './TicketDropPreview.js'
-import { SortableTicketCard } from './SortableTicketCard.js'
+import { type TaskColumnProps } from './task-column.js'
+import { COLUMN_CELL_CLASS } from './task-column.js'
+import { TaskDropPreview } from './TaskDropPreview.js'
+import { SortableTaskCard } from './SortableTaskCard.js'
 import { EmptyColumnDropzone } from './EmptyColumnDropzone.js'
 
 export function ColumnBody(
-  props: TicketColumnProps & {
+  props: TaskColumnProps & {
     column: ColumnDefinition
-    tickets: TicketInfo[]
+    tasks: TaskInfo[]
     registerRef: (el: HTMLDivElement) => void
   },
 ): JSX.Element {
@@ -22,19 +22,19 @@ export function ColumnBody(
     if (!aid) return null
     const { column, folderName } = parseId(aid)
     if (column !== props.column.name) return null
-    const idx = props.tickets.findIndex((t) => t.folderName === folderName)
+    const idx = props.tasks.findIndex((t) => t.folderName === folderName)
     return idx === -1 ? null : idx
   }
   const previewAt = () => resolvePreviewInsertBefore(props.hoverTarget, props.column.name, sourceIndexInColumn())
   return (
     <div class={COLUMN_CELL_CLASS} data-testid="kanban-board-column-body" data-column-name={props.column.name}>
       <div ref={(el) => props.registerRef(el)} class="flex flex-1 flex-col gap-2 pb-4">
-        <For each={props.tickets} keyed={(ticket) => ticket.folderName}>
-          {(ticket, i) => (
+        <For each={props.tasks} keyed={(task) => task.folderName}>
+          {(task, i) => (
             <>
-              <Show when={previewAt() === i() && props.activeTicket}>{(t) => <TicketDropPreview ticket={t()} />}</Show>
-              <SortableTicketCard
-                ticket={ticket()}
+              <Show when={previewAt() === i() && props.activeTask}>{(t) => <TaskDropPreview task={t()} />}</Show>
+              <SortableTaskCard
+                task={task()}
                 column={props.column.name}
                 activeId={props.activeId}
                 onDelete={props.onDelete}
@@ -46,8 +46,8 @@ export function ColumnBody(
             </>
           )}
         </For>
-        <Show when={previewAt() === props.tickets.length && props.activeTicket}>{(t) => <TicketDropPreview ticket={t()} />}</Show>
-        <Show when={props.tickets.length === 0}>
+        <Show when={previewAt() === props.tasks.length && props.activeTask}>{(t) => <TaskDropPreview task={t()} />}</Show>
+        <Show when={props.tasks.length === 0}>
           <EmptyColumnDropzone column={props.column.name} />
         </Show>
       </div>

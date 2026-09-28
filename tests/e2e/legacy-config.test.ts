@@ -23,7 +23,7 @@ describe("Legacy config with 'slug' property names (sandboxed e2e)", () => {
               {
                 path: repoDir,
                 slug: 'legacy-proj',
-                branch: 'tickets',
+                branch: 'tasks',
               },
             ],
             lastUsedSlug: 'legacy-proj',

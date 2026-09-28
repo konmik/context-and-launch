@@ -1,37 +1,37 @@
 import { describe, it, expect } from 'vitest'
 import { chromium, type Browser, type Page } from 'playwright'
-import { createServer, createProject, uniqueSlug, type TestServer, type CreatedProject, type SeedTicket } from './fixtures.js'
+import { createServer, createProject, uniqueSlug, type TestServer, type CreatedProject, type SeedTask } from './fixtures.js'
 import { testId, waitVisible } from './locators.js' // Ranks the slowest user-facing areas against a real server + real browser and
 
 // splits board load into time-to-first-column-header vs time-to-all-cards.
 // Re-run after a change to compare: `pnpm run bench`.
 const COLUMNS = ['todo', 'in-progress', 'review', 'blocked', 'qa', 'done']
 
-const TICKET_COUNT = Number(process.env.BENCH_TICKETS ?? 300)
+const TASK_COUNT = Number(process.env.BENCH_TASKS ?? 300)
 
 const RUNS = Number(process.env.BENCH_RUNS ?? 5)
 
-function seedTickets(count: number): SeedTicket[] {
-  const tickets: SeedTicket[] = []
+function seedTasks(count: number): SeedTask[] {
+  const tasks: SeedTask[] = []
   for (let i = 0; i < count; i++) {
     const number = `B-${i + 1}`
-    const folderName = `b-${i + 1}-benchmark-ticket-${i + 1}`
+    const folderName = `b-${i + 1}-benchmark-task-${i + 1}`
     const dependsOn = i % 5 === 0 && i > 0 ? [`B-${i}`] : undefined
     const memberOf = i % 11 === 0 && i > 0 ? `B-${i - (i % 11)}` : undefined
-    tickets.push({
+    tasks.push({
       number,
-      title: `Benchmark ticket number ${i + 1} with a reasonably long title`,
+      title: `Benchmark task number ${i + 1} with a reasonably long title`,
       status: COLUMNS[i % COLUMNS.length],
       folderName,
       dependsOn,
       memberOf,
       body:
-        `# Benchmark ticket ${i + 1}\n\n` +
-        `This is a body paragraph for ticket ${i + 1}. `.repeat(8) +
+        `# Benchmark task ${i + 1}\n\n` +
+        `This is a body paragraph for task ${i + 1}. `.repeat(8) +
         `\n\n- item one\n- item two\n- item three\n`,
     })
   }
-  return tickets
+  return tasks
 }
 
 interface Stat {
@@ -96,7 +96,7 @@ describe('Area benchmark (real server + real browser)', () => {
     async function gotoBoard(page: Page): Promise<void> {
       await page.goto(`${base}/project/${slug}`)
       await waitVisible(page, 'kanban-board-column-header')
-      await page.waitForFunction((n) => document.querySelectorAll('[data-testid="kanban-board-ticket-card"]').length >= n, TICKET_COUNT, {
+      await page.waitForFunction((n) => document.querySelectorAll('[data-testid="kanban-board-task-card"]').length >= n, TASK_COUNT, {
         timeout: 30000,
       })
     }
@@ -114,7 +114,7 @@ describe('Area benchmark (real server + real browser)', () => {
             })),
           },
         ],
-        withTickets: seedTickets(TICKET_COUNT),
+        withTasks: seedTasks(TASK_COUNT),
       })
       slug = project.projectSlug // Area 1: full board load (cold navigation, all cards rendered).
       await measure('board-load', async (page) => {
@@ -136,8 +136,8 @@ describe('Area benchmark (real server + real browser)', () => {
             await waitVisible(page, 'kanban-board-column-header')
             headerSamples.push(performance.now() - start)
             await page.waitForFunction(
-              (n) => document.querySelectorAll('[data-testid="kanban-board-ticket-card"]').length >= n,
-              TICKET_COUNT,
+              (n) => document.querySelectorAll('[data-testid="kanban-board-task-card"]').length >= n,
+              TASK_COUNT,
               {
                 timeout: 30000,
               },
@@ -153,12 +153,12 @@ describe('Area benchmark (real server + real browser)', () => {
           `[area-benchmark] board-load split | first-header ${h.median.toFixed(0)} ms ` +
             `| all-cards ${c.median.toFixed(0)} ms | header-to-cards delta ~${(c.median - h.median).toFixed(0)} ms`,
         )
-      } // Area 2: ticket detail dialog open.
+      } // Area 2: task detail dialog open.
       await measure(
-        'ticket-detail-open',
+        'task-detail-open',
         async (page) => {
-          await testId(page, 'kanban-board-ticket-card').first().click()
-          await waitVisible(page, 'ticket-detail-number-input')
+          await testId(page, 'kanban-board-task-card').first().click()
+          await waitVisible(page, 'task-detail-number-input')
         },
         gotoBoard,
       ) // Area 3: Forest View first render.
@@ -167,7 +167,7 @@ describe('Area benchmark (real server + real browser)', () => {
         async (page) => {
           await testId(page, 'project-header-forest-toggle-button').click()
           await waitVisible(page, 'forest-surface')
-          await page.waitForFunction(() => document.querySelectorAll('[data-testid="forest-ticket-card"]').length > 0, undefined, {
+          await page.waitForFunction(() => document.querySelectorAll('[data-testid="forest-task-card"]').length > 0, undefined, {
             timeout: 30000,
           })
         },
@@ -180,12 +180,12 @@ describe('Area benchmark (real server + real browser)', () => {
           await waitVisible(page, 'launcher-settings-tab-misc')
         },
         gotoBoard,
-      ) // Area 5: Create-ticket dialog open.
+      ) // Area 5: Create-task dialog open.
       await measure(
-        'create-ticket-open',
+        'create-task-open',
         async (page) => {
-          await testId(page, 'project-header-new-ticket-button').click()
-          await waitVisible(page, 'create-ticket-number-input')
+          await testId(page, 'project-header-new-task-button').click()
+          await waitVisible(page, 'create-task-number-input')
         },
         gotoBoard,
       ) // Area 6: Palette switch (client restyle of the whole board).
@@ -215,7 +215,7 @@ describe('Area benchmark (real server + real browser)', () => {
           `  (min ${s.min.toFixed(0)}, max ${s.max.toFixed(0)}${s.fails ? `, fails ${s.fails}` : ''})`,
       )
       console.log(
-        `\n[area-benchmark] ${TICKET_COUNT} tickets, ${COLUMNS.length} columns, ${RUNS} runs each\n` +
+        `\n[area-benchmark] ${TASK_COUNT} tasks, ${COLUMNS.length} columns, ${RUNS} runs each\n` +
           `Slowest areas (ranked by median):\n${lines.join('\n')}\n`,
       )
       for (const s of stats) {

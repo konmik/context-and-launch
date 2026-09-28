@@ -2,13 +2,13 @@ import type { JSX } from '@solidjs/web'
 import { Show } from 'solid-js'
 import { createForestLayoutStorage, ForestLayoutContext } from './forest-layout-storage.js'
 import type { BoardState } from '~/core/board/board-types.js'
-import type { TicketInfo } from '~/core/ticket/ticket-store.js'
+import type { TaskInfo } from '~/core/task/task-store.js'
 import { ForestViewContent } from './ForestViewContent.js'
 
 export interface ForestViewProps {
   board: BoardState
   projectSlug: string
-  onViewDetail: (ticket: TicketInfo) => void
+  onViewDetail: (task: TaskInfo) => void
   onClose: () => void
   suggestedNextNumber?: string | null
 }

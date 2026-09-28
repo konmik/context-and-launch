@@ -2,52 +2,52 @@ import type { JSX } from '@solidjs/web'
 import { For, Show, useContext } from 'solid-js'
 import { useErrorReporter } from '../shared/error-presentation.js'
 import { revalidate } from '@solidjs/router'
-import { TicketOrderContext } from './ticket-order-storage.js'
-import { ticketMutationRevalidateKeys } from '../shared/revalidate-keys.js'
+import { TaskOrderContext } from './task-order-storage.js'
+import { taskMutationRevalidateKeys } from '../shared/revalidate-keys.js'
 import { DragDropProvider } from '~/components/drag/DragDropProvider.js'
 import { DragOverlay } from '~/components/drag/DragOverlay.js'
-import type { TicketInfo } from '~/core/ticket/ticket-store.js'
+import type { TaskInfo } from '~/core/task/task-store.js'
 import type { BoardState } from '~/components/project/project-api.js'
-import TicketCard from '../ticket/TicketCard'
+import TaskCard from '../task/TaskCard'
 import { DragOverlayCard } from './DragOverlayCard.js'
 import { ColumnHeader } from './ColumnHeader.js'
 import { ColumnBody } from './ColumnBody.js'
 import { UndefinedColumnHeader } from './UndefinedColumnHeader.js'
 import { UndefinedColumnBody } from './UndefinedColumnBody.js'
-import { resolveTicketsForColumn, type DropResult } from './board-logic.js'
-import { moveTicketInOrder } from '~/core/ticket/ticket-order-data.js'
+import { resolveTasksForColumn, type DropResult } from './board-logic.js'
+import { moveTaskInOrder } from '~/core/task/task-order-data.js'
 import { createBoardDnd } from './board-state.js'
 import type { Accessor } from 'solid-js'
 import type { DragState } from './board-state.js'
-import { openTicketFolder, updateTicket } from '../ticket/ticket-api.js'
+import { openTaskFolder, updateTask } from '../task/task-api.js'
 
 interface KanbanBoardProps {
   board: BoardState
   projectSlug: string
-  onDelete: (ticket: TicketInfo) => void
-  onArchive: (ticket: TicketInfo) => void
-  onViewDetail: (ticket: TicketInfo) => void
-  onReviewChanges?: (ticket: TicketInfo) => void
+  onDelete: (task: TaskInfo) => void
+  onArchive: (task: TaskInfo) => void
+  onViewDetail: (task: TaskInfo) => void
+  onReviewChanges?: (task: TaskInfo) => void
   dragState?: Accessor<DragState>
-  activeTicket?: Accessor<TicketInfo | null>
+  activeTask?: Accessor<TaskInfo | null>
 }
 
 export default function KanbanBoard(props: KanbanBoardProps): JSX.Element {
-  const order = useContext(TicketOrderContext)!
+  const order = useContext(TaskOrderContext)!
   const errors = useErrorReporter()
   const dnd = createBoardDnd(() => ({
     ...props.board,
-    ticketOrder: order.get(),
+    taskOrder: order.get(),
   }))
   const board = dnd.board
   const drag = props.dragState ?? dnd.drag
-  const activeTicket = props.activeTicket ?? dnd.activeTicket
+  const activeTask = props.activeTask ?? dnd.activeTask
   const commands = dnd.commands
 
   async function saveDrop(drop: DropResult) {
     const projectSlug = props.projectSlug
     if (drop.fromColumn !== drop.toColumn) {
-      const status = await updateTicket(projectSlug, drop.folderName, null, null, drop.toColumn)
+      const status = await updateTask(projectSlug, drop.folderName, null, null, drop.toColumn)
       if (props.projectSlug !== projectSlug) return
       if (status.type === 'Failure') {
         errors.enqueueToast(status.error)
@@ -55,16 +55,16 @@ export default function KanbanBoard(props: KanbanBoardProps): JSX.Element {
       }
     }
     const result = await order.update((current) =>
-      moveTicketInOrder(current, drop.folderName, drop.fromColumn, drop.toColumn, drop.newIndex),
+      moveTaskInOrder(current, drop.folderName, drop.fromColumn, drop.toColumn, drop.newIndex),
     )
     if (result.type === 'Failure') errors.enqueueToast(result.error)
-    await revalidate(ticketMutationRevalidateKeys)
+    await revalidate(taskMutationRevalidateKeys)
   }
 
-  const openFolder = (ticket: TicketInfo) => {
-    void errors.runAndReportErrors(() => openTicketFolder(props.projectSlug, ticket.folderName))
+  const openFolder = (task: TaskInfo) => {
+    void errors.runAndReportErrors(() => openTaskFolder(props.projectSlug, task.folderName))
   }
-  const ticketsFor = (column: string) => resolveTicketsForColumn(column, order.get(), board().ticketMap, board().orphanFolderNames)
+  const tasksFor = (column: string) => resolveTasksForColumn(column, order.get(), board().taskMap, board().orphanFolderNames)
   let headerRow!: HTMLDivElement
   let scrollBody!: HTMLDivElement
   const syncHeaderScroll = () => {
@@ -92,13 +92,13 @@ export default function KanbanBoard(props: KanbanBoardProps): JSX.Element {
               {(column, i) => (
                 <ColumnHeader
                   column={column}
-                  count={ticketsFor(column.name).length}
+                  count={tasksFor(column.name).length}
                   edgeLeft={i() === 0}
-                  edgeRight={i() === props.board.columns.length - 1 && board().orphanedTickets.length === 0}
+                  edgeRight={i() === props.board.columns.length - 1 && board().orphanedTasks.length === 0}
                 />
               )}
             </For>
-            <Show when={board().orphanedTickets.length > 0}>
+            <Show when={board().orphanedTasks.length > 0}>
               <UndefinedColumnHeader />
             </Show>
           </div>
@@ -117,10 +117,10 @@ export default function KanbanBoard(props: KanbanBoardProps): JSX.Element {
               {(column) => (
                 <ColumnBody
                   column={column}
-                  tickets={ticketsFor(column.name)}
+                  tasks={tasksFor(column.name)}
                   registerRef={(el) => commands.registerColumnRef(column.name, el)}
                   activeId={drag().activeId}
-                  activeTicket={activeTicket()}
+                  activeTask={activeTask()}
                   hoverTarget={drag().hoverTarget}
                   onDelete={props.onDelete}
                   onArchive={props.onArchive}
@@ -130,11 +130,11 @@ export default function KanbanBoard(props: KanbanBoardProps): JSX.Element {
                 />
               )}
             </For>
-            <Show when={board().orphanedTickets.length > 0}>
+            <Show when={board().orphanedTasks.length > 0}>
               <UndefinedColumnBody
-                tickets={board().orphanedTickets}
+                tasks={board().orphanedTasks}
                 activeId={drag().activeId}
-                activeTicket={activeTicket()}
+                activeTask={activeTask()}
                 hoverTarget={drag().hoverTarget}
                 onDelete={props.onDelete}
                 onArchive={props.onArchive}
@@ -148,14 +148,14 @@ export default function KanbanBoard(props: KanbanBoardProps): JSX.Element {
       </div>
       <DragOverlay>
         {() => (
-          <Show when={activeTicket()}>
+          <Show when={activeTask()}>
             {(t) => (
               <DragOverlayCard
                 style={{
                   width: '250px',
                 }}
               >
-                <TicketCard ticket={t()} onDelete={() => {}} onArchive={() => {}} onViewDetail={() => {}} onReviewChanges={() => {}} />
+                <TaskCard task={t()} onDelete={() => {}} onArchive={() => {}} onViewDetail={() => {}} onReviewChanges={() => {}} />
               </DragOverlayCard>
             )}
           </Show>

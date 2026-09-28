@@ -6,7 +6,7 @@ export interface ProjectEntry {
   projectSlug: string
   name?: string
   branch?: string
-  ticketsPath?: string
+  tasksPath?: string
   mainBranch?: string
   boardId?: string
 }
@@ -25,7 +25,7 @@ const ProjectEntrySchema = v.looseObject({
   slug: v.optional(v.string()),
   name: v.optional(v.string()),
   branch: v.optional(v.string()),
-  ticketsPath: v.optional(v.string()),
+  tasksPath: v.optional(v.string()),
   mainBranch: v.optional(v.string()),
   boardId: v.optional(v.string()),
 })
@@ -68,7 +68,7 @@ export interface DecodeAppConfigResult {
       path: string
       name?: string | undefined
       branch?: string | undefined
-      ticketsPath?: string | undefined
+      tasksPath?: string | undefined
       mainBranch?: string | undefined
       boardId?: string | undefined
     }[]

@@ -51,12 +51,12 @@ export default function ConflictDialog(props: ConflictDialogProps): JSX.Element 
       <div class="flex items-center justify-between">
         <button
           type="button"
-          onClick={() => errors.runAndReportErrors(() => openConfigDir('tickets', props.projectSlug))}
+          onClick={() => errors.runAndReportErrors(() => openConfigDir('tasks', props.projectSlug))}
           class="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
-          title="Open tickets directory"
-          data-testid="conflict-dialog-open-tickets-repo"
+          title="Open tasks directory"
+          data-testid="conflict-dialog-open-tasks-repo"
         >
-          Tickets repo ↗
+          Tasks repo ↗
         </button>
         <div class="flex gap-2">
           <button type="button" onClick={s.close} disabled={s.submitting()} class="btn-secondary" data-testid="conflict-dialog-close">

@@ -284,13 +284,13 @@ export function registerAgentWorktreeCleanupTests(shard: number | readonly numbe
       if (result.type === 'Failure') return
       expect(result.value.branchName).toBe('st-0010-branch-result')
     })
-    it.concurrent('uses savedWorktreeInfo instead of deriving from folderName (ticket rename)', async () => {
+    it.concurrent('uses savedWorktreeInfo instead of deriving from folderName (task rename)', async () => {
       const { projectDir, awm } = setup()
       const originalFolder = 'st-0011-original-name'
       const result1 = await awm.ensureAgentWorktree(projectDir, 'my-proj', originalFolder)
       expect(result1.type).toBe('Success')
       if (result1.type === 'Failure') return
-      const renamedFolder = 'st-0011-renamed-ticket'
+      const renamedFolder = 'st-0011-renamed-task'
       const result2 = await awm.ensureAgentWorktree(projectDir, 'my-proj', renamedFolder, undefined, undefined, {
         branchName: originalFolder,
         agentWorktreePath: result1.value.worktreePath,

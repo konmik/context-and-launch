@@ -5,16 +5,16 @@ import { testId, waitVisible, waitGone } from './locators.js'
 
 describe('Sync button drag (e2e, real server)', () => {
   const ctx = setupE2E()
-  it('pending badge appears after creating a ticket', async () => {
+  it('pending badge appears after creating a task', async () => {
     await openProject(ctx, {
       slugBase: 'sb-pending-appear',
       withRemote: true,
     })
-    await testId(ctx.page, 'project-header-new-ticket-button').click()
-    await waitVisible(ctx.page, 'create-ticket-number-input')
-    await testId(ctx.page, 'create-ticket-number-input').fill('P-1')
-    await testId(ctx.page, 'create-ticket-title-input').fill('Pending test')
-    await testId(ctx.page, 'create-ticket-submit').click()
+    await testId(ctx.page, 'project-header-new-task-button').click()
+    await waitVisible(ctx.page, 'create-task-number-input')
+    await testId(ctx.page, 'create-task-number-input').fill('P-1')
+    await testId(ctx.page, 'create-task-title-input').fill('Pending test')
+    await testId(ctx.page, 'create-task-submit').click()
     await waitVisible(ctx.page, 'sync-button-pending-badge')
   })
   it('pending badge disappears after sync', async () => {
@@ -26,13 +26,13 @@ describe('Sync button drag (e2e, real server)', () => {
     await testId(ctx.page, 'sync-button-trigger').click()
     await waitGone(ctx.page, 'sync-button-pending-badge')
   })
-  it('pending badge clears after dragging a ticket there and back', async () => {
+  it('pending badge clears after dragging a task there and back', async () => {
     const project = await openProject(ctx, {
       slugBase: 'sb-pending-dragback',
       withRemote: true,
       seedRemoteBaseline: true,
       withBoards: THREE_COLUMN_BOARD,
-      withTickets: [
+      withTasks: [
         {
           number: 'B-1',
           title: 'Boomerang',
@@ -40,7 +40,7 @@ describe('Sync button drag (e2e, real server)', () => {
           folderName: 'b-1-boomerang',
         },
       ],
-      withTicketOrder: {
+      withTaskOrder: {
         todo: ['b-1-boomerang'],
         'in-progress': [],
         done: [],
@@ -68,13 +68,13 @@ describe('Sync button drag (e2e, real server)', () => {
     await waitGone(ctx.page, 'sync-button-pending-badge') // The badge is driven by a poll, so it can clear before the auto-commit that
     // follows the second drag has finished writing the tree.
     await expect
-      .poll(() => porcelainStatus(project.ticketsPath), {
+      .poll(() => porcelainStatus(project.tasksPath), {
         timeout: 15000,
       })
       .toBe('') // Whether the two moves land in one auto-commit window or two is a matter of
     // machine speed; what must hold is that the round trip left no net change.
     await expect
-      .poll(() => upstreamDiff(project.ticketsPath), {
+      .poll(() => upstreamDiff(project.tasksPath), {
         timeout: 15000,
       })
       .toBe('')

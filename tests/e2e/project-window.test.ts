@@ -40,9 +40,9 @@ describe('Project window (e2e, real server)', () => {
     // sync-pending cache would never invalidate. With additive watching A's
     // watcher stays live: the change commits and A's page picks up the pending
     // badge on its next poll.
-    fs.writeFileSync(path.join(a.ticketsPath, 'external-note.md'), 'external change')
+    fs.writeFileSync(path.join(a.tasksPath, 'external-note.md'), 'external change')
     await expect
-      .poll(async () => (await git(a.ticketsPath, 'log', '-1', '--format=%s')).trim(), {
+      .poll(async () => (await git(a.tasksPath, 'log', '-1', '--format=%s')).trim(), {
         timeout: 20000,
       })
       .toBe('auto: external changes') // A's page picks the badge up on a later poll, once the server-side watcher
@@ -137,7 +137,7 @@ describe('Project window (e2e, real server)', () => {
     registry.projects.push({
       path: path.join(ctx.testServer.reposParentDir, 'missing-gone'),
       projectSlug: 'gone-x',
-      branch: 'tickets',
+      branch: 'tasks',
     })
     fs.writeFileSync(configFile, JSON.stringify(registry, null, 2))
     await gotoProject(ctx.page, ctx.testServer, e.projectSlug)

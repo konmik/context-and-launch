@@ -26,7 +26,7 @@ describe('Forest sub-forest window', () => {
   it('sub-forest opens and closes', async () => {
     await openForestProject(ctx, {
       slugBase: 'fg-sub',
-      tickets: [
+      tasks: [
         {
           number: 'S-1',
           title: 'Member One',
@@ -51,10 +51,10 @@ describe('Forest sub-forest window', () => {
     await closeSubforest(ctx.page)
     expect(await subforestCloseButton(ctx.page).count()).toBe(0)
   }, 120000)
-  it('centers only the tickets inside the open Group', async () => {
+  it('centers only the tasks inside the open Group', async () => {
     await openForestProject(ctx, {
       slugBase: 'fg-center-scope',
-      tickets: [
+      tasks: [
         {
           number: 'S-1',
           title: 'First member',
@@ -108,7 +108,7 @@ describe('Forest sub-forest window', () => {
     await ctx.page.waitForTimeout(300)
     await testId(surface, 'forest-center-button').click()
     const surfaceBox = await boxOf(surface)
-    const cardBoxes = await testId(subforest, 'forest-ticket-card').evaluateAll((elements) =>
+    const cardBoxes = await testId(subforest, 'forest-task-card').evaluateAll((elements) =>
       elements.map((element) => element.getBoundingClientRect().toJSON()),
     )
     expect(cardBoxes).toHaveLength(2)
@@ -119,7 +119,7 @@ describe('Forest sub-forest window', () => {
   it('keeps internal and external connectors attached after a Group finishes opening', async () => {
     await openForestProject(ctx, {
       slugBase: 'fg-open-connector-alignment',
-      tickets: [
+      tasks: [
         {
           number: 'S-1',
           title: 'A dependent title long enough to wrap onto another line',
@@ -195,7 +195,7 @@ describe('Forest sub-forest window', () => {
   it('attaches pre-existing external lines to the Group window after opening', async () => {
     await openForestProject(ctx, {
       slugBase: 'fg-open-down-line',
-      tickets: [
+      tasks: [
         {
           number: 'S-1',
           title: 'Member',
@@ -239,7 +239,7 @@ describe('Forest sub-forest window', () => {
   it('keeps external lines attached to their member on every frame while the Group opens', async () => {
     await openForestProject(ctx, {
       slugBase: 'fg-open-line-frames',
-      tickets: [
+      tasks: [
         {
           number: 'S-1',
           title: 'Member',
@@ -283,7 +283,7 @@ describe('Forest sub-forest window', () => {
           '[data-testid="forest-subforest-backdrop"] [data-testid="forest-external-dependency"]',
         )
         const card = document.querySelector(
-          '[data-testid="forest-subforest-backdrop"] [data-testid="forest-ticket-card"][data-ticket-number="S-1"]',
+          '[data-testid="forest-subforest-backdrop"] [data-testid="forest-task-card"][data-task-number="S-1"]',
         )
         const boundary = document.querySelector('[data-forest-connection-boundary]')
         const matrix = path?.getScreenCTM()
@@ -319,7 +319,7 @@ describe('Forest sub-forest window', () => {
   it('clicking outside an open Group closes it', async () => {
     await openForestProject(ctx, {
       slugBase: 'fg-outside-close',
-      tickets: [
+      tasks: [
         {
           number: 'S-1',
           title: 'Member',

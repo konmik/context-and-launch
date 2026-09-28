@@ -1,0 +1,180 @@
+import { describe, it, expect } from 'vitest'
+import { gotoProject, seedProject, openTaskDetail, readContextFile, readTaskStatus, poll, setupE2E } from './fixtures.js'
+import { setupEditorTask } from './task-detail-editor-shared.js'
+import { testId, waitVisible, waitGone } from './locators.js'
+
+describe('Task detail editor panel and saving (e2e, real server)', () => {
+  const ctx = setupE2E()
+  it('editor tab is active by default; tab triggers render', async () => {
+    await setupEditorTask(ctx, 'default')
+    expect(await testId(ctx.page, 'task-detail-tab-editor').count()).toBe(1)
+    expect(await testId(ctx.page, 'task-detail-tab-launcher').count()).toBe(1)
+    expect(await testId(ctx.page, 'task-detail-tab-shortcuts').count()).toBe(0)
+  })
+  it('editor-copy and add-reference buttons exist', async () => {
+    await setupEditorTask(ctx, 'buttons')
+    expect(await testId(ctx.page, 'task-detail-editor-copy-button').count()).toBe(1)
+    expect(await testId(ctx.page, 'task-detail-editor-add-reference-button').count()).toBe(1)
+  })
+  it('task-detail-close-window-button closes the panel when no unsaved changes', async () => {
+    await setupEditorTask(ctx, 'close-window')
+    await testId(ctx.page, 'task-detail-close-window-button').click()
+    await waitGone(ctx.page, 'task-detail-tab-editor')
+  })
+  it('task-detail-close-button closes when no unsaved changes', async () => {
+    await setupEditorTask(ctx, 'close-footer')
+    await testId(ctx.page, 'task-detail-close-button').click()
+    await waitGone(ctx.page, 'task-detail-tab-editor')
+  })
+  it('discard dialog appears with unsaved changes; cancel keeps panel open, discard closes it', async () => {
+    await setupEditorTask(ctx, 'discard-cancel')
+    const editor = ctx.page.locator('.cm-content')
+    await editor.waitFor({
+      timeout: 15000,
+    })
+    await editor.click()
+    await ctx.page.keyboard.type('dirty ')
+    await ctx.page.waitForTimeout(200)
+    await testId(ctx.page, 'task-detail-close-button').click()
+    await waitVisible(ctx.page, 'task-detail-discard-discard')
+    await testId(ctx.page, 'task-detail-discard-cancel').click()
+    await waitGone(ctx.page, 'task-detail-discard-discard')
+    expect(await testId(ctx.page, 'task-detail-tab-editor').count()).toBe(1)
+    await testId(ctx.page, 'task-detail-close-button').click()
+    await waitVisible(ctx.page, 'task-detail-discard-discard')
+    await testId(ctx.page, 'task-detail-discard-discard').click()
+    await waitGone(ctx.page, 'task-detail-tab-editor')
+  })
+  it('task-detail-save-button writes context file to disk', async () => {
+    const project = await setupEditorTask(ctx, 'save')
+    const editor = ctx.page.locator('.cm-content')
+    await editor.waitFor({
+      timeout: 15000,
+    })
+    await editor.click()
+    await ctx.page.keyboard.type('appended text')
+    await ctx.page.waitForTimeout(300)
+    await testId(ctx.page, 'task-detail-save-button').click()
+    const content = await poll(
+      () => readContextFile(ctx.testServer, project.projectSlug, 't-1-alpha', 'description'),
+      (c) => c?.includes('appended text') ?? false,
+      5000,
+    )
+    expect(content?.includes('appended text')).toBe(true)
+  })
+  it('Add worktree preserves existing worktrees and persists the selected launch target', async () => {
+    const project = await seedProject(ctx, {
+      slugBase: 'tde-wt',
+      withTasks: [
+        {
+          number: 'T-1',
+          title: 'Alpha',
+          status: 'todo',
+          folderName: 't-1-alpha',
+        },
+      ],
+      worktreeRootPath: undefined,
+    })
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const wtRoot = path.join(ctx.testServer.dataDir, 'wt-root')
+    fs.mkdirSync(wtRoot, {
+      recursive: true,
+    })
+    const cfgFile = path.join(ctx.testServer.dataDir, 'projects', project.projectSlug, 'config', 'launcher-config.json')
+    fs.mkdirSync(path.dirname(cfgFile), {
+      recursive: true,
+    })
+    fs.writeFileSync(
+      cfgFile,
+      JSON.stringify(
+        {
+          worktreeRootPath: wtRoot,
+        },
+        null,
+        2,
+      ),
+    )
+    await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
+    await openTaskDetail(ctx.page, 't-1-alpha')
+    await ctx.page
+      .getByRole('button', {
+        name: 'Add worktree',
+        exact: true,
+      })
+      .click()
+    const status = await poll(
+      () => readTaskStatus(ctx.testServer, project.projectSlug, 't-1-alpha'),
+      (s) => s?.useWorktree === true,
+      5000,
+    )
+    expect(status?.useWorktree).toBe(true)
+    const targets = ctx.page.getByRole('combobox', {
+      name: 'Launch target',
+      exact: true,
+    })
+    await expect.poll(() => targets.locator('option').count()).toBe(2)
+    const firstPath = await targets.inputValue()
+    expect(fs.existsSync(path.join(firstPath, '.git'))).toBe(true)
+    await ctx.page
+      .getByRole('button', {
+        name: 'Add worktree',
+        exact: true,
+      })
+      .click()
+    await expect.poll(() => targets.locator('option').count()).toBe(3)
+    const secondPath = await targets.inputValue()
+    expect(secondPath).not.toBe(firstPath)
+    expect(fs.existsSync(path.join(secondPath, '.git'))).toBe(true)
+    await targets.selectOption(firstPath)
+    await expect.poll(() => targets.inputValue()).toBe(firstPath)
+    await expect.poll(() => readTaskStatus(ctx.testServer, project.projectSlug, 't-1-alpha')?.agentWorktreeDir).toBe(firstPath)
+    expect(fs.existsSync(path.join(secondPath, '.git'))).toBe(true)
+  })
+  it('editing title persists it and subsequent updates use the renamed folder', async () => {
+    const project = await setupEditorTask(ctx, 'edit-title')
+    const input = testId(ctx.page, 'task-detail-title-input')
+    await input.waitFor({
+      state: 'visible',
+      timeout: 15000,
+    })
+    await ctx.page.locator('.cm-content').fill('Saved with renamed task')
+    await input.fill('Renamed')
+    await testId(ctx.page, 'task-detail-save-button').click()
+    const status = await poll(
+      () => readTaskStatus(ctx.testServer, project.projectSlug, 't-1-renamed'),
+      (s) => s?.title === 'Renamed',
+      5000,
+    )
+    expect(status?.title).toBe('Renamed')
+    await expect
+      .poll(() => readContextFile(ctx.testServer, project.projectSlug, 't-1-renamed', 'description'))
+      .toBe('Saved with renamed task')
+    await ctx.page
+      .getByRole('button', {
+        name: 'Add worktree',
+        exact: true,
+      })
+      .click()
+    await expect.poll(async () => (await readTaskStatus(ctx.testServer, project.projectSlug, 't-1-renamed'))?.useWorktree).toBe(true)
+  })
+  it('editing number and clicking Save persists it', async () => {
+    const project = await setupEditorTask(ctx, 'edit-number')
+    await ctx.page.locator('.cm-content').waitFor({
+      state: 'visible',
+    })
+    const input = testId(ctx.page, 'task-detail-number-input')
+    await input.waitFor({
+      state: 'visible',
+      timeout: 15000,
+    })
+    await input.fill('T-99')
+    await testId(ctx.page, 'task-detail-save-button').click()
+    const status = await poll(
+      () => readTaskStatus(ctx.testServer, project.projectSlug, 't-99-alpha'),
+      (s) => s?.number === 'T-99',
+      5000,
+    )
+    expect(status?.number).toBe('T-99')
+  })
+})

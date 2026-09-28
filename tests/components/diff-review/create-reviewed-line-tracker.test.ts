@@ -14,8 +14,8 @@ afterEach(() => vi.useRealTimers())
 function setup(): SetupResult {
   let persisted: DiffReviewProjectState = {
     version: 2,
-    tickets: {
-      ticket: {
+    tasks: {
+      task: {
         worktreeIdentity: 'worktree',
         reviewedLines: {},
         queue: {
@@ -41,7 +41,7 @@ function setup(): SetupResult {
   const onError = vi.fn()
   const tracker = createReviewedLineTracker({
     state,
-    folderName: 'ticket',
+    folderName: 'task',
     worktreeIdentity: 'worktree',
     onError,
   })
@@ -53,10 +53,10 @@ function setup(): SetupResult {
     acknowledge() {
       persisted = {
         ...persisted,
-        tickets: {
-          ...persisted.tickets,
-          ticket: {
-            ...persisted.tickets.ticket,
+        tasks: {
+          ...persisted.tasks,
+          task: {
+            ...persisted.tasks.task,
             reviewedLines: {
               'line-1': {
                 path: 'src/a.ts',
@@ -84,10 +84,10 @@ describe('createReviewedLineTracker', () => {
     await vi.advanceTimersByTimeAsync(400)
     expect(persist).not.toHaveBeenCalled()
   })
-  it('batches visible lines without changing another ticket', async () => {
+  it('batches visible lines without changing another task', async () => {
     vi.useFakeTimers()
     const { tracker, persist, state } = setup()
-    const other = state.get().tickets.other
+    const other = state.get().tasks.other
     tracker.markVisible({
       id: 'line-1',
       path: 'src/a.ts',
@@ -100,7 +100,7 @@ describe('createReviewedLineTracker', () => {
     expect([...tracker.reviewedLineIds()]).toEqual(['line-1', 'line-2'])
     await vi.advanceTimersByTimeAsync(400)
     flush()
-    expect(state.get().tickets.ticket.reviewedLines).toEqual({
+    expect(state.get().tasks.task.reviewedLines).toEqual({
       'line-1': {
         path: 'src/a.ts',
         reviewedAt: expect.any(String),
@@ -110,7 +110,7 @@ describe('createReviewedLineTracker', () => {
         reviewedAt: expect.any(String),
       },
     })
-    expect(state.get().tickets.other).toEqual(other)
+    expect(state.get().tasks.other).toEqual(other)
     tracker.markVisible({
       id: 'line-1',
       path: 'src/a.ts',
@@ -195,7 +195,7 @@ describe('createReviewedLineTracker', () => {
     await Promise.all([first, joined])
     flush()
     expect(persist).toHaveBeenCalledTimes(2)
-    expect(Object.keys(state.get().tickets.ticket.reviewedLines)).toEqual(['line-1', 'line-2'])
+    expect(Object.keys(state.get().tasks.task.reviewedLines)).toEqual(['line-1', 'line-2'])
   })
 })
 

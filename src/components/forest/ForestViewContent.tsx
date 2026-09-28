@@ -4,19 +4,19 @@ import type { JSX } from '@solidjs/web'
 import { revalidate, useAction } from '@solidjs/router'
 import { createMemo, createSignal, For, Show, useContext } from 'solid-js'
 import { X } from '~/components/ui/icons/X.js'
-import CreateTicketDialog from '../ticket/CreateTicketDialog.js'
+import CreateTaskDialog from '../task/CreateTaskDialog.js'
 import { useErrorReporter } from '../shared/error-presentation.js'
 import ExpandingOverlay, { type ExpandingOverlayOrigin, type OverlayRect } from '../shared/ExpandingOverlay'
 import ForestSurface, { type ForestSurfaceApi, type ForestSurfaceCommands } from './ForestSurface.js'
 import { connectionPreviewPath, createForestConnection } from './forest-connections.js'
-import { addDependency, createGroupTicket, removeDependencies, ungroupTicket } from './forest-api.js'
+import { addDependency, createGroupTask, removeDependencies, ungroupTask } from './forest-api.js'
 import { getForestViewport, setForestViewport } from './forest-local-state.js'
 import type { DependencyRelation } from './forest-graph.js'
 import { useEscapeKey } from '~/lib/use-escape-key.js'
-import { ticketMutationRevalidateKeys } from '../shared/revalidate-keys.js'
+import { taskMutationRevalidateKeys } from '../shared/revalidate-keys.js'
 import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
 import { ForestLayoutContext } from './forest-layout-storage.js'
-import type { TicketInfo } from '~/core/ticket/ticket-store.js'
+import type { TaskInfo } from '~/core/task/task-store.js'
 import type { ForestViewProps } from './ForestView.js'
 
 interface GroupingDraft {
@@ -37,8 +37,8 @@ export function ForestViewContent(props: ForestViewProps): JSX.Element {
   const [createDialogOpen, setCreateDialogOpen] = createSignal(false)
   const runAddDependency = useAction(addDependency)
   const runRemoveDependencies = useAction(removeDependencies)
-  const runCreateGroupTicket = useAction(createGroupTicket)
-  const runUngroupTicket = useAction(ungroupTicket)
+  const runCreateGroupTask = useAction(createGroupTask)
+  const runUngroupTask = useAction(ungroupTask)
   const connection = createForestConnection()
   const surfaceApis = new Map<string, ForestSurfaceApi>()
   let containerRef: HTMLDivElement | undefined
@@ -52,10 +52,10 @@ export function ForestViewContent(props: ForestViewProps): JSX.Element {
     errors.report(errorPayload(cause))
   }
 
-  function findTicket(ticketNumber: string): TicketInfo {
-    const ticket = props.board.tickets.find((candidate) => candidate.number === ticketNumber)
-    if (!ticket) throw new Error(`Ticket ${ticketNumber} is not available in this forest`)
-    return ticket
+  function findTask(taskNumber: string): TaskInfo {
+    const task = props.board.tasks.find((candidate) => candidate.number === taskNumber)
+    if (!task) throw new Error(`Task ${taskNumber} is not available in this forest`)
+    return task
   }
 
   function registerSurface(scopeGroupNumber: string | undefined, api: ForestSurfaceApi | undefined) {
@@ -64,19 +64,19 @@ export function ForestViewContent(props: ForestViewProps): JSX.Element {
     else surfaceApis.delete(key)
   }
 
-  async function mutateAndRefreshTickets(mutate: () => Promise<Result<undefined, ActionError>>): Promise<boolean> {
+  async function mutateAndRefreshTasks(mutate: () => Promise<Result<undefined, ActionError>>): Promise<boolean> {
     const result = await mutate()
     if (result.type === 'Failure') {
       errors.report(result.error)
       return false
     }
-    await revalidate(ticketMutationRevalidateKeys)
+    await revalidate(taskMutationRevalidateKeys)
     return true
   }
 
   function handleAddDependency(dependentNumber: string, dependencyNumber: string): Promise<boolean> {
-    const dependent = findTicket(dependentNumber)
-    return mutateAndRefreshTickets(() =>
+    const dependent = findTask(dependentNumber)
+    return mutateAndRefreshTasks(() =>
       runAddDependency({
         projectSlug: props.projectSlug,
         folderName: dependent.folderName,
@@ -87,7 +87,7 @@ export function ForestViewContent(props: ForestViewProps): JSX.Element {
 
   async function handleRemoveDependency(relations: DependencyRelation[]) {
     const removals = relations.map((relation) => ({
-      folderName: findTicket(relation.fromNumber).folderName,
+      folderName: findTask(relation.fromNumber).folderName,
       dependencyNumber: relation.toNumber,
     }))
     try {
@@ -97,14 +97,14 @@ export function ForestViewContent(props: ForestViewProps): JSX.Element {
       })
       if (result.type === 'Failure') errors.report(result.error)
     } finally {
-      await revalidate(ticketMutationRevalidateKeys)
+      await revalidate(taskMutationRevalidateKeys)
     }
   }
 
-  async function handleUngroup(ticketNumber: string) {
-    const group = findTicket(ticketNumber)
-    const changed = await mutateAndRefreshTickets(() =>
-      runUngroupTicket({
+  async function handleUngroup(taskNumber: string) {
+    const group = findTask(taskNumber)
+    const changed = await mutateAndRefreshTasks(() =>
+      runUngroupTask({
         projectSlug: props.projectSlug,
         folderName: group.folderName,
       }),
@@ -115,7 +115,7 @@ export function ForestViewContent(props: ForestViewProps): JSX.Element {
     }
   }
 
-  function openGroup(ticketNumber: string, cardRect: OverlayRect, parentDepth: number) {
+  function openGroup(taskNumber: string, cardRect: OverlayRect, parentDepth: number) {
     const containerRect = requireContainer().getBoundingClientRect()
     setOpenGroupOrigin({
       x: cardRect.x - containerRect.x,
@@ -125,7 +125,7 @@ export function ForestViewContent(props: ForestViewProps): JSX.Element {
       containerWidth: containerRect.width,
       containerHeight: containerRect.height,
     })
-    setOpenGroups((current) => [...current.slice(0, parentDepth), ticketNumber])
+    setOpenGroups((current) => [...current.slice(0, parentDepth), taskNumber])
   }
 
   function closeGroup(index: number) {
@@ -147,8 +147,8 @@ export function ForestViewContent(props: ForestViewProps): JSX.Element {
         title: 'Create group failed',
         description: 'No members selected',
       })
-    const memberFolderNames = draft.memberNumbers.map((memberNumber) => findTicket(memberNumber).folderName)
-    const result = await runCreateGroupTicket({
+    const memberFolderNames = draft.memberNumbers.map((memberNumber) => findTask(memberNumber).folderName)
+    const result = await runCreateGroupTask({
       projectSlug: props.projectSlug,
       number,
       title,
@@ -161,7 +161,7 @@ export function ForestViewContent(props: ForestViewProps): JSX.Element {
     setGroupingDraft(undefined)
     const refreshed = await layout.refresh()
     if (refreshed.type === 'Failure') reportError(refreshed.error)
-    await revalidate(ticketMutationRevalidateKeys)
+    await revalidate(taskMutationRevalidateKeys)
     return success(undefined)
   }
 
@@ -177,14 +177,14 @@ export function ForestViewContent(props: ForestViewProps): JSX.Element {
         setCreateDialogOpen(true)
       },
       onClose: scopeGroupNumber === undefined ? props.onClose : undefined,
-      openGroup: (ticketNumber, cardRect) => openGroup(ticketNumber, cardRect, depth),
-      openTicket: (ticketNumber) => props.onViewDetail(findTicket(ticketNumber)),
+      openGroup: (taskNumber, cardRect) => openGroup(taskNumber, cardRect, depth),
+      openTask: (taskNumber) => props.onViewDetail(findTask(taskNumber)),
       persistViewport:
         scopeGroupNumber === undefined ? (viewport) => setForestViewport(localStorage, props.projectSlug, viewport) : undefined,
       registerSurface: (api) => registerSurface(scopeGroupNumber, api),
       removeDependency: handleRemoveDependency,
       reportError,
-      ungroup: (ticketNumber) => void handleUngroup(ticketNumber).catch(reportError),
+      ungroup: (taskNumber) => void handleUngroup(taskNumber).catch(reportError),
     }
   }
 
@@ -199,7 +199,7 @@ export function ForestViewContent(props: ForestViewProps): JSX.Element {
     <div ref={containerRef} class="relative h-full w-full">
       <ForestSurface
         data={{
-          tickets: props.board.tickets,
+          tasks: props.board.tasks,
           columns: props.board.columns,
           viewport: rootViewport(),
         }}
@@ -224,7 +224,7 @@ export function ForestViewContent(props: ForestViewProps): JSX.Element {
             <div class="h-full w-full">
               <ForestSurface
                 data={{
-                  tickets: props.board.tickets,
+                  tasks: props.board.tasks,
                   columns: props.board.columns,
                   scopeGroupNumber: groupNumber,
                 }}
@@ -255,7 +255,7 @@ export function ForestViewContent(props: ForestViewProps): JSX.Element {
         )}
       </Show>
 
-      <CreateTicketDialog
+      <CreateTaskDialog
         open={createDialogOpen()}
         onOpenChange={(open) => {
           setCreateDialogOpen(open)

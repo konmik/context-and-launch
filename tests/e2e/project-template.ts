@@ -4,13 +4,13 @@ import path from 'node:path'
 import type { GlobalSetupContext } from 'vitest/node'
 import { removeTempDirOrWarn } from '../test-temp.js'
 import { gitFastImport, gitSync } from '../test-git.js'
-import { TICKETS_BRANCH } from './git-fixtures.js'
+import { TASKS_BRANCH } from './git-fixtures.js'
 
 export interface ProjectTemplate {
   localRepo: string
-  /** A repo with main and the tickets Orphan Branch, tracking remote. */
+  /** A repo with main and the tasks Orphan Branch, tracking remote. */
   repo: string
-  /** A bare remote holding main and the tickets Orphan Branch. */
+  /** A bare remote holding main and the tasks Orphan Branch. */
   remote: string
 }
 
@@ -39,7 +39,7 @@ export default async function setup({ provide }: GlobalSetupContext): Promise<()
     localRepo,
     [
       'feature done',
-      ...['main', TICKETS_BRANCH].flatMap((branch, index) => [
+      ...['main', TASKS_BRANCH].flatMap((branch, index) => [
         `commit refs/heads/${branch}`,
         `committer Test <test@test.com> ${1767225600 + index} +0000`,
         'data 4',
@@ -52,8 +52,8 @@ export default async function setup({ provide }: GlobalSetupContext): Promise<()
   )
   gitSync(base, 'clone', '--bare', localRepo, remote)
   gitSync(base, 'clone', remote, repo)
-  gitSync(repo, 'branch', '--track', TICKETS_BRANCH, `origin/${TICKETS_BRANCH}`)
-  gitSync(remote, 'symbolic-ref', 'HEAD', `refs/heads/${TICKETS_BRANCH}`)
+  gitSync(repo, 'branch', '--track', TASKS_BRANCH, `origin/${TASKS_BRANCH}`)
+  gitSync(remote, 'symbolic-ref', 'HEAD', `refs/heads/${TASKS_BRANCH}`)
   provide('projectTemplate', {
     localRepo,
     repo,

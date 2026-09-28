@@ -1,13 +1,13 @@
 import type { ProjectInfo } from '~/core/project/project-registry.js'
 import type { UserFacingError } from '~/util/user-facing-error.js'
 import type { ColumnDefinition } from '~/core/project/board-config.js'
-import type { TicketInfo } from '~/core/ticket/ticket-store.js'
-import type { TicketOrder } from '~/core/ticket/ticket-order-data.js'
+import type { TaskInfo } from '~/core/task/task-store.js'
+import type { TaskOrder } from '~/core/task/task-order-data.js'
 
 export interface BoardState {
   columns: ColumnDefinition[]
-  tickets: TicketInfo[]
-  ticketOrder: TicketOrder
+  tasks: TaskInfo[]
+  taskOrder: TaskOrder
 }
 
 interface BoardPageBase {

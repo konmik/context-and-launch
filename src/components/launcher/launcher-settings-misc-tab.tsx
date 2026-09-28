@@ -14,7 +14,7 @@ import { LauncherConfigContext } from './shared-launcher-config-storage.js'
 import { ProjectLauncherConfigContext } from './project-launcher-config-storage.js'
 import { getProjectLauncherMetadata } from './launcher-api.js'
 import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js'
-import { setProjectPath as setProjectPathAction, setTicketsLocation } from '../project/project-api.js'
+import { setProjectPath as setProjectPathAction, setTasksLocation } from '../project/project-api.js'
 
 export function MiscTab(props: {
   open: boolean
@@ -30,30 +30,30 @@ export function MiscTab(props: {
   const [deleteOpen, setDeleteOpen] = createSignal(false)
   const [nameDraft, setProjectName] = createSignal<string>()
   const [pathDraft, setProjectPath] = createSignal<string>()
-  const [ticketsPathDraft, setTicketsPath] = createSignal<string>()
-  const [ticketsBranchDraft, setTicketsBranch] = createSignal<string>()
+  const [tasksPathDraft, setTasksPath] = createSignal<string>()
+  const [tasksBranchDraft, setTasksBranch] = createSignal<string>()
   const [worktreeDraft, setWorktreeRootPath] = createSignal<string>()
   const [branchDraft, setBranchPrefix] = createSignal<string>()
   const [promptDraft, setConflictPrompt] = createSignal<string>()
   const projectName = () => nameDraft() ?? appConfig.get().projects.find((p) => p.projectSlug === props.projectSlug)?.name ?? ''
   const projectPath = () => pathDraft() ?? metadata().projectPath
-  const ticketsPath = () => ticketsPathDraft() ?? metadata().worktreeDir
-  const ticketsBranch = () => ticketsBranchDraft() ?? metadata().ticketsBranch ?? ''
+  const tasksPath = () => tasksPathDraft() ?? metadata().worktreeDir
+  const tasksBranch = () => tasksBranchDraft() ?? metadata().tasksBranch ?? ''
   const worktreeRootPath = () => worktreeDraft() ?? config().worktreeRootPath ?? ''
   const branchPrefix = () => branchDraft() ?? config().branchPrefix ?? ''
   const conflictPrompt = () => promptDraft() ?? config().conflictResolutionPrompt
   const [savingProjectPath, setSavingProjectPath] = createSignal(false)
-  const [savingTicketsLocation, setSavingTicketsLocation] = createSignal(false)
+  const [savingTasksLocation, setSavingTasksLocation] = createSignal(false)
   const runSetProjectPath = useAction(setProjectPathAction)
-  const runSetTicketsLocation = useAction(setTicketsLocation)
+  const runSetTasksLocation = useAction(setTasksLocation)
   createEffect(
     () => props.open,
     (open) => {
       if (!open) return
       setProjectName()
       setProjectPath()
-      setTicketsPath()
-      setTicketsBranch()
+      setTasksPath()
+      setTasksBranch()
       setWorktreeRootPath()
       setBranchPrefix()
       setConflictPrompt()
@@ -106,13 +106,13 @@ export function MiscTab(props: {
     }
   }
 
-  async function saveTicketsLocation(kind: 'path' | 'branch', value: string) {
-    const saved = kind === 'path' ? metadata().worktreeDir : (metadata().ticketsBranch ?? '')
-    if (savingTicketsLocation() || value.trim() === saved) return
-    setSavingTicketsLocation(true)
+  async function saveTasksLocation(kind: 'path' | 'branch', value: string) {
+    const saved = kind === 'path' ? metadata().worktreeDir : (metadata().tasksBranch ?? '')
+    if (savingTasksLocation() || value.trim() === saved) return
+    setSavingTasksLocation(true)
     errors.clear()
     try {
-      const result = await runSetTicketsLocation(props.projectSlug, {
+      const result = await runSetTasksLocation(props.projectSlug, {
         kind,
         value,
       })
@@ -120,13 +120,13 @@ export function MiscTab(props: {
         errors.report(result.error)
         return
       }
-      if (kind === 'path') setTicketsPath(result.value.value)
-      else setTicketsBranch(result.value.value)
+      if (kind === 'path') setTasksPath(result.value.value)
+      else setTasksBranch(result.value.value)
       await revalidate('launcher-metadata')
     } catch (e) {
       errors.report(errorPayload(e, 'Save failed'))
     } finally {
-      setSavingTicketsLocation(false)
+      setSavingTasksLocation(false)
     }
   }
 
@@ -160,30 +160,30 @@ export function MiscTab(props: {
             saving={savingProjectPath()}
           />
           <SettingsFolderField
-            label="Tickets folder"
-            field="ticketsPath"
-            testId="launcher-settings-misc-tickets-path"
-            value={ticketsPath()}
-            onValueChange={setTicketsPath}
-            onSaveRequested={(path = ticketsPath()) => saveTicketsLocation('path', path)}
-            saving={savingTicketsLocation()}
+            label="Tasks folder"
+            field="tasksPath"
+            testId="launcher-settings-misc-tasks-path"
+            value={tasksPath()}
+            onValueChange={setTasksPath}
+            onSaveRequested={(path = tasksPath()) => saveTasksLocation('path', path)}
+            saving={savingTasksLocation()}
           />
           <section>
-            <label class="field-label" for="tickets-branch">
-              Tickets branch <ScopeBadge scope="project" />
+            <label class="field-label" for="tasks-branch">
+              Tasks branch <ScopeBadge scope="project" />
             </label>
             <input
-              id="tickets-branch"
+              id="tasks-branch"
               type="text"
-              value={ticketsBranch()}
-              onInput={(e) => setTicketsBranch(e.currentTarget.value)}
-              onBlur={() => saveTicketsLocation('branch', ticketsBranch())}
+              value={tasksBranch()}
+              onInput={(e) => setTasksBranch(e.currentTarget.value)}
+              onBlur={() => saveTasksLocation('branch', tasksBranch())}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') saveTicketsLocation('branch', ticketsBranch())
+                if (e.key === 'Enter') saveTasksLocation('branch', tasksBranch())
               }}
-              disabled={savingTicketsLocation()}
+              disabled={savingTasksLocation()}
               class="input input-sm"
-              data-testid="launcher-settings-misc-tickets-branch-input"
+              data-testid="launcher-settings-misc-tasks-branch-input"
             />
             <ErrorField field="branch" />
           </section>

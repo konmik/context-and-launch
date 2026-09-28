@@ -58,7 +58,7 @@ describe('handleAppRequest', () => {
   })
   it('buffers a streaming request body instead of forwarding the stream', async () => {
     const { handleRequest, calls } = recordingBackend()
-    await handleAppRequest(streamingRequest(`${APP_ORIGIN}/_server/saveTicket`, ['{"a":', '1}']), handleRequest)
+    await handleAppRequest(streamingRequest(`${APP_ORIGIN}/_server/saveTask`, ['{"a":', '1}']), handleRequest)
     expect(await calls[0].request.text()).toBe('{"a":1}')
   })
   it('forwards request headers unchanged', async () => {

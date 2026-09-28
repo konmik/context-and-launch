@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { buildForestFlowModel, groupPosition, positionsFromNodes } from '../../../src/components/forest/forest-flow-model.js'
-import type { ForestTicket } from '../../../src/components/forest/forest-graph.js'
+import type { ForestTask } from '../../../src/components/forest/forest-graph.js'
 
-const tickets: ForestTicket[] = [
+const tasks: ForestTask[] = [
   {
     number: 'A-1',
     title: 'Member',
@@ -27,7 +27,7 @@ const tickets: ForestTicket[] = [
 
 describe('forest flow model', () => {
   it('projects a collapsed group and preserves saved positions', () => {
-    const model = buildForestFlowModel(tickets, undefined, {
+    const model = buildForestFlowModel(tasks, undefined, {
       'G-1': {
         x: 25,
         y: 50,
@@ -38,7 +38,7 @@ describe('forest flow model', () => {
       x: 25,
       y: 50,
     })
-    expect(model.nodes[0]?.data.representedTicketNumbers).toEqual(['A-1', 'G-1'])
+    expect(model.nodes[0]?.data.representedTaskNumbers).toEqual(['A-1', 'G-1'])
     expect(model.edges).toHaveLength(1)
     expect(model.edges[0]).toMatchObject({
       source: 'O-1',
@@ -46,7 +46,7 @@ describe('forest flow model', () => {
     })
   })
   it('projects dependencies crossing a group boundary', () => {
-    const model = buildForestFlowModel(tickets, 'G-1', {})
+    const model = buildForestFlowModel(tasks, 'G-1', {})
     expect(model.nodes.map((node) => node.id)).toEqual(['A-1'])
     expect(model.edges).toEqual([])
     expect(model.externalDependencies).toMatchObject([
@@ -56,8 +56,8 @@ describe('forest flow model', () => {
       },
     ])
   })
-  it('dragging one ticket does not move the others', () => {
-    const loose: ForestTicket[] = [
+  it('dragging one task does not move the others', () => {
+    const loose: ForestTask[] = [
       {
         number: 'L-1',
         title: 'One',
@@ -94,7 +94,7 @@ describe('forest flow model', () => {
     expect(afterDrag['L-3']).toEqual(canonical['L-3'])
   })
   it('converts node positions and centers a group card in selected bounds', () => {
-    const model = buildForestFlowModel(tickets, 'G-1', {
+    const model = buildForestFlowModel(tasks, 'G-1', {
       'A-1': {
         x: 10,
         y: 20,

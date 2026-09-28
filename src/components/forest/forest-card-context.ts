@@ -5,8 +5,8 @@ import type { SwatchColumn } from '~/core/board/status-swatch.js'
 export interface ForestCardCommands {
   activateConnection: (endpoint: ConnectionEndpoint) => void
   dragConnection: (endpoint: ConnectionEndpoint) => void
-  openGroupTicket: (ticketNumber: string) => void
-  ungroup: (ticketNumber: string) => void
+  openGroupTask: (taskNumber: string) => void
+  ungroup: (taskNumber: string) => void
 }
 
 export const ForestCardCommandsContext = createContext<ForestCardCommands>()

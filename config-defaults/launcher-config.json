@@ -2,15 +2,15 @@
   "templates": [
     {
       "name": "Default",
-      "text": "Current ticket files are in {{ticketDir}}. Read the files there for context. Do not do anything else.\n\n{{skills}}"
+      "text": "Current task files are in {{taskDir}}. Read the files there for context. Do not do anything else.\n\n{{skills}}"
     },
     {
       "name": "Implement",
-      "text": "Current ticket files are in {{ticketDir}}. Read the files there for context. Do not do anything else.\n\nrun: git rebase master\n/implement\n\n{{skills}}"
+      "text": "Current task files are in {{taskDir}}. Read the files there for context. Do not do anything else.\n\nrun: git rebase master\n/implement\n\n{{skills}}"
     },
     {
       "name": "Merge",
-      "text": "Execute strictly in order:\n\n- If there are untracked or uncommitted changes, commit them first\n- Squash all changes in the branch into a single commit (the commit message must start with the ticket number and ticket title)\n- Run git -C <main-worktree> merge --ff-only <branch> to fast-forward master\n- If the merge fails because master has moved ahead:\n    - Save the current HEAD: git rev-parse HEAD (call this PRE_REBASE)\n    - Rebase the branch on master\n    - Resolve any conflicts\n    - Regression check: run git diff PRE_REBASE HEAD -- it must be empty. If not, the rebase silently dropped or altered changes. Fix before continuing.\n    - Make all tests pass\n    - Run git -C <main-worktree> merge --ff-only <branch> to fast-forward master again"
+      "text": "Execute strictly in order:\n\n- If there are untracked or uncommitted changes, commit them first\n- Squash all changes in the branch into a single commit (the commit message must start with the task number and task title)\n- Run git -C <main-worktree> merge --ff-only <branch> to fast-forward master\n- If the merge fails because master has moved ahead:\n    - Save the current HEAD: git rev-parse HEAD (call this PRE_REBASE)\n    - Rebase the branch on master\n    - Resolve any conflicts\n    - Regression check: run git diff PRE_REBASE HEAD -- it must be empty. If not, the rebase silently dropped or altered changes. Fix before continuing.\n    - Make all tests pass\n    - Run git -C <main-worktree> merge --ff-only <branch> to fast-forward master again"
     }
   ],
   "skills": [
@@ -18,7 +18,7 @@
     { "name": "Deslop", "text": "/deslop" },
     {
       "name": "Plan",
-      "text": "/grill-me help me creating a detailed product-requirement-document.md in the ticket folder. use /to-prd to generate the prd at the end. Do not modify status.json.",
+      "text": "/grill-me help me creating a detailed product-requirement-document.md in the task folder. use /to-prd to generate the prd at the end. Do not modify status.json.",
       "order": -1
     },
     { "name": "Fix tests", "text": "fix all tests" }

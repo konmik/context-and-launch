@@ -1,0 +1,101 @@
+import type { JSX } from '@solidjs/web'
+import { untrack } from 'solid-js'
+import { ErrorField } from '../shared/ErrorField.js'
+import { useErrorReporter } from '../shared/error-presentation.js'
+import { RefreshCw } from '~/components/ui/icons/RefreshCw.js'
+import { DialogRoot } from '../ui/DialogRoot.js'
+import { DialogTitle } from '../ui/DialogTitle.js'
+import { useModEnterSubmit, modEnterHint } from '~/lib/use-mod-enter-submit'
+import { createCreateTaskController } from './create-task-controller.js'
+import { suggestTaskNumber } from './task-api.js'
+import type { CreateTaskDialogProps } from './CreateTaskDialog.js'
+
+export function CreateTaskForm(props: CreateTaskDialogProps): JSX.Element {
+  const errors = useErrorReporter(() => props.open)
+  const s = untrack(
+    () =>
+      props.ctrl ??
+      createCreateTaskController({
+        onError: errors.report,
+        onClearError: errors.clear,
+        onSubmit: props.onSubmit,
+        onOpenChange: props.onOpenChange,
+        suggestedNextNumber: () => props.suggestedNextNumber,
+        open: () => props.open,
+        onSuggestNumber: (numberInput: string) => suggestTaskNumber(props.projectSlug, numberInput),
+      }),
+  )
+  useModEnterSubmit({
+    onSubmit: s.doSubmit,
+    disabled: () => s.submitting() || s.suggestingNumber() || !s.number().trim() || !s.title().trim(),
+    active: () => props.open,
+  })
+  return (
+    <DialogRoot open={props.open} onOpenChange={s.close}>
+      <DialogTitle>New Task</DialogTitle>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          s.doSubmit()
+        }}
+      >
+        <div class="mb-4">
+          <label for="task-number" class="field-label">
+            Number
+          </label>
+          <div class="flex gap-2">
+            <input
+              id="task-number"
+              type="text"
+              value={s.number()}
+              onInput={(e) => s.setNumber(e.currentTarget.value)}
+              class="input flex-1"
+              placeholder="e.g. ABC-1"
+              data-testid="create-task-number-input"
+            />
+            <button
+              type="button"
+              class="btn-icon shrink-0"
+              title="Regenerate number"
+              disabled={s.suggestingNumber()}
+              onClick={s.suggestNumber}
+              data-testid="create-task-regenerate-button"
+            >
+              <RefreshCw size={16} />
+            </button>
+          </div>
+          <ErrorField field="number" />
+        </div>
+        <div class="mb-4">
+          <label for="task-title" class="field-label">
+            Title
+          </label>
+          <input
+            id="task-title"
+            type="text"
+            value={s.title()}
+            onInput={(e) => s.setTitle(e.currentTarget.value)}
+            class="input"
+            placeholder="e.g. Fix login timeout"
+            data-testid="create-task-title-input"
+          />
+          <ErrorField field="title" />
+        </div>
+        <div class="flex justify-end gap-2">
+          <button type="button" onClick={s.close} class="btn-secondary" data-testid="create-task-cancel">
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={s.submitting() || s.suggestingNumber() || !s.number().trim() || !s.title().trim()}
+            title={modEnterHint()}
+            class="btn-primary"
+            data-testid="create-task-submit"
+          >
+            Create
+          </button>
+        </div>
+      </form>
+    </DialogRoot>
+  )
+}

@@ -57,7 +57,7 @@ describe('Full-screen flicker (e2e, real server)', () => {
   it('keeps the UI attached while deferred background reads load after start', async () => {
     const project = await seedProject(ctx, {
       slugBase: 'flicker-start',
-      withTickets: [
+      withTasks: [
         {
           number: 'T-1',
           title: 'Alpha',
@@ -77,10 +77,10 @@ describe('Full-screen flicker (e2e, real server)', () => {
     expect(await observerActive(ctx.page)).toBe(true)
     expect(await detachCount(ctx.page)).toBe(0)
   })
-  it('keeps the UI attached when opening a ticket', async () => {
+  it('keeps the UI attached when opening a task', async () => {
     const project = await seedProject(ctx, {
-      slugBase: 'flicker-open-ticket',
-      withTickets: [
+      slugBase: 'flicker-open-task',
+      withTasks: [
         {
           number: 'T-1',
           title: 'Alpha',
@@ -94,8 +94,8 @@ describe('Full-screen flicker (e2e, real server)', () => {
     await ctx.page.evaluate(() => {
       window.__fullUiDetachCount = 0
     })
-    await ctx.page.click('[data-testid="kanban-board-ticket-card"][data-folder-name="t-1-alpha"]')
-    await waitVisible(ctx.page, 'ticket-detail-tab-editor')
+    await ctx.page.click('[data-testid="kanban-board-task-card"][data-folder-name="t-1-alpha"]')
+    await waitVisible(ctx.page, 'task-detail-tab-editor')
     expect(await observerActive(ctx.page)).toBe(true)
     expect(await detachCount(ctx.page)).toBe(0)
   })

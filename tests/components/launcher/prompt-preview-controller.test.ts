@@ -1,17 +1,17 @@
 import { describe, it, expect, vi } from 'vitest'
 import { createRoot, createSignal, flush, runWithOwner } from 'solid-js'
 import { createPromptPreviewController } from '../../../src/components/launcher/prompt-preview-controller.js'
-import type { TicketInfo } from '~/core/ticket/ticket-store.js'
+import type { TaskInfo } from '~/core/task/task-store.js'
 import type { MergedLauncherConfig } from '~/core/launcher/launcher-config.js'
 
-function makeTicket(
-  overrides: Partial<TicketInfo> & {
+function makeTask(
+  overrides: Partial<TaskInfo> & {
     folderName: string
   },
-): TicketInfo {
+): TaskInfo {
   return {
     number: overrides.number ?? 'T-1',
-    title: overrides.title ?? 'Test ticket',
+    title: overrides.title ?? 'Test task',
     status: overrides.status ?? 'todo',
     contextNames: [],
     useWorktree: false,
@@ -47,22 +47,22 @@ function invoke(fn: () => void) {
 }
 
 describe('createPromptPreviewController', () => {
-  it('updates prompt when ticket folderName changes', () => {
+  it('updates prompt when task folderName changes', () => {
     createRoot((dispose) => {
-      const [ticket, setTicket] = createSignal(
-        makeTicket({
+      const [task, setTask] = createSignal(
+        makeTask({
           folderName: 't-1-alpha',
           number: 'T-1',
           title: 'Alpha',
         }),
       )
-      const cfg = makeConfig('Dir: {{ticketDir}} Slug: {{ticketSlug}}')
+      const cfg = makeConfig('Dir: {{taskDir}} Slug: {{taskSlug}}')
       const ctrl = createPromptPreviewController({
         selectedTemplate: () => 'default',
         checkedSkills: () => new Set(),
         orderedSkills: () => [],
         config: () => cfg,
-        ticket,
+        task,
         projectPath: () => '/project',
         worktreeDir: () => '/work',
         projectSlug: 'test',
@@ -73,8 +73,8 @@ describe('createPromptPreviewController', () => {
       expect(ctrl.currentPrompt()).toContain('t-1-alpha')
       expect(ctrl.currentPrompt()).not.toContain('t-1-beta')
       invoke(() =>
-        setTicket(
-          makeTicket({
+        setTask(
+          makeTask({
             folderName: 't-1-beta',
             number: 'T-1',
             title: 'Beta',
@@ -86,22 +86,22 @@ describe('createPromptPreviewController', () => {
       dispose()
     })
   })
-  it('updates ticketTitle and ticketNumber in prompt when ticket changes', () => {
+  it('updates taskTitle and taskNumber in prompt when task changes', () => {
     createRoot((dispose) => {
-      const [ticket, setTicket] = createSignal(
-        makeTicket({
+      const [task, setTask] = createSignal(
+        makeTask({
           folderName: 't-1-alpha',
           number: 'T-1',
           title: 'Alpha',
         }),
       )
-      const cfg = makeConfig('{{ticketNumber}} - {{ticketTitle}}')
+      const cfg = makeConfig('{{taskNumber}} - {{taskTitle}}')
       const ctrl = createPromptPreviewController({
         selectedTemplate: () => 'default',
         checkedSkills: () => new Set(),
         orderedSkills: () => [],
         config: () => cfg,
-        ticket,
+        task,
         projectPath: () => '/project',
         worktreeDir: () => '/work',
         projectSlug: 'test',
@@ -111,8 +111,8 @@ describe('createPromptPreviewController', () => {
       })
       expect(ctrl.currentPrompt()).toContain('T-1 - Alpha')
       invoke(() =>
-        setTicket(
-          makeTicket({
+        setTask(
+          makeTask({
             folderName: 't-2-beta',
             number: 'T-2',
             title: 'Beta',
@@ -124,18 +124,18 @@ describe('createPromptPreviewController', () => {
       dispose()
     })
   })
-  it('generated prompt contains worktreeDir and folderName in ticketDir', () => {
+  it('generated prompt contains worktreeDir and folderName in taskDir', () => {
     createRoot((dispose) => {
-      const ticket = makeTicket({
+      const task = makeTask({
         folderName: 't-1-alpha',
       })
-      const cfg = makeConfig('{{ticketDir}}')
+      const cfg = makeConfig('{{taskDir}}')
       const ctrl = createPromptPreviewController({
         selectedTemplate: () => 'default',
         checkedSkills: () => new Set(),
         orderedSkills: () => [],
         config: () => cfg,
-        ticket: () => ticket,
+        task: () => task,
         projectPath: () => '/project',
         worktreeDir: () => '/work',
         projectSlug: 'test',
@@ -149,7 +149,7 @@ describe('createPromptPreviewController', () => {
   })
   it('interpolates {{launchDir}} placeholder', () => {
     createRoot((dispose) => {
-      const ticket = makeTicket({
+      const task = makeTask({
         folderName: 't-1-alpha',
       })
       const cfg = makeConfig('dir: {{launchDir}}')
@@ -158,7 +158,7 @@ describe('createPromptPreviewController', () => {
         checkedSkills: () => new Set(),
         orderedSkills: () => [],
         config: () => cfg,
-        ticket: () => ticket,
+        task: () => task,
         projectPath: () => '/project',
         worktreeDir: () => '/work',
         projectSlug: 'test',
@@ -172,16 +172,16 @@ describe('createPromptPreviewController', () => {
   })
   it('starts in edit mode showing the saved edited prompt', () => {
     createRoot((dispose) => {
-      const ticket = makeTicket({
+      const task = makeTask({
         folderName: 't-1-alpha',
       })
-      const cfg = makeConfig('generated {{ticketSlug}}')
+      const cfg = makeConfig('generated {{taskSlug}}')
       const ctrl = createPromptPreviewController({
         selectedTemplate: () => 'default',
         checkedSkills: () => new Set(),
         orderedSkills: () => [],
         config: () => cfg,
-        ticket: () => ticket,
+        task: () => task,
         projectPath: () => '/project',
         worktreeDir: () => '/work',
         projectSlug: 'test',
@@ -198,7 +198,7 @@ describe('createPromptPreviewController', () => {
     vi.useFakeTimers()
     try {
       await createRoot(async (dispose) => {
-        const ticket = makeTicket({
+        const task = makeTask({
           folderName: 't-1-alpha',
         })
         const cfg = makeConfig('generated')
@@ -208,7 +208,7 @@ describe('createPromptPreviewController', () => {
           checkedSkills: () => new Set(),
           orderedSkills: () => [],
           config: () => cfg,
-          ticket: () => ticket,
+          task: () => task,
           projectPath: () => '/project',
           worktreeDir: () => '/work',
           projectSlug: 'test',
@@ -231,7 +231,7 @@ describe('createPromptPreviewController', () => {
     vi.useFakeTimers()
     try {
       await createRoot(async (dispose) => {
-        const ticket = makeTicket({
+        const task = makeTask({
           folderName: 't-1-alpha',
         })
         const cfg = makeConfig('generated')
@@ -241,7 +241,7 @@ describe('createPromptPreviewController', () => {
           checkedSkills: () => new Set(),
           orderedSkills: () => [],
           config: () => cfg,
-          ticket: () => ticket,
+          task: () => task,
           projectPath: () => '/project',
           worktreeDir: () => '/work',
           projectSlug: 'test',
@@ -264,7 +264,7 @@ describe('createPromptPreviewController', () => {
     vi.useFakeTimers()
     try {
       await createRoot(async (dispose) => {
-        const ticket = makeTicket({
+        const task = makeTask({
           folderName: 't-1-alpha',
         })
         const cfg = makeConfig('generated')
@@ -274,7 +274,7 @@ describe('createPromptPreviewController', () => {
           checkedSkills: () => new Set(),
           orderedSkills: () => [],
           config: () => cfg,
-          ticket: () => ticket,
+          task: () => task,
           projectPath: () => '/project',
           worktreeDir: () => '/work',
           projectSlug: 'test',
@@ -299,7 +299,7 @@ describe('createPromptPreviewController', () => {
   })
   it('restores edit mode when the saved edited prompt is empty', () => {
     createRoot((dispose) => {
-      const ticket = makeTicket({
+      const task = makeTask({
         folderName: 't-1-alpha',
       })
       const cfg = makeConfig('generated')
@@ -308,7 +308,7 @@ describe('createPromptPreviewController', () => {
         checkedSkills: () => new Set(),
         orderedSkills: () => [],
         config: () => cfg,
-        ticket: () => ticket,
+        task: () => task,
         projectPath: () => '/project',
         worktreeDir: () => '/work',
         projectSlug: 'test',
@@ -325,7 +325,7 @@ describe('createPromptPreviewController', () => {
     vi.useFakeTimers()
     try {
       await createRoot(async (dispose) => {
-        const ticket = makeTicket({
+        const task = makeTask({
           folderName: 't-1-alpha',
         })
         const cfg = makeConfig('generated')
@@ -335,7 +335,7 @@ describe('createPromptPreviewController', () => {
           checkedSkills: () => new Set(),
           orderedSkills: () => [],
           config: () => cfg,
-          ticket: () => ticket,
+          task: () => task,
           projectPath: () => '/project',
           worktreeDir: () => '/work',
           projectSlug: 'test',

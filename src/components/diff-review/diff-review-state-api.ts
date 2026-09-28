@@ -43,11 +43,11 @@ export async function saveDiffReviewState(
         projectSlug,
         (current) => {
           const next: DiffReviewProjectState = JSON.parse(json)
-          for (const [folderName, ticket] of Object.entries(next.tickets)) {
-            if (JSON.stringify(ticket) === JSON.stringify(current.tickets[folderName])) continue
-            const target = diffReviewTargetResolver.resolve(projectSlug, folderName, ticket.worktreeIdentity)
-            if (ticket.worktreeIdentity !== target.worktreeIdentity) {
-              throw new Error('The Ticket worktree changed. Refresh Diff Review.')
+          for (const [folderName, task] of Object.entries(next.tasks)) {
+            if (JSON.stringify(task) === JSON.stringify(current.tasks[folderName])) continue
+            const target = diffReviewTargetResolver.resolve(projectSlug, folderName, task.worktreeIdentity)
+            if (task.worktreeIdentity !== target.worktreeIdentity) {
+              throw new Error('The Task worktree changed. Refresh Diff Review.')
             }
           }
           return next

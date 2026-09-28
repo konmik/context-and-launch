@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { Page } from 'playwright'
-import { openProject, openTicketDetail, setupE2E } from './fixtures.js'
+import { openProject, openTaskDetail, setupE2E } from './fixtures.js'
 import { testId } from './locators.js'
 
 function trackServerRequests(page: Page): string[] {
@@ -31,10 +31,10 @@ async function clickMenuItem(page: Page, triggerSelector: string, itemSelector: 
 
 describe('Open actions (e2e, real server)', () => {
   const ctx = setupE2E()
-  it('opens the tickets folder from the title menu', async () => {
+  it('opens the tasks folder from the title menu', async () => {
     await openProject(ctx, {
-      slugBase: 'oa-tickets-folder',
-      withTickets: [
+      slugBase: 'oa-tasks-folder',
+      withTasks: [
         {
           number: 'T-1',
           title: 'Alpha',
@@ -47,7 +47,7 @@ describe('Open actions (e2e, real server)', () => {
     await clickMenuItem(
       ctx.page,
       '[data-testid="project-header-title-menu-trigger"]',
-      '[data-testid="project-header-open-tickets-folder-menuitem"]',
+      '[data-testid="project-header-open-tasks-folder-menuitem"]',
     )
     await expect
       .poll(() => requests.length, {
@@ -59,7 +59,7 @@ describe('Open actions (e2e, real server)', () => {
   it('opens the project folder from the title menu', async () => {
     await openProject(ctx, {
       slugBase: 'oa-project-folder',
-      withTickets: [
+      withTasks: [
         {
           number: 'T-1',
           title: 'Alpha',
@@ -81,10 +81,10 @@ describe('Open actions (e2e, real server)', () => {
       .toBeGreaterThan(0)
     expect(await testId(ctx.page, 'error-dialog-ok').count()).toBe(0)
   })
-  it('opens the ticket folder from the ticket card menu', async () => {
+  it('opens the task folder from the task card menu', async () => {
     await openProject(ctx, {
-      slugBase: 'oa-card-ticket-folder',
-      withTickets: [
+      slugBase: 'oa-card-task-folder',
+      withTasks: [
         {
           number: 'T-1',
           title: 'Alpha',
@@ -94,7 +94,7 @@ describe('Open actions (e2e, real server)', () => {
       ],
     })
     const requests = trackServerRequests(ctx.page)
-    await clickMenuItem(ctx.page, '[data-testid="kanban-board-ticket-menu-trigger"]', '[data-testid="ticket-actions-open-folder"]')
+    await clickMenuItem(ctx.page, '[data-testid="kanban-board-task-menu-trigger"]', '[data-testid="task-actions-open-folder"]')
     await expect
       .poll(() => requests.length, {
         timeout: 10000,
@@ -102,10 +102,10 @@ describe('Open actions (e2e, real server)', () => {
       .toBeGreaterThan(0)
     expect(await testId(ctx.page, 'error-dialog-ok').count()).toBe(0)
   })
-  it('opens the worktree from the ticket card menu', async () => {
+  it('opens the worktree from the task card menu', async () => {
     await openProject(ctx, {
       slugBase: 'oa-card-worktree',
-      withTickets: [
+      withTasks: [
         {
           number: 'T-1',
           title: 'Alpha',
@@ -120,7 +120,7 @@ describe('Open actions (e2e, real server)', () => {
       ],
     })
     const requests = trackServerRequests(ctx.page)
-    await clickMenuItem(ctx.page, '[data-testid="kanban-board-ticket-menu-trigger"]', '[data-testid="ticket-actions-open-worktree"]')
+    await clickMenuItem(ctx.page, '[data-testid="kanban-board-task-menu-trigger"]', '[data-testid="task-actions-open-worktree"]')
     await expect
       .poll(() => requests.length, {
         timeout: 10000,
@@ -128,10 +128,10 @@ describe('Open actions (e2e, real server)', () => {
       .toBeGreaterThan(0)
     expect(await testId(ctx.page, 'error-dialog-ok').count()).toBe(0)
   })
-  it('opens the worktree from the ticket detail menu', async () => {
+  it('opens the worktree from the task detail menu', async () => {
     await openProject(ctx, {
       slugBase: 'oa-detail-worktree',
-      withTickets: [
+      withTasks: [
         {
           number: 'T-1',
           title: 'Alpha',
@@ -145,9 +145,9 @@ describe('Open actions (e2e, real server)', () => {
         },
       ],
     })
-    await openTicketDetail(ctx.page, 't-1-alpha')
+    await openTaskDetail(ctx.page, 't-1-alpha')
     const requests = trackServerRequests(ctx.page)
-    await clickMenuItem(ctx.page, '[data-testid="ticket-detail-actions-menu-trigger"]', '[data-testid="ticket-actions-open-worktree"]')
+    await clickMenuItem(ctx.page, '[data-testid="task-detail-actions-menu-trigger"]', '[data-testid="task-actions-open-worktree"]')
     await expect
       .poll(() => requests.length, {
         timeout: 10000,

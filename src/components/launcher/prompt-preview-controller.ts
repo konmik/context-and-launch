@@ -2,7 +2,7 @@ import type { SourceAccessor } from 'solid-js'
 import { createSignal, createMemo, onSettled } from 'solid-js'
 import { interpolatePrompt, type PromptVariables } from '~/core/launcher/prompt-interpolation.js'
 import type { MergedLauncherConfig } from '~/core/launcher/launcher-config.js'
-import type { TicketInfo } from '~/core/ticket/ticket-store.js'
+import type { TaskInfo } from '~/core/task/task-store.js'
 
 const PERSIST_DEBOUNCE_MS = 400
 
@@ -14,8 +14,8 @@ export interface PromptPreviewDeps {
     text: string
   }[]
   config: () => MergedLauncherConfig | null
-  /** Omitted for a project-level launch: ticket placeholders are then unavailable. */
-  ticket?: () => TicketInfo
+  /** Omitted for a project-level launch: task placeholders are then unavailable. */
+  task?: () => TaskInfo
   projectPath: () => string
   worktreeDir: () => string
   projectSlug: string
@@ -51,19 +51,19 @@ export function createPromptPreviewController(deps: PromptPreviewDeps): PromptPr
       skills: skillTexts.join('\n'),
       launchDir: deps.launchDir(),
     }
-    const t = deps.ticket?.()
+    const t = deps.task?.()
     if (t) {
-      const ticketDir = deps.worktreeDir().replace(/[\\/]$/, '') + '/' + t.folderName
-      const ticketVariables = {
-        ticketDir,
-        ticketSlug: t.folderName,
-        ticketTitle: t.title,
-        ticketNumber: t.number,
-        ticketStatus: t.status,
-      } satisfies Pick<PromptVariables, 'ticketDir' | 'ticketSlug' | 'ticketTitle' | 'ticketNumber' | 'ticketStatus'>
+      const taskDir = deps.worktreeDir().replace(/[\\/]$/, '') + '/' + t.folderName
+      const taskVariables = {
+        taskDir,
+        taskSlug: t.folderName,
+        taskTitle: t.title,
+        taskNumber: t.number,
+        taskStatus: t.status,
+      } satisfies Pick<PromptVariables, 'taskDir' | 'taskSlug' | 'taskTitle' | 'taskNumber' | 'taskStatus'>
       return interpolatePrompt(templateText, {
         ...variables,
-        ...ticketVariables,
+        ...taskVariables,
       })
     }
     return interpolatePrompt(templateText, {

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { gotoProjectOnFakeClock, fastForwardUntilVisible, openProject, seedProject, setupE2E } from './fixtures.js'
-import { pushTickets } from './git-fixtures.js'
+import { pushTasks } from './git-fixtures.js'
 import { testId, waitVisible, waitGone } from './locators.js'
 
 describe('Sync button polling and trigger state (e2e, real server)', () => {
@@ -12,13 +12,13 @@ describe('Sync button polling and trigger state (e2e, real server)', () => {
       slugBase: 'sb-untracked',
       withRemote: true,
     })
-    pushTickets(project)
+    pushTasks(project)
     await ctx.page.clock.install()
     await gotoProjectOnFakeClock(ctx.page, ctx.testServer, project.projectSlug)
     await waitVisible(ctx.page, 'sync-button-pending-badge')
     await testId(ctx.page, 'sync-button-trigger').click()
     await waitGone(ctx.page, 'sync-button-pending-badge')
-    fs.writeFileSync(path.join(project.ticketsPath, 'loose-file.txt'), 'untracked') // The server only sees the new file once its watcher bumps the worktree
+    fs.writeFileSync(path.join(project.tasksPath, 'loose-file.txt'), 'untracked') // The server only sees the new file once its watcher bumps the worktree
     // revision, which is a real chokidar event on real time.
     await fastForwardUntilVisible(ctx.page, 'sync-button-pending-badge')
   })
@@ -26,7 +26,7 @@ describe('Sync button polling and trigger state (e2e, real server)', () => {
     await openProject(ctx, {
       slugBase: 'sb-doubleclick',
       withRemote: true,
-      withTickets: [
+      withTasks: [
         {
           number: 'DC-1',
           title: 'Double',
@@ -46,7 +46,7 @@ describe('Sync button polling and trigger state (e2e, real server)', () => {
     const project1 = await seedProject(ctx, {
       slugBase: 'sb-switch-a',
       withRemote: true,
-      withTickets: [
+      withTasks: [
         {
           number: 'SW-1',
           title: 'Has changes',
@@ -59,7 +59,7 @@ describe('Sync button polling and trigger state (e2e, real server)', () => {
       slugBase: 'sb-switch-b',
       withRemote: true,
     })
-    pushTickets(project2)
+    pushTasks(project2)
     await ctx.page.clock.install()
     await gotoProjectOnFakeClock(ctx.page, ctx.testServer, project1.projectSlug)
     await waitVisible(ctx.page, 'sync-button-pending-badge')

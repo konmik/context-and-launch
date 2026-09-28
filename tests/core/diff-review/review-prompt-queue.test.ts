@@ -51,16 +51,16 @@ function setupQueue(): SetupQueueResult {
   )
   const target: ResolvedDiffReviewTarget = {
     projectSlug: 'project',
-    folderName: 'st-1-ticket',
+    folderName: 'st-1-task',
     worktreePath: 'C:/worktree',
     worktreeIdentity: 'worktree',
-    branchName: 'st-1-ticket',
+    branchName: 'st-1-task',
     mainBranch: 'main',
-    ticket: {
+    task: {
       number: 'ST-1',
-      title: 'Ticket',
+      title: 'Task',
       status: 'in-progress',
-      folderName: 'st-1-ticket',
+      folderName: 'st-1-task',
       contextNames: [],
       useWorktree: true,
       hasAgentWorktree: true,
@@ -93,7 +93,7 @@ function setupQueue(): SetupQueueResult {
     launcher,
   )
   const agent = {
-    name: 'project--st-1-ticket',
+    name: 'project--st-1-task',
     pane_id: 'pane-1',
     agent_status: 'idle',
   }
@@ -111,7 +111,7 @@ function setupQueue(): SetupQueueResult {
 describe('ReviewPromptQueueService', () => {
   it('finishes an accepted delivery after a browser releases its state update lease', async () => {
     const { store, service, execute, agent } = setupQueue()
-    store.enqueue('project', 'st-1-ticket', 'worktree', 'First')
+    store.enqueue('project', 'st-1-task', 'worktree', 'First')
     let finishDelivery!: (output: string) => void
     let started!: () => void
     const delivering = new Promise<void>((resolve) => {
@@ -125,13 +125,13 @@ describe('ReviewPromptQueueService', () => {
     })
     const processing = service.reconcileProject('project', [agent])
     await delivering
-    const current = store.getTicket('project', 'st-1-ticket', 'worktree', 'browser')
+    const current = store.getTask('project', 'st-1-task', 'worktree', 'browser')
     finishDelivery('')
     await vi.advanceTimersByTimeAsync(20)
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.items[0].state).toBe('delivering')
-    store.updateTicket(
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.items[0].state).toBe('delivering')
+    store.updateTask(
       'project',
-      'st-1-ticket',
+      'st-1-task',
       'worktree',
       () => ({
         ...current,
@@ -146,18 +146,18 @@ describe('ReviewPromptQueueService', () => {
     )
     await vi.advanceTimersByTimeAsync(10)
     await processing
-    const saved = store.getTicket('project', 'st-1-ticket', 'worktree')
+    const saved = store.getTask('project', 'st-1-task', 'worktree')
     expect(saved.queue.items[0].state).toBe('sent')
     expect(Object.keys(saved.reviewedLines)).toEqual(['line'])
     expect(execute).toHaveBeenCalledTimes(1)
   })
   it('keeps the delivered head until the Agent is free, then delivers the next one', async () => {
     const { store, service, execute, agent, snapshot } = setupQueue()
-    store.enqueue('project', 'st-1-ticket', 'worktree', 'First', snapshot)
-    store.enqueue('project', 'st-1-ticket', 'worktree', 'Second', snapshot)
+    store.enqueue('project', 'st-1-task', 'worktree', 'First', snapshot)
+    store.enqueue('project', 'st-1-task', 'worktree', 'Second', snapshot)
     await service.reconcileProject('project', [agent])
     expect(execute).toHaveBeenCalledTimes(1)
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.items[0].state).toBe('sent')
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.items[0].state).toBe('sent')
     await vi.advanceTimersByTimeAsync(3000)
     await service.reconcileProject('project', [
       {
@@ -165,32 +165,32 @@ describe('ReviewPromptQueueService', () => {
         agent_status: 'working',
       },
     ])
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.items.map((item) => item.feedback)).toEqual(['First', 'Second'])
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.items.map((item) => item.feedback)).toEqual(['First', 'Second'])
     expect(execute).toHaveBeenCalledTimes(1)
     await service.reconcileProject('project', [agent])
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.items.map((item) => item.feedback)).toEqual(['Second'])
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.items.map((item) => item.feedback)).toEqual(['Second'])
     await vi.advanceTimersByTimeAsync(0)
     expect(execute).toHaveBeenCalledTimes(2)
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.items[0].state).toBe('sent')
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.items[0].state).toBe('sent')
   })
   it('keeps the delivered head on an Agent report older than the delivery', async () => {
     const { store, service, agent, snapshot } = setupQueue()
-    store.enqueue('project', 'st-1-ticket', 'worktree', 'First', snapshot)
+    store.enqueue('project', 'st-1-task', 'worktree', 'First', snapshot)
     await service.reconcileProject('project', [agent])
     await service.reconcileProject('project', [agent])
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.items).toHaveLength(1)
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.items).toHaveLength(1)
     await vi.advanceTimersByTimeAsync(1000)
     await service.reconcileProject('project', [agent])
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.items).toEqual([])
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.items).toEqual([])
   })
   it('makes a delivered head retryable when a fresh report says its Agent disappeared', async () => {
     const { store, service, execute, agent, snapshot } = setupQueue()
-    store.enqueue('project', 'st-1-ticket', 'worktree', 'First', snapshot)
-    store.enqueue('project', 'st-1-ticket', 'worktree', 'Second', snapshot)
+    store.enqueue('project', 'st-1-task', 'worktree', 'First', snapshot)
+    store.enqueue('project', 'st-1-task', 'worktree', 'Second', snapshot)
     await service.reconcileProject('project', [agent])
     await vi.advanceTimersByTimeAsync(1000)
     await service.reconcileProject('project', [])
-    const items = store.getTicket('project', 'st-1-ticket', 'worktree').queue.items
+    const items = store.getTask('project', 'st-1-task', 'worktree').queue.items
     expect(items.map((item) => item.feedback)).toEqual(['First', 'Second'])
     expect(items[0].state).toBe('error')
     if (items[0].state !== 'error') throw new Error('Expected a retryable delivery error.')
@@ -205,29 +205,29 @@ describe('ReviewPromptQueueService', () => {
         errors.push(message)
       }
     })
-    store.enqueue('project', 'st-1-ticket', 'worktree', 'First', snapshot)
+    store.enqueue('project', 'st-1-task', 'worktree', 'First', snapshot)
     await service.reconcileProject('project', [agent])
     launcher.isRunning.mockReturnValue(true)
     await vi.advanceTimersByTimeAsync(1000)
     await service.reconcileProject('project', [])
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.items[0].state).toBe('sent')
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.items[0].state).toBe('sent')
     expect(errors).toEqual([])
   })
   it('does not acknowledge from an observation that started before delivery', async () => {
     const { store, service, agent, snapshot } = setupQueue()
-    store.enqueue('project', 'st-1-ticket', 'worktree', 'First', snapshot)
+    store.enqueue('project', 'st-1-task', 'worktree', 'First', snapshot)
     await service.reconcileProject('project', [agent])
     await vi.advanceTimersByTimeAsync(1000)
     await service.reconcileProject('project', {
       agents: [agent],
       observedAt: Date.parse('2026-07-25T12:00:00.000Z'),
     })
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.items).toHaveLength(1)
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.items).toHaveLength(1)
   })
   it('preserves a delivered head across service restart until Agent state is observed', async () => {
     const { store, service, execute, agent, snapshot, target } = setupQueue()
-    store.enqueue('project', 'st-1-ticket', 'worktree', 'First', snapshot)
-    store.enqueue('project', 'st-1-ticket', 'worktree', 'Second', snapshot)
+    store.enqueue('project', 'st-1-task', 'worktree', 'First', snapshot)
+    store.enqueue('project', 'st-1-task', 'worktree', 'Second', snapshot)
     await service.reconcileProject('project', [agent])
     const restartedService = createReviewPromptQueueService(
       store,
@@ -251,13 +251,13 @@ describe('ReviewPromptQueueService', () => {
         agent_status: 'working',
       },
     ])
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.items.map((item) => item.feedback)).toEqual(['First', 'Second'])
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.items.map((item) => item.feedback)).toEqual(['First', 'Second'])
     expect(execute).toHaveBeenCalledTimes(1)
   })
   it('recovers an interrupted delivery when Herdr is unavailable after restart', async () => {
     const { store, snapshot, target } = setupQueue()
-    const item = store.enqueue('project', 'st-1-ticket', 'worktree', 'First', snapshot)
-    store.beginDelivery('project', 'st-1-ticket', 'worktree', item.id)
+    const item = store.enqueue('project', 'st-1-task', 'worktree', 'First', snapshot)
+    store.beginDelivery('project', 'st-1-task', 'worktree', item.id)
     const restartedService = createReviewPromptQueueService(
       store,
       fromPartial<DiffReviewGitService>({
@@ -276,33 +276,33 @@ describe('ReviewPromptQueueService', () => {
       vi.fn().mockResolvedValue(undefined),
     )
     await restartedService.reconcileProject('project')
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.items[0].state).toBe('uncertain')
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.items[0].state).toBe('uncertain')
   })
   it('delivers a retried head again', async () => {
     const { store, service, execute, agent, snapshot } = setupQueue()
-    const first = store.enqueue('project', 'st-1-ticket', 'worktree', 'First', snapshot)
+    const first = store.enqueue('project', 'st-1-task', 'worktree', 'First', snapshot)
     await service.reconcileProject('project', [agent])
     expect(execute).toHaveBeenCalledTimes(1)
-    store.retry('project', 'st-1-ticket', 'worktree', first.id)
+    store.retry('project', 'st-1-task', 'worktree', first.id)
     await vi.advanceTimersByTimeAsync(3000)
     await service.reconcileProject('project', [agent])
     expect(execute).toHaveBeenCalledTimes(2)
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.items[0].state).toBe('sent')
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.items[0].state).toBe('sent')
   })
   it("starts the requested Agent when a retried head's cooldown expires", async () => {
     const { store, service, launcher, agent, snapshot } = setupQueue()
-    const first = store.enqueue('project', 'st-1-ticket', 'worktree', 'First', snapshot)
+    const first = store.enqueue('project', 'st-1-task', 'worktree', 'First', snapshot)
     await service.reconcileProject('project', [agent])
     await vi.advanceTimersByTimeAsync(1000)
     await service.reconcileProject('project', [])
-    await service.retryAndLaunch('project', 'st-1-ticket', first.id, 'GPT')
+    await service.retryAndLaunch('project', 'st-1-task', first.id, 'GPT')
     expect(launcher.launch).not.toHaveBeenCalled()
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.requestedAgentProfileName).toBe('GPT')
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.requestedAgentProfileName).toBe('GPT')
     await vi.advanceTimersByTimeAsync(2000)
     expect(launcher.launch).toHaveBeenCalledTimes(1)
     expect(launcher.launch.mock.calls[0][2]).toBe('GPT')
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.requestedAgentProfileName).toBeUndefined()
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.items[0].state).toBe('sent')
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.requestedAgentProfileName).toBeUndefined()
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.items[0].state).toBe('sent')
   })
   it('does not start the requested profile when Herdr reports an Agent during cooldown', async () => {
     const { store, execute, launcher, agent, snapshot, target } = setupQueue()
@@ -335,37 +335,37 @@ describe('ReviewPromptQueueService', () => {
       launcher,
       observeProject,
     )
-    const first = store.enqueue('project', 'st-1-ticket', 'worktree', 'First', snapshot)
+    const first = store.enqueue('project', 'st-1-task', 'worktree', 'First', snapshot)
     await service.reconcileProject('project', [agent])
     await vi.advanceTimersByTimeAsync(1000)
     await service.reconcileProject('project', [])
-    await service.retryAndLaunch('project', 'st-1-ticket', first.id, 'GPT')
+    await service.retryAndLaunch('project', 'st-1-task', first.id, 'GPT')
     await vi.advanceTimersByTimeAsync(2000)
     expect(observeProject).toHaveBeenCalledTimes(2)
     expect(launcher.launch).not.toHaveBeenCalled()
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.requestedAgentProfileName).toBeUndefined()
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.requestedAgentProfileName).toBeUndefined()
   })
-  it('never starts a Herdr Agent on its own when the Ticket has none', async () => {
+  it('never starts a Herdr Agent on its own when the Task has none', async () => {
     const { store, service, execute, launcher, snapshot } = setupQueue()
-    store.enqueue('project', 'st-1-ticket', 'worktree', 'First', snapshot)
-    store.enqueue('project', 'st-1-ticket', 'worktree', 'Second', snapshot)
+    store.enqueue('project', 'st-1-task', 'worktree', 'First', snapshot)
+    store.enqueue('project', 'st-1-task', 'worktree', 'Second', snapshot)
     await service.reconcileProject('project', [])
     await vi.advanceTimersByTimeAsync(60000)
     await service.reconcileProject('project', [])
     expect(execute).not.toHaveBeenCalled()
     expect(launcher.launch).not.toHaveBeenCalled()
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.items[0].state).toBe('waiting')
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.items[0].state).toBe('waiting')
   })
-  it('refuses to start an Agent while one is already running for the Ticket', async () => {
+  it('refuses to start an Agent while one is already running for the Task', async () => {
     const { store, service, launcher, snapshot } = setupQueue()
-    store.enqueue('project', 'st-1-ticket', 'worktree', 'First', snapshot)
+    store.enqueue('project', 'st-1-task', 'worktree', 'First', snapshot)
     launcher.isRunning.mockReturnValue(true)
-    await expect(service.launchWithQueueHead('project', 'st-1-ticket', 'GPT')).rejects.toThrow(/already running/)
+    await expect(service.launchWithQueueHead('project', 'st-1-task', 'GPT')).rejects.toThrow(/already running/)
     expect(launcher.launch).not.toHaveBeenCalled()
   })
-  it("refuses to start an Agent when the Ticket's Herdr Agent is already running", async () => {
+  it("refuses to start an Agent when the Task's Herdr Agent is already running", async () => {
     const { store, service, launcher, agent, snapshot } = setupQueue()
-    store.enqueue('project', 'st-1-ticket', 'worktree', 'First', snapshot) // The queue already talks to the Ticket's Herdr Agent. A Herdr Agent
+    store.enqueue('project', 'st-1-task', 'worktree', 'First', snapshot) // The queue already talks to the Task's Herdr Agent. A Herdr Agent
     // leaves no launcher marker, so the marker check alone misses it and a
     // launch would stop and restart that Agent.
     await service.reconcileProject('project', [
@@ -375,40 +375,40 @@ describe('ReviewPromptQueueService', () => {
       },
     ])
     expect(launcher.isRunning).toHaveBeenCalledTimes(0)
-    await expect(service.launchWithQueueHead('project', 'st-1-ticket', 'GPT')).rejects.toThrow(/already running/)
+    await expect(service.launchWithQueueHead('project', 'st-1-task', 'GPT')).rejects.toThrow(/already running/)
     expect(launcher.launch).not.toHaveBeenCalled()
   })
   it('starts an Agent on request with the queue head as the initial prompt', async () => {
     const { store, service, launcher, snapshot } = setupQueue()
-    store.enqueue('project', 'st-1-ticket', 'worktree', 'First', snapshot)
-    store.enqueue('project', 'st-1-ticket', 'worktree', 'Second', snapshot)
-    await service.launchWithQueueHead('project', 'st-1-ticket', 'GPT')
+    store.enqueue('project', 'st-1-task', 'worktree', 'First', snapshot)
+    store.enqueue('project', 'st-1-task', 'worktree', 'Second', snapshot)
+    await service.launchWithQueueHead('project', 'st-1-task', 'GPT')
     expect(launcher.launch).toHaveBeenCalledTimes(1)
     expect(launcher.launch.mock.calls[0][1]).toContain('First')
     expect(launcher.launch.mock.calls[0][2]).toBe('GPT')
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.items[0].state).toBe('sent')
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.items[0].state).toBe('sent')
   })
   it('starts an Agent on request with no prompt when the queue is empty', async () => {
     const { store, service, launcher } = setupQueue()
-    await service.launchWithQueueHead('project', 'st-1-ticket', 'GPT')
+    await service.launchWithQueueHead('project', 'st-1-task', 'GPT')
     expect(launcher.launch).toHaveBeenCalledTimes(1)
     expect(launcher.launch.mock.calls[0][1]).toBe('')
     expect(launcher.launch.mock.calls[0][2]).toBe('GPT')
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.cooldownUntil).toBe('2026-07-25T12:00:45.000Z')
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.cooldownUntil).toBe('2026-07-25T12:00:45.000Z')
   })
   it('persists an empty launch reservation before starting the Agent', async () => {
     const { store, service, launcher } = setupQueue()
     launcher.launch.mockImplementation(async () => {
-      expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.agentLaunchReservedUntil).toBe('2026-07-25T12:00:45.000Z')
+      expect(store.getTask('project', 'st-1-task', 'worktree').queue.agentLaunchReservedUntil).toBe('2026-07-25T12:00:45.000Z')
     })
-    await service.launchWithQueueHead('project', 'st-1-ticket', 'GPT')
-    const queue = store.getTicket('project', 'st-1-ticket', 'worktree').queue
+    await service.launchWithQueueHead('project', 'st-1-task', 'GPT')
+    const queue = store.getTask('project', 'st-1-task', 'worktree').queue
     expect(queue.agentLaunchReservedUntil).toBeUndefined()
     expect(queue.cooldownUntil).toBe('2026-07-25T12:00:45.000Z')
   })
   it('keeps a second service from repeating a recent empty launch', async () => {
     const { store, service, launcher, target } = setupQueue()
-    await service.launchWithQueueHead('project', 'st-1-ticket', 'GPT')
+    await service.launchWithQueueHead('project', 'st-1-task', 'GPT')
     const restartedService = createReviewPromptQueueService(
       store,
       fromPartial<DiffReviewGitService>({
@@ -425,21 +425,21 @@ describe('ReviewPromptQueueService', () => {
         launch: vi.fn(),
       }),
     )
-    await expect(restartedService.launchWithQueueHead('project', 'st-1-ticket', 'GPT')).rejects.toThrow(/just started/)
+    await expect(restartedService.launchWithQueueHead('project', 'st-1-task', 'GPT')).rejects.toThrow(/just started/)
     expect(launcher.launch).toHaveBeenCalledTimes(1)
   })
   it('keeps Agent observations isolated by project', async () => {
     const { service, agent } = setupQueue()
     await service.reconcileProject('project', [agent])
     await service.reconcileProject('other-project', [])
-    expect(service.isAgentRunning('project', 'st-1-ticket')).toBe(true)
+    expect(service.isAgentRunning('project', 'st-1-task')).toBe(true)
   })
   it('enqueues and starts an Agent as one serialized operation', async () => {
     const { store, service, launcher, snapshot } = setupQueue()
-    const item = await service.enqueueAndLaunch('project', 'st-1-ticket', 'First', snapshot, 'GPT')
+    const item = await service.enqueueAndLaunch('project', 'st-1-task', 'First', snapshot, 'GPT')
     expect(launcher.launch).toHaveBeenCalledTimes(1)
     expect(launcher.launch.mock.calls[0][1]).toContain('First')
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.items[0].id).toBe(item.id)
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.items[0].id).toBe(item.id)
   })
   it('serializes a user enqueue behind delivery reconciliation', async () => {
     const { store, service, execute, agent, snapshot } = setupQueue()
@@ -450,15 +450,15 @@ describe('ReviewPromptQueueService', () => {
           finishDelivery = () => resolve('')
         }),
     )
-    store.enqueue('project', 'st-1-ticket', 'worktree', 'First', snapshot)
+    store.enqueue('project', 'st-1-task', 'worktree', 'First', snapshot)
     const reconciling = service.reconcileProject('project', [agent])
     await vi.waitFor(() => expect(execute).toHaveBeenCalledTimes(1))
-    const enqueueing = service.enqueueAndLaunch('project', 'st-1-ticket', 'Second', snapshot)
+    const enqueueing = service.enqueueAndLaunch('project', 'st-1-task', 'Second', snapshot)
     finishDelivery()
     await Promise.all([reconciling, enqueueing])
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.items.map((item) => item.feedback)).toEqual(['First', 'Second'])
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.items.map((item) => item.feedback)).toEqual(['First', 'Second'])
   })
-  it('enqueues without launching when the project snapshot has the Ticket Agent', async () => {
+  it('enqueues without launching when the project snapshot has the Task Agent', async () => {
     const { service, launcher, agent, snapshot } = setupQueue()
     await service.reconcileProject('project', [
       {
@@ -466,14 +466,14 @@ describe('ReviewPromptQueueService', () => {
         agent_status: 'working',
       },
     ])
-    await service.enqueueAndLaunch('project', 'st-1-ticket', 'First', snapshot, 'GPT')
+    await service.enqueueAndLaunch('project', 'st-1-task', 'First', snapshot, 'GPT')
     expect(launcher.launch).not.toHaveBeenCalled()
   })
   it('enqueues without launching when no Agent profile is configured', async () => {
     const { store, service, launcher, snapshot } = setupQueue()
-    await service.enqueueAndLaunch('project', 'st-1-ticket', 'First', snapshot, undefined)
+    await service.enqueueAndLaunch('project', 'st-1-task', 'First', snapshot, undefined)
     expect(launcher.launch).not.toHaveBeenCalled()
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.items.map((item) => item.feedback)).toEqual(['First'])
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.items.map((item) => item.feedback)).toEqual(['First'])
   })
   it('refreshes the Agent observation before deciding to launch', async () => {
     const { store, launcher, agent, snapshot, target } = setupQueue()
@@ -500,7 +500,7 @@ describe('ReviewPromptQueueService', () => {
       launcher,
       observeProject,
     )
-    await service.enqueueAndLaunch('project', 'st-1-ticket', 'First', snapshot, 'GPT')
+    await service.enqueueAndLaunch('project', 'st-1-task', 'First', snapshot, 'GPT')
     expect(observeProject).toHaveBeenCalledWith('project')
     expect(launcher.launch).not.toHaveBeenCalled()
   })
@@ -520,46 +520,46 @@ describe('ReviewPromptQueueService', () => {
       launcher,
       vi.fn().mockResolvedValue(undefined),
     )
-    await service.enqueueAndLaunch('project', 'st-1-ticket', 'First', snapshot, 'GPT')
+    await service.enqueueAndLaunch('project', 'st-1-task', 'First', snapshot, 'GPT')
     expect(launcher.launch).not.toHaveBeenCalled()
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.items).toHaveLength(1)
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.items).toHaveLength(1)
   })
   it('points at Retry when the head Review Prompt failed to deliver', async () => {
     const { store, service, execute, agent, snapshot } = setupQueue()
-    store.enqueue('project', 'st-1-ticket', 'worktree', 'First', snapshot)
+    store.enqueue('project', 'st-1-task', 'worktree', 'First', snapshot)
     execute.mockRejectedValueOnce(new Error('pane unavailable'))
     await service.reconcileProject('project', [agent])
-    await expect(service.launchWithQueueHead('project', 'st-1-ticket', 'GPT')).rejects.toThrow(/Retry/)
+    await expect(service.launchWithQueueHead('project', 'st-1-task', 'GPT')).rejects.toThrow(/Retry/)
   })
   it('refuses to start a second Agent while the one it just started is booting', async () => {
     const { store, service, launcher, snapshot } = setupQueue()
-    const first = store.enqueue('project', 'st-1-ticket', 'worktree', 'First', snapshot)
-    store.enqueue('project', 'st-1-ticket', 'worktree', 'Second', snapshot)
-    await service.launchWithQueueHead('project', 'st-1-ticket', 'GPT')
+    const first = store.enqueue('project', 'st-1-task', 'worktree', 'First', snapshot)
+    store.enqueue('project', 'st-1-task', 'worktree', 'Second', snapshot)
+    await service.launchWithQueueHead('project', 'st-1-task', 'GPT')
     expect(launcher.launch).toHaveBeenCalledTimes(1)
     await vi.advanceTimersByTimeAsync(2000)
-    await expect(service.launchWithQueueHead('project', 'st-1-ticket', 'GPT')).rejects.toThrow(/is with an Agent/)
-    store.retry('project', 'st-1-ticket', 'worktree', first.id)
-    await expect(service.launchWithQueueHead('project', 'st-1-ticket', 'GPT')).rejects.toThrow(/was just started/)
+    await expect(service.launchWithQueueHead('project', 'st-1-task', 'GPT')).rejects.toThrow(/is with an Agent/)
+    store.retry('project', 'st-1-task', 'worktree', first.id)
+    await expect(service.launchWithQueueHead('project', 'st-1-task', 'GPT')).rejects.toThrow(/was just started/)
     expect(launcher.launch).toHaveBeenCalledTimes(1)
   })
   it('delivers a prompt without a Review Selection verbatim', async () => {
     const { store, service, execute, agent } = setupQueue()
-    store.enqueue('project', 'st-1-ticket', 'worktree', 'Rerun the tests')
+    store.enqueue('project', 'st-1-task', 'worktree', 'Rerun the tests')
     await service.reconcileProject('project', [agent])
     expect(execute).toHaveBeenCalledTimes(1)
     expect(execute.mock.calls[0][2].prompt).toBe('Rerun the tests')
   })
   it('keeps a failed head stopped until Retry and normal eligibility returns', async () => {
     const { store, service, execute, agent, snapshot } = setupQueue()
-    const first = store.enqueue('project', 'st-1-ticket', 'worktree', 'First', snapshot)
-    store.enqueue('project', 'st-1-ticket', 'worktree', 'Second', snapshot)
+    const first = store.enqueue('project', 'st-1-task', 'worktree', 'First', snapshot)
+    store.enqueue('project', 'st-1-task', 'worktree', 'Second', snapshot)
     execute.mockRejectedValueOnce(new Error('pane unavailable'))
     await service.reconcileProject('project', [agent])
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.items[0].state).toBe('error')
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.items[0].state).toBe('error')
     await service.reconcileProject('project', [agent])
     expect(execute).toHaveBeenCalledTimes(1)
-    store.retry('project', 'st-1-ticket', 'worktree', first.id)
+    store.retry('project', 'st-1-task', 'worktree', first.id)
     await service.reconcileProject('project', [
       {
         ...agent,
@@ -569,7 +569,7 @@ describe('ReviewPromptQueueService', () => {
     expect(execute).toHaveBeenCalledTimes(1)
     await service.reconcileProject('project', [agent])
     expect(execute).toHaveBeenCalledTimes(2)
-    expect(store.getTicket('project', 'st-1-ticket', 'worktree').queue.items[0].state).toBe('sent')
+    expect(store.getTask('project', 'st-1-task', 'worktree').queue.items[0].state).toBe('sent')
   })
 })
 

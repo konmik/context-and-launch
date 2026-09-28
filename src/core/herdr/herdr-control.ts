@@ -1,7 +1,7 @@
 import path from 'path'
 import { isHerdrUnavailableError, type HerdrUnavailableReason } from './herdr-availability.js'
 import type { HerdrExecFn, HerdrAgent } from './herdr-exec.js'
-import { listHerdrTicketPanes } from './herdr-ticket-panes.js'
+import { listHerdrTaskPanes } from './herdr-task-panes.js'
 
 export type { HerdrExecFn } from './herdr-exec.js'
 
@@ -47,9 +47,9 @@ export function agentBelongsToTarget(agent: HerdrAgent, target: AgentBelongingTa
 }
 
 export async function findHerdrAgent(target: HerdrAgentTarget, exec: HerdrExecFn): Promise<FindHerdrAgentResult> {
-  let ticketPanes
+  let taskPanes
   try {
-    ticketPanes = await listHerdrTicketPanes(target.projectSlug, exec)
+    taskPanes = await listHerdrTaskPanes(target.projectSlug, exec)
   } catch (err) {
     if (isHerdrUnavailableError(err)) {
       return {
@@ -60,9 +60,9 @@ export async function findHerdrAgent(target: HerdrAgentTarget, exec: HerdrExecFn
     }
     throw err
   }
-  const panes = ticketPanes.filter((candidate) => candidate.folderName === target.folderName)
+  const panes = taskPanes.filter((candidate) => candidate.folderName === target.folderName)
   if (panes.length > 1) {
-    throw new Error(`Ticket '${target.folderName}' has multiple Herdr panes. Rename or close duplicates first.`)
+    throw new Error(`Task '${target.folderName}' has multiple Herdr panes. Rename or close duplicates first.`)
   }
   if (panes.length === 0 || panes[0].agentStatuses.length === 0) {
     return {

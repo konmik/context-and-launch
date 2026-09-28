@@ -53,7 +53,7 @@ export const launcherConfigManager = services.launcherConfigManager
 
 export const agentWorktreeManager = services.agentWorktreeManager
 
-export const ticketSyncManager = services.ticketSyncManager
+export const taskSyncManager = services.taskSyncManager
 
 export const projectPageService = services.projectPageService
 

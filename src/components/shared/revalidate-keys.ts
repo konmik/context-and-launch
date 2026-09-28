@@ -1,3 +1,3 @@
-export const ticketMutationRevalidateKeys = ['project-page', 'sync-pending']
+export const taskMutationRevalidateKeys = ['project-page', 'sync-pending']
 
-export const projectSyncRevalidateKeys = [...ticketMutationRevalidateKeys, 'project-sync-status']
+export const projectSyncRevalidateKeys = [...taskMutationRevalidateKeys, 'project-sync-status']

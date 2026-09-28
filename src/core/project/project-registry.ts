@@ -39,7 +39,7 @@ function entryToInfo(entry: ProjectEntry, configRepo: ConfigRepository): Project
     available: isGitRepo(entry.path, configRepo),
     name: entry.name || entry.projectSlug,
     branch: entry.branch,
-    ticketsPath: entry.ticketsPath,
+    tasksPath: entry.tasksPath,
     mainBranch: entry.mainBranch,
     boardId: entry.boardId,
   }
@@ -88,14 +88,14 @@ export function generateProjectSlug(filePath: string, existingProjectSlugs: Set<
 export interface ProjectRegistry {
   getDefaultProjectSlug(): string | null
   listProjects(): ProjectInfo[]
-  getTicketsPath(projectSlug: string): string | undefined
+  getTasksPath(projectSlug: string): string | undefined
   getBoardId(projectSlug: string): string | undefined
   previewSlug(projectPath: string): string
   addProject(projectPath: string, opts?: Omit<Partial<ProjectEntry>, 'path'>): ProjectInfo
   updateProject(projectSlug: string, newPath?: string, newProjectSlug?: string): ProjectInfo
   removeProject(projectSlug: string): void
   getName(projectSlug: string): string
-  setTicketsLocation(
+  setTasksLocation(
     projectSlug: string,
     change: {
       kind: 'path' | 'branch'
@@ -127,8 +127,8 @@ export function createProjectRegistry(
     return appConfig.read().projects.map((entry) => entryToInfo(entry, configRepo))
   }
 
-  function getTicketsPath(projectSlug: string): string | undefined {
-    return appConfig.read().projects.find((p) => p.projectSlug === projectSlug)?.ticketsPath
+  function getTasksPath(projectSlug: string): string | undefined {
+    return appConfig.read().projects.find((p) => p.projectSlug === projectSlug)?.tasksPath
   }
 
   function getBoardId(projectSlug: string): string | undefined {
@@ -234,7 +234,7 @@ export function createProjectRegistry(
     return project?.name || projectSlug
   }
 
-  function setTicketsLocation(
+  function setTasksLocation(
     projectSlug: string,
     change: {
       kind: 'path' | 'branch'
@@ -242,9 +242,9 @@ export function createProjectRegistry(
     },
   ): void {
     const value = change.value.trim()
-    if (!value) throw createValidationError('Tickets folder and branch cannot be empty.', change.kind === 'path' ? 'ticketsPath' : 'branch')
+    if (!value) throw createValidationError('Tasks folder and branch cannot be empty.', change.kind === 'path' ? 'tasksPath' : 'branch')
     if (change.kind === 'branch') validateBranchName(value)
-    else if (!path.isAbsolute(value)) throw createValidationError('Tickets folder must be an absolute path.', 'ticketsPath')
+    else if (!path.isAbsolute(value)) throw createValidationError('Tasks folder must be an absolute path.', 'tasksPath')
     appConfig.update((config) => {
       if (!config.projects.some((project) => project.projectSlug === projectSlug)) {
         throw createNotFoundError(`Project not found: ${projectSlug}`)
@@ -256,7 +256,7 @@ export function createProjectRegistry(
             ? project
             : {
                 ...project,
-                [change.kind === 'path' ? 'ticketsPath' : 'branch']: value,
+                [change.kind === 'path' ? 'tasksPath' : 'branch']: value,
               },
         ),
       }
@@ -274,14 +274,14 @@ export function createProjectRegistry(
   return {
     getDefaultProjectSlug,
     listProjects,
-    getTicketsPath,
+    getTasksPath,
     getBoardId,
     previewSlug,
     addProject,
     updateProject,
     removeProject,
     getName,
-    setTicketsLocation,
+    setTasksLocation,
     getPort,
     getBrowser,
   }

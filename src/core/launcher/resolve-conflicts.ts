@@ -1,6 +1,6 @@
 import { createValidationError } from '../shared/errors.js'
 import type { MergedLauncherConfig, LauncherProfile } from './launcher-config.js'
-import type { ResolutionPlan } from '../ticket/ticket-sync.js'
+import type { ResolutionPlan } from '../task/task-sync.js'
 import type { ProfileCommandVariables } from './profile-launch.js'
 
 export interface ResolveConflictsDeps {

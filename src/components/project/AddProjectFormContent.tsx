@@ -70,14 +70,14 @@ export function AddProjectFormContent(props: AddProjectFormProps): JSX.Element {
       </div>
       <div class="mb-4">
         <label for="project-branch" class="field-label">
-          Tickets branch name
+          Tasks branch name
         </label>
         <input
           id="project-branch"
           type="text"
           value={s.branchValue()}
           onInput={(e) => s.setBranchValue(e.currentTarget.value)}
-          placeholder="tickets"
+          placeholder="tasks"
           class="input"
           data-testid="add-project-branch-input"
         />

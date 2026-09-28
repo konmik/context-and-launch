@@ -15,7 +15,7 @@ describe('Sync button (e2e, real server)', () => {
     const project = await openProject(ctx, {
       slugBase: 'sb-push',
       withRemote: true,
-      withTickets: [
+      withTasks: [
         {
           number: 'T-1',
           title: 'Alpha',
@@ -35,12 +35,12 @@ describe('Sync button (e2e, real server)', () => {
     expect(await countOf(ctx.page, 'sync-button-check-icon')).toBe(0)
     expect(await countOf(ctx.page, 'sync-button-conflict-badge')).toBe(0)
   })
-  it('pending badge appears after dragging a ticket between columns', async () => {
+  it('pending badge appears after dragging a task between columns', async () => {
     await openProject(ctx, {
       slugBase: 'sb-pending-drag',
       withRemote: true,
       withBoards: THREE_COLUMN_BOARD,
-      withTickets: [
+      withTasks: [
         {
           number: 'D-1',
           title: 'Drag me',

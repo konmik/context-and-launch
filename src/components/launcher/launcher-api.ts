@@ -8,12 +8,12 @@ import {
   projectRegistry,
   worktreeManager,
   operationTracker,
-  ticketSyncManager,
+  taskSyncManager,
   worktreeRevisions,
   commandTemplateService,
 } from '~/core/config/instances.js'
 import {
-  resolveTicketAndProject,
+  resolveTaskAndProject,
   ensureLaunchDir,
   launchAgent as launchAgentCore,
   launchProjectAgent as launchProjectAgentCore,
@@ -28,11 +28,11 @@ import type { UserFacingError } from '~/util/user-facing-error.js'
 import { success, failure } from '~/util/result.js'
 import { resolveConflictsWith } from '~/core/launcher/resolve-conflicts.js'
 import type { MergedLauncherConfig } from '~/core/launcher/launcher-config.js'
-import { ticketAgentKey } from '~/core/ticket/ticket-worktrees.js'
+import { taskAgentKey } from '~/core/task/task-worktrees.js'
 
 export interface ProjectLauncherMetadata {
   projectPath: string
-  ticketsBranch?: string
+  tasksBranch?: string
   worktreeDir: string
   agentWorktreeDir: string
 }
@@ -46,7 +46,7 @@ export const getProjectLauncherMetadata = query(async (projectSlug: string): Pro
   if (!project) throw new Error(`Project not found: ${projectSlug}`)
   return {
     projectPath: project.path,
-    ticketsBranch: project.branch,
+    tasksBranch: project.branch,
     worktreeDir: worktreeManager.getWorktreeDir(projectSlug),
     agentWorktreeDir: launcherConfigManager.getAgentWorktreeDir(projectSlug),
   }
@@ -95,8 +95,8 @@ export async function launchAgentAction(
   'use server'
 
   try {
-    const { ticket, project, worktreeDir } = resolveTicketAndProject(projectSlug, folderName)
-    if (agentRunning(projectSlug, ticketAgentKey(folderName, ticket, launchRequest.launchDir))) {
+    const { task, project, worktreeDir } = resolveTaskAndProject(projectSlug, folderName)
+    if (agentRunning(projectSlug, taskAgentKey(folderName, task, launchRequest.launchDir))) {
       return errorResult('Already started')
     }
     if (!launchRequest.launchDir) {
@@ -107,7 +107,7 @@ export async function launchAgentAction(
       folderName,
       launchRequest.useWorktree,
       project.path,
-      ticket,
+      task,
       worktreeDir,
       {
         skipDirtyCheck: launchRequest.force,
@@ -118,7 +118,7 @@ export async function launchAgentAction(
     if (resolved.type === 'Failure') return resolved
     if (launchRequest.launchDir !== resolved.value.launchDir)
       throw createValidationError('The launch target changed. Select it again before launching.')
-    await launchAgentCore(projectSlug, ticket, launchRequest, launchRequest.launchDir)
+    await launchAgentCore(projectSlug, task, launchRequest, launchRequest.launchDir)
     return success(undefined)
   } catch (e) {
     return errorResult(e)
@@ -153,7 +153,7 @@ export async function runShortcut(
 
   try {
     if (!launchDir) throw createValidationError('launchDir is required')
-    const { ticket, project, worktreeDir } = resolveTicketAndProject(projectSlug, folderName)
+    const { task, project, worktreeDir } = resolveTaskAndProject(projectSlug, folderName)
     const merged = launcherConfigManager.getMergedConfig(projectSlug)
     const shortcut = merged.shortcuts.find((s) => s.name === name)
     if (!shortcut) throw new Error(`Shortcut "${name}" not found`)
@@ -162,7 +162,7 @@ export async function runShortcut(
       folderName,
       useWorktree,
       project.path,
-      ticket,
+      task,
       worktreeDir,
       {
         skipDirtyCheck: force,
@@ -174,11 +174,11 @@ export async function runShortcut(
     if (launchDir !== resolved.value.launchDir)
       throw createValidationError('The launch target changed. Select it again before running the shortcut.')
     const commandVars = {
-      ticketDir: path.resolve(worktreeDir, ticket.folderName),
-      ticketSlug: ticket.folderName,
-      ticketTitle: ticket.title,
-      ticketNumber: ticket.number,
-      ticketStatus: ticket.status,
+      taskDir: path.resolve(worktreeDir, task.folderName),
+      taskSlug: task.folderName,
+      taskTitle: task.title,
+      taskNumber: task.number,
+      taskStatus: task.status,
       projectPath: project.path,
       projectSlug,
       launchDir,
@@ -208,7 +208,7 @@ export async function resolveConflicts(projectSlug: string, profileName: string)
       {
         getMergedConfig: (slug) => launcherConfigManager.getMergedConfig(slug),
         getWorktreeDir: (slug) => worktreeManager.getWorktreeDir(slug),
-        prepareResolution: (worktreeDir) => ticketSyncManager.prepareResolution(worktreeDir),
+        prepareResolution: (worktreeDir) => taskSyncManager.prepareResolution(worktreeDir),
         trackOperation: (operation) => operationTracker.track(operation),
         spawnProfile,
         markerPath: agentMarkerPath,
@@ -229,7 +229,7 @@ export async function abortRebase(projectSlug: string): Promise<Result<undefined
 
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
-    await operationTracker.track(ticketSyncManager.abort(worktreeDir))
+    await operationTracker.track(taskSyncManager.abort(worktreeDir))
     worktreeRevisions.bump(worktreeDir)
     return success(undefined)
   } catch (e) {

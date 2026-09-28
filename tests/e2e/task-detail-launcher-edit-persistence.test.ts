@@ -1,0 +1,125 @@
+import { describe, it, expect } from 'vitest'
+import { gotoProject, readProjectLauncherConfig, poll, setupE2E } from './fixtures.js'
+import { openLauncher, setupLauncherTask } from './task-detail-launcher-shared.js'
+import { testId } from './locators.js'
+
+describe('Task detail launcher edit persistence (e2e, real server)', () => {
+  const ctx = setupE2E()
+  it('edit toggle freezes preview', async () => {
+    await setupLauncherTask(ctx, 'edit-freeze')
+    const cm = ctx.page.locator('.cm-content')
+    await cm.waitFor({
+      state: 'visible',
+      timeout: 15000,
+    })
+    const toggle = testId(ctx.page, 'prompt-preview-edit-toggle')
+    await toggle.check()
+    await ctx.page.waitForTimeout(200)
+    const textBefore = await cm.textContent()
+    await ctx.page.selectOption('[data-testid="task-detail-launcher-template-select"]', 'Other')
+    await ctx.page.waitForTimeout(500)
+    const textAfter = await cm.textContent()
+    expect(textAfter).toBe(textBefore)
+  })
+  it('edit toggle off discards edits', async () => {
+    await setupLauncherTask(ctx, 'edit-discard')
+    const cm = ctx.page.locator('.cm-content')
+    await cm.waitFor({
+      state: 'visible',
+      timeout: 15000,
+    })
+    const originalText = await cm.textContent()
+    const toggle = testId(ctx.page, 'prompt-preview-edit-toggle')
+    await toggle.check()
+    await ctx.page.waitForTimeout(200)
+    await cm.click()
+    await ctx.page.keyboard.type('EXTRA TEXT')
+    await ctx.page.waitForTimeout(200)
+    const editedText = await cm.textContent()
+    expect(editedText).toContain('EXTRA TEXT')
+    await toggle.uncheck()
+    await expect.poll(() => cm.textContent()).toBe(originalText)
+  })
+  it('edited prompt persists to project launcher config', async () => {
+    const project = await setupLauncherTask(ctx, 'edit-persist')
+    const cm = ctx.page.locator('.cm-content')
+    await cm.waitFor({
+      state: 'visible',
+      timeout: 15000,
+    })
+    const toggle = testId(ctx.page, 'prompt-preview-edit-toggle')
+    await toggle.check()
+    await ctx.page.waitForTimeout(200)
+    await cm.click()
+    await ctx.page.keyboard.type('PERSISTED EDIT')
+    const cfg = await poll(
+      () => readProjectLauncherConfig(ctx.testServer, project.projectSlug),
+      (c) => c?.columnDefaults?.['todo']?.editedPrompt?.includes('PERSISTED EDIT') ?? false,
+      5000,
+    )
+    expect(cfg?.columnDefaults?.['todo']?.editedPrompt).toContain('PERSISTED EDIT')
+  })
+  it('edited prompt is restored after reopening the task', async () => {
+    const project = await setupLauncherTask(ctx, 'edit-restore')
+    const cm = ctx.page.locator('.cm-content')
+    await cm.waitFor({
+      state: 'visible',
+      timeout: 15000,
+    })
+    const toggle = testId(ctx.page, 'prompt-preview-edit-toggle')
+    await toggle.check()
+    await ctx.page.waitForTimeout(200)
+    await cm.click()
+    await ctx.page.keyboard.type('RESTORED EDIT')
+    await poll(
+      () => readProjectLauncherConfig(ctx.testServer, project.projectSlug),
+      (c) => c?.columnDefaults?.['todo']?.editedPrompt?.includes('RESTORED EDIT') ?? false,
+      5000,
+    )
+    await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
+    await openLauncher(ctx)
+    const cmReopened = ctx.page.locator('.cm-content')
+    await cmReopened.waitFor({
+      state: 'visible',
+      timeout: 15000,
+    })
+    const toggleReopened = testId(ctx.page, 'prompt-preview-edit-toggle')
+    await expect
+      .poll(() => toggleReopened.isChecked(), {
+        timeout: 10000,
+      })
+      .toBe(true)
+    await expect
+      .poll(() => cmReopened.textContent(), {
+        timeout: 10000,
+      })
+      .toContain('RESTORED EDIT')
+    const cfg = readProjectLauncherConfig(ctx.testServer, project.projectSlug)
+    expect(cfg?.columnDefaults?.['todo']?.editedPrompt).toContain('RESTORED EDIT')
+  })
+  it('turning edit off clears the persisted edited prompt', async () => {
+    const project = await setupLauncherTask(ctx, 'edit-clear')
+    const cm = ctx.page.locator('.cm-content')
+    await cm.waitFor({
+      state: 'visible',
+      timeout: 15000,
+    })
+    const toggle = testId(ctx.page, 'prompt-preview-edit-toggle')
+    await toggle.check()
+    await ctx.page.waitForTimeout(200)
+    await cm.click()
+    await ctx.page.keyboard.type('TEMP EDIT')
+    await poll(
+      () => readProjectLauncherConfig(ctx.testServer, project.projectSlug),
+      (c) => c?.columnDefaults?.['todo']?.editedPrompt?.includes('TEMP EDIT') ?? false,
+      5000,
+    )
+    await toggle.uncheck()
+    const cfg = await poll(
+      () => readProjectLauncherConfig(ctx.testServer, project.projectSlug),
+      (c) => c?.columnDefaults?.['todo']?.editedPrompt === undefined,
+      5000,
+    )
+    expect(cfg?.columnDefaults?.['todo']?.editedPrompt).toBeUndefined()
+  })
+})

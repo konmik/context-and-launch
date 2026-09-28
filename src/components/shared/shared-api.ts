@@ -12,7 +12,7 @@ export async function openConfigDir(scope?: string, projectSlug?: string): Promi
 
   try {
     let dir: string
-    if (scope === 'tickets' && projectSlug) dir = worktreeManager.getWorktreeDir(projectSlug)
+    if (scope === 'tasks' && projectSlug) dir = worktreeManager.getWorktreeDir(projectSlug)
     else if (scope === 'project' && projectSlug) dir = launcherConfigManager.getProjectDir(projectSlug)
     else if (scope === 'repo' && projectSlug) {
       const project = projectRegistry.listProjects().find((p) => p.projectSlug === projectSlug)

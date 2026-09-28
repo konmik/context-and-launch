@@ -28,7 +28,7 @@ export default function AgentLauncher(props: AgentLauncherProps): JSX.Element {
                 label="Agent"
                 value={c.selectedProfile()}
                 options={cfg().profiles}
-                testId="ticket-detail-launcher-profile-select"
+                testId="task-detail-launcher-profile-select"
                 onChange={(name) => {
                   c.setSelectedProfile(name)
                   props.onDefaultsChange({
@@ -40,7 +40,7 @@ export default function AgentLauncher(props: AgentLauncherProps): JSX.Element {
                 label="Prompt Template"
                 value={c.selectedTemplate()}
                 options={cfg().templates}
-                testId="ticket-detail-launcher-template-select"
+                testId="task-detail-launcher-template-select"
                 onChange={(name) => {
                   c.setSelectedTemplate(name)
                   props.onDefaultsChange({
@@ -89,7 +89,7 @@ export default function AgentLauncher(props: AgentLauncherProps): JSX.Element {
         <DialogTitle class="sr-only">Behind Remote</DialogTitle>
         <p class="mb-4 text-sm">{c.behindRemoteMsg()}</p>
         <div class="flex justify-end gap-2">
-          <button onClick={() => c.setBehindRemoteMsg('')} class="btn-secondary" data-testid="ticket-detail-launcher-behind-remote-cancel">
+          <button onClick={() => c.setBehindRemoteMsg('')} class="btn-secondary" data-testid="task-detail-launcher-behind-remote-cancel">
             Cancel
           </button>
           <button
@@ -101,7 +101,7 @@ export default function AgentLauncher(props: AgentLauncherProps): JSX.Element {
             }}
             disabled={c.launching()}
             class="btn-primary"
-            data-testid="ticket-detail-launcher-behind-remote-proceed"
+            data-testid="task-detail-launcher-behind-remote-proceed"
           >
             Proceed
           </button>
@@ -112,7 +112,7 @@ export default function AgentLauncher(props: AgentLauncherProps): JSX.Element {
         <DialogTitle class="sr-only">Uncommitted Changes</DialogTitle>
         <p class="mb-4 text-sm">{c.dirtyWorktreeMsg()}</p>
         <div class="flex justify-end gap-2">
-          <button onClick={() => c.setDirtyWorktreeMsg('')} class="btn-secondary" data-testid="ticket-detail-launcher-dirty-cancel">
+          <button onClick={() => c.setDirtyWorktreeMsg('')} class="btn-secondary" data-testid="task-detail-launcher-dirty-cancel">
             Cancel
           </button>
           <button
@@ -124,7 +124,7 @@ export default function AgentLauncher(props: AgentLauncherProps): JSX.Element {
             }}
             disabled={c.launching()}
             class="btn-primary"
-            data-testid="ticket-detail-launcher-dirty-launch-anyway"
+            data-testid="task-detail-launcher-dirty-launch-anyway"
           >
             Launch Anyway
           </button>

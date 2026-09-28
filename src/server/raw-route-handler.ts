@@ -1,9 +1,9 @@
 import { getMimeType } from '../core/shared/mime-types.js'
 import { errorPayload } from '../core/shared/errors.js'
 
-const ticketFilePathPattern = /^\/api\/projects\/([^/]+)\/board\/tickets\/([^/]+)\/files\/([^/]+)$/
+const taskFilePathPattern = /^\/api\/projects\/([^/]+)\/board\/tasks\/([^/]+)\/files\/([^/]+)$/
 
-const ticketReferenceContentPathPattern = /^\/api\/projects\/([^/]+)\/board\/tickets\/([^/]+)\/references\/content$/
+const taskReferenceContentPathPattern = /^\/api\/projects\/([^/]+)\/board\/tasks\/([^/]+)\/references\/content$/
 
 export interface RawRouteStore {
   getFileContent: (folderName: string, fileName: string) => Buffer
@@ -12,19 +12,19 @@ export interface RawRouteStore {
 
 export interface RawRouteDeps {
   getWorktreeDir: (projectSlug: string) => string
-  createTicketStore: (worktreeDir: string) => RawRouteStore
+  createTaskStore: (worktreeDir: string) => RawRouteStore
 }
 
 export function createRawRouteHandler(deps: RawRouteDeps): (request: Request) => Promise<Response | undefined> {
   return async function handleRawRoute(request: Request): Promise<Response | undefined> {
     const url = new URL(request.url)
     if (request.method !== 'GET' && request.method !== 'HEAD') return undefined
-    const fileMatch = url.pathname.match(ticketFilePathPattern)
-    const referenceMatch = url.pathname.match(ticketReferenceContentPathPattern)
+    const fileMatch = url.pathname.match(taskFilePathPattern)
+    const referenceMatch = url.pathname.match(taskReferenceContentPathPattern)
     if (!fileMatch && !referenceMatch) return undefined
     try {
       const [, projectSlug, folderName, encodedFileName] = fileMatch ?? referenceMatch!
-      const store = deps.createTicketStore(deps.getWorktreeDir(decodeURIComponent(projectSlug)))
+      const store = deps.createTaskStore(deps.getWorktreeDir(decodeURIComponent(projectSlug)))
       let content: Buffer
       let fileName: string
       if (fileMatch) {

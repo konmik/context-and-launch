@@ -5,7 +5,7 @@ import { verticalBezierPath } from './forest-viewport.js'
 export type ConnectionHandleEnd = 'top' | 'bottom'
 
 export interface ConnectionEndpoint {
-  ticketNumber: string
+  taskNumber: string
   end: ConnectionHandleEnd
 }
 
@@ -108,18 +108,18 @@ export function createForestConnection(): ForestConnectionResult {
 }
 
 export function isConnectionTarget(source: ConnectionEndpoint, target: ConnectionEndpoint): boolean {
-  return source.ticketNumber !== target.ticketNumber && source.end !== target.end
+  return source.taskNumber !== target.taskNumber && source.end !== target.end
 }
 
 export function dependencyFromEndpoints(source: ConnectionEndpoint, target: ConnectionEndpoint): DependencyFromEndpointsResult {
   return source.end === 'bottom'
     ? {
-        dependentNumber: source.ticketNumber,
-        dependencyNumber: target.ticketNumber,
+        dependentNumber: source.taskNumber,
+        dependencyNumber: target.taskNumber,
       }
     : {
-        dependentNumber: target.ticketNumber,
-        dependencyNumber: source.ticketNumber,
+        dependentNumber: target.taskNumber,
+        dependencyNumber: source.taskNumber,
       }
 }
 

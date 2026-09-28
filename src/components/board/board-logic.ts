@@ -1,6 +1,6 @@
 import type { ForestPosition } from '../forest/forest-types.js'
 import type { DragEvent as DndDragEvent } from '~/components/drag/drag-types.js'
-import type { TicketInfo } from '~/core/ticket/ticket-store.js'
+import type { TaskInfo } from '~/core/task/task-store.js'
 import type { BoardState } from '~/components/project/project-api.js'
 import type { HoverTarget } from './drop-index.js'
 import { computeHoverTarget } from './drop-index.js'
@@ -13,34 +13,34 @@ export interface DropResult {
   newIndex: number
 }
 
-export function buildTicketMap(tickets: TicketInfo[]): Map<string, TicketInfo> {
-  const map = new Map<string, TicketInfo>()
-  for (const t of tickets) map.set(t.folderName, t)
+export function buildTaskMap(tasks: TaskInfo[]): Map<string, TaskInfo> {
+  const map = new Map<string, TaskInfo>()
+  for (const t of tasks) map.set(t.folderName, t)
   return map
 }
 
-export function computeOrphans(board: BoardState): TicketInfo[] {
+export function computeOrphans(board: BoardState): TaskInfo[] {
   const colNames = new Set(board.columns.map((c) => c.name))
-  return board.tickets.filter((t) => !colNames.has(t.status))
+  return board.tasks.filter((t) => !colNames.has(t.status))
 }
 
-export function resolveActiveTicket(activeId: string | null, ticketMap: Map<string, TicketInfo>): TicketInfo | null {
+export function resolveActiveTask(activeId: string | null, taskMap: Map<string, TaskInfo>): TaskInfo | null {
   if (!activeId) return null
   const { folderName } = parseId(activeId)
-  return ticketMap.get(folderName) ?? null
+  return taskMap.get(folderName) ?? null
 }
 
-export function resolveTicketsForColumn(
+export function resolveTasksForColumn(
   column: string,
   order: Record<string, string[]>,
-  ticketMap: Map<string, TicketInfo>,
+  taskMap: Map<string, TaskInfo>,
   orphanFolderNames: Set<string>,
-): TicketInfo[] {
+): TaskInfo[] {
   const names = order[column] ?? []
-  const result: TicketInfo[] = []
+  const result: TaskInfo[] = []
   for (const fn of names) {
     if (orphanFolderNames.has(fn)) continue
-    const t = ticketMap.get(fn)
+    const t = taskMap.get(fn)
     if (t) result.push(t)
   }
   return result
@@ -50,7 +50,7 @@ export function resolveDrop(
   activeId: string | null,
   hoverTarget: HoverTarget | null,
   currentOrder: Record<string, string[]>,
-  ticketMap: Map<string, TicketInfo>,
+  taskMap: Map<string, TaskInfo>,
   orphanFolderNames: Set<string>,
 ): DropResult | null {
   if (!activeId || !hoverTarget) return null
@@ -58,8 +58,8 @@ export function resolveDrop(
   const { column: toColumn, index: newIndex } = hoverTarget
   if (toColumn === 'undefined') return null
   if (fromColumn === toColumn) {
-    const colTickets = resolveTicketsForColumn(toColumn, currentOrder, ticketMap, orphanFolderNames)
-    const fromIdx = colTickets.findIndex((t) => t.folderName === folderName)
+    const colTasks = resolveTasksForColumn(toColumn, currentOrder, taskMap, orphanFolderNames)
+    const fromIdx = colTasks.findIndex((t) => t.folderName === folderName)
     if (fromIdx === newIndex) return null
   }
   return {
@@ -133,13 +133,13 @@ export function collectColumnRects(columnRefs: Map<string, HTMLDivElement>): Col
 export function resolveDragSource(
   dragId: string | null,
   order: Record<string, string[]>,
-  ticketMap: Map<string, TicketInfo>,
+  taskMap: Map<string, TaskInfo>,
   orphanFolderNames: Set<string>,
 ): HoverTarget | undefined {
   if (!dragId) return undefined
   const { column, folderName } = parseId(dragId)
-  const tickets = resolveTicketsForColumn(column, order, ticketMap, orphanFolderNames)
-  const idx = tickets.findIndex((t) => t.folderName === folderName)
+  const tasks = resolveTasksForColumn(column, order, taskMap, orphanFolderNames)
+  const idx = tasks.findIndex((t) => t.folderName === folderName)
   return idx !== -1
     ? {
         column,
@@ -153,13 +153,13 @@ export function computeDragMoveTarget(
   dragId: string | null,
   columnRefs: Map<string, HTMLDivElement>,
   order: Record<string, string[]>,
-  ticketMap: Map<string, TicketInfo>,
+  taskMap: Map<string, TaskInfo>,
   orphanFolderNames: Set<string>,
 ): HoverTarget | null {
   const cursor = resolveCursorPosition(event)
   if (!cursor) return null
   const { colRects, cardRectsByCol } = collectColumnRects(columnRefs)
-  const dragSource = resolveDragSource(dragId, order, ticketMap, orphanFolderNames)
+  const dragSource = resolveDragSource(dragId, order, taskMap, orphanFolderNames)
   return computeHoverTarget(colRects, cardRectsByCol, cursor, dragSource)
 }
 

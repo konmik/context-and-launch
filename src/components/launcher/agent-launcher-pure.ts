@@ -9,7 +9,7 @@ export interface LauncherDefaults {
   editedPrompt: string | undefined
 }
 
-export function resolveDefaults(config: MergedLauncherConfig | null, ticketStatus: string): LauncherDefaults {
+export function resolveDefaults(config: MergedLauncherConfig | null, taskStatus: string): LauncherDefaults {
   if (!config) {
     return {
       templateName: '',
@@ -19,7 +19,7 @@ export function resolveDefaults(config: MergedLauncherConfig | null, ticketStatu
       editedPrompt: undefined,
     }
   }
-  const defaults = config.columnDefaults[ticketStatus]
+  const defaults = config.columnDefaults[taskStatus]
   return {
     templateName: defaults?.templateName ?? config.templates[0]?.name ?? '',
     profileName: defaults?.profileName ?? config.profiles[0]?.name ?? '',

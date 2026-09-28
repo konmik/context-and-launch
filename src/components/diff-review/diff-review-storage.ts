@@ -2,7 +2,7 @@ import type { SourceAccessor } from 'solid-js'
 import { createContext, createMemo, createSignal, type Accessor } from 'solid-js'
 import type { StoredSignal } from '~/util/stored-signal.js'
 import type { UserFacingError } from '~/util/user-facing-error.js'
-import { getReviewTicketState, withReviewTicketState, type DiffReviewProjectState } from '~/core/diff-review/diff-review-types.js'
+import { getReviewTaskState, withReviewTaskState, type DiffReviewProjectState } from '~/core/diff-review/diff-review-types.js'
 import type { readReviewAgentStatus } from './diff-review-state-api.js'
 
 export const DiffReviewContext = createContext<StoredSignal<DiffReviewProjectState>>()
@@ -19,7 +19,7 @@ export function createReviewedLineTracker(options: {
   onError(error: UserFacingError): void
 }): ReviewedLineTrackerResult {
   const { state, folderName, worktreeIdentity } = options
-  const saved = createMemo(() => new Set(Object.keys(getReviewTicketState(state.get(), folderName, worktreeIdentity).reviewedLines)))
+  const saved = createMemo(() => new Set(Object.keys(getReviewTaskState(state.get(), folderName, worktreeIdentity).reviewedLines)))
   const pending = new Map<string, string>()
   const [optimistic, setOptimistic] = createSignal<ReadonlySet<string>>(new Set())
   const reviewedLineIds = createMemo(() => new Set([...saved(), ...optimistic()]))
@@ -43,11 +43,11 @@ export function createReviewedLineTracker(options: {
         const batch = [...pending]
         const reviewedAt = new Date().toISOString()
         const result = await state.update((current) => {
-          const ticket = getReviewTicketState(current, folderName, worktreeIdentity)
-          return withReviewTicketState(current, folderName, {
-            ...ticket,
+          const task = getReviewTaskState(current, folderName, worktreeIdentity)
+          return withReviewTaskState(current, folderName, {
+            ...task,
             reviewedLines: {
-              ...ticket.reviewedLines,
+              ...task.reviewedLines,
               ...Object.fromEntries(
                 batch.map(([id, path]) => [
                   id,

@@ -36,7 +36,7 @@ export default function SyncControls(props: SyncControlsProps): JSX.Element {
         }}
         disabled={props.syncState().syncing}
         class={`btn-icon relative ${hasConflict() ? 'border-destructive text-destructive hover:bg-destructive/10' : ''}`}
-        title={hasConflict() ? 'Resolve conflicts' : 'Sync tickets'}
+        title={hasConflict() ? 'Resolve conflicts' : 'Sync tasks'}
         data-testid="sync-button-trigger"
       >
         <Show when={props.syncState().syncSuccess} fallback={<RefreshCw size={16} />}>

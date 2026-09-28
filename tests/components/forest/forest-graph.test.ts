@@ -12,16 +12,16 @@ import {
   CARD_WIDTH,
   ROW_GAP,
   H_GAP,
-  type ForestTicket,
+  type ForestTask,
 } from '../../../src/components/forest/forest-graph.js'
 
-function ticket(
+function task(
   number: string,
   opts?: {
     dependsOn?: string[]
     memberOf?: string
   },
-): ForestTicket {
+): ForestTask {
   return {
     number,
     title: number,
@@ -34,151 +34,151 @@ function ticket(
 
 describe('effectiveParent', () => {
   it('returns memberOf when the parent exists in the list', () => {
-    const tickets = [
-      ticket('G'),
-      ticket('A', {
+    const tasks = [
+      task('G'),
+      task('A', {
         memberOf: 'G',
       }),
     ]
-    expect(effectiveParent(tickets[1], buildLookup(tickets).allNumbers)).toBe('G')
+    expect(effectiveParent(tasks[1], buildLookup(tasks).allNumbers)).toBe('G')
   })
-  it('returns undefined when memberOf references an absent ticket', () => {
-    const tickets = [
-      ticket('A', {
+  it('returns undefined when memberOf references an absent task', () => {
+    const tasks = [
+      task('A', {
         memberOf: 'MISSING',
       }),
     ]
-    expect(effectiveParent(tickets[0], buildLookup(tickets).allNumbers)).toBeUndefined()
+    expect(effectiveParent(tasks[0], buildLookup(tasks).allNumbers)).toBeUndefined()
   })
   it('returns undefined when memberOf is not set', () => {
-    const tickets = [ticket('A')]
-    expect(effectiveParent(tickets[0], buildLookup(tickets).allNumbers)).toBeUndefined()
+    const tasks = [task('A')]
+    expect(effectiveParent(tasks[0], buildLookup(tasks).allNumbers)).toBeUndefined()
   })
 })
 describe('resolveScope', () => {
-  it('returns root-level tickets for undefined scope', () => {
-    const tickets = [
-      ticket('A'),
-      ticket('B', {
+  it('returns root-level tasks for undefined scope', () => {
+    const tasks = [
+      task('A'),
+      task('B', {
         memberOf: 'G',
       }),
-      ticket('G'),
+      task('G'),
     ]
-    const scope = resolveScope(tickets, undefined)
+    const scope = resolveScope(tasks, undefined)
     expect(scope.map((t) => t.number).sort()).toEqual(['A', 'G'])
   })
   it('returns group members for a group scope', () => {
-    const tickets = [
-      ticket('G'),
-      ticket('A', {
+    const tasks = [
+      task('G'),
+      task('A', {
         memberOf: 'G',
       }),
-      ticket('B', {
+      task('B', {
         memberOf: 'G',
       }),
-      ticket('C'),
+      task('C'),
     ]
-    const scope = resolveScope(tickets, 'G')
+    const scope = resolveScope(tasks, 'G')
     expect(scope.map((t) => t.number).sort()).toEqual(['A', 'B'])
   })
   it('treats absent parent as root-level', () => {
-    const tickets = [
-      ticket('A', {
+    const tasks = [
+      task('A', {
         memberOf: 'GONE',
       }),
     ]
-    const scope = resolveScope(tickets, undefined)
+    const scope = resolveScope(tasks, undefined)
     expect(scope.map((t) => t.number)).toEqual(['A'])
   })
 })
 describe('isGroup', () => {
-  it('returns true when tickets have this as their parent', () => {
-    const tickets = [
-      ticket('G'),
-      ticket('A', {
+  it('returns true when tasks have this as their parent', () => {
+    const tasks = [
+      task('G'),
+      task('A', {
         memberOf: 'G',
       }),
     ]
-    expect(isGroup(tickets, 'G')).toBe(true)
+    expect(isGroup(tasks, 'G')).toBe(true)
   })
-  it('returns false when no ticket has this as parent', () => {
-    const tickets = [ticket('G'), ticket('A')]
-    expect(isGroup(tickets, 'G')).toBe(false)
+  it('returns false when no task has this as parent', () => {
+    const tasks = [task('G'), task('A')]
+    expect(isGroup(tasks, 'G')).toBe(false)
   })
   it('returns false when members are absent (archived)', () => {
-    const tickets = [ticket('G')]
-    expect(isGroup(tickets, 'G')).toBe(false)
+    const tasks = [task('G')]
+    expect(isGroup(tasks, 'G')).toBe(false)
   })
 })
 describe('representativeInScope', () => {
-  it('returns the ticket itself when it is directly in scope', () => {
-    const tickets = [ticket('A'), ticket('B')]
-    expect(representativeInScope(buildLookup(tickets), 'A', undefined)).toBe('A')
+  it('returns the task itself when it is directly in scope', () => {
+    const tasks = [task('A'), task('B')]
+    expect(representativeInScope(buildLookup(tasks), 'A', undefined)).toBe('A')
   })
   it('climbs to the group that is in the root scope', () => {
-    const tickets = [
-      ticket('G'),
-      ticket('A', {
+    const tasks = [
+      task('G'),
+      task('A', {
         memberOf: 'G',
       }),
     ]
-    expect(representativeInScope(buildLookup(tickets), 'A', undefined)).toBe('G')
+    expect(representativeInScope(buildLookup(tasks), 'A', undefined)).toBe('G')
   })
   it('returns the member when in a group scope', () => {
-    const tickets = [
-      ticket('G'),
-      ticket('A', {
+    const tasks = [
+      task('G'),
+      task('A', {
         memberOf: 'G',
       }),
     ]
-    expect(representativeInScope(buildLookup(tickets), 'A', 'G')).toBe('A')
+    expect(representativeInScope(buildLookup(tasks), 'A', 'G')).toBe('A')
   })
-  it('returns undefined for a ticket outside the scope subtree', () => {
-    const tickets = [
-      ticket('G'),
-      ticket('A', {
+  it('returns undefined for a task outside the scope subtree', () => {
+    const tasks = [
+      task('G'),
+      task('A', {
         memberOf: 'G',
       }),
-      ticket('X'),
+      task('X'),
     ]
-    expect(representativeInScope(buildLookup(tickets), 'X', 'G')).toBeUndefined()
+    expect(representativeInScope(buildLookup(tasks), 'X', 'G')).toBeUndefined()
   })
   it('handles nested groups', () => {
-    const tickets = [
-      ticket('G1'),
-      ticket('G2', {
+    const tasks = [
+      task('G1'),
+      task('G2', {
         memberOf: 'G1',
       }),
-      ticket('A', {
+      task('A', {
         memberOf: 'G2',
       }),
     ]
-    const lookup = buildLookup(tickets)
+    const lookup = buildLookup(tasks)
     expect(representativeInScope(lookup, 'A', undefined)).toBe('G1')
     expect(representativeInScope(lookup, 'A', 'G1')).toBe('G2')
     expect(representativeInScope(lookup, 'A', 'G2')).toBe('A')
   })
   it('guards against cycles in the membership chain', () => {
-    const tickets = [
-      ticket('A', {
+    const tasks = [
+      task('A', {
         memberOf: 'B',
       }),
-      ticket('B', {
+      task('B', {
         memberOf: 'A',
       }),
     ]
-    expect(representativeInScope(buildLookup(tickets), 'A', undefined)).toBeUndefined()
+    expect(representativeInScope(buildLookup(tasks), 'A', undefined)).toBeUndefined()
   })
 })
 describe('internalDependencies', () => {
   it('returns direct dependencies in scope', () => {
-    const tickets = [
-      ticket('A'),
-      ticket('B', {
+    const tasks = [
+      task('A'),
+      task('B', {
         dependsOn: ['A'],
       }),
     ]
-    const result = internalDependencies(tickets, undefined)
+    const result = internalDependencies(tasks, undefined)
     expect(result).toEqual([
       {
         fromNumber: 'B',
@@ -193,16 +193,16 @@ describe('internalDependencies', () => {
     ])
   })
   it('reroutes dependencies through group representatives', () => {
-    const tickets = [
-      ticket('G'),
-      ticket('A', {
+    const tasks = [
+      task('G'),
+      task('A', {
         memberOf: 'G',
       }),
-      ticket('B', {
+      task('B', {
         dependsOn: ['A'],
       }),
     ]
-    const result = internalDependencies(tickets, undefined)
+    const result = internalDependencies(tasks, undefined)
     expect(result).toEqual([
       {
         fromNumber: 'B',
@@ -217,19 +217,19 @@ describe('internalDependencies', () => {
     ])
   })
   it('deduplicates dependencies that map to the same representatives', () => {
-    const tickets = [
-      ticket('G'),
-      ticket('A', {
+    const tasks = [
+      task('G'),
+      task('A', {
         memberOf: 'G',
       }),
-      ticket('C', {
+      task('C', {
         memberOf: 'G',
       }),
-      ticket('B', {
+      task('B', {
         dependsOn: ['A', 'C'],
       }),
     ]
-    const result = internalDependencies(tickets, undefined)
+    const result = internalDependencies(tasks, undefined)
     expect(result).toEqual([
       {
         fromNumber: 'B',
@@ -248,49 +248,49 @@ describe('internalDependencies', () => {
     ])
   })
   it('drops dependencies where from and to map to the same representative', () => {
-    const tickets = [
-      ticket('G'),
-      ticket('A', {
+    const tasks = [
+      task('G'),
+      task('A', {
         memberOf: 'G',
         dependsOn: ['B'],
       }),
-      ticket('B', {
+      task('B', {
         memberOf: 'G',
       }),
     ]
-    const result = internalDependencies(tickets, undefined)
+    const result = internalDependencies(tasks, undefined)
     expect(result).toEqual([])
   })
   it('ignores absent dependency references', () => {
-    const tickets = [
-      ticket('A', {
+    const tasks = [
+      task('A', {
         dependsOn: ['MISSING'],
       }),
     ]
-    const result = internalDependencies(tickets, undefined)
+    const result = internalDependencies(tasks, undefined)
     expect(result).toEqual([])
   })
 })
 describe('externalDependencies', () => {
   it('returns empty for root scope', () => {
-    const tickets = [
-      ticket('A'),
-      ticket('B', {
+    const tasks = [
+      task('A'),
+      task('B', {
         dependsOn: ['A'],
       }),
     ]
-    expect(externalDependencies(tickets, undefined)).toEqual([])
+    expect(externalDependencies(tasks, undefined)).toEqual([])
   })
-  it('returns down when member depends on outside ticket', () => {
-    const tickets = [
-      ticket('G'),
-      ticket('A', {
+  it('returns down when member depends on outside task', () => {
+    const tasks = [
+      task('G'),
+      task('A', {
         memberOf: 'G',
         dependsOn: ['X'],
       }),
-      ticket('X'),
+      task('X'),
     ]
-    const result = externalDependencies(tickets, 'G')
+    const result = externalDependencies(tasks, 'G')
     expect(result).toEqual([
       {
         memberNumber: 'A',
@@ -304,17 +304,17 @@ describe('externalDependencies', () => {
       },
     ])
   })
-  it('returns up when outside ticket depends on member', () => {
-    const tickets = [
-      ticket('G'),
-      ticket('A', {
+  it('returns up when outside task depends on member', () => {
+    const tasks = [
+      task('G'),
+      task('A', {
         memberOf: 'G',
       }),
-      ticket('X', {
+      task('X', {
         dependsOn: ['A'],
       }),
     ]
-    const result = externalDependencies(tickets, 'G')
+    const result = externalDependencies(tasks, 'G')
     expect(result).toEqual([
       {
         memberNumber: 'A',
@@ -407,15 +407,15 @@ describe('computeDepths', () => {
 })
 describe('autoLayoutPositions', () => {
   it('places bottom row at y=0', () => {
-    const nodes = [ticket('A'), ticket('B')]
+    const nodes = [task('A'), task('B')]
     const result = autoLayoutPositions(nodes, [])
     expect(result['A'].y).toBe(0)
     expect(result['B'].y).toBe(0)
   })
   it('places dependent above its dependency', () => {
     const nodes = [
-      ticket('A'),
-      ticket('B', {
+      task('A'),
+      task('B', {
         dependsOn: ['A'],
       }),
     ]
@@ -430,23 +430,23 @@ describe('autoLayoutPositions', () => {
     expect(result['B'].y).toBe(-ROW_GAP)
   })
   it('does not overlap nodes in the same row', () => {
-    const nodes = [ticket('A'), ticket('B'), ticket('C')]
+    const nodes = [task('A'), task('B'), task('C')]
     const result = autoLayoutPositions(nodes, [])
     const xs = [result['A'].x, result['B'].x, result['C'].x].sort((a, b) => a - b)
     for (let i = 1; i < xs.length; i++) {
       expect(xs[i] - xs[i - 1]).toBeGreaterThanOrEqual(H_GAP)
     }
   })
-  it('is deterministic (sorted by ticket number)', () => {
-    const nodes = [ticket('C'), ticket('A'), ticket('B')]
+  it('is deterministic (sorted by task number)', () => {
+    const nodes = [task('C'), task('A'), task('B')]
     const result1 = autoLayoutPositions(nodes, [])
-    const result2 = autoLayoutPositions([ticket('B'), ticket('C'), ticket('A')], [])
+    const result2 = autoLayoutPositions([task('B'), task('C'), task('A')], [])
     expect(result1).toEqual(result2)
   })
   it('centers a dependent above its dependency', () => {
     const nodes = [
-      ticket('A'),
-      ticket('B', {
+      task('A'),
+      task('B', {
         dependsOn: ['A'],
       }),
     ]

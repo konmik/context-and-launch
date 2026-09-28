@@ -1,18 +1,18 @@
 import type { SourceAccessor } from 'solid-js'
-import type { TicketOrder } from '../../core/ticket/ticket-order-data.js'
+import type { TaskOrder } from '../../core/task/task-order-data.js'
 import type { DropResult as DropResultReturn } from './board-logic.js'
 import { createSignal, createMemo } from 'solid-js'
 import type { DragEvent as DndDragEvent } from '~/components/drag/drag-types.js'
-import type { TicketInfo } from '~/core/ticket/ticket-store.js'
+import type { TaskInfo } from '~/core/task/task-store.js'
 import type { BoardState } from '~/components/project/project-api.js'
 import type { HoverTarget } from './drop-index.js'
-import { buildTicketMap, computeOrphans, resolveActiveTicket, resolveDrop, computeDragMoveTarget } from './board-logic.js'
+import { buildTaskMap, computeOrphans, resolveActiveTask, resolveDrop, computeDragMoveTarget } from './board-logic.js'
 
 export type { DropResult } from './board-logic.js'
 
 export interface BoardView {
-  ticketMap: Map<string, TicketInfo>
-  orphanedTickets: TicketInfo[]
+  taskMap: Map<string, TaskInfo>
+  orphanedTasks: TaskInfo[]
   orphanFolderNames: Set<string>
 }
 
@@ -27,12 +27,12 @@ export function createBoardDnd(getBoard: () => BoardState): BoardDndResult {
   const columnRefs = new Map<string, HTMLDivElement>()
   const board = createMemo((): BoardView => {
     const b = getBoard()
-    const ticketMap = buildTicketMap(b.tickets)
-    const orphanedTickets = computeOrphans(b)
-    const orphanFolderNames = new Set(orphanedTickets.map((t) => t.folderName))
+    const taskMap = buildTaskMap(b.tasks)
+    const orphanedTasks = computeOrphans(b)
+    const orphanFolderNames = new Set(orphanedTasks.map((t) => t.folderName))
     return {
-      ticketMap,
-      orphanedTickets,
+      taskMap,
+      orphanedTasks,
       orphanFolderNames,
     }
   })
@@ -42,8 +42,8 @@ export function createBoardDnd(getBoard: () => BoardState): BoardDndResult {
       hoverTarget: hoverTarget(),
     }),
   )
-  const currentOrder = () => getBoard().ticketOrder
-  const activeTicket = createMemo(() => resolveActiveTicket(activeId(), board().ticketMap))
+  const currentOrder = () => getBoard().taskOrder
+  const activeTask = createMemo(() => resolveActiveTask(activeId(), board().taskMap))
   const cancelDrag = () => {
     setActiveId(null)
     setHoverTarget(null)
@@ -54,12 +54,12 @@ export function createBoardDnd(getBoard: () => BoardState): BoardDndResult {
     cancelDrag,
     registerColumnRef: (col: string, el: HTMLDivElement) => columnRefs.set(col, el),
     handleDragMove: (e: DndDragEvent) => {
-      const { ticketMap, orphanFolderNames } = board()
-      setHoverTarget(computeDragMoveTarget(e, activeId(), columnRefs, currentOrder(), ticketMap, orphanFolderNames))
+      const { taskMap, orphanFolderNames } = board()
+      setHoverTarget(computeDragMoveTarget(e, activeId(), columnRefs, currentOrder(), taskMap, orphanFolderNames))
     },
     endDrag: () => {
-      const { ticketMap, orphanFolderNames } = board()
-      const result = resolveDrop(activeId(), hoverTarget(), currentOrder(), ticketMap, orphanFolderNames)
+      const { taskMap, orphanFolderNames } = board()
+      const result = resolveDrop(activeId(), hoverTarget(), currentOrder(), taskMap, orphanFolderNames)
       cancelDrag()
       return result
     },
@@ -68,7 +68,7 @@ export function createBoardDnd(getBoard: () => BoardState): BoardDndResult {
     board,
     drag,
     currentOrder,
-    activeTicket,
+    activeTask,
     commands,
   }
 }
@@ -76,8 +76,8 @@ export function createBoardDnd(getBoard: () => BoardState): BoardDndResult {
 export interface BoardDndResult {
   board: SourceAccessor<BoardView>
   drag: SourceAccessor<DragState>
-  currentOrder: () => TicketOrder
-  activeTicket: SourceAccessor<TicketInfo | null>
+  currentOrder: () => TaskOrder
+  activeTask: SourceAccessor<TaskInfo | null>
   commands: {
     startDrag: (id: string) => string
     updateHover: (target: HoverTarget | null) => HoverTarget | null

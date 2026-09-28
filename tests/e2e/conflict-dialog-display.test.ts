@@ -7,7 +7,7 @@ import { countOf, testId, waitVisible, waitGone } from './locators.js'
 describe('Conflict dialog display (e2e, real server)', () => {
   const ctx = setupE2E()
 
-  /** Seeds a Project whose tickets worktree is already mid-rebase, then opens it. */
+  /** Seeds a Project whose tasks worktree is already mid-rebase, then opens it. */
   async function openConflictedProject(slugBase: string): Promise<CreatedProject> {
     const project = await seedProject(ctx, {
       slugBase,
@@ -22,7 +22,7 @@ describe('Conflict dialog display (e2e, real server)', () => {
   it('conflict dialog elements render when sync returns conflict (intercepted)', async () => {
     await openConflictedProject('conflict-rendering')
     await openConflictDialog(ctx.page)
-    expect(await countOf(ctx.page, 'conflict-dialog-open-tickets-repo')).toBe(1)
+    expect(await countOf(ctx.page, 'conflict-dialog-open-tasks-repo')).toBe(1)
     expect(await countOf(ctx.page, 'conflict-dialog-close')).toBe(1)
     expect(await countOf(ctx.page, 'conflict-dialog-launch')).toBe(1)
     expect(await countOf(ctx.page, 'conflict-dialog-abort')).toBeLessThanOrEqual(1)

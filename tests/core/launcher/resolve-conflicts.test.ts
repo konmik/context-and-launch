@@ -31,7 +31,7 @@ function dependencies(): ResolveConflictsDeps {
     prepareResolution: vi.fn(async () => ({
       needsAgent: true,
       scratchDir: '/fake/worktree-conflict-resolve',
-      pushCommand: 'git push origin HEAD:tickets',
+      pushCommand: 'git push origin HEAD:tasks',
     })),
     trackOperation: async (operation) => operation,
     spawnProfile: vi.fn(async () => undefined),
@@ -50,7 +50,7 @@ describe('resolveConflictsWith', () => {
     expect(deps.spawnProfile).toHaveBeenCalledWith(
       profile,
       expect.objectContaining({
-        initialPrompt: expect.stringContaining('git push origin HEAD:tickets'),
+        initialPrompt: expect.stringContaining('git push origin HEAD:tasks'),
         herdrWorkspaceLabel: 'test-project',
         herdrPaneLabel: 'test-project--__resolve-conflicts__',
       }),

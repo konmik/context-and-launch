@@ -6,8 +6,8 @@ import type { ConfigPaths } from '../config/config-paths.js'
 import type { ConfigRepository } from '../config/config-repository.js'
 import { requireSafeSlug } from '../config/config-paths.js'
 import { createUpdateLock, type UpdateLock } from '~/util/update-lock.js'
-import { getReviewTicketState, withReviewTicketState } from './diff-review-types.js'
-import type { DiffReviewProjectState, DiffReviewTicketState, ReviewPromptQueueItem, ReviewPromptSnapshot } from './diff-review-types.js'
+import { getReviewTaskState, withReviewTaskState } from './diff-review-types.js'
+import type { DiffReviewProjectState, DiffReviewTaskState, ReviewPromptQueueItem, ReviewPromptSnapshot } from './diff-review-types.js'
 
 const PromptLineSchema = v.object({
   type: v.picklist(['context', 'addition', 'deletion']),
@@ -86,7 +86,7 @@ const QueueSchema = v.object({
   requestedAgentProfileName: v.optional(v.string()),
 })
 
-const TicketStateSchema = v.object({
+const TaskStateSchema = v.object({
   worktreeIdentity: v.string(),
   reviewedLines: v.record(
     v.string(),
@@ -100,13 +100,13 @@ const TicketStateSchema = v.object({
 
 const ProjectStateSchema = v.object({
   version: v.literal(2),
-  tickets: v.record(v.string(), TicketStateSchema),
-  worktrees: v.optional(v.record(v.string(), v.record(v.string(), TicketStateSchema))),
+  tasks: v.record(v.string(), TaskStateSchema),
+  worktrees: v.optional(v.record(v.string(), v.record(v.string(), TaskStateSchema))),
 })
 
 const LegacyProjectStateSchema = v.object({
   version: v.literal(1),
-  tickets: v.record(
+  tasks: v.record(
     v.string(),
     v.object({
       worktreeIdentity: v.string(),
@@ -124,7 +124,7 @@ export interface DiffReviewStore {
     transform: (current: DiffReviewProjectState) => DiffReviewProjectState,
     owner?: string,
   ): DiffReviewProjectState
-  getTicket(projectSlug: string, folderName: string, worktreeIdentity: string, owner?: string): DiffReviewTicketState
+  getTask(projectSlug: string, folderName: string, worktreeIdentity: string, owner?: string): DiffReviewTaskState
   enqueue(
     projectSlug: string,
     folderName: string,
@@ -132,8 +132,8 @@ export interface DiffReviewStore {
     feedback: string,
     snapshot?: ReviewPromptSnapshot,
   ): ReviewPromptQueueItem
-  retry(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string): DiffReviewTicketState
-  beginDelivery(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string): DiffReviewTicketState
+  retry(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string): DiffReviewTaskState
+  beginDelivery(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string): DiffReviewTaskState
   completeDelivery(
     projectSlug: string,
     folderName: string,
@@ -141,39 +141,39 @@ export interface DiffReviewStore {
     itemId: string,
     sentAt: Date,
     cooldownMs: number,
-  ): DiffReviewTicketState
+  ): DiffReviewTaskState
   failDelivery(
     projectSlug: string,
     folderName: string,
     worktreeIdentity: string,
     itemId: string,
     error: UserFacingError,
-  ): DiffReviewTicketState
+  ): DiffReviewTaskState
   failSentDelivery(
     projectSlug: string,
     folderName: string,
     worktreeIdentity: string,
     itemId: string,
     error: UserFacingError,
-  ): DiffReviewTicketState
+  ): DiffReviewTaskState
   markDeliveryUncertain(
     projectSlug: string,
     folderName: string,
     worktreeIdentity: string,
     itemId: string,
     error: UserFacingError,
-  ): DiffReviewTicketState
-  acknowledgeSent(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string): DiffReviewTicketState
-  reserveAgentLaunch(projectSlug: string, folderName: string, worktreeIdentity: string, reservedUntil: Date): DiffReviewTicketState
+  ): DiffReviewTaskState
+  acknowledgeSent(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string): DiffReviewTaskState
+  reserveAgentLaunch(projectSlug: string, folderName: string, worktreeIdentity: string, reservedUntil: Date): DiffReviewTaskState
   recoverInterrupted(projectSlug: string): void
-  removeTicket(projectSlug: string, folderName: string, worktreeIdentity?: string): Promise<void>
-  updateTicket(
+  removeTask(projectSlug: string, folderName: string, worktreeIdentity?: string): Promise<void>
+  updateTask(
     projectSlug: string,
     folderName: string,
     worktreeIdentity: string,
-    update: (ticket: DiffReviewTicketState) => DiffReviewTicketState,
+    update: (task: DiffReviewTaskState) => DiffReviewTaskState,
     owner?: string,
-  ): DiffReviewTicketState
+  ): DiffReviewTaskState
 }
 
 export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepository): DiffReviewStore {
@@ -217,7 +217,7 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
     if (raw === null)
       return {
         version: 2,
-        tickets: {},
+        tasks: {},
       }
     const parsed = v.safeParse(ProjectStateSchema, raw)
     if (parsed.success) return parsed.output
@@ -227,11 +227,11 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
     }
     return {
       version: 2,
-      tickets: Object.fromEntries(
-        Object.entries(legacy.output.tickets).map(([folderName, ticket]) => [
+      tasks: Object.fromEntries(
+        Object.entries(legacy.output.tasks).map(([folderName, task]) => [
           folderName,
           {
-            ...ticket,
+            ...task,
             reviewedLines: {},
           },
         ]),
@@ -239,9 +239,9 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
     }
   }
 
-  function getTicket(projectSlug: string, folderName: string, worktreeIdentity: string, owner?: string): DiffReviewTicketState {
+  function getTask(projectSlug: string, folderName: string, worktreeIdentity: string, owner?: string): DiffReviewTaskState {
     requireSafeSlug(folderName)
-    return getReviewTicketState(loadProject(projectSlug, owner), folderName, worktreeIdentity)
+    return getReviewTaskState(loadProject(projectSlug, owner), folderName, worktreeIdentity)
   }
 
   function enqueue(
@@ -263,40 +263,40 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
       snapshot,
       state: 'waiting',
     }
-    return updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => ({
-      ...ticket,
+    return updateTask(projectSlug, folderName, worktreeIdentity, (task) => ({
+      ...task,
       queue: {
-        ...ticket.queue,
-        items: [...ticket.queue.items, created],
+        ...task.queue,
+        items: [...task.queue.items, created],
       },
     })).queue.items.at(-1)!
   }
 
-  function retry(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string): DiffReviewTicketState {
-    return updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
-      const head = ticket.queue.items[0]
+  function retry(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string): DiffReviewTaskState {
+    return updateTask(projectSlug, folderName, worktreeIdentity, (task) => {
+      const head = task.queue.items[0]
       if (!head || head.id !== itemId || (head.state !== 'error' && head.state !== 'sent' && head.state !== 'uncertain')) {
         throw new Error('Only a failed, uncertain, or delivered head Review Prompt can be retried.')
       }
-      ticket.queue.items[0] = withState(head, {
+      task.queue.items[0] = withState(head, {
         state: 'waiting',
       })
-      return ticket
+      return task
     })
   }
 
-  function beginDelivery(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string): DiffReviewTicketState {
-    return updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
-      const head = ticket.queue.items[0]
+  function beginDelivery(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string): DiffReviewTaskState {
+    return updateTask(projectSlug, folderName, worktreeIdentity, (task) => {
+      const head = task.queue.items[0]
       if (!head || head.id !== itemId || head.state !== 'waiting') {
         throw new Error('Review Prompt queue head changed before delivery.')
       }
-      ticket.queue.items[0] = withState(head, {
+      task.queue.items[0] = withState(head, {
         state: 'delivering',
         deliveryStartedAt: new Date().toISOString(),
       })
-      delete ticket.queue.requestedAgentProfileName
-      return ticket
+      delete task.queue.requestedAgentProfileName
+      return task
     })
   }
 
@@ -307,18 +307,18 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
     itemId: string,
     sentAt: Date,
     cooldownMs: number,
-  ): DiffReviewTicketState {
-    return updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
-      const head = ticket.queue.items[0]
+  ): DiffReviewTaskState {
+    return updateTask(projectSlug, folderName, worktreeIdentity, (task) => {
+      const head = task.queue.items[0]
       if (!head || head.id !== itemId || head.state !== 'delivering') {
         throw new Error('Review Prompt queue head changed during delivery.')
       }
-      ticket.queue.items[0] = withState(head, {
+      task.queue.items[0] = withState(head, {
         state: 'sent',
         sentAt: sentAt.toISOString(),
       })
-      ticket.queue.cooldownUntil = new Date(sentAt.getTime() + cooldownMs).toISOString()
-      return ticket
+      task.queue.cooldownUntil = new Date(sentAt.getTime() + cooldownMs).toISOString()
+      return task
     })
   }
 
@@ -328,17 +328,17 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
     worktreeIdentity: string,
     itemId: string,
     error: UserFacingError,
-  ): DiffReviewTicketState {
-    return updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
-      const head = ticket.queue.items[0]
+  ): DiffReviewTaskState {
+    return updateTask(projectSlug, folderName, worktreeIdentity, (task) => {
+      const head = task.queue.items[0]
       if (!head || head.id !== itemId || head.state !== 'delivering') {
         throw new Error('Review Prompt queue head changed during failed delivery.')
       }
-      ticket.queue.items[0] = withState(head, {
+      task.queue.items[0] = withState(head, {
         state: 'error',
         error,
       })
-      return ticket
+      return task
     })
   }
 
@@ -348,17 +348,17 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
     worktreeIdentity: string,
     itemId: string,
     error: UserFacingError,
-  ): DiffReviewTicketState {
-    return updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
-      const head = ticket.queue.items[0]
+  ): DiffReviewTaskState {
+    return updateTask(projectSlug, folderName, worktreeIdentity, (task) => {
+      const head = task.queue.items[0]
       if (!head || head.id !== itemId || head.state !== 'sent') {
         throw new Error('Only a delivered head Review Prompt can lose its Agent.')
       }
-      ticket.queue.items[0] = withState(head, {
+      task.queue.items[0] = withState(head, {
         state: 'error',
         error,
       })
-      return ticket
+      return task
     })
   }
 
@@ -368,28 +368,28 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
     worktreeIdentity: string,
     itemId: string,
     error: UserFacingError,
-  ): DiffReviewTicketState {
-    return updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
-      const head = ticket.queue.items[0]
+  ): DiffReviewTaskState {
+    return updateTask(projectSlug, folderName, worktreeIdentity, (task) => {
+      const head = task.queue.items[0]
       if (!head || head.id !== itemId || head.state !== 'delivering') {
         throw new Error('Only a delivering head Review Prompt can have an uncertain outcome.')
       }
-      ticket.queue.items[0] = withState(head, {
+      task.queue.items[0] = withState(head, {
         state: 'uncertain',
         error,
       })
-      return ticket
+      return task
     })
   }
 
-  function acknowledgeSent(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string): DiffReviewTicketState {
-    return updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
-      const head = ticket.queue.items[0]
+  function acknowledgeSent(projectSlug: string, folderName: string, worktreeIdentity: string, itemId: string): DiffReviewTaskState {
+    return updateTask(projectSlug, folderName, worktreeIdentity, (task) => {
+      const head = task.queue.items[0]
       if (!head || head.id !== itemId || head.state !== 'sent') {
         throw new Error('Only a delivered head Review Prompt can be acknowledged.')
       }
-      ticket.queue.items.shift()
-      return ticket
+      task.queue.items.shift()
+      return task
     })
   }
 
@@ -398,15 +398,15 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
     folderName: string,
     worktreeIdentity: string,
     reservedUntil: Date,
-  ): DiffReviewTicketState {
-    return updateTicket(projectSlug, folderName, worktreeIdentity, (ticket) => {
-      const existing = Date.parse(ticket.queue.agentLaunchReservedUntil ?? '')
+  ): DiffReviewTaskState {
+    return updateTask(projectSlug, folderName, worktreeIdentity, (task) => {
+      const existing = Date.parse(task.queue.agentLaunchReservedUntil ?? '')
       if (Number.isFinite(existing) && existing > Date.now()) {
-        throw new Error('An Agent launch is already in progress for this Ticket.')
+        throw new Error('An Agent launch is already in progress for this Task.')
       }
-      ticket.queue.agentLaunchReservedUntil = reservedUntil.toISOString()
-      delete ticket.queue.requestedAgentProfileName
-      return ticket
+      task.queue.agentLaunchReservedUntil = reservedUntil.toISOString()
+      delete task.queue.requestedAgentProfileName
+      return task
     })
   }
 
@@ -414,11 +414,11 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
     lock(projectSlug).write(() => {
       const project = loadProject(projectSlug)
       let changed = false
-      for (const ticket of [...Object.values(project.tickets), ...Object.values(project.worktrees ?? {}).flatMap(Object.values)]) {
-        for (let index = 0; index < ticket.queue.items.length; index += 1) {
-          const item = ticket.queue.items[index]
+      for (const task of [...Object.values(project.tasks), ...Object.values(project.worktrees ?? {}).flatMap(Object.values)]) {
+        for (let index = 0; index < task.queue.items.length; index += 1) {
+          const item = task.queue.items[index]
           if (item.state !== 'delivering') continue
-          ticket.queue.items[index] = withState(item, {
+          task.queue.items[index] = withState(item, {
             state: 'uncertain',
             error: {
               title: 'Review delivery uncertain',
@@ -432,36 +432,36 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
     })
   }
 
-  async function removeTicket(projectSlug: string, folderName: string, worktreeIdentity?: string): Promise<void> {
+  async function removeTask(projectSlug: string, folderName: string, worktreeIdentity?: string): Promise<void> {
     requireSafeSlug(folderName)
     await lock(projectSlug).writeWhenAvailable(() => {
       const project = loadProject(projectSlug)
-      if (!worktreeIdentity || project.tickets[folderName]?.worktreeIdentity === worktreeIdentity) delete project.tickets[folderName]
+      if (!worktreeIdentity || project.tasks[folderName]?.worktreeIdentity === worktreeIdentity) delete project.tasks[folderName]
       if (!worktreeIdentity) delete project.worktrees?.[folderName]
       else if (project.worktrees?.[folderName]) delete project.worktrees[folderName][worktreeIdentity]
       repository.writeJson(paths.diffReviewStateFile(projectSlug), project)
     })
   }
 
-  function updateTicket(
+  function updateTask(
     projectSlug: string,
     folderName: string,
     worktreeIdentity: string,
-    update: (ticket: DiffReviewTicketState) => DiffReviewTicketState,
+    update: (task: DiffReviewTaskState) => DiffReviewTaskState,
     owner?: string,
-  ): DiffReviewTicketState {
+  ): DiffReviewTaskState {
     requireSafeSlug(folderName)
     return updateProject(
       projectSlug,
       (project) => {
-        const updated = update(getReviewTicketState(project, folderName, worktreeIdentity))
+        const updated = update(getReviewTaskState(project, folderName, worktreeIdentity))
         if (updated.worktreeIdentity !== worktreeIdentity) {
-          throw new Error('The Ticket worktree changed. Refresh Diff Review.')
+          throw new Error('The Task worktree changed. Refresh Diff Review.')
         }
-        return withReviewTicketState(project, folderName, updated)
+        return withReviewTaskState(project, folderName, updated)
       },
       owner,
-    ).tickets[folderName]
+    ).tasks[folderName]
   }
 
   function withState(
@@ -501,7 +501,7 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
     release,
     loadProject,
     updateProject,
-    getTicket,
+    getTask,
     enqueue,
     retry,
     beginDelivery,
@@ -512,7 +512,7 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
     acknowledgeSent,
     reserveAgentLaunch,
     recoverInterrupted,
-    removeTicket,
-    updateTicket,
+    removeTask,
+    updateTask,
   }
 }

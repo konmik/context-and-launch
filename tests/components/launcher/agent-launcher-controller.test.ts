@@ -1,17 +1,17 @@
 import { describe, it, expect } from 'vitest'
 import { createRoot, createSignal, flush } from 'solid-js'
 import { createAgentLauncherController, type AgentLauncherController } from '../../../src/components/launcher/agent-launcher-controller.js'
-import type { TicketInfo } from '~/core/ticket/ticket-store.js'
+import type { TaskInfo } from '~/core/task/task-store.js'
 import type { MergedLauncherConfig } from '~/core/launcher/launcher-config.js'
 
-function makeTicket(
-  overrides: Partial<TicketInfo> & {
+function makeTask(
+  overrides: Partial<TaskInfo> & {
     folderName: string
   },
-): TicketInfo {
+): TaskInfo {
   return {
     number: overrides.number ?? 'T-1',
-    title: overrides.title ?? 'Test ticket',
+    title: overrides.title ?? 'Test task',
     status: overrides.status ?? 'todo',
     contextNames: [],
     useWorktree: false,
@@ -82,14 +82,14 @@ function makeConfigWithProfile(profileName: string): MergedLauncherConfig {
   }
 }
 
-function setup(initial: { ticket: TicketInfo; config: MergedLauncherConfig | null }): SetupResult {
+function setup(initial: { task: TaskInfo; config: MergedLauncherConfig | null }): SetupResult {
   let out!: ReturnType<typeof setup>
   createRoot((dispose) => {
-    const [ticket, setTicket] = createSignal(initial.ticket)
+    const [task, setTask] = createSignal(initial.task)
     const [config, setConfig] = createSignal<MergedLauncherConfig | null>(initial.config)
     const ctrl = createAgentLauncherController({
       projectSlug: 'p',
-      ticket,
+      task,
       get config() {
         return config()
       },
@@ -105,7 +105,7 @@ function setup(initial: { ticket: TicketInfo; config: MergedLauncherConfig | nul
     })
     out = {
       ctrl,
-      setTicket,
+      setTask,
       setConfig,
       dispose,
     }
@@ -114,9 +114,9 @@ function setup(initial: { ticket: TicketInfo; config: MergedLauncherConfig | nul
 }
 
 describe('createAgentLauncherController prompt reset', () => {
-  it('keeps the selected agent when a stale config response arrives for the same ticket', () => {
+  it('keeps the selected agent when a stale config response arrives for the same task', () => {
     const { ctrl, setConfig, dispose } = setup({
-      ticket: makeTicket({
+      task: makeTask({
         folderName: 't-1-alpha',
         status: 'todo',
       }),
@@ -129,9 +129,9 @@ describe('createAgentLauncherController prompt reset', () => {
     expect(ctrl.selectedProfile()).toBe('GPT')
     dispose()
   })
-  it('keeps in-progress prompt edits when config revalidates for the same ticket', () => {
+  it('keeps in-progress prompt edits when config revalidates for the same task', () => {
     const { ctrl, setConfig, dispose } = setup({
-      ticket: makeTicket({
+      task: makeTask({
         folderName: 't-1-alpha',
         status: 'todo',
       }),
@@ -148,7 +148,7 @@ describe('createAgentLauncherController prompt reset', () => {
   })
   it('restores the saved edited prompt when the config arrives after the controller is created', () => {
     const { ctrl, setConfig, dispose } = setup({
-      ticket: makeTicket({
+      task: makeTask({
         folderName: 't-1-alpha',
         status: 'todo',
       }),
@@ -163,7 +163,7 @@ describe('createAgentLauncherController prompt reset', () => {
   })
   it('stays on the generated prompt when the late-arriving config has no saved edit', () => {
     const { ctrl, setConfig, dispose } = setup({
-      ticket: makeTicket({
+      task: makeTask({
         folderName: 't-1-alpha',
         status: 'todo',
       }),
@@ -174,9 +174,9 @@ describe('createAgentLauncherController prompt reset', () => {
     expect(ctrl.preview.editMode()).toBe(false)
     dispose()
   })
-  it('resets the prompt to the saved value when the ticket identity changes', () => {
-    const { ctrl, setTicket, setConfig, dispose } = setup({
-      ticket: makeTicket({
+  it('resets the prompt to the saved value when the task identity changes', () => {
+    const { ctrl, setTask, setConfig, dispose } = setup({
+      task: makeTask({
         folderName: 't-1-alpha',
         status: 'todo',
       }),
@@ -187,8 +187,8 @@ describe('createAgentLauncherController prompt reset', () => {
     flush()
     expect(ctrl.preview.currentPrompt()).toBe('in progress on alpha')
     setConfig(makeConfig('beta saved prompt'))
-    setTicket(
-      makeTicket({
+    setTask(
+      makeTask({
         folderName: 't-2-beta',
         status: 'todo',
       }),
@@ -202,7 +202,7 @@ describe('createAgentLauncherController prompt reset', () => {
 
 export interface SetupResult {
   ctrl: AgentLauncherController
-  setTicket: (t: TicketInfo) => void
+  setTask: (t: TaskInfo) => void
   setConfig: (c: MergedLauncherConfig) => void
   dispose: () => void
 }

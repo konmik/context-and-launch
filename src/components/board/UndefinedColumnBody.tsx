@@ -1,12 +1,12 @@
 import type { JSX } from '@solidjs/web'
 import { For } from 'solid-js'
-import type { TicketInfo } from '~/core/ticket/ticket-store.js'
-import { type TicketColumnProps } from './ticket-column.js'
-import { SortableTicketCard } from './SortableTicketCard.js'
+import type { TaskInfo } from '~/core/task/task-store.js'
+import { type TaskColumnProps } from './task-column.js'
+import { SortableTaskCard } from './SortableTaskCard.js'
 
 export function UndefinedColumnBody(
-  props: TicketColumnProps & {
-    tickets: TicketInfo[]
+  props: TaskColumnProps & {
+    tasks: TaskInfo[]
   },
 ): JSX.Element {
   return (
@@ -16,10 +16,10 @@ export function UndefinedColumnBody(
       data-column-name="undefined"
     >
       <div class="flex flex-1 flex-col gap-2">
-        <For each={props.tickets} keyed={(ticket) => ticket.folderName}>
-          {(ticket) => (
-            <SortableTicketCard
-              ticket={ticket()}
+        <For each={props.tasks} keyed={(task) => task.folderName}>
+          {(task) => (
+            <SortableTaskCard
+              task={task()}
               column="undefined"
               activeId={props.activeId}
               onDelete={props.onDelete}
@@ -27,7 +27,7 @@ export function UndefinedColumnBody(
               onViewDetail={props.onViewDetail}
               onOpenFolder={props.onOpenFolder}
               onReviewChanges={props.onReviewChanges}
-              orphanedStatus={ticket().status}
+              orphanedStatus={task().status}
             />
           )}
         </For>

@@ -9,7 +9,7 @@ import {
   type CreatedProject,
   type E2EContext,
   type ScreenPoint,
-  type SeedTicket,
+  type SeedTask,
 } from './fixtures.js'
 import { countOf, testId, waitGone, waitVisible } from './locators.js'
 
@@ -28,13 +28,13 @@ const forestBoards = [
   },
 ]
 
-export type ForestSeedTicket = Omit<SeedTicket, 'status'> & {
+export type ForestSeedTask = Omit<SeedTask, 'status'> & {
   status?: string
 }
 
 export interface OpenForestOptions {
   slugBase: string
-  tickets: ForestSeedTicket[]
+  tasks: ForestSeedTask[]
   layout?: Record<
     string,
     {
@@ -49,13 +49,13 @@ export async function openForestProject(ctx: E2EContext, options: OpenForestOpti
   const project = await seedProject(ctx, {
     slugBase: options.slugBase,
     withBoards: forestBoards,
-    withTickets: options.tickets.map((ticket) => ({
+    withTasks: options.tasks.map((task) => ({
       status: 'todo',
-      ...ticket,
+      ...task,
     })),
   })
   if (options.layout) {
-    fs.writeFileSync(path.join(project.ticketsPath, 'forest-layout.json'), JSON.stringify(options.layout))
+    fs.writeFileSync(path.join(project.tasksPath, 'forest-layout.json'), JSON.stringify(options.layout))
   }
   await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
   if (options.view !== 'kanban') await toggleToForest(ctx.page)
@@ -72,9 +72,9 @@ export async function toggleToKanban(page: Page): Promise<void> {
   await waitVisible(page, 'kanban-board-column-header')
 }
 
-export async function waitForForestTicketCount(page: Page, expected: number): Promise<void> {
+export async function waitForForestTaskCount(page: Page, expected: number): Promise<void> {
   await expect
-    .poll(() => countOf(page, 'forest-ticket-card'), {
+    .poll(() => countOf(page, 'forest-task-card'), {
       timeout: 15000,
     })
     .toBe(expected)
@@ -84,23 +84,23 @@ export function forestSurface(page: Page): Locator {
   return testId(page, 'forest-surface')
 }
 
-export function forestCard(page: Page, ticketNumber: string): Locator {
-  return testId(page, 'forest-ticket-card', {
-    'data-ticket-number': ticketNumber,
+export function forestCard(page: Page, taskNumber: string): Locator {
+  return testId(page, 'forest-task-card', {
+    'data-task-number': taskNumber,
   })
 }
 
-export function forestGroupCard(page: Page, ticketNumber?: string): Locator {
-  return ticketNumber
+export function forestGroupCard(page: Page, taskNumber?: string): Locator {
+  return taskNumber
     ? testId(page, 'forest-group-card', {
-        'data-ticket-number': ticketNumber,
+        'data-task-number': taskNumber,
       })
     : testId(page, 'forest-group-card')
 }
 
-export function forestHandle(page: Page, ticketNumber: string, end: 'top' | 'bottom'): Locator {
+export function forestHandle(page: Page, taskNumber: string, end: 'top' | 'bottom'): Locator {
   return testId(page, `forest-handle-${end}`, {
-    'data-ticket-number': ticketNumber,
+    'data-task-number': taskNumber,
   })
 }
 
@@ -111,9 +111,9 @@ export async function shiftDragSelection(page: Page, from: ScreenPoint, to: Scre
   await page.waitForTimeout(300)
 }
 
-export async function clickHandle(page: Page, ticketNumber: string, end: 'top' | 'bottom'): Promise<void> {
-  await page.locator(`[data-forest-card][data-ticket-number="${ticketNumber}"]`).hover()
-  await forestHandle(page, ticketNumber, end).click()
+export async function clickHandle(page: Page, taskNumber: string, end: 'top' | 'bottom'): Promise<void> {
+  await page.locator(`[data-forest-card][data-task-number="${taskNumber}"]`).hover()
+  await forestHandle(page, taskNumber, end).click()
 }
 
 export async function pathScreenPoint(locator: Locator, at: 'start' | 'middle' | 'end'): Promise<ScreenPoint> {
@@ -196,8 +196,8 @@ export function subforestCloseButton(page: Page): Locator {
   return testId(page, 'forest-subforest-close')
 }
 
-export async function openSubforest(page: Page, ticketNumber?: string): Promise<void> {
-  await forestGroupCard(page, ticketNumber).click()
+export async function openSubforest(page: Page, taskNumber?: string): Promise<void> {
+  await forestGroupCard(page, taskNumber).click()
   const closeButton = await waitVisible(page, 'forest-subforest-close')
   await expect.poll(() => closeButton.locator('..').evaluate((element) => getComputedStyle(element).transform)).toBe('none')
 }
@@ -209,11 +209,11 @@ export async function closeSubforest(page: Page): Promise<void> {
 
 export async function groupViaDialog(page: Page, number: string, title: string): Promise<void> {
   await testId(page, 'forest-group-button').click()
-  await waitVisible(page, 'create-ticket-number-input')
-  await testId(page, 'create-ticket-number-input').fill(number)
-  await testId(page, 'create-ticket-title-input').fill(title)
-  await testId(page, 'create-ticket-submit').click()
-  await waitGone(page, 'create-ticket-number-input')
+  await waitVisible(page, 'create-task-number-input')
+  await testId(page, 'create-task-number-input').fill(number)
+  await testId(page, 'create-task-title-input').fill(title)
+  await testId(page, 'create-task-submit').click()
+  await waitGone(page, 'create-task-number-input')
   await page.waitForTimeout(1000)
 }
 

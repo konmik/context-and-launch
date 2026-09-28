@@ -20,7 +20,7 @@ export interface ConfigPaths {
   projectDir(projectSlug: string): string
   projectConfigDir(projectSlug: string): string
   projectLauncherConfigFile(projectSlug: string): string
-  ticketWorktreeDir(projectSlug: string): string
+  taskWorktreeDir(projectSlug: string): string
   agentWorktreeDir(projectSlug: string): string
 }
 
@@ -72,9 +72,9 @@ export function createConfigPaths(
     return path.join(baseDir, 'projects', projectSlug, 'config', 'launcher-config.json')
   }
 
-  function ticketWorktreeDir(projectSlug: string): string {
+  function taskWorktreeDir(projectSlug: string): string {
     requireSafeSlug(projectSlug)
-    return path.join(baseDir, 'projects', projectSlug, 'tickets')
+    return path.join(baseDir, 'projects', projectSlug, 'tasks')
   }
 
   function agentWorktreeDir(projectSlug: string): string {
@@ -99,7 +99,7 @@ export function createConfigPaths(
     projectDir,
     projectConfigDir,
     projectLauncherConfigFile,
-    ticketWorktreeDir,
+    taskWorktreeDir,
     agentWorktreeDir,
   }
 }

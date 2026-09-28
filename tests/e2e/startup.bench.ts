@@ -12,7 +12,7 @@ const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 
 
 const PROJECT_COUNT = 3
 
-const TICKETS_PER_PROJECT = 20
+const TASKS_PER_PROJECT = 20
 
 const STATUSES = ['todo', 'in-progress', 'done']
 
@@ -54,7 +54,7 @@ async function launchAppAndMeasure(env: NodeJS.ProcessEnv, projects: CreatedProj
     const pages = trackedPages()
     await Promise.all(
       pages.map((page) =>
-        page.waitForSelector('[data-testid="kanban-board-ticket-card"]', {
+        page.waitForSelector('[data-testid="kanban-board-task-card"]', {
           state: 'visible',
           timeout: 60000,
         }),
@@ -114,16 +114,16 @@ describe('Startup benchmark (real Electron app)', () => {
                   ],
                 },
               ],
-              withTickets: Array.from(
+              withTasks: Array.from(
                 {
-                  length: TICKETS_PER_PROJECT,
+                  length: TASKS_PER_PROJECT,
                 },
                 (_, i) => ({
                   number: `B-${i + 1}`,
-                  title: `Benchmark ticket ${i + 1}`,
-                  folderName: `b-${i + 1}-benchmark-ticket-${i + 1}`,
+                  title: `Benchmark task ${i + 1}`,
+                  folderName: `b-${i + 1}-benchmark-task-${i + 1}`,
                   status: STATUSES[i % STATUSES.length],
-                  body: `# Benchmark ticket ${i + 1}\n\nSome body text for ticket ${i + 1}.\n`,
+                  body: `# Benchmark task ${i + 1}\n\nSome body text for task ${i + 1}.\n`,
                 }),
               ),
             },
@@ -160,7 +160,7 @@ describe('Startup benchmark (real Electron app)', () => {
       const first = await launchAppAndMeasure(env, projects)
       const second = await launchAppAndMeasure(env, projects)
       console.log(
-        `[startup-benchmark] ${PROJECT_COUNT} windows, ${TICKETS_PER_PROJECT} tickets each | ` +
+        `[startup-benchmark] ${PROJECT_COUNT} windows, ${TASKS_PER_PROJECT} tasks each | ` +
           `first launch: window ${first.windowMs.toFixed(0)} ms, ` +
           `all boards ${first.allBoardsMs.toFixed(0)} ms | ` +
           `second launch: window ${second.windowMs.toFixed(0)} ms, ` +

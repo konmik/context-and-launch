@@ -2,12 +2,12 @@ import type { ProjectRegistry } from './project-registry.js'
 import type { LauncherConfigManager } from '../launcher/launcher-config.js'
 import type { WorktreeManager } from '../worktree/worktree-manager.js'
 import type { BoardConfigManager } from './board-config.js'
-import { createTicketStore } from '../ticket/ticket-store.js'
+import { createTaskStore } from '../task/task-store.js'
 
 export type MigrationScope = 'all' | 'current' | 'none'
 
 export interface MigrationResult {
-  ticketsUpdated: number
+  tasksUpdated: number
   projectsUpdated: number
 }
 
@@ -26,7 +26,7 @@ export function migrateColumnRename(
 ): MigrationResult {
   if (scope === 'none') {
     return {
-      ticketsUpdated: 0,
+      tasksUpdated: 0,
       projectsUpdated: 0,
     }
   }
@@ -48,7 +48,7 @@ export function migrateColumnRename(
       projectSlugs = []
     }
   }
-  let ticketsUpdated = 0
+  let tasksUpdated = 0
   let projectsUpdated = 0
   for (const projectSlug of projectSlugs) {
     let worktreeDir: string
@@ -60,17 +60,17 @@ export function migrateColumnRename(
     }
     let projectChanged = false
     try {
-      const store = createTicketStore(worktreeDir)
-      const tickets = store.listTickets()
-      for (const ticket of tickets) {
-        if (ticket.status === oldColumnName) {
-          store.updateTicket(ticket.folderName, null, null, newColumnName)
-          ticketsUpdated++
+      const store = createTaskStore(worktreeDir)
+      const tasks = store.listTasks()
+      for (const task of tasks) {
+        if (task.status === oldColumnName) {
+          store.updateTask(task.folderName, null, null, newColumnName)
+          tasksUpdated++
           projectChanged = true
         }
       }
     } catch (e) {
-      console.warn(`Skipping ticket migration for project "${projectSlug}": ticket store inaccessible`, e)
+      console.warn(`Skipping task migration for project "${projectSlug}": task store inaccessible`, e)
     }
     try {
       deps.launcherConfigManager.updateProjectConfig(projectSlug, (current) => {
@@ -93,7 +93,7 @@ export function migrateColumnRename(
     }
   }
   return {
-    ticketsUpdated,
+    tasksUpdated,
     projectsUpdated,
   }
 }

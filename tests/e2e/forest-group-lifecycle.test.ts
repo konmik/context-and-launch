@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
-import { setupE2E, readTicketStatus, listTicketFolders, poll, boxOf } from './fixtures.js'
+import { setupE2E, readTaskStatus, listTaskFolders, poll, boxOf } from './fixtures.js'
 import {
   forestGroupCard,
   forestSurface,
@@ -18,7 +18,7 @@ describe('Forest group lifecycle', () => {
   it('rectangle selection + grouping creates group and hides members', async () => {
     const project = await openForestProject(ctx, {
       slugBase: 'fg-select',
-      tickets: [
+      tasks: [
         {
           number: 'A-1',
           title: 'First',
@@ -29,8 +29,8 @@ describe('Forest group lifecycle', () => {
         },
       ],
     })
-    await waitVisible(ctx.page, 'forest-ticket-card')
-    expect(await testId(ctx.page, 'forest-ticket-card').count()).toBe(2)
+    await waitVisible(ctx.page, 'forest-task-card')
+    expect(await testId(ctx.page, 'forest-task-card').count()).toBe(2)
     const surfaceBox = await boxOf(forestSurface(ctx.page))
     await shiftDragSelection(
       ctx.page,
@@ -48,10 +48,10 @@ describe('Forest group lifecycle', () => {
       timeout: 10000,
     })
     await groupViaDialog(ctx.page, 'G-1', 'My Group')
-    const folders = listTicketFolders(ctx.testServer, project.projectSlug)
+    const folders = listTaskFolders(ctx.testServer, project.projectSlug)
     expect(folders.find((f) => f.startsWith('g-1-'))).toBeDefined()
-    const s1 = readTicketStatus(ctx.testServer, project.projectSlug, 'a-1-first')
-    const s2 = readTicketStatus(ctx.testServer, project.projectSlug, 'a-2-second')
+    const s1 = readTaskStatus(ctx.testServer, project.projectSlug, 'a-1-first')
+    const s2 = readTaskStatus(ctx.testServer, project.projectSlug, 'a-2-second')
     expect(s1?.memberOf).toBe('G-1')
     expect(s2?.memberOf).toBe('G-1')
     await ctx.page.waitForTimeout(500)
@@ -60,7 +60,7 @@ describe('Forest group lifecycle', () => {
   it('nested grouping sets parent memberOf', async () => {
     const project = await openForestProject(ctx, {
       slugBase: 'fg-nested',
-      tickets: [
+      tasks: [
         {
           number: 'N-1',
           title: 'Inner A',
@@ -106,10 +106,10 @@ describe('Forest group lifecycle', () => {
       timeout: 10000,
     })
     await groupViaDialog(ctx.page, 'NG-1', 'Nested Group')
-    const folders = listTicketFolders(ctx.testServer, project.projectSlug)
+    const folders = listTaskFolders(ctx.testServer, project.projectSlug)
     const nestedFolder = folders.find((f) => f.startsWith('ng-1-'))
     expect(nestedFolder).toBeDefined()
-    const nestedStatus = readTicketStatus(ctx.testServer, project.projectSlug, nestedFolder!)
+    const nestedStatus = readTaskStatus(ctx.testServer, project.projectSlug, nestedFolder!)
     expect(nestedStatus?.memberOf).toBe('N-G')
     await expect
       .poll(
@@ -123,10 +123,10 @@ describe('Forest group lifecycle', () => {
       )
       .toEqual([0, 0])
   }, 120000)
-  it('ungroup removes memberOf and keeps group ticket', async () => {
+  it('ungroup removes memberOf and keeps group task', async () => {
     const project = await openForestProject(ctx, {
       slugBase: 'fg-ungroup',
-      tickets: [
+      tasks: [
         {
           number: 'U-1',
           title: 'Mem A',
@@ -152,24 +152,24 @@ describe('Forest group lifecycle', () => {
     await testId(ctx.page, 'forest-group-menu-ungroup').click()
     await poll(
       () => {
-        const s1 = readTicketStatus(ctx.testServer, project.projectSlug, 'u-1-mem-a')?.memberOf
-        const s2 = readTicketStatus(ctx.testServer, project.projectSlug, 'u-2-mem-b')?.memberOf
+        const s1 = readTaskStatus(ctx.testServer, project.projectSlug, 'u-1-mem-a')?.memberOf
+        const s2 = readTaskStatus(ctx.testServer, project.projectSlug, 'u-2-mem-b')?.memberOf
         return s1 === undefined && s2 === undefined
       },
       (ok) => ok,
       5000,
     )
-    const s1 = readTicketStatus(ctx.testServer, project.projectSlug, 'u-1-mem-a')
-    const s2 = readTicketStatus(ctx.testServer, project.projectSlug, 'u-2-mem-b')
+    const s1 = readTaskStatus(ctx.testServer, project.projectSlug, 'u-1-mem-a')
+    const s2 = readTaskStatus(ctx.testServer, project.projectSlug, 'u-2-mem-b')
     expect(s1?.memberOf).toBeUndefined()
     expect(s2?.memberOf).toBeUndefined()
-    const folders = listTicketFolders(ctx.testServer, project.projectSlug)
+    const folders = listTaskFolders(ctx.testServer, project.projectSlug)
     expect(folders.some((f) => f.startsWith('u-g-'))).toBe(true)
   }, 120000)
-  it('open group ticket opens ticket detail dialog', async () => {
+  it('open group task opens task detail dialog', async () => {
     await openForestProject(ctx, {
       slugBase: 'fg-open',
-      tickets: [
+      tasks: [
         {
           number: 'O-1',
           title: 'Child',
@@ -187,13 +187,13 @@ describe('Forest group lifecycle', () => {
     })
     await testId(ctx.page, 'forest-group-menu-trigger').click()
     await ctx.page.waitForTimeout(300)
-    await testId(ctx.page, 'forest-group-menu-open-ticket').click()
-    await waitVisible(ctx.page, 'ticket-detail-tab-editor')
+    await testId(ctx.page, 'forest-group-menu-open-task').click()
+    await waitVisible(ctx.page, 'task-detail-tab-editor')
   }, 120000)
   it('kanban renders group and members as ordinary cards', async () => {
     await openForestProject(ctx, {
       slugBase: 'fg-kanban',
-      tickets: [
+      tasks: [
         {
           number: 'K-1',
           title: 'Mem X',
@@ -211,12 +211,12 @@ describe('Forest group lifecycle', () => {
       ],
       view: 'kanban',
     })
-    expect(await testId(ctx.page, 'kanban-board-ticket-card').count()).toBe(3)
+    expect(await testId(ctx.page, 'kanban-board-task-card').count()).toBe(3)
   }, 120000)
-  it('archive hides the ticket from the forest and drops its dangling edges', async () => {
+  it('archive hides the task from the forest and drops its dangling edges', async () => {
     const project = await openForestProject(ctx, {
       slugBase: 'fg-archive',
-      tickets: [
+      tasks: [
         {
           number: 'AR-1',
           title: 'Base',
@@ -229,7 +229,7 @@ describe('Forest group lifecycle', () => {
       ],
       view: 'kanban',
     })
-    const ar2Card = ctx.page.locator('[data-testid="kanban-board-ticket-card"]', {
+    const ar2Card = ctx.page.locator('[data-testid="kanban-board-task-card"]', {
       has: ctx.page.locator(`text=AR-2`),
     })
     await ar2Card.waitFor({
@@ -238,25 +238,25 @@ describe('Forest group lifecycle', () => {
     })
     await ar2Card.hover()
     await ctx.page.waitForTimeout(200)
-    const menuTrigger = testId(ar2Card, 'kanban-board-ticket-menu-trigger')
+    const menuTrigger = testId(ar2Card, 'kanban-board-task-menu-trigger')
     await menuTrigger.waitFor({
       state: 'visible',
       timeout: 10000,
     })
     await menuTrigger.click()
-    await testId(ctx.page, 'ticket-actions-archive').first().waitFor({
+    await testId(ctx.page, 'task-actions-archive').first().waitFor({
       state: 'attached',
       timeout: 10000,
     })
     await ctx.page.evaluate(() => {
-      const items = document.querySelectorAll<HTMLElement>('[data-testid="ticket-actions-archive"]')
+      const items = document.querySelectorAll<HTMLElement>('[data-testid="task-actions-archive"]')
       const last = items[items.length - 1]
       if (last) last.click()
     })
-    await waitVisible(ctx.page, 'ticket-cleanup-submit')
-    await testId(ctx.page, 'ticket-cleanup-submit').click()
-    await testId(ctx.page, 'ticket-cleanup-confirm').click()
-    const archived = path.join(project.ticketsPath, 'archive', 'ar-2-archivable')
+    await waitVisible(ctx.page, 'task-cleanup-submit')
+    await testId(ctx.page, 'task-cleanup-submit').click()
+    await testId(ctx.page, 'task-cleanup-confirm').click()
+    const archived = path.join(project.tasksPath, 'archive', 'ar-2-archivable')
     await poll(
       () => fs.existsSync(archived),
       (v) => v,
@@ -266,7 +266,7 @@ describe('Forest group lifecycle', () => {
     expect(fs.existsSync(archived)).toBe(true)
     await toggleToForest(ctx.page)
     await expect
-      .poll(() => testId(ctx.page, 'forest-ticket-card').count(), {
+      .poll(() => testId(ctx.page, 'forest-task-card').count(), {
         timeout: 10000,
       })
       .toBe(1)

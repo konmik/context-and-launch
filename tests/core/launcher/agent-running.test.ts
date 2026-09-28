@@ -43,27 +43,27 @@ describe('agentRunning', () => {
   }
 
   it('is false when no marker exists', () => {
-    expect(agentRunning('proj', 'ticket')).toBe(false)
+    expect(agentRunning('proj', 'task')).toBe(false)
   })
   it('is true when the marker pid is alive', () => {
     writeMarker(
       'proj',
-      'ticket',
+      'task',
       JSON.stringify({
         pid: process.pid,
       }),
     )
-    expect(agentRunning('proj', 'ticket')).toBe(true)
+    expect(agentRunning('proj', 'task')).toBe(true)
   })
   it('is false and reaps the marker when the pid is dead', () => {
     const p = writeMarker(
       'proj',
-      'ticket',
+      'task',
       JSON.stringify({
         pid: 2147483646,
       }),
     )
-    expect(agentRunning('proj', 'ticket')).toBe(false)
+    expect(agentRunning('proj', 'task')).toBe(false)
     expect(fs.existsSync(p)).toBe(false)
   })
   it('is false and reaps the marker when a live pid was reused', () => {
@@ -71,12 +71,12 @@ describe('agentRunning', () => {
       pid: process.pid,
       startSec: 0,
     })
-    const p = writeMarker('proj', 'ticket', stale)
-    expect(agentRunning('proj', 'ticket')).toBe(false)
+    const p = writeMarker('proj', 'task', stale)
+    expect(agentRunning('proj', 'task')).toBe(false)
     expect(fs.existsSync(p)).toBe(false)
   })
   it('is false on a malformed marker', () => {
-    writeMarker('proj', 'ticket', 'not json')
-    expect(agentRunning('proj', 'ticket')).toBe(false)
+    writeMarker('proj', 'task', 'not json')
+    expect(agentRunning('proj', 'task')).toBe(false)
   })
 })

@@ -25,7 +25,7 @@ export function SortableLauncherSkill(props: {
           checked={props.checked}
           onChange={props.onToggle}
           class="rounded border-input"
-          data-testid="ticket-detail-launcher-skill-checkbox"
+          data-testid="task-detail-launcher-skill-checkbox"
           data-skill-name={props.skill.name}
         />
         {props.skill.name}

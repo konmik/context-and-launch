@@ -1,0 +1,88 @@
+import type { SourceAccessor } from 'solid-js'
+import type { Setter } from 'solid-js'
+import { createMemo, createSignal } from 'solid-js'
+import { createFormDialogController } from './form-dialog-controller.js'
+import type { Result } from '~/util/result.js'
+import type { UserFacingError } from '~/util/user-facing-error.js'
+import { errorPayload } from '~/core/shared/errors.js'
+
+export interface CreateTaskDeps {
+  onSubmit: (number: string, title: string) => Promise<Result<undefined, UserFacingError>>
+  onError: (error: UserFacingError) => void
+  onClearError?: () => void
+  onOpenChange: (open: boolean) => void
+  suggestedNextNumber: () => string | null | undefined
+  open: () => boolean
+  onSuggestNumber: (numberInput: string) => Promise<string | null>
+}
+
+export function createCreateTaskController(deps: CreateTaskDeps): CreateTaskControllerResult {
+  // The number field shows the board's suggestion until someone picks a number,
+  // then it shows that pick. Deriving it means a late-arriving suggestion still
+  // fills an untouched field, while the revalidation that a regenerate call
+  // triggers cannot put the board's suggestion back over the user's choice.
+  const [chosenNumber, setChosenNumber] = createSignal<string>()
+  const number = createMemo(() => chosenNumber() ?? (deps.open() ? (deps.suggestedNextNumber() ?? '') : ''))
+  const setNumber = (value: string) => setChosenNumber(value)
+  const [title, setTitle] = createSignal('')
+  const [suggestingNumber, setSuggestingNumber] = createSignal(false)
+
+  function resetFields() {
+    setChosenNumber(undefined)
+    setTitle('')
+  }
+
+  const form = createFormDialogController({
+    onError: deps.onError,
+    onClearError: deps.onClearError,
+    onSubmit: deps.onSubmit,
+    onOpenChange: (open) => {
+      if (!open) resetFields()
+      deps.onOpenChange(open)
+    },
+  })
+
+  async function doSubmit() {
+    if (suggestingNumber()) return
+    if (!number().trim() || !title().trim()) return
+    await form.doSubmit(number().trim(), title().trim())
+  }
+
+  async function suggestNumber() {
+    setSuggestingNumber(true)
+    try {
+      const result = await deps.onSuggestNumber(number())
+      if (result != null) setNumber(result)
+    } catch (err: any) {
+      deps.onError(errorPayload(err, 'Suggest task number failed'))
+    } finally {
+      setSuggestingNumber(false)
+    }
+  }
+
+  return {
+    number,
+    title,
+    submitting: form.submitting,
+    setNumber,
+    setTitle,
+    close: form.close,
+    doSubmit,
+    suggestingNumber,
+    suggestNumber,
+  }
+}
+
+export type CreateTaskController = ReturnType<typeof createCreateTaskController>
+
+export interface CreateTaskControllerResult {
+  number: SourceAccessor<string>
+  title: SourceAccessor<string>
+  submitting: SourceAccessor<boolean>
+  setNumber: (value: string) => string
+  setTitle: Setter<string>
+  close: () => void
+  doSubmit: () => Promise<void>
+  suggestingNumber: SourceAccessor<boolean>
+  suggestNumber: () => Promise<void>
+}

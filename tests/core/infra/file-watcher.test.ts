@@ -75,7 +75,7 @@ describe('FileWatcher', () => {
     expect(harness.adapters.createWatcher).toHaveBeenCalledTimes(2)
   })
   it('debounces file events, replaces the timer, and reports before and after commit', () => {
-    const harness = createHarness(' M ticket.json')
+    const harness = createHarness(' M task.json')
     const onChange = vi.fn()
     const watcher = createFileWatcher(harness.commands, onChange, harness.adapters)
     watcher.watch('/repo', 200)
@@ -102,7 +102,7 @@ describe('FileWatcher', () => {
     expect(harness.commands.executeSync).not.toHaveBeenCalledWith('git.commit', expect.anything(), expect.anything())
   })
   it('cancels pending work on stop and creates a fresh watcher on rewatch', () => {
-    const harness = createHarness(' M ticket.json')
+    const harness = createHarness(' M task.json')
     const watcher = createFileWatcher(harness.commands, undefined, harness.adapters)
     watcher.watch('/repo', 10)
     harness.handles[0].emit('add')
@@ -114,7 +114,7 @@ describe('FileWatcher', () => {
     expect(harness.commands.executeSync).not.toHaveBeenCalled()
   })
   it('stopAll closes every watcher and cancels all pending work', () => {
-    const harness = createHarness(' M ticket.json')
+    const harness = createHarness(' M task.json')
     const watcher = createFileWatcher(harness.commands, undefined, harness.adapters)
     watcher.watch('/one', 10)
     watcher.watch('/two', 10)
@@ -126,7 +126,7 @@ describe('FileWatcher', () => {
     expect(harness.commands.executeSync).not.toHaveBeenCalled()
   })
   it('catches up a non-dot change discovered when the watcher becomes ready', () => {
-    const harness = createHarness(' M ticket.json\n?? nested/new.md')
+    const harness = createHarness(' M task.json\n?? nested/new.md')
     const watcher = createFileWatcher(harness.commands, undefined, harness.adapters)
     watcher.watch('/repo', 10)
     harness.handles[0].emit('ready')
@@ -148,12 +148,12 @@ describe('FileWatcher', () => {
     const harness = createHarness()
     const watcher = createFileWatcher(harness.commands, undefined, harness.adapters)
     watcher.watch('/parent/.context-launch/repo')
-    expect(harness.ignored[0]('/parent/.context-launch/repo/ticket.json')).toBe(false)
+    expect(harness.ignored[0]('/parent/.context-launch/repo/task.json')).toBe(false)
     expect(harness.ignored[0]('/parent/.context-launch/repo/.git/index')).toBe(true)
-    expect(harness.ignored[0]('/parent/.context-launch/repo/ticket/.cache/value')).toBe(true)
+    expect(harness.ignored[0]('/parent/.context-launch/repo/task/.cache/value')).toBe(true)
   })
   it('logs watcher creation, watcher events, catch-up, commit, and close failures', async () => {
-    const harness = createHarness(' M ticket.json')
+    const harness = createHarness(' M task.json')
     const creationError = new Error('create failed')
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     vi.mocked(harness.adapters.createWatcher).mockImplementationOnce(() => {
@@ -213,7 +213,7 @@ describe('FileWatcher', () => {
     expect(harness.adapters.createWatcher).toHaveBeenCalledTimes(2)
   })
   it('serializes overlapping tasks and defers watch requests until both finish', async () => {
-    const harness = createHarness(' M ticket.json')
+    const harness = createHarness(' M task.json')
     const watcher = createFileWatcher(harness.commands, undefined, harness.adapters)
     watcher.watch('/repo', 10)
     let releaseFirst!: () => void
@@ -256,7 +256,7 @@ describe('FileWatcher', () => {
     expect(harness.adapters.createWatcher).not.toHaveBeenCalled()
   })
   it('does not run a queued callback after its watcher is removed', () => {
-    const harness = createHarness(' M ticket.json')
+    const harness = createHarness(' M task.json')
     let queuedCallback: (() => void) | undefined
     harness.adapters.setTimer = vi.fn((callback) => {
       queuedCallback = callback

@@ -1,44 +1,44 @@
 import type { Setter } from 'solid-js'
 import { createSignal, flush } from 'solid-js'
 import { revalidate, useAction } from '@solidjs/router'
-import type { TicketInfo } from '~/core/ticket/ticket-store.js'
+import type { TaskInfo } from '~/core/task/task-store.js'
 import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
-import { createTicket, deleteTicket, archiveTicket, syncTickets, worktreeCleanup } from '../ticket/ticket-api.js'
+import { createTask, deleteTask, archiveTask, syncTasks, worktreeCleanup } from '../task/task-api.js'
 import { deleteProject, getSyncStatus } from './project-api.js'
-import { ticketMutationRevalidateKeys, projectSyncRevalidateKeys } from '../shared/revalidate-keys.js'
+import { taskMutationRevalidateKeys, projectSyncRevalidateKeys } from '../shared/revalidate-keys.js'
 import type { ProjectPageData } from './project-api.js'
 import { resolveConflicts, abortRebase } from '../launcher/launcher-api.js'
 import { parseSyncResult } from './project-page-pure.js'
-import type { TicketCleanupOptions } from '../shared/ticket-cleanup-pure.js'
+import type { TaskCleanupOptions } from '../shared/task-cleanup-pure.js'
 import { onSuccess, type Result } from '~/util/result.js'
 
 export interface ProjectPageDeps {
   onError: (error: ErrorInfo) => void
   projectSlug: () => string
   data: () => ProjectPageData | undefined
-  runSyncTickets?: (projectSlug: string) => ReturnType<typeof syncTickets>
+  runSyncTasks?: (projectSlug: string) => ReturnType<typeof syncTasks>
 }
 
 export function createProjectPageController(deps: ProjectPageDeps): ProjectPageControllerResult {
   const [addProjectDialogOpen, setAddProjectDialogOpen] = createSignal(false)
   const [settingsOpen, setSettingsOpen] = createSignal(false)
-  const [createTicketOpen, setCreateTicketOpen] = createSignal(false)
+  const [createTaskOpen, setCreateTaskOpen] = createSignal(false)
   const [cleanupDialogOpen, setCleanupDialogOpen] = createSignal(false)
   const [cleanupAction, setCleanupAction] = createSignal<'archive' | 'delete'>('archive')
-  const [selectedTicketFolderName, setSelectedTicketFolderName] = createSignal<string>()
-  const selectedTicket = (): TicketInfo | null => {
+  const [selectedTaskFolderName, setSelectedTaskFolderName] = createSignal<string>()
+  const selectedTask = (): TaskInfo | null => {
     const data = deps.data()
     return data?.status === 'loaded'
-      ? (data.board.tickets.find((ticket) => ticket.folderName === selectedTicketFolderName()) ?? null)
+      ? (data.board.tasks.find((task) => task.folderName === selectedTaskFolderName()) ?? null)
       : null
   }
-  const [detailTicket, setDetailTicket] = createSignal<TicketInfo | null>(null)
-  const [reviewTicket, setReviewTicket] = createSignal<TicketInfo | null>(null)
+  const [detailTask, setDetailTask] = createSignal<TaskInfo | null>(null)
+  const [reviewTask, setReviewTask] = createSignal<TaskInfo | null>(null)
   const [syncing, setSyncing] = createSignal(false)
   const [syncSuccess, setSyncSuccess] = createSignal(false)
   const [conflictDialogOpen, setConflictDialogOpen] = createSignal(false)
   const [conflictDetected, setConflictDetected] = createSignal(false)
-  const runSyncTickets = deps.runSyncTickets ?? useAction(syncTickets)
+  const runSyncTasks = deps.runSyncTasks ?? useAction(syncTasks)
   let syncInProgress = false
 
   async function handleSync() {
@@ -62,11 +62,11 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
       if (!ss.hasRemote) {
         deps.onError({
           title: 'Sync failed',
-          description: 'No remote tracking branch configured.' + ' Push the ticket branch to a remote first.',
+          description: 'No remote tracking branch configured.' + ' Push the task branch to a remote first.',
         })
         return
       }
-      const result = await runSyncTickets(deps.projectSlug())
+      const result = await runSyncTasks(deps.projectSlug())
       if (result.type === 'Failure') {
         deps.onError(result.error)
       } else {
@@ -110,47 +110,47 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
     await revalidate(projectSyncRevalidateKeys)
   }
 
-  function openDelete(ticket: TicketInfo) {
-    setDetailTicket(null)
-    setSelectedTicketFolderName(ticket.folderName)
+  function openDelete(task: TaskInfo) {
+    setDetailTask(null)
+    setSelectedTaskFolderName(task.folderName)
     setCleanupAction('delete')
     setCleanupDialogOpen(true)
   }
 
-  function openArchive(ticket: TicketInfo) {
-    setDetailTicket(null)
-    setSelectedTicketFolderName(ticket.folderName)
+  function openArchive(task: TaskInfo) {
+    setDetailTask(null)
+    setSelectedTaskFolderName(task.folderName)
     setCleanupAction('archive')
     setCleanupDialogOpen(true)
   }
 
-  function openDetail(ticket: TicketInfo) {
-    setDetailTicket(ticket)
+  function openDetail(task: TaskInfo) {
+    setDetailTask(task)
   }
 
-  function openReview(ticket: TicketInfo) {
-    if (!ticket.hasAgentWorktree) return
-    if (detailTicket()) setDetailTicket(null)
-    setReviewTicket(ticket) // Opening Diff Review replaces the board that owns this event handler.
+  function openReview(task: TaskInfo) {
+    if (!task.hasAgentWorktree) return
+    if (detailTask()) setDetailTask(null)
+    setReviewTask(task) // Opening Diff Review replaces the board that owns this event handler.
     // Commit the selection before that dynamic subtree is disposed.
     flush()
   }
 
-  async function handleCreateTicket(number: string, title: string): Promise<Result<undefined, ErrorInfo>> {
-    const result = await createTicket(deps.projectSlug(), number, title)
-    onSuccess(result, () => revalidate(ticketMutationRevalidateKeys))
+  async function handleCreateTask(number: string, title: string): Promise<Result<undefined, ErrorInfo>> {
+    const result = await createTask(deps.projectSlug(), number, title)
+    onSuccess(result, () => revalidate(taskMutationRevalidateKeys))
     return result
   }
 
-  async function handleArchiveTicket(folderName: string): Promise<Result<undefined, ErrorInfo>> {
-    const result = await archiveTicket(deps.projectSlug(), folderName)
-    onSuccess(result, () => revalidate(ticketMutationRevalidateKeys))
+  async function handleArchiveTask(folderName: string): Promise<Result<undefined, ErrorInfo>> {
+    const result = await archiveTask(deps.projectSlug(), folderName)
+    onSuccess(result, () => revalidate(taskMutationRevalidateKeys))
     return result
   }
 
-  async function handleDeleteTicket(folderName: string): Promise<Result<undefined, ErrorInfo>> {
-    const result = await deleteTicket(deps.projectSlug(), folderName)
-    onSuccess(result, () => revalidate(ticketMutationRevalidateKeys))
+  async function handleDeleteTask(folderName: string): Promise<Result<undefined, ErrorInfo>> {
+    const result = await deleteTask(deps.projectSlug(), folderName)
+    onSuccess(result, () => revalidate(taskMutationRevalidateKeys))
     return result
   }
 
@@ -161,17 +161,17 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
   }
 
   async function handleCleanupSubmit(folderName: string): Promise<Result<undefined, ErrorInfo>> {
-    return cleanupAction() === 'archive' ? await handleArchiveTicket(folderName) : await handleDeleteTicket(folderName)
+    return cleanupAction() === 'archive' ? await handleArchiveTask(folderName) : await handleDeleteTask(folderName)
   }
 
-  async function handleCleanupAction(folderName: string, options: TicketCleanupOptions): Promise<Result<undefined, ErrorInfo>> {
+  async function handleCleanupAction(folderName: string, options: TaskCleanupOptions): Promise<Result<undefined, ErrorInfo>> {
     const cleanupResult = await worktreeCleanup(deps.projectSlug(), folderName, options)
-    await revalidate(ticketMutationRevalidateKeys)
+    await revalidate(taskMutationRevalidateKeys)
     return cleanupResult
   }
 
   const dialogState = () => ({
-    createTicketOpen: createTicketOpen(),
+    createTaskOpen: createTaskOpen(),
     cleanupDialogOpen: cleanupDialogOpen(),
     cleanupAction: cleanupAction(),
     settingsOpen: settingsOpen(),
@@ -185,24 +185,24 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
   })
   const selectionState = () => {
     return {
-      selectedTicket: selectedTicket(),
-      detailTicket: detailTicket(),
-      reviewTicket: reviewTicket(),
+      selectedTask: selectedTask(),
+      detailTask: detailTask(),
+      reviewTask: reviewTask(),
     }
   }
   const commands = {
-    openCreate: () => setCreateTicketOpen(true),
+    openCreate: () => setCreateTaskOpen(true),
     openDelete,
     openArchive,
     openDetail,
     openReview,
     // Callers navigate immediately after these commands and need overlays disposed first.
-    closeReview: () => setReviewTicket(null),
-    closeDetail: () => setDetailTicket(null),
+    closeReview: () => setReviewTask(null),
+    closeDetail: () => setDetailTask(null),
     handleSync,
     handleConflictResolve,
     handleConflictAbort,
-    handleCreateTicket,
+    handleCreateTask,
     handleCleanupAction,
     handleCleanupSubmit,
     openSettings: () => setSettingsOpen(true),
@@ -210,7 +210,7 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
     openAddProject: () => setAddProjectDialogOpen(true),
     closeAddProject: () => setAddProjectDialogOpen(false),
     handleDeleteProject,
-    setCreateTicketOpen,
+    setCreateTaskOpen,
     setCleanupDialogOpen,
     setConflictDialogOpen,
   }
@@ -226,7 +226,7 @@ export type ProjectPageController = ReturnType<typeof createProjectPageControlle
 
 export interface ProjectPageControllerResult {
   dialogState: () => {
-    createTicketOpen: boolean
+    createTaskOpen: boolean
     cleanupDialogOpen: boolean
     cleanupAction: 'archive' | 'delete'
     settingsOpen: boolean
@@ -239,30 +239,30 @@ export interface ProjectPageControllerResult {
     conflictDetected: boolean
   }
   selectionState: () => {
-    selectedTicket: TicketInfo | null
-    detailTicket: TicketInfo | null
-    reviewTicket: TicketInfo | null
+    selectedTask: TaskInfo | null
+    detailTask: TaskInfo | null
+    reviewTask: TaskInfo | null
   }
   commands: {
     openCreate: () => true
-    openDelete: (ticket: TicketInfo) => void
-    openArchive: (ticket: TicketInfo) => void
-    openDetail: (ticket: TicketInfo) => void
-    openReview: (ticket: TicketInfo) => void
+    openDelete: (task: TaskInfo) => void
+    openArchive: (task: TaskInfo) => void
+    openDetail: (task: TaskInfo) => void
+    openReview: (task: TaskInfo) => void
     closeReview: () => null
     closeDetail: () => null
     handleSync: () => Promise<void>
     handleConflictResolve: (profileName: string) => Promise<void>
     handleConflictAbort: () => Promise<void>
-    handleCreateTicket: (number: string, title: string) => Promise<Result<undefined, ErrorInfo>>
-    handleCleanupAction: (folderName: string, options: TicketCleanupOptions) => Promise<Result<undefined, ErrorInfo>>
+    handleCreateTask: (number: string, title: string) => Promise<Result<undefined, ErrorInfo>>
+    handleCleanupAction: (folderName: string, options: TaskCleanupOptions) => Promise<Result<undefined, ErrorInfo>>
     handleCleanupSubmit: (folderName: string) => Promise<Result<undefined, ErrorInfo>>
     openSettings: () => true
     closeSettings: () => false
     openAddProject: () => true
     closeAddProject: () => false
     handleDeleteProject: (projectSlug: string) => Promise<Result<undefined, ErrorInfo>>
-    setCreateTicketOpen: Setter<boolean>
+    setCreateTaskOpen: Setter<boolean>
     setCleanupDialogOpen: Setter<boolean>
     setConflictDialogOpen: Setter<boolean>
   }

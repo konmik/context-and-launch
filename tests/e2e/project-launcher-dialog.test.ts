@@ -86,7 +86,7 @@ describe('Project launcher dialog (e2e, real server)', () => {
   it('profile select persists to project launcher config under the project key', async () => {
     const project = await setup('profile')
     await openDialog()
-    await ctx.page.selectOption('[data-testid="ticket-detail-launcher-profile-select"]', 'GPT')
+    await ctx.page.selectOption('[data-testid="task-detail-launcher-profile-select"]', 'GPT')
     const cfg = await poll(
       () => readProjectLauncherConfig(ctx.testServer, project.projectSlug),
       (c) => c?.columnDefaults?.[PROJECT_KEY]?.profileName === 'GPT',
@@ -113,7 +113,7 @@ describe('Project launcher dialog (e2e, real server)', () => {
   it('shows a shared profile edit when reopening the launcher without a page reload', async () => {
     await setup('shared-profile')
     await openDialog()
-    const select = testId(ctx.page, 'ticket-detail-launcher-profile-select')
+    const select = testId(ctx.page, 'task-detail-launcher-profile-select')
     await select.locator('option[value="Claude"]').waitFor({
       state: 'attached',
     })

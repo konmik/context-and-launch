@@ -7,7 +7,7 @@ import {
   openProject,
   sortableItem,
   type CreatedProject,
-  readTicketStatus,
+  readTaskStatus,
   poll,
   setupE2E,
   THREE_COLUMN_BOARD,
@@ -35,7 +35,7 @@ function dragCard(p: Page, sourceId: string, targetId: string) {
   })
 }
 
-const TICKETS = [
+const TASKS = [
   {
     number: 'T-1',
     title: 'Alpha',
@@ -69,7 +69,7 @@ describe('KanbanBoard drag-and-drop (e2e, real server)', () => {
     const project = await openProject(ctx, {
       slugBase: `dnd-${suffix}`,
       withBoards: THREE_COLUMN_BOARD,
-      withTickets: TICKETS,
+      withTasks: TASKS,
     })
     await ctx.page.locator('[data-sortable-id]').first().waitFor({
       state: 'visible',
@@ -78,7 +78,7 @@ describe('KanbanBoard drag-and-drop (e2e, real server)', () => {
     return project
   }
 
-  it('renders test tickets in correct columns', async () => {
+  it('renders test tasks in correct columns', async () => {
     await setup('renders')
     const columns = await getSortablesByColumn(ctx.page)
     const todo = columns.get('todo') ?? []
@@ -96,7 +96,7 @@ describe('KanbanBoard drag-and-drop (e2e, real server)', () => {
     const movedFolder = todo[0].split(':')[1]
     await dragCard(ctx.page, todo[0], inProgress[0])
     const status = await poll(
-      () => readTicketStatus(ctx.testServer, project.projectSlug, movedFolder),
+      () => readTaskStatus(ctx.testServer, project.projectSlug, movedFolder),
       (s) => s?.status === 'in-progress',
       5000,
     )
@@ -105,9 +105,9 @@ describe('KanbanBoard drag-and-drop (e2e, real server)', () => {
     })
     expect(status?.status).toBe('in-progress')
   })
-  it('same position drop does not modify ticket-order.json', async () => {
+  it('same position drop does not modify task-order.json', async () => {
     const project = await setup('same-position')
-    const orderFile = path.join(ctx.testServer.dataDir, 'projects', project.projectSlug, 'tickets', 'ticket-order.json')
+    const orderFile = path.join(ctx.testServer.dataDir, 'projects', project.projectSlug, 'tasks', 'task-order.json')
     const beforeContent = fs.readFileSync(orderFile, 'utf-8')
     await dragCard(ctx.page, 'todo:t-1-alpha', 'todo:t-1-alpha')
     await ctx.page.waitForTimeout(2000)

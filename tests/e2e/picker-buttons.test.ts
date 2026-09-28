@@ -146,7 +146,7 @@ describe('Picker buttons (e2e, real server)', () => {
           ],
         },
       ],
-      withTickets: [
+      withTasks: [
         {
           number: 'T-1',
           title: 'Picker test',
@@ -156,7 +156,7 @@ describe('Picker buttons (e2e, real server)', () => {
       ],
     })
     projectSlug = project.projectSlug
-    statusFile = path.join(project.ticketsPath, 't-1-picker-test', 'status.json')
+    statusFile = path.join(project.tasksPath, 't-1-picker-test', 'status.json')
   })
   afterAll(async () => {
     await rmTemp(stubDir, 'picker-buttons stubDir')
@@ -199,9 +199,9 @@ describe('Picker buttons (e2e, real server)', () => {
     button: (p) => testId(p, WORKTREE_BROWSE),
     input: (p) => testId(p, WORKTREE_BROWSE).locator('xpath=preceding-sibling::input'),
     errorContainer: (p) => testId(p, 'error-dialog-ok'),
-  }) // --- Ticket detail: file reference picker ---
+  }) // --- Task detail: file reference picker ---
 
-  async function goToTicketDetail(page: Page) {
+  async function goToTaskDetail(page: Page) {
     await gotoProject(page, ctx.testServer, projectSlug)
     await page.locator('[data-drag-source]').first().waitFor({
       state: 'visible',
@@ -213,13 +213,13 @@ describe('Picker buttons (e2e, real server)', () => {
       timeout: 5000,
     }) // The button renders before the panel has loaded its file, and picking a
     // reference reads that file list, so wait for the editor to settle first.
-    await page.locator('[data-testid="ticket-detail-editor-pane"]:not([data-state="loading"])').waitFor({
+    await page.locator('[data-testid="task-detail-editor-pane"]:not([data-state="loading"])').waitFor({
       state: 'attached',
       timeout: 15000,
     })
   }
 
-  describe('Ticket Detail > Add file reference > remembers last directory', () => {
+  describe('Task Detail > Add file reference > remembers last directory', () => {
     it('uses the directory of the previously picked file on the next open', async () => {
       // Clear any persisted dir from prior tests
       await ctx.page.addInitScript(() => {
@@ -232,7 +232,7 @@ describe('Picker buttons (e2e, real server)', () => {
       const firstFile = path.join(os.tmpdir(), 'dir-A', 'file1.ts')
       const secondFile = path.join(os.tmpdir(), 'dir-B', 'file2.ts')
       setFilePickerStub(firstFile)
-      await goToTicketDetail(ctx.page)
+      await goToTaskDetail(ctx.page)
       await ctx.page.locator('button:has-text("Add file reference")').click()
       await expect
         .poll(() => hasFileReferenceButton(ctx.page), {
@@ -247,8 +247,8 @@ describe('Picker buttons (e2e, real server)', () => {
     })
   })
   testFilePicker(ctx, {
-    name: 'Ticket Detail > Add file reference',
-    setup: goToTicketDetail,
+    name: 'Task Detail > Add file reference',
+    setup: goToTaskDetail,
     button: (p) => p.locator('button:has-text("Add file reference")'),
     errorContainer: (p) => testId(p, 'error-dialog-ok'),
     assertFilesAdded: async (p) => {
@@ -265,7 +265,7 @@ describe('Picker buttons (e2e, real server)', () => {
     fs.writeFileSync(pickedPath, 'picked')
     fs.writeFileSync(externalPath, 'external')
     setFilePickerStub(pickedPath)
-    await goToTicketDetail(ctx.page)
+    await goToTaskDetail(ctx.page)
     const current = JSON.parse(fs.readFileSync(statusFile, 'utf8'))
     fs.writeFileSync(
       statusFile,
@@ -280,7 +280,7 @@ describe('Picker buttons (e2e, real server)', () => {
         ],
       }),
     )
-    await testId(ctx.page, 'ticket-detail-editor-add-reference-button').click()
+    await testId(ctx.page, 'task-detail-editor-add-reference-button').click()
     const references = () => JSON.parse(fs.readFileSync(statusFile, 'utf8')).references
     await expect.poll(references).toEqual(
       expect.arrayContaining([
@@ -293,10 +293,10 @@ describe('Picker buttons (e2e, real server)', () => {
       ]),
     )
     const modifiedAt = fs.statSync(statusFile).mtimeMs
-    await testId(ctx.page, 'ticket-detail-editor-add-reference-button').click()
-    await expect.poll(() => testId(ctx.page, 'ticket-detail-editor-add-reference-button').isEnabled()).toBe(true)
+    await testId(ctx.page, 'task-detail-editor-add-reference-button').click()
+    await expect.poll(() => testId(ctx.page, 'task-detail-editor-add-reference-button').isEnabled()).toBe(true)
     expect(fs.statSync(statusFile).mtimeMs).toBe(modifiedAt)
-    await testId(ctx.page, 'ticket-detail-editor-trash-button').click()
+    await testId(ctx.page, 'task-detail-editor-trash-button').click()
     await expect.poll(references).not.toContainEqual({
       path: pickedPath,
     })

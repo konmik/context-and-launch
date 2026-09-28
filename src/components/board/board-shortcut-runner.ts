@@ -1,13 +1,13 @@
 import type { LauncherShortcut } from '../../core/launcher/launcher-config-data.js'
 import type { SourceAccessor } from 'solid-js'
-import type { ShortcutConfirmation } from '../ticket/ticket-detail-shortcuts.js'
+import type { ShortcutConfirmation } from '../task/task-detail-shortcuts.js'
 import type { Setter } from 'solid-js'
 import { createSignal, createMemo, flush } from 'solid-js'
-import { createShortcutState } from '../ticket/ticket-detail-shortcuts.js'
-import { openTicketWorktree } from '../ticket/ticket-api.js'
+import { createShortcutState } from '../task/task-detail-shortcuts.js'
+import { openTaskWorktree } from '../task/task-api.js'
 import { computeLaunchDir } from '../launcher/agent-launcher-pure.js'
 import type { MergedLauncherConfigWithMeta } from '../launcher/launcher-api.js'
-import type { TicketInfo } from '~/core/ticket/ticket-store.js'
+import type { TaskInfo } from '~/core/task/task-store.js'
 import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
 
 export function createBoardShortcutRunner(deps: {
@@ -15,37 +15,37 @@ export function createBoardShortcutRunner(deps: {
   projectSlug: () => string
   config: () => MergedLauncherConfigWithMeta | undefined
 }): BoardShortcutRunnerResult {
-  const [activeTicket, setActiveTicket] = createSignal<TicketInfo>()
+  const [activeTask, setActiveTask] = createSignal<TaskInfo>()
   const launchDir = createMemo(() => {
-    const ticket = activeTicket()
+    const task = activeTask()
     const config = deps.config()
-    if (!ticket || !config) return ''
+    if (!task || !config) return ''
     return computeLaunchDir({
-      useWorktree: ticket.useWorktree,
+      useWorktree: task.useWorktree,
       projectPath: config.projectPath,
       worktreeRootPath: config.worktreeRootPath,
       agentWorktreeDir: config.agentWorktreeDir,
-      folderName: ticket.folderName,
-      savedAgentWorktreeDir: ticket.agentWorktreeDir,
+      folderName: task.folderName,
+      savedAgentWorktreeDir: task.agentWorktreeDir,
     })
   })
   const shortcutState = createShortcutState({
     projectSlug: deps.projectSlug,
-    folderName: () => activeTicket()?.folderName ?? '',
-    useWorktree: () => activeTicket()?.useWorktree ?? false,
+    folderName: () => activeTask()?.folderName ?? '',
+    useWorktree: () => activeTask()?.useWorktree ?? false,
     launchDir,
     onError: deps.onError,
   })
 
-  function run(ticket: TicketInfo, name: string) {
-    setActiveTicket(ticket) // The shortcut command imperatively reads the ticket selected by this same event.
+  function run(task: TaskInfo, name: string) {
+    setActiveTask(task) // The shortcut command imperatively reads the task selected by this same event.
     flush()
     void shortcutState.runShortcut(name)
   }
 
-  async function openWorktree(ticket: TicketInfo) {
+  async function openWorktree(task: TaskInfo) {
     try {
-      const result = await openTicketWorktree(deps.projectSlug(), ticket.folderName)
+      const result = await openTaskWorktree(deps.projectSlug(), task.folderName)
       if (result.type === 'Failure') deps.onError(result.error)
     } catch (e) {
       deps.onError(errorPayload(e, 'Open failed'))
@@ -59,7 +59,7 @@ export function createBoardShortcutRunner(deps: {
     setConfirmation: shortcutState.setShortcutConfirmation,
     proceed: (name: string) => void shortcutState.runShortcut(name, true),
     run,
-    openWorktree: (ticket: TicketInfo) => void openWorktree(ticket),
+    openWorktree: (task: TaskInfo) => void openWorktree(task),
   }
 }
 
@@ -72,6 +72,6 @@ export interface BoardShortcutRunnerResult {
   confirmation: SourceAccessor<ShortcutConfirmation | undefined>
   setConfirmation: Setter<ShortcutConfirmation | undefined>
   proceed: (name: string) => undefined
-  run: (ticket: TicketInfo, name: string) => void
-  openWorktree: (ticket: TicketInfo) => undefined
+  run: (task: TaskInfo, name: string) => void
+  openWorktree: (task: TaskInfo) => undefined
 }

@@ -41,10 +41,10 @@ describe('Command Template catalog', () => {
   })
   it('gives remote Git commands credential interaction without terminal prompts', () => {
     const remoteKeys = new Set([
-      'ticket-sync.push.set-upstream',
-      'ticket-sync.fetch-origin',
-      'ticket-sync.fetch',
-      'ticket-sync.push',
+      'task-sync.push.set-upstream',
+      'task-sync.fetch-origin',
+      'task-sync.fetch',
+      'task-sync.push',
       'conflict-resolution.fetch',
       'conflict-resolution.push',
       'worktree.remote-branch.probe',

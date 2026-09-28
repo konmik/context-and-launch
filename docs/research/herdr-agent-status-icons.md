@@ -136,7 +136,7 @@ space, other tokens are joined with `" · "` (`src/ui/sidebar/tokens.rs`, `separ
 
 ## Decision
 
-`src/components/ticket/HerdrStatusIcon.tsx` (the single component used by TicketCard,
+`src/components/task/HerdrStatusIcon.tsx` (the single component used by TaskCard,
 ForestCard, and DiffReview) renders herdr's **default dots style** with the exact
 catppuccin colors above, and every glyph is static. Earlier revisions had drifted:
 an animated braille spinner for working (herdr has no animation), `◉` for blocked

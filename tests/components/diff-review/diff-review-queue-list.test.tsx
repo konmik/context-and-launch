@@ -12,7 +12,7 @@ vi.mock('../../../src/components/diff-review/diff-review-api.js', () => ({
   retryReviewPrompt: vi.fn(),
 }))
 
-function TicketQueue(props: { profileName: string }): JSX.Element {
+function TaskQueue(props: { profileName: string }): JSX.Element {
   return (
     <ReviewAgentStatusContext
       value={{
@@ -23,7 +23,7 @@ function TicketQueue(props: { profileName: string }): JSX.Element {
         refresh: async () => {},
       }}
     >
-      <ReviewPromptQueueList projectSlug="project" folderName="ticket" profileName={props.profileName} />
+      <ReviewPromptQueueList projectSlug="project" folderName="task" profileName={props.profileName} />
     </ReviewAgentStatusContext>
   )
 }
@@ -34,8 +34,8 @@ function Queue(props: { items: ReviewPromptQueueItem[] }): JSX.Element {
       value={{
         get: () => ({
           version: 2,
-          tickets: {
-            ticket: {
+          tasks: {
+            task: {
               worktreeIdentity: 'worktree',
               reviewedLines: {},
               queue: {
@@ -48,7 +48,7 @@ function Queue(props: { items: ReviewPromptQueueItem[] }): JSX.Element {
         refresh: async () => success(undefined),
       }}
     >
-      <TicketQueue profileName="" />
+      <TaskQueue profileName="" />
     </DiffReviewContext>
   )
 }
@@ -99,8 +99,8 @@ describe('ReviewPromptQueueList', () => {
   it("removes from the latest queue and clears only the removed head's launch request", async () => {
     let saved: DiffReviewProjectState = {
       version: 2,
-      tickets: {
-        ticket: {
+      tasks: {
+        task: {
           worktreeIdentity: 'worktree',
           reviewedLines: {},
           queue: {
@@ -126,24 +126,24 @@ describe('ReviewPromptQueueList', () => {
       get = state.get
       return (
         <DiffReviewContext value={state}>
-          <TicketQueue profileName="agent" />
+          <TaskQueue profileName="agent" />
         </DiffReviewContext>
       )
     })
     const buttons = container.querySelectorAll<HTMLButtonElement>('[data-testid="diff-review-queue-remove"]')
     buttons[1].click()
-    await expect.poll(() => saved.tickets.ticket.queue.items.map((item) => item.id)).toEqual(['a'])
-    expect(saved.tickets.ticket.queue.requestedAgentProfileName).toBe('agent')
+    await expect.poll(() => saved.tasks.task.queue.items.map((item) => item.id)).toEqual(['a'])
+    expect(saved.tasks.task.queue.requestedAgentProfileName).toBe('agent')
     buttons[0].click()
-    await expect.poll(() => saved.tickets.ticket.queue.items).toEqual([])
-    expect(saved.tickets.ticket.queue.requestedAgentProfileName).toBeUndefined()
-    expect(get().tickets.ticket.queue.items).toEqual([])
+    await expect.poll(() => saved.tasks.task.queue.items).toEqual([])
+    expect(saved.tasks.task.queue.requestedAgentProfileName).toBeUndefined()
+    expect(get().tasks.task.queue.items).toEqual([])
   })
   it('refuses to remove a prompt that started delivery after the last render', async () => {
     let saved: DiffReviewProjectState = {
       version: 2,
-      tickets: {
-        ticket: {
+      tasks: {
+        task: {
           worktreeIdentity: 'worktree',
           reviewedLines: {},
           queue: {
@@ -163,19 +163,19 @@ describe('ReviewPromptQueueList', () => {
       )
       return (
         <DiffReviewContext value={state}>
-          <TicketQueue profileName="" />
+          <TaskQueue profileName="" />
         </DiffReviewContext>
       )
     })
     saved = {
       ...saved,
-      tickets: {
-        ticket: {
-          ...saved.tickets.ticket,
+      tasks: {
+        task: {
+          ...saved.tasks.task,
           queue: {
             items: [
               {
-                ...saved.tickets.ticket.queue.items[0],
+                ...saved.tasks.task.queue.items[0],
                 state: 'delivering',
                 deliveryStartedAt: new Date().toISOString(),
               },
@@ -186,7 +186,7 @@ describe('ReviewPromptQueueList', () => {
     }
     container.querySelector<HTMLButtonElement>('[data-testid="diff-review-queue-remove"]')!.click()
     await expect.poll(() => document.querySelector('[role="dialog"]')?.textContent).toContain('already delivering')
-    expect(saved.tickets.ticket.queue.items[0].state).toBe('delivering')
+    expect(saved.tasks.task.queue.items[0].state).toBe('delivering')
   })
   it('keeps each item on its own DOM node while another item is removed', () => {
     const [items, setItems] = createSignal([

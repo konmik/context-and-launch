@@ -115,14 +115,14 @@ export interface SavedWorktreeInfo {
   agentWorktreePath: string
 }
 
-export function toSavedWorktreeInfo(ticket: {
+export function toSavedWorktreeInfo(task: {
   agentWorktreeBranchName?: string
   agentWorktreeDir?: string
 }): SavedWorktreeInfo | undefined {
-  if (ticket.agentWorktreeBranchName && ticket.agentWorktreeDir) {
+  if (task.agentWorktreeBranchName && task.agentWorktreeDir) {
     return {
-      branchName: ticket.agentWorktreeBranchName,
-      agentWorktreePath: ticket.agentWorktreeDir,
+      branchName: task.agentWorktreeBranchName,
+      agentWorktreePath: task.agentWorktreeDir,
     }
   }
   return undefined
@@ -409,7 +409,7 @@ export function createAgentWorktreeManager(launcherConfig: LauncherConfigManager
       throw createValidationError(
         `Branch '${branchName}' no longer exists.` +
           ' It may have been renamed or deleted outside Context & Launch.' +
-          ' Archive without deleting the branch, or update the ticket to point at the current branch.',
+          ' Archive without deleting the branch, or update the task to point at the current branch.',
       )
     }
     const mainBranch = await getMainBranch(projectPath, configuredBranch)

@@ -14,7 +14,7 @@ describe('Sync status failure (e2e, real server)', () => {
     const project = await openProject(ctx, {
       slugBase: 'sync-status-error',
       withRemote: true,
-      withTickets: [
+      withTasks: [
         {
           number: 'E-1',
           title: 'Initial',
@@ -23,7 +23,7 @@ describe('Sync status failure (e2e, real server)', () => {
         },
       ],
     })
-    fs.rmSync(path.join(project.ticketsPath, '.git'), {
+    fs.rmSync(path.join(project.tasksPath, '.git'), {
       force: true,
     })
     await ctx.page.reload()

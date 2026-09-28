@@ -2,7 +2,7 @@ import type { JSX } from '@solidjs/web'
 import { useParams, useNavigate, revalidate } from '@solidjs/router'
 import { AppConfigContext } from '~/components/config/app-config-storage.js'
 import { BoardConfigContext } from '~/components/board/board-config-storage.js'
-import { TicketOrderContext, createTicketOrderStorage } from '~/components/board/ticket-order-storage.js'
+import { TaskOrderContext, createTaskOrderStorage } from '~/components/board/task-order-storage.js'
 import { LauncherConfigContext } from '~/components/launcher/shared-launcher-config-storage.js'
 import { mergeLauncherConfigs } from '~/core/launcher/launcher-config-data.js'
 import { Show, For, Switch, Match, Errored, Loading, createSignal, createEffect, createMemo, onSettled, lazy, useContext } from 'solid-js'
@@ -26,9 +26,9 @@ import { MenuContent } from '~/components/ui/MenuContent.js'
 import { MenuItem } from '~/components/ui/MenuItem.js'
 import { MenuSeparator } from '~/components/ui/MenuSeparator.js'
 import { getViewMode, setViewMode } from '~/components/forest/forest-local-state.js'
-import CreateTicketDialog from '~/components/ticket/CreateTicketDialog.js'
-import TicketCleanupDialog from '~/components/shared/TicketCleanupDialog.js'
-import TicketDetailDialog from '~/components/ticket/TicketDetailDialog.js'
+import CreateTaskDialog from '~/components/task/CreateTaskDialog.js'
+import TaskCleanupDialog from '~/components/shared/TaskCleanupDialog.js'
+import TaskDetailDialog from '~/components/task/TaskDetailDialog.js'
 import ProjectLauncherDialog from '~/components/launcher/ProjectLauncherDialog'
 import { useErrorReporter } from '~/components/shared/error-presentation.js'
 import { errorPayload } from '~/core/shared/errors.js'
@@ -41,15 +41,15 @@ import LauncherSettings from '~/components/launcher/LauncherSettings.js'
 import { useModEnterSubmit, modEnterHint } from '~/lib/use-mod-enter-submit'
 import { loadProjectPage, getSyncStatus, addProject } from '~/components/project/project-api.js'
 import { createProjectPageController, type ProjectPageController } from '~/components/project/project-page-controller.js'
-import { getSyncPending } from '~/components/ticket/ticket-api.js'
+import { getSyncPending } from '~/components/task/task-api.js'
 import { openConfigDir } from '~/components/shared/shared-api.js'
 import { getProjectLauncherMetadata } from '~/components/launcher/launcher-api.js'
 import { ProjectLauncherConfigContext } from '~/components/launcher/project-launcher-config-storage.js'
 import { getHerdrAgentStatuses, reconcileReviewPromptQueue } from '~/components/board/herdr-status-api.js'
-import { HerdrStatusesContext } from '~/components/ticket/herdr-statuses-context.js'
+import { HerdrStatusesContext } from '~/components/task/herdr-statuses-context.js'
 import { ShortcutRunnerContext } from '~/components/board/shortcut-runner-context.js'
 import { createBoardShortcutRunner } from '~/components/board/board-shortcut-runner.js'
-import { ShortcutConfirmationDialog } from '~/components/ticket/ShortcutConfirmationDialog.js'
+import { ShortcutConfirmationDialog } from '~/components/task/ShortcutConfirmationDialog.js'
 import { paths } from '~/router.js'
 import { recordAppProjectFocus } from '~/components/config/app-config-api.js'
 
@@ -261,7 +261,7 @@ export function ProjectPageContent(props: { ctrl?: ProjectPageController }): JSX
     const timer = setInterval(() => void poll(), 5000)
     return () => clearInterval(timer)
   })
-  const herdrTicketStatuses = () => {
+  const herdrTaskStatuses = () => {
     const result = herdrStatusesResult()
     return result?.kind === 'available' ? result.statusesByFolderName : {}
   }
@@ -329,9 +329,9 @@ export function ProjectPageContent(props: { ctrl?: ProjectPageController }): JSX
                       height: '2.25rem',
                     }}
                     onClick={commands.openCreate}
-                    data-testid="project-header-new-ticket-button"
+                    data-testid="project-header-new-task-button"
                   >
-                    + New Ticket
+                    + New Task
                   </button>
                 </div>
                 <div class="flex flex-1 items-center justify-center gap-3">
@@ -352,11 +352,11 @@ export function ProjectPageContent(props: { ctrl?: ProjectPageController }): JSX
                         Launch an agent
                       </MenuItem>
                       <MenuItem
-                        value="open-tickets-folder"
-                        onClick={() => errors.runAndReportErrors(() => openConfigDir('tickets', d().projectSlug))}
-                        data-testid="project-header-open-tickets-folder-menuitem"
+                        value="open-tasks-folder"
+                        onClick={() => errors.runAndReportErrors(() => openConfigDir('tasks', d().projectSlug))}
+                        data-testid="project-header-open-tasks-folder-menuitem"
                       >
-                        Open tickets folder
+                        Open tasks folder
                       </MenuItem>
                       <MenuItem
                         value="open-project-folder"
@@ -452,7 +452,7 @@ export function ProjectPageContent(props: { ctrl?: ProjectPageController }): JSX
               </header>
 
               <main class="flex flex-1 flex-col min-h-0">
-                <HerdrStatusesContext value={(folderName) => herdrTicketStatuses()[folderName]}>
+                <HerdrStatusesContext value={(folderName) => herdrTaskStatuses()[folderName]}>
                   <Switch>
                     <Match when={d().status === 'not-found'}>
                       <div class="flex h-64 items-center justify-center">
@@ -477,12 +477,12 @@ export function ProjectPageContent(props: { ctrl?: ProjectPageController }): JSX
                     <Match when={ld()}>
                       {(_) => {
                         const loaded = () => ld()!
-                        const ticketOrder = createTicketOrderStorage({
+                        const taskOrder = createTaskOrderStorage({
                           get projectSlug() {
                             return loaded().projectSlug
                           },
                           get order() {
-                            return loaded().board.ticketOrder
+                            return loaded().board.taskOrder
                           },
                         })
                         const board = () => {
@@ -495,14 +495,14 @@ export function ProjectPageContent(props: { ctrl?: ProjectPageController }): JSX
                         }
                         return (
                           <Show
-                            when={selectionState().reviewTicket}
+                            when={selectionState().reviewTask}
                             fallback={
                               <Show
                                 when={viewMode() === 'forest'}
                                 keyed
                                 fallback={
                                   <ShortcutRunnerContext value={shortcutRunner}>
-                                    <TicketOrderContext value={ticketOrder}>
+                                    <TaskOrderContext value={taskOrder}>
                                       <KanbanBoard
                                         board={board()}
                                         projectSlug={d().projectSlug}
@@ -511,7 +511,7 @@ export function ProjectPageContent(props: { ctrl?: ProjectPageController }): JSX
                                         onViewDetail={commands.openDetail}
                                         onReviewChanges={commands.openReview}
                                       />
-                                    </TicketOrderContext>
+                                    </TaskOrderContext>
                                   </ShortcutRunnerContext>
                                 }
                               >
@@ -527,13 +527,13 @@ export function ProjectPageContent(props: { ctrl?: ProjectPageController }): JSX
                               </Show>
                             }
                           >
-                            {(reviewTicket) => (
+                            {(reviewTask) => (
                               <div class="min-h-0 flex-1">
                                 <Loading fallback={<p class="p-4 text-sm text-muted-foreground">Loading Diff Review...</p>}>
                                   <DiffReview
                                     projectSlug={d().projectSlug}
                                     projectName={currentProjectName()}
-                                    ticket={reviewTicket()}
+                                    task={reviewTask()}
                                     onClose={commands.closeReview}
                                   />
                                 </Loading>
@@ -547,29 +547,29 @@ export function ProjectPageContent(props: { ctrl?: ProjectPageController }): JSX
                 </HerdrStatusesContext>
               </main>
 
-              <CreateTicketDialog
-                open={dialogState().createTicketOpen}
-                onOpenChange={commands.setCreateTicketOpen}
-                onSubmit={commands.handleCreateTicket}
+              <CreateTaskDialog
+                open={dialogState().createTaskOpen}
+                onOpenChange={commands.setCreateTaskOpen}
+                onSubmit={commands.handleCreateTask}
                 suggestedNextNumber={ld()?.suggestedNextNumber ?? null}
                 projectSlug={d().projectSlug}
               />
-              <TicketCleanupDialog
+              <TaskCleanupDialog
                 open={dialogState().cleanupDialogOpen}
                 onOpenChange={commands.setCleanupDialogOpen}
                 projectSlug={d().projectSlug}
-                ticket={selectionState().selectedTicket}
+                task={selectionState().selectedTask}
                 action={dialogState().cleanupAction}
                 onCleanup={commands.handleCleanupAction}
                 onSubmit={commands.handleCleanupSubmit}
               />
-              <TicketDetailDialog
+              <TaskDetailDialog
                 onClose={commands.closeDetail}
                 onArchive={commands.openArchive}
                 onDelete={commands.openDelete}
                 onReviewChanges={commands.openReview}
                 projectSlug={d().projectSlug}
-                ticket={selectionState().detailTicket}
+                task={selectionState().detailTask}
               />
               <ProjectLauncherDialog open={projectLauncherOpen()} onOpenChange={setProjectLauncherOpen} projectSlug={d().projectSlug} />
 

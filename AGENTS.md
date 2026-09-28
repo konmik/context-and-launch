@@ -8,6 +8,7 @@
 
 ## General
 
+- Only add migrations when explicitly asked.
 - Do not patch third-party dependencies.
 - Do not add comments unless explicitly asked.
 
@@ -106,7 +107,7 @@
 
 ### Issue tracker
 
-Issues are tracked using Context & Launch's own ticket system (ticket folders in a git worktree on an orphan branch). See `docs/agents/issue-tracker.md`.
+Issues are tracked using Context & Launch's own task system (task folders in a git worktree on an orphan branch). See `docs/agents/issue-tracker.md`.
 
 ### Domain docs
 

@@ -45,10 +45,10 @@ describe('platform shell runner error/success contract', () => {
   })
   it.concurrent('rejects with AppError carrying stderr as the message on the user-error exit code', async () => {
     const cwd = makeTempDir()
-    const script = `console.error('Ticket is busy.'); process.exit(${USER_ERROR_EXIT_CODE})`
+    const script = `console.error('Task is busy.'); process.exit(${USER_ERROR_EXIT_CODE})`
     const promise = runDetachedProcess(process.execPath, ['-e', script], cwd)
     await expect(promise).rejects.toSatisfy(isAppError)
-    await expect(promise).rejects.toThrow('Ticket is busy.')
+    await expect(promise).rejects.toThrow('Task is busy.')
   })
   it.concurrent('rejects with ProcessError on the user-error exit code when stderr is empty', async () => {
     const cwd = makeTempDir()

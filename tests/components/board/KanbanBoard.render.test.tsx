@@ -5,23 +5,23 @@ import { createSignal, createMemo, Loading, type ComponentProps } from 'solid-js
 import { createStoredSignal } from '~/util/stored-signal.js'
 import { success } from '~/util/result.js'
 import KanbanBoard from '../../../src/components/board/KanbanBoard'
-import { TicketOrderContext } from '../../../src/components/board/ticket-order-storage.js'
+import { TaskOrderContext } from '../../../src/components/board/task-order-storage.js'
 import type { BoardState } from '~/components/project/project-api.js'
-import type { TicketInfo } from '~/core/ticket/ticket-store.js'
+import type { TaskInfo } from '~/core/task/task-store.js'
 import type { ColumnDefinition } from '~/core/project/board-config.js'
 import type { HerdrAgentStatus } from '~/core/herdr/herdr-client.js'
-import { HerdrStatusesContext } from '~/components/ticket/herdr-statuses-context.js'
+import { HerdrStatusesContext } from '~/components/task/herdr-statuses-context.js'
 
 afterEach(() => cleanup())
 
-function makeTicket(
-  overrides: Partial<TicketInfo> & {
+function makeTask(
+  overrides: Partial<TaskInfo> & {
     folderName: string
   },
-): TicketInfo {
+): TaskInfo {
   return {
     number: overrides.number ?? 'T-1',
-    title: overrides.title ?? 'Test ticket',
+    title: overrides.title ?? 'Test task',
     status: overrides.status ?? 'todo',
     contextNames: [],
     useWorktree: false,
@@ -38,16 +38,16 @@ function testColumns(...names: string[]): ColumnDefinition[] {
   }))
 }
 
-function makeBoard(tickets: TicketInfo[], columns: ColumnDefinition[] = testColumns('todo', 'done')): BoardState {
+function makeBoard(tasks: TaskInfo[], columns: ColumnDefinition[] = testColumns('todo', 'done')): BoardState {
   const colNames = columns.map((c) => c.name)
-  const ticketOrder: Record<string, string[]> = {}
+  const taskOrder: Record<string, string[]> = {}
   for (const col of colNames) {
-    ticketOrder[col] = tickets.filter((t) => t.status === col).map((t) => t.folderName)
+    taskOrder[col] = tasks.filter((t) => t.status === col).map((t) => t.folderName)
   }
   return {
     columns,
-    tickets,
-    ticketOrder,
+    tasks,
+    taskOrder,
   }
 }
 
@@ -58,15 +58,15 @@ function renderBoard(
   opts: {
     herdrStatuses?: Record<string, HerdrAgentStatus>
     dragState?: ComponentProps<typeof KanbanBoard>['dragState']
-    activeTicket?: ComponentProps<typeof KanbanBoard>['activeTicket']
+    activeTask?: ComponentProps<typeof KanbanBoard>['activeTask']
   } = {},
 ): RenderResult {
   return render(() => (
     <HerdrStatusesContext value={(folderName) => opts.herdrStatuses?.[folderName]}>
-      <TicketOrderContext
+      <TaskOrderContext
         value={createStoredSignal(
-          () => board.ticketOrder,
-          async (transform) => success(transform(board.ticketOrder)),
+          () => board.taskOrder,
+          async (transform) => success(transform(board.taskOrder)),
         )}
       >
         <KanbanBoard
@@ -76,39 +76,39 @@ function renderBoard(
           onViewDetail={noop}
           onArchive={noop}
           dragState={opts.dragState}
-          activeTicket={opts.activeTicket}
+          activeTask={opts.activeTask}
         />
-      </TicketOrderContext>
+      </TaskOrderContext>
     </HerdrStatusesContext>
   ))
 }
 
 describe('KanbanBoard rendering', () => {
-  it('keeps an open ticket menu when refreshed data replaces ticket objects', async () => {
-    const [tickets, setTickets] = createSignal([
-      makeTicket({
-        folderName: 'ticket',
+  it('keeps an open task menu when refreshed data replaces task objects', async () => {
+    const [tasks, setTasks] = createSignal([
+      makeTask({
+        folderName: 'task',
       }),
     ])
-    const board = makeBoard(tickets())
+    const board = makeBoard(tasks())
     renderBoard({
       ...board,
-      get tickets() {
-        return tickets()
+      get tasks() {
+        return tasks()
       },
     })
-    const card = screen.getByTestId('kanban-board-ticket-card')
-    screen.getByTestId('kanban-board-ticket-menu-trigger').click()
-    await waitFor(() => expect(screen.getByTestId('ticket-actions-archive')).toBeTruthy())
-    setTickets((current) =>
-      current.map((ticket) => ({
-        ...ticket,
+    const card = screen.getByTestId('kanban-board-task-card')
+    screen.getByTestId('kanban-board-task-menu-trigger').click()
+    await waitFor(() => expect(screen.getByTestId('task-actions-archive')).toBeTruthy())
+    setTasks((current) =>
+      current.map((task) => ({
+        ...task,
         title: 'Refreshed title',
       })),
     )
     await waitFor(() => expect(screen.getByText('Refreshed title')).toBeTruthy())
-    expect(screen.getByTestId('kanban-board-ticket-card')).toBe(card)
-    expect(screen.getByTestId('ticket-actions-archive')).toBeTruthy()
+    expect(screen.getByTestId('kanban-board-task-card')).toBe(card)
+    expect(screen.getByTestId('task-actions-archive')).toBeTruthy()
   })
   it('updates columns from a reactive board definition', async () => {
     const [columns, setColumns] = createSignal(testColumns('todo', 'done'))
@@ -116,8 +116,8 @@ describe('KanbanBoard rendering', () => {
       get columns() {
         return columns()
       },
-      tickets: [],
-      ticketOrder: {},
+      tasks: [],
+      taskOrder: {},
     })
     setColumns(testColumns('todo', 'done', 'review'))
     await waitFor(() => expect(screen.getByText('review')).toBeTruthy())
@@ -131,7 +131,7 @@ describe('KanbanBoard rendering', () => {
     })
     render(() => (
       <Loading>
-        <TicketOrderContext
+        <TaskOrderContext
           value={createStoredSignal(
             () => ({}),
             async (transform) => success(transform({})),
@@ -140,15 +140,15 @@ describe('KanbanBoard rendering', () => {
           <KanbanBoard
             board={{
               columns: storage.get(),
-              tickets: [],
-              ticketOrder: {},
+              tasks: [],
+              taskOrder: {},
             }}
             projectSlug="test"
             onDelete={noop}
             onViewDetail={noop}
             onArchive={noop}
           />
-        </TicketOrderContext>
+        </TaskOrderContext>
       </Loading>
     ))
     await waitFor(() => expect(screen.getByText('todo')).toBeTruthy())
@@ -167,22 +167,22 @@ describe('KanbanBoard rendering', () => {
     expect(screen.getByText('in-progress')).toBeTruthy()
     expect(screen.getByText('done')).toBeTruthy()
   })
-  it('renders ticket cards in correct columns', () => {
-    const tickets = [
-      makeTicket({
+  it('renders task cards in correct columns', () => {
+    const tasks = [
+      makeTask({
         folderName: 't-1-alpha',
         number: 'T-1',
         title: 'Alpha',
         status: 'todo',
       }),
-      makeTicket({
+      makeTask({
         folderName: 't-2-bravo',
         number: 'T-2',
         title: 'Bravo',
         status: 'done',
       }),
     ]
-    const board = makeBoard(tickets)
+    const board = makeBoard(tasks)
     renderBoard(board)
     expect(screen.getByText('T-1')).toBeTruthy()
     expect(screen.getByText('Alpha')).toBeTruthy()
@@ -194,22 +194,22 @@ describe('KanbanBoard rendering', () => {
     const { container } = renderBoard(board)
     expect(container.querySelectorAll('[data-drop-indicator]').length).toBe(0)
   })
-  it('each ticket card wrapper has a data-sortable-id for hover target matching', () => {
-    const tickets = [
-      makeTicket({
+  it('each task card wrapper has a data-sortable-id for hover target matching', () => {
+    const tasks = [
+      makeTask({
         folderName: 't-1-alpha',
         number: 'T-1',
         title: 'Alpha',
         status: 'todo',
       }),
-      makeTicket({
+      makeTask({
         folderName: 't-2-bravo',
         number: 'T-2',
         title: 'Bravo',
         status: 'todo',
       }),
     ]
-    const board = makeBoard(tickets)
+    const board = makeBoard(tasks)
     const { container } = renderBoard(board)
     const sortables = container.querySelectorAll('[data-sortable-id]')
     expect(sortables.length).toBe(2)
@@ -218,22 +218,22 @@ describe('KanbanBoard rendering', () => {
   })
 })
 describe('KanbanBoard same-column drop preview', () => {
-  it('opens a slot at the top when dragging the lower ticket above the upper one', () => {
-    const tickets = [
-      makeTicket({
+  it('opens a slot at the top when dragging the lower task above the upper one', () => {
+    const tasks = [
+      makeTask({
         folderName: 't-1-alpha',
         number: 'T-1',
         title: 'Alpha',
         status: 'todo',
       }),
-      makeTicket({
+      makeTask({
         folderName: 't-2-bravo',
         number: 'T-2',
         title: 'Bravo',
         status: 'todo',
       }),
     ]
-    const board = makeBoard(tickets)
+    const board = makeBoard(tasks)
     const dragState = () => ({
       activeId: 'todo:t-2-bravo',
       hoverTarget: {
@@ -241,10 +241,10 @@ describe('KanbanBoard same-column drop preview', () => {
         index: 0,
       },
     })
-    const activeTicket = () => tickets[1]
+    const activeTask = () => tasks[1]
     const { container } = renderBoard(board, {
       dragState,
-      activeTicket,
+      activeTask,
     })
     const indicators = container.querySelectorAll('[data-drop-indicator]')
     expect(indicators.length).toBe(1)
@@ -279,81 +279,81 @@ describe('KanbanBoard column descriptions', () => {
   })
 })
 describe('KanbanBoard undefined column', () => {
-  it('renders undefined column for orphaned tickets', () => {
-    const tickets = [
-      makeTicket({
+  it('renders undefined column for orphaned tasks', () => {
+    const tasks = [
+      makeTask({
         folderName: 't-1-alpha',
         number: 'T-1',
         title: 'Alpha',
         status: 'deleted-col',
       }),
     ]
-    const board = makeBoard(tickets, testColumns('todo', 'done'))
+    const board = makeBoard(tasks, testColumns('todo', 'done'))
     const { container } = renderBoard(board)
     const undefinedCol = container.querySelector('[data-testid="kanban-board-undefined-column"]')
     expect(undefinedCol).toBeTruthy()
     expect(undefinedCol!.textContent).toContain('undefined')
   })
   it('undefined column has red styling', () => {
-    const tickets = [
-      makeTicket({
+    const tasks = [
+      makeTask({
         folderName: 't-1-alpha',
         number: 'T-1',
         title: 'Alpha',
         status: 'gone',
       }),
     ]
-    const board = makeBoard(tickets, testColumns('todo'))
+    const board = makeBoard(tasks, testColumns('todo'))
     const { container } = renderBoard(board)
     const undefinedCol = container.querySelector('[data-testid="kanban-board-undefined-column"]')
     expect(undefinedCol!.className).toContain('border-destructive')
   })
   it('shows orphaned status text in red', () => {
-    const tickets = [
-      makeTicket({
+    const tasks = [
+      makeTask({
         folderName: 't-1-alpha',
         number: 'T-1',
         title: 'Alpha',
         status: 'vanished',
       }),
     ]
-    const board = makeBoard(tickets, testColumns('todo'))
+    const board = makeBoard(tasks, testColumns('todo'))
     const { container } = renderBoard(board)
-    const orphanedStatus = container.querySelector('[data-testid="kanban-board-ticket-orphaned-status"]')
+    const orphanedStatus = container.querySelector('[data-testid="kanban-board-task-orphaned-status"]')
     expect(orphanedStatus).toBeTruthy()
     expect(orphanedStatus!.textContent).toBe('vanished')
   })
-  it('does not render undefined column when no orphaned tickets', () => {
-    const tickets = [
-      makeTicket({
+  it('does not render undefined column when no orphaned tasks', () => {
+    const tasks = [
+      makeTask({
         folderName: 't-1-alpha',
         number: 'T-1',
         title: 'Alpha',
         status: 'todo',
       }),
     ]
-    const board = makeBoard(tickets, testColumns('todo', 'done'))
+    const board = makeBoard(tasks, testColumns('todo', 'done'))
     const { container } = renderBoard(board)
     expect(container.querySelector('[data-testid="kanban-board-undefined-column"]')).toBeNull()
   })
 })
 describe('KanbanBoard column color lines', () => {
   it('draws a color line per column (transparent when uncolored) and no card swatches', () => {
-    const tickets = [
-      makeTicket({
+    const tasks = [
+      makeTask({
         folderName: 't-1-alpha',
         number: 'T-1',
         title: 'Alpha',
         status: 'todo',
       }),
-      makeTicket({
+      makeTask({
         folderName: 't-2-bravo',
         number: 'T-2',
         title: 'Bravo',
         status: 'done',
       }),
     ]
-    const board = makeBoard(tickets, [
+    const board = makeBoard(tasks, [
       {
         name: 'todo',
         color: '#0969da',
@@ -374,16 +374,16 @@ describe('KanbanBoard column color lines', () => {
   })
 })
 describe('KanbanBoard herdr icons', () => {
-  it('renders one icon for a ticket with a herdr status', () => {
-    const tickets = [
-      makeTicket({
+  it('renders one icon for a task with a herdr status', () => {
+    const tasks = [
+      makeTask({
         folderName: 't-1-alpha',
         number: 'T-1',
         title: 'Alpha',
         status: 'todo',
       }),
     ]
-    const board = makeBoard(tickets, testColumns('todo', 'done'))
+    const board = makeBoard(tasks, testColumns('todo', 'done'))
     const { container } = renderBoard(board, {
       herdrStatuses: {
         't-1-alpha': 'blocked',
@@ -394,15 +394,15 @@ describe('KanbanBoard herdr icons', () => {
     expect(icons[0].getAttribute('data-herdr-status')).toBe('blocked')
   })
   it('renders no icons when herdrStatuses is omitted', () => {
-    const tickets = [
-      makeTicket({
+    const tasks = [
+      makeTask({
         folderName: 't-1-alpha',
         number: 'T-1',
         title: 'Alpha',
         status: 'todo',
       }),
     ]
-    const board = makeBoard(tickets, testColumns('todo', 'done'))
+    const board = makeBoard(tasks, testColumns('todo', 'done'))
     const { container } = renderBoard(board)
     expect(container.querySelectorAll('[data-testid="herdr-status-icon"]').length).toBe(0)
   })

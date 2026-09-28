@@ -9,7 +9,7 @@ import {
   poll,
   setupE2E,
   type SeedBoard,
-  type SeedTicket,
+  type SeedTask,
   type SeedAppLauncherConfig,
 } from './fixtures.js'
 import { toggleToForest, forestCard, forestGroupCard } from './forest-helpers.js'
@@ -38,11 +38,11 @@ async function backgroundColor(locator: Locator): Promise<string> {
 describe('Status swatch (e2e, real server)', () => {
   const ctx = setupE2E()
 
-  async function setup(suffix: string, boards: SeedBoard[], tickets: SeedTicket[]): Promise<CreatedProject> {
+  async function setup(suffix: string, boards: SeedBoard[], tasks: SeedTask[]): Promise<CreatedProject> {
     const project = await openProject(ctx, {
       slugBase: `swatch-${suffix}`,
       withBoards: boards,
-      withTickets: tickets,
+      withTasks: tasks,
       appLauncherConfig: HERDRLESS_LAUNCHER,
     })
     return project
@@ -98,7 +98,7 @@ describe('Status swatch (e2e, real server)', () => {
         timeout: 15000,
       })
       .toBe('rgb(9, 105, 218)')
-    expect(await ctx.page.locator('[data-testid="kanban-board-ticket-card"] [data-testid="status-swatch"]').count()).toBe(0)
+    expect(await ctx.page.locator('[data-testid="kanban-board-task-card"] [data-testid="status-swatch"]').count()).toBe(0)
     await toggleToForest(ctx.page)
     const forestSwatch = forestCard(ctx.page, 'T-1').locator('[data-testid="status-swatch"]')
     await forestSwatch.waitFor({
@@ -132,7 +132,7 @@ describe('Status swatch (e2e, real server)', () => {
         },
       ],
     )
-    const card = testId(ctx.page, 'kanban-board-ticket-card')
+    const card = testId(ctx.page, 'kanban-board-task-card')
     await card.waitFor({
       state: 'visible',
       timeout: 15000,
@@ -168,7 +168,7 @@ describe('Status swatch (e2e, real server)', () => {
       ],
     )
     const orphanedStatus = ctx.page.locator(
-      '[data-testid="kanban-board-column-body"][data-column-name="undefined"]' + ' [data-testid="kanban-board-ticket-orphaned-status"]',
+      '[data-testid="kanban-board-column-body"][data-column-name="undefined"]' + ' [data-testid="kanban-board-task-orphaned-status"]',
     )
     await orphanedStatus.waitFor({
       state: 'visible',
@@ -279,7 +279,7 @@ describe('Status swatch (e2e, real server)', () => {
     const todo = boards.find((b) => b.id === 'kanban')?.columns.find((c) => c.name === 'todo')
     expect(todo?.color).toBeUndefined()
     await testId(ctx.page, 'launcher-settings-close-button').click()
-    const card = testId(ctx.page, 'kanban-board-ticket-card')
+    const card = testId(ctx.page, 'kanban-board-task-card')
     await card.waitFor({
       state: 'visible',
       timeout: 15000,
@@ -317,7 +317,7 @@ describe('Status swatch (e2e, real server)', () => {
         },
       ],
     )
-    await testId(ctx.page, 'kanban-board-ticket-card').first().waitFor({
+    await testId(ctx.page, 'kanban-board-task-card').first().waitFor({
       state: 'visible',
       timeout: 15000,
     })

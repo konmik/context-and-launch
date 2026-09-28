@@ -27,7 +27,7 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
         expect(fs.existsSync(result.value.worktreePath)).toBe(true)
       }
     })
-    it.concurrent('truncates long ticket folder names for worktree path and branch', async () => {
+    it.concurrent('truncates long task folder names for worktree path and branch', async () => {
       const { projectDir, worktreeRoot, awm } = setup()
       const longName = 'wna-1533-opening-customer-support-from-login-error-alert' + '-error-is-dimissed-after-opening-customer-support-page'
       const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', longName)

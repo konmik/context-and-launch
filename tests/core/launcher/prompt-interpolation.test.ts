@@ -49,14 +49,14 @@ describe('interpolatePrompt', () => {
     ).toBe('{x}')
   })
   it('does not recursively interpolate placeholders inside substituted values', () => {
-    // ticketTitle value itself contains a {{ticketDir}} placeholder string.
+    // taskTitle value itself contains a {{taskDir}} placeholder string.
     // Single-pass replace means substituted text is never re-scanned,
     // so the inner placeholder must survive literally.
-    const result = interpolatePrompt('Work on {{ticketTitle}} in {{ticketDir}}', {
-      ticketTitle: 'Fix {{ticketDir}} layout',
-      ticketDir: 'C:\\projects\\board\\st-0001',
+    const result = interpolatePrompt('Work on {{taskTitle}} in {{taskDir}}', {
+      taskTitle: 'Fix {{taskDir}} layout',
+      taskDir: 'C:\\projects\\board\\st-0001',
     })
-    expect(result).toBe('Work on Fix {{ticketDir}} layout in C:\\projects\\board\\st-0001') // Also confirm with a value referencing its own key (self-referential)
+    expect(result).toBe('Work on Fix {{taskDir}} layout in C:\\projects\\board\\st-0001') // Also confirm with a value referencing its own key (self-referential)
     const selfRef = interpolatePrompt('Name: {{name}}', {
       name: 'hello {{name}}',
     })
@@ -111,9 +111,9 @@ describe('{{skills}} interpolation', () => {
     expect(result).toBe('Just do the thing.')
   })
   it('{{skills}} and other variables expand in a single pass', () => {
-    const template = 'Work in {{ticketDir}}.\n\n{{skills}}'
+    const template = 'Work in {{taskDir}}.\n\n{{skills}}'
     const result = interpolatePrompt(template, {
-      ticketDir: 'C:\\projects\\t-0001',
+      taskDir: 'C:\\projects\\t-0001',
       skills: '/simplify',
     })
     expect(result).toBe('Work in C:\\projects\\t-0001.\n\n/simplify')

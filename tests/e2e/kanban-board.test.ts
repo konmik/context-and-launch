@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { openProject, clickTicketMenuItem, setupE2E } from './fixtures.js'
+import { openProject, clickTaskMenuItem, setupE2E } from './fixtures.js'
 import { testId, waitVisible } from './locators.js'
 
 describe('Kanban board (e2e, real server)', () => {
@@ -34,10 +34,10 @@ describe('Kanban board (e2e, real server)', () => {
     })
     expect(await testId(ctx.page, 'kanban-board-empty-dropzone').count()).toBeGreaterThan(0)
   })
-  it('kanban-board-ticket-card click opens ticket detail dialog within 500ms', async () => {
+  it('kanban-board-task-card click opens task detail dialog within 500ms', async () => {
     await openProject(ctx, {
       slugBase: 'kb-click',
-      withTickets: [
+      withTasks: [
         {
           number: 'T-1',
           title: 'Alpha',
@@ -50,11 +50,11 @@ describe('Kanban board (e2e, real server)', () => {
       document.addEventListener(
         'click',
         () => {
-          performance.mark('ticket-open-start')
+          performance.mark('task-open-start')
           const observer = new MutationObserver(() => {
-            const input = document.querySelector('[data-testid="ticket-detail-number-input"]')
+            const input = document.querySelector('[data-testid="task-detail-number-input"]')
             if (!(input instanceof HTMLElement) || !input.checkVisibility()) return
-            performance.measure('ticket-open', 'ticket-open-start')
+            performance.measure('task-open', 'task-open-start')
             observer.disconnect()
           })
           observer.observe(document.body, {
@@ -69,15 +69,15 @@ describe('Kanban board (e2e, real server)', () => {
         },
       )
     })
-    await testId(ctx.page, 'kanban-board-ticket-card').first().click()
-    await waitVisible(ctx.page, 'ticket-detail-number-input')
-    const duration = await ctx.page.evaluate(() => performance.getEntriesByName('ticket-open')[0].duration)
+    await testId(ctx.page, 'kanban-board-task-card').first().click()
+    await waitVisible(ctx.page, 'task-detail-number-input')
+    const duration = await ctx.page.evaluate(() => performance.getEntriesByName('task-open')[0].duration)
     expect(duration).toBeLessThan(500)
   })
-  it('kanban-board-ticket-menu-trigger opens menu with archive/delete items', async () => {
+  it('kanban-board-task-menu-trigger opens menu with archive/delete items', async () => {
     await openProject(ctx, {
       slugBase: 'kb-menu',
-      withTickets: [
+      withTasks: [
         {
           number: 'T-1',
           title: 'Alpha',
@@ -86,21 +86,21 @@ describe('Kanban board (e2e, real server)', () => {
         },
       ],
     })
-    const trigger = testId(ctx.page, 'kanban-board-ticket-menu-trigger').first()
+    const trigger = testId(ctx.page, 'kanban-board-task-menu-trigger').first()
     await trigger.click()
-    await testId(ctx.page, 'ticket-actions-archive').waitFor({
+    await testId(ctx.page, 'task-actions-archive').waitFor({
       state: 'visible',
       timeout: 10000,
     })
-    expect(await testId(ctx.page, 'kanban-board-ticket-menu-edit').count()).toBe(0)
-    expect(await testId(ctx.page, 'ticket-actions-open-folder').count()).toBe(1)
-    expect(await testId(ctx.page, 'ticket-actions-archive').count()).toBe(1)
-    expect(await testId(ctx.page, 'ticket-actions-delete').count()).toBe(1)
+    expect(await testId(ctx.page, 'kanban-board-task-menu-edit').count()).toBe(0)
+    expect(await testId(ctx.page, 'task-actions-open-folder').count()).toBe(1)
+    expect(await testId(ctx.page, 'task-actions-archive').count()).toBe(1)
+    expect(await testId(ctx.page, 'task-actions-delete').count()).toBe(1)
   })
-  it('ticket-actions-archive opens Archive Ticket dialog', async () => {
+  it('task-actions-archive opens Archive Task dialog', async () => {
     await openProject(ctx, {
       slugBase: 'kb-arch-menu',
-      withTickets: [
+      withTasks: [
         {
           number: 'T-1',
           title: 'Alpha',
@@ -109,13 +109,13 @@ describe('Kanban board (e2e, real server)', () => {
         },
       ],
     })
-    await clickTicketMenuItem(ctx.page, 'archive')
-    await waitVisible(ctx.page, 'ticket-cleanup-submit')
+    await clickTaskMenuItem(ctx.page, 'archive')
+    await waitVisible(ctx.page, 'task-cleanup-submit')
   })
-  it('ticket-actions-delete opens Delete Ticket dialog', async () => {
+  it('task-actions-delete opens Delete Task dialog', async () => {
     await openProject(ctx, {
       slugBase: 'kb-del-menu',
-      withTickets: [
+      withTasks: [
         {
           number: 'T-1',
           title: 'Alpha',
@@ -124,10 +124,10 @@ describe('Kanban board (e2e, real server)', () => {
         },
       ],
     })
-    await clickTicketMenuItem(ctx.page, 'delete')
-    await waitVisible(ctx.page, 'ticket-cleanup-submit')
+    await clickTaskMenuItem(ctx.page, 'delete')
+    await waitVisible(ctx.page, 'task-cleanup-submit')
   })
-  it('kanban-board-undefined-column and related testids render for orphan-status tickets', async () => {
+  it('kanban-board-undefined-column and related testids render for orphan-status tasks', async () => {
     await openProject(ctx, {
       slugBase: 'kb-orphan',
       withBoards: [
@@ -144,7 +144,7 @@ describe('Kanban board (e2e, real server)', () => {
           ],
         },
       ],
-      withTickets: [
+      withTasks: [
         {
           number: 'T-9',
           title: 'Orphan',
@@ -155,6 +155,6 @@ describe('Kanban board (e2e, real server)', () => {
     })
     await waitVisible(ctx.page, 'kanban-board-undefined-column')
     expect(await testId(ctx.page, 'kanban-board-undefined-column-description').textContent()).toBe('Update manually')
-    expect(await testId(ctx.page, 'kanban-board-ticket-orphaned-status').textContent()).toBe('missing-col')
+    expect(await testId(ctx.page, 'kanban-board-task-orphaned-status').textContent()).toBe('missing-col')
   })
 })

@@ -18,8 +18,8 @@ export interface NoneStatusSwatchAppearance {
 
 export type StatusSwatchAppearance = ColumnColorStatusSwatchAppearance | OrphanStatusStatusSwatchAppearance | NoneStatusSwatchAppearance
 
-export function resolveStatusSwatch(ticketStatus: string, columns: SwatchColumn[]): StatusSwatchAppearance {
-  const column = columns.find((c) => c.name === ticketStatus)
+export function resolveStatusSwatch(taskStatus: string, columns: SwatchColumn[]): StatusSwatchAppearance {
+  const column = columns.find((c) => c.name === taskStatus)
   if (!column)
     return {
       kind: 'orphan-status',

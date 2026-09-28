@@ -8,7 +8,7 @@ import { chromium, type Browser, type Locator, type Page } from 'playwright'
 import { pickPort } from './test-port.js'
 import { startRealServer, stopRealServer } from './real-server.js'
 import type { ProjectTemplate } from './project-template.js'
-import { TICKETS_BRANCH, commitAll, git, initGitRepo } from './git-fixtures.js'
+import { TASKS_BRANCH, commitAll, git, initGitRepo } from './git-fixtures.js'
 import { testId, waitVisible, waitVisibleAny, WAIT_TIMEOUT_MS } from './locators.js'
 import { removeTempDir } from '../test-temp.js'
 import { timeAction, startActionTrace, closeTimedPage } from './action-timing.js'
@@ -107,7 +107,7 @@ export async function createServer(opts: CreateServerOptions = {}): Promise<Test
   }
 }
 
-export interface SeedTicket {
+export interface SeedTask {
   number: string
   title: string
   status: string
@@ -131,7 +131,7 @@ export interface SeedBoard {
   columns: SeedColumn[]
 }
 
-/** The board a test wants when it needs somewhere to drag a ticket to. */
+/** The board a test wants when it needs somewhere to drag a task to. */
 export const THREE_COLUMN_BOARD: SeedBoard[] = [
   {
     id: 'standard',
@@ -180,8 +180,8 @@ export interface CreateProjectOptions {
   projectSlug: string
   withRemote?: boolean
   withBoards?: SeedBoard[]
-  withTickets?: SeedTicket[]
-  withTicketOrder?: Record<string, string[]>
+  withTasks?: SeedTask[]
+  withTaskOrder?: Record<string, string[]>
   seedRemoteBaseline?: boolean
   withWorktrees?: {
     folderName: string
@@ -194,7 +194,7 @@ export interface CreateProjectOptions {
 export interface CreatedProject {
   projectSlug: string
   projectPath: string
-  ticketsPath: string
+  tasksPath: string
   worktreeRootPath: string | null
   branch: string
   remoteUrl: string | null
@@ -265,12 +265,12 @@ function createProjectData(server: ProjectDirs, opts: CreateProjectOptions): Cre
   const projectPath = makeRepoDir(opts.projectSlug, server.reposParentDir) // seedRemoteBaseline needs a remote that starts without the Orphan Branch, a
   // shape the template does not hold, so that one runs the git ceremony.
   const fromTemplate = !opts.seedRemoteBaseline
-  const seedsTickets = Boolean(opts.withRemote || opts.withTickets?.length || opts.withTicketOrder)
+  const seedsTasks = Boolean(opts.withRemote || opts.withTasks?.length || opts.withTaskOrder)
   let remoteUrl: string | null = null
   if (!fromTemplate) {
     initGitRepo(projectPath)
     if (opts.withRemote) {
-      remoteUrl = setupBareRemote(projectPath, TICKETS_BRANCH, false)
+      remoteUrl = setupBareRemote(projectPath, TASKS_BRANCH, false)
     }
   } else {
     const template = projectTemplate()
@@ -285,7 +285,7 @@ function createProjectData(server: ProjectDirs, opts: CreateProjectOptions): Cre
       git(`remote set-url origin "${remoteUrl}"`, projectPath)
     }
   }
-  const ticketsPath = path.join(server.dataDir, 'projects', opts.projectSlug, 'tickets')
+  const tasksPath = path.join(server.dataDir, 'projects', opts.projectSlug, 'tasks')
   const worktreeRootPath =
     opts.worktreeRootPath ??
     (opts.withWorktrees && opts.withWorktrees.length > 0 ? path.join(server.dataDir, 'projects', opts.projectSlug, 'worktrees') : null)
@@ -305,7 +305,7 @@ function createProjectData(server: ProjectDirs, opts: CreateProjectOptions): Cre
   const projectEntry = {
     path: canonicalProjectPath,
     projectSlug: opts.projectSlug,
-    branch: TICKETS_BRANCH,
+    branch: TASKS_BRANCH,
   }
   if (opts.mainBranch)
     Object.assign(projectEntry, {
@@ -328,29 +328,29 @@ function createProjectData(server: ProjectDirs, opts: CreateProjectOptions): Cre
   projectLauncher.worktreeRootPath = effectiveWorktreeRootPath
   fs.writeFileSync(projectLauncherFile, JSON.stringify(projectLauncher, null, 2))
 
-  function ensureTicketsWorktree(): void {
-    if (fs.existsSync(path.join(ticketsPath, '.git'))) return
-    fs.mkdirSync(path.dirname(ticketsPath), {
+  function ensureTasksWorktree(): void {
+    if (fs.existsSync(path.join(tasksPath, '.git'))) return
+    fs.mkdirSync(path.dirname(tasksPath), {
       recursive: true,
     })
     if (fromTemplate) {
       // The copy already carries the Orphan Branch and its upstream tracking,
       // so registering a worktree for it takes one command.
-      git(`worktree add "${ticketsPath}" "${TICKETS_BRANCH}"`, projectPath)
+      git(`worktree add "${tasksPath}" "${TASKS_BRANCH}"`, projectPath)
       return
     }
-    git(`worktree add --orphan -b "${TICKETS_BRANCH}" "${ticketsPath}"`, projectPath)
-    git('commit --allow-empty -m init', ticketsPath)
+    git(`worktree add --orphan -b "${TASKS_BRANCH}" "${tasksPath}"`, projectPath)
+    git('commit --allow-empty -m init', tasksPath)
   }
 
-  if (seedsTickets) {
-    ensureTicketsWorktree()
+  if (seedsTasks) {
+    ensureTasksWorktree()
   }
-  if ((opts.withTickets && opts.withTickets.length > 0) || opts.withTicketOrder) {
+  if ((opts.withTasks && opts.withTasks.length > 0) || opts.withTaskOrder) {
     const useWorktreeFolders = new Set((opts.withWorktrees ?? []).map((w) => w.folderName))
-    for (const t of opts.withTickets ?? []) {
+    for (const t of opts.withTasks ?? []) {
       const folderName = t.folderName ?? toKebab(`${t.number}-${t.title}`)
-      const folder = path.join(ticketsPath, folderName)
+      const folder = path.join(tasksPath, folderName)
       fs.mkdirSync(folder, {
         recursive: true,
       })
@@ -375,13 +375,13 @@ function createProjectData(server: ProjectDirs, opts: CreateProjectOptions): Cre
       fs.writeFileSync(path.join(folder, 'status.json'), JSON.stringify(status, null, 2))
       fs.writeFileSync(path.join(folder, 'description.md'), t.body ?? '')
     }
-    if (opts.withTicketOrder) {
-      fs.writeFileSync(path.join(ticketsPath, 'ticket-order.json'), JSON.stringify(opts.withTicketOrder, null, 2))
+    if (opts.withTaskOrder) {
+      fs.writeFileSync(path.join(tasksPath, 'task-order.json'), JSON.stringify(opts.withTaskOrder, null, 2))
     }
-    commitAll(ticketsPath, 'seed')
+    commitAll(tasksPath, 'seed')
   }
   if (opts.withRemote && !fromTemplate) {
-    git(`push -u origin "${TICKETS_BRANCH}"`, ticketsPath)
+    git(`push -u origin "${TASKS_BRANCH}"`, tasksPath)
   }
   if (opts.withWorktrees && opts.withWorktrees.length > 0 && worktreeRootPath) {
     for (const w of opts.withWorktrees) {
@@ -427,9 +427,9 @@ function createProjectData(server: ProjectDirs, opts: CreateProjectOptions): Cre
   return {
     projectSlug: opts.projectSlug,
     projectPath,
-    ticketsPath,
+    tasksPath,
     worktreeRootPath,
-    branch: TICKETS_BRANCH,
+    branch: TASKS_BRANCH,
     remoteUrl,
     cleanup,
   }
@@ -502,8 +502,8 @@ export async function openConflictDialog(page: Page): Promise<void> {
   await waitVisible(page, 'conflict-dialog-profile-select')
 }
 
-export async function openTicketDetail(page: Page, folderName: string): Promise<void> {
-  const card = testId(page, 'kanban-board-ticket-card', {
+export async function openTaskDetail(page: Page, folderName: string): Promise<void> {
+  const card = testId(page, 'kanban-board-task-card', {
     'data-folder-name': folderName,
   })
   await card.waitFor({
@@ -511,13 +511,13 @@ export async function openTicketDetail(page: Page, folderName: string): Promise<
     timeout: WAIT_TIMEOUT_MS,
   })
   await card.click()
-  await waitVisibleAny(page, ['ticket-detail-loading', 'ticket-detail-tab-editor'])
+  await waitVisibleAny(page, ['task-detail-loading', 'task-detail-tab-editor'])
   try {
-    await waitVisible(page, 'ticket-detail-tab-editor')
+    await waitVisible(page, 'task-detail-tab-editor')
   } catch {
     // The click can land while the board is still settling, which drops it.
     await card.click()
-    await waitVisible(page, 'ticket-detail-tab-editor')
+    await waitVisible(page, 'task-detail-tab-editor')
   }
 }
 
@@ -661,11 +661,11 @@ export async function installPausedClock(page: Page): Promise<void> {
 }
 
 /**
- * Opens a ticket's menu and waits for one of its items. The board re-renders as
+ * Opens a task's menu and waits for one of its items. The board re-renders as
  * background reads settle, which can swallow the press that opens the menu, so
  * the trigger is pressed again until the item is there.
  */
-export async function openTicketMenu(page: Page, trigger: Locator, itemTestId: string): Promise<void> {
+export async function openTaskMenu(page: Page, trigger: Locator, itemTestId: string): Promise<void> {
   await expect
     .poll(
       async () => {
@@ -680,14 +680,14 @@ export async function openTicketMenu(page: Page, trigger: Locator, itemTestId: s
     .toBe(true)
 }
 
-export async function clickTicketMenuItem(page: Page, item: 'edit' | 'archive' | 'delete'): Promise<void> {
-  const trigger = testId(page, 'kanban-board-ticket-menu-trigger').first()
+export async function clickTaskMenuItem(page: Page, item: 'edit' | 'archive' | 'delete'): Promise<void> {
+  const trigger = testId(page, 'kanban-board-task-menu-trigger').first()
   await trigger.waitFor({
     state: 'visible',
     timeout: WAIT_TIMEOUT_MS,
   })
-  const itemTestId = `ticket-actions-${item}`
-  await openTicketMenu(page, trigger, itemTestId) // The menu closes on the pointer press that Playwright's click sends first,
+  const itemTestId = `task-actions-${item}`
+  await openTaskMenu(page, trigger, itemTestId) // The menu closes on the pointer press that Playwright's click sends first,
   // so the item has to be activated directly.
   await page.evaluate((id) => {
     const el = document.querySelector<HTMLElement>(`[data-testid="${id}"]`)
@@ -701,7 +701,7 @@ export interface ProjectEntry {
   projectSlug: string
   name?: string
   branch?: string
-  ticketsPath?: string
+  tasksPath?: string
   mainBranch?: string
   boardId?: string
 }
@@ -783,7 +783,7 @@ export function readBoardDefinitions(server: TestServer): PersistedBoardDefiniti
   return JSON.parse(fs.readFileSync(file, 'utf-8'))
 }
 
-export interface PersistedTicketStatus {
+export interface PersistedTaskStatus {
   number: string
   title: string
   status: string
@@ -792,20 +792,20 @@ export interface PersistedTicketStatus {
   memberOf?: string
 }
 
-export function readTicketStatus(server: TestServer, projectSlug: string, folderName: string): PersistedTicketStatus | null {
-  const file = path.join(server.dataDir, 'projects', projectSlug, 'tickets', folderName, 'status.json')
+export function readTaskStatus(server: TestServer, projectSlug: string, folderName: string): PersistedTaskStatus | null {
+  const file = path.join(server.dataDir, 'projects', projectSlug, 'tasks', folderName, 'status.json')
   if (!fs.existsSync(file)) return null
   return JSON.parse(fs.readFileSync(file, 'utf-8'))
 }
 
 export function readForestLayout(server: TestServer, projectSlug: string): Record<string, ForestPosition> | null {
-  const file = path.join(server.dataDir, 'projects', projectSlug, 'tickets', 'forest-layout.json')
+  const file = path.join(server.dataDir, 'projects', projectSlug, 'tasks', 'forest-layout.json')
   if (!fs.existsSync(file)) return null
   return JSON.parse(fs.readFileSync(file, 'utf-8'))
 }
 
-export function listTicketFolders(server: TestServer, projectSlug: string): string[] {
-  const dir = path.join(server.dataDir, 'projects', projectSlug, 'tickets')
+export function listTaskFolders(server: TestServer, projectSlug: string): string[] {
+  const dir = path.join(server.dataDir, 'projects', projectSlug, 'tasks')
   if (!fs.existsSync(dir)) return []
   return fs
     .readdirSync(dir, {
@@ -830,12 +830,12 @@ export async function getLocalStorageItem(page: Page, key: string): Promise<stri
   }, key)
 }
 
-export function ticketContextFile(server: TestServer, projectSlug: string, folderName: string, contextName: string): string {
-  return path.join(server.dataDir, 'projects', projectSlug, 'tickets', folderName, `${contextName}.md`)
+export function taskContextFile(server: TestServer, projectSlug: string, folderName: string, contextName: string): string {
+  return path.join(server.dataDir, 'projects', projectSlug, 'tasks', folderName, `${contextName}.md`)
 }
 
 export function readContextFile(server: TestServer, projectSlug: string, folderName: string, contextName: string): string | null {
-  const file = ticketContextFile(server, projectSlug, folderName, contextName)
+  const file = taskContextFile(server, projectSlug, folderName, contextName)
   if (!fs.existsSync(file)) return null
   try {
     return fs.readFileSync(file, 'utf-8')
@@ -845,8 +845,8 @@ export function readContextFile(server: TestServer, projectSlug: string, folderN
   }
 }
 
-export function ticketFileNames(server: TestServer, projectSlug: string, folderName: string): string[] {
-  const dir = path.join(server.dataDir, 'projects', projectSlug, 'tickets', folderName)
+export function taskFileNames(server: TestServer, projectSlug: string, folderName: string): string[] {
+  const dir = path.join(server.dataDir, 'projects', projectSlug, 'tasks', folderName)
   if (!fs.existsSync(dir)) return []
   return fs.readdirSync(dir).filter((n) => n !== 'status.json' && !n.endsWith('.md'))
 }

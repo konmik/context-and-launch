@@ -77,7 +77,7 @@ describe('Review Prompt delivery (e2e, real server)', () => {
     const projectSlug = uniqueSlug('review-delivery')
     const project = await createProject(ctx.testServer, {
       projectSlug,
-      withTickets: [
+      withTasks: [
         {
           number: 'T-1',
           title: 'Deliver prompt',
@@ -128,9 +128,9 @@ describe('Review Prompt delivery (e2e, real server)', () => {
       ),
     )
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
-    const card = ctx.page.locator(`[data-testid="kanban-board-ticket-card"][data-folder-name="${folderName}"]`)
-    await testId(card, 'kanban-board-ticket-menu-trigger').click()
-    const reviewAction = ctx.page.locator('[data-testid="ticket-actions-review-changes"]')
+    const card = ctx.page.locator(`[data-testid="kanban-board-task-card"][data-folder-name="${folderName}"]`)
+    await testId(card, 'kanban-board-task-menu-trigger').click()
+    const reviewAction = ctx.page.locator('[data-testid="task-actions-review-changes"]')
     await reviewAction.waitFor({
       state: 'attached',
       timeout: 10000,
@@ -138,7 +138,7 @@ describe('Review Prompt delivery (e2e, real server)', () => {
     await reviewAction.click()
     await waitVisible(ctx.page, 'diff-review') // The Herdr agent statuses load only after the deferred polls start, and
     // the page clock keeps those timers frozen. Advance it once so the page
-    // knows the Ticket's Agent before the prompt is sent: Send starts an Agent
+    // knows the Task's Agent before the prompt is sent: Send starts an Agent
     // on its own only when none is known, and the one here already runs.
     await ctx.page.clock.fastForward(2000)
     await expect

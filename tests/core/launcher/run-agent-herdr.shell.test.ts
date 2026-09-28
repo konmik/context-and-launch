@@ -64,10 +64,10 @@ function global:herdr {
   if ($verb -eq 'pane list') {
     if ($Mode -eq 'reuse' -or $Mode -eq 'duplicate') {
       return '{"id":"test","result":{"panes":[' +
-        '{"workspace_id":"w1","pane_id":"w1:p1","label":"another-ticket"}]}}'
+        '{"workspace_id":"w1","pane_id":"w1:p1","label":"another-task"}]}}'
     }
     return '{"id":"test","result":{"panes":[' +
-      '{"workspace_id":"w1","pane_id":"w1:p1","label":"another-ticket"},' +
+      '{"workspace_id":"w1","pane_id":"w1:p1","label":"another-task"},' +
       '{"workspace_id":"w1","pane_id":"w1:p9","label":"alpha--st-47"}]}}'
   }
   if ($verb -eq 'agent list') {
@@ -269,7 +269,7 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
     expect(result.status, result.stderr).toBe(0)
     expect(result.report.calls.map((call) => call.args)).toContainEqual(['agent', 'rename', 'w1:p1', agentName])
   })
-  it('uses a new workspace root pane for the Ticket agent', () => {
+  it('uses a new workspace root pane for the Task agent', () => {
     const result = runHarness('create')
     expect(result.status, result.stderr).toBe(0)
     const calls = result.report.calls.map((call) => call.args)
@@ -281,7 +281,7 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
     expect(calls).toContainEqual(['agent', 'prompt', 'w1:p1', "hello\nmultiline 'world'"])
     expect(calls.some((call) => call.includes('--cwd') && call[0] === 'agent')).toBe(false)
   })
-  it('splits a Ticket pane in an existing Project workspace', () => {
+  it('splits a Task pane in an existing Project workspace', () => {
     const result = runHarness('reuse')
     expect(result.status, result.stderr).toBe(0)
     const calls = result.report.calls.map((call) => call.args)
@@ -328,7 +328,7 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
     expect(calls.some((call) => call[0] === 'pane' && call[1] === 'run' && call[2] === 'w1:p9' && call[3] !== '/quit')).toBe(true)
     expect(calls).toContainEqual(['agent', 'prompt', 'w1:p9', "hello\nmultiline 'world'"])
   })
-  it('starts an agent in an empty persistent Ticket pane', () => {
+  it('starts an agent in an empty persistent Task pane', () => {
     const result = runHarness('empty')
     expect(result.status, result.stderr).toBe(0)
     const calls = result.report.calls.map((call) => call.args)
@@ -337,7 +337,7 @@ describe.runIf(process.platform === 'win32')('run-agent-herdr.ps1', () => {
   it('rejects a working agent', () => {
     const result = runHarness('working')
     expect(result.status).toBe(64)
-    expect(result.stderr).toContain("Ticket pane 'alpha--st-47' already has a Herdr agent (working)")
+    expect(result.stderr).toContain("Task pane 'alpha--st-47' already has a Herdr agent (working)")
   })
 }) // The mocked-function harness above cannot see how PowerShell treats a real
 

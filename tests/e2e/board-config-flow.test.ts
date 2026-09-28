@@ -8,15 +8,15 @@ import {
   dragElement,
   sortableItem,
   readBoardDefinitions,
-  readTicketStatus,
-  openTicketDetail,
+  readTaskStatus,
+  openTaskDetail,
   readProjectLauncherConfig,
 } from './fixtures.js'
 import { testId, waitVisible, waitGone } from './locators.js'
 
 const ctx = setupE2E()
 
-it('uses edited board definitions immediately across settings, tickets, projects, and reloads', async () => {
+it('uses edited board definitions immediately across settings, tasks, projects, and reloads', async () => {
   const folderName = 't-1-alpha'
   const first = await seedProject(ctx, {
     slugBase: 'board-flow-first',
@@ -34,7 +34,7 @@ it('uses edited board definitions immediately across settings, tickets, projects
         ],
       },
     ],
-    withTickets: [
+    withTasks: [
       {
         number: 'T-1',
         title: 'Alpha',
@@ -108,14 +108,14 @@ it('uses edited board definitions immediately across settings, tickets, projects
     state: 'visible',
     timeout: 5000,
   })
-  await expect.poll(() => readTicketStatus(ctx.testServer, first.projectSlug, folderName)?.status).toBe('review')
-  await openTicketDetail(ctx.page, folderName)
-  await testId(ctx.page, 'ticket-detail-tab-launcher').click()
-  await testId(ctx.page, 'ticket-detail-launcher-profile-select').selectOption('Review Agent')
+  await expect.poll(() => readTaskStatus(ctx.testServer, first.projectSlug, folderName)?.status).toBe('review')
+  await openTaskDetail(ctx.page, folderName)
+  await testId(ctx.page, 'task-detail-tab-launcher').click()
+  await testId(ctx.page, 'task-detail-launcher-profile-select').selectOption('Review Agent')
   await expect
     .poll(() => readProjectLauncherConfig(ctx.testServer, first.projectSlug)?.columnDefaults?.review?.profileName)
     .toBe('Review Agent')
-  await testId(ctx.page, 'ticket-detail-close-button').click()
+  await testId(ctx.page, 'task-detail-close-button').click()
   await openLauncherSettings(ctx.page)
   await openLauncherSettingsTab(ctx.page, 'columns')
   const row = testId(ctx.page, 'launcher-settings-columns-row').filter({
@@ -128,7 +128,7 @@ it('uses edited board definitions immediately across settings, tickets, projects
   await testId(ctx.page, 'launcher-settings-columns-rename-confirm').click()
   await waitGone(ctx.page, 'launcher-settings-columns-name-input')
   await expectBoard('verification')
-  await expect.poll(() => readTicketStatus(ctx.testServer, first.projectSlug, folderName)?.status).toBe('verification')
+  await expect.poll(() => readTaskStatus(ctx.testServer, first.projectSlug, folderName)?.status).toBe('verification')
   await sortableItem(ctx.page, `verification:${folderName}`).waitFor({
     state: 'visible',
     timeout: 5000,
@@ -136,15 +136,15 @@ it('uses edited board definitions immediately across settings, tickets, projects
   await testId(ctx.page, 'launcher-settings-close-button').click()
   await waitGone(ctx.page, 'launcher-settings-columns-board-selector')
   expect(readProjectLauncherConfig(ctx.testServer, first.projectSlug)?.columnDefaults?.verification?.profileName).toBe('Review Agent')
-  await openTicketDetail(ctx.page, folderName)
-  await testId(ctx.page, 'ticket-detail-tab-launcher').click()
+  await openTaskDetail(ctx.page, folderName)
+  await testId(ctx.page, 'task-detail-tab-launcher').click()
   await expect
-    .poll(() => testId(ctx.page, 'ticket-detail-launcher-profile-select').inputValue(), {
+    .poll(() => testId(ctx.page, 'task-detail-launcher-profile-select').inputValue(), {
       timeout: 10000,
     })
     .toBe('Review Agent')
   expect(readProjectLauncherConfig(ctx.testServer, first.projectSlug)?.columnDefaults?.review).toBeUndefined()
-  await testId(ctx.page, 'ticket-detail-close-button').click()
+  await testId(ctx.page, 'task-detail-close-button').click()
   await switchProject(second.projectSlug)
   await expectBoard('verification')
   await openLauncherSettings(ctx.page)
@@ -183,5 +183,5 @@ it('uses edited board definitions immediately across settings, tickets, projects
       ],
     },
   ])
-  expect(readTicketStatus(ctx.testServer, first.projectSlug, folderName)?.status).toBe('verification')
+  expect(readTaskStatus(ctx.testServer, first.projectSlug, folderName)?.status).toBe('verification')
 })

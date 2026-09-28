@@ -47,11 +47,11 @@ describe('Add project welcome screen (e2e, real server)', () => {
     await input.fill('My Project')
     expect(await input.inputValue()).toBe('My Project')
   })
-  it('branch input defaults to tickets and is editable', async () => {
+  it('branch input defaults to tasks and is editable', async () => {
     await gotoAddProject()
     await waitVisible(ctx.page, 'add-project-branch-input')
     const input = testId(ctx.page, 'add-project-branch-input')
-    expect(await input.inputValue()).toBe('tickets')
+    expect(await input.inputValue()).toBe('tasks')
     await input.fill('work-items')
     expect(await input.inputValue()).toBe('work-items')
   })

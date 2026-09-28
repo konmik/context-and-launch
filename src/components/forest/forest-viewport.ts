@@ -1,6 +1,6 @@
 import type { ForestViewport } from './forest-types.js'
 import { CARD_HEIGHT, CARD_WIDTH } from './forest-graph.js'
-import type { ForestLayout } from '~/core/ticket/forest-layout-store.js'
+import type { ForestLayout } from '~/core/task/forest-layout-store.js'
 
 export function viewportForLayout(positions: ForestLayout, width: number, height: number): ForestViewport {
   const values = Object.values(positions)

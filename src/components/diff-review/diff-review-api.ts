@@ -7,7 +7,7 @@ import { errorPayload, errorResult } from '~/core/shared/errors.js'
 import type { DiffScope, ReviewPromptSnapshot } from '~/core/diff-review/diff-review-types.js'
 
 /**
- * The Diff Scopes a Ticket offers and the snapshot of one of them travel
+ * The Diff Scopes a Task offers and the snapshot of one of them travel
  * together: opening the Diff Review costs one round trip, and the client never
  * has to learn which scopes exist before it can ask for a diff.
  */
@@ -19,7 +19,7 @@ export const getReviewSnapshot = query(
     const scopes: DiffScope[] = target.mainBranch ? ['all', 'branch', 'working', 'last-commit'] : ['working', 'last-commit']
     const scope = requestedScope ?? scopes[0]
     if (!scopes.includes(scope)) {
-      throw new Error(`This Ticket has no '${scope}' Diff Scope.`)
+      throw new Error(`This Task has no '${scope}' Diff Scope.`)
     } // Git failing on one Diff Scope says nothing about the others, so it travels
     // back as this scope's answer instead of as the whole query's failure. The
     // Diff Review keeps its scope picker and the user can move to a scope Git

@@ -1,18 +1,18 @@
 import type { Locator } from 'playwright-core'
 import { describe, it, expect } from 'vitest'
 import { type Page } from 'playwright'
-import { openProject, setupE2E, type SeedTicket } from './fixtures.js'
+import { openProject, setupE2E, type SeedTask } from './fixtures.js'
 import { countOf, testId } from './locators.js'
 
-const TICKETS: SeedTicket[] = Array.from(
+const TASKS: SeedTask[] = Array.from(
   {
     length: 40,
   },
   (_, i) => ({
     number: `T-${i + 1}`,
-    title: `Ticket ${i + 1}`,
+    title: `Task ${i + 1}`,
     status: 'todo',
-    folderName: `t-${i + 1}-ticket`,
+    folderName: `t-${i + 1}-task`,
   }),
 )
 
@@ -69,7 +69,7 @@ describe('KanbanBoard board scrolling (e2e, real server)', () => {
     await openProject(ctx, {
       slugBase: `scroll-${suffix}`,
       withBoards: APP_BOARDS,
-      withTickets: TICKETS,
+      withTasks: TASKS,
     })
     await ctx.page.locator('[data-sortable-id]').first().waitFor({
       state: 'visible',

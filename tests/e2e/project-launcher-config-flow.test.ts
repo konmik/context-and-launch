@@ -39,7 +39,7 @@ it('shares project overrides and preserves external edits across project switche
   async function openLauncher() {
     await testId(ctx.page, 'project-header-title-menu-trigger').click()
     await testId(ctx.page, 'project-header-launch-agent-menuitem').click()
-    await testId(ctx.page, 'ticket-detail-launcher-profile-select').waitFor({
+    await testId(ctx.page, 'task-detail-launcher-profile-select').waitFor({
       state: 'visible',
     })
   }
@@ -83,7 +83,7 @@ it('shares project overrides and preserves external edits across project switche
   expect(await testId(ctx.page, 'launcher-settings-misc-branch-prefix-input').inputValue()).toBe('external/')
   await testId(ctx.page, 'launcher-settings-close-button').click()
   await openLauncher()
-  const options = testId(ctx.page, 'ticket-detail-launcher-profile-select').locator('option')
+  const options = testId(ctx.page, 'task-detail-launcher-profile-select').locator('option')
   await expect.poll(() => options.allTextContents()).toEqual(['Agent', 'Project Agent'])
   await closeLauncher()
   await switchProject(second.projectSlug)

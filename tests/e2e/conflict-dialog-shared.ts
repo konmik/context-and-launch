@@ -1,7 +1,7 @@
 import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-import { commitAll, fetchTickets, git, mutateRemote, type TicketsWorktree } from './git-fixtures.js'
+import { commitAll, fetchTasks, git, mutateRemote, type TasksWorktree } from './git-fixtures.js'
 import type { SeedAppLauncherConfig } from './fixtures.js'
 
 /** The conflict dialog needs a profile to offer, so every conflict test seeds one. */
@@ -19,23 +19,23 @@ function outputBuffer(error: Error, key: 'stdout' | 'stderr'): Buffer | undefine
   return Buffer.isBuffer(value) ? value : undefined
 } // Reproduce the state after a user launches conflict resolution: a scratch
 
-// worktree (sibling of the live tickets folder) with a rebase in progress.
-// The live tickets folder is left clean on its last good commit.
-export function createActiveRebaseConflict(project: TicketsWorktree): void {
-  const { ticketsPath } = project
-  fs.writeFileSync(path.join(ticketsPath, 'conflict.txt'), 'local\n')
-  commitAll(ticketsPath, 'local-change')
+// worktree (sibling of the live tasks folder) with a rebase in progress.
+// The live tasks folder is left clean on its last good commit.
+export function createActiveRebaseConflict(project: TasksWorktree): void {
+  const { tasksPath } = project
+  fs.writeFileSync(path.join(tasksPath, 'conflict.txt'), 'local\n')
+  commitAll(tasksPath, 'local-change')
   mutateRemote(project, {
     message: 'remote-change',
     edit: (clone) => fs.writeFileSync(path.join(clone, 'conflict.txt'), 'remote\n'),
   })
-  fetchTickets(project)
-  const scratch = `${ticketsPath}-conflict-resolve`
-  git(`worktree add --detach "${scratch}" HEAD`, ticketsPath)
+  fetchTasks(project)
+  const scratch = `${tasksPath}-conflict-resolve`
+  git(`worktree add --detach "${scratch}" HEAD`, tasksPath)
   let rebaseFailed = false
   let rebaseOutput = ''
   try {
-    execSync('git rebase origin/tickets', {
+    execSync('git rebase origin/tasks', {
       cwd: scratch,
       stdio: 'pipe',
     })

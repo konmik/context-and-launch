@@ -5,7 +5,7 @@
 @import '@fontsource/jetbrains-mono/700.css';
 @import 'tailwindcss';
 
-.ticket-cleanup-reveal {
+.task-cleanup-reveal {
   interpolate-size: allow-keywords;
   height: auto;
   opacity: 1;
@@ -16,14 +16,14 @@
     visibility 180ms ease;
 }
 
-.ticket-cleanup-reveal[data-visible='false'] {
+.task-cleanup-reveal[data-visible='false'] {
   visibility: hidden;
   height: 0;
   opacity: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ticket-cleanup-reveal {
+  .task-cleanup-reveal {
     transition: none;
   }
 }
@@ -184,8 +184,8 @@
   --border: oklch(0.8 0 89.9);
   --input: oklch(0.8 0 89.9);
   --ring: oklch(0.505 0 89.9);
-  --ticket-border-color: transparent;
-  --ticket-border-color-hover: transparent;
+  --task-border-color: transparent;
+  --task-border-color-hover: transparent;
   --settings-card-border: transparent;
   --settings-card-bg: var(--card-elevated);
 }
@@ -931,17 +931,17 @@ textarea.input {
   height: 2.25rem;
 }
 
-.ticket-card,
+.task-card,
 .forest-card-surface {
-  border-color: var(--ticket-border-color, var(--border));
+  border-color: var(--task-border-color, var(--border));
 }
-.ticket-card {
+.task-card {
   border-width: 1px;
   border-style: solid;
   contain: content;
 }
-.ticket-card:hover {
-  border-color: var(--ticket-border-color-hover, var(--muted-foreground));
+.task-card:hover {
+  border-color: var(--task-border-color-hover, var(--muted-foreground));
 }
 
 .settings-card {

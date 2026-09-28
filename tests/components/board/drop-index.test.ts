@@ -165,7 +165,7 @@ describe('resolvePreviewInsertBefore', () => {
       ),
     ).toBe(2)
   })
-  it('opens a slot at the top when dragging a lower ticket up', () => {
+  it('opens a slot at the top when dragging a lower task up', () => {
     expect(
       resolvePreviewInsertBefore(
         {

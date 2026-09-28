@@ -27,7 +27,7 @@ export interface AddProjectControllerDeps {
 export function createAddProjectController(deps: AddProjectControllerDeps): AddProjectControllerResult {
   const [nameValue, setNameValue] = createSignal('')
   const [pathValue, setPathValue] = createSignal('')
-  const [branchValue, setBranchValue] = createSignal('tickets')
+  const [branchValue, setBranchValue] = createSignal('tasks')
   const [mainBranchValue, setMainBranchValue] = createSignal('')
   const [mainBranchTouched, setMainBranchTouched] = createSignal(false)
   const [boardId, setBoardId] = createSignal('')
@@ -79,7 +79,7 @@ export function createAddProjectController(deps: AddProjectControllerDeps): AddP
     if (submitting()) return
     const trimmed = pathValue().trim()
     if (!trimmed) return
-    const branch = branchValue().trim() || 'tickets'
+    const branch = branchValue().trim() || 'tasks'
     setSubmitting(true)
     deps.onClearError?.()
     try {

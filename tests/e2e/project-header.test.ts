@@ -21,10 +21,10 @@ describe('Project page header toolbar (e2e, real server)', () => {
     expect(theme === 'light' || theme === 'dark').toBe(true)
     expect(await getLocalStorageItem(ctx.page, 'theme')).toBeNull()
   })
-  it('keeps the project shell visible after dismissing a ticket load error', async () => {
+  it('keeps the project shell visible after dismissing a task load error', async () => {
     const project = await seedProject(ctx, {
       slugBase: 'hdr-load-error',
-      withTickets: [
+      withTasks: [
         {
           number: 'ST-0001',
           title: 'Test',
@@ -32,8 +32,8 @@ describe('Project page header toolbar (e2e, real server)', () => {
         },
       ],
     })
-    const dotGit = path.join(project.ticketsPath, '.git')
-    const heldDotGit = path.join(project.ticketsPath, '.git-held-for-test')
+    const dotGit = path.join(project.tasksPath, '.git')
+    const heldDotGit = path.join(project.tasksPath, '.git-held-for-test')
     fs.renameSync(dotGit, heldDotGit)
     try {
       await ctx.page.goto(`${ctx.testServer.baseUrl}/project/${project.projectSlug}`)
@@ -103,11 +103,11 @@ describe('Project page header toolbar (e2e, real server)', () => {
     await testId(ctx.page, 'project-header-add-project-menuitem').click()
     await waitVisible(ctx.page, 'add-project-path-input')
   })
-  it('project-header-new-ticket-button opens create-ticket dialog', async () => {
+  it('project-header-new-task-button opens create-task dialog', async () => {
     await openProject(ctx, {
-      slugBase: 'hdr-new-ticket',
+      slugBase: 'hdr-new-task',
     })
-    await testId(ctx.page, 'project-header-new-ticket-button').click()
-    await waitVisible(ctx.page, 'create-ticket-number-input')
+    await testId(ctx.page, 'project-header-new-task-button').click()
+    await waitVisible(ctx.page, 'create-task-number-input')
   })
 })

@@ -21,7 +21,7 @@ export function DeleteConfirmDialog(props: {
               <p class="text-sm" data-testid="launcher-settings-columns-delete-confirm-message">
                 {dc().type === 'board'
                   ? `Delete board "${dc().name}"? This cannot be undone.`
-                  : `Delete column "${dc().name}"? Tickets with this status ` + 'will appear in the undefined column.'}
+                  : `Delete column "${dc().name}"? Tasks with this status ` + 'will appear in the undefined column.'}
               </p>
             </div>
             <DialogFooter>

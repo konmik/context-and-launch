@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { type Locator, type Page } from 'playwright'
-import { openProject, openTicketDetail, dragElement, type CreatedProject, readProjectLauncherConfig, poll, setupE2E } from './fixtures.js'
+import { openProject, openTaskDetail, dragElement, type CreatedProject, readProjectLauncherConfig, poll, setupE2E } from './fixtures.js'
 import { testId, waitVisible } from './locators.js'
 
-const TICKET = {
+const TASK = {
   number: 'T-1',
   title: 'Alpha',
   status: 'todo',
@@ -25,8 +25,8 @@ async function dragSkill(p: Page, fromName: string, toName: string) {
 }
 
 async function openLauncher(p: Page) {
-  await openTicketDetail(p, 't-1-alpha')
-  await testId(p, 'ticket-detail-tab-launcher').click()
+  await openTaskDetail(p, 't-1-alpha')
+  await testId(p, 'task-detail-tab-launcher').click()
   await waitVisible(p, 'launcher-skill-row')
 }
 
@@ -41,7 +41,7 @@ describe('Agent launcher skill reorder (e2e, real server)', () => {
   async function setup(suffix: string): Promise<CreatedProject> {
     const project = await openProject(ctx, {
       slugBase: `skill-reorder-${suffix}`,
-      withTickets: [TICKET],
+      withTasks: [TASK],
       appLauncherConfig: {
         templates: [
           {

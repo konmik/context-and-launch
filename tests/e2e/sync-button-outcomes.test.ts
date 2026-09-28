@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { gotoProject, openProject, seedProject, setupE2E } from './fixtures.js'
-import { fetchTickets, mutateRemote, pushTickets } from './git-fixtures.js'
+import { fetchTasks, mutateRemote, pushTasks } from './git-fixtures.js'
 import { countOf, testId, waitVisible } from './locators.js'
 
 describe('Sync button outcomes (e2e, real server)', () => {
@@ -11,7 +11,7 @@ describe('Sync button outcomes (e2e, real server)', () => {
     await openProject(ctx, {
       slugBase: 'sb-no-remote',
       withRemote: false,
-      withTickets: [
+      withTasks: [
         {
           number: 'NR-1',
           title: 'Local only',
@@ -32,7 +32,7 @@ describe('Sync button outcomes (e2e, real server)', () => {
       slugBase: 'sb-in-sync',
       withRemote: true,
     })
-    pushTickets(project)
+    pushTasks(project)
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
     await waitVisible(ctx.page, 'sync-button-pending-badge')
     await testId(ctx.page, 'sync-button-trigger').click()
@@ -44,7 +44,7 @@ describe('Sync button outcomes (e2e, real server)', () => {
     const project = await seedProject(ctx, {
       slugBase: 'sb-conflict',
       withRemote: true,
-      withTickets: [
+      withTasks: [
         {
           number: 'CF-1',
           title: 'Conflict',
@@ -53,7 +53,7 @@ describe('Sync button outcomes (e2e, real server)', () => {
         },
       ],
     })
-    pushTickets(project)
+    pushTasks(project)
     mutateRemote(project, {
       message: 'remote conflict',
       edit: (clone) =>
@@ -67,14 +67,14 @@ describe('Sync button outcomes (e2e, real server)', () => {
         ),
     })
     fs.writeFileSync(
-      path.join(project.ticketsPath, 'cf-1-conflict', 'status.json'),
+      path.join(project.tasksPath, 'cf-1-conflict', 'status.json'),
       JSON.stringify({
         number: 'CF-1',
         title: 'Conflict',
         status: 'in-progress',
       }),
     )
-    fetchTickets(project)
+    fetchTasks(project)
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
     await testId(ctx.page, 'sync-button-trigger').click()
     await waitVisible(ctx.page, 'conflict-dialog-close')

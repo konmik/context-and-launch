@@ -5,7 +5,7 @@ import { For, Show, createEffect, createSignal, untrack, useContext } from 'soli
 import { retryReviewPrompt } from './diff-review-api.js'
 import type { ReviewPromptQueueItem } from '~/core/diff-review/diff-review-types.js'
 import { DiffReviewContext, ReviewAgentStatusContext } from './diff-review-storage.js'
-import { getReviewTicketState, withReviewTicketState } from '~/core/diff-review/diff-review-types.js'
+import { getReviewTaskState, withReviewTaskState } from '~/core/diff-review/diff-review-types.js'
 import VerticalReveal from './VerticalReveal.js'
 import { useErrorReporter } from '../shared/error-presentation.js'
 import { FieldErrorMessage } from '../shared/FieldErrorMessage.js'
@@ -20,7 +20,7 @@ export default function ReviewPromptQueueList(props: { projectSlug: string; fold
   const state = useContext(DiffReviewContext)
   const agentState = useContext(ReviewAgentStatusContext)!
   const agentStatus = agentState.get
-  const items = () => getReviewTicketState(state.get(), props.folderName, agentStatus().worktreeIdentity).queue.items
+  const items = () => getReviewTaskState(state.get(), props.folderName, agentStatus().worktreeIdentity).queue.items
   const [retryingId, setRetryingId] = createSignal<string>()
   const [removingId, setRemovingId] = createSignal<string>()
   const errors = useErrorReporter()
@@ -54,18 +54,18 @@ export default function ReviewPromptQueueList(props: { projectSlug: string; fold
     errors.clear()
     try {
       const result = await state.update((current) => {
-        const ticket = getReviewTicketState(current, props.folderName, agentStatus().worktreeIdentity)
-        const item = ticket.queue.items.find((item) => item.id === itemId)
+        const task = getReviewTaskState(current, props.folderName, agentStatus().worktreeIdentity)
+        const item = task.queue.items.find((item) => item.id === itemId)
         if (!item) throw new Error('That Review Prompt is no longer in the queue.')
         if (!['waiting', 'error', 'uncertain'].includes(item.state)) {
           throw new Error(`This Review Prompt is already ${item.state} and can no longer be removed.`)
         }
-        return withReviewTicketState(current, props.folderName, {
-          ...ticket,
+        return withReviewTaskState(current, props.folderName, {
+          ...task,
           queue: {
-            ...ticket.queue,
-            items: ticket.queue.items.filter((item) => item.id !== itemId),
-            requestedAgentProfileName: ticket.queue.items[0]?.id === itemId ? undefined : ticket.queue.requestedAgentProfileName,
+            ...task.queue,
+            items: task.queue.items.filter((item) => item.id !== itemId),
+            requestedAgentProfileName: task.queue.items[0]?.id === itemId ? undefined : task.queue.requestedAgentProfileName,
           },
         })
       })

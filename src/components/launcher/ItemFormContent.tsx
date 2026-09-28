@@ -150,22 +150,22 @@ export function ItemFormContent(props: ItemFormDialogProps): JSX.Element {
                       '{{configDefaultsDir}} {{appConfigDir}}'
                     : f().itemType === 'shortcut'
                       ? [
-                          '{{ticketDir}} {{ticketSlug}}',
-                          '{{ticketTitle}} {{ticketNumber}}',
-                          '{{ticketStatus}} {{projectPath}}',
+                          '{{taskDir}} {{taskSlug}}',
+                          '{{taskTitle}} {{taskNumber}}',
+                          '{{taskStatus}} {{projectPath}}',
                           '{{projectSlug}} {{launchDir}}',
                         ].join(' ')
                       : f().itemType === 'template'
                         ? [
-                            '{{ticketDir}} {{ticketSlug}}',
-                            '{{ticketTitle}} {{ticketNumber}}',
-                            '{{ticketStatus}} {{projectPath}}',
+                            '{{taskDir}} {{taskSlug}}',
+                            '{{taskTitle}} {{taskNumber}}',
+                            '{{taskStatus}} {{projectPath}}',
                             '{{projectSlug}} {{skills}}',
                           ].join(' ')
                         : [
-                            '{{ticketDir}} {{ticketSlug}}',
-                            '{{ticketTitle}} {{ticketNumber}}',
-                            '{{ticketStatus}} {{projectPath}}',
+                            '{{taskDir}} {{taskSlug}}',
+                            '{{taskTitle}} {{taskNumber}}',
+                            '{{taskStatus}} {{projectPath}}',
                             '{{projectSlug}}',
                           ].join(' ')}
                 </p>

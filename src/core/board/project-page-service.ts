@@ -1,5 +1,5 @@
 import fs from 'fs'
-import { createTicketStore } from '~/core/ticket/ticket-store.js'
+import { createTaskStore } from '~/core/task/task-store.js'
 import { resolveAgentWorktreeLocation, worktreeFolderName } from '~/core/worktree/worktree-naming.js'
 import { errorPayload } from '~/core/shared/errors.js'
 import type { ProjectRegistry } from '~/core/project/project-registry.js'
@@ -7,7 +7,7 @@ import type { BoardConfigManager } from '~/core/project/board-config.js'
 import type { WorktreeManager } from '~/core/worktree/worktree-manager.js'
 import type { LauncherConfigManager } from '~/core/launcher/launcher-config.js'
 import type { FileWatcher } from '~/core/infra/file-watcher.js'
-import type { TicketSyncManager } from '~/core/ticket/ticket-sync.js'
+import type { TaskSyncManager } from '~/core/task/task-sync.js'
 import type { ProjectPageData, SyncStatus } from './board-types.js'
 
 export interface ProjectPageService {
@@ -20,7 +20,7 @@ export function createProjectPageService(
   boardConfigManager: BoardConfigManager,
   worktreeManager: WorktreeManager,
   fileWatcher: FileWatcher,
-  ticketSyncManager: TicketSyncManager,
+  taskSyncManager: TaskSyncManager,
   launcherConfigManager: LauncherConfigManager,
 ): ProjectPageService {
   const projectGitQueue = new Map<string, Promise<unknown>>()
@@ -60,10 +60,10 @@ export function createProjectPageService(
       return await runOnProjectGitQueue(projectSlug, async () => {
         const worktreeDir = await worktreeManager.ensureWorktree(project.path, projectSlug, project.branch)
         fileWatcher.watch(worktreeDir)
-        await ticketSyncManager.finalizeResolution(worktreeDir)
+        await taskSyncManager.finalizeResolution(worktreeDir)
         const config = boardConfigManager.getConfig(project.boardId)
-        const store = createTicketStore(worktreeDir)
-        const { tickets, ticketOrder, suggestedNextNumber } = await store.loadBoardSnapshot(config.columns.map((c) => c.name))
+        const store = createTaskStore(worktreeDir)
+        const { tasks, taskOrder, suggestedNextNumber } = await store.loadBoardSnapshot(config.columns.map((c) => c.name))
         const worktreeSettings = launcherConfigManager.resolveWorktreeSettings(projectSlug)
         const worktreeRootPath = worktreeSettings.worktreeRootPath
         let worktreeNames: Set<string>
@@ -76,15 +76,15 @@ export function createProjectPageService(
             throw e
           }
         }
-        const ticketsWithWorktrees = tickets.map((ticket) => {
-          const { worktreePath, isDefaultLocation } = resolveAgentWorktreeLocation(ticket.folderName, worktreeSettings, {
-            savedWorktreePath: ticket.agentWorktreeDir,
+        const tasksWithWorktrees = tasks.map((task) => {
+          const { worktreePath, isDefaultLocation } = resolveAgentWorktreeLocation(task.folderName, worktreeSettings, {
+            savedWorktreePath: task.agentWorktreeDir,
           })
           const hasAgentWorktree = isDefaultLocation
-            ? worktreeNames.has(worktreeFolderName(ticket.folderName))
+            ? worktreeNames.has(worktreeFolderName(task.folderName))
             : fs.existsSync(worktreePath)
           return {
-            ...ticket,
+            ...task,
             hasAgentWorktree,
           }
         })
@@ -93,8 +93,8 @@ export function createProjectPageService(
           projects,
           projectSlug,
           board: {
-            tickets: ticketsWithWorktrees,
-            ticketOrder,
+            tasks: tasksWithWorktrees,
+            taskOrder,
           },
           projectPath: project.path,
           suggestedNextNumber,
@@ -106,7 +106,7 @@ export function createProjectPageService(
         projects,
         projectSlug,
         projectPath: project.path,
-        error: errorPayload(e, 'Tickets could not be loaded'),
+        error: errorPayload(e, 'Tasks could not be loaded'),
       }
     }
   }
@@ -121,8 +121,8 @@ export function createProjectPageService(
     }
     return runOnProjectGitQueue(projectSlug, async () => {
       const worktreeDir = await worktreeManager.ensureWorktree(project.path, projectSlug, project.branch)
-      const hasRemote = await ticketSyncManager.hasRemote(worktreeDir)
-      const hasConflict = await ticketSyncManager.detectConflict(worktreeDir)
+      const hasRemote = await taskSyncManager.hasRemote(worktreeDir)
+      const hasConflict = await taskSyncManager.detectConflict(worktreeDir)
       return {
         hasRemote,
         hasConflict,

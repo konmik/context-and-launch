@@ -1,9 +1,9 @@
 import type { HerdrAgent, HerdrExecFn } from './herdr-exec.js'
-import { listHerdrTicketPaneState, type HerdrTicketPane } from './herdr-ticket-panes.js'
+import { listHerdrTaskPaneState, type HerdrTaskPane } from './herdr-task-panes.js'
 
 export type HerdrAgentStatus = 'idle' | 'working' | 'blocked' | 'done' | 'unknown'
 
-export interface TicketAgentStatuses extends Record<string, HerdrAgentStatus> {}
+export interface TaskAgentStatuses extends Record<string, HerdrAgentStatus> {}
 
 function herdrAgentStatus(status: string): HerdrAgentStatus {
   switch (status) {
@@ -17,7 +17,7 @@ function herdrAgentStatus(status: string): HerdrAgentStatus {
   }
 }
 
-export function ticketStatusesFromPanes(panes: HerdrTicketPane[]): TicketAgentStatuses {
+export function taskStatusesFromPanes(panes: HerdrTaskPane[]): TaskAgentStatuses {
   const statuses = new Map<string, HerdrAgentStatus>()
   const seenFolderNames = new Set<string>()
   for (const pane of panes) {
@@ -40,19 +40,19 @@ export function ticketStatusesFromPanes(panes: HerdrTicketPane[]): TicketAgentSt
   return Object.fromEntries(statuses)
 }
 
-export interface HerdrTicketState {
-  statusesByFolderName: TicketAgentStatuses
+export interface HerdrTaskState {
+  statusesByFolderName: TaskAgentStatuses
   agents: HerdrAgent[]
 }
 
-export async function fetchHerdrTicketState(projectSlug: string, exec: HerdrExecFn): Promise<HerdrTicketState> {
-  const { ticketPanes, agents } = await listHerdrTicketPaneState(projectSlug, exec)
+export async function fetchHerdrTaskState(projectSlug: string, exec: HerdrExecFn): Promise<HerdrTaskState> {
+  const { taskPanes, agents } = await listHerdrTaskPaneState(projectSlug, exec)
   return {
-    statusesByFolderName: ticketStatusesFromPanes(ticketPanes),
+    statusesByFolderName: taskStatusesFromPanes(taskPanes),
     agents,
   }
 }
 
-export async function fetchHerdrTicketStatuses(projectSlug: string, exec: HerdrExecFn): Promise<TicketAgentStatuses> {
-  return (await fetchHerdrTicketState(projectSlug, exec)).statusesByFolderName
+export async function fetchHerdrTaskStatuses(projectSlug: string, exec: HerdrExecFn): Promise<TaskAgentStatuses> {
+  return (await fetchHerdrTaskState(projectSlug, exec)).statusesByFolderName
 }

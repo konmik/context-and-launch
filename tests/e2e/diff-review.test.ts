@@ -6,7 +6,7 @@ import type { Locator, Page } from 'playwright'
 import type { DiffReviewProjectState } from '../../src/core/diff-review/diff-review-types.js'
 import {
   gotoProject,
-  openTicketDetail,
+  openTaskDetail,
   poll,
   readProjectLauncherConfig,
   seedProject,
@@ -60,7 +60,7 @@ describe('Diff Review (e2e, real server)', () => {
       appLauncherConfig: {
         profiles: [],
       },
-      withTickets: [
+      withTasks: [
         {
           number: 'T-1',
           title: 'Review worktree',
@@ -140,8 +140,8 @@ describe('Diff Review (e2e, real server)', () => {
     await expect.poll(() => composerInput.inputValue()).toBe('')
     const statePath = path.join(ctx.testServer.dataDir, 'projects', project.projectSlug, 'config', 'diff-review.json')
     const saved: DiffReviewProjectState = JSON.parse(fs.readFileSync(statePath, 'utf8'))
-    saved.tickets[folderName].queue.items[0].feedback = 'Updated outside the browser'
-    saved.tickets.other = {
+    saved.tasks[folderName].queue.items[0].feedback = 'Updated outside the browser'
+    saved.tasks.other = {
       worktreeIdentity: 'other-worktree',
       reviewedLines: {},
       queue: {
@@ -161,9 +161,9 @@ describe('Diff Review (e2e, real server)', () => {
       timeout: 10000,
     })
     const afterRemoval: DiffReviewProjectState = JSON.parse(fs.readFileSync(statePath, 'utf8'))
-    expect(afterRemoval.tickets.other).toEqual(saved.tickets.other)
-    expect(afterRemoval.tickets[folderName].reviewedLines).toMatchObject(saved.tickets[folderName].reviewedLines)
-    expect(afterRemoval.tickets[folderName].queue.items).toEqual([])
+    expect(afterRemoval.tasks.other).toEqual(saved.tasks.other)
+    expect(afterRemoval.tasks[folderName].reviewedLines).toMatchObject(saved.tasks[folderName].reviewedLines)
+    expect(afterRemoval.tasks[folderName].queue.items).toEqual([])
     await ctx.page.locator('[data-testid="diff-review-composer"] [aria-label="Close Review Prompt composer"]').click()
     await ctx.page.locator('[data-testid="diff-review-composer"]').waitFor({
       state: 'detached',
@@ -174,9 +174,9 @@ describe('Diff Review (e2e, real server)', () => {
       state: 'detached',
       timeout: 10000,
     })
-    await openTicketDetail(ctx.page, folderName)
-    await ctx.page.locator('[data-testid="ticket-detail-actions-menu-trigger"]').click()
-    await ctx.page.locator('[data-testid="ticket-actions-review-changes"]').waitFor({
+    await openTaskDetail(ctx.page, folderName)
+    await ctx.page.locator('[data-testid="task-detail-actions-menu-trigger"]').click()
+    await ctx.page.locator('[data-testid="task-actions-review-changes"]').waitFor({
       state: 'attached',
       timeout: 10000,
     })
@@ -192,7 +192,7 @@ describe('Diff Review (e2e, real server)', () => {
       appLauncherConfig: {
         profiles: [],
       },
-      withTickets: [
+      withTasks: [
         {
           number: 'T-1',
           title: 'Resizable changed files panel',
@@ -247,7 +247,7 @@ describe('Diff Review (e2e, real server)', () => {
     const folderName = 't-7-vanishing-file'
     const project = await seedProject(ctx, {
       slugBase: 'diff-review-vanish',
-      withTickets: [
+      withTasks: [
         {
           number: 'T-7',
           title: 'Vanishing file',
@@ -297,7 +297,7 @@ describe('Diff Review (e2e, real server)', () => {
     const folderName = 't-6-drag-prompt'
     const project = await seedProject(ctx, {
       slugBase: 'diff-review-drag',
-      withTickets: [
+      withTasks: [
         {
           number: 'T-6',
           title: 'Drag prompt',
@@ -406,7 +406,7 @@ describe('Diff Review (e2e, real server)', () => {
       appLauncherConfig: {
         profiles: [],
       },
-      withTickets: [
+      withTasks: [
         {
           number: 'T-8',
           title: 'Copy shortcut',
@@ -475,7 +475,7 @@ describe('Diff Review (e2e, real server)', () => {
       appLauncherConfig: {
         profiles: [],
       },
-      withTickets: [
+      withTasks: [
         {
           number: 'T-9',
           title: 'Copy plain',
@@ -525,7 +525,7 @@ describe('Diff Review (e2e, real server)', () => {
     const folderName = 't-3-live-selection'
     const project = await seedProject(ctx, {
       slugBase: 'diff-review-live',
-      withTickets: [
+      withTasks: [
         {
           number: 'T-3',
           title: 'Live selection',
@@ -598,7 +598,7 @@ describe('Diff Review (e2e, real server)', () => {
       appLauncherConfig: {
         profiles: [],
       },
-      withTickets: [
+      withTasks: [
         {
           number: 'T-5',
           title: 'Direct prompt',
@@ -657,7 +657,7 @@ describe('Diff Review (e2e, real server)', () => {
     const project = await seedProject(ctx, {
       slugBase: 'diff-review-state',
       mainBranch: 'main',
-      withTickets: [
+      withTasks: [
         {
           number: 'T-4',
           title: 'Review state',
@@ -726,7 +726,7 @@ describe('Diff Review (e2e, real server)', () => {
     const project = await seedProject(ctx, {
       slugBase: 'diff-review-branch',
       mainBranch: 'main',
-      withTickets: [
+      withTasks: [
         {
           number: 'T-2',
           title: 'Review branch',
@@ -813,7 +813,7 @@ describe('Diff Review (e2e, real server)', () => {
     const project = await seedProject(ctx, {
       slugBase: 'diff-review-missing-main',
       mainBranch: 'nonexistent-main',
-      withTickets: [
+      withTasks: [
         {
           number: 'T-8',
           title: 'Missing main',
@@ -862,7 +862,7 @@ describe('Diff Review (e2e, real server)', () => {
           },
         ],
       },
-      withTickets: [
+      withTasks: [
         {
           number: 'T-7',
           title: 'Launch agent',
@@ -921,7 +921,7 @@ describe('Diff Review (e2e, real server)', () => {
     const folderName = 't-9-switch-project'
     const first = await seedProject(ctx, {
       slugBase: 'diff-review-switch-a',
-      withTickets: [
+      withTasks: [
         {
           number: 'T-9',
           title: 'Switch project',

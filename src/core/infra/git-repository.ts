@@ -76,7 +76,7 @@ export function createGitRepository(commands: CommandTemplateExecutor): GitRepos
     const minor = parseInt(m[2], 10)
     if (major < 2 || (major === 2 && minor < 38)) {
       throw new Error(
-        `Git ${major}.${minor} is too old: tickets sync requires Git >= 2.38 ` + 'for "merge-tree --write-tree". Please upgrade git.',
+        `Git ${major}.${minor} is too old: tasks sync requires Git >= 2.38 ` + 'for "merge-tree --write-tree". Please upgrade git.',
       )
     }
   }

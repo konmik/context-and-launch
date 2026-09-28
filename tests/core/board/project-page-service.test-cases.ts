@@ -1,4 +1,4 @@
-import type { ResolutionPlan } from '../../../src/core/ticket/ticket-sync.js'
+import type { ResolutionPlan } from '../../../src/core/task/task-sync.js'
 import { success } from '~/util/result.js'
 import { describe, it as baseIt, expect, vi, afterEach, afterAll } from 'vitest'
 import { fromPartial } from '@total-typescript/shoehorn'
@@ -6,11 +6,11 @@ import fs from 'fs'
 import path from 'path'
 import { spawn } from 'node:child_process'
 import { createProjectPageService, type ProjectPageService } from '../../../src/core/board/project-page-service.js'
-import { createTicketSyncManager, type TicketSyncManager } from '~/core/ticket/ticket-sync.js'
+import { createTaskSyncManager, type TaskSyncManager } from '~/core/task/task-sync.js'
 import { git } from '../../test-git.js'
 import { createGitRepository } from '~/core/infra/git-repository.js'
 import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js'
-import { cleanup, createRepoWithRemote, conflictResolveDir, pushRemoteConflict, tmpDir } from '../ticket/sync-test-repos.js'
+import { cleanup, createRepoWithRemote, conflictResolveDir, pushRemoteConflict, tmpDir } from '../task/sync-test-repos.js'
 import type { ProjectRegistry, ProjectInfo } from '~/core/project/project-registry.js'
 import type { BoardConfigManager } from '~/core/project/board-config.js'
 import type { WorktreeManager } from '~/core/worktree/worktree-manager.js'
@@ -22,7 +22,7 @@ function stubDeps(
   overrides: {
     projects?: ProjectInfo[]
     worktreeDir?: string
-    ticketSyncManager?: TicketSyncManager
+    taskSyncManager?: TaskSyncManager
     agentWorktreeRoot?: string
   } = {},
 ): StubDepsResult {
@@ -54,7 +54,7 @@ function stubDeps(
   const fileWatcher = fromPartial<FileWatcher>({
     watch: vi.fn(),
   })
-  const ticketSyncManager = overrides.ticketSyncManager ?? fromPartial<TicketSyncManager>({})
+  const taskSyncManager = overrides.taskSyncManager ?? fromPartial<TaskSyncManager>({})
   const launcherConfigManager = fromPartial<LauncherConfigManager>({
     resolveWorktreeSettings: vi.fn(() => ({
       worktreeRootPath: overrides.agentWorktreeRoot ?? '/nonexistent-agent-worktree-root',
@@ -65,7 +65,7 @@ function stubDeps(
     boardConfigManager,
     worktreeManager,
     fileWatcher,
-    ticketSyncManager,
+    taskSyncManager,
     launcherConfigManager,
   )
   return {
@@ -75,11 +75,11 @@ function stubDeps(
   }
 }
 
-const statusJson = (ticketStatus: string) =>
+const statusJson = (taskStatus: string) =>
   JSON.stringify({
     number: 'ST-0001',
     title: 'Fix login',
-    status: ticketStatus,
+    status: taskStatus,
     useWorktree: false,
     createdAt: '2026-01-01T00:00:00.000Z',
   })
@@ -87,18 +87,18 @@ const statusJson = (ticketStatus: string) =>
 async function setupResolvedScratch(dirs: string[]): Promise<SetupResolvedScratchResult> {
   const { worktreeDir, remoteDir } = await createRepoWithRemote()
   dirs.push(worktreeDir, remoteDir, conflictResolveDir(worktreeDir))
-  const ticketDir = path.join(worktreeDir, 'st-0001-fix-login')
-  fs.mkdirSync(ticketDir)
-  fs.writeFileSync(path.join(ticketDir, 'status.json'), statusJson('todo'))
+  const taskDir = path.join(worktreeDir, 'st-0001-fix-login')
+  fs.mkdirSync(taskDir)
+  fs.writeFileSync(path.join(taskDir, 'status.json'), statusJson('todo'))
   await git(worktreeDir, 'add', '-A')
-  await git(worktreeDir, 'commit', '-m', 'add ticket')
+  await git(worktreeDir, 'commit', '-m', 'add task')
   await git(worktreeDir, 'push')
   await pushRemoteConflict(remoteDir, dirs, {
     'st-0001-fix-login/status.json': statusJson('done'),
   })
   fs.writeFileSync(path.join(worktreeDir, 'conflict.txt'), 'local content')
   const commands = createTestCommandTemplateService()
-  const manager = createTicketSyncManager(commands, createGitRepository(commands))
+  const manager = createTaskSyncManager(commands, createGitRepository(commands))
   expect(await manager.sync(worktreeDir)).toEqual(
     success({
       status: 'conflict',
@@ -161,14 +161,14 @@ export function registerProjectPageServiceTests(shard: number | readonly number[
             },
           ],
           worktreeDir,
-          ticketSyncManager: manager,
+          taskSyncManager: manager,
         })
         const result = await service.loadProjectPage('proj')
         expect(result.status).toBe('loaded')
         if (result.status !== 'loaded') return
-        const ticket = result.board.tickets.find((t) => t.folderName === 'st-0001-fix-login')
-        expect(ticket?.status).toBe('done')
-        expect(result.board.ticketOrder['done']).toContain('st-0001-fix-login')
+        const task = result.board.tasks.find((t) => t.folderName === 'st-0001-fix-login')
+        expect(task?.status).toBe('done')
+        expect(result.board.taskOrder['done']).toContain('st-0001-fix-login')
       })
       it('loads the restored board when scratch cleanup left an orphaned directory', async () => {
         const { worktreeDir, manager, plan } = await setupResolvedScratch(dirs)
@@ -188,13 +188,13 @@ export function registerProjectPageServiceTests(shard: number | readonly number[
             },
           ],
           worktreeDir,
-          ticketSyncManager: manager,
+          taskSyncManager: manager,
         })
         const result = await service.loadProjectPage('proj')
         expect(result.status).toBe('loaded')
         if (result.status !== 'loaded') return
-        const ticket = result.board.tickets.find((t) => t.folderName === 'st-0001-fix-login')
-        expect(ticket?.status).toBe('done')
+        const task = result.board.tasks.find((t) => t.folderName === 'st-0001-fix-login')
+        expect(task?.status).toBe('done')
       })
       it.runIf(process.platform === 'win32')(
         'loads the restored board while the resolver still holds the scratch directory open',
@@ -219,14 +219,14 @@ export function registerProjectPageServiceTests(shard: number | readonly number[
               },
             ],
             worktreeDir,
-            ticketSyncManager: manager,
+            taskSyncManager: manager,
           })
           try {
             const result = await service.loadProjectPage('proj')
             expect(result.status).toBe('loaded')
             if (result.status !== 'loaded') return
-            const ticket = result.board.tickets.find((t) => t.folderName === 'st-0001-fix-login')
-            expect(ticket?.status).toBe('done')
+            const task = result.board.tasks.find((t) => t.folderName === 'st-0001-fix-login')
+            expect(task?.status).toBe('done')
           } finally {
             holder.kill()
             await new Promise<void>((resolve) => holder.once('exit', () => resolve()))
@@ -247,7 +247,7 @@ export function registerProjectPageServiceTests(shard: number | readonly number[
             },
           ],
           worktreeDir,
-          ticketSyncManager: manager,
+          taskSyncManager: manager,
         })
         try {
           const result = await service.loadProjectPage('proj')
@@ -255,8 +255,8 @@ export function registerProjectPageServiceTests(shard: number | readonly number[
           if (result.status !== 'loaded') return // The rebase is resolved, so there is no conflict to badge even though the
           // unreachable remote left the scratch worktree unfinalized on disk.
           expect((await service.loadSyncStatus('proj')).hasConflict).toBe(false)
-          const ticket = result.board.tickets.find((t) => t.folderName === 'st-0001-fix-login')
-          expect(ticket?.status).toBe('todo')
+          const task = result.board.tasks.find((t) => t.folderName === 'st-0001-fix-login')
+          expect(task?.status).toBe('todo')
           expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Skipping conflict finalize check'), expect.anything())
         } finally {
           warnSpy.mockRestore()
@@ -271,13 +271,13 @@ export function registerProjectPageServiceTests(shard: number | readonly number[
         return done
       })
 
-      function setupTicketDir(folderName: string, useWorktree: boolean): string {
+      function setupTaskDir(folderName: string, useWorktree: boolean): string {
         const worktreeDir = tmpDir('pps-wt-')
         dirs.push(worktreeDir)
-        const ticketDir = path.join(worktreeDir, folderName)
-        fs.mkdirSync(ticketDir)
+        const taskDir = path.join(worktreeDir, folderName)
+        fs.mkdirSync(taskDir)
         fs.writeFileSync(
-          path.join(ticketDir, 'status.json'),
+          path.join(taskDir, 'status.json'),
           JSON.stringify({
             number: 'ST-0001',
             title: 'Feature',
@@ -288,8 +288,8 @@ export function registerProjectPageServiceTests(shard: number | readonly number[
         return worktreeDir
       }
 
-      function simpleSyncManager(): TicketSyncManager {
-        return fromPartial<TicketSyncManager>({
+      function simpleSyncManager(): TaskSyncManager {
+        return fromPartial<TaskSyncManager>({
           finalizeResolution: vi.fn(),
           hasRemote: vi.fn(async () => false),
           detectConflict: vi.fn(async () => false),
@@ -297,7 +297,7 @@ export function registerProjectPageServiceTests(shard: number | readonly number[
       }
 
       it('sets hasAgentWorktree true when the worktree folder exists on disk', async () => {
-        const worktreeDir = setupTicketDir('st-0001-feature', false)
+        const worktreeDir = setupTaskDir('st-0001-feature', false)
         const agentWorktreeRoot = tmpDir('pps-awt-')
         dirs.push(agentWorktreeRoot)
         fs.mkdirSync(path.join(agentWorktreeRoot, 'st-0001-feature'))
@@ -312,17 +312,17 @@ export function registerProjectPageServiceTests(shard: number | readonly number[
           ],
           worktreeDir,
           agentWorktreeRoot,
-          ticketSyncManager: simpleSyncManager(),
+          taskSyncManager: simpleSyncManager(),
         })
         const result = await service.loadProjectPage('proj')
         expect(result.status).toBe('loaded')
         if (result.status !== 'loaded') return
         expect(fileWatcher.watch).toHaveBeenCalledWith(worktreeDir)
-        const ticket = result.board.tickets.find((t) => t.folderName === 'st-0001-feature')
-        expect(ticket?.hasAgentWorktree).toBe(true)
+        const task = result.board.tasks.find((t) => t.folderName === 'st-0001-feature')
+        expect(task?.hasAgentWorktree).toBe(true)
       })
       it('sets hasAgentWorktree false when no worktree folder exists', async () => {
-        const worktreeDir = setupTicketDir('st-0001-feature', false)
+        const worktreeDir = setupTaskDir('st-0001-feature', false)
         const { service } = stubDeps({
           projects: [
             {
@@ -333,13 +333,13 @@ export function registerProjectPageServiceTests(shard: number | readonly number[
             },
           ],
           worktreeDir,
-          ticketSyncManager: simpleSyncManager(),
+          taskSyncManager: simpleSyncManager(),
         })
         const result = await service.loadProjectPage('proj')
         expect(result.status).toBe('loaded')
         if (result.status !== 'loaded') return
-        const ticket = result.board.tickets.find((t) => t.folderName === 'st-0001-feature')
-        expect(ticket?.hasAgentWorktree).toBe(false)
+        const task = result.board.tasks.find((t) => t.folderName === 'st-0001-feature')
+        expect(task?.hasAgentWorktree).toBe(false)
       })
     })
   })
@@ -361,9 +361,9 @@ export function registerProjectPageServiceTests(shard: number | readonly number[
       const dirs: string[] = []
       const worktreeDir = tmpDir('pps-serial-')
       dirs.push(worktreeDir)
-      const ticketDir = path.join(worktreeDir, 'st-0001-fix-login')
-      fs.mkdirSync(ticketDir)
-      fs.writeFileSync(path.join(ticketDir, 'status.json'), statusJson('todo'))
+      const taskDir = path.join(worktreeDir, 'st-0001-fix-login')
+      fs.mkdirSync(taskDir)
+      fs.writeFileSync(path.join(taskDir, 'status.json'), statusJson('todo'))
       const events: string[] = []
       let releaseFinalize!: () => void
       const finalizeGate = new Promise<void>((resolve) => {
@@ -373,7 +373,7 @@ export function registerProjectPageServiceTests(shard: number | readonly number[
       const finalizeStartedGate = new Promise<void>((resolve) => {
         finalizeStarted = resolve
       })
-      const ticketSyncManager = fromPartial<TicketSyncManager>({
+      const taskSyncManager = fromPartial<TaskSyncManager>({
         finalizeResolution: vi.fn(async () => {
           finalizeStarted()
           await finalizeGate
@@ -395,7 +395,7 @@ export function registerProjectPageServiceTests(shard: number | readonly number[
           },
         ],
         worktreeDir,
-        ticketSyncManager,
+        taskSyncManager,
       })
       try {
         const pageLoad = service.loadProjectPage('proj')
@@ -423,6 +423,6 @@ export interface StubDepsResult {
 export interface SetupResolvedScratchResult {
   worktreeDir: string
   remoteDir: string
-  manager: TicketSyncManager
+  manager: TaskSyncManager
   plan: ResolutionPlan
 }

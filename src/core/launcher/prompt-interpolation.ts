@@ -3,11 +3,11 @@ export interface PromptVariables {
   projectSlug: string
   skills: string
   launchDir: string
-  ticketDir?: string
-  ticketSlug?: string
-  ticketTitle?: string
-  ticketNumber?: string
-  ticketStatus?: string
+  taskDir?: string
+  taskSlug?: string
+  taskTitle?: string
+  taskNumber?: string
+  taskStatus?: string
 }
 
 export function interpolatePrompt(text: string, variables: Record<string, string>): string {

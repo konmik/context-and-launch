@@ -18,7 +18,7 @@ $agentName = $agentDisplayName.ToLowerInvariant() -creplace '[^a-z0-9_-]+', '-'
 if ($agentName -cnotmatch '^[a-z]') { $agentName = 'agent-' + $agentName }
 if ($agentName.Length -gt 32) { $agentName = $agentName.Substring(0, 32) }
 $workspaceLabel = [string]$args[2]
-$ticketPaneLabel = [string]$args[3]
+$taskPaneLabel = [string]$args[3]
 $agentCommand = @($args[4..($args.Length - 1)] | ForEach-Object { [string]$_ })
 $launchDir = (Get-Location).Path
 
@@ -171,7 +171,7 @@ function Start-Agent {
     }
 
     Invoke-Herdr @('agent', 'rename', $PaneId, $agentName) | Out-Null
-    Invoke-Herdr @('pane', 'rename', $PaneId, $ticketPaneLabel) | Out-Null
+    Invoke-Herdr @('pane', 'rename', $PaneId, $taskPaneLabel) | Out-Null
     if ([string]::IsNullOrWhiteSpace($initialPrompt)) { return $detected }
     Start-Sleep -Milliseconds 1500
     return Invoke-Herdr @('agent', 'prompt', $PaneId, $initialPrompt)
@@ -182,7 +182,7 @@ $workspaces = @($workspaceList.result.workspaces | Where-Object {
     (Get-Field $_ 'label') -ceq $workspaceLabel
 })
 
-$ticketPaneId = ''
+$taskPaneId = ''
 $workspacePanes = @()
 if ($workspaces.Count -gt 0) {
     $workspaceId = [string]$workspaces[0].workspace_id
@@ -194,18 +194,18 @@ if ($workspaces.Count -gt 0) {
         '--label', $workspaceLabel, '--no-focus'
     )
     $workspaceId = [string]$created.result.workspace.workspace_id
-    $ticketPaneId = [string]$created.result.root_pane.pane_id
+    $taskPaneId = [string]$created.result.root_pane.pane_id
 }
 
-$ticketPanes = @($workspacePanes | Where-Object {
-    (Get-Field $_ 'label') -ceq $ticketPaneLabel
+$taskPanes = @($workspacePanes | Where-Object {
+    (Get-Field $_ 'label') -ceq $taskPaneLabel
 })
-if ($ticketPanes.Count -gt 1) {
-    throw "Ticket pane '$ticketPaneLabel' is not unique."
+if ($taskPanes.Count -gt 1) {
+    throw "Task pane '$taskPaneLabel' is not unique."
 }
 
-if ($ticketPanes.Count -eq 1) {
-    $paneId = [string](Get-Field $ticketPanes[0] 'pane_id')
+if ($taskPanes.Count -eq 1) {
+    $paneId = [string](Get-Field $taskPanes[0] 'pane_id')
     $processes = Get-PaneProcesses $paneId
     $children = @(Get-ForegroundChildren $processes)
     if ($children.Count -gt 0) {
@@ -216,7 +216,7 @@ if ($ticketPanes.Count -eq 1) {
             'unknown'
         }
         if ($status -cne 'idle' -and $status -cne 'done') {
-            throw "Ticket pane '$ticketPaneLabel' already has a Herdr agent ($status)."
+            throw "Task pane '$taskPaneLabel' already has a Herdr agent ($status)."
         }
         Stop-AgentChild $paneId
         Wait-AgentReleased $paneId
@@ -225,7 +225,7 @@ if ($ticketPanes.Count -eq 1) {
     exit 0
 }
 
-if (-not $ticketPaneId) {
+if (-not $taskPaneId) {
     $availablePanes = @($workspacePanes | Where-Object {
         [string]::IsNullOrWhiteSpace([string](Get-Field $_ 'label')) -and
             [string](Get-Field $_ 'cwd') -ieq $launchDir
@@ -234,11 +234,11 @@ if (-not $ticketPaneId) {
         $candidateId = [string](Get-Field $availablePanes[0] 'pane_id')
         $processes = Get-PaneProcesses $candidateId
         if (@(Get-ForegroundChildren $processes).Count -eq 0) {
-            $ticketPaneId = $candidateId
+            $taskPaneId = $candidateId
         }
     }
 }
-if (-not $ticketPaneId) {
+if (-not $taskPaneId) {
     if ($workspacePanes.Count -eq 0) {
         throw "Herdr workspace '$workspaceId' has no pane to split."
     }
@@ -246,7 +246,7 @@ if (-not $ticketPaneId) {
         'pane', 'split', [string](Get-Field $workspacePanes[0] 'pane_id'),
         '--direction', 'right', '--cwd', $launchDir, '--no-focus'
     )
-    $ticketPaneId = [string]$split.result.pane.pane_id
+    $taskPaneId = [string]$split.result.pane.pane_id
 }
 
-Start-Agent $ticketPaneId | ConvertTo-Json -Depth 10 | Write-Output
+Start-Agent $taskPaneId | ConvertTo-Json -Depth 10 | Write-Output

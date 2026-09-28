@@ -116,7 +116,7 @@ export const setProjectPath = action(async (projectSlug: string, pathValue: stri
   }
 }, 'set-project-path')
 
-export const setTicketsLocation = action(
+export const setTasksLocation = action(
   async (
     projectSlug: string,
     change: {
@@ -128,7 +128,7 @@ export const setTicketsLocation = action(
 
     try {
       const oldPath = worktreeManager.getWorktreeDir(projectSlug)
-      projectRegistry.setTicketsLocation(projectSlug, change)
+      projectRegistry.setTasksLocation(projectSlug, change)
       if (change.kind === 'path') await fileWatcher.stop(oldPath)
       return respond(
         success({
@@ -144,7 +144,7 @@ export const setTicketsLocation = action(
       })
     }
   },
-  'set-tickets-location',
+  'set-tasks-location',
 )
 
 export interface AddProjectResult {

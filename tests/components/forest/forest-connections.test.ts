@@ -11,11 +11,11 @@ describe('forest connections', () => {
     expect(
       dependencyFromEndpoints(
         {
-          ticketNumber: 'A-1',
+          taskNumber: 'A-1',
           end: 'bottom',
         },
         {
-          ticketNumber: 'B-1',
+          taskNumber: 'B-1',
           end: 'top',
         },
       ),
@@ -26,11 +26,11 @@ describe('forest connections', () => {
     expect(
       dependencyFromEndpoints(
         {
-          ticketNumber: 'A-1',
+          taskNumber: 'A-1',
           end: 'top',
         },
         {
-          ticketNumber: 'B-1',
+          taskNumber: 'B-1',
           end: 'bottom',
         },
       ),
@@ -39,26 +39,26 @@ describe('forest connections', () => {
       dependencyNumber: 'A-1',
     })
   })
-  it('accepts only an opposite handle on another ticket', () => {
+  it('accepts only an opposite handle on another task', () => {
     const source = {
-      ticketNumber: 'A-1',
+      taskNumber: 'A-1',
       end: 'bottom',
     } as const
     expect(
       isConnectionTarget(source, {
-        ticketNumber: 'B-1',
+        taskNumber: 'B-1',
         end: 'top',
       }),
     ).toBe(true)
     expect(
       isConnectionTarget(source, {
-        ticketNumber: 'B-1',
+        taskNumber: 'B-1',
         end: 'bottom',
       }),
     ).toBe(false)
     expect(
       isConnectionTarget(source, {
-        ticketNumber: 'A-1',
+        taskNumber: 'A-1',
         end: 'top',
       }),
     ).toBe(false)
@@ -67,7 +67,7 @@ describe('forest connections', () => {
     const session: ForestConnectionSession = {
       kind: 'connecting',
       source: {
-        ticketNumber: 'A-1',
+        taskNumber: 'A-1',
         end: 'bottom',
       },
       sourceScreenPoint: {

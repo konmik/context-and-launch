@@ -4,12 +4,12 @@ import type { ActionError } from '../../core/shared/errors.js'
 import { action } from '@solidjs/router'
 import { respond } from '@solidjs/web'
 import { worktreeManager, projectRegistry, boardConfigManager } from '~/core/config/instances.js'
-import { createTicketStore } from '~/core/ticket/ticket-store.js'
+import { createTaskStore } from '~/core/task/task-store.js'
 import { errorPayload, errorResult } from '~/core/shared/errors.js'
 import type { UserFacingError } from '~/util/user-facing-error.js'
 import { failure, success } from '~/util/result.js'
-import { resolveInitialTicketStatus } from '~/core/board/initial-ticket-status.js'
-import { createForestLayoutStore, type ForestLayout } from '~/core/ticket/forest-layout-store.js'
+import { resolveInitialTaskStatus } from '~/core/board/initial-task-status.js'
+import { createForestLayoutStore, type ForestLayout } from '~/core/task/forest-layout-store.js'
 
 export async function readForestLayout(projectSlug: string): Promise<ForestLayout> {
   'use server'
@@ -48,7 +48,7 @@ export const addDependency = action(async function addDependency(input: {
 
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(input.projectSlug)
-    createTicketStore(worktreeDir).addDependency(input.folderName, input.dependencyNumber)
+    createTaskStore(worktreeDir).addDependency(input.folderName, input.dependencyNumber)
     return actionResult(success(undefined))
   } catch (e) {
     return actionResult(errorResult(e))
@@ -66,7 +66,7 @@ export const removeDependencies = action(async function removeDependencies(input
 
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(input.projectSlug)
-    const store = createTicketStore(worktreeDir) // One write per ticket: a projected edge can stand for several relations of
+    const store = createTaskStore(worktreeDir) // One write per task: a projected edge can stand for several relations of
     // the same dependent, and rewriting its status file once per relation both
     // multiplies file contention and can leave the rest behind if one write fails.
     const byFolderName = new Map<string, string[]>()
@@ -84,7 +84,7 @@ export const removeDependencies = action(async function removeDependencies(input
   }
 }, 'remove-forest-dependencies')
 
-export const createGroupTicket = action(async function createGroupTicket(input: {
+export const createGroupTask = action(async function createGroupTask(input: {
   projectSlug: string
   number: string
   title: string
@@ -94,16 +94,16 @@ export const createGroupTicket = action(async function createGroupTicket(input: 
     x: number
     y: number
   } | null
-}): Promise<ResponseEnvelope<Result<GroupTicketResult, ActionError>>> {
+}): Promise<ResponseEnvelope<Result<GroupTaskResult, ActionError>>> {
   'use server'
 
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(input.projectSlug)
-    const initialStatus = resolveInitialTicketStatus(input.projectSlug, {
+    const initialStatus = resolveInitialTaskStatus(input.projectSlug, {
       projectRegistry,
       boardConfigManager,
     })
-    const group = createTicketStore(worktreeDir).createGroup(
+    const group = createTaskStore(worktreeDir).createGroup(
       input.number,
       input.title,
       initialStatus,
@@ -121,7 +121,7 @@ export const createGroupTicket = action(async function createGroupTicket(input: 
   }
 }, 'create-forest-group')
 
-export const ungroupTicket = action(async function ungroupTicket(input: {
+export const ungroupTask = action(async function ungroupTask(input: {
   projectSlug: string
   folderName: string
 }): Promise<ResponseEnvelope<Result<undefined, ActionError>>> {
@@ -129,13 +129,13 @@ export const ungroupTicket = action(async function ungroupTicket(input: {
 
   try {
     const worktreeDir = worktreeManager.getWorktreeDir(input.projectSlug)
-    createTicketStore(worktreeDir).ungroup(input.folderName)
+    createTaskStore(worktreeDir).ungroup(input.folderName)
     return actionResult(success(undefined))
   } catch (e) {
     return actionResult(errorResult(e))
   }
-}, 'ungroup-forest-ticket')
+}, 'ungroup-forest-task')
 
-export interface GroupTicketResult {
+export interface GroupTaskResult {
   folderName: string
 }

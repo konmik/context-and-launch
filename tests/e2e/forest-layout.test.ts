@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { setupE2E, readTicketStatus, readForestLayout, getLocalStorageItem, poll, boxOf, centerOf, dragPointer } from './fixtures.js'
-import { clickHandle, forestCard, forestHandle, openForestProject, toggleToKanban, waitForForestTicketCount } from './forest-helpers.js'
+import { setupE2E, readTaskStatus, readForestLayout, getLocalStorageItem, poll, boxOf, centerOf, dragPointer } from './fixtures.js'
+import { clickHandle, forestCard, forestHandle, openForestProject, toggleToKanban, waitForForestTaskCount } from './forest-helpers.js'
 import { testId, waitVisible } from './locators.js'
 
 describe('Forest layout and persistence', () => {
@@ -8,7 +8,7 @@ describe('Forest layout and persistence', () => {
   it('renders the forest toggle and logs icons with consistent lucide styling', async () => {
     await openForestProject(ctx, {
       slugBase: 'fv-icon-stroke',
-      tickets: [
+      tasks: [
         {
           number: 'A-1',
           title: 'First',
@@ -38,7 +38,7 @@ describe('Forest layout and persistence', () => {
   it('toggle + persistence', async () => {
     const project = await openForestProject(ctx, {
       slugBase: 'fv-toggle',
-      tickets: [
+      tasks: [
         {
           number: 'A-1',
           title: 'First',
@@ -46,20 +46,20 @@ describe('Forest layout and persistence', () => {
         },
       ],
     })
-    expect(await testId(ctx.page, 'forest-ticket-card').count()).toBe(1)
+    expect(await testId(ctx.page, 'forest-task-card').count()).toBe(1)
     const viewMode = await getLocalStorageItem(ctx.page, `view-mode:${project.projectSlug}`)
     expect(viewMode).toBe('forest')
     await ctx.page.reload()
     await waitVisible(ctx.page, 'forest-rearrange-button')
-    await waitForForestTicketCount(ctx.page, 1)
-    expect(await testId(ctx.page, 'forest-ticket-card').count()).toBe(1)
+    await waitForForestTaskCount(ctx.page, 1)
+    expect(await testId(ctx.page, 'forest-task-card').count()).toBe(1)
     expect(await testId(ctx.page, 'project-header-logs-button').count()).toBe(1)
     await toggleToKanban(ctx.page)
   }, 120000)
   it('layer placement: dependent above dependency', async () => {
     await openForestProject(ctx, {
       slugBase: 'fv-layer',
-      tickets: [
+      tasks: [
         {
           number: 'A-1',
           title: 'Base',
@@ -94,7 +94,7 @@ describe('Forest layout and persistence', () => {
   it('drag persists without remounting and retains positions after a dependency update', async () => {
     const project = await openForestProject(ctx, {
       slugBase: 'fv-drag',
-      tickets: [
+      tasks: [
         {
           number: 'D-1',
           title: 'Draggable',
@@ -132,7 +132,7 @@ describe('Forest layout and persistence', () => {
     await clickHandle(ctx.page, 'D-1', 'bottom')
     await forestHandle(ctx.page, 'T-1', 'top').click()
     await expect
-      .poll(() => readTicketStatus(ctx.testServer, project.projectSlug, 'd-1-draggable')?.dependsOn, {
+      .poll(() => readTaskStatus(ctx.testServer, project.projectSlug, 'd-1-draggable')?.dependsOn, {
         timeout: 10000,
       })
       .toContain('T-1')
@@ -141,7 +141,7 @@ describe('Forest layout and persistence', () => {
   it('rearrange writes all positions to forest-layout.json', async () => {
     const project = await openForestProject(ctx, {
       slugBase: 'fv-rearr',
-      tickets: [
+      tasks: [
         {
           number: 'A-1',
           title: 'First',

@@ -8,7 +8,7 @@ import { createWorktreeManager, type WorktreeManager } from '../worktree/worktre
 import { createFileWatcher, type FileWatcher } from '../infra/file-watcher.js'
 import { createLauncherConfigManager, type LauncherConfigManager } from '../launcher/launcher-config.js'
 import { createAgentWorktreeManager, type AgentWorktreeManager } from '../worktree/agent-worktree.js'
-import { createTicketSyncManager, type TicketSyncManager } from '../ticket/ticket-sync.js'
+import { createTaskSyncManager, type TaskSyncManager } from '../task/task-sync.js'
 import { createGitRepository, type GitRepository } from '../infra/git-repository.js'
 import { createProjectPageService, type ProjectPageService } from '../board/project-page-service.js'
 import { createOperationTracker, type OperationTracker } from '../infra/operation-tracker.js'
@@ -24,7 +24,7 @@ import { createDiffReviewGitService, type DiffReviewGitService } from '../diff-r
 import { createDiffReviewTargetResolver, type DiffReviewTargetResolver } from '../diff-review/diff-review-target.js'
 import { createReviewPromptQueueService, type ReviewPromptQueueService } from '../diff-review/review-prompt-queue.js'
 import { createProfileReviewAgentLauncher } from '../diff-review/review-agent-launcher.js'
-import { fetchHerdrTicketState } from '../herdr/herdr-client.js'
+import { fetchHerdrTaskState } from '../herdr/herdr-client.js'
 import { isHerdrUnavailableError } from '../herdr/herdr-availability.js'
 
 export interface ServiceContainer {
@@ -42,7 +42,7 @@ export interface ServiceContainer {
   fileWatcher: FileWatcher
   launcherConfigManager: LauncherConfigManager
   agentWorktreeManager: AgentWorktreeManager
-  ticketSyncManager: TicketSyncManager
+  taskSyncManager: TaskSyncManager
   projectPageService: ProjectPageService
   operationTracker: OperationTracker
   syncPendingTracker: SyncPendingTracker
@@ -72,7 +72,7 @@ export function createServices(options: ServiceOptions = {}): ServiceContainer {
   const projectRegistry = createProjectRegistry(configPaths, configRepo, appConfigStore)
   const boardConfigManager = createBoardConfigManager(configPaths, configRepo)
   const worktreeManager = createWorktreeManager(configPaths, commandTemplateService, (projectSlug) =>
-    projectRegistry.getTicketsPath(projectSlug),
+    projectRegistry.getTasksPath(projectSlug),
   )
   const worktreeRevisions = createWorktreeRevisionStore()
   const syncPendingTracker = createSyncPendingTracker(
@@ -100,7 +100,7 @@ export function createServices(options: ServiceOptions = {}): ServiceContainer {
     async (projectSlug) => {
       const observedAt = Date.now()
       try {
-        const state = await fetchHerdrTicketState(projectSlug, herdrExec)
+        const state = await fetchHerdrTaskState(projectSlug, herdrExec)
         return {
           agents: state.agents,
           observedAt,
@@ -118,14 +118,14 @@ export function createServices(options: ServiceOptions = {}): ServiceContainer {
       }
     },
   )
-  const ticketSyncManager = createTicketSyncManager(commandTemplateService, gitRepo)
+  const taskSyncManager = createTaskSyncManager(commandTemplateService, gitRepo)
   const operationTracker = createOperationTracker()
   const projectPageService = createProjectPageService(
     projectRegistry,
     boardConfigManager,
     worktreeManager,
     fileWatcher,
-    ticketSyncManager,
+    taskSyncManager,
     launcherConfigManager,
   )
   return {
@@ -143,7 +143,7 @@ export function createServices(options: ServiceOptions = {}): ServiceContainer {
     fileWatcher,
     launcherConfigManager,
     agentWorktreeManager,
-    ticketSyncManager,
+    taskSyncManager,
     projectPageService,
     operationTracker,
     syncPendingTracker,

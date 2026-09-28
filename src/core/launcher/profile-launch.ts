@@ -30,7 +30,7 @@ export function agentMarkerPathIn(appConfigDir: string, projectSlug: string, mar
 }
 
 export function buildAgentDisplayName(
-  ticket: {
+  task: {
     number: string
     title: string
   },
@@ -42,11 +42,11 @@ export function buildAgentDisplayName(
         worktreePath: string
       },
 ): string {
-  return 'worktreePath' in context ? path.basename(context.worktreePath) : `${ticket.title} ${ticket.number} - ${context.projectName}`
+  return 'worktreePath' in context ? path.basename(context.worktreePath) : `${task.title} ${task.number} - ${context.projectName}`
 }
 
 export function buildWindowTitle(
-  ticket: {
+  task: {
     number: string
     title: string
   },
@@ -58,7 +58,7 @@ export function buildWindowTitle(
         worktreePath: string
       },
 ): string {
-  return buildAgentDisplayName(ticket, context) + TITLE_SUFFIX
+  return buildAgentDisplayName(task, context) + TITLE_SUFFIX
 }
 
 export function projectWindowTitle(projectName: string): string {

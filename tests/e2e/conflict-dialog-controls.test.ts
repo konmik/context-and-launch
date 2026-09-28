@@ -15,7 +15,7 @@ import { testId, waitGone } from './locators.js'
 describe('Conflict dialog controls (e2e, real server)', () => {
   const ctx = setupE2E()
 
-  /** Seeds a Project whose tickets worktree is already mid-rebase, then opens it. */
+  /** Seeds a Project whose tasks worktree is already mid-rebase, then opens it. */
   async function openConflictedProject(
     slugBase: string,
     appLauncherConfig: SeedAppLauncherConfig = CONFLICT_LAUNCHER,
@@ -66,9 +66,9 @@ describe('Conflict dialog controls (e2e, real server)', () => {
     await openConflictDialog(ctx.page)
     await expect.poll(async () => testId(ctx.page, 'conflict-dialog-profile-select').inputValue()).toBe('Codex')
   })
-  it('open-tickets-repo fires open-config-dir', async () => {
+  it('open-tasks-repo fires open-config-dir', async () => {
     await openConflictedProject('conflict-open')
     await openConflictDialog(ctx.page)
-    await expectOpenConfigDirRequest(ctx.page, () => testId(ctx.page, 'conflict-dialog-open-tickets-repo').click())
+    await expectOpenConfigDirRequest(ctx.page, () => testId(ctx.page, 'conflict-dialog-open-tasks-repo').click())
   })
 })

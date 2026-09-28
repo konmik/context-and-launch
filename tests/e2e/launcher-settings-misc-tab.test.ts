@@ -206,33 +206,33 @@ describe('Launcher Settings Misc tab (e2e, real server)', () => {
     )
     expect(cleared.projects.find((p) => p.projectSlug === project.projectSlug)).not.toHaveProperty('name')
   })
-  it('saves the tickets folder on blur without moving the worktree', async () => {
-    const project = await setup('tickets-path')
-    const input = testId(ctx.page, 'launcher-settings-misc-tickets-path-input')
-    expect(await input.inputValue()).toBe(project.ticketsPath)
-    const destination = path.join(ctx.testServer.reposParentDir, 'chosen-tickets-folder')
+  it('saves the tasks folder on blur without moving the worktree', async () => {
+    const project = await setup('tasks-path')
+    const input = testId(ctx.page, 'launcher-settings-misc-tasks-path-input')
+    expect(await input.inputValue()).toBe(project.tasksPath)
+    const destination = path.join(ctx.testServer.reposParentDir, 'chosen-tasks-folder')
     await input.fill(destination)
     await input.blur()
     await poll(
       () => readProjectRegistry(ctx.testServer),
-      (r) => r.projects.find((p) => p.projectSlug === project.projectSlug)?.ticketsPath === destination,
+      (r) => r.projects.find((p) => p.projectSlug === project.projectSlug)?.tasksPath === destination,
       5000,
     )
-    expect(fs.existsSync(project.ticketsPath)).toBe(true)
+    expect(fs.existsSync(project.tasksPath)).toBe(true)
     expect(fs.existsSync(destination)).toBe(false)
   })
-  it('saves the tickets branch on Enter without renaming the Git branch', async () => {
-    const project = await setup('tickets-branch')
-    const input = testId(ctx.page, 'launcher-settings-misc-tickets-branch-input')
+  it('saves the tasks branch on Enter without renaming the Git branch', async () => {
+    const project = await setup('tasks-branch')
+    const input = testId(ctx.page, 'launcher-settings-misc-tasks-branch-input')
     expect(await input.inputValue()).toBe(project.branch)
-    await input.fill('custom-ticket-branch')
+    await input.fill('custom-task-branch')
     await input.press('Enter')
     await poll(
       () => readProjectRegistry(ctx.testServer),
-      (r) => r.projects.find((p) => p.projectSlug === project.projectSlug)?.branch === 'custom-ticket-branch',
+      (r) => r.projects.find((p) => p.projectSlug === project.projectSlug)?.branch === 'custom-task-branch',
       5000,
     )
-    expect(git('branch --show-current', project.ticketsPath)).toBe(project.branch)
+    expect(git('branch --show-current', project.tasksPath)).toBe(project.branch)
   })
   it('saves a blank branch prefix without sending undefined to the server', async () => {
     await setup('serializable-save-arguments')

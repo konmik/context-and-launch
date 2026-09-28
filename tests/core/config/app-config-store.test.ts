@@ -55,12 +55,12 @@ describe('AppConfigStore', () => {
         {
           projectSlug: 'first',
           path: '/first',
-          branch: 'tickets',
+          branch: 'tasks',
         },
         {
           projectSlug: 'second',
           path: '/second',
-          branch: 'tickets',
+          branch: 'tasks',
         },
       ],
     }))

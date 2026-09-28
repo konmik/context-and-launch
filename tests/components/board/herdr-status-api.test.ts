@@ -3,21 +3,21 @@ import { createHerdrUnavailableError } from '~/core/herdr/herdr-availability.js'
 import { errorPayload } from '~/core/shared/errors.js'
 import { createHerdrStatusService } from '../../../src/components/board/herdr-status-service.js'
 
-const fetchHerdrTicketState = vi.fn()
+const fetchHerdrTaskState = vi.fn()
 
 const reconcileProject = vi.fn()
 
 const log = vi.fn()
 
 const service = createHerdrStatusService({
-  loadTicketState: fetchHerdrTicketState,
+  loadTaskState: fetchHerdrTaskState,
   reconcileProject,
   log,
 })
 
 describe('getHerdrAgentStatuses', () => {
   beforeEach(() => {
-    fetchHerdrTicketState.mockReset()
+    fetchHerdrTaskState.mockReset()
     reconcileProject.mockReset()
     reconcileProject.mockResolvedValue(undefined)
   })
@@ -27,9 +27,9 @@ describe('getHerdrAgentStatuses', () => {
         pane_id: 'pane-1',
       },
     ]
-    fetchHerdrTicketState.mockResolvedValue({
+    fetchHerdrTaskState.mockResolvedValue({
       statusesByFolderName: {
-        'st-1-ticket': 'idle',
+        'st-1-task': 'idle',
       },
       agents,
     })
@@ -37,13 +37,13 @@ describe('getHerdrAgentStatuses', () => {
     expect(result).toEqual({
       kind: 'available',
       statusesByFolderName: {
-        'st-1-ticket': 'idle',
+        'st-1-task': 'idle',
       },
     })
     expect(reconcileProject).not.toHaveBeenCalled()
   })
   it('reports unavailable without mutating the Review Prompt Queue', async () => {
-    fetchHerdrTicketState.mockRejectedValue(createHerdrUnavailableError('server-not-running'))
+    fetchHerdrTaskState.mockRejectedValue(createHerdrUnavailableError('server-not-running'))
     const result = await service.getStatuses('project')
     expect(result).toEqual({
       kind: 'unavailable',
@@ -52,7 +52,7 @@ describe('getHerdrAgentStatuses', () => {
     expect(reconcileProject).not.toHaveBeenCalled()
   })
   it('reports disabled without mutating the Review Prompt Queue', async () => {
-    fetchHerdrTicketState.mockRejectedValue(createHerdrUnavailableError('cli-missing'))
+    fetchHerdrTaskState.mockRejectedValue(createHerdrUnavailableError('cli-missing'))
     const result = await service.getStatuses('project')
     expect(result).toEqual({
       kind: 'disabled',
@@ -60,7 +60,7 @@ describe('getHerdrAgentStatuses', () => {
     expect(reconcileProject).not.toHaveBeenCalled()
   })
   it('leaves the Review Prompt Queue alone when Herdr fails for another reason', async () => {
-    fetchHerdrTicketState.mockRejectedValue(new Error('workspace list exploded'))
+    fetchHerdrTaskState.mockRejectedValue(new Error('workspace list exploded'))
     const result = await service.getStatuses('project')
     expect(result).toEqual({
       kind: 'unavailable',

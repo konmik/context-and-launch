@@ -1,0 +1,18 @@
+import { createValidationError } from '../shared/errors.js'
+import type { ProjectRegistry } from '../project/project-registry.js'
+import type { BoardConfigManager } from '../project/board-config.js'
+
+export function resolveInitialTaskStatus(
+  projectSlug: string,
+  deps: {
+    projectRegistry: Pick<ProjectRegistry, 'getBoardId'>
+    boardConfigManager: Pick<BoardConfigManager, 'getConfig'>
+  },
+): string {
+  const boardId = deps.projectRegistry.getBoardId(projectSlug)
+  const columns = deps.boardConfigManager.getConfig(boardId).columns
+  if (columns.length === 0) {
+    throw createValidationError('Board has no columns configured')
+  }
+  return columns[0].name
+}

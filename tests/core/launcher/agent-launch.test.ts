@@ -12,21 +12,21 @@ const commands = fromPartial<CommandTemplateService>({
 })
 
 describe('buildWindowTitle', () => {
-  const ticket = {
+  const task = {
     number: 'ST-47',
     title: 'Fix login timeout',
   }
   it('uses the Agent Worktree folder when launching in a worktree', () => {
     const worktreePath = path.join('root', 'worktrees', 'st-47-fix-login-timeout')
     expect(
-      buildWindowTitle(ticket, {
+      buildWindowTitle(task, {
         worktreePath,
       }),
     ).toBe('st-47-fix-login-timeout -- AI')
   })
-  it('uses the Ticket title, Ticket Number, and Project name without a worktree', () => {
+  it('uses the Task title, Task Number, and Project name without a worktree', () => {
     expect(
-      buildWindowTitle(ticket, {
+      buildWindowTitle(task, {
         projectName: 'Alpha',
       }),
     ).toBe('Fix login timeout ST-47 - Alpha -- AI')
@@ -96,7 +96,7 @@ describe('spawnProfile trusted script execution', () => {
         windowTitle: 'Custom',
         agentDisplayName: 'Custom',
         herdrWorkspaceLabel: 'project',
-        herdrPaneLabel: 'project--ticket',
+        herdrPaneLabel: 'project--task',
         markerPath: '/fake/marker.json',
         appConfigDir: '/fake/config',
       },

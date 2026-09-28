@@ -18,7 +18,7 @@ export function ProjectBoardConfirmDialog(props: {
             <DialogHeader title="Set Project Board" />
             <div class="px-6 py-4">
               <p class="text-sm" data-testid="launcher-settings-columns-set-project-board-message">
-                Set "{pbc().name}" as the board for this project? Tickets whose status is not a column in this board will appear in the
+                Set "{pbc().name}" as the board for this project? Tasks whose status is not a column in this board will appear in the
                 undefined column and must be updated manually.
               </p>
             </div>
