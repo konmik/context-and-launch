@@ -508,6 +508,10 @@
     font-weight: 500;
   }
 
+  :is([data-scope='dialog'], [data-scope='floating-panel'])[data-part='content'] :where(.overflow-auto, .overflow-y-auto) {
+    scrollbar-gutter: stable;
+  }
+
   /* ark-ui dialog */
   [data-scope='dialog'][data-part='backdrop'] {
     position: fixed;
@@ -675,6 +679,7 @@
   [data-scope='floating-panel'][data-part='content'].floating-panel-fit [data-part='body'] {
     flex: 0 1 auto;
     overflow: auto;
+    scrollbar-gutter: stable;
   }
 
   [data-scope='floating-panel'][data-part='viewport'] > [data-part='root'] {
