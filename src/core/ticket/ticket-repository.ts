@@ -127,7 +127,10 @@ export function createTicketRepository(configRepo: ConfigRepository = createConf
   }
 
   function writeStatusJson(dir: string, status: StatusJson): void {
-    writeJson(path.join(dir, 'status.json'), status)
+    writeJson(path.join(dir, 'status.json'), {
+      ...status,
+      agentInstructions: 'Managed by task tracking software. Do not modify, rename, or delete this file.',
+    })
   }
 
   function readWorktreeJson(worktreeDir: string, fileName: string): JsonValue | null {
