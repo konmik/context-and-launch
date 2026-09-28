@@ -5,12 +5,16 @@ import { testId } from './locators.js'
 
 describe.each(['production', 'development'] as const)('Task detail launcher tab switching (%s, real server)', (mode) => {
   const ctx = setupE2E({
-    serverOpts: { mode },
+    serverOpts: {
+      mode,
+    },
   })
   let project: CreatedProject
   beforeAll(async () => {
     const warmup = await ctx.newPage()
-    await warmup.emulateMedia({ reducedMotion: 'reduce' })
+    await warmup.emulateMedia({
+      reducedMotion: 'reduce',
+    })
     project = await seedProject(ctx, {
       slugBase: 'tdl-tab-switch',
       withTasks: [
@@ -36,12 +40,16 @@ describe.each(['production', 'development'] as const)('Task detail launcher tab 
       },
     })
     await warmup.goto(`${ctx.testServer.baseUrl}/project/${project.projectSlug}`)
-    await testId(warmup, 'kanban-board-task-card', { 'data-folder-name': 't-1-alpha' }).click()
+    await testId(warmup, 'kanban-board-task-card', {
+      'data-folder-name': 't-1-alpha',
+    }).click()
     await warmup.locator('.cm-content:visible').waitFor()
     await warmup.close()
   })
   beforeEach(async () => {
-    await ctx.page.emulateMedia({ reducedMotion: 'reduce' })
+    await ctx.page.emulateMedia({
+      reducedMotion: 'reduce',
+    })
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
     await openLauncher(ctx)
     await expect.poll(() => ctx.page.locator('.cm-content:visible').count()).toBe(1)
@@ -72,8 +80,7 @@ describe.each(['production', 'development'] as const)('Task detail launcher tab 
       await testId(ctx.page, 'task-detail-tab-editor').click()
       await expect.poll(() => prompt.textContent()).toBe('Original context')
       await testId(ctx.page, 'task-detail-tab-launcher').click()
-      await expect.poll(() => prompt.count()).toBe(1)
-      expect(await prompt.textContent()).toBe('Keep this prompt across tabs')
+      await expect.poll(() => prompt.textContent()).toBe('Keep this prompt across tabs')
       expect(await testId(ctx.page, 'prompt-preview-edit-toggle').isChecked()).toBe(true)
     }
     await prompt.fill('Still editable after switching')
