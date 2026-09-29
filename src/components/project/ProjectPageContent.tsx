@@ -45,7 +45,7 @@ import { getSyncPending } from '~/components/task/task-api.js'
 import { openConfigDir } from '~/components/shared/shared-api.js'
 import { getProjectLauncherMetadata } from '~/components/launcher/launcher-api.js'
 import { ProjectLauncherConfigContext } from '~/components/launcher/project-launcher-config-storage.js'
-import { getHerdrAgentStatuses, reconcileReviewPromptQueue } from '~/components/board/herdr-status-api.js'
+import { getHerdrAgentStatuses, reconcileReviewPromptQueue, type HerdrAgentStatusesResult } from '~/components/board/herdr-status-api.js'
 import { HerdrStatusesContext } from '~/components/task/herdr-statuses-context.js'
 import { ShortcutRunnerContext } from '~/components/board/shortcut-runner-context.js'
 import { createBoardShortcutRunner } from '~/components/board/board-shortcut-runner.js'
@@ -205,20 +205,18 @@ export function ProjectPageContent(props: { ctrl?: ProjectPageController }): JSX
     const timer = setInterval(() => void revalidate('sync-pending'), 10000)
     return () => clearInterval(timer)
   })
-  const herdrStatusesResult = createDeferredSignal(
+  const herdrStatusesResult = createDeferredSignal<HerdrAgentStatusesResult | undefined>(
     () => deferredPollsReady() && projectSlug() !== '',
     () => getHerdrAgentStatuses(projectSlug()),
-    {
-      kind: 'disabled' as const,
-    },
+    undefined,
   )
   const herdrPollingActive = createMemo(() => {
     const result = herdrStatusesResult()
-    return !!result && result.kind !== 'disabled'
+    return !!result && result.kind !== 'cli-missing'
   })
   let reportedStatusError: string | undefined
   createEffect(herdrStatusesResult, (result) => {
-    if (result?.kind !== 'unavailable') {
+    if (result?.kind !== 'status-query-failed') {
       reportedStatusError = undefined
       return
     }
@@ -275,7 +273,7 @@ export function ProjectPageContent(props: { ctrl?: ProjectPageController }): JSX
   })
   const herdrTaskStatuses = () => {
     const result = herdrStatusesResult()
-    return result?.kind === 'available' ? result.statusesByFolderName : {}
+    return result?.kind === 'server-running' ? result.statusesByFolderName : {}
   }
   const currentProjectName = () => {
     const v = data()

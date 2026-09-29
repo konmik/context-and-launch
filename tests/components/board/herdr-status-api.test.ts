@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createHerdrUnavailableError } from '~/core/herdr/herdr-availability.js'
-import { errorPayload } from '~/core/shared/errors.js'
 import { createHerdrStatusService } from '../../../src/components/board/herdr-status-service.js'
 
 const fetchHerdrTaskState = vi.fn()
@@ -35,27 +34,26 @@ describe('getHerdrAgentStatuses', () => {
     })
     const result = await service.getStatuses('project')
     expect(result).toEqual({
-      kind: 'available',
+      kind: 'server-running',
       statusesByFolderName: {
         'st-1-task': 'idle',
       },
     })
     expect(reconcileProject).not.toHaveBeenCalled()
   })
-  it('reports unavailable without mutating the Review Prompt Queue', async () => {
+  it('reports server-not-running without an error or mutating the Review Prompt Queue', async () => {
     fetchHerdrTaskState.mockRejectedValue(createHerdrUnavailableError('server-not-running'))
     const result = await service.getStatuses('project')
     expect(result).toEqual({
-      kind: 'unavailable',
-      error: errorPayload(createHerdrUnavailableError('server-not-running'), 'Agent status unavailable'),
+      kind: 'server-not-running',
     })
     expect(reconcileProject).not.toHaveBeenCalled()
   })
-  it('reports disabled without mutating the Review Prompt Queue', async () => {
+  it('reports cli-missing without mutating the Review Prompt Queue', async () => {
     fetchHerdrTaskState.mockRejectedValue(createHerdrUnavailableError('cli-missing'))
     const result = await service.getStatuses('project')
     expect(result).toEqual({
-      kind: 'disabled',
+      kind: 'cli-missing',
     })
     expect(reconcileProject).not.toHaveBeenCalled()
   })
@@ -63,9 +61,9 @@ describe('getHerdrAgentStatuses', () => {
     fetchHerdrTaskState.mockRejectedValue(new Error('workspace list exploded'))
     const result = await service.getStatuses('project')
     expect(result).toEqual({
-      kind: 'unavailable',
+      kind: 'status-query-failed',
       error: {
-        title: 'Agent status unavailable',
+        title: 'Herdr agent status query failed',
         description: 'workspace list exploded',
       },
     })

@@ -46,7 +46,9 @@ describe('createHerdrExec', () => {
     const exec = createHerdrExec(commands)
     await expect(exec('herdr.workspace.list')).rejects.toMatchObject({
       reason: 'server-not-running',
-      message: 'Herdr is not running.',
+      message: 'The Herdr server is not running.',
+      title: 'Herdr server not running',
+      description: 'The Herdr server is not running.',
     })
     expect(calls).toEqual(['herdr.workspace.list', 'herdr.status.server'])
   })

@@ -4,21 +4,25 @@ import { success, failure, type Result } from '~/util/result.js'
 import { isHerdrUnavailableError } from '~/core/herdr/herdr-availability.js'
 import type { HerdrAgentStatus, HerdrTaskState } from '~/core/herdr/herdr-client.js'
 
-export interface DisabledAgentStatuses {
-  kind: 'disabled'
+export interface MissingCliAgentStatuses {
+  kind: 'cli-missing'
 }
 
-export interface AvailableAgentStatuses {
-  kind: 'available'
+export interface ServerNotRunningAgentStatuses {
+  kind: 'server-not-running'
+}
+
+export interface RunningServerAgentStatuses {
+  kind: 'server-running'
   statusesByFolderName: Record<string, HerdrAgentStatus>
 }
 
-export interface UnavailableAgentStatuses {
-  kind: 'unavailable'
+export interface FailedAgentStatusQuery {
+  kind: 'status-query-failed'
   error: UserFacingError
 }
 
-export type HerdrAgentStatusesResult = DisabledAgentStatuses | AvailableAgentStatuses | UnavailableAgentStatuses
+export type HerdrAgentStatusesResult = MissingCliAgentStatuses | ServerNotRunningAgentStatuses | RunningServerAgentStatuses | FailedAgentStatusQuery
 
 export interface HerdrStatusDeps {
   loadTaskState: (projectSlug: string) => Promise<HerdrTaskState>
@@ -37,25 +41,27 @@ export function createHerdrStatusService(deps: HerdrStatusDeps): AgentStatusServ
     try {
       const state = await deps.loadTaskState(projectSlug)
       return {
-        kind: 'available',
+        kind: 'server-running',
         statusesByFolderName: state.statusesByFolderName,
       }
     } catch (error) {
       if (isHerdrUnavailableError(error)) {
         deps.log('herdr', `agent status unavailable: ${error.message}`)
-        return error.reason === 'cli-missing'
-          ? {
-              kind: 'disabled',
-            }
-          : {
-              kind: 'unavailable',
-              error: errorPayload(error, 'Agent status unavailable'),
-            }
+        if (error.reason === 'cli-missing') {
+          return {
+            kind: 'cli-missing',
+          }
+        }
+        if (error.reason === 'server-not-running') {
+          return {
+            kind: 'server-not-running',
+          }
+        }
       }
       deps.log('herdr', `agent status query failed: ${errorMessage(error)}`)
       return {
-        kind: 'unavailable',
-        error: errorPayload(error, 'Agent status unavailable'),
+        kind: 'status-query-failed',
+        error: errorPayload(error, 'Herdr agent status query failed'),
       }
     }
   }

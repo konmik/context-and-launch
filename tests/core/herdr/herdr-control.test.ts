@@ -70,7 +70,7 @@ describe('findHerdrAgent', () => {
     expect(await findHerdrAgent(TARGET, exec)).toEqual({
       kind: 'herdr-unavailable',
       reason: 'server-not-running',
-      message: 'Herdr is not running.',
+      message: 'The Herdr server is not running.',
     })
   })
   it('does not treat a herdr that ran and failed as unavailable', async () => {

@@ -2,9 +2,15 @@ import { createAppError, isAppError, type AppError } from '../shared/errors.js'
 
 export type HerdrUnavailableReason = 'cli-missing' | 'server-not-running'
 
-const MESSAGE_BY_REASON = {
-  'cli-missing': 'Herdr is not installed or is not available on PATH.',
-  'server-not-running': 'Herdr is not running.',
+const ERROR_BY_REASON = {
+  'cli-missing': {
+    title: 'Herdr CLI missing',
+    description: 'Herdr is not installed or is not available on PATH.',
+  },
+  'server-not-running': {
+    title: 'Herdr server not running',
+    description: 'The Herdr server is not running.',
+  },
 }
 
 /**
@@ -20,7 +26,8 @@ export interface HerdrUnavailableError extends AppError {
 const unavailableErrors = new WeakSet<Error>()
 
 export function createHerdrUnavailableError(reason: HerdrUnavailableReason): HerdrUnavailableError {
-  const error = Object.assign(createAppError(MESSAGE_BY_REASON[reason]), {
+  const { title, description } = ERROR_BY_REASON[reason]
+  const error = Object.assign(createAppError(description, title), {
     name: 'HerdrUnavailableError',
     reason,
   })
