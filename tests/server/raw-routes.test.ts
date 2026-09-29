@@ -3,6 +3,7 @@ import { createRawRouteHandler } from '../../src/server/raw-route-handler.js'
 import { createServer } from 'node:http'
 import { once } from 'node:events'
 import { createNodeRequestHandler } from '../../scripts/built-app.mjs'
+import * as v from 'valibot'
 
 const mocks = {
   getFileContent: vi.fn(),
@@ -38,8 +39,12 @@ describe('raw content routes', () => {
     const server = createServer(createNodeRequestHandler(async (request: Request) => (await handleRawRoute(request))!))
     server.listen(0, '127.0.0.1')
     await once(server, 'listening')
-    const address = server.address()
-    if (!address || typeof address === 'string') throw new Error('HTTP test server did not bind a TCP port')
+    const address = v.parse(
+      v.object({
+        port: v.number(),
+      }),
+      server.address(),
+    )
     const controller = new AbortController()
     try {
       const response = await fetch(`http://127.0.0.1:${address.port}/api/projects/example/watch`, {

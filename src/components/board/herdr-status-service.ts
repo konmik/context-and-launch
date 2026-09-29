@@ -22,7 +22,11 @@ export interface FailedAgentStatusQuery {
   error: UserFacingError
 }
 
-export type HerdrAgentStatusesResult = MissingCliAgentStatuses | ServerNotRunningAgentStatuses | RunningServerAgentStatuses | FailedAgentStatusQuery
+export type HerdrAgentStatusesResult =
+  | MissingCliAgentStatuses
+  | ServerNotRunningAgentStatuses
+  | RunningServerAgentStatuses
+  | FailedAgentStatusQuery
 
 export interface HerdrStatusDeps {
   loadTaskState: (projectSlug: string) => Promise<HerdrTaskState>

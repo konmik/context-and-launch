@@ -114,6 +114,7 @@ export function createTaskDetailState(
   const [fileView, setFileView] = createSignal<FileView>({
     kind: 'loading',
   })
+  const [fileSwitchPending, setFileSwitchPending] = createSignal(false)
   const taskStatus = deps.taskStatus ?? useContext(TaskStatusContext)!
   const task = taskStatus.get
   const folderName = () => task().folderName
@@ -177,7 +178,7 @@ export function createTaskDetailState(
   const allFileOptions = createMemo(() => buildAllFileOptions(contextOptions(), fileEntryOptions(), referenceOptions()))
 
   function isCurrentReadOnly(): boolean {
-    return isReadOnly(activeFile())
+    return fileSwitchPending() || isReadOnly(activeFile())
   }
 
   function isReferenceStale(refPath: string): boolean {
@@ -200,78 +201,6 @@ export function createTaskDetailState(
   // the user has already navigated away from must not clobber the current view
   // or content.
   let loadSeq = 0
-
-  async function loadContextContent(
-    af: ActiveFile & {
-      type: 'context'
-    },
-    background = false,
-  ): Promise<void> {
-    const seq = ++loadSeq
-    if (!background)
-      setFileView({
-        kind: 'loading',
-      })
-    try {
-      const data = await (deps.getContext ?? getContextAction)(props.projectSlug, folderName(), af.name)
-      if (seq !== loadSeq) return
-      const normalized = data ? normalizeLineEndings(data.content) : ''
-      setContent(normalized)
-      setSavedContent(normalized)
-    } catch (e) {
-      if (seq !== loadSeq) return
-      setContent('')
-      setSavedContent('')
-      deps.onError(errorPayload(e, 'Load failed'))
-    } finally {
-      if (seq === loadSeq)
-        setFileView({
-          kind: 'editor',
-        })
-    }
-  }
-
-  function loadFileByName(fileName: string, url: string, background = false): void {
-    const seq = ++loadSeq
-    const mode = resolveFileViewMode(fileName)
-    if (!background) {
-      setContent('')
-      setSavedContent('')
-    }
-    if (mode === 'image') {
-      setFileView({
-        kind: 'image',
-        url,
-      })
-    } else if (mode === 'editor') {
-      if (!background)
-        setFileView({
-          kind: 'loading',
-        })
-      fetch(url)
-        .then(async (res) => {
-          const text = await readFileResponse(res)
-          if (seq !== loadSeq) return
-          setContent(text)
-          setSavedContent(text)
-        })
-        .catch((e) => {
-          if (seq !== loadSeq) return
-          deps.onError(errorPayload(e, 'Load failed'))
-        })
-        .finally(() => {
-          if (seq === loadSeq)
-            setFileView({
-              kind: 'editor',
-            })
-        })
-    } else {
-      setFileView({
-        kind: 'unsupported',
-      })
-    }
-  }
-
   createEffect(
     () => [projectConfig.get(), task().status, initialTabResolved()] as const,
     ([data, status, resolved]) => {
@@ -309,7 +238,7 @@ export function createTaskDetailState(
   }
 
   onSettled(() => {
-    void loadContextContent({
+    void loadActiveFile({
       type: 'context',
       name: 'description',
     })
@@ -336,10 +265,41 @@ export function createTaskDetailState(
 
   async function loadActiveFile(af: ActiveFile, background = false): Promise<void> {
     setExternallyChanged(false)
-    if (af.type === 'context') {
-      await loadContextContent(af, background)
-    } else {
-      loadFileByName(activeFileLabel(af), fileContentUrl(af), background)
+    const seq = ++loadSeq
+    const mode = af.type === 'context' ? 'editor' : resolveFileViewMode(activeFileLabel(af))
+    const replaceEditor = !background || fileSwitchPending() || fileView().kind !== 'editor'
+    setFileSwitchPending(mode === 'editor' && replaceEditor)
+    if (mode === 'image' && af.type !== 'context') {
+      setFileView({
+        kind: 'image',
+        url: fileContentUrl(af),
+      })
+      return
+    }
+    if (mode === 'unsupported') {
+      setFileView({
+        kind: 'unsupported',
+      })
+      return
+    }
+    try {
+      const text = await readFileText(af)
+      if (seq !== loadSeq) return
+      setContent(text)
+      setSavedContent(text)
+    } catch (e) {
+      if (seq !== loadSeq) return
+      setContent('')
+      setSavedContent('')
+      deps.onError(errorPayload(e, 'Load failed'))
+    } finally {
+      if (seq === loadSeq) {
+        if (replaceEditor)
+          setFileView({
+            kind: 'editor',
+          })
+        setFileSwitchPending(false)
+      }
     }
   }
 

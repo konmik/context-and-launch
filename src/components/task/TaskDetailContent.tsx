@@ -183,14 +183,7 @@ export function TaskDetailContent(props: {
         </FloatingWindowHeader>
 
         <FloatingPanelBody>
-          <Show
-            when={s.initialTabResolved()}
-            fallback={
-              <div class="flex h-full items-center justify-center text-sm text-muted-foreground" data-testid="task-detail-loading">
-                Loading task...
-              </div>
-            }
-          >
+          <Show when={s.initialTabResolved()}>
             <div class="flex h-full flex-col">
               <Show when={s.activeTab() === 'editor'}>
                 <EditorTab ctrl={s} />

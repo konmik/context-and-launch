@@ -33,7 +33,7 @@ function projectWatchResponse(request: Request, subscribe: () => () => Promise<v
     start(controller) {
       abort = () => {
         controller.close()
-        void release().catch((error: unknown) => console.error('Project watcher release failed:', error))
+        void release().catch((cause: unknown) => console.error('Project watcher release failed:', cause))
       }
       request.signal.addEventListener('abort', abort, {
         once: true,

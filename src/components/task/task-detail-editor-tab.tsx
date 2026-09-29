@@ -1,9 +1,8 @@
 import type { JSX } from '@solidjs/web'
-import { Show } from 'solid-js'
 import { FileToolbar } from './FileToolbar.js'
 import { EditorPane } from './EditorPane.js'
 import { TAB_CONTENT_CLASS } from './task-detail-parts.js'
-import { activeFileLabel, isReadOnly } from './task-detail-pure.js'
+import { activeFileLabel } from './task-detail-pure.js'
 import type { TaskDetailState } from './task-detail-state.js'
 
 export function EditorTab(props: { ctrl: TaskDetailState }): JSX.Element {
@@ -29,19 +28,14 @@ export function EditorTab(props: { ctrl: TaskDetailState }): JSX.Element {
         onFileInputChange={s.handleFileInputChange}
       />
       <div class="min-h-0 flex-1" data-testid="task-detail-editor-pane" data-state={s.fileView().kind}>
-        <Show
-          when={s.fileView().kind !== 'loading'}
-          fallback={<div class="flex h-full items-center justify-center text-sm text-muted-foreground">Loading...</div>}
-        >
-          <EditorPane
-            view={s.fileView()}
-            content={s.content()}
-            onChange={s.setContent}
-            onSave={s.activeFile().type === 'context' ? s.saveAll : undefined}
-            readOnly={isReadOnly(s.activeFile())}
-            label={activeFileLabel(s.activeFile())}
-          />
-        </Show>
+        <EditorPane
+          view={s.fileView()}
+          content={s.content()}
+          onChange={s.setContent}
+          onSave={s.activeFile().type === 'context' ? s.saveAll : undefined}
+          readOnly={s.isCurrentReadOnly()}
+          label={activeFileLabel(s.activeFile())}
+        />
       </div>
     </div>
   )

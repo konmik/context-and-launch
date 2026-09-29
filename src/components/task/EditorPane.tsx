@@ -13,7 +13,7 @@ export function EditorPane(props: {
 }): JSX.Element {
   return (
     <>
-      <Show when={props.view.kind === 'editor'}>
+      <Show when={props.view.kind === 'editor' ? props.view : undefined} keyed>
         <MarkdownEditor
           value={props.content}
           onChange={props.onChange}
