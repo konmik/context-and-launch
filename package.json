@@ -16,6 +16,7 @@
     "lint": "eslint . --cache --cache-strategy content --cache-location node_modules/.cache/eslint/.eslintcache && oxlint .",
     "check": "pnpm run test",
     "check:unused": "tsx scripts/unused-code.ts",
+    "check:unused:ts": "tsx scripts/unused-code-ts.ts",
     "check:full": "pnpm run format && tsc --noEmit && pnpm run lint && pnpm run check",
     "test": "node scripts/test.mjs",
     "bench": "node scripts/run-tests.mjs bench",
