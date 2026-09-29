@@ -1,81 +1,40 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { spawn, type ChildProcess } from 'node:child_process'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { chromium, type Browser, type Page } from 'playwright'
-import { createProject, type CreatedProject } from './fixtures.js'
-import { pickPort } from './test-port.js'
-import { removeTempDirOrWarn } from '../test-temp.js'
+import { createProject, createServer, type CreatedProject, type TestServer } from './fixtures.js'
 
 describe('Project window (e2e, Vite development server)', () => {
   let browser: Browser
   let page: Page
-  let vite: ChildProcess
+  let server: TestServer
   let project: CreatedProject
-  let dataDir: string
-  let reposParentDir: string
   let baseUrl: string
   const diagnostics: string[] = []
   beforeAll(async () => {
-    dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cl-dev-e2e-data-'))
-    reposParentDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cl-dev-e2e-repos-'))
-    const port = pickPort()
-    baseUrl = `http://127.0.0.1:${port}`
-    project = await createProject(
-      {
-        dataDir,
-        reposParentDir,
-      },
-      {
-        projectSlug: 'dev-startup',
-        withTasks: [
-          {
-            number: 'DEV-1',
-            title: 'Startup',
-            status: 'todo',
-          },
-        ],
-      },
-    )
-    vite = spawn(
-      process.execPath,
-      [path.resolve('node_modules/vite/bin/vite.js'), '--host', '127.0.0.1', '--port', String(port), '--strictPort'],
-      {
-        cwd: path.resolve('.'),
-        env: {
-          ...process.env,
-          NODE_ENV: 'development',
-          CONTEXT_LAUNCH_DATA_DIR: dataDir,
-        },
-        stdio: ['ignore', 'ignore', 'pipe'],
-      },
-    )
-    let stderr = ''
-    vite.stderr?.on('data', (chunk: Buffer) => {
-      stderr += chunk.toString()
+    server = await createServer({
+      mode: 'development',
+      dataDirPrefix: 'cl-dev-e2e-data-',
     })
-    const deadline = Date.now() + 20000
-    let ready = false
-    while (Date.now() < deadline) {
-      if (vite.exitCode !== null) throw new Error(`Vite exited early:\n${stderr}`)
-      try {
-        const response = await fetch(baseUrl)
-        if (response.status < 500) {
-          ready = true
-          break
-        }
-      } catch {
-        // Vite has not bound its port yet.
-      }
-      await new Promise((resolve) => setTimeout(resolve, 100))
-    }
-    if (!ready) throw new Error(`Vite did not become ready:\n${stderr}`)
+    baseUrl = server.baseUrl
+    project = await createProject(server, {
+      projectSlug: 'dev-startup',
+      withTasks: [
+        {
+          number: 'DEV-1',
+          title: 'Startup',
+          status: 'todo',
+        },
+      ],
+    })
     browser = await chromium.launch({
       headless: true,
       channel: 'chrome',
     })
     page = await browser.newPage()
+    await page.emulateMedia({
+      reducedMotion: 'reduce',
+    })
     page.on('console', (message) => {
       if (message.type() === 'warning' || message.type() === 'error') {
         diagnostics.push(message.text())
@@ -96,10 +55,8 @@ describe('Project window (e2e, Vite development server)', () => {
   }, 60000)
   afterAll(async () => {
     await browser?.close()
-    vite?.kill()
     project?.cleanup()
-    await removeTempDirOrWarn(dataDir)
-    await removeTempDirOrWarn(reposParentDir)
+    await server?.stop()
   })
   it('redirects the Home route without Solid lifecycle diagnostics', async () => {
     diagnostics.length = 0

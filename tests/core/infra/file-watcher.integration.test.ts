@@ -6,6 +6,7 @@ import path from 'node:path'
 import { createTestCommandTemplateService } from '../command-template/command-template.test-utils.js'
 import { git } from '../../test-git.js'
 import { createFileWatcher, type FileWatcherAdapters } from '../../../src/core/infra/file-watcher.js'
+import { createTaskStore } from '../../../src/core/task/task-store.js'
 
 const dirs: string[] = []
 
@@ -50,6 +51,41 @@ afterAll(() => {
     })
 })
 describe('FileWatcher real chokidar contract', () => {
+  it('archives a task while another app instance watches the same worktree', async () => {
+    const dir = tempDir()
+    const store = createTaskStore(dir)
+    const task = store.createTask('CL-0006', 'Show all files including in subfolders')
+    fs.mkdirSync(path.join(dir, task.folderName, 'New folder'))
+    fs.writeFileSync(path.join(dir, task.folderName, 'New folder', 'context.md'), 'Nested context')
+    let resolveReady!: () => void
+    const ready = new Promise<void>((resolve) => {
+      resolveReady = resolve
+    })
+    const watcher = createFileWatcher(createTestCommandTemplateService(), undefined, realAdapters(resolveReady))
+    let resolveOtherReady!: () => void
+    const otherReady = new Promise<void>((resolve) => {
+      resolveOtherReady = resolve
+    })
+    let resolveOtherChange!: () => void
+    const otherChange = new Promise<void>((resolve) => {
+      resolveOtherChange = resolve
+    })
+    const otherWatcher = createFileWatcher(createTestCommandTemplateService(), resolveOtherChange, realAdapters(resolveOtherReady))
+    await initialize(dir)
+    try {
+      watcher.subscribe(dir)
+      otherWatcher.subscribe(dir)
+      await Promise.all([ready, otherReady])
+      await watcher.runWithWatchPaused(dir, () => store.archiveTask(task.folderName))
+      await otherChange
+      expect(store.getTask(task.folderName)).toBeNull()
+      expect(fs.existsSync(path.join(dir, 'archive', task.folderName, 'status.json'))).toBe(true)
+      expect(fs.readFileSync(path.join(dir, 'archive', task.folderName, 'New folder', 'context.md'), 'utf8')).toBe('Nested context')
+    } finally {
+      await watcher.stopAll()
+      await otherWatcher.stopAll()
+    }
+  })
   it('observes real add/change events, commits them, and excludes dot-only changes', async () => {
     const dir = tempDir()
     await initialize(dir)
@@ -63,7 +99,7 @@ describe('FileWatcher real chokidar contract', () => {
       }),
     )
     try {
-      watcher.watch(dir, 20)
+      watcher.subscribe(dir, 20)
       await waitFor(() => ready)
       const observed = path.join(dir, 'observed.txt')
       fs.writeFileSync(observed, 'added')
@@ -99,12 +135,12 @@ describe('FileWatcher real chokidar contract', () => {
     }
     const watcher = createFileWatcher(createTestCommandTemplateService(), undefined, adapters)
     try {
-      watcher.watch(dirA, 20)
+      watcher.subscribe(dirA, 20)
       await waitFor(() => ready.has(dirA))
       watcher.stop(dirA)
       ready.delete(dirA)
-      watcher.watch(dirA, 20)
-      watcher.watch(dirB, 20)
+      watcher.subscribe(dirA, 20)
+      watcher.subscribe(dirB, 20)
       await waitFor(() => ready.has(dirA) && ready.has(dirB))
       fs.writeFileSync(path.join(dirA, 'after-restart.txt'), 'A')
       fs.writeFileSync(path.join(dirB, 'additive.txt'), 'B')

@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { createBuiltAppHandler } from './built-app.mjs'
+import { createBuiltAppHandler, createNodeRequestHandler } from './built-app.mjs'
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const entry = path.join(projectRoot, 'dist', 'server', 'server.js')
@@ -36,35 +36,10 @@ function restartIdleCountdown() {
   idleTimer.unref()
 }
 
-async function readRequestBody(request) {
-  if (request.method === 'GET' || request.method === 'HEAD') return undefined
-  const chunks = []
-  for await (const chunk of request) chunks.push(chunk)
-  return chunks.length > 0 ? Buffer.concat(chunks) : undefined
-}
-
-async function writeResponse(response, nodeResponse) {
-  nodeResponse.writeHead(response.status, Object.fromEntries(response.headers))
-  if (!response.body) return void nodeResponse.end()
-  for await (const chunk of response.body) nodeResponse.write(chunk)
-  nodeResponse.end()
-}
-
+const handleNodeRequest = createNodeRequestHandler(handleRequest)
 const server = http.createServer(async (request, response) => {
   restartIdleCountdown()
-  try {
-    const origin = `http://${request.headers.host ?? `${host}:${port}`}`
-    const webRequest = new Request(new URL(request.url ?? '/', origin), {
-      method: request.method,
-      headers: request.headers,
-      body: await readRequestBody(request),
-    })
-    await writeResponse(await handleRequest(webRequest), response)
-  } catch (error) {
-    console.error(error)
-    if (!response.headersSent) response.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' })
-    response.end('Internal server error')
-  }
+  await handleNodeRequest(request, response)
 })
 // Idle keep-alive connections must outlive any client's polling interval, or a
 // client reusing a connection races the server closing it and the request dies

@@ -38,7 +38,9 @@ async function dragItem(page: Page, itemType: ItemType, fromName: string, toName
   const source = testId(itemRow(page, itemType, fromName), ITEM_SELECTORS[itemType].handle)
   const target = itemRow(page, itemType, toName)
   await target.scrollIntoViewIfNeeded()
-  await dragElement(page, source, target)
+  await dragElement(page, source, target, {
+    steps: 5,
+  })
 }
 
 async function itemNames(page: Page, itemType: ItemType): Promise<string[]> {
@@ -50,6 +52,9 @@ async function itemNames(page: Page, itemType: ItemType): Promise<string[]> {
 describe('Launcher Settings item reorder (e2e, real server)', () => {
   const ctx = setupE2E()
   it('reorders prompt templates, agents, and shortcuts and persists their order', async () => {
+    await ctx.page.emulateMedia({
+      reducedMotion: 'reduce',
+    })
     await openProject(ctx, {
       slugBase: 'settings-item-reorder',
       appLauncherConfig: {

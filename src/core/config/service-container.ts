@@ -123,7 +123,6 @@ export function createServices(options: ServiceOptions = {}): ServiceContainer {
     projectRegistry,
     boardConfigManager,
     worktreeManager,
-    fileWatcher,
     taskSyncManager,
     launcherConfigManager,
   )

@@ -23,6 +23,34 @@ describe('Project window (e2e, real server)', () => {
       },
     },
   })
+  it('releases the previous project watch on a project switch and on leaving the board', async () => {
+    await ctx.page.emulateMedia({
+      reducedMotion: 'reduce',
+    })
+    const a = await seedProject(ctx, {
+      slugBase: 'pw-watch-a',
+    })
+    const b = await seedProject(ctx, {
+      slugBase: 'pw-watch-b',
+    })
+    const watchPathA = `/api/projects/${a.projectSlug}/watch`
+    const watchPathB = `/api/projects/${b.projectSlug}/watch`
+    const connectedA = ctx.page.waitForResponse((response) => response.url().endsWith(watchPathA) && response.status() === 200)
+    await gotoProject(ctx.page, ctx.testServer, a.projectSlug)
+    await connectedA
+    await testId(ctx.page, 'project-header-project-dropdown-trigger').click()
+    const disconnectedA = ctx.page.waitForEvent('requestfailed', (request) => request.url().endsWith(watchPathA))
+    const connectedB = ctx.page.waitForResponse((response) => response.url().endsWith(watchPathB) && response.status() === 200)
+    await ctx.page
+      .locator('[data-testid="project-header-project-item"]', {
+        hasText: b.projectSlug,
+      })
+      .click()
+    await Promise.all([disconnectedA, connectedB])
+    const disconnectedB = ctx.page.waitForEvent('requestfailed', (request) => request.url().endsWith(watchPathB))
+    await ctx.page.goto(`${ctx.testServer.baseUrl}/add-project`)
+    await disconnectedB
+  })
   it('watchers stay live across windows: an external change to a backgrounded project still commits', async () => {
     const a = await createProject(ctx.testServer, {
       projectSlug: uniqueSlug('pw-live-a'),

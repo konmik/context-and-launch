@@ -5,6 +5,8 @@ const taskFilePathPattern = /^\/api\/projects\/([^/]+)\/board\/tasks\/([^/]+)\/f
 
 const taskReferenceContentPathPattern = /^\/api\/projects\/([^/]+)\/board\/tasks\/([^/]+)\/references\/content$/
 
+const projectWatchPathPattern = /^\/api\/projects\/([^/]+)\/watch$/
+
 export interface RawRouteStore {
   getFileContent: (folderName: string, fileName: string) => Buffer
   getReferencedFileContent: (folderName: string, refPath: string) => Buffer
@@ -13,11 +15,58 @@ export interface RawRouteStore {
 export interface RawRouteDeps {
   getWorktreeDir: (projectSlug: string) => string
   createTaskStore: (worktreeDir: string) => RawRouteStore
+  subscribeProject: (projectSlug: string) => () => Promise<void>
+}
+
+function projectWatchResponse(request: Request, subscribe: () => () => Promise<void>): Response {
+  request.signal.throwIfAborted()
+  const unsubscribe = subscribe()
+  let releasePromise: Promise<void> | undefined
+  let abort: () => void
+
+  function release(): Promise<void> {
+    request.signal.removeEventListener('abort', abort)
+    return (releasePromise ??= unsubscribe())
+  }
+
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      abort = () => {
+        controller.close()
+        void release().catch((error: unknown) => console.error('Project watcher release failed:', error))
+      }
+      request.signal.addEventListener('abort', abort, {
+        once: true,
+      })
+      controller.enqueue(new TextEncoder().encode('watching\n'))
+    },
+    cancel: release,
+  })
+  return new Response(body, {
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'no-store, no-transform',
+    },
+  })
 }
 
 export function createRawRouteHandler(deps: RawRouteDeps): (request: Request) => Promise<Response | undefined> {
   return async function handleRawRoute(request: Request): Promise<Response | undefined> {
     const url = new URL(request.url)
+    const watchMatch = url.pathname.match(projectWatchPathPattern)
+    if (watchMatch) {
+      if (request.method !== 'GET')
+        return new Response('Method not allowed', {
+          status: 405,
+        })
+      try {
+        return projectWatchResponse(request, () => deps.subscribeProject(decodeURIComponent(watchMatch[1])))
+      } catch (error) {
+        return Response.json(errorPayload(error, 'Watch project failed'), {
+          status: 500,
+        })
+      }
+    }
     if (request.method !== 'GET' && request.method !== 'HEAD') return undefined
     const fileMatch = url.pathname.match(taskFilePathPattern)
     const referenceMatch = url.pathname.match(taskReferenceContentPathPattern)

@@ -25,6 +25,7 @@ export async function handleAppRequest(request: Request, handleRequest: AppReque
       method: request.method,
       redirect: request.redirect,
       body,
+      signal: request.signal,
     }),
   )
 } // One-time migration of the appearance persisted by the main process

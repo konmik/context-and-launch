@@ -15,7 +15,6 @@ import type { ProjectRegistry, ProjectInfo } from '~/core/project/project-regist
 import type { BoardConfigManager } from '~/core/project/board-config.js'
 import type { WorktreeManager } from '~/core/worktree/worktree-manager.js'
 import type { LauncherConfigManager } from '~/core/launcher/launcher-config.js'
-import type { FileWatcher } from '~/core/infra/file-watcher.js'
 import { shardTestCases } from '../../test-shard.js'
 
 function stubDeps(
@@ -51,27 +50,16 @@ function stubDeps(
       return overrides.worktreeDir
     }),
   })
-  const fileWatcher = fromPartial<FileWatcher>({
-    watch: vi.fn(),
-  })
   const taskSyncManager = overrides.taskSyncManager ?? fromPartial<TaskSyncManager>({})
   const launcherConfigManager = fromPartial<LauncherConfigManager>({
     resolveWorktreeSettings: vi.fn(() => ({
       worktreeRootPath: overrides.agentWorktreeRoot ?? '/nonexistent-agent-worktree-root',
     })),
   })
-  const service = createProjectPageService(
-    projectRegistry,
-    boardConfigManager,
-    worktreeManager,
-    fileWatcher,
-    taskSyncManager,
-    launcherConfigManager,
-  )
+  const service = createProjectPageService(projectRegistry, boardConfigManager, worktreeManager, taskSyncManager, launcherConfigManager)
   return {
     service,
     projectRegistry,
-    fileWatcher,
   }
 }
 
@@ -301,7 +289,7 @@ export function registerProjectPageServiceTests(shard: number | readonly number[
         const agentWorktreeRoot = tmpDir('pps-awt-')
         dirs.push(agentWorktreeRoot)
         fs.mkdirSync(path.join(agentWorktreeRoot, 'st-0001-feature'))
-        const { service, fileWatcher } = stubDeps({
+        const { service } = stubDeps({
           projects: [
             {
               path: worktreeDir,
@@ -317,7 +305,6 @@ export function registerProjectPageServiceTests(shard: number | readonly number[
         const result = await service.loadProjectPage('proj')
         expect(result.status).toBe('loaded')
         if (result.status !== 'loaded') return
-        expect(fileWatcher.watch).toHaveBeenCalledWith(worktreeDir)
         const task = result.board.tasks.find((t) => t.folderName === 'st-0001-feature')
         expect(task?.hasAgentWorktree).toBe(true)
       })
@@ -417,7 +404,6 @@ export function registerProjectPageServiceTests(shard: number | readonly number[
 export interface StubDepsResult {
   service: ProjectPageService
   projectRegistry: ProjectRegistry
-  fileWatcher: FileWatcher
 }
 
 export interface SetupResolvedScratchResult {

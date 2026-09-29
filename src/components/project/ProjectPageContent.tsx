@@ -52,6 +52,7 @@ import { createBoardShortcutRunner } from '~/components/board/board-shortcut-run
 import { ShortcutConfirmationDialog } from '~/components/task/ShortcutConfirmationDialog.js'
 import { paths } from '~/router.js'
 import { recordAppProjectFocus } from '~/components/config/app-config-api.js'
+import { watchProjectView } from '~/components/project/project-watch.js'
 
 const KanbanBoard = lazy(() => import('~/components/board/KanbanBoard'), undefined)
 
@@ -128,6 +129,17 @@ export function ProjectPageContent(props: { ctrl?: ProjectPageController }): JSX
     undefined,
   )
   const [deferredPollsReady, setDeferredPollsReady] = createSignal(false)
+  createEffect(
+    () => {
+      const currentProjectSlug = projectSlug()
+      const page = data()
+      return page?.status === 'loaded' && page.projectSlug === currentProjectSlug ? currentProjectSlug : undefined
+    },
+    (currentProjectSlug) => {
+      if (!currentProjectSlug) return
+      return watchProjectView(currentProjectSlug, (cause) => errors.report(errorPayload(cause, 'Watch project failed')))
+    },
+  )
   createEffect(data, (loaded) => {
     if (!loaded) return
     const handle = requestIdleCallback(() => setDeferredPollsReady(true))

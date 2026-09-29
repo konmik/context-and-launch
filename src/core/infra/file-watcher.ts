@@ -54,7 +54,7 @@ interface PausedWatch {
 }
 
 export interface FileWatcher {
-  watch(worktreeDir: string, debounceMs?: number): void
+  subscribe(worktreeDir: string, debounceMs?: number): () => Promise<void>
   stop(worktreeDir: string): Promise<void>
   stopAll(): Promise<void>
   runWithWatchPaused<T>(worktreeDir: string, task: () => T | Promise<T>): Promise<T>
@@ -68,6 +68,25 @@ export function createFileWatcher(
 ): FileWatcher {
   const watchers = new Map<string, WatcherState>()
   const pausedWatches = new Map<string, PausedWatch>()
+  const subscribers = new Map<string, Set<symbol>>()
+
+  function subscribe(worktreeDir: string, debounceMs?: number): () => Promise<void> {
+    const token = Symbol()
+    const owners = subscribers.get(worktreeDir) ?? new Set<symbol>()
+    owners.add(token)
+    subscribers.set(worktreeDir, owners)
+    try {
+      watch(worktreeDir, debounceMs)
+    } catch (error) {
+      owners.delete(token)
+      if (owners.size === 0) subscribers.delete(worktreeDir)
+      throw error
+    }
+    return async () => {
+      if (!owners.delete(token) || subscribers.get(worktreeDir) !== owners) return
+      if (owners.size === 0) await stop(worktreeDir)
+    }
+  }
 
   function watch(worktreeDir: string, debounceMs: number = defaultDebounceMs): void {
     const paused = pausedWatches.get(worktreeDir)
@@ -82,11 +101,12 @@ export function createFileWatcher(
         ignoreInitial: true,
         ignored: (filePath: string) => isDotPathInside(worktreeDir, filePath),
         persistent: true,
+        usePolling: process.platform === 'win32',
         depth: 10,
       })
     } catch (err) {
       console.warn(`FileWatcher: failed to watch ${worktreeDir}:`, err)
-      return
+      throw err
     }
     const debouncedCommit = () => {
       const current = watchers.get(worktreeDir)
@@ -149,6 +169,13 @@ export function createFileWatcher(
   }
 
   async function stop(worktreeDir: string): Promise<void> {
+    subscribers.delete(worktreeDir)
+    const paused = pausedWatches.get(worktreeDir)
+    if (paused) paused.debounceMs = undefined
+    await closeWatch(worktreeDir)
+  }
+
+  async function closeWatch(worktreeDir: string): Promise<void> {
     const state = watchers.get(worktreeDir)
     if (!state) return
     watchers.delete(worktreeDir)
@@ -156,6 +183,8 @@ export function createFileWatcher(
   }
 
   async function stopAll(): Promise<void> {
+    subscribers.clear()
+    for (const paused of pausedWatches.values()) paused.debounceMs = undefined
     const states = [...watchers.values()]
     watchers.clear()
     await Promise.all(states.map((state) => tearDown(state)))
@@ -176,18 +205,21 @@ export function createFileWatcher(
     pausedWatches.set(worktreeDir, paused)
     try {
       await previous
-      await stop(worktreeDir)
+      await closeWatch(worktreeDir)
       return await task()
     } finally {
       paused.pending -= 1
-      if (paused.pending === 0) {
-        pausedWatches.delete(worktreeDir)
-        if (paused.debounceMs !== undefined) {
-          watch(worktreeDir, paused.debounceMs)
-          watchers.get(worktreeDir)?.scheduleCommit()
+      try {
+        if (paused.pending === 0) {
+          pausedWatches.delete(worktreeDir)
+          if (paused.debounceMs !== undefined) {
+            watch(worktreeDir, paused.debounceMs)
+            watchers.get(worktreeDir)?.scheduleCommit()
+          }
         }
+      } finally {
+        release()
       }
-      release()
     }
   }
 
@@ -201,7 +233,7 @@ export function createFileWatcher(
   }
 
   return {
-    watch,
+    subscribe,
     stop,
     stopAll,
     runWithWatchPaused,

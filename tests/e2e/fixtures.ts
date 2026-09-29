@@ -644,6 +644,12 @@ export async function dragElement(page: Page, source: Locator, target: Locator, 
     state: 'visible',
     timeout: WAIT_TIMEOUT_MS,
   })
+  await source.click({
+    trial: true,
+  })
+  await target.click({
+    trial: true,
+  })
   const sourceBox = await boxOf(source)
   const targetBox = await boxOf(target)
   const to =

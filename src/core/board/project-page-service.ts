@@ -6,7 +6,6 @@ import type { ProjectRegistry } from '~/core/project/project-registry.js'
 import type { BoardConfigManager } from '~/core/project/board-config.js'
 import type { WorktreeManager } from '~/core/worktree/worktree-manager.js'
 import type { LauncherConfigManager } from '~/core/launcher/launcher-config.js'
-import type { FileWatcher } from '~/core/infra/file-watcher.js'
 import type { TaskSyncManager } from '~/core/task/task-sync.js'
 import type { ProjectPageData, SyncStatus } from './board-types.js'
 
@@ -19,7 +18,6 @@ export function createProjectPageService(
   projectRegistry: ProjectRegistry,
   boardConfigManager: BoardConfigManager,
   worktreeManager: WorktreeManager,
-  fileWatcher: FileWatcher,
   taskSyncManager: TaskSyncManager,
   launcherConfigManager: LauncherConfigManager,
 ): ProjectPageService {
@@ -59,7 +57,6 @@ export function createProjectPageService(
     try {
       return await runOnProjectGitQueue(projectSlug, async () => {
         const worktreeDir = await worktreeManager.ensureWorktree(project.path, projectSlug, project.branch)
-        fileWatcher.watch(worktreeDir)
         await taskSyncManager.finalizeResolution(worktreeDir)
         const config = boardConfigManager.getConfig(project.boardId)
         const store = createTaskStore(worktreeDir)

@@ -55,3 +55,62 @@ export function createBuiltAppHandler(serverHandler, clientRoot) {
     return (await readStaticResponse(request, clientRoot, '/index.html')) ?? new Response('Not found', { status: 404 })
   }
 }
+
+async function readRequestBody(request) {
+  if (request.method === 'GET' || request.method === 'HEAD') return undefined
+  const chunks = []
+  for await (const chunk of request) chunks.push(chunk)
+  return chunks.length > 0 ? Buffer.concat(chunks) : undefined
+}
+
+async function writeResponse(response, nodeResponse) {
+  nodeResponse.writeHead(response.status, Object.fromEntries(response.headers))
+  if (!response.body) return void nodeResponse.end()
+  const reader = response.body.getReader()
+  const cancel = () => {
+    void reader.cancel().catch((error) => console.error('Response cancellation failed:', error))
+  }
+  nodeResponse.once('close', cancel)
+  try {
+    if (nodeResponse.destroyed || nodeResponse.req.method === 'HEAD') {
+      await reader.cancel()
+      if (!nodeResponse.destroyed) nodeResponse.end()
+      return
+    }
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done || nodeResponse.destroyed) break
+      nodeResponse.write(value)
+    }
+    if (!nodeResponse.destroyed) nodeResponse.end()
+  } finally {
+    nodeResponse.off('close', cancel)
+    reader.releaseLock()
+  }
+}
+
+export function createNodeRequestHandler(handleRequest) {
+  return async function handleNodeRequest(request, response) {
+    const controller = new AbortController()
+    response.once('close', () => {
+      if (!response.writableEnded) controller.abort()
+    })
+    try {
+      const origin = `http://${request.headers.host}`
+      const webRequest = new Request(new URL(request.url, origin), {
+        method: request.method,
+        headers: request.headers,
+        body: await readRequestBody(request),
+        signal: controller.signal,
+      })
+      await writeResponse(await handleRequest(webRequest), response)
+    } catch (error) {
+      console.error(error)
+      if (!response.headersSent) {
+        response.setHeader('content-type', 'text/plain; charset=utf-8')
+        response.writeHead(500)
+      }
+      response.end('Internal server error')
+    }
+  }
+}

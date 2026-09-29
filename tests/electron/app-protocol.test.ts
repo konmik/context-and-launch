@@ -42,6 +42,19 @@ function streamingRequest(url: string, chunks: string[]): Request {
 }
 
 describe('handleAppRequest', () => {
+  it('preserves cancellation when a project view disconnects', async () => {
+    const { handleRequest, calls } = recordingBackend()
+    const controller = new AbortController()
+    await handleAppRequest(
+      new Request(`${APP_ORIGIN}/api/projects/example/watch`, {
+        signal: controller.signal,
+      }),
+      handleRequest,
+    )
+    expect(calls[0].request.signal.aborted).toBe(false)
+    controller.abort()
+    expect(calls[0].request.signal.aborted).toBe(true)
+  })
   it('routes an app-origin URL to the in-process handler by path and query', async () => {
     const { handleRequest, calls } = recordingBackend()
     await handleAppRequest(new Request(`${APP_ORIGIN}/project/my-repo?x=1`), handleRequest)
