@@ -598,9 +598,7 @@ export async function getWorktreeLockingProcesses(
   return agentWorktreeManager.findLockingProcesses(worktreePath)
 }
 
-export async function killWorktreeLockingProcesses(
-  pids: number[],
-): Promise<Result<undefined, UserFacingError>> {
+export async function killWorktreeLockingProcesses(pids: number[]): Promise<Result<undefined, UserFacingError>> {
   'use server'
 
   const failed: string[] = []

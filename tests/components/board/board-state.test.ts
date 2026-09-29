@@ -80,11 +80,20 @@ function createBoardDnd(getBoard: () => BoardState): TestBoardDndResult {
           column.appendChild(card)
         }
         const unregister = dnd.commands.registerColumnRef(target.column, column)
-        dnd.commands.handleDragMove({ draggable: { id: activeId!, node: column } })
+        dnd.commands.handleDragMove({
+          draggable: {
+            id: activeId!,
+            node: column,
+          },
+        })
         unregister()
       },
       cancelDrag() {
-        dnd.commands.handleDragMove({ draggable: { id: dnd.drag().activeId! } })
+        dnd.commands.handleDragMove({
+          draggable: {
+            id: dnd.drag().activeId!,
+          },
+        })
         dnd.commands.endDrag()
       },
     },
@@ -385,11 +394,19 @@ describe('createBoardDnd endDrag', () => {
 describe('createBoardDnd server sync', () => {
   it('keeps status and order together across stale refreshes, then rolls back a failed drop', () => {
     createRoot((dispose) => {
-      const task = makeTask({ folderName: 't-1-alpha', status: 'removed-column' })
+      const task = makeTask({
+        folderName: 't-1-alpha',
+        status: 'removed-column',
+      })
       const [b, setB] = createSignal(makeBoard([task]))
       const { board, commands } = createBoardDnd(b)
       invoke(() => commands.startDrag('undefined:t-1-alpha'))
-      invoke(() => commands.updateHover({ column: 'done', index: 0 }))
+      invoke(() =>
+        commands.updateHover({
+          column: 'done',
+          index: 0,
+        }),
+      )
       const drop = invoke(commands.endDrag)!
       invoke(() => setB(makeBoard([task])))
       expect(board().taskOrder['done']).toEqual(['t-1-alpha'])
@@ -403,16 +420,37 @@ describe('createBoardDnd server sync', () => {
   })
   it('keeps a newer drop visible when an earlier drop settles', () => {
     createRoot((dispose) => {
-      const task = makeTask({ folderName: 't-1-alpha' })
+      const task = makeTask({
+        folderName: 't-1-alpha',
+      })
       const [b, setB] = createSignal(makeBoard([task]))
       const { board, commands } = createBoardDnd(b)
       invoke(() => commands.startDrag('todo:t-1-alpha'))
-      invoke(() => commands.updateHover({ column: 'done', index: 0 }))
+      invoke(() =>
+        commands.updateHover({
+          column: 'done',
+          index: 0,
+        }),
+      )
       const first = invoke(commands.endDrag)!
       invoke(() => commands.startDrag('done:t-1-alpha'))
-      invoke(() => commands.updateHover({ column: 'todo', index: 0 }))
+      invoke(() =>
+        commands.updateHover({
+          column: 'todo',
+          index: 0,
+        }),
+      )
       const second = invoke(commands.endDrag)!
-      invoke(() => setB(makeBoard([{ ...task, status: 'done' }])))
+      invoke(() =>
+        setB(
+          makeBoard([
+            {
+              ...task,
+              status: 'done',
+            },
+          ]),
+        ),
+      )
       invoke(() => commands.removePendingDrop(first))
       expect(board().taskOrder['todo']).toEqual(['t-1-alpha'])
       expect(board().taskOrder['done']).toEqual([])

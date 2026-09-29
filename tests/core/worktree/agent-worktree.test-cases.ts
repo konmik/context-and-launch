@@ -397,7 +397,9 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
           agentWorktreePath: foreignWorktree,
         })
         .catch((cause: unknown) => cause)
-      expect(error).toMatchObject({ name: 'ForeignWorktreeError' })
+      expect(error).toMatchObject({
+        name: 'ForeignWorktreeError',
+      })
       if (!(error instanceof Error)) throw new Error('Expected foreign worktree operation to fail with an Error.')
       expect(error.message).toBe(
         `The saved worktree belongs to a different project: ${foreignWorktree}.` + ' Remove it from its original project before retrying.',

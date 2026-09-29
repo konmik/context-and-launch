@@ -19,7 +19,10 @@ export function ColumnBody(
 ): JSX.Element {
   let columnRef!: HTMLDivElement
   createEffect(
-    () => ({ column: props.column.name, register: props.registerRef }),
+    () => ({
+      column: props.column.name,
+      register: props.registerRef,
+    }),
     ({ column, register }) => register(column, columnRef),
   )
   const sourceIndexInColumn = () => {

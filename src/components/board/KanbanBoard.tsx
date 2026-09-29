@@ -52,21 +52,25 @@ export default function KanbanBoard(props: KanbanBoardProps): JSX.Element {
   function enqueueDropSave(drop: DropResult) {
     const savingProjectSlug = props.projectSlug
     const session = dnd()
-    dropSaveQueue = dropSaveQueue.then(() => errors.runAndReportErrors(async () => {
-      try {
-        if (dnd() !== session) return success(undefined)
-        if (props.board.tasks.find((task) => task.folderName === drop.folderName)?.status !== drop.toColumn) {
-          const status = await updateTask(savingProjectSlug, drop.folderName, null, null, drop.toColumn)
-          if (status.type === 'Failure') return status
+    dropSaveQueue = dropSaveQueue.then(() =>
+      errors.runAndReportErrors(async () => {
+        try {
           if (dnd() !== session) return success(undefined)
+          if (props.board.tasks.find((task) => task.folderName === drop.folderName)?.status !== drop.toColumn) {
+            const status = await updateTask(savingProjectSlug, drop.folderName, null, null, drop.toColumn)
+            if (status.type === 'Failure') return status
+            if (dnd() !== session) return success(undefined)
+          }
+          const result = await order.update((current) =>
+            moveTaskInOrder(current, drop.folderName, drop.fromColumn, drop.toColumn, drop.newIndex),
+          )
+          await revalidate(taskMutationRevalidateKeys)
+          return result
+        } finally {
+          session.commands.removePendingDrop(drop)
         }
-        const result = await order.update((current) => moveTaskInOrder(current, drop.folderName, drop.fromColumn, drop.toColumn, drop.newIndex))
-        await revalidate(taskMutationRevalidateKeys)
-        return result
-      } finally {
-        session.commands.removePendingDrop(drop)
-      }
-    }))
+      }),
+    )
   }
 
   const openFolder = (task: TaskInfo) => {

@@ -5,15 +5,23 @@ import { openProject, setupE2E, THREE_COLUMN_BOARD } from './fixtures.js'
 
 describe('Kanban drop persistence (e2e, real server)', () => {
   const ctx = setupE2E()
-
   it('keeps the task at its destination while saving and after reloading', async () => {
     const project = await openProject(ctx, {
       slugBase: 'drop-pending',
       withBoards: THREE_COLUMN_BOARD,
-      withTasks: [{ number: 'T-1', title: 'Alpha', status: 'todo', folderName: 't-1-alpha' }],
+      withTasks: [
+        {
+          number: 'T-1',
+          title: 'Alpha',
+          status: 'todo',
+          folderName: 't-1-alpha',
+        },
+      ],
     })
     const page = ctx.page
-    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.emulateMedia({
+      reducedMotion: 'reduce',
+    })
     const requested = Promise.withResolvers<void>()
     const release = Promise.withResolvers<void>()
     let held = false
@@ -32,7 +40,9 @@ describe('Kanban drop persistence (e2e, real server)', () => {
     try {
       await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2)
       await page.mouse.down()
-      await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + 30, { steps: 3 })
+      await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + 30, {
+        steps: 3,
+      })
       await page.mouse.up()
       await requested.promise
       await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())))
@@ -42,10 +52,14 @@ describe('Kanban drop persistence (e2e, real server)', () => {
     } finally {
       release.resolve()
     }
-    await expect.poll(() => JSON.parse(fs.readFileSync(path.join(project.tasksPath, 'task-order.json'), 'utf8')).done).toEqual(['t-1-alpha'])
+    await expect
+      .poll(() => JSON.parse(fs.readFileSync(path.join(project.tasksPath, 'task-order.json'), 'utf8')).done)
+      .toEqual(['t-1-alpha'])
     expect(JSON.parse(fs.readFileSync(path.join(project.tasksPath, 't-1-alpha', 'status.json'), 'utf8')).status).toBe('done')
     await page.reload()
-    await page.locator('[data-sortable-id="done:t-1-alpha"]').waitFor({ state: 'visible' })
+    await page.locator('[data-sortable-id="done:t-1-alpha"]').waitFor({
+      state: 'visible',
+    })
     expect(await source.count()).toBe(0)
   })
 })

@@ -42,7 +42,9 @@ export function isTestFile(file: string): boolean {
 }
 
 function readXml(file: string): Document {
-  return new JSDOM(fs.readFileSync(file, 'utf8'), { contentType: 'text/xml' }).window.document
+  return new JSDOM(fs.readFileSync(file, 'utf8'), {
+    contentType: 'text/xml',
+  }).window.document
 }
 
 function requiredText(element: Element, selector: string): string {
@@ -76,8 +78,18 @@ export function readInspectionFindings(directory: string, project: string): Insp
       const symbol = requiredText(problem, 'highlighted_element')
       const description = requiredText(problem, 'description').replace(/\s*#loc$/, '')
       const source = sourceLine.trim().replace(/\s+/g, ' ')
-      const id = createHash('sha256').update(JSON.stringify([inspection, file, symbol, description, source])).digest('hex')
-      findings.set(`${id}:${line}`, { id, inspection, file, line, symbol, description, source })
+      const id = createHash('sha256')
+        .update(JSON.stringify([inspection, file, symbol, description, source]))
+        .digest('hex')
+      findings.set(`${id}:${line}`, {
+        id,
+        inspection,
+        file,
+        line,
+        symbol,
+        description,
+        source,
+      })
     }
   }
   return [...findings.values()].sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.inspection.localeCompare(b.inspection))

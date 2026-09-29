@@ -27,11 +27,21 @@ export function createBoardDnd(getBoard: () => BoardState): BoardDndResult {
   const [pendingDrops, setPendingDrops] = createSignal<DropResult[]>([])
   const columnRefs = new Map<string, HTMLDivElement>()
   const board = createMemo((): BoardView => {
-    const projectedBoard = pendingDrops().reduce((current, drop) => ({
-      ...current,
-      tasks: current.tasks.map((task) => task.folderName === drop.folderName ? { ...task, status: drop.toColumn } : task),
-      taskOrder: moveTaskInOrder(current.taskOrder, drop.folderName, drop.fromColumn, drop.toColumn, drop.newIndex),
-    }), getBoard())
+    const projectedBoard = pendingDrops().reduce(
+      (current, drop) => ({
+        ...current,
+        tasks: current.tasks.map((task) =>
+          task.folderName === drop.folderName
+            ? {
+                ...task,
+                status: drop.toColumn,
+              }
+            : task,
+        ),
+        taskOrder: moveTaskInOrder(current.taskOrder, drop.folderName, drop.fromColumn, drop.toColumn, drop.newIndex),
+      }),
+      getBoard(),
+    )
     const taskMap = buildTaskMap(projectedBoard.tasks)
     const orphanedTasks = computeOrphans(projectedBoard)
     const orphanFolderNames = new Set(orphanedTasks.map((t) => t.folderName))

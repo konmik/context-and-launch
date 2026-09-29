@@ -105,7 +105,6 @@ export function createPromptPreviewController(deps: PromptPreviewDeps): PromptPr
   }
 }
 
-
 export interface PromptPreviewControllerResult {
   editMode: SourceAccessor<boolean>
   setEditMode: (on: boolean) => void

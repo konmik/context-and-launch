@@ -143,9 +143,7 @@ export function createTaskCleanupController(deps: TaskCleanupDeps): TaskCleanupC
     const token = lifecycleToken
     setKillingProcesses(true)
     try {
-      const result = await deps.killLockingProcesses(
-        processes.map((p) => p.pid),
-      )
+      const result = await deps.killLockingProcesses(processes.map((p) => p.pid))
       if (result.type === 'Failure') deps.onError(result.error)
     } catch (err) {
       deps.onError(errorPayload(err, 'Failed to kill processes'))
