@@ -2,20 +2,21 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import ts from 'typescript'
 import type { Location, Position } from 'vscode-languageserver-protocol/node'
-import { isTestFile, relativeFile } from './unused-code-files.js'
-
-export interface DeclarationReview {
-  reason?: string
-  referenceTargets: Location[]
-}
+import { relativeFile } from '../files.js'
+import type { DeclarationReview } from '../detector.js'
 
 export interface TypeScriptExclusionCommands {
   review: (file: string, position: Position) => DeclarationReview
 }
 
-interface ExternalConfigurationContract {
+export interface ExternalConfigurationContract {
   exportName: string
   reason: string
+}
+
+export interface TypeScriptExclusionOptions {
+  entryPoints: Map<string, string>
+  externalConfigurations: Map<string, ExternalConfigurationContract>
 }
 
 function declarationName(node: ts.Node): ts.DeclarationName | undefined {
@@ -88,7 +89,7 @@ function location(node: ts.Node): Location | undefined {
   }
 }
 
-export function createTypeScriptExclusions(root: string, files: string[]): TypeScriptExclusionCommands {
+export function createTypeScriptExclusions(root: string, files: string[], options: TypeScriptExclusionOptions, isTestFile: (file: string) => boolean): TypeScriptExclusionCommands {
   const config = ts.readConfigFile(path.join(root, 'tsconfig.json'), ts.sys.readFile)
   if (config.error) throw new Error(ts.flattenDiagnosticMessageText(config.error.messageText, '\n'))
   const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, root)
@@ -104,26 +105,7 @@ export function createTypeScriptExclusions(root: string, files: string[]): TypeS
   const links = new Map<ts.Node, Set<ts.Node>>()
   const pairs = new Map<ts.Type, Set<ts.Type>>()
   const dynamicImports = new Map<string, string>()
-  const entryPoints = new Map([
-    ['src/Document.tsx#Document', 'Solid document entry point'],
-    ['src/server/middleware.ts#middleware', 'vite.config.ts middleware entry point'],
-  ])
-  const externalConfigurations = new Map<string, ExternalConfigurationContract>([
-    [
-      'eslint.config.js',
-      {
-        exportName: 'default',
-        reason: 'ESLint flat configuration',
-      },
-    ],
-    [
-      'scripts/typescript-spacing-config.mjs',
-      {
-        exportName: 'typescriptSpacingConfig',
-        reason: 'ESLint stylistic rule configuration',
-      },
-    ],
-  ])
+  const { entryPoints, externalConfigurations } = options
 
   function describe(node: ts.Node): string {
     const source = node.getSourceFile()

@@ -1,13 +1,13 @@
 import fs from 'node:fs'
 import * as v from 'valibot'
 
-interface BaselineFinding {
+export interface BaselineFinding {
   file: string
   symbol: string
   container: string[]
 }
 
-interface BaselineEntry {
+export interface BaselineEntry {
   file: string
   symbol: string
   count: number
@@ -18,7 +18,7 @@ export interface InspectionBaseline {
   entries: BaselineEntry[]
 }
 
-interface InspectionComparison<T> {
+export interface InspectionComparison<T> {
   newFindings: T[]
   staleEntries: BaselineEntry[]
   suppressedCount: number

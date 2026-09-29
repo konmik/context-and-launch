@@ -84,6 +84,9 @@ importers:
       '@eslint/js':
         specifier: 10.0.1
         version: 10.0.1(eslint@10.4.1(jiti@2.7.0)(supports-color@7.2.0))
+      '@inspection/unused-code-detector':
+        specifier: workspace:*
+        version: link:packages/unused-code-detector
       '@oxlint/plugins':
         specifier: 1.80.0
         version: 1.80.0
@@ -165,12 +168,28 @@ importers:
       vitest:
         specifier: 3.2.6
         version: 3.2.6(@types/debug@4.1.13)(@types/node@25.9.1)(jiti@2.7.0)(jsdom@29.1.1(@noble/hashes@2.4.0))(lightningcss@1.32.0)(supports-color@7.2.0)(tsx@4.22.4)
+
+  packages/unused-code-detector:
+    dependencies:
+      valibot:
+        specifier: 1.4.1
+        version: 1.4.1(typescript@5.9.3)
       vscode-jsonrpc:
         specifier: 9.0.3
         version: 9.0.3
       vscode-languageserver-protocol:
         specifier: 3.18.4
         version: 3.18.4
+    devDependencies:
+      '@types/node':
+        specifier: 25.9.1
+        version: 25.9.1
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      typescript-language-server:
+        specifier: 5.3.0
+        version: 5.3.0
 
 packages:
 

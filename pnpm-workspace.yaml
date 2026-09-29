@@ -1,4 +1,6 @@
 saveExact: true
+packages:
+  - packages/*
 nodeLinker: hoisted
 
 overrides:

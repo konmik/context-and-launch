@@ -16,12 +16,6 @@
     "parseMountTable.map() callback.drive": "planRuntimeMount reads drive through the d.mts contract",
     "parseMountTable.map() callback.target": "planRuntimeMount reads target through the d.mts contract"
   },
-  "scripts/unused-code-lsp.ts": {
-    "inspect.initialized.initializationOptions.hostInfo": "typescript-language-server client identifier",
-    "inspect.initialized.initializationOptions.tsserver": "typescript-language-server executable configuration",
-    "inspect.initialized.initializationOptions.tsserver.path": "typescript-language-server executable path",
-    "inspect.initialized.initializationOptions.disableAutomaticTypingAcquisition": "typescript-language-server package-download setting"
-  },
   "src/components/board/board-logic.ts": {
     "collectColumnRects.cardRectsByCol.top": "computeHoverTarget consumes card rectangle top",
     "collectColumnRects.cardRectsByCol.height": "computeHoverTarget consumes card rectangle height"

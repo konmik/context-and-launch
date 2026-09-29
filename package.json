@@ -15,8 +15,8 @@
     "format:check": "node scripts/format-typescript.mjs && prettier --check \"**/*.{js,jsx,cjs,mjs,ts,tsx,cts,mts,css,html,json}\" --ignore-path .gitignore --ignore-path .prettierignore",
     "lint": "eslint . --cache --cache-strategy content --cache-location node_modules/.cache/eslint/.eslintcache && oxlint .",
     "check": "pnpm run test",
-    "check:unused": "tsx scripts/unused-code-lsp.ts",
-    "check:unused:ts": "tsx scripts/unused-code-ts.ts",
+    "check:unused": "tsx --conditions=source scripts/unused-code-lsp.ts",
+    "check:unused:ts": "tsx --conditions=source scripts/unused-code-ts.ts",
     "check:full": "pnpm run format && tsc --noEmit && pnpm run lint && pnpm run check",
     "test": "node scripts/test.mjs",
     "bench": "node scripts/run-tests.mjs bench",
@@ -46,6 +46,7 @@
     "valibot": "1.4.1"
   },
   "devDependencies": {
+    "@inspection/unused-code-detector": "workspace:*",
     "@babel/generator": "8.0.0",
     "@babel/parser": "8.0.4",
     "@eslint/js": "10.0.1",
@@ -75,8 +76,6 @@
     "typescript-eslint": "8.60.0",
     "typescript-language-server": "5.3.0",
     "vite": "7.3.5",
-    "vitest": "3.2.6",
-    "vscode-jsonrpc": "9.0.3",
-    "vscode-languageserver-protocol": "3.18.4"
+    "vitest": "3.2.6"
   }
 }
