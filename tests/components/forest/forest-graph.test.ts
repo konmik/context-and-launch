@@ -7,7 +7,6 @@ import {
   projectDependencies,
   computeDepths,
   autoLayoutPositions,
-  CARD_WIDTH,
   ROW_GAP,
   H_GAP,
   type ForestTask,

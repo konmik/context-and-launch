@@ -14,7 +14,7 @@ import {
   uniqueSlug,
   installPausedClock,
 } from './fixtures.js'
-import { testId, waitLocatorVisible } from './locators.js'
+import { waitLocatorVisible } from './locators.js'
 import { openCardReview } from './diff-review-helpers.js'
 
 declare global {

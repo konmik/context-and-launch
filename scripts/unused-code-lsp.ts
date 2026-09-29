@@ -6,6 +6,8 @@ import { SymbolKind } from 'vscode-languageserver-protocol/node'
 import type { DocumentSymbol, Location, Position, Range } from 'vscode-languageserver-protocol/node'
 import { createLanguageServer } from './lsp-client.js'
 import { inspectionOutputDirectory, isTestFile, relativeFile, sourceFiles } from './unused-code-files.js'
+import { createTypeScriptExclusions } from './unused-code-ts-exclusions.js'
+import { compareInspectionBaseline, readInspectionBaseline } from './unused-code-baseline.js'
 
 interface ReferenceLocation {
   file: string
@@ -33,8 +35,14 @@ interface LspReport {
   symbols: number
   skippedSymbols: number
   referenceRequests: number
+  exclusions: ExcludedDeclaration[]
   errors: string[]
   findings: LspFinding[]
+}
+
+interface ExcludedDeclaration extends ReferenceLocation {
+  symbol: string
+  reason: string
 }
 
 interface Candidate {
@@ -138,6 +146,7 @@ function makeFinding(root: string, uri: string, candidate: Candidate, references
 
 async function inspect(root: string, files: string[], report: LspReport): Promise<void> {
   const documents = new Map<string, string[]>()
+  const exclusions = createTypeScriptExclusions(root, files)
   const server = createLanguageServer(
     process.execPath,
     [fileURLToPath(import.meta.resolve('typescript-language-server/lib/cli.mjs')), '--stdio'],
@@ -198,9 +207,28 @@ async function inspect(root: string, files: string[], report: LspReport): Promis
       report.skippedSymbols += collected.skippedSymbols
       for (const candidate of collected.candidates) {
         report.symbols += 1
+        const review = exclusions.review(file, candidate.symbol.selectionRange.start)
+        if (review.reason) {
+          report.exclusions.push({
+            ...referenceLocation(root, {
+              uri,
+              range: candidate.symbol.selectionRange,
+            }),
+            symbol: candidate.symbol.name,
+            reason: review.reason,
+          })
+          continue
+        }
         report.referenceRequests += 1
-        const references = await server.references(uri, candidate.symbol.selectionRange.start)
-        const finding = makeFinding(root, uri, candidate, references ?? [])
+        const references = (await server.references(uri, candidate.symbol.selectionRange.start)) ?? []
+        let finding = makeFinding(root, uri, candidate, references)
+        for (const target of review.referenceTargets) {
+          if (!finding) break
+          report.referenceRequests += 1
+          const related = await server.references(target.uri, target.range.start)
+          references.push(...(related ?? []))
+          finding = makeFinding(root, uri, candidate, references)
+        }
         if (finding) report.findings.push(finding)
       }
       report.inspectedFiles += 1
@@ -218,8 +246,9 @@ async function inspect(root: string, files: string[], report: LspReport): Promis
 }
 
 async function main(): Promise<void> {
-  if (process.argv.length !== 2) throw new Error('Usage: pnpm run check:unused:lsp')
+  if (process.argv.length !== 2) throw new Error('Usage: pnpm run check:unused')
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+  const baseline = readInspectionBaseline(path.join(root, 'tools/inspections/unused-code-baseline.json'))
   const files = sourceFiles(root)
   const report: LspReport = {
     complete: false,
@@ -228,28 +257,53 @@ async function main(): Promise<void> {
     symbols: 0,
     skippedSymbols: 0,
     referenceRequests: 0,
+    exclusions: [],
     errors: [],
     findings: [],
   }
   console.log(`Opening ${files.length} files through LSP, including tests as reference sources...`)
   await inspect(root, files, report)
+  const comparison = report.complete ? compareInspectionBaseline(report.findings, baseline) : undefined
   const output = path.join(inspectionOutputDirectory('unused-code-lsp-'), 'report.json')
-  fs.writeFileSync(output, `${JSON.stringify(report, undefined, 2)}\n`, {
-    flag: 'wx',
-  })
-  for (const finding of report.findings.slice(0, 30))
+  fs.writeFileSync(
+    output,
+    `${JSON.stringify(
+      {
+        ...report,
+        comparison,
+      },
+      undefined,
+      2,
+    )}\n`,
+    {
+      flag: 'wx',
+    },
+  )
+  for (const finding of (comparison?.newFindings ?? report.findings).slice(0, 30))
     console.log(`${finding.file}:${finding.line}:${finding.column} [${finding.kind}] ${[...finding.container, finding.symbol].join('.')}`)
   console.log(`${report.inspectedFiles} files; ${report.referenceRequests} reference requests; ${report.findings.length} candidates.`)
   console.log(`Skipped ${report.skippedSymbols} container or synthetic symbols without a matching declaration name.`)
+  console.log(`${report.exclusions.length} declarations excluded by TypeScript rules; reasons are recorded in the report.`)
   console.log(
     'Candidates require review: document symbols can omit locals; framework, dynamic, and external consumers may be invisible to references.',
   )
   console.log(`Report: ${output}`)
   if (!report.complete) {
     console.error(report.errors.join('\n'))
+    console.error('Inspection incomplete. Repair the LSP failure before reviewing baseline changes.')
     process.exitCode = 2
-  } else if (report.findings.length) {
-    process.exitCode = 1
+  } else if (comparison) {
+    console.log(
+      `${comparison.newFindings.length} new; ${comparison.suppressedCount} baselined; ${comparison.staleEntries.length} stale baseline entries.`,
+    )
+    for (const entry of comparison.staleEntries) console.error(`Stale or reduced-count baseline entry: ${entry.file} ${entry.symbol}`)
+    if (comparison.newFindings.length || comparison.staleEntries.length) {
+      console.error(
+        'Review report.json and fix confirmed unused or test-only code. Baseline only reviewed exceptions as file -> qualified symbol -> reason; use [count, reason] for multiple occurrences.',
+      )
+      console.error('Remove or reduce stale entries, then re-run pnpm run check:unused. Only exit 0 is a clean audit.')
+      process.exitCode = 1
+    }
   }
 }
 

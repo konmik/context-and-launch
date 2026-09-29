@@ -237,7 +237,6 @@ describe('ProjectRegistry', () => {
       projectSlug: 'existing',
     })
     const configFile = path.join(configDir, 'config', 'config.json')
-    const beforeMtime = fs.statSync(configFile).mtimeMs
     const beforeContent = fs.readFileSync(configFile, 'utf-8') // removeProject with a projectSlug that was never added -- should not throw
     expect(() => registry.removeProject('never-added')).not.toThrow() // config.json was rewritten (save() was called) even though nothing changed
     const afterContent = fs.readFileSync(configFile, 'utf-8')

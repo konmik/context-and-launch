@@ -1,5 +1,5 @@
 import type { JSX } from '@solidjs/web'
-import { describe, it, expect, afterEach, vi } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import { renderWithErrors as render, cleanup } from '../../test-render.js'
 import { createSignal, flush, type Accessor } from 'solid-js'
 import ReviewPromptQueueList from '../../../src/components/diff-review/ReviewPromptQueueList.js'
@@ -7,10 +7,6 @@ import type { DiffReviewProjectState, ReviewPromptQueueItem } from '~/core/diff-
 import { success } from '~/util/result.js'
 import { createStoredSignal } from '~/util/stored-signal.js'
 import { DiffReviewContext, ReviewAgentStatusContext } from '../../../src/components/diff-review/diff-review-storage.js'
-
-vi.mock('../../../src/components/diff-review/diff-review-api.js', () => ({
-  retryReviewPrompt: vi.fn(),
-}))
 
 function TaskQueue(props: { profileName: string }): JSX.Element {
   return (

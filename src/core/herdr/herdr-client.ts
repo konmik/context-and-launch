@@ -30,7 +30,7 @@ export function taskStatusesFromPanes(panes: HerdrTaskPane[]): TaskAgentStatuses
     statuses.set(pane.folderName, pane.agentStatuses.length === 1 ? herdrAgentStatus(pane.agentStatuses[0]) : 'unknown')
   }
   const priority: HerdrAgentStatus[] = ['unknown', 'idle', 'done', 'working', 'blocked']
-  for (const [agentKey, status] of [...statuses]) {
+  for (const [agentKey, status] of statuses) {
     const separator = agentKey.lastIndexOf('--worktree-')
     if (separator < 0) continue
     const folderName = agentKey.slice(0, separator)

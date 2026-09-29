@@ -1,5 +1,6 @@
 export async function mapConcurrent<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
-  const results = new Array<R>(items.length)
+  const results: R[] = []
+  results.length = items.length
   let next = 0
   const worker = async (): Promise<void> => {
     while (true) {

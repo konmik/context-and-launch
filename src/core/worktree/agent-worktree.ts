@@ -124,10 +124,6 @@ export interface WorktreeResult {
   behindRemote?: true
 }
 
-export interface DirtyWorktreeResult {
-  dirtyWorktree: true
-}
-
 export interface AgentWorktreeManager {
   getMainBranch(projectPath: string, configuredBranch?: string): Promise<string>
   ensureAgentWorktree(
@@ -140,7 +136,7 @@ export interface AgentWorktreeManager {
     },
     configuredBranch?: string,
     savedWorktreeInfo?: SavedWorktreeInfo,
-  ): Promise<Result<WorktreeResult, DirtyWorktreeResult>>
+  ): Promise<Result<WorktreeResult, undefined>>
   isWorktreeClean(worktreePath: string): Promise<boolean>
   isGitWorktree(worktreePath: string): boolean
   getWorktreeOwnership(projectPath: string, worktreePath: string): Promise<WorktreeOwnership>
@@ -182,7 +178,7 @@ export function createAgentWorktreeManager(launcherConfig: LauncherConfigManager
     },
     configuredBranch?: string,
     savedWorktreeInfo?: SavedWorktreeInfo,
-  ): Promise<Result<WorktreeResult, DirtyWorktreeResult>> {
+  ): Promise<Result<WorktreeResult, undefined>> {
     const { worktreeRootPath, branchPrefix } = launcherConfig.resolveWorktreeSettings(projectSlug)
     const { worktreePath, branchName } = resolveAgentWorktreeLocation(
       folderName,
@@ -228,9 +224,7 @@ export function createAgentWorktreeManager(launcherConfig: LauncherConfigManager
     if (!options?.skipDirtyCheck) {
       const status = await commands.execute('agent-worktree.main.status', projectPath)
       if (status.trim()) {
-        return failure({
-          dirtyWorktree: true,
-        })
+        return failure(undefined)
       }
     }
     let behindRemote = false

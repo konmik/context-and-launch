@@ -28,7 +28,7 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
       }
     })
     it.concurrent('truncates long task folder names for worktree path and branch', async () => {
-      const { projectDir, worktreeRoot, awm } = setup()
+      const { projectDir, awm } = setup()
       const longName = 'wna-1533-opening-customer-support-from-login-error-alert' + '-error-is-dimissed-after-opening-customer-support-page'
       const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', longName)
       expect(result.type).toBe('Success')
@@ -51,16 +51,12 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
         expect(result2.value.worktreePath).toBe(result1.value.worktreePath)
       }
     })
-    it.concurrent('detects uncommitted changes and returns dirtyWorktree', async () => {
+    it.concurrent('rejects worktree creation when the main branch has uncommitted changes', async () => {
       const { projectDir, awm } = setup() // Create an uncommitted file
       fs.writeFileSync(path.join(projectDir, 'dirty.txt'), 'uncommitted')
       await git(projectDir, 'add', 'dirty.txt')
       const result = await awm.ensureAgentWorktree(projectDir, 'my-proj', 'st-0001-feature')
-      expect(result).toEqual(
-        failure({
-          dirtyWorktree: true,
-        }),
-      )
+      expect(result).toEqual(failure(undefined))
     })
     it.concurrent('falls back from main to master', async () => {
       const { projectDir, awm } = setup('master')
@@ -408,7 +404,7 @@ export function registerAgentWorktreeTests(shard: number | readonly number[], to
     it(
       'rev-list returns non-numeric output: parseInt produces NaN,' + ' NaN > 0 is false, silently skipping behind-remote check',
       async () => {
-        const { projectDir, worktreeRoot, awm } = setup()
+        const { projectDir, awm } = setup()
         const originalGit = gitModule.git // Test both garbage text and empty string -- both produce NaN from parseInt
         for (const garbageOutput of ['abc\n', '', '   \n', 'not-a-number']) {
           const gitSpy = vi.spyOn(gitModule, 'git').mockImplementation((workDir: string, ...args: string[]) => {

@@ -1,13 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import {
-  APP_ORIGIN,
-  APP_HOST,
-  APP_SCHEME,
-  handleAppRequest,
-  appearanceArgs,
-  seedAppearance,
-  type AppRequestHandler,
-} from '../../electron/app-protocol.js'
+import { APP_ORIGIN, handleAppRequest, appearanceArgs, seedAppearance, type AppRequestHandler } from '../../electron/app-protocol.js'
 import { projectSlugFromUrl } from '../../electron/window-bookkeeping.js'
 
 interface Recorded {

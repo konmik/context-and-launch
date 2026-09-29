@@ -35,9 +35,11 @@ export interface ErrorCleanupCheckItem {
 
 type CleanupCheckOutcome = ReadyCleanupCheckItem | DisabledCleanupCheckItem | BlockedCleanupCheckItem | ErrorCleanupCheckItem
 
-export type CleanupCheckItem = CleanupCheckOutcome & {
+interface CleanupCheckHistory {
   checks: CleanupCheckDetail[]
 }
+
+export type CleanupCheckItem = CleanupCheckOutcome & CleanupCheckHistory
 
 export interface TaskCleanupStatus {
   stopHerdrAgent: CleanupCheckItem

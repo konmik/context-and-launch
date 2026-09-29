@@ -181,16 +181,13 @@ export function withReviewTaskState(
           },
         }
       : project.worktrees
-  return {
+  const result: DiffReviewProjectState = {
     ...project,
-    ...(worktrees
-      ? {
-          worktrees,
-        }
-      : {}),
     tasks: {
       ...project.tasks,
       [folderName]: updated,
     },
   }
+  if (worktrees) result.worktrees = worktrees
+  return result
 }

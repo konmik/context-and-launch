@@ -23,7 +23,7 @@ export function createOperationTracker(): OperationTracker {
 
   async function waitForAll(): Promise<void> {
     while (pending.size > 0) {
-      await Promise.allSettled([...pending])
+      await Promise.allSettled(pending)
     }
   }
 

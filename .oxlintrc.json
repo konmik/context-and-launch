@@ -28,9 +28,28 @@
       "rules": {
         "anti-slop/no-runtime-typeof": "off"
       }
+    },
+    {
+      "files": ["**/*.tsx"],
+      "rules": {
+        "eslint/no-unassigned-vars": "off"
+      }
+    },
+    {
+      "files": ["src/server-config.ts"],
+      "rules": {
+        "anti-slop/no-unknown-returns": "off"
+      }
+    },
+    {
+      "files": ["src/core/project/project-registry.ts"],
+      "rules": {
+        "eslint/no-control-regex": "off"
+      }
     }
   ],
   "rules": {
+    "eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "ignoreRestSiblings": true }],
     "anti-slop/no-chained-type-assertions": "error",
     "anti-slop/no-conditional-empty-object-spread": "error",
     "anti-slop/no-known-value-widening": "error",

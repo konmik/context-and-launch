@@ -80,17 +80,20 @@ try {
   })
   if (result.error) throw result.error
   process.exitCode = result.status ?? 1
-} finally {
-  if (marker) {
-    const current = readActiveMarker(workspace)
-    if (
-      current.token !== marker.token ||
-      current.workspaceKey !== identity.workspaceKey ||
-      current.sourcePath !== identity.sourcePath ||
-      current.sourceRef !== identity.sourceRef
-    ) {
-      throw new Error(`Refusing to remove test workspace with an invalid ownership marker: ${workspace}`)
-    }
-  }
-  fs.rmSync(runRoot, { recursive: true })
+} catch (error) {
+  console.error(error)
+  process.exitCode = 1
 }
+
+if (marker) {
+  const current = readActiveMarker(workspace)
+  if (
+    current.token !== marker.token ||
+    current.workspaceKey !== identity.workspaceKey ||
+    current.sourcePath !== identity.sourcePath ||
+    current.sourceRef !== identity.sourceRef
+  ) {
+    throw new Error(`Refusing to remove test workspace with an invalid ownership marker: ${workspace}`)
+  }
+}
+fs.rmSync(runRoot, { recursive: true })

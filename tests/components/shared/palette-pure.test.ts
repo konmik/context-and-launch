@@ -101,12 +101,15 @@ describe('criticalBackgroundCss', () => {
     }
   })
 })
+
+interface AppearanceDataset {
+  palette?: string
+}
+
 describe('criticalAppearanceScript', () => {
   function runScript(getItem: (key: string) => string | null, prefersDark: boolean, pathname = '/add-project'): RunScriptResult {
     const classes = new Set<string>()
-    const dataset: {
-      palette?: string
-    } = {}
+    const dataset: AppearanceDataset = {}
     const reads: string[] = []
     const fakeDocument = {
       documentElement: {

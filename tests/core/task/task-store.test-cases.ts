@@ -1328,7 +1328,7 @@ export function registerTaskStoreTests(shard: number | readonly number[], total:
       const store = createTaskStore(worktreeDir)
       store.createTask('A-1', 'Alpha')
       store.createTask('B-1', 'Beta')
-      const outer = store.createGroup('G-1', 'Outer', 'todo', ['a-1-alpha', 'b-1-beta'])
+      store.createGroup('G-1', 'Outer', 'todo', ['a-1-alpha', 'b-1-beta'])
       const inner = store.createGroup('G-2', 'Inner', 'todo', ['a-1-alpha'], 'G-1')
       store.ungroup(inner.folderName)
       const rawA = JSON.parse(fs.readFileSync(path.join(worktreeDir, 'a-1-alpha', 'status.json'), 'utf-8'))
