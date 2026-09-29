@@ -10,7 +10,7 @@ import { FloatingPanelBody } from '../ui/FloatingPanelBody.js'
 import { FloatingPanelCloseTrigger } from '../ui/FloatingPanelCloseTrigger.js'
 import { FloatingPanelTitle } from '../ui/FloatingPanelTitle.js'
 import type { TicketInfo } from '~/core/ticket/ticket-store.js'
-import type { ErrorInfo } from '~/core/shared/errors.js'
+import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
 import type { CleanupItemKey } from '~/core/worktree/ticket-cleanup-checks.js'
 import { useModEnterSubmit, modEnterHint } from '~/lib/use-mod-enter-submit'
 import {
@@ -91,7 +91,23 @@ export default function TicketCleanupDialog(props: TicketCleanupDialogProps): JS
 
 function TicketCleanupSession(props: TicketCleanupDialogProps): JSX.Element {
   const errors = useErrorReporter(() => props.open)
-  const [showAll, setShowAll] = createSignal(true)
+  const [showAll, setShowAll] = createSignal(false)
+  const showAllStorageKey = 'ticket-cleanup:show-all'
+  createEffect(() => showAllStorageKey, (key) => {
+    try {
+      setShowAll(localStorage.getItem(key) === 'true')
+    } catch (error) {
+      errors.report(errorPayload(error, 'Could not load cleanup preference'))
+    }
+  })
+  function updateShowAll(value: boolean): void {
+    try {
+      localStorage.setItem(showAllStorageKey, String(value))
+      setShowAll(value)
+    } catch (error) {
+      errors.report(errorPayload(error, 'Could not save cleanup preference'))
+    }
+  }
   const worktrees = createMemo(() => props.ticket ? ticketAgentWorktrees(props.ticket).filter((worktree) => !worktree.cleanupComplete) : [])
   const targetPaths = createMemo(() => worktrees().length > 0 ? worktrees().map((worktree) => worktree.worktreePath) : [undefined])
   const controllers = mapArray(targetPaths, (worktreePath) => {
@@ -141,7 +157,7 @@ function TicketCleanupSession(props: TicketCleanupDialogProps): JSX.Element {
                 {props.ticket?.number} - {props.ticket?.title}
               </p>
               <label class="flex shrink-0 items-center gap-2 text-sm">
-                <input type="checkbox" checked={showAll()} onChange={(event) => setShowAll(event.currentTarget.checked)} />
+                <input type="checkbox" checked={showAll()} onChange={(event) => updateShowAll(event.currentTarget.checked)} />
                 Show all
               </label>
             </div>

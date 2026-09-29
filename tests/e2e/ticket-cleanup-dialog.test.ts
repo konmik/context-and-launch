@@ -33,6 +33,7 @@ describe('TicketCleanupDialog (e2e, real server)', () => {
   async function openCleanup(item: 'archive' | 'delete'): Promise<void> {
     await clickTicketMenuItem(ctx.page, item)
     await waitVisible(ctx.page, 'ticket-cleanup-submit')
+    await ctx.page.getByRole('checkbox', { name: 'Show all' }).check()
   }
 
   async function waitForChecksSettled(page: Page): Promise<void> {
@@ -253,6 +254,12 @@ describe('TicketCleanupDialog (e2e, real server)', () => {
     expect(await remoteButton.count()).toBe(0)
     expect(await ctx.page.getByRole('heading', { name: 'Remote branch', exact: true }).count()).toBe(0)
     expect(await testId(ctx.page, 'ticket-cleanup-delete-worktree-button').isVisible()).toBe(true)
+    await testId(ctx.page, 'ticket-cleanup-cancel').click()
+    await waitGone(ctx.page, 'ticket-cleanup-submit')
+    await clickTicketMenuItem(ctx.page, 'delete')
+    await waitVisible(ctx.page, 'ticket-cleanup-submit')
+    await waitForChecksSettled(ctx.page)
+    expect(await showAll.isChecked()).toBe(false)
     await showAll.check()
     expect(await remoteButton.isVisible()).toBe(true)
     await testId(ctx.page, 'ticket-cleanup-delete-worktree-button').click()
