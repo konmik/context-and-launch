@@ -73,13 +73,21 @@ const rows: {
 ]
 
 export default function TicketCleanupDialog(props: TicketCleanupDialogProps): JSX.Element {
-  const sessionKey = createMemo(() => props.open && props.ticket ? JSON.stringify([props.projectSlug, props.ticket.folderName]) : undefined)
+  const sessionKey = createMemo(() =>
+    props.open && props.ticket ? JSON.stringify([props.projectSlug, props.ticket.folderName]) : undefined,
+  )
   return (
     <FloatingWindow
       open={!!sessionKey()}
       onOpenChange={(event) => props.onOpenChange(event.open)}
-      defaultSize={{ width: 600, height: 560 }}
-      minSize={{ width: 380, height: 300 }}
+      defaultSize={{
+        width: 600,
+        height: 560,
+      }}
+      minSize={{
+        width: 380,
+        height: 300,
+      }}
       persistRect
     >
       <Show when={sessionKey()} keyed>
@@ -93,13 +101,17 @@ function TicketCleanupSession(props: TicketCleanupDialogProps): JSX.Element {
   const errors = useErrorReporter(() => props.open)
   const [showAll, setShowAll] = createSignal(false)
   const showAllStorageKey = 'ticket-cleanup:show-all'
-  createEffect(() => showAllStorageKey, (key) => {
-    try {
-      setShowAll(localStorage.getItem(key) === 'true')
-    } catch (error) {
-      errors.report(errorPayload(error, 'Could not load cleanup preference'))
-    }
-  })
+  createEffect(
+    () => showAllStorageKey,
+    (key) => {
+      try {
+        setShowAll(localStorage.getItem(key) === 'true')
+      } catch (error) {
+        errors.report(errorPayload(error, 'Could not load cleanup preference'))
+      }
+    },
+  )
+
   function updateShowAll(value: boolean): void {
     try {
       localStorage.setItem(showAllStorageKey, String(value))
@@ -108,8 +120,11 @@ function TicketCleanupSession(props: TicketCleanupDialogProps): JSX.Element {
       errors.report(errorPayload(error, 'Could not save cleanup preference'))
     }
   }
-  const worktrees = createMemo(() => props.ticket ? ticketAgentWorktrees(props.ticket).filter((worktree) => !worktree.cleanupComplete) : [])
-  const targetPaths = createMemo(() => worktrees().length > 0 ? worktrees().map((worktree) => worktree.worktreePath) : [undefined])
+
+  const worktrees = createMemo(() =>
+    props.ticket ? ticketAgentWorktrees(props.ticket).filter((worktree) => !worktree.cleanupComplete) : [],
+  )
+  const targetPaths = createMemo(() => (worktrees().length > 0 ? worktrees().map((worktree) => worktree.worktreePath) : [undefined]))
   const controllers = mapArray(targetPaths, (worktreePath) => {
     const controller = createTicketCleanupController({
       onError: errors.report,
@@ -117,7 +132,16 @@ function TicketCleanupSession(props: TicketCleanupDialogProps): JSX.Element {
       ticket: () => props.ticket,
       action: () => props.action,
       loadStatus: (projectSlug, folderName) => getCleanupStatus(projectSlug, folderName, worktreePath ?? null),
-      onCleanup: (folderName, cleanup) => props.onCleanup(folderName, worktreePath ? { ...cleanup, worktreePath } : cleanup),
+      onCleanup: (folderName, cleanup) =>
+        props.onCleanup(
+          folderName,
+          worktreePath
+            ? {
+                ...cleanup,
+                worktreePath,
+              }
+            : cleanup,
+        ),
       onSubmit: props.onSubmit,
       onOpenChange: props.onOpenChange,
       loadLockingProcesses: (projectSlug, folderName) => getWorktreeLockingProcesses(projectSlug, folderName, worktreePath ?? null),
@@ -128,12 +152,16 @@ function TicketCleanupSession(props: TicketCleanupDialogProps): JSX.Element {
         return result
       },
     })
-    createEffect(() => worktreePath, () => void controller.startChecks())
+    createEffect(
+      () => worktreePath,
+      () => void controller.startChecks(),
+    )
     return controller
   })
   const s = () => controllers()[0]!
   const busy = () => controllers().some((controller) => controller.busy())
-  const confirming = () => controllers().some((controller) => controller.confirmation() || controller.killDialogOpen() || controller.forceDeleteDialogOpen())
+  const confirming = () =>
+    controllers().some((controller) => controller.confirmation() || controller.killDialogOpen() || controller.forceDeleteDialogOpen())
   const checking = () => controllers().some((controller) => rows.some((row) => controller.items()[row.key].state === 'checking'))
   useModEnterSubmit({
     onSubmit: () => s().requestConfirmation(props.action),
@@ -142,68 +170,68 @@ function TicketCleanupSession(props: TicketCleanupDialogProps): JSX.Element {
   })
   return (
     <>
-        <FloatingWindowHeader
-          title={<FloatingPanelTitle>{s().actionLabel()} task</FloatingPanelTitle>}
-          actions={
-            <FloatingPanelCloseTrigger aria-label="Close">
-              <X size={16} />
-            </FloatingPanelCloseTrigger>
-          }
-        />
-        <FloatingPanelBody>
-          <div class="min-h-0 flex-1 overflow-auto px-6 pt-1 pb-4">
-            <div class="mb-4 flex items-start justify-between gap-4">
-              <p class="min-w-0 break-words text-sm text-muted-foreground">
-                {props.ticket?.number} - {props.ticket?.title}
-              </p>
-              <label class="flex shrink-0 items-center gap-2 text-sm">
-                <input type="checkbox" checked={showAll()} onChange={(event) => updateShowAll(event.currentTarget.checked)} />
-                Show all
-              </label>
-            </div>
-            <section aria-label="Optional cleanup" class="space-y-4">
-              <For each={controllers()}>
-                {(controller, index) => (
-                  <TicketCleanupTarget
-                    controller={controller}
-                    busy={busy()}
-                    hideAbsent={!showAll()}
-                    open={props.open}
-                    ticket={props.ticket}
-                    worktreePath={targetPaths()[index()]}
-                    branchName={worktrees().find((worktree) => worktree.worktreePath === targetPaths()[index()])?.branchName}
-                  />
-                )}
-              </For>
-            </section>
+      <FloatingWindowHeader
+        title={<FloatingPanelTitle>{s().actionLabel()} task</FloatingPanelTitle>}
+        actions={
+          <FloatingPanelCloseTrigger aria-label="Close">
+            <X size={16} />
+          </FloatingPanelCloseTrigger>
+        }
+      />
+      <FloatingPanelBody>
+        <div class="min-h-0 flex-1 overflow-auto px-6 pt-1 pb-4">
+          <div class="mb-4 flex items-start justify-between gap-4">
+            <p class="min-w-0 break-words text-sm text-muted-foreground">
+              {props.ticket?.number} - {props.ticket?.title}
+            </p>
+            <label class="flex shrink-0 items-center gap-2 text-sm">
+              <input type="checkbox" checked={showAll()} onChange={(event) => updateShowAll(event.currentTarget.checked)} />
+              Show all
+            </label>
           </div>
+          <section aria-label="Optional cleanup" class="space-y-4">
+            <For each={controllers()}>
+              {(controller, index) => (
+                <TicketCleanupTarget
+                  controller={controller}
+                  busy={busy()}
+                  hideAbsent={!showAll()}
+                  open={props.open}
+                  ticket={props.ticket}
+                  worktreePath={targetPaths()[index()]}
+                  branchName={worktrees().find((worktree) => worktree.worktreePath === targetPaths()[index()])?.branchName}
+                />
+              )}
+            </For>
+          </section>
+        </div>
 
-          <form onSubmit={(event) => s().handleSubmit(event)} class="shrink-0 border-t border-border px-6 py-2">
-            <div class="flex justify-end gap-2">
-              <button
-                type="button"
-                disabled={busy() || checking()}
-                onClick={() => void Promise.all(controllers().map((controller) => controller.startChecks()))}
-                class="btn-secondary mr-auto"
-                data-testid="ticket-cleanup-refresh"
-              >
-                Refresh
-              </button>
-              <button type="button" onClick={() => s().close()} class="btn-secondary" data-testid="ticket-cleanup-cancel">
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={busy()}
-                title={modEnterHint()}
-                class={props.action === 'delete' ? 'btn-destructive' : 'btn-primary'}
-                data-testid="ticket-cleanup-submit"
-              >
-                {s().actionLabel()} task
-              </button>
-            </div>
-          </form>
-        </FloatingPanelBody>
+        <form onSubmit={(event) => s().handleSubmit(event)} class="shrink-0 border-t border-border px-6 py-2">
+          <div class="flex justify-end gap-2">
+            <button
+              type="button"
+              disabled={busy() || checking()}
+              onClick={() => void Promise.all(controllers().map((controller) => controller.startChecks()))}
+              class="btn-secondary mr-auto"
+              data-testid="ticket-cleanup-refresh"
+            >
+              Refresh
+            </button>
+            <button type="button" onClick={() => s().close()} class="btn-secondary" data-testid="ticket-cleanup-cancel">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={busy()}
+              title={modEnterHint()}
+              class={props.action === 'delete' ? 'btn-destructive' : 'btn-primary'}
+              data-testid="ticket-cleanup-submit"
+            >
+              {s().actionLabel()} task
+            </button>
+          </div>
+        </form>
+      </FloatingPanelBody>
     </>
   )
 }
@@ -220,32 +248,51 @@ interface TicketCleanupTargetProps {
 
 function TicketCleanupTarget(props: TicketCleanupTargetProps): JSX.Element {
   const s = props.controller
-  const visibleRows = createMemo(() => rows.filter((row) => {
-    const item = s.items()[row.key]
-    return !props.hideAbsent || item.state !== 'disabled'
-  }))
+  const visibleRows = createMemo(() =>
+    rows.filter((row) => {
+      const item = s.items()[row.key]
+      return !props.hideAbsent || item.state !== 'disabled'
+    }),
+  )
   return (
     <div data-testid="ticket-cleanup-target" data-worktree-path={props.worktreePath}>
-      <For each={[
-        { label: 'Worktree', keys: ['stopHerdrAgent', 'deleteWorktree'], name: () => props.worktreePath },
-        { label: 'Local branch', keys: ['deleteLocalBranch'], name: () => props.branchName },
-        { label: 'Remote branch', keys: ['deleteRemoteBranch'], name: () => props.branchName },
-      ]}>
+      <For
+        each={[
+          {
+            label: 'Worktree',
+            keys: ['stopHerdrAgent', 'deleteWorktree'],
+            name: () => props.worktreePath,
+          },
+          {
+            label: 'Local branch',
+            keys: ['deleteLocalBranch'],
+            name: () => props.branchName,
+          },
+          {
+            label: 'Remote branch',
+            keys: ['deleteRemoteBranch'],
+            name: () => props.branchName,
+          },
+        ]}
+      >
         {(section) => (
           <div
             class="ticket-cleanup-reveal"
             data-visible={String(visibleRows().some((row) => section.keys.includes(row.key)))}
             inert={!visibleRows().some((row) => section.keys.includes(row.key))}
           >
-          <div class="pb-3">
-          <section aria-label={`${section.label}${section.name() ? `: ${section.name()}` : ''}`} class="rounded-md border border-border px-3 pt-3">
-            <div class="flex items-baseline gap-3">
-              <h3 class="shrink-0 text-sm font-medium">{section.label}</h3>
-              <Show when={section.name()}>
-                {(name) => <p class="min-w-0 break-all font-mono text-xs text-muted-foreground">{name()}</p>}
-              </Show>
-            </div>
-              <div class="divide-y divide-border text-left text-sm">
+            <div class="pb-3">
+              <section
+                aria-label={`${section.label}${section.name() ? `: ${section.name()}` : ''}`}
+                class="rounded-md border border-border px-3 pt-3"
+              >
+                <div class="flex items-baseline gap-3">
+                  <h3 class="shrink-0 text-sm font-medium">{section.label}</h3>
+                  <Show when={section.name()}>
+                    {(name) => <p class="min-w-0 break-all font-mono text-xs text-muted-foreground">{name()}</p>}
+                  </Show>
+                </div>
+                <div class="divide-y divide-border text-left text-sm">
                   <For each={rows.filter((row) => section.keys.includes(row.key))}>
                     {(row) => {
                       const item = () => s.items()[row.key]
@@ -263,87 +310,87 @@ function TicketCleanupTarget(props: TicketCleanupTargetProps): JSX.Element {
                         return value.state === 'disabled' ? value : undefined
                       }
                       return (
-                        <div class="ticket-cleanup-reveal" data-visible={String(visibleRows().includes(row))} inert={!visibleRows().includes(row)}>
-                        <div class="grid grid-cols-[13rem_minmax(0,1fr)] items-start">
-                          <div class="py-3 pr-2">
-                            <Show when={blockedItem()}>
-                              {(blocked) => (
-                                <>
-                                  <Show when={blocked().killable}>
-                                    <button
-                                      type="button"
-                                      onClick={() => void s.openKillDialog()}
-                                      disabled={props.busy}
-                                      class="btn-destructive mb-2 h-auto! min-h-10 w-full whitespace-normal break-words"
-                                      data-testid="ticket-cleanup-kill-processes"
-                                    >
-                                      Kill processes
-                                    </button>
-                                  </Show>
-                                  <Show when={blocked().forceDeleteable}>
-                                    <button
-                                      type="button"
-                                      onClick={() => s.openForceDeleteDialog()}
-                                      disabled={props.busy}
-                                      class="btn-destructive mb-2 h-auto! min-h-10 w-full whitespace-normal break-words"
-                                      data-testid="ticket-cleanup-force-delete-branch"
-                                    >
-                                      Force delete
-                                    </button>
-                                  </Show>
-                                </>
-                              )}
-                            </Show>
-                            <button
-                              type="button"
-                              disabled={item().state !== 'ready' || props.busy}
-                              onClick={() => s.requestConfirmation(row.key)}
-                              class="btn-secondary h-auto! min-h-10 w-full whitespace-normal break-words"
-                              data-testid={`${row.testId}-button`}
-                            >
-                              {row.label}
-                            </button>
-                          </div>
-                          <div
-                            class="py-3 pl-4"
-                            data-testid={`${row.testId}-status`}
-                            data-state={running() ? 'running' : item().state}
-                            aria-live="polite"
-                          >
-                            <div class="min-w-0 whitespace-pre-line break-words text-left text-sm leading-5">
-                              <Show
-                                when={running()}
-                                fallback={
+                        <div
+                          class="ticket-cleanup-reveal"
+                          data-visible={String(visibleRows().includes(row))}
+                          inert={!visibleRows().includes(row)}
+                        >
+                          <div class="grid grid-cols-[13rem_minmax(0,1fr)] items-start">
+                            <div class="py-3 pr-2">
+                              <Show when={blockedItem()}>
+                                {(blocked) => (
                                   <>
-                                    <Show when={item().state === 'checking'}>
-                                      <span class="animate-pulse text-muted-foreground">Checking...</span>
+                                    <Show when={blocked().killable}>
+                                      <button
+                                        type="button"
+                                        onClick={() => void s.openKillDialog()}
+                                        disabled={props.busy}
+                                        class="btn-destructive mb-2 h-auto! min-h-10 w-full whitespace-normal break-words"
+                                        data-testid="ticket-cleanup-kill-processes"
+                                      >
+                                        Kill processes
+                                      </button>
                                     </Show>
-                                    <Show when={blockedItem()}>
-                                      {(blocked) => (
-                                          <span class="text-destructive">
-                                            {blocked().reason}
-                                          </span>
-                                      )}
+                                    <Show when={blocked().forceDeleteable}>
+                                      <button
+                                        type="button"
+                                        onClick={() => s.openForceDeleteDialog()}
+                                        disabled={props.busy}
+                                        class="btn-destructive mb-2 h-auto! min-h-10 w-full whitespace-normal break-words"
+                                        data-testid="ticket-cleanup-force-delete-branch"
+                                      >
+                                        Force delete
+                                      </button>
                                     </Show>
-                                    <Show when={disabledItem()}>
-                                      {(disabled) => <span class="text-muted-foreground">{disabled().reason}</span>}
-                                    </Show>
-                                    <Show when={errorItem()}>{(error) => <FieldErrorMessage error={error().error} />}</Show>
                                   </>
-                                }
-                              >
-                                <span class="animate-pulse text-muted-foreground">Working...</span>
+                                )}
                               </Show>
+                              <button
+                                type="button"
+                                disabled={item().state !== 'ready' || props.busy}
+                                onClick={() => s.requestConfirmation(row.key)}
+                                class="btn-secondary h-auto! min-h-10 w-full whitespace-normal break-words"
+                                data-testid={`${row.testId}-button`}
+                              >
+                                {row.label}
+                              </button>
+                            </div>
+                            <div
+                              class="py-3 pl-4"
+                              data-testid={`${row.testId}-status`}
+                              data-state={running() ? 'running' : item().state}
+                              aria-live="polite"
+                            >
+                              <div class="min-w-0 whitespace-pre-line break-words text-left text-sm leading-5">
+                                <Show
+                                  when={running()}
+                                  fallback={
+                                    <>
+                                      <Show when={item().state === 'checking'}>
+                                        <span class="animate-pulse text-muted-foreground">Checking...</span>
+                                      </Show>
+                                      <Show when={blockedItem()}>
+                                        {(blocked) => <span class="text-destructive">{blocked().reason}</span>}
+                                      </Show>
+                                      <Show when={disabledItem()}>
+                                        {(disabled) => <span class="text-muted-foreground">{disabled().reason}</span>}
+                                      </Show>
+                                      <Show when={errorItem()}>{(error) => <FieldErrorMessage error={error().error} />}</Show>
+                                    </>
+                                  }
+                                >
+                                  <span class="animate-pulse text-muted-foreground">Working...</span>
+                                </Show>
+                              </div>
                             </div>
                           </div>
-                        </div>
                         </div>
                       )
                     }}
                   </For>
-              </div>
-           </section>
-          </div>
+                </div>
+              </section>
+            </div>
           </div>
         )}
       </For>
@@ -364,7 +411,9 @@ function TicketCleanupTarget(props: TicketCleanupTargetProps): JSX.Element {
                   {props.ticket?.number} - {props.ticket?.title}
                   <br />
                   <Show when={row()}>
-                    <span class="break-all">{operation() === 'deleteLocalBranch' || operation() === 'deleteRemoteBranch' ? props.branchName : props.worktreePath}</span>
+                    <span class="break-all">
+                      {operation() === 'deleteLocalBranch' || operation() === 'deleteRemoteBranch' ? props.branchName : props.worktreePath}
+                    </span>
                     <br />
                   </Show>
                   {row()?.confirmation ??

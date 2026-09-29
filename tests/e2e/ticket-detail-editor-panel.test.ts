@@ -97,18 +97,31 @@ describe('Ticket detail editor panel and saving (e2e, real server)', () => {
     )
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
     await openTicketDetail(ctx.page, 't-1-alpha')
-    await ctx.page.getByRole('button', { name: 'Add worktree', exact: true }).click()
+    await ctx.page
+      .getByRole('button', {
+        name: 'Add worktree',
+        exact: true,
+      })
+      .click()
     const status = await poll(
       () => readTicketStatus(ctx.testServer, project.projectSlug, 't-1-alpha'),
       (s) => s?.useWorktree === true,
       5000,
     )
     expect(status?.useWorktree).toBe(true)
-    const targets = ctx.page.getByRole('combobox', { name: 'Launch target', exact: true })
+    const targets = ctx.page.getByRole('combobox', {
+      name: 'Launch target',
+      exact: true,
+    })
     await expect.poll(() => targets.locator('option').count()).toBe(2)
     const firstPath = await targets.inputValue()
     expect(fs.existsSync(path.join(firstPath, '.git'))).toBe(true)
-    await ctx.page.getByRole('button', { name: 'Add worktree', exact: true }).click()
+    await ctx.page
+      .getByRole('button', {
+        name: 'Add worktree',
+        exact: true,
+      })
+      .click()
     await expect.poll(() => targets.locator('option').count()).toBe(3)
     const secondPath = await targets.inputValue()
     expect(secondPath).not.toBe(firstPath)
@@ -137,7 +150,12 @@ describe('Ticket detail editor panel and saving (e2e, real server)', () => {
     await expect
       .poll(() => readContextFile(ctx.testServer, project.projectSlug, 't-1-renamed', 'description'))
       .toBe('Saved with renamed ticket')
-    await ctx.page.getByRole('button', { name: 'Add worktree', exact: true }).click()
+    await ctx.page
+      .getByRole('button', {
+        name: 'Add worktree',
+        exact: true,
+      })
+      .click()
     await expect.poll(async () => (await readTicketStatus(ctx.testServer, project.projectSlug, 't-1-renamed'))?.useWorktree).toBe(true)
   })
   it('editing number and clicking Save persists it', async () => {

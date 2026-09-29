@@ -17,7 +17,9 @@ export function RenameColumnDialog(props: {
   const [form, setForm] = createSignal<RenameFormState>()
   createEffect(
     () => props.renameForm,
-    (initial) => setForm(initial ?? undefined),
+    (initial) => {
+      setForm(initial ?? undefined)
+    },
   )
   useModEnterSubmit({
     onSubmit: () => {

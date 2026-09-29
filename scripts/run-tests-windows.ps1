@@ -241,6 +241,7 @@ try {
 	email = tests@context-launch.invalid
 [core]
 	longpaths = true
+	autocrlf = false
 "@
 
   $tempProbe = Join-Path $tempDirectory ".write-test-$PID"

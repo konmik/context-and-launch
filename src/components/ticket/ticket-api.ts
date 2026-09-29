@@ -315,59 +315,82 @@ export const saveTicketStatus = action(async (projectSlug: string, previousJson:
   }
 }, 'save-ticket-status')
 
-export const addTicketWorktree = action(async (projectSlug: string, folderName: string): Promise<ResponseEnvelope<Result<undefined, UserFacingError>>> => {
-  'use server'
+export const addTicketWorktree = action(
+  async (projectSlug: string, folderName: string): Promise<ResponseEnvelope<Result<undefined, UserFacingError>>> => {
+    'use server'
 
-  try {
-    const project = projectRegistry.listProjects().find((entry) => entry.projectSlug === projectSlug)
-    if (!project) throw createNotFoundError('Project not found')
-    const store = createTicketStore(worktreeManager.getWorktreeDir(projectSlug))
-    const ticket = store.getTicket(folderName)
-    if (!ticket) throw createNotFoundError('Ticket not found')
-    if (ticketAgentWorktrees(ticket).length === 0) {
-      const legacy = resolveAgentWorktreeLocation(folderName, launcherConfigManager.resolveWorktreeSettings(projectSlug))
-      if (agentWorktreeManager.isGitWorktree(legacy.worktreePath)) {
-        const ownership = await agentWorktreeManager.getWorktreeOwnership(project.path, legacy.worktreePath)
-        if (ownership.kind !== 'current-project') throw createValidationError('The existing ticket worktree belongs to another project.')
-        mutateTickets(projectSlug, (currentStore) => currentStore.saveAgentWorktreeInfo(folderName, legacy.branchName, legacy.worktreePath))
+    try {
+      const project = projectRegistry.listProjects().find((entry) => entry.projectSlug === projectSlug)
+      if (!project) throw createNotFoundError('Project not found')
+      const store = createTicketStore(worktreeManager.getWorktreeDir(projectSlug))
+      const ticket = store.getTicket(folderName)
+      if (!ticket) throw createNotFoundError('Ticket not found')
+      if (ticketAgentWorktrees(ticket).length === 0) {
+        const legacy = resolveAgentWorktreeLocation(folderName, launcherConfigManager.resolveWorktreeSettings(projectSlug))
+        if (agentWorktreeManager.isGitWorktree(legacy.worktreePath)) {
+          const ownership = await agentWorktreeManager.getWorktreeOwnership(project.path, legacy.worktreePath)
+          if (ownership.kind !== 'current-project') throw createValidationError('The existing ticket worktree belongs to another project.')
+          mutateTickets(projectSlug, (currentStore) =>
+            currentStore.saveAgentWorktreeInfo(folderName, legacy.branchName, legacy.worktreePath),
+          )
+        }
       }
+      const instanceId = randomUUID().replaceAll('-', '').slice(0, 12)
+      const worktreeName = worktreeInstanceName(folderName, instanceId)
+      const result = await agentWorktreeManager.ensureAgentWorktree(
+        project.path,
+        projectSlug,
+        worktreeName,
+        {
+          requireNew: true,
+        },
+        project.mainBranch,
+      )
+      if (result.type === 'Failure') {
+        throw createValidationError('Main branch has uncommitted changes. Commit or stash them before adding a worktree.')
+      }
+      mutateTickets(projectSlug, (currentStore) => {
+        currentStore.saveAgentWorktreeInfo(
+          folderName,
+          result.value.branchName,
+          result.value.worktreePath,
+          `${folderName}--worktree-${instanceId}`,
+        )
+        currentStore.selectAgentWorktree(folderName, result.value.worktreePath)
+      })
+      return respond(success(undefined), {
+        revalidate: [getTicket.keyFor(projectSlug, folderName)],
+      })
+    } catch (error) {
+      return respond(failure(errorPayload(error, 'Add worktree failed')), {
+        revalidate: [],
+      })
     }
-    const instanceId = randomUUID().replaceAll('-', '').slice(0, 12)
-    const worktreeName = worktreeInstanceName(folderName, instanceId)
-    const result = await agentWorktreeManager.ensureAgentWorktree(
-      project.path,
-      projectSlug,
-      worktreeName,
-      { requireNew: true },
-      project.mainBranch,
-    )
-    if (result.type === 'Failure') {
-      throw createValidationError('Main branch has uncommitted changes. Commit or stash them before adding a worktree.')
+  },
+  'add-ticket-worktree',
+)
+
+export const selectTicketWorktree = action(
+  async (
+    projectSlug: string,
+    folderName: string,
+    worktreePath: string | null,
+  ): Promise<ResponseEnvelope<Result<undefined, UserFacingError>>> => {
+    'use server'
+
+    try {
+      mutateTickets(projectSlug, (store) => store.selectAgentWorktree(folderName, worktreePath ?? undefined))
+      return respond(success(undefined), {
+        revalidate: [getTicket.keyFor(projectSlug, folderName)],
+      })
+    } catch (error) {
+      return respond(failure(errorPayload(error, 'Select worktree failed')), {
+        revalidate: [],
+      })
     }
-    mutateTickets(projectSlug, (currentStore) => {
-      currentStore.saveAgentWorktreeInfo(folderName, result.value.branchName, result.value.worktreePath, `${folderName}--worktree-${instanceId}`)
-      currentStore.selectAgentWorktree(folderName, result.value.worktreePath)
-    })
-    return respond(success(undefined), { revalidate: [getTicket.keyFor(projectSlug, folderName)] })
-  } catch (error) {
-    return respond(failure(errorPayload(error, 'Add worktree failed')), { revalidate: [] })
-  }
-}, 'add-ticket-worktree')
-
-export const selectTicketWorktree = action(async (
-  projectSlug: string,
-  folderName: string,
-  worktreePath: string | null,
-): Promise<ResponseEnvelope<Result<undefined, UserFacingError>>> => {
-  'use server'
-
-  try {
-    mutateTickets(projectSlug, (store) => store.selectAgentWorktree(folderName, worktreePath ?? undefined))
-    return respond(success(undefined), { revalidate: [getTicket.keyFor(projectSlug, folderName)] })
-  } catch (error) {
-    return respond(failure(errorPayload(error, 'Select worktree failed')), { revalidate: [] })
-  }
-}, 'select-ticket-worktree')
+  },
+  'select-ticket-worktree',
+)
 
 export const syncTickets = action(async function syncTickets(
   projectSlug: string,
@@ -465,7 +488,11 @@ export async function openTicketFolder(projectSlug: string, folderName: string):
   }
 }
 
-export async function getCleanupStatus(projectSlug: string, folderName: string, selectedWorktreePath: string | null = null): Promise<TicketCleanupStatus> {
+export async function getCleanupStatus(
+  projectSlug: string,
+  folderName: string,
+  selectedWorktreePath: string | null = null,
+): Promise<TicketCleanupStatus> {
   'use server'
 
   appLog('ticket-cleanup', 'Checking cleanup status', {
@@ -473,8 +500,17 @@ export async function getCleanupStatus(projectSlug: string, folderName: string, 
     folderName,
     selectedWorktreePath: selectedWorktreePath ?? undefined,
   })
-  const { project, ticket, worktreePath, branchName } = resolveTicketWorktreeTarget(projectSlug, folderName, selectedWorktreePath ?? undefined)
-  appLog('ticket-cleanup', 'Resolved cleanup target', { projectSlug, folderName, worktreePath, branchName })
+  const { project, ticket, worktreePath, branchName } = resolveTicketWorktreeTarget(
+    projectSlug,
+    folderName,
+    selectedWorktreePath ?? undefined,
+  )
+  appLog('ticket-cleanup', 'Resolved cleanup target', {
+    projectSlug,
+    folderName,
+    worktreePath,
+    branchName,
+  })
   return runTicketCleanupChecks(
     {
       projectSlug,
@@ -505,11 +541,9 @@ async function updateWorktreeCleanupState(projectSlug: string, folderName: strin
     agentWorktreeManager.localBranchExists(target.project.path, target.branchName),
     agentWorktreeManager.hasRemoteBranch(target.project.path, target.branchName),
   ])
-  mutateTickets(projectSlug, (store) => store.markAgentWorktreeRemoved(
-    folderName,
-    target.worktreePath,
-    !localBranchExists && !remoteBranchExists,
-  ))
+  mutateTickets(projectSlug, (store) =>
+    store.markAgentWorktreeRemoved(folderName, target.worktreePath, !localBranchExists && !remoteBranchExists),
+  )
 }
 
 export async function worktreeCleanup(
@@ -539,14 +573,7 @@ export async function worktreeCleanup(
       await stopHerdrAgent(found.paneId, herdrExec)
     }
     try {
-      await cleanupWorktree(
-        agentWorktreeManager,
-        project.path,
-        branchName,
-        worktreePath,
-        options,
-        project.mainBranch,
-      )
+      await cleanupWorktree(agentWorktreeManager, project.path, branchName, worktreePath, options, project.mainBranch)
     } finally {
       if (options.deleteWorktree && !fs.existsSync(worktreePath)) {
         await diffReviewStore.removeTicket(projectSlug, folderName, diffReviewWorktreeIdentity(worktreePath, branchName))
@@ -566,7 +593,11 @@ export async function worktreeCleanup(
   }
 }
 
-export async function getWorktreeLockingProcesses(projectSlug: string, folderName: string, selectedWorktreePath: string | null = null): Promise<LockingProcessInfo[]> {
+export async function getWorktreeLockingProcesses(
+  projectSlug: string,
+  folderName: string,
+  selectedWorktreePath: string | null = null,
+): Promise<LockingProcessInfo[]> {
   'use server'
 
   const { worktreePath } = resolveTicketWorktreeTarget(projectSlug, folderName, selectedWorktreePath ?? undefined)
@@ -599,7 +630,11 @@ export async function killWorktreeLockingProcesses(
   return success(undefined)
 }
 
-export async function forceDeleteLocalBranch(projectSlug: string, folderName: string, selectedWorktreePath: string | null = null): Promise<Result<undefined, UserFacingError>> {
+export async function forceDeleteLocalBranch(
+  projectSlug: string,
+  folderName: string,
+  selectedWorktreePath: string | null = null,
+): Promise<Result<undefined, UserFacingError>> {
   'use server'
 
   try {

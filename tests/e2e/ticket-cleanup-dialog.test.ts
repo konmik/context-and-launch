@@ -33,7 +33,11 @@ describe('TicketCleanupDialog (e2e, real server)', () => {
   async function openCleanup(item: 'archive' | 'delete'): Promise<void> {
     await clickTicketMenuItem(ctx.page, item)
     await waitVisible(ctx.page, 'ticket-cleanup-submit')
-    await ctx.page.getByRole('checkbox', { name: 'Show all' }).check()
+    await ctx.page
+      .getByRole('checkbox', {
+        name: 'Show all',
+      })
+      .check()
   }
 
   async function waitForChecksSettled(page: Page): Promise<void> {
@@ -59,33 +63,87 @@ describe('TicketCleanupDialog (e2e, real server)', () => {
     const project = await seedProject(ctx, {
       slugBase: 'tc-selection',
       withRemote: true,
-      withTickets: [{ number: 'T-1', title: 'Alpha', status: 'todo', folderName: 't-1-alpha' }],
-      withWorktrees: [{ folderName: 't-1-alpha' }, { folderName: 't-1-second' }],
+      withTickets: [
+        {
+          number: 'T-1',
+          title: 'Alpha',
+          status: 'todo',
+          folderName: 't-1-alpha',
+        },
+      ],
+      withWorktrees: [
+        {
+          folderName: 't-1-alpha',
+        },
+        {
+          folderName: 't-1-second',
+        },
+      ],
     })
     const firstPath = path.join(project.worktreeRootPath!, 't-1-alpha')
     const secondPath = path.join(project.worktreeRootPath!, 't-1-second')
     git('push origin t-1-second', project.projectPath)
     const statusPath = path.join(project.ticketsPath, 't-1-alpha', 'status.json')
-    fs.writeFileSync(statusPath, JSON.stringify({
-      ...JSON.parse(fs.readFileSync(statusPath, 'utf8')),
-      useWorktree: true,
-      agentWorktreeDir: firstPath,
-      agentWorktreeBranchName: 't-1-alpha',
-      agentWorktrees: [
-        { branchName: 't-1-alpha', worktreePath: firstPath },
-        { branchName: 't-1-second', worktreePath: secondPath },
-      ],
-    }))
+    fs.writeFileSync(
+      statusPath,
+      JSON.stringify({
+        ...JSON.parse(fs.readFileSync(statusPath, 'utf8')),
+        useWorktree: true,
+        agentWorktreeDir: firstPath,
+        agentWorktreeBranchName: 't-1-alpha',
+        agentWorktrees: [
+          {
+            branchName: 't-1-alpha',
+            worktreePath: firstPath,
+          },
+          {
+            branchName: 't-1-second',
+            worktreePath: secondPath,
+          },
+        ],
+      }),
+    )
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
     await openCleanup('delete')
     await waitForChecksSettled(ctx.page)
     const targets = testId(ctx.page, 'ticket-cleanup-target')
-    const target = targets.filter({ has: ctx.page.getByText(secondPath, { exact: true }) })
+    const target = targets.filter({
+      has: ctx.page.getByText(secondPath, {
+        exact: true,
+      }),
+    })
     expect(await targets.count()).toBe(2)
-    expect(await ctx.page.getByRole('combobox', { name: 'Worktree to clean up' }).count()).toBe(0)
-    expect(await target.getByRole('region', { name: `Worktree: ${secondPath}`, exact: true }).count()).toBe(1)
-    expect(await target.getByRole('region', { name: 'Local branch: t-1-second', exact: true }).count()).toBe(1)
-    expect(await target.getByRole('region', { name: 'Remote branch: t-1-second', exact: true }).count()).toBe(1)
+    expect(
+      await ctx.page
+        .getByRole('combobox', {
+          name: 'Worktree to clean up',
+        })
+        .count(),
+    ).toBe(0)
+    expect(
+      await target
+        .getByRole('region', {
+          name: `Worktree: ${secondPath}`,
+          exact: true,
+        })
+        .count(),
+    ).toBe(1)
+    expect(
+      await target
+        .getByRole('region', {
+          name: 'Local branch: t-1-second',
+          exact: true,
+        })
+        .count(),
+    ).toBe(1)
+    expect(
+      await target
+        .getByRole('region', {
+          name: 'Remote branch: t-1-second',
+          exact: true,
+        })
+        .count(),
+    ).toBe(1)
     await target.getByTestId('ticket-cleanup-delete-worktree-button').click()
     await testId(ctx.page, 'ticket-cleanup-confirm').click()
     await expect.poll(() => fs.existsSync(secondPath)).toBe(false)
@@ -105,7 +163,6 @@ describe('TicketCleanupDialog (e2e, real server)', () => {
     expect(fs.existsSync(firstPath)).toBe(true)
     await expect.poll(() => testId(ctx.page, 'ticket-cleanup-delete-worktree-status').getAttribute('data-state')).toBe('ready')
   })
-
   it('archives a ticket without a worktree, all items blocked', async () => {
     const project = await openProject(ctx, {
       slugBase: 'tc-archive',
@@ -123,21 +180,30 @@ describe('TicketCleanupDialog (e2e, real server)', () => {
           folderName: 't-2-beta',
         },
       ],
-      withWorktrees: [{ folderName: 't-2-beta' }],
+      withWorktrees: [
+        {
+          folderName: 't-2-beta',
+        },
+      ],
     })
     const otherStatusPath = path.join(project.ticketsPath, 't-2-beta', 'status.json')
     const otherStatus = JSON.parse(fs.readFileSync(otherStatusPath, 'utf8'))
-    fs.writeFileSync(otherStatusPath, JSON.stringify({
-      ...otherStatus,
-      agentWorktreeBranchName: 't-2-beta',
-      agentWorktreeDir: path.join(project.worktreeRootPath!, 't-2-beta'),
-    }))
+    fs.writeFileSync(
+      otherStatusPath,
+      JSON.stringify({
+        ...otherStatus,
+        agentWorktreeBranchName: 't-2-beta',
+        agentWorktreeDir: path.join(project.worktreeRootPath!, 't-2-beta'),
+      }),
+    )
     await gotoProject(ctx.page, ctx.testServer, project.projectSlug)
     await openCleanup('archive')
     await waitForChecksSettled(ctx.page)
     await testId(ctx.page, 'ticket-cleanup-cancel').click()
     await waitGone(ctx.page, 'ticket-cleanup-submit')
-    const otherTicket = testId(ctx.page, 'kanban-board-ticket-card').filter({ hasText: 'Beta' })
+    const otherTicket = testId(ctx.page, 'kanban-board-ticket-card').filter({
+      hasText: 'Beta',
+    })
     await openTicketMenu(ctx.page, otherTicket.locator('[data-testid="kanban-board-ticket-menu-trigger"]'), 'ticket-actions-archive')
     await testId(ctx.page, 'ticket-actions-archive').evaluate((element) => (element as HTMLElement).click())
     await waitVisible(ctx.page, 'ticket-cleanup-submit')
@@ -213,7 +279,9 @@ describe('TicketCleanupDialog (e2e, real server)', () => {
     expect(listTicketFolders(ctx.testServer, project.projectSlug)).not.toContain('t-1-alpha')
   })
   it('shows per-item check progress and enables possible items with a worktree', async () => {
-    await ctx.page.emulateMedia({ reducedMotion: 'reduce' })
+    await ctx.page.emulateMedia({
+      reducedMotion: 'reduce',
+    })
     const project = await openProject(ctx, {
       slugBase: 'tc-progress',
       withTickets: [
@@ -240,7 +308,9 @@ describe('TicketCleanupDialog (e2e, real server)', () => {
     expect(await testId(ctx.page, 'ticket-cleanup-delete-worktree-button').isDisabled()).toBe(false)
     expect(await testId(ctx.page, 'ticket-cleanup-delete-local-button').isDisabled()).toBe(true)
     expect(await testId(ctx.page, 'ticket-cleanup-delete-local-status').getAttribute('data-state')).toBe('blocked')
-    expect(await testId(ctx.page, 'ticket-cleanup-delete-local-status').textContent()).toBe('Branch is in use by a worktree. Delete that worktree first.')
+    expect(await testId(ctx.page, 'ticket-cleanup-delete-local-status').textContent()).toBe(
+      'Branch is in use by a worktree. Delete that worktree first.',
+    )
     expect(await testId(ctx.page, 'ticket-cleanup-delete-remote-button').isDisabled()).toBe(true)
     const remoteButton = testId(ctx.page, 'ticket-cleanup-delete-remote-button')
     const remoteStatus = testId(ctx.page, 'ticket-cleanup-delete-remote-status')
@@ -250,10 +320,19 @@ describe('TicketCleanupDialog (e2e, real server)', () => {
     expect(buttonBox).not.toBeNull()
     expect(statusBox).not.toBeNull()
     expect(statusBox!.x).toBeGreaterThan(buttonBox!.x + buttonBox!.width)
-    const showAll = ctx.page.getByRole('checkbox', { name: 'Show all' })
+    const showAll = ctx.page.getByRole('checkbox', {
+      name: 'Show all',
+    })
     await showAll.uncheck()
     expect(await remoteButton.isVisible()).toBe(false)
-    expect(await ctx.page.getByRole('heading', { name: 'Remote branch', exact: true }).count()).toBe(0)
+    expect(
+      await ctx.page
+        .getByRole('heading', {
+          name: 'Remote branch',
+          exact: true,
+        })
+        .count(),
+    ).toBe(0)
     expect(await testId(ctx.page, 'ticket-cleanup-delete-worktree-button').isVisible()).toBe(true)
     await testId(ctx.page, 'ticket-cleanup-cancel').click()
     await waitGone(ctx.page, 'ticket-cleanup-submit')

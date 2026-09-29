@@ -161,7 +161,14 @@ export async function launchAgent(projectSlug: string, ticket: TicketInfo, launc
       }
   const agentDisplayName = buildAgentDisplayName(ticket, context)
   const windowTitle = buildWindowTitle(ticket, context)
-  await spawnAgent(projectSlug, ticketAgentKey(ticket.folderName, ticket, launchDir), windowTitle, agentDisplayName, launchRequest, launchDir)
+  await spawnAgent(
+    projectSlug,
+    ticketAgentKey(ticket.folderName, ticket, launchDir),
+    windowTitle,
+    agentDisplayName,
+    launchRequest,
+    launchDir,
+  )
 }
 
 export async function launchProjectAgent(

@@ -30,7 +30,13 @@ export default function ReviewPromptQueueList(props: { projectSlug: string; fold
     setRetryingId(itemId)
     errors.clear()
     try {
-      const result = await retryReviewPrompt(props.projectSlug, props.folderName, itemId, props.profileName || null, agentStatus().worktreeIdentity)
+      const result = await retryReviewPrompt(
+        props.projectSlug,
+        props.folderName,
+        itemId,
+        props.profileName || null,
+        agentStatus().worktreeIdentity,
+      )
       if (result.type === 'Failure') errors.report(result.error)
       const refreshed = await state.refresh()
       if (refreshed.type === 'Failure') errors.report(refreshed.error)

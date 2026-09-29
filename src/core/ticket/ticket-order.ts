@@ -1,4 +1,5 @@
 import * as v from 'valibot'
+import { isDeepStrictEqual } from 'node:util'
 import { reconcileOrder } from './ticket-order-reconcile.js'
 import { createTicketRepository, type TicketRepository } from './ticket-repository.js'
 import type { TicketInfo } from './ticket-store.js'
@@ -23,7 +24,9 @@ export function createTicketOrderStore(worktreeDir: string, repo: TicketReposito
   }
 
   function write(order: TicketOrder, expected?: TicketOrder): void {
-    if (expected && JSON.stringify(read()) !== JSON.stringify(expected)) {
+    const current = read()
+    if (isDeepStrictEqual(current, order)) return
+    if (expected && !isDeepStrictEqual(current, expected)) {
       throw new Error('Ticket order changed in another request. Try again.')
     }
     repo.writeWorktreeJson(worktreeDir, 'ticket-order.json', v.parse(TicketOrderSchema, order))

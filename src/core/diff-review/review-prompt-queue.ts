@@ -142,7 +142,11 @@ export function createReviewPromptQueueService(
     const pending: Promise<void>[] = []
     const state = store.loadProject(projectSlug)
     for (const folderName of new Set([...Object.keys(state.tickets), ...Object.keys(state.worktrees ?? {})])) {
-      if (!state.tickets[folderName]?.queue.items.length && !Object.values(state.worktrees?.[folderName] ?? {}).some((entry) => entry.queue.items.length)) continue
+      if (
+        !state.tickets[folderName]?.queue.items.length &&
+        !Object.values(state.worktrees?.[folderName] ?? {}).some((entry) => entry.queue.items.length)
+      )
+        continue
       pending.push(processTicketIsolated(projectSlug, folderName, snapshot))
     }
     await Promise.all(pending)
@@ -208,7 +212,13 @@ export function createReviewPromptQueueService(
     })
   }
 
-  async function retryAndLaunch(projectSlug: string, folderName: string, itemId: string, profileName?: string, worktreeIdentity?: string): Promise<void> {
+  async function retryAndLaunch(
+    projectSlug: string,
+    folderName: string,
+    itemId: string,
+    profileName?: string,
+    worktreeIdentity?: string,
+  ): Promise<void> {
     await withTicketLock(projectSlug, folderName, async () => {
       const target = targets.resolve(projectSlug, folderName, worktreeIdentity)
       const agentsKnown = await refreshAgentSnapshot(projectSlug)
@@ -325,7 +335,13 @@ export function createReviewPromptQueueService(
     }
   }
 
-  async function processTicket(projectSlug: string, folderName: string, agents: HerdrAgent[], agentsReadAt: number, worktreeIdentity?: string): Promise<void> {
+  async function processTicket(
+    projectSlug: string,
+    folderName: string,
+    agents: HerdrAgent[],
+    agentsReadAt: number,
+    worktreeIdentity?: string,
+  ): Promise<void> {
     const processingKey = ticketKey(projectSlug, folderName)
     if (processingTickets.has(processingKey)) return
     await withTicketLock(projectSlug, folderName, async () => {

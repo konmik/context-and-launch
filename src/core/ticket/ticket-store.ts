@@ -376,11 +376,18 @@ export function createTicketStore(worktreeDir: string, repo: TicketRepository = 
     const current = repo.readStatusJson(dir)
     if (!current) throw createNotFoundError(`Ticket not found: ${folderName}`)
     const agentWorktrees = ticketAgentWorktrees(current).map((entry) =>
-      entry.worktreePath === worktreePath ? { ...entry, removed: true, cleanupComplete } : entry,
+      entry.worktreePath === worktreePath
+        ? {
+            ...entry,
+            removed: true,
+            cleanupComplete,
+          }
+        : entry,
     )
-    const selected = current.agentWorktreeDir === worktreePath
-      ? agentWorktrees.find((entry) => !entry.removed)
-      : agentWorktrees.find((entry) => entry.worktreePath === current.agentWorktreeDir)
+    const selected =
+      current.agentWorktreeDir === worktreePath
+        ? agentWorktrees.find((entry) => !entry.removed)
+        : agentWorktrees.find((entry) => entry.worktreePath === current.agentWorktreeDir)
     repo.writeStatusJson(dir, {
       ...current,
       agentWorktrees,

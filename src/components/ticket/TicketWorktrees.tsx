@@ -30,7 +30,9 @@ export function TicketWorktrees(props: { projectSlug: string }): JSX.Element {
 
   return (
     <div class="flex min-w-0 items-center gap-2" aria-label="Ticket worktrees">
-      <label for="ticket-worktree-selection" class="sr-only">Launch target</label>
+      <label for="ticket-worktree-selection" class="sr-only">
+        Launch target
+      </label>
       <div class="relative min-w-0 flex-1">
         <select
           id="ticket-worktree-selection"
@@ -38,14 +40,18 @@ export function TicketWorktrees(props: { projectSlug: string }): JSX.Element {
           class="worktree-select w-full min-w-0 truncate rounded border border-input bg-background p-2 pr-8 text-left text-xs"
           dir="rtl"
           disabled={busy()}
-          value={status.get().useWorktree ? status.get().agentWorktreeDir ?? '' : ''}
+          value={status.get().useWorktree ? (status.get().agentWorktreeDir ?? '') : ''}
           onChange={(event) => {
             const worktreePath = event.currentTarget.value || null
             void updateWorktree(() => select(props.projectSlug, status.get().folderName, worktreePath))
           }}
         >
           <option value="">Project directory</option>
-          <For each={ticketAgentWorktrees(status.get()).filter((entry) => !entry.removed).map((entry) => entry.worktreePath)}>
+          <For
+            each={ticketAgentWorktrees(status.get())
+              .filter((entry) => !entry.removed)
+              .map((entry) => entry.worktreePath)}
+          >
             {(worktreePath) => <option value={worktreePath}>{worktreePath}</option>}
           </For>
         </select>
@@ -53,7 +59,12 @@ export function TicketWorktrees(props: { projectSlug: string }): JSX.Element {
           <ChevronDown size={14} />
         </span>
       </div>
-      <button type="button" class="btn-secondary shrink-0" disabled={busy()} onClick={() => void updateWorktree(() => add(props.projectSlug, status.get().folderName))}>
+      <button
+        type="button"
+        class="btn-secondary shrink-0"
+        disabled={busy()}
+        onClick={() => void updateWorktree(() => add(props.projectSlug, status.get().folderName))}
+      >
         Add worktree
       </button>
     </div>

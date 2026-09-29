@@ -29,7 +29,7 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
   const selectedTicket = (): TicketInfo | null => {
     const data = deps.data()
     return data?.status === 'loaded'
-      ? data.board.tickets.find((ticket) => ticket.folderName === selectedTicketFolderName()) ?? null
+      ? (data.board.tickets.find((ticket) => ticket.folderName === selectedTicketFolderName()) ?? null)
       : null
   }
   const [detailTicket, setDetailTicket] = createSignal<TicketInfo | null>(null)

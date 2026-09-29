@@ -11,34 +11,37 @@ import type { DiffScope, ReviewPromptSnapshot } from '~/core/diff-review/diff-re
  * together: opening the Diff Review costs one round trip, and the client never
  * has to learn which scopes exist before it can ask for a diff.
  */
-export const getReviewSnapshot = query(async (projectSlug: string, folderName: string, requestedScope?: DiffScope | null, worktreePath: string | null = null) => {
-  'use server'
+export const getReviewSnapshot = query(
+  async (projectSlug: string, folderName: string, requestedScope?: DiffScope | null, worktreePath: string | null = null) => {
+    'use server'
 
-  const target = diffReviewTargetResolver.resolve(projectSlug, folderName, worktreePath ?? undefined)
-  const scopes: DiffScope[] = target.mainBranch ? ['all', 'branch', 'working', 'last-commit'] : ['working', 'last-commit']
-  const scope = requestedScope ?? scopes[0]
-  if (!scopes.includes(scope)) {
-    throw new Error(`This Ticket has no '${scope}' Diff Scope.`)
-  } // Git failing on one Diff Scope says nothing about the others, so it travels
-  // back as this scope's answer instead of as the whole query's failure. The
-  // Diff Review keeps its scope picker and the user can move to a scope Git
-  // can calculate.
-  let snapshot
-  try {
-    snapshot = await diffReviewGitService.loadSnapshot(target, scope)
-  } catch (error) {
+    const target = diffReviewTargetResolver.resolve(projectSlug, folderName, worktreePath ?? undefined)
+    const scopes: DiffScope[] = target.mainBranch ? ['all', 'branch', 'working', 'last-commit'] : ['working', 'last-commit']
+    const scope = requestedScope ?? scopes[0]
+    if (!scopes.includes(scope)) {
+      throw new Error(`This Ticket has no '${scope}' Diff Scope.`)
+    } // Git failing on one Diff Scope says nothing about the others, so it travels
+    // back as this scope's answer instead of as the whole query's failure. The
+    // Diff Review keeps its scope picker and the user can move to a scope Git
+    // can calculate.
+    let snapshot
+    try {
+      snapshot = await diffReviewGitService.loadSnapshot(target, scope)
+    } catch (error) {
+      return {
+        scopes,
+        scope,
+        snapshot: failure(errorPayload(error, 'Load diff failed')),
+      }
+    }
     return {
       scopes,
       scope,
-      snapshot: failure(errorPayload(error, 'Load diff failed')),
+      snapshot: success(snapshot),
     }
-  }
-  return {
-    scopes,
-    scope,
-    snapshot: success(snapshot),
-  }
-}, 'diff-review-snapshot')
+  },
+  'diff-review-snapshot',
+)
 
 export async function enqueueReviewPrompt(
   projectSlug: string,

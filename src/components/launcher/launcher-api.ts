@@ -116,7 +116,8 @@ export async function launchAgentAction(
       project.mainBranch,
     )
     if (resolved.type === 'Failure') return resolved
-    if (launchRequest.launchDir !== resolved.value.launchDir) throw createValidationError('The launch target changed. Select it again before launching.')
+    if (launchRequest.launchDir !== resolved.value.launchDir)
+      throw createValidationError('The launch target changed. Select it again before launching.')
     await launchAgentCore(projectSlug, ticket, launchRequest, launchRequest.launchDir)
     return success(undefined)
   } catch (e) {
@@ -170,7 +171,8 @@ export async function runShortcut(
       project.mainBranch,
     )
     if (resolved.type === 'Failure') return resolved
-    if (launchDir !== resolved.value.launchDir) throw createValidationError('The launch target changed. Select it again before running the shortcut.')
+    if (launchDir !== resolved.value.launchDir)
+      throw createValidationError('The launch target changed. Select it again before running the shortcut.')
     const commandVars = {
       ticketDir: path.resolve(worktreeDir, ticket.folderName),
       ticketSlug: ticket.folderName,

@@ -51,7 +51,11 @@ export function createProfileReviewAgentLauncher(
   }
 
   function markerPath(target: ResolvedDiffReviewTarget): string {
-    return agentMarkerPathIn(launcherConfig.getAppConfigDir(), target.projectSlug, ticketAgentKey(target.folderName, target.ticket, target.worktreePath))
+    return agentMarkerPathIn(
+      launcherConfig.getAppConfigDir(),
+      target.projectSlug,
+      ticketAgentKey(target.folderName, target.ticket, target.worktreePath),
+    )
   }
 
   return {

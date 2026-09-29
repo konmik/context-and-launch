@@ -44,9 +44,11 @@ export default defineConfig({
   ],
   build: {
     target: 'esnext',
+    chunkSizeWarningLimit: 1024,
   },
   ssr: {
     noExternal: true,
+    external: ['chokidar'],
   },
   server: {
     watch: {

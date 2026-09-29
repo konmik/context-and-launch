@@ -223,7 +223,8 @@ export function createAgentWorktreeManager(launcherConfig: LauncherConfigManager
       branch: branchName,
     })
     if (branchList.trim()) {
-      if (options?.requireNew) throw createValidationError(`Branch '${branchName}' already exists. Add the worktree again to choose a new name.`)
+      if (options?.requireNew)
+        throw createValidationError(`Branch '${branchName}' already exists. Add the worktree again to choose a new name.`)
       await releaseBranchFromOtherWorktree(projectPath, worktreePath, branchName)
       await commands.execute('agent-worktree.add-existing', projectPath, {
         worktreePath,

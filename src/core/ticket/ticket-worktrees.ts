@@ -19,7 +19,12 @@ export interface TicketWorktreeSelection {
 export function ticketAgentWorktrees(ticket: TicketWorktreeSelection): TicketAgentWorktree[] {
   if (ticket.agentWorktrees) return ticket.agentWorktrees
   if (ticket.agentWorktreeBranchName && ticket.agentWorktreeDir) {
-    return [{ branchName: ticket.agentWorktreeBranchName, worktreePath: ticket.agentWorktreeDir }]
+    return [
+      {
+        branchName: ticket.agentWorktreeBranchName,
+        worktreePath: ticket.agentWorktreeDir,
+      },
+    ]
   }
   return []
 }

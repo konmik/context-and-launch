@@ -165,20 +165,34 @@ export function getReviewTicketState(project: DiffReviewProjectState, folderName
       }
 }
 
-export function withReviewTicketState(project: DiffReviewProjectState, folderName: string, updated: DiffReviewTicketState): DiffReviewProjectState {
+export function withReviewTicketState(
+  project: DiffReviewProjectState,
+  folderName: string,
+  updated: DiffReviewTicketState,
+): DiffReviewProjectState {
   const previous = project.tickets[folderName]
-  const worktrees = previous && previous.worktreeIdentity !== updated.worktreeIdentity
-    ? {
-        ...project.worktrees,
-        [folderName]: {
-          ...Object.fromEntries(Object.entries(project.worktrees?.[folderName] ?? {}).filter(([identity]) => identity !== updated.worktreeIdentity)),
-          [previous.worktreeIdentity]: previous,
-        },
-      }
-    : project.worktrees
+  const worktrees =
+    previous && previous.worktreeIdentity !== updated.worktreeIdentity
+      ? {
+          ...project.worktrees,
+          [folderName]: {
+            ...Object.fromEntries(
+              Object.entries(project.worktrees?.[folderName] ?? {}).filter(([identity]) => identity !== updated.worktreeIdentity),
+            ),
+            [previous.worktreeIdentity]: previous,
+          },
+        }
+      : project.worktrees
   return {
     ...project,
-    ...(worktrees ? { worktrees } : {}),
-    tickets: { ...project.tickets, [folderName]: updated },
+    ...(worktrees
+      ? {
+          worktrees,
+        }
+      : {}),
+    tickets: {
+      ...project.tickets,
+      [folderName]: updated,
+    },
   }
 }

@@ -1,6 +1,8 @@
 import type { RenderResult } from '../../test-render.js'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { renderWithErrors as render, screen, cleanup, fireEvent, waitFor } from '../../test-render.js'
+import { renderWithErrors, screen, cleanup, fireEvent, waitFor } from '../../test-render.js'
+import { createRouter, memoryHistory } from '@solidjs/router'
+import type { JSX } from '@solidjs/web'
 import { createSignal, createRoot, createMemo } from 'solid-js'
 import TicketDetailDialog from '../../../src/components/ticket/TicketDetailDialog.js'
 import { createTicketDetailState, type TicketDetailStateDeps } from '../../../src/components/ticket/ticket-detail-state.js'
@@ -121,6 +123,14 @@ function stateDependencies(ticket: TicketInfo): TicketDetailStateDeps {
     })),
     openNativeFileBrowser: async () => [],
   }
+}
+
+function render(view: () => JSX.Element): RenderResult {
+  const Router = createRouter({
+    routes: [],
+    history: memoryHistory(),
+  })
+  return renderWithErrors(() => <Router>{view}</Router>)
 }
 
 function renderTicket(ticket: TicketInfo): RenderResult {

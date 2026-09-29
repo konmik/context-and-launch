@@ -21,7 +21,7 @@ const vitest = './node_modules/vitest/vitest.mjs'
 const unit = [vitest, 'run', '--project', 'unit-node', '--project', 'unit-ts', '--project', 'unit-tsx', '--project', 'server']
 const build = ['./node_modules/vite/bin/vite.js', 'build']
 const cachedBuild = ['./node_modules/tsx/dist/cli.mjs', 'scripts/test-build.ts']
-const e2e = [vitest, 'run', '--project', 'e2e', '--poolOptions.forks.maxForks', String(process.platform === 'win32' ? 4 : 12)]
+const e2e = [vitest, 'run', '--project', 'e2e', '--poolOptions.forks.maxForks', String(process.platform === 'win32' ? 2 : 12)]
 for (const [selectedSuite, paths] of groups) {
   const commands = {
     unit: [[...unit, ...paths]],

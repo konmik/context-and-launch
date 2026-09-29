@@ -245,7 +245,7 @@ export async function runTicketCleanupChecks(target: TicketCleanupCheckTarget, d
       'Branch checkout',
       () => deps.worktreePathForBranch(target.projectPath, target.branchName),
       (value) => predicateState(value === undefined),
-      (value) => value === undefined ? 'Branch is not checked out' : `Branch is checked out at ${value}`,
+      (value) => (value === undefined ? 'Branch is not checked out' : `Branch is checked out at ${value}`),
     )
     if (checkedOutPath !== undefined) {
       return {

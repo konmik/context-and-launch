@@ -57,11 +57,14 @@ describe('Ticket launcher confirmations (e2e, real server)', () => {
         const folder = `t-${index + 1}-${action}`
         await openTicketDetail(ctx.page, folder)
         await testId(ctx.page, 'ticket-detail-tab-launcher').click()
-        await expect
-          .poll(() => testId(ctx.page, 'launch-dir-display').textContent(), {
-            timeout: 10000,
-          })
-          .toContain(folder)
+        const target = ctx.page.getByRole('combobox', {
+          name: 'Launch target',
+          exact: true,
+        })
+        await target.waitFor({
+          state: 'visible',
+        })
+        expect(await target.inputValue()).toBe('')
         await testId(ctx.page, 'ticket-detail-launcher-run-button').click()
         await cancel.waitFor({
           state: 'visible',

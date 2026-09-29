@@ -90,7 +90,13 @@ export default function DiffReview(props: DiffReviewProps): JSX.Element {
   const [selectedWorktreePath, setSelectedWorktreePath] = createSignal(props.ticket.agentWorktreeDir)
   const selectedTicket = createMemo(() => {
     const selected = ticketAgentWorktrees(props.ticket).find((entry) => entry.worktreePath === selectedWorktreePath())
-    return selected ? { ...props.ticket, agentWorktreeDir: selected.worktreePath, agentWorktreeBranchName: selected.branchName } : props.ticket
+    return selected
+      ? {
+          ...props.ticket,
+          agentWorktreeDir: selected.worktreePath,
+          agentWorktreeBranchName: selected.branchName,
+        }
+      : props.ticket
   })
   return (
     <Show when={selectedTicket()} keyed>
@@ -99,7 +105,11 @@ export default function DiffReview(props: DiffReviewProps): JSX.Element {
   )
 }
 
-function DiffReviewContent(props: DiffReviewProps & { onSelectWorktree(worktreePath: string): void }): JSX.Element {
+function DiffReviewContent(
+  props: DiffReviewProps & {
+    onSelectWorktree(worktreePath: string): void
+  },
+): JSX.Element {
   const herdrStatus = useHerdrStatuses()
   const [scope, setScope] = createSignal<DiffScope>()
   const [pace, setPace] = createSignal<ReviewPace>('live')
@@ -143,7 +153,9 @@ function DiffReviewContent(props: DiffReviewProps & { onSelectWorktree(worktreeP
     onCleanup(() => void tracker.dispose())
     return tracker
   })
-  const review = createMemo(() => getReviewSnapshot(props.projectSlug, props.ticket.folderName, scope() ?? null, props.ticket.agentWorktreeDir ?? null))
+  const review = createMemo(() =>
+    getReviewSnapshot(props.projectSlug, props.ticket.folderName, scope() ?? null, props.ticket.agentWorktreeDir ?? null),
+  )
   const selectedAgentStatus = () => herdrStatus(ticketAgentKey(props.ticket.folderName, props.ticket, props.ticket.agentWorktreeDir))
   const sharedConfig = useContext(LauncherConfigContext)!
   const projectConfig = useContext(ProjectLauncherConfigContext)!

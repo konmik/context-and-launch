@@ -10,7 +10,10 @@
   height: auto;
   opacity: 1;
   overflow: clip;
-  transition: height 180ms ease, opacity 180ms ease, visibility 180ms ease;
+  transition:
+    height 180ms ease,
+    opacity 180ms ease,
+    visibility 180ms ease;
 }
 
 .ticket-cleanup-reveal[data-visible='false'] {

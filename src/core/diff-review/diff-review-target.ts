@@ -40,13 +40,21 @@ export function createDiffReviewTargetResolver(
     const ticket = createTicketStore(worktreeManager.getWorktreeDir(projectSlug)).getTicket(folderName)
     if (!ticket) throw createNotFoundError(`Ticket not found: ${folderName}`)
     const selected = worktreePathOrIdentity
-      ? ticketAgentWorktrees(ticket).find((entry) => entry.worktreePath === worktreePathOrIdentity || diffReviewWorktreeIdentity(entry.worktreePath, entry.branchName) === worktreePathOrIdentity)
+      ? ticketAgentWorktrees(ticket).find(
+          (entry) =>
+            entry.worktreePath === worktreePathOrIdentity ||
+            diffReviewWorktreeIdentity(entry.worktreePath, entry.branchName) === worktreePathOrIdentity,
+        )
       : undefined
     const location = resolveAgentWorktreeLocation(folderName, launcherConfigManager.resolveWorktreeSettings(projectSlug), {
       savedWorktreePath: selected?.worktreePath ?? ticket.agentWorktreeDir,
       savedBranchName: selected?.branchName ?? ticket.agentWorktreeBranchName,
     })
-    if (worktreePathOrIdentity && location.worktreePath !== worktreePathOrIdentity && diffReviewWorktreeIdentity(location.worktreePath, location.branchName) !== worktreePathOrIdentity) {
+    if (
+      worktreePathOrIdentity &&
+      location.worktreePath !== worktreePathOrIdentity &&
+      diffReviewWorktreeIdentity(location.worktreePath, location.branchName) !== worktreePathOrIdentity
+    ) {
       throw createNotFoundError('The requested worktree no longer belongs to this ticket.')
     }
     if (!fs.existsSync(location.worktreePath)) {

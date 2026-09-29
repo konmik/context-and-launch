@@ -8,31 +8,50 @@ describe('Overlay portal ownership (e2e, real server)', () => {
     await openProject(ctx, {
       slugBase: 'overlay-card-stacking',
       withTickets: [
-        { number: 'T-1', title: 'Alpha', status: 'todo', folderName: 't-1-alpha' },
-        { number: 'T-2', title: 'Beta', status: 'todo', folderName: 't-2-beta' },
-        { number: 'T-3', title: 'Gamma', status: 'todo', folderName: 't-3-gamma' },
+        {
+          number: 'T-1',
+          title: 'Alpha',
+          status: 'todo',
+          folderName: 't-1-alpha',
+        },
+        {
+          number: 'T-2',
+          title: 'Beta',
+          status: 'todo',
+          folderName: 't-2-beta',
+        },
+        {
+          number: 'T-3',
+          title: 'Gamma',
+          status: 'todo',
+          folderName: 't-3-gamma',
+        },
       ],
     })
     await ctx.page.reload()
     await testId(ctx.page, 'kanban-board-ticket-menu-trigger').first().click()
     const archive = testId(ctx.page, 'ticket-actions-archive')
     await archive.waitFor()
-    expect(await ctx.page.getByRole('menu').evaluate((element) => {
-      const rect = element.getBoundingClientRect()
-      const covered = []
-      for (let y = rect.top + 4; y < rect.bottom; y += 8) {
-        for (let x = rect.left + 4; x < rect.right; x += 8) {
-          const hit = document.elementFromPoint(x, y)
-          if (!element.contains(hit)) covered.push(hit?.outerHTML.slice(0, 200))
+    expect(
+      await ctx.page.getByRole('menu').evaluate((element) => {
+        const rect = element.getBoundingClientRect()
+        const covered = []
+        for (let y = rect.top + 4; y < rect.bottom; y += 8) {
+          for (let x = rect.left + 4; x < rect.right; x += 8) {
+            const hit = document.elementFromPoint(x, y)
+            if (!element.contains(hit)) covered.push(hit?.outerHTML.slice(0, 200))
+          }
         }
-      }
-      return covered
-    })).toEqual([])
-    expect(await archive.evaluate((element) => {
-      const rect = element.getBoundingClientRect()
-      const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)
-      return element.contains(hit)
-    })).toBe(true)
+        return covered
+      }),
+    ).toEqual([])
+    expect(
+      await archive.evaluate((element) => {
+        const rect = element.getBoundingClientRect()
+        const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)
+        return element.contains(hit)
+      }),
+    ).toBe(true)
     await archive.click()
     await testId(ctx.page, 'ticket-cleanup-submit').waitFor()
   })

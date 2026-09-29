@@ -54,42 +54,48 @@ describe('Ticket detail launcher config and run (e2e, real server)', () => {
     await openTicketDetail(ctx.page, 't-1-alpha')
     await waitVisible(ctx.page, 'ticket-detail-launcher-run-button')
   })
-  it('launch dir display shows project path when worktree is off', async () => {
-    const project = await setupLauncherTicket(ctx, 'dir-off')
-    const display = testId(ctx.page, 'launch-dir-display')
-    await display.waitFor({
+  it('launch target selects the project directory when worktree is off', async () => {
+    await setupLauncherTicket(ctx, 'dir-off')
+    const target = ctx.page.getByRole('combobox', {
+      name: 'Launch target',
+      exact: true,
+    })
+    await target.waitFor({
       state: 'visible',
       timeout: 15000,
     })
-    const text = await display.textContent()
-    expect(text).toContain(project.projectPath)
-    expect(await testId(ctx.page, 'launch-dir-copy-button').count()).toBe(1)
+    expect(await target.inputValue()).toBe('')
+    expect(await target.locator('option:checked').textContent()).toBe('Project directory')
   })
   it('launch dir display updates when the worktree selection changes', async () => {
-    const project = await setupLauncherTicket(ctx, 'dir-toggle')
-    const display = testId(ctx.page, 'launch-dir-display')
-    await display.waitFor({
+    await setupLauncherTicket(ctx, 'dir-toggle')
+    const target = ctx.page.getByRole('combobox', {
+      name: 'Launch target',
+      exact: true,
+    })
+    await target.waitFor({
       state: 'visible',
       timeout: 15000,
     })
-    const textBefore = await display.textContent()
-    expect(textBefore).toContain(project.projectPath)
-    await ctx.page.getByRole('button', { name: 'Add worktree', exact: true }).click()
+    expect(await target.inputValue()).toBe('')
+    await ctx.page
+      .getByRole('button', {
+        name: 'Add worktree',
+        exact: true,
+      })
+      .click()
     await expect
-      .poll(() => display.textContent(), {
+      .poll(() => target.inputValue(), {
         timeout: 10000,
       })
       .toContain('t-1-alpha')
-    const textAfter = await display.textContent()
-    expect(textAfter).toContain('t-1-alpha')
-    expect(textAfter).not.toContain(project.projectPath)
-    await ctx.page.getByRole('combobox', { name: 'Launch target', exact: true }).selectOption('')
+    expect(await target.locator('option:checked').textContent()).toBe(await target.inputValue())
+    await target.selectOption('')
     await expect
-      .poll(() => display.textContent(), {
+      .poll(() => target.inputValue(), {
         timeout: 10000,
       })
-      .toContain(project.projectPath)
-    const textReverted = await display.textContent()
-    expect(textReverted).toContain(project.projectPath)
+      .toBe('')
+    expect(await target.locator('option:checked').textContent()).toBe('Project directory')
   })
 })
