@@ -2,7 +2,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { compareInspectionBaseline, isTestFile, readInspectionBaseline, readInspectionFindings } from './unused-code-report.js'
+import { compareInspectionBaseline, readInspectionBaseline, readInspectionFindings } from './unused-code-report.js'
+import { isTestFile } from './unused-code-files.js'
 import type { InspectionFinding } from './unused-code-report.js'
 
 interface IdeLaunch {

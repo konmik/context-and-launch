@@ -3,6 +3,7 @@ import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { JSDOM } from 'jsdom'
 import * as v from 'valibot'
+import { isTestFile } from './unused-code-files.js'
 
 export const inspectionIds = ['JSUnusedGlobalSymbols', 'JSUnusedLocalSymbols', 'JSUnusedAssignment']
 
@@ -35,10 +36,6 @@ export interface InspectionComparison {
   newFindings: InspectionFinding[]
   staleEntries: InspectionBaseline['entries']
   suppressedCount: number
-}
-
-export function isTestFile(file: string): boolean {
-  return /(^|\/)(tests|__tests__|__mocks__)\//.test(file) || /\.(test|spec|bench)\.[cm]?[jt]sx?$/.test(file)
 }
 
 function readXml(file: string): Document {

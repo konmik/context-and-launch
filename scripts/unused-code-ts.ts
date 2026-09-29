@@ -1,11 +1,9 @@
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
-import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
-import { isTestFile } from './unused-code-report.js'
+import { inspectionOutputDirectory, isTestFile, relativeFile, sourceFiles } from './unused-code-files.js'
 
 interface ReferenceLocation {
   file: string
@@ -34,10 +32,6 @@ interface ExportCandidate {
   name: ts.DeclarationName
   referenceNames: ts.DeclarationName[]
   declarations: ts.Declaration[]
-}
-
-function relativeFile(root: string, file: string): string {
-  return path.relative(root, file).split(path.sep).join('/')
 }
 
 function location(root: string, source: ts.SourceFile, start: number): ReferenceLocation {
@@ -244,11 +238,7 @@ function main() {
   if (config.error) throw new Error(diagnosticText(config.error))
   const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, root)
   if (parsed.errors.length) throw new Error(parsed.errors.map(diagnosticText).join('\n'))
-  const files = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8' })
-    .split('\0')
-    .filter((file) => /\.[cm]?[jt]sx?$/.test(file) && fs.existsSync(path.join(root, file)))
-    .map((file) => path.join(root, file))
-  if (!files.length) throw new Error('No tracked or unignored TypeScript/JavaScript files found.')
+  const files = sourceFiles(root)
   console.log(`TypeScript ${ts.version}: inspecting ${files.length} files with the language service...`)
   const report = inspect(root, files, {
     ...parsed.options,
@@ -258,11 +248,7 @@ function main() {
     noUnusedLocals: false,
     noUnusedParameters: false,
   })
-  const parent = process.platform === 'win32'
-    ? path.join(requiredEnvironment('LOCALAPPDATA'), 'Temp', 'opencode')
-    : os.tmpdir()
-  fs.mkdirSync(parent, { recursive: true })
-  const directory = fs.mkdtempSync(path.join(parent, 'unused-code-ts-'))
+  const directory = inspectionOutputDirectory('unused-code-ts-')
   const output = path.join(directory, 'report.json')
   fs.writeFileSync(output, `${JSON.stringify(report, undefined, 2)}\n`, { flag: 'wx' })
   for (const finding of report.findings.slice(0, 30))
@@ -277,12 +263,6 @@ function main() {
   } else if (report.findings.length) {
     process.exitCode = 1
   }
-}
-
-function requiredEnvironment(name: string): string {
-  const value = process.env[name]
-  if (!value) throw new Error(`Missing required environment variable: ${name}`)
-  return value
 }
 
 try {
