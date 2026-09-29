@@ -25,6 +25,7 @@ function makeDeps(overrides: Partial<TicketCleanupCheckDeps> = {}): TicketCleanu
     isWorktreeClean: async () => true,
     isWorktreeBusy: async () => false,
     localBranchExists: async () => true,
+    worktreePathForBranch: async () => undefined,
     isBranchMerged: async () => true,
     hasRemoteBranch: async () => true,
     findHerdrAgent: async (): Promise<FindHerdrAgentResult> => ({
@@ -57,7 +58,7 @@ describe('runTicketCleanupChecks', () => {
         checks: [
           {
             state: 'passed',
-            detail: 'Agent service available',
+            detail: 'Herdr is reachable',
           },
           {
             state: 'passed',
@@ -92,6 +93,10 @@ describe('runTicketCleanupChecks', () => {
           {
             state: 'passed',
             detail: 'Local branch found',
+          },
+          {
+            state: 'passed',
+            detail: 'Branch is not checked out',
           },
           {
             state: 'passed',
@@ -146,12 +151,12 @@ describe('runTicketCleanupChecks', () => {
       }),
     )
     expect(status.stopHerdrAgent).toEqual({
-      state: 'blocked',
+      state: 'disabled',
       reason: 'No Herdr agent',
       checks: [
         {
           state: 'passed',
-          detail: 'Agent service available',
+          detail: 'Herdr is reachable',
         },
         {
           state: 'passed',
@@ -168,7 +173,7 @@ describe('runTicketCleanupChecks', () => {
       }),
     )
     expect(status.deleteWorktree).toEqual({
-      state: 'blocked',
+      state: 'disabled',
       reason: 'No worktree',
       checks: [
         {
@@ -363,7 +368,7 @@ describe('runTicketCleanupChecks', () => {
       ],
     })
   })
-  it("blocks deleteLocalBranch with 'No local branch' when the branch is missing", async () => {
+  it("disables deleteLocalBranch with 'No local branch' when the branch is missing", async () => {
     const status = await runTicketCleanupChecks(
       target,
       makeDeps({
@@ -371,7 +376,7 @@ describe('runTicketCleanupChecks', () => {
       }),
     )
     expect(status.deleteLocalBranch).toEqual({
-      state: 'blocked',
+      state: 'disabled',
       reason: 'No local branch',
       checks: [
         {
@@ -399,13 +404,17 @@ describe('runTicketCleanupChecks', () => {
           detail: 'Local branch found',
         },
         {
+          state: 'passed',
+          detail: 'Branch is not checked out',
+        },
+        {
           state: 'blocked',
           detail: 'Branch has unmerged commits',
         },
       ],
     })
   })
-  it("blocks deleteRemoteBranch with 'No remote branch' when there is no remote branch", async () => {
+  it("disables deleteRemoteBranch with 'No remote branch' when there is no remote branch", async () => {
     const status = await runTicketCleanupChecks(
       target,
       makeDeps({
@@ -413,7 +422,7 @@ describe('runTicketCleanupChecks', () => {
       }),
     )
     expect(status.deleteRemoteBranch).toEqual({
-      state: 'blocked',
+      state: 'disabled',
       reason: 'No remote branch',
       checks: [
         {
@@ -437,6 +446,10 @@ describe('runTicketCleanupChecks', () => {
       {
         state: 'passed',
         detail: 'Local branch found',
+      },
+      {
+        state: 'passed',
+        detail: 'Branch is not checked out',
       },
       {
         state: 'error',

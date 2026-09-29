@@ -158,6 +158,7 @@ export interface AgentWorktreeManager {
   isWorktreeBusy(worktreePath: string): Promise<boolean>
   findLockingProcesses(worktreePath: string): Promise<LockingProcessInfo[]>
   localBranchExists(projectPath: string, branchName: string): Promise<boolean>
+  worktreePathForBranch(projectPath: string, branchName: string): Promise<string | undefined>
   isBranchMerged(projectPath: string, branchName: string, configuredBranch?: string): Promise<boolean>
   removeWorktree(projectPath: string, worktreePath: string): Promise<void>
   deleteLocalBranch(projectPath: string, branchName: string, configuredBranch?: string): Promise<void>
@@ -381,14 +382,14 @@ export function createAgentWorktreeManager(launcherConfig: LauncherConfigManager
     }
   }
 
-  async function worktreePathForBranch(projectPath: string, branchName: string): Promise<string | null> {
+  async function worktreePathForBranch(projectPath: string, branchName: string): Promise<string | undefined> {
     const out = await commands.execute('agent-worktree.list', projectPath)
-    let currentPath: string | null = null
+    let currentPath: string | undefined
     for (const line of out.split('\n')) {
       if (line.startsWith('worktree ')) currentPath = line.slice('worktree '.length).trim()
       else if (line.trim() === `branch refs/heads/${branchName}` && currentPath) return currentPath
     }
-    return null
+    return undefined
   }
 
   async function localBranchExists(projectPath: string, branchName: string): Promise<boolean> {
@@ -528,6 +529,7 @@ export function createAgentWorktreeManager(launcherConfig: LauncherConfigManager
     isWorktreeBusy,
     findLockingProcesses,
     localBranchExists,
+    worktreePathForBranch,
     isBranchMerged,
     removeWorktree,
     deleteLocalBranch,

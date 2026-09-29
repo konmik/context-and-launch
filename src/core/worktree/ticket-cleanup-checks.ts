@@ -23,12 +23,17 @@ export interface BlockedCleanupCheckItem {
   forceDeleteable?: true
 }
 
+export interface DisabledCleanupCheckItem {
+  state: 'disabled'
+  reason: string
+}
+
 export interface ErrorCleanupCheckItem {
   state: 'error'
   error: ErrorInfo
 }
 
-type CleanupCheckOutcome = ReadyCleanupCheckItem | BlockedCleanupCheckItem | ErrorCleanupCheckItem
+type CleanupCheckOutcome = ReadyCleanupCheckItem | DisabledCleanupCheckItem | BlockedCleanupCheckItem | ErrorCleanupCheckItem
 
 export type CleanupCheckItem = CleanupCheckOutcome & {
   checks: CleanupCheckDetail[]
@@ -62,6 +67,7 @@ export interface TicketCleanupCheckDeps {
   isWorktreeClean(worktreePath: string): Promise<boolean>
   isWorktreeBusy(worktreePath: string): Promise<boolean>
   localBranchExists(projectPath: string, branchName: string): Promise<boolean>
+  worktreePathForBranch(projectPath: string, branchName: string): Promise<string | undefined>
   isBranchMerged(projectPath: string, branchName: string, configuredBranch?: string): Promise<boolean>
   hasRemoteBranch(projectPath: string, branchName: string): Promise<boolean>
   findHerdrAgent(target: HerdrAgentTarget): Promise<FindHerdrAgentResult>
@@ -135,7 +141,7 @@ export async function runTicketCleanupChecks(target: TicketCleanupCheckTarget, d
           folderName: target.folderName,
         }),
       () => 'passed',
-      (result) => (result.kind === 'herdr-unavailable' ? result.message : 'Agent service available'),
+      (result) => (result.kind === 'herdr-unavailable' ? result.message : 'Herdr is reachable'),
     )
     if (found.kind === 'herdr-unavailable')
       return {
@@ -150,7 +156,7 @@ export async function runTicketCleanupChecks(target: TicketCleanupCheckTarget, d
     )
     if (!hasAgent)
       return {
-        state: 'blocked',
+        state: 'disabled',
         reason: 'No Herdr agent',
       }
     return {
@@ -166,7 +172,7 @@ export async function runTicketCleanupChecks(target: TicketCleanupCheckTarget, d
     )
     if (!exists) {
       return {
-        state: 'blocked',
+        state: 'disabled',
         reason: 'No worktree',
       }
     }
@@ -231,8 +237,20 @@ export async function runTicketCleanupChecks(target: TicketCleanupCheckTarget, d
     )
     if (!exists) {
       return {
-        state: 'blocked',
+        state: 'disabled',
         reason: 'No local branch',
+      }
+    }
+    const checkedOutPath = await check(
+      'Branch checkout',
+      () => deps.worktreePathForBranch(target.projectPath, target.branchName),
+      (value) => predicateState(value === undefined),
+      (value) => value === undefined ? 'Branch is not checked out' : `Branch is checked out at ${value}`,
+    )
+    if (checkedOutPath !== undefined) {
+      return {
+        state: 'blocked',
+        reason: 'Branch is in use by a worktree. Delete that worktree first.',
       }
     }
     const merged = await check(
@@ -262,7 +280,7 @@ export async function runTicketCleanupChecks(target: TicketCleanupCheckTarget, d
     )
     if (!exists) {
       return {
-        state: 'blocked',
+        state: 'disabled',
         reason: 'No remote branch',
       }
     }
