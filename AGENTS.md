@@ -70,6 +70,8 @@
 - Any test that launches a terminal or console-host process (powershell, cmd, wt) is a shell test. Name it *.shell.test.ts so it runs only when explicitly selected with `pnpm test <shell-test-file>...`, never in the default suite.
 - Tests must never run the real herdr binary or launch a real agent. Every herdr boundary is faked: e2e points the herdr command templates at fake-herdr.mjs (or a stub that resolves to "not installed"), unit tests mock herdrExec, and shell tests intercept the herdr command inside the harness so the real CLI and real agents are never reached.
 - Write UI tests with playwright.
+- Use `page.emulateMedia({ reducedMotion: 'reduce' })` in behavior tests; keep motion enabled when testing animations.
+- Assert settled UI state directly; prefer completion signals over polling for async work.
 - e2e tests run the real server against a sandboxed CONTEXT_LAUNCH_DATA_DIR temp dir and a scratch git repo, drive the UI with playwright, and assert on real side effects (config.json contents, git branches/worktrees). Use the tests/e2e/real-server.ts harness. Never stub the app's own server functions; mock only true external boundaries.
 - tests/e2e/mock-server.ts is a fixture for pure-UI rendering tests that need no real backend behavior.
 - Never add timeouts in code unless explicitly asked. Use standard and idiomatic features of the test harness (event-driven waits, hooks, built-in retry/poll helpers) to make tests deterministic instead.

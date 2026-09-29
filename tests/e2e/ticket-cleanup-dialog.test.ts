@@ -213,6 +213,7 @@ describe('TicketCleanupDialog (e2e, real server)', () => {
     expect(listTicketFolders(ctx.testServer, project.projectSlug)).not.toContain('t-1-alpha')
   })
   it('shows per-item check progress and enables possible items with a worktree', async () => {
+    await ctx.page.emulateMedia({ reducedMotion: 'reduce' })
     const project = await openProject(ctx, {
       slugBase: 'tc-progress',
       withTickets: [
@@ -251,7 +252,7 @@ describe('TicketCleanupDialog (e2e, real server)', () => {
     expect(statusBox!.x).toBeGreaterThan(buttonBox!.x + buttonBox!.width)
     const showAll = ctx.page.getByRole('checkbox', { name: 'Show all' })
     await showAll.uncheck()
-    expect(await remoteButton.count()).toBe(0)
+    expect(await remoteButton.isVisible()).toBe(false)
     expect(await ctx.page.getByRole('heading', { name: 'Remote branch', exact: true }).count()).toBe(0)
     expect(await testId(ctx.page, 'ticket-cleanup-delete-worktree-button').isVisible()).toBe(true)
     await testId(ctx.page, 'ticket-cleanup-cancel').click()

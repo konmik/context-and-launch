@@ -5,6 +5,26 @@
 @import '@fontsource/jetbrains-mono/700.css';
 @import 'tailwindcss';
 
+.ticket-cleanup-reveal {
+  interpolate-size: allow-keywords;
+  height: auto;
+  opacity: 1;
+  overflow: clip;
+  transition: height 180ms ease, opacity 180ms ease, visibility 180ms ease;
+}
+
+.ticket-cleanup-reveal[data-visible='false'] {
+  visibility: hidden;
+  height: 0;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticket-cleanup-reveal {
+    transition: none;
+  }
+}
+
 .worktree-select,
 .worktree-select::picker(select) {
   appearance: base-select;

@@ -225,14 +225,19 @@ function TicketCleanupTarget(props: TicketCleanupTargetProps): JSX.Element {
     return !props.hideAbsent || item.state !== 'disabled'
   }))
   return (
-    <div data-testid="ticket-cleanup-target" data-worktree-path={props.worktreePath} class="space-y-3">
+    <div data-testid="ticket-cleanup-target" data-worktree-path={props.worktreePath}>
       <For each={[
         { label: 'Worktree', keys: ['stopHerdrAgent', 'deleteWorktree'], name: () => props.worktreePath },
         { label: 'Local branch', keys: ['deleteLocalBranch'], name: () => props.branchName },
         { label: 'Remote branch', keys: ['deleteRemoteBranch'], name: () => props.branchName },
       ]}>
         {(section) => (
-          <Show when={visibleRows().some((row) => section.keys.includes(row.key))}>
+          <div
+            class="ticket-cleanup-reveal"
+            data-visible={String(visibleRows().some((row) => section.keys.includes(row.key)))}
+            inert={!visibleRows().some((row) => section.keys.includes(row.key))}
+          >
+          <div class="pb-3">
           <section aria-label={`${section.label}${section.name() ? `: ${section.name()}` : ''}`} class="rounded-md border border-border px-3 pt-3">
             <div class="flex items-baseline gap-3">
               <h3 class="shrink-0 text-sm font-medium">{section.label}</h3>
@@ -240,13 +245,8 @@ function TicketCleanupTarget(props: TicketCleanupTargetProps): JSX.Element {
                 {(name) => <p class="min-w-0 break-all font-mono text-xs text-muted-foreground">{name()}</p>}
               </Show>
             </div>
-              <table class="w-full table-fixed text-left text-sm">
-                <colgroup>
-                  <col class="w-52" />
-                  <col />
-                </colgroup>
-                <tbody class="divide-y divide-border">
-                  <For each={visibleRows().filter((row) => section.keys.includes(row.key))}>
+              <div class="divide-y divide-border text-left text-sm">
+                  <For each={rows.filter((row) => section.keys.includes(row.key))}>
                     {(row) => {
                       const item = () => s.items()[row.key]
                       const running = () => s.runningItem() === row.key
@@ -263,8 +263,9 @@ function TicketCleanupTarget(props: TicketCleanupTargetProps): JSX.Element {
                         return value.state === 'disabled' ? value : undefined
                       }
                       return (
-                        <tr class="align-top">
-                          <td class="py-3 pr-2">
+                        <div class="ticket-cleanup-reveal" data-visible={String(visibleRows().includes(row))} inert={!visibleRows().includes(row)}>
+                        <div class="grid grid-cols-[13rem_minmax(0,1fr)] items-start">
+                          <div class="py-3 pr-2">
                             <Show when={blockedItem()}>
                               {(blocked) => (
                                 <>
@@ -302,8 +303,8 @@ function TicketCleanupTarget(props: TicketCleanupTargetProps): JSX.Element {
                             >
                               {row.label}
                             </button>
-                          </td>
-                          <td
+                          </div>
+                          <div
                             class="py-3 pl-4"
                             data-testid={`${row.testId}-status`}
                             data-state={running() ? 'running' : item().state}
@@ -334,15 +335,16 @@ function TicketCleanupTarget(props: TicketCleanupTargetProps): JSX.Element {
                                 <span class="animate-pulse text-muted-foreground">Working...</span>
                               </Show>
                             </div>
-                          </td>
-                        </tr>
+                          </div>
+                        </div>
+                        </div>
                       )
                     }}
                   </For>
-                </tbody>
-              </table>
-          </section>
-          </Show>
+              </div>
+           </section>
+          </div>
+          </div>
         )}
       </For>
       <DialogRoot
