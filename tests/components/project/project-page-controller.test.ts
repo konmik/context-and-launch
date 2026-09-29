@@ -28,7 +28,6 @@ describe('ProjectPageController task detail', () => {
           status: 'loaded',
           projects: [],
           projectSlug: 'test-project',
-          projectPath: '/repo',
           suggestedNextNumber: null,
           board: {
             columns: [],
@@ -58,7 +57,6 @@ describe('ProjectPageController task detail', () => {
           status: 'loaded',
           projects: [],
           projectSlug: 'test-project',
-          projectPath: '/repo',
           suggestedNextNumber: null,
           board: {
             columns: [],

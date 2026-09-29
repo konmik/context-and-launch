@@ -48,7 +48,6 @@ const QueueItemSchema = v.union([
   v.object({
     ...QueueItemBaseSchema,
     state: v.literal('delivering'),
-    deliveryStartedAt: v.string(),
   }),
   v.object({
     ...QueueItemBaseSchema,
@@ -293,7 +292,6 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
       }
       task.queue.items[0] = withState(head, {
         state: 'delivering',
-        deliveryStartedAt: new Date().toISOString(),
       })
       delete task.queue.requestedAgentProfileName
       return task
@@ -467,7 +465,6 @@ export function createDiffReviewStore(paths: ConfigPaths, repository: ConfigRepo
         }
       | {
           state: 'delivering'
-          deliveryStartedAt: string
         }
       | {
           state: 'sent'

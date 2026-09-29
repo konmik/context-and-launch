@@ -67,7 +67,6 @@ export interface TaskStore {
   getTaskContext(folderName: string, name: string): string | null
   deleteTaskContext(folderName: string, name: string): void
   saveTaskContext(folderName: string, name: string, content: string): void
-  listAllTaskNumbers(): Array<ListAllTaskNumbersResult>
   suggestNextNumber(prefix?: string | null): string | null
   loadBoardSnapshot(columns: string[]): Promise<LoadBoardSnapshotResult>
   listTaskFiles(folderName: string): string[]
@@ -743,7 +742,6 @@ export function createTaskStore(worktreeDir: string, repo: TaskRepository = crea
     getTaskContext,
     deleteTaskContext,
     saveTaskContext,
-    listAllTaskNumbers,
     suggestNextNumber,
     loadBoardSnapshot,
     listTaskFiles,
@@ -760,7 +758,7 @@ export function createTaskStore(worktreeDir: string, repo: TaskRepository = crea
   }
 }
 
-export interface ListAllTaskNumbersResult {
+interface ListAllTaskNumbersResult {
   number: string
   createdAt?: string
 }

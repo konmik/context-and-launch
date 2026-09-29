@@ -60,7 +60,14 @@ function createFinding(
   const id = createHash('sha256')
     .update(JSON.stringify([position.file, kind, symbol, description]))
     .digest('hex')
-  return { ...position, id, kind, symbol, description, references }
+  return {
+    ...position,
+    id,
+    kind,
+    symbol,
+    description,
+    references,
+  }
 }
 
 function exportCandidates(source: ts.SourceFile, checker: ts.TypeChecker, program: ts.Program): ExportCandidate[] {
@@ -71,9 +78,9 @@ function exportCandidates(source: ts.SourceFile, checker: ts.TypeChecker, progra
   )
   const declarationSource = declarationPath === source.fileName ? undefined : program.getSourceFile(declarationPath)
   const declarationModule = declarationSource && checker.getSymbolAtLocation(declarationSource)
-  const declarationExports = new Map(declarationModule
-    ? checker.getExportsOfModule(declarationModule).map((symbol) => [symbol.name, symbol])
-    : [])
+  const declarationExports = new Map(
+    declarationModule ? checker.getExportsOfModule(declarationModule).map((symbol) => [symbol.name, symbol]) : [],
+  )
   const candidates: ExportCandidate[] = []
   const seen = new Set<ts.Symbol>()
   for (const exported of checker.getExportsOfModule(moduleSymbol)) {
@@ -93,7 +100,11 @@ function exportCandidates(source: ts.SourceFile, checker: ts.TypeChecker, progra
       const companionName = ts.getNameOfDeclaration(item)
       if (companionName) referenceNames.push(companionName)
     }
-    candidates.push({ name, referenceNames, declarations: [...declarations, ...companionDeclarations] })
+    candidates.push({
+      name,
+      referenceNames,
+      declarations: [...declarations, ...companionDeclarations],
+    })
   }
   return candidates
 }
@@ -102,6 +113,7 @@ function dynamicModuleReferences(root: string, program: ts.Program, checker: ts.
   const references = new Map<string, ReferenceLocation[]>()
   for (const source of program.getSourceFiles()) {
     if (source.isDeclarationFile || program.isSourceFileFromExternalLibrary(source)) continue
+
     function visit(node: ts.Node) {
       if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
         const argument = node.arguments[0]
@@ -117,6 +129,7 @@ function dynamicModuleReferences(root: string, program: ts.Program, checker: ts.
       }
       ts.forEachChild(node, visit)
     }
+
     visit(source)
   }
   return references
@@ -129,9 +142,7 @@ function candidateReferences(
   program: ts.Program,
   dynamicReferences: Map<string, ReferenceLocation[]>,
 ): ReferenceLocation[] {
-  const groups = candidate.referenceNames.flatMap((name) =>
-    service.findReferences(name.getSourceFile().fileName, name.getStart()) ?? [],
-  )
+  const groups = candidate.referenceNames.flatMap((name) => service.findReferences(name.getSourceFile().fileName, name.getStart()) ?? [])
   const references = new Map<string, ReferenceLocation>()
   for (const name of candidate.referenceNames) {
     for (const position of dynamicReferences.get(name.getSourceFile().fileName) ?? []) {
@@ -143,11 +154,15 @@ function candidateReferences(
       if (reference.isDefinition) continue
       const referencedSource = program.getSourceFile(reference.fileName)
       if (!referencedSource) throw new Error(`Reference source is missing: ${reference.fileName}`)
-      if (candidate.declarations.some((declaration) =>
-        declaration.getSourceFile() === referencedSource &&
-        reference.textSpan.start >= declaration.getStart(referencedSource) &&
-        reference.textSpan.start < declaration.getEnd(),
-      )) continue
+      if (
+        candidate.declarations.some(
+          (declaration) =>
+            declaration.getSourceFile() === referencedSource &&
+            reference.textSpan.start >= declaration.getStart(referencedSource) &&
+            reference.textSpan.start < declaration.getEnd(),
+        )
+      )
+        continue
       const position = location(root, referencedSource, reference.textSpan.start)
       references.set(`${position.file}:${position.line}:${position.column}`, position)
     }
@@ -204,22 +219,34 @@ function inspect(root: string, files: string[], options: ts.CompilerOptions): In
       for (const diagnostic of service.getSuggestionDiagnostics(file)) {
         if (!diagnostic.reportsUnnecessary || diagnostic.start === undefined || diagnostic.length === undefined) continue
         if (![6133, 6192, 6196, 6198, 6199].includes(diagnostic.code)) continue
-        report.findings.push(createFinding(
-          root, source, diagnostic.start,
-          source.text.slice(diagnostic.start, diagnostic.start + diagnostic.length),
-          'unused-local', diagnosticText(diagnostic), [],
-        ))
+        report.findings.push(
+          createFinding(
+            root,
+            source,
+            diagnostic.start,
+            source.text.slice(diagnostic.start, diagnostic.start + diagnostic.length),
+            'unused-local',
+            diagnosticText(diagnostic),
+            [],
+          ),
+        )
       }
       for (const candidate of exportCandidates(source, checker, program)) {
         report.exports += 1
         const references = candidateReferences(root, candidate, service, program, dynamicReferences)
         if (references.some((reference) => !isTestFile(reference.file))) continue
         const kind = references.length ? 'test-only-export' : 'unused-export'
-        report.findings.push(createFinding(
-          root, source, candidate.name.getStart(source), candidate.name.getText(source), kind,
-          kind === 'test-only-export' ? 'Export is referenced only by tests.' : 'Export has no references outside its declaration.',
-          references,
-        ))
+        report.findings.push(
+          createFinding(
+            root,
+            source,
+            candidate.name.getStart(source),
+            candidate.name.getText(source),
+            kind,
+            kind === 'test-only-export' ? 'Export is referenced only by tests.' : 'Export has no references outside its declaration.',
+            references,
+          ),
+        )
       }
     }
     report.complete = report.errors.length === 0
@@ -250,11 +277,15 @@ function main() {
   })
   const directory = inspectionOutputDirectory('unused-code-ts-')
   const output = path.join(directory, 'report.json')
-  fs.writeFileSync(output, `${JSON.stringify(report, undefined, 2)}\n`, { flag: 'wx' })
+  fs.writeFileSync(output, `${JSON.stringify(report, undefined, 2)}\n`, {
+    flag: 'wx',
+  })
   for (const finding of report.findings.slice(0, 30))
     console.log(`${finding.file}:${finding.line}:${finding.column} [${finding.kind}] ${finding.symbol}: ${finding.description}`)
   console.log(`${report.files} implementation files; ${report.exports} exports; ${report.findings.length} findings.`)
-  console.log('Experimental reference audit: framework entry points and external consumers require review; member reachability is not analyzed.')
+  console.log(
+    'Experimental reference audit: framework entry points and external consumers require review; member reachability is not analyzed.',
+  )
   console.log('Dynamic imports conservatively count as consumers of every export in the imported module.')
   console.log(`Report: ${output}`)
   if (!report.complete) {

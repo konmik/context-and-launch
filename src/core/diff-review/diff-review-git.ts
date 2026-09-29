@@ -89,7 +89,7 @@ function revisionFor(head: string, files: ReviewFileSnapshot[]): string {
 const BLOB_CACHE_LIMIT = 1024
 
 export interface DiffReviewGitService {
-  loadSnapshot(target: DiffReviewTarget, scope: DiffScope): Promise<Omit<ReviewSnapshot, 'reviewedLineIds'>>
+  loadSnapshot(target: DiffReviewTarget, scope: DiffScope): Promise<ReviewSnapshot>
 }
 
 export function createDiffReviewGitService(commands: CommandTemplateExecutor): DiffReviewGitService {
@@ -113,7 +113,7 @@ export function createDiffReviewGitService(commands: CommandTemplateExecutor): D
     return contents
   }
 
-  async function loadSnapshot(target: DiffReviewTarget, scope: DiffScope): Promise<Omit<ReviewSnapshot, 'reviewedLineIds'>> {
+  async function loadSnapshot(target: DiffReviewTarget, scope: DiffScope): Promise<ReviewSnapshot> {
     if (!fs.existsSync(target.worktreePath)) {
       throw new Error(`Agent Worktree does not exist: ${target.worktreePath}`)
     } // The HEAD revision does not gate the file list, so both reads run together.

@@ -12,7 +12,10 @@ export function isTestFile(file: string): boolean {
 }
 
 export function sourceFiles(root: string): string[] {
-  const files = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8' })
+  const files = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
+    cwd: root,
+    encoding: 'utf8',
+  })
     .split('\0')
     .filter((file) => /\.[cm]?[jt]sx?$/.test(file) && fs.existsSync(path.join(root, file)))
     .map((file) => path.join(root, file))
@@ -27,6 +30,8 @@ export function inspectionOutputDirectory(prefix: string): string {
     if (!local) throw new Error('Missing required environment variable: LOCALAPPDATA')
     parent = path.join(local, 'Temp', 'opencode')
   }
-  fs.mkdirSync(parent, { recursive: true })
+  fs.mkdirSync(parent, {
+    recursive: true,
+  })
   return fs.mkdtempSync(path.join(parent, prefix))
 }

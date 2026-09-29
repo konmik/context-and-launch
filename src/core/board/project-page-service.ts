@@ -94,7 +94,6 @@ export function createProjectPageService(
             tasks: tasksWithWorktrees,
             taskOrder,
           },
-          projectPath: project.path,
           suggestedNextNumber,
         }
       })

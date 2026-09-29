@@ -35,7 +35,6 @@ export interface ForestFlowNode {
 }
 
 export interface ForestFlowEdge {
-  id: string
   source: string
   target: string
   data: ForestEdgeData
@@ -96,7 +95,6 @@ export function buildForestFlowModel(
       },
     })),
     edges: internal.map((dependency) => ({
-      id: `dependency:${dependency.fromNumber}:${dependency.toNumber}`,
       source: dependency.fromNumber,
       target: dependency.toNumber,
       data: {

@@ -37,7 +37,11 @@ export interface LanguageServerCommands {
 }
 
 export function createLanguageServer(command: string, args: string[], root: string): LanguageServerCommands {
-  const child = spawn(command, args, { cwd: root, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
+  const child = spawn(command, args, {
+    cwd: root,
+    stdio: ['pipe', 'pipe', 'pipe'],
+    windowsHide: true,
+  })
   const errors: string[] = []
   const connection = createProtocolConnection(new StreamMessageReader(child.stdout), new StreamMessageWriter(child.stdin), {
     error: (message) => errors.push(message),
@@ -57,7 +61,10 @@ export function createLanguageServer(command: string, args: string[], root: stri
       exited = true
       if (!closing) errors.push(`Language server exited unexpectedly: code=${code}, signal=${signal}`)
       connection.dispose()
-      resolve({ code: code ?? undefined, signal: signal ?? undefined })
+      resolve({
+        code: code ?? undefined,
+        signal: signal ?? undefined,
+      })
     })
   })
   child.stderr.setEncoding('utf8')
@@ -79,13 +86,26 @@ export function createLanguageServer(command: string, args: string[], root: stri
       await connection.sendNotification(InitializedNotification.type, {})
       return result
     },
-    open: (textDocument) => connection.sendNotification(DidOpenTextDocumentNotification.type, { textDocument }),
-    symbols: (uri) => connection.sendRequest(DocumentSymbolRequest.type, { textDocument: { uri } }),
-    references: (uri, position) => connection.sendRequest(ReferencesRequest.type, {
-      textDocument: { uri },
-      position,
-      context: { includeDeclaration: false },
-    }),
+    open: (textDocument) =>
+      connection.sendNotification(DidOpenTextDocumentNotification.type, {
+        textDocument,
+      }),
+    symbols: (uri) =>
+      connection.sendRequest(DocumentSymbolRequest.type, {
+        textDocument: {
+          uri,
+        },
+      }),
+    references: (uri, position) =>
+      connection.sendRequest(ReferencesRequest.type, {
+        textDocument: {
+          uri,
+        },
+        position,
+        context: {
+          includeDeclaration: false,
+        },
+      }),
     errors: () => [...errors],
     close: async () => {
       closing = true

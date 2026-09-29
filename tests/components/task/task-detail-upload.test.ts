@@ -47,7 +47,6 @@ describe('createFileUploadState', () => {
       success({
         results: [
           failure({
-            name: 'report.txt',
             title: 'Upload failed',
             description: 'disk full',
           }),
@@ -62,7 +61,6 @@ describe('createFileUploadState', () => {
       })
       await runWithOwner(null, () => state.handleFileInputChange(inputChangeEvent([file])))
       expect(deps.onError).toHaveBeenCalledExactlyOnceWith({
-        name: 'report.txt',
         title: 'Upload failed',
         description: 'disk full',
       })
@@ -75,7 +73,6 @@ describe('createFileUploadState', () => {
       success({
         results: [
           failure({
-            name: 'notes.md',
             title: 'Upload failed',
             description: 'permission denied',
           }),
@@ -90,7 +87,6 @@ describe('createFileUploadState', () => {
       })
       await runWithOwner(null, () => state.handleFileInputChange(inputChangeEvent([file])))
       expect(deps.onError).toHaveBeenCalledExactlyOnceWith({
-        name: 'notes.md',
         title: 'Upload failed',
         description: 'permission denied',
       })
@@ -101,11 +97,7 @@ describe('createFileUploadState', () => {
   it('switches to file when upload succeeds', async () => {
     mockUploadFile.mockResolvedValue(
       success({
-        results: [
-          success({
-            name: 'report.txt',
-          }),
-        ],
+        results: [success(undefined)],
       }),
     )
     const deps = makeDeps()
@@ -125,11 +117,7 @@ describe('createFileUploadState', () => {
   it('refreshes the file lists before switching after a successful upload', async () => {
     mockUploadFile.mockResolvedValue(
       success({
-        results: [
-          success({
-            name: 'notes.md',
-          }),
-        ],
+        results: [success(undefined)],
       }),
     )
     const calls: string[] = []
@@ -160,7 +148,6 @@ describe('createFileUploadState', () => {
       success({
         results: [
           failure({
-            name: 'report.txt',
             title: 'Upload failed',
             description: 'disk full',
           }),

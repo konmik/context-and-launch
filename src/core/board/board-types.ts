@@ -23,7 +23,6 @@ export interface SyncStatus {
 export interface LoadedProjectPageData {
   status: 'loaded'
   board: Omit<BoardState, 'columns'>
-  projectPath: string
   suggestedNextNumber: string | null
 }
 

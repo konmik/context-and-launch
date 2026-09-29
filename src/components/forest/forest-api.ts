@@ -94,7 +94,7 @@ export const createGroupTask = action(async function createGroupTask(input: {
     x: number
     y: number
   } | null
-}): Promise<ResponseEnvelope<Result<GroupTaskResult, ActionError>>> {
+}): Promise<ResponseEnvelope<Result<undefined, ActionError>>> {
   'use server'
 
   try {
@@ -103,7 +103,7 @@ export const createGroupTask = action(async function createGroupTask(input: {
       projectRegistry,
       boardConfigManager,
     })
-    const group = createTaskStore(worktreeDir).createGroup(
+    createTaskStore(worktreeDir).createGroup(
       input.number,
       input.title,
       initialStatus,
@@ -111,11 +111,7 @@ export const createGroupTask = action(async function createGroupTask(input: {
       input.parentGroupNumber ?? undefined,
       input.position ?? undefined,
     )
-    return actionResult(
-      success({
-        folderName: group.folderName,
-      }),
-    )
+    return actionResult(success(undefined))
   } catch (e) {
     return actionResult(errorResult(e))
   }
@@ -135,7 +131,3 @@ export const ungroupTask = action(async function ungroupTask(input: {
     return actionResult(errorResult(e))
   }
 }, 'ungroup-forest-task')
-
-export interface GroupTaskResult {
-  folderName: string
-}

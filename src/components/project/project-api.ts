@@ -36,7 +36,6 @@ export const getSyncStatus = query(async (projectSlug: string) => {
 }, 'project-sync-status')
 
 export interface ProjectPathPreview {
-  projectSlug: string
   mainBranch: string
 }
 
@@ -45,7 +44,6 @@ export const previewProjectPath = query(async (pathValue: string): Promise<Resul
 
   try {
     return success({
-      projectSlug: projectRegistry.previewSlug(pathValue),
       mainBranch: await detectMainBranch(pathValue, commandTemplateService),
     })
   } catch (err) {

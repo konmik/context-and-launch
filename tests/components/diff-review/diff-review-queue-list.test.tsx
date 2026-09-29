@@ -177,7 +177,6 @@ describe('ReviewPromptQueueList', () => {
               {
                 ...saved.tasks.task.queue.items[0],
                 state: 'delivering',
-                deliveryStartedAt: new Date().toISOString(),
               },
             ],
           },

@@ -24,7 +24,10 @@ interface LspFinding extends ReferenceLocation {
 
 interface LspReport {
   complete: boolean
-  server?: { name: string; version?: string }
+  server?: {
+    name: string
+    version?: string
+  }
   openedFiles: number
   inspectedFiles: number
   symbols: number
@@ -60,7 +63,10 @@ function selectedText(lines: string[], range: Range): string {
 }
 
 function candidates(symbols: DocumentSymbol[], container: string[], lines: string[]): CandidateCollection {
-  const result: CandidateCollection = { candidates: [], skippedSymbols: 0 }
+  const result: CandidateCollection = {
+    candidates: [],
+    skippedSymbols: 0,
+  }
   for (const symbol of symbols) {
     const children = candidates(symbol.children ?? [], [...container, symbol.name], lines)
     result.candidates.push(...children.candidates)
@@ -71,7 +77,10 @@ function candidates(symbols: DocumentSymbol[], container: string[], lines: strin
       result.skippedSymbols += 1
       continue
     }
-    result.candidates.push({ symbol, container })
+    result.candidates.push({
+      symbol,
+      container,
+    })
   }
   return result
 }
@@ -99,8 +108,8 @@ function referenceLocation(root: string, reference: Location): ReferenceLocation
 
 function makeFinding(root: string, uri: string, candidate: Candidate, references: Location[]): LspFinding | undefined {
   const document = documentKey(uri)
-  const callers = references.filter((reference) =>
-    documentKey(reference.uri) !== document || !contains(candidate.symbol.range, reference.range.start),
+  const callers = references.filter(
+    (reference) => documentKey(reference.uri) !== document || !contains(candidate.symbol.range, reference.range.start),
   )
   const unique = new Map<string, ReferenceLocation>()
   for (const caller of callers) {
@@ -108,7 +117,10 @@ function makeFinding(root: string, uri: string, candidate: Candidate, references
     if (!isTestFile(position.file)) return undefined
     unique.set(`${position.file}:${position.line}:${position.column}`, position)
   }
-  const position = referenceLocation(root, { uri, range: candidate.symbol.selectionRange })
+  const position = referenceLocation(root, {
+    uri,
+    range: candidate.symbol.selectionRange,
+  })
   const kind = unique.size ? 'test-only' : 'unused'
   const id = createHash('sha256')
     .update(JSON.stringify([position.file, candidate.container, candidate.symbol.name, candidate.symbol.kind, kind]))
@@ -126,24 +138,34 @@ function makeFinding(root: string, uri: string, candidate: Candidate, references
 
 async function inspect(root: string, files: string[], report: LspReport): Promise<void> {
   const documents = new Map<string, string[]>()
-  const server = createLanguageServer(process.execPath, [
-    fileURLToPath(import.meta.resolve('typescript-language-server/lib/cli.mjs')),
-    '--stdio',
-  ], root)
+  const server = createLanguageServer(
+    process.execPath,
+    [fileURLToPath(import.meta.resolve('typescript-language-server/lib/cli.mjs')), '--stdio'],
+    root,
+  )
   try {
     const initialized = await server.initialize({
       processId: process.pid,
       rootUri: pathToFileURL(root).href,
-      workspaceFolders: [{ uri: pathToFileURL(root).href, name: path.basename(root) }],
+      workspaceFolders: [
+        {
+          uri: pathToFileURL(root).href,
+          name: path.basename(root),
+        },
+      ],
       capabilities: {
         textDocument: {
-          documentSymbol: { hierarchicalDocumentSymbolSupport: true },
+          documentSymbol: {
+            hierarchicalDocumentSymbolSupport: true,
+          },
           references: {},
         },
       },
       initializationOptions: {
         hostInfo: 'unused-code-checker',
-        tsserver: { path: fileURLToPath(import.meta.resolve('typescript/lib/tsserver.js')) },
+        tsserver: {
+          path: fileURLToPath(import.meta.resolve('typescript/lib/tsserver.js')),
+        },
         disableAutomaticTypingAcquisition: true,
       },
     })
@@ -153,7 +175,12 @@ async function inspect(root: string, files: string[], report: LspReport): Promis
     for (const file of files) {
       const text = fs.readFileSync(file, 'utf8')
       documents.set(file, text.split(/\r?\n/))
-      await server.open({ uri: pathToFileURL(file).href, languageId: languageId(file), version: 1, text })
+      await server.open({
+        uri: pathToFileURL(file).href,
+        languageId: languageId(file),
+        version: 1,
+        text,
+      })
       report.openedFiles += 1
     }
     for (const file of files) {
@@ -207,12 +234,16 @@ async function main(): Promise<void> {
   console.log(`Opening ${files.length} files through LSP, including tests as reference sources...`)
   await inspect(root, files, report)
   const output = path.join(inspectionOutputDirectory('unused-code-lsp-'), 'report.json')
-  fs.writeFileSync(output, `${JSON.stringify(report, undefined, 2)}\n`, { flag: 'wx' })
+  fs.writeFileSync(output, `${JSON.stringify(report, undefined, 2)}\n`, {
+    flag: 'wx',
+  })
   for (const finding of report.findings.slice(0, 30))
     console.log(`${finding.file}:${finding.line}:${finding.column} [${finding.kind}] ${[...finding.container, finding.symbol].join('.')}`)
   console.log(`${report.inspectedFiles} files; ${report.referenceRequests} reference requests; ${report.findings.length} candidates.`)
   console.log(`Skipped ${report.skippedSymbols} container or synthetic symbols without a matching declaration name.`)
-  console.log('Candidates require review: document symbols can omit locals; framework, dynamic, and external consumers may be invisible to references.')
+  console.log(
+    'Candidates require review: document symbols can omit locals; framework, dynamic, and external consumers may be invisible to references.',
+  )
   console.log(`Report: ${output}`)
   if (!report.complete) {
     console.error(report.errors.join('\n'))

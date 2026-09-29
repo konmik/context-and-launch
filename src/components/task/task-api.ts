@@ -1,4 +1,3 @@
-import type { GroupTaskResult } from '../forest/forest-api.js'
 import type { ActionError } from '../../core/shared/errors.js'
 import type { UserFacingError } from '~/util/user-facing-error.js'
 import type { Result } from '../../util/result.js'
@@ -81,14 +80,12 @@ export async function updateTask(
   number: string | null,
   title: string | null,
   status: string | null,
-): Promise<Result<GroupTaskResult, ActionError>> {
+): Promise<Result<undefined, ActionError>> {
   'use server'
 
   try {
-    const updated = await mutateTasksExclusive(projectSlug, (store) => store.updateTask(folderName, number, title, status))
-    return success({
-      folderName: updated.folderName,
-    })
+    await mutateTasksExclusive(projectSlug, (store) => store.updateTask(folderName, number, title, status))
+    return success(undefined)
   } catch (e) {
     return errorResult(e)
   }
@@ -230,7 +227,7 @@ export async function uploadFile(
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
     try {
       const store = createTaskStore(worktreeDir)
-      const results: Result<UploadedFile, FileUploadError>[] = []
+      const results: Result<undefined, UserFacingError>[] = []
       for (const [, value] of formData.entries()) {
         if (!(value instanceof File)) continue
         const fileName = value.name
@@ -238,18 +235,9 @@ export async function uploadFile(
           const arrayBuffer = await value.arrayBuffer()
           const buffer = Buffer.from(arrayBuffer)
           store.copyFileToTask(folderName, fileName, buffer)
-          results.push(
-            success({
-              name: fileName,
-            }),
-          )
+          results.push(success(undefined))
         } catch (e) {
-          results.push(
-            failure({
-              name: fileName,
-              ...errorPayload(e, 'Upload failed'),
-            }),
-          )
+          results.push(failure(errorPayload(e, 'Upload failed')))
         }
       }
       return success({
@@ -644,15 +632,7 @@ export interface ContextResult {
 }
 
 export interface UploadFileResult {
-  results: Result<UploadedFile, FileUploadError>[]
-}
-
-export interface UploadedFile {
-  name: string
-}
-
-export interface FileUploadError extends UserFacingError {
-  name: string
+  results: Result<undefined, UserFacingError>[]
 }
 
 export interface SuccessSyncTasksResult {

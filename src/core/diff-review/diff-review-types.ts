@@ -59,7 +59,6 @@ export interface ReviewSnapshot {
   revision: string
   worktreeIdentity: string
   files: ReviewFileSnapshot[]
-  reviewedLineIds: string[]
 }
 
 export interface ReviewPromptLine {
@@ -99,7 +98,6 @@ export interface WaitingReviewPromptQueueItem {
 
 export interface DeliveringReviewPromptQueueItem {
   state: 'delivering'
-  deliveryStartedAt: string
 }
 
 export interface SentReviewPromptQueueItem {

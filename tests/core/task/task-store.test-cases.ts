@@ -903,31 +903,7 @@ export function registerTaskStoreTests(shard: number | readonly number[], total:
       const rawAfter = JSON.parse(fs.readFileSync(path.join(worktreeDir, 'pr-1-preserve-createdat', 'status.json'), 'utf-8'))
       expect(rawAfter.createdAt).toBe(originalCreatedAt)
     })
-    it.concurrent('listAllTaskNumbers returns active tasks', async () => {
-      const worktreeDir = await createGitWorktree()
-      dirs.push(worktreeDir)
-      const store = createTaskStore(worktreeDir)
-      store.createTask('LN-1', 'First')
-      store.createTask('LN-2', 'Second')
-      const numbers = store.listAllTaskNumbers()
-      expect(numbers.length).toBe(2)
-      const nums = numbers.map((n) => n.number).sort()
-      expect(nums).toEqual(['LN-1', 'LN-2'])
-      expect(numbers[0].createdAt).toBeDefined()
-    })
-    it.concurrent('listAllTaskNumbers includes archived tasks', async () => {
-      const worktreeDir = await createGitWorktree()
-      dirs.push(worktreeDir)
-      const store = createTaskStore(worktreeDir)
-      store.createTask('AR-1', 'Active')
-      store.createTask('AR-2', 'To Archive')
-      store.archiveTask('ar-2-to-archive')
-      const numbers = store.listAllTaskNumbers()
-      expect(numbers.length).toBe(2)
-      const nums = numbers.map((n) => n.number).sort()
-      expect(nums).toEqual(['AR-1', 'AR-2'])
-    })
-    it.concurrent('listAllTaskNumbers with empty archive', async () => {
+    it.concurrent('suggestNextNumber handles an empty archive', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir)
       const store = createTaskStore(worktreeDir)
@@ -935,16 +911,7 @@ export function registerTaskStoreTests(shard: number | readonly number[], total:
       fs.mkdirSync(path.join(worktreeDir, 'archive'), {
         recursive: true,
       })
-      const numbers = store.listAllTaskNumbers()
-      expect(numbers.length).toBe(1)
-      expect(numbers[0].number).toBe('EA-1')
-    })
-    it.concurrent('listAllTaskNumbers with no tasks', async () => {
-      const worktreeDir = await createGitWorktree()
-      dirs.push(worktreeDir)
-      const store = createTaskStore(worktreeDir)
-      const numbers = store.listAllTaskNumbers()
-      expect(numbers.length).toBe(0)
+      expect(store.suggestNextNumber()).toBe('EA-2')
     })
     it.concurrent('suggestNextNumber returns null with no tasks', async () => {
       const worktreeDir = await createGitWorktree()
@@ -1025,7 +992,7 @@ export function registerTaskStoreTests(shard: number | readonly number[], total:
       // Highest num with prefix ST is 3 (from old task).
       expect(store.suggestNextNumber()).toBe('ST-0004')
     })
-    it.concurrent('listAllTaskNumbers returns entries without createdAt for old tasks', async () => {
+    it.concurrent('suggestNextNumber handles only legacy tasks without createdAt', async () => {
       const worktreeDir = await createGitWorktree()
       dirs.push(worktreeDir) // Simulate a pre-existing task without createdAt
       const oldDir = path.join(worktreeDir, 'old-1-legacy')
@@ -1042,10 +1009,7 @@ export function registerTaskStoreTests(shard: number | readonly number[], total:
         }),
       )
       const store = createTaskStore(worktreeDir)
-      const numbers = store.listAllTaskNumbers()
-      expect(numbers.length).toBe(1)
-      expect(numbers[0].number).toBe('OLD-1')
-      expect(numbers[0].createdAt).toBeUndefined()
+      expect(store.suggestNextNumber()).toBe('OLD-2')
     })
     it.concurrent('T3: suggestNextNumber does not crash when status.json has numeric "number" field', async () => {
       const worktreeDir = await createGitWorktree()
