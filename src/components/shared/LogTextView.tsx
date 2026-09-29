@@ -1,5 +1,5 @@
 import type { JSX } from '@solidjs/web'
-import { createEffect, onSettled } from 'solid-js'
+import { createEffect, onSettled, untrack } from 'solid-js'
 import { EditorState } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import { searchKeymap } from '@codemirror/search'
@@ -55,7 +55,7 @@ function findTextChange(previous: string, next: string): FindTextChangeResult {
 export default function LogTextView(props: { text: string }): JSX.Element {
   let containerRef: HTMLDivElement | undefined
   let view: EditorView | undefined
-  let renderedText = props.text
+  let renderedText = untrack(() => props.text)
   let initialScrollFrame: number | undefined
   const scrollToBottom = () => {
     if (!view) return

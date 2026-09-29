@@ -82,7 +82,7 @@ export function buildContextOptions(defaultNames: string[], existingNames: strin
 
 export function buildFileEntryOptions(fileNames: string[]): ActiveFile[] {
   return fileNames
-    .filter((n) => !n.endsWith('.md') && n !== 'status.json')
+    .filter((n) => (n.includes('/') || !n.endsWith('.md')) && n !== 'status.json')
     .map((name) => ({
       type: 'file' as const,
       name,

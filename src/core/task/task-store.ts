@@ -423,7 +423,13 @@ export function createTaskStore(worktreeDir: string, repo: TaskRepository = crea
       path: ref.path,
       exists: repo.exists(ref.path),
     }))
-    return buildTaskInfo(dir, status, entries, references)
+    return buildTaskInfo(
+      dir,
+      status,
+      entries,
+      references,
+      collectRelativeFilePaths(dir, entries).filter((fileName) => fileName !== 'status.json'),
+    )
   }
 
   function buildTaskInfo(
@@ -434,14 +440,11 @@ export function createTaskStore(worktreeDir: string, repo: TaskRepository = crea
       path: string
       exists: boolean
     }[],
+    fileNames: string[],
   ): TaskInfo {
     const contextNames = entries
       .filter((e) => e.isFile() && e.name.endsWith('.md'))
       .map((e) => e.name.replace(/\.md$/, ''))
-      .sort()
-    const fileNames = entries
-      .filter((e) => e.isFile() && e.name !== 'status.json')
-      .map((e) => e.name)
       .sort()
     return {
       number: status.number,
@@ -491,16 +494,52 @@ export function createTaskStore(worktreeDir: string, repo: TaskRepository = crea
       path: ref.path,
       exists: repo.exists(ref.path),
     }))
-    return buildTaskInfo(dir, status, entries, references)
+    const fileNames = (await collectRelativeFilePathsAsync(dir, entries)).filter((fileName) => fileName !== 'status.json')
+    return buildTaskInfo(dir, status, entries, references, fileNames)
+  }
+
+  function collectRelativeFilePaths(dir: string, entries: Dirent[]): string[] {
+    return entries
+      .flatMap((entry) => {
+        if (entry.isFile()) return [entry.name]
+        if (!entry.isDirectory()) return []
+        const childDir = path.join(dir, entry.name)
+        return collectRelativeFilePaths(childDir, repo.listEntries(childDir)).map((fileName) => `${entry.name}/${fileName}`)
+      })
+      .sort()
+  }
+
+  async function collectRelativeFilePathsAsync(dir: string, entries: Dirent[]): Promise<string[]> {
+    const files = await mapConcurrent(entries, READ_CONCURRENCY, async (entry) => {
+      if (entry.isFile()) return [entry.name]
+      if (!entry.isDirectory()) return []
+      const childDir = path.join(dir, entry.name)
+      const childFiles = await collectRelativeFilePathsAsync(childDir, await repo.listEntriesAsync(childDir))
+      return childFiles.map((fileName) => `${entry.name}/${fileName}`)
+    })
+    return files.flat().sort()
   }
 
   function listTaskFiles(folderName: string): string[] {
     const dir = resolveTaskDir(folderName)
-    const entries = repo.listEntries(dir)
-    return entries
-      .filter((e) => e.isFile() && e.name !== 'status.json')
-      .map((e) => e.name)
-      .sort()
+    return collectRelativeFilePaths(dir, repo.listEntries(dir)).filter((fileName) => fileName !== 'status.json')
+  }
+
+  function requireExistingTaskFilePath(folderName: string, fileName: string): string {
+    if (path.win32.isAbsolute(fileName) || fileName.includes('\\')) {
+      throw createValidationError(`fileName must be a task-relative path: ${fileName}`)
+    }
+    for (const segment of fileName.split('/')) {
+      requireNonBlank(segment, 'fileName')
+      requireSimpleName(segment, 'fileName')
+    }
+    const dir = resolveTaskDir(folderName)
+    const filePath = path.join(dir, fileName)
+    requireContainedIn(filePath, dir, 'fileName')
+    if (!repo.exists(filePath)) {
+      throw createNotFoundError(`File not found: ${fileName}`)
+    }
+    return filePath
   }
 
   function copyFileToTask(folderName: string, fileName: string, content: Buffer): void {
@@ -515,27 +554,15 @@ export function createTaskStore(worktreeDir: string, repo: TaskRepository = crea
   }
 
   function deleteTaskFile(folderName: string, fileName: string): void {
-    requireSimpleName(fileName, 'fileName')
+    const filePath = requireExistingTaskFilePath(folderName, fileName)
     if (fileName === 'status.json') {
       throw createValidationError('Cannot delete status.json', 'file')
-    }
-    const dir = resolveTaskDir(folderName)
-    const filePath = path.join(dir, fileName)
-    requireContainedIn(filePath, dir, 'fileName')
-    if (!repo.exists(filePath)) {
-      throw createNotFoundError(`File not found: ${fileName}`)
     }
     repo.deleteFile(filePath)
   }
 
   function getFileContent(folderName: string, fileName: string): Buffer {
-    requireSimpleName(fileName, 'fileName')
-    const dir = resolveTaskDir(folderName)
-    const filePath = path.join(dir, fileName)
-    requireContainedIn(filePath, dir, 'fileName')
-    if (!repo.exists(filePath)) {
-      throw createNotFoundError(`File not found: ${fileName}`)
-    }
+    const filePath = requireExistingTaskFilePath(folderName, fileName)
     return repo.readFile(filePath)
   }
 

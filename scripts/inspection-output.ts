@@ -9,6 +9,8 @@ export function inspectionOutputDirectory(prefix: string): string {
     if (!local) throw new Error('Missing required environment variable: LOCALAPPDATA')
     parent = path.join(local, 'Temp', 'opencode')
   }
-  fs.mkdirSync(parent, { recursive: true })
+  fs.mkdirSync(parent, {
+    recursive: true,
+  })
   return fs.mkdtempSync(path.join(parent, prefix))
 }

@@ -3,7 +3,11 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Reusable LSP-based unused and test-only code inspection",
-  "files": ["dist", "src", "README.md"],
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
   "exports": {
     ".": {
       "source": "./src/index.ts",
@@ -35,13 +39,19 @@
     "typescript-language-server": "5.3.0"
   },
   "peerDependenciesMeta": {
-    "typescript": { "optional": true },
-    "typescript-language-server": { "optional": true }
+    "typescript": {
+      "optional": true
+    },
+    "typescript-language-server": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "25.9.1",
     "typescript": "5.9.3",
     "typescript-language-server": "5.3.0"
   },
-  "engines": { "node": ">=22.18.0" }
+  "engines": {
+    "node": ">=22.18.0"
+  }
 }

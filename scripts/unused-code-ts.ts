@@ -28,11 +28,15 @@ function main() {
     noUnusedParameters: false,
   })
   const output = path.join(inspectionOutputDirectory('unused-code-ts-'), 'report.json')
-  fs.writeFileSync(output, `${JSON.stringify(report, undefined, 2)}\n`, { flag: 'wx' })
+  fs.writeFileSync(output, `${JSON.stringify(report, undefined, 2)}\n`, {
+    flag: 'wx',
+  })
   for (const finding of report.findings.slice(0, 30))
     console.log(`${finding.file}:${finding.line}:${finding.column} [${finding.kind}] ${finding.symbol}: ${finding.description}`)
   console.log(`${report.files} implementation files; ${report.exports} exports; ${report.findings.length} findings.`)
-  console.log('Experimental reference audit: framework entry points and external consumers require review; member reachability is not analyzed.')
+  console.log(
+    'Experimental reference audit: framework entry points and external consumers require review; member reachability is not analyzed.',
+  )
   console.log('Dynamic imports conservatively count as consumers of every export in the imported module.')
   console.log(`Report: ${output}`)
   if (!report.complete) {

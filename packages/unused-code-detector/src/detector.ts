@@ -119,7 +119,13 @@ function referenceLocation(root: string, reference: Location): ReferenceLocation
   }
 }
 
-function makeFinding(root: string, uri: string, candidate: Candidate, references: Location[], isTestFile: (file: string) => boolean): LspFinding | undefined {
+function makeFinding(
+  root: string,
+  uri: string,
+  candidate: Candidate,
+  references: Location[],
+  isTestFile: (file: string) => boolean,
+): LspFinding | undefined {
   const document = documentKey(uri)
   const callers = references.filter(
     (reference) => documentKey(reference.uri) !== document || !contains(candidate.symbol.range, reference.range.start),
@@ -212,7 +218,10 @@ export async function inspectUnusedCode(options: DetectorOptions, commands: Dete
       }
       const lines = documents.get(file)
       if (!lines) throw new Error(`Missing opened document: ${file}`)
-      const collected: CandidateCollection = { candidates: [], skippedSymbols: 0 }
+      const collected: CandidateCollection = {
+        candidates: [],
+        skippedSymbols: 0,
+      }
       collectCandidates(declarations, [], lines, collected)
       report.skippedSymbols += collected.skippedSymbols
       for (const candidate of collected.candidates) {

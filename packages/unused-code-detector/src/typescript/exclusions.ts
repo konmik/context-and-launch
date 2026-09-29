@@ -89,7 +89,12 @@ function location(node: ts.Node): Location | undefined {
   }
 }
 
-export function createTypeScriptExclusions(root: string, files: string[], options: TypeScriptExclusionOptions, isTestFile: (file: string) => boolean): TypeScriptExclusionCommands {
+export function createTypeScriptExclusions(
+  root: string,
+  files: string[],
+  options: TypeScriptExclusionOptions,
+  isTestFile: (file: string) => boolean,
+): TypeScriptExclusionCommands {
   const config = ts.readConfigFile(path.join(root, 'tsconfig.json'), ts.sys.readFile)
   if (config.error) throw new Error(ts.flattenDiagnosticMessageText(config.error.messageText, '\n'))
   const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, root)

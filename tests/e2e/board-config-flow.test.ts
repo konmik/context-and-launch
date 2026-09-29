@@ -111,10 +111,15 @@ it('uses edited board definitions immediately across settings, tasks, projects, 
   await expect.poll(() => readTaskStatus(ctx.testServer, first.projectSlug, folderName)?.status).toBe('review')
   await openTaskDetail(ctx.page, folderName)
   await testId(ctx.page, 'task-detail-tab-launcher').click()
+  const profileSaved = ctx.page.waitForResponse(
+    (response) =>
+      response.request().method() === 'POST' &&
+      !!response.request().headers()['x-server-function-id'] &&
+      !!response.request().postData()?.includes('Review Agent'),
+  )
   await testId(ctx.page, 'task-detail-launcher-profile-select').selectOption('Review Agent')
-  await expect
-    .poll(() => readProjectLauncherConfig(ctx.testServer, first.projectSlug)?.columnDefaults?.review?.profileName)
-    .toBe('Review Agent')
+  await profileSaved
+  expect(readProjectLauncherConfig(ctx.testServer, first.projectSlug)?.columnDefaults?.review?.profileName).toBe('Review Agent')
   await testId(ctx.page, 'task-detail-close-button').click()
   await openLauncherSettings(ctx.page)
   await openLauncherSettingsTab(ctx.page, 'columns')
