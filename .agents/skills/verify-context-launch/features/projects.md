@@ -8,6 +8,7 @@ Users register a local Git project and choose the branch holding its task folder
 - projects.main-branch derives main from a valid project path.
 - projects.custom-branch accepts a different task branch name.
 - projects.menu-entry opens registration from an existing project's menu.
+- projects.name preserves a registered display name in the header and Settings, including after an unchanged blur and reload.
 
 ## How to get to it (user POV)
 
@@ -27,6 +28,7 @@ Preconditions:
 - Register: capture the form, then `await page.getByTestId('add-project-submit').click()`; wait for project-header-settings-button to be visible.
 - Prove: readRegistry(session) has the expected path, mainBranch, and branch. `readTaskWorktree(session, 'verification-tasks')` returns the actual task worktree path and requires it to be inside scratchDir. Run Git branch --list in session.projectPath and Git worktree list --porcelain and copy output to evidenceDir. Reload and require the same project board.
 - Menu entry: on that board click project-header-title-menu-trigger, then project-header-add-project-menuitem; add-project-path-input appears. Capture this separately from direct-route coverage.
+- Name persistence: run scripts/prove-project-name.ts. Enter a display name before registration. Verify the persisted registry and page title. Open Settings, choose Misc, and require launcher-settings-misc-project-name-input to contain the name before reloading. Focus and blur without editing, await the save response, reload, and verify the field and registry again.
 
 ## Gotchas
 

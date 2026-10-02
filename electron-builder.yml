@@ -43,3 +43,4 @@ dmg:
 linux:
   target: AppImage
   icon: build-resources/icon.png
+  executableName: context-launch

@@ -40,7 +40,7 @@ if (process.platform === 'win32') {
 }
 
 const identity = getWorkspaceIdentity(source)
-const runRoot = fs.mkdtempSync(path.join(os.tmpdir(), `context-launch-tests-${identity.workspaceKey}-`))
+const runRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cl-tests-'))
 const workspace = path.join(runRoot, 'workspace')
 const runtime = path.join(runRoot, 'runtime')
 const excluded = new Set(['.pi-subagents', '.playwright-mcp', 'build', 'coverage', 'dist', 'dist-electron', 'temp', 'test-results'])

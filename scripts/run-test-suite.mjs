@@ -7,12 +7,17 @@ const groups = new Map()
 
 if (suite === 'selected') {
   if (testArguments.length === 0) throw new Error('Selected test runs require explicit test paths.')
-  for (const testPath of testArguments) {
+  const optionsIndex = testArguments.findIndex((argument) => argument.startsWith('-'))
+  const testPaths = optionsIndex < 0 ? testArguments : testArguments.slice(0, optionsIndex)
+  const testOptions = optionsIndex < 0 ? [] : testArguments.slice(optionsIndex)
+  if (testPaths.length === 0) throw new Error('Selected test runs require explicit test paths.')
+  for (const testPath of testPaths) {
     const normalized = testPath.replaceAll('\\', '/')
     const selectedSuite = normalized.endsWith('.shell.test.ts') ? 'shell' : /(^|\/)e2e\//.test(normalized) ? 'e2e' : 'unit'
     if (!groups.has(selectedSuite)) groups.set(selectedSuite, [])
     groups.get(selectedSuite).push(testPath)
   }
+  for (const paths of groups.values()) paths.push(...testOptions)
 } else {
   groups.set(suite, testArguments)
 }

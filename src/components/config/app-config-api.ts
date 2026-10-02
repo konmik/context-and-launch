@@ -3,8 +3,9 @@ import type { AppConfigData } from '~/core/config/app-config-data.js'
 import { failure, success, type Result } from '~/util/result.js'
 import { errorPayload } from '~/core/shared/errors.js'
 import type { UserFacingError } from '~/util/user-facing-error.js'
+import { action, query } from '@solidjs/router'
 
-export async function readAppConfig(owner?: string): Promise<Result<AppConfigData, UserFacingError>> {
+export const readAppConfig = query(async (owner?: string): Promise<Result<AppConfigData, UserFacingError>> => {
   'use server'
 
   try {
@@ -12,9 +13,9 @@ export async function readAppConfig(owner?: string): Promise<Result<AppConfigDat
   } catch (error) {
     return failure(errorPayload(error, 'Load configuration failed'))
   }
-}
+}, 'app-config')
 
-export async function saveAppConfig(configJson: string, owner: string): Promise<Result<AppConfigData, UserFacingError>> {
+export const saveAppConfig = action(async (configJson: string, owner: string): Promise<Result<AppConfigData, UserFacingError>> => {
   'use server'
 
   try {
@@ -27,7 +28,7 @@ export async function saveAppConfig(configJson: string, owner: string): Promise<
   } catch (error) {
     return failure(errorPayload(error, 'Save configuration failed'))
   }
-}
+}, 'save-app-config')
 
 export async function releaseAppConfig(owner: string): Promise<void> {
   'use server'

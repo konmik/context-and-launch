@@ -1,9 +1,26 @@
 import { describe, expect, it } from 'vitest'
-import { createRoot, flush } from 'solid-js'
+import { createRoot, createSignal, flush } from 'solid-js'
 import { createStoredSignal } from '../../src/util/stored-signal.js'
 import { failure, success } from '../../src/util/result.js'
 
 describe('stored signal', () => {
+  it('publishes revalidated reads after a local update', async () => {
+    await createRoot(async (dispose) => {
+      try {
+        const [persisted, setPersisted] = createSignal({ count: 1 })
+        const store = createStoredSignal(persisted, async (transform) => success(transform(persisted())))
+        expect(store.get()).toEqual({ count: 1 })
+        await store.update(() => ({ count: 2 }))
+        flush()
+        expect(store.get()).toEqual({ count: 2 })
+        setPersisted({ count: 3 })
+        flush()
+        expect(store.get()).toEqual({ count: 3 })
+      } finally {
+        dispose()
+      }
+    })
+  })
   it('serializes a delayed refresh with updates and reads again after a completed update', async () => {
     await createRoot(async (dispose) => {
       try {

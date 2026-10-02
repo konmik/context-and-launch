@@ -54,13 +54,13 @@ export const previewProjectPath = query(async (pathValue: string): Promise<Resul
   }
 }, 'preview-project-path')
 
-export async function addProject(
+export const addProject = action(async (
   pathValue: string,
   branch: string,
   mainBranch: string,
   boardId: string,
   name: string,
-): Promise<Result<AddProjectResult, ActionError>> {
+): Promise<Result<AddProjectResult, ActionError>> => {
   'use server'
 
   try {
@@ -82,7 +82,7 @@ export async function addProject(
   } catch (e) {
     return errorResult(e)
   }
-}
+}, 'add-project')
 
 export async function deleteProject(projectSlug: string): Promise<Result<undefined, ActionError>> {
   'use server'

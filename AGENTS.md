@@ -6,12 +6,6 @@
 - Run the full suite with `pnpm test` only when the user explicitly requests it.
 - Never add tests unless the user explicitly requests them.
 
-## Unused-code check for the finish workflow
-
-- During the finish workflow, run `pnpm run check:unused` after fixing code and before the final commit or merge.
-- Review findings and fix confirmed unused code, including test-only production APIs. Baseline only individually reviewed false positives or required external contracts, with a specific reason.
-- Follow the command's diagnostics and re-run after changes until it passes. Report analyzer failures as blockers.
-
 ## General
 
 - Only add migrations when explicitly asked.

@@ -48,7 +48,6 @@ export default defineConfig({
   },
   ssr: {
     noExternal: true,
-    external: ['chokidar'],
   },
   server: {
     watch: {

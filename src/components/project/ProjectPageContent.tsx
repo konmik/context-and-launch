@@ -1,5 +1,5 @@
 import type { JSX } from '@solidjs/web'
-import { useParams, useNavigate, revalidate } from '@solidjs/router'
+import { useParams, useNavigate, useAction, revalidate } from '@solidjs/router'
 import { AppConfigContext } from '~/components/config/app-config-storage.js'
 import { BoardConfigContext } from '~/components/board/board-config-storage.js'
 import { TaskOrderContext, createTaskOrderStorage } from '~/components/board/task-order-storage.js'
@@ -120,6 +120,7 @@ export function ProjectPageContent(props: { ctrl?: ProjectPageController }): JSX
   const appConfig = useContext(AppConfigContext)!
   const params = useParams()
   const navigate = useNavigate()
+  const runAddProject = useAction(addProject)
   const projectSlug = () => params.projectSlug ?? ''
   const errors = useErrorReporter()
   const boards = useContext(BoardConfigContext)!
@@ -610,7 +611,7 @@ export function ProjectPageContent(props: { ctrl?: ProjectPageController }): JSX
                 <FloatingPanelBody>
                   <div ref={addProjectDialogRef} class="px-6 py-4">
                     <AddProjectForm
-                      action={addProject}
+                      action={runAddProject}
                       onSuccess={(s) => {
                         commands.closeAddProject()
                         navigate(paths.project(s)())
