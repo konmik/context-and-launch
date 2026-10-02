@@ -36,6 +36,7 @@ describe('ProjectPageController task detail', () => {
           },
         }),
         runSyncTasks: () => new Promise(() => {}),
+        runDeleteProject: () => new Promise(() => {}),
       }),
       dispose,
     }))
@@ -65,6 +66,7 @@ describe('ProjectPageController task detail', () => {
           },
         }),
         runSyncTasks: () => new Promise(() => {}),
+        runDeleteProject: () => new Promise(() => {}),
       }),
       dispose,
     }))

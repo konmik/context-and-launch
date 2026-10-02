@@ -9,6 +9,7 @@ Users register a local Git project and choose the branch holding its task folder
 - projects.custom-branch accepts a different task branch name.
 - projects.menu-entry opens registration from an existing project's menu.
 - projects.name preserves a registered display name in the header and Settings, including after an unchanged blur and reload.
+- projects.delete-last removes the registration, returns to setup without server errors, and preserves project and task files.
 
 ## How to get to it (user POV)
 
@@ -29,6 +30,7 @@ Preconditions:
 - Prove: readRegistry(session) has the expected path, mainBranch, and branch. `readTaskWorktree(session, 'verification-tasks')` returns the actual task worktree path and requires it to be inside scratchDir. Run Git branch --list in session.projectPath and Git worktree list --porcelain and copy output to evidenceDir. Reload and require the same project board.
 - Menu entry: on that board click project-header-title-menu-trigger, then project-header-add-project-menuitem; add-project-path-input appears. Capture this separately from direct-route coverage.
 - Name persistence: run scripts/prove-project-name.ts. Enter a display name before registration. Verify the persisted registry and page title. Open Settings, choose Misc, and require launcher-settings-misc-project-name-input to contain the name before reloading. Focus and blur without editing, await the save response, reload, and verify the field and registry again.
+- Last-project deletion: run scripts/prove-project-deletion.ts. Register the scratch project, open Settings and Misc, click launcher-settings-delete-project, and confirm delete-project-submit. Require registration to appear, reload, inspect the empty registry and cleared last-used project, and verify project and task files remain. Retain app logs and require no server-function errors. This does not reproduce an Electron hang or native crash.
 
 ## Gotchas
 

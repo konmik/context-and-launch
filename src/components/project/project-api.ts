@@ -2,7 +2,7 @@ import type { ActionError } from '../../core/shared/errors.js'
 import { success, failure, type Result } from '~/util/result.js'
 import type { UserFacingError } from '~/util/user-facing-error.js'
 import { action, query } from '@solidjs/router'
-import { respond } from '@solidjs/web'
+import { respond, type ResponseEnvelope } from '@solidjs/web'
 import {
   configPaths,
   projectRegistry,
@@ -84,22 +84,28 @@ export const addProject = action(async (
   }
 }, 'add-project')
 
-export async function deleteProject(projectSlug: string): Promise<Result<undefined, ActionError>> {
+export interface DeleteProjectResult {
+  remainingProjectSlug?: string
+}
+
+export const deleteProject = action(async (projectSlug: string): Promise<ResponseEnvelope<Result<DeleteProjectResult, ActionError>>> => {
   'use server'
 
   try {
     const exists = projectRegistry.listProjects().some((p) => p.projectSlug === projectSlug)
     if (!exists) {
-      return errorResult(`Project not found: ${projectSlug}`)
+      return respond(errorResult(`Project not found: ${projectSlug}`), { revalidate: [] })
     }
     const worktreeDir = worktreeManager.getWorktreeDir(projectSlug)
     projectRegistry.removeProject(projectSlug)
     await fileWatcher.stop(worktreeDir)
-    return success(undefined)
+    return respond(success({ remainingProjectSlug: projectRegistry.listProjects()[0]?.projectSlug }), {
+      revalidate: ['app-config', 'default-project-slug', 'home-redirect'],
+    })
   } catch (e) {
-    return errorResult(e)
+    return respond(errorResult(e), { revalidate: [] })
   }
-}
+}, 'delete-project')
 
 export const setProjectPath = action(async (projectSlug: string, pathValue: string) => {
   'use server'

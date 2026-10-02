@@ -4,7 +4,7 @@ import { revalidate, useAction } from '@solidjs/router'
 import type { TaskInfo } from '~/core/task/task-store.js'
 import { errorPayload, type ErrorInfo } from '~/core/shared/errors.js'
 import { createTask, deleteTask, archiveTask, syncTasks, worktreeCleanup } from '../task/task-api.js'
-import { deleteProject, getSyncStatus } from './project-api.js'
+import { deleteProject, getSyncStatus, type DeleteProjectResult } from './project-api.js'
 import { taskMutationRevalidateKeys, projectSyncRevalidateKeys } from '../shared/revalidate-keys.js'
 import type { ProjectPageData } from './project-api.js'
 import { resolveConflicts, abortRebase } from '../launcher/launcher-api.js'
@@ -17,6 +17,7 @@ export interface ProjectPageDeps {
   projectSlug: () => string
   data: () => ProjectPageData | undefined
   runSyncTasks?: (projectSlug: string) => ReturnType<typeof syncTasks>
+  runDeleteProject?: (projectSlug: string) => Promise<Result<DeleteProjectResult, ErrorInfo>>
 }
 
 export function createProjectPageController(deps: ProjectPageDeps): ProjectPageControllerResult {
@@ -37,6 +38,7 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
   const [conflictDialogOpen, setConflictDialogOpen] = createSignal(false)
   const [conflictDetected, setConflictDetected] = createSignal(false)
   const runSyncTasks = deps.runSyncTasks ?? useAction(syncTasks)
+  const runDeleteProject = deps.runDeleteProject ?? useAction(deleteProject)
   let syncInProgress = false
 
   async function handleSync() {
@@ -152,10 +154,8 @@ export function createProjectPageController(deps: ProjectPageDeps): ProjectPageC
     return result
   }
 
-  async function handleDeleteProject(projectSlug: string): Promise<Result<undefined, ErrorInfo>> {
-    const result = await deleteProject(projectSlug)
-    onSuccess(result, () => revalidate('project-page'))
-    return result
+  async function handleDeleteProject(projectSlug: string): Promise<Result<DeleteProjectResult, ErrorInfo>> {
+    return runDeleteProject(projectSlug)
   }
 
   async function handleCleanupSubmit(folderName: string): Promise<Result<undefined, ErrorInfo>> {
@@ -259,7 +259,7 @@ export interface ProjectPageControllerResult {
     closeSettings: () => false
     openAddProject: () => true
     closeAddProject: () => false
-    handleDeleteProject: (projectSlug: string) => Promise<Result<undefined, ErrorInfo>>
+    handleDeleteProject: (projectSlug: string) => Promise<Result<DeleteProjectResult, ErrorInfo>>
     setCreateTaskOpen: Setter<boolean>
     setCleanupDialogOpen: Setter<boolean>
     setConflictDialogOpen: Setter<boolean>

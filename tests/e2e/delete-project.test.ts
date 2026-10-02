@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
 import { openProject, seedProject, openLauncherSettings, setupE2E, readProjectRegistry } from './fixtures.js'
 import { testId, waitVisible, waitHidden } from './locators.js'
 
@@ -64,5 +66,26 @@ describe('Delete project (e2e, real server)', () => {
     expect(ctx.page.url()).toContain(`/project/${c.projectSlug}`)
     const registry = readProjectRegistry(ctx.testServer)
     expect(registry.projects.map((p) => p.projectSlug)).toContain(c.projectSlug)
+  })
+})
+describe('Delete the last project (e2e, real server)', () => {
+  const ctx = setupE2E()
+  it('returns to registration and preserves project files after reload', async () => {
+    await ctx.page.emulateMedia({ reducedMotion: 'reduce' })
+    const project = await openProject(ctx, { slugBase: 'delete-last' })
+    expect(readProjectRegistry(ctx.testServer).projects).toHaveLength(1)
+    await deleteCurrentProject(ctx.page)
+    await ctx.page.waitForURL('**/add-project')
+    await waitVisible(ctx.page, 'add-project-path-input')
+    expect(readProjectRegistry(ctx.testServer).projects).toEqual([])
+    expect(readProjectRegistry(ctx.testServer).lastUsedProjectSlug).toBeNull()
+    expect(fs.existsSync(project.projectPath)).toBe(true)
+    expect(fs.existsSync(project.tasksPath)).toBe(true)
+    await ctx.page.reload()
+    await waitVisible(ctx.page, 'add-project-path-input')
+    expect(readProjectRegistry(ctx.testServer).projects).toEqual([])
+    const logDir = path.join(ctx.testServer.dataDir, 'logs')
+    const logs = fs.readdirSync(logDir).map((file) => fs.readFileSync(path.join(logDir, file), 'utf8')).join('\n')
+    expect(logs).not.toContain(`[server-function-error] Error: Project not found: ${project.projectSlug}`)
   })
 })

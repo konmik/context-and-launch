@@ -52,6 +52,7 @@ import { createBoardShortcutRunner } from '~/components/board/board-shortcut-run
 import { ShortcutConfirmationDialog } from '~/components/task/ShortcutConfirmationDialog.js'
 import { paths } from '~/router.js'
 import { recordAppProjectFocus } from '~/components/config/app-config-api.js'
+import { success } from '~/util/result.js'
 import { watchProjectView } from '~/components/project/project-watch.js'
 
 const KanbanBoard = lazy(() => import('~/components/board/KanbanBoard'), undefined)
@@ -651,11 +652,11 @@ export function ProjectPageContent(props: { ctrl?: ProjectPageController }): JSX
             const result = await commands.handleDeleteProject(deletedProjectSlug)
             if (result.type === 'Success') {
               commands.closeSettings()
-              const remaining = data()?.projects.filter((project) => project.projectSlug !== deletedProjectSlug) ?? []
-              await revalidate()
-              navigate(remaining[0] ? paths.project(remaining[0].projectSlug)() : paths['add-project'](), {
+              const remainingProjectSlug = result.value.remainingProjectSlug
+              navigate(remainingProjectSlug ? paths.project(remainingProjectSlug)() : paths['add-project'](), {
                 replace: true,
               })
+              return success(undefined)
             }
             return result
           }}
